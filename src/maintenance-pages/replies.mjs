@@ -1,6 +1,6 @@
 // The routes `replies` and `replies/<issue>` — replies to answer (UC-039 steps 1 to 4, and 2b, 3a, 4a), as docs/architecture/MOD-maintenance-pages.md states them and ITM-966 builds them: closed issues with mails to answer, answers received, open
 // issues; an issue with what solved it and each listed mail found in the mailbox with its draft; *Draft replies* with its run panel, or a reply written without a participant; each draft complete — recipient, subject, body, attachments — and
-// editable. Sending, *No reply*, asking a reporter and reopening are other items'.
+// editable (ITM-966); *Send* with its confirmation repeating recipient and subject, a reply sent but not noted and its note offered again, and *No reply* (ITM-967). Asking a reporter, reopening and closing are ITM-968's.
 //
 // Module: MOD-maintenance-pages
 //
@@ -11,6 +11,10 @@
 //   - The participants offered are those the register lists that can draft text and whose processing place the mailbox's connection allows (`places`); an allowed place the connection records as outside the EU is marked not compliant.
 //   - The run panel is that of the kind `draft-replies` over the issue and the mails that have no draft and can be answered. Run is the person's click; the job runs in this tab (the route tab: its drafts are stored through the mailbox this tab holds),
 //     its start record naming the issue and the product and no mail; the texts it returns are stored as drafts through the writer `mail-drafts`, and nothing is sent.
+//   - *Send* reads the draft again (showDraft), shows it in MOD-site-frame's dialog of a decision — recipient, subject, attachments, body —, and only the dialog's confirmation calls sendReply, once, with the ShownMail the dialog showed. A failure the mailbox gives
+//     (SendRefused with the server's answer, ConfirmationRefused, DraftChanged, a sign-in expired, a Bridge not running) leaves the draft and notes nothing; DraftChanged shows the draft again. A failure of the note after the send (Access's: a token refused,
+//     a permission missing) names the reply as sent and not noted and offers the note again; where the failure's name does not tell (Unreachable is both), the draft's presence in Drafts tells.
+//   - *No reply* is offered for every mail not yet noted, a mail not found in the mailbox and a mail not sendable included, and calls noReply once, on a click, without a dialog (one click per decision).
 //   - The folded explanations are built here, not by the frame's `explain`: explanations.md holds no topic of this page and it is the frame's file (as mail.mjs does).
 
 import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
@@ -18,11 +22,12 @@ import { readSetting } from "../browser-store/index.mjs";
 import { newJobId } from "../job-ledger/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
 import { prepareJob } from "../job-runner/index.mjs";
-import { repliesDue, storeReplies } from "../mail-handling/index.mjs";
+import { noReply, repliesDue, sendReply, storeReplies } from "../mail-handling/index.mjs";
+import { noteText } from "../mail-records/index.mjs";
 import { participantSchema, participantsOf, eligible } from "../participant-list/index.mjs";
 import { readDocument } from "../documents/index.mjs";
 import { queueJob, runOnTab } from "../runtimes/index.mjs";
-import { runPanel } from "../site-frame/index.mjs";
+import { confirmDecision, runPanel } from "../site-frame/index.mjs";
 import { mailboxOf, productsOf } from "./mail.mjs";
 
 const REGISTER = "docs/participants.md";
@@ -81,11 +86,16 @@ function connectionsOf(participant, store) {
   return { endpoints, bridges };
 }
 
-// A draft as the mailbox shows it, complete and editable; *Save draft* saves the edit to the draft.
-function draftBlock(box, mail, initial) {
+// The failures that are the mailbox's (nothing was sent) and those that are Access's (the note failed after the send, or the issue could not be read).
+const MAILBOX_FAILURES = new Set(["DraftChanged", "ConfirmationRefused", "SendRefused", "SignInExpired", "PermissionDeclined", "Throttled", "BridgeUnavailable", "NoEncryption", "LoginRefused", "FolderNotFound", "NoReplyAddress"]);
+const NOTE_FAILURES = new Set(["TokenRefused", "PermissionMissing", "RateLimited", "Moved", "NotFound", "NotSupported"]);
+const today = () => new Date().toISOString().slice(0, 10);
+
+// A draft as the mailbox shows it, complete and editable; *Save draft* saves the edit to the draft; *Send* sends it only on the confirmation of the mail shown.
+function draftBlock(box, mail, initial, ctx) {
   const block = el("div", "reply-draft");
   let ref = initial;
-  async function show(shownRef) {
+  async function show(shownRef, said = []) {
     const shown = await box.showDraft(shownRef);
     ref = shown.ref ?? shownRef;
     const body = el("textarea", "draft-body");
@@ -95,39 +105,89 @@ function draftBlock(box, mail, initial) {
     const save = button("save-draft", "Save draft", async () => {
       try {
         const saved = await box.updateDraft(ref, { replyTo: mail, to: shown.to[0], subject: shown.subject, body: body.value });
-        await show(saved);
-        block.append(el("p", "draft-saved", "Saved to the draft."));
+        await show(saved, [el("p", "draft-saved", "Saved to the draft.")]);
       } catch (failure) {
         edited.textContent = `The draft could not be saved: ${failed(failure)}`;
       }
     });
+    const outcome = el("div", "reply-outcome", ...said);
+    const send = button("send-reply", "Send", async () => {
+      outcome.replaceChildren();
+      let mailShown;
+      try {
+        mailShown = await box.showDraft(ref);
+      } catch (failure) {
+        outcome.append(el("p", "reply-problem", `The draft could not be read: ${failed(failure)}`));
+        return;
+      }
+      const decision = await confirmDecision({ title: `Send the reply to ${mailShown.to.map(who).join(", ")}?`,
+        lines: [`To: ${mailShown.to.map(who).join(", ")}`, ...(mailShown.cc?.length ? [`Cc: ${mailShown.cc.map(who).join(", ")}`] : []), `Subject: ${mailShown.subject}`,
+          `Attachments: ${(mailShown.attachments ?? []).map((each) => `${each.name} (${each.size} bytes)`).join(", ") || "none"}`, mailShown.body], confirm: "Send" });
+      if (!decision.confirmed) return;
+      send.disabled = true;
+      try {
+        await sendReply(box, ctx.host, ctx.due.issue, mail.id, mailShown);
+        block.replaceChildren(el("p", "reply-sent", `The reply was sent to ${mailShown.to.map(who).join(", ")} and is noted in the issue.`));
+      } catch (failure) {
+        send.disabled = false;
+        const kept = MAILBOX_FAILURES.has(failure?.name) ? true : NOTE_FAILURES.has(failure?.name) ? false : await box.showDraft(ref).then(() => true, () => false);
+        if (kept) {
+          const problem = el("p", "reply-problem", failure?.name === "SendRefused" ? `The mail server refused the mail: ${failure.answer ?? failure.message}. The draft stays.`
+            : failure?.name === "DraftChanged" ? "The draft changed since it was shown: it is shown again; check it and send again." : `The reply was not sent: ${failed(failure)}. The draft stays.`);
+          if (failure?.name === "DraftChanged") await show(ref, [problem]); else outcome.append(problem);
+          return;
+        }
+        const again = button("note-again", "Note the reply again", async () => {
+          again.disabled = true;
+          try {
+            await ctx.host.commentOnIssue(ctx.due.issue, noteText("reply-sent", mail.id, today()));
+            block.replaceChildren(el("p", "reply-sent", "The reply was sent and is noted in the issue now."));
+          } catch (error) {
+            again.disabled = false;
+            problem.textContent = `The reply was sent but is not noted in the issue: ${failed(error)}`;
+          }
+        });
+        const problem = el("p", "reply-not-noted", `The reply was sent, but the note could not be written in the issue: ${failed(failure)}`);
+        block.replaceChildren(problem, el("p", null, again));
+      }
+    });
     block.replaceChildren(el("p", null, "To: ", el("span", "draft-to", shown.to.map(who).join(", ")), shown.cc?.length ? ` · Cc: ${shown.cc.map(who).join(", ")}` : ""),
       el("p", null, "Subject: ", el("span", "draft-subject", shown.subject)), el("p", null, body),
-      el("ul", "draft-attachments", ...(shown.attachments ?? []).map((each) => el("li", null, `${each.name} (${each.size} bytes)`))), el("p", null, save), edited);
+      el("ul", "draft-attachments", ...(shown.attachments ?? []).map((each) => el("li", null, `${each.name} (${each.size} bytes)`))), el("p", null, save, " ", send), edited, outcome);
   }
   show(initial).catch((failure) => block.replaceChildren(el("p", "draft-problem", `The draft could not be read: ${failed(failure)}`)));
   return block;
 }
 
-function mailItem(entry, due, box) {
+function mailItem(entry, due, box, host) {
   const { id, mail, draft, noted } = entry;
+  const ctx = { due, host };
   const item = el("li", "reply-mail");
   item.setAttribute("data-mail", id);
+  const noteOnly = () => item.replaceChildren(el("p", "reply-noted", "A reply, or the decision not to answer, is noted in the issue."));
+  const none = () => button("no-reply", "No reply", async () => {
+    try {
+      await noReply(host, due.issue, id);
+      noteOnly();
+    } catch (failure) {
+      item.append(el("p", "reply-problem", `The decision could not be noted: ${failed(failure)}`));
+    }
+  });
   if (mail === null) {
-    item.append(el("p", "reply-missing", `${id}: not found in the mailbox. Name the folder in the mailbox connection, or decide not to reply.`));
+    item.append(el("p", "reply-missing", `${id}: not found in the mailbox. Name the folder in the mailbox connection, or decide not to reply.`), el("p", null, none()));
     return item;
   }
   item.append(el("p", null, el("span", "reply-reporter", who(mail.from)), " · ", el("span", "reply-date", mail.date), " · ", el("span", "reply-subject", mail.subject)));
-  if (noted) item.append(el("p", "reply-noted", "A reply, or the decision not to answer, is noted in the issue."));
-  else if (replyAddress(mail) === null) item.append(el("p", "reply-not-sendable", "not sendable: the mail has no usable reply address."));
-  else if (draft) item.append(draftBlock(box, mail, draft));
+  if (noted) { item.append(el("p", "reply-noted", "A reply, or the decision not to answer, is noted in the issue.")); return item; }
+  if (replyAddress(mail) === null) item.append(el("p", "reply-not-sendable", "not sendable: the mail has no usable reply address."));
+  else if (draft) item.append(draftBlock(box, mail, draft, ctx));
   else {
     const write = button("write-reply", "Write the reply myself", async () => {
       write.disabled = true;
       try {
         const [{ draft: stored, problem }] = await storeReplies(box, [{ mail, body: "" }]);
         if (problem) item.append(el("p", "reply-not-sendable", `${problem}.`));
-        else { write.remove(); item.append(draftBlock(box, mail, stored)); }
+        else { write.remove(); item.append(draftBlock(box, mail, stored, ctx)); }
       } catch (failure) {
         write.disabled = false;
         item.append(el("p", "reply-problem", `The draft could not be stored: ${failed(failure)}`));
@@ -135,6 +195,7 @@ function mailItem(entry, due, box) {
     });
     item.append(el("p", null, write));
   }
+  item.append(el("p", null, none()));
   return item;
 }
 
@@ -230,7 +291,7 @@ function groupsOf(out, ctx) {
 async function issueOf(out, ctx, params, redraw) {
   const due = GROUPS.flatMap(([, field]) => ctx.due[field]).find((each) => String(each.issue) === String(params.issue) && (!params.product || each.product === params.product));
   if (!due) { out.replaceChildren(el("p", "reply-problem", `Issue ${params.issue} is in none of the groups of the last reading.`)); return; }
-  const list = el("ul", "reply-mails", ...due.mails.map((entry) => mailItem(entry, due, ctx.box)));
+  const list = el("ul", "reply-mails", ...due.mails.map((entry) => mailItem(entry, due, ctx.box, ctx.products.get(due.product)?.host)));
   out.replaceChildren(el("section", "replies-step-issue", el("h3", null, `Issue #${due.issue} of ${ctx.products.get(due.product)?.name ?? due.product}`),
     el("p", "reply-solved", `Solved by: ${due.closedBy ?? "not known"} · Release: ${due.release ?? "not known"}`), list, fold(STEP_TEXT.issue)));
   out.append(await draftingSection(due, ctx, redraw));
