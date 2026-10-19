@@ -1,0 +1,261 @@
+// The route `generate` — generating tests, up to the proposal (UC-026 steps 1 to 4, 3a, 4a), as docs/architecture/MOD-test-pages.md states it and ITM-763 builds it: the requirements, use cases and
+// modules of the product's graph with the levels whose tests already guard each, the uncovered combinations preselected; the levels chosen, each with a folded *What is this?* naming the book's chapter; the
+// participants that fill the test-writing role, the implementer left out for the level `release` and said so (4a); the run panel of the kind `propose-tests`, whose *Run* queues one job of that kind; a
+// selection whose existing tests do not fit the participant's context sends nothing and offers a smaller one (3a).
+//
+// Not part of this item: the proposal a run returns, its review and *Write tests* (ITM-764). A run is queued here on the participant's first available route and is not followed.
+//
+// Readings the texts leave open, each named in the pull request:
+//   - a combination is a name and a level that fits its kind (UC-026's table): a requirement is checked at `release` and `user`, a use case at `system`, a module at `unit` and `component`; a combination is
+//     uncovered when no test of that level guards the name (a test guards a module it names in its `Module:` line too, as the recipe test-selection counts it);
+//   - a name is preselected when one of its combinations is uncovered, a level when one of the preselected names has it uncovered;
+//   - the implementer of what a selection checks is the participant of a job of kind `implement` whose `worksOn` names a selected name, or an item or use case that names a selected requirement;
+//   - the page asks for the person's own name, as the release panel does, since no setting holds an identity;
+//   - the run is queued on the first route routesFor offers the participant, and nothing is run in the tab.
+//
+// ONE CLICK PER DECISION; THE PAGE NAMES WHERE IT SENDS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK: nothing is written or sent while the page is drawn or the run panel shown; Run, the panel's own
+// button, is the one click that queues the job.
+//
+// Module: MOD-test-pages
+
+import { readDocument } from "../documents/index.mjs";
+import { isTestFile, testDeclarations } from "../test-document/index.mjs";
+import { traceGraph, tracesTo } from "../trace-graph/index.mjs";
+import { eligible, participantSchema, participantsOf } from "../participant-list/index.mjs";
+import { kindOf } from "../job-catalogue/index.mjs";
+import { prepareJob } from "../job-runner/index.mjs";
+import { listJobs, newJobId } from "../job-ledger/index.mjs";
+import { queueJob, routesFor } from "../runtimes/index.mjs";
+import { explain, runPanel, readProblem } from "../site-frame/index.mjs";
+
+const REGISTER = "docs/participants.md";
+const WORKFLOWS = [".github/workflows/agent-m-jobs.yml", ".gitlab/agent-m-jobs.yml"];
+const JOB_FILE = /^docs\/jobs\/(JOB-[^/]+)\.md$/;
+const LEVELS = ["unit", "component", "system", "release", "user"];
+// The levels that fit a kind of name (UC-026's table: unit from a module, component from its modules, system from a use case, release and user from a requirement).
+const FITTING = { requirement: ["release", "user"], UC: ["system"], MOD: ["unit", "component"] };
+const PARAMETER = { requirement: "requirements", UC: "useCases", MOD: "modules" };
+// What each level checks, from UC-026's table, and the chapter of the book (chapter 13) that explains it.
+const LEVEL_TEXT = {
+  unit: ["one function, class or small module in isolation; derived from a module; automated, external services mocked", "Unit Testing and Automation Structure"],
+  component: ["the interface between units that work together; derived from an architecture element and its modules; automated, misuse, misunderstanding and timing cases", "Component Testing and Interface Risks"],
+  system: ["the integrated product along a use case; derived from a use case; automated, end to end", "System Testing and Practical Scope Selection"],
+  release: ["a release candidate against the specification; derived from a requirement; automated or manual, written by someone other than the implementer", "Release Testing"],
+  user: ["the product in real use: alpha, beta, acceptance; derived from a requirement or acceptance criterion; manual, the outcome entered by a person", "User Testing and Acceptance Decisions"],
+};
+
+function el(name, className, ...children) {
+  const node = document.createElement(name);
+  if (className) node.className = className;
+  node.append(...children);
+  return node;
+}
+
+// A button that answers a person's click only (THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK).
+function button(className, text, listener) {
+  const node = el("button", className, text);
+  node.type = "button";
+  node.addEventListener("click", (event) => (event?.isTrusted === true ? listener(event) : undefined));
+  return node;
+}
+
+const walk = (node) => [...node.childNodes].flatMap((kid) => (kid.nodeType === 1 ? [kid, ...walk(kid)] : []));
+const inputsOf = (root, className) => walk(root).filter((node) => node.localName === "input" && node.className.split(" ").includes(className));
+
+function levelExplanation(level) {
+  const [what, chapter] = LEVEL_TEXT[level];
+  return el("details", "explain", el("summary", null, "What is this?"), el("p", null, `The level ${level} checks ${what}. The book, chapter 13, section "${chapter}".`));
+}
+
+// The tests that guard a name: those `tracesTo` finds, and, for a module, those that exercise it.
+function guardingTests(graph, name) {
+  const exercising = graph.nodes.get(name)?.kind === "MOD"
+    ? graph.edges.filter((edge) => edge.via === "exercises" && edge.to === name).map((edge) => edge.from) : [];
+  return [...new Set([...tracesTo(graph, name).tests, ...exercising])];
+}
+
+async function loadProduct(host) {
+  const info = await host.repositoryInfo();
+  const snapshot = await host.readSnapshot(info.defaultBranch);
+  const declarations = (await Promise.all(snapshot.paths.filter(isTestFile).map(async (path) => testDeclarations(path, (await snapshot.read(path)) ?? "")))).flat();
+  const graph = await traceGraph(snapshot);
+  const levelOf = new Map(declarations.map((declaration) => [declaration.id, declaration.level]));
+  const names = [...graph.nodes.values()].filter((node) => FITTING[node.kind]).sort((a, b) => a.id.localeCompare(b.id))
+    .map((node) => {
+      const covered = new Set(guardingTests(graph, node.id).map((id) => levelOf.get(id)).filter(Boolean));
+      return { id: node.id, kind: node.kind, covered: LEVELS.filter((level) => covered.has(level)), uncovered: FITTING[node.kind].filter((level) => !covered.has(level)) };
+    });
+  return { info, snapshot, graph, names };
+}
+
+// The participants of the instance's register that can do what the kind needs.
+async function loadParticipants(context, definition) {
+  const instance = context.instance.host;
+  const { defaultBranch } = await instance.repositoryInfo();
+  const snapshot = await instance.readSnapshot(defaultBranch);
+  const register = await snapshot.read(REGISTER);
+  const participants = register === null ? [] : participantsOf(readDocument(participantSchema(), REGISTER, register));
+  return { participants, instanceSnapshot: snapshot, writers: eligible(participants, { capabilities: definition.needs }).eligible };
+}
+
+// The participants of the jobs of kind `implement` that worked on what the selection checks.
+async function implementersOf(product, host, selected) {
+  const behaviour = new Set(selected.map((each) => each.id));
+  for (const each of selected) {
+    if (each.kind !== "requirement") continue;
+    const traces = tracesTo(product.graph, each.id);
+    for (const name of [...traces.items, ...traces.useCases]) behaviour.add(name);
+  }
+  const rows = await listJobs([{ address: product.snapshot.repository?.web ?? "", snapshot: product.snapshot }], new Map());
+  return new Set(rows.filter((row) => row.record.kind === "implement" && row.record.participant && row.record.worksOn.some((name) => behaviour.has(name)))
+    .map((row) => row.record.participant));
+}
+
+const recordRoute = (route) => (route.kind === "tab" ? "tab" : route.kind === "ci" ? (route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`) : `bridge ${route.bridge}`);
+
+async function render(target, context, params = {}) {
+  if (!context.product) {
+    target.replaceChildren(el("p", null, "Choose a product to generate tests for."));
+    return;
+  }
+  const { host } = context.product;
+  let product, definition, register;
+  try {
+    definition = await kindOf("propose-tests");
+    product = await loadProduct(host);
+    register = await loadParticipants(context, definition);
+  } catch (failure) {
+    target.replaceChildren(readProblem(failure, Boolean(context.product.tokenStored)));
+    return;
+  }
+
+  const preselectedLevels = new Set(product.names.filter((each) => each.uncovered.length).flatMap((each) => each.uncovered));
+  const list = el("ul", "names");
+  for (const each of product.names) {
+    const box = el("input", "name");
+    box.type = "checkbox";
+    box.value = each.id;
+    box.checked = each.uncovered.length > 0;
+    const item = el("li", each.uncovered.length ? "uncovered" : "covered", el("label", null, box, ` ${each.id}`), " ",
+      el("span", "kind", each.kind === "requirement" ? "requirement" : each.kind === "UC" ? "use case" : "module"), " ",
+      el("span", "covered", `guarded at: ${each.covered.join(", ") || "no level"}`), " ", el("span", "uncovered", each.uncovered.length ? `not guarded at: ${each.uncovered.join(", ")}` : ""));
+    item.setAttribute("data-name", each.id);
+    list.append(item);
+  }
+  const levels = el("ul", "levels");
+  for (const level of LEVELS) {
+    const box = el("input", "level");
+    box.type = "checkbox";
+    box.value = level;
+    box.checked = preselectedLevels.has(level);
+    const item = el("li", "level", el("label", null, box, ` ${level}`), " ", levelExplanation(level));
+    item.setAttribute("data-level", level);
+    levels.append(item);
+  }
+
+  const person = el("input", "person");
+  person.placeholder = "Your name";
+  const participantsBox = el("section", "writers");
+  const stage = el("section", "stage");
+  const selection = () => ({
+    names: inputsOf(list, "name").filter((box) => box.checked).map((box) => product.names.find((each) => each.id === box.value)),
+    levels: inputsOf(levels, "level").filter((box) => box.checked).map((box) => box.value),
+  });
+
+  async function showParticipants() {
+    stage.replaceChildren();
+    const { names, levels: chosen } = selection();
+    const offered = el("ul", "participants");
+    let writers = register.writers;
+    const notes = [];
+    if (chosen.includes("release")) {
+      const implementers = await implementersOf(product, host, names);
+      const left = writers.filter((writer) => implementers.has(writer.name));
+      writers = writers.filter((writer) => !implementers.has(writer.name));
+      for (const writer of left) notes.push(el("p", "left-out", `${writer.name} is left out: it implemented what the release tests check, and release tests are written by a participant other than the implementer.`));
+      if (left.length && !writers.length) {
+        const first = el("a", null, "UC-017");
+        first.setAttribute("href", "#use-case/id=UC-017");
+        const second = el("a", null, "UC-002");
+        second.setAttribute("href", "#use-case/id=UC-002");
+        notes.push(el("p", "release-needs-another", "Release tests need a participant other than the implementer; the only participant that fills the role is the implementer. See ", first, " and ", second,
+          ". The other levels can still be generated: leave release unticked."));
+      }
+    }
+    for (const writer of writers) {
+      const box = el("input", "participant");
+      box.type = "radio";
+      box.name = "participant";
+      box.value = writer.name;
+      const offers = routesFor(writer, register.participants, { visibility: product.info.visibility, jobWorkflow: WORKFLOWS.some((path) => product.snapshot.paths.includes(path)) }, []);
+      const item = el("li", "participant", el("label", null, box, ` ${writer.name} `), el("span", "place", writer.place ?? "no processing place declared"), " ",
+        el("span", "route", offers.length ? offers.map((offer) => `${recordRoute(offer.route)}${offer.available ? "" : " — not available"}`).join(", ") : "no route of a job"));
+      item.setAttribute("data-name", writer.name);
+      offered.append(item);
+    }
+    participantsBox.replaceChildren(el("h3", null, "Participants that write tests"), explain("independent-release-tests"), ...notes, offered);
+  }
+
+  async function showPanel() {
+    stage.replaceChildren();
+    const { names, levels: chosen } = selection();
+    const chosenWriter = inputsOf(participantsBox, "participant").find((box) => box.checked)?.value;
+    const writer = register.writers.find((each) => each.name === chosenWriter);
+    if (!names.length || !chosen.length) { stage.append(el("p", "problem", "Choose at least one requirement, use case or module and one level.")); return; }
+    if (!writer) { stage.append(el("p", "problem", "Choose the participant that writes the tests.")); return; }
+    if (!(person.value ?? "").trim()) { stage.append(el("p", "problem", "Enter your name first.")); return; }
+    const selected = { requirements: [], useCases: [], modules: [] };
+    for (const each of names) selected[PARAMETER[each.kind]].push(each.id);
+    const taParams = { ...selected, levels: chosen };
+    const now = new Date();
+    const id = newJobId(now, new Set(product.snapshot.paths.map((path) => JOB_FILE.exec(path)?.[1]).filter(Boolean)));
+    const agentM = { version: register.instanceSnapshot.commit ?? "unknown", commit: register.instanceSnapshot.commit ?? "unknown" };
+    const jobContext = { kind: definition, params: taParams, product: { address: product.snapshot.repository?.web ?? context.product.address, snapshot: product.snapshot, host },
+      instance: { snapshot: register.instanceSnapshot, host: context.instance.host, checkout: null }, connect: async () => host, participants: register.participants,
+      places: { sources: {}, mailbox: null }, gates: [], person: person.value.trim(), now, agentM, jobId: id };
+    let prepared;
+    try {
+      prepared = await prepareJob("propose-tests", jobContext, { drafter: writer, reviewers: [] });
+    } catch (failure) {
+      stage.append(readProblem(failure, Boolean(context.product.tokenStored)));
+      return;
+    }
+    const offer = routesFor(writer, register.participants, { visibility: product.info.visibility, jobWorkflow: WORKFLOWS.some((path) => product.snapshot.paths.includes(path)) }, [])[0];
+    let queued = false;
+    const result = el("section", "job");
+    const panel = runPanel(prepared, {
+      onRun: async () => {
+        if (queued) return;
+        queued = true;
+        try {
+          if (!offer || !offer.available) throw Object.assign(new Error(offer ? offer.reason : "the participant has no route of a job"), { name: "RouteUnavailable" });
+          const record = { id, kind: "propose-tests", worksOn: names.map((each) => each.id), participant: writer.name, model: writer.model, route: recordRoute(offer.route), run: null,
+            retries: null, startedBy: person.value.trim(), start: now, agentM, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit,
+            destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place, parts: each.parts })), params: taParams };
+          await queueJob(host, record, offer.route, product.snapshot.commit);
+          result.append(el("p", "queued", `Job ${id} is queued on the route ${recordRoute(offer.route)}.`));
+        } catch (failure) {
+          queued = false;
+          result.append(el("p", "result problem", `${failure.name}: ${failure.message}`));
+        }
+      },
+    });
+    stage.append(explain("run-panel"), panel);
+    if (prepared.notFitting.length) {
+      const guarding = new Set(names.flatMap((each) => guardingTests(product.graph, each.id))).size;
+      stage.append(el("p", "too-large", `${guarding} existing tests guard this selection and they do not fit into the context of ${prepared.notFitting.map((each) => each.participant.name).join(", ")}. `
+        + "Nothing is sent. Choose a smaller selection or a participant with a larger context."));
+    }
+    stage.append(result);
+  }
+
+  for (const box of [...inputsOf(list, "name"), ...inputsOf(levels, "level")]) box.addEventListener("change", () => showParticipants());
+  const show = button("btn prepare", "Show the run panel", showPanel);
+  await showParticipants();
+  target.replaceChildren(el("h2", null, "Generate tests"), explain("release-test-levels"),
+    el("section", "to-test", el("h3", null, "What can be tested"), list), el("section", "chosen-levels", el("h3", null, "Levels"), levels),
+    participantsBox, el("label", null, "Your name ", person), show, stage);
+  stage.replaceChildren();
+}
+
+export const route = { name: "generate", entry: "tests", title: "Generate tests", render };
