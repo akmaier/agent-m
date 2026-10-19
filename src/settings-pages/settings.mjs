@@ -1,6 +1,6 @@
 // MOD-settings-pages' implemented Settings slice: the endpoint settings MOD-browser-store already enumerates.
 
-import { clearEverything, clearSetting, exportSettings, importSettings, listSettings, readSetting, secretValues, writeSetting } from "../browser-store/index.mjs";
+import { clearEverything, clearSetting, exportSettings, importSettings, listSettings, readExport, readSetting, secretValues, writeSetting } from "../browser-store/index.mjs";
 import { testEndpoint } from "../endpoint-calls/index.mjs";
 import { notificationState, switchOff, switchOn, testNotification } from "../notifications/index.mjs";
 import { explain } from "../site-frame/index.mjs";
@@ -11,7 +11,7 @@ import { settingsSchemas, pseudonymisationOf } from "../personal-data/index.mjs"
 import { saveFile } from "../artifact-edits/index.mjs";
 import { recordingOf, recordingSchema } from "../prompt-bar/index.mjs";
 import { jobWorkflowFiles } from "../runtimes/index.mjs";
-import { checkProduct, credentialsFor, tokenSettingKey, route as addProductRoute } from "./products.mjs";
+import { checkProduct, credentialsFor, tokenKeyAddress, tokenSettingKey, route as addProductRoute } from "./products.mjs";
 import { connect, HostError, parseAddress } from "../repository-hosts/index.mjs";
 import { bridgeAt, pair, probe, settingsOf, testBridge } from "../bridge-client/index.mjs";
 import { bridgeFailureText, bridgeSettings as endpointBridgeSettings, recordTest, route as endpointsRoute } from "./endpoints.mjs";
@@ -358,6 +358,19 @@ function exportNotice(store, signIn) {
   return `This file contains every stored token, key and password. Whoever holds it can use: ${contained}. You may lock it with a passphrase; it cannot be recovered.`;
 }
 
+// Import settings stores nothing while the file holds a token of the other kind of server than its key names: each token the file holds is connected,
+// with MOD-repository-hosts' `connect`, to the repository its key names (tokenKeyAddress) before the file is imported, and a refusal of `connect`
+// refuses the import, with a line that names the key and never the token (`connect`'s message never holds it). A key that names no readable repository has no host to refuse it.
+async function refuseWrongTokens(context, text, passphrase) {
+  const { settings } = await readExport(text, passphrase);
+  for (const [key, entry] of Object.entries(settings)) {
+    const address = tokenKeyAddress(key, context.instance?.repository);
+    if (!address) continue;
+    try { connect(address, { token: entry?.value, tokenName: entry?.name, secrets: secretValues(context.store) }); }
+    catch (error) { throw new Error(`Nothing was imported: the token under ${key} is refused. ${error.message}`); }
+  }
+}
+
 function exportImportControls(context, signIn) {
   const notice = el("p", "settings-export-notice", exportNotice(context.store, signIn));
   const passphrase = el("input", "settings-export-passphrase");
@@ -390,7 +403,9 @@ function exportImportControls(context, signIn) {
     const chosen = file.files?.[0];
     if (!chosen) return;
     try {
-      const imported = await importSettings(context.store, await chosen.text(), importPassphrase.value);
+      const text = await chosen.text();
+      await refuseWrongTokens(context, text, importPassphrase.value);
+      const imported = await importSettings(context.store, text, importPassphrase.value);
       reconnectHosts(context);
       result.textContent = `Added: ${imported.added.join(", ") || "none"}. Kept: ${imported.kept.join(", ") || "none"}.`;
     } catch (error) {
@@ -566,13 +581,7 @@ function repositoryLine(target, context, info) {
   );
 }
 
-function repositoryAddress(context, key) {
-  try {
-    if (key === "github-token") return parseAddress(`https://github.com/${context.instance.repository}`);
-    if (key.startsWith("github-token:")) return parseAddress(`https://github.com/${key.slice("github-token:".length)}`);
-    return parseAddress(`https://${key.slice("gitlab-token:".length)}`);
-  } catch { return null; }
-}
+const repositoryAddress = (context, key) => tokenKeyAddress(key, context.instance?.repository);
 
 function repositoryStatus(info, stored) {
   if (!stored?.value) return "Not set.";
