@@ -7,6 +7,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { privacyStrategies } from "../src/personal-data/index.mjs";
 
 const handling = await import(new URL("../src/mail-handling/index.mjs", import.meta.url).href);
 // The strategies as MOD-job-runner's `registerStrategies` takes them; a missing export fails each test by name.
@@ -78,12 +79,13 @@ test("TST-954001 mail-batch gives a part per mail, the products with their descr
 // guards: A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE; UC-038
 // given: the same two mails
 // input: mail-batch run on a context
-// expect: the context holds each mail's people under its identifier, as the check people-search reads them
-test("TST-954002 mail-batch puts each mail's people into the job's context, keyed by the mail's identifier", async () => {
+// expect: the job's parameters hold the people of both mails as one People (`params.people`), which is where the check people-search reads them, and the context gets no field of its own
+test("TST-954002 mail-batch puts the people of the chosen mails into the job's parameters as one People", async () => {
   const mails = twoMails();
   const context = contextOf(batchParams(mails));
   await strategies().recipes["mail-batch"](context, context.params);
-  assert.deepEqual(context.people, { [A.id]: peopleOf(ERIKA), [B.id]: peopleOf(MAX) });
+  assert.deepEqual(context.params.people, { names: [ERIKA.name, MAX.name], addresses: [ERIKA.address, MAX.address], phones: [], accounts: [] });
+  assert.equal("people" in context, false, "the accepted JobContext has no field `people`");
 });
 
 // TST-954003
@@ -234,4 +236,53 @@ test("TST-954009 mail-drafts names a mail that cannot be answered", async () => 
   const outcome = await strategies().writers["mail-drafts"](resultOf([{ mail: A.id, text: "One." }]), contextOf({ due, mailbox }));
   assert.deepEqual(outcome.shown.map((each) => [each.id, each.draft, each.problem]), [[A.id, null, "not sendable"]]);
   assert.ok(outcome.notes.some((note) => note.includes(A.id) && note.includes("not sendable")));
+});
+
+// The real check of MOD-personal-data, as the job runner calls it: (draft, context).
+const peopleSearch = privacyStrategies.checks["people-search"];
+// The hits of the real check for a draft text, after a recipe has prepared a context for the two mails.
+async function hitsAfter(recipe, text) {
+  const mails = twoMails();
+  const context = contextOf(batchParams(mails));
+  await recipe(context, context.params);
+  return peopleSearch({ text }, context);
+}
+// What the test demands of a recipe: the check stops a draft that names a person of a chosen mail.
+async function assertStopsDraft(recipe) {
+  const hits = await hitsAfter(recipe, "Thanks to Erika Mustermann, the export now works.");
+  assert.ok(hits.length > 0, "people-search finds no hit for a draft that names a person of the mail");
+  assert.ok(hits.every((each) => each.kind === "error"), "a hit is an error finding");
+}
+
+// TST-954010
+// level: unit
+// module: MOD-mail-handling
+// guards: A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE; UC-038
+// given: mail-batch has run for two mails, from Erika Mustermann and Max Beispiel; the real people-search check of MOD-personal-data
+// input: people-search on a draft naming Erika Mustermann, on one naming only Max Beispiel's address, and on one naming no person
+// expect: the first two each find an error finding; the third finds none
+test("TST-954010 the real people-search check finds a person of a chosen mail after mail-batch", async () => {
+  const recipe = strategies().recipes["mail-batch"];
+  await assertStopsDraft(recipe);
+  assert.ok((await hitsAfter(recipe, "Please write to max@example.invalid.")).length > 0, "an address of the second mail");
+  assert.deepEqual(await hitsAfter(recipe, "The export fails with error E42."), []);
+});
+
+// TST-954011
+// level: unit
+// module: MOD-mail-handling
+// guards: A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE; UC-038
+// given: a recipe that does what the defect did: it leaves the people out of the parameters people-search reads
+// input: the test of TST-954010 on that recipe
+// expect: the test fails, since people-search finds no hit
+test("TST-954011 counter-proof: with the people left out of params.people, the same test fails", async () => {
+  const strategy = strategies().recipes["mail-batch"];
+  const withoutPeople = async (context, params) => {
+    const parts = await strategy(context, params);
+    delete context.params.people;
+    context.people = { stray: "the field the defect wrote" };
+    return parts;
+  };
+  assert.deepEqual(await hitsAfter(withoutPeople, "Thanks to Erika Mustermann, the export now works."), []);
+  await assert.rejects(assertStopsDraft(withoutPeople), /finds no hit/);
 });
