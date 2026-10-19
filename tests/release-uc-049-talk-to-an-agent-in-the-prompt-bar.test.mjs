@@ -59,7 +59,7 @@ const COVERED_BY_RELEASE = {
   "A RECORD IS EVIDENCE, NOT A PROPOSAL": [GRAPH, "tests/review-core.test.mjs", "tests/prompt-bar-record.test.mjs"],
   "NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY": [PAGES, "tests/test_mail_privacy.py", "tests/prompt-bar-record.test.mjs"],
   "A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE": [PAGES, "tests/test_mail_privacy.py"],
-  "A JOB IS RECORDED IN ITS PRODUCT REPOSITORY": [GRAPH, RELEASE, "tests/prompt-bar-hand-over.test.mjs"],
+  "A JOB IS RECORDED IN ITS PRODUCT REPOSITORY": [GRAPH, RELEASE, "tests/prompt-bar-hand-over.test.mjs", "tests/test_job_record.py"],
   "A PARTICIPANT DECLARES ITS CAPABILITIES": [GRAPH, "tests/test_participants.py", "tests/prompt-bar-offer.test.mjs"],
   "A PARTICIPANT DECLARES WHERE IT PROCESSES DATA": [GRAPH, "tests/test_participants.py", "tests/prompt-bar-offer.test.mjs"],
   "RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS": [GRAPH, "tests/review-core.test.mjs", "tests/job-runner-tools.test.mjs"],
@@ -86,8 +86,6 @@ const COVERED_BY_RELEASE = {
 const REVIEW_ONLY = ["CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI", "ONE CLICK PER DECISION"];
 // The files the SPEC names as the check of a requirement of UC-049 and that this repository does not hold (the pull request names the items that build them).
 const MISSING_CHECKS = {
-  // ITM-1132
-  "tests/test_job_record.py": ["A JOB IS RECORDED IN ITS PRODUCT REPOSITORY"],
   // ITM-1131
   "tests/test_no_secret_written.py": ["NO SECRET IN THE REPOSITORY"],
 };
@@ -138,8 +136,8 @@ test("TST-513201: UC-049 release coverage names every automatic requirement, and
 // guards: UC-049; every requirement UC-049 realises
 // given: the files the SPEC names as the checks of the requirements UC-049 realises
 // input: ask whether each exists
-// expect: every file the SPEC names exists. FINDING: two of them do not (MISSING_CHECKS: the checks of the job record and of the secret), so this case is red on main until they are written
-test("TST-513202: the checks the SPEC names for the requirements of UC-049 exist", { todo: "FINDING UC049-checks — two files the SPEC names as checks of requirements UC-049 realises are not in the repository (MISSING_CHECKS: ITM-1132, ITM-1131)" }, () => {
+// expect: every file the SPEC names exists. FINDING: one of them does not (MISSING_CHECKS: the check of the secret), so this case is red on main until they are written
+test("TST-513202: the checks the SPEC names for the requirements of UC-049 exist", { todo: "FINDING UC049-checks — one file the SPEC names as a check of a requirement UC-049 realises is not in the repository (MISSING_CHECKS: ITM-1131)" }, () => {
   const absent = Object.keys(MISSING_CHECKS).filter((file) => !existsSync(new URL(file, ROOT)));
   assert.deepEqual(absent, [], `the SPEC names these files and they do not exist`);
 });
