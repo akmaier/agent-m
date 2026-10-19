@@ -1,4 +1,4 @@
-// strategies.mjs — the recipe `resource-check` (MOD-resource-list, Parts: strategies.mjs; Interfaces: resourceStrategies): the resource a job names and the harmless request
+// strategies.mjs — the recipes `resource-check` and `resource-pins` (MOD-resource-list, Parts: strategies.mjs; Interfaces: resourceStrategies): the resource a job names and the harmless request
 // to make on the runner its check plan names, as one part, for the kind check-resource (UC-040 step 7, 7b).
 //
 // Module: MOD-resource-list
@@ -9,7 +9,7 @@
 
 import { readRegister } from "../documents/index.mjs";
 import { checkPlan } from "./pins.mjs";
-import { resourceSchema } from "./index.mjs";
+import { resourceSchema, reachableBy } from "./index.mjs";
 
 const LIST = "docs/resources.md";
 const SECRET_NAME = /^ci:([A-Za-z_][A-Za-z0-9_]*)$/;
@@ -68,5 +68,31 @@ async function resourceCheck(context, params) {
   return [{ name: resource.name, text, sources: [], required: true, artifacts: [] }];
 }
 
-// resourceStrategies: MOD-job-runner's Partial<Strategies> with the one recipe.
-export const resourceStrategies = { recipes: { "resource-check": resourceCheck } };
+// The route of a job record (MOD-job-ledger: `tab`, `ci hosted`, `ci runner:<label>`, `bridge <name>`) as the route a resource names in its Route column, or null for a route no resource names.
+function resourceRouteOf(route) {
+  if (typeof route !== "string") return null;
+  const trimmed = route.trim();
+  if (/^bridge \S+$/.test(trimmed)) return trimmed;
+  const runner = /^ci (runner:\S+)$/.exec(trimmed);
+  return runner ? runner[1] : null;
+}
+
+/**
+ * The recipe resource-pins(context, params) -> Part[] — for a job of a kind with `resources: product`, one part holding each resource of the product's list that the job's route reaches
+ * (`params.route`, in the form of the job record; reachableBy says which routes reach a resource) with its pin, one line each: `<name>@<pin>`, the entry the job's start record names among its
+ * inputs, or the bare name for a resource without a pin (compute). Gives no part where the product's list is missing or the route reaches none of its resources.
+ */
+async function resourcePins(context, params) {
+  const text = await context.product.snapshot?.read?.(LIST);
+  if (typeof text !== "string") return [];
+  const route = resourceRouteOf(params?.route);
+  const resources = readRegister(resourceSchema(), LIST, text).rows.map(resourceOf);
+  const reached = new Set(reachableBy(resources).filter((each) => each.route === route).map((each) => each.resource));
+  const lines = resources.filter(({ name }) => reached.has(name)).map(({ name, kind, pin }) => `- ${pin ? `${name}@${pin}` : name} (${kind})`);
+  if (!lines.length) return [];
+  const intro = `The product's resources that this job's route \`${route}\` reaches, each with the exact state it is pinned to. Use them in exactly this state.`;
+  return [{ name: "resource-pins", text: `${intro}\n\n${lines.join("\n")}`, sources: [], required: true, artifacts: [] }];
+}
+
+// resourceStrategies: MOD-job-runner's Partial<Strategies> with the recipes.
+export const resourceStrategies = { recipes: { "resource-check": resourceCheck, "resource-pins": resourcePins } };
