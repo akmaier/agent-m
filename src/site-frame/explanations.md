@@ -546,13 +546,18 @@ is.
 ## source-new-version
 
 A new version is a newer edition or revision of a source that is already in the library: a law that was amended, a norm that got its
-next edition, a document that was revised. Choose + New version, give the version a name that tells it apart, such as the edition or
-its date, and select its files; your browser computes each file's SHA-256, a fingerprint of its exact content. The new version is
-added beside the old versions, which are never overwritten: the library keeps every version as it was, so a product can still say
-exactly which one it used. Saving makes a commit to the instance repository under your own account (a commit is GitHub's record of
-one change, kept in the history), and the content goes to the repository the source names where its licence is restricted. Files
-with exactly the same bytes as an existing version are refused, and nothing is recorded. Products stay on the version they link
-until you move them.
+next edition, a document that was revised, a repository that has moved on. Choose + New version and give the version a name that
+tells it apart, such as the edition or its date. What the version records depends on the kind of source:
+
+- *Documents and standards*: select its files. Your browser computes each file's SHA-256, a fingerprint of its exact content, and the version records the files with their fingerprints.
+- *A repository*: select no file. The version records the commit the repository stands at when you save; a commit is GitHub's record of one change, kept in the history. No file of the repository is stored.
+- *An EU legal text that was fetched before*: select no file either. + New version starts the fetch run for the entry, which records the newer text it fetches as a further version; the same text is not recorded again.
+
+The new version is added beside the old versions, which are never overwritten: the library keeps every version as it was, so a
+product can still say exactly which one it used. Saving makes a commit to the instance repository under your own account, and the
+files go to the repository the source names where its licence is restricted. Files with exactly the same bytes as an existing
+version, or for a repository a commit that an existing version already records, are refused, and nothing is recorded. Products stay
+on the version they link until you move them.
 
 ## source-move
 

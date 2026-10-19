@@ -13,7 +13,7 @@
 
 import { renderArtifact } from "../markdown-render/index.mjs";
 import { openStore, readSetting } from "../browser-store/index.mjs";
-import { parseAddress, connect } from "../repository-hosts/index.mjs";
+import { parseAddress, connect, HostError } from "../repository-hosts/index.mjs";
 import { instanceOfPagesAddress } from "../identifiers/index.mjs";
 import { watchForAcceptance } from "../notifications/index.mjs";
 import { startPromptBar } from "../prompt-bar/index.mjs";
@@ -129,6 +129,10 @@ export function explain(topic, label = "What is this?") {
 export function readProblem(failure, tokenStored) {
   const paragraph = document.createElement("p");
   paragraph.className = "problem";
+  if (!(failure instanceof HostError)) {
+    paragraph.textContent = `This page could not be drawn: ${failure?.message ?? failure}`;
+    return paragraph;
+  }
   paragraph.textContent = failure.name === "NotFound" && !tokenStored
     ? "This repository is private or does not exist, and this browser stores no token that reaches it. Store the product's token, then reload."
     : failure.message;
@@ -304,8 +308,8 @@ async function startSite({ page, views }) {
     try {
       await route.render(target, context, shown.params);
     } catch (failure) {
-      if (failure?.name !== "TokenRefused") throw failure;
-      refusedNotice(failure);
+      if (failure?.name === "TokenRefused") refusedNotice(failure);
+      else target.replaceChildren(readProblem(failure, product ? product.tokenStored : readSetting(store, "github-token") !== null));
     }
   };
   const browser = globalThis.window ?? globalThis;
@@ -395,7 +399,12 @@ async function startBridge({ page, views }) {
     shown = { route, fragment: location.hash ?? "" };
     const context = { page, instance: { repository, host }, product: null, store,
       go: (name, params = {}) => { location.hash = fragmentOf(name, params); } };
-    await route.render(target, context, route.name === selected.name ? selected.params : {});
+    try {
+      await route.render(target, context, route.name === selected.name ? selected.params : {});
+    } catch (failure) {
+      if (failure?.name === "TokenRefused") refusedNotice(failure);
+      else target.replaceChildren(readProblem(failure, readSetting(store, "github-token") !== null));
+    }
   };
   const browser = globalThis.window ?? globalThis;
   browser.addEventListener?.("hashchange", askBeforeShowing(location, () => shown, show));

@@ -4,7 +4,7 @@
 // The specification view offers no *Change by prompt*: a change is asked for in the prompt bar (ITM-551); *Arrange* (UC-021) is not part of this file. For UC-018 (step 1, 3d) and UC-019 (step 1).
 // Run: node --test tests/trace-pages-edit-links.test.mjs
 //
-// This imports the shared small DOM of tests/site-frame.test.mjs unchanged, as the other tests of the views do, and calls the public trace/specification route with a Host of the
+// This imports the shared small DOM of tests/site-frame-dom.mjs unchanged, as the other tests of the views do, and calls the public trace/specification route with a Host of the
 // test's own that keeps to MOD-repository-hosts' interface (repositoryInfo, readSnapshot) and has no write. The fixture is the SPEC of the review pages' tests of UC-018:
 // the requirements A LOAN HAS A DUE DATE and A BOOK IS SHELVED in the section "## 1. Lending", A MEMBER HAS A CARD in "## 2. Membership", and one before every section
 // (UC-018 itself gives no requirement text). Where the file leaves a reading open, the test states the one it takes, and the pull request names it:
@@ -16,7 +16,7 @@
 // Each test case carries its declaration (given / input / expect); where a test expects a link to be absent, the same page is first shown to hold it. The counter-proofs are
 // recorded in the pull request.
 
-import "./site-frame.test.mjs";
+import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 

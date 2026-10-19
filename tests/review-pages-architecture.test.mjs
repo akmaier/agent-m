@@ -11,7 +11,7 @@
 // Guards: UC-022; A MODULE FILE IS REVIEWED AS AN ARCHITECTURE DECISION IS; ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS; STATUS IS DERIVED FROM THE RECORDS; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON; AN APPROVAL NAMES THE EXACT TEXT; DIAGRAMS ARE MERMAID IN MARKDOWN; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
 // Level: unit
 //
-// The document is the small DOM of tests/site-frame.test.mjs, imported unchanged; the repository is a Host of the tests' own over one
+// The document is the small DOM of tests/site-frame-dom.mjs, imported unchanged; the repository is a Host of the tests' own over one
 // repository in memory with a history, keeping to MOD-repository-hosts' interface, every call recorded. The real MOD-approvals,
 // MOD-documents and MOD-browser-store run as they are. Nothing reaches the network. Where the module file leaves a reading open, the test
 // states the one it takes, and the pull request names it:
@@ -25,7 +25,7 @@
 //     tests of ITM-355 pin; these tests ask them of the new kinds once.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
-import "./site-frame.test.mjs";
+import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
