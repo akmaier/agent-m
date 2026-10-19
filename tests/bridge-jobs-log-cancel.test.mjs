@@ -14,7 +14,8 @@
 //     given; `lines` are those from `from` on; `next` is the index after the last line, the `from` to ask next; `ended` is true once the job has ended, whatever way. A `from` that is no whole number of at least 0 is
 //     `invalid-request`.
 //   - A job the Bridge did not take is `not-found`, for the log and for the cancel.
-//   - The cancel answers `{ confirmed: true }` after the agent's process has ended and the job's end is written (state cancelled); for a job that has ended already there is nothing to stop and it answers `{ confirmed: true }` too.
+//   - The cancel answers `{ confirmed: true }` after the agent's process has ended; the Bridge writes no end for a job cancelled through the page (ITM-1104: the person's page appends the record of the cancel); a job ended by a quit still
+//     gets its `cancelled` end. For a job that has ended already there is nothing to stop and it answers `{ confirmed: true }` too.
 // The counter-proofs are in the pull request. Each test states its input and its expected result before it runs (given / input / expect).
 
 import assert from "node:assert/strict";
@@ -212,8 +213,8 @@ test("the log and the cancel of a job the Bridge did not take are answered by no
 // guards: UC-044; UC-036; A CANCELLED JOB WRITES NOTHING MORE
 // given: a job whose agent waits for a gate, started
 // input: POST /v1/jobs/{id}/cancel; at once, the agent's process; then the gate opened and some time given
-// expect: the answer is { confirmed: true } and, at the moment it is given, the agent's process is gone; the job is listed cancelled and its record in the product ends with state cancelled; the job wrote nothing more: no file of the kind's writer in the product, and the agent never reached its end mark
-test("POST /v1/jobs/{id}/cancel stops the agent's process, answers once it has ended, and the job commits nothing more", async () => {
+// expect: the answer is { confirmed: true } and, at the moment it is given, the agent's process is gone; the job is listed cancelled; the Bridge commits nothing after the cancel is confirmed — the product's head is the one at the answer, the record holds no end (the person's page appends the record of the cancel), and no file of the kind's writer; the agent never reached its end mark
+test("POST /v1/jobs/{id}/cancel stops the agent's process, answers once it has ended, and the Bridge commits nothing more", async () => {
   await world(async (w) => {
     const job = w.queue(PRODUCT_A, JOB(ID(3), "drafter"));
     watch(w, [{ name: "opencode", folder: w.folder("agent-work") }], { every: 50 });
@@ -224,14 +225,33 @@ test("POST /v1/jobs/{id}/cancel stops the agent's process, answers once it has e
     assert.deepEqual(answer, { confirmed: true });
     assert.equal(alive(pid), false, "the process has ended when the cancel is answered");
     assert.equal((await list()).jobs.find((each) => each.id === job.id).state, "cancelled");
-    await w.ended(job);
-    assert.match(w.originText(PRODUCT_A, job.path), /state: cancelled/);
     const head = w.originHead(PRODUCT_A);
     w.release();
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    assert.equal(w.originHead(PRODUCT_A), head, "nothing is committed after the cancel");
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    assert.equal(w.originHead(PRODUCT_A), head, "the Bridge commits nothing after the cancel is confirmed");
+    assert.doesNotMatch(w.originText(PRODUCT_A, job.path), /^## End$/m, "the record holds no end: the page appends it");
     assert.equal(w.originText(PRODUCT_A, `docs/gates/${job.id}.md`), "", "the writer wrote no file");
     assert.equal(w.finished(), false, "the agent did not reach its end");
+  }, { gated: true });
+});
+
+// TST-1104001 · level: unit · module: MOD-bridge-jobs
+// guards: UC-044; UC-036; A CANCELLED JOB WRITES NOTHING MORE
+// given: a job whose agent waits for a gate, started; the Bridge then quit (MOD-desktop-shell: the jobs still running "end as cancelled" with no page to write it)
+// input: stopWatching("quit")
+// expect: the job is listed cancelled and its record in the product ends with state cancelled, naming that the Bridge was quit; the writer of the kind wrote no file
+test("a job ended by a quit still gets its cancelled end, naming the quit", async () => {
+  await world(async (w) => {
+    const job = w.queue(PRODUCT_A, JOB(ID(6), "drafter"));
+    watch(w, [{ name: "opencode", folder: w.folder("agent-work") }], { every: 50 });
+    await w.until(() => runs(w).length === 1, "the agent to start");
+    await stopWatching("quit");
+    assert.equal((await list()).jobs.find((each) => each.id === job.id).state, "cancelled");
+    const record = w.originText(PRODUCT_A, job.path);
+    assert.match(record, /^## End$/m);
+    assert.match(record, /state: cancelled/);
+    assert.match(record, /the Bridge was quit/);
+    assert.equal(w.originText(PRODUCT_A, `docs/gates/${job.id}.md`), "");
   }, { gated: true });
 });
 
