@@ -150,7 +150,9 @@ test("Close and reply closes the open issue and shows its drafts", async () => {
   const detail = await issue(f, 9);
   assert.equal(f.w.kept.issues.find((each) => each.number === 9).state, "open");
   await trusted(one(detail, "close-and-reply"));
-  await waitFor(() => byClass(itemOf(detail, f.mails.qdraft.id), "reply-draft").length > 0);
+  // What the test asserts below is what it waits for: the state kept as closed, and the redrawn draft complete (its body shown, Send offered).
+  const draftNow = () => itemOf(detail, f.mails.qdraft.id);
+  await waitFor(() => f.w.kept.issues.find((each) => each.number === 9).state === "closed" && byClass(draftNow(), "draft-body").length > 0 && buttonsOf(draftNow(), "Send").length > 0);
   const patches = f.w.kept.github.filter((request) => request.method === "PATCH");
   assert.equal(patches.length, 1);
   assert.deepEqual(JSON.parse(patches[0].body), { state: "closed" });
