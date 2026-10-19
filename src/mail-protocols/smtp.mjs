@@ -11,7 +11,7 @@ function transportOf({ smtp, account, password }, mailer) {
     host: smtp.host,
     port: smtp.port,
     secure: security === TLS,
-    requireTLS: security === STARTTLS,
+    requireTLS: security === STARTTLS, ignoreTLS: true,
     auth: { user: account, pass: password },
     logger: false,
     debug: false,
