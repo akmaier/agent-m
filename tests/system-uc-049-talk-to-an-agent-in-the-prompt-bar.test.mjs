@@ -65,7 +65,7 @@ test("main flow: the bar names the participant with its place, Send is the decis
 // given: the page of TST-513001
 // input: a message sent to drafter
 // expect: UC-049 step 3 says the system prompt holds "Agent M's rules for what the participant drafts — everything is a proposal; a change of the SPEC is saved as a queue entry": the message the participant receives says that what it drafts is a proposal and that a change of the SPEC becomes a queue entry. FINDING: the message of the kind `converse` holds neither (it says only to change nothing the person did not ask for), so this case is red on main until the prompt carries the rules
-test("main flow (3): the system prompt carries the rules for what the participant drafts", { todo: "FINDING UC049-3 — the prompt of the kind converse does not say that everything drafted is a proposal and that a change of the SPEC is saved as a queue entry — ITM-1126" }, async () => {
+test("main flow (3): the system prompt carries the rules for what the participant drafts", async () => {
   const s = await scenario({ instanceFiles: register(DRAFTER), answers: [{ answer: "x" }] });
   const w = watch(s, { script: [answer("Understood.")] });
   await sendNow(s, INSTRUCTION);
