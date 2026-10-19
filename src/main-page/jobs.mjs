@@ -18,7 +18,7 @@ import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
 import { chosenProduct, confirmDecision, explain, tokenKeyOf } from "../site-frame/index.mjs";
 import { listJobs } from "../job-ledger/index.mjs";
-import { cancelJob, liveState, jobLog, retryJob, routesFor } from "../runtimes/index.mjs";
+import { cancelJob, liveState, jobLog, jobTrail, retryJob, routesFor } from "../runtimes/index.mjs";
 import { productFacts } from "../progress-measures/index.mjs";
 import { startable } from "../work-plans/index.mjs";
 import { mayDecide, recordGateDecision } from "../product-process/index.mjs";
@@ -275,6 +275,7 @@ async function renderJob(target, context, params, note = null) {
   if (note) page.append(el("p", "job-cancel-result", note));
   if (gate) page.append(await gateDecision(context, held, read, gate));
   if (RETRIABLE.has(row.state)) page.append(await retryControls(context, held, read));
+  page.append(await trailSection(held, read));
   page.append(el("h3", null, "Cost"), el("p", "job-cost", costLine(held.cost)));
   const log = el("div", "job-log");
   page.append(el("h3", null, "Log"), log);
@@ -474,6 +475,30 @@ async function gateDecision(context, held, read, gate) {
   reject.addEventListener("click", (event) => {
     if (event.isTrusted && !reject.disabled) decide("rejected", `Reject ${gate.gate}?`, "Reject the gate", [`${person} rejects the gate ${gate.gate} for ${record.id}. A rejection needs its reason.`], true);
   });
+  return box;
+}
+
+// What the job left in its product (UC-036 step 4): the commits of its branch, its pull request and the CI runs of those commits, read through MOD-runtimes' jobTrail. A trail that cannot be read is said so;
+// the rest of the page stands.
+async function trailSection(held, read) {
+  const box = el("div", "job-trail");
+  let trail;
+  try {
+    trail = await jobTrail(held.record, { host: read.hostOf.get(held.product) });
+  } catch (failure) {
+    box.append(el("p", "warn job-trail-problem", `What the job left in its product could not be read: ${String(failure?.message ?? failure)}`));
+    return box;
+  }
+  const link = (className, address, text) => { const anchor = el("a", className, text); anchor.setAttribute("href", address); anchor.setAttribute("target", "_blank"); anchor.setAttribute("rel", "noopener"); return anchor; };
+  box.append(el("h3", null, "Commits"));
+  box.append(trail.commits.length ? el("ul", "job-commits", ...trail.commits.map((entry) => el("li", "job-commit", `${entry.commit.slice(0, 12)} ${String(entry.message).split("\n")[0]} (${entry.date})`)))
+    : el("p", "job-commits-none", "No commits yet."));
+  box.append(el("h3", null, "Pull request"));
+  box.append(trail.pullRequest ? el("p", "job-pull-request", `#${trail.pullRequest.number} ${trail.pullRequest.title} — ${trail.pullRequest.state} `, link("pull-link", trail.pullRequest.url, "Open"))
+    : el("p", "job-pull-request", "No pull request."));
+  box.append(el("h3", null, "CI runs"));
+  box.append(trail.runs.length ? el("ul", "job-runs", ...trail.runs.map((each) => el("li", "job-run", `${each.workflow} — ${each.state} `, link("run-link", each.url, "Open"))))
+    : el("p", "job-runs-none", "No CI runs."));
   return box;
 }
 
