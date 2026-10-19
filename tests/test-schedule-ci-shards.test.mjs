@@ -26,7 +26,7 @@
 
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
-import { copyFileSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -70,10 +70,10 @@ writeFileSync(script, scriptText);
 const ruleMatch = /startsElectron = \(f\) => \/(.+)\/\.test\(/.exec(scriptText);
 assert.ok(ruleMatch, "the workflow's script holds its rule as startsElectron");
 const rule = new RegExp(ruleMatch[1]);
-const starts = (file) => rule.test(readFileSync(isAbsolute(file) ? file : join(root, file), "utf8"));
+const starts = (file, cwd = root) => rule.test(readFileSync(isAbsolute(file) ? file : join(cwd, file), "utf8"));
 
 const repositoryFiles = () => readdirSync(join(root, "tests")).filter((name) => name.endsWith(".test.mjs")).map((name) => `tests/${name}`);
-const needing = (files) => files.filter(starts);
+const needing = (files, cwd = root) => files.filter((file) => starts(file, cwd));
 // Files added before every path of tests/ (an absolute path sorts before "tests/"): small unit tests, none needing the Electron.
 const added = (count) => Array.from({ length: count }, (_, number) => {
   const path = join(work, `a-added-${number}.test.mjs`);
@@ -89,11 +89,11 @@ const electronCopies = (count) => Array.from({ length: Math.max(count, 0) }, (_,
 
 const memory = new Map();
 // The files of each of the eight shards, as the workflow's partition gives them: Map<file, shard>. Each file stands in exactly one shard.
-function shards(mode, files, key) {
+function shards(mode, files, key, cwd = root) {
   if (memory.has(key)) return memory.get(key);
   const where = new Map();
   for (let shard = 0; shard < SHARDS; shard += 1) {
-    const run = spawnSync(process.execPath, [script, mode, String(shard), String(SHARDS), ...files], { cwd: root, encoding: "utf8" });
+    const run = spawnSync(process.execPath, [script, mode, String(shard), String(SHARDS), ...files], { cwd, encoding: "utf8" });
     assert.equal(run.status, 0, `shard ${shard} of mode ${mode}: ${run.stderr}`);
     for (const file of run.stdout.trim().split("\n")) {
       assert.equal(where.has(file), false, `${file} stands in two shards`);
@@ -187,10 +187,63 @@ test("TST-945004 · every other file keeps the shard its place in the sorted lis
 test("TST-945005 · counter-proof: plain index % 8 puts two files that need the Electron into one shard over the same lists", () => {
   for (const mode of ["all", "rest"]) {
     for (const count of [0, 2]) {
-      const where = shards(mode, [...added(count), ...repositoryFiles()], `${mode}-${count}`);
-      const names = needing([...where.keys()]);
-      assert.notDeepEqual(shared(plain(where), names), [], `${mode}, ${count} files added: plain index % 8 keeps them apart, so these lists cannot show the fault`);
-      assert.deepEqual(shared(where, names), [], `${mode}, ${count} files added: the partition of the workflow keeps them apart`);
+      const outcome = counterProofOver(mode, [...added(count), ...repositoryFiles()], `${mode}-${count}`);
+      assert.notDeepEqual(outcome.plain, [], `${mode}, ${count} files added: plain index % 8 keeps them apart, so these lists cannot show the fault`);
+      assert.deepEqual(outcome.partition, [], `${mode}, ${count} files added: the partition of the workflow keeps them apart`);
+    }
+  }
+});
+
+// What the counter-proof finds over `files`: the shards that hold two files needing the Electron under plain `index % 8`, and under the
+// workflow's partition.
+function counterProofOver(mode, files, key, cwd = root) {
+  const where = shards(mode, files, key, cwd);
+  const names = needing([...where.keys()], cwd);
+  return { plain: shared(plain(where), names), partition: shared(where, names) };
+}
+
+// A copy of the repository's tests/ folder as links, with `extra` test files (paths under tests/) added to it: the root a partition is
+// run in, so that files added between the repository's own sort among them, and the repository itself stays as it is.
+function mirror(extra, name) {
+  const dir = join(work, name);
+  mkdirSync(join(dir, "tests"), { recursive: true });
+  for (const entry of ["docs", "src", "package.json"]) symlinkSync(join(root, entry), join(dir, entry));
+  for (const file of repositoryFiles()) symlinkSync(join(root, file), join(dir, file));
+  for (const file of extra) writeFileSync(join(dir, file), "// Level: unit\n");
+  return dir;
+}
+// Files added to the repository's list that move the files needing the Electron under plain `index % 8`: into eight different shards
+// (`together` false) or all into shard 0 (`together` true). Before each of them go as many as bring its place to its residue, right
+// after the file that sorts before it.
+function shiftingFiles(mode, together) {
+  const kept = [...shards(mode, repositoryFiles(), `${mode}-0`).keys()].sort();
+  const extra = [];
+  const electrons = needing(kept);
+  const target = (number) => (together ? 0 : number);
+  electrons.forEach((file, number) => {
+    const earlier = kept.filter((other) => other < file);
+    const before = earlier.length + extra.length;
+    for (let count = 0; count < (((target(number) - before) % SHARDS) + SHARDS) % SHARDS; count += 1) extra.push(`${earlier.at(-1)}!${count}.test.mjs`);
+  });
+  const sorted = [...kept, ...extra].sort();
+  assert.deepEqual(electrons.map((file) => sorted.indexOf(file) % SHARDS), electrons.map((_, number) => target(number)), `${mode}: the added files place the files that need the Electron as intended`);
+  return extra;
+}
+
+// TST-958001
+// level: unit
+// module: MOD-test-schedule
+// guards: A TEST THAT FLIPS ON THE SAME COMMIT IS FLAKY
+// given: the repository's test files, in each of the two modes, and the same files with test files added among them in two ways: as many before each file that needs the Electron as put those files into different shards under plain `index % 8`, and as many as put them all into one
+// input: the counter-proof of TST-945005 over each list
+// expect: its outcome over each shifted list is the one over the repository's list: adding files to the repository changes neither what plain `index % 8` does nor what the partition does
+test("TST-958001 · adding test files to the repository's list leaves the outcome of TST-945005 unchanged", () => {
+  for (const mode of ["all", "rest"]) {
+    const base = counterProofOver(mode, repositoryFiles(), `${mode}-0`);
+    for (const together of [false, true]) {
+      const extra = shiftingFiles(mode, together);
+      const moved = counterProofOver(mode, [...extra, ...repositoryFiles()], `${mode}-${together}`, mirror(extra, `mirror-${mode}-${together}`));
+      assert.deepEqual(moved, base, `${mode}, ${extra.length} files added${together ? " that put the Electron files into one shard" : " that put them into different ones"}`);
     }
   }
 });
