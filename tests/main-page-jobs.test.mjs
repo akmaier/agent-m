@@ -379,7 +379,7 @@ test("TST-509007 the view hands the frame the route jobs and the strategies of t
 //
 // UC-036 step 2: "Agent M shows one list across products, newest first, grouped by state. *Waiting at a gate* comes first." MOD-main-page, Interfaces `jobs`: "every job of every product and of the
 // instance in one list … waiting at a gate first". Readings the texts leave open, which these tests state (the pull request names them):
-//   - The groups are the states of MOD-job-ledger's JobState in one order — waiting at a gate, running, queued, done, failed, cancelled, ended without record — with `cancelling` within running; the rows
+//   - The groups are the states of MOD-job-ledger's JobState in one order — waiting at a gate, running, queued, done, failed, cancelled, ended without record —; the rows
 //     of a group stand newest first by the start of the record, and the job of this tab's conversation (state running) is the first of the running group.
 //   - A group is a header row <tr class="group" data-state="<state>"> with the state's name in its <th class="group-state">, directly above the rows <tr class="job"> of that state; a group none of
 //     whose rows is shown (a filter narrowed it away) has no header.
