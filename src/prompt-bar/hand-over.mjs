@@ -60,7 +60,7 @@ function teamOf(item, facts, workflow) {
 }
 
 /**
- * assess({ handOver, participant, instance, page }) -> Promise<{ reasons: string[], route: Route | null, routeText: string, facts, head: string, instanceSnapshot, participants }> — whether the
+ * assess({ handOver, participant, instance, page }) -> Promise<{ reasons: string[], route: Route | null, routeText: string, needsWorkflow: boolean, facts, head: string, instanceSnapshot, participants }> — whether the
  * hand-over { kind, works_on, task } of `participant` may start, now: for each item or step of the product's plan that it works on, the reasons startable gives (none: it may start); and the route
  * routesFor gives it, with `routeText` the route as the record writes it, or why none is offered. `page` is { address, host } of the repository the conversation is held on; `head` is the commit
  * the facts were read at. Reads through the hosts and writes nothing; throws what the hosts throw.
@@ -84,7 +84,9 @@ export async function assess({ handOver, participant, instance, page }) {
   const refused = offers.find((each) => each.route.kind !== "tab") ?? null;
   const routeText = taken ? recordRoute(taken.route) : refused ? refused.reason
     : offers.length > 0 ? "this participant's route is this tab, which a hand-over does not take" : "this participant has no route a job takes";
-  return { reasons, route: taken?.route ?? null, routeText, facts, head: facts.snapshot.commit, instanceSnapshot, participants };
+  // UC-049 4c: what is missing is the job workflow, when the product has none and the CI route is therefore unavailable.
+  const needsWorkflow = taken === null && !jobWorkflow && offers.some((each) => each.route.kind === "ci" && !each.available);
+  return { reasons, route: taken?.route ?? null, routeText, needsWorkflow, facts, head: facts.snapshot.commit, instanceSnapshot, participants };
 }
 
 // The parameters the job rests on, from what it works on by name: use cases (`useCases`, and `useCase` where it is one), plan steps (`steps`: the names the product's plan holds as a file under docs/plan/) and

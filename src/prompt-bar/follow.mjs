@@ -40,7 +40,7 @@ function bridgesOf(record, store) {
  */
 export function followJob({ id, address, host, store, show }) {
   const path = `docs/jobs/${id}.md`;
-  const view = { id, state: null, route: null, address: null, lines: [], end: null, cancel: null, problem: null };
+  const view = { id, state: null, route: null, address: null, missingSecret: null, lines: [], end: null, cancel: null, problem: null };
   let record = null, timer = null, stopped = false, busy = false, streaming = false;
 
   const emit = () => { if (!stopped) show({ ...view, lines: [...view.lines] }); };
@@ -65,6 +65,15 @@ export function followJob({ id, address, host, store, show }) {
         }
       })();
     }
+  }
+
+  // A run that ended `not run` for a missing secret takes no job, so the record stays queued: the newest failed run of the job workflow that this record's start does not
+  // predate says so in its log (MOD-workflow-entries' command line prints `<entry>: not run — <SECRET> is missing`). The secret is named; none is asked for.
+  async function secretOf() {
+    const runs = await host.listCiRuns({ workflow: "agent-m-jobs.yml" });
+    const failed = runs.filter((run) => run.state === "failed" && (run.started === null || new Date(run.started) >= record.start));
+    const log = failed.length ? await host.ciRunLog(failed[failed.length - 1].id) : null;
+    return /: not run — (\S+) is missing/.exec(log ?? "")?.[1] ?? null;
   }
 
   async function poll() {
@@ -92,6 +101,7 @@ export function followJob({ id, address, host, store, show }) {
       view.end = record.end;
       view.problem = live && !live.reachable ? `The runtime is not reachable: ${live.reason}` : !row.source.reachable ? `The record could not be read: ${row.source.reason}` : null;
       if (record.end && view.address === null && typeof record.end.log === "string") view.address = record.end.log;
+      if (!record.end && !record.taken && record.route.startsWith("ci ")) view.missingSecret = await secretOf().catch(() => null);
       if (!live || live.reachable) await logOf(bridges); // a runtime that has just not answered is not asked again for the log
     } catch (failure) {
       view.problem = `The job could not be followed. ${said(failure)}`;

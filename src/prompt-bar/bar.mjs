@@ -45,6 +45,13 @@ const linkTo = (address) => {
   return node;
 };
 
+// The server's page of the repository's secrets (MOD-repository-hosts' webLinks), as a link.
+const secretsLink = (host) => {
+  const node = el("a", "secrets-link", "Secrets of this repository");
+  node.setAttribute("href", host.webLinks().secrets);
+  return node;
+};
+
 // The conversation the tab keeps, its moments read back as dates; empty where the tab keeps none or cannot.
 function conversationOf(store) {
   try {
@@ -156,11 +163,12 @@ export function startPromptBar(target, setup) {
     refreshStop();
     const route = view.route ?? "";
     const waiting = view.end !== null || route === "" ? [] : [el("p", "waiting", route.startsWith("bridge ") ? `waiting for the Bridge ${route.slice("bridge ".length)}` : "waiting for GitHub Actions")];
+    const secret = view.missingSecret === null ? [] : [el("p", "missing-secret", `Not run: the secret ${view.missingSecret} is missing. Add it on the server's page of this repository's secrets: `, secretsLink(pageOf().host))];
     const run = view.address === null ? [] : [el("p", "run-address", "Run: ", linkTo(view.address))];
     const ended = view.end === null ? [] : [el("p", "ended", `Ended: ${view.end.state}`),
       ...(view.end.reason ? [el("p", "reason", `Reason: ${view.end.reason}`)] : []),
       ...(view.end.results.length ? [el("ul", "commits", ...view.end.results.map((each) => el("li", "commit", each)))] : [])];
-    followed.replaceChildren(el("h3", null, `Handed over: ${view.id}`), el("p", "state", `State: ${view.state ?? "reading…"}`), ...waiting, ...run,
+    followed.replaceChildren(el("h3", null, `Handed over: ${view.id}`), el("p", "state", `State: ${view.state ?? "reading…"}`), ...waiting, ...secret, ...run,
       ...(view.lines.length ? [el("pre", "log", view.lines.join("\n"))] : []), ...ended, ...(view.cancel ? [el("p", "cancel", view.cancel)] : []),
       ...(view.problem ? [problem(view.problem)] : []));
   }
@@ -178,6 +186,11 @@ export function startPromptBar(target, setup) {
     section.append(el("p", "proposed", `Participant: ${participant.name} — ${placeOf(participant)}`), outcome);
     const render = (assessment) => {
       const parts = [el("p", "route", assessment.route ? `Route: ${assessment.routeText}` : `Route: not available — ${assessment.routeText}`)];
+      if (assessment.needsWorkflow) {
+        const set = button("settings-link", "Set up the job workflow");
+        set.addEventListener("click", () => setup.go("settings"));
+        parts.push(set);
+      }
       if (assessment.reasons.length) parts.push(el("ul", "start-reasons", ...assessment.reasons.map((each) => el("li", "reason", each))));
       else if (assessment.route) {
         const hand = button("queue", "Hand over");
