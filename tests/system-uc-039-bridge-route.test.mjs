@@ -107,7 +107,7 @@ test("alternatives 5a and 5b on the IMAP route: the hash changes with the edit, 
     await waitFor(() => p.imap.folders.Drafts.length === 1 && textBody(p.imap.folders.Drafts[0].raw).includes("Edited reply text"));
     const edited = p.imap.folders.Drafts[0].raw;
     assert.notEqual(sha(edited), original, "its hash changed with the edit");
-    await waitFor(() => byClass(item, "send-reply").length > 0);
+    await waitFor(() => /Saved to the draft/.test(textOf(item)));
     await pressSend(item);
     assert.ok(textOf(dialog()).includes("Edited reply text before sending."));
     assert.deepEqual(p.smtp.messages, []);
