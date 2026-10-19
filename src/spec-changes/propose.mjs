@@ -29,9 +29,9 @@ import { linkedVersion, sourceSchemas } from "../source-register/index.mjs";
 import { fallbackEditLinks } from "../artifact-edits/fallback.mjs";
 import { parseSpec, sectionText } from "../spec-document/index.mjs";
 import { blobSha } from "../text-tools/index.mjs";
-import { requirementImpact, traceGraph } from "../trace-graph/index.mjs";
-import { impactOf } from "./accept.mjs";
-import { queueRationaleSchema, queues } from "./queues.mjs";
+import { requirementImpact } from "../trace-graph/index.mjs";
+import { graphOf, impactOf } from "./accept.mjs";
+import { queueRationaleSchema, queues, spanText } from "./queues.mjs";
 
 const failure = (name, message, fields) => Object.assign(new Error(message), { name, ...fields });
 const folded = (text) => String(text ?? "").replace(/\s+/g, " ").trim();
@@ -283,7 +283,7 @@ export async function queueEntries(result, context) {
   const named = new Map();
   const prepared = [];
   for (const { where, mine, spec, composable, sections } of plans) {
-    const graph = await traceGraph(where.snapshot);
+    const graph = await graphOf(where.snapshot);
     const taken = named.get(where.snapshot) ?? [];
     const { day, folder } = folderFor([...where.snapshot.paths, ...taken.map((each) => `${each}/index.md`)], date, slug);
     named.set(where.snapshot, [...taken, folder]);
@@ -373,11 +373,28 @@ async function pathsWhenOpened(host, snapshot, openedHead) {
   return new Set((await host.readSnapshot(openedHead)).paths);
 }
 
+// The pages of GitHub's web interface for the files of an entry, each marked as differing where its file exists on the default branch otherwise than at the commit the edit was opened on.
+async function pagesFor(host, snapshot, openedHead, files) {
+  const began = await pathsWhenOpened(host, snapshot, openedHead);
+  return fallbackEditLinks(files.map((file) => ({ ...file, existing: began.has(file.path) })), snapshot);
+}
+
+// The commit of an entry, or, where GitHub refuses it for a missing write permission (`PermissionMissing`), nothing written and GitHub's pages instead, as for a person with no token (UC-018 6b).
+// On GitLab, which has no such fallback, and for every other failure, the failure is thrown as it came.
+async function commitOrPages(host, snapshot, openedHead, files, commit) {
+  try {
+    return await host.commitFiles(commit);
+  } catch (failure) {
+    if (failure?.name !== "PermissionMissing" || snapshot.repository.server === "gitlab") throw failure;
+    return { fallback: await pagesFor(host, snapshot, openedHead, files) };
+  }
+}
+
 export async function proposeSection(host, change) {
   const info = await host.repositoryInfo();
   const snapshot = await host.readSnapshot(info.defaultBranch);
   const targetText = await snapshot.read(change.target);
-  const before = typeof targetText === "string" ? sectionText(targetText, change.anchor) : null;
+  const before = typeof targetText === "string" ? spanText(targetText, change.anchor, change.until) : null;
   if ((before === null ? null : await blobSha(before)) !== change.openedBlob) return { refused: "changed meanwhile", current: before };
   if (!info.canWrite && snapshot.repository.server === "gitlab") throw failure("TokenRequired", "a GitLab product is written with a token");
 
@@ -388,7 +405,7 @@ export async function proposeSection(host, change) {
   const replaced = mine?.entries.find(sameSection) ?? null;
   const alsoReplacing = all.flatMap((queue) => (queue.folder === mine?.folder ? [] : queue.entries.filter(sameSection).map((entry) => ({ queue: queue.folder, entry: entry.number }))));
 
-  const impact = await impactOf(snapshot, before ?? "", change.text);
+  const impact = await impactOf(snapshot, before ?? "", change.text, before === null && typeof targetText === "string" ? parseSpec(targetText).requirements : null);
   const files = [];
   let folder, number, day, proposalPath, rationalePath;
   if (mine) {
@@ -416,14 +433,11 @@ export async function proposeSection(host, change) {
   if (findings.length) throw failure("RationaleInvalid", `the rationale of the entry breaks its schema: ${findings[0].what}`);
   files.push({ path: proposalPath, text: change.text }, { path: rationalePath, text: rationale });
 
-  if (!info.canWrite) {
-    const began = await pathsWhenOpened(host, snapshot, change.openedHead);
-    return { fallback: fallbackEditLinks(files.map((file) => ({ ...file, existing: began.has(file.path) })), snapshot) };
-  }
+  if (!info.canWrite) return { fallback: await pagesFor(host, snapshot, change.openedHead, files) };
   const trailers = change.trailers?.length ? `\n\n${change.trailers.join("\n")}` : "";
-  const { commit } = await host.commitFiles({ branch: info.defaultBranch, expectedHead: snapshot.commit, files,
+  const committed = await commitOrPages(host, snapshot, change.openedHead, files, { branch: info.defaultBranch, expectedHead: snapshot.commit, files,
     message: `Propose an edit of ${headingText(change.anchor)} as entry ${pad2(number)} of queue ${day}${trailers}` });
-  return { commit, queue: folder, entry: number, alsoReplacing };
+  return committed.fallback ? committed : { commit: committed.commit, queue: folder, entry: number, alsoReplacing };
 }
 
 // saveEntry (ITM-394): an open entry saved in its own queue. Where the module file leaves a reading open, this file takes the one it names:
@@ -442,21 +456,18 @@ export async function saveEntry(host, edit) {
   if (!info.canWrite && snapshot.repository.server === "gitlab") throw failure("TokenRequired", "a GitLab product is written with a token");
 
   const targetText = await snapshot.read(entry.file);
-  const before = typeof targetText === "string" ? sectionText(targetText, entry.anchor) : null;
+  const before = typeof targetText === "string" ? spanText(targetText, entry.anchor, entry.until) : null;
   const old = (await snapshot.read(entry.rationale)) ?? "";
   const origin = /\*\*Origin\.\*\* ([^\n]*)/.exec(old)?.[1] ?? `an edit of the entry; saved by ${edit.person}.`;
   const provenance = /\n\*\*Provenance\.\*\*[^\n]*\n/.exec(old)?.[0] ?? "";
-  const impact = await impactOf(snapshot, before ?? "", edit.text);
+  const impact = await impactOf(snapshot, before ?? "", edit.text, before === null && typeof targetText === "string" ? parseSpec(targetText).requirements : null);
   const rationale = `${sectionRationale({ anchor: entry.anchor, why: edit.why }, impact, origin)}${provenance}`;
   const findings = documentFindings(queueRationaleSchema, readDocument(queueRationaleSchema, entry.rationale, rationale));
   if (findings.length) throw failure("RationaleInvalid", `the rationale of the entry breaks its schema: ${findings[0].what}`);
   const files = [{ path: entry.proposal.path, text: edit.text }, { path: entry.rationale, text: rationale }];
 
-  if (!info.canWrite) {
-    const began = await pathsWhenOpened(host, snapshot, edit.openedHead);
-    return { fallback: fallbackEditLinks(files.map((file) => ({ ...file, existing: began.has(file.path) })), snapshot) };
-  }
-  const { commit } = await host.commitFiles({ branch: info.defaultBranch, expectedHead: snapshot.commit, files,
+  if (!info.canWrite) return { fallback: await pagesFor(host, snapshot, edit.openedHead, files) };
+  const committed = await commitOrPages(host, snapshot, edit.openedHead, files, { branch: info.defaultBranch, expectedHead: snapshot.commit, files,
     message: `Save the edit of entry ${pad2(entry.number)} of the queue ${edit.queue.split("/").pop()}` });
-  return { commit };
+  return committed.fallback ? committed : { commit: committed.commit };
 }

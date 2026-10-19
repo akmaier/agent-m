@@ -533,7 +533,7 @@ test("release · ITM-129 UC-024: every menu entry and view of today is shown; a 
   const fileOf = (view) => VIEWS.find((v) => v.view === view)?.file;
   // A view is built where its file is on the disk, or where the app hands its address to a route of MOD-review-pages or to the fold
   // of the topic `accepting`, so that its file is gone.
-  const HANDED = new Set(["uc", "arc", "review", "spec", "how", "release"]);
+  const HANDED = new Set(["uc", "arc", "review", "spec", "how", "release", "arrange"]);
   const builtView = (view) => HANDED.has(view) || builtOnDisk(fileOf(view));
   const expected = MENU.map((e) => e.views.find(builtView)).filter(Boolean);
   assert.deepEqual(tabs, expected, "the stages' views built, in the order of the process");

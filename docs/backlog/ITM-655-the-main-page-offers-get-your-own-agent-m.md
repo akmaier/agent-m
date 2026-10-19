@@ -7,6 +7,7 @@ realises:
 modules:
   - MOD-main-page
 builds_on:
+  - ITM-587
 tests:
   - unit
 origin:

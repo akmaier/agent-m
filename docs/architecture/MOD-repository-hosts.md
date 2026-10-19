@@ -39,6 +39,7 @@ provides:
   - startWorkflow
   - cancelCiRun
   - ciRunLog
+  - ciRunLabels
   - listIssues
   - createIssue
   - commentOnIssue
@@ -234,6 +235,9 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
   Crosses the network; fails as `startWorkflow`.
 - `ciRunLog(id: string) -> Promise<string | null>` — the run's log, or `null` when the server no longer keeps it. Crosses
   the network; fails as `readSnapshot`.
+- `ciRunLabels(id: string) -> Promise<string[]>` — the runner labels the run's jobs ask for: on GitHub the `labels` of
+  each job of the workflow run, on GitLab the tags of each job of the pipeline; each once, empty for a run whose jobs
+  ask for none. Crosses the network; fails as `readSnapshot`.
 - `listIssues(filter: { state?: "open" | "closed" | "all", labels?: string[], search?: string }) -> Promise<Issue[]>` —
   crosses the network; fails as `readSnapshot`, and with `NotSupported` through a clone.
 - `createIssue(issue: { title: string, body: string, labels: string[] }) -> Promise<Issue>` — crosses the network; fails

@@ -62,12 +62,13 @@ export const ROUTES = [
   { address: "#release", shows: "New release", ids: { 904: { drawn: 31, sheets: 121, targets: 122, widths: 123, diagrams: 163 }, 905: { drawn: 30, wcag: 62, diagrams: 101 } } },
   { address: "#roles", shows: "Who fills the roles", ids: { 904: { drawn: 32, sheets: 124, targets: 125, widths: 126, diagrams: 164 }, 905: { drawn: 31, wcag: 63, diagrams: 102 } } },
   { address: "#release-report/id=all", shows: "Review all — Release test reports", ids: { 904: { drawn: 33, sheets: 127, targets: 128, widths: 129, diagrams: 165 }, 905: { drawn: 32, wcag: 64, diagrams: 103 } } },
+  { address: "#arrange/kind=use-cases", shows: "Arrange the use cases", ids: { 904: { drawn: 170, sheets: 171, targets: 172, widths: 173, diagrams: 174 }, 905: { drawn: 113, wcag: 114, diagrams: 115 } } },
 ];
 
 // The numbers of the generated tests that are no route's, by series: the planted cases and the tests over several routes at once.
 export const CASES = {
   904: { routes: 1, plantedBefore: 130, plantedTable: 131, plantedButton: 132, plantedSheet: 133, diagramBefore: 166, diagramAfter: 167 },
-  905: { plantedBefore: 65, plantedButton: 66, plantedImage: 67, labels: 68, ticks: 69, tickBefore: 70, plantedTick: 71, diagramBefore: 104, diagramAfter: 105, scrollEdits: 106, scrollBefore: 107, plantedScroll: 108, changedKeyboard: 109, changedRule: 110, plantedDiff: 111 },
+  905: { plantedBefore: 65, plantedButton: 66, plantedImage: 67, labels: 68, ticks: 69, tickBefore: 70, plantedTick: 71, diagramBefore: 104, diagramAfter: 105, scrollEdits: 106, scrollBefore: 107, plantedScroll: 108, changedKeyboard: 109, changedRule: 110, plantedDiff: 111, plantedBrand: 112 },
 };
 
 // In every document the browser opens, before its scripts: the time of the last change anywhere in the document.
