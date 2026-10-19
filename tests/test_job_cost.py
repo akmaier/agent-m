@@ -172,7 +172,6 @@ class TestJobCost(unittest.TestCase):
     # (src/runtimes/tab.mjs:97, usageOf), so jobCost (src/job-ledger/cost.mjs:13) never sees a reported cost: a job with no price is shown as unknown, one with tokens and a price as the tokens at the price.
     # The CI route keeps it (src/workflow-entries/product.mjs, usageOf takes `reported.find((each) => each.cost)?.cost`). No driver of this repository reports a cost yet (src/agent-processes/index.mjs:93,
     # src/bridge-jobs/watch.mjs:40 give null), so the fault is not yet seen on a page, but the requirement is met only where the runtime's cost reaches the record.
-    @unittest.expectedFailure
     def test_a_cost_the_runtime_reports_is_shown_as_reported(self):
         check(self, GUESSED + " - reported")
 
