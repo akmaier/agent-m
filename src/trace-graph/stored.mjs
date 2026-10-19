@@ -5,6 +5,8 @@
 //
 // Module: MOD-trace-graph
 
+import { traceGraph } from "./build.mjs";
+
 // The format mark of a stored graph: a text without it, or with another, is no graphText of this module.
 const FORMAT = "agent-m-trace-graph";
 const VERSION = 1;
@@ -36,4 +38,33 @@ export function graphFromText(text, commit) {
   if (!lists.every(Array.isArray) || !held.nodes.every((entry) => Array.isArray(entry) && entry.length === 2)) return null;
   return { commit: held.commit, nodes: new Map(held.nodes), edges: held.edges, files: held.files, links: held.links,
     positions: held.positions, unread: held.unread };
+}
+
+// The branch the graphs are stored on, and the graph's file on it.
+const BRANCH = "trace-cache";
+const fileOf = (commit) => `${commit}.json`;
+
+/**
+ * publishGraph(host: Host, snapshot: Snapshot) -> Promise<{ commit: string, written: boolean }> — builds the graph of the snapshot's commit from
+ * its files and adds `<commit>.json` to the branch `trace-cache` by `commitFiles`, on the head it read; `written` is false when the branch holds
+ * the file already, which it then leaves as it is. Crosses the network; fails as `commitFiles` fails — `Moved` when the branch moved meanwhile, so that
+ * the run can be made again —, and with `NotFound` naming the branch when the repository has none. (The impact lists a caller may hand in are ITM-941's.)
+ * @param {object} host @param {object} snapshot
+ * @returns {Promise<{ commit: string, written: boolean }>}
+ */
+export async function publishGraph(host, snapshot) {
+  const commit = snapshot.commit;
+  let branch;
+  try {
+    branch = await host.readSnapshot(BRANCH);
+  } catch (error) {
+    if (error?.name !== "NotFound") throw error;
+    throw Object.assign(new Error(`The repository has no branch ${BRANCH} to add the graph of ${commit} to.`), { name: "NotFound", cause: error });
+  }
+  if (branch.paths.includes(fileOf(commit))) return { commit, written: false };
+  // The graph is built from the files: a source without readOn never uses a stored graph.
+  const graph = await traceGraph({ paths: snapshot.paths, read: (path) => snapshot.read(path), readMany: (paths) => snapshot.readMany?.(paths) }, { commit });
+  await host.commitFiles({ branch: BRANCH, expectedHead: branch.commit, files: [{ path: fileOf(commit), text: graphText(graph) }],
+    message: `trace-cache: the graph of ${commit}\n` });
+  return { commit, written: true };
 }
