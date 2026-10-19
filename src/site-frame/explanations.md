@@ -492,6 +492,34 @@ Some browsers block the call to the Bridge's local address, `http://127.0.0.1`, 
 to the other route: the Bridge reached over HTTPS through the jump host. Use that route when your browser blocks the local
 address. The same route reaches a machine behind NAT.
 
+## bridge-levels
+
+Agent M runs on two levels. **Level 1** needs nothing installed: jobs run in this browser and in GitHub Actions or GitLab CI on the server's machines, a coding agent signs in with an API key stored as a CI secret and is billed per call, and mail works with Microsoft 365. **Level 2** is this app, the Bridge: jobs also run on this computer and on machines reached through it, a coding agent uses its own login on this computer, so your subscription pays, and mail also works with Gmail and any other IMAP or SMTP server. Level 2 needs the Bridge and the agent's command-line version (Claude Code, Codex or opencode).
+
+## bridge-signed-warning
+
+The Bridge is one file for your system, signed by the publisher of the release. Your system shows the publisher's name when you open it: check that it is the publisher this page names. On Windows, SmartScreen may still warn about a newly signed release until enough people have downloaded it; the file is not changed by that, only not yet known to SmartScreen. If the publisher's name is the one you expect, choose **More info**, then **Run anyway**. If the name differs, do not run the file.
+
+## bridge-install-agent
+
+The window lists the coding agents it supports (Claude Code, Codex and opencode). For an installed one it shows its version and *ready*. For a missing one it shows **How to install**, which opens the vendor's own instructions for your system; install it there, then choose **Check again**. Agent M installs nothing in your name. A local agent uses its own login on this computer, so no key is entered here and your subscription pays. If an agent is installed but not signed in, the window says so and shows the agent's own sign-in step; it never asks for your password.
+
+## bridge-jump-host-key
+
+The jump host is a machine you can reach by SSH, through which a computer behind a firewall (NAT) is reached from elsewhere. Enter its hostname and your user on it. On first use the Bridge creates its own SSH key and shows only the **public key** here. Add that public key to `~/.ssh/authorized_keys` of your user on the jump host, or give it to whoever administers the jump host. The private key never leaves this computer, and Agent M never asks for it.
+
+## bridge-tunnels
+
+A tunnel is a connection the Bridge opens itself, so you type no command. A reverse tunnel carries your computer's Bridge out to the jump host and listens there on the jump host's loopback only, so nobody else on the network can reach it. The Bridge keeps the tunnel open and reconnects after sleep or a change of network. The window shows *tunnel open*, or the reason it is not. A matching forward on your own computer is opened the same way by a Bridge there; without a Bridge there, the dashboard shows the two commands to run.
+
+## bridge-import-export
+
+Instead of typing the jump host, import the settings export from the dashboard. Export and import are on the dashboard's settings page; the file may be locked with a passphrase. If the export names the jump host and this Bridge, with its name and its port on the jump host, the window takes them from it. The export contains secrets, such as the pairing token, so keep it as you would a password and delete it when it is no longer needed. Importing reads the file into the Bridge's window and writes nothing to any repository.
+
+## bridge-updates
+
+When a newer release exists, the Bridge shows it with its release notes. **Update** installs it only after your click, and only if its signature is valid. Nothing is updated behind your back.
+
 ## source-kinds
 
 A source is where rules come from, and the library keeps four kinds of them. An *EU legal text* is a law or regulation of the
