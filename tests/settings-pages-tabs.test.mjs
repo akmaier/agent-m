@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { view } from "../src/settings-pages/index.mjs";
-import { openStore, readSetting, writeSetting } from "../src/browser-store/index.mjs";
+import { openStore, readSetting, writeSetting, clearSetting } from "../src/browser-store/index.mjs";
 
 class Element extends EventTarget {
   constructor(name) { super(); this.localName = name; this.childNodes = []; this.className = ""; this.value = ""; this.type = ""; this.checked = false; this.files = []; this.attributes = new Map(); this.handlers = []; }
@@ -334,4 +334,36 @@ test("TST-290130: the product list's Change opens Add a product in place, in the
   assert.ok(switchProduct, "after the add, the form in the tab offers the new product");
   click(switchProduct);
   assert.deepEqual(navigations, [{ name: "main", params: { product: web } }], "Switch to the new product reaches the page's go");
+});
+
+// TST-638001 · level: unit · module: MOD-settings-pages
+// guards: UC-015 (step 1); EVERY SETTING IS REACHED FROM ONE PAGE
+// given: the public Settings Route for a chosen product, in each state its section shows — writable (a token that can write), read-only (no token), and its repository metadata unavailable (repositoryInfo fails); the page's go records every route it is asked for. And the Route with no product chosen
+// input: the person opens Repositories and presses Requirement sources in the product's section
+// expect: in each of the three states the product's section holds exactly one button reading Requirement sources, and pressing it asks the page's go for the route sources with no parameters of its own (the frame adds the chosen product); with no product chosen the page holds no such button (known positive: the section says Choose a product)
+test("TST-638001: the product's section of Settings offers Requirement sources, which opens the route sources", async () => {
+  const storage = new Storage();
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage });
+  const store = openStore("fixture/instance");
+  const files = { blob: () => null, read: async () => null };
+  const hostOf = (info) => ({ async repositoryInfo() { if (info instanceof Error) throw info; return info; }, async readSnapshot() { return files; }, async commitFiles() { return { commit: "a".repeat(40) }; } });
+  const states = [["writable", { defaultBranch: "main", canWrite: true }, true], ["read-only", { defaultBranch: "main", canWrite: false }, false], ["unavailable", new Error("fixture refuses"), false]];
+  for (const [state, info, withToken] of states) {
+    if (withToken) writeSetting(store, "github-token:fixture/product", { value: "ghp_fixtureToken" });
+    else clearSetting(store, "github-token:fixture/product");
+    const target = document.createElement("div");
+    const navigations = [];
+    const context = { instance: { repository: "fixture/instance" }, product: { address: "https://github.com/fixture/product", kind: "github", host: hostOf(info) }, store, go(name, params) { navigations.push({ name, params }); } };
+    await route().render(target, context, {});
+    click(byClass(target, "settings-tab")[1]);
+    const buttons = byClass(target, "settings-product-sources");
+    assert.deepEqual(buttons.map((button) => button.textContent), ["Requirement sources"], `${state}: one button in the product's section`);
+    click(buttons[0]);
+    assert.deepEqual(navigations, [{ name: "sources", params: {} }], `${state}: it asks for the route sources`);
+  }
+  const target = document.createElement("div");
+  await route().render(target, { instance: { repository: "fixture/instance" }, product: null, store, go() {} }, {});
+  click(byClass(target, "settings-tab")[1]);
+  assert.match(target.textContent, /Choose a product to edit its repository settings/, "known positive: the section for no product is drawn");
+  assert.equal(byClass(target, "settings-product-sources").length, 0);
 });

@@ -10,7 +10,7 @@
 // A sprint record is a Markdown file of docs/backlog/sprints/ with front matter
 //
 //   id: <name>   goal: <one line>   start: YYYY-MM-DD   end: YYYY-MM-DD or empty   closer:, branch:, model:, planned_by:
-//   selection:   — a list of item identifiers ITM-<nnn>, in the order they are pulled
+//   selection:   — a list of item identifiers ITM-<nnn> (three or more digits), in the order they are pulled
 //
 // In a model with a time box, `end` is the day the time box ends, recorded when the sprint starts; in a sprint without a
 // time box it stays empty until every selected item is done or the Product Owner records the end (UC-032 6b).
@@ -25,7 +25,7 @@
 //     (YYYY-MM-DD).
 // A reason is data, never a sentence (ARC-003 decision 5): { kind, rule, … }. The sentence a person reads is the dashboard's.
 
-import { frontMatter } from "../work-items.mjs";
+import { byNumber, frontMatter } from "../work-items.mjs";
 
 const LIVES = "THE BACKLOG LIVES IN THE PRODUCT REPOSITORY";
 const SELECTED = "A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT";
@@ -34,7 +34,7 @@ const AGILE = "AGILE IMPLEMENTATION STARTS FROM THE BACKLOG";
 const ACCEPTED = "NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED";
 const DERIVED = "PROGRESS AND JOB STATE ARE DERIVED, NOT STORED";
 
-const ITEM_ID = /^ITM-\d{3}$/;
+const ITEM_ID = /^ITM-\d{3,}$/;
 const USE_CASE = /^UC-\d{3}$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -145,13 +145,13 @@ function activity(id, pullRequests, jobs) {
 function holding(pullRequests, jobs, backlog) {
   const ids = new Set();
   for (const p of pullRequests ?? []) {
-    for (const m of `${p?.head ?? ""} ${p?.title ?? ""}`.matchAll(/(?<![A-Za-z0-9])(ITM-\d{3})(?![0-9])/gi)) {
+    for (const m of `${p?.head ?? ""} ${p?.title ?? ""}`.matchAll(/(?<![A-Za-z0-9])(ITM-\d{3,})(?![0-9])/gi)) {
       ids.add(m[1].toUpperCase());
     }
   }
   for (const j of jobs ?? []) if (j && ITEM_ID.test(String(j.item))) ids.add(j.item);
   const known = Array.isArray(backlog) ? new Set(backlog) : null;
-  return [...ids].filter((id) => !known || known.has(id)).sort()
+  return [...ids].filter((id) => !known || known.has(id)).sort(byNumber)
     .map((id) => ({ id, ...activity(id, pullRequests, jobs) }))
     .filter((a) => a.state === "in progress" || a.state === "blocked")
     .map(({ id, state, inReview }) => ({ id, state, inReview }));

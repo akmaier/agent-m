@@ -28,6 +28,7 @@ uses:
   - MOD-repository-hosts.RepositoryInfo
   - MOD-repository-hosts.listPullRequests
   - MOD-repository-hosts.listTags
+  - MOD-browser-store.Store
   - MOD-browser-store.readSetting
   - MOD-browser-store.writeSetting
   - MOD-job-runner.Strategies
@@ -72,8 +73,10 @@ are kept by Access in this browser.
 ## Interfaces
 
 - `NewMail` — `{ proposable: { mail: Mail, people: People }[], attached: { id: string, product: string, issue: number
-  }[], decided: number }`: the mails to propose, each with its people, kept in memory for the checks; the mails attached
-  to an issue of their thread; how many were left out as decided.
+  }[], decided: number, unwritten: { product: string, issue: number, error: string }[] }`: the mails to propose, each with
+  its people, kept in memory for the checks; the mails attached to an issue of their thread; how many were left out as
+  decided; and each issue of a thread that could not be written to, with the error's name, whose mail is among the
+  proposable.
 - `readNewMail(mailbox: Mailbox, products: { address: string, host: Host }[], marked: string[]) -> Promise<NewMail>` —
   reads the named folders without changing anything, names each mail by its identifier, reads the issues of every
   product and the identifiers they list, and leaves out every mail an issue lists or this browser marked *not an issue*
@@ -84,14 +87,14 @@ are kept by Access in this browser.
   be reached; an issue that cannot be written to is named, and its mail stays proposable.
 - `MailDecision` — `{ kind: "create", product: string, title: string, text: string, label: "defect" | "change" } | {
   kind: "add", product: string, issue: number } | { kind: "not-an-issue" }`.
-- `decideMail(mail: { id: string, people: People }, decision: MailDecision, host: Host | null) -> Promise<{ issue:
-  number | null }>` — carries out the person's one click on a mail (`A MAIL BECOMES AN ISSUE ONLY BY A PERSON'S CLICK`):
+- `decideMail(mail: { id: string, people: People }, decision: MailDecision, host: Host | null, store: Store) ->
+  Promise<{ issue: number | null }>` — carries out the person's one click on a mail (`A MAIL BECOMES AN ISSUE ONLY BY A PERSON'S CLICK`):
   *create* searches the title and text once more for the mail's people and refuses on a hit, then creates the issue in
   the product's tracker with the person's token, labelled `defect` or `change`, its text ending with the mail's
   identifier (`THE PRODUCT ISSUE CARRIES NO PERSONAL DATA`, `AN ISSUE FROM A MAIL IS A DEFECT OR A CHANGE`); *add* lists
   the mail on an existing issue by a `mail-added` note (`A DUPLICATE MAIL IS ADDED TO THE EXISTING ISSUE`); *not an
-  issue* adds the identifier to this browser's marks. Errors: `PersonFound` with the hits — nothing written —, and
-  Access's `TokenRefused` and `MissingPermission` naming the product.
+  issue* adds the identifier to this browser's marks in `store`, the store the page opened for the instance. Errors:
+  `PersonFound` with the hits — nothing written —, and Access's `TokenRefused` and `PermissionMissing` naming the product.
 - `RepliesDue` — `{ toAnswer: Due[], answerReceived: Due[], open: Due[] }`, where `Due` is `{ product: string, issue:
   number, closedBy: string | null, release: string | null, mails: { id: string, mail: Mail | null, draft: DraftRef |
   null, noted: boolean }[] }`; `mail` is `null` for a mail no longer in the named folders.
@@ -121,7 +124,8 @@ are kept by Access in this browser.
     `RepositoryInfo`; one part with the titles and numbers of their open issues. Each mail's people go into the job's
     context for the check `people-search`, never into a part.
   - recipe `reply-inputs` — for drafting replies: the issue, what solved it — the closing pull request or commit, and the
-    release that contains it, where known —, and each listed mail without a reply.
+    release that contains it, where known —, and each listed mail without a reply. With the parameter `question`, for an
+    open issue: the issue, the person's point to ask, and the one listed mail the question answers (UC-039 1a).
   - writer `mail-drafts` — the drafted texts stored as drafts through `storeReplies`; it sends nothing.
 
 `Host` is the host Access's `connect` returns; `People` is MOD-personal-data's.
@@ -145,5 +149,6 @@ the mailbox through MOD-mail-routes, and the marks *not an issue* through Access
   `mail-batch`.
 - `MOD-repository-hosts.listPullRequests`, `MOD-repository-hosts.listTags` — what solved an issue, and the release that
   contains it.
-- `MOD-browser-store.readSetting`, `MOD-browser-store.writeSetting` — the identifiers marked *not an issue*.
+- `MOD-browser-store.Store`, `MOD-browser-store.readSetting`, `MOD-browser-store.writeSetting` — the identifiers marked
+  *not an issue*, in the store the page hands in.
 - `MOD-job-runner.Strategies` — the type of `mailStrategies`.

@@ -22,6 +22,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { nextVersion, startReleaseCandidate, releaseReport, acceptAndRelease, reportsAwaitingAcceptance } from "../src/release-evidence/index.mjs";
+import { readDocument } from "../src/documents/index.mjs";
+import { approvalSchema, statusOf } from "../src/approvals/index.mjs";
 
 // ================================================================== fakes
 
@@ -586,4 +588,88 @@ test("reportsAwaitingAcceptance — calendar version 2026.10.0 is newer than 202
   assert.deepEqual(await reportsAwaitingAcceptance(host, snapshot), {
     version: "2026.10.0", candidate: "v2026.10.0-rc.1", record: path, blob: snapshot.blob(path),
   });
+});
+
+// ================================================================== the approval record's limitation lines (ITM-934)
+
+// The approval record that acceptAndRelease committed for the fixture's release, read back from the default branch.
+async function approvalRecordOf(host) {
+  const after = await host.readSnapshot("main");
+  const path = [...after.paths].find((p) => p.startsWith("docs/approvals/release-v2026.4.0-"));
+  assert.ok(path, "the approval record was committed");
+  return { after, path, text: await after.read(path) };
+}
+
+// TST-934001 · level: unit · module: MOD-release-evidence
+// guards: A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED; ACCEPTING THE RELEASE TEST REPORT RELEASES
+// given: a green, complete candidate (TST-001 passed), no failing test and no worse rate
+// input: acceptAndRelease(host, { path, blob }, { limitations: {} }, "akmaier", "2026-10-07"), then the approval record read back from the default branch
+// expect: the record is exactly the three lines kind, file and blob; it holds no line that begins with `limitation`
+//         (MOD-approvals: `limitation` is "one line per failing test or worse rate ... zero or more", so none for a green release)
+// counter-proof: passing `limitation: []` again in report.mjs's writeDocument call writes the line `limitation:` and fails this test
+test("TST-934001 acceptAndRelease — the approval record of a green release holds no limitation line", async () => {
+  const host = acceptHost({ runsRows: [["TST-001", "unit", "passed", ""]] });
+  const blob = await acceptBlob(host, "Adds the sample feature.");
+  await acceptAndRelease(host, { path: ACCEPT_PATH, blob }, { limitations: {} }, "akmaier", "2026-10-07");
+  const { text } = await approvalRecordOf(host);
+  assert.equal(text, `kind: release-report\nfile: ${ACCEPT_PATH}\nblob: ${blob}\n`);
+  assert.equal(text.split("\n").filter((line) => line.startsWith("limitation")).length, 0);
+});
+
+// TST-934002 · level: unit · module: MOD-release-evidence
+// guards: A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED
+// given: a candidate with a failing test (TST-002) and a model-dependent test (TST-010) whose rate, 6 of 10, is worse than the last release's 8 of 10; a reason recorded for each
+// input: acceptAndRelease(host, { path, blob }, { limitations: { "TST-002": ..., "TST-010": ... } }, ...), then the approval record read back
+// expect: exactly two `limitation:` lines, in the order of the identifiers, each `<id> — <reason>`; read back through approvalSchema, the two items
+// counter-proof: omitting the key whenever `ids` is not empty (the fix applied one condition too wide) fails this test's line count
+test("TST-934002 acceptAndRelease — a red release's record holds one limitation line per failing test and worse rate", async () => {
+  const host = acceptHost({
+    testFiles: { "tests/sample.test.mjs": MULTI_TEST_FILE },
+    extraAtFiles: { "docs/tests/releases/v2026.3.0.md": lastReleaseReportText(LAST_RELEASE_COMMIT) },
+    runsRows: [["TST-001", "unit", "passed", ""], ["TST-002", "unit", "failed", ""], ["TST-010", "unit", "passed", "6 of 10"]],
+    extraResultsFiles: {
+      [`runs/${LAST_RELEASE_COMMIT}/20260901-1000-release-candidate-aaaa.md`]: runRecord({ commit: LAST_RELEASE_COMMIT, rows: [["TST-010", "unit", "passed", "8 of 10"]] }),
+    },
+  });
+  const blob = await acceptBlob(host, "Adds the sample feature.");
+  const decision = { limitations: { "TST-002": "known flaky fixture", "TST-010": "model drift, accepted" } };
+  await acceptAndRelease(host, { path: ACCEPT_PATH, blob }, decision, "akmaier", "2026-10-07");
+  const { text, path } = await approvalRecordOf(host);
+  const items = ["TST-002 — known flaky fixture", "TST-010 — model drift, accepted"];
+  assert.equal(text, `kind: release-report\nfile: ${ACCEPT_PATH}\nblob: ${blob}\nlimitation: ${items[0]}\nlimitation: ${items[1]}\n`);
+  assert.deepEqual(readDocument(approvalSchema, path, text).fields.limitation, items);
+});
+
+// TST-934003 · level: unit · module: MOD-release-evidence
+// guards: A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED
+// given: a candidate with one failing test (TST-002) and its reason recorded
+// input: acceptAndRelease(...), then the approval record read back
+// expect: exactly one `limitation:` line, `limitation: TST-002 — known flaky fixture` — the known positive beside the green record's none
+test("TST-934003 acceptAndRelease — one limitation gives one limitation line", async () => {
+  const host = acceptHost({
+    testFiles: { "tests/sample.test.mjs": MULTI_TEST_FILE },
+    runsRows: [["TST-001", "unit", "passed", ""], ["TST-002", "unit", "failed", ""], ["TST-010", "unit", "passed", "10 of 10"]],
+  });
+  const blob = await acceptBlob(host, "Adds the sample feature.");
+  await acceptAndRelease(host, { path: ACCEPT_PATH, blob }, { limitations: { "TST-002": "known flaky fixture" } }, "akmaier", "2026-10-07");
+  const { text } = await approvalRecordOf(host);
+  assert.deepEqual(text.split("\n").filter((line) => line.startsWith("limitation")), ["limitation: TST-002 — known flaky fixture"]);
+});
+
+// TST-934004 · level: unit · module: MOD-release-evidence
+// guards: THE RELEASE TEST REPORT IS ACCEPTED BY A PERSON; STATUS IS DERIVED FROM THE RECORDS
+// given: the record of a green release, committed by acceptAndRelease; its callers that read it are MOD-approvals' statusOf and approvalSchema's reader (audit.mjs reads the same record through readDocument)
+// input: statusOf(report path, report blob, default branch); readDocument(approvalSchema, path, record text)
+// expect: the report is "accepted"; the record reads back with kind release-report, the report's file and blob, and `limitation` undefined (the reader of the audit takes that as no limitation)
+// counter-proof: a record with the wrong blob (the report changed after it was accepted) makes statusOf answer "changed", so the first assertion is not vacuous
+test("TST-934004 acceptAndRelease — the green record is still read as the accepted report's record", async () => {
+  const host = acceptHost({ runsRows: [["TST-001", "unit", "passed", ""]] });
+  const blob = await acceptBlob(host, "Adds the sample feature.");
+  await acceptAndRelease(host, { path: ACCEPT_PATH, blob }, { limitations: {} }, "akmaier", "2026-10-07");
+  const { after, path, text } = await approvalRecordOf(host);
+  assert.equal(statusOf(ACCEPT_PATH, after.blob(ACCEPT_PATH), after), "accepted");
+  const { fields } = readDocument(approvalSchema, path, text);
+  assert.deepEqual([fields.kind, fields.file, fields.blob, fields.limitation], ["release-report", ACCEPT_PATH, blob, undefined]);
+  const moved = { ...after, blob: (p) => (p === ACCEPT_PATH ? "0".repeat(40) : after.blob(p)) };
+  assert.equal(statusOf(ACCEPT_PATH, moved.blob(ACCEPT_PATH), moved), "changed");
 });

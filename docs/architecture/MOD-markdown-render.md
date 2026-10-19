@@ -42,7 +42,7 @@ It runs in a browser — the instance's pages and the Bridge's window.
 - `vendor/` — the vendored libraries for Markdown, sanitising and diagrams, each with its licence file, and a
   `README.md` naming each library, its version and its licence.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `docs/assets/vendor/marked.esm.js`, `docs/assets/vendor/mermaid.min.js`, `docs/assets/vendor/purify.es.mjs`: removed once the live app and `docs/index.html` use this module's `vendor/`, which holds them, `marked` newer.
+  - `docs/assets/vendor/marked.esm.js`, `docs/assets/vendor/mermaid.min.js`, `docs/assets/vendor/purify.es.mjs`, with the folder's licence files and `README.md`: removed once the live app renders its Markdown with `renderArtifact` and `docs/index.html` loads no library of its own; this module's `vendor/` holds the libraries, `marked` newer.
 
 ## Data
 
@@ -66,7 +66,8 @@ vendored libraries in `vendor/README.md` — one line per library: name, version
   `save`. On `refused` the edited text stays in the editor and the newer version is shown beside it with the difference
   (`A REFUSED SAVE KEEPS THE EDIT`); leaving with unsaved changes asks first.
 - `Editor` — `{ text() -> string, showDraft(draft: string, against: string) -> void, setMarks(findings: Finding[]) ->
-  void, close() -> boolean }`; `close` asks first when the text holds unsaved changes, and says whether the editor closed; `showDraft` puts a participant's draft into the editor as the difference against the current
+  void, unsaved() -> boolean, close() -> boolean }`; `unsaved` says whether the text holds changes that are not saved, without asking; `close` asks first when it
+  does, and says whether the editor closed; `showDraft` puts a participant's draft into the editor as the difference against the current
   text (`A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT`).
 - `SaveOutcome` — `{ kind: "saved", link: string } | { kind: "refused", newer: string } | { kind: "failed", reason:
   string }` — what the caller's `save` returns to the editor.

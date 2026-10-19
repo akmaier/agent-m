@@ -14,7 +14,7 @@
 // Guards: CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE; AN EXPORT STATES THAT IT CONTAINS SECRETS
 // Level: unit
 //
-// The document is the small DOM of tests/site-frame.test.mjs, imported unchanged, as tests/review-pages-whole-architecture.test.mjs does; the Bridges are
+// The document is the small DOM of tests/site-frame-dom.mjs, imported unchanged, as tests/review-pages-whole-architecture.test.mjs does; the Bridges are
 // fake: a stand-in for fetch answers as a Bridge does and records every request; the instance is a host of this file whose docs/participants.md names the
 // processing places; the store is a Map-backed localStorage. Addresses, passwords and tokens are constructed. Where the texts leave a reading open, the
 // test states the reading it takes, and the pull request names it with its source:
@@ -30,7 +30,7 @@
 //     and the connection stays stored, shown as untested.
 // A name the module does not provide yet fails each test by itself. The counter-proofs are in the pull request.
 
-import "./site-frame.test.mjs";
+import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { webcrypto } from "node:crypto";

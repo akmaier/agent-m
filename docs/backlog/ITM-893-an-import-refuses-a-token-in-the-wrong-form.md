@@ -6,7 +6,7 @@ realises:
   - SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS
   - UC-042
 modules:
-  - MOD-browser-store
+  - MOD-settings-pages
 builds_on:
   - ITM-870
 tests:
@@ -32,3 +32,18 @@ item stops and its draft goes to akmaier.
 - An import that holds a token in the wrong form for its key is refused before it stores anything, and names the key,
   never the value. A test checks this, with a counter-proof.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Its drafts for akmaier are on `main`** (sprint team1/92-93, written by developer-sonnet-c). The token forms stay in one
+place, `connect` (`src/repository-hosts/index.mjs:61-62`).
+- MOD-repository-hosts.md states the refusal `connect` already makes.
+- MOD-settings-pages' import reads the file with MOD-browser-store's `readExport`, connects each token key, and refuses
+  the import on a refusal, naming the key and never the token.
+- The item's code is MOD-settings-pages', so its modules are recut to it. ARC-047-access.md:120 forbids only the store
+  using the hosts; the page composes both.
+- **For its build:**
+  - a locked export is read twice, so PBKDF2 runs twice, which is accepted for a single import;
+  - the step from a key back to its address stands beside `tokenSettingKey` (`src/settings-pages/products.mjs:116-120`),
+    once.
+- `writeSetting`, the path of a pasted token, still stores a wrong-form token. That is a finding of its own, registered once
+  four-digit identifiers stand on `main`.
+

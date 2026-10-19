@@ -7,13 +7,13 @@
 // Guards: EVERY STEP EXPLAINS ITSELF; UC-021; UC-024
 // Level: unit
 //
-// It imports the module's existing browser harness, tests/site-frame.test.mjs, unchanged, as the other explanation tests do:
+// It imports the module's browser harness, tests/site-frame-dom.mjs, unchanged, as the other explanation tests do:
 // the small DOM of tests/release-itm-275-bridge-frame.test.mjs cannot sanitise, so renderArtifact there shows the source
 // escaped, and a test of the rendered text would test that fallback. What a test pins of a topic is what the use case says of the step, claim by claim; the
 // three kinds of participant are pinned by the claims of UC-024's actors and step 5 and of the participant topics that
 // already stand. Each test states its input and its expected result before it runs (given / input / expect).
 
-import "./site-frame.test.mjs";
+import "./site-frame-dom.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";

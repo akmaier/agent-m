@@ -94,7 +94,7 @@ test("productFacts — a file the page has read is not read again, in either sco
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the product and instance of TST-826001; a token
 // input: productFacts(…, { scope: "all" })
-// expect: the facts — the 600 items (plan.items), 400 jobs, requirements ["FIRST RULE", "SECOND RULE"], tests of one declaration TST-001 at tests/unit.test.mjs, tags [] (the product has none), results null (the product has no branch test-results), a graph whose commit is the snapshot's; info with the default branch main; and "unknown" in modelSince, schedule, ci and resourceNeeds
+// expect: the facts — the 600 items (plan.items), 400 jobs, requirements ["FIRST RULE", "SECOND RULE"], tests of one declaration TST-001 at tests/unit.test.mjs, tags [] (the product has none), results null (the product has no branch test-results), graph "unknown" (the scope builds none); info with the default branch main; and "unknown" in modelSince, schedule, ci and resourceNeeds
 test("productFacts, scope all — the six facts the scope adds are read, and the facts it leaves are \"unknown\"", async () => {
   const { result } = await facts("all", true);
   assert.equal(result.plan.items.length, 600);
@@ -103,7 +103,7 @@ test("productFacts, scope all — the six facts the scope adds are read, and the
   assert.deepEqual(result.tests.map((t) => [t.id, t.path]), [["TST-001", "tests/unit.test.mjs"]]);
   assert.deepEqual(result.tags, []);
   assert.equal(result.results, null);
-  assert.equal(result.graph.commit, result.snapshot.commit);
+  assert.equal(result.graph, "unknown");
   assert.equal(result.info.defaultBranch, "main");
   for (const field of ["modelSince", "schedule", "ci", "resourceNeeds"]) assert.equal(result[field], "unknown", field);
 });

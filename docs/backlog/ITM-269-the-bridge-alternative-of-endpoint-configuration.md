@@ -70,3 +70,13 @@ store catalogue, metadata cache or compatibility transport belongs to this item.
   `system-uc-003-dashboard-bridge.test.mjs` and `release-uc-003-dashboard-https-bridge.test.mjs` under `tests/`.
   Existing add-product tests remain unchanged. No test is removed or converted to a todo to conceal a failure.
 - The tests-only first commit has red CI; final-head CI is green; every new test has a recorded planted-fault counter-proof. Tests use constructed responses and no paid service.
+
+**Read at sprint team1/93 (developer-sonnet-d): built except one sentence of its Outcome.** "An old bridged value that names
+no Bridge requires an explicit named choice before testing; it neither chooses the last-paired Bridge nor falls back to the
+model." Measured: a stored `{ url, kind, model, throughBridge: true }` shows *Direct*, and *Save and test* makes the direct
+call and rewrites the record without `throughBridge`.
+- The path: `src/settings-pages/endpoints.mjs:111` sets `selectedBridge = ""`; `applySetting` (`:100`) and `settingFrom`
+  (`:49-50`) write no Bridge; `testEndpoint` (`:193-194`) then calls the endpoint directly.
+- The known positive: a stored unknown `bridge: "local"` made no direct call.
+- No test covers `throughBridge`. The rest of the item is built: TST-269001 to 269005 and TST-269901 to 269904 pass.
+- **It joins sprint team1/93 for that sentence.**

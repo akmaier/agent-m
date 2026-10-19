@@ -1,6 +1,6 @@
 // MOD-settings-pages' implemented Settings slice: the endpoint settings MOD-browser-store already enumerates.
 
-import { clearEverything, clearSetting, exportSettings, importSettings, listSettings, readSetting, secretValues, writeSetting } from "../browser-store/index.mjs";
+import { clearEverything, clearSetting, exportSettings, importSettings, listSettings, readExport, readSetting, secretValues, writeSetting } from "../browser-store/index.mjs";
 import { testEndpoint } from "../endpoint-calls/index.mjs";
 import { notificationState, switchOff, switchOn, testNotification } from "../notifications/index.mjs";
 import { explain } from "../site-frame/index.mjs";
@@ -11,10 +11,10 @@ import { settingsSchemas, pseudonymisationOf } from "../personal-data/index.mjs"
 import { saveFile } from "../artifact-edits/index.mjs";
 import { recordingOf, recordingSchema } from "../prompt-bar/index.mjs";
 import { jobWorkflowFiles } from "../runtimes/index.mjs";
-import { checkProduct, credentialsFor, tokenSettingKey, route as addProductRoute } from "./products.mjs";
+import { checkProduct, credentialsFor, tokenKeyAddress, tokenSettingKey, route as addProductRoute } from "./products.mjs";
 import { connect, HostError, parseAddress } from "../repository-hosts/index.mjs";
 import { bridgeAt, pair, probe, settingsOf, testBridge } from "../bridge-client/index.mjs";
-import { bridgeFailureText, bridgeSettings as endpointBridgeSettings, recordTest, route as endpointsRoute } from "./endpoints.mjs";
+import { bridgeFailureText, bridgeSettings as endpointBridgeSettings, CHOOSE_BRIDGE_DISCLOSURE, CHOOSE_BRIDGE_TEXT, namesNoBridge, recordTest, route as endpointsRoute } from "./endpoints.mjs";
 import { route as bridgeRoute } from "./bridge.mjs";
 import { mailboxLine } from "./mailbox.mjs";
 
@@ -88,6 +88,10 @@ function endpointLine(target, context, info) {
     show.textContent = hidden ? "Hide" : "Show";
   });
   test.addEventListener("click", async () => {
+    if (namesNoBridge(setting)) {
+      result.textContent = `${CHOOSE_BRIDGE_TEXT}Press Change to choose it.`;
+      return;
+    }
     if (setting.bridge) {
       let bridgeSettings;
       try { bridgeSettings = endpointBridgeSettings(context.store, setting.bridge); } catch (error) {
@@ -127,7 +131,7 @@ function endpointLine(target, context, info) {
     el("p", null, `Model: ${setting.model}`),
     status,
     el("p", null, el("label", null, "API key ", key, " ", show)),
-    el("p", "settings-endpoint-disclosure", setting.bridge
+    el("p", "settings-endpoint-disclosure", namesNoBridge(setting) ? CHOOSE_BRIDGE_DISCLOSURE : setting.bridge
       ? `Agent M sends one short test request to Bridge ${setting.bridge}. Its optional endpoint key is inside that Bridge request; Bridge and jump-host credentials are sent only as authorisation headers, never in a URL or repository.`
       : `Agent M sends one short test request to ${setting.url}. Its optional key is sent only in that request's authorisation header, never in a URL or repository.`),
     el("p", null, test, " ", change, " ", clear),
@@ -358,6 +362,19 @@ function exportNotice(store, signIn) {
   return `This file contains every stored token, key and password. Whoever holds it can use: ${contained}. You may lock it with a passphrase; it cannot be recovered.`;
 }
 
+// Import settings stores nothing while the file holds a token of the other kind of server than its key names: each token the file holds is connected,
+// with MOD-repository-hosts' `connect`, to the repository its key names (tokenKeyAddress) before the file is imported, and a refusal of `connect`
+// refuses the import, with a line that names the key and never the token (`connect`'s message never holds it). A key that names no readable repository has no host to refuse it.
+async function refuseWrongTokens(context, text, passphrase) {
+  const { settings } = await readExport(text, passphrase);
+  for (const [key, entry] of Object.entries(settings)) {
+    const address = tokenKeyAddress(key, context.instance?.repository);
+    if (!address) continue;
+    try { connect(address, { token: entry?.value, tokenName: entry?.name, secrets: secretValues(context.store) }); }
+    catch (error) { throw new Error(`Nothing was imported: the token under ${key} is refused. ${error.message}`); }
+  }
+}
+
 function exportImportControls(context, signIn) {
   const notice = el("p", "settings-export-notice", exportNotice(context.store, signIn));
   const passphrase = el("input", "settings-export-passphrase");
@@ -390,7 +407,9 @@ function exportImportControls(context, signIn) {
     const chosen = file.files?.[0];
     if (!chosen) return;
     try {
-      const imported = await importSettings(context.store, await chosen.text(), importPassphrase.value);
+      const text = await chosen.text();
+      await refuseWrongTokens(context, text, importPassphrase.value);
+      const imported = await importSettings(context.store, text, importPassphrase.value);
       reconnectHosts(context);
       result.textContent = `Added: ${imported.added.join(", ") || "none"}. Kept: ${imported.kept.join(", ") || "none"}.`;
     } catch (error) {
@@ -566,13 +585,7 @@ function repositoryLine(target, context, info) {
   );
 }
 
-function repositoryAddress(context, key) {
-  try {
-    if (key === "github-token") return parseAddress(`https://github.com/${context.instance.repository}`);
-    if (key.startsWith("github-token:")) return parseAddress(`https://github.com/${key.slice("github-token:".length)}`);
-    return parseAddress(`https://${key.slice("gitlab-token:".length)}`);
-  } catch { return null; }
-}
+const repositoryAddress = (context, key) => tokenKeyAddress(key, context.instance?.repository);
 
 function repositoryStatus(info, stored) {
   if (!stored?.value) return "Not set.";
@@ -897,6 +910,14 @@ async function jobWorkflowLine(context, { address, defaultBranch, snapshot, canW
   );
 }
 
+// The ways from a product's section to the guided pages of what the product's repository keeps (UC-015 step 1: "In the product's view, the author opens Requirement sources").
+// The frame's `go` adds the chosen product to the address.
+function productLinks(context) {
+  const sources = el("button", "settings-product-sources btn", "Requirement sources");
+  sources.addEventListener("click", () => context.go("sources", {}));
+  return el("p", "settings-product-links", sources);
+}
+
 async function productControls(context) {
   if (!context.product) return el("section", "settings-product panel",
     el("p", null, "Choose a product to edit its repository settings."),
@@ -906,7 +927,7 @@ async function productControls(context) {
   try { repository = await context.product.host.repositoryInfo(); }
   catch (error) {
     return el("section", "settings-product panel",
-      el("h3", null, `Product · ${context.product.address}`),
+      el("h3", null, `Product · ${context.product.address}`), productLinks(context),
       el("p", "settings-product-read-only", `Repository metadata is unavailable: ${error.message}`),
       explain("settings-product-unavailable"));
   }
@@ -938,7 +959,7 @@ async function productControls(context) {
     tokenStep.addEventListener("click", () => context.go("add-product", { address: context.product.address }));
     const reason = credential?.token ? "The repository reports this credential cannot write." : "This browser has no token that can write to this product.";
     return el("section", "settings-product panel",
-      el("h3", null, `Product · ${context.product.address}`),
+      el("h3", null, `Product · ${context.product.address}`), productLinks(context),
       el("p", "settings-product-access", `Repository access: ${access}.`),
       el("p", "settings-product-read-only", `Read-only: ${reason} `, tokenStep),
       state,
@@ -1021,7 +1042,7 @@ async function productControls(context) {
   });
   const publication = repository.visibility === "public" ? `${address.server === "github" ? "GitHub" : "GitLab"} reports ${address.path} as public: the data will be published — anyone on the internet can read it.` : `The repository is not reported public; use only a protected, non-public data space.`;
   return el("section", "settings-product panel",
-    el("h3", null, `Product · ${context.product.address}`), state,
+    el("h3", null, `Product · ${context.product.address}`), productLinks(context), state,
     explain("settings-product-records"),
     workflow,
     el("p", null, el("label", null, off, " Switch pseudonymisation off")),

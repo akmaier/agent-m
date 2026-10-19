@@ -12,6 +12,7 @@ modules:
 builds_on:
   - ITM-744
   - ITM-749
+  - ITM-950
 tests:
   - unit
 origin:
@@ -62,3 +63,21 @@ receives, not from a second copy in a context.
 
 The item builds on the acceptance of that draft. While team 1's sprint 87 runs, MOD-test-schedule is used by its modules
 (MOD-trace-pages), so the item is held.
+
+**Stopped at its stop clauses (sprint team1/92, developer-sonnet-a).**
+- `proposeSchedule` commits the schedule file (MOD-test-schedule.md:142-146). `commitFiles` takes a file's `text`, `bytes`
+  or `delete` (`src/repository-hosts/index.mjs:93`), and a `Document` holds no full text. The writer of a Document's text
+  is MOD-documents.writeDocument (MOD-documents.md:266), which MOD-test-schedule.md does not name. **The draft for akmaier
+  adds it.** This item waits for that acceptance.
+- `applyPipelineSchedule` returns the page of the pipeline schedules, which `webLinks().pipelineSchedules` would give. It
+  is not built (ITM-950).
+- **Read when it starts again,** each against the texts, and drafted where they say nothing:
+  1. how `applyPipelineSchedule` tells the server, since a Host has no server field;
+  2. the values the module file does not state: the schedule's description, its ref, the variable of the rows, the
+     branch's name, and the pull request's title and body;
+  3. how a foreign configuration is found at the head;
+  4. a GitLab `include:` that is a string or a map. MOD-runtimes' `mergeGitlabCi` (`src/runtimes/ci.mjs:114`) does this
+     privately, and writing it again would be a copy;
+  5. `NotSupported` without a token, which `createBranch`, `openPullRequest` and `setPipelineSchedule` throw but no
+     failures list names.
+

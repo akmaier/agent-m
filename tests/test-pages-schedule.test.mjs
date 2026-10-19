@@ -9,7 +9,7 @@
 // Guards: UC-027; THE TEST SCHEDULE IS DECLARED PER PRODUCT; THE DEFAULT SCHEDULE FOLLOWS THE BOOK; A RELEASE RUNS EVERY TEST AT EVERY LEVEL; COMMIT TESTS CALL NO PAID SERVICE; NO SECRET IN THE REPOSITORY; EVERY STEP EXPLAINS ITSELF
 // Level: unit
 //
-// The document is the small DOM of tests/site-frame.test.mjs, imported unchanged, as the tests of the settings pages do. The product and the instance are
+// The document is the small DOM of tests/site-frame-dom.mjs, imported unchanged, as the tests of the settings pages do. The product and the instance are
 // hosts of this file, kept to MOD-repository-hosts' interface (repositoryInfo, readSnapshot, webLinks): no request leaves the process, nothing waits.
 // Where the texts leave a reading open, the test states the reading it takes, and the pull request names it:
 //   - A test that calls a paid service (its declaration's `paid` key) counts under the row `paid` and also under the row of its own level: the schedule's schema
@@ -17,7 +17,7 @@
 //   - The cells that refuse are the cells of the column release candidate, in every row, and the cells every commit and pull request of the row paid.
 // The counter-proofs are recorded in the pull request.
 
-import "./site-frame.test.mjs";
+import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 

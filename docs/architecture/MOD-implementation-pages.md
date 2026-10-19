@@ -25,6 +25,7 @@ uses:
   - MOD-repository-hosts.openPullRequest
   - MOD-repository-hosts.mergePullRequest
   - MOD-repository-hosts.listCiRuns
+  - MOD-repository-hosts.commitFiles
   - MOD-repository-hosts.webLinks
   - MOD-documents.artifactSchemas
   - MOD-documents.readDocument
@@ -48,6 +49,7 @@ uses:
   - MOD-work-plans.planSchemas
   - MOD-work-plans.itemStates
   - MOD-work-plans.startable
+  - MOD-work-plans.giveUpIncrement
   - MOD-work-plans.heldItems
   - MOD-work-plans.conflicts
   - MOD-work-plans.planFindings
@@ -62,6 +64,9 @@ uses:
   - MOD-run-planner.runOf
   - MOD-run-planner.nextActions
   - MOD-run-planner.raiseLimits
+  - MOD-run-planner.finishRun
+  - MOD-trace-graph.traceGraph
+  - MOD-trace-graph.moduleRows
   - MOD-run-planner.runStrategies
   - MOD-progress-measures.productFacts
   - MOD-progress-measures.progressIn
@@ -149,12 +154,15 @@ Its formats are those of the modules it uses.
     instance's list that have every capability it needs, each with where it processes data; *+ Team* in a model with
     sprints; the findings of `roleAssignmentFindings`, given the entries of the instance's source register that the
     product's `docs/sources.md` links; *Save* writes a role assignment with `saveFile`; a team is removed only while no
-    sprint of it holds an item (`heldItems`).
+    sprint of it holds an item (`heldItems`): *Remove team* deletes its role assignment file in one commit with
+    MOD-repository-hosts' `commitFiles`, on the head that was read and with the person's token, and otherwise names the
+    items its sprints hold (UC-048 4b).
   - `models`, `models/<name>` — the instance's process models: the catalogue, *Adapt* and *+ New model* with a form from
     the model's schema, the live diagram, the errors beside their fields, the preview of every accepted requirement in
     every phase, *Save* only without errors, with `saveFile`.
   - `plan` — the architecture's subsystems and modules beside the plan's steps with their derived states and what each
-    waits for; *Draft the plan* with its run panel, run in this tab and attended, whose result waits for the planner; the
+    waits for, a step marked where `planFindings` with the history names its module or subsystem changed or removed since
+    the step was saved, and a module without a step named (UC-045); *Draft the plan* with its run panel, run in this tab and attended, whose result waits for the planner; the
     draft reviewed in order, reordered, split, merged or edited where its dependencies allow; *Save plan*, which lets the
     drafted plan go on as the planner left it, or writes a plan made by hand with `savePlan`; *+ Step*.
   - `backlog`, `board` — the items, each after the items it builds on, with their derived states, the requirements and
@@ -167,7 +175,8 @@ Its formats are those of the modules it uses.
   - `sprint/<team>/<n>/close` — the increment and the items not done, the feedback lines, the unfinished items' decisions, the
     retrospective with the sprint's numbers as material; *Close sprint* with `closeSprint`, offered only with a
     retrospective entry and a decision for every unfinished item; *Merge increment* as a pull request whose CI must be
-    green, for a sprint with a branch of its own.
+    green, for a sprint with a branch of its own; after the close, for an increment not merged, *Give up increment* with
+    a reason, through `giveUpIncrement`.
   - `implement` — the steps of the plan or the ready items, each with its state and, if it cannot start, the reasons;
     the participants that hold the implementing role in the item's role assignment and can write and run tests, the attempt limit, who merges, the
     target branch, the gates the jobs will meet and who decides them; *Start jobs*, which queues each job on its
@@ -178,7 +187,9 @@ Its formats are those of the modules it uses.
     actions `nextActions` returns, each on its route; while the page is open, the run's next actions of this page's route
     started as the records change; *Stop run*, which cancels every job of the run that has not ended, and then the run itself, through `cancelJob`,
     which records each end; and
-    *Continue* once the person has raised the limit that stopped it.
+    *Continue* once the person has raised the limit that stopped it; on `finish`, the run's end through `finishRun`, and
+    for a finished run its validation beside its jobs: for each module of the selection what it realises, its code and
+    tests and every gap, by MOD-trace-graph's `moduleRows` at the commit its end names (UC-043).
   - `progress` — the progress in the model's measure — the grid of requirements by phases with the steps of the plan,
     the burn-down of each team's running sprint, or the board's cumulative flow —, the gates passed, pending and not reached, what is
     blocked, who works on what; a cell, card or point leads to the trace page of what is behind it.
@@ -207,7 +218,7 @@ product's `docs/sources.md`.
   MOD-repository-hosts.listPullRequests,
   MOD-repository-hosts.pullRequestFacts, MOD-repository-hosts.openPullRequest, MOD-repository-hosts.mergePullRequest,
   MOD-repository-hosts.listCiRuns — pull requests, their CI and their merge; MOD-repository-hosts.webLinks — the
-  server's page for branch protection.
+  server's page for branch protection; MOD-repository-hosts.commitFiles — a removed team's role assignment deleted.
 - MOD-documents.artifactSchemas, MOD-documents.readDocument, MOD-documents.writeDocument, MOD-documents.readRegister —
   the item schema of a form, documents of the common shape, the text of a declaration or model to save, the participant
   list; MOD-artifact-edits.saveFile — the declaration and a model, only on the blob they were opened on.
@@ -220,13 +231,16 @@ product's `docs/sources.md`.
   Done of a pull request; the declaration is checked, and the workflow read, with the instance's SPEC,
   where the process requirements stand, and with the catalogue at the commit the declaration names, read with
   MOD-repository-hosts' `readSnapshot`.
-- MOD-work-plans.planSchemas, MOD-work-plans.itemStates, MOD-work-plans.startable, MOD-work-plans.planFindings,
+- MOD-work-plans.planSchemas, MOD-work-plans.itemStates, MOD-work-plans.startable, MOD-work-plans.giveUpIncrement,
+  MOD-work-plans.planFindings,
   MOD-work-plans.backlogFindings, MOD-work-plans.sprintFacts, MOD-work-plans.heldItems, MOD-work-plans.conflicts —
   plans, backlogs, sprints, their states, and what the teams' sprints hold;
   MOD-work-plans.savePlan, MOD-work-plans.saveItems, MOD-work-plans.startSprint,
   MOD-work-plans.endSprint, MOD-work-plans.closeSprint — every save of a plan, a backlog or a sprint.
-- MOD-run-planner.runOf, MOD-run-planner.nextActions, MOD-run-planner.raiseLimits — a run, its next actions, and the
+- MOD-run-planner.runOf, MOD-run-planner.nextActions, MOD-run-planner.raiseLimits, MOD-run-planner.finishRun — a run,
+  its next actions, its end, and the
   limits a person raises to continue it.
+- MOD-trace-graph.traceGraph, MOD-trace-graph.moduleRows — a finished run's validation, at the commit its end names.
 - MOD-progress-measures.productFacts, MOD-progress-measures.progressIn, MOD-progress-measures.gateOverview,
   MOD-progress-measures.blocked, MOD-progress-measures.whoWorksOnWhat — the product's facts and its progress.
 - MOD-participant-list.participantSchema, MOD-participant-list.participantsOf, MOD-participant-list.eligible — the
