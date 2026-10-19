@@ -362,20 +362,16 @@ let loads = 0;
 // entries: further settings in this browser when the page opens, { key: raw value } — a product's own token, for one.
 export async function openDashboard({ server, hash = "", caches = null, token = TOKEN, search = "", entries = {},
   assets = new URL(".", APP_FILE) }) {
-  const purify = (await import(new URL("../../docs/assets/vendor/purify.es.mjs", assets))).default;
-  if (typeof purify.sanitize !== "function") purify.sanitize = (s) => String(s); // node has no DOM to sanitise in
   // The renderer (MOD-markdown-render) draws only where the browser can sanitise (DOMPurify.isSupported) and, for a Mermaid block, draws
   // SVG (SVGElement). This fake DOM has no HTML parser, so it sanitises nothing: the HTML of a text that holds a Mermaid block, which the
   // renderer wrote itself, passes as it is, and any other text is refused as a browser without DOMPurify refuses it, so the renderer shows
   // its source (what the explanations' tests read).
   const renderer = (await import("../src/markdown-render/vendor/purify.es.mjs")).default;
-  for (const each of [purify, renderer]) {
-    each.sanitize = (html, options) => {
-      if (!options?.USE_PROFILES && !String(html).includes('class="language-mermaid"')) throw new Error("this browser cannot sanitise HTML");
-      return String(html);
-    };
-    each.isSupported = true;
-  }
+  renderer.sanitize = (html, options) => {
+    if (!options?.USE_PROFILES && !String(html).includes('class="language-mermaid"')) throw new Error("this browser cannot sanitise HTML");
+    return String(html);
+  };
+  renderer.isSupported = true;
   globalThis.SVGElement ??= class SVGElement {};
   const els = new Map();
   const head = { children: [], append(x) { this.children.push(x); } }; // the stylesheets a view links into the page
