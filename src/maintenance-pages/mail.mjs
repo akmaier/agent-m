@@ -47,7 +47,7 @@ function button(className, text, listener) {
 let listedIds = [];
 
 // The hosts of the products this browser keeps, by their address as the store lists it: each with its own token, else, for GitHub, the instance's.
-function productsOf(store) {
+export function productsOf(store) {
   const hosts = new Map();
   for (const url of readSetting(store, "products") ?? []) {
     try {
@@ -60,7 +60,7 @@ function productsOf(store) {
   return hosts;
 }
 
-function mailboxOf(store) {
+export function mailboxOf(store) {
   const connection = readSetting(store, "mailbox");
   if (!connection) return null;
   if (connection.route === "graph") return { connection, box: mailbox(connection, null) };
