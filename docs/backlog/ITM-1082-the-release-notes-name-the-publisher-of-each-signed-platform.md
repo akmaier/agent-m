@@ -24,7 +24,7 @@ draft for akmaier on `main` (d53be63b) has MOD-bridge-build's `publishRelease` w
 Windows. Each name is the one the platform's own verifier reads from the signed file, and `BuildMissing` and
 `SignatureInvalid` stand where it reads none. Linux gets no line.
 
-It waits for akmaier's acceptance of that draft.
+akmaier accepted that draft (`48e16178`).
 
 ## Acceptance
 

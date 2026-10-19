@@ -42,4 +42,4 @@ and the line it needs goes to akmaier as a draft.
 - The release `listReleaseAssets` reads holds no publisher, and the page cannot read a file's bytes.
 - The draft for akmaier, on `main` (d53be63b): the release's notes carry `Publisher (<system>): <name>` (MOD-bridge-build),
   and the page shows the line for this system (MOD-settings-pages).
-- It waits for akmaier's acceptance of that draft, and for ITM-1082, which writes the line.
+- akmaier accepted that draft (`48e16178`). It waits for ITM-1082, which writes the line.

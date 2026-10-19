@@ -41,3 +41,12 @@ default branch, for akmaier's acceptance; until then it cannot start.
 - The existing tests stay green, with no expected result changed; ITM-310's tests change at most how they prepare
   their fixture.
 - Only `src/repository-hosts/` and the tests that name MOD-repository-hosts change.
+
+**Read at sprint team1/96 (po-opus): built.**
+- akmaier accepted the Credentials draft (`48e16178`): `Credentials` gains `defaultBranch`
+  (MOD-repository-hosts.md:102).
+- The code does what that text states. `connect` takes `defaultBranch` from the credentials, else `main`
+  (`src/repository-hosts/index.mjs:199`), and hands it to `webLinks` (`:215`, `web-links.mjs:26-28`).
+- `tests/repository-hosts-file-pages.test.mjs:65-70` names MOD-repository-hosts and checks both `master` and `main`. It
+  passes (4 of 4).
+- It is done. ITM-1076, the callers that pass the default branch, follows it.
