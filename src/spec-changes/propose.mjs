@@ -373,6 +373,23 @@ async function pathsWhenOpened(host, snapshot, openedHead) {
   return new Set((await host.readSnapshot(openedHead)).paths);
 }
 
+// The pages of GitHub's web interface for the files of an entry, each marked as differing where its file exists on the default branch otherwise than at the commit the edit was opened on.
+async function pagesFor(host, snapshot, openedHead, files) {
+  const began = await pathsWhenOpened(host, snapshot, openedHead);
+  return fallbackEditLinks(files.map((file) => ({ ...file, existing: began.has(file.path) })), snapshot);
+}
+
+// The commit of an entry, or, where GitHub refuses it for a missing write permission (`PermissionMissing`), nothing written and GitHub's pages instead, as for a person with no token (UC-018 6b).
+// On GitLab, which has no such fallback, and for every other failure, the failure is thrown as it came.
+async function commitOrPages(host, snapshot, openedHead, files, commit) {
+  try {
+    return await host.commitFiles(commit);
+  } catch (failure) {
+    if (failure?.name !== "PermissionMissing" || snapshot.repository.server === "gitlab") throw failure;
+    return { fallback: await pagesFor(host, snapshot, openedHead, files) };
+  }
+}
+
 export async function proposeSection(host, change) {
   const info = await host.repositoryInfo();
   const snapshot = await host.readSnapshot(info.defaultBranch);
@@ -416,14 +433,11 @@ export async function proposeSection(host, change) {
   if (findings.length) throw failure("RationaleInvalid", `the rationale of the entry breaks its schema: ${findings[0].what}`);
   files.push({ path: proposalPath, text: change.text }, { path: rationalePath, text: rationale });
 
-  if (!info.canWrite) {
-    const began = await pathsWhenOpened(host, snapshot, change.openedHead);
-    return { fallback: fallbackEditLinks(files.map((file) => ({ ...file, existing: began.has(file.path) })), snapshot) };
-  }
+  if (!info.canWrite) return { fallback: await pagesFor(host, snapshot, change.openedHead, files) };
   const trailers = change.trailers?.length ? `\n\n${change.trailers.join("\n")}` : "";
-  const { commit } = await host.commitFiles({ branch: info.defaultBranch, expectedHead: snapshot.commit, files,
+  const committed = await commitOrPages(host, snapshot, change.openedHead, files, { branch: info.defaultBranch, expectedHead: snapshot.commit, files,
     message: `Propose an edit of ${headingText(change.anchor)} as entry ${pad2(number)} of queue ${day}${trailers}` });
-  return { commit, queue: folder, entry: number, alsoReplacing };
+  return committed.fallback ? committed : { commit: committed.commit, queue: folder, entry: number, alsoReplacing };
 }
 
 // saveEntry (ITM-394): an open entry saved in its own queue. Where the module file leaves a reading open, this file takes the one it names:
@@ -452,11 +466,8 @@ export async function saveEntry(host, edit) {
   if (findings.length) throw failure("RationaleInvalid", `the rationale of the entry breaks its schema: ${findings[0].what}`);
   const files = [{ path: entry.proposal.path, text: edit.text }, { path: entry.rationale, text: rationale }];
 
-  if (!info.canWrite) {
-    const began = await pathsWhenOpened(host, snapshot, edit.openedHead);
-    return { fallback: fallbackEditLinks(files.map((file) => ({ ...file, existing: began.has(file.path) })), snapshot) };
-  }
-  const { commit } = await host.commitFiles({ branch: info.defaultBranch, expectedHead: snapshot.commit, files,
+  if (!info.canWrite) return { fallback: await pagesFor(host, snapshot, edit.openedHead, files) };
+  const committed = await commitOrPages(host, snapshot, edit.openedHead, files, { branch: info.defaultBranch, expectedHead: snapshot.commit, files,
     message: `Save the edit of entry ${pad2(entry.number)} of the queue ${edit.queue.split("/").pop()}` });
-  return { commit };
+  return committed.fallback ? committed : { commit: committed.commit };
 }
