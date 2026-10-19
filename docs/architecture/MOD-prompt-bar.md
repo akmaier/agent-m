@@ -15,6 +15,8 @@ uses:
   - MOD-repository-hosts.readSnapshot
   - MOD-repository-hosts.repositoryInfo
   - MOD-repository-hosts.commitFiles
+  - MOD-repository-hosts.listCiRuns
+  - MOD-repository-hosts.ciRunLog
   - MOD-repository-hosts.webLinks
   - MOD-documents.Schema
   - MOD-documents.loadSchema
@@ -207,7 +209,12 @@ IN THE REPOSITORY`).
   what is missing and links where it is set up (UC-049 4c): while the product has no job workflow — the CI route
   unavailable, `routesFor` naming its files — the route `settings` through `go`, whose product section installs it; for a
   run ended `not run` for a missing secret, the server's page of the repository's secrets (MOD-repository-hosts'
-  `webLinks`, `secrets`), naming the secret.
+  `webLinks`, `secrets`), naming the secret. Such a run writes neither `## Taken` nor `## End` (MOD-workflow-entries), so
+  `liveState` and `jobLog` cannot report it; while a followed hand-over stays queued and untaken on the CI route, each
+  poll lists the runs of the job workflow with `listCiRuns`, and when a failed run no older than the job's start turns up it
+  reads that run's log once with `ciRunLog` and takes the secret from the entry's line `not run — <SECRET> is missing`.
+  The cost is one `listCiRuns` call per 15-second poll while the job stays queued and untaken, and one `ciRunLog` call when
+  a failed run turns up.
 - `latestDraft(store: Store, subject: string) -> ConversationDraft | null` — the conversation's latest draft, if it was
   drafted on that subject; for the review pages' route that shows it.
 - `dropDraft(store: Store, subject: string) -> void` — drops the conversation's latest draft, if it was drafted on that
@@ -238,7 +245,9 @@ records under `docs/conversations/`. It keeps the conversation in the tab's valu
   MOD-browser-store.readTabValue, MOD-browser-store.writeTabValue — the conversation, held in the tab.
 - MOD-repository-hosts.Host, MOD-repository-hosts.readSnapshot, MOD-repository-hosts.repositoryInfo — the participants,
   the switch, the head the record is appended on; MOD-repository-hosts.commitFiles — appending to the record;
-  MOD-repository-hosts.webLinks — the server's page of the repository's secrets, linked when a secret is missing.
+  MOD-repository-hosts.webLinks — the server's page of the repository's secrets, linked when a secret is missing;
+  MOD-repository-hosts.listCiRuns, MOD-repository-hosts.ciRunLog — the runs of the job workflow and a failed run's log, to
+  learn that a hand-over's run ended `not run` and which secret it named.
 - MOD-documents.loadSchema, MOD-documents.readDocument, MOD-documents.writeDocument, MOD-documents.readRegister — its two
   files and the participant list.
 - MOD-participant-list.Participant, MOD-participant-list.participantSchema, MOD-participant-list.participantsOf,

@@ -6,6 +6,9 @@ realises:
   - PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 modules:
   - MOD-progress-measures
+  - MOD-main-page
+  - MOD-prompt-bar
+  - MOD-workflow-entries
 builds_on:
 tests:
   - unit
@@ -28,6 +31,6 @@ for akmaier that takes them out of the text, so that they are asked in one place
 
 ## Acceptance
 
-- `productFacts` with the scope `all` or `build` gives each job that has not ended the state `liveState` answers, and the
-  state its record gives where the runtime does not answer. A test shows both, with a counter-proof.
+- As MOD-progress-measures states since akmaier's acceptance `62ba5138`: `productFacts` takes no `bridges` and asks no live
+  state, its rows giving the state each record gives, and its callers pass none. A test shows it, with a counter-proof.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.

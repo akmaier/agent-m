@@ -56,7 +56,14 @@ vendored libraries in `vendor/README.md` — one line per library: name, version
   `renderMermaid`, images and embedded resources shown as links. A part that cannot be rendered is shown as its source
   with the reason; it never throws.
 - `renderMermaid(source: string) -> Promise<Element>` — one diagram, drawn with the diagram library's strict security
-  level; a diagram that does not parse is shown with the parser's message beside its source. The prose beside a diagram
+  level in the colour scheme of the site: the library's `dark` theme where the scheme is dark, its `default` theme
+  otherwise. The scheme is dark when the browser prefers a dark colour scheme (`prefers-color-scheme: dark`) and the
+  document's root element does not carry `data-theme="light"` — the rule MOD-site-frame's style sheets (`look.css`,
+  `lme.css`) apply to every page. When the scheme changes after the diagram is drawn — the browser's preference
+  changes, or the root element's `data-theme` does — the diagram is drawn again from the same source in the new scheme,
+  and the element that was returned keeps its place and takes the new drawing as its content; the page is not reloaded
+  and the surrounding text is not touched. A diagram that does not parse is shown with the parser's message beside its
+  source, in either scheme. The prose beside a diagram
   stays what holds (`THE PROSE IS AUTHORITATIVE, THE DIAGRAM IS THE OVERVIEW`); this function only draws.
 - `openEditor(target: Element, text: string, options: { marks: (text: string) -> Finding[], save: (text: string) ->
   Promise<SaveOutcome>, disabledReason?: (text: string) -> string | null }) -> Editor` — the editor of
