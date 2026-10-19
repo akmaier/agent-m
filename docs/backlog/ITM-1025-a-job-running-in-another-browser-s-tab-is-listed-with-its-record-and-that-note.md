@@ -13,6 +13,8 @@ modules:
   - MOD-browser-store
 builds_on:
   - ITM-535
+  - ITM-1077
+  - ITM-1078
 tests:
   - unit
 origin:
@@ -43,6 +45,16 @@ MOD-runtimes.md:196-199:
 
 ## Acceptance
 
-- A tab job of another browser that is still running is listed with the note and its folded explanation recommending a
-  CI or Bridge route; one whose tab has closed is *ended without record*. Each with a counter-proof.
+- A tab job whose `## Taken` names another browser is listed with `reachable: false`, the note that its live state and
+  log exist only in that browser's tab, and the folded explanation of ITM-1078. A tab job this browser took and this tab
+  no longer holds is *ended without record*. A `## Taken` of bare `tab` is read as this browser's. Each with a
+  counter-proof. Whether another browser's tab has since closed cannot be known here, so such a job stays
+  `reachable: false`.
+
+## Not ready: its draft waits
+
+No accepted text says how MOD-runtimes learns this browser's identifier (sprint 96, developer-sonnet-i's stop). The
+draft for MOD-runtimes is described in 96.md: the tab's route reads `browser` from the store of the instance its Pages
+address names, and makes it at first use. It goes to akmaier once it is reviewed, and after akmaier has decided team 1's
+pending draft `c3ec9099` on the same file. The item is built only once the draft is accepted.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
