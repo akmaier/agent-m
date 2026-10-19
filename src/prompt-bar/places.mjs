@@ -10,9 +10,7 @@
 // It reads the instance's snapshot and writes nothing.
 
 import { readDocument } from "../documents/index.mjs";
-import { permittedPlaces, sourceSchemas } from "../source-register/index.mjs";
-
-const ENTRY = /^docs\/sources\/(SRC-[^/]+)\.md$/;
+import { permittedPlaces, registerPaths, sourceSchemas } from "../source-register/index.mjs";
 
 /**
  * restrictedPlaces(snapshot: Snapshot) -> Promise<{ sources: Record<string, string[]>, contents: { source: string, paths: string[] }[] }> — for each source of the register at that snapshot
@@ -22,10 +20,10 @@ const ENTRY = /^docs\/sources\/(SRC-[^/]+)\.md$/;
 export async function restrictedPlaces(snapshot) {
   const { entry } = sourceSchemas();
   const sources = {}, contents = [];
-  for (const path of snapshot.paths.filter((each) => ENTRY.test(each))) {
+  for (const path of registerPaths(snapshot.paths)) {
     const allowed = permittedPlaces(readDocument(entry, path, (await snapshot.read(path)) ?? ""));
     if (allowed === "any") continue;
-    const id = ENTRY.exec(path)[1];
+    const id = path.slice(path.lastIndexOf("/") + 1, -".md".length);
     sources[id] = allowed;
     contents.push({ source: id, paths: [`docs/sources/${id}`] });
   }
