@@ -408,17 +408,18 @@ test("alternative 1a: Ask the reporter, Send and wait labels the issue waiting-f
 
 // TST-969013 · level: system · module: MOD-maintenance-pages · MOD-mail-handling
 // guards: UC-039 alternative 1b; A REPORTER'S ANSWER IS SHOWN AT ITS ISSUE; AN ISSUE WAITING FOR A REPORTER IS LABELLED
-// given: the open issue 5, labelled waiting-for-reporter, whose comments say a question was sent for m1 and then that mail m1 was added; the open issue 6 listing m3
+// given: the open issue 5, labelled waiting-for-reporter, whose comments say a question was sent for m1 and then that mail m1 was added; the open issue 6 listing m3; the open issue 7, whose comments say the same of m2 but which carries no label
 // input: the person's click on Read replies; issue 5 opened; the click on Remove the label
-// expect: issue 5 is under answer received, issue 6 under open; issue 5 shows the new mail marked as new; the author can remove the label, ask again or close — the three buttons are offered; Remove the label removes the label from the issue, one request, and writes no comment
+// expect: issue 5 is under answer received, issues 6 and 7 under open (a new mail without the label waiting-for-reporter is no answer); issue 5 shows the new mail marked as new; the author can remove the label, ask again or close — the three buttons are offered; Remove the label removes the label from the issue, one request, and writes no comment
 test("alternative 1b: an issue with the reporter's answer appears under answer received and the author removes the label, asks again or closes", async () => {
   const waiting = issueRecord(5, "open", [M1], { labels: ["waiting-for-reporter"], comments: [noteText("question-sent", M1.id, "2026-10-17"), noteText("mail-added", M1.id, "2026-10-18")] });
-  const p = await openReplies({ inbox: [rawMail("m1"), rawMail("m3")], issues: [waiting, issueRecord(6, "open", [M3])] });
+  const unlabelled = issueRecord(7, "open", [M2], { comments: [noteText("question-sent", M2.id, "2026-10-17"), noteText("mail-added", M2.id, "2026-10-18")] });
+  const p = await openReplies({ inbox: [rawMail("m1"), rawMail("m2"), rawMail("m3")], issues: [waiting, issueRecord(6, "open", [M3]), unlabelled] });
   await lastly(p, async () => {
     await readReplies(p);
     const group = (name) => byClass(p.main(), "replies-group").find((node) => node.getAttribute("data-group") === name);
     assert.deepEqual(byClass(group("answer-received"), "reply-issue").map((node) => node.getAttribute("data-issue")), ["5"]);
-    assert.deepEqual(byClass(group("open"), "reply-issue").map((node) => node.getAttribute("data-issue")), ["6"]);
+    assert.deepEqual(byClass(group("open"), "reply-issue").map((node) => node.getAttribute("data-issue")), ["6", "7"]);
     await openIssue(p, 5);
     const item = itemOf(p.main(), M1.id);
     assert.match(textOf(one(item, "reply-new")), /New/);
