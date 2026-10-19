@@ -49,8 +49,8 @@ const moduleFile = (id, realises) => text("---", `id: ${id}`, `title: Module ${i
 // A test file's text: one declaration for each entry [number, level, module, guards]; built by join, so that no line of this file is a declaration.
 const declarations = (entries) => entries.map(([number, level, module, guards]) => ["// TST-" + number + " · level: " + level + " · module: " + module, "// guards: " + guards,
   "// given: g", "// input: i", "// expect: e", "test(\"t\", () => {});", ""].join("\n")).join("\n");
-// RULE ONE is guarded at release and user, UC-001 at system, MOD-b at unit and component; RULE TWO, UC-002 and MOD-a's component are not.
-const TESTS = declarations([["1", "unit", "MOD-a", "RULE ONE"], ["2", "release", "none", "RULE ONE"], ["3", "user", "none", "RULE ONE"], ["4", "system", "none", "UC-001"],
+// RULE ONE is guarded at release and user (and unit), UC-001 at system, MOD-b at unit and component; RULE TWO, UC-002 and MOD-a are not.
+const TESTS = declarations([["1", "unit", "none", "RULE ONE"], ["2", "release", "none", "RULE ONE"], ["3", "user", "none", "RULE ONE"], ["4", "system", "none", "UC-001"],
   ["5", "unit", "MOD-b", "RULE TWO"], ["6", "component", "MOD-b", "RULE TWO"]]);
 const FILES = { "README.md": "# Thesis tool\n", "SPEC.md": SPEC, "docs/use-cases/UC-001-one.md": useCase("UC-001", "RULE ONE"), "docs/use-cases/UC-002-two.md": useCase("UC-002", "RULE TWO"),
   "docs/architecture/MOD-a.md": moduleFile("MOD-a", "RULE ONE"), "docs/architecture/MOD-b.md": moduleFile("MOD-b", "RULE TWO"), "tests/a.test.mjs": TESTS,
@@ -155,9 +155,9 @@ const runButtons = (root) => find(root, (node) => node.localName === "button" &&
 
 // TST-763001 · level: unit · module: MOD-test-pages
 // guards: UC-026 (1, 2); TEST GENERATION SEES THE EXISTING TESTS; EVERY STEP EXPLAINS ITSELF
-// given: a product with the requirements RULE ONE (guarded at release and user) and RULE TWO (guarded at neither), the use cases UC-001 (guarded at system) and UC-002 (not), the modules MOD-a (unit only) and MOD-b (unit and component)
+// given: a product with the requirements RULE ONE (guarded at release and user) and RULE TWO (guarded at neither), the use cases UC-001 (guarded at system) and UC-002 (not), the modules MOD-a (no test) and MOD-b (unit and component)
 // input: the route generate, drawn
-// expect: every requirement, use case and module listed with the levels that guard it; RULE TWO, UC-002 and MOD-a preselected and the others not; the levels component, system, release and user preselected, unit not; each level with a folded explanation that names chapter 13; nothing written, nothing sent
+// expect: every requirement, use case and module listed with the levels that guard it; RULE TWO, UC-002 and MOD-a preselected and the others not; all five levels preselected, since each is lacking for a name; each level with a folded explanation that names chapter 13; nothing written, nothing sent
 test("generate — what can be tested with the levels that guard it, the uncovered combinations preselected, each level explained", async () => {
   const fake = fakeProduct();
   const target = await show(fake);
@@ -166,9 +166,10 @@ test("generate — what can be tested with the levels that guard it, the uncover
   assert.deepEqual(checkedNames(target).sort(), ["MOD-a", "RULE TWO", "UC-002"]);
   const rowOf = (name) => find(target, (node) => node.localName === "li" && node.getAttribute("data-name") === name)[0];
   assert.match(byClass(rowOf("RULE ONE"), "span", "covered")[0].textContent, /release, user/);
-  assert.match(byClass(rowOf("MOD-a"), "span", "covered")[0].textContent, /unit/);
-  assert.match(byClass(rowOf("MOD-a"), "span", "uncovered")[0].textContent, /component/);
-  assert.deepEqual(checkedLevels(target), ["component", "system", "release", "user"]);
+  assert.match(byClass(rowOf("MOD-a"), "span", "covered")[0].textContent, /no level/);
+  assert.match(byClass(rowOf("MOD-a"), "span", "uncovered")[0].textContent, /unit, component/);
+  assert.match(byClass(rowOf("MOD-b"), "span", "covered")[0].textContent, /unit, component/);
+  assert.deepEqual(checkedLevels(target), ["unit", "component", "system", "release", "user"]);
   for (const item of byClass(target, "li", "level")) {
     const details = find(item, (node) => node.localName === "details");
     assert.equal(details.length, 1, `${item.getAttribute("data-level")} has one folded explanation`);
@@ -259,7 +260,7 @@ test("generate — a selection that does not fit the participant's context sends
   assert.equal(runButtons(target).length, 0, "no Run");
   const said = byClass(target, "p", "too-large");
   assert.equal(said.length, 1);
-  assert.match(said[0].textContent, /3 existing tests guard this selection/);
+  assert.match(said[0].textContent, /2 existing tests guard this selection/);
   assert.match(said[0].textContent, /smaller selection/);
   assert.match(said[0].textContent, /larger context/);
   assert.deepEqual(fake.writes(), []);
