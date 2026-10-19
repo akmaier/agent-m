@@ -34,7 +34,7 @@ origin:
 
 SPEC.md names `tests/test_mail_replies.py` as the check of eleven requirements (SPEC.md:1991, 2009, 2066, 2072, 2078,
 2083, 2089, 2095, 2101, 2106 and 2110). The file does not exist. Team 2's sprint 78 read this (team2/78.md:57: "`test_mail_replies.py` needs the
-mail dashboard's groups"). Those groups are MOD-mail-handling's `repliesDue` (MOD-mail-handling.md:95-103), which ITM-953
+mail dashboard's groups"). Those groups are MOD-mail-handling's `repliesDue` (MOD-mail-handling.md:101-108), which ITM-953
 builds.
 
 The check follows the pattern of `tests/test_mail_import.py`:

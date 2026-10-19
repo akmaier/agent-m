@@ -18,7 +18,7 @@ if (findings.length || !register.rows.length) {
   throw new Error(`${OWNER}: agent register is invalid: ${reasons.join("; ")}`);
 }
 
-/** @typedef {{ name: string, installed: boolean, version: string | null, loggedIn: boolean | null,
+/** @typedef {{ name: string, installed: boolean, version: string | null, loggedIn: boolean | null, login: string,
  *   install: Record<"macos" | "windows" | "linux", string> }} Agent */
 
 function json(value, column) {
@@ -59,7 +59,7 @@ function loginMatches(login, result) {
   }
   return false;
 }
-const missingAgent = (row) => ({ name: row.name, installed: false, version: null, loggedIn: null, install: row.install });
+const missingAgent = (row) => ({ name: row.name, installed: false, version: null, loggedIn: null, login: row.login.login, install: row.install });
 const taskArgs = (task, prompt) => task.args.map((arg) => arg === "{prompt}" ? prompt : arg);
 function ownLoginEnvironment() {
   const credentials = new Set(rows.map((row) => row.keyVariable).filter((name) => name && name !== "—"));
@@ -111,8 +111,7 @@ export async function installedAgents() {
     if (version.error?.code === "ENOENT") return missingAgent(row);
     const login = await invoke(row.command, row.login.args);
     const loggedIn = loginMatches(row.login, login);
-    return { name: row.name, installed: true, version: versionOf(row, version.stdout), loggedIn, install: row.install,
-      ...(loggedIn ? {} : { login: row.login.login }) };
+    return { name: row.name, installed: true, version: versionOf(row, version.stdout), loggedIn, login: row.login.login, install: row.install };
   }));
 }
 
