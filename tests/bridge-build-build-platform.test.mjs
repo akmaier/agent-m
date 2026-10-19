@@ -144,7 +144,8 @@ const fs = require("node:fs"), path = require("node:path");
 const tool = path.basename(process.argv[1]);
 fs.appendFileSync(process.env.FAKE_LOG, JSON.stringify({ tool, args: process.argv.slice(2) }) + "\\n");
 if (tool === "codesign" && process.env.FAKE_TAMPER) fs.writeFileSync(process.env.FAKE_TAMPER, Buffer.alloc(64).toString("base64"));
-if (tool === "powershell") console.log("Valid");
+if (tool === "codesign" && process.argv.includes("-dvv") && !process.env.FAKE_NO_NAME) console.error("Executable=/app\\nAuthority=Developer ID Application: Example Lab (ABCDE12345)\\nAuthority=Developer ID Certification Authority\\nAuthority=Apple Root CA\\nTeamIdentifier=ABCDE12345");
+if (tool === "powershell") console.log(process.env.FAKE_NO_NAME ? "Valid" : "Valid\\nExample Lab GmbH");
 `;
 
 const executable = (path, content) => { writeFileSync(path, content); chmodSync(path, 0o755); };
@@ -179,7 +180,7 @@ function setting(platform, { env = {} } = {}) {
   git("tag", TAG);
   const commit = git("rev-parse", "HEAD").stdout.trim();
 
-  const names = [...new Set([...SECRETS.macos, ...SECRETS.windows, "PATH", "FAKE_LOG", "FAKE_CONFIGS", "FAKE_BUILDER", "FAKE_APP", "FAKE_ADDON", "FAKE_TOOL_ADDON", "FAKE_TRANSITIVE_ADDON", "FAKE_TAMPER"])];
+  const names = [...new Set([...SECRETS.macos, ...SECRETS.windows, "PATH", "FAKE_LOG", "FAKE_CONFIGS", "FAKE_BUILDER", "FAKE_APP", "FAKE_ADDON", "FAKE_TOOL_ADDON", "FAKE_TRANSITIVE_ADDON", "FAKE_TAMPER", "FAKE_NO_NAME"])];
   const before = Object.fromEntries(names.map((name) => [name, process.env[name]]));
   for (const name of SECRETS[platform]) process.env[name] = name === "BRIDGE_UPDATE_KEY" ? PRIVATE_PEM : `value of ${name}`;
   Object.assign(process.env, { PATH: `${bin}${delimiter}${process.env.PATH}`, FAKE_LOG: join(root, "log.jsonl"), FAKE_CONFIGS: configs, FAKE_BUILDER: join(root, "fake-builder"), FAKE_APP: join(root, "fake-app"), ...env });
@@ -393,5 +394,41 @@ test("buildPlatform — the real Linux build writes the AppImage, its detached s
   } finally {
     if (before === undefined) delete process.env.BRIDGE_UPDATE_KEY; else process.env.BRIDGE_UPDATE_KEY = before;
     rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// TST-1082001 · level: unit · module: MOD-bridge-build
+// guards: THE BRIDGE IS SIGNED BY ITS PUBLISHER; UC-044
+// given: a build for each platform, whose verifiers read a name: macOS's codesign (-dvv) lists the Authority "Developer ID Application: Example Lab (ABCDE12345)" first; Windows's PowerShell gives the status Valid and the signer's name "Example Lab GmbH"; Linux has no verifier
+// input: buildPlatform for each platform
+// expect: the PlatformBuild and the platform-build.json it wrote record publisher "Example Lab (ABCDE12345)" for macOS, "Example Lab GmbH" for Windows and null for Linux
+// Planted fault: a publisher left null, or taken from another line (the certificate authority), fails the name.
+test("buildPlatform — the publisher is the name the platform's own verifier reads from the signed file; Linux records none", async () => {
+  const expected = { macos: "Example Lab (ABCDE12345)", windows: "Example Lab GmbH", linux: null };
+  for (const platform of ["macos", "windows", "linux"]) {
+    const run = setting(platform);
+    try {
+      const built = await run.build();
+      assert.equal(built.publisher, expected[platform], `${platform}: the PlatformBuild`);
+      assert.equal(JSON.parse(readFileSync(join(run.folder, "platform-build.json"), "utf8")).publisher, expected[platform], `${platform}: platform-build.json`);
+    } finally { run.settle(); }
+  }
+});
+
+// TST-1082002 · level: unit · module: MOD-bridge-build
+// guards: THE BRIDGE IS SIGNED BY ITS PUBLISHER; UC-044
+// given: macOS and Windows builds whose verifiers accept the signature but read no name
+// input: buildPlatform for each
+// expect: it rejects with SignatureInvalid naming the released file, and the folder holds none of the build's files
+// Planted fault: recording an empty publisher and handing the files on leaves files in the folder.
+test("buildPlatform — a verifier that reads no name gives SignatureInvalid, and no file is handed on", async () => {
+  for (const platform of ["macos", "windows"]) {
+    const run = setting(platform, { env: { FAKE_NO_NAME: "1" } });
+    try {
+      const error = await rejection(run.build());
+      assert.equal(error.name, "SignatureInvalid", platform);
+      assert.equal(error.file, TABLE[platform][0], platform);
+      assert.deepEqual(names(run.folder), [], `${platform}: no file is handed on`);
+    } finally { run.settle(); }
   }
 });
