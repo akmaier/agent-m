@@ -246,6 +246,13 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
       return answer === null ? null : answer.text();
     },
 
+    // One file's text at each of many commits -> Map(commit -> text | null), in the order given: GitLab has no batch query, so one read of the raw file for each commit.
+    async readFileAt(path, commits) {
+      const texts = new Map();
+      for (const commit of commits) texts.set(commit, await this.readFile(commit, path));
+      return texts;
+    },
+
     // One commit of all the files, through "Create a commit with multiple files and actions". GitLab has no write that holds
     // only if the branch still stands at a commit, so: the branch is checked to stand at expectedHead before the files are
     // read, and again just before the write; each file is created where expectedHead does not hold it — GitLab refuses that
