@@ -22,6 +22,7 @@ import { cardHtml, waitsHtml, waitingAcross } from "./cards.mjs";
 import { openStore } from "../browser-store/index.mjs";
 import { parseAddress, connect } from "../repository-hosts/index.mjs";
 import { watchForAcceptance } from "../notifications/index.mjs";
+import { productHostFollowingStore } from "../site-frame/index.mjs";
 
 const built = builtViews(builtFiles);
 // Set by start(): nothing here runs on import outside a page (no `document`), so that node imports the module.
@@ -123,7 +124,7 @@ function startNotifications() {
   }
   if (typeof globalThis.Notification === "undefined") return;
   const instanceHost = connect(parseAddress(`https://github.com/${instance}`), { token: store.getToken() });
-  watchForAcceptance({ store: notificationsStore, instance: { repository: instance, host: instanceHost }, addressOf: addressOfNotification });
+  watchForAcceptance({ store: notificationsStore, instance: { repository: instance, host: instanceHost }, productHost: productHostFollowingStore({ store: notificationsStore }), addressOf: addressOfNotification });
 }
 
 async function start() {
