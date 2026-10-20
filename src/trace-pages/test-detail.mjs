@@ -104,12 +104,15 @@ async function declaredAtARelease(host, id, declarationsOf) {
 }
 
 // The commit that removed a test: the first, in the history of its file, whose version no longer declares it. The commits are newest first; the history is read to a limit that doubles until a commit that
-// declares the test has an newer one that does not, or the history is read to its end.
+// declares the test has an newer one that does not, or the history is read to its end. The history is read again for each limit, since readHistory has a limit and no offset; the text of the file at a
+// commit is read once, the commits of an earlier round being kept.
 async function removedAt(host, shown, declaration) {
   const declares = (text) => text != null && testDeclarations(declaration.path, text).some((each) => each.id === declaration.id);
+  const texts = new Map();
   for (let limit = FIRST_PAGE; ; limit *= 2) {
     const commits = await host.readHistory(declaration.path, { ref: shown.ref, limit, changes: false });
-    const texts = await host.readFileAt(declaration.path, commits.map(({ commit }) => commit));
+    const unread = commits.map(({ commit }) => commit).filter((commit) => !texts.has(commit));
+    if (unread.length) for (const [commit, text] of await host.readFileAt(declaration.path, unread)) texts.set(commit, text);
     let seen = false;
     for (let at = commits.length - 1; at >= 0; at -= 1) {
       if (declares(texts.get(commits[at].commit))) seen = true;
