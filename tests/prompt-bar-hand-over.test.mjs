@@ -515,7 +515,7 @@ test("a hand-over of an open use case is refused by the job's own precondition w
 // expect: the click on dev-ci's hand-over writes nothing and the page says "Nothing was queued." with a finding that names SRC-restricted and "Anthropic, USA"; dev-bridge's hand-over is queued by one commit (the counter-proof: a source whose
 //   licence allows the place is read)
 test("a hand-over to a participant at a place a restricted source does not allow queues nothing, and one at a place it allows is queued", async () => {
-  const restricted = ["---", "id: SRC-restricted", "title: A restricted handbook", "kind: document", "authority: informational", "licence: restricted - internal", "places:", "  - this machine", "---",
+  const restricted = ["---", "id: SRC-restricted", "title: A restricted handbook", "kind: document", "authority: informational", "licence: restricted - internal", "places:", "  - this machine", "content_repository: https://github.com/alice/thesis-tool", "---",
     "# SRC-restricted A restricted handbook", "", "## Versions", "", "| Version | Date | Edition | Read from | Files |", "|---|---|---|---|---|", "| `1` | 2026-10-13 | fixture | here | one file, hashed only |", ""].join("\n");
   const it = open({ instanceFiles: { "docs/sources/SRC-restricted.md": restricted } });
   await proposes(it, ITEM("ITM-004"));
