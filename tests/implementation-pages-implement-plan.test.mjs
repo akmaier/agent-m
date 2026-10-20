@@ -68,8 +68,13 @@ const PLAN = {
 };
 const ASSIGNMENT = lines("# Product", "", "## Roles", "", "| Role | Participants |", "|---|---|", "| Product owner | alice |", "| Developer | dev-a |", "| Tester | dev-a |", "| Reviewer | alice |");
 
-function productFiles({ model = "v-model", plan = true, declared = true } = {}) {
+function productFiles({ model = "v-model", plan = true, declared = true, later = false } = {}) {
   const files = { "SPEC.md": "# Fixture\n", ...(declared ? { "docs/process.md": declaration(model) } : {}), [USE_CASE]: "# UC-001 load\n", ...ARCHITECTURE, ...(plan ? PLAN : {}), "docs/role-assignments/product.md": ASSIGNMENT };
+  if (later) {
+    // A ready step of a later phase: no gate stands before Validation & Verification, and it builds on nothing.
+    files["docs/plan/ITM-014-later.md"] = step("ITM-014", "Later work");
+    files["docs/plan/order.md"] = PLAN["docs/plan/order.md"] + "| ITM-014 | Validation & Verification |\n";
+  }
   for (const path of Object.keys(files).filter((each) => each === USE_CASE || each.startsWith("docs/architecture/"))) {
     files[`docs/approvals/${/(ARC-\d+|MOD-[a-z]+|UC-\d+)/.exec(path)[1]}-${blobOf(files[path]).slice(0, 12)}.md`] = "kind: record\n";
   }
@@ -98,7 +103,7 @@ async function render(files) {
 }
 const rowOf = (target, id) => found(target, `[data-step="${id}"]`)[0];
 const tickOf = (target, id) => found(rowOf(target, id), "[data-select-step]")[0];
-const ticked = (box) => box.getAttribute("checked") !== null && box.getAttribute("disabled") === null;
+const ticked = (box) => box.getAttribute("disabled") === null && (box.checked === undefined ? box.getAttribute("checked") !== null : box.checked === true);
 const reasons = (target, id) => found(rowOf(target, id), "[data-reasons]").map(text).join(" ");
 
 // TST-732001 · level: unit · module: MOD-implementation-pages
@@ -139,7 +144,6 @@ test("the author narrows the selection down to one step", async () => {
   const { target } = await render(productFiles());
   assert.match(text(found(target, "[data-selected]")[0]), /2 steps selected/);
   const box = tickOf(target, "ITM-012");
-  box.removeAttribute("checked");
   box.checked = false;
   box.dispatchEvent(new Event("change"));
   assert.match(text(found(target, "[data-selected]")[0]), /1 step selected/);
@@ -162,4 +166,18 @@ test("without a model or without a plan nothing starts and what is missing is na
   const scrum = await render(productFiles({ model: "scrum" }));
   assert.ok(found(scrum.target, "[data-backlog-link]").length >= 1, "a model that works from a backlog links to the backlog");
   for (const { target } of [none, noPlan, scrum, await render(productFiles())]) assert.ok(found(target, "details").some((each) => /What is this\?/.test(text(each))), "the folded What is this?");
+});
+
+// TST-732005 · level: unit · module: MOD-implementation-pages
+// guards: UC-024 (2); A PLANNED MODEL IMPLEMENTS ITS IMPLEMENTATION PLAN
+// given: the product of TST-732001 and a fifth step ITM-014, ready and with no gate before its phase, Validation & Verification, a phase after the current one
+// input: the route's render
+// expect: ITM-014 is ready and may be ticked by the author, but is not preselected; the ready steps of the current phase, Testing, still are (the counter-proof of TST-732002: only the current phase is preselected)
+test("a ready step of a later phase is selectable but not preselected", async () => {
+  const { target } = await render(productFiles({ later: true }));
+  assert.equal(rowOf(target, "ITM-014").getAttribute("data-state"), "ready");
+  assert.equal(tickOf(target, "ITM-014").getAttribute("disabled"), null, "it can be ticked");
+  assert.equal(ticked(tickOf(target, "ITM-014")), false, "it is not preselected");
+  assert.equal(ticked(tickOf(target, "ITM-012")), true);
+  assert.equal(ticked(tickOf(target, "ITM-010")), true);
 });
