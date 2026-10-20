@@ -36,7 +36,7 @@ The detail of a row of the `tests` view, `trace/tests/<TST>` (UC-029 steps 4 and
 - its history through `testHistory`: one mark per commit of the default branch, one row per release tag, flaky commits
   marked, and a model-dependent test's rate per release as a line with its runs;
 - a test that was removed, marked as removed at the commit that removed it (5a);
-- a run's log that the server no longer keeps, marked *no longer available* (5b).
+- a run's log that the server no longer keeps, marked *no longer available* (5b): cut into ITM-1168.
 
 **A reading.** "the participant that wrote it" (step 4) is read from the counter-proof record's `participant`. No
 other text records who wrote a test.
@@ -48,7 +48,8 @@ version of the file no longer declares it.
 
 - On fixtures, the tests state each part above, including a flaky commit, a rate line and a removed test.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
-- Only `src/trace-pages/` and the tests that name MOD-trace-pages change.
+- Only `src/trace-pages/`, `src/repository-hosts/web-links.mjs` (`WebLinks.file`, the accepted draft `be70bf16`) and the
+  tests that name MOD-trace-pages or MOD-repository-hosts change.
 
 **Stopped at its first task (sprint team1/101, developer-sonnet-c):** the schedule, the counter-proof's participant and
 the link to the test's code have no interface among MOD-trace-pages' uses.
