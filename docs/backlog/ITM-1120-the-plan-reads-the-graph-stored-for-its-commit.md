@@ -28,5 +28,6 @@ The draft is 9a2c9f4a. Build this item only once an approval record names the dr
 
 ## Acceptance
 
-- Over a fake GitHub with the stored graph of the commit on `trace-cache`, `plan` builds no graph: `readOn` is asked
-  once, and no file only the graph reads is read. Counter-proof: without the stored graph, the graph is built.
+- Over a fake GitHub with the stored graph of the commit on `trace-cache`, `plan`'s own call builds no graph: `readOn`
+  is asked once. Counter-proof: without the stored graph, the graph is built. That no file only the graph reads is read
+  by the page as a whole needs MOD-work-plans' `planFindings` as well, which is ITM-1156.
