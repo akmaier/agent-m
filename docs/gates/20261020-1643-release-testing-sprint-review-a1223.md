@@ -39,5 +39,5 @@ Sprint team1/99, pull request #1223 of `sprint/team1/99` into `main`, on head `4
   the same 52 as at sprint 98's end gate.
 - **The seven python logs** each end with `OK`: 612 tests, with the one known expected failure of `test_verbatim`.
 - **The release tests this sprint changed pass:** `release-sprint-15-spec-toggles`, changed by developer-sonnet-d for
-  ITM-595.
+  ITM-595: `ok 132 - the release dashboard toggles current requirements without writes …`.
 - **Every job ends within two minutes.** The longest is node (8), at 78 s.
