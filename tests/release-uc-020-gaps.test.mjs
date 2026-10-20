@@ -86,7 +86,7 @@ async function visit(t, fragment, refs) {
 }
 
 // TST-020701 · level: release · module: MOD-trace-pages; MOD-site-frame
-// guards: UC-020 step 7; THE TRACEABILITY MATRIX IS DERIVED; UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN
+// guards: UC-020; THE TRACEABILITY MATRIX IS DERIVED; UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN
 // given: this browser keeps the product https://github.com/alice/thesis-tool; its default branch holds a SPEC of ALPHA RULE, BETA RULE and DELTA RULE, the use cases UC-001 (realises ALPHA RULE and BETA RULE) and UC-002 (realises none), the decision ARC-001 (forced by ALPHA RULE), the module MOD-direct (names ALPHA RULE, BETA RULE and GHOST RULE) and the test TST-501 (guards ALPHA RULE)
 // input: open the address #trace/key=gaps/ref=main/product=<the product>
 // expect: UC-020 step 7 "lists: requirements realised by no use case, and - once they exist - named by no module or no test; use cases that realise no requirement; names in use cases, modules or tests that match no requirement": the page is headed Gaps; "realised by no use case" lists DELTA RULE only; "named by no module" DELTA RULE only; "named by no test" BETA RULE and DELTA RULE; "use cases that realise no requirement" UC-002; "unknown names" GHOST RULE, named by MOD-direct; "the traceability matrix ... every requirement against every use case, architecture decision, module and test that names it": the columns are requirement, use cases, architecture decisions, modules, tests; ALPHA RULE: UC-001, ARC-001, MOD-direct, TST-501; BETA RULE: UC-001, none, MOD-direct, none; DELTA RULE: none in all four; "The gaps are shown and block nothing": the product's repository is only read
@@ -110,7 +110,7 @@ test("release · UC-020 7: Gaps lists the requirements nothing realises or check
 });
 
 // TST-020702 · level: release · module: MOD-trace-pages; MOD-site-frame
-// guards: UC-020 step 7; THE TRACEABILITY MATRIX IS DERIVED
+// guards: UC-020; THE TRACEABILITY MATRIX IS DERIVED
 // given: the same product, whose tag v1.0.0 holds the same artifacts and a SPEC where DELTA RULE reads "Delta rule at the tag." (the default branch reads "Delta rule on main.")
 // input: open the address #trace/key=gaps/ref=v1.0.0/product=<the product>, then follow the line DELTA RULE under "realised by no use case"
 // expect: UC-020 step 7 "Each line leads to the requirement or use case as it read in that version": the requirement opens with the rule "Delta rule at the tag." and the page does not show "Delta rule on main."; then, for the line UC-002 under "use cases that realise no requirement", the use case opens with its title "Second use case"
@@ -130,7 +130,7 @@ test("release · UC-020 7: a line of Gaps leads to the requirement or use case a
 });
 
 // TST-020703 · level: release · module: MOD-trace-pages; MOD-site-frame
-// guards: UC-020 7a; UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN
+// guards: UC-020; UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN
 // given: this browser keeps the product; its default branch holds a SPEC of ALPHA RULE, a use case that realises it, a decision forced by it, a module that names it and a test that guards it, and no other name
 // input: open the address #trace/key=gaps/ref=main/product=<the product>
 // expect: UC-020 7a "There are no gaps. Gaps says so; it does not hide": the page says there are no gaps, lists no gap (no list of requirements realised by no use case, named by no module or no test, no unknown names), and still shows the matrix with ALPHA RULE: UC-001, ARC-001, MOD-direct, TST-501
@@ -143,7 +143,7 @@ test("release · UC-020 7a: with no gap the page says so and still shows the mat
 });
 
 // TST-020704 · level: release · module: MOD-trace-pages; MOD-site-frame
-// guards: UC-020 7b; UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN
+// guards: UC-020; UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN
 // given: this browser keeps the product, whose tag v0.1.0 predates Agent M's artifacts: it holds a SPEC of ALPHA RULE and BETA RULE, and no use case, decision, module or test; its default branch is the product with gaps (TST-020701)
 // input: open the address #trace/key=gaps/ref=v0.1.0/product=<the product>
 // expect: UC-020 7b "Gaps shows what exists at that commit and says what is missing, instead of an empty matrix without explanation": the page says that no use cases, no architecture decisions, no modules and no tests exist at v0.1.0; it shows what exists - the matrix with ALPHA RULE and BETA RULE, each with none in all four columns -; it does not say that there are no gaps
@@ -157,7 +157,7 @@ test("release · UC-020 7b: a version that predates the artifacts says what is m
 });
 
 // TST-020705 · level: release · module: MOD-trace-pages; MOD-site-frame
-// guards: UC-020 7b; UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN
+// guards: UC-020; UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN
 // given: this browser keeps the product, whose tag v0.0.1 holds no SPEC.md requirement at all (a SPEC that is a title only) and nothing else
 // input: open the address #trace/key=gaps/ref=v0.0.1/product=<the product>
 // expect: UC-020 7b "says what is missing, instead of an empty matrix without explanation": the page says that the SPEC holds no requirements at v0.0.1, draws no matrix, and does not say that there are no gaps

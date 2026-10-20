@@ -294,7 +294,7 @@ const committed = (s) => [...s.product.writes, ...s.instance.writes].flatMap((wr
 // TST-377104
 // level: release
 // module: MOD-prompt-bar; MOD-job-runner; MOD-review-pages
-// guards: UC-019 (NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY)
+// guards: UC-019; NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY
 // given: the page of UC-007 with UC-008 in the product, a participant, drafter, whose context holds 1 token, and one with a larger context that cannot draft text, so the bar does not offer it
 // input: the author presses Send
 // expect: nothing is sent and nothing is written; the bar says that drafter does not hold this message and its context holds 1 tokens - what does not fit, by participant - and that no offered participant has a larger context
@@ -310,7 +310,7 @@ test("TST-377104: UC-019 NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY", async ()
 // TST-377105
 // level: release
 // module: MOD-prompt-bar; MOD-site-frame
-// guards: UC-019 (THE PAGE NAMES WHERE IT SENDS)
+// guards: UC-019; THE PAGE NAMES WHERE IT SENDS
 // given: the page of UC-007, and drafter (this machine), the only participant that can draft text, offered; observer (Anthropic, USA) cannot and is not
 // input: the author writes an instruction; later Send; at the moment the endpoint receives the exchange the test reads the bar
 // expect: before Send the bar names drafter with its processing place and has nothing to choose among; when the exchange reaches the endpoint the bar already says "Sent to:" and "drafter — this machine"
@@ -330,7 +330,7 @@ test("TST-377105: UC-019 THE PAGE NAMES WHERE IT SENDS", async () => {
 // TST-377106
 // level: release
 // module: MOD-prompt-bar; MOD-review-pages; MOD-artifact-edits
-// guards: UC-019 (A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON); UC-049 (6c)
+// guards: UC-019; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; UC-049
 // given: the draft of UC-007 for the instruction "align UC-007 and UC-008 with the new rule", once with recording off and once with recording on in the instance
 // input: Send, Review the draft, Save
 // expect: off: no commit of the product or the instance, no message and no file of one, holds the instruction or the participant's answer, and no conversation record exists; on: the conversation record of the product holds the instruction, and the Save commit still holds neither
@@ -358,7 +358,7 @@ test("TST-377106: UC-019 A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN REC
 // TST-377107
 // level: release
 // module: MOD-artifact-edits; MOD-review-pages; MOD-job-runner
-// guards: UC-019 (AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT)
+// guards: UC-019; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
 // given: a saved draft of UC-007, and a saved draft of a requirement
 // input: Save
 // expect: each commit's message holds an Agent-M-Version line of the form "<40 hex>, commit <40 hex>", Agent-M-Participant: drafter and Agent-M-Model: fixture-model; the text of the saved use case and of the saved proposal holds none of them
@@ -382,7 +382,7 @@ test("TST-377107: UC-019 AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT", asyn
 // TST-377108
 // level: release
 // module: MOD-review-pages; MOD-prompt-bar
-// guards: UC-019 (ONE CLICK PER DECISION)
+// guards: UC-019; ONE CLICK PER DECISION
 // given: a draft whose inputs are complete
 // input: the author presses Save once
 // expect: that click alone writes the commit - one commit, with every file, and no second click or dialog is asked for
@@ -399,7 +399,7 @@ test("TST-377108: UC-019 ONE CLICK PER DECISION", async () => {
 // TST-377109
 // level: release
 // module: MOD-prompt-bar; MOD-site-frame
-// guards: UC-019 (EVERY STEP EXPLAINS ITSELF)
+// guards: UC-019; EVERY STEP EXPLAINS ITSELF
 // given: the page of UC-007 with the prompt bar
 // input: read the bar's explanation
 // expect: the bar holds a folded "What is this?" that begins "The prompt bar is where you talk to a participant about the page you are looking at"
@@ -415,7 +415,7 @@ test("TST-377109: UC-019 EVERY STEP EXPLAINS ITSELF", async () => {
 // TST-377116
 // level: release
 // module: MOD-prompt-bar; MOD-site-frame
-// guards: UC-019 (step 1; EVERY STEP EXPLAINS ITSELF)
+// guards: UC-019; EVERY STEP EXPLAINS ITSELF
 // given: the page of UC-007 with the prompt bar
 // input: read the bar's folded "What is this?"
 // expect: it gives the examples UC-019 step 1 names: "split a requirement", "make a rule checkable", "add an alternative flow", "align a use case with a changed requirement"

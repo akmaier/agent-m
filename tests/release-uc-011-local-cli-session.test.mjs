@@ -169,7 +169,7 @@ const REVIEW_ONLY = [];
 // TST-374101
 // level: release
 // module: system
-// guards: UC-011; all realised requirements whose SPEC check names a test or measurement
+// guards: UC-011
 // given: UC-011's `realises` list and SPEC's current Check lines
 // input: compare the realised requirements with COVERED_BY_RELEASE and REVIEW_ONLY
 // expect: every automatic UC-011 requirement has coverage evidence, no review-only requirement is hidden in the automatic table, and no realised requirement is missing or duplicated

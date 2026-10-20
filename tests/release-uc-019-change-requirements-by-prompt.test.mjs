@@ -589,7 +589,7 @@ test("TST-418125: the bar names the limit of correction rounds before the first 
 // TST-418126
 // level: release
 // module: MOD-review-pages; MOD-job-runner
-// guards: UC-019 (7a); A FINDING READS LIKE A COMPILER MESSAGE
+// guards: UC-019; A FINDING READS LIKE A COMPILER MESSAGE
 // given: five different invalid drafts, the loop ended by its limit with the finding of the last one left
 // input: Send, Review the draft; read the finding left on the draft page
 // expect: the finding reads in the compiler form with its artifact and line, its kind and the rule by name: "VISIBLE DUE DATE 4:<line>: error: no check [A REQUIREMENT HAS FOUR FIELDS]" followed by the correction expected

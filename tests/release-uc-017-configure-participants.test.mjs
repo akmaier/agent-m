@@ -141,7 +141,7 @@ function offers(participant, visibility) {
 }
 
 // TST-375101 · level: release · module: system
-// guards: UC-017; every requirement realised by UC-017; A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE REPOSITORY; RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER
+// guards: UC-017; A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE REPOSITORY; RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER
 // given: UC-017's `realises` list, SPEC's current Check lines, the UC-017 system-test declarations and a CI participant on `ci runner:gpu secret MODEL_KEY`
 // input: compare realised requirements with COVERED_BY_RELEASE/REVIEW_ONLY, inspect the system declarations, and call routesFor for private, public and internal products
 // expect: every automatic UC-017 requirement has existing evidence including the UC-017 system harness; the system harness declares main flow and alternatives 3a, 3b, 5a, 6a and 7a; routesFor allows the self-hosted runner only for the private product and refuses public/internal products with a reason naming the runner and visibility
