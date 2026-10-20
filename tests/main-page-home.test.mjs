@@ -22,7 +22,7 @@
 //   - A link is a <button type="button"> that calls the ViewContext's go(route, params): "Open" at the end of an item that waits (.wait-link), "+ Add product" (.add-product, only beside Agent M's
 //     own card) and "Open the token's setting" (.token-setting, in a card that could not be read). The routes are use-case, spec-entry, job (a failed job, or a gate waiting at a job's record),
 //     process (a gate waiting at the declaration), add-product and settings; an item of a product also hands `product: <its address>`. No address is written by the page.
-//   - The page draws a greeting with its folded explanation and a link from each stage (ITM-829; TST-829001, TST-829002), and no *Get your own Agent M* (ITM-655).
+//   - The page draws a greeting with its folded explanation and a link from each stage (ITM-829; TST-829001, TST-829002), and *Get your own Agent M* (ITM-655; tests/main-page-get-your-own.test.mjs).
 //   - While the page is open it reads the jobs' states again once a minute (MOD-main-page, Data: "at an interval the repository servers' rate limits allow"): the timer is a setTimeout of 60,000 milliseconds,
 //     set when the cards are drawn and again after each reading, and a test fires it itself at a clock it names. A reading is made for each card that was read and whose repository this browser keeps a token
 //     for (without one the network's limit is 60 requests an hour, which readings once a minute would use up): the default branch's snapshot — its commit and its tree, two requests — and the rows listJobs
