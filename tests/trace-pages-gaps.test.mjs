@@ -334,7 +334,7 @@ test("the gaps view leads back to the specification at the version it shows", as
 // guards: UC-020; THE TRACEABILITY MATRIX IS DERIVED
 // given: a Host whose main holds a SPEC of one requirement ALPHA RULE and the use case UC-001 realising it, and counts every snapshot, read and readMany
 // input: the specification rendered at main; then the address of its Gaps link followed, as the frame does: the route "trace" rendered with the key and the ref the link names, with the same Host
-// expect: after the specification: snapshots [main], reads [SPEC.md], no readMany. After following the link: snapshots [main, main], reads [SPEC.md, SPEC.md, SPEC.md, UC-001's file] and one readMany of [SPEC.md, UC-001's file] — the gaps alone read SPEC.md twice, UC-001's file once and make that one readMany, so the specification and the link added the specification's own snapshot and read and nothing else
+// expect: after the specification: snapshots [main], reads [SPEC.md, the group file docs/groups/requirements.md], no readMany (the file holds no group, so no count asks for the graph). After following the link: snapshots [main, main], reads [SPEC.md, the group file, SPEC.md, SPEC.md, UC-001's file] and one readMany of [SPEC.md, UC-001's file] — the gaps alone read SPEC.md twice, UC-001's file once and make that one readMany, so the specification and the link added the specification's own snapshot and read and nothing else
 test("showing the link reads nothing, and following it adds only the graph the gaps view builds itself", async () => {
   const UC_FILE = "docs/use-cases/UC-001-first.md";
   const files = {
@@ -344,7 +344,7 @@ test("showing the link reads nothing, and following it adds only the graph the g
   const productHost = treeHost({ trees: { main: files } });
   const context = { product: { address: ADDRESS, host: productHost } };
   const target = await render(productHost, { key: "specification", ref: "main" }, context);
-  assert.deepEqual([productHost.log.snapshots, productHost.log.reads, productHost.log.manys], [["main"], ["SPEC.md"], []]);
+  assert.deepEqual([productHost.log.snapshots, productHost.log.reads, productHost.log.manys], [["main"], ["SPEC.md", "docs/groups/requirements.md"], []]);
   const link = linksOf(target, "trace-gaps-link");
   assert.equal(link.length, 1, "known positive: the Gaps link is there");
   const { route: name, params } = addressParts(link[0].getAttribute("href"));
@@ -352,5 +352,5 @@ test("showing the link reads nothing, and following it adds only the graph the g
   const followed = await render(productHost, params, context);
   assert.deepEqual(titles(followed), ["Requirements realised by no use case", "Use cases that realise no requirement", "Unknown names"], "known positive: the gaps were drawn, without the lists of the kinds this version lacks");
   assert.deepEqual([productHost.log.snapshots, productHost.log.reads, productHost.log.manys],
-    [["main", "main"], ["SPEC.md", "SPEC.md", "SPEC.md", UC_FILE], [["SPEC.md", UC_FILE]]]);
+    [["main", "main"], ["SPEC.md", "docs/groups/requirements.md", "SPEC.md", "SPEC.md", UC_FILE], [["SPEC.md", UC_FILE]]]);
 });

@@ -89,12 +89,15 @@ function driverOf(participant, connections) {
   return endpointDriver(entry.config, participant);
 }
 
-// The usage of a job: the tokens its exchanges reported, summed; null while none reported any.
+// The usage of a job: the tokens and the cost its exchanges reported, summed; null while none reported any. The cost counts only where every exchange that reported usage also reported a cost, all in one currency: otherwise it is null, since a sum of some exchanges' costs is not the job's cost.
 function usageOf(exchanges) {
   const known = exchanges.map((each) => each.usage).filter(Boolean);
   if (known.length === 0) return null;
   const sum = (key) => (known.some((usage) => usage[key] !== null) ? known.reduce((total, usage) => total + (usage[key] ?? 0), 0) : null);
-  return { inputTokens: sum("inputTokens"), outputTokens: sum("outputTokens"), minutes: null, cost: null };
+  const costs = known.map((usage) => usage.cost);
+  const cost = costs.every(Boolean) && costs.every((each) => each.currency === costs[0].currency)
+    ? { amount: costs.reduce((total, each) => total + each.amount, 0), currency: costs[0].currency } : null;
+  return { inputTokens: sum("inputTokens"), outputTokens: sum("outputTokens"), minutes: null, cost };
 }
 
 // What an end says of the writer's outcome.
@@ -132,7 +135,7 @@ export function abortOnTab(id) {
  * ends the record as failed, with the failure's name and message as the reason, and is thrown again unchanged; a cancelled job is ended by cancelJob, not here.
  */
 export async function runOnTab(prepared, context, connections, hooks) {
-  const { host, record, refine, onOutput } = hooks;
+  const { host, record, refine, from, onOutput } = hooks;
   // The job's own abort: the caller's signal aborts it, and so does cancelJob. After it fires, nothing more is appended to the record (A CANCELLED JOB WRITES NOTHING MORE): the end is cancelJob's.
   const controller = new AbortController();
   const signal = controller.signal;
@@ -140,13 +143,13 @@ export async function runOnTab(prepared, context, connections, hooks) {
   else hooks.signal?.addEventListener("abort", () => controller.abort(), { once: true });
   if (record) held.set(record.id, controller);
   try {
-    return await runHeld(prepared, context, connections, { host, record, refine, onOutput, signal });
+    return await runHeld(prepared, context, connections, { host, record, refine, from, onOutput, signal });
   } finally {
     if (record && held.get(record.id) === controller) held.delete(record.id);
   }
 }
 
-async function runHeld(prepared, context, connections, { host, record, refine, onOutput, signal }) {
+async function runHeld(prepared, context, connections, { host, record, refine, from, onOutput, signal }) {
   const append = async (part) => {
     if (!record || signal.aborted) return; // a conversation of the prompt bar has no record: nothing is appended anywhere; a cancelled job appends nothing more
     const { defaultBranch } = await host.repositoryInfo();
@@ -164,7 +167,7 @@ async function runHeld(prepared, context, connections, { host, record, refine, o
   try {
     const drivers = { drafter: prepared.drafter ? driverOf(prepared.drafter, connections) : null,
       reviewers: prepared.reviewers.map((reviewer) => driverOf(reviewer, connections)) };
-    result = await runJob(prepared, drivers, { attended: !record?.run, context, refine, onOutput, onGate, signal });
+    result = await runJob(prepared, drivers, { attended: !record?.run, context, refine, from, onOutput, onGate, signal });
   } catch (error) {
     if (error.name === "Cancelled") throw error;
     // The job's own failure is what the caller must see: a record that cannot be appended to does not hide it.

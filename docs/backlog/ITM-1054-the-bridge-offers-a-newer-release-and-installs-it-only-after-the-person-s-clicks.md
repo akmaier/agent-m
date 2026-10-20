@@ -37,3 +37,6 @@ The Parts name `updates.mjs` (MOD-desktop-shell.md:78); it does not exist, and t
 - Counter-proof: an update installed without the second click fails.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - Only `src/desktop-shell/` and the tests that name MOD-desktop-shell change.
+
+**From the gate of #1118 (ITM-1051).** The *Updates* view (MOD-desktop-shell.md:179) is built by this item, and it names its own
+explanation, `bridge-updates`, already in `src/site-frame/explanations.md`.

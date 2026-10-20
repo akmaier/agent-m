@@ -14,14 +14,12 @@ uses:
   - MOD-work-plans.planSchemas
   - MOD-product-process.Workflow
   - MOD-product-process.declarationSchema
-  - MOD-product-process.workflowOf
+  - MOD-product-process.productWorkflow
   - MOD-product-process.gateSchema
   - MOD-product-process.gateStates
   - MOD-product-process.roleAssignmentSchema
   - MOD-model-catalogue.Model
-  - MOD-model-catalogue.catalogue
   - MOD-model-catalogue.planGrid
-  - MOD-model-catalogue.modelSchema
   - MOD-approvals.statuses
   - MOD-spec-changes.Queue
   - MOD-spec-changes.queues
@@ -38,6 +36,7 @@ uses:
   - MOD-trace-graph.traceGraph
   - MOD-trace-graph.tracesTo
   - MOD-job-ledger.JobRow
+  - MOD-job-ledger.JobRecord
   - MOD-job-ledger.listJobs
   - MOD-runtimes.jobWorkflowFiles
   - MOD-runtimes.ResourceNeed
@@ -68,6 +67,7 @@ provides:
   - productFacts
   - publishOverview
   - storedOverview
+  - storedFacts
   - progressIn
   - stageShares
   - currentStage
@@ -98,15 +98,21 @@ notifications (`A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE`). It runs in t
 - `measures.mjs` — progress in the model's measure.
 - `stages.mjs` — the six stages, the current stage, the build, what waits for a person, what waits for acceptance.
 - `overviews.mjs` — gates, blocked items, who works on what.
+- `stored.mjs` — the facts a commit's files alone give, as a text and back.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
   - `src/home/progress.mjs`: removed once this module gives `stageShares`, `currentStage`, `buildInProgress` and `waitingForAPerson`, which it states and does not build yet.
 
 ## Data
 
-It keeps nothing and owns the structure `Facts`, which MOD-run-planner and the pages read. It owns one kind of file:
-`<commit>.json` on the branch `overview-cache` of a repository, the main page's overview of that commit, which
-`publishOverview` adds and no one changes or deletes: `{ commit, shares, waiting }`, as `stageShares` and
-`waitingForAPerson` give them for the facts of that commit.
+It keeps nothing and owns the structure `Facts`, which MOD-run-planner and the pages read. It owns two kinds of file on
+the branch `overview-cache` of a repository, which `publishOverview` adds and no one changes or deletes:
+- `<commit>.json`, the main page's overview of that commit: `{ commit, shares, waiting }`, as `stageShares` and
+  `waitingForAPerson` give them for the facts of that commit;
+- `<commit>.facts.json`, the facts of that commit that its files alone give, as `productFacts` reads them with the scope
+  `all`, with the format's number and the commit they were read at: the declaration, the plan's order and its steps or
+  items, the sprints, the role assignments, the gate records, the module files, the change queues, the requirements, the
+  test declarations, the job records, and the declared model as read at the commit the declaration names. A model that
+  could not be read is left out, so that a reader reads it again.
 
 The six stages of the main page, each a share between 0 and 1:
 
@@ -130,7 +136,8 @@ The six stages of the main page, each a share between 0 and 1:
   string | null, difference: string | null }>, jobs: JobRow[], pullRequests: PullRequest[] | "unknown", schedule:
   Document | "unknown", ci: { runs: CiRun[] | "unknown", configured: boolean, drift: Array<{ path: string, difference:
   string }>, jobWorkflow: boolean } | "unknown", tags: Array<{ name: string, commit: string }> | "unknown", results:
-  Snapshot | null | "unknown", tests: TestDeclaration[] | "unknown", resourceNeeds: ResourceNeed[] | "unknown" }`: `requirements` the accepted ones; `model` the declared model as the
+  Snapshot | null | "unknown", tests: TestDeclaration[] | "unknown", resourceNeeds: ResourceNeed[] | "unknown",
+  resultCommits: string[] | "unknown", own: boolean }`: `requirements` the accepted ones; `model` the declared model as the
   instance's catalogue held it at the commit the declaration's `model_version` names — the version the product declared
   and keeps (UC-031 6a) —, and `workflow` derived from it. Both are `"unknown"` when that commit cannot be read, and
   `modelUnread` then names the commit and the error it was read with. `modelSince` is the date the declared model was
@@ -141,7 +148,10 @@ The six stages of the main page, each a share between 0 and 1:
   states of those that have not ended derives the rows again with MOD-job-ledger's `listJobs` —; `schedule` the product's test schedule, or the book's default where none is saved; `ci.runs`
   the runs of the default branch's head; `ci.configured` whether the configuration Agent M generates from the schedule
   is present, `ci.drift` how it differs from the schedule, `ci.jobWorkflow` whether the job workflow of MOD-runtimes is
-  present; `results` the branch `test-results`, `null` while there is none; `resourceNeeds` the routes that reach the
+  present; `results` the branch `test-results`, `null` while there is none; `resultCommits` the commits of the default
+  branch that `results` holds records of (`runs/<commit>/`), newest first by the default branch's history (`readHistory`,
+  `changes: false`), empty while there is no `results`, and `"unknown"` when that history cannot be read; `own` whether
+  the product's repository is the instance's own, the repository of `instance`; `resourceNeeds` the routes that reach the
   product's resources, `reachableBy` of MOD-resource-list over its `docs/resources.md`, which a caller hands to
   MOD-runtimes' `routesFor` for a job whose kind needs the product's resources. A fact only the server gives — `info`,
   `pullRequests`, `ci.runs`, `tags` — is `"unknown"` when the host does no server operations; whatever depends on an
@@ -176,6 +186,14 @@ The six stages of the main page, each a share between 0 and 1:
     the error, which tells the causes apart:
     - `NotFound`: the instance does not hold the commit the declaration names;
     - `TokenRefused`, `PermissionMissing` or `Unreachable`: the instance cannot be read from there.
+  - Where the snapshot of the default branch has `readOn`, it first reads the facts stored for its commit
+    (`storedFacts`, one request), in every scope. Where they are stored, it takes from them the facts listed under Data
+    that the scope reads, and reads none of the files they come from; what the scope names beyond them — the instance's
+    participants and SPEC, the model where none is stored, the pull requests, the default branch's `containsCommit`, the
+    CI runs, the tags, the branch `test-results` and the repository's information — it reads as before, and it derives
+    every other fact from both, as from the files: the job rows with `listJobs` from the stored records, with their
+    states, elapsed times and costs. The facts are the same whether they come from the store or from the files. Where
+    none are stored for the commit, it reads the files, and that is no failure.
   - It also accepts a host that does no server operations, such as a Bridge's local clone, whose functions for the pull
     requests, the CI runs, the tags and the repository's information refuse with `NotSupported`: those facts are then
     `"unknown"`, and merges and CI results are advanced by the Workflows' entries and the page.
@@ -200,10 +218,13 @@ The six stages of the main page, each a share between 0 and 1:
   sprints — and the items per state per day. Each item's state on
   a day is dated by the records and the pull requests. After a change of model, `since` is the change, and the chart starts
   there. Errors: `NoModel` when the product declares none.
-- `stageShares(facts: Facts) -> Array<{ stage: string, share: number | null, detail: string }>` — the six stages of the
-  table above, in their order; a stage whose share needs an unknown fact has none, and its detail says which; for the
-  instance's own repository, which has no product, the same bar for Agent M, full once its first release is tagged.
-- `currentStage(shares: Array<{ stage: string, share: number | null }>) -> string` — the first stage that is not full.
+- `stageShares(facts: Facts) -> Promise<Array<{ stage: string, share: number | null, detail: string }>>` — the six
+  stages of the table above, in their order; a stage whose share needs an unknown fact has none, and its detail says
+  which. The Tests stage takes, for each test, its outcome at the first of `resultCommits` whose records name it
+  (MOD-result-records' `resultsAt`); a test no such record names is not run. For the instance's own repository (`own`),
+  which has no product, the same bar for Agent M, full once its first release is tagged.
+- `currentStage(shares: Array<{ stage: string, share: number | null }>) -> string | null` — the first stage that is not
+  full; null when every stage is full.
 - `gateOverview(facts: Facts) -> Array<{ gate: string, state: "passed" | "passed on an earlier text" | "rejected" |
   "pending" | "not reached", decided: { by: string, date: string, on: string, record: string } | null, needs: string |
   null, difference: string | null, addedBy: { requirement: string, source: string } | null }>` — the workflow's gates in
@@ -229,15 +250,22 @@ The six stages of the main page, each a share between 0 and 1:
   string }>` — what waits for a person in the product: open use cases, open SPEC change entries, gates whose decider is a
   person and that are pending, failed jobs; `path` is the file or record it concerns, from which the page links to where
   it is decided.
-- `publishOverview(host: Host, snapshot: Snapshot, facts: Facts) -> Promise<{ commit: string, written: boolean }>` — adds
-  `<commit>.json` to the branch `overview-cache` by `commitFiles`, on the head it read: the stage shares and what waits
-  for a person, from `facts` read with the scope `all` at the snapshot's commit. `written` is `false` when the branch
-  holds the file already. Crosses the network; fails as `commitFiles` fails, with `NotFound` naming the branch when the
+- `publishOverview(host: Host, snapshot: Snapshot, facts: Facts) -> Promise<{ commit: string, written: boolean }>` —
+  adds `<commit>.json` and `<commit>.facts.json` to the branch `overview-cache` in one commit by `commitFiles`, on the
+  head it read: the stage shares and what waits for a person, and the facts listed under Data, from `facts` read with
+  the scope `all` at the snapshot's commit. A file the branch holds already is left as it is; `written` is `false` when
+  it holds both. Crosses the network; fails as `commitFiles` fails, with `NotFound` naming the branch when the
   repository has none.
 - `storedOverview(snapshot: Snapshot) -> Promise<{ shares: Array<{ stage: string, share: number | null, detail: string }>,
   waiting: Array<{ kind: string, id: string, path: string }> } | null>` — the overview stored for the snapshot's commit,
   read with the snapshot's `readOn` in one request; `null` when the branch or the file is missing or holds another
   format.
+- `storedFacts(snapshot: Snapshot) -> Promise<{ declaration: Document | null, order: Document | null, items: Document[],
+  sprints: Document[], assignments: Document[], gates: Document[], modules: Document[], queues: Queue[], requirements:
+  string[], tests: TestDeclaration[], jobs: JobRecord[], model: Model | null | undefined } | null>` — the facts stored
+  for the snapshot's commit, as listed under Data, read with the snapshot's `readOn` in one request; `model` is
+  `undefined` where none is stored. `null` without `readOn`, or when the branch or the file is missing, carries another
+  format's number, or names another commit.
 - `waitingForAcceptance(host: Host, snapshot: Snapshot) -> Promise<Array<{ kind: "SPEC change" | "use case" |
   "architecture decision" | "module" | "release test report", id: string, path: string, blob: string }>>` — what waits
   for the person's acceptance in one repository, the instance's or a product's, the snapshot being its default branch
@@ -271,16 +299,20 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
 - Reads, for `waitingForAcceptance`, through the snapshot it is given: `docs/approvals/`, `docs/spec-freigaben/`,
   `docs/use-cases/` and `docs/architecture/`; and, through MOD-release-evidence, the tags, `docs/tests/releases/` and,
   only while a release candidate is pending, `docs/jobs/` back to the first run of a candidate.
-- Writes, for `publishOverview`, `<commit>.json` on the branch `overview-cache`, only by adding.
+- Reads, for `storedFacts` and `storedOverview`, `<commit>.facts.json` and `<commit>.json` on the branch
+  `overview-cache`.
+- Writes, for `publishOverview`, `<commit>.json` and `<commit>.facts.json` on the branch `overview-cache`, only by
+  adding.
 
 ## Uses
 
 - MOD-work-plans.ItemState, Held, itemStates, heldItems, undecidedHeads, planSchemas — the steps and items, their order, the sprints,
   what they hold, and each one's state.
-- MOD-product-process.Workflow, declarationSchema, workflowOf, gateSchema, gateStates, roleAssignmentSchema — the
-  declared process, its gates and their states, and the role assignments. The workflow is read with the instance's SPEC, where the process requirements stand.
-- MOD-model-catalogue.Model, catalogue, planGrid, modelSchema — the declared model and its practices' files, from the catalogue at the commit the declaration
-  names (UC-031 6a; ARC-042: earlier work keeps the model it was done under), and its plan of requirements times phases.
+- MOD-product-process.Workflow, declarationSchema, productWorkflow, gateSchema, gateStates, roleAssignmentSchema — the
+  declared process, its gates and their states, and the role assignments. The workflow is `productWorkflow`'s, read with
+  the instance's SPEC, where the process requirements stand.
+- MOD-model-catalogue.Model, planGrid — the declared model, `productWorkflow`'s `model`, and its plan of requirements
+  times phases.
 - MOD-approvals.statuses — accepted, open and changed files, for the stages and for what waits.
 - MOD-spec-changes.Queue, queues — decided and open SPEC changes, for the stages and for what waits.
 - MOD-spec-document.parseSpec — the requirements.
@@ -290,7 +322,8 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
 - MOD-release-evidence.reportsAwaitingAcceptance — the release test report that waits for acceptance, if one does.
 - MOD-test-document.TestDeclaration, testDeclarations, isTestFile, MOD-trace-graph.Graph, traceGraph, tracesTo — which
   tests guard which requirement, which files are test files, and the traces behind a cell of the grid.
-- MOD-job-ledger.JobRow, listJobs — the product's jobs with their states, elapsed times and costs.
+- MOD-job-ledger.JobRow, JobRecord, listJobs — the product's jobs with their states, elapsed times and costs, and the
+  records stored for a commit, from which the rows are derived.
 - MOD-runtimes.jobWorkflowFiles, ResourceNeed — the paths of the job workflow, and the type of a resource need.
 - MOD-resource-list.resourceSchema, reachableBy — the product's resources and the routes that reach them.
 - MOD-participant-list.Participant, participantSchema, participantsOf — the participants and their roles.
@@ -299,4 +332,4 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
 - MOD-repository-hosts.Host, Snapshot, RepositoryInfo, PullRequest, CiRun, readSnapshot, readHistory, repositoryInfo,
   listPullRequests, listCiRuns, listTags — the repository's state and the history that dates it; the snapshots
   `instanceAt` gives of the instance at the commit a declaration names; `commitFiles` — `publishOverview`'s one commit
-  to the branch `overview-cache`.
+  to the branch `overview-cache`; `Snapshot.readOn` — the stored facts and overview of a commit.

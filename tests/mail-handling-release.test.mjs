@@ -2,8 +2,8 @@
 // over a fake host. The accepted text (docs/architecture/MOD-mail-handling.md): `Due` is `{ ..., closedBy: string | null, release: string | null, ... }`;
 // Uses: "`MOD-repository-hosts.listPullRequests`, `MOD-repository-hosts.listTags` — what solved an issue, and the release that contains it"; the recipe
 // reply-inputs: "the closing pull request or commit, and the release that contains it, where known".
-// Readings, named in the pull request: the commit a pull request names to the host is its `head`, which the release contains when the pull request was
-// merged with a merge commit; a commit address names its commit; "the earliest such tag" is the tag whose commit the other containing tags contain;
+// Readings, named in the pull request: the commit a pull request names to the host is its `mergeCommit` (ITM-1110: the commit its merge put on the base — the merge commit, or the last commit of a squash or a rebase),
+// which the release contains; a commit address names its commit; "the earliest such tag" is the tag whose commit the other containing tags contain;
 // a pull request that is not merged, a commit no tag contains and an issue not closed with an address give null.
 // Run: node --test tests/mail-handling-release.test.mjs
 //
@@ -29,7 +29,7 @@ const V10 = "5555555555555555555555555555555555555555";
 const mailbox = { read: async () => [], find: async () => null, drafts: async () => [], sent: async () => [] };
 const issue = (number, comments, state = "closed") => ({ number, title: `Issue ${number}`, body: `Export fails.\n\nMails: \`${A.id}\``, labels: [], state, url: `https://example.invalid/${number}`,
   comments: comments.map((body) => ({ author: "agent-m", body, date: "2026-10-12T09:00:00Z" })) });
-const pull = (number, head, state = "merged") => ({ number, title: "Fix", branch: "fix", base: "main", head, state, draft: false, url: `${PRODUCT}/pull/${number}`, opened: "2026-10-01", merged: state === "merged" ? "2026-10-02" : null, closed: "2026-10-02", body: "" });
+const pull = (number, head, state = "merged", mergeCommit = state === "merged" ? head : null) => ({ number, title: "Fix", branch: "fix", base: "main", head, mergeCommit, state, draft: false, url: `${PRODUCT}/pull/${number}`, opened: "2026-10-01", merged: state === "merged" ? "2026-10-02" : null, closed: "2026-10-02", body: "" });
 
 // A fake host. `tags` is listed in the order given; `holds` maps a tag name to the commits its history holds (its own commit too).
 function fakeHost({ issues, pulls = [], tags = [], holds = {} }) {
@@ -114,4 +114,30 @@ test("TST-1109005 a product's tags and pull requests are read once, however many
   assert.deepEqual(due.map((each) => each.release), ["v1.2.0", "v1.2.0", "v1.2.0"]);
   assert.equal(host.calls.filter(([name]) => name === "listTags").length, 1);
   assert.equal(host.calls.filter(([name]) => name === "listPullRequests").length, 1);
+});
+
+// TST-1110001 · level: unit · module: MOD-mail-handling
+// guards: CLOSING AN ISSUE PREPARES ITS REPLIES; UC-039
+// given: issue 8 closed with the pull request 31, merged by a squash: its head is HEAD and the commit its merge made is OLD; v1.2.0 and v1.3.0 hold OLD and not HEAD (a squash puts other commits on the default branch), v1.3.0 holds v1.2.0's commit
+// input: repliesDue
+// expect: release "v1.2.0", the earliest tag that holds the commit the merge made
+// Planted fault: asking the tags for the pull request's head gives null.
+test("TST-1110001 an issue closed by a squash-merged pull request names the earliest tag that holds its merge commit", async () => {
+  const holds = { "v1.3.0": [V13, V12, V10, OLD], "v1.2.0": [V12, V10, OLD], "v1.0.0": [V10] };
+  const host = fakeHost({ issues: [issue(8, [`Closed with ${PRODUCT}/pull/31.`])], pulls: [pull(31, HEAD, "merged", OLD)], tags: TAGS, holds });
+  assert.equal(await releaseOf(host), "v1.2.0");
+});
+
+// TST-1110002 · level: unit · module: MOD-mail-handling
+// guards: CLOSING AN ISSUE PREPARES ITS REPLIES; UC-039
+// given: issue 8 closed with a merged pull request whose head HEAD is held by v1.2.0 but whose merge commit OLD no tag holds; issue 9 with a merged pull request for which the host names no merge commit
+// input: repliesDue
+// expect: counter-proof: release null for both — the head is not taken in the merge commit's place, and no tag is named where the host names no merge commit
+// Planted fault: falling back to the head names "v1.2.0".
+test("TST-1110002 the head is not taken for the commit the merge made", async () => {
+  const holds = { "v1.3.0": [V13, V12, V10, HEAD], "v1.2.0": [V12, V10, HEAD], "v1.0.0": [V10] };
+  const host = fakeHost({ issues: [issue(8, [`Closed with ${PRODUCT}/pull/31.`]), issue(9, [`Closed with ${PRODUCT}/pull/32.`])],
+    pulls: [pull(31, HEAD, "merged", OLD), pull(32, HEAD, "merged", null)], tags: TAGS, holds });
+  const due = (await handling.repliesDue(mailbox, [{ address: PRODUCT, host }])).toAnswer;
+  assert.deepEqual(due.map((each) => [each.issue, each.release]), [[8, null], [9, null]]);
 });

@@ -32,6 +32,7 @@ uses:
   - MOD-test-document.testDeclarations
   - MOD-trace-graph.traceGraph
   - MOD-trace-graph.tracesTo
+  - MOD-progress-measures.storedFacts
   - MOD-test-schedule.scheduleSchema
   - MOD-test-schedule.defaultSchedule
   - MOD-test-schedule.scheduleFindings
@@ -51,6 +52,7 @@ uses:
   - MOD-release-evidence.startReleaseCandidate
   - MOD-release-evidence.releaseReport
   - MOD-release-evidence.acceptAndRelease
+  - MOD-text-tools.blobSha
   - MOD-resource-list.resourceSchema
   - MOD-resource-list.reachableBy
   - MOD-resource-list.resourceStrategies
@@ -107,7 +109,10 @@ formats are those of the modules it uses.
 - `view: View` — its routes, and the strategies its kinds use in the tab — `scheduleStrategies`, `resultStrategies`,
   `routeStrategies`, `approvalStrategies`, `sourceStrategies`, `resourceStrategies`:
   - `schedule` — the table of levels by occasion, a form from the schedule's schema, the book's default marked as such
-    until one is saved; the release candidate column that cannot be cleared and the commit and pull request columns that
+    until one is saved; each row with the number of the product's tests it holds — the declarations of its level, and
+    for the row of paid services those that call one —, counted from the test declarations stored for the commit shown
+    (MOD-progress-measures' `storedFacts`), or from the test files where none are stored; the release candidate column
+    that cannot be cleared and the commit and pull request columns that
     refuse tests calling a paid service, each with its reason; the nightly time, the test command, the runner per row
     among the participants that can run tests, and for a row on a self-hosted runner the server's runner page with the
     label the runner must carry and a folded explanation, the row's runs — the queued runs whose `ciRunLabels` hold
@@ -167,7 +172,10 @@ the result records on the branch `test-results`, the product's resources and the
   resources and the instance's participants, which the schedule's runners and paid services come from;
   MOD-resource-list.reachableBy — the routes that reach the product's resources, for the routes of `write-tests` and
   `run-tests`.
-- MOD-test-document.testDeclarations, MOD-trace-graph.traceGraph, MOD-trace-graph.tracesTo — which levels guard what.
+- MOD-test-document.testDeclarations, MOD-trace-graph.traceGraph, MOD-trace-graph.tracesTo — which levels guard what. A
+  graph of a commit's own files is asked for with that commit, so that the graph `onMainChanged` stored for it is read
+  where there is one (MOD-workflow-entries).
+- MOD-progress-measures.storedFacts — the test declarations stored for a commit, which the schedule counts.
 - MOD-test-schedule.scheduleSchema, MOD-test-schedule.defaultSchedule, MOD-test-schedule.scheduleFindings,
   MOD-test-schedule.configurationDrift, MOD-test-schedule.secretsNeeded, MOD-test-schedule.occasionsOf — the schedule;
   MOD-test-schedule.proposeSchedule, MOD-test-schedule.applyPipelineSchedule — its save and, on GitLab, its nightly run.
@@ -175,6 +183,8 @@ the result records on the branch `test-results`, the product's resources and the
   MOD-result-records.flakyTests, MOD-result-records.rateComparison — the outcomes of a commit and a user test's outcome.
 - MOD-release-evidence.nextVersion, MOD-release-evidence.startReleaseCandidate, MOD-release-evidence.releaseReport,
   MOD-release-evidence.acceptAndRelease — the release.
+- MOD-text-tools.blobSha — the blob SHA of the text of the release report that the route shows, which `acceptAndRelease`
+  takes as the report's `blob`; `releaseReport` gives the text only.
 - MOD-participant-list.eligible — who can write or run tests; MOD-job-ledger.listJobs — the implementer of a behaviour,
   left out for its release tests, and the cases a job of `propose-tests` on CI recorded.
 - MOD-job-catalogue.kindOf, MOD-job-runner.prepareJob — the run panels; MOD-job-ledger.newJobId,

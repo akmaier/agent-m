@@ -48,3 +48,5 @@ shown folded (ITM-349). The participants page and the pages that start a job are
 **Read at sprint team1/93 (developer-sonnet-d): built.** Every Acceptance sentence has its code and its test.
 TST-351001 (`tests/settings-pages-settings-regressions.test.mjs`) passes with the file's other tests, on commits
 `1f4c9713` and `8b69d32c`, which are on `main` (team2/51.md:44). It is done.
+
+**Done (sprint team2/98, po-opus-b):** read against its Acceptance on `main` at `3436203a`: TST-351001 (`tests/settings-pages-settings-regressions.test.mjs`) passes on `main`; its code came with `1f4c9713` and `8b69d32c`. No pull request names it, since it predates the pull-request flow or was built by another item. No code changes.

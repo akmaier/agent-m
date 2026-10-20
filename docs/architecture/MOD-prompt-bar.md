@@ -37,6 +37,9 @@ uses:
   - MOD-spec-changes.specStrategies
   - MOD-artifact-edits.editStrategies
   - MOD-source-register.sourceStrategies
+  - MOD-source-register.sourceSchemas
+  - MOD-source-register.registerPaths
+  - MOD-source-register.restrictedPlaces
   - MOD-reuse-facts.reuseStrategies
   - MOD-resource-list.resourceStrategies
   - MOD-work-plans.workStrategies
@@ -194,7 +197,11 @@ IN THE REPOSITORY`).
   `ConversationDraft` and goes to the subject's `draftRoute`; with recording on, the participant's answer is appended as
   the result of the same *Send*. *Stop* aborts the job in the tab (UC-049 5a). A hand-over the participant proposed
   (UC-049 4a) is shown with its kind, what it works on, its task, the participant with its processing place and the
-  route it would take, which `routesFor` gives; *Hand over* is the decision. For a kind of the product's workflow, it is
+  route it would take, which `routesFor` gives; *Hand over* is the decision. For the subject's own kind, the hand-over's job
+  takes, beside what the hand-over works on, only the `source` that the subject's `paramsFor` gives for the participant — no other
+  parameter, so that no message and no page text enters the job's record (`A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN
+  RECORDING IS ON`); where the subject finds no own source of the person, `paramsFor` refuses by name, `NoPersonSource`, and so
+  does the hand-over, with nothing queued (`THE PERSON WHO PROMPTS IS A SOURCE`). For a kind of the product's workflow, it is
   queued only when MOD-work-plans' `startable`, on the item states `itemStates` derives from the facts
   MOD-progress-measures' `productFacts` reads, finds no reason — not selected for its team's sprint, a requirement or use
   case not accepted, the work-in-progress limit, a gate not recorded — and MOD-product-process' `holdsRole` finds the
@@ -260,6 +267,11 @@ records under `docs/conversations/`. It keeps the conversation in the tab's valu
   MOD-work-plans.workStrategies, MOD-run-planner.runStrategies, MOD-product-process.processStrategies,
   MOD-test-schedule.scheduleStrategies, MOD-result-records.resultStrategies, MOD-issue-handling.issueStrategies,
   MOD-runtimes.routeStrategies — the sets of `handOverStrategies`.
+- MOD-source-register.registerPaths, MOD-source-register.sourceSchemas — the entries of the instance's register, read from
+  its snapshot; MOD-source-register.restrictedPlaces — over every one of them, whether or not the product links it, the
+  places of the restricted sources that a message's or a hand-over's job is given (MOD-job-runner's `JobContext.places`),
+  and the paths of the product that hold their content, so that the job's `read-file` refuses that content to a participant
+  at another place (UC-049 4e). The module keeps no copy of that rule.
 - MOD-runtimes.tabContext, MOD-runtimes.runOnTab — the job's context and its run in this tab without a record;
   MOD-runtimes.routesFor, MOD-runtimes.handOverJob — the route of a hand-over, and its job queued and started;
   MOD-work-plans.startable, MOD-work-plans.itemStates, MOD-progress-measures.productFacts, MOD-product-process.holdsRole —

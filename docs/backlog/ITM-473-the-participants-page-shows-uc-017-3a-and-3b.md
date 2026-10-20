@@ -40,3 +40,4 @@ recommendation.
 flows", `src/settings-pages/participants.mjs`). TST-375003 in `tests/system-uc-017-configure-participants.test.mjs` checks
 UC-017's alternatives 3a and 3b and passes unchanged. It is done.
 
+**Done (sprint team2/98, po-opus-b):** read against its Acceptance on `main` at `3436203a`: TST-375003 (`tests/system-uc-017-configure-participants.test.mjs`) checks UC-017's alternatives 3a and 3b and passes on `main`; built by `5fd8280c`. No pull request names it, since it predates the pull-request flow or was built by another item. No code changes.

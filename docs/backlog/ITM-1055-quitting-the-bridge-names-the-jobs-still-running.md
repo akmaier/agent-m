@@ -8,6 +8,7 @@ realises:
 modules:
   - MOD-desktop-shell
 builds_on:
+  - ITM-1097
 tests:
   - unit
 origin:

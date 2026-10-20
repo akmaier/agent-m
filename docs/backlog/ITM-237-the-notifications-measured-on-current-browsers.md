@@ -46,3 +46,5 @@ Akmaier has manually tested browser notifications and confirms they work in Chro
 This item is built: commit `020d9f55` ("Record completed notification confirmation review; docs/measurements/2026-10-09_notifications-confirmed-by-akmaier.md") is on `main`. No merged pull request names it, because it predates the record
 format in which a merge names its item. So MOD-work-plans' reading of the pull requests still shows it open. The gap analysis
 of UC-036 to UC-049 found its code and tests on `main`.
+
+**Done (sprint team2/98, po-opus-b):** read against its Acceptance on `main` at `3436203a`: `docs/measurements/2026-10-09_notifications-confirmed-by-akmaier.md` is on `main` (`020d9f55`). No pull request names it, since it predates the pull-request flow or was built by another item. No code changes.

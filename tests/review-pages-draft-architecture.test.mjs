@@ -237,12 +237,15 @@ function architectureDraft({ candidate = "gpl-lib", alternative = "missing-lib",
   }] };
 }
 
+let drafterBodies = [];
 function endpointsAndRegistries({ drafts = [architectureDraft()], reviewerFindings = [[]], registry = {} } = {}) {
   requests = [];
+  drafterBodies = [];
   const calls = { ep1: 0, ep2: 0 };
-  globalThis.fetch = async (input) => {
+  globalThis.fetch = async (input, init = {}) => {
     const href = String(input?.url ?? input);
     requests.push(href);
+    if (href.includes("ep1.example.test")) drafterBodies.push(String(init.body ?? ""));
     if (href.includes("ep1.example.test")) {
       const at = calls.ep1++;
       return modelAnswer({ draft: drafts[Math.min(at, drafts.length - 1)], answers: at === 0 ? [] : [
@@ -455,6 +458,17 @@ test("decision/draft — a participant whose place a linked source forbids is le
   assert.deepEqual(namesOf(target, "participant"), ["drafter-a", "reviewer-b", "small-d", "twin-a"]);
   choose(target, "participant", "drafter-a");
   assert.deepEqual(namesOf(target, "reviewer"), ["reviewer-b", "small-d"]);
+});
+
+// TST-1142005 · level: unit · module: MOD-review-pages
+// guards: RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; UC-022 (2)
+// given: the instance's register holds the restricted source SRC-secret (permitting "this machine" only), which the product does not link; the participants far-c and ci-agent process data elsewhere
+// input: the page of a product that links no source
+// expect: far-c and ci-agent are offered (the offer is judged against the places of the sources the product links, which the job's parts can carry; the context's places take every restricted source, MOD-source-register's restrictedPlaces)
+test("decision/draft — an unlinked restricted source of the register leaves no participant out of the offer", async () => {
+  endpointsAnswer();
+  const target = await show(fakeProduct(), { entries: { "docs/sources/SRC-secret.md": SECRET_ENTRY } });
+  assert.ok(namesOf(target, "participant").includes("far-c") && namesOf(target, "participant").includes("ci-agent"), namesOf(target, "participant").join(", "));
 });
 
 // ---------------------------------------------------------------- the run panel
@@ -800,4 +814,29 @@ test("decision/draft - after Check this edit the checked draft is not unsaved", 
     assert.equal(route.leave(), true);
     assert.deepEqual(asked, []);
   });
+});
+
+// TST-111503 · level: unit · module: MOD-review-pages
+// guards: UC-022; UC-023; DEVELOP AGAINST INTERFACES
+// given: the architecture draft shown after Run (the drafter asked once), the decision's text changed by one added line that breaks no check and that the reviewer finds nothing in
+// input: Check this edit
+// expect: the page begins with the edited draft, as a whole (MOD-runtimes' hook `from`): the first request to the drafter after the check carries the edited sentence (without `from` it is the job's ordinary prompt), the
+//   reviewer checks the draft, and the job has no record: no commit is made
+test("decision/draft - Check this edit begins with the edited draft and writes no record", async () => {
+  const calls = endpointsAndRegistries({ drafts: [architectureDraft({ candidate: "mit-lib", alternative: "missing-lib" })], registry: { [NPM_MIT]: packageData("MIT") } });
+  const fake = fakeProduct({ ...READY, LICENSE: "MIT License\n" });
+  const target = await show(fake);
+  await panelFor(target, "drafter-a", "reviewer-b");
+  click(runButtons(target)[0]);
+  await until(() => byClass(target, "section", "architecture-result").length === 1, "the architecture result");
+  const asked = { drafter: calls.ep1, reviewer: calls.ep2 }, writes = fake.writes().length;
+  assert.doesNotMatch(drafterBodies.join("\n"), /The author added this sentence\./, "known positive: the sentence is not in what the Run sent");
+  const decision = byClass(target, "textarea", "draft-text").find((box) => box.getAttribute("data-path") === ARC_DRAFT_PATH);
+  decision.value = decision.value.replace("The chosen package is reused.", "The chosen package is reused. The author added this sentence.");
+  click(byClass(target, "button", "check-edit")[0]);
+  await until(() => byClass(target, "p", "checked-edit").length === 1, "the checked edit");
+  assert.ok(calls.ep1 > asked.drafter, "known positive: the checks sent the draft back to the drafter");
+  assert.match(drafterBodies[asked.drafter], /The author added this sentence\./, "the first request after the check carries the edited draft");
+  assert.ok(calls.ep2 > asked.reviewer, "the reviewer checks the edited draft");
+  assert.equal(fake.writes().length, writes, "no record: nothing was committed");
 });

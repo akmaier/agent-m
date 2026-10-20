@@ -9,7 +9,7 @@
 //
 // This test calls the public trace/specification Route.render with a Host/Snapshot-shaped fake (the DOM and the fixtures are those of
 // tests/trace-pages-harness.mjs). The fixture has two
-// sections and a requirement before every section. The fake has no write method, so rendering has no write path.
+// sections and a requirement before every section, and a group file that arranges the requirements of the two sections in two groups (ITM-595). The fake has no write method, so rendering has no write path.
 // Readings the version-choice cases take: the ref the caller hands is "current" when the Host names it the default branch, else it is
 // offered under its own name; the tags are those listTags gives, newest first by their vYYYY.MINOR.PATCH numbers, a tag of another form
 // after them; a Host whose listTags fails offers no tag; any ref that is not the default branch is read-only and the view says "as of" it.
@@ -41,8 +41,9 @@ Second <img src=x onerror=alert(1)> rule.
 `;
 
 // tags: what listTags names; specs: the SPEC at a ref, where it differs; defaultBranch: what repositoryInfo names (null: no repositoryInfo);
-// gates: a promise a ref's snapshot waits for; unreadable: refs whose snapshot cannot be read; tagsFail: listTags fails.
-function host(text = SPEC, { tags = [], specs = {}, defaultBranch = null, gates = {}, unreadable = [], tagsFail = false } = {}) {
+// gates: a promise a ref's snapshot waits for; unreadable: refs whose snapshot cannot be read; tagsFail: listTags fails; groups: the text of docs/groups/requirements.md.
+const GROUPS = "- First group\n  - FIRST REQUIREMENT\n- Second group\n  - SECOND REQUIREMENT\n";
+function host(text = SPEC, { tags = [], specs = {}, defaultBranch = null, gates = {}, unreadable = [], tagsFail = false, groups = GROUPS } = {}) {
   const calls = [];
   const fake = {
     calls,
@@ -51,7 +52,8 @@ function host(text = SPEC, { tags = [], specs = {}, defaultBranch = null, gates 
       await gates[ref];
       if (unreadable.includes(ref)) throw Object.assign(new Error("unreachable"), { name: "Unreachable" });
       const at = specs[ref] ?? text;
-      return { ref, commit: ref, paths: at === null ? [] : ["SPEC.md"], read: async (path) => path === "SPEC.md" ? at : null, blob: () => null };
+      return { ref, commit: ref, paths: at === null ? [] : ["SPEC.md", "docs/groups/requirements.md"],
+        read: async (path) => path === "SPEC.md" ? at : path === "docs/groups/requirements.md" && at !== null ? groups : null, blob: () => null };
     },
     async listTags() { if (tagsFail) throw new Error("tags unavailable"); return tags.map((name) => ({ name, commit: `commit-of-${name}` })); },
   };
@@ -63,9 +65,9 @@ function render(productHost, params = { key: "specification", ref: "pinned-commi
 // CASE ITM-277-01
 // TST-473163 · level: unit · module: MOD-trace-pages
 // guards: UC-020; A REQUIREMENT HAS FOUR FIELDS
-// given: a public trace Route and a Host whose pinned snapshot has one unsectioned requirement and two sections
+// given: a public trace Route and a Host whose pinned snapshot has one requirement before the sections and two sections, and a group file with two groups, each naming one requirement of a section
 // input: Route.render(target, { product: { host } }, { key: "specification", ref: "pinned-commit" })
-// expect: the Host receives exactly that ref; current requirement names appear once, before/within their sections in SPEC order
+// expect: the Host receives exactly that ref; current requirement names appear once, the one no group names first, then within their groups in the order of the group file; the groups' titles are the headings
 test("the public trace/specification route reads the pinned SPEC and lists each requirement in file order", async () => {
   assert.ok(route, "the public trace route is exposed");
   const productHost = host();
@@ -75,10 +77,11 @@ test("the public trace/specification route reads the pinned SPEC and lists each 
   assert.deepEqual(names.map((node) => node.textContent), ["OUTSIDE REQUIREMENT", "FIRST REQUIREMENT", "SECOND REQUIREMENT"]);
   assert.equal(new Set(names.map((node) => node.textContent)).size, 3);
   const visible = target.textContent;
-  assert.ok(visible.indexOf("OUTSIDE REQUIREMENT") < visible.indexOf("First section"));
-  assert.ok(visible.indexOf("First section") < visible.indexOf("FIRST REQUIREMENT"));
-  assert.ok(visible.indexOf("FIRST REQUIREMENT") < visible.indexOf("Second section"));
-  assert.deepEqual(find(target, (node) => node.localName === "h3").map((node) => node.textContent), ["First section", "Second section"]);
+  assert.ok(visible.indexOf("OUTSIDE REQUIREMENT") < visible.indexOf("First group"));
+  assert.ok(visible.indexOf("First group") < visible.indexOf("FIRST REQUIREMENT"));
+  assert.ok(visible.indexOf("FIRST REQUIREMENT") < visible.indexOf("Second group"));
+  assert.deepEqual(find(target, (node) => node.localName === "button" && node.className.includes("spec-group-toggle")).map((node) => node.textContent), ["First group", "Second group"]);
+  assert.doesNotMatch(visible, /First section|Second section/, "the SPEC's sections are not the tree");
 });
 
 // CASE ITM-277-02
@@ -103,18 +106,18 @@ test("selecting a requirement renders its four fields safely without navigating 
 // CASE ITM-278-01
 // TST-473165 · level: unit · module: MOD-trace-pages
 // guards: UC-020; A REQUIREMENT HAS FOUR FIELDS
-// given: the public trace/specification route with two sectioned requirements and one outside a section
-// input: a fresh render, then each readable section-heading control is clicked to open, close and reopen its own list
-// expect: section lists start hidden, each toggle changes only its own list, and the outside requirement stays reachable
-test("section headings start collapsed and independently toggle their requirement lists", async () => {
+// given: the public trace/specification route with two requirements in groups and one that no group names
+// input: a fresh render, then each readable group-heading control is clicked to open, close and reopen its own list
+// expect: group lists start hidden, each toggle changes only its own list, and the requirement no group names stays reachable at the top level
+test("group headings start collapsed and independently toggle their requirement lists", async () => {
   const target = await render(host());
-  const sections = find(target, (node) => node.localName === "section" && node.className.includes("spec-section"));
-  const toggles = sections.map((section) => find(section, (node) => node.localName === "button" && node.className.includes("spec-section-toggle"))[0]);
-  const tables = sections.map((section) => find(section, (node) => node.localName === "table")[0]);
-  assert.deepEqual(toggles.map((toggle) => toggle?.textContent), ["First section", "Second section"]);
-  assert.ok(tables.every((table) => table.getAttribute("hidden") === "hidden"), "a fresh render hides every section list");
+  const sections = find(target, (node) => node.localName === "section" && node.className.includes("spec-group"));
+  const toggles = sections.map((section) => find(section, (node) => node.localName === "button" && node.className.includes("spec-group-toggle"))[0]);
+  const tables = sections.map((section) => find(section, (node) => node.localName === "div" && node.className.includes("spec-group-body"))[0]);
+  assert.deepEqual(toggles.map((toggle) => toggle?.textContent), ["First group", "Second group"]);
+  assert.ok(tables.every((table) => table.getAttribute("hidden") === "hidden"), "a fresh render hides every group list");
   assert.ok(find(target, (node) => node.localName === "button" && node.textContent === "OUTSIDE REQUIREMENT").length === 1,
-    "the requirement outside sections remains reachable");
+    "the requirement no group names remains reachable");
   toggles[0].dispatchEvent(new Event("click"));
   assert.equal(tables[0].getAttribute("hidden"), null, "the first heading opens its own list");
   assert.equal(tables[1].getAttribute("hidden"), "hidden", "the second list stays collapsed");
@@ -169,7 +172,8 @@ const OLD_SPEC = `# Fixture — Specification
 Old rule.
 *Check:* \`tests/old.test.mjs\`
 `;
-const options = (target) => find(target, (node) => node.localName === "option");
+// The choices of the version, not those of the filters that narrow the tree (ITM-596).
+const options = (target) => find(target, (node) => node.localName === "select" && node.className.includes("version-choice")).flatMap((select) => find(select, (node) => node.localName === "option"));
 const selectOf = (target) => find(target, (node) => node.localName === "select")[0];
 const names = (target) => find(target, (node) => node.localName === "button" && node.className.includes("requirement-name")).map((node) => node.textContent);
 const choose = (target, ref) => { const select = selectOf(target); select.value = ref; select.dispatchEvent(new Event("change")); };
@@ -516,43 +520,44 @@ test("the names that match no requirement and that the listed artifacts also nam
 // CASE ITM-597-09
 // TST-597009 · level: component · module: MOD-trace-pages
 // guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
-// given: the fixture on the default branch
+// given: the fixture on the default branch, which holds no group file and two open entries of change queues
 // input: the route drawn; ALPHA RULE opened; BETA RULE opened; ALPHA RULE closed and opened again
-// expect: drawing reads SPEC.md and the queue files of the default branch (the waiting section) and no artifact of the trace graph; after ALPHA RULE is opened, UC-001's file has been named to readMany once and read once; after BETA RULE and the second opening both counts are still one
-test("the trace graph is built when a requirement is opened, not when the tree is drawn, and kept for every later opening", async () => {
+// expect: drawing builds one graph, MOD-spec-changes' entryView's, for the impact lists that give the statuses (UC-020 step 3), so UC-001's file has been named to readMany once and read once; no group asks for the
+//         counts, so the view's own graph is not built until ALPHA RULE is opened: then UC-001's file has been named and read twice; after BETA RULE and the second opening both counts are still two
+test("the view's trace graph is built when a requirement is opened, or for the counts of a group, and kept for every later opening", async () => {
   const productHost = mainOnly();
   const target = await render(productHost, mainParams);
-  // The waiting section reads the queue files of the default branch (the heads of the three queues, then the SPEC each open entry targets) and no artifact of the trace graph.
   const queueFile = (path) => path.startsWith("docs/spec-freigaben/");
   assert.equal(productHost.log.reads[0], "SPEC.md");
-  assert.equal(productHost.log.reads.filter((path) => path !== "SPEC.md" && !queueFile(path)).length, 0, "no artifact of the trace graph is read");
-  assert.equal(productHost.log.reads.filter(queueFile).length, 6, "known positive: the heads of the three queues are read");
-  assert.deepEqual(productHost.log.manys.map((paths) => paths.every((path) => path === "SPEC.md" || queueFile(path))), [true, true], "the readMany batches name queue files and the targeted SPEC only");
+  assert.equal(productHost.log.reads.filter(queueFile).length > 0, true, "known positive: the queue files of the default branch are read");
   const uc = "docs/use-cases/UC-001-first.md";
   const counts = () => [productHost.log.manys.filter((paths) => paths.includes(uc)).length, productHost.log.reads.filter((path) => path === uc).length];
+  assert.deepEqual(counts(), [1, 1], "drawing builds the graph of the impact lists alone");
   await openRequirement(target, "ALPHA RULE");
-  assert.deepEqual(counts(), [1, 1]);
+  assert.deepEqual(counts(), [2, 2]);
   await openRequirement(target, "BETA RULE");
   const alpha = find(target, (node) => node.localName === "button" && node.textContent === "ALPHA RULE")[0];
   alpha.dispatchEvent(new Event("click"));
   await openRequirement(target, "ALPHA RULE");
-  assert.deepEqual(counts(), [1, 1]);
+  assert.deepEqual(counts(), [2, 2]);
 });
 
 // CASE ITM-597-10
 // TST-597010 · level: component · module: MOD-trace-pages
 // guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
-// given: the fixture, in which the first read of UC-001's file fails as an unreachable server does
-// input: ALPHA RULE opened, closed, opened again
+// given: the fixture, in which every read of UC-001's file fails as an unreachable server does until the test lets it succeed (the draw reads it too, for the impact lists of the open entries)
+// input: ALPHA RULE opened, closed, the file made readable, ALPHA RULE opened again
 // expect: the first opening keeps the four fields and says "What traces to this requirement could not be read: unreachable" with no list; the second opening reads again and lists UC-001 as "accepted"
 test("a graph that cannot be read is named in place of the traces, the four fields stay, and the next opening reads it again", async () => {
-  const productHost = treeHost({ trees: { main: TRACE_FILES }, failing: (path, nth) => path === "docs/use-cases/UC-001-first.md" && nth === 1 });
+  let unreachable = true;
+  const productHost = treeHost({ trees: { main: TRACE_FILES }, failing: (path) => unreachable && path === "docs/use-cases/UC-001-first.md" });
   const target = await render(productHost, mainParams);
   const row = await openRequirement(target, "ALPHA RULE");
   assert.match(row.textContent, /Alpha rule\./);
   assert.match(row.textContent, /What traces to this requirement could not be read: unreachable/);
   assert.equal(traceSection(row, "Use cases") === undefined, true, "no lists beside the problem");
   find(target, (node) => node.localName === "button" && node.textContent === "ALPHA RULE")[0].dispatchEvent(new Event("click"));
+  unreachable = false;
   const again = await openRequirement(target, "ALPHA RULE");
   assert.deepEqual(listed(again, "Use cases")[0], "UC-001 First use case — accepted");
   assert.doesNotMatch(again.textContent, /could not be read/);

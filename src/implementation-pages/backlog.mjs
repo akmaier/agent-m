@@ -9,22 +9,21 @@
 //
 // Module: MOD-implementation-pages
 //
-// What a render reads, through the product's host: the declaration docs/process.md; the role assignments under docs/role-assignments/, which name the teams; every
-// team's sprints under docs/backlog/sprints/<team>/; every item under docs/backlog/; the SPEC, which names the accepted requirements; the approval statuses of the use cases (MOD-approvals' statuses, which read no file); in a
-// product with several teams, the architecture's module files; the product's pull requests, of which those into the default branch or into a sprint's branch count; and, through the instance's host, the catalogue of
-// process models, in which the model the declaration names is found by its file. MOD-work-plans decides each item's state (itemStates, from the pull requests, the approval statuses and the requirements the SPEC
-// holds), what the sprints hold (heldItems), what keeps an item from a team (conflicts) and how a sprint starts (startSprint); MOD-progress-measures derives each team's sprint and its burn-down (progressIn).
+// What a render reads: the facts of the product, which MOD-progress-measures' productFacts gives with the scope `work` — the declaration docs/process.md, the role assignments under docs/role-assignments/, which name the teams,
+// every team's sprints under docs/backlog/sprints/<team>/, every item under docs/backlog/, the approval statuses (MOD-approvals' statuses, which read no file), the product's pull requests, and the model the declaration names as the
+// instance's catalogue held it at the commit its model_version names; where the facts of the commit are stored they are taken from the store and none of those files is read. Besides: the SPEC, which names the accepted requirements,
+// and, in a product with several teams, the architecture's module files — from the stored facts' lists, or from the files. Of the pull requests those into the default branch or into a sprint's branch count. MOD-work-plans decides
+// each item's state (itemStates, from the pull requests, the approval statuses and the requirements the SPEC holds), what the sprints hold (heldItems), what keeps an item from a team (conflicts) and how a sprint starts
+// (startSprint); MOD-progress-measures derives each team's sprint and its burn-down (progressIn). A model version the instance cannot read is named on the page (modelUnread); the catalogue as it stands now is not used instead.
 // Readings the texts leave open, which this file takes: a requirement named in the SPEC is accepted — the approval statuses MOD-work-plans' itemStates reads hold the reviewed files only, so the route adds the SPEC's
-// requirements to them; a model is found in the catalogue by the file the declaration names, as the route `roles` finds it; after Start sprint the route draws itself again, and the frame's host serves the snapshot the commit made.
+// requirements to them; the model is the one productFacts gives, found in the catalogue by the file the declaration names; after Start sprint the route draws itself again, and the frame's host serves the snapshot the commit made.
 
-import { statuses } from "../approvals/index.mjs";
 import { artifactSchemas, readDocument } from "../documents/index.mjs";
 import { renderArtifact, renderMermaid } from "../markdown-render/index.mjs";
-import { catalogue } from "../model-catalogue/index.mjs";
-import { declarationSchema, roleAssignmentSchema } from "../product-process/index.mjs";
-import { progressIn } from "../progress-measures/index.mjs";
+import { productFacts, progressIn, storedFacts } from "../progress-measures/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
-import { conflicts, heldItems, itemStates, planSchemas, startSprint } from "../work-plans/index.mjs";
+import { conflicts, endSprint, heldItems, itemStates, startSprint, startable } from "../work-plans/index.mjs";
+import { participantSchema, participantsOf } from "../participant-list/index.mjs";
 
 const DECLARATION = "docs/process.md";
 const ITEM_FILE = /^docs\/backlog\/(ITM-\d{3,})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
@@ -49,48 +48,61 @@ const byNumber = (a, b) => numberOf(a) - numberOf(b) || (a < b ? -1 : a > b ? 1 
 
 // ---------------------------------------------------------------- reading
 
-// What the route needs besides the pull requests: the declaration and its model, the teams, their sprints, the items, the modules, and what is accepted.
-async function contextOf(context) {
+// What the route needs besides the pull requests: the declaration and its model, the teams, their sprints, the items, the modules, and what is accepted. The facts are MOD-progress-measures' productFacts with the scope `work`:
+// where the facts of the commit are stored they are taken from the store and none of the files they come from is read; otherwise the files are read in batches. The requirements and the module files, which Facts does not carry,
+// come from the stored facts' lists, or from the files.
+export async function contextOf(context) {
   const { product, instance } = context;
-  // The branch the page has read, where the caller says which it is; else the default branch the repository reports.
+  // The product's host as productFacts reads it: the branch the page has read, where the caller says which it is (else the default branch the repository reports), and each snapshot read once — the instance's too, where
+  // the product is the instance.
+  const shots = new Map();
+  // A snapshot that asks the branch of the stored facts once, whoever asks.
+  const once = (snapshot) => {
+    if (typeof snapshot.readOn !== "function") return snapshot;
+    const asked = new Map();
+    return { ...snapshot, readOn: (branch, path) => { const key = `${branch}\n${path}`; if (!asked.has(key)) asked.set(key, snapshot.readOn(branch, path)); return asked.get(key); } };
+  };
+  const reading = (host, ref) => {
+    const own = Object.create(host);
+    const set = (name, value) => Object.defineProperty(own, name, { value, writable: true, configurable: true, enumerable: true });
+    if (ref) set("repositoryInfo", async () => ({ defaultBranch: ref }));
+    set("readSnapshot", (at) => { if (!shots.has(at)) shots.set(at, host.readSnapshot(at).then(once)); return shots.get(at); });
+    return own;
+  };
   const ref = product.ref ?? (await product.host.repositoryInfo()).defaultBranch;
-  const snapshot = await product.host.readSnapshot(ref);
-  const paths = (re) => snapshot.paths.filter((path) => re.test(path)).sort();
-  const modulePaths = paths(MODULE_FILE);
-  const wanted = [DECLARATION, "SPEC.md", ...paths(ITEM_FILE), ...paths(SPRINT_FILE), ...paths(ASSIGNMENT_FILE)].filter((path) => snapshot.paths.includes(path));
-  const teamNames = new Set([...paths(ASSIGNMENT_FILE).map((path) => ASSIGNMENT_FILE.exec(path)[1]), ...paths(SPRINT_FILE).map((path) => SPRINT_FILE.exec(path)[1])]);
-  await snapshot.readMany?.([...wanted, ...(teamNames.size > 1 ? modulePaths : [])]);
-  const readAll = (list_, schema) => Promise.all(list_.map(async (path) => readDocument(schema, path, (await snapshot.read(path)) ?? "")));
-  const [declarationText, specText] = await Promise.all([snapshot.read(DECLARATION), snapshot.read("SPEC.md")]);
-  const declaration = declarationText !== null ? readDocument(declarationSchema, DECLARATION, declarationText) : null;
+  const host = reading(product.host, product.ref);
+  const same = instance.host === product.host;
+  const instanceHost = same ? host : instance.host;
+  const instanceSnapshot = same ? await host.readSnapshot(ref) : await instanceHost.readSnapshot((await instanceHost.repositoryInfo()).defaultBranch);
+  const facts = await productFacts(host, instanceSnapshot, (commit) => instanceHost.readSnapshot(commit), new Date(), { scope: "work" });
+  const snapshot = facts.snapshot;
+  const { declaration, assignments, sprints } = facts;
+  const items = facts.plan.items.filter((doc) => ITEM_FILE.test(text(doc.path)));
   const modelFile = text(declaration?.fields?.model_file) || null;
-  const [assignments, sprints, items] = await Promise.all([readAll(paths(ASSIGNMENT_FILE), roleAssignmentSchema), readAll(paths(SPRINT_FILE), planSchemas.sprint),
-    readAll(paths(ITEM_FILE), artifactSchemas().item)]);
+  // The model as the instance held it at the commit the declaration's model_version names (UC-031 step 6a); where that cannot be read, none — and the page says so (modelUnread), never today's catalogue.
+  const model = facts.model !== null && typeof facts.model === "object" ? facts.model : null;
   const teams = [...new Set([...assignments.map((a) => ASSIGNMENT_FILE.exec(a.path)?.[1]), ...sprints.map((s) => SPRINT_FILE.exec(s.path)?.[1])].filter(Boolean))];
-  const modules = teams.length > 1 ? await readAll(modulePaths, artifactSchemas().module) : [];
-  // The instance is read for the model the declaration names, and for that file only, as it stood at the commit the declaration's model_version names (UC-031 step 6a); where that is not named or cannot be read, as it stands now.
-  const declaredCommit = text(declaration?.fields?.model_version);
-  const instanceNow = async () => (instance.host === product.host ? snapshot : instance.host.readSnapshot((await instance.host.repositoryInfo()).defaultBranch));
-  const instanceSnapshot = declaredCommit ? await instance.host.readSnapshot(declaredCommit).catch(instanceNow) : await instanceNow();
-  const onlyThat = { paths: instanceSnapshot.paths.filter((path) => path === modelFile), read: (path) => instanceSnapshot.read(path), blob: (path) => instanceSnapshot.blob(path) };
-  const model = modelFile ? ((await catalogue(onlyThat)).models.find((each) => each.path === modelFile) ?? null) : null;
+  const stored = await storedFacts(snapshot);
+  const modulePaths = snapshot.paths.filter((path) => MODULE_FILE.test(path)).sort();
+  const modules = teams.length < 2 ? [] : stored ? stored.modules
+    : await Promise.all(modulePaths.map(async (path) => readDocument(artifactSchemas().module, path, (await snapshot.read(path)) ?? "")));
   const newest = new Map();
   for (const record of sprints) {
     const [, team, nn] = SPRINT_FILE.exec(record.path);
     if (!newest.has(team) || Number(nn) > Number(newest.get(team).nn)) newest.set(team, { record, nn, name: `${team}/${nn}` });
   }
   items.sort((a, b) => byNumber(idOf(a), idOf(b)));
-  const requirements = [...parseSpec(specText ?? "").requirements.keys()];
-  const reviewed = statuses(snapshot);
+  const requirements = stored ? stored.requirements : [...parseSpec((await snapshot.read("SPEC.md")) ?? "").requirements.keys()];
+  const reviewed = facts.statuses;
   const useCases = [...reviewed.values()].filter((entry) => entry.kind === "use-case" && entry.status === "accepted").map((entry) => entry.id);
-  return { ref, snapshot, declaration, modelFile, model, assignments, sprints, items, modules, teams, newest, requirements, useCases, reviewed };
+  return { ref, snapshot, facts, declaration, modelFile, model, modelUnread: facts.modelUnread, assignments, sprints, items, modules, teams, newest, requirements, useCases, reviewed };
 }
 
-// The pull requests the page derives from, in one listing of all of them: an item's hold can outlast its sprint, and an item can be done before any sprint ran. Only those into the default branch or into the branch of a
+// The pull requests the page derives from, in one listing of all of them (the facts hold it): an item's hold can outlast its sprint, and an item can be done before any sprint ran. Only those into the default branch or into the branch of a
 // sprint count, whatever else the server answers.
 async function pullRequestsOf(context, ctx) {
   const bases = new Set([ctx.ref, ...ctx.sprints.map((sprint) => text(sprint.fields.branch)).filter(Boolean)]);
-  const found = await context.product.host.listPullRequests();
+  const found = ctx.facts.pullRequests === "unknown" ? await context.product.host.listPullRequests() : ctx.facts.pullRequests;
   return found.filter((pullRequest) => bases.has(pullRequest.branchBase ?? pullRequest.base));
 }
 
@@ -102,7 +114,7 @@ function statusesOf(ctx) {
 }
 
 // What the route derives: the pull requests, each item's state and when a done item was merged, what the sprints hold, each team's sprint.
-async function derivedOf(context, ctx) {
+export async function derivedOf(context, ctx) {
   const pull = await pullRequestsOf(context, ctx);
   const states = itemStates(ctx.items, null, { statuses: statusesOf(ctx), queues: [], jobs: [], pullRequests: pull, gates: [], workflow: null });
   const mergedAt = new Map();
@@ -208,6 +220,8 @@ function teamPanel(context, ctx, d, team) {
       <td>${stateCell(stateOf(d, st.item))}</td><td class="small">${changes.map(h).join(", ") || "—"}</td>
       <td class="small">${(held?.uses ?? []).map(h).join(", ") || "—"}</td></tr>`;
   }).join("");
+  // Without a time box, and until its record holds `## Ended`, the Product Owner ends the sprint with one click (UC-032 6b).
+  const endable = !text(f.end) && !(record.appended ?? []).some((section) => section.heading === "## Ended");
   const chart = entry.burnDown.length ? chartBlock(team, newest.name, remainingOverTime(entry.items.map((st) => st.item), d.mergedAt, text(f.start)))
     : `<p class="muted">No burn-down yet: the sprint starts on ${h(text(f.start))}.</p>`;
   return `<section class="panel" data-team="${h(team)}"><h3>${h(team)} — sprint ${fileLink(context, ctx.ref, record.path, h(newest.name))}</h3>
@@ -215,9 +229,9 @@ function teamPanel(context, ctx, d, team) {
       <dt>Ends</dt><dd>${f.end ? h(text(f.end)) : "when its items are done or the Product Owner ends it — no time box"}</dd>
       <dt>Branch</dt><dd>${f.branch ? `<code>${h(text(f.branch))}</code>` : `none: <code>${h(ctx.ref)}</code>`}</dd><dt>Closed by</dt><dd>${h(text(f.closer))}</dd></dl>
     ${wipLine(ctx, d, entry)}
-    <div class="table-scroll"><table class="list"><thead><tr><th>Item</th><th>Title</th><th>State</th><th>Changes</th><th>Uses</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="table-scroll" tabindex="0"><table class="list"><thead><tr><th>Item</th><th>Title</th><th>State</th><th>Changes</th><th>Uses</th></tr></thead><tbody>${rows}</tbody></table></div>
     ${chart}
-    <p>${plan("Change the selection", false)}</p>${why}</section>`;
+    <p>${plan("Change the selection", false)}${endable ? ` <button class="btn" data-end-sprint="${h(team)}">End sprint</button>` : ""}</p>${why}</section>`;
 }
 
 // What keeps an item from a team other than the one whose sprint holds it, one line per team.
@@ -247,7 +261,7 @@ function backlogPanel(context, ctx, d) {
   }).join("");
   return `<section class="panel" data-part="backlog"><h3>The backlog</h3>
     <p class="muted">${h(d.states.length)} items, each after the items it builds on.</p>
-    <div class="table-scroll"><table class="list"><thead><tr><th>#</th><th>Item</th><th>Title</th><th>Realises</th><th>State</th><th>Held or kept</th></tr></thead>
+    <div class="table-scroll" tabindex="0"><table class="list"><thead><tr><th>#</th><th>Item</th><th>Title</th><th>Realises</th><th>State</th><th>Held or kept</th></tr></thead>
       <tbody>${rows}</tbody></table></div>
     ${explain("<p>The backlog is everything the product is meant to do, one Markdown file per item under <code>docs/backlog/</code> " +
       "(UC-032). It keeps no order of its own: each item is listed after the items it builds on, and what is worth doing next is " +
@@ -272,7 +286,7 @@ function uncoveredPanel(ctx) {
 }
 
 // The sprint of `team` that is running, or null.
-function runningOf(ctx, d, team) {
+export function runningOf(ctx, d, team) {
   const newest = ctx.newest.get(team) ?? null;
   return newest && !d.progress?.sprints.find((each) => each.team === team)?.final ? newest.record : null;
 }
@@ -297,7 +311,7 @@ function planPanel(context, ctx, d, team) {
     <p><label>Goal <input data-sprint-goal value="${h(text(running?.fields.goal))}"></label></p>
     <p><label>Start <input type="date" data-sprint-start value="${h(today())}"></label>
       <label>Closed by <input data-sprint-closer value="${h(text(running?.fields.closer) || ownerOf(ctx, team))}"></label></p>
-    <div class="table-scroll"><table class="list"><thead><tr><th>Select</th><th>Item</th><th>Title</th><th>State</th><th>Why it cannot be selected</th></tr></thead>
+    <div class="table-scroll" tabindex="0"><table class="list"><thead><tr><th>Select</th><th>Item</th><th>Title</th><th>State</th><th>Why it cannot be selected</th></tr></thead>
       <tbody>${rows}</tbody></table></div>
     <p><button class="btn primary" data-start-sprint="${h(team)}"${token ? "" : " disabled"}>Start sprint</button>
       <button class="btn" data-cancel-plan>Cancel</button></p>
@@ -319,7 +333,7 @@ function heldPanel(context, ctx, d, team) {
       <td>${h(each.sprint)}</td><td class="small">${each.changes.map(h).join(", ") || "—"}</td><td class="small">${each.uses.map(h).join(", ") || "—"}</td></tr>`;
   }).join("");
   return `<section class="panel" data-part="held"><h3>What the other teams' sprints hold</h3>
-    ${others.length ? `<div class="table-scroll"><table class="list"><thead><tr><th>Item</th><th>Title</th><th>Sprint</th><th>Changes</th><th>Uses</th></tr></thead>
+    ${others.length ? `<div class="table-scroll" tabindex="0"><table class="list"><thead><tr><th>Item</th><th>Title</th><th>Sprint</th><th>Changes</th><th>Uses</th></tr></thead>
       <tbody>${rows}</tbody></table></div>` : `<p class="muted">No other team's sprint holds an item.</p>`}
     ${explain("<p>A sprint holds the items it selected from its start until their change is merged into the default branch or " +
       "they go back to the backlog — after its close too, while its increment waits on its own branch. While another team's " +
@@ -336,8 +350,9 @@ async function draw(target, context) {
   const ctx = await contextOf(context);
   const d = await derivedOf(context, ctx);
   const { model } = ctx;
-  const noModel = !ctx.declaration ? `<p class="warn">This product declares no process model yet: <code>docs/process.md</code> names it (UC-002).</p>`
-    : !model ? `<p class="warn">The declaration names the model file <code>${h(ctx.modelFile ?? "—")}</code>, which the catalogue does not hold.</p>` : "";
+  const unread = ctx.modelUnread ? `<p class="warn">The model version <code>${h(ctx.modelUnread.commit)}</code> the declaration names cannot be read from the instance (${h(ctx.modelUnread.error)}), so no process model is shown.</p>` : "";
+  const noModel = unread || (!ctx.declaration ? `<p class="warn">This product declares no process model yet: <code>docs/process.md</code> names it (UC-002).</p>`
+    : !model ? `<p class="warn">The declaration names the model file <code>${h(ctx.modelFile ?? "—")}</code>, which the catalogue does not hold.</p>` : "");
   const planned = model?.kind === "planned" ? `<p class="warn">This product's model plans its work in advance: there is no backlog (UC-032 1b) — its progress is shown on <a href="#progress">Progress</a>.</p>` : "";
   const sprints = model?.flow?.sprints === true;
   const teamsPart = sprints
@@ -369,6 +384,18 @@ async function draw(target, context) {
     target.querySelectorAll(`[data-plan="${name}"]`).forEach((button) => button.addEventListener("click", () => { planning.set(target, name); again(); }));
   }
   target.querySelectorAll("[data-cancel-plan]").forEach((button) => button.addEventListener("click", () => { planning.delete(target); again(); }));
+  target.querySelectorAll("[data-end-sprint]").forEach((button) => button.addEventListener("click", async (event) => {
+    if (event?.isTrusted === false) return;
+    const name = button.dataset?.endSprint ?? button.getAttribute("data-end-sprint");
+    const sprint = ctx.newest.get(name)?.name;
+    try {
+      const result = await endSprint(context.product.host, sprint, { head: ctx.snapshot.commit, now: new Date(), trailers: [] });
+      await draw(target, context);
+      target.insertAdjacentHTML?.("afterbegin", `<section class="panel notice flash"><p>Sprint <code>${h(sprint)}</code> is ended — commit ${h(result.commit.slice(0, 7))}.</p></section>`);
+    } catch (failure) {
+      target.insertAdjacentHTML?.("afterbegin", `<section class="panel notice flash"><p class="warn">${h(failure?.message ?? failure)}</p></section>`);
+    }
+  }));
   target.querySelectorAll("[data-start-sprint]").forEach((button) => button.addEventListener("click", async (event) => {
     if (event?.isTrusted === false) return;
     const out = target.querySelector("[data-plan-result]");
@@ -399,9 +426,13 @@ async function draw(target, context) {
   }));
 }
 
-// Each block of Mermaid text the page holds is drawn by MOD-markdown-render.
+// Each block of Mermaid text the page holds is drawn by MOD-markdown-render; its box scrolls sideways where the page is narrower than the chart, so the keyboard reaches it (THE SITE SERVES A SCREEN READER).
 async function drawCharts(target) {
-  for (const code of [...target.querySelectorAll("pre > code.language-mermaid")]) code.parentNode.replaceWith(await renderMermaid(code.textContent));
+  for (const code of [...target.querySelectorAll("pre > code.language-mermaid")]) {
+    const chart = await renderMermaid(code.textContent);
+    chart.setAttribute("tabindex", "0");
+    code.parentNode.replaceWith(chart);
+  }
 }
 
 export const route = {
@@ -411,5 +442,83 @@ export const route = {
 
   async render(target, context) {
     await draw(target, context);
+  },
+};
+
+// ---------------------------------------------------------------- the board (UC-032 steps 7 and 7a)
+
+const REGISTER = "docs/participants.md";
+
+/** participantsIn(context) -> the participants of the instance's register, read from its default branch. */
+export async function participantsIn(context) {
+  const { instance } = context;
+  const snapshot = await instance.host.readSnapshot((await instance.host.repositoryInfo()).defaultBranch);
+  const register = await snapshot.read(REGISTER);
+  return register === null ? [] : participantsOf(readDocument(participantSchema(), REGISTER, register));
+}
+
+// The role assignment of an item: its team's — the team whose newest running sprint selects it —, else the product's first.
+export function assignmentOf(ctx, d, id) {
+  for (const team of ctx.teams) {
+    const running = runningOf(ctx, d, team);
+    if (running && list(running.appended?.filter((section) => section.heading === "## Selection").at(-1)?.fields?.selection ?? running.fields.selection).includes(id)) {
+      return { assignment: ctx.assignments.find((each) => ASSIGNMENT_FILE.exec(each.path)?.[1] === team) ?? null, sprint: running, team };
+    }
+  }
+  const first = ctx.assignments[0] ?? null;
+  const team = first ? ASSIGNMENT_FILE.exec(first.path)?.[1] : null;
+  return { assignment: first, sprint: team ? runningOf(ctx, d, team) : null, team };
+}
+
+
+// The column of an item by its derived state: Done; in progress with a pull request open, Review; in progress otherwise, Doing; any other state, Backlog.
+const columnOf = (state) => (state.state === "done" ? "Done" : state.state === "in progress" ? (state.pullRequest ? "Review" : "Doing") : "Backlog");
+const COLUMNS = ["Backlog", "Doing", "Review", "Done"];
+
+// The board for a model with a work-in-progress limit: the columns with each item in the column of its derived state; the limit, per team in a model with sprints, naming the items in progress and those that
+// wait for review; Pull on a ready item — a link to the route implement with the item selected — only where `startable` lets it start, else disabled with the reasons it gives.
+async function drawBoard(target, context) {
+  const ctx = await contextOf(context);
+  const d = await derivedOf(context, ctx);
+  const head = (body) => { target.innerHTML = `<section class="head"><h2>Board</h2>${explain("<p>The board shows each item in the column of its derived state. A ready item is pulled only while fewer items are in progress than the work-in-progress limit allows; items in review count as in progress (book ch. 7 §4; UC-032 step 7).</p>")}${body}</section>`; };
+  const wip = ctx.model?.flow?.wip;
+  if (!ctx.declaration || !ctx.model) { head(`<p class="warn">This product declares no process model yet: <code>docs/process.md</code> names it (UC-002).</p>`); return; }
+  if (!wip) { head(`<p>This model has no work-in-progress limit, so there is no board: see <a href="#backlog">the backlog</a>.</p>`); return; }
+  const participants = await participantsIn(context);
+  const workflow = ctx.facts.workflow !== "unknown" ? ctx.facts.workflow : null;
+  const ids = ctx.items.map(idOf);
+  const verdicts = new Map(ids.map((id) => {
+    const { assignment, sprint } = assignmentOf(ctx, d, id);
+    return [id, startable(id, d.states, { workflow, assignment, sprint, held: d.held, wip, participants })];
+  }));
+  const stateOf_ = (id) => d.states.find((each) => each.item === id) ?? { item: id, state: "unknown" };
+  const item = (id) => {
+    const state = stateOf_(id), verdict = verdicts.get(id);
+    const pull = state.state !== "ready" ? "" : verdict.startable ? `<a data-pull="${h(id)}" href="#implement/item=${encodeURIComponent(id)}">Pull</a>`
+      : `<button type="button" data-pull="${h(id)}" disabled>Pull</button><ul data-reasons>${verdict.reasons.map((reason) => `<li>${h(reason)}</li>`).join("")}</ul>`;
+    return `<li data-item="${h(id)}">${h(id)} ${badge(state.state)} ${pull}</li>`;
+  };
+  const columns = COLUMNS.map((name) => `<section class="panel" data-column="${name}"><h3>${name}</h3><ul>${ids.filter((id) => columnOf(stateOf_(id)) === name).map(item).join("")}</ul></section>`).join("");
+  const teams = ctx.model.flow.sprints === true && ctx.teams.length ? ctx.teams : [null];
+  const panels = teams.map((team) => {
+    const under = team ? new Set(d.held.filter((entry) => entry.team === team).map((entry) => entry.item)) : null;
+    const busy = d.states.filter((each) => each.state === "in progress" && (!under || under.has(each.item)));
+    const reviewing = busy.filter((each) => each.pullRequest).map((each) => each.item);
+    return `<section class="panel" data-wip${team ? ` data-team="${h(team)}"` : ""}><p>${h(busy.length)} of ${h(wip)} items in progress${team ? ` under ${h(team)}` : ""}${busy.length ? `: ${busy.map((each) => h(each.item)).join(", ")}` : ""}.${reviewing.length ? ` Waiting for review: ${reviewing.map(h).join(", ")}.` : ""}${busy.length >= wip ? " No further item is pulled until one of them is merged." : ""}</p></section>`;
+  }).join("");
+  head(`${panels}${columns}`);
+}
+
+export const boardRoute = {
+  name: "board",
+  entry: "implementation",
+  title: "Board",
+
+  async render(target, context) {
+    try {
+      await drawBoard(target, context);
+    } catch (failure) {
+      target.innerHTML = `<section class="panel"><h2>Board</h2><p class="warn">${h(failure?.message ?? failure)}</p></section>`;
+    }
   },
 };

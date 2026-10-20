@@ -74,7 +74,7 @@ test("openPullRequest on GitHub — the request carries branch, base, title and 
   assert.deepEqual(requests[0].body, { title: REQUEST.title, head: REQUEST.branch, base: "develop", body: REQUEST.body, draft: false });
   assert.equal(requests[0].headers.authorization, `Bearer ${GH_TOKEN}`);
   assert.ok(!requests[0].href.includes(GH_TOKEN), "the token is in no address");
-  assert.deepEqual(result, { number: 12, title: REQUEST.title, branch: REQUEST.branch, base: "develop", head: HEAD_SHA, state: "open", draft: false,
+  assert.deepEqual(result, { number: 12, title: REQUEST.title, branch: REQUEST.branch, base: "develop", head: HEAD_SHA, mergeCommit: null, state: "open", draft: false,
     url: "https://github.com/carol/sprint-tool/pull/12", opened: "2026-10-17T09:00:00Z", merged: null, closed: null, body: REQUEST.body });
 });
 
@@ -103,7 +103,7 @@ test("openPullRequest on GitLab — the request carries branch, base, title and 
   assert.deepEqual(requests[0].body, { source_branch: REQUEST.branch, target_branch: "develop", title: REQUEST.title, description: REQUEST.body });
   assert.equal(requests[0].headers["private-token"], GL_TOKEN);
   assert.ok(!requests[0].href.includes(GL_TOKEN), "the token is in no address");
-  assert.deepEqual(result, { number: 12, title: REQUEST.title, branch: REQUEST.branch, base: "develop", head: HEAD_SHA, state: "open", draft: false,
+  assert.deepEqual(result, { number: 12, title: REQUEST.title, branch: REQUEST.branch, base: "develop", head: HEAD_SHA, mergeCommit: null, state: "open", draft: false,
     url: "https://gitlab.example.org/space/sprint-tool/-/merge_requests/12", opened: "2026-10-17T09:00:00Z", merged: null, closed: null, body: REQUEST.body });
 });
 

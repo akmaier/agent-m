@@ -41,16 +41,18 @@ uses:
   - MOD-source-register.linkedVersion
   - MOD-source-register.affectedRequirements
   - MOD-test-schedule.occasionsOf
+  - MOD-test-schedule.scheduleSchema
+  - MOD-test-schedule.defaultSchedule
   - MOD-result-records.resultsAt
   - MOD-result-records.flakyTests
   - MOD-result-records.rateComparison
   - MOD-result-records.testHistory
+  - MOD-result-records.resultSchema
   - MOD-release-evidence.auditRows
   - MOD-product-process.declarationSchema
-  - MOD-product-process.workflowOf
+  - MOD-product-process.productWorkflow
   - MOD-product-process.gateSchema
   - MOD-product-process.gateStates
-  - MOD-model-catalogue.catalogue
   - MOD-release-evidence.auditDocument
   - MOD-artifact-edits.saveFile
   - MOD-source-register.personSource
@@ -109,7 +111,7 @@ TraceView = {
 
 | View | Versions | Shape and rows | Opening a row | Extras |
 |---|---|---|---|---|
-| specification | branch and tags | first, only while an entry of a change queue waits for acceptance, those entries, each with its status and a link to it (MOD-review-pages' `spec-entry/<id>`), and nothing where none waits; then the tree of `docs/groups/requirements.md`, every requirement once with its status — in SPEC, change proposed, removal proposed, proposed — and, where MOD-source-register's `affectedRequirements` names it for a source the product moved to a newer version after its section last changed, *source changed* until its section changes (UC-016 step 5), each group with how many it holds and how many no use case realises | the four fields; sources with version and part; use cases with their review status; decisions, modules and tests naming it; open proposals; its history of accepted changes | to the review pages, on the default branch only: *Edit* on a requirement, *+ Requirement* in each section, which opens `requirements/new` for that section (UC-018 3d), and *Arrange*; *History of SPEC changes*, which opens MOD-review-pages' `spec-entry/history`. Its subject for the prompt bar, on the default branch, is the open requirement, or the group with the names it holds, with the kind `change-requirements`, the person's own source and the review pages' `draft` as its draft route (UC-019 step 1); at a released version, the requirement as it read there, with the kind `converse` (UC-020 1a, UC-049 2a) |
+| specification | branch and tags | first, only while an entry of a change queue waits for acceptance, those entries, each with its status and a link to it (MOD-review-pages' `spec-entry/<id>`), and nothing where none waits; then the tree of `docs/groups/requirements.md`, every requirement once with its status — in SPEC, change proposed, removal proposed, proposed — and, where MOD-source-register's `affectedRequirements` names it for a source the product moved to a newer version after its section last changed, *source changed* until its section changes (UC-016 step 5), each group with how many it holds and how many no use case realises | the four fields; sources with version and part; use cases with their review status; decisions, modules and tests naming it; open proposals; its history of accepted changes | to the review pages, on the default branch only: *Edit* on a requirement, *+ Requirement* once for each section of the SPEC, listed beside the tree and not within it, each of which opens `requirements/new` for that section (UC-018 3d), and *Arrange*; *History of SPEC changes*, which opens MOD-review-pages' `spec-entry/history`. Its subject for the prompt bar, on the default branch, is the open requirement, or the group with the names it holds, with the kind `change-requirements`, the person's own source and the review pages' `draft` as its draft route (UC-019 step 1); at a released version, the requirement as it read there, with the kind `converse` (UC-020 1a, UC-049 2a) |
 | gaps | branch and tags | table of requirements realised by no use case and named by no module or test, use cases realising none, names matching nothing | the artifact as it read in that version | what became covered and what lost its coverage between two versions |
 | modules | branch | table of modules: subsystem, the requirements its tests guard with their statuses, its file, code, tests; and every gap | the module's file and folder | component diagram: one box per module in its subsystem's box, one arrow per use, gaps marked, a missing provider as a box marked *missing*; *Change the architecture* and *Implement* |
 | tests | branch and tags | tree by level, file and case, or by requirement, use case or module, each test with its outcome on the latest commit | its declaration, its schedule, its counter-proof, its code, its history across commits and releases | comparing two releases |
@@ -141,7 +143,7 @@ instance's host that the frame gives every route, it also reads the instance's p
 - MOD-repository-hosts.readSnapshot, MOD-repository-hosts.readHistory, MOD-repository-hosts.readFileAt,
   MOD-repository-hosts.listTags,
   MOD-repository-hosts.webLinks — the version, the history of a requirement's section, the text of a file at the commits
-  of its history, the release tags, a test's code
+  of its history, the release tags, a test's code (`WebLinks`' `file`, the page of the test's file at the version shown)
   and a run's log on the server; for the audit, the instance at the commit the release's declaration names;
   MOD-repository-hosts.repositoryInfo — the default branch, on which alone a requirement leads to editing, and at which
   the instance's links are read for the person's own source.
@@ -157,14 +159,16 @@ instance's host that the frame gives every route, it also reads the instance's p
   MOD-source-register.personSource, MOD-source-register.personAccount — the person's own source, which the subject of a
   requirement carries.
 - MOD-prompt-bar.Subject — the subject each route gives the prompt bar.
-- MOD-test-schedule.occasionsOf — when the schedule runs a test.
+- MOD-test-schedule.occasionsOf — when the schedule runs a test; MOD-test-schedule.scheduleSchema reads the product's
+  `docs/tests/schedule.md` at the version shown, and MOD-test-schedule.defaultSchedule gives the book's schedule where the
+  product has none, the document `occasionsOf` is given.
 - MOD-result-records.resultsAt, MOD-result-records.flakyTests, MOD-result-records.rateComparison,
-  MOD-result-records.testHistory — outcomes, flaky tests, rates and history.
+  MOD-result-records.testHistory — outcomes, flaky tests, rates and history; MOD-result-records.resultSchema reads a
+  test's counter-proof record, whose `participant` is shown as the one who wrote the test.
 - MOD-release-evidence.auditRows, MOD-release-evidence.auditDocument — the audit and its document; the audit is given the
   instance's SPEC, where the process requirements stand.
-- MOD-product-process.declarationSchema, workflowOf, gateSchema, gateStates — the product's workflow and its gate records at
-  the release's commit, from which the audit's process rows take each process requirement's gates and records (UC-030).
-  The workflow is derived from the model the product had declared at the release.
-- MOD-model-catalogue.catalogue — the catalogue at the commit the release's declaration names, which holds the declared
-  model and its practices as the product kept them (UC-031 6a; ARC-042: earlier work keeps the model it was done under).
+- MOD-product-process.declarationSchema, productWorkflow, gateSchema, gateStates — the product's workflow and its gate
+  records at the release's commit, from which the audit's process rows take each process requirement's gates and records
+  (UC-030). The workflow is `productWorkflow` of the declaration at the release, so it is derived from the model the
+  product had declared then.
 - MOD-artifact-edits.saveFile — *Commit export*, as the person's own input.

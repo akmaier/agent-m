@@ -15,7 +15,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { INSTRUCTION, LOAN, UC7, UC7_PATH, UC8, UC8_PATH, all, barOf, changed, conversationRecords, draft, goTo, keptDraft, namedButton, one, onUseCase, press, proposalWrites, recordTexts, rest, review, run, save, scenario, send, statusOf, useCases } from "./uc-019-prompt-bar-harness.mjs";
+import { INSTRUCTION, LOAN, UC7, UC7_PATH, UC8, UC8_PATH, all, barOf, changed, conversationRecords, draft, goTo, keptDraft, namedButton, one, onRequirementPage, onUseCase, press, proposalWrites, recordTexts, rest, review, run, save, scenario, send, statusOf, useCases } from "./uc-019-prompt-bar-harness.mjs";
 import { AGENT, CI_AGENT, DRAFTER, HANDY, RUN_URL, SUBAGENT, TOOLER, answer, barText, calls, conversationOf, followClock, free, registerOf, sendNow, textOfSent, watch, withWorkflow } from "./uc-049-world.mjs";
 import { appendToRecord } from "../src/job-ledger/index.mjs";
 import { byClass, until } from "./review-pages-draft-world.mjs";
@@ -171,7 +171,7 @@ test("alternative 2a: at a released version the participant is given that versio
   const s = await scenario({ instanceFiles: register(DRAFTER) });
   const w = watch(s, { script: [answer("At v1.0.0 the rule reads: every loan states its due date.")] });
   await goTo(s, `#trace/key=specification/ref=v1.0.0/product=${encodeURIComponent(s.address)}`);
-  await press(s, one(s.target, "button", "spec-section-toggle"));
+  await press(s, one(s.target, "button", "spec-group-toggle"));
   await press(s, all(s.target, "button", "requirement-name").find((button) => button.textContent === LOAN));
   await sendNow(s, INSTRUCTION);
   await free(s);
@@ -488,8 +488,8 @@ test("postcondition: with recording off only what the author saved is written, a
 // given: the product holds the content of the source SRC-restricted at docs/sources/SRC-restricted/handbook.md (reading: the source's content lies in a folder of the product named by the source); the source's entry says its licence is restricted and its content may go to "this machine" only; tooler works at "Anthropic, USA" and asks for read-file of that path
 // input: a message sent to tooler, whose endpoint asks for the file and then answers
 // expect: the tool refuses and says why — the result the endpoint receives names the source SRC-restricted and the place "Anthropic, USA" — and does not hold the text of the file; the participant continues (the answer is shown). FINDING: the context the bar prepares a message with names no restricted source (places.sources and places.contents are empty in src/prompt-bar/send.mjs), so nothing is refused and the endpoint receives the text: this case is red on main until the bar gives the tool the places of the sources
-test("alternative 4e: a tool refuses content of a source whose licence does not allow the participant's place", { todo: "FINDING UC049-4e — the bar gives its job no restricted source (src/prompt-bar/send.mjs: places.sources {} and places.contents []), so read-file refuses nothing — ITM-1123" }, async () => {
-  const restricted = ["---", "id: SRC-restricted", "title: A restricted handbook", "kind: document", "authority: informational", "identifier: Handbook", "licence: restricted - internal", "places:", "  - this machine", "---",
+test("alternative 4e: a tool refuses content of a source whose licence does not allow the participant's place", async () => {
+  const restricted = ["---", "id: SRC-restricted", "title: A restricted handbook", "kind: document", "authority: informational", "identifier: Handbook", "licence: restricted - internal", "places:", "  - this machine", "content_repository: https://github.com/akmaier/lending-tool", "---",
     "# SRC-restricted A restricted handbook", "", "## Versions", "", "| Version | Date | Edition | Read from | Files |", "|---|---|---|---|---|", "| `1` | 2026-10-13 | fixture | this repository | one file, hashed only |", ""].join("\n");
   const s = await scenario({ instanceFiles: { ...register(TOOLER), "docs/sources/SRC-restricted.md": restricted }, extraFiles: { "docs/sources/SRC-restricted/handbook.md": "RESTRICTED-HANDBOOK-TEXT: never for the USA.\n" }, answers: [{ answer: "x" }] });
   const w = watch(s, { script: [calls({ id: "c1", name: "read-file", args: { path: "docs/sources/SRC-restricted/handbook.md" } }), answer("I could not read it, so I answer without it.")] });
@@ -522,10 +522,11 @@ test("alternative 6c: a conversation held on a page of the instance is recorded 
 // given: handy proposes handing over a change of the requirement A LOAN HAS A DUE DATE (the kind change-requirements); the person's click queues it; the run is the real entry onDispatch on fixture checkouts, with the coding agent answering a draft of the change
 // input: Hand over; the run
 // expect: UC-049 4a.3 says the run's answer appears with the commits it made — artifacts committed as open —: the run ends done and commits the change as an open proposal. FINDING: the run ends failed with "entrySections needs the job's source as text": the record the bar queues carries the requirement and no source (the person's own source, which the message of the tab names), so this case is red on main until the hand-over gives the job its source
-test("alternative 4a: a hand-over of a change of requirements runs to its end and commits an open proposal", { todo: "FINDING UC049-4a-source — a handed-over change-requirements job fails in the workflow for want of its source (the record queued by the bar names the requirement and no source) — ITM-1129" }, async () => {
+test("alternative 4a: a hand-over of a change of requirements runs to its end and commits an open proposal", async () => {
   const s = await scenario({ instanceFiles: register(DRAFTER, HANDY), answers: [{ answer: "x" }] });
-  const w = watch(s, { script: [answer("Handing on.", { handOver: { kind: "change-requirements", works_on: [LOAN], task: "Make the due date visible." } })] });
+  const w = watch(s, { script: [answer("Handing on.", { candidates: [], handOver: { kind: "change-requirements", works_on: [LOAN], task: "Make the due date visible." } })] });
   const clock = followClock();
+  await onRequirementPage(s); // the page UC-049 4a means: the requirement's own, whose subject is of the kind change-requirements and gives the person's own source
   await sendNow(s, "Please change this rule.", { participant: "handy" });
   await free(s);
   await until(() => all(barOf(s), "button", "queue").length > 0, "the hand-over is offered");

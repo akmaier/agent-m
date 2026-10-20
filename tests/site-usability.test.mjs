@@ -56,6 +56,8 @@ const TODAY = {
   "#review/uc": { widths: "Review all draws the changed use case UC-001 rendered, with its Markdown table and run of code wider than a phone's window, and the page scrolls sideways; MOD-review-pages shows the file as MOD-markdown-render renders it" },
   "#backlog": { widths: "the sprint and backlog tables and both burn-down charts are wider than a phone's window (src/implementation-pages/backlog.mjs)" },
   "#roles": { widths: "the table of roles is wider than a phone's window and the page scrolls sideways (MOD-implementation-pages)" },
+  "#arc": { widths: "the table of the modules is wider than a phone's window (src/trace-pages/flow.mjs, MOD-trace-pages); ITM-1159, The architecture and modules views fit a phone" },
+  "#module": { widths: "the table of the modules is wider than a phone's window (src/trace-pages/flow.mjs, MOD-trace-pages); ITM-1159, The architecture and modules views fit a phone" },
 };
 
 // ---------------------------------------------------------------- drawing

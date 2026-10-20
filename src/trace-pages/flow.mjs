@@ -1,6 +1,7 @@
 // The public trace Route for the specification, the gaps and the modules (the modules page draws the component diagram, UC-025 step 5). Above its page it offers the ref its caller hands (current, when that is the default
 // branch) and every tag of the product, newest first (UC-020 steps 1, 1a, 1c); choosing one draws the page again at it. The specification page
-// reads the SPEC alone. Opening a requirement shows its four fields at once and, beside them, what traces to it (UC-020 step 5): the trace
+// draws the tree of the group file docs/groups/requirements.md (UC-020 steps 2 and 3): every requirement once with its status, which the open entries of the change queues give it,
+// and each group with how many requirements it holds and how many of them no use case realises. Above the tree the reader narrows it by typing part of a name or rule and by the filters of the descriptor: status, source and realised (UC-020 step 4). Opening a requirement shows its four fields at once and, beside them, what traces to it (UC-020 step 5): the trace
 // graph of the version drawn is built when the first requirement is opened, through the snapshot's readMany, and kept for every later
 // opening; the sources with version and part, the use cases with their review status, the decisions, modules and tests that name it,
 // and the unknown names they also name, each a link (step 6). The gaps page (step 7) draws, from the graph of the version drawn, the matrix of
@@ -8,24 +9,27 @@
 // it says so when there are none (7a) and says which kinds of artifact the version does not hold (7b), and a requirement or use case in a list
 // opens as it read in that version. The graph of one version is built once and kept, in memory, for every page drawn at it while the page of the frame
 // stays loaded. It writes nothing. On the default branch the specification leads to the review pages' editing: Edit beside each requirement and
-// + Requirement in each section; at any other ref the view says "as of" it and offers neither. Beside the choice a link leads from the specification to the gaps
+// + Requirement once for each section, beside the tree; at any other ref the view says "as of" it and offers neither. Beside the choice a link leads from the specification to the gaps
 // and from the gaps back to the specification, at the ref shown (UC-020 step 7); it reads nothing.
 //
 // Module: MOD-trace-pages
 
 import { parseSpec } from "../spec-document/index.mjs";
+import { hierarchy, parseGroupFile } from "../group-document/index.mjs";
 import { renderArtifact, renderMermaid } from "../markdown-render/index.mjs";
 import { artifactSchemas, readDocument } from "../documents/index.mjs";
 import { statuses } from "../approvals/index.mjs";
-import { queues } from "../spec-changes/index.mjs";
-import { linkedVersion, sourceSchemas } from "../source-register/index.mjs";
-import { coverageGaps, traceGraph, tracesTo } from "../trace-graph/index.mjs";
+import { entryView, queues } from "../spec-changes/index.mjs";
+import { affectedRequirements, linkedVersion, sourceSchemas } from "../source-register/index.mjs";
+import { coverageGaps, moduleRows, traceGraph, tracesTo } from "../trace-graph/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { componentDiagram } from "./diagram.mjs";
 import { descriptorFor } from "./views.mjs";
+import { showTests } from "./tests.mjs";
 import { instanceSnapshot, opening, personsSource, subjectOf } from "./subject.mjs";
 
 const SPEC_PATH = "SPEC.md";
+const GROUP_PATH = "docs/groups/requirements.md";
 
 function el(name, className, ...children) {
   const node = document.createElement(name);
@@ -167,6 +171,80 @@ async function showTraces(box, requirement, shown) {
   box.replaceChildren(...sections);
 }
 
+// ---------------------------------------------------------------- source changed (UC-016 step 5)
+
+// How many commits of a file's history are looked at: one page, so that the marks cost one page of commits and one batch of files per history.
+const HISTORY_PAGE = 30;
+const SOURCE_LINKS = "docs/sources.md";
+
+// The version each source has in a links file's text: source identifier -> version.
+const versionsIn = (schema, text) => new Map((readDocument(schema, SOURCE_LINKS, text ?? "").sections[0]?.rows ?? []).map((row) => [row.cells.Source, row.cells.Version]));
+
+// The sources the product moved to another version, with the date of the move: the newest commit of docs/sources.md that holds the version the file names now, where the commit before it
+// held another version of the same source. A source that was added with its first version has not moved. One page of commits and one batch of files; a file with one commit in its
+// history cannot have moved a source, so it costs the page alone.
+async function movedSources(host, ref, schema) {
+  const commits = await host.readHistory(SOURCE_LINKS, { ref, limit: HISTORY_PAGE, changes: false });
+  if (commits.length < 2) return new Map();
+  const texts = await host.readFileAt(SOURCE_LINKS, commits.map(({ commit }) => commit));
+  const before = commits.map(({ commit }) => versionsIn(schema, texts.get(commit)));
+  const moved = new Map();
+  // The newest commit that changed the file holds the text the version drawn has: the file is not read from the snapshot, which drawing leaves unread.
+  for (const [source, version] of before[0]) {
+    let at = 0;
+    while (at < commits.length && before[at].get(source) === version) at += 1;
+    if (at > 0 && at < commits.length && before[at].has(source)) moved.set(source, commits[at - 1].date);
+  }
+  return moved;
+}
+
+// When each named requirement's text last changed: the date of the newest commit of SPEC.md whose text of it differs from the commit before; where it does not differ in the page of
+// commits looked at, the date of the oldest of them. One page of commits and one batch of files.
+async function sectionsChanged(host, ref, names) {
+  const commits = await host.readHistory(SPEC_PATH, { ref, limit: HISTORY_PAGE, changes: false });
+  if (!commits.length) return new Map();
+  const texts = await host.readFileAt(SPEC_PATH, commits.map(({ commit }) => commit));
+  const specs = commits.map(({ commit }) => parseSpec(texts.get(commit) ?? "").requirements);
+  const textOf = (requirements, name) => { const found = requirements.get(name); return found ? JSON.stringify([found.source, found.rule, found.check]) : null; };
+  return new Map(names.map((name) => {
+    let at = 0;
+    while (at + 1 < commits.length && textOf(specs[at], name) === textOf(specs[at + 1], name)) at += 1;
+    return [name, commits[at].date];
+  }));
+}
+
+// The names of the requirements marked *source changed*: those affectedRequirements names for a source the product moved after the requirement's text last changed.
+async function sourceChanged(shown) {
+  const { snapshot, context, ref } = shown;
+  if (!snapshot.paths.includes(SOURCE_LINKS)) return new Set();
+  const host = context.product.host;
+  const moved = await movedSources(host, ref, sourceSchemas().links);
+  if (!moved.size) return new Set();
+  // Only a product that moved a source reads the register, to find the requirements that name it.
+  const { register } = await factsOf(shown).sources();
+  const movedAt = new Map();
+  for (const [source, date] of moved) {
+    for (const name of affectedRequirements(shown.specText, register, source)) {
+      if (!(Date.parse(movedAt.get(name)) >= Date.parse(date))) movedAt.set(name, date);
+    }
+  }
+  if (!movedAt.size) return new Set();
+  const changed = await sectionsChanged(host, ref, [...movedAt.keys()]);
+  return new Set([...movedAt].filter(([name, date]) => Date.parse(date) > Date.parse(changed.get(name))).map(([name]) => name));
+}
+
+// Marks the rows of the requirements `sourceChanged` names, once the page is drawn; a history that cannot be read is said in a line, and marks nothing.
+async function markSourceChanged(shown) {
+  let names;
+  try {
+    names = await sourceChanged(shown);
+  } catch (failure) {
+    shown.target.querySelector?.(".current-requirements, .specification-page")?.append(problemLine("Whether a source moved on", failure));
+    return;
+  }
+  for (const [name, cell] of shown.cells ?? []) if (names.has(name)) cell.append(" ", el("span", "requirement-source-changed", "source changed"));
+}
+
 // ---------------------------------------------------------------- the gaps (UC-020 step 7)
 
 // A line of a list that opens, by a click and in place, onto what `detail` makes: a requirement or a use case as it read in the version drawn.
@@ -248,12 +326,16 @@ function reviewLink(className, text, route, params) {
   return anchor;
 }
 
-function requirementRows(requirement, editable, shown) {
+// The status of a requirement the SPEC holds: "in SPEC", or what an open entry of a change queue would do to it (UC-020 step 3).
+const statusCell = (text) => el("td", "requirement-status", text);
+
+function requirementRows(requirement, editable, shown, status) {
   const button = el("button", "requirement-name btn small", requirement.name);
   button.type = "button";
   const cell = el("td", null, button);
+  (shown.cells ??= []).push([requirement.name, cell]);
   if (editable) cell.append(" ", reviewLink("requirement-edit", "Edit", "requirement", { name: requirement.name }));
-  const row = el("tr", null, cell);
+  const row = el("tr", null, cell, statusCell(status));
   const opened = el("tr", "requirement-opened");
   button.addEventListener("click", () => {
     if (opened.textContent) {
@@ -263,7 +345,7 @@ function requirementRows(requirement, editable, shown) {
     }
     const traces = el("div", "requirement-traces", el("p", "traces-reading", "Reading what traces to it…"));
     const cell = el("td", "panel", requirementDetail(requirement), traces);
-    cell.setAttribute("colspan", "1");
+    cell.setAttribute("colspan", "2");
     showTraces(traces, requirement, shown);
     opened.replaceChildren(cell);
     opening(shown.requirements, requirement.name, true);
@@ -271,59 +353,224 @@ function requirementRows(requirement, editable, shown) {
   return [row, opened];
 }
 
-function requirementsTable(requirements, editable, shown) {
+// A table of the members of one place in the tree, each once with its status: a requirement of the SPEC as a row that opens, a requirement an open entry
+// would add (it has no text yet) and a member that names no requirement as rows of their own.
+function membersTable(members, arranged, editable, shown) {
   const body = el("tbody");
-  for (const requirement of requirements) body.append(...requirementRows(requirement, editable, shown));
-  return el("table", "list", el("thead", null, el("tr", null, el("th", null, "Requirement"))), body);
+  for (const { id } of members) {
+    const requirement = arranged.spec.requirements.get(id);
+    let nodes;
+    if (requirement) nodes = requirementRows(requirement, editable, shown, arranged.status.get(id) ?? "in SPEC");
+    else if (arranged.added.has(id)) nodes = [el("tr", "requirement-proposed", el("td", null, id), statusCell("proposed"))];
+    else nodes = [el("tr", "requirement-unknown", el("td", null, id), statusCell("unknown: no requirement of this name"))];
+    arranged.rowNodes.push({ id, nodes, known: Boolean(requirement) || arranged.added.has(id) });
+    body.append(...nodes);
+  }
+  const table = el("table", "list", el("thead", null, el("tr", null, el("th", null, "Requirement"), el("th", null, "Status"))), body);
+  arranged.tables.push({ table, ids: members.map(({ id }) => id) });
+  return table;
 }
 
-function overview(spec, editable, shown) {
-  const page = el("section", "current-requirements head", el("h2", null, "Current requirements"));
-  const sectioned = new Set(spec.sections.flatMap((section) => section.requirements));
-  const outside = [...spec.requirements.values()].filter((requirement) => !sectioned.has(requirement.name));
+// Every member of a group and of the groups below it.
+const heldAll = (group) => [...group.members, ...group.groups.flatMap(heldAll)];
 
-  if (outside.length) page.append(requirementsTable(outside, editable, shown));
-  for (const section of spec.sections) {
-    const requirements = section.requirements.map((name) => spec.requirements.get(name)).filter(Boolean);
-    const table = requirementsTable(requirements, editable, shown);
-    const held = { heading: sectionTitle(section.heading), names: requirements.map(({ name }) => name) };
-    table.setAttribute("hidden", "hidden");
-    const toggle = el("button", "spec-section-toggle btn", sectionTitle(section.heading));
-    toggle.type = "button";
-    toggle.setAttribute("aria-expanded", "false");
-    toggle.addEventListener("click", () => {
-      const collapsed = table.getAttribute("hidden") !== null;
-      if (collapsed) {
-        table.removeAttribute("hidden");
-      }
-      else table.setAttribute("hidden", "hidden");
-      toggle.setAttribute("aria-expanded", String(collapsed));
-      opening(shown.groups, held, collapsed, (a, b) => a.heading === b.heading);
-    });
-    const group = el("section", "spec-section", el("h3", null, toggle), table);
-    if (editable) {
-      const added = reviewLink("requirement-new", "+ Requirement", "requirements", { section: section.heading });
-      added.setAttribute("style", "display: inline-block; margin: 0 0 12px;");
-      group.insertBefore(added, table);
-    }
-    page.append(group);
-  }
-  if (!spec.requirements.size) page.append(el("p", "empty", "No current requirements are recorded in SPEC.md."));
+// One group of the tree: its title as the control that opens it, how many requirements it holds (those below it too; a member that names no requirement is
+// none) and, once the trace graph is read, how many of them no use case realises; inside, its own members and the groups below it.
+function groupNode(group, path, arranged, editable, shown) {
+  const names = [...new Set(heldAll(group).map(({ id }) => id))].filter((id) => arranged.spec.requirements.has(id) || arranged.added.has(id));
+  const toggle = el("button", "spec-group-toggle btn", group.title);
+  toggle.type = "button";
+  toggle.setAttribute("aria-expanded", "false");
+  const held = el("span", "spec-group-held", `${names.length} ${names.length === 1 ? "requirement" : "requirements"}`);
+  const unrealised = el("span", "spec-group-unrealised");
+  arranged.counts.push([names, unrealised]);
+  const body = el("div", "spec-group-body");
+  if (group.members.length) body.append(membersTable(group.members, arranged, editable, shown));
+  for (const below of group.groups) body.append(groupNode(below, `${path}/${below.title}`, arranged, editable, shown));
+  // Opened by the person with the control, or by the narrowing while a requirement in the group matches (`forced`).
+  const state = { opened: false, forced: false };
+  const refresh = () => {
+    const open = state.opened || state.forced;
+    if (!open) body.setAttribute("hidden", "hidden");
+    else if (body.getAttribute("hidden")) body.removeAttribute("hidden");
+    toggle.setAttribute("aria-expanded", String(open));
+  };
+  refresh();
+  const spoken = { heading: group.title, path, names: names.filter((id) => arranged.spec.requirements.has(id)) };
+  toggle.addEventListener("click", () => {
+    state.opened = !(state.opened || state.forced);
+    refresh();
+    opening(shown.groups, spoken, state.opened, (a, b) => a.path === b.path);
+  });
+  const section = el("section", "spec-group", el("h3", null, toggle, " ", held, ", ", unrealised), body);
+  arranged.groupNodes.push({ section, names, state, refresh });
+  return section;
+}
+
+// The tree of the group file (UC-020 steps 2 and 3): the groups nested, each requirement once in its one place and at the top level where no group names it.
+function overview(arranged, editable, shown, descriptor, params) {
+  const page = el("section", "current-requirements head", el("h2", null, "Current requirements"));
+  const narrowing = arranged.spec.requirements.size || arranged.added.size ? narrowBar(arranged, shown, descriptor, params) : null;
+  if (narrowing) page.append(narrowing.bar);
+  if (arranged.tree.members.length) page.append(membersTable(arranged.tree.members, arranged, editable, shown));
+  for (const group of arranged.tree.groups) page.append(groupNode(group, group.title, arranged, editable, shown));
+  if (narrowing) page.append(narrowing.none);
+  if (!arranged.spec.requirements.size) page.append(el("p", "empty", "No current requirements are recorded in SPEC.md."));
+  narrowing?.apply();
   return page;
+}
+
+// ---------------------------------------------------------------- narrowing the tree (UC-020 step 4)
+
+// The row a filter judges: the requirement's name and rule, its status, the sources it names and whether a use case realises it. A requirement an open entry would
+// add has no text, no source and no use case yet.
+function rowOf(arranged, id, without) {
+  const requirement = arranged.spec.requirements.get(id);
+  return { name: id, rule: requirement?.rule ?? "", status: requirement ? arranged.status.get(id) ?? "in SPEC" : "proposed", sources: requirement?.sources ?? [],
+    realised: requirement !== undefined && !without.has(id) };
+}
+
+// The controls above the tree — the text, and one choice for each filter of the descriptor, "all" first — and the narrowing they make. A control gets its first value from
+// the param of its name (a value the control does not offer is none). The rows that do not match are hidden, and so is a group, a table and a member that names no requirement
+// when nothing in them matches; a group with a match is opened. A choice of realised reads the trace graph first; a graph that cannot be read is said, and that choice narrows nothing.
+function narrowBar(arranged, shown, descriptor, params) {
+  const rows = [...arranged.spec.requirements.keys(), ...arranged.added].map((id) => rowOf(arranged, id, new Set()));
+  const bar = el("div", "spec-narrow");
+  const text = el("input", "spec-narrow-text");
+  text.type = "search";
+  text.setAttribute("placeholder", "Narrow by name or rule");
+  text.value = typeof params.text === "string" ? params.text : "";
+  bar.append(text);
+  const choices = new Map();
+  for (const filter of descriptor.filters) {
+    const values = filter.values(rows);
+    const field = el("select", `spec-narrow-${filter.name}`);
+    for (const value of ["all", ...values]) {
+      const option = el("option", null, value);
+      option.setAttribute("value", value);
+      field.append(option);
+    }
+    field.value = values.includes(params[filter.name]) ? params[filter.name] : "all";
+    choices.set(filter.name, field);
+    bar.append(" ", el("label", null, `${filter.name} `, field));
+  }
+  const problem = el("p", "spec-narrow-problem");
+  problem.setAttribute("hidden", "hidden");
+  const none = el("p", "spec-narrow-none", "No requirement matches.");
+  none.setAttribute("hidden", "hidden");
+  bar.append(problem);
+  let latest = 0;
+  const unrealised = arranged.unrealised = kept(async () => new Set(coverageGaps(await factsOf(shown).graph()).requirementsWithoutUseCase));
+  // Hidden or shown, touching the node only when its state changes.
+  const set = (node, hidden) => {
+    if (hidden) node.setAttribute("hidden", "hidden");
+    else if (node.getAttribute("hidden")) node.removeAttribute("hidden");
+  };
+  async function apply() {
+    const mine = ++latest;
+    const wanted = new Map(descriptor.filters.map((filter) => [filter.name, choices.get(filter.name).value]));
+    let without = new Set();
+    let readable = true;
+    if (wanted.get("realised") !== "all") {
+      try {
+        without = await unrealised();
+      } catch {
+        readable = false;
+      }
+      if (mine !== latest) return;
+    }
+    set(problem, readable);
+    if (!readable) {
+      problem.textContent = "Whether a use case realises a requirement could not be read.";
+      wanted.set("realised", "all");
+    }
+    const typed = text.value.trim().toLowerCase();
+    const active = typed !== "" || [...wanted.values()].some((value) => value !== "all");
+    const matching = new Set();
+    for (const { id, known } of arranged.rowNodes) {
+      if (!known) continue;
+      const row = rowOf(arranged, id, without);
+      if ((typed === "" || `${row.name}\n${row.rule}`.toLowerCase().includes(typed))
+        && descriptor.filters.every((filter) => wanted.get(filter.name) === "all" || filter.keep(row, wanted.get(filter.name)))) matching.add(id);
+    }
+    for (const { id, nodes, known } of arranged.rowNodes) for (const node of nodes) set(node, active && !(known && matching.has(id)));
+    for (const { table, ids } of arranged.tables) set(table, active && !ids.some((id) => matching.has(id)));
+    for (const group of arranged.groupNodes) {
+      const has = group.names.some((id) => matching.has(id));
+      set(group.section, active && !has);
+      group.state.forced = active && has;
+      group.refresh();
+    }
+    set(none, !(active && matching.size === 0));
+  }
+  for (const [name, field] of [["text", text], ...choices]) field.addEventListener(name === "text" ? "input" : "change", apply);
+  return { bar, none, apply };
+}
+
+// *+ Requirement* once for each section of the SPEC, beside the tree and not within it, each opening `requirements/new` for its section (UC-018 3d).
+function addLinks(spec) {
+  const items = spec.sections.map((section) => el("li", null, `${sectionTitle(section.heading)} `,
+    reviewLink("requirement-new", "+ Requirement", "requirements", { section: section.heading })));
+  return items.length ? el("ul", "spec-add-requirements", ...items) : null;
+}
+
+// The group file at the version drawn, set against the items it arranges: the requirements of the SPEC and those an open entry would add. `status` names what an
+// open entry would do to a requirement of the SPEC (the first entry that names it); `added` the names an entry would add.
+async function arrangement(snapshot, spec, waiting) {
+  const status = new Map();
+  const added = new Set();
+  // The rationales the impact lists read are named to Snapshot.readMany first, in one batch; a host that cannot batch reads nothing ahead.
+  const rationales = waiting.map(({ entry }) => entry.rationale).filter(Boolean);
+  if (rationales.length) await snapshot.readMany?.(rationales);
+  for (const { queue, entry } of waiting) {
+    let impact;
+    try {
+      impact = (await entryView(queue.folder, entry.number, snapshot)).impact;
+    } catch {
+      continue;
+    }
+    for (const { name, change } of impact) {
+      if (change === "added") {
+        if (!spec.requirements.has(name)) added.add(name);
+      } else if (spec.requirements.has(name) && !status.has(name)) status.set(name, change === "withdrawn" ? "removal proposed" : "change proposed");
+    }
+  }
+  const items = [...spec.requirements.keys(), ...added];
+  const { tree } = hierarchy(parseGroupFile(GROUP_PATH, (await snapshot.read(GROUP_PATH)) ?? ""), items);
+  return { spec, tree, status, added, counts: [], rowNodes: [], tables: [], groupNodes: [], unrealised: null };
+}
+
+// Fills in, once the trace graph is read, how many requirements of each group no use case realises: the names coverageGaps lists, and those an entry would add,
+// which nothing realises yet. A graph that cannot be read is said in place of the counts.
+async function countUnrealised(shown, arranged) {
+  if (!arranged.counts.length) return;
+  let without;
+  try {
+    without = await arranged.unrealised();
+  } catch {
+    for (const [, node] of arranged.counts) node.textContent = "whether a use case realises them could not be read";
+    return;
+  }
+  for (const [names, node] of arranged.counts) {
+    node.textContent = `${names.filter((id) => without.has(id) || arranged.added.has(id)).length} that no use case realises`;
+  }
 }
 
 // The entries of the change queues that wait for acceptance — open, stale, or waiting for the anchor another entry creates — each as a link to its page
 // in the review pages, by the identifier `spec-<queue folder>-<NN>` MOD-review-pages addresses an entry by. A queue that cannot be read gives none.
-async function waitingSection(snapshot) {
-  if (!snapshot.paths.some((path) => path.startsWith("docs/spec-freigaben/"))) return null;
+async function waitingEntries(snapshot) {
+  if (!snapshot.paths.some((path) => path.startsWith("docs/spec-freigaben/"))) return [];
   let all;
   try {
     all = await queues(snapshot);
   } catch {
-    return null;
+    return [];
   }
-  const waiting = all.flatMap((queue) => queue.entries.filter((entry) => ["open", "stale", "waiting for its anchor"].includes(entry.state))
+  return all.flatMap((queue) => queue.entries.filter((entry) => ["open", "stale", "waiting for its anchor"].includes(entry.state))
     .map((entry) => ({ queue, entry })));
+}
+
+function waitingSection(waiting) {
   if (!waiting.length) return null;
   const items = waiting.map(({ queue, entry }) => {
     const name = `${queue.folder.slice(queue.folder.lastIndexOf("/") + 1)}-${String(entry.number).padStart(2, "0")}`;
@@ -332,10 +579,12 @@ async function waitingSection(snapshot) {
   return el("section", "spec-waiting head", el("h2", null, "SPEC changes waiting for acceptance"), el("ul", "list", ...items));
 }
 
-// The links from the specification to the review pages' lists of the SPEC change entries and of their history, on the default branch only.
+// The links from the specification to the review pages' lists of the SPEC change entries and of their history, and to the arrangement of the requirements
+// (`#arrange/kind=requirements`: the route arrange reads its group kind as the parameter `kind`), on the default branch only.
 function specChangeLinks() {
   return el("p", "spec-change-links", reviewLink("spec-entries-link", "All SPEC change entries", "spec-entry", {}),
-    " ", reviewLink("spec-history-link", "History of SPEC changes", "spec-entry", { id: "history" }));
+    " ", reviewLink("spec-history-link", "History of SPEC changes", "spec-entry", { id: "history" }),
+    " ", reviewLink("arrange-link", "Arrange", "arrange", { kind: "requirements" }));
 }
 
 // Whether the ref on view is the repository's default branch, which the Host names: editing is offered there only (UC-018). A Host that cannot say is read as no.
@@ -376,9 +625,12 @@ function versionChoice({ shown, handed, current, tags, choose, other }) {
   select.value = shown.ref;
   select.addEventListener("change", () => choose(select.value));
   const choice = el("div", "version-bar", el("label", null, "Version ", select));
-  const across = el("a", `${other.className} btn small`, other.text);
-  across.setAttribute("href", fragment("trace", { key: other.key, ref: shown.ref }));
-  choice.append(across, explain("trace-versions"));
+  if (other) {
+    const across = el("a", `${other.className} btn small`, other.text);
+    across.setAttribute("href", fragment("trace", { key: other.key, ref: shown.ref }));
+    choice.append(across);
+  }
+  choice.append(explain("trace-versions"));
   if (!tags.length) choice.append(el("p", "version-none", "No release is tagged yet (UC-013); only the current text can be shown."));
   if (!shown.onDefaultBranch) choice.append(el("p", "version-as-of", `as of ${shown.ref}`));
   return choice;
@@ -393,11 +645,10 @@ const OTHER = {
 // What each drawn route keeps for its subject, by the context it was drawn with: the frame asks the route for the subject with the same context.
 const drawn = new WeakMap();
 
-// The module files of a snapshot as componentDiagram takes them: the files docs/architecture/MOD-<slug>.md read in one batch and by their schema, nothing else of the
-// repository (the diagram needs no code and no test file, so the graph of the version is not built).
+// The module files of a snapshot as componentDiagram takes them: the files docs/architecture/MOD-<slug>.md by their schema. The graph of the version has told readMany every path it reads, these among them, so
+// they are not named again.
 async function moduleFilesOf(snapshot) {
   const paths = snapshot.paths.filter((path) => /^docs\/architecture\/MOD-[^/]+\.md$/.test(path));
-  if (paths.length) await snapshot.readMany?.(paths);
   const schema = artifactSchemas().module;
   const files = [];
   for (const path of paths) {
@@ -413,16 +664,83 @@ async function moduleFilesOf(snapshot) {
   return files;
 }
 
-// The modules page (UC-025 step 5): the component diagram of the modules of the version handed, from the module files of that version, drawn through renderMermaid. It offers no
+// The table of the modules (UC-025 step 3), one row for each module of moduleRows: its subsystem and that decision's review status, the requirements it realises each in the SPEC or not, its file with its review status,
+// its code and its tests; the name opens the row onto the module's file and folder (step 6). The table stands in the site's scroll box, so that on a phone it scrolls sideways in a box of its own and the page keeps its
+// margins; the box is reached by the keyboard and named, as it scrolls.
+function modulesTable(rows, graph, reviewOf, snapshot) {
+  const statusOf = (path) => REVIEW[reviewOf.get(path)?.status] ?? "open";
+  const list = (items) => el("ul", null, ...items.map((text) => el("li", null, text)));
+  const body = el("tbody");
+  for (const row of rows) {
+    const name = el("button", "module-name btn small", row.module);
+    name.type = "button";
+    const subsystem = row.subsystem === null ? "none" : `${row.subsystem} — ${statusOf(graph.nodes.get(row.subsystem)?.path)}`;
+    const realises = row.realises.map((each) => `${each} — ${graph.nodes.get(each)?.kind === "requirement" ? "in SPEC" : "not in the SPEC"}`);
+    const tr = el("tr", "module-row", el("td", "module-name-cell", name), el("td", "module-subsystem", subsystem), el("td", "module-realises", list(realises)),
+      el("td", "module-file", `${row.describedBy} — ${statusOf(row.describedBy)}`), el("td", "module-code", list(row.code)), el("td", "module-tests", list(row.tests)));
+    tr.setAttribute("data-module", row.module);
+    let opened = null;
+    name.addEventListener("click", async () => {
+      if (opened) { opened.parentNode?.removeChild(opened); opened = null; return; }
+      const here = el("tr", "module-opened");
+      const panel = el("td", "panel");
+      panel.setAttribute("colspan", "6");
+      here.append(panel);
+      opened = here;
+      body.insertBefore(here, tr.nextSibling);
+      try {
+        const file = renderArtifact((await snapshot.read(row.describedBy)) ?? "");
+        if (opened === here) panel.append(file, el("p", "module-folder", `Folder: ${graph.nodes.get(row.module)?.folder ?? ""}`), list(row.code));
+      } catch (failure) {
+        if (opened === here) panel.append(problemLine("The module's file", failure));
+      }
+    });
+    body.append(tr);
+  }
+  const head = el("tr", null, ...["Module", "Subsystem", "Realises", "File", "Code", "Tests"].map((title) => el("th", null, title)));
+  const box = el("div", "table-scroll", el("table", "list", el("thead", null, head), body));
+  box.setAttribute("tabindex", "0");
+  box.setAttribute("role", "region");
+  box.setAttribute("aria-label", "Modules");
+  return el("section", "modules-table", el("h3", null, "Modules"), box);
+}
+
+// The next step a gap offers (UC-025 step 6), on the default branch only: *Change the architecture* for a requirement without a module (UC-023), to the review pages' list of the architecture's decisions, and
+// *Implement* for a module without code or without tests (UC-024), to the route `implement`. Each is a link; it starts and writes nothing.
+const NEXT_STEP = {
+  "requirement-without-module": { className: "gap-change-architecture", text: "Change the architecture", href: "#decision" },
+  "module-without-code": { className: "gap-implement", text: "Implement", href: "#implement" },
+  "module-without-test": { className: "gap-implement", text: "Implement", href: "#implement" },
+};
+
+// Every gap of moduleRows with the artifact it concerns (UC-025 step 4), or the line that there is none (4a); with `next`, the step its kind offers.
+function modulesGaps(gaps, ref, next) {
+  if (!gaps.length) return el("p", "no-gaps", `There are no gaps at ${ref}.`);
+  const list = el("ul", "trace-list", ...gaps.map((gap) => {
+    const item = el("li", "module-gap", `${gap.artifact} — ${gap.what}`);
+    item.setAttribute("data-kind", gap.kind);
+    const step = next ? NEXT_STEP[gap.kind] : undefined;
+    if (step) {
+      const link = el("a", `${step.className} btn small`, step.text);
+      link.setAttribute("href", step.href);
+      item.append(" ", link);
+    }
+    return item;
+  }));
+  return el("section", "modules-gaps", el("h3", null, "Gaps"), list);
+}
+
+// The modules page (UC-025): the component diagram of the modules of the version handed, drawn through renderMermaid, the table of the modules and every gap, all from the one graph of that version. It offers no
 // version choice and reads no tag: the view's versions are "branch". Where the version holds no module it says so, and where the graph cannot be read it names that.
 async function drawModules(target, context, host, ref, descriptor) {
   const shown = { target, ref, onDefaultBranch: false, spec: null, source: null, requirements: [], groups: [], context, snapshot: null, facts: null };
   drawn.set(context, shown);
   const place = el("div", "modules-body", el("p", "traces-reading", "Reading the modules…"));
   target.replaceChildren(el("section", "modules head", el("h2", null, descriptor.title), place));
-  let files;
+  let files, graph;
   try {
     shown.snapshot = await host.readSnapshot(ref);
+    graph = await factsOf(shown).graph();
     files = await moduleFilesOf(shown.snapshot);
   } catch (failure) {
     place.replaceChildren(problemLine("The modules", failure));
@@ -432,7 +750,9 @@ async function drawModules(target, context, host, ref, descriptor) {
     place.replaceChildren(el("p", "gaps-missing", `No modules exist at ${ref}.`));
     return;
   }
-  place.replaceChildren(await renderMermaid(componentDiagram(files)), explain("component-diagram"));
+  const { rows, gaps } = moduleRows(graph);
+  const next = await onDefaultBranch(host, ref);
+  place.replaceChildren(await renderMermaid(componentDiagram(files)), explain("component-diagram"), modulesTable(rows, graph, statuses(shown.snapshot), shown.snapshot), modulesGaps(gaps, ref, next));
 }
 
 export const route = {
@@ -474,16 +794,25 @@ export const route = {
         const text = await snapshot.read(SPEC_PATH);
         shown.onDefaultBranch = await onDefaultBranch(host, ref);
         shown.spec = parseSpec(text ?? "");
+        shown.specText = text ?? "";
         if (descriptor.key === "gaps") {
           const place = el("div", "gaps-body", el("p", "traces-reading", "Reading the gaps…"));
           body = el("section", "gaps head", el("h2", null, descriptor.title), place);
           fill = () => showGaps(place, shown);
+        } else if (descriptor.key === "tests") {
+          const place = el("div", "tests-page", el("p", "traces-reading", "Reading the tests…"));
+          body = el("section", "tests head", el("h2", null, descriptor.title), place);
+          fill = () => showTests(place, shown);
         } else {
           if (shown.onDefaultBranch) shown.source = await personsSource(context, snapshot);
-          const waiting = shown.onDefaultBranch ? await waitingSection(snapshot) : null;
+          const open = shown.onDefaultBranch ? await waitingEntries(snapshot) : [];
+          const waiting = waitingSection(open);
+          const arranged = await arrangement(snapshot, shown.spec, open);
+          const adding = shown.onDefaultBranch ? addLinks(shown.spec) : null;
           body = shown.onDefaultBranch
-            ? el("div", "specification-page", ...(waiting ? [waiting] : []), overview(shown.spec, true, shown), specChangeLinks())
-            : overview(shown.spec, false, shown);
+            ? el("div", "specification-page", ...(waiting ? [waiting] : []), overview(arranged, true, shown, descriptor, params), ...(adding ? [adding] : []), specChangeLinks())
+            : overview(arranged, false, shown, descriptor, params);
+          fill = () => Promise.all([markSourceChanged(shown), countUnrealised(shown, arranged)]);
         }
       } catch (error) {
         if (!chosen) throw error;

@@ -298,9 +298,9 @@ function bridgeOver(inner, state, mailHandlers) {
  * `issues`, `places`, `rows` and `texts` are those of tests/maintenance-pages-world.mjs. `folders` is the connection's list of folders to search. Returns the page's main element and what the fixtures kept;
  * `stop()` closes the servers and must be called in a `finally`.
  */
-export async function openReplies({ route = "graph", inbox, reports = [], drafts = [], sent = [], issues, rows, places, texts = [], folders = ["INBOX"], refuseMail = false, refuseSend = false, fragment = "#replies" }) {
+export async function openReplies({ route = "graph", inbox, reports = [], drafts = [], sent = [], issues, rows, places, texts = [], folders = ["INBOX"], refuseMail = false, refuseSend = false, fragment = "#replies", answer = null, createStatus = null }) {
   const f = await standard();
-  const w = world({ mails: [], drafts: [], issues: issues ?? f.issues, ...(rows ? { rows } : {}), ...(places ? { places } : {}), texts });
+  const w = world({ mails: [], drafts: [], issues: issues ?? f.issues, ...(rows ? { rows } : {}), ...(places ? { places } : {}), texts, createStatus, ...(answer ? { answer } : {}) });
   const state = { calls: [], asks: [], texts, down: false };
   let imap = null, smtp = null, graph = null, layer = null;
   const realSetInterval = globalThis.setInterval;

@@ -217,7 +217,10 @@ function network() {
 
 // The strategies of other modules that the kinds `converse` and `implement` name.
 registerStrategies("tests/prompt-bar-hand-over.test.mjs", {
-  recipes: { "chapters-for-page": async () => [], "implementation-inputs": async () => [], "chapters-for-implementation": async () => [], "resource-pins": async () => [] },
+  // implementation-inputs gives, as the real recipe does (src/run-planner/inputs.mjs), one part that carries the sources of every `context.places.contents` entry.
+  recipes: { "chapters-for-page": async () => [], "implementation-inputs": async (context) => ((context.places.contents ?? []).length
+    ? [{ name: "files", text: "a file of the product", size: 1, sources: context.places.contents.map(({ source }) => source), required: false, recipe: "implementation-inputs", artifacts: [] }] : []),
+    "chapters-for-implementation": async () => [], "resource-pins": async () => [] },
   preconditions: { "rests-on-accepted": approvalStrategies.preconditions["rests-on-accepted"] },
   writers: { "branch-and-pull-request": async () => ({ commits: [], files: [], pullRequest: null, shown: null, notes: [] }) },
 });
@@ -236,7 +239,7 @@ const subjectOf = () => ({ key: "use-case:UC-007", title: "UC-007 Derive use cas
   paramsFor: () => ({ page: "The page shows UC-007.", target: "UC-007" }), draftRoute: null, withhold: null, refuses: [] });
 
 // A page of the product (or of the instance): the instance with the register, a store keeping the endpoint ep1, the Bridge lab-pc and the tokens, and the bar started on it.
-function open({ files = scrumFiles(), rows = [DEV_CI, DEV_BRIDGE, OUTSIDER, TAB_ONLY], recording = false, store = null, went = [] } = {}) {
+function open({ files = scrumFiles(), rows = [DEV_CI, DEV_BRIDGE, OUTSIDER, TAB_ONLY], recording = false, store = null, went = [], instanceFiles = {}, subject = subjectOf } = {}) {
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() });
   if (store === null) Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: new Storage() });
   const kept = store ?? openStore("alice/agent-m");
@@ -245,12 +248,12 @@ function open({ files = scrumFiles(), rows = [DEV_CI, DEV_BRIDGE, OUTSIDER, TAB_
   writeSetting(kept, "github-token", { value: "github_pat_INSTANCE0123456789abcdef", name: "alice", expires: "2027-01-01" });
   writeSetting(kept, "github-token:alice/thesis-tool", { value: "github_pat_PRODUCT0123456789abcdefg", name: "alice", expires: "2027-01-01" });
   const instance = repoOf(INSTANCE_WEB, { "SPEC.md": "# Instance spec\n", "docs/participants.md": register(ALICE, ...rows),
-    ...(recording ? { "docs/conversation-recording.md": "---\nrecording: on\n---\n# Recording of conversations\n" } : {}) });
+    ...instanceFiles, ...(recording ? { "docs/conversation-recording.md": "---\nrecording: on\n---\n# Recording of conversations\n" } : {}) });
   const product = repoOf(PRODUCT_WEB, files);
   const net = network();
   const target = document.createElement("div");
   const bar = startPromptBar(target, { page: "main", store: kept, instance: { repository: "alice/agent-m", host: instance.host },
-    product: () => ({ address: PRODUCT_WEB, host: product.host }), subject: subjectOf, explain: () => document.createElement("details"), go: (...where) => went.push(where) });
+    product: () => ({ address: PRODUCT_WEB, host: product.host }), subject, explain: () => document.createElement("details"), go: (...where) => went.push(where) });
   bars.push(bar);
   return { went, target, instance, product, net, store: kept, bar };
 }
@@ -261,7 +264,7 @@ async function proposes(it, handOver, participant = "dev-ci") {
   it.net.handOver = handOver;
   one(it.target, "participant").value = participant;
   one(it.target, "instruction").value = "hand this on";
-  one(it.target, "send").dispatchEvent(scripted());
+  one(it.target, "send").dispatchEvent(personal());
   await until(() => byClass(it.target, "hand-over").length > 0, "the proposal is shown");
   await until(() => !textOf(one(it.target, "hand-over")).includes("Checking"), "the proposal is checked");
 }
@@ -504,6 +507,29 @@ test("a hand-over of an open use case is refused by the job's own precondition w
   assert.equal(writesOf(it), 0, NOTHING_WRITTEN);
 });
 
+// TST-1123005 · level: component · module: MOD-prompt-bar
+// guards: UC-049 (4e); RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
+// given: the allowed hand-over of TST-505001, and the instance's register holds the source SRC-restricted (restricted, its content may go to "this machine" only); the recipe implementation-inputs gives one part that carries the sources of
+//   `places.contents`, as the real recipe does
+// input: a hand-over to dev-ci (place "Anthropic, USA"), a person's click on Hand over; the same hand-over to dev-bridge (place "this machine")
+// expect: the click on dev-ci's hand-over writes nothing and the page says "Nothing was queued." with a finding that names SRC-restricted and "Anthropic, USA"; dev-bridge's hand-over is queued by one commit (the counter-proof: a source whose
+//   licence allows the place is read)
+test("a hand-over to a participant at a place a restricted source does not allow queues nothing, and one at a place it allows is queued", async () => {
+  const restricted = ["---", "id: SRC-restricted", "title: A restricted handbook", "kind: document", "authority: informational", "licence: restricted - internal", "places:", "  - this machine", "content_repository: https://github.com/alice/thesis-tool", "---",
+    "# SRC-restricted A restricted handbook", "", "## Versions", "", "| Version | Date | Edition | Read from | Files |", "|---|---|---|---|---|", "| `1` | 2026-10-13 | fixture | here | one file, hashed only |", ""].join("\n");
+  const it = open({ instanceFiles: { "docs/sources/SRC-restricted.md": restricted } });
+  await proposes(it, ITEM("ITM-004"));
+  handOverButton(it).dispatchEvent(personal());
+  await until(() => textOf(proposal(it)).includes("Nothing was queued."), "the refusal is shown");
+  const text = textOf(proposal(it));
+  assert.ok(text.includes("SRC-restricted") && text.includes("Anthropic, USA"), text);
+  assert.equal(writesOf(it), 0, NOTHING_WRITTEN);
+  const allowed = open({ instanceFiles: { "docs/sources/SRC-restricted.md": restricted } });
+  await proposes(allowed, ITEM("ITM-004"), "dev-bridge");
+  await handsOver(allowed);
+  assert.equal(allowed.product.attempts.length, 1);
+});
+
 // ---------------------------------------------------------------- followed
 
 // TST-505013 · level: component · module: MOD-prompt-bar
@@ -733,4 +759,80 @@ test("a run that failed for another reason, or is still running, shows no link t
   running.product.logs.set("7", NOT_RUN);
   await after(15000);
   assert.equal(byClass(one(running.target, "following"), "secrets-link").length, 0);
+});
+
+// ---------------------------------------------------------------- Send is a person's click (ITM-1139)
+
+// TST-1139001 · level: component · module: MOD-prompt-bar
+// guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; UC-049
+// given: recording is on at the instance; the bar is drawn on the product's page, a participant chosen and a message written; known positive: a person's click records the message and sends it
+// input: a click a script makes on Send (isTrusted false); then a person's click (isTrusted true)
+// expect: after the script's click nothing was sent (no request at all), no commit was attempted on the product or the instance, and the conversation shows no message; after the person's click the message was sent to the model endpoint and the conversation record was committed on the product (the record names the message)
+test("with recording on, a script's click on Send sends nothing and commits nothing; a person's click sends and records", async () => {
+  const it = open({ recording: true });
+  await until(() => one(it.target, "instruction") !== undefined, "the bar is drawn");
+  one(it.target, "participant").value = "dev-ci";
+  one(it.target, "instruction").value = "SCRIPTED-MESSAGE-4F7A please";
+  one(it.target, "send").dispatchEvent(scripted());
+  await settle();
+  assert.deepEqual(it.net.seen, [], "no request was made");
+  assert.equal(writesOf(it), 0, NOTHING_WRITTEN);
+  assert.equal(it.product.attempts.length + it.instance.attempts.length, 0);
+  assert.equal(byClass(it.target, "message").length, 0, "the conversation holds no message");
+  assert.equal(one(it.target, "instruction").value, "SCRIPTED-MESSAGE-4F7A please", "the person's words stay in the input");
+  one(it.target, "send").dispatchEvent(personal());
+  await until(() => it.net.seen.some((call) => call.origin === MODELS) && it.product.attempts.length > 0, "the message is sent and recorded");
+  const recorded = it.product.attempts.map((attempt) => attempt.files.map((file) => file.text).join("\n")).join("\n");
+  assert.ok(recorded.includes("SCRIPTED-MESSAGE-4F7A"), "the record names the message");
+});
+
+// ---------------------------------------------------------------- a hand-over of the subject's own kind takes only the subject's source (ITM-1129)
+
+// A page whose subject is of the kind `converse`: its paramsFor gives the person's own source, and also what a page gives the bar — the text of the page, a target and, on the route draft, the participant's answer
+// as `draft`. `refuseAt` is the call at which the source is gone (paramsFor throws NoPersonSource): the first call is *Send*'s, the second the hand-over's. `withSource: false` is a subject that gives none.
+function subjectGiving({ refuseAt = Infinity, withSource = true } = {}) {
+  let calls = 0;
+  return () => ({ key: "use-case:UC-001", title: "UC-001 Store", kind: "converse", entry: "use-cases",
+    paramsFor: () => {
+      calls += 1;
+      if (calls >= refuseAt) throw Object.assign(new Error("The author has no personal source linked to this product."), { name: "NoPersonSource" });
+      return { page: "PLANTED-PAGE-9A1 The page shows UC-001.", target: "UC-001", draft: { answer: "PLANTED-ANSWER-9A1 the participant's answer" }, ...(withSource ? { source: "SRC-person-alice" } : {}) };
+    }, draftRoute: null, withhold: null, refuses: [] });
+}
+const jobRecordOf = (it) => it.product.attempts.flatMap((attempt) => attempt.files).find((file) => /^docs\/jobs\/JOB-.*\.md$/.test(file.path))?.text ?? "";
+const OWN_KIND = { kind: "converse", works_on: ["UC-001"], task: TASK };
+
+// TST-1129001 · level: component · module: MOD-prompt-bar
+// guards: THE PERSON WHO PROMPTS IS A SOURCE; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; UC-049 (4a)
+// given: a page whose subject is of the kind converse and whose paramsFor gives the source SRC-person-alice, and also the text of the page, a target and a draft that holds the participant's answer; the participant proposes a hand-over of the kind converse (the subject's own kind), and, in a second page, one of the kind implement
+// input: a person's click on Hand over, on each
+// expect: for the subject's own kind the queued job's record holds `"source": "SRC-person-alice"` among its parameters and no other parameter of the subject — no `page`, no `draft`, no text of the page and no text of the answer anywhere in the record —; for the other kind the record holds no source
+test("a hand-over of the subject's own kind takes only the subject's source into its record; of another kind it takes none", async () => {
+  const same = open({ subject: subjectGiving() });
+  await proposes(same, OWN_KIND);
+  await handsOver(same);
+  const record = jobRecordOf(same);
+  assert.match(record, /"source": "SRC-person-alice"/);
+  assert.doesNotMatch(record, /"page"|"draft"|"target"/);
+  assert.doesNotMatch(record, /PLANTED-PAGE-9A1|PLANTED-ANSWER-9A1/);
+  const other = open({ subject: subjectGiving() });
+  await proposes(other, ITEM("ITM-004"));
+  await handsOver(other);
+  assert.ok(jobRecordOf(other).includes("kind: implement"), "known positive: the job is queued");
+  assert.doesNotMatch(jobRecordOf(other), /SRC-person-alice/);
+});
+
+// TST-1129002 · level: component · module: MOD-prompt-bar
+// guards: THE PERSON WHO PROMPTS IS A SOURCE; UC-049 (4a); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// given: a page whose subject is of the kind converse; Send found the person's source, and when the person clicks Hand over the subject finds none (paramsFor throws NoPersonSource); the hand-over is of the subject's own kind
+// input: a person's click on Hand over
+// expect: the hand-over is refused by name — the page says "Nothing was queued." and NoPersonSource —, nothing is written (no commit attempt, no workflow start, nothing handed to the Bridge), and Hand over can be pressed again
+test("a hand-over of the subject's own kind is refused by name when the subject finds no own source, and nothing is queued", async () => {
+  const it = open({ subject: subjectGiving({ refuseAt: 2 }) });
+  await proposes(it, OWN_KIND);
+  handOverButton(it).dispatchEvent(personal());
+  await until(() => textOf(proposal(it)).includes("Nothing was queued."), "the refusal is shown");
+  assert.match(textOf(proposal(it)), /NoPersonSource/);
+  assert.equal(writesOf(it), 0, NOTHING_WRITTEN);
+  assert.equal(handOverButton(it).disabled, false, "Hand over can be pressed again");
 });

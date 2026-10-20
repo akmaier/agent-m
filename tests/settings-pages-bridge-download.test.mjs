@@ -52,7 +52,7 @@ const ASSETS = [
   FILE("latest-mac.yml", 400, null),
   FILE("SHA256SUMS", 380, null),
 ];
-const release = (assets = ASSETS) => ({ tag: "v2026.10.19", name: "2026.10.19", published: "2026-10-19", notes: "", assets });
+const release = (assets = ASSETS, notes = "") => ({ tag: "v2026.10.19", name: "2026.10.19", published: "2026-10-19", notes, assets });
 const MAC = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15";
 const WINDOWS = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36";
 const LINUX = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36";
@@ -159,4 +159,45 @@ test("the bridge route says why a release could not be read, and still draws the
   assert.match(byClass(target, "bridge-download-problem")[0].textContent, /does not exist/);
   assert.deepEqual(offered(target), []);
   assert.equal(byClass(target, "bridge-pair").length, 1);
+});
+
+// ITM-1079 — the publisher to look for. MOD-settings-pages.md (Interfaces: `bridge`): "beside the file the publisher to look for, the name of the line `Publisher (<system>): <name>` that the release's notes hold for this system
+// (MOD-bridge-build), which the folded *Why this warning?* repeats; where the notes hold no such line (Linux, or a release written without it), the page says that the release names no publisher for this system and writes none".
+// Readings the texts leave open: the name stands in <span class="bridge-publisher"> beside the file, the same name in <p class="bridge-publisher-in-warning"> inside the fold of the warning; where there is none,
+// <p class="bridge-no-publisher"> says "The release names no publisher for this system." The system names in the notes are macOS and Windows (MOD-bridge-build's lines).
+const NOTES = "Agent M 2026.10.19, commit abc1234.\n\nDue diligence: read.\n\nPublisher (macOS): Acme Software Inc.\nPublisher (Windows): Acme Signing GmbH\n";
+const warningOf = (target) => byTag(target, "details").find((fold) => fold.children[0].textContent === "Why this warning?");
+
+// TST-1079001 · level: unit · module: MOD-settings-pages
+// guards: UC-044 (steps 1 and 2); THE BRIDGE IS SIGNED BY ITS PUBLISHER; EVERY STEP EXPLAINS ITSELF
+// given: a release whose notes hold Publisher (macOS): Acme Software Inc. and Publisher (Windows): Acme Signing GmbH; the browser on macOS, then on Windows
+// input: the route bridge drawn for each
+// expect: on macOS the name beside the file is "Acme Software Inc." and the fold of Why this warning? holds the same name; on Windows "Acme Signing GmbH" in both; the other system's name stands nowhere on the page; no "names no publisher" sentence
+test("the bridge route names the publisher of this system beside the file and in the warning's fold", async () => {
+  const mac = (await draw(MAC, release(ASSETS, NOTES))).target;
+  assert.equal(byClass(mac, "bridge-publisher")[0].textContent, "Acme Software Inc.");
+  assert.match(byClass(warningOf(mac), "bridge-publisher-in-warning")[0].textContent, /Acme Software Inc\./);
+  assert.equal(mac.textContent.includes("Acme Signing GmbH"), false, "the Windows name is not shown on macOS");
+  assert.equal(byClass(mac, "bridge-no-publisher").length, 0);
+  const windows = (await draw(WINDOWS, release(ASSETS, NOTES))).target;
+  assert.equal(byClass(windows, "bridge-publisher")[0].textContent, "Acme Signing GmbH");
+  assert.match(byClass(warningOf(windows), "bridge-publisher-in-warning")[0].textContent, /Acme Signing GmbH/);
+  assert.equal(windows.textContent.includes("Acme Software Inc."), false, "the macOS name is not shown on Windows");
+});
+
+// TST-1079002 · level: unit · module: MOD-settings-pages
+// guards: UC-044; THE BRIDGE IS SIGNED BY ITS PUBLISHER; NO COST IS GUESSED
+// given: the release of TST-1079001, whose notes name a publisher for macOS and Windows only; the browser on Linux; and a release whose notes hold no Publisher line, the browser on Windows
+// input: the route bridge drawn for each
+// expect: counter-proof: on Linux, and on Windows without the line, the page says "The release names no publisher for this system." (class bridge-no-publisher) and writes no name — neither beside the file nor in the fold —, and still offers the file
+test("the bridge route says that the release names no publisher where its notes hold none for this system, and writes none", async () => {
+  const linux = (await draw(LINUX, release(ASSETS, NOTES))).target;
+  assert.equal(byClass(linux, "bridge-no-publisher")[0].textContent, "The release names no publisher for this system.");
+  assert.equal(byClass(linux, "bridge-publisher").length, 0);
+  assert.equal(linux.textContent.includes("Acme"), false, "no name of another system stands in its place");
+  assert.equal(offered(linux).length, 1);
+  const bare = (await draw(WINDOWS, release(ASSETS, "Agent M 2026.10.19\n"))).target;
+  assert.equal(byClass(bare, "bridge-no-publisher").length, 1);
+  assert.equal(byClass(bare, "bridge-publisher").length, 0);
+  assert.equal(byClass(warningOf(bare), "bridge-publisher-in-warning").length, 0);
 });

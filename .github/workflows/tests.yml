@@ -23,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3]
+        shard: [0, 1, 2, 3, 4, 5, 6]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -59,7 +59,7 @@ jobs:
         run: |
           mode=all
           if [[ "$GITHUB_BASE_REF" == sprint/* ]]; then mode=rest; fi
-          files=$(node "$RUNNER_TEMP/level.mjs" "$mode" "${{ matrix.shard }}" 4 tests/test*.py)
+          files=$(node "$RUNNER_TEMP/level.mjs" "$mode" "${{ matrix.shard }}" 7 tests/test*.py)
           cd tests && python3 -m unittest -v $(echo "$files" | sed 's|^tests/||; s|\.py$||')
   node:
     runs-on: ubuntu-latest

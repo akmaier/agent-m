@@ -48,3 +48,11 @@ version of the file no longer declares it.
 - On fixtures, the tests state each part above, including a flaky commit, a rate line and a removed test.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - Only `src/trace-pages/` and the tests that name MOD-trace-pages change.
+
+**Stopped at its first task (sprint team1/101, developer-sonnet-c):** the schedule, the counter-proof's participant and
+the link to the test's code have no interface among MOD-trace-pages' uses.
+- The drafts, by developer-sonnet-c: MOD-trace-pages' uses gain `scheduleSchema`, `defaultSchedule` and `resultSchema`.
+- MOD-repository-hosts' `WebLinks` gains a page of one file at a ref, which MOD-trace-pages uses.
+- The item waits for their acceptance.
+
+**The drafts are on `main`:** `be70bf16` (MOD-repository-hosts, WebLinks' `file`) and `c496dedf` (MOD-trace-pages' uses), by developer-sonnet-c. The second rests on the first.

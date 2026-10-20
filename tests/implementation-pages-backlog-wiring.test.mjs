@@ -55,7 +55,8 @@ test("the files that took the module's place are gone, with their rows and their
 // expect: the app finds each route in MOD-implementation-pages' view by its name and renders it; it names none of the three files
 test("the app dispatches #backlog, #process and #roles to the routes of MOD-implementation-pages", () => {
   const app = readFileSync(APP_FILE, "utf8");
-  assert.match(app, /import \{ view as implementationPages \} from "\.\.\/implementation-pages\/index\.mjs"/);
+  assert.match(app, /implementationPages = viewOf\("implementation-pages"\)/, "the view is the one the page's data-views names");
+  assert.doesNotMatch(app, /from "\.\.\/implementation-pages\/index\.mjs"/, "the app imports no page module");
   assert.match(app, /implementationPages\.routes\.find\(\(r\) => r\.name === "backlog"\)/);
   assert.match(app, /kind === "process" \|\| kind === "roles"/);
   assert.match(app, /implementationPages\.routes\.find\(\(r\) => r\.name === kind\)/);

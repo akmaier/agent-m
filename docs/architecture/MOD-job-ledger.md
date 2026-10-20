@@ -18,6 +18,7 @@ uses:
   - MOD-job-runner.Round
   - MOD-job-runner.roundsText
   - MOD-participant-list.Participant
+  - MOD-text-tools.parseFinding
 provides:
   - JobStart
   - RecordPart
@@ -199,3 +200,4 @@ RUN`); it does start Agent M's job workflow, which is how a CI route notices it.
 - `MOD-job-runner.Usage`, `MOD-job-runner.Round`, `MOD-job-runner.roundsText` — the usage a runtime reports, and the
   round record written into a job's end.
 - `MOD-participant-list.Participant` — the declared price of a job's cost.
+- `MOD-text-tools.parseFinding` — a finding of a round, as the job's end record writes it, read back into its parts.

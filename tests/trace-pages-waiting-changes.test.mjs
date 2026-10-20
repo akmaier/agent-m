@@ -101,9 +101,9 @@ test("TST-878003 the list of all entries and the history are links on the defaul
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: a default branch whose snapshot holds no file under docs/spec-freigaben/
 // input: the specification view drawn at main
-// expect: no readMany call and no read of a queue file — a read the page already has the answer to (there is no queue) is not made
+// expect: no readMany call and no read of a queue file — a read the page already has the answer to (there is no queue) is not made; the reads are SPEC.md and the group file
 test("TST-878004 a repository without a change queue costs the page no queue read", async () => {
   const { productHost } = await render({ "SPEC.md": SPEC });
   assert.deepEqual(productHost.log.manys, []);
-  assert.deepEqual(productHost.log.reads, ["SPEC.md"]);
+  assert.deepEqual(productHost.log.reads, ["SPEC.md", "docs/groups/requirements.md"]);
 });

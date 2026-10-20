@@ -58,6 +58,9 @@ uses:
   - MOD-participant-list.participantsOf
   - MOD-participant-list.reachedThrough
   - MOD-product-process.declarationSchema
+  - MOD-product-process.productWorkflow
+  - MOD-product-process.roleAssignmentSchema
+  - MOD-product-process.roleAssignmentFindings
   - MOD-source-register.sourceSchemas
   - MOD-source-register.registrationCommits
   - MOD-source-register.versionCommits
@@ -272,7 +275,11 @@ reaches.
   on; MOD-artifact-edits.reviewLayoutCommit — the review layout of a new product.
 - MOD-participant-list.participantSchema, MOD-participant-list.participantsOf — the participant register and its
   participants; MOD-participant-list.reachedThrough — the CLI agent a subagent is reached through, kept when its row is
-  changed; MOD-product-process.declarationSchema — the products and roles that use a participant.
+  changed; MOD-product-process.declarationSchema, productWorkflow, roleAssignmentSchema — the products and roles that use
+  a participant: each product's roles from its declared workflow, and who fills them from its role assignments, since the
+  declaration names roles and never participants; MOD-product-process.roleAssignmentFindings — the assignments that a
+  changed participant makes invalid, such as a holder that lacks a capability its role needs, shown before the change is
+  saved (UC-017 7a).
 - MOD-source-register.sourceSchemas, MOD-source-register.registrationCommits, MOD-source-register.versionCommits,
   MOD-source-register.linkedVersion, MOD-source-register.affectedRequirements, MOD-source-register.changedPassages,
   MOD-source-register.recogniseLegalText, MOD-source-register.permittedPlaces — the source library and a product's links;

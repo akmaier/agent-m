@@ -49,6 +49,7 @@ Every member holds a card.
 `;
 
 const SHA = "0".repeat(64);
+const GROUPS = `- 1. Lending\n  - ${LOAN}\n  - ${SHELF}\n- 2. Membership\n  - ${CARD}\n`;
 const PERSON = "SRC-acme-person";
 const personEntry = (id, identifier) => `---\nid: ${id}\ntitle: A person\nkind: person\nauthority: normative\nlicence: may be republished — fixture\nidentifier: ${identifier}\n---\n# ${id} A person\n\nA fixture source.\n\n## Versions\n\n| Version | Date | Edition | Read from | Files |\n|---|---|---|---|---|\n| \`2026-10-11\` | 2026-10-11 | the fixture | this repository | one file, hashed only |\n`;
 const linksText = (...ids) => `# The sources this product meets\n\n| Source | Version | Hash | Part |\n|---|---|---|---|\n${ids.map((id) => `| ${id} | 2026-10-11 | ${SHA} | |`).join("\n")}\n`;
@@ -56,7 +57,7 @@ const linksText = (...ids) => `# The sources this product meets\n\n| Source | Ve
 function productHost({ links = linksText(PERSON) } = {}) {
   return {
     async readSnapshot(ref) {
-      const files = { "SPEC.md": SPEC, "docs/sources.md": links };
+      const files = { "SPEC.md": SPEC, "docs/groups/requirements.md": GROUPS, "docs/sources.md": links };
       return { ref, commit: ref, paths: Object.keys(files), read: async (path) => files[path] ?? null, blob: () => null };
     },
     async repositoryInfo() { return { defaultBranch: "main", visibility: "public", canWrite: false, archived: false, description: "" }; },
@@ -83,7 +84,7 @@ const find = (root, match) => {
   return found;
 };
 const named = (target, name) => find(target, (node) => node.localName === "button" && node.className.includes("requirement-name") && node.textContent === name)[0];
-const toggled = (target, heading) => find(target, (node) => node.localName === "button" && node.className.includes("spec-section-toggle") && node.textContent === heading)[0];
+const toggled = (target, heading) => find(target, (node) => node.localName === "button" && node.className.includes("spec-group-toggle") && node.textContent === heading)[0];
 const click = (button) => button.dispatchEvent(new Event("click"));
 
 async function shown({ ref = "main", product = productHost(), context = contextOf(product) } = {}) {

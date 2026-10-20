@@ -67,6 +67,7 @@ uses:
   - MOD-release-evidence.acceptAndRelease
   - MOD-source-register.sourceSchemas
   - MOD-source-register.linkedVersion
+  - MOD-source-register.restrictedPlaces
   - MOD-source-register.personSource
   - MOD-source-register.personAccount
   - MOD-source-register.sourceStrategies
@@ -283,7 +284,9 @@ and `docs/participants.md` of the instance.
 - MOD-trace-graph.traceGraph, MOD-trace-graph.graphFindings, MOD-trace-graph.coverageGaps,
   MOD-trace-graph.requirementImpact, MOD-trace-graph.architectureImpact — the marks across artifacts, the requirements
   no use case realises, and the impact lists; MOD-trace-graph.storedImpacts and MOD-repository-hosts.readFileAt — the
-  impact lists stored for the commit, and the last accepted texts they name.
+  impact lists stored for the commit, and the last accepted texts they name. A graph of a commit's own files is asked
+  for with that commit, so that the graph `onMainChanged` stored for it is read where there is one
+  (MOD-workflow-entries); a graph over an edited text is built from the files.
 - MOD-approvals.statuses, MOD-approvals.statusOf, MOD-approvals.lastAcceptedText, MOD-approvals.acceptShown,
   MOD-approvals.acceptanceBlockers, MOD-approvals.fallbackAcceptLink — statuses and acceptance; MOD-approvals.approvalSchema —
   the schema an approval record is read with, on `<k>/history` too.
@@ -295,7 +298,11 @@ and `docs/participants.md` of the instance.
   MOD-artifact-edits.keptIdentifier — a drafted change's identifier restored before the editor opens.
 - MOD-release-evidence.acceptAndRelease — accepting an open release test report.
 - MOD-source-register.sourceSchemas, MOD-source-register.linkedVersion — the product's links file and register, and its
-  linked sources with their parts; MOD-source-register.personSource, MOD-source-register.personAccount — the source of
+  linked sources with their parts; MOD-source-register.restrictedPlaces — the `places` of the context of a job it
+  prepares, over every restricted source of the register and not only the linked ones, so that a drafter's tools refuse a
+  restricted source's content at a place it does not permit wherever the product holds it; the offer of participants for
+  a job is judged against the places of the sources the product links, which the job's parts can carry, and the module
+  keeps no copy of the rule that computes them; MOD-source-register.personSource, MOD-source-register.personAccount — the source of
   the person who gives an instruction.
 - MOD-approvals.approvalStrategies, MOD-spec-changes.specStrategies, MOD-artifact-edits.editStrategies,
   MOD-source-register.sourceStrategies, MOD-reuse-facts.reuseStrategies — the strategies of its kinds, handed to the frame.

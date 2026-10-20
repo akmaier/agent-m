@@ -31,7 +31,7 @@ import { sourceStrategies } from "../source-register/index.mjs";
 import { specStrategies } from "../spec-changes/index.mjs";
 import { startable, workStrategies } from "../work-plans/index.mjs";
 import { readParticipants } from "./offer.mjs";
-import { connectionsOf, defaultSnapshot, personOf } from "./send.mjs";
+import { connectionsOf, defaultSnapshot, personOf, placesOf } from "./send.mjs";
 
 const WORKFLOWS = [".github/workflows/agent-m-jobs.yml", ".gitlab/agent-m-jobs.yml"];
 
@@ -104,10 +104,10 @@ function paramsOf(worksOn, snapshot) {
 /**
  * queue({ handOver, participant, assessment, store, instance, page, ofProduct, conversation }) -> Promise<{ id: string, path: string, commit: string, person: string }> — prepares the job of
  * the kind the participant named, with the task as its instruction, and hands it over on the route `assessment` found, as the person's commit on the head the facts were read at
- * (MOD-runtimes' handOverJob). `conversation` is the path of the conversation record the job names, or null. Throws NoToken when no token that writes to the page's repository is stored,
+ * (MOD-runtimes' handOverJob). `conversation` is the path of the conversation record the job names, or null. `source` is the person's own source for a hand-over of the subject's own kind, else undefined. Throws NoToken when no token that writes to the page's repository is stored,
  * what prepareJob throws, and what handOverJob throws — NotStartable { findings } among it, with nothing written.
  */
-export async function queue({ handOver, participant, assessment, store, instance, page, ofProduct, conversation }) {
+export async function queue({ handOver, participant, assessment, store, instance, page, ofProduct, conversation, source }) {
   const { facts, route, instanceSnapshot, participants } = assessment;
   const person = personOf(store, facts.snapshot, ofProduct);
   if (person === null) throw Object.assign(new Error("no token that writes to this repository is stored in this browser"), { name: "NoToken" });
@@ -116,9 +116,10 @@ export async function queue({ handOver, participant, assessment, store, instance
   const commit = instanceSnapshot.commit ?? "unknown";
   const agentM = { version: commit, commit };
   const worksOn = worksOnOf(handOver);
-  const params = paramsOf(worksOn, facts.snapshot);
+  // For the subject's own kind, `source` is the person's own source that the subject's paramsFor gave: the one parameter beside what the hand-over works on, so that no message and no page text enters the job's record.
+  const params = { ...(source === undefined ? {} : { source }), ...paramsOf(worksOn, facts.snapshot) };
   const inputs = { product: { address: page.address, snapshot: facts.snapshot, host: page.host }, instance: { snapshot: instanceSnapshot, host: instance.host }, participants,
-    places: { sources: {}, mailbox: null, contents: [] }, gates: [], person, agentM, jobId: id };
+    places: { ...(await placesOf(instanceSnapshot, page.address)), mailbox: null }, gates: [], person, agentM, jobId: id };
   const prepared = await prepareJob(handOver.kind, tabContext({ kind: null, params: { ...params, instruction: handOver.task }, ...inputs }), { drafter: participant, reviewers: [] });
   const start = { id, kind: handOver.kind, worksOn, participant: participant.name, model: participant.model ?? null, route: recordRoute(route), run: null, retries: null, startedBy: person,
     start: now, agentM, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit, task: "with the hand-over", conversation: conversation ?? null,

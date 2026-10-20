@@ -20,7 +20,7 @@
 // with a title, and is missing from a document without one.
 
 import { finding } from "../text-tools/index.mjs";
-import { KIND_FORMS, PATH, REQUIREMENT_NAME, compiledOf, effective, holds, matchesPath, pathRule, sectionOf } from "./schema-language.mjs";
+import { KIND_FORMS, PATH, REQUIREMENT_NAME, compiledOf, effective, fences, holds, matchesPath, pathRule, sectionOf, textLines } from "./schema-language.mjs";
 
 const INTERFACE = /^MOD-[a-z0-9]+(?:-[a-z0-9]+)*\.[A-Za-z_][A-Za-z0-9_]*$/;
 const NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -200,6 +200,81 @@ const UNDER_TITLE = "the section under the title";
  * `schema` is not a loaded schema, and, through MOD-text-tools' finding, for a finding no part of the schema names a rule
  * for.
  */
+// The cells of a table's line, split at every | that is not escaped (read-write.mjs reads a section's table with it as well).
+export function cellsOf(line) {
+  let text = line.trim();
+  if (text.startsWith("|")) text = text.slice(1);
+  if (text.endsWith("|") && !text.endsWith("\\|")) text = text.slice(0, -1);
+  return text.split(/(?<!\\)\|/).map((cell) => cell.trim().replace(/\\\|/g, "|"));
+}
+
+// The columns of a table that a header row names — the table's columns in their order, each column marked optional that the header leaves out left out —, or null where the header is not the table's:
+// it names a column the table does not, names them in another order, or leaves out a column that is not optional.
+export function headerColumns(table, header) {
+  const named = [];
+  let at = 0;
+  for (const column of table.columns) {
+    if (header[at] === column.name) { named.push(column); at += 1; }
+    else if (!column.optional) return null;
+  }
+  return at === header.length ? named : null;
+}
+
+export const isSeparator = (line) => cellsOf(line).every((cell) => /^:?-+:?$/.test(cell));
+
+// The section's table among a text's lines: { from, to, columns }, to exclusive, `columns` the columns its header names, or null — the first table whose header row names the table's columns, in their
+// order, an optional column named or left out; for a table without a header row, the first table.
+export function sectionTable(table, lines) {
+  const { inBlock } = fences(lines);
+  const isRow = (i) => !inBlock[i] && /^[ \t]*\|/.test(lines[i]);
+  let from = 0;
+  while (from < lines.length) {
+    if (!isRow(from)) { from += 1; continue; }
+    let to = from;
+    while (to < lines.length && isRow(to)) to += 1;
+    const columns = table.header === false ? table.columns : headerColumns(table, cellsOf(lines[from]));
+    if (columns) return { from, to, columns };
+    from = to;
+  }
+  return null;
+}
+
+// The rows of a section's table that have cells beyond the columns its header names — { index, cells } of each, the index among the section's lines — when a beyond cell holds something (an empty cell, or the dash
+// of a value left out, holds nothing and loses nothing). The section's table is found as the reader finds it; none found, none named.
+function overlongRows(table, lines) {
+  const at = sectionTable(table, lines);
+  if (!at) return [];
+  let from = at.from;
+  if (table.header !== false) {
+    from += 1;
+    if (from < at.to && isSeparator(lines[from])) from += 1;
+  }
+  const found = [];
+  for (let i = from; i < at.to; i += 1) {
+    const cells = cellsOf(lines[i]);
+    if (cells.length > at.columns.length && cells.slice(at.columns.length).some((cell) => cell !== "" && cell !== "—")) found.push({ index: i, cells });
+  }
+  return found;
+}
+
+// The first table of a section's lines when the section holds a table and none of its tables has a header row that names the table's columns, in their order (an optional column named or left out) — the section's table is then found
+// nowhere and its rows are not read: { index, header } of that first table's header row; { columns } — the columns the header names — where a table names the columns; null where the section holds no table.
+function unreadTable(table, lines) {
+  const { inBlock } = fences(lines);
+  const isRow = (i) => !inBlock[i] && /^[ \t]*\|/.test(lines[i]);
+  const names = table.columns.map((column) => column.name);
+  let first = null, from = 0;
+  while (from < lines.length) {
+    if (!isRow(from)) { from += 1; continue; }
+    const header = cellsOf(lines[from]);
+    const named = headerColumns(table, header);
+    if (named !== null) return { columns: named };
+    first ??= { index: from, header };
+    while (from < lines.length && isRow(from)) from += 1;
+  }
+  return first;
+}
+
 export function documentFindings(schema, document) {
   const compiled = compiledOf(schema);
   const artifact = document.id ?? document.path;
@@ -259,10 +334,26 @@ export function documentFindings(schema, document) {
       lastSection = named;
     }
     const table = named.spec.table;
+    const unread = table && table.header !== false ? unreadTable(table, textLines(section.text ?? "")) : null;
+    if (unread?.header) {
+      const names = table.columns.map((column) => column.name);
+      const added = unread.header.filter((cell) => !names.includes(cell)), lacks = table.columns.filter((column) => !column.optional && !unread.header.includes(column.name)).map((column) => column.name);
+      const says = [...(added.length ? [`adds ${added.join(", ")}`] : []), ...(lacks.length ? [`lacks ${lacks.join(", ")}`] : []),
+        ...(!added.length && !lacks.length ? ["puts the columns out of order"] : [])].join("; ");
+      add(section.line + 1 + unread.index, [named.spec.rule], `the header of the table under ${section.heading} names ${unread.header.join(", ")}, where the format ${schema.schema} names ${names.join(", ")} in that order: it ${says}, so no row of the table is read`,
+        `make the header row name ${table.columns.some((column) => column.optional) ? "the columns" : "exactly the columns"} ${names.join(", ")}, in that order${table.columns.some((column) => column.optional)
+          ? `, of which ${table.columns.filter((column) => column.optional).map((column) => column.name).join(", ")} may be left out` : ""}`);
+    }
+    for (const { index, cells } of table ? overlongRows(table, textLines(section.text ?? "")) : []) {
+      const beyond = cells.slice(table.columns.length);
+      add(section.line + 1 + index, [named.spec.rule], `the row has ${cells.length} cells where the table under ${section.heading} has ${table.columns.length} columns: the ${beyond.length === 1 ? "cell" : "cells"} beyond the last column, ${table.columns.at(-1).name}, ${beyond.length === 1 ? "is" : "are"} ${beyond.map((cell) => `“${cell}”`).join(", ")}, and no column reads ${beyond.length === 1 ? "it" : "them"}`,
+        `remove the ${beyond.length === 1 ? "cell" : "cells"}, or add the column to the table's header and to the format ${schema.schema}`);
+    }
     for (const row of table ? section.rows ?? [] : []) {
       const names = table.columns.map((column) => column.name);
       const lookup = (name) => (names.includes(name) ? textOf(row.cells[name]) : frontLookup(name));
       for (const column of table.columns) {
+        if (unread?.columns && !unread.columns.includes(column)) continue;
         const check = valueCheck(row.cells[column.name], column.value, lookup, "cell");
         if (check) {
           add(row.line, [...valueRules(check, column.value, lookup), named.spec.rule], `the column ${column.name} ${check.why}`,

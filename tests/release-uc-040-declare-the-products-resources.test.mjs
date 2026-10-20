@@ -377,8 +377,7 @@ test("release · UC-040 3a and 7a: what cannot be reached is named, and nothing 
 // given: the page of TST-1041104 without the Bridge
 // input: add the compute resource "alex"; type the route "bridge hpc", the place and, as its secret, the value "sk-live-0123456789abcdef" into the row; press "Save"
 // expect: step 8 "name of the secret — never its value": the value stands in no commit of any repository
-test("release · UC-040 8: a secret's value typed into the list is never committed",
-  { todo: "FINDING ITM-1122 — after the person edits the list the form checks nothing, so the value is committed to docs/resources.md of the product: src/site-frame/forms.mjs:80-81 (documentNow) hands an edited section over as { heading, line, text } with no rows, documentFindings (forms.mjs:102) and the page's extraChecks (src/settings-pages/resources.mjs:63) find no row in it, and Save writes the text (resources.mjs:129)." }, async (t) => {
+test("release · UC-040 8: a secret's value typed into the list is never committed", async (t) => {
     const page = await visit(t, FRAGMENT);
     await addResource(page, "compute", "alex", "alex.nhr.fau.de");
     await typeInto(listText(page), listText(page).value.replace("| alex | compute | alex.nhr.fau.de | — | — | — | — | — | — | — |", "| alex | compute | alex.nhr.fau.de | — | — | — | bridge hpc | NHR@FAU, Erlangen | — | sk-live-0123456789abcdef |"));

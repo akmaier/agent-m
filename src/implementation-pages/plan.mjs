@@ -46,7 +46,7 @@ async function marksOf(facts, graph, host) {
     const schemas = artifactSchemas();
     const architecture = await Promise.all([...graph.nodes.values()].filter((node) => node.kind === "ARC" || node.kind === "MOD")
       .map(async (node) => readDocument(node.kind === "ARC" ? schemas.decision : schemas.module, node.path, (await facts.snapshot.read(node.path)) ?? "")));
-    const found = await planFindings(facts.plan.order, facts.plan.items, architecture, null, facts.snapshot, { host });
+    const found = await planFindings(facts.plan.order, facts.plan.items, architecture, null, facts.snapshot, { host }, graph);
     return found.filter((each) => each.rule === ASSEMBLES);
   } catch {
     return [];
@@ -121,7 +121,7 @@ export const route = {
       return;
     }
 
-    const graph = await traceGraph(facts.snapshot);
+    const graph = await traceGraph(facts.snapshot, { commit: facts.snapshot.commit });
     const architecture = architectureOf(graph);
     const marked = await marksOf(facts, graph, product.host);
     const marksFor = (id) => marked.filter((each) => each.artifact === id);

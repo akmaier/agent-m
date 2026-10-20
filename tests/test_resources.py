@@ -34,7 +34,8 @@ const listOf = (title, rows, extra = []) => {
     ...rows.map((row) => `| ${columns.map((column) => row[column] ?? "—").join(" | ")} |`), ""].join("\n");
 };
 const resourceOf = ({ cells: c }) => ({ name: c.Name, kind: c.Kind, address: c.Address, pin: c.Pin ?? null, licence: c.Licence ?? null, maintainer: c.Maintainer ?? null,
-  route: c.Route ?? "", place: c["Processing place"] ?? null, paid: c.Paid === "yes" ? true : c.Paid === "no" ? false : null, secret: c.Secret ?? null });
+  route: c.Route ?? "", place: c["Processing place"] ?? null, paid: c.Paid === "yes" ? true : c.Paid === "no" ? false : null, secret: c.Secret ?? null,
+  capabilities: c.Capabilities ?? null, role: c.Role ?? null });
 const snapshotOf = (files) => ({ paths: Object.keys(files), read: async (path) => (Object.hasOwn(files, path) ? files[path] : null) });
 const failureOf = async (run) => { try { return { value: await run() }; } catch (error) { return { error: error.name }; } };
 
@@ -172,7 +173,6 @@ class TestResources(unittest.TestCase):
     # FINDING R1: the list is accepted. documentFindings reports nothing for the two columns, and the readers of a list (resourceOf in src/resource-list/strategies.mjs:29, in
     # src/settings-pages/resources.mjs) build a Resource from the ten named columns only, so capabilities and role never reach resourceFindings, which refuses an entry that carries them
     # (rules.mjs) - the rule can be met only by a Resource object that no reader makes.
-    @unittest.expectedFailure
     def test_a_list_whose_entry_carries_participant_columns_is_rejected(self):
         check(self, "A RESOURCE IS USED, A PARTICIPANT DEVELOPS - a list's columns")
 

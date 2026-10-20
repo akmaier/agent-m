@@ -39,18 +39,39 @@ import { UPSTREAM, instanceOf } from "../site/instance-repository.mjs";
 import { openStore, secretValues } from "../browser-store/index.mjs";
 import { parseAddress, connect } from "../repository-hosts/index.mjs";
 import { watchForAcceptance } from "../notifications/index.mjs";
-import { view as settingsPages } from "../settings-pages/index.mjs";
-import { view as reviewPages } from "../review-pages/index.mjs";
-import { view as tracePages } from "../trace-pages/index.mjs";
-import { view as testPages } from "../test-pages/index.mjs";
-import { view as maintenancePages } from "../maintenance-pages/index.mjs";
-import { view as implementationPages } from "../implementation-pages/index.mjs";
 import { registerStrategies } from "../job-runner/index.mjs";
 import { explain } from "./index.mjs";
-import { fragmentOf, routeOf, productHostFollowingStore } from "./routing.mjs";
+import { fragmentOf, loadView, routeOf, productHostFollowingStore } from "./routing.mjs";
 import { noticePlace, showTokenNotices } from "./notices.mjs";
 
 export { DASHBOARD, UPSTREAM };
+
+// The views of the page: the slugs its script tag names in `data-views`, loaded from their folders (MOD-site-frame, Data: the page setup). The tag is the one whose `src`, read against the
+// page's address, is this module's address, as start.mjs finds its own; the app names no view module itself.
+const withoutQuery = (address) => String(address).split(/[?#]/)[0];
+// Outside a browser (a test that imports this file for the functions it exports) there is no page, so no tag and no views.
+const inPage = typeof document !== "undefined";
+const ownTag = !inPage ? null : [...document.getElementsByTagName("script")].find((candidate) => {
+  const src = candidate.getAttribute("src");
+  return src !== null && withoutQuery(new URL(src, document.baseURI).href) === withoutQuery(import.meta.url);
+});
+if (inPage && !ownTag) throw new Error("dashboard-app.mjs: no script tag of this page loads it.");
+const loaded = new Map();
+for (const slug of (ownTag?.getAttribute("data-views") ?? "").split(/\s+/).filter(Boolean)) {
+  try {
+    loaded.set(slug, await loadView(slug));
+  } catch (failure) {
+    throw new Error(`dashboard-app.mjs: the view module ${slug} named in data-views could not be loaded: ${failure.message}`);
+  }
+}
+const NO_VIEW = { routes: [], strategies: [] };
+const viewOf = (slug) => {
+  if (loaded.has(slug)) return loaded.get(slug);
+  if (!inPage) return NO_VIEW;
+  throw new Error(`dashboard-app.mjs: data-views names no ${slug}`);
+};
+const settingsPages = viewOf("settings-pages"), reviewPages = viewOf("review-pages"), tracePages = viewOf("trace-pages"), testPages = viewOf("test-pages"),
+  maintenancePages = viewOf("maintenance-pages"), implementationPages = viewOf("implementation-pages");
 
 
 const h = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);

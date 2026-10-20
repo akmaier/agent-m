@@ -114,13 +114,16 @@ test("the start page sends its commit and tree once and one batch of the files i
 // given: the fixture product, whose architecture files decide #arc
 // input: open #arc with a token
 // expect: the commit and the tree once, then one batch of the 4 architecture files, the repository's information once, and no use
-//         case, no queue file, no file by itself
+//         case, no queue file, no file by itself; then, for the table and the gaps of the modules view (ITM-721), the graph of the commit: the
+//         stored graph asked for by one file (none is stored) and one batch of the 7 files of the graph that the first batch did not read
 test("#arc sends its commit and tree once and one batch of the files it shows — no use case and no queue file", async () => {
   const repo = await product(), srv = await server(repo);
   const page = await openDashboard({ server: srv, hash: "#arc" });
   for (const id of ["ARC-001", "MOD-page", "MOD-reader", "MOD-review"]) assert.match(page.main(), new RegExp(id));
-  assert.deepEqual(page.requests, ["commit", "tree", "batch 4", "repository"]);
-  assert.deepEqual(srv.batches.map(sorted), [sorted([ARC, PAGE, READER, REVIEW])]);
+  assert.deepEqual(page.requests, ["commit", "tree", "batch 4", "repository", `file ${STORED_GRAPH}`, "batch 7"]);
+  assert.deepEqual(sorted(srv.batches[0]), sorted([ARC, PAGE, READER, REVIEW]));
+  assert.equal(srv.batches.length, 2);
+  assert.equal(new Set(srv.batches.flat()).size, srv.batches.flat().length, "no file twice");
 });
 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS
@@ -142,17 +145,19 @@ test("#arc/<id>: a module that names what is not accepted says so, and is not of
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the fixture product with a queue whose one entry is accepted and written, and a queue with an open entry
 // input: open #spec with a token
-// expect: the app reads in two waves, each one request: the SPEC and the queues' heads — 4 files, the two queues' index files
-//         being the same blob —, then the proposals of the open queue — 1 file; no file twice, the accepted queue's proposal
-//         not at all, and no file by itself. The open entry stands under "SPEC changes waiting for acceptance" as a link; the written
+// expect: the app reads in four waves, each one request: the SPEC and the queues' heads — 4 files, the two queues' index files
+//         being the same blob —, then the proposals of the open queue — 1 file —, then its rationale — 1 file, named to the batch before
+//         the impact list of the open entry reads it (the statuses of the specification view, UC-020 step 3) —, then the artifacts of the trace
+//         graph that impact list is made from — 10 files; no file twice, the accepted queue's proposal not at all, and no file by itself. The open entry stands under "SPEC changes waiting for acceptance" as a link; the written
 //         one does not.
-test("#spec: the app reads the SPEC and the queues' heads in one batch and the open queue's proposals in a second", async () => {
+test("#spec: the app reads the SPEC and the queues' heads in one batch, the open queue's proposals in a second, its rationale in a third and the trace graph's artifacts in a fourth", async () => {
   const repo = await product(), srv = await server(repo);
   const page = await openDashboard({ server: srv, hash: "#spec" });
   const wave1 = sorted(["SPEC.md", `${DONE}/entscheidungen.md`, `${DONE}/index.md`, `${OPEN}/entscheidungen.md`]);
-  const wave2 = [`${OPEN}/01-more.md`];
-  assert.deepEqual(batchesOf(page.requests), ["batch 4", "batch 1"]);
-  assert.deepEqual(srv.batches.map(sorted), [wave1, wave2]);
+  const wave2 = [`${OPEN}/01-more.md`], wave3 = [`${OPEN}/01-more.begruendung.md`];
+  assert.deepEqual(batchesOf(page.requests), ["batch 4", "batch 1", "batch 1", "batch 10"]);
+  assert.deepEqual(srv.batches.slice(0, 3).map(sorted), [wave1, wave2, wave3]);
+  assert.deepEqual(srv.batches[3].filter((path) => path === "SPEC.md" || wave1.includes(path)), [], "the fourth batch repeats none of the first");
   assert.equal(new Set(srv.batches.flat()).size, srv.batches.flat().length, "no file twice");
   assert.deepEqual(files(page.requests).filter((p) => p !== "SPEC.md"), [], "the app reads no file by itself");
   const main = page.main();
@@ -165,7 +170,8 @@ test("#spec: the app reads the SPEC and the queues' heads in one batch and the o
 // given: the fixture product with a register: the links file docs/sources.md and two entries docs/sources/SRC-a.md and SRC-b.md
 // input: open #spec with a token
 // expect: the first wave is one batch of 7 files — the SPEC, the queues' heads and the links file with the two register entries —, the
-//         open queue's proposal a second batch of 1; no file twice, none by itself; the register is read in no batch of its own
+//         open queue's proposal a second batch of 1, its rationale a third batch of 1 and the trace graph's artifacts a fourth of 10; no file twice,
+//         none by itself; the register is read in no batch of its own
 test("#spec: the links file and the register's entries are read in the first wave, beside the SPEC and the queues' heads", async () => {
   const entry = (id) => ["---", `id: ${id}`, "title: A person", "kind: person", "authority: normative", "licence: may be republished — fixture",
     `identifier: github.com/${id}`, "---", `# ${id} A person`, "", "## Versions", "", "| Version | Date | Edition | Read from | Files |", "|---|---|---|---|---|",
@@ -175,8 +181,8 @@ test("#spec: the links file and the register's entries are read in the first wav
   const srv = await server(await product(register));
   const page = await openDashboard({ server: srv, hash: "#spec" });
   const wave1 = sorted(["SPEC.md", `${DONE}/entscheidungen.md`, `${DONE}/index.md`, `${OPEN}/entscheidungen.md`, ...Object.keys(register)]);
-  assert.deepEqual(batchesOf(page.requests), ["batch 7", "batch 1"]);
-  assert.deepEqual(srv.batches.map(sorted), [wave1, [`${OPEN}/01-more.md`]]);
+  assert.deepEqual(batchesOf(page.requests), ["batch 7", "batch 1", "batch 1", "batch 10"]);
+  assert.deepEqual(srv.batches.slice(0, 3).map(sorted), [wave1, [`${OPEN}/01-more.md`], [`${OPEN}/01-more.begruendung.md`]]);
   assert.equal(new Set(srv.batches.flat()).size, srv.batches.flat().length, "no file twice");
   assert.deepEqual(files(page.requests), [], "no file by itself");
 });
@@ -209,13 +215,12 @@ test("the repository's information is read once for as long as the page is open"
 // given: a product that declares its process model, with one team, its sprint and two items
 // input: open #backlog with a token
 // expect: the commit and the tree once, one batch of the 7 files it shows — the declaration, the SPEC, the team's role
-//         assignment and sprint, the 2 items, and the record that decides UC-002's status —; then the view reads the commit the declaration's model_version names (the fixture's is not
-//         in the repository, so the model is read as it stands) and the process
-//         model the declaration names itself, in one request of its own, since one file meets "requests of at most 100 files
-//         each"; no use case, no module file (one team), and no other file by itself
+//         assignment and sprint, the 2 items, and the record that decides UC-002's status —; then the facts stored for the commit are asked for (none), and the facts the page takes from MOD-progress-measures'
+//         productFacts are read in batches: the 3 module files, the 3 files of the change queues; then the instance at the commit the declaration's model_version names (the commit, the tree) and the process
+//         model it names in one batch of its own; no use case and no other file by itself
 test("#backlog sends its commit and tree once, one batch of the files it shows, and the process model by one request of its own", async () => {
   const repo = await product({
-    "docs/process.md": ["---", "model: fixture-scrum-wip", "model_file: docs/process-models/fixture.md", `model_version: ${"a".repeat(40)}`,
+    "docs/process.md": ["---", "model: fixture-scrum-wip", "model_file: docs/process-models/fixture.md", `model_version: ${"c0ffee".padEnd(40, "0")}`,
       "---", "# How the fixture product is developed", ""].join("\n"),
     "docs/process-models/fixture.md": readFileSync(new URL("./fixtures/flow/scrum-wip.md", import.meta.url), "utf8"),
     "docs/role-assignments/team1.md": "# team1\n\n## Roles\n\n| Role | Participants |\n|---|---|\n| Owner | alice |\n| Builders | dev-a |\n| Checker | dev-a |\n",
@@ -227,10 +232,11 @@ test("#backlog sends its commit and tree once, one batch of the files it shows, 
   const srv = await server(repo, [pulls]);
   const page = await openDashboard({ server: srv, hash: "#backlog" });
   assert.match(page.main(), /ITM-001/);
-  assert.deepEqual(page.requests.filter((r) => !r.startsWith("handler ")), ["commit", "tree", "batch 7", `other GET https://api.github.com/repos/${REPO}/commits/${"a".repeat(40)}`, "file docs/process-models/fixture.md"]);
+  assert.deepEqual(page.requests.filter((r) => !r.startsWith("handler ")), ["commit", "tree", "batch 7", `file ${"c0ffee".padEnd(40, "0")}.facts.json`, "batch 3", "batch 3", "commit", "tree", "batch 1"]);
   const wave1 = sorted(["docs/process.md", "SPEC.md", "docs/role-assignments/team1.md", "docs/backlog/sprints/team1/01.md",
     "docs/backlog/ITM-001-item-1.md", "docs/backlog/ITM-002-item-2.md", ...recordOf(repo, "UC-002")]);
-  assert.deepEqual(srv.batches.map(sorted), [wave1]);
+  assert.deepEqual(srv.batches.map(sorted).slice(0, 1), [wave1]);
+  assert.equal(srv.batches.flat().filter((path) => path === "SPEC.md").length, 1, "no file twice");
 });
 
 const item = (n) => ["---", `id: ITM-00${n}`, `title: The work of item ${n}`, "level: module", "realises:", "  - RULE ONE", "modules:", "  - MOD-reader",
@@ -331,6 +337,8 @@ test("#uc/<id> and #arc/<id> of an accepted file read that one file by itself", 
 const decision = (n) => base[ARC].replaceAll("ARC-001", `ARC-${n}`);
 const ARC2 = "docs/architecture/ARC-002-second.md", ARC3 = "docs/architecture/ARC-003-third.md";
 const MODULES = [PAGE, READER, REVIEW];
+// The file the graph of the fixture's commit would be stored in (the commit the harness's server answers), asked for once by a page that reads the graph.
+const STORED_GRAPH = "c0ffee0000000000000000000000000000000000.json";
 
 // The files each address shows: the fixture's two use cases, three decisions and three module files.
 const SHOWN = { "#use-case": [UC1, UC2], "#decision": [ARC, ARC2, ARC3], "#module": MODULES };
@@ -341,14 +349,18 @@ const withDecisions = () => product({ [ARC2]: decision("002"), [ARC3]: decision(
 //        (MOD-page, MOD-reader, MOD-review)
 // input: open #use-case (then #decision, then #module) with a token
 // expect: the commit and the tree once, one batch of exactly the files of its own kind — 2 files for #use-case, 3 for #decision, 3 for
-//         #module —, the repository's information once, and no file by itself
+//         #module —, the repository's information once, and no file by itself; #module also shows the modules view (ITM-721), which reads the
+//         graph of the commit: the stored graph asked for by one file (none is stored), then one batch of the 10 files of the graph that the first did not read
+const GRAPH_AFTER = { "#module": [`file ${STORED_GRAPH}`, "batch 10"] };
 for (const [hash, paths] of Object.entries(SHOWN)) {
   test(`${hash} sends its commit and tree once and one batch of the files it shows`, async () => {
     const srv = await server(await withDecisions());
     const page = await openDashboard({ server: srv, hash });
-    assert.deepEqual(page.requests, ["commit", "tree", `batch ${paths.length}`, "repository"]);
-    assert.deepEqual(srv.batches.map(sorted), [sorted(paths)]);
-    assert.deepEqual(files(page.requests), [], "no file by itself");
+    const graph = GRAPH_AFTER[hash] ?? [];
+    assert.deepEqual(page.requests, ["commit", "tree", `batch ${paths.length}`, "repository", ...graph]);
+    assert.deepEqual(sorted(srv.batches[0]), sorted(paths));
+    assert.equal(srv.batches.length, graph.length ? 2 : 1);
+    assert.deepEqual(files(page.requests).filter((path) => path !== STORED_GRAPH), [], "no file by itself");
   });
 }
 

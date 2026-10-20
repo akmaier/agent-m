@@ -42,3 +42,5 @@ and the reason, and no facts. It never fills in a fact it did not read. `hubFact
   request.
 - The existing tests stay green, with no expected result changed.
 - Only `src/reuse-facts/` and the tests that name MOD-reuse-facts change.
+
+**Done (sprint team2/98, po-opus-b):** read against its Acceptance on `main` at `3436203a`: TST-435001 to 435005 (`tests/reuse-facts.test.mjs:135-265`) state an npm and a PyPI candidate's facts with address and date, an unknown candidate not found with its address, a refused call `blocked` with no facts, and `licenceVerdict`'s three answers; they pass on `main`; `src/reuse-facts/index.mjs:152` (`licenceVerdict`), `:298` (`registryFacts`); built in team 2's sprint 28. No pull request names it, since it predates the pull-request flow or was built by another item. No code changes.

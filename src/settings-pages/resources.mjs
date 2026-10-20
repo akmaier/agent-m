@@ -58,7 +58,8 @@ const shown = (value) => (value === undefined || value === null || value === "" 
 
 // The Resource a row of the list is (MOD-resource-list's type): a value left out is null, the Paid mark a boolean.
 const resourceOf = ({ cells: c }) => ({ name: c.Name, kind: c.Kind, address: c.Address, pin: c.Pin ?? null, licence: c.Licence ?? null, maintainer: c.Maintainer ?? null,
-  route: c.Route ?? "", place: c["Processing place"] ?? null, paid: c.Paid === "yes" ? true : c.Paid === "no" ? false : null, secret: c.Secret ?? null });
+  route: c.Route ?? "", place: c["Processing place"] ?? null, paid: c.Paid === "yes" ? true : c.Paid === "no" ? false : null, secret: c.Secret ?? null,
+  capabilities: c.Capabilities ?? null, role: c.Role ?? null });
 
 const rowsOf = (document_) => document_.sections[0]?.rows ?? [];
 // The text of a draft list: the lead of the opened text, the header, and one line per row. A draft may hold a row the schema refuses (a licence not entered yet), which writeDocument does not

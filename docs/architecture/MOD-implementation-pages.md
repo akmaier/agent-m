@@ -79,6 +79,8 @@ uses:
   - MOD-participant-list.participantsOf
   - MOD-participant-list.eligible
   - MOD-source-register.sourceSchemas
+  - MOD-source-register.restrictedPlaces
+  - MOD-spec-document.parseSpec
   - MOD-job-catalogue.kindOf
   - MOD-job-runner.prepareJob
   - MOD-job-runner.writeResult
@@ -240,13 +242,21 @@ product's `docs/sources.md`.
 - MOD-run-planner.runOf, MOD-run-planner.nextActions, MOD-run-planner.raiseLimits, MOD-run-planner.finishRun — a run,
   its next actions, its end, and the
   limits a person raises to continue it.
-- MOD-trace-graph.traceGraph, MOD-trace-graph.moduleRows — a finished run's validation, at the commit its end names.
+- MOD-trace-graph.traceGraph, MOD-trace-graph.moduleRows — a finished run's validation, at the commit its end names; the
+  architecture's subsystems and modules beside the plan, from the graph of the commit shown. Each graph is asked for
+  with its commit, so that the graph `onMainChanged` stored for it is read where there is one (MOD-workflow-entries).
 - MOD-progress-measures.productFacts, MOD-progress-measures.progressIn, MOD-progress-measures.gateOverview,
   MOD-progress-measures.blocked, MOD-progress-measures.whoWorksOnWhat — the product's facts and its progress.
 - MOD-participant-list.participantSchema, MOD-participant-list.participantsOf, MOD-participant-list.eligible — the
   participants a role or a job may have.
-- MOD-source-register.sourceSchemas — the product's links to its sources and the linked entries of the instance's
-  register, which `roleAssignmentFindings` judges the holders' places against.
+- MOD-source-register.sourceSchemas, restrictedPlaces — the product's links to its sources and the linked entries of the
+  instance's register, which `roleAssignmentFindings` judges the holders' places against; and the places each restricted
+  source permits, against which the route `implement` judges the participants it offers: a participant whose place a
+  linked source forbids is offered only where the job needs none of that source's content, and the content is named
+  (UC-024 5b).
+- MOD-spec-document.parseSpec — the names of the requirements the product's SPEC holds, which the route `backlog` lists
+  where no item realises them; the facts of the scope `work` carry none, so the route takes them from the facts stored
+  for the commit and, where none are stored, reads the SPEC and parses it with `parseSpec`.
 - MOD-job-catalogue.kindOf — a kind's purpose and whether its result waits for a person; MOD-job-runner.prepareJob — the
   run panels; MOD-job-runner.writeResult — a drafted plan or drafted items written on the person's click.
 - MOD-job-ledger.newJobId, MOD-job-ledger.listJobs, MOD-job-ledger.jobState — the jobs a page starts and follows;

@@ -28,6 +28,8 @@ const { view } = await import("../src/trace-pages/index.mjs");
 const route = view.routes.find((candidate) => candidate.name === "trace");
 
 const SPEC = "# Fixture — Specification\n\n## First section\n\n**FIRST RULE** *(Source one)*\nFirst rule.\n*Check:* at review.\n";
+// The group file of the fixture: one group, which holds FIRST RULE; the cases open that group (ITM-595: the tree is the group file's).
+const GROUP_FILE = "docs/groups/requirements.md", GROUPS = "- First group\n  - FIRST RULE\n";
 const SHA = "0".repeat(64);
 const PERSON = "SRC-acme-person", OTHER = "SRC-other-person";
 const LINKS = `# The sources this product meets\n\n| Source | Version | Hash | Part |\n|---|---|---|---|\n| ${PERSON} | 2026-10-11 | ${SHA} | |\n`;
@@ -65,8 +67,8 @@ async function drawn({ product, instance, ref = "main" }) {
   const context = { page: "review", instance: { repository: "acme/agent-m", host: instance }, product: { address: "https://github.com/acme/library", kind: "github", host: product }, store: {}, go() {} };
   const params = { key: "specification", ref };
   await route.render(target, context, params);
-  // A section opened is a subject with the person's source and reads nothing; a requirement opened would also read the register for its traces.
-  find(target, (node) => node.localName === "button" && node.className.includes("spec-section-toggle"))[0]?.dispatchEvent(new Event("click"));
+  // A group opened is a subject with the person's source and reads nothing; a requirement opened would also read the register for its traces.
+  find(target, (node) => node.localName === "button" && node.className.includes("spec-group-toggle"))[0]?.dispatchEvent(new Event("click"));
   return route.subject(params, context);
 }
 const register = (events) => events.filter((event) => event.includes("docs/sources"));
@@ -75,15 +77,16 @@ const register = (events) => events.filter((event) => event.includes("docs/sourc
 // TST-833001 · level: unit · module: MOD-trace-pages
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: one Host for the product and the instance, which hands the same Snapshot for main each time; that Snapshot holds SPEC.md, docs/sources.md and two register entries
-// input: the specification route drawn at main, its first section opened, the subject asked for
-// expect: of the calls that name a file of the register, the first is one readMany of docs/sources.md and the two entries, in that order; the three files are then read once each; readMany was called once in all; known positive: the subject's source is SRC-acme-person
+// input: the specification route drawn at main, its first group opened, the subject asked for
+// expect: of the calls that name a file of the register, the first is one readMany of docs/sources.md and the two entries, in that order; the three files are then read once each; readMany was called twice in all, the second being the trace graph's batch for the counts of the groups (SPEC.md and the group file are among its files); known positive: the subject's source is SRC-acme-person
 test("on the default branch the links file and the register entries are named to readMany together before they are read", async () => {
   const events = [];
-  const host = recordingHost({ label: "host", files: { "SPEC.md": SPEC, "docs/sources.md": LINKS, ...REGISTER }, events, pinned: true });
+  const host = recordingHost({ label: "host", files: { "SPEC.md": SPEC, [GROUP_FILE]: GROUPS, "docs/sources.md": LINKS, ...REGISTER }, events, pinned: true });
   const subject = await drawn({ product: host, instance: host });
   assert.equal(register(events)[0], `host many docs/sources.md,${PERSON_FILE},${OTHER_FILE}`);
   assert.deepEqual(register(events).slice(1).sort(), [`host read docs/sources.md`, `host read ${OTHER_FILE}`, `host read ${PERSON_FILE}`].sort());
-  assert.equal(events.filter((event) => event.startsWith("host many")).length, 1);
+  assert.equal(events.filter((event) => event.startsWith("host many")).length, 2);
+  assert.equal(events.filter((event) => event.startsWith("host many") && event.includes("docs/groups/requirements.md")).length, 1, "the second is the trace graph's");
   assert.equal(subject.paramsFor({ name: "po-opus" }).source, PERSON);
 });
 
@@ -91,17 +94,17 @@ test("on the default branch the links file and the register entries are named to
 // TST-833002 · level: unit · module: MOD-trace-pages
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: a product Host whose Snapshot holds SPEC.md and docs/sources.md, and an instance Host, another one, whose Snapshot holds the two register entries
-// input: the specification route drawn at main, its first section opened, the subject asked for
-// expect: the instance's Snapshot is told the two entries in one readMany, before it reads them once each; the product's Snapshot is told nothing and reads docs/sources.md once; known positive: the subject's source is SRC-acme-person
+// input: the specification route drawn at main, its first group opened, the subject asked for
+// expect: the instance's Snapshot is told the two entries in one readMany, before it reads them once each; the product's Snapshot is told nothing of the register, only the trace graph's batch (SPEC.md and the group file), and reads docs/sources.md once; known positive: the subject's source is SRC-acme-person
 test("where the register is another snapshot's, its entries are named to readMany together and the links file is read by itself", async () => {
   const events = [];
-  const product = recordingHost({ label: "product", files: { "SPEC.md": SPEC, "docs/sources.md": LINKS }, events });
+  const product = recordingHost({ label: "product", files: { "SPEC.md": SPEC, [GROUP_FILE]: GROUPS, "docs/sources.md": LINKS }, events });
   const instance = recordingHost({ label: "instance", files: REGISTER, events });
   const subject = await drawn({ product, instance });
   const instanceCalls = events.filter((event) => event.startsWith("instance "));
   assert.equal(instanceCalls[0], `instance many ${PERSON_FILE},${OTHER_FILE}`);
   assert.deepEqual(instanceCalls.slice(1).sort(), [`instance read ${OTHER_FILE}`, `instance read ${PERSON_FILE}`].sort());
-  assert.deepEqual(events.filter((event) => event.startsWith("product many")), []);
+  assert.deepEqual(events.filter((event) => event.startsWith("product many")), ["product many SPEC.md,docs/groups/requirements.md"]);
   assert.deepEqual(events.filter((event) => event === "product read docs/sources.md"), ["product read docs/sources.md"]);
   assert.equal(subject.paramsFor({ name: "po-opus" }).source, PERSON);
 });
@@ -110,11 +113,11 @@ test("where the register is another snapshot's, its entries are named to readMan
 // TST-833003 · level: unit · module: MOD-trace-pages
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the Host of case 1 without readMany on its Snapshots
-// input: the specification route drawn at main, its first section opened, the subject asked for
+// input: the specification route drawn at main, its first group opened, the subject asked for
 // expect: the three files of the register are read once each by read, no call is refused, and the subject's source is SRC-acme-person
 test("a snapshot without readMany is read file by file as before", async () => {
   const events = [];
-  const host = recordingHost({ label: "host", files: { "SPEC.md": SPEC, "docs/sources.md": LINKS, ...REGISTER }, events, pinned: true, batching: false });
+  const host = recordingHost({ label: "host", files: { "SPEC.md": SPEC, [GROUP_FILE]: GROUPS, "docs/sources.md": LINKS, ...REGISTER }, events, pinned: true, batching: false });
   const subject = await drawn({ product: host, instance: host });
   assert.deepEqual(register(events).sort(), [`host read docs/sources.md`, `host read ${OTHER_FILE}`, `host read ${PERSON_FILE}`].sort());
   assert.equal(subject.paramsFor({ name: "po-opus" }).source, PERSON);
@@ -124,14 +127,14 @@ test("a snapshot without readMany is read file by file as before", async () => {
 // TST-833004 · level: unit · module: MOD-trace-pages
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the Host of case 1, and a ref v1.0 that is not the default branch
-// input: the specification route drawn at v1.0, its first section opened
-// expect: no call names docs/sources.md or an entry of the register, and nothing is told to readMany
+// input: the specification route drawn at v1.0, its first group opened
+// expect: no call names docs/sources.md or an entry of the register, and nothing is told to readMany but the trace graph's batch for the counts of the groups (SPEC.md and the group file)
 test("at a released version no file of the register is asked for", async () => {
   const events = [];
-  const host = recordingHost({ label: "host", files: { "SPEC.md": SPEC, "docs/sources.md": LINKS, ...REGISTER }, events, pinned: true });
+  const host = recordingHost({ label: "host", files: { "SPEC.md": SPEC, [GROUP_FILE]: GROUPS, "docs/sources.md": LINKS, ...REGISTER }, events, pinned: true });
   await drawn({ product: host, instance: host, ref: "v1.0" });
   assert.deepEqual(register(events), []);
-  assert.deepEqual(events.filter((event) => event.startsWith("host many")), []);
+  assert.deepEqual(events.filter((event) => event.startsWith("host many")), ["host many SPEC.md,docs/groups/requirements.md"]);
 });
 
 // An opened requirement (ITM-846): the specification of the cases below holds two requirements that name the person's source, SRC-acme-person, as their source.

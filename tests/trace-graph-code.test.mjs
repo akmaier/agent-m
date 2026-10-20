@@ -199,7 +199,7 @@ test("TST-735007 readMany is told the code files of the languages that are read;
 // guards: UC-025; THE TRACEABILITY MATRIX IS DERIVED
 // given: a repository of a SPEC.md, a use case that realises its requirement, MOD-alpha and MOD-beta, once with no code file and once with src/alpha/a.mjs importing src/beta/b.mjs and src/beta/b.mjs
 // input: graphFindings, coverageGaps and requirementImpact of the requirement, over the graph of each
-// expect: the three results over the graph with the code files equal those over the graph without them; the graph with them holds the imports edge (positive control), the graph without them none
+// expect: coverageGaps and requirementImpact over the graph with the code files equal those over the graph without them, and so do the findings of graphFindings but for the one finding of the import that MOD-alpha's uses do not name (ITM-1068); the graph with them holds the imports edge (positive control), the graph without them none
 test("TST-735008 the checks, the gaps and the impact list give the same result with the code files and their imports", async () => {
   const base = { "SPEC.md": "# Spec\n\n**A THING IS DONE** *(Product Owner)*\n\nIt is done.\n",
     "docs/use-cases/UC-001-a.md": "---\nid: UC-001\ntitle: A\nrealises:\n  - A THING IS DONE\n---\n# UC-001 A\n", ...MODULES };
@@ -207,7 +207,9 @@ test("TST-735008 the checks, the gaps and the impact list give the same result w
   const withCode = await traceGraph(source({ ...base, "src/alpha/a.mjs": 'import { b } from "../beta/b.mjs";\n', "src/beta/b.mjs": "export const b = 1;\n" }));
   assert.equal(withCode.edges.filter((e) => e.via === "imports").length, 1);
   assert.equal(without.edges.filter((e) => e.via === "imports").length, 0);
-  assert.deepEqual(graphFindings(withCode), graphFindings(without));
+  const STATES = "A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES";
+  assert.deepEqual(graphFindings(withCode).filter((found) => found.rule !== STATES), graphFindings(without));
+  assert.deepEqual(graphFindings(withCode).filter((found) => found.rule === STATES).map((found) => [found.artifact, found.line]), [["src/alpha/a.mjs", 1]], "the import is the one finding added");
   assert.deepEqual(coverageGaps(withCode), coverageGaps(without));
   assert.deepEqual(requirementImpact(withCode, "A THING IS DONE"), requirementImpact(without, "A THING IS DONE"));
   assert.ok(requirementImpact(withCode, "A THING IS DONE").length > 0, "positive control: the impact list is not empty");

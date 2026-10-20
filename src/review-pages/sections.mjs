@@ -159,4 +159,4 @@ export async function changeImpact(file, last, body, graphOf) {
     return { problem: el("p", "problem", `The impact list could not be derived: ${failure.message} — without it, this change cannot be accepted.`) };
   }
 }
-export const graphOnce = (snapshot) => { let graph = null; return () => (graph ??= traceGraph(snapshot)); };
+export const graphOnce = (snapshot) => { let graph = null; return () => (graph ??= traceGraph(snapshot, { commit: snapshot.commit })); };

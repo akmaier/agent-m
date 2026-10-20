@@ -16,11 +16,14 @@ import { connect } from "../repository-hosts/index.mjs";
 // edit started, the new-file page where it did not, the link carrying the path only, never the text, which is returned as
 // given. A product on a GitLab server is refused: it has no fallback. `differs` says that the default branch, as the snapshot
 // holds it, no longer has the file as the edit started: the file is there where it did not exist, or not there where it did.
-// No request is made.
+// The pages name the repository's default branch: the callers hand in the snapshot they read at `RepositoryInfo`'s `defaultBranch`, so its `ref` names it
+// and is passed to `connect`; a `ref` that is a commit (forty hexadecimal digits) names no branch, and connect's own default, `main`, stands. No request is made.
+const COMMIT = /^[0-9a-f]{40}$/;
 export function fallbackEditLinks(files, snapshot) {
   const { repository } = snapshot;
   if (repository.server === "gitlab") return { refused: "gitlab" };
-  const pages = connect(repository).webLinks();
+  const named = typeof snapshot.ref === "string" && snapshot.ref !== "" && !COMMIT.test(snapshot.ref) ? { defaultBranch: snapshot.ref } : {};
+  const pages = connect(repository, named).webLinks();
   const held = new Set(snapshot.paths);
   return files.map(({ path, text, existing }) => ({
     url: existing ? pages.editFile(path) : pages.newFile(path, ""),
