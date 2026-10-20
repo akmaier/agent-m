@@ -12,10 +12,9 @@
 import { readSetting } from "../browser-store/index.mjs";
 import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
 import { readDocument } from "../documents/index.mjs";
-import { endpointDriver } from "../endpoint-calls/index.mjs";
 import { newJobId, listJobs } from "../job-ledger/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
-import { prepareJob, runJob, writeResult } from "../job-runner/index.mjs";
+import { prepareJob, writeResult } from "../job-runner/index.mjs";
 import { approvalStrategies, statuses } from "../approvals/index.mjs";
 import { differs, eligible, participantSchema, participantsOf } from "../participant-list/index.mjs";
 import { linkedVersion, permittedPlaces } from "../source-register/index.mjs";
@@ -688,17 +687,10 @@ function findingsList(className, findings) {
   return list;
 }
 
-function directEndpointDriver(participant, store) {
-  const name = /^endpoint\s+(\S+)/.exec(participant.route ?? "")?.[1];
-  const stored = name === undefined ? null : readSetting(store, `endpoint:${name}`);
-  if (!stored) throw Object.assign(new Error(`the endpoint ${name ?? "unknown"} has no configuration`), { name: "EndpointNotConfigured" });
-  return endpointDriver({ name, kind: stored.kind, baseUrl: stored.url, model: stored.model, key: stored.key ?? null }, participant);
-}
-
+// *Check this edit*: the edited draft is run again as a whole, in this tab and attended, by MOD-runtimes' runOnTab with its hook `from`; it has no record, so nothing is appended anywhere.
 async function checkDraft(run, draft) {
-  const drivers = { drafter: run.prepared.drafter ? directEndpointDriver(run.prepared.drafter, run.context.store) : null,
-    reviewers: run.prepared.reviewers.map((reviewer) => directEndpointDriver(reviewer, run.context.store)) };
-  return runJob(run.prepared, drivers, { attended: true, context: run.jobContext, from: draft });
+  const acting = [run.prepared.drafter, ...run.prepared.reviewers].filter(Boolean);
+  return runOnTab(run.prepared, run.jobContext, connectionsOf(acting, run.context.store), { host: run.host, record: null, from: draft });
 }
 
 function dueDiligenceMissingText(failure, run) {
