@@ -20,6 +20,7 @@ uses:
   - MOD-repository-hosts.readFileAt
   - MOD-repository-hosts.listTags
   - MOD-repository-hosts.webLinks
+  - MOD-repository-hosts.ciRunLog
   - MOD-repository-hosts.repositoryInfo
   - MOD-documents.artifactSchemas
   - MOD-documents.readDocument
@@ -138,6 +139,12 @@ at the release's commit, and the instance's `SPEC.md`, whose requirements are th
 instance's host that the frame gives every route, it also reads the instance's process models at the commit that this
 `docs/process.md` names (`model_version`), for the model the product had declared at the release (UC-031 6a).
 
+A mark of an opened test's history (UC-029 step 5) finds the id of its run in the `run` address of the result records of its
+commit on the branch `test-results` that hold the test: the last part of the address's path, as `WebLinks`' `run` builds it
+(`…/actions/runs/<id>` on GitHub, `…/-/pipelines/<id>` on GitLab); a mark whose records name no run has no link to a log.
+The link to the full log is `WebLinks`' `run` for that id; where `ciRunLog` gives `null` for it, the server no longer keeps the
+log, the link reads *no longer available*, and the mark keeps its outcome (UC-029 5b).
+
 ## Uses
 
 - MOD-site-frame.View, MOD-site-frame.chosenProduct, MOD-site-frame.explain, MOD-site-frame.notice, MOD-site-frame.readProblem,
@@ -150,7 +157,8 @@ instance's host that the frame gives every route, it also reads the instance's p
   of its history, the release tags, a test's code (`WebLinks`' `file`, the page of the test's file at the version shown)
   and a run's log on the server; for the audit, the instance at the commit the release's declaration names;
   MOD-repository-hosts.repositoryInfo — the default branch, on which alone a requirement leads to editing, and at which
-  the instance's links are read for the person's own source.
+  the instance's links are read for the person's own source; MOD-repository-hosts.ciRunLog — whether the server still keeps a
+  run's log (UC-029 5b).
 - MOD-documents.artifactSchemas, MOD-documents.readDocument, MOD-spec-document.parseSpec, MOD-group-document.parseGroupFile,
   MOD-group-document.hierarchy, MOD-test-document.testDeclarations — the artifacts of the version.
 - MOD-trace-graph.traceGraph, MOD-trace-graph.tracesTo, MOD-trace-graph.coverageGaps, MOD-trace-graph.compareGraphs,
