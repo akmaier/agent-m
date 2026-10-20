@@ -34,9 +34,20 @@ function downloadSection(context) {
   return { section, done: offerFile(host, section) };
 }
 
+// The publisher to look for: the name of the line `Publisher (<system>): <name>` that the release's notes hold for the system (MOD-bridge-build writes one for macOS and one for Windows, none for Linux, where the
+// system checks no code signature); null where the notes hold none, and then no name is written.
+const PUBLISHER_LABEL = { windows: "Windows", macos: "macOS" };
+function publisherOf(notes, system) {
+  const label = PUBLISHER_LABEL[system];
+  const line = label === undefined ? null : new RegExp(`^Publisher \\(${label}\\): (.+)$`, "m").exec(String(notes ?? ""));
+  const name = line?.[1].trim() ?? "";
+  return name === "" ? null : name;
+}
+
 async function offerFile(host, section) {
+  let publisher = null;
   try {
-    const { assets } = await host.listReleaseAssets("latest");
+    const { assets, notes } = await host.listReleaseAssets("latest");
     const system = systemOf(globalThis.navigator?.userAgent);
     const file = system === null ? undefined : assets.find((asset) => BRIDGE_FILE[system].test(asset.name));
     if (file === undefined) {
@@ -55,11 +66,16 @@ async function offerFile(host, section) {
           section.append(el("p", null, sumsLink));
         }
       }
+      publisher = publisherOf(notes, system);
+      section.append(publisher === null ? el("p", "bridge-no-publisher", "The release names no publisher for this system.")
+        : el("p", null, "Publisher to look for: ", el("span", "bridge-publisher", publisher)));
     }
   } catch (failure) {
     section.append(el("p", "bridge-download-problem", `The Bridge's release could not be read: ${failure?.message ?? failure}.`));
   }
-  section.append(explain("bridge-signed-warning", "Why this warning?"));
+  const warning = explain("bridge-signed-warning", "Why this warning?");
+  if (publisher !== null) warning.append(el("p", "bridge-publisher-in-warning", `The publisher to look for: ${publisher}.`));
+  section.append(warning);
 }
 
 function sharedPagesNotice(context) {
