@@ -15,7 +15,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { INSTRUCTION, LOAN, UC7, UC7_PATH, UC8, UC8_PATH, all, barOf, changed, conversationRecords, draft, goTo, keptDraft, namedButton, one, onUseCase, press, proposalWrites, recordTexts, rest, review, run, save, scenario, send, statusOf, useCases } from "./uc-019-prompt-bar-harness.mjs";
+import { INSTRUCTION, LOAN, UC7, UC7_PATH, UC8, UC8_PATH, all, barOf, changed, conversationRecords, draft, goTo, keptDraft, namedButton, one, onRequirementPage, onUseCase, press, proposalWrites, recordTexts, rest, review, run, save, scenario, send, statusOf, useCases } from "./uc-019-prompt-bar-harness.mjs";
 import { AGENT, CI_AGENT, DRAFTER, HANDY, RUN_URL, SUBAGENT, TOOLER, answer, barText, calls, conversationOf, followClock, free, registerOf, sendNow, textOfSent, watch, withWorkflow } from "./uc-049-world.mjs";
 import { appendToRecord } from "../src/job-ledger/index.mjs";
 import { byClass, until } from "./review-pages-draft-world.mjs";
@@ -524,8 +524,9 @@ test("alternative 6c: a conversation held on a page of the instance is recorded 
 // expect: UC-049 4a.3 says the run's answer appears with the commits it made — artifacts committed as open —: the run ends done and commits the change as an open proposal. FINDING: the run ends failed with "entrySections needs the job's source as text": the record the bar queues carries the requirement and no source (the person's own source, which the message of the tab names), so this case is red on main until the hand-over gives the job its source
 test("alternative 4a: a hand-over of a change of requirements runs to its end and commits an open proposal", async () => {
   const s = await scenario({ instanceFiles: register(DRAFTER, HANDY), answers: [{ answer: "x" }] });
-  const w = watch(s, { script: [answer("Handing on.", { handOver: { kind: "change-requirements", works_on: [LOAN], task: "Make the due date visible." } })] });
+  const w = watch(s, { script: [answer("Handing on.", { candidates: [], handOver: { kind: "change-requirements", works_on: [LOAN], task: "Make the due date visible." } })] });
   const clock = followClock();
+  await onRequirementPage(s); // the page UC-049 4a means: the requirement's own, whose subject is of the kind change-requirements and gives the person's own source
   await sendNow(s, "Please change this rule.", { participant: "handy" });
   await free(s);
   await until(() => all(barOf(s), "button", "queue").length > 0, "the hand-over is offered");
