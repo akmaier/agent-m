@@ -30,7 +30,9 @@ const jobState = (status) => JOB_STATES[status] ?? "queued";
 const PIPELINE_CI = { success: "success", failed: "failure", canceled: "failure", canceling: "failure", skipped: "none" };
 // A merge request ("List project merge requests"): locked, one being merged, is still open.
 const MR_STATES = { opened: "open", locked: "open", merged: "merged", closed: "closed" };
-const pullOf = (m) => ({ number: m.iid, title: m.title, branch: m.source_branch, base: m.target_branch, head: m.sha, state: MR_STATES[m.state] ?? "closed", draft: m.draft === true,
+// mergeCommit: the merge commit, else the squash commit, else — a fast-forward — the head, which has landed on the target; null while the merge request is not merged.
+const pullOf = (m) => ({ number: m.iid, title: m.title, branch: m.source_branch, base: m.target_branch, head: m.sha,
+  mergeCommit: m.state === "merged" ? m.merge_commit_sha ?? m.squash_commit_sha ?? m.sha : null, state: MR_STATES[m.state] ?? "closed", draft: m.draft === true,
   url: m.web_url, opened: m.created_at, merged: m.merged_at ?? null, closed: m.closed_at ?? null, body: m.description ?? "" });
 
 // An issue of "New issue" / "List project issues" as the Issue: iid its number, description its body, state opened is open, labels the names.
