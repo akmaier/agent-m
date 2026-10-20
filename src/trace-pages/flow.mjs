@@ -705,12 +705,26 @@ function modulesTable(rows, graph, reviewOf, snapshot) {
   return el("section", "modules-table", el("h3", null, "Modules"), box);
 }
 
-// Every gap of moduleRows with the artifact it concerns (UC-025 step 4), or the line that there is none (4a).
-function modulesGaps(gaps, ref) {
+// The next step a gap offers (UC-025 step 6), on the default branch only: *Change the architecture* for a requirement without a module (UC-023), to the review pages' list of the architecture's decisions, and
+// *Implement* for a module without code or without tests (UC-024), to the route `implement`. Each is a link; it starts and writes nothing.
+const NEXT_STEP = {
+  "requirement-without-module": { className: "gap-change-architecture", text: "Change the architecture", href: "#decision" },
+  "module-without-code": { className: "gap-implement", text: "Implement", href: "#implement" },
+  "module-without-test": { className: "gap-implement", text: "Implement", href: "#implement" },
+};
+
+// Every gap of moduleRows with the artifact it concerns (UC-025 step 4), or the line that there is none (4a); with `next`, the step its kind offers.
+function modulesGaps(gaps, ref, next) {
   if (!gaps.length) return el("p", "no-gaps", `There are no gaps at ${ref}.`);
   const list = el("ul", "trace-list", ...gaps.map((gap) => {
     const item = el("li", "module-gap", `${gap.artifact} — ${gap.what}`);
     item.setAttribute("data-kind", gap.kind);
+    const step = next ? NEXT_STEP[gap.kind] : undefined;
+    if (step) {
+      const link = el("a", `${step.className} btn small`, step.text);
+      link.setAttribute("href", step.href);
+      item.append(" ", link);
+    }
     return item;
   }));
   return el("section", "modules-gaps", el("h3", null, "Gaps"), list);
@@ -737,7 +751,8 @@ async function drawModules(target, context, host, ref, descriptor) {
     return;
   }
   const { rows, gaps } = moduleRows(graph);
-  place.replaceChildren(await renderMermaid(componentDiagram(files)), explain("component-diagram"), modulesTable(rows, graph, statuses(shown.snapshot), shown.snapshot), modulesGaps(gaps, ref));
+  const next = await onDefaultBranch(host, ref);
+  place.replaceChildren(await renderMermaid(componentDiagram(files)), explain("component-diagram"), modulesTable(rows, graph, statuses(shown.snapshot), shown.snapshot), modulesGaps(gaps, ref, next));
 }
 
 export const route = {
