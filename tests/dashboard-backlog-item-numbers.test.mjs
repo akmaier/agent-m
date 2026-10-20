@@ -62,7 +62,7 @@ test("#backlog — a file with two digits is no item, a file with three still is
 // ---------------------------------------------------------------- Start sprint writes the selection in the order of the numbers
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-const DECLARATION = ["---", "model: fixture-scrum-wip", "model_file: docs/process-models/fixture.md", `model_version: ${"a".repeat(40)}`, "---", "# How the fixture product is developed", "",
+const DECLARATION = ["---", "model: fixture-scrum-wip", "model_file: docs/process-models/fixture.md", `model_version: ${"c0ffee".padEnd(40, "0")}`, "---", "# How the fixture product is developed", "",
   "## Practices", "", "- none", "", "## Branches", "", "| Phase or time box | Branch |", "|---|---|", "| Sprint | `sprint/<team>/<nn>` |", "", "## Definition of Done", "", "The job rules hold.", ""].join("\n");
 const ASSIGNMENT = "# team1\n\n## Roles\n\n| Role | Participants |\n|---|---|\n| Owner | alice |\n| Builders | dev-a |\n| Checker | dev-a |\n";
 const refs = (created) => async (url, init) => {

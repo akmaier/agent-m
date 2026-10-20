@@ -38,6 +38,8 @@ export const CURRENT_RULE = "Every loan states its due date.";
 const txt = (...lines) => `${lines.join("\n")}\n`;
 export const SPEC = txt("# Lending tool", "", "## Lending", "", `**${LOAN}** *(SRC-policy)*`, CURRENT_RULE,
   "*Check:* `tests/loan.test.mjs`", "", `**${SHELF}** *(SRC-policy)*`, "Every book has a shelf.", "*Check:* `tests/shelf.test.mjs`", "");
+// The group file of the product: the group "Lending" holds both requirements, in the order of the SPEC (the specification browser draws the groups of this file).
+export const GROUPS = txt(`- Lending`, `  - ${LOAN}`, `  - ${SHELF}`);
 const ROOT = new URL("../", import.meta.url);
 export const readOriginal = (path) => readFileSync(new URL(path, ROOT), "utf8");
 const PERSON = txt("---", `id: ${SOURCE}`, "title: Author", "kind: person", "identifier: github.com/akmaier", "authority: advisory",
@@ -101,7 +103,7 @@ export async function scenario({ owner = "akmaier", linked = true, answers = [dr
     if (url.origin === "https://api.github.com" && (init.method ?? "GET") === "GET" && /^\/repos\/[^/]+\/[^/]+\/tags$/.test(url.pathname)) return response([]);
     return null;
   };
-  const product = await repoServer({ repo, files: { "README.md": "# Lending tool\n", "SPEC.md": SPEC,
+  const product = await repoServer({ repo, files: { "README.md": "# Lending tool\n", "SPEC.md": SPEC, "docs/groups/requirements.md": GROUPS,
     "docs/sources.md": linked ? LINKS : LINKS.split("\n").filter((line) => !line.startsWith(`| ${SOURCE} |`)).join("\n"),
     ".github/workflows/agent-m-jobs.yml": "name: Agent M jobs\n", ...extraFiles } });
   const chapterFolder = "docs/sources/SRC-vibe-coding/2026-10-05/";
@@ -177,9 +179,9 @@ export async function press(s, node) {
   click(node);
   await rest(s);
 }
-// The specification browser, as the frame draws it for the product, with the section "Lending" unfolded and, unless `group`, A LOAN HAS A DUE DATE opened.
+// The specification browser, as the frame draws it for the product, with the group "Lending" unfolded and, unless `group`, A LOAN HAS A DUE DATE opened.
 export async function fromTrace(s, group = false) {
-  await press(s, one(s.target, "button", "spec-section-toggle"));
+  await press(s, one(s.target, "button", "spec-group-toggle"));
   if (!group) await press(s, all(s.target, "button", "requirement-name").find((button) => button.textContent === LOAN));
 }
 // The review pages' page of the requirement LOAN (the route `requirement`), where the bar's subject names the requirement and the route `draft`.

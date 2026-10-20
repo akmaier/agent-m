@@ -171,7 +171,7 @@ test("alternative 2a: at a released version the participant is given that versio
   const s = await scenario({ instanceFiles: register(DRAFTER) });
   const w = watch(s, { script: [answer("At v1.0.0 the rule reads: every loan states its due date.")] });
   await goTo(s, `#trace/key=specification/ref=v1.0.0/product=${encodeURIComponent(s.address)}`);
-  await press(s, one(s.target, "button", "spec-section-toggle"));
+  await press(s, one(s.target, "button", "spec-group-toggle"));
   await press(s, all(s.target, "button", "requirement-name").find((button) => button.textContent === LOAN));
   await sendNow(s, INSTRUCTION);
   await free(s);

@@ -11,7 +11,7 @@
 
 import { pagesAddress } from "../identifiers/index.mjs";
 import { finding } from "../text-tools/index.mjs";
-import { unmatchedNames } from "./derive.mjs";
+import { importsNotNamed, unmatchedNames } from "./derive.mjs";
 
 const REALISES = "A USE CASE REALISES NAMED REQUIREMENTS";
 const ORIGIN = "EVERY ARTIFACT NAMES ITS ORIGIN";
@@ -23,6 +23,7 @@ const CHANGES = "A BACKLOG ITEM NAMES THE MODULES IT CHANGES";
 const LEVEL = "A PLAN STEP NAMES THE TESTS OF ITS LEVEL";
 const FOLDER = "A MODULE IS A FOLDER";
 const GROUP = "A GROUP CARRIES NO IDENTIFIER";
+const STATES = "A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES";
 const SELF_SUFFICIENT = "THE PRODUCT REPOSITORY IS SELF-SUFFICIENT";
 
 const error = (artifact, line, rule, what, fix) => finding({ artifact, line, kind: "error", rule, what, fix });
@@ -189,11 +190,18 @@ function folders(graph) {
   return found;
 }
 
+// A code file's import of a module that the file's own module names no interface of among its `uses`, at the file and line of the import, with the module imported — the imports moduleRows lists as a gap.
+function imports(graph) {
+  return importsNotNamed(graph).map(({ edge, own }) => error(edge.path, edge.line, STATES,
+    `${edge.path}:${edge.line} imports ${edge.to}, which the file of ${own} does not name among the interfaces it uses`,
+    `name an interface of ${edge.to} among the uses of ${own}, or remove the import`));
+}
+
 // graphFindings(graph: Graph) -> Finding[] — the checks across artifacts, each decided from the graph alone, one after the other,
 // and last the graph's positions, the warnings of references by position, as they stand in the graph.
 export function graphFindings(graph) {
   return [...names(graph), ...interfaces(graph), ...cycles(graph), ...subsystems(graph), ...wholeArchitecture(graph),
-    ...changedModules(graph), ...planSteps(graph), ...folders(graph), ...graph.positions];
+    ...changedModules(graph), ...planSteps(graph), ...folders(graph), ...imports(graph), ...graph.positions];
 }
 
 // A link target is read as a reference from the file that writes it, against the root of the repository's files: a relative target,

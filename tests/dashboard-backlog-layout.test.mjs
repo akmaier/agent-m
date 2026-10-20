@@ -79,7 +79,7 @@ const port = async () => await new Promise((resolve) => { const s = createServer
 
 const SPEC = "# SPEC\n\n## 1. Rules\n\n**RULE ONE** *(PO, 2026-09-01)*\nThe first rule.\n*Check:* no automatic check; at review.\n";
 const DECLARATION = ["---", "model: fixture-scrum-wip", "model_file: docs/process-models/fixture.md",
-  `model_version: ${"a".repeat(40)}`, "---", "# How the fixture product is developed", "", "## Practices", "", "- none", "",
+  `model_version: ${"c0ffee".padEnd(40, "0")}`, "---", "# How the fixture product is developed", "", "## Practices", "", "- none", "",
   "## Branches", "", "| Phase or time box | Branch |", "|---|---|", "| Sprint | `sprint/<team>/<nn>` |", "",
   "## Definition of Done", "", "The job rules hold.", ""].join("\n");
 const assignment = (team, owner, builder) => `# ${team}\n\n## Roles\n\n| Role | Participants |\n|---|---|\n| Owner | ${owner} |\n`

@@ -1,6 +1,7 @@
 // The public trace Route for the specification, the gaps and the modules (the modules page draws the component diagram, UC-025 step 5). Above its page it offers the ref its caller hands (current, when that is the default
 // branch) and every tag of the product, newest first (UC-020 steps 1, 1a, 1c); choosing one draws the page again at it. The specification page
-// reads the SPEC alone. Opening a requirement shows its four fields at once and, beside them, what traces to it (UC-020 step 5): the trace
+// draws the tree of the group file docs/groups/requirements.md (UC-020 steps 2 and 3): every requirement once with its status, which the open entries of the change queues give it,
+// and each group with how many requirements it holds and how many of them no use case realises. Opening a requirement shows its four fields at once and, beside them, what traces to it (UC-020 step 5): the trace
 // graph of the version drawn is built when the first requirement is opened, through the snapshot's readMany, and kept for every later
 // opening; the sources with version and part, the use cases with their review status, the decisions, modules and tests that name it,
 // and the unknown names they also name, each a link (step 6). The gaps page (step 7) draws, from the graph of the version drawn, the matrix of
@@ -8,16 +9,17 @@
 // it says so when there are none (7a) and says which kinds of artifact the version does not hold (7b), and a requirement or use case in a list
 // opens as it read in that version. The graph of one version is built once and kept, in memory, for every page drawn at it while the page of the frame
 // stays loaded. It writes nothing. On the default branch the specification leads to the review pages' editing: Edit beside each requirement and
-// + Requirement in each section; at any other ref the view says "as of" it and offers neither. Beside the choice a link leads from the specification to the gaps
+// + Requirement once for each section, beside the tree; at any other ref the view says "as of" it and offers neither. Beside the choice a link leads from the specification to the gaps
 // and from the gaps back to the specification, at the ref shown (UC-020 step 7); it reads nothing.
 //
 // Module: MOD-trace-pages
 
 import { parseSpec } from "../spec-document/index.mjs";
+import { hierarchy, parseGroupFile } from "../group-document/index.mjs";
 import { renderArtifact, renderMermaid } from "../markdown-render/index.mjs";
 import { artifactSchemas, readDocument } from "../documents/index.mjs";
 import { statuses } from "../approvals/index.mjs";
-import { queues } from "../spec-changes/index.mjs";
+import { entryView, queues } from "../spec-changes/index.mjs";
 import { affectedRequirements, linkedVersion, sourceSchemas } from "../source-register/index.mjs";
 import { coverageGaps, traceGraph, tracesTo } from "../trace-graph/index.mjs";
 import { explain } from "../site-frame/index.mjs";
@@ -27,6 +29,7 @@ import { showTests } from "./tests.mjs";
 import { instanceSnapshot, opening, personsSource, subjectOf } from "./subject.mjs";
 
 const SPEC_PATH = "SPEC.md";
+const GROUP_PATH = "docs/groups/requirements.md";
 
 function el(name, className, ...children) {
   const node = document.createElement(name);
@@ -323,13 +326,16 @@ function reviewLink(className, text, route, params) {
   return anchor;
 }
 
-function requirementRows(requirement, editable, shown) {
+// The status of a requirement the SPEC holds: "in SPEC", or what an open entry of a change queue would do to it (UC-020 step 3).
+const statusCell = (text) => el("td", "requirement-status", text);
+
+function requirementRows(requirement, editable, shown, status) {
   const button = el("button", "requirement-name btn small", requirement.name);
   button.type = "button";
   const cell = el("td", null, button);
   (shown.cells ??= []).push([requirement.name, cell]);
   if (editable) cell.append(" ", reviewLink("requirement-edit", "Edit", "requirement", { name: requirement.name }));
-  const row = el("tr", null, cell);
+  const row = el("tr", null, cell, statusCell(status));
   const opened = el("tr", "requirement-opened");
   button.addEventListener("click", () => {
     if (opened.textContent) {
@@ -339,7 +345,7 @@ function requirementRows(requirement, editable, shown) {
     }
     const traces = el("div", "requirement-traces", el("p", "traces-reading", "Reading what traces to it…"));
     const cell = el("td", "panel", requirementDetail(requirement), traces);
-    cell.setAttribute("colspan", "1");
+    cell.setAttribute("colspan", "2");
     showTraces(traces, requirement, shown);
     opened.replaceChildren(cell);
     opening(shown.requirements, requirement.name, true);
@@ -347,59 +353,120 @@ function requirementRows(requirement, editable, shown) {
   return [row, opened];
 }
 
-function requirementsTable(requirements, editable, shown) {
+// A table of the members of one place in the tree, each once with its status: a requirement of the SPEC as a row that opens, a requirement an open entry
+// would add (it has no text yet) and a member that names no requirement as rows of their own.
+function membersTable(members, arranged, editable, shown) {
   const body = el("tbody");
-  for (const requirement of requirements) body.append(...requirementRows(requirement, editable, shown));
-  return el("table", "list", el("thead", null, el("tr", null, el("th", null, "Requirement"))), body);
+  for (const { id } of members) {
+    const requirement = arranged.spec.requirements.get(id);
+    if (requirement) body.append(...requirementRows(requirement, editable, shown, arranged.status.get(id) ?? "in SPEC"));
+    else if (arranged.added.has(id)) body.append(el("tr", "requirement-proposed", el("td", null, id), statusCell("proposed")));
+    else body.append(el("tr", "requirement-unknown", el("td", null, id), statusCell("unknown: no requirement of this name")));
+  }
+  return el("table", "list", el("thead", null, el("tr", null, el("th", null, "Requirement"), el("th", null, "Status"))), body);
 }
 
-function overview(spec, editable, shown) {
-  const page = el("section", "current-requirements head", el("h2", null, "Current requirements"));
-  const sectioned = new Set(spec.sections.flatMap((section) => section.requirements));
-  const outside = [...spec.requirements.values()].filter((requirement) => !sectioned.has(requirement.name));
+// Every member of a group and of the groups below it.
+const heldAll = (group) => [...group.members, ...group.groups.flatMap(heldAll)];
 
-  if (outside.length) page.append(requirementsTable(outside, editable, shown));
-  for (const section of spec.sections) {
-    const requirements = section.requirements.map((name) => spec.requirements.get(name)).filter(Boolean);
-    const table = requirementsTable(requirements, editable, shown);
-    const held = { heading: sectionTitle(section.heading), names: requirements.map(({ name }) => name) };
-    table.setAttribute("hidden", "hidden");
-    const toggle = el("button", "spec-section-toggle btn", sectionTitle(section.heading));
-    toggle.type = "button";
-    toggle.setAttribute("aria-expanded", "false");
-    toggle.addEventListener("click", () => {
-      const collapsed = table.getAttribute("hidden") !== null;
-      if (collapsed) {
-        table.removeAttribute("hidden");
-      }
-      else table.setAttribute("hidden", "hidden");
-      toggle.setAttribute("aria-expanded", String(collapsed));
-      opening(shown.groups, held, collapsed, (a, b) => a.heading === b.heading);
-    });
-    const group = el("section", "spec-section", el("h3", null, toggle), table);
-    if (editable) {
-      const added = reviewLink("requirement-new", "+ Requirement", "requirements", { section: section.heading });
-      added.setAttribute("style", "display: inline-block; margin: 0 0 12px;");
-      group.insertBefore(added, table);
-    }
-    page.append(group);
-  }
-  if (!spec.requirements.size) page.append(el("p", "empty", "No current requirements are recorded in SPEC.md."));
+// One group of the tree: its title as the control that opens it, how many requirements it holds (those below it too; a member that names no requirement is
+// none) and, once the trace graph is read, how many of them no use case realises; inside, its own members and the groups below it.
+function groupNode(group, path, arranged, editable, shown) {
+  const names = [...new Set(heldAll(group).map(({ id }) => id))].filter((id) => arranged.spec.requirements.has(id) || arranged.added.has(id));
+  const toggle = el("button", "spec-group-toggle btn", group.title);
+  toggle.type = "button";
+  toggle.setAttribute("aria-expanded", "false");
+  const held = el("span", "spec-group-held", `${names.length} ${names.length === 1 ? "requirement" : "requirements"}`);
+  const unrealised = el("span", "spec-group-unrealised");
+  arranged.counts.push([names, unrealised]);
+  const body = el("div", "spec-group-body");
+  if (group.members.length) body.append(membersTable(group.members, arranged, editable, shown));
+  for (const below of group.groups) body.append(groupNode(below, `${path}/${below.title}`, arranged, editable, shown));
+  body.setAttribute("hidden", "hidden");
+  const spoken = { heading: group.title, path, names: names.filter((id) => arranged.spec.requirements.has(id)) };
+  toggle.addEventListener("click", () => {
+    const collapsed = body.getAttribute("hidden") !== null;
+    if (collapsed) body.removeAttribute("hidden");
+    else body.setAttribute("hidden", "hidden");
+    toggle.setAttribute("aria-expanded", String(collapsed));
+    opening(shown.groups, spoken, collapsed, (a, b) => a.path === b.path);
+  });
+  return el("section", "spec-group", el("h3", null, toggle, " ", held, ", ", unrealised), body);
+}
+
+// The tree of the group file (UC-020 steps 2 and 3): the groups nested, each requirement once in its one place and at the top level where no group names it.
+function overview(arranged, editable, shown) {
+  const page = el("section", "current-requirements head", el("h2", null, "Current requirements"));
+  if (arranged.tree.members.length) page.append(membersTable(arranged.tree.members, arranged, editable, shown));
+  for (const group of arranged.tree.groups) page.append(groupNode(group, group.title, arranged, editable, shown));
+  if (!arranged.spec.requirements.size) page.append(el("p", "empty", "No current requirements are recorded in SPEC.md."));
   return page;
+}
+
+// *+ Requirement* once for each section of the SPEC, beside the tree and not within it, each opening `requirements/new` for its section (UC-018 3d).
+function addLinks(spec) {
+  const items = spec.sections.map((section) => el("li", null, `${sectionTitle(section.heading)} `,
+    reviewLink("requirement-new", "+ Requirement", "requirements", { section: section.heading })));
+  return items.length ? el("ul", "spec-add-requirements", ...items) : null;
+}
+
+// The group file at the version drawn, set against the items it arranges: the requirements of the SPEC and those an open entry would add. `status` names what an
+// open entry would do to a requirement of the SPEC (the first entry that names it); `added` the names an entry would add.
+async function arrangement(snapshot, spec, waiting) {
+  const status = new Map();
+  const added = new Set();
+  // The rationales the impact lists read are named to Snapshot.readMany first, in one batch; a host that cannot batch reads nothing ahead.
+  const rationales = waiting.map(({ entry }) => entry.rationale).filter(Boolean);
+  if (rationales.length) await snapshot.readMany?.(rationales);
+  for (const { queue, entry } of waiting) {
+    let impact;
+    try {
+      impact = (await entryView(queue.folder, entry.number, snapshot)).impact;
+    } catch {
+      continue;
+    }
+    for (const { name, change } of impact) {
+      if (change === "added") {
+        if (!spec.requirements.has(name)) added.add(name);
+      } else if (spec.requirements.has(name) && !status.has(name)) status.set(name, change === "withdrawn" ? "removal proposed" : "change proposed");
+    }
+  }
+  const items = [...spec.requirements.keys(), ...added];
+  const { tree } = hierarchy(parseGroupFile(GROUP_PATH, (await snapshot.read(GROUP_PATH)) ?? ""), items);
+  return { spec, tree, status, added, counts: [] };
+}
+
+// Fills in, once the trace graph is read, how many requirements of each group no use case realises: the names coverageGaps lists, and those an entry would add,
+// which nothing realises yet. A graph that cannot be read is said in place of the counts.
+async function countUnrealised(shown, arranged) {
+  if (!arranged.counts.length) return;
+  let without;
+  try {
+    without = new Set(coverageGaps(await factsOf(shown).graph()).requirementsWithoutUseCase);
+  } catch {
+    for (const [, node] of arranged.counts) node.textContent = "whether a use case realises them could not be read";
+    return;
+  }
+  for (const [names, node] of arranged.counts) {
+    node.textContent = `${names.filter((id) => without.has(id) || arranged.added.has(id)).length} that no use case realises`;
+  }
 }
 
 // The entries of the change queues that wait for acceptance — open, stale, or waiting for the anchor another entry creates — each as a link to its page
 // in the review pages, by the identifier `spec-<queue folder>-<NN>` MOD-review-pages addresses an entry by. A queue that cannot be read gives none.
-async function waitingSection(snapshot) {
-  if (!snapshot.paths.some((path) => path.startsWith("docs/spec-freigaben/"))) return null;
+async function waitingEntries(snapshot) {
+  if (!snapshot.paths.some((path) => path.startsWith("docs/spec-freigaben/"))) return [];
   let all;
   try {
     all = await queues(snapshot);
   } catch {
-    return null;
+    return [];
   }
-  const waiting = all.flatMap((queue) => queue.entries.filter((entry) => ["open", "stale", "waiting for its anchor"].includes(entry.state))
+  return all.flatMap((queue) => queue.entries.filter((entry) => ["open", "stale", "waiting for its anchor"].includes(entry.state))
     .map((entry) => ({ queue, entry })));
+}
+
+function waitingSection(waiting) {
   if (!waiting.length) return null;
   const items = waiting.map(({ queue, entry }) => {
     const name = `${queue.folder.slice(queue.folder.lastIndexOf("/") + 1)}-${String(entry.number).padStart(2, "0")}`;
@@ -408,10 +475,12 @@ async function waitingSection(snapshot) {
   return el("section", "spec-waiting head", el("h2", null, "SPEC changes waiting for acceptance"), el("ul", "list", ...items));
 }
 
-// The links from the specification to the review pages' lists of the SPEC change entries and of their history, on the default branch only.
+// The links from the specification to the review pages' lists of the SPEC change entries and of their history, and to the arrangement of the requirements
+// (`#arrange/kind=requirements`: the route arrange reads its group kind as the parameter `kind`), on the default branch only.
 function specChangeLinks() {
   return el("p", "spec-change-links", reviewLink("spec-entries-link", "All SPEC change entries", "spec-entry", {}),
-    " ", reviewLink("spec-history-link", "History of SPEC changes", "spec-entry", { id: "history" }));
+    " ", reviewLink("spec-history-link", "History of SPEC changes", "spec-entry", { id: "history" }),
+    " ", reviewLink("arrange-link", "Arrange", "arrange", { kind: "requirements" }));
 }
 
 // Whether the ref on view is the repository's default branch, which the Host names: editing is offered there only (UC-018). A Host that cannot say is read as no.
@@ -564,11 +633,14 @@ export const route = {
           fill = () => showTests(place, shown);
         } else {
           if (shown.onDefaultBranch) shown.source = await personsSource(context, snapshot);
-          const waiting = shown.onDefaultBranch ? await waitingSection(snapshot) : null;
+          const open = shown.onDefaultBranch ? await waitingEntries(snapshot) : [];
+          const waiting = waitingSection(open);
+          const arranged = await arrangement(snapshot, shown.spec, open);
+          const adding = shown.onDefaultBranch ? addLinks(shown.spec) : null;
           body = shown.onDefaultBranch
-            ? el("div", "specification-page", ...(waiting ? [waiting] : []), overview(shown.spec, true, shown), specChangeLinks())
-            : overview(shown.spec, false, shown);
-          fill = () => markSourceChanged(shown);
+            ? el("div", "specification-page", ...(waiting ? [waiting] : []), overview(arranged, true, shown), ...(adding ? [adding] : []), specChangeLinks())
+            : overview(arranged, false, shown);
+          fill = () => Promise.all([markSourceChanged(shown), countUnrealised(shown, arranged)]);
         }
       } catch (error) {
         if (!chosen) throw error;
