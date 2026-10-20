@@ -121,7 +121,7 @@ export const route = {
       return;
     }
 
-    const graph = await traceGraph(facts.snapshot);
+    const graph = await traceGraph(facts.snapshot, { commit: facts.snapshot.commit });
     const architecture = architectureOf(graph);
     const marked = await marksOf(facts, graph, product.host);
     const marksFor = (id) => marked.filter((each) => each.artifact === id);
