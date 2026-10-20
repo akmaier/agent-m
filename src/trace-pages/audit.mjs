@@ -187,12 +187,18 @@ function page(loaded, links) {
 }
 
 /**
- * drawAudit(target, context, host, ref, descriptor, tags) — draws the audit of the release tag `ref` (the newest of `tags`, the release tags newest first, where
- * `ref` is none of them) into `target`; the choice offers `tags` and nothing else, and choosing one draws the page again at it. Where a read fails the page names it.
+ * drawAudit(target, context, host, ref, descriptor, tags, tagsProblem) — draws the audit of the release tag `ref` (the newest of `tags`, the release tags newest first, where
+ * `ref` is none of them) into `target`; the choice offers `tags` and nothing else, and choosing one draws the page again at it. Where a read fails the page names it;
+ * `tagsProblem`, when the tags could not be read, is the element that says so, and stands in place of the audit.
  */
-export async function drawAudit(target, context, host, ref, descriptor, tags) {
+export async function drawAudit(target, context, host, ref, descriptor, tags, tagsProblem = null) {
   const place = el("div", "audit-body");
   const section = el("section", "audit head", el("h2", null, descriptor.title), place);
+  if (tagsProblem) {
+    target.replaceChildren(section);
+    place.append(tagsProblem);
+    return;
+  }
   if (!tags.length) {
     target.replaceChildren(section);
     place.append(el("p", "version-none", "No release is tagged yet (UC-013); there is nothing to audit."));

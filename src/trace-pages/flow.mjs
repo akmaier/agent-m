@@ -22,7 +22,7 @@ import { statuses } from "../approvals/index.mjs";
 import { entryView, queues } from "../spec-changes/index.mjs";
 import { affectedRequirements, linkedVersion, sourceSchemas } from "../source-register/index.mjs";
 import { coverageGaps, moduleRows, traceGraph, tracesTo } from "../trace-graph/index.mjs";
-import { explain } from "../site-frame/index.mjs";
+import { explain, readProblem } from "../site-frame/index.mjs";
 import { componentDiagram } from "./diagram.mjs";
 import { descriptorFor } from "./views.mjs";
 import { showTests } from "./tests.mjs";
@@ -100,6 +100,8 @@ async function sourcesOf(shown) {
 
 const REVIEW = { open: "open", accepted: "accepted", changed: "changed since acceptance" };
 const problemLine = (what, failure) => el("p", "traces-problem", `${what} could not be read: ${failure?.message ?? failure}`);
+// A failed read of the specification view: what failed, then the frame's problem for the failure. A context that does not say whether a token is stored is read as one that does.
+const failedRead = (className, what, failure, context) => el("div", className, `${what} could not be read: `, readProblem(failure, context.product.tokenStored !== false));
 const listOf = (items) => el("ul", "trace-list", ...items.map((item) => el("li", null, item)));
 
 // The graph of a commit is built once for the page that holds the browser's store (the Host, where the context has none), whichever page asks and however
@@ -133,7 +135,7 @@ async function showTraces(box, requirement, shown) {
   try {
     graph = await facts.graph();
   } catch (failure) {
-    box.replaceChildren(problemLine("What traces to this requirement", failure));
+    box.replaceChildren(failedRead("traces-problem", "What traces to this requirement", failure, shown.context));
     return;
   }
   const traces = tracesTo(graph, requirement.name);
@@ -147,7 +149,7 @@ async function showTraces(box, requirement, shown) {
       return el("span", null, linked(found.source.id, found.source.fields.title ?? found.source.id), ` — version ${found.version.version}${found.part ? `, part ${found.part}` : ""}`);
     })) : el("p", "none", "none")));
   } catch (failure) {
-    sections.push(section("Sources", problemLine("The sources", failure)));
+    sections.push(section("Sources", failedRead("traces-problem", "The sources", failure, shown.context)));
   }
 
   sections.push(section("Use cases", traces.useCases.length ? listOf(traces.useCases.map((id) => {
@@ -240,7 +242,7 @@ async function markSourceChanged(shown) {
   try {
     names = await sourceChanged(shown);
   } catch (failure) {
-    shown.target.querySelector?.(".current-requirements, .specification-page")?.append(problemLine("Whether a source moved on", failure));
+    shown.target.querySelector?.(".current-requirements, .specification-page")?.append(failedRead("traces-problem", "Whether a source moved on", failure, shown.context));
     return;
   }
   for (const [name, cell] of shown.cells ?? []) if (names.has(name)) cell.append(" ", el("span", "requirement-source-changed", "source changed"));
@@ -598,7 +600,7 @@ async function onDefaultBranch(host, ref) {
 }
 
 // The tags the Host names, newest first by their vYYYY.MINOR.PATCH numbers; a tag of another form follows them, in the order the Host gave it.
-// A Host that cannot say is read as having none.
+// A Host that cannot say gives the failure with no names.
 const RELEASE = /^v(\d+)\.(\d+)\.(\d+)$/;
 async function tagsOf(host) {
   try {
@@ -608,14 +610,14 @@ async function tagsOf(host) {
       const [x, y] = [numbers(a), numbers(b)];
       return y[0] - x[0] || y[1] - x[1] || y[2] - x[2];
     });
-    return [...released, ...names.filter((name) => !numbers(name))];
-  } catch {
-    return [];
+    return { names: [...released, ...names.filter((name) => !numbers(name))], failure: null };
+  } catch (failure) {
+    return { names: [], failure };
   }
 }
 
 // The choice above the tree: the ref the caller handed, then the tags; the one shown is selected. Without a tag only the handed ref is offered.
-function versionChoice({ shown, handed, current, tags, choose, other }) {
+function versionChoice({ shown, handed, current, tags, tagsFailure, choose, other }) {
   const select = el("select", "version-choice");
   select.setAttribute("aria-label", "Version");
   for (const [value, text] of [[handed, current ? "current" : handed], ...tags.filter((tag) => tag !== handed).map((tag) => [tag, tag])]) {
@@ -632,7 +634,8 @@ function versionChoice({ shown, handed, current, tags, choose, other }) {
     choice.append(across);
   }
   choice.append(explain("trace-versions"));
-  if (!tags.length) choice.append(el("p", "version-none", "No release is tagged yet (UC-013); only the current text can be shown."));
+  if (tagsFailure) choice.append(failedRead("traces-problem", "The tags", tagsFailure, shown.context));
+  else if (!tags.length) choice.append(el("p", "version-none", "No release is tagged yet (UC-013); only the current text can be shown."));
   if (!shown.onDefaultBranch) choice.append(el("p", "version-as-of", `as of ${shown.ref}`));
   return choice;
 }
@@ -777,11 +780,12 @@ export const route = {
       return;
     }
     if (descriptor.key === "audit") {
-      await drawAudit(target, context, host, params.ref, descriptor, (await tagsOf(host)).filter((tag) => RELEASE.test(tag)));
+      const { names, failure } = await tagsOf(host);
+      await drawAudit(target, context, host, params.ref, descriptor, names.filter((tag) => RELEASE.test(tag)), failure && failedRead("traces-problem", "The tags", failure, context));
       return;
     }
     const handed = params.ref;
-    const tags = await tagsOf(host);
+    const { names: tags, failure: tagsFailure } = await tagsOf(host);
     let current = false;
     let latest = 0;
 
@@ -821,11 +825,11 @@ export const route = {
         }
       } catch (error) {
         if (!chosen) throw error;
-        body = el("p", "version-problem", `${ref} could not be read: ${error?.message ?? error}`);
+        body = failedRead("version-problem", ref, error, context);
       }
       if (mine !== latest) return;
       if (!chosen) current = shown.onDefaultBranch;
-      target.replaceChildren(versionChoice({ shown, handed, current, tags, choose: (next) => draw(next, true), other: OTHER[descriptor.key] }), body);
+      target.replaceChildren(versionChoice({ shown, handed, current, tags, tagsFailure, choose: (next) => draw(next, true), other: OTHER[descriptor.key] }), body);
       if (fill) await fill();
     };
     await draw(handed, false);
