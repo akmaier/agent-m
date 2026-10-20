@@ -44,7 +44,7 @@ const PER_ROUTE = {
   "#uc": ["menu", "contrast"], "#uc/UC-001": ["menu", "contrast"], "#use-case/id=UC-002/edit=1": ["menu", "target"],
   "#arc": ["menu", "contrast"], "#arc/ARC-001": ["menu", "contrast"], "#arc/MOD-reader": ["menu", "contrast"],
   "#decision/id=ARC-001/edit=1": ["menu", "target"], "#module": ["menu", "contrast"],
-  "#module/id=MOD-reader/edit=1": ["menu", "target"], "#backlog": ["menu", "contrast", "scroll"],
+  "#module/id=MOD-reader/edit=1": ["menu", "target"], "#backlog": ["menu", "contrast"],
 };
 const TODAY = Object.fromEntries(ROUTES.map((route) => [route.address, (PER_ROUTE[route.address] ?? ["menu"]).map((rule) => RULE[rule]).join("; ")]));
 
