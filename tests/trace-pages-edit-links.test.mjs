@@ -1,7 +1,7 @@
 // Module: MOD-trace-pages
 // MOD-trace-pages' specification view leads to the review pages' editing (ITM-360), as the accepted text of docs/architecture/MOD-trace-pages.md states it: for the
-// specification, "to the review pages, on the default branch only: *Edit* on a requirement, ..., *+ Requirement* in each section, which opens
-// `requirements/new` for that section (UC-018 3d)"; and "Editing, the draft of a change asked for in the prompt bar, and arranging are the review pages' routes, which its links lead to".
+// specification, "to the review pages, on the default branch only: *Edit* on a requirement, *+ Requirement* once for each section of the SPEC, listed beside the tree and not within it,
+// each of which opens `requirements/new` for that section (UC-018 3d)"; and "Editing, the draft of a change asked for in the prompt bar, and arranging are the review pages' routes, which its links lead to".
 // The specification view offers no *Change by prompt*: a change is asked for in the prompt bar (ITM-551); *Arrange* (UC-021) is not part of this file. For UC-018 (step 1, 3d) and UC-019 (step 1).
 // Run: node --test tests/trace-pages-edit-links.test.mjs
 //
@@ -13,7 +13,7 @@
 //     (no repositoryInfo, or it fails) is read as not on the default branch, and no link is offered.
 //   - The links are anchors in the address form the frame reads and the review pages' routes take: `#requirement/name=<NAME>` for Edit and
 //     `#requirements/section=<the section's heading line>` for + Requirement, each part encoded as the frame's fragmentOf encodes it. Edit stands in the requirement's own row
-//     beside its name; + Requirement stands in its section, none for the requirements before the first section.
+//     beside its name; + Requirement stands once for each section of the SPEC in a list beside the group tree (ITM-595), none for the requirements before the first section.
 // Each test case carries its declaration (given / input / expect); where a test expects a link to be absent, the same page is first shown to hold it. The counter-proofs are
 // recorded in the pull request.
 
@@ -48,9 +48,13 @@ Every member holds a card.
 *Check:* \`tests/card.test.mjs\`
 `;
 
-// A Host of the test's own: the default branch main, a SPEC at every ref, and no write.
+// The group file of the library: the Lending group holds A LOAN HAS A DUE DATE then A BOOK IS SHELVED, the Membership group A MEMBER HAS A CARD, and A LIBRARY LENDS BOOKS stands in no group.
+const GROUPS = `- Lending\n  - ${LOAN}\n  - ${SHELF}\n- Membership\n  - ${CARD}\n`;
+
+// A Host of the test's own: the default branch main, a SPEC and a group file at every ref, and no write.
 function host({ defaultBranch = "main", info = true } = {}) {
-  const fake = { async readSnapshot(ref) { return { ref, commit: ref, paths: ["SPEC.md"], read: async (path) => (path === "SPEC.md" ? SPEC : null), blob: () => null }; }, async listTags() { return []; } };
+  const files = { "SPEC.md": SPEC, "docs/groups/requirements.md": GROUPS };
+  const fake = { async readSnapshot(ref) { return { ref, commit: ref, paths: Object.keys(files), read: async (path) => files[path] ?? null, blob: () => null }; }, async listTags() { return []; } };
   if (info === true) fake.repositoryInfo = async () => ({ defaultBranch, visibility: "public", canWrite: false, archived: false, description: "" });
   else if (info === "fails") fake.repositoryInfo = async () => { throw Object.assign(new Error("unreachable"), { name: "Unreachable" }); };
   return fake;
@@ -87,18 +91,22 @@ test("TST-360001 Edit stands beside each requirement on the default branch and l
 
 // TST-360002 · level: unit · module: MOD-trace-pages
 // guards: EDITS ARE PREPARED ON THE DASHBOARD; UC-018 (3d)
-// given: the same specification on the default branch
+// given: the same specification on the default branch, whose groups are Lending and Membership
 // input: the route rendered at main
-// expect: + Requirement in each of the two sections, an anchor to #requirements/section=<the section's heading line, encoded> — "## 1. Lending", "## 2. Membership" —, inside
-//         its own section; none for the requirement before the first section
-test("TST-360002 + Requirement stands in each section and opens requirements/new for that section", async () => {
+// expect: + Requirement once for each of the two sections of the SPEC, an anchor to #requirements/section=<the section's heading line, encoded> — "## 1. Lending", "## 2. Membership" —, in a list
+//         beside the tree, in no group of it, each in an item that names its section; none for the requirement before the first section
+test("TST-360002 + Requirement stands once for each SPEC section, beside the tree, and opens requirements/new for that section", async () => {
   const target = await render(host(), "main");
-  const sections = find(target, (node) => node.localName === "section" && node.className.includes("spec-section"));
-  assert.equal(sections.length, 2);
+  const groups = find(target, (node) => node.localName === "section" && node.className.includes("spec-group"));
+  assert.equal(groups.length, 2, "known positive: the tree holds the two groups of the group file");
   const added = links(target, "requirement-new");
   assert.deepEqual(added.map((node) => node.textContent), ["+ Requirement", "+ Requirement"]);
   assert.deepEqual(added.map((node) => node.getAttribute("href")), ["## 1. Lending", "## 2. Membership"].map((heading) => `#requirements/section=${encodeURIComponent(heading)}`));
-  sections.forEach((section, at) => assert.deepEqual(links(section, "requirement-new"), [added[at]], `section ${at + 1} holds its own + Requirement alone`));
+  for (const group of groups) assert.deepEqual(links(group, "requirement-new"), [], "no group holds a + Requirement");
+  const list = find(target, (node) => node.localName === "ul" && node.className.includes("spec-add-requirements"));
+  assert.equal(list.length, 1, "one list holds them");
+  assert.deepEqual(find(list[0], (node) => node.localName === "li").map((item) => item.textContent), ["1. Lending + Requirement", "2. Membership + Requirement"]);
+  assert.equal(find(list[0], (node) => node.localName === "a" && node.className.includes("requirement-new")).length, 2);
   assert.equal(find(target, (node) => node.localName === "a").length, 10, "four Edit, two + Requirement, the Gaps link, the links to all SPEC change entries and to their history and Arrange, nothing else");
 });
 
@@ -155,15 +163,15 @@ test("TST-399001 an opened requirement offers no Change by prompt", async () => 
 // TST-399002 · level: unit · module: MOD-trace-pages
 // guards: EDITS ARE PREPARED ON THE DASHBOARD; UC-019 (step 1)
 // given: the same specification on the default branch, whose Lending group holds LOAN then SHELF and whose Membership group holds CARD
-// input: the route rendered at main, then each group opened through its spec-section-toggle control
-// expect: both groups are opened (their tables no longer hidden) with + Requirement in each as the known positive; no group offers Change by prompt: no anchor of the class requirement-group-prompt, no text
+// input: the route rendered at main, then each group opened through its spec-group-toggle control
+// expect: both groups are opened (their lists no longer hidden) with + Requirement for each section as the known positive; no group offers Change by prompt: no anchor of the class requirement-group-prompt, no text
 //         "Change by prompt", no anchor whose address starts with #requirements/requirements=
 test("TST-399002 an opened requirement group offers no Change by prompt", async () => {
   const target = await render(host(), "main");
-  find(target, (node) => node.localName === "button" && node.className.includes("spec-section-toggle")).forEach((button) => button.dispatchEvent(new Event("click")));
+  find(target, (node) => node.localName === "button" && node.className.includes("spec-group-toggle")).forEach((button) => button.dispatchEvent(new Event("click")));
 
-  const groups = find(target, (node) => node.localName === "section" && node.className.includes("spec-section"));
-  assert.deepEqual(groups.map((group) => find(group, (node) => node.localName === "table" && node.getAttribute("hidden") === null).length), [1, 1], "known positive: both groups are opened");
+  const groups = find(target, (node) => node.localName === "section" && node.className.includes("spec-group"));
+  assert.deepEqual(groups.map((group) => find(group, (node) => node.localName === "div" && node.className.includes("spec-group-body") && node.getAttribute("hidden") === null).length), [1, 1], "known positive: both groups are opened");
   assert.equal(links(target, "requirement-new").length, 2, "known positive: + Requirement stays");
   assert.equal(links(target, "requirement-group-prompt").length, 0);
   assert.equal(target.textContent.includes("Change by prompt"), false);
@@ -178,7 +186,7 @@ test("TST-399002 an opened requirement group offers no Change by prompt", async 
 test("TST-399003 neither the default branch nor a tag offers Change by prompt on requirements or groups", async () => {
   const openAll = async (ref) => {
     const target = await render(host(), ref);
-    find(target, (node) => node.localName === "button" && (node.className.includes("requirement-name") || node.className.includes("spec-section-toggle"))).forEach((button) => button.dispatchEvent(new Event("click")));
+    find(target, (node) => node.localName === "button" && (node.className.includes("requirement-name") || node.className.includes("spec-group-toggle"))).forEach((button) => button.dispatchEvent(new Event("click")));
     return target;
   };
   const prompts = (target) => [links(target, "requirement-prompt").length, links(target, "requirement-group-prompt").length, target.textContent.includes("Change by prompt") ? 1 : 0];
@@ -195,14 +203,15 @@ test("TST-399003 neither the default branch nor a tag offers Change by prompt on
 // guards: THE SITE WEARS THE PATTERN RECOGNITION LAB'S LOOK; UC-020 (issue #519: + Requirement touched the table below it)
 // given: the specification of a library on the default branch main, two sections
 // input: the route rendered at main
-// expect: in each section, + Requirement carries a style attribute with a bottom margin above zero (px, em or rem), so that it stands apart from the section's table, which follows it
-test("TST-515003 + Requirement carries the space that separates it from the table below it", async () => {
+// expect: each + Requirement is the last child of its list item, no table is its sibling, and the list follows the tree (the section that holds the requirements), so that no table stands against it
+test("TST-515003 + Requirement stands in a list after the tree and touches no table", async () => {
   const target = await render(host(), "main");
   const added = links(target, "requirement-new");
   assert.equal(added.length, 2, "known positive: both sections offer + Requirement");
   for (const link of added) {
-    const space = /(?:^|;)\s*margin(?:-bottom)?\s*:\s*(?:[^;]*\s)?(0*\.?\d*[1-9]\d*)(?:px|em|rem)\s*(?:;|$)/.exec(link.getAttribute("style") ?? "");
-    assert.ok(space, `${link.getAttribute("href")}: a margin above zero, got ${JSON.stringify(link.getAttribute("style"))}`);
-    assert.equal(link.nextSibling.localName, "table", "the table follows it");
+    assert.equal(link.parentNode.localName, "li", `${link.getAttribute("href")}: it stands in a list item`);
+    assert.equal(link.nextSibling, null, "nothing follows it in its item");
+    assert.deepEqual(find(link.parentNode, (node) => node.localName === "table"), []);
+    assert.equal(link.parentNode.parentNode.previousSibling.className.includes("current-requirements"), true, "the list follows the tree");
   }
 });

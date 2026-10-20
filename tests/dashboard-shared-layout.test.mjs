@@ -43,6 +43,7 @@ uses: []
 `;
 const FILES = {
   "SPEC.md": SPEC,
+  "docs/groups/requirements.md": "- A group\n  - FIRST REQUIREMENT\n",
   "docs/use-cases/UC-001-add-a-managed-product.md": USE_CASE,
   "docs/architecture/MOD-fixture.md": MODULE,
 };
@@ -95,9 +96,9 @@ test("#spec and #settings use the layout of #uc and #arc: btn buttons and explai
 // input: each page as the dashboard renders it
 // expect: every setting line of #settings is a card, section.panel, as #arc's groups of content are, and of its tabs the
 //         selected one alone wears the primary look of a btn; on #spec the title of the current requirements stands in a
-//         section.head, and every section of the current SPEC is a heading with its table, as #arc's groups of rows are,
+//         section.head, and every group of the current requirements is a heading with its list, as #arc's groups of rows are,
 //         and no card
-test("groups: a setting line is a section.panel; a section of the current SPEC is a heading with its table, no card", async () => {
+test("groups: a setting line is a section.panel; a group of the current requirements is a heading with its list, no card", async () => {
   const settings = await render("#settings");
   const lines = tags(settings, "section").filter((tag) => classesOf(tag).some((name) => /^settings-/.test(name)))
     .filter((tag) => !classesOf(tag).some((name) => ["settings-tab-panel", "settings-product-list-item"].includes(name)));
@@ -114,7 +115,7 @@ test("groups: a setting line is a section.panel; a section of the current SPEC i
   assert.ok(title > 0, "known positive: #spec renders the title of the current requirements");
   const head = tags(spec.slice(0, title), "section").at(-1) ?? "";
   assert.ok(classesOf(head).includes("head"), `the title of the current requirements stands in a section.head: ${head}`);
-  const sections = tags(spec, "section").filter((tag) => classesOf(tag).includes("spec-section"));
-  assert.ok(sections.length > 0, "known positive: #spec renders the sections of the current SPEC");
-  assert.deepEqual(sections.filter((tag) => classesOf(tag).includes("panel")), [], "no SPEC section is a card");
+  const sections = tags(spec, "section").filter((tag) => classesOf(tag).includes("spec-group"));
+  assert.ok(sections.length > 0, "known positive: #spec renders the groups of the current requirements");
+  assert.deepEqual(sections.filter((tag) => classesOf(tag).includes("panel")), [], "no group is a card");
 });

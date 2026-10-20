@@ -1,5 +1,6 @@
 // What an opened requirement shows beside its four fields, through the dashboard's #spec (ITM-597): what traces to it is read when it is
-// opened and not when the tree is drawn, and kept for every later opening.
+// opened and not when the tree is drawn, and kept for every later opening; where an open entry of a change queue names a requirement, the drawing
+// reads the artifacts once for the entry's impact list, which gives the status of the requirement (ITM-595).
 //
 // Module: MOD-trace-pages
 // Guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
@@ -33,16 +34,17 @@ const FILES = {
   [`docs/spec-freigaben/${QUEUE}/entscheidungen.md`]: "# Decisions — queue 2026-10-09 traced\n\nAppend-only.\n",
   [`docs/spec-freigaben/${QUEUE}/01-entry.md`]: ENTRY,
 };
+const WITHOUT_QUEUE = Object.fromEntries(Object.entries(FILES).filter(([path]) => !path.startsWith("docs/spec-freigaben/")));
 const ARTIFACTS = ["file docs/use-cases/UC-001-traced.md", "file docs/architecture/MOD-traced.md", "file tests/traced.test.mjs"];
 
 // CASE ITM-597-SYSTEM-01
 // TST-597201 · level: system · module: MOD-trace-pages
 // guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
-// given: the dashboard without a token on a repository holding SPEC.md, a use case, a module file and a test file, which name TRACED RULE
+// given: the dashboard without a token on a repository holding SPEC.md, a use case, a module file and a test file, which name TRACED RULE, and no change queue
 // input: the real #spec drawn; its requirement opened; closed; opened again
 // expect: drawing requests none of the three artifact files; opening requests each of them (known positive: the page shows UC-001, MOD-traced and TST-601 as links); closing and opening again request nothing
 test("the dashboard reads the artifacts when a requirement is opened, not when #spec is drawn, and not again on the next opening", async () => {
-  const server = await repoServer({ files: FILES });
+  const server = await repoServer({ files: WITHOUT_QUEUE });
   const page = await openDashboard({ server, hash: "#spec", token: null });
   for (const artifact of ARTIFACTS) assert.ok(!page.requests.includes(artifact), `drawing #spec does not request ${artifact}`);
   const opening = await page.click("button.requirement-name");
@@ -53,12 +55,31 @@ test("the dashboard reads the artifacts when a requirement is opened, not when #
   assert.deepEqual(server.writes, []);
 });
 
+// CASE ITM-595-SYSTEM-01
+// TST-597203 · level: system · module: MOD-trace-pages
+// guards: UC-020 (step 3); A REQUIREMENT SHOWS WHAT TRACES TO IT
+// given: the dashboard without a token on the same repository with the queue 2026-10-09_traced, whose open entry changes TRACED RULE
+// input: the real #spec drawn; its requirement opened; closed; opened again
+// expect: the page draws TRACED RULE as "change proposed" (known positive), having requested the three artifact files once for the entry's impact list; opening, closing and opening again request none of them again
+test("the dashboard reads the artifacts once at the drawing for the impact list of an open entry, and not again when the requirement is opened", async () => {
+  const server = await repoServer({ files: FILES });
+  const page = await openDashboard({ server, hash: "#spec", token: null });
+  assert.ok(page.main().includes("change proposed"), "known positive: the open entry gives the status");
+  for (const artifact of ARTIFACTS) assert.equal(page.requests.filter((request) => request === artifact).length, 1, `drawing #spec requests ${artifact} once`);
+  const opening = await page.click("button.requirement-name");
+  for (const artifact of ARTIFACTS) assert.ok(!opening.includes(artifact), `opening the requirement does not request ${artifact} again`);
+  assert.ok(page.main().includes('href="#use-case/id=UC-001"'), "known positive: the traces are shown");
+  assert.deepEqual(await page.click("button.requirement-name"), [], "closing requests nothing");
+  assert.deepEqual(await page.click("button.requirement-name"), [], "opening again requests nothing");
+  assert.deepEqual(server.writes, []);
+});
+
 // CASE ITM-597-SYSTEM-02
 // TST-597202 · level: system · module: MOD-trace-pages
 // guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
 // given: the dashboard with a stored token on the same repository, whose queue 2026-10-09_traced holds an open entry that changes TRACED RULE
 // input: the real #spec drawn; its requirement opened
-// expect: the page links UC-001 (known positive) and the opened requirement has no open proposals; opening requests no file of the queue; the artifacts were read in batch queries, fewer requests than files
+// expect: the page links UC-001 (known positive) and the opened requirement has no open proposals; opening requests no file of the queue; the artifacts were read, over the whole load, in batch queries, fewer requests than files
 test("the dashboard reads the artifacts in batches when a requirement is opened, and no queue", async () => {
   const graphql = async (url, init) => {
     if (url.pathname !== "/graphql") return null;
@@ -81,7 +102,7 @@ test("the dashboard reads the artifacts in batches when a requirement is opened,
   assert.ok(openedRow.includes("UC-001"), "known positive: the opened requirement's row is the one examined");
   assert.ok(!openedRow.includes("spec-entry"), "the opened requirement shows no proposal");
   assert.deepEqual(opening.filter((request) => request.includes("spec-freigaben")), []);
-  const batches = opening.filter((request) => request.startsWith("handler POST"));
+  const batches = page.requests.filter((request) => request.startsWith("handler POST"));
   assert.ok(batches.length >= 1 && batches.length < Object.keys(FILES).length, `${batches.length} batch queries for ${Object.keys(FILES).length} files`);
   assert.deepEqual(server.writes, []);
 });

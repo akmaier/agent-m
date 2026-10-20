@@ -142,17 +142,19 @@ test("#arc/<id>: a module that names what is not accepted says so, and is not of
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the fixture product with a queue whose one entry is accepted and written, and a queue with an open entry
 // input: open #spec with a token
-// expect: the app reads in two waves, each one request: the SPEC and the queues' heads — 4 files, the two queues' index files
-//         being the same blob —, then the proposals of the open queue — 1 file; no file twice, the accepted queue's proposal
-//         not at all, and no file by itself. The open entry stands under "SPEC changes waiting for acceptance" as a link; the written
+// expect: the app reads in four waves, each one request: the SPEC and the queues' heads — 4 files, the two queues' index files
+//         being the same blob —, then the proposals of the open queue — 1 file —, then its rationale — 1 file, named to the batch before
+//         the impact list of the open entry reads it (the statuses of the specification view, UC-020 step 3) —, then the artifacts of the trace
+//         graph that impact list is made from — 10 files; no file twice, the accepted queue's proposal not at all, and no file by itself. The open entry stands under "SPEC changes waiting for acceptance" as a link; the written
 //         one does not.
-test("#spec: the app reads the SPEC and the queues' heads in one batch and the open queue's proposals in a second", async () => {
+test("#spec: the app reads the SPEC and the queues' heads in one batch, the open queue's proposals in a second, its rationale in a third and the trace graph's artifacts in a fourth", async () => {
   const repo = await product(), srv = await server(repo);
   const page = await openDashboard({ server: srv, hash: "#spec" });
   const wave1 = sorted(["SPEC.md", `${DONE}/entscheidungen.md`, `${DONE}/index.md`, `${OPEN}/entscheidungen.md`]);
-  const wave2 = [`${OPEN}/01-more.md`];
-  assert.deepEqual(batchesOf(page.requests), ["batch 4", "batch 1"]);
-  assert.deepEqual(srv.batches.map(sorted), [wave1, wave2]);
+  const wave2 = [`${OPEN}/01-more.md`], wave3 = [`${OPEN}/01-more.begruendung.md`];
+  assert.deepEqual(batchesOf(page.requests), ["batch 4", "batch 1", "batch 1", "batch 10"]);
+  assert.deepEqual(srv.batches.slice(0, 3).map(sorted), [wave1, wave2, wave3]);
+  assert.deepEqual(srv.batches[3].filter((path) => path === "SPEC.md" || wave1.includes(path)), [], "the fourth batch repeats none of the first");
   assert.equal(new Set(srv.batches.flat()).size, srv.batches.flat().length, "no file twice");
   assert.deepEqual(files(page.requests).filter((p) => p !== "SPEC.md"), [], "the app reads no file by itself");
   const main = page.main();
@@ -165,7 +167,8 @@ test("#spec: the app reads the SPEC and the queues' heads in one batch and the o
 // given: the fixture product with a register: the links file docs/sources.md and two entries docs/sources/SRC-a.md and SRC-b.md
 // input: open #spec with a token
 // expect: the first wave is one batch of 7 files — the SPEC, the queues' heads and the links file with the two register entries —, the
-//         open queue's proposal a second batch of 1; no file twice, none by itself; the register is read in no batch of its own
+//         open queue's proposal a second batch of 1, its rationale a third batch of 1 and the trace graph's artifacts a fourth of 10; no file twice,
+//         none by itself; the register is read in no batch of its own
 test("#spec: the links file and the register's entries are read in the first wave, beside the SPEC and the queues' heads", async () => {
   const entry = (id) => ["---", `id: ${id}`, "title: A person", "kind: person", "authority: normative", "licence: may be republished — fixture",
     `identifier: github.com/${id}`, "---", `# ${id} A person`, "", "## Versions", "", "| Version | Date | Edition | Read from | Files |", "|---|---|---|---|---|",
@@ -175,8 +178,8 @@ test("#spec: the links file and the register's entries are read in the first wav
   const srv = await server(await product(register));
   const page = await openDashboard({ server: srv, hash: "#spec" });
   const wave1 = sorted(["SPEC.md", `${DONE}/entscheidungen.md`, `${DONE}/index.md`, `${OPEN}/entscheidungen.md`, ...Object.keys(register)]);
-  assert.deepEqual(batchesOf(page.requests), ["batch 7", "batch 1"]);
-  assert.deepEqual(srv.batches.map(sorted), [wave1, [`${OPEN}/01-more.md`]]);
+  assert.deepEqual(batchesOf(page.requests), ["batch 7", "batch 1", "batch 1", "batch 10"]);
+  assert.deepEqual(srv.batches.slice(0, 3).map(sorted), [wave1, [`${OPEN}/01-more.md`], [`${OPEN}/01-more.begruendung.md`]]);
   assert.equal(new Set(srv.batches.flat()).size, srv.batches.flat().length, "no file twice");
   assert.deepEqual(files(page.requests), [], "no file by itself");
 });
