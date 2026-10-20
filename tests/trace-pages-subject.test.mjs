@@ -207,13 +207,13 @@ test("TST-600153 at a released version the requirement as it read there is the s
 
 // TST-600154 · level: unit · module: MOD-trace-pages
 // guards: UC-049; UC-020
-// given: the route rendered with the key "audit" at v1.0 and at main — a view the specification route does not draw (the key "tests" is drawn since ITM-766) — and the specification view at main with nothing opened
+// given: the route rendered with the key "timeline" at v1.0 and at main — a view the specification route does not draw (the key "tests" is drawn since ITM-766) — and the specification view at main with nothing opened
 // input: route.subject for each
 // expect: each is the frame's default: kind "converse", draftRoute null, withhold null, refuses [], title "Current requirements", paramsFor giving exactly the key "page" whose text holds the title,
 //         the product's address and the version shown — "v1.0", "main"; two different versions are two different keys
 test("TST-600154 every other view, and the specification with nothing open, give the frame's default with the version shown", async () => {
-  const tests = await shown({ key: "audit", ref: "v1.0" });
-  const audit = await shown({ key: "audit", ref: "main" });
+  const tests = await shown({ key: "timeline", ref: "v1.0" });
+  const audit = await shown({ key: "timeline", ref: "main" });
   const nothingOpen = await shown({ key: "specification", ref: "main" });
   for (const [page, version] of [[tests, "v1.0"], [audit, "main"], [nothingOpen, "main"]]) {
     const subject = page.subject();

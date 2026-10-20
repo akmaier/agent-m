@@ -38,7 +38,7 @@ const FILES = {
 };
 const GRAPH_FILES = ["docs/architecture/MOD-direct.md", "docs/use-cases/UC-001-first.md", "tests/alpha.test.mjs"];
 const GAPS = `#trace/key=gaps/ref=main/product=${encodeURIComponent(PRODUCT)}`;
-const OTHER = `#trace/key=audit/ref=main/product=${encodeURIComponent(PRODUCT)}`;
+const OTHER = `#trace/key=timeline/ref=main/product=${encodeURIComponent(PRODUCT)}`;
 
 const mainText = () => find(document.body, (node) => node.localName === "main")[0].textContent;
 const lists = () => find(document.body, (node) => node.localName === "section" && node.className === "gaps-list");
