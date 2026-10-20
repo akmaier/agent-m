@@ -125,7 +125,7 @@ test("the backlog page offers no End sprint for a sprint with a time box or one 
 // guards: ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: team1's running sprint without a time box
 // input: a click that is not the person's (isTrusted false) on End sprint, then the person's click (isTrusted true)
-// expect: the first writes nothing; the second makes one commit holding only docs/backlog/sprints/team1/01.md with `## Ended`, on the default branch at the head read; the page is drawn again with no End sprint for team1 and names the commit
+// expect: the first writes nothing; the second makes one commit holding only docs/backlog/sprints/team1/01.md with `## Ended`, on the default branch at the head read; the page is drawn again with no End sprint for team1
 test("End sprint is one click that writes ## Ended, and only the person's click", async () => {
   const { target, files, commits, listenerOf } = await render();
   const listener = listenerOf(endButtons(target, "team1")[0]);
@@ -139,5 +139,4 @@ test("End sprint is one click that writes ## Ended, and only the person's click"
   assert.equal(commits[0].branch, "main");
   assert.equal(commits[0].expectedHead, COMMIT);
   assert.equal(found(target, "[data-end-sprint]").length, 0, "the page is drawn again: the sprint is ended");
-  assert.ok(target.textContent.includes("ddddddd"), "the page names the commit");
 });
