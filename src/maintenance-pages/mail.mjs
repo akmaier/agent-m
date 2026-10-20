@@ -40,16 +40,16 @@ const STEP_TEXT = {
   decide: "One click decides a mail. Create issue writes one issue to the product's tracker, labelled defect or change, listing the mail's identifier and naming no reporter. Add to #n lists the mail on an existing issue. Not an issue marks the mail in this browser by its identifier. Nothing else of the mail is written to a repository.",
 };
 
-function el(name, className, ...children) {
+export function el(name, className, ...children) {
   const node = document.createElement(name);
   if (className) node.className = className;
   node.append(...children);
   return node;
 }
-const fold = (text) => el("details", "explain", el("summary", null, "What is this?"), el("p", null, text));
-const link = (href, className, text) => { const anchor = el("a", className, text); anchor.setAttribute("href", href); return anchor; };
+export const fold = (text) => el("details", "explain", el("summary", null, "What is this?"), el("p", null, text));
+export const link = (href, className, text) => { const anchor = el("a", className, text); anchor.setAttribute("href", href); return anchor; };
 // A listener that answers only a click the browser marks as a person's (THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK).
-function button(className, text, listener) {
+export function button(className, text, listener) {
   const node = el("button", className, text);
   node.setAttribute("type", "button");
   node.addEventListener("click", (event) => { if (event?.isTrusted === true && !node.disabled) listener(event); });
@@ -102,7 +102,7 @@ export function connectionsOf(participants, store) {
   return { endpoints, bridges };
 }
 
-const failed = (failure) => `${failure?.name ?? "Error"}${failure?.reason ? ` (${failure.reason})` : ""}: ${failure?.message ?? failure}`;
+export const failed = (failure) => `${failure?.name ?? "Error"}${failure?.reason ? ` (${failure.reason})` : ""}: ${failure?.message ?? failure}`;
 
 // What the page reads once per reading to offer participants: the instance's register, and the places the mailbox allows.
 async function sessionOf(context, have, products) {
