@@ -114,3 +114,26 @@ test("TST-1155005 the finding fires on no document of the repository", () => {
   assert.equal(read >= 100, true, `read ${read} documents`);
   assert.deepEqual(fired, []);
 });
+
+// TST-1155006 · level: unit · module: MOD-documents
+// guards: A DATA FORMAT IS DEFINED ONCE
+// given: a row of the register with a trailing empty cell, and one with the dash of a value left out beyond its last column
+// input: documentFindings
+// expect: no finding of this kind for either (such a cell holds nothing and loses nothing); and one for a row whose cell beyond the columns holds a word (the known positive)
+test("TST-1155006 an empty cell, or a dash, beyond the last column loses nothing and is not named", () => {
+  const schema = participantSchema();
+  assert.deepEqual(extra(findingsOf(schema, "docs/participants.md", register([[...ROW, ""], [...ROW, "—"]]))), []);
+  assert.equal(extra(findingsOf(schema, "docs/participants.md", register([[...ROW, "word"]]))).length, 1);
+});
+
+// TST-1155007 · level: unit · module: MOD-documents
+// guards: A DATA FORMAT IS DEFINED ONCE
+// given: the register whose separator line (the dashes under the header) has one dash cell more than the header names, and whose one row has the eight cells
+// input: documentFindings
+// expect: no finding of this kind: the separator line is no row of the table
+test("TST-1155007 the separator line under the header is no row", () => {
+  const schema = participantSchema();
+  const body = register([ROW]).replace(`|${PARTICIPANTS.map(() => "---").join("|")}|`, `|${[...PARTICIPANTS, "x"].map(() => "---").join("|")}|`);
+  assert.notEqual(body, register([ROW]));
+  assert.deepEqual(extra(findingsOf(schema, "docs/participants.md", body)), []);
+});
