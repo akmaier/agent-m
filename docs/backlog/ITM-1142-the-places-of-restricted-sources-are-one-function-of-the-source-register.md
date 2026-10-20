@@ -44,3 +44,5 @@ written once akmaier has decided that one.
 - One function of MOD-source-register gives `places.sources` and `places.contents`. The prompt bar and the review pages
   take it, and neither keeps a copy. Counter-proof: a restricted source whose licence allows the processing place is read.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**The draft is on `main` as `1cabcbff`** (MOD-source-register, MOD-prompt-bar and MOD-review-pages), written in sprint team1/98. The item is built once it is accepted.

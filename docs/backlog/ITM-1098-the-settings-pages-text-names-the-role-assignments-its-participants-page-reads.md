@@ -31,3 +31,5 @@ Uses line. If the code uses them for something no use case asks, the draft says 
 
 - Once the draft is accepted, the architecture check finds no use of MOD-settings-pages' code that its text does not name,
   for these two.
+
+**The draft is on `main` as `87d440a2`** (MOD-settings-pages), written in sprint team1/98. The item is built once it is accepted.
