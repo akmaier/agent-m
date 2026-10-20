@@ -72,7 +72,7 @@ test("TST-827001 the view hands the frame the routes home and jobs, home first, 
 // guards: THE MAIN PAGE SHOWS EACH PRODUCT'S PROGRESS BY STAGE; UC-046 (step 3, 3c)
 // given: this browser keeps the product alice/product, which holds two requirements, two use cases of which UC-001 is accepted, one backlog item, no architecture file, no tag and no declared process model
 // input: the route home drawn
-// expect: one card named "alice/product", its address https://github.com/alice/product, saying "Its process is chosen when implementation starts", with six stages in this order — Requirements 100 % "2 requirements, no change open", Use cases 50 % "1 of 2 accepted", Architecture 0 % "not designed yet", Implementation ? "the process is configured when implementation starts", Tests ? "the commits of the default branch are unknown", Release 0 % "no release yet" — and the stage it is in marked: Use cases, and only it; counter-proof: with both use cases accepted, Use cases reads 100 % "2 of 2 accepted" and the stage marked is Architecture
+// expect: one card named "alice/product", its address https://github.com/alice/product, saying "Its process is chosen when implementation starts", with six stages in this order — Requirements 100 % "2 requirements, no change open", Use cases 50 % "1 of 2 accepted", Architecture 0 % "not designed yet", Implementation ? "the process is configured when implementation starts", Tests 0 % "0 of 2 requirements guarded by a passing test", Release 0 % "no release yet" — and the stage it is in marked: Use cases, and only it; counter-proof: with both use cases accepted, Use cases reads 100 % "2 of 2 accepted" and the stage marked is Architecture
 test("TST-827002 a kept product has a card with its six stages, each with its share, and the stage it is in marked", async () => {
   net = network({ [PRODUCT]: smallProduct(), [INSTANCE]: instanceFiles() });
   net.install();
@@ -84,7 +84,7 @@ test("TST-827002 a kept product has a card with its six stages, each with its sh
   assert.equal(byClass(card, "card-model")[0].textContent, "Its process is chosen when implementation starts");
   assert.deepEqual(stagesOf(card), [
     ["Requirements", "100 %", "2 requirements, no change open"], ["Use cases", "50 %", "1 of 2 accepted"], ["Architecture", "0 %", "not designed yet"],
-    ["Implementation", "?", "the process is configured when implementation starts"], ["Tests", "?", "the commits of the default branch are unknown"], ["Release", "0 %", "no release yet"],
+    ["Implementation", "?", "the process is configured when implementation starts"], ["Tests", "0 %", "0 of 2 requirements guarded by a passing test"], ["Release", "0 %", "no release yet"],
   ]);
   assert.deepEqual(currentOf(card), ["Use cases"]);
 

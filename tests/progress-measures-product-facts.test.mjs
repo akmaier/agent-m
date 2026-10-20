@@ -144,6 +144,7 @@ function fixture({ files = productFiles(), pullRequests = BASE_PULL_REQUESTS, se
     async readSnapshot(ref) {
       calls.push(["readSnapshot", ref]);
       if (ref === "test-results") {
+        if (!serverOperations && results !== null) throw named("NotSupported");
         if (results === null) throw named("NotFound", "no branch test-results");
         return results;
       }
