@@ -189,3 +189,17 @@ test("a source that may be republished forbids no place of a step's holders", as
   assert.deepEqual(offered(target, "ITM-012"), ["dev-a", "dev-b"]);
   assert.equal(withheld(target, "ITM-012"), "");
 });
+
+// TST-1160105 · level: unit · module: MOD-implementation-pages
+// guards: UC-024; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
+// given: SRC-fixture permits only "elsewhere", so dev-a, the first holder, is the one withheld for ITM-012
+// input: the route's render
+// expect: ITM-012 offers dev-b alone, and what is sent where names dev-b and not dev-a
+// Planted fault: judging the first of the capable holders instead of the first offered fails.
+test("when the first holder is withheld the job is shown for the holder that is offered", async () => {
+  const { target } = await render(productFiles(), { places: ["elsewhere"] });
+  assert.deepEqual(offered(target, "ITM-012"), ["dev-b"]);
+  const sent = text(found(jobOf(target, "ITM-012"), "[data-sent-of]")[0]);
+  assert.match(sent, /dev-b/);
+  assert.doesNotMatch(sent, /dev-a/);
+});
