@@ -38,3 +38,8 @@ stop and name the gap, which is then a draft for akmaier (AGENTS.md §6a.6).
   source. A missing own source refuses the hand-over by name, with `NoPersonSource`.
 - The draft of MOD-prompt-bar.md, by developer-sonnet-d, is on `main` as `1d0003e1`. The item waits for its
   acceptance.
+
+**Rejected on `f2754010` (sprint team1/98):** the accepted text has the job take all of the subject's `paramsFor`, which
+on the draft route holds the participant's answer. Recording off, it would be written into the job record (SPEC.md:1762-1764).
+The draft of MOD-prompt-bar.md, by developer-sonnet-d, has the job take only the subject's `source`. The item waits for
+its acceptance.
