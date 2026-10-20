@@ -780,7 +780,8 @@ export const route = {
       return;
     }
     if (descriptor.key === "audit") {
-      await drawAudit(target, context, host, params.ref, descriptor, (await tagsOf(host)).names.filter((tag) => RELEASE.test(tag)));
+      const { names, failure } = await tagsOf(host);
+      await drawAudit(target, context, host, params.ref, descriptor, names.filter((tag) => RELEASE.test(tag)), failure && failedRead("traces-problem", "The tags", failure, context));
       return;
     }
     const handed = params.ref;
