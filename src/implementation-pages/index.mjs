@@ -9,7 +9,7 @@
 import { route as process, modelsRoute as models } from "./process.mjs";
 import { route as roles } from "./roles.mjs";
 import { route as plan } from "./plan.mjs";
-import { route as backlog } from "./backlog.mjs";
+import { route as backlog, boardRoute as board } from "./backlog.mjs";
 import { route as implement } from "./implement.mjs";
 import { workStrategies } from "../work-plans/index.mjs";
 import { runStrategies } from "../run-planner/index.mjs";
@@ -18,5 +18,5 @@ import { resultStrategies } from "../result-records/index.mjs";
 import { routeStrategies } from "../runtimes/index.mjs";
 import { approvalStrategies } from "../approvals/index.mjs";
 
-export const view = { routes: [process, roles, models, plan, backlog, implement],
+export const view = { routes: [process, roles, models, plan, backlog, board, implement],
   strategies: [workStrategies, runStrategies, scheduleStrategies, resultStrategies, routeStrategies, approvalStrategies] };
