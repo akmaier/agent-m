@@ -6,6 +6,7 @@ realises:
   - UC-046
 modules:
   - MOD-progress-measures
+  - MOD-main-page
 builds_on:
   - ITM-685
 tests:
@@ -38,3 +39,11 @@ example: a `Facts` field with the default branch's commits, or whether `Facts` i
 
 - The accepted draft's fields are built, and the Tests stage and the instance's bar follow the text, with tests.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**MOD-main-page joins its modules (sprint team2/98, po-opus-b, at #1236's second gate).**
+- The Tests stage this item builds shows on the main page's card. TST-827002 (`tests/main-page-home.test.mjs`, which names
+  MOD-main-page) pins the card's Tests stage as unknown.
+- `AN IMPLEMENTATION JOB CHANGES ONLY ITS MODULES` (SPEC.md:1442-1445) admits only "tests that name one of those modules".
+  So the item names MOD-main-page, for that test alone. No code of MOD-main-page changes.
+- `conflicts` finds MOD-main-page held by no item of team 1.
+
