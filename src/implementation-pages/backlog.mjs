@@ -22,7 +22,7 @@ import { artifactSchemas, readDocument } from "../documents/index.mjs";
 import { renderArtifact, renderMermaid } from "../markdown-render/index.mjs";
 import { productFacts, progressIn, storedFacts } from "../progress-measures/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
-import { conflicts, heldItems, itemStates, startSprint, startable } from "../work-plans/index.mjs";
+import { conflicts, endSprint, heldItems, itemStates, startSprint, startable } from "../work-plans/index.mjs";
 import { participantSchema, participantsOf } from "../participant-list/index.mjs";
 
 const DECLARATION = "docs/process.md";
@@ -220,6 +220,8 @@ function teamPanel(context, ctx, d, team) {
       <td>${stateCell(stateOf(d, st.item))}</td><td class="small">${changes.map(h).join(", ") || "—"}</td>
       <td class="small">${(held?.uses ?? []).map(h).join(", ") || "—"}</td></tr>`;
   }).join("");
+  // Without a time box, and until its record holds `## Ended`, the Product Owner ends the sprint with one click (UC-032 6b).
+  const endable = !text(f.end) && !(record.appended ?? []).some((section) => section.heading === "## Ended");
   const chart = entry.burnDown.length ? chartBlock(team, newest.name, remainingOverTime(entry.items.map((st) => st.item), d.mergedAt, text(f.start)))
     : `<p class="muted">No burn-down yet: the sprint starts on ${h(text(f.start))}.</p>`;
   return `<section class="panel" data-team="${h(team)}"><h3>${h(team)} — sprint ${fileLink(context, ctx.ref, record.path, h(newest.name))}</h3>
@@ -229,7 +231,7 @@ function teamPanel(context, ctx, d, team) {
     ${wipLine(ctx, d, entry)}
     <div class="table-scroll"><table class="list"><thead><tr><th>Item</th><th>Title</th><th>State</th><th>Changes</th><th>Uses</th></tr></thead><tbody>${rows}</tbody></table></div>
     ${chart}
-    <p>${plan("Change the selection", false)}</p>${why}</section>`;
+    <p>${plan("Change the selection", false)}${endable ? ` <button class="btn" data-end-sprint="${h(team)}">End sprint</button>` : ""}</p>${why}</section>`;
 }
 
 // What keeps an item from a team other than the one whose sprint holds it, one line per team.
@@ -382,6 +384,18 @@ async function draw(target, context) {
     target.querySelectorAll(`[data-plan="${name}"]`).forEach((button) => button.addEventListener("click", () => { planning.set(target, name); again(); }));
   }
   target.querySelectorAll("[data-cancel-plan]").forEach((button) => button.addEventListener("click", () => { planning.delete(target); again(); }));
+  target.querySelectorAll("[data-end-sprint]").forEach((button) => button.addEventListener("click", async (event) => {
+    if (event?.isTrusted === false) return;
+    const name = button.dataset?.endSprint ?? button.getAttribute("data-end-sprint");
+    const sprint = ctx.newest.get(name)?.name;
+    try {
+      const result = await endSprint(context.product.host, sprint, { head: ctx.snapshot.commit, now: new Date(), trailers: [] });
+      await draw(target, context);
+      target.insertAdjacentHTML?.("afterbegin", `<section class="panel notice flash"><p>Sprint <code>${h(sprint)}</code> is ended — commit ${h(result.commit.slice(0, 7))}.</p></section>`);
+    } catch (failure) {
+      target.insertAdjacentHTML?.("afterbegin", `<section class="panel notice flash"><p class="warn">${h(failure?.message ?? failure)}</p></section>`);
+    }
+  }));
   target.querySelectorAll("[data-start-sprint]").forEach((button) => button.addEventListener("click", async (event) => {
     if (event?.isTrusted === false) return;
     const out = target.querySelector("[data-plan-result]");
