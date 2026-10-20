@@ -35,3 +35,14 @@ only when every answer reports one, in one currency.
 - For a kind that reports a cost, a fixture answer with a cost gives it in the usage, and two answers sum it.
   Counter-proof: an answer without a cost leaves `cost` null, and so does a mix.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+## Closed on its reading (developer-sonnet-h, sprint team2/97, 2026-10-20)
+
+The kinds MOD-endpoint-calls serves report no cost in their answers, so `cost: null` in `usageOf` and `addUsage` is what
+the runtime reports (MOD-job-runner.md:200-201). Nothing is built. h's sources:
+- **anthropic:** the Messages `Usage` (anthropic-sdk-python, `types/usage.py`) holds token, cache, service-tier, geo and
+  speed fields, and no cost.
+- **openai-compatible:** `usage` (openai-openapi, `openapi.yaml`; openai-python, `completion_usage.py`) holds prompt,
+  completion and total tokens and their details, and no cost.
+- **A provider's extension, not the kind's:** OpenRouter adds `usage.cost` in "Credits", with no currency. Reading it as a
+  currency would be a guess.
