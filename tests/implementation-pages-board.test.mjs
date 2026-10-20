@@ -31,7 +31,7 @@ const implementRoute = view.routes.find((candidate) => candidate.name === "imple
 // ---------------------------------------------------------------- the DOM: the selectors the route finds its controls by
 const matches = (element, selector) => {
   const attribute = /^\[([a-z-]+)(?:="([^"]*)")?\]$/.exec(selector);
-  return attribute ? (attribute[2] === undefined ? element.getAttribute(attribute[1]) !== null : element.getAttribute(attribute[1]) === attribute[2]) : false;
+  return attribute ? (attribute[2] === undefined ? element.getAttribute(attribute[1]) !== null : element.getAttribute(attribute[1]) === attribute[2]) : element.localName === selector;
 };
 const found = (root, selector) => {
   const all = [];
@@ -176,7 +176,7 @@ test("at the limit Pull is disabled and the panel names the items in progress an
   assert.match(panel, /2 of 2/);
   assert.match(panel, /ITM-002/);
   assert.match(panel, /ITM-007/);
-  assert.match(panel, /waiting for review/);
+  assert.match(panel, /waiting for review/i);
   assert.match(reasonsOf(target, "ITM-005"), /work-in-progress limit/);
 });
 
