@@ -30,9 +30,11 @@ const found = (root, match) => {
   return all;
 };
 globalThis.window.Element.prototype.querySelectorAll = function querySelectorAll(selector) {
-  const mermaid = selector === "pre > code.language-mermaid";
-  return found(this, (element) => mermaid && element.localName === "code" && element.getAttribute("class") === "language-mermaid" && element.parentNode?.localName === "pre");
+  const attribute = /^\[([a-z-]+)(?:="([^"]*)")?\]$/.exec(selector);
+  return found(this, (element) => (selector === "pre > code.language-mermaid" ? element.localName === "code" && element.getAttribute("class") === "language-mermaid" && element.parentNode?.localName === "pre"
+    : attribute ? (attribute[2] === undefined ? element.getAttribute(attribute[1]) !== null : element.getAttribute(attribute[1]) === attribute[2]) : false));
 };
+globalThis.window.Element.prototype.querySelector = function querySelector(selector) { return this.querySelectorAll(selector)[0] ?? null; };
 globalThis.window.Element.prototype.replaceWith = function replaceWith(node) { this.parentNode.insertBefore(node, this); this.parentNode.removeChild(this); };
 globalThis.SVGElement ??= class SVGElement {};
 afterEach(() => { delete globalThis.mermaid; });
@@ -67,13 +69,17 @@ function hostOf(files) {
     async containsCommit() { return false; },
   };
 }
-async function render() {
+async function render(planFor = null) {
   const files = productFiles();
   const host = hostOf(files), instance = hostOf({ "SPEC.md": "# Instance\n", "docs/process-models/fixture.md": files["docs/process-models/fixture.md"] });
   const target = document.createElement("div");
   document.body.append(target);
   globalThis.mermaid = { initialize() {}, mermaidAPI: { getDiagramFromText: async () => ({ db: { getVertices: () => ({}) } }) }, run: async () => {} };
   await route.render(target, { page: "review", instance: { repository: "acme/agent-m", host: instance }, product: { address: ADDRESS, kind: "github", host, tokenStored: true }, store: {}, go() {} }, {});
+  if (planFor) {
+    found(target, (element) => element.getAttribute("data-plan") === planFor)[0].dispatchEvent(new Event("click"));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
   return target;
 }
 
@@ -98,5 +104,17 @@ test("the backlog page's tables, which scroll sideways, can be focused", async (
   const target = await render();
   const tables = found(target, (element) => classes(element).includes("table-scroll"));
   assert.ok(tables.length >= 2, "known positive: the page draws the sprint's table and the backlog's");
+  assert.deepEqual(tables.map((box) => box.getAttribute("tabindex")), tables.map(() => "0"));
+});
+
+// TST-932003 · level: unit · module: MOD-implementation-pages
+// guards: THE SITE SERVES A SCREEN READER
+// given: the same page after the person's click on Plan sprint for team2, which adds the plan's table and the table of what the other teams' sprints hold (the counter-proof of TST-932002)
+// input: the route backlog's render, then the click
+// expect: four boxes with the class table-scroll — the sprint's, the plan's, the held items' and the backlog's — and each carries tabindex "0"
+test("the tables of a team's plan and of the held items, which scroll sideways, can be focused", async () => {
+  const target = await render("team2");
+  const tables = found(target, (element) => classes(element).includes("table-scroll"));
+  assert.equal(tables.length, 4, "known positive: the sprint's table, the plan's, the held items' and the backlog's");
   assert.deepEqual(tables.map((box) => box.getAttribute("tabindex")), tables.map(() => "0"));
 });
