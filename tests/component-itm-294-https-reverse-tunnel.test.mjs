@@ -67,7 +67,7 @@ function certificate(folder) {
 // level: component
 // module: MOD-settings-pages
 // guards: UC-003; UC-044; A BRIDGE CAN BE REACHED OVER HTTPS THROUGH THE JUMP HOST; THE JUMP HOST FORWARDS TO A BRIDGE ONLY AFTER ITS OWN LOGIN; THE JUMP HOST ALLOWS CROSS-ORIGIN REQUESTS ONLY FROM THE INSTANCE; A REVERSE TUNNEL LISTENS ONLY ON THE JUMP HOST'S LOOPBACK
-// given: the Settings public endpoint route, emitted Apache and nginx configurations adapted only with temporary ports/files, a fixture CA trusted by the worker with hostname verification, and a real own-key ssh2 reverse tunnel to a composed Bridge and controlled model
+// given: the Settings public endpoint route, emitted Apache and nginx configurations adapted only with temporary ports/files, a fixture CA trusted by the worker with hostname verification, and a real own-key ssh2 reverse tunnel to a composed Bridge and controlled model; the web servers listen, and the jump host accepts the reverse forward, 2.5 s after they are asked
 // input: Save and test one own-model endpoint through each authenticated HTTPS jump-host choice; valid and foreign preflights, missing web login, and a refused Bridge token use the same configured HTTPS address
 // expect: only the instance preflight is answered locally; no rejected request reaches the tunnel/model; a saved endpoint/key survives refusal; the routed loopback tunnel yields the controlled one-word answer; web login, Bridge token, endpoint key and repository/cookie state remain separate
 // GitHub Ubuntu additionally copies the guarded production proxy emitter, faults its upstream production template in
@@ -100,7 +100,10 @@ test("TST-294001: Settings reaches the composed Bridge through real Apache and n
     const hash = value => "{SHA}" + createHash("sha1").update(value).digest("base64");
     const reservePort = async () => { const server = net.createServer(); const port = await listen(server); await close(server); return port; };
     const waitFor = async (check, label) => { for (let n = 0; n < 100; n += 1) { if (await check()) return; await pause(20); } throw new Error(label); };
-    const start = (binary, args, options = {}) => { const child = spawn(binary, args, { stdio: ["ignore", "ignore", "pipe"], ...options }); let stderr = "", spawnError = null; child.stderr.on("data", chunk => { stderr = (stderr + chunk).slice(-4000); }); child.once("error", error => { spawnError = error; }); return { child, stderr: () => stderr, error: () => spawnError }; };
+    // A cold runner answers late: the main run makes the web servers listen, and the jump host accept the reverse forward, 2.5 s after
+    // they are asked. The counter-proof children run without that delay, so that the faulted one fails as fast as it did.
+    const slowStart = process.env.AGENT_M_294_FAULT_CHILD ? 0 : 2500;
+    const start = (binary, args, options = {}, delay = 0) => { const child = delay > 0 ? spawn("sh", ["-c", 'sleep "$0"; exec "$@"', String(delay / 1000), binary, ...args], { stdio: ["ignore", "ignore", "pipe"], ...options }) : spawn(binary, args, { stdio: ["ignore", "ignore", "pipe"], ...options }); let stderr = "", spawnError = null; child.stderr.on("data", chunk => { stderr = (stderr + chunk).slice(-4000); }); child.once("error", error => { spawnError = error; }); return { child, stderr: () => stderr, error: () => spawnError }; };
     const stop = async process => { if (!process || process.exitCode !== null) return; process.kill("SIGTERM"); await Promise.race([new Promise(resolve => process.once("exit", resolve)), pause(5000)]); if (process.exitCode === null) process.kill("SIGKILL"); };
     const modelReceipts = [], tunnelReceipts = [], sshAuthentication = [], sshForwarding = [], proxyProcesses = new Set();
     const model = http.createServer(async (request, response) => { let body = ""; for await (const chunk of request) body += chunk; modelReceipts.push({ path: request.url, authorization: request.headers.authorization, body: JSON.parse(body) }); response.writeHead(200, { "content-type": "application/json" }); response.end(JSON.stringify({ choices: [{ message: { content: "ok" } }] })); });
@@ -128,6 +131,7 @@ test("TST-294001: Settings reaches the composed Bridge through real Apache and n
         if (name !== "tcpip-forward" || info.bindAddr !== "127.0.0.1" || !signedAuthentication) return reject();
         const receipt = { order: ++receiptOrder, signedAuthenticationOrder: signedAuthentication.order, bind: info.bindAddr, port: info.bindPort }; sshForwarding.push(receipt);
         assert.ok(receipt.signedAuthenticationOrder < receipt.order, "the signed Bridge-key authentication precedes reverse forwarding");
+        await pause(slowStart);
         remote = net.createServer(socket => client.forwardOut(info.bindAddr, info.bindPort, socket.remoteAddress, socket.remotePort, (error, stream) => { if (error) return socket.destroy(error); tunnelReceipts.push({ bind: info.bindAddr, port: info.bindPort, signedAuthenticationOrder: signedAuthentication.order }); socket.pipe(stream).pipe(socket); }));
         try { await listenAt(remote, info.bindPort, info.bindAddr); accept(); } catch (error) { reject(); }
       });
@@ -183,10 +187,10 @@ test("TST-294001: Settings reaches the composed Bridge through real Apache and n
         const runtime = join(root, "run"), logs = join(root, "log"), locks = join(root, "lock"); mkdirSync(runtime, { recursive: true }); mkdirSync(logs, { recursive: true }); mkdirSync(locks, { recursive: true });
         const apacheEnvironment = { ...process.env, APACHE_RUN_DIR: runtime, APACHE_LOG_DIR: logs, APACHE_LOCK_DIR: locks, APACHE_PID_FILE: join(root, "httpd.pid") };
         const config = ["ServerRoot \\\"" + root + "\\\"", "DefaultRuntimeDir \\\"" + runtime + "\\\"", "PidFile \\\"" + join(root, "httpd.pid") + "\\\"", "Listen 127.0.0.1:" + port, "ServerName localhost", "ErrorLog \\\"" + join(root, "error.log") + "\\\"", "CustomLog \\\"" + join(root, "access.log") + "\\\" combined", "IncludeOptional \\\"" + join(modules, "*.load") + "\\\"", "IncludeOptional \\\"" + join(modules, "*.conf") + "\\\"", emitted.replace("<VirtualHost *:443>", "<VirtualHost 127.0.0.1:" + port + ">")].join("\\n");
-        const file = join(root, "httpd.conf"); writeFileSync(file, config); serverProcess = start("apache2", ["-f", file, "-DFOREGROUND"], { env: apacheEnvironment });
+        const file = join(root, "httpd.conf"); writeFileSync(file, config); serverProcess = start("apache2", ["-f", file, "-DFOREGROUND"], { env: apacheEnvironment }, slowStart);
       } else {
         const config = ["pid " + join(root, "nginx.pid") + ";", "error_log " + join(root, "error.log") + ";", "events {}", "http {", "  access_log " + join(root, "access.log") + ";", emitted.replace("listen 443 ssl;", "listen 127.0.0.1:" + port + " ssl;").split("\\n").map(line => "  " + line).join("\\n"), "}"].join("\\n");
-        const file = join(root, "nginx.conf"); writeFileSync(file, config); serverProcess = start("nginx", ["-p", root, "-c", file, "-g", "daemon off;"]);
+        const file = join(root, "nginx.conf"); writeFileSync(file, config); serverProcess = start("nginx", ["-p", root, "-c", file, "-g", "daemon off;"], {}, slowStart);
       }
       const base = "https://localhost:" + port + "/bridge/component", readiness = { attempts: 0, statuses: [], errors: [] }, readinessAuthorization = "Basic " + btoa(login.user + ":" + login.password);
       const redact = value => String(value ?? "").replaceAll(bridge.token, "<bridge-token>").replaceAll(readinessAuthorization, "<jump-login-authorization>").replaceAll(login.password, "<jump-login-password>");
