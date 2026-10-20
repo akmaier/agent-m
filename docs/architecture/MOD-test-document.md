@@ -6,6 +6,7 @@ realises:
 follows:
   - ARC-048
 uses:
+  - MOD-identifiers.kindOfIdentifier
   - MOD-text-tools.finding
   - MOD-text-tools.Finding
 provides:
@@ -83,7 +84,10 @@ language — such as `*.test.mjs`, `test_*.py` or `*_test.go` —; a Markdown fi
 - `testFindings(declaration: TestDeclaration) -> Finding[]` — an error under `EVERY TEST HAS ONE LEVEL` for a missing or
   unknown level; under `A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS` for a missing precondition, input or expected
   result; under `EVERY ARTIFACT NAMES ITS ORIGIN` for a test that guards nothing or names no module, or a test of level
-  `unit` or `component` that names `system`; under `A MODEL-DEPENDENT TEST IS MEASURED AS A RATE` for a test with `phrasings` and
+  `unit` or `component` that names `system`; under `A REFERENCE NAMES THE IDENTIFIER, NOT THE POSITION` for each `guards` entry
+  that is neither a requirement's name nor a use case's identifier — a use case written with its step, such as
+  `UC-005 (alternative flow 6a)`, is none —, naming the test and the entry, from the first declaration read: a header that
+  writes such an entry fails it; under `A MODEL-DEPENDENT TEST IS MEASURED AS A RATE` for a test with `phrasings` and
   no `runs`, or with fewer than two runs. Whether a guarded name exists, and whether a commit-level test calls a paid
   service, need the graph and the schedule; they are decided by MOD-trace-graph and by the test schedule's owner.
 
@@ -93,4 +97,5 @@ It reads and writes no file; its callers give it the texts of test files.
 
 ## Uses
 
+- `MOD-identifiers.kindOfIdentifier` — whether a `guards` entry is a requirement's name or a use case's identifier.
 - `MOD-text-tools.finding` and the type `MOD-text-tools.Finding` — the findings it reports.
