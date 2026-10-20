@@ -207,7 +207,7 @@ test("the main page starts MOD-notifications' watchForAcceptance with MOD-browse
 // *Notifications* as its own section beside "This browser", not inside it (F1); and dashboard-app.mjs and home.mjs
 // connected the instance's host, for the checks, with MOD-browser-store's own "github-token" setting, which nothing
 // in the repository ever writes, in place of the dashboard's real, stored GitHub token — settings-store.mjs's
-// store.getToken(), used everywhere else, as docs/assets/dashboard/process-view.mjs's own connect() already does
+// store.getToken(), used everywhere else, as the dashboard's own connect() for the routes of MOD-implementation-pages already does
 // (F2). These three tests are this change's own proof, reached the same way the tests above reach these pages.
 // ITM-238's own system test (tests/system-uc-047-be-told-what-waits-for-your-acceptance.test.mjs) still marks F1 and
 // F2 todo; ITM-243 removes those marks, not this change.

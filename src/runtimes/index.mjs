@@ -18,7 +18,7 @@
 
 import { appendToRecord } from "../job-ledger/index.mjs";
 import { cancelRun, queueOnCi, runOfAddress } from "./ci.mjs";
-import { abortOnTab, heldOnTab, queueOnTab } from "./tab.mjs";
+import { abortOnTab, heldOnTab, queueOnTab, tookOnTab } from "./tab.mjs";
 import { retryJob as retryWith } from "./retry.mjs";
 import { bridgeNamed, cancelBridgeJob, followBridgeLog, listedOnBridge, queueOnBridge } from "./bridge.mjs";
 
@@ -26,7 +26,8 @@ export { routesFor } from "./routes.mjs";
 export { jobWorkflowFiles } from "./ci.mjs";
 export { tabContext, runOnTab } from "./tab.mjs";
 export { bridgeDriver } from "./bridge.mjs";
-export { jobTrail } from "./trail.mjs";
+export { jobTrail, revertAfterCancel } from "./trail.mjs";
+import { writtenAfterCancel } from "./trail.mjs";
 export { handOverJob } from "./hand-over.mjs";
 export { routeStrategies } from "./pull-request.mjs";
 
@@ -77,7 +78,7 @@ const UNKNOWN = { reachable: true, reason: null, known: false, running: false, c
 function takenOn(record) {
   const by = record.taken?.by ?? null;
   if (by === null) return "none";
-  if (by === "tab") return "tab";
+  if (by === "tab" || by.startsWith("tab ")) return "tab";
   return /^https?:\/\//.test(by) || by.startsWith("ci ") ? "ci" : "bridge";
 }
 
@@ -85,12 +86,24 @@ function takenOn(record) {
  * liveState(record, product, bridges) -> Promise<LiveState> — what the runtime that took the job reports (MOD-runtimes, Interfaces). A job no runtime has taken is unknown; a job taken on CI is running while its run
  * is queued, running or waiting, with the run's address as its log; one taken by this tab is running while the tab holds it; one taken on a Bridge is the job with the record's id among the Bridge's jobs
  * (bridgeJobs), running while its state is `running`, with its usage, and unknown where the Bridge lists none. A failure of the host, a Bridge missing from `bridges` and a Bridge that does not answer give
- * `reachable: false` and the reason (the client's, for a Bridge), never an error. `writtenAfterCancel` is always empty: no way to read a branch's commits is among this module's Uses.
+ * `reachable: false` and the reason (the client's, for a Bridge), never an error. `writtenAfterCancel` holds, for a job that ended cancelled, the commits of the branch named after the job dated after the cancel (trail.mjs), and is empty for any other.
  */
 export async function liveState(record, product, bridges) {
+  // A job that ended cancelled has no runtime to ask: what its branch got after the cancel is what is reported (UC-036 6a).
+  if (record.end?.state === "cancelled") {
+    try {
+      return { ...UNKNOWN, writtenAfterCancel: await writtenAfterCancel(record, product.host) };
+    } catch (error) {
+      return { ...UNKNOWN, reachable: false, reason: String(error?.message ?? error) };
+    }
+  }
   switch (takenOn(record)) {
     case "none": return { ...UNKNOWN };
-    case "tab": return heldOnTab(record.id) ? { ...UNKNOWN, known: true, running: true } : { ...UNKNOWN };
+    case "tab":
+      if (heldOnTab(record.id)) return { ...UNKNOWN, known: true, running: true };
+      // A job another browser took: its tab's closing cannot be seen here, so it stays unreachable (UC-036 1b).
+      return tookOnTab(record.taken.by) === "this" ? { ...UNKNOWN }
+        : { ...UNKNOWN, reachable: false, reason: "its live state and log exist only in that browser's tab" };
     case "bridge":
       try {
         const job = await listedOnBridge(bridgeNamed(bridges, record.taken.by), record.id);

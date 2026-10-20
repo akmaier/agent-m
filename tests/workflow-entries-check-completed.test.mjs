@@ -71,10 +71,17 @@ function write(root, files) {
     writeFileSync(join(root, path), body);
   }
 }
+// Git starts `git maintenance run --auto --detach` after a push it receives, a commit and a fetch (git 2.55 on the CI runners). That process detaches and goes on
+// writing into the repository (its lock, objects/) a moment after the command that started it has returned, so a repository removed straight after the command
+// can still be written to (ENOTEMPTY). The repositories of these tests need no maintenance: it is off in each.
+const NO_MAINTENANCE = ["-c", "gc.auto=0", "-c", "maintenance.auto=false", "-c", "receive.autogc=false"];
+const quiet = (dir) => { for (const [key, value] of [["gc.auto", "0"], ["maintenance.auto", "false"], ["receive.autogc", "false"]]) git(dir, "config", key, value); };
 function repository(root, name, files, folder) {
   const origin = join(root, `${name}.git`), seed = join(root, `${name}-seed`);
   git(root, "init", "-q", "--bare", "-b", "main", origin);
-  git(root, "clone", "-q", origin, seed);
+  quiet(origin);
+  git(root, "clone", "-q", ...NO_MAINTENANCE, origin, seed);
+  quiet(seed);
   git(seed, "config", "user.name", "Seed");
   git(seed, "config", "user.email", "seed@example.org");
   write(seed, files);
@@ -82,7 +89,8 @@ function repository(root, name, files, folder) {
   git(seed, "commit", "-q", "-m", "first");
   git(seed, "push", "-q", "origin", "HEAD:refs/heads/main");
   mkdirSync(join(folder, ".."), { recursive: true });
-  git(root, "clone", "-q", origin, folder);
+  git(root, "clone", "-q", ...NO_MAINTENANCE, origin, folder);
+  quiet(folder);
   git(folder, "config", "user.name", "Alice Agent M token");
   git(folder, "config", "user.email", "alice@example.org");
   return origin;

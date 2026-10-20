@@ -117,6 +117,9 @@ function applySetting(fields, name, setting) {
   fields.bridge.value = setting?.bridge ?? "";
 }
 
+// What the participants page and this page say of the prompt bar (UC-049 1a): when it appears.
+export const PROMPT_BAR_NOTE = "The prompt bar appears once a model endpoint, a CLI agent or a sandboxed agent is configured and reachable from this browser.";
+
 export const route = {
   name: "endpoints",
   entry: "settings",
@@ -244,6 +247,7 @@ export const route = {
     target.replaceChildren(
       el("h2", null, "Configure a model endpoint"),
       el("p", "muted", "Store an endpoint in this browser, then make one short test request."),
+      el("p", "muted prompt-bar-note", PROMPT_BAR_NOTE),
       el("p", null, el("label", null, "Name ", name)),
       el("p", null, el("label", null, "Endpoint URL ", url)),
       explain("endpoint-url"),

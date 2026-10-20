@@ -12,7 +12,7 @@ export const MENU = [
   { key: "implementation", label: "Implementation", views: ["progress", "backlog", "roles"] },
   { key: "tests", label: "Tests", views: ["tests"] },
   { key: "releases", label: "Releases", views: ["release"] },
-  { key: "maintenance", label: "Maintenance", views: ["issues", "mail"], title: "Issues and mail" },
+  { key: "maintenance", label: "Maintenance", views: ["issues", "mail", "replies"], title: "Issues and mail" },
   { key: "settings", label: "Settings", views: ["settings"], icon: "⚙", title: "Every setting Agent M uses" },
 ];
 

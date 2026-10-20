@@ -12,36 +12,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { generateKeyPairSync } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { registerHooks } from "node:module";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { unusedPorts } from "./desktop-shell.d/ports.mjs";
+import { TOKEN_HEADER, bridgeAsks, bridgeSettings, refused, startEntry, stopEntry, temporary } from "./desktop-shell.d/entry.mjs";
 import { saveSettings } from "../src/desktop-shell/settings.mjs";
 
-// `import electron from "electron"` of the entry resolves to the constructed Electron of the running case. The two modules the shell
-// composes that need packages of the Bridge build — MOD-tunnels (ssh2) and MOD-mail-protocols (imapflow, nodemailer) — are replaced by
-// doubles with the same exports: these cases read what the entry does with its resources, and open no tunnel and touch no mailbox.
-const ELECTRON = "export default new Proxy({}, { get: (_, name) => globalThis.__agentMBuildResourcesElectron?.[name] });";
-const DOUBLES = {
-  "/src/tunnels/index.mjs": `export const ensureKey = async () => ({ publicKey: "ssh-ed25519 AAAA double", fingerprint: "SHA256:double" });
-    export const openTunnels = async () => {}; export const closeTunnels = async () => {}; export const tunnelState = () => [];
-    export const tunnelHandlers = { "GET /v1/tunnels": async () => ({ tunnels: [] }) };`,
-  "/src/mail-protocols/index.mjs": "export const mailHandlers = () => ({});",
-};
-const moduleUrl = (source) => `data:text/javascript,${encodeURIComponent(source)}`;
-registerHooks({
-  resolve(specifier, context, next) {
-    if (specifier === "electron") return { url: moduleUrl(ELECTRON), shortCircuit: true };
-    const resolved = next(specifier, context);
-    const double = Object.entries(DOUBLES).find(([tail]) => resolved.url.endsWith(tail));
-    return double ? { url: moduleUrl(double[1]), shortCircuit: true } : resolved;
-  },
-});
-
-const TOKEN_HEADER = "x-agent-m-bridge-token";
 const BUILD = { instance: "alice/agent-m", appId: "io.github.alice.agent-m.bridge", origin: "https://alice.github.io", version: "2026.10.0", commit: "0123456789abcdef0123456789abcdef01234567" };
 const publicKeyPem = () => generateKeyPairSync("ed25519").publicKey.export({ type: "spki", format: "pem" });
-const temporary = () => mkdtempSync(join(tmpdir(), "agent-m-1005-"));
 
 // A resources folder as the build lays it out. `build` is the text of build.json; null leaves the file out.
 const resourcesFolder = ({ build = JSON.stringify(BUILD), key } = {}) => {
@@ -50,70 +27,6 @@ const resourcesFolder = ({ build = JSON.stringify(BUILD), key } = {}) => {
   if (key !== undefined) writeFileSync(join(folder, "update-key.pem"), key);
   return folder;
 };
-
-function constructedElectron(appData) {
-  const exits = [];
-  const handlers = {};
-  const record = { windows: [], loadedUrl: null, quits: 0, exits, appEvents: {} };
-  let settle;
-  const outcome = new Promise((resolve) => { settle = resolve; });
-  record.outcome = outcome;
-  class BrowserWindow {
-    constructor() { this.webContents = { setWindowOpenHandler() {}, on() {} }; record.windows.push(this); }
-    on() {}
-    isMinimized() { return false; }
-    show() {} focus() {} restore() {} hide() {}
-    async loadURL(url) { record.loadedUrl = url; settle({ kind: "loaded", url }); }
-  }
-  Object.assign(record, {
-    app: {
-      requestSingleInstanceLock: () => true,
-      whenReady: async () => {},
-      getPath: (name) => { assert.equal(name, "appData"); return appData; },
-      on: (name, handler) => { record.appEvents[name] = handler; },
-      quit: () => { record.quits += 1; settle({ kind: "quit" }); },
-      exit: () => { exits.push(true); record.exited?.(); },
-    },
-    protocol: { registerSchemesAsPrivileged() {}, handle() {} },
-    ipcMain: { handle: (name, handler) => { handlers[name] = handler; } },
-    shell: { openExternal() {} },
-    BrowserWindow,
-  });
-  record.exited = null;
-  record.whenExited = new Promise((resolve) => { record.exited = resolve; });
-  return record;
-}
-
-let counter = 0;
-// Starts the entry as Electron would: with these command-line arguments and this resources folder. Resolves with what the
-// entry did — it loaded its window, or it asked to quit — together with what it printed as an error.
-async function startEntry({ resources, argv = [], appData }) {
-  const fake = constructedElectron(appData);
-  const errors = [];
-  const saved = { argv: process.argv, resourcesPath: process.resourcesPath, error: console.error };
-  globalThis.__agentMBuildResourcesElectron = fake;
-  process.argv = [process.argv[0], "src/desktop-shell/main.mjs", ...argv];
-  process.resourcesPath = resources;
-  console.error = (...parts) => { errors.push(parts.join(" ")); };
-  try {
-    counter += 1;
-    await import(`../src/desktop-shell/main.mjs?case=${counter}`);
-    const outcome = await Promise.race([fake.outcome, new Promise((_, reject) => setTimeout(() => reject(new Error("The entry neither loaded its window nor asked to quit.")), 5000))]);
-    return { fake, outcome, errors };
-  } finally {
-    process.argv = saved.argv; process.resourcesPath = saved.resourcesPath; console.error = saved.error;
-  }
-}
-
-async function stopEntry(started) {
-  if (started.outcome.kind !== "loaded") return;
-  started.fake.appEvents["before-quit"]({ preventDefault() {} });
-  await started.fake.whenExited;
-}
-
-const bridgeAsks = (port, origin, token) => fetch(`http://127.0.0.1:${port}/v1/pair`, { headers: { origin, ...(token ? { [TOKEN_HEADER]: token } : {}) } });
-const refused = async (port) => { try { await fetch(`http://127.0.0.1:${port}/v1/pair`); return false; } catch { return true; } };
-const bridgeSettings = (port) => ({ name: "lab", port, agents: [], products: [], every: 300, paused: true, jumpHost: null, tunnels: [] });
 
 // TST-1005001 · level: unit · module: MOD-desktop-shell
 // guards: UC-044; THE BRIDGE RUNS AS AN APP

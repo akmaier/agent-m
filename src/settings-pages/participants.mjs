@@ -9,14 +9,13 @@ import { listSettings, readSetting, secretValues, writeSetting } from "../browse
 import { bridgeAt, probe, settingsOf, testBridge } from "../bridge-client/index.mjs";
 import { readDocument, writeDocument } from "../documents/index.mjs";
 import { testEndpoint } from "../endpoint-calls/index.mjs";
-import { catalogue, modelSchema } from "../model-catalogue/index.mjs";
 import { participantSchema, participantsOf, reachedThrough } from "../participant-list/index.mjs";
-import { declarationSchema, roleAssignmentFindings, roleAssignmentSchema, workflowOf } from "../product-process/index.mjs";
+import { declarationSchema, roleAssignmentFindings, roleAssignmentSchema, productWorkflow } from "../product-process/index.mjs";
 import { connect, parseAddress } from "../repository-hosts/index.mjs";
 import { permittedPlaces, sourceSchemas } from "../source-register/index.mjs";
 import { explain, schemaForm } from "../site-frame/index.mjs";
 import { finding } from "../text-tools/index.mjs";
-import { recordTest } from "./endpoints.mjs";
+import { PROMPT_BAR_NOTE, recordTest } from "./endpoints.mjs";
 import { credentialsFor } from "./products.mjs";
 
 const PATH = "docs/participants.md";
@@ -271,22 +270,16 @@ function participantsForFindings(document) {
   })) };
 }
 
-async function productBasisOf(context, web, instanceSnapshot, cat, specText) {
+async function productBasisOf(context, web, specText) {
   const host = productHostOf(context, web);
   const { defaultBranch } = await host.repositoryInfo();
   const snapshot = await host.readSnapshot(defaultBranch);
   const declarationText = await snapshot.read(DECLARATION);
   if (!declarationText) return null;
   const declaration = readDocument(declarationSchema, DECLARATION, declarationText);
-  const model = cat.models.find((candidate) => candidate.path === text(declaration.fields.model_file));
-  if (!model) return null;
-  const firstWorkflow = workflowOf(declaration, model, [], specText ?? "");
-  const practices = (await Promise.all(cat.practices.filter((practice) => firstWorkflow.practices.includes(practice.name))
-    .map(async (practice) => {
-      const practiceText = await instanceSnapshot.read(practice.path);
-      return practiceText != null ? readDocument(modelSchema.practice, practice.path, practiceText) : null;
-    }))).filter(Boolean);
-  const workflow = workflowOf(declaration, model, practices, specText ?? "");
+  // The product's workflow as it declared it: the model at the instance's commit its declaration names.
+  const workflow = await productWorkflow(declaration, (commit) => context.instance.host.readSnapshot(commit), specText ?? "");
+  if (workflow === null) return null;
   const assignments = await Promise.all((snapshot.paths ?? []).filter((path) => ASSIGNMENT_FILE.test(path)).sort()
     .map(async (path) => readDocument(roleAssignmentSchema, path, await snapshot.read(path))));
   return { web, workflow, assignments };
@@ -295,11 +288,11 @@ async function productBasisOf(context, web, instanceSnapshot, cat, specText) {
 async function productUseBasis(context, opened) {
   const products = browserProducts(context.store);
   if (!products.length) return [];
-  const [cat, specText] = await Promise.all([catalogue(opened.snapshot), opened.snapshot.read("SPEC.md")]);
+  const specText = await opened.snapshot.read("SPEC.md");
   const basis = [];
   for (const web of products) {
     try {
-      const product = await productBasisOf(context, web, opened.snapshot, cat, specText);
+      const product = await productBasisOf(context, web, specText);
       if (product) basis.push(product);
     } catch {
       // A product that cannot currently be read cannot prove that it names this participant.
@@ -755,7 +748,7 @@ export const route = {
     type.addEventListener("change", () => { setType(type.value); rebuild(); });
 
     panel.append(panelTitle, control("Type", type), fieldsBox, formBox, productUseBox, result);
-    target.replaceChildren(el("h2", null, "Participants"), el("p", null, add), panel, list);
+    target.replaceChildren(el("h2", null, "Participants"), el("p", "muted prompt-bar-note", PROMPT_BAR_NOTE), el("p", null, add), panel, list);
 
     // Opened with the parameters `type` and `address` (a resource's *Add as participant*, UC-040 2a): the form of a new participant of that type, with the address where it belongs —
     // the kept endpoint that has this address, else the URL of a new one. Without both, or with a type no participant has, the page is as it is without them.

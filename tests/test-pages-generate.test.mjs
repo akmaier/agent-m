@@ -12,7 +12,7 @@
 // The document is the small DOM of tests/site-frame-dom.mjs, imported unchanged. The product and the instance are hosts of this file, kept to MOD-repository-hosts' interface (repositoryInfo,
 // readSnapshot, commitFiles made only on the head that was read); the instance's snapshot gives the register of participants the test sets and the rest of this repository from the disk, the
 // book among it. The real MOD-job-runner, MOD-job-catalogue, MOD-runtimes, MOD-job-ledger, MOD-trace-graph, MOD-participant-list and MOD-site-frame run as they are, the strategies registered as
-// the view hands them to the frame, plus the source register's, which the review pages hand it. Where the texts leave a reading open, the test states the one it takes, and the pull request names it:
+// the view hands them to the frame. Where the texts leave a reading open, the test states the one it takes, and the pull request names it:
 //   - A combination is a name and a level that fits its kind: a requirement at release and user, a use case at system, a module at unit and component (UC-026's table). A combination is uncovered
 //     when no test of that level guards the name; a test guards a module it names in its `Module:` line, as the recipe test-selection counts it.
 //   - A name is preselected when one of its combinations is uncovered; a level when a preselected name lacks it.
@@ -33,9 +33,7 @@ import { writeDocument } from "../src/documents/index.mjs";
 
 const { view } = await import("../src/test-pages/index.mjs");
 const { registerStrategies } = await import("../src/job-runner/index.mjs");
-const { sourceStrategies } = await import("../src/source-register/index.mjs");
-const { resourceStrategies } = await import("../src/resource-list/index.mjs");
-[...view.strategies, sourceStrategies, resourceStrategies].forEach((strategies, at) => registerStrategies(`tests/test-pages-generate.test.mjs#${at}`, strategies));
+view.strategies.forEach((strategies, at) => registerStrategies(`tests/test-pages-generate.test.mjs#${at}`, strategies));
 const route = view.routes.find((candidate) => candidate.name === "generate");
 
 // ---------------------------------------------------------------- the product

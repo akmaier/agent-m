@@ -1076,7 +1076,7 @@ newer state as the pin: one click, and one commit of the list as your own.
 A check makes one harmless request to the resource. A repository is checked by reading its current head. A compute resource reached
 by a self-hosted runner is checked by a job on that runner: the run panel above shows which participant does it and what it is sent
 before you press **Run**, and the job's record in the repository shows its result. A runner serves a private repository only. A
-resource reached through a Bridge is checked by a request through the Bridge, which this page does not make yet.
+resource reached through a Bridge is checked by a request through the Bridge its route names: the page asks that Bridge, which lists a cluster's partitions, lists the models an endpoint serves or gets an answer from an agent, and the page shows the answer. That check writes nothing.
 
 ## resource-copy
 
@@ -1118,7 +1118,7 @@ The job was started, but its record has no end and no runtime knows it any more:
 
 ## job-runtime-tab
 
-A job in the **browser tab** is a conversation with a model endpoint that this page runs for you. It leaves no record in the repository and ends when you close the tab. It is listed here as this tab's, while it runs.
+A job in the **browser tab** is a conversation with a model endpoint that this page runs for you. Its record is kept in the product's repository, like that of any job. Its live state and log exist only in the tab that runs it, so a job whose tab is closed is shown as ended without record. It is listed here as this tab's while it runs. A long job is better started on CI or on a Bridge, which go on when this page is closed.
 
 ## job-runtime-ci
 

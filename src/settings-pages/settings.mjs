@@ -3,13 +3,13 @@
 import { clearEverything, clearSetting, exportSettings, importSettings, listSettings, readExport, readSetting, secretValues, writeSetting } from "../browser-store/index.mjs";
 import { testEndpoint } from "../endpoint-calls/index.mjs";
 import { notificationState, switchOff, switchOn, testNotification } from "../notifications/index.mjs";
-import { explain } from "../site-frame/index.mjs";
+import { confirmDecision, explain } from "../site-frame/index.mjs";
 import { readDocument, readRegister, writeDocument } from "../documents/index.mjs";
 import { participantSchema } from "../participant-list/index.mjs";
 import { declarationSchema } from "../product-process/index.mjs";
 import { sourceSchemas } from "../source-register/index.mjs";
 import { resourceSchema } from "../resource-list/index.mjs";
-import { settingsSchemas, pseudonymisationOf } from "../personal-data/index.mjs";
+import { settingsSchemas, pseudonymisationOf, namedPersonFindings } from "../personal-data/index.mjs";
 import { saveFile } from "../artifact-edits/index.mjs";
 import { recordingOf, recordingSchema } from "../prompt-bar/index.mjs";
 import { jobWorkflowFiles } from "../runtimes/index.mjs";
@@ -18,7 +18,8 @@ import { connect, HostError, parseAddress } from "../repository-hosts/index.mjs"
 import { bridgeAt, pair, probe, settingsOf, testBridge } from "../bridge-client/index.mjs";
 import { bridgeFailureText, bridgeSettings as endpointBridgeSettings, CHOOSE_BRIDGE_DISCLOSURE, CHOOSE_BRIDGE_TEXT, namesNoBridge, recordTest, route as endpointsRoute } from "./endpoints.mjs";
 import { route as bridgeRoute } from "./bridge.mjs";
-import { mailboxLine } from "./mailbox.mjs";
+import { mailboxSetting } from "./mailbox.mjs";
+import { settingsSubject } from "./subject.mjs";
 
 // The Settings page's own context, held by the context its tabs' forms open in.
 const PAGE = Symbol("the Settings page's own context");
@@ -26,6 +27,9 @@ const PAGE = Symbol("the Settings page's own context");
 // The tab each Settings page shows, by the page's own context: a render the page asks for itself keeps the tab the person
 // chose; Settings opened anew, with a context of its own, shows its first tab.
 const chosenTabs = new WeakMap();
+
+// The element each Settings page is drawn in, by the context the frame gave it: its text is what the subject carries besides the settings' states.
+const drawnOn = new WeakMap();
 
 // The page keeps the instance and the product it was given in objects of its own, so that connecting their hosts again changes nothing its caller holds.
 const pageContext = (given) => ({ ...given, instance: given.instance && { ...given.instance }, product: given.product && { ...given.product } });
@@ -450,6 +454,23 @@ function browserIdLine(target, context) {
     el("h3", null, "Browser identifier"),
     el("p", null, shown === null ? "not set" : el("span", "settings-browser-id-value", shown)),
     ...(shown === null ? [] : [el("p", null, clear)]));
+}
+
+// The mails marked not an issue (MOD-browser-store's key `not-an-issue`): identifiers only, so its line says how many are marked and has Clear after one confirmation; nothing to test or change.
+function notAnIssueLine(target, context) {
+  const marks = readSetting(context.store, "not-an-issue");
+  const count = Array.isArray(marks) ? marks.length : 0;
+  const clear = el("button", "settings-not-an-issue-clear btn", "Clear");
+  clear.addEventListener("click", async () => {
+    const decision = await confirmDecision({ title: "Clear the mails marked not an issue?", lines: [`${count} mail${count === 1 ? "" : "s"} marked in this browser will be proposed again at the next reading of the mailbox.`], confirm: "Clear the marks" });
+    if (!decision.confirmed) return;
+    clearSetting(context.store, "not-an-issue");
+    await route.render(target, context, {});
+  });
+  return el("section", "settings-not-an-issue panel",
+    el("h3", null, "Mails marked not an issue"),
+    el("p", null, count === 0 ? "not set" : `${count} mail${count === 1 ? "" : "s"} marked`),
+    ...(count === 0 ? [] : [el("p", null, clear)]));
 }
 
 function browserClearControls(context) {
@@ -936,6 +957,19 @@ function productLinks(context) {
   return el("p", "settings-product-links", sources);
 }
 
+// The files of the default branch that still name a collaborator who withdrew (UC-042 5a), by MOD-personal-data's namedPersonFindings, in the order of the repository's paths; the register of consent itself is not among them.
+async function filesNamingWithdrawn(host, branch, name, registerPath, collaboratorsDocument) {
+  const snapshot = await host.readSnapshot(branch);
+  const paths = (snapshot.paths ?? []).filter((path) => path !== registerPath);
+  await snapshot.readMany?.(paths);
+  const named = [];
+  for (const path of paths) {
+    const text = await snapshot.read(path);
+    if (typeof text === "string" && namedPersonFindings(text, path, { names: [name], addresses: [], phones: [], accounts: [] }, collaboratorsDocument, []).length > 0) named.push(path);
+  }
+  return named;
+}
+
 async function productControls(context) {
   if (!context.product) return el("section", "settings-product panel",
     el("p", null, "Choose a product to edit its repository settings."),
@@ -1012,6 +1046,7 @@ async function productControls(context) {
   const saveCollaborators = async (text) => {
     try { return await saveFile(context.product.host, { path: collaborators.path, text, openedBlob: collaboratorsBlob }); } catch (error) { collabResult.textContent = error?.message ?? String(error); return null; }
   };
+  const namedFiles = el("div", "settings-collaborator-named");
   const removeName = el("input", "settings-collaborator-remove-name"), removeAccount = el("input", "settings-collaborator-remove-account");
   const remove = el("button", "settings-collaborator-remove btn", "Remove collaborator consent");
   add.addEventListener("click", async (event) => {
@@ -1057,6 +1092,12 @@ async function productControls(context) {
     collaboratorRecords.replaceChildren(...Array.from(collaboratorRecords.childNodes).filter((node) => !node.textContent.startsWith(`${wantedName} · @${wantedAccount} ·`)));
     collabResult.textContent = "Removed this collaborator's consent record; earlier commits keep the name in the history. ";
     if (result.commit) { const address = parseAddress(context.product.address); const link = el("a", "settings-collaborator-withdrawal-commit", "View removal commit"); link.href = `${address.web}/${address.server === "gitlab" ? "-/commit" : "commit"}/${result.commit}`; collabResult.append(link); }
+    try {
+      const named = await filesNamingWithdrawn(context.product.host, defaultBranch, wantedName, collaborators.path, collaboratorsDocument);
+      namedFiles.replaceChildren(...(named.length ? [el("p", null, `${named.length === 1 ? "This file on" : "These files on"} the default branch still ${named.length === 1 ? "names" : "name"} ${wantedName}; change ${named.length === 1 ? "it" : "them"}:`),
+        el("ul", "settings-collaborator-named-files", ...named.map((path) => el("li", null, path)))]
+        : [el("p", "settings-collaborator-named-none", `No file on the default branch still names ${wantedName}.`)]));
+    } catch (error) { namedFiles.replaceChildren(el("p", "warn", `The files that still name ${wantedName} could not be read: ${error?.message ?? error}`)); }
   });
   const publication = repository.visibility === "public" ? `${address.server === "github" ? "GitHub" : "GitLab"} reports ${address.path} as public: the data will be published — anyone on the internet can read it.` : `The repository is not reported public; use only a protected, non-public data space.`;
   return el("section", "settings-product panel",
@@ -1073,7 +1114,7 @@ async function productControls(context) {
     el("p", null, el("label", null, agreed, " This person has agreed to be named."), " ", el("label", null, "Consent date ", agreedDate), " ", add),
     el("h4", null, "Remove collaborator consent"),
     el("p", null, el("label", null, "Name ", removeName)), el("p", null, el("label", null, "Account ", removeAccount)),
-    el("p", null, "Earlier commits keep the name in the history. ", remove), collabResult);
+    el("p", null, "Earlier commits keep the name in the history. ", remove), collabResult, namedFiles);
 }
 
 // ---------------------------------------------------------------- the repository settings (UC-042 step 3)
@@ -1191,7 +1232,9 @@ export const route = {
   name: "settings",
   entry: "settings",
   title: "Settings",
+  subject: (params, context) => settingsSubject(context, () => drawnOn.get(context)?.textContent ?? ""),
   async render(target, given) {
+    drawnOn.set(given, target);
     // A line that renders the page again hands back the context of its tab; the page keeps its own.
     const context = given[PAGE] ?? pageContext(given);
     // UC-042 steps 2 and 3, UC-011 step 1, UC-044 step 4: the forms that set up a model endpoint or the Bridge open in
@@ -1232,7 +1275,7 @@ export const route = {
       el("h3", null, "General · this browser"),
       el("div", "settings-browser-explanation", explain("endpoint-route")),
       el("p", "notice settings-shared-origin", sharedPagesNotice(context)),
-      browserIdLine(target, context), exportImportControls(context, await carriesSignIn(context.store)), browserClearControls(context));
+      browserIdLine(target, context), notAnIssueLine(target, context), exportImportControls(context, await carriesSignIn(context.store)), browserClearControls(context));
     const product = await productControls(context);
     const recording = recordingControls(context);
     const instanceSettings = repositorySettings(inPlace, { className: "settings-instance-settings", heading: "Instance · settings kept in its repository", topic: "settings-instance-lines", topics: INSTANCE_TOPICS, settings: INSTANCE_SETTINGS, hostOf: () => context.instance.host });
@@ -1250,7 +1293,7 @@ export const route = {
       configurationControls(inPlace), form,
       ...(bridge ? [bridge] : []), ...namedBridges, ...(jumpHost ? [jumpHost] : []),
       ...remoteSessions,
-      ...(readSetting(context.store, "mailbox") ? [mailboxLine(inPlace).node] : []),
+      mailboxSetting(inPlace),
       endpoints);
     const usability = el("section", "settings-tab-panel",
       el("h3", null, "Usability · this browser"), notificationsControls(context));

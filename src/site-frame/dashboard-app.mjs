@@ -43,9 +43,11 @@ import { view as settingsPages } from "../settings-pages/index.mjs";
 import { view as reviewPages } from "../review-pages/index.mjs";
 import { view as tracePages } from "../trace-pages/index.mjs";
 import { view as testPages } from "../test-pages/index.mjs";
+import { view as maintenancePages } from "../maintenance-pages/index.mjs";
+import { view as implementationPages } from "../implementation-pages/index.mjs";
 import { registerStrategies } from "../job-runner/index.mjs";
 import { explain } from "./index.mjs";
-import { routeOf, productHostFollowingStore } from "./routing.mjs";
+import { fragmentOf, routeOf, productHostFollowingStore } from "./routing.mjs";
 import { noticePlace, showTokenNotices } from "./notices.mjs";
 
 export { DASHBOARD, UPSTREAM };
@@ -268,7 +270,7 @@ async function loadSnapshot() {
 const USE_CASE_PATH = /^docs\/use-cases\/UC-\d{3}-[^/]+\.md$/;
 const QUEUE_INDEX_PATH = /^docs\/spec-freigaben\/[^/]+\/index\.md$/;
 const QUEUE_HEAD_PATH = /^docs\/spec-freigaben\/[^/]+\/(?:index|entscheidungen)\.md$/;
-const ITEM_PATH = /^docs\/backlog\/ITM-\d{3}-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
+const ITEM_PATH = /^docs\/backlog\/ITM-\d{3,}-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
 const SPRINT_PATH = /^docs\/backlog\/sprints\/([^/]+)\/\d+\.md$/;
 const ASSIGNMENT_PATH = /^docs\/role-assignments\/([^/]+)\.md$/;
 const MODULE_PATH = /^docs\/architecture\/MOD-[^/]+\.md$/;
@@ -317,7 +319,7 @@ async function readAhead(kind) {
     await readWave(["SPEC.md", "docs/sources.md", ...registerPaths(state.tree.map((e) => e.path)), ...pathsOf(QUEUE_HEAD_PATH)]);
     await readWave(await openProposals());
   } else if (kind === "backlog") {
-    // The module files are read for a product with more than one team (backlog-view.mjs context).
+    // The module files are read for a product with more than one team (the route backlog of MOD-implementation-pages reads them).
     const teams = new Set([...pathsOf(ASSIGNMENT_PATH).map((p) => ASSIGNMENT_PATH.exec(p)[1]), ...pathsOf(SPRINT_PATH).map((p) => SPRINT_PATH.exec(p)[1])]);
     await readWave(["docs/process.md", "SPEC.md", ...pathsOf(ITEM_PATH, SPRINT_PATH, ASSIGNMENT_PATH), ...(teams.size > 1 ? pathsOf(MODULE_PATH) : []),
       ...await recordsOfAll(pathsOf(USE_CASE_PATH))]);
@@ -495,7 +497,7 @@ function addressOfNotification(route, params, repository) {
 }
 
 // Opens this browser's MOD-browser-store store of the instance, connects the instance's host with the dashboard's own
-// stored GitHub token — ghToken(), settings-store.mjs's agent-m.github-token, as process-view.mjs's own connect()
+// stored GitHub token — ghToken(), settings-store.mjs's agent-m.github-token, as the connect() of the routes of MOD-implementation-pages
 // uses it (ITM-238 F2, sprint 08's change between jobs, docs/backlog/sprints/08.md: MOD-browser-store's own
 // "github-token" setting is never written, so the instance was always checked with no token) — and starts the
 // checks — only where this browser could ever show one at all: real browsers always define Notification
@@ -650,6 +652,21 @@ function reviewContext() {
   };
 }
 
+// The ViewContext of the routes of MOD-implementation-pages for the product shown: the product is always the one shown, the instance itself included, since these routes work on a product's files; the hosts are the app's
+// own, which serve the snapshot the load read.
+function implementationContext() {
+  const address = parseAddress(T.product.address);
+  const shown = pagesHost();
+  const isInstance = address.server === "github" && address.path === T.instance;
+  return {
+    page: "review",
+    instance: { repository: T.instance, host: isInstance ? shown : connect(parseAddress(`https://github.com/${T.instance}`), { token: ghToken(), secrets: secrets() }) },
+    product: { address: T.product.address, kind: address.server, host: shown, tokenStored: Boolean(token()), ref: T.ref },
+    store: openStore(T.instance),
+    go(route, params = {}) { location.hash = fragmentOf(route, params); },
+  };
+}
+
 // Each route draws into an element of its own in <main>: a route that was left meanwhile draws into an element no longer there.
 async function renderReviewPages(targets, lead = []) {
   const context = reviewContext();
@@ -800,6 +817,37 @@ async function route() {
         instance: { host: connect(parseAddress(`https://github.com/${T.instance}`), { token: ghToken() }) },
         product: { host: connect(parseAddress(T.product.address), { token: token() }) },
       }, {});
+    } else if (kind === "mail") {
+      const mailRoute = maintenancePages.routes.find((r) => r.name === "mail");
+      await mailRoute.render(main(), {
+        page: "review", instance: { repository: T.instance }, product: null, store: openStore(T.instance),
+        go(route, params = {}) {
+          if (route === "add-product") location.hash = "#add";
+          else location.hash = params.id ? `#${route}/${encodeURIComponent(params.id)}` : `#${route}`;
+        },
+      }, {});
+    } else if (kind === "replies") {
+      const repliesRoute = maintenancePages.routes.find((r) => r.name === "replies");
+      await repliesRoute.render(main(), {
+        page: "review", instance: { repository: T.instance }, product: null, store: openStore(T.instance),
+        go(route, params = {}) {
+          if (route === "add-product") location.hash = "#add";
+          else location.hash = fragmentOf(route, params);
+        },
+      }, routeOf(location.hash).params);
+    } else if (kind === "process" || kind === "roles") {
+      // The product and the instance, each connected with its own token: the route reads and builds everything the page shows.
+      const route = implementationPages.routes.find((r) => r.name === kind);
+      const hosts = { instance: { host: connect(parseAddress(`https://github.com/${T.instance}`), { token: ghToken() }) }, product: { host: connect(parseAddress(T.product.address), { token: token() }) } };
+      await route.render(main(), hosts);
+      if (kind === "process") main().insertAdjacentHTML("afterbegin", `<section class="head"><h2>${h(route.title)}</h2></section>`);
+    } else if (kind === "backlog") {
+      loading += 1;
+      try {
+        await implementationPages.routes.find((r) => r.name === "backlog").render(main(), implementationContext(), {});
+      } finally {
+        loading -= 1;
+      }
     } else if (kind === "bridge") {
       const bridge = settingsPages.routes.find((r) => r.name === "bridge");
       await bridge.render(main(), {

@@ -23,6 +23,7 @@ import { coverageGaps, traceGraph, tracesTo } from "../trace-graph/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { componentDiagram } from "./diagram.mjs";
 import { descriptorFor } from "./views.mjs";
+import { showTests } from "./tests.mjs";
 import { instanceSnapshot, opening, personsSource, subjectOf } from "./subject.mjs";
 
 const SPEC_PATH = "SPEC.md";
@@ -376,9 +377,12 @@ function versionChoice({ shown, handed, current, tags, choose, other }) {
   select.value = shown.ref;
   select.addEventListener("change", () => choose(select.value));
   const choice = el("div", "version-bar", el("label", null, "Version ", select));
-  const across = el("a", `${other.className} btn small`, other.text);
-  across.setAttribute("href", fragment("trace", { key: other.key, ref: shown.ref }));
-  choice.append(across, explain("trace-versions"));
+  if (other) {
+    const across = el("a", `${other.className} btn small`, other.text);
+    across.setAttribute("href", fragment("trace", { key: other.key, ref: shown.ref }));
+    choice.append(across);
+  }
+  choice.append(explain("trace-versions"));
   if (!tags.length) choice.append(el("p", "version-none", "No release is tagged yet (UC-013); only the current text can be shown."));
   if (!shown.onDefaultBranch) choice.append(el("p", "version-as-of", `as of ${shown.ref}`));
   return choice;
@@ -478,6 +482,10 @@ export const route = {
           const place = el("div", "gaps-body", el("p", "traces-reading", "Reading the gaps…"));
           body = el("section", "gaps head", el("h2", null, descriptor.title), place);
           fill = () => showGaps(place, shown);
+        } else if (descriptor.key === "tests") {
+          const place = el("div", "tests-page", el("p", "traces-reading", "Reading the tests…"));
+          body = el("section", "tests head", el("h2", null, descriptor.title), place);
+          fill = () => showTests(place, shown);
         } else {
           if (shown.onDefaultBranch) shown.source = await personsSource(context, snapshot);
           const waiting = shown.onDefaultBranch ? await waitingSection(snapshot) : null;

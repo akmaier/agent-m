@@ -1,6 +1,5 @@
 // watch.mjs — reading the served products, taking jobs and running them (MOD-bridge-jobs, Parts: watch.mjs; Interfaces: startWatching,
-// stopWatching). Of it, ITM-327 builds taking and running the queued jobs of this Bridge's agents; resuming after a gate, advancing runs and an
-// agent's sprint close are other items'.
+// stopWatching). Of it, ITM-327 builds taking and running the queued jobs of this Bridge's agents; resuming after a gate and advancing runs are other items'; ITM-1033 adds an agent's sprint close.
 //
 // Module: MOD-bridge-jobs
 //
@@ -10,9 +9,12 @@
 import { agentDriver, installedAgents } from "../agent-processes/index.mjs";
 import { readRegister } from "../documents/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
-import { appendToRecord, jobCost, recordsNewestFirst, takeJob } from "../job-ledger/index.mjs";
+import { appendToRecord, jobCost, newJobId, recordsNewestFirst, takeJob } from "../job-ledger/index.mjs";
 import { prepareJob, runJob } from "../job-runner/index.mjs";
 import { participantSchema, participantsOf } from "../participant-list/index.mjs";
+import { productFacts } from "../progress-measures/index.mjs";
+import { queueJob } from "../runtimes/index.mjs";
+import { sprintsToClose } from "../work-plans/index.mjs";
 import { checkoutAt, cloneOrFetch, defaultHead, exclusively, foldersOf, hostOf, removeClone, workingClone } from "./workfolders.mjs";
 
 const PARTICIPANTS = "docs/participants.md";
@@ -46,6 +48,53 @@ const reasonOf = (error) => [error.message, error.lastOutput, ...(error.blocking
 
 // The watchers this program runs. A hand-over reaches every one of them.
 const watchers = new Set();
+
+// The jobs this program took, in the order it took them, kept in memory only: what GET /v1/jobs lists (MOD-bridge-jobs, Interfaces).
+const jobsTaken = new Map();
+
+// The log of each job this program took: the lines its agent's process wrote to standard output, in order, and whether the job has ended; and the jobs still running, to cancel. In memory only.
+const logs = new Map();
+const live = new Map();
+
+/** jobLog(id, from) -> { lines, next, ended } — the lines of a job's log from `from` on, the index after the last line, and whether the job has ended; not-found for a job this Bridge did not take. */
+export function jobLog(id, from = 0) {
+  const entry = logs.get(id);
+  if (!entry) throw failure("not-found", "This Bridge took no such job.");
+  return { lines: entry.lines.slice(from), next: entry.lines.length, ended: entry.ended };
+}
+
+/**
+ * cancelJob(id) -> Promise<{ confirmed: true }> — stops the agent's process of a running job and answers once the job has ended; the Bridge writes no end for it, the person's page appends the record
+ * of the cancel (a job ended by a quit still gets its cancelled end); a job that has ended already is confirmed as it is; not-found for a job this Bridge did not take.
+ */
+export async function cancelJob(id) {
+  const entry = live.get(id);
+  if (!entry) {
+    if (!jobsTaken.has(id)) throw failure("not-found", "This Bridge took no such job.");
+    return { confirmed: true };
+  }
+  entry.cancelledByPage = true;
+  entry.controller.abort();
+  while (!entry.done && live.has(id)) await new Promise((resolve) => setTimeout(resolve, 5));
+  await entry.done?.catch(() => {});
+  return { confirmed: true };
+}
+
+// The text an agent wrote, added to a job's log line by line: a line is complete at its line break.
+function appended(entry, chunk) {
+  const pieces = (entry.partial + chunk).split("\n");
+  entry.partial = pieces.pop();
+  entry.lines.push(...pieces);
+}
+
+/**
+ * listJobs() -> { id, product, kind, agent, state, started, usage }[] — the jobs this Bridge took since it started, in the order it took them: `state` is `running` while the agent works and, once the job
+ * has ended, the state of its end (`done`, `failed` or `cancelled`); `started` the moment it took the job (ISO); `usage` null while it runs and the usage its end records afterwards. A job another route took is
+ * not listed.
+ */
+export function listJobs() {
+  return [...jobsTaken.values()].map((job) => ({ ...job }));
+}
 
 function createWatcher(config) {
   const { bridgeName, products, every, instance, onSkipped } = config;
@@ -93,14 +142,58 @@ function createWatcher(config) {
     return { found, folder, host, commit };
   }
 
+  // The closes of the sprints a product assigned to `agent`: a sprint that MOD-work-plans' sprintsToClose names, at today's date, whose closer is a participant whose route names this Bridge and this agent, gets
+  // its close — a job of the kind close-sprint working on the items of its selection, its parameter `sprint` the sprint's name — queued for this route, once: none is queued for a sprint of which the product holds
+  // a close record in any state. The queued close is then taken and run like any queued job of this Bridge. Throws what reading the product or the instance throws, so that the product is skipped with the reason.
+  async function queueCloses(agent, product, cache) {
+    const folders = foldersOf(agent.folder);
+    const productFolder = folders.product(product);
+    await cloneOrFetch(product, productFolder);
+    const productHead = await defaultHead(productFolder);
+    const instanceFolder = await cloneOrFetch(instance, folders.instance);
+    const instanceHost = await hostOf(instance, instanceFolder);
+    const instanceCommit = (await defaultHead(instanceFolder)).commit;
+    const host = await hostOf(product, productFolder);
+    // The facts are read through the clone alone: the sprints and the job records need no pull request (productFacts takes a refusal as `unknown`). They are read at the head the clone fetched
+    // (`productHead`), not at the clone's own branch, which stands where the clone was made: the records this Bridge has queued, taken and ended since are on the origin only.
+    const clone = { ...host, repositoryInfo: async () => ({ ...(await host.repositoryInfo()), defaultBranch: productHead.commit }),
+      listPullRequests: async () => { throw Object.assign(new Error("pull requests are not read here"), { name: "NotSupported" }); } };
+    const now = new Date();
+    const facts = await productFacts(clone, await instanceHost.readSnapshot(instanceCommit), (commit) => instanceHost.readSnapshot(commit), now, { scope: "work" });
+    const due = sprintsToClose(Array.isArray(facts.sprints) ? facts.sprints : [], Array.isArray(facts.plan?.states) ? facts.plan.states : [], now.toISOString().slice(0, 10));
+    if (due.length === 0) return;
+    const participants = await participantsAt(agent, instanceCommit, cache);
+    const started = new Set(facts.jobs.filter(({ record }) => record.kind === "close-sprint").map(({ record }) => String(record.params?.sprint ?? "")));
+    const limit = (await kindOf("close-sprint")).limit;
+    await exclusively(`take ${product}`, async () => {
+      await cloneOrFetch(product, productFolder);
+      let head = await defaultHead(productFolder);
+      const taken = new Set((await host.readSnapshot(head.commit)).paths.map((path) => /^docs\/jobs\/(JOB-[^/]+)\.md$/.exec(path)?.[1]).filter(Boolean));
+      for (const sprint of due) {
+        const closer = participants.find((each) => each.name === sprint.closer);
+        const route = bridgeRoute(closer?.route);
+        if (!route || route.bridge !== bridgeName || route.agent !== agent.name || started.has(sprint.sprint)) continue;
+        const id = newJobId(now, taken);
+        taken.add(id);
+        const selected = facts.sprints.find((record) => record.path === `docs/backlog/sprints/${sprint.sprint}.md`)?.fields?.selection;
+        const queued = await queueJob(host, { id, kind: "close-sprint", worksOn: [].concat(selected ?? []), participant: closer.name, model: closer.model ?? null, route: `bridge ${bridgeName} agent ${agent.name}`,
+          run: null, retries: null, startedBy: bridgeName, start: now, agentM: { version: "unreleased", commit: instanceCommit }, inputs: [], limit, destinations: [{ participant: closer.name, place: closer.place ?? "", parts: [] }],
+          params: { sprint: sprint.sprint } }, { kind: "bridge", bridge: bridgeName }, head.commit);
+        head = { ...head, commit: queued.commit };
+      }
+    });
+  }
+
   // One job: taken on the head that was read, run in the agent's working folder, its working clone removed, ended in its record.
   async function run(agent, product, { record, participant, host, commit }, folder) {
     const folders = foldersOf(agent.folder);
     const controller = new AbortController();
     const mine = { controller, done: null };
     running.set(record.id, mine);
+    live.set(record.id, mine);
+    const logged = { lines: [], partial: "", ended: false };
     const working = folders.job(record.id);
-    let result = null, failed = null;
+    let result = null, failed = null, listed = null;
     try {
       // Taking is one at a time in this program, on the head read just before: two watchers of one name that took on the same head in the same
       // minute would write the same commit, which a push accepts twice, and both would run the job.
@@ -109,6 +202,9 @@ function createWatcher(config) {
         return takeJob(host, record.path, bridgeName, (await defaultHead(folder)).commit);
       });
       if (!taken.taken) return;
+      listed = { id: record.id, product, kind: record.kind, agent: agent.name, state: "running", started: new Date().toISOString(), usage: null };
+      jobsTaken.set(record.id, listed);
+      logs.set(record.id, logged);
       try {
         const installed = (await installedAgents()).find((each) => each.name === agent.name);
         const head = await host.readSnapshot(taken.commit);
@@ -126,13 +222,24 @@ function createWatcher(config) {
         await workingClone(product, working);
         const driver = agentDriver(installed, { workdir: working, keyVariable: null }, participant);
         const prepared = await prepareJob(record.kind, context, { drafter: participant, reviewers: [], limit: record.limit });
-        result = await runJob(prepared, { drafter: driver, reviewers: [] }, { attended: false, context, signal: controller.signal });
+        result = await runJob(prepared, { drafter: driver, reviewers: [] }, { attended: false, context, signal: controller.signal, onOutput: (chunk) => appended(logged, chunk) });
       } catch (error) {
         failed = error;
       }
       await removeClone(working);
-      await ended(host, product, folder, record, participant, result, failed, controller.signal.aborted && mine.quit);
+      if (mine.cancelledByPage && !mine.quit) {
+        // A cancel through the page (POST /v1/jobs/{id}/cancel): the Bridge commits nothing more; the person's page appends the record of the cancel.
+        listed.state = "cancelled";
+      } else {
+        const end = await ended(host, product, folder, record, participant, result, failed, controller.signal.aborted && mine.quit);
+        listed.state = end.state;
+        listed.usage = end.usage;
+      }
     } finally {
+      if (listed?.state === "running") listed.state = "failed";
+      if (logged.partial) { logged.lines.push(logged.partial); logged.partial = ""; }
+      logged.ended = true;
+      live.delete(record.id);
       tasks.delete(record.id);
       running.delete(record.id);
     }
@@ -157,7 +264,7 @@ function createWatcher(config) {
       const text = await (await host.readSnapshot(commit)).read(record.path);
       try {
         await host.commitFiles({ branch, expectedHead: commit, files: [{ path: record.path, text: appendToRecord(text, part) }], message: `end ${record.id} (${part.state})` });
-        return;
+        return part;
       } catch (error) {
         if (error?.name !== "Moved" || attempt >= 5) throw error;
       }
@@ -170,6 +277,7 @@ function createWatcher(config) {
       if (stopped || busy.has(agent.name)) return;
       let queue;
       try {
+        await queueCloses(agent, product, cache);
         queue = await queuedOf(agent, product, cache);
       } catch (error) {
         skip(product, error.message);

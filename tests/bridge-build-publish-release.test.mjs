@@ -51,7 +51,10 @@ const BUILDS = {
 };
 const bytesOf = (name) => Buffer.from(`the bytes of ${name}`);
 
-function makeFolders(root) {
+// The publisher each platform's build recorded: the name its own verifier read; none on Linux.
+const PUBLISHERS = { macos: "Example Lab (ABCDE12345)", windows: "Example Lab GmbH", linux: null };
+
+function makeFolders(root, publishers = PUBLISHERS) {
   const folders = {};
   for (const [platform, names] of Object.entries(BUILDS)) {
     const folder = join(root, platform);
@@ -61,7 +64,7 @@ function makeFolders(root) {
       writeFileSync(join(folder, name), bytes);
       return { name, size: bytes.length, sha256: sha256(bytes), signature: signature(bytes) };
     });
-    writeFileSync(join(folder, "platform-build.json"), JSON.stringify({ platform, version: VERSION, folder, files }));
+    writeFileSync(join(folder, "platform-build.json"), JSON.stringify({ platform, version: VERSION, folder, publisher: publishers[platform], files }));
     folders[platform] = folder;
   }
   return folders;
@@ -94,9 +97,9 @@ function fakeRegistry(licences = {}) {
 }
 
 // One run's setting: the folders in a temporary folder, the key in the environment, the registry faked; `settle` undoes all three.
-function setting({ licences, host, folders } = {}) {
+function setting({ licences, host, folders, publishers } = {}) {
   const root = mkdtempSync(join(tmpdir(), "bridge-build-"));
-  const made = makeFolders(root);
+  const made = makeFolders(root, publishers);
   const before = process.env.BRIDGE_UPDATE_KEY;
   process.env.BRIDGE_UPDATE_KEY = PRIVATE_PEM;
   const registry = fakeRegistry(licences);
@@ -283,6 +286,55 @@ test("publishRelease — Electron's licence is read again too: one not known to 
     const error = await rejection(publishRelease(run.host, { tag: TAG, folders: run.folders }));
     assert.equal(error.name, "LicenceNotCompatible");
     assert.equal(error.package, "electron");
+    assert.equal(run.host.calls.length, 0);
+  } finally { run.settle(); }
+});
+
+// TST-1082003 · level: unit · module: MOD-bridge-build
+// guards: THE BRIDGE IS SIGNED BY ITS PUBLISHER; UC-044
+// given: the intact three folders, whose platform-build.json record the publisher "Example Lab (ABCDE12345)" for macOS, "Example Lab GmbH" for Windows and none for Linux
+// input: publishRelease(host, { tag, folders })
+// expect: the notes the host receives hold the lines "Publisher (macOS): Example Lab (ABCDE12345)" and "Publisher (Windows): Example Lab GmbH", each once, and no line for Linux
+// Planted fault: writing no line, or a Linux line, fails the lines.
+test("publishRelease — the notes name the publisher of macOS and of Windows, and none for Linux", async () => {
+  const run = setting();
+  try {
+    await publishRelease(run.host, { tag: TAG, folders: run.folders });
+    const lines = run.host.calls[0].release.notes.split("\n");
+    assert.equal(lines.filter((line) => line === "Publisher (macOS): Example Lab (ABCDE12345)").length, 1);
+    assert.equal(lines.filter((line) => line === "Publisher (Windows): Example Lab GmbH").length, 1);
+    assert.equal(lines.filter((line) => line.startsWith("Publisher (")).length, 2, "no other Publisher line");
+    assert.ok(!/Publisher \(Linux\)/i.test(run.host.calls[0].release.notes));
+  } finally { run.settle(); }
+});
+
+// TST-1082004 · level: unit · module: MOD-bridge-build
+// guards: THE BRIDGE IS SIGNED BY ITS PUBLISHER; UC-044
+// given: the three folders, where in turn the macOS build, then the Windows build, records no publisher (null, missing, empty)
+// input: publishRelease(host, { tag, folders })
+// expect: it rejects with BuildMissing naming that platform, and the host's publishRelease is never called
+// Planted fault: publishing with a line `Publisher (macOS): null`, or without the line, calls the host.
+test("publishRelease — a macOS or Windows build that records no publisher gives BuildMissing, and nothing is published", async () => {
+  for (const [platform, publishers] of [
+    ["macos", { ...PUBLISHERS, macos: null }], ["macos", { ...PUBLISHERS, macos: "" }],
+    ["windows", { ...PUBLISHERS, windows: null }], ["windows", { ...PUBLISHERS, windows: "  " }],
+  ]) {
+    const run = setting({ publishers });
+    try {
+      const error = await rejection(publishRelease(run.host, { tag: TAG, folders: run.folders }));
+      assert.equal(error.name, "BuildMissing", platform);
+      assert.equal(error.platform, platform);
+      assert.equal(run.host.calls.length, 0, `${platform}: nothing is published`);
+    } finally { run.settle(); }
+  }
+  const run = setting();
+  try {
+    const file = join(run.made.windows, "platform-build.json");
+    const build = JSON.parse(readFileSync(file, "utf8"));
+    delete build.publisher;
+    writeFileSync(file, JSON.stringify(build));
+    const error = await rejection(publishRelease(run.host, { tag: TAG, folders: run.folders }));
+    assert.deepEqual([error.name, error.platform], ["BuildMissing", "windows"], "a build with no publisher field");
     assert.equal(run.host.calls.length, 0);
   } finally { run.settle(); }
 });

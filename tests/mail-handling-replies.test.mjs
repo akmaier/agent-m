@@ -58,7 +58,9 @@ function fakeHost(issues, { commentFails = null, listFails = null, log = [] } = 
     createIssue: async () => { calls.push(["host.createIssue"]); },
     commentOnIssue: async (number, body) => { calls.push(["host.commentOnIssue", number, body]); if (commentFails) throw commentFails; },
     setIssueLabels: async (number, change) => { calls.push(["host.setIssueLabels", number, change]); },
-    setIssueState: async (number, state) => { calls.push(["host.setIssueState", number, state]); } };
+    setIssueState: async (number, state) => { calls.push(["host.setIssueState", number, state]); },
+    // The release repliesDue names (ITM-1109): this host has no merged pull request and no tag.
+    listPullRequests: async () => [], listTags: async () => [], containsCommit: async () => false };
 }
 const issue = (number, body, over = {}) => ({ number, title: `Issue ${number}`, body, labels: [], state: "open", url: `https://example.invalid/${number}`, comments: [], ...over });
 const comment = (body, date = "2026-10-12T09:00:00Z") => ({ author: "agent-m", body, date });

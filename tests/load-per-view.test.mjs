@@ -209,7 +209,8 @@ test("the repository's information is read once for as long as the page is open"
 // given: a product that declares its process model, with one team, its sprint and two items
 // input: open #backlog with a token
 // expect: the commit and the tree once, one batch of the 7 files it shows — the declaration, the SPEC, the team's role
-//         assignment and sprint, the 2 items, and the record that decides UC-002's status —; then the view reads the process
+//         assignment and sprint, the 2 items, and the record that decides UC-002's status —; then the view reads the commit the declaration's model_version names (the fixture's is not
+//         in the repository, so the model is read as it stands) and the process
 //         model the declaration names itself, in one request of its own, since one file meets "requests of at most 100 files
 //         each"; no use case, no module file (one team), and no other file by itself
 test("#backlog sends its commit and tree once, one batch of the files it shows, and the process model by one request of its own", async () => {
@@ -226,7 +227,7 @@ test("#backlog sends its commit and tree once, one batch of the files it shows, 
   const srv = await server(repo, [pulls]);
   const page = await openDashboard({ server: srv, hash: "#backlog" });
   assert.match(page.main(), /ITM-001/);
-  assert.deepEqual(page.requests.filter((r) => !r.startsWith("handler ")), ["commit", "tree", "batch 7", "file docs/process-models/fixture.md"]);
+  assert.deepEqual(page.requests.filter((r) => !r.startsWith("handler ")), ["commit", "tree", "batch 7", `other GET https://api.github.com/repos/${REPO}/commits/${"a".repeat(40)}`, "file docs/process-models/fixture.md"]);
   const wave1 = sorted(["docs/process.md", "SPEC.md", "docs/role-assignments/team1.md", "docs/backlog/sprints/team1/01.md",
     "docs/backlog/ITM-001-item-1.md", "docs/backlog/ITM-002-item-2.md", ...recordOf(repo, "UC-002")]);
   assert.deepEqual(srv.batches.map(sorted), [wave1]);

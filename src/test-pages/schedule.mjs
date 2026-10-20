@@ -5,7 +5,7 @@
 // server's secrets page — never a field for a value.
 //
 // ITM-850 adds UC-027 3b: for each row whose runner is a participant with the route `ci runner:<label>`, the server's runner page (webLinks().runners, which shows the command
-// to run on the machine), the label, a folded explanation, and the default branch's runs in the state queued. The page reads no runner's state.
+// to run on the machine), the label, a folded explanation, and the default branch's runs in the state queued whose ciRunLabels hold the row's label (ITM-1081). The page reads no runner's state.
 //
 // Not part of this item: Save and what follows it (ITM-759). The form's Save therefore hands the document to nothing yet; the runner choice shows the
 // declared runner and offers the eligible participants, and writing a choice into the schedule is the Save's.
@@ -128,18 +128,20 @@ function selfHostedRows(schedule, participants) {
   });
 }
 
-// The runs of the default branch that wait: unreadable runs are said so, the registration stays.
+// The runs of the default branch that wait, each with the runner labels it asks for: unreadable runs or labels are said so, the registration stays.
 async function queuedRuns(host) {
   try {
     const { defaultBranch } = await host.repositoryInfo();
-    return (await host.listCiRuns({ branch: defaultBranch })).filter((run) => run.state === "queued");
+    const queued = (await host.listCiRuns({ branch: defaultBranch })).filter((run) => run.state === "queued");
+    return await Promise.all(queued.map(async (run) => ({ run, labels: await host.ciRunLabels(run.id) })));
   } catch {
     return null;
   }
 }
 
-function runnerBlocks(rows, runnersPage, queued) {
+function runnerBlocks(rows, runnersPage, asked) {
   return rows.map(({ row, label }) => {
+    const queued = asked === null ? null : asked.filter(({ labels }) => labels.includes(label)).map(({ run }) => run);
     const link = el("a", "runner-page", "Open the server's runner page");
     link.setAttribute("href", runnersPage);
     const waiting = queued === null ? el("p", "runs-unreadable", "The runs of this repository cannot be read, so the queued ones are not shown.")

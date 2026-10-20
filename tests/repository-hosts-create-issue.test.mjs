@@ -44,34 +44,34 @@ function fake(answer) {
   return { requests, fetch };
 }
 const github = (status = 201) => fake((r) => (r.method === "POST" && r.path === "/repos/carol/release-tool/issues"
-  ? json(status, status === 201 ? { number: 12, title: r.body.title, body: r.body.body, labels: r.body.labels.map((name) => ({ name })), state: "open", html_url: `${GH_WEB}/issues/12` } : { message: "refused" })
+  ? json(status, status === 201 ? { number: 12, title: r.body.title, body: r.body.body, labels: r.body.labels.map((name) => ({ name })), state: "open", html_url: `${GH_WEB}/issues/12`, created_at: "2026-10-05T08:00:00Z", closed_at: null } : { message: "refused" })
   : json(404, { message: "Not Found" })));
 const gitlab = () => fake((r) => (r.method === "POST" && r.path === "/api/v4/projects/space%2Frelease-tool/issues"
-  ? json(201, { iid: 7, title: r.body.title, description: r.body.description, labels: r.body.labels === "" ? [] : r.body.labels.split(","), state: "opened", web_url: `${GL_WEB}/-/issues/7` })
+  ? json(201, { iid: 7, title: r.body.title, description: r.body.description, labels: r.body.labels === "" ? [] : r.body.labels.split(","), state: "opened", web_url: `${GL_WEB}/-/issues/7`, created_at: "2026-10-05T08:00:00Z", closed_at: null })
   : json(404, { message: "404 Project Not Found" })));
 
 // TST-962001 · level: unit · module: MOD-repository-hosts
 // guards: UC-038; AN ISSUE FROM A MAIL IS A DEFECT OR A CHANGE
 // given: a GitHub repository carol/release-tool and a token; an issue with a title, a body and the label defect
 // input: createIssue({ title: "The export fails", body: "The export of a PDF fails with an empty file.", labels: ["defect"] })
-// expect: one POST to the repository's issues with that title, body and labels; the host returns { number: 12, title, body, labels: ["defect"], state: "open", url, comments: [] }
+// expect: one POST to the repository's issues with that title, body and labels; the host returns { number: 12, title, body, labels: ["defect"], state: "open", url, opened, closed: null, comments: [] }
 test("createIssue — on GitHub the issue is created with its title, body and labels, and the Issue has the fields of the interface", async () => {
   const server = github();
   const issue = await using(server.fetch, () => connect(parseAddress(GH_WEB), { token: GH_TOKEN }).createIssue(ISSUE));
   assert.deepEqual(server.requests.map((r) => [r.method, r.path, r.body]), [["POST", "/repos/carol/release-tool/issues", ISSUE]]);
-  assert.deepEqual(issue, { number: 12, title: ISSUE.title, body: ISSUE.body, labels: ["defect"], state: "open", url: `${GH_WEB}/issues/12`, comments: [] });
+  assert.deepEqual(issue, { number: 12, title: ISSUE.title, body: ISSUE.body, labels: ["defect"], state: "open", url: `${GH_WEB}/issues/12`, opened: "2026-10-05T08:00:00Z", closed: null, comments: [] });
 });
 
 // TST-962002 · level: unit · module: MOD-repository-hosts
 // guards: UC-038; AN ISSUE FROM A MAIL IS A DEFECT OR A CHANGE
 // given: a GitLab project space/release-tool and a project access token; the same issue with the label change
 // input: createIssue
-// expect: one POST to the project's issues with the title, the body as the description and the labels as "change"; the host returns { number: 7, title, body, labels: ["change"], state: "open", url, comments: [] }
+// expect: one POST to the project's issues with the title, the body as the description and the labels as "change"; the host returns { number: 7, title, body, labels: ["change"], state: "open", url, opened, closed: null, comments: [] }
 test("createIssue — on a GitLab server the issue is created with its title, description and labels, and the Issue has the fields of the interface", async () => {
   const server = gitlab();
   const issue = await using(server.fetch, () => connect(parseAddress(GL_WEB), { token: GL_TOKEN }).createIssue({ ...ISSUE, labels: ["change"] }));
   assert.deepEqual(server.requests.map((r) => [r.method, r.path, r.body]), [["POST", "/api/v4/projects/space%2Frelease-tool/issues", { title: ISSUE.title, description: ISSUE.body, labels: "change" }]]);
-  assert.deepEqual(issue, { number: 7, title: ISSUE.title, body: ISSUE.body, labels: ["change"], state: "open", url: `${GL_WEB}/-/issues/7`, comments: [] });
+  assert.deepEqual(issue, { number: 7, title: ISSUE.title, body: ISSUE.body, labels: ["change"], state: "open", url: `${GL_WEB}/-/issues/7`, opened: "2026-10-05T08:00:00Z", closed: null, comments: [] });
 });
 
 // TST-962003 · level: unit · module: MOD-repository-hosts

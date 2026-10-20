@@ -1,18 +1,14 @@
-// A change between jobs, sprint 06 (SPEC.md WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS): docs/assets/dashboard/
-// process-view.mjs makes the dashboard's old routing call MOD-implementation-pages' route `process` (ITM-222) in place
-// of showing the use-case list for an address no view answers. Two checks, on purpose apart: a reach check, without
-// rendering, that the dashboard's own tables name and build this view at all (built.json, src/site/views.mjs); and a
-// render check, calling routes.process(app) directly with a minimal fake app and fixture repositories behind
-// MOD-repository-hosts' real connect() — that the view, once reached, shows the route's page. The route itself — its
-// models, roles, findings and Save — is tested by tests/implementation-pages.test.mjs and is not repeated here.
+// The route `process` of MOD-implementation-pages (ITM-222) opened the way the live app opens it — the instance and the product connected with
+// MOD-repository-hosts' real connect(), each with its own token, and handed to the route's render, which tests/implementation-pages-process-route.mjs
+// does — over a fixture repository behind a fake HTTP host: that the route, once reached, shows its page. The route itself — its models, roles, findings and
+// Save — is tested by tests/implementation-pages.test.mjs and is not repeated here; that the live app answers #process by the route, and that the file
+// that once did is gone, is tests/implementation-pages-backlog-wiring.test.mjs's.
 //
 // tests/app-harness.mjs's document (openDashboard) only ever has the dashboard's existing views assign innerHTML
 // strings and query them by attribute selector — it has no replaceChildren/append/setAttribute for the real DOM nodes
 // process.mjs and MOD-site-frame's schemaForm/openEditor/explain build. Rather than change that shared test helper for
-// one view, this file brings the small DOM tests/implementation-pages.test.mjs already brings for the same reason
-// ("Node has no DOM … so that schemaForm, its editors and explain run as they do in a browser"), copied below, with one
-// addition: insertAdjacentHTML, which process-view.mjs's own one line after render uses and that small DOM does not
-// otherwise need.
+// one route, this file brings the small DOM tests/implementation-pages.test.mjs already brings for the same reason
+// ("Node has no DOM … so that schemaForm, its editors and explain run as they do in a browser"), copied below.
 //
 // Module: MOD-implementation-pages
 // Guards: UC-002
@@ -22,15 +18,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { repoServer, TOKEN } from "./app-harness.mjs";
-import builtFiles from "../docs/assets/dashboard/built.json" with { type: "json" };
-import { DASHBOARD, builtViews } from "../src/site/views.mjs";
 
 // ---------------------------------------------------------------- a small DOM, copied from tests/implementation-
 // ---------------------------------------------------------------- pages.test.mjs (its own words: "Node has no DOM:
 // ---------------------------------------------------------------- this file brings the small one … so that schemaForm,
 // ---------------------------------------------------------------- its editors and explain run as they do in a
 // ---------------------------------------------------------------- browser"). Unchanged from there, except
-// ---------------------------------------------------------------- insertAdjacentHTML, added below for process-view.mjs.
+// ---------------------------------------------------------------- insertAdjacentHTML, added below for the helper.mjs.
 
 const FOCUSABLE = new Set(["input", "textarea", "select", "button"]);
 const HTML_NS = "http://www.w3.org/1999/xhtml";
@@ -65,7 +59,7 @@ class Node extends EventTarget {
   set textContent(v) { if (this._type === 3 || this._type === 8) this.data = String(v); else this.replaceChildren(String(v)); }
   get innerHTML() { return this._kids.map(serialise).join(""); }
   set innerHTML(html) { this.replaceChildren(); parse(this._doc, String(html), this); }
-  // Not part of tests/implementation-pages.test.mjs's own copy: process-view.mjs's one line after render calls this
+  // Not part of tests/implementation-pages.test.mjs's own copy: the helper's one line after render calls this
   // (target.insertAdjacentHTML("afterbegin", …)) to show the route's title above its content. "afterbegin" only —
   // the one position used here — parsed with the same parse() the rest of this DOM already uses.
   insertAdjacentHTML(where, html) {
@@ -249,9 +243,9 @@ globalThis.document = document;
 globalThis.window = { document, Node, Element, Text, Comment, DocumentFragment, DOMParser,
   NodeFilter: { SHOW_ELEMENT: 0x1, SHOW_TEXT: 0x4, SHOW_CDATA_SECTION: 0x8, SHOW_PROCESSING_INSTRUCTION: 0x40, SHOW_COMMENT: 0x80 } };
 
-// process-view.mjs is loaded only now, after globalThis.document exists — it reaches, through MOD-implementation-
-// pages' route, modules (MOD-site-frame) that need a document from the moment they are imported.
-const { routes } = await import("../docs/assets/dashboard/process-view.mjs");
+// The route is loaded only now, after globalThis.document exists — it reaches modules (MOD-site-frame) that need a
+// document from the moment they are imported.
+const { routes } = await import("./implementation-pages-process-route.mjs");
 
 // A target connected to the document, as route.render expects (tests/implementation-pages.test.mjs's own pattern),
 // removed after the test.
@@ -261,12 +255,8 @@ function connectedTarget() {
   return target;
 }
 
-// The h() dashboard-app.mjs's context gives every view (escaping text put into raw HTML) — process-view.mjs's one
-// use of it, for the title it shows.
-const h = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-
-// A minimal fake app: exactly what process-view.mjs's routes.process reads — T.instance, T.product.address, ghToken(),
-// token(), main(), h — nothing else of dashboard-app.mjs's real context. No ?product=/?repo= is given on the real
+// A minimal fake app: exactly what the helper's routes.process reads — T.instance, T.product.address, ghToken(),
+// token(), main() — nothing else of dashboard-app.mjs's real context. No ?product=/?repo= is given on the real
 // dashboard when it shows itself, so T.product.address already is the instance's own address (deriveTarget/start) —
 // reproduced here directly, not through the dashboard shell.
 function fakeApp(target) {
@@ -275,7 +265,6 @@ function fakeApp(target) {
     ghToken: () => TOKEN,
     token: () => TOKEN,
     main: () => target,
-    h,
   };
 }
 
@@ -302,27 +291,13 @@ model_version: ${"c0ffee".padEnd(40, "0")}
 The job rules hold; no condition is added.
 `;
 
-// ---------------------------------------------------------------- the reach check, without rendering (UC-002)
-
-// given: the dashboard's own tables, as this repository holds them
-// input: DASHBOARD (src/site/views.mjs) and built.json, read directly — no route is called, nothing is rendered
-// expect: a view "process" exists, names file "process-view.mjs", and that file is in built.json — so builtViews()
-//         (dashboard-app.mjs's own gate, "built.has(v.file)") answers the view is reachable
-test("the dashboard reaches #process: views.mjs maps it to process-view.mjs, and built.json lists that file", () => {
-  const entry = DASHBOARD.find((v) => v.view === "process");
-  assert.ok(entry, "views.mjs names a view \"process\"");
-  assert.equal(entry.file, "process-view.mjs", "views.mjs maps view \"process\" to file \"process-view.mjs\"");
-  assert.ok(builtFiles.includes("process-view.mjs"), "built.json lists process-view.mjs");
-  assert.ok(builtViews(builtFiles).has("process"), "together: the dashboard's own gate answers \"process\" is built");
-});
-
 // ---------------------------------------------------------------- the render check (UC-002)
 
 // given: a fixture repository holding docs/process.md, reached as both instance and product (fakeApp above) behind
 //        MOD-repository-hosts' real connect()/parseAddress(), over a fake HTTP host (repoServer) — no network
 // input: routes.process(fakeApp(target)), called directly — not through the dashboard shell
-// expect: the route's own page renders into target, titled "How this product is developed" (process-view.mjs's one
-//         line after render, showing route.title)
+// expect: the route's own page renders into target, titled "How this product is developed" (the head the app puts above
+//         the route's page, showing route.title)
 test("routes.process(app) renders MOD-implementation-pages' route, titled \"How this product is developed\"", async () => {
   const server = await repoServer({ files: { "docs/process.md": PROCESS_MD } });
   globalThis.fetch = server.fetch;
