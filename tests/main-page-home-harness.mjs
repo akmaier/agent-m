@@ -185,7 +185,7 @@ export function network(repos, { bridgeLists = null } = {}) {
         if (logOf) return net.bridgeLog ? json(200, await net.bridgeLog(decodeURIComponent(logOf[1]), Number(url.searchParams.get("from")))) : json(404, { error: "not-found", message: "The Bridge keeps no log." });
         if (url.host === "127.0.0.1:4712") throw new TypeError("connect ECONNREFUSED 127.0.0.1:4712");
         const overview = url.host === "api.github.com" && url.searchParams.get("ref") === "overview-cache"
-          ? /^\/repos\/([^/]+\/[^/]+)\/contents\/([0-9a-f]+)\.json$/.exec(url.pathname) : null;
+          ? /^\/repos\/([^/]+\/[^/]+)\/contents\/([0-9a-f]+(?:\.facts)?)\.json$/.exec(url.pathname) : null;
         if (overview) {
           const held = net.overviews[overview[1]]?.[overview[2]];
           return held === undefined ? new Response('{"message":"Not Found"}', { status: 404 }) : new Response(held, { status: 200 });
