@@ -6,6 +6,8 @@ realises:
   - A RESOURCE IS USED, A PARTICIPANT DEVELOPS
 modules:
   - MOD-resource-list
+  - MOD-documents
+  - MOD-settings-pages
 builds_on:
   - ITM-1143
 tests:
@@ -42,3 +44,12 @@ No accepted text gives the participant's columns a rule of their own. **The way 
 `capabilities` and `role` from optional columns of the schema, so that `resourceFindings` refuses them, as
 MOD-resource-list.md:91-94 already says. The draft of MOD-resource-list.md is by developer-sonnet-a. The item waits for
 its acceptance.
+- **Two drafts, sent to akmaier together** (po-opus). MOD-documents reads a section's table only where the header names
+  exactly its columns (MOD-documents.md:163), so the columns Capabilities and Role would empty the list.
+  - MOD-resource-list (`d3d9e515`, by developer-sonnet-a): `Resource` gains `capabilities` and `role`, and the schema
+    allows the two columns.
+  - MOD-documents, by developer-sonnet-a: a schema column may be optional, and a header names the table's columns in
+    order, with an optional one left out or present.
+  - The readers in `src/resource-list/strategies.mjs` and `src/settings-pages/resources.mjs` read the two columns.
+    TST-1130013's adapter in `tests/test_resources.py` is changed by a participant who builds none of the item.
+
