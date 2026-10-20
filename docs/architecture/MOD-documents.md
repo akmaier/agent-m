@@ -69,7 +69,7 @@ It keeps nothing. It owns the schema language, and four schemas written in it.
 | `frontMatter` | for a document: its keys in their order, each with a value specification; a key not listed is an error |
 | `lines` | for the `lines` shape: its keys in their order, each with a value specification |
 | `title` | the pattern of the document's first heading, for example `# {id} {title}` |
-| `sections` | the sections, in order: each `{ "heading": "## Context", "required": true }`, or `{ "underTitle": true, "required": true }` for the text under the document's title (*Sections and their tables*, below), optionally with `rule` — the requirement the section applies — and with `fields` (`key: value` lines inside the section, each with a value specification) or `table` — `{ "columns": [{ "name", "value" }], "header": true \| false, "appendOnly": true \| false }`, its columns in order, whether it has a header row (by default it has), and whether it only grows |
+| `sections` | the sections, in order: each `{ "heading": "## Context", "required": true }`, or `{ "underTitle": true, "required": true }` for the text under the document's title (*Sections and their tables*, below), optionally with `rule` — the requirement the section applies — and with `fields` (`key: value` lines inside the section, each with a value specification) or `table` — `{ "columns": [{ "name", "value", "optional" }], "header": true \| false, "appendOnly": true \| false }`, its columns in order, each with `"optional": true` where a header may leave it out, whether it has a header row (by default it has), and whether it only grows |
 | `otherSections` | `allowed` or `forbidden`: whether a heading of the same level that the list does not name may stand in the document |
 | `appended` | for a record: the sections that may be appended after it was written — each `{ "heading", "fields", "repeat": true \| false }`, optionally with `rule` as a section has it |
 | `diagrams` | `required`, `allowed` or `none`: whether the body must hold a Mermaid block; an image is never allowed (`DIAGRAMS ARE MERMAID IN MARKDOWN`) |
@@ -160,8 +160,10 @@ and then no section of level one; a document without a title has no such section
   "table": { "header": false, "appendOnly": true, "columns": [ { "name": "When", "value": { "type": "time", "required": true } }, … ] } }
 ```
 
-A section's table is the first table in it whose header row names exactly the table's columns, in their order; a table
-without a header row is the section's first table. So the entry table of a queue's `index.md` is found after the tables of
+A section's table is the first table in it whose header row names the table's columns, in their order, where a column marked
+`"optional": true` may be named or left out; a header that names a column the schema does not name, names the columns in another
+order, or leaves out a column that is not optional is not the table's header. A table without a header row is the section's first
+table. So the entry table of a queue's `index.md` is found after the tables of
 its impact analysis.
 
 **A table without a header row.** A table whose specification says `"header": false` has neither a header line nor a
