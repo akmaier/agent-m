@@ -26,6 +26,7 @@ import { holdsRole } from "../product-process/index.mjs";
 import { productFacts } from "../progress-measures/index.mjs";
 import { queueJob, routesFor } from "../runtimes/index.mjs";
 import { explain as frameExplain } from "../site-frame/index.mjs";
+import { restrictedPlaces, sourceSchemas } from "../source-register/index.mjs";
 import { startable } from "../work-plans/index.mjs";
 import { assignmentOf, contextOf, derivedOf, participantsIn } from "./backlog.mjs";
 
@@ -79,6 +80,30 @@ async function sentFor(prepare, participant) {
 function headOf(target, body, note = "Ready backlog items are handed to coding agents, one job per item (UC-034).") {
   target.innerHTML = `<section class="panel head"><h2>Implement</h2><div data-route-explain></div>${explain(`<p>${note}</p>`)}${body}</section>`;
   target.querySelector("[data-route-explain]")?.append(frameExplain("implementation-route"));
+}
+
+// The places the restricted sources permit (JobContext.places.sources and .contents): the entries of the instance's register at its default branch, and MOD-source-register's restrictedPlaces over them for the product.
+async function placesOf(instanceSnapshot, address) {
+  const { entry } = sourceSchemas();
+  const paths = instanceSnapshot.paths.filter((path) => /^docs\/sources\/[^/]+\.md$/.test(path));
+  const register = await Promise.all(paths.map(async (path) => readDocument(entry, path, (await instanceSnapshot.read(path)) ?? "")));
+  return restrictedPlaces(register, address);
+}
+
+// Of the holders of a role, those the job can go to and those a linked source forbids (UC-024 5b): a holder is withheld where preparing the job for it finds that a source whose content the job includes does not permit its place;
+// what is said of it is that finding's words, which name the source and the place. A job that cannot be prepared is not judged here: the holder stays, and the page shows the failure where it shows what is sent.
+async function placed(holders, prepare) {
+  const offered = [], withheld = [];
+  for (const participant of holders) {
+    try {
+      const forbidden = (await prepare(participant)).blocking.filter((found) => found.rule === "RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS");
+      if (forbidden.length) withheld.push({ participant, said: forbidden.map((found) => found.what) });
+      else offered.push(participant);
+    } catch {
+      offered.push(participant);
+    }
+  }
+  return { offered, withheld };
 }
 
 // What starting a job needs, whichever the part of the page: the page's context and facts, the participants, and what the product allows of a route.
@@ -255,24 +280,34 @@ async function draw(target, context, params) {
   const items = ctx.items.map(idOf).filter((id) => (selection ? selection.has(id) : true))
     .filter((id) => (d.states.find((state) => state.item === id)?.state ?? "unknown") !== "done");
 
+  const places = { ...(await placesOf(instanceSnapshot, ctx.snapshot.repository?.web ?? product.address)), mailbox: null };
+  const now = () => new Date();
+  const jobContextFor = (id, merges) => ({ kind: definition, params: { items: [id], merges }, product: { address: ctx.snapshot.repository?.web ?? product.address, snapshot: ctx.snapshot, host: product.host },
+    instance: { snapshot: instanceSnapshot, host: instance.host, checkout: null }, connect: async () => product.host, participants, places, gates: [], person: personOf(context),
+    now: now(), agentM: { version: instanceSnapshot.commit ?? "unknown", commit: instanceSnapshot.commit ?? "unknown" }, jobId: null });
+  const prepareFor = (id, merges) => (participant) => prepareJob("implement", jobContextFor(id, merges), { drafter: participant, reviewers: [] });
   const rows = [];
   for (const id of items) {
     const state = d.states.find((each) => each.item === id) ?? { item: id, state: "unknown" };
     const { assignment, sprint, team } = assignmentOf(ctx, d, id);
     const verdict = startable(id, d.states, { workflow, assignment, sprint, held: d.held, wip: ctx.model?.flow?.wip ?? null, participants });
     const roles = implementingRoles(workflow);
-    const holders = verdict.startable
+    const holding = verdict.startable
       ? eligible(participants.filter((participant) => assignment && roles.some((role) => holdsRole(assignment, participant.name, role.name))), { capabilities: definition.needs }).eligible : [];
-    rows.push({ id, state, verdict, holders, team, sprint });
+    const { offered: holders, withheld } = await placed(holding, prepareFor(id, "agent"));
+    rows.push({ id, state, verdict, holders, withheld, team, sprint });
   }
 
+  // The holders a linked source forbids, each with the finding's words naming the source and the place (UC-024 5b).
+  const withheldText = (row) => (row.withheld.length ? `<p class="warn small" data-withheld-of="${h(row.id)}">${row.withheld.map(({ said }) => said.map(h).join("; ")).join("; ")}</p>` : "");
   const gatesText = (workflow?.gates ?? []).filter((gate) => implementingRoles(workflow).some((role) => (workflow.phases.find((phase) => phase.name === gate.from)?.roles ?? []).includes(role.name)))
     .map((gate) => `${h(gate.name)} (decided by ${h(gate.decider)})`);
   const body = rows.length === 0 ? `<p>No item is waiting to be implemented.</p>` : `<table class="list"><thead><tr><th></th><th>Item</th><th>State</th><th>Start</th></tr></thead><tbody>${rows.map((row) => `
     <tr data-item="${h(row.id)}" data-state="${h(row.state.state)}" data-startable="${row.verdict.startable}"><td>${row.verdict.startable ? `<input type="checkbox" data-start-item="${h(row.id)}"${params?.item && params.item !== row.id ? "" : " checked"} aria-label="Start ${h(row.id)}">` : ""}</td>
     <td>${h(row.id)}</td><td><span class="badge">${h(row.state.state)}</span></td>
-    <td>${row.verdict.startable ? (row.holders.length === 0 ? `<p class="warn" data-reasons>No holder of the implementing role can write and run tests.</p>` : `
+    <td>${row.verdict.startable ? (row.holders.length === 0 ? `<p class="warn" data-reasons>${row.withheld.length ? "No holder of the implementing role is at a place the linked sources permit for this job." : "No holder of the implementing role can write and run tests."}</p>${withheldText(row)}` : `
       <label>Participant <select data-participant-of="${h(row.id)}">${row.holders.map((participant) => `<option value="${h(participant.name)}">${h(participant.name)}</option>`).join("")}</select></label>
+      ${withheldText(row)}
       <p class="small" data-holders>${row.holders.map((participant) => `${h(participant.name)} processes data at ${h(participant.place ?? "no declared place")}; routes: ${routesFor(participant, participants, productInfo, []).map((offer) => `${h(recordRoute(offer.route))}${offer.available ? "" : " (not available)"}`).join(", ") || "none"}`).join("<br>")}</p>
       <p class="small">Attempt limit: ${h(definition.limit)}. Merges: <select data-merges-of="${h(row.id)}"><option value="agent">the coding agent</option><option value="person">a person</option></select>.
         Target branch: ${h(text(row.sprint?.fields?.branch) || info.defaultBranch)}. ${gatesText.length ? `Gates: ${gatesText.join(", ")}.` : "No gate stands before the merge."}</p>
@@ -281,12 +316,7 @@ async function draw(target, context, params) {
   head(body);
 
   // What is sent where, for the participant chosen on each startable row: the job is prepared, nothing is sent.
-  const now = () => new Date();
   const taken = new Set(ctx.snapshot.paths.map((path) => JOB_FILE.exec(path)?.[1]).filter(Boolean));
-  const jobContextFor = (id, merges) => ({ kind: definition, params: { items: [id], merges }, product: { address: ctx.snapshot.repository?.web ?? product.address, snapshot: ctx.snapshot, host: product.host },
-    instance: { snapshot: instanceSnapshot, host: instance.host, checkout: null }, connect: async () => product.host, participants, places: { sources: {}, mailbox: null }, gates: [], person: personOf(context),
-    now: now(), agentM: { version: instanceSnapshot.commit ?? "unknown", commit: instanceSnapshot.commit ?? "unknown" }, jobId: null });
-  const prepareFor = (id, merges) => (participant) => prepareJob("implement", jobContextFor(id, merges), { drafter: participant, reviewers: [] });
   const choice = (id) => target.querySelector(`[data-participant-of="${id}"]`)?.value;
   const merges = (id) => target.querySelector(`[data-merges-of="${id}"]`)?.value ?? "agent";
   const drawSent = async (row) => {
