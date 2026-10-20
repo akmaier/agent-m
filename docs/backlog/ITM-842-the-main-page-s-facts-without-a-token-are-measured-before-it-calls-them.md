@@ -62,3 +62,10 @@ it, so the live page is not switched before the no-token count is settled.
 - **The draft rests on ITM-940,** which builds the stored overview. Today the sentence describes nothing built.
 - A product's card has no stored overview, since `onMainChanged` runs only in the instance. It falls back to `all`.
 
+**Decided (team 2's sprint 99, po-opus-b).** akmaier accepted draft `d571344d` (option 3) in `50a5e84d`.
+- MOD-main-page.md now says the following, and the Acceptance's alternative ("or akmaier is asked through a draft") is
+  settled by it: "Without a token and without facts stored for the head (`storedFacts`), that reading costs one request
+  per test file of the default branch … that cost is accepted".
+- **The test:** `tests/main-page-no-token-requests.test.mjs` on developer-sonnet-f's branch `item/ITM-842-no-token-requests`
+  (`7289c6f2`) pins that formula. It does not pin "no more than the old page".
+- **The ~9 requests** it could not attribute are named, before the gate.

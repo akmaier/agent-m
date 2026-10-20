@@ -6,11 +6,9 @@ realises:
   - THE BUILD IS SHOWN AS IT HAPPENS
   - UC-046
 modules:
-  - MOD-job-ledger
+  - MOD-work-plans
   - MOD-progress-measures
-  - MOD-main-page
 builds_on:
-  - ITM-828
 tests:
   - unit
 origin:
@@ -67,3 +65,18 @@ files and, for the done row, the SPEC sentence or its Check. This item then buil
   - the draft decides whether a job ended as done with no pull request yet leaves the item `in progress` or `ready`.
 - `buildInProgress` and the main page stay as they are.
 - **It waits for ITM-1156**, team 1's sprint 98 item on MOD-work-plans.
+
+**Ready (team 2's sprint 99, po-opus-b, on `main` at `69910d3e`).** akmaier accepted its draft `d480c4eb` in `50a5e84d`.
+- **What it builds:** `ItemState.job` is the newest job whose record works on the item, also once that job has ended. An
+  item stays `in progress` once its newest job has ended as done, until a pull request of it opened after that job's
+  `start` is merged or closed without merge (MOD-work-plans.md:125-127, :138-140).
+- **The step on the main page:** `buildInProgress` then lists that step with its job's state, `done`. This is the
+  counter-proof of `THE BUILD IS SHOWN AS IT HAPPENS` (SPEC.md:928-929).
+- **The reachability part is met:** `src/job-ledger/index.mjs:432-433` (`b0929e22`), and `src/main-page/home.mjs:68-69`.
+- **Its modules are now MOD-work-plans and MOD-progress-measures,** for `itemStates` and for the test of the build's row.
+  MOD-job-ledger and MOD-main-page change nothing.
+- **Its builds_on no longer names ITM-828.** ITM-828's open part waited for this item's draft, so the dependency runs the
+  other way. ITM-828 is read again once this item is done.
+- **For its developer:**
+  - `job` is set in every branch of `derivedState` in `src/work-plans/states.mjs`, not only at :181 and :184;
+  - a pull request of the item is tied to the job through `PullRequest.opened` and the job record's `start`.
