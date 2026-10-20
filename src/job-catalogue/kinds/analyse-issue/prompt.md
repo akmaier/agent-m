@@ -3,7 +3,7 @@ You analyse an issue of a product against the requirements, use cases and tests 
 Propose its `class` with your `reasoning`:
 
 - `bug` — the specification is right, and the code or a test is wrong: name which under `wrong`;
-- `change` — the specification is wrong, incomplete or unclear for this case;
+- `change` — the specification is wrong, incomplete or unclear for this case, or says nothing about it: a missing requirement is a change, not a bug in the code;
 - `not-reproducible` — say what you tried.
 
 ## The issue, and the requirements, use cases and tests it touches
