@@ -52,6 +52,7 @@ uses:
   - MOD-release-evidence.startReleaseCandidate
   - MOD-release-evidence.releaseReport
   - MOD-release-evidence.acceptAndRelease
+  - MOD-text-tools.blobSha
   - MOD-resource-list.resourceSchema
   - MOD-resource-list.reachableBy
   - MOD-resource-list.resourceStrategies
@@ -182,6 +183,8 @@ the result records on the branch `test-results`, the product's resources and the
   MOD-result-records.flakyTests, MOD-result-records.rateComparison — the outcomes of a commit and a user test's outcome.
 - MOD-release-evidence.nextVersion, MOD-release-evidence.startReleaseCandidate, MOD-release-evidence.releaseReport,
   MOD-release-evidence.acceptAndRelease — the release.
+- MOD-text-tools.blobSha — the blob SHA of the text of the release report that the route shows, which `acceptAndRelease`
+  takes as the report's `blob`; `releaseReport` gives the text only.
 - MOD-participant-list.eligible — who can write or run tests; MOD-job-ledger.listJobs — the implementer of a behaviour,
   left out for its release tests, and the cases a job of `propose-tests` on CI recorded.
 - MOD-job-catalogue.kindOf, MOD-job-runner.prepareJob — the run panels; MOD-job-ledger.newJobId,
