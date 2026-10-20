@@ -44,7 +44,7 @@ async function addPage(w) {
 }
 
 // TST-575008 · level: system · module: MOD-settings-pages
-// guards: UC-001 2a; EVERY STEP EXPLAINS ITSELF
+// guards: UC-001; EVERY STEP EXPLAINS ITSELF
 // given: the instance's token and a product repository the server answers 404 for
 // input: the actual Check control
 // expect: the page names the repository as not found; inside the same paragraph, after the link to https://github.com/new, one folded explanation (details of class explain) opens, and no paragraph closes between the notice's beginning and it; its text names a private repository and what a product should not publish; after the repository is created, Check says it is reachable and the folded explanation is not in that notice

@@ -148,7 +148,7 @@ const buttonOf = (target) => byClass(target, "button", "accept-all")[0];
 // ---------------------------------------------------------------- the page
 
 // TST-472651 · level: unit · module: MOD-review-pages
-// guards: SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; UC-008 (3e)
+// guards: SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; UC-008
 // given: five use cases — UC-041 and UC-044 open, UC-043 changed since its earlier text was accepted, UC-042 and UC-045 accepted —, and a token stored
 // input: the route use-case rendered with the id all
 // expect: three sections, UC-041, UC-043, UC-044 in that order, each with its identifier, title and status; UC-041 and UC-044 in full (their sentence on the page, no difference); UC-043 as its difference to the last accepted text — the earlier sentence removed, the new one added — headed "Changed since it was last accepted"; neither accepted use case on the page; the button "Accept all 3 shown"; the folded What is this?; nothing written
@@ -333,7 +333,7 @@ test("MOD-review-pages use-case/all — a GitLab product without a token: no Acc
 // ---------------------------------------------------------------- the way to it
 
 // TST-472659 · level: unit · module: MOD-review-pages
-// guards: UC-008 (3e)
+// guards: UC-008
 // given: the list of use cases
 // input: the route use-case rendered with no id
 // expect: a link "Review all" to #use-case/id=all; and on the page of one use case no such section as a review-all page

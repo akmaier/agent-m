@@ -135,7 +135,7 @@ const writesToGitHub = () => sent.filter((request) => request.method !== "GET");
 // ---------------------------------------------------------------- the tests
 
 // TST-963001 · level: component · module: MOD-maintenance-pages
-// guards: A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN; A MAIL IN A KNOWN THREAD IS MATCHED WITHOUT A MODEL; READING THE MAILBOX CHANGES NOTHING IN IT; UC-038 (1, 2, 3)
+// guards: A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN; A MAIL IN A KNOWN THREAD IS MATCHED WITHOUT A MODEL; READING THE MAILBOX CHANGES NOTHING IN IT; UC-038
 // given: the mailbox holds a new mail, a mail an issue lists, a mail this browser marked, and a reply in the thread of the listed mail
 // input: the route mail drawn; the person's click on Read mailbox
 // expect: drawing reads nothing (no request); the list shows the new mail alone, with sender, subject and date; the page says two mails were left out as decided; the reply is shown under issue #4 with a link to the address the frame writes for issue 4 of alice/product (fragmentOf) and an
@@ -164,7 +164,7 @@ test("Read mailbox lists only the undecided mails, with sender, subject and date
 });
 
 // TST-963002 · level: component · module: MOD-maintenance-pages
-// guards: A MAIL BECOMES AN ISSUE ONLY BY A PERSON'S CLICK; THE PRODUCT ISSUE CARRIES NO PERSONAL DATA; ONE CLICK PER DECISION; UC-038 (6a, 7, 8)
+// guards: A MAIL BECOMES AN ISSUE ONLY BY A PERSON'S CLICK; THE PRODUCT ISSUE CARRIES NO PERSONAL DATA; ONE CLICK PER DECISION; UC-038
 // given: one new mail from Erika Mustermann; the proposal is empty (4b)
 // input: the title and the text typed with the sender's name in it; the title and the text edited without the name; a click a script makes on Create issue; the kind change chosen; the person's click on Create issue
 // expect: with the name the hit is listed in .mail-hits and Create issue is disabled; without it no hit and Create issue is enabled; the script's click writes nothing; the person's click creates exactly one issue, labelled change, whose text
@@ -202,7 +202,7 @@ test("Create issue is disabled while the text names the mail's people, and one c
 });
 
 // TST-963003 · level: component · module: MOD-maintenance-pages
-// guards: A DUPLICATE MAIL IS ADDED TO THE EXISTING ISSUE; A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN; ONE CLICK PER DECISION; UC-038 (9)
+// guards: A DUPLICATE MAIL IS ADDED TO THE EXISTING ISSUE; A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN; ONE CLICK PER DECISION; UC-038
 // given: one new mail and an open issue #4
 // input: the number 4 typed; the person's click on Add to #4; Read mailbox again
 // expect: exactly one comment is written to #4, the note `mail-added` naming the mail's identifier; the result names #4; the second reading lists no mail (an issue lists it now) and says one was left out
@@ -226,7 +226,7 @@ test("Add to #n lists the mail on the existing issue with one click, and the nex
 });
 
 // TST-963004 · level: component · module: MOD-maintenance-pages
-// guards: A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN; MAIL STAYS IN THE MAILBOX; ONE CLICK PER DECISION; UC-038 (7)
+// guards: A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN; MAIL STAYS IN THE MAILBOX; ONE CLICK PER DECISION; UC-038
 // given: two new mails
 // input: the person's click on Not an issue for the first; Read mailbox again
 // expect: the first leaves the list at once; the store holds its identifier under not-an-issue and nothing else of the mail; nothing is written to GitHub; the second reading lists the second mail alone
@@ -245,7 +245,7 @@ test("Not an issue takes one click, marks the mail in this browser and writes no
 });
 
 // TST-963005 · level: component · module: MOD-maintenance-pages
-// guards: AN ISSUE FROM A MAIL NAMES ITS MAILS BY THEIR IDENTIFIERS; UC-038 (7b)
+// guards: AN ISSUE FROM A MAIL NAMES ITS MAILS BY THEIR IDENTIFIERS; UC-038
 // given: one mail that mixes two concerns
 // input: Create issue for the first concern, then the title and text changed and Create issue for the second
 // expect: two issues are created, each of the kind chosen, and both list the same identifier; the mail is still in the list between and after
@@ -269,7 +269,7 @@ test("a mail that mixes two concerns gets one issue per concern, each listing th
 });
 
 // TST-963006 · level: component · module: MOD-maintenance-pages
-// guards: READING THE MAILBOX CHANGES NOTHING IN IT; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-038 (2a)
+// guards: READING THE MAILBOX CHANGES NOTHING IN IT; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-038
 // given: the Bridge the connection names does not answer (the request fails); and a Bridge that answers with BridgeUnavailable-like HTTP 401 (token refused)
 // input: the person's click on Read mailbox, for each
 // expect: no mail is listed; .mailbox-problem names the reason (the failure's own words); nothing is written to GitHub
@@ -286,7 +286,7 @@ test("an unreachable mailbox is named, nothing is listed and nothing is written"
 });
 
 // TST-963007 · level: component · module: MOD-maintenance-pages
-// guards: A MAIL BECOMES AN ISSUE ONLY BY A PERSON'S CLICK; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-038 (8a)
+// guards: A MAIL BECOMES AN ISSUE ONLY BY A PERSON'S CLICK; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-038
 // given: one new mail; GitHub refuses the creation of an issue with 403 (the token lacks the permission), and, in another run, with 401 (the token is refused)
 // input: a neutral title and text; the person's click on Create issue
 // expect: the result names the product alice/product and which of the two happened, with a link to the step that stores the token (#add-product); no issue exists
@@ -309,7 +309,7 @@ test("an issue that cannot be created names the token's refusal or the missing p
 });
 
 // TST-963008 · level: component · module: MOD-maintenance-pages
-// guards: NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY; MAIL STAYS IN THE MAILBOX; UC-038 (postcondition)
+// guards: NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY; MAIL STAYS IN THE MAILBOX; UC-038
 // given: the whole flow of a mail: reading, a neutral issue created, a duplicate added, another marked
 // input: every request GitHub received, and the store
 // expect: no body of any request holds the mail's text, the sender's name or address, or the subject; the mailbox connection's password reaches the Bridge only (not GitHub)
@@ -352,7 +352,7 @@ test("every step of the route carries its folded explanation", async () => {
 });
 
 // TST-963010 · level: component · module: MOD-maintenance-pages
-// guards: MAIL STAYS IN THE MAILBOX; NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY; UC-038, UC-049 (3b)
+// guards: MAIL STAYS IN THE MAILBOX; NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY; UC-038
 // given: the page after Read mailbox with one mail
 // input: the route's subject for its parameters, and its paramsFor for a participant
 // expect: the subject is of the kind converse, refuses propose-edit and hand-over, and its page holds the mail's MAIL- identifier and none of the mail's text, sender or subject

@@ -36,7 +36,7 @@ async function started() {
 }
 
 // TST-1053104 · level: unit · module: MOD-desktop-shell
-// guards: THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT; THE BRIDGE OPENS ITS TUNNELS ITSELF; UC-044 (6a.1)
+// guards: THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT; THE BRIDGE OPENS ITS TUNNELS ITSELF; UC-044
 // given: the app started over a Bridge whose settings hold no jump host, and a request from https://carol.github.io that has paired it
 // input: the window's request save-jump-host with hostname "  jump.example.test ", user "agentm" and SSH port "2222"; then the state and the Bridge's own answer
 // expect: before: settings.json's jumpHost is null and the state says paired with the origin; after: settings.json's jumpHost is { hostname: "jump.example.test", user: "agentm", sshPort: 2222 }, the answer to the request is the state of the restarted Bridge — its settings hold the jump host and it is not paired with any origin since its start —, and the Bridge answers on the same port with the same token
@@ -58,7 +58,7 @@ test("save-jump-host keeps the jump host in settings.json and restarts the Bridg
 });
 
 // TST-1053105 · level: unit · module: MOD-desktop-shell
-// guards: THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT; UC-044 (6a.1)
+// guards: THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT; UC-044
 // given: the app started over a Bridge whose settings hold no jump host and that a request from https://carol.github.io has paired
 // input: the request save-jump-host with an empty hostname; with an empty user; with SSH port "70000"; the state after each
 // expect: each request is refused with an error named InvalidSettings; settings.json still holds a null jump host; the Bridge was not restarted — it is still paired with the origin

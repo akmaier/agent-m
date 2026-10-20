@@ -134,7 +134,7 @@ const pull = (target, item) => found(target, `[data-pull="${item}"]`)[0];
 const reasonsOf = (target, item) => found(found(target, `[data-item="${item}"]`)[0], "[data-reasons]").map(text).join(" ");
 
 // TST-784001 · level: unit · module: MOD-implementation-pages
-// guards: UC-032 (7); PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; EVERY STEP EXPLAINS ITSELF
+// guards: UC-032; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; EVERY STEP EXPLAINS ITSELF
 // given: the one-team fixture: ITM-001 merged, ITM-002's pull request open, ITM-005 and ITM-007 ready and selected, ITM-004 waiting for ITM-003, ITM-006 waiting for acceptance; the limit is 2
 // input: the route board's render
 // expect: the route is named board under the entry implementation; ITM-001 stands in Done, ITM-002 in Review, ITM-005 and ITM-007 in Backlog; the page holds a folded What is this?; nothing is committed
@@ -150,7 +150,7 @@ test("the board puts each item in the column of its derived state", async () => 
 });
 
 // TST-784002 · level: unit · module: MOD-implementation-pages
-// guards: UC-032 (7); NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT; A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT
+// guards: UC-032; NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT; A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT
 // given: the same board, one item in progress of a limit of 2; ITM-003 is ready and selected by no sprint
 // input: the route's render
 // expect: Pull on ITM-005 is a link to #implement/item=ITM-005; ITM-003 has no Pull link, its Pull is disabled and its reason says it is not selected
@@ -164,7 +164,7 @@ test("below the limit Pull leads to the implement page with the item selected; a
 });
 
 // TST-784003 · level: unit · module: MOD-implementation-pages
-// guards: UC-032 (7a); NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT
+// guards: UC-032; NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT
 // given: two items in progress of a limit of 2 — ITM-002 and ITM-007, each with a pull request open
 // input: the route's render
 // expect: Pull on ITM-005 is disabled; the work-in-progress panel names ITM-002 and ITM-007 and says ITM-002 and ITM-007 wait for review; the reason of ITM-005 names the limit
@@ -181,7 +181,7 @@ test("at the limit Pull is disabled and the panel names the items in progress an
 });
 
 // TST-784004 · level: unit · module: MOD-implementation-pages
-// guards: UC-032 (7)
+// guards: UC-032
 // given: a model without a work-in-progress limit
 // input: the route's render
 // expect: the page says the model has no work-in-progress limit and links the backlog; it draws no column
@@ -193,7 +193,7 @@ test("a model without a work-in-progress limit has no board", async () => {
 });
 
 // TST-784005 · level: unit · module: MOD-implementation-pages
-// guards: UC-032 (7); UC-034 (1); ONE CLICK PER DECISION
+// guards: UC-032; UC-034; ONE CLICK PER DECISION
 // given: the one-team fixture with ITM-005 and ITM-007 ready and selected
 // input: the route implement's render without a parameter, and with the parameter item=ITM-007
 // expect: without it both are ticked; with it only ITM-007 is ticked and ITM-005 is listed but not ticked

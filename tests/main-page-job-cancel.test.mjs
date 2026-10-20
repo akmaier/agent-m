@@ -77,7 +77,7 @@ function world(given, { bridgeConfirms }) {
 const drawJob = async () => { const context = browser(); return { target: await draw(job, context, { id: ID }), context }; };
 
 // TST-972001 · level: unit · module: MOD-main-page
-// guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-036 (step 6)
+// guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-036
 // given: the job JOB-20261016-1000-ffff in each of the states queued, running (the Bridge lists it), waiting at a gate and done
 // input: the route job drawn for it, in each state
 // expect: a button Cancel for queued, running and waiting at a gate, and none for done (counter-proof: a Cancel on a done job fails); in every case no request goes to the Bridge's cancel and no dialog is open before a click
@@ -119,7 +119,7 @@ test("TST-972002 one confirmed click calls cancelJob once, and a click a script 
 });
 
 // TST-972003 · level: unit · module: MOD-main-page
-// guards: A CANCELLED JOB WRITES NOTHING MORE; UC-036 (6, 6a)
+// guards: A CANCELLED JOB WRITES NOTHING MORE; UC-036
 // given: the running job, whose Bridge confirms the cancel; the product's repository takes the commit that appends the end
 // input: Cancel, confirmed
 // expect: one commit's tree holds the record at its path with the end cancelled, and the page shows the state cancelled
@@ -138,7 +138,7 @@ test("TST-972003 a confirmed cancel appends the end cancelled and the job is sho
 });
 
 // TST-972004 · level: unit · module: MOD-main-page
-// guards: A CANCELLED JOB WRITES NOTHING MORE; UC-036 (6a)
+// guards: A CANCELLED JOB WRITES NOTHING MORE; UC-036
 // given: the running job, whose Bridge does not confirm the cancel
 // input: Cancel, confirmed; then the timer the page set fires
 // expect: nothing is written; the facts show the state cancelling (not cancelled); a timer was set, and when it fires the Bridge's list is asked again and the job stays cancelling while the Bridge lists it

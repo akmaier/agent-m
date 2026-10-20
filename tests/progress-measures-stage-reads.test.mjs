@@ -57,7 +57,7 @@ function repository(over = {}) {
 }
 
 // TST-685015 · level: unit · module: MOD-progress-measures
-// guards: THE MAIN PAGE SHOWS EACH PRODUCT’S PROGRESS BY STAGE; UC-046
+// guards: THE MAIN PAGE SHOWS EACH PRODUCT'S PROGRESS BY STAGE; UC-046
 // given: this repository’s size — 412 requirements, 2499 tests each guarding one of them, the branch test-results holding 86 records of 85 commits, two of them of the commit of the facts
 // input: stageShares(facts), counting the reads of the branch test-results and of the product’s snapshot
 // expect: the tests stage is full (1, "412 of 412 requirements guarded by a passing test"); the only records read are the two of the commit of the facts, which name every test, so that none of the 84 older commits is asked; no file of the product’s snapshot is read

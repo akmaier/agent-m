@@ -102,7 +102,7 @@ const textOf = (node) => node.textContent.replace(/\s+/g, " ");
 // ================================================================== the tests
 
 // TST-760001 · level: unit · module: MOD-test-pages
-// guards: UC-028 (1); EVERY TEST RUN LEAVES A RESULT RECORD
+// guards: UC-028; EVERY TEST RUN LEAVES A RESULT RECORD
 // given: a product whose default branch holds two commits, with one open pull request and the tags v1.0.0 and v1.1.0-rc.1
 // input: the route runs rendered without a commit; then the button of the pull request pressed
 // expect: the page offers the two commits of the default branch, the pull request and both tags, each by its short SHA or name and message; pressing the pull request's button goes to the route runs with the pull request's head as commit
@@ -117,7 +117,7 @@ test("runs — without a commit the page offers the default branch's history, th
 });
 
 // TST-760002 · level: unit · module: MOD-test-pages
-// guards: UC-028 (1)
+// guards: UC-028
 // given: the commit c…c, whose message is "Fix the list" followed by a body, dated 2026-10-17T09:00:00Z
 // input: the route runs rendered for that commit
 // expect: the page shows the full SHA, the first line of the message and the date, and not the body of the message
@@ -131,7 +131,7 @@ test("runs — the commit is shown by its SHA, message and date", async () => {
 });
 
 // TST-760003 · level: unit · module: MOD-test-pages
-// guards: UC-028 (2); A TEST THAT FLIPS ON THE SAME COMMIT IS FLAKY; EVERY TEST RUN LEAVES A RESULT RECORD
+// guards: UC-028; A TEST THAT FLIPS ON THE SAME COMMIT IS FLAKY; EVERY TEST RUN LEAVES A RESULT RECORD
 // given: the tests TST-901 to TST-904 of level unit and TST-905 of level system, TST-906 of level release; records of the commit in which 901 and 902 passed, 903 failed, 904 passed in one and failed in another, and an uncommitted record in which 902 failed; no record names TST-906
 // input: the route runs rendered for the commit
 // expect: the line of unit reads 2 passed, 1 failed, 1 flaky, 0 not run; the line of system reads 1 passed; the line of release reads "not run on this commit" and never "passed"; TST-904 reads flaky, not passed
@@ -146,7 +146,7 @@ test("runs — one line per level gives passed, failed, flaky and not run, and a
 });
 
 // TST-760004 · level: unit · module: MOD-test-pages
-// guards: UC-028 (2)
+// guards: UC-028
 // given: a level without a record, and a schedule on the default branch that ticks the row release on the release candidate and on demand only
 // input: the route runs rendered for the commit; and again for a product with no schedule file
 // expect: the line of release names the occasions "release candidate" and "on demand"; with no schedule file it names those of the book's default, which are also release candidate and on demand, and the row unit's line is unaffected
@@ -161,7 +161,7 @@ test("runs — a level without a record names the occasion of the schedule that 
 });
 
 // TST-760005 · level: unit · module: MOD-test-pages
-// guards: UC-028 (3); A MODEL-DEPENDENT TEST IS MEASURED AS A RATE
+// guards: UC-028; A MODEL-DEPENDENT TEST IS MEASURED AS A RATE
 // given: TST-905 guards A GUARDED RULE and is recorded 17 of 20 on the commit by ci-hosted on 2026-10-18T10:00:00Z; TST-902 guards A GUARDED RULE and A SECOND RULE; the last release v1.0.0 recorded TST-905 18 of 20
 // input: the route runs rendered for the commit
 // expect: TST-905 shows its outcome passed, "17 of 20 runs" and "last release: 18 of 20", the participant and date; TST-902 links both rules to the requirement page by name
@@ -177,7 +177,7 @@ test("runs — a level's tests show outcome, rate with its runs, what each guard
 });
 
 // TST-760006 · level: unit · module: MOD-test-pages
-// guards: UC-028 (4); EVERY TEST RUN LEAVES A RESULT RECORD
+// guards: UC-028; EVERY TEST RUN LEAVES A RESULT RECORD
 // given: TST-903 failed in a record that names the run …/actions/runs/777 and, under ## Failures, the expected result "the list is empty" and the observed "the list holds one entry"; the server keeps the log of run 777
 // input: the route runs rendered for the commit
 // expect: TST-903 shows the expected result beside the observed one (two elements of their own), the excerpt of the record, and the log "the full log of run 777", asked of ciRunLog with the id 777; a test that did not fail shows none of these
@@ -194,7 +194,7 @@ test("runs — a failed test shows its expected result beside the observed one, 
 });
 
 // TST-760007 · level: unit · module: MOD-test-pages
-// guards: UC-028 (2a); TEST RESULTS ARE KEPT IN THE REPOSITORY
+// guards: UC-028; TEST RESULTS ARE KEPT IN THE REPOSITORY
 // given: the same failed test, the server no longer keeps the log of run 777 (ciRunLog gives null)
 // input: the route runs rendered for the commit
 // expect: the log is marked unavailable, the expected and the observed result and the outcome stay shown
@@ -207,7 +207,7 @@ test("runs — a log the server no longer keeps is marked unavailable and the ou
 });
 
 // TST-760008 · level: unit · module: MOD-test-pages
-// guards: UC-028 (7a); A MODEL-DEPENDENT TEST IS MEASURED AS A RATE
+// guards: UC-028; A MODEL-DEPENDENT TEST IS MEASURED AS A RATE
 // given: TST-905 recorded 17 of 20 on the commit and 18 of 20 on the last release; a second product state where the commit records 19 of 20
 // input: the route runs rendered for each
 // expect: with 17 of 20 the test shows "worse than the last release" with both rates "17 of 20" and "18 of 20"; with 19 of 20 it shows no such mark
@@ -220,7 +220,7 @@ test("runs — a worse rate is shown with both rates", async () => {
 });
 
 // TST-760009 · level: unit · module: MOD-test-pages
-// guards: UC-028 (2b); TEST RESULTS ARE KEPT IN THE REPOSITORY
+// guards: UC-028; TEST RESULTS ARE KEPT IN THE REPOSITORY
 // given: a private repository without a token: reading the branch test-results fails
 // input: the route runs rendered for the commit
 // expect: the page says that the records cannot be read from the browser, links the branch test-results (webLinks().branch) and the runs of this commit (webLinks().commitRuns) and shows no line of any level and no outcome
@@ -235,7 +235,7 @@ test("runs — records that cannot be read say so and link the branch test-resul
 });
 
 // TST-760010 · level: unit · module: MOD-test-pages
-// guards: UC-028 (6a); EVERY TEST RUN LEAVES A RESULT RECORD
+// guards: UC-028; EVERY TEST RUN LEAVES A RESULT RECORD
 // given: a record marked uncommitted by bridge-pc in which TST-902 failed, beside a committed record in which it passed
 // input: the route runs rendered for the commit
 // expect: the record is shown, with its participant, marked "uncommitted changes" and not counted: TST-902 still reads passed and the line of unit counts no second failure
@@ -249,7 +249,7 @@ test("runs — a record marked uncommitted is shown and not counted", async () =
 });
 
 // TST-855001 · level: unit · module: MOD-test-pages
-// guards: UC-028 (2b); TEST RESULTS ARE KEPT IN THE REPOSITORY
+// guards: UC-028; TEST RESULTS ARE KEPT IN THE REPOSITORY
 // given: a private repository without a token (reading test-results fails), whose server's pages are those of another address (a GitLab-shaped one), and the route runs/<commit>
 // input: the route rendered for the commit
 // expect: the notice holds two links, in this order: the branch test-results and the runs of this commit, each the address webLinks gives for that name, each with a text that names what it leads to; none is the page of all runs (actions)
@@ -263,7 +263,7 @@ test("runs — the links of records that cannot be read come from webLinks, for 
 });
 
 // TST-855002 · level: unit · module: MOD-test-pages
-// guards: UC-028 (2b); TEST RESULTS ARE KEPT IN THE REPOSITORY
+// guards: UC-028; TEST RESULTS ARE KEPT IN THE REPOSITORY
 // given: as TST-855001, with a record of the log asked and the run's address asked of the fake
 // input: the route rendered for the commit
 // expect: webLinks was asked for branch("test-results") and commitRuns(<the commit>) and for nothing that needs a run's identifier: neither run(id) nor ciRunLog
@@ -274,7 +274,7 @@ test("runs — the link to the run of the commit needs no run identifier", async
 });
 
 // TST-855003 · level: unit · module: MOD-test-pages
-// guards: UC-028 (2b); TEST RESULTS ARE KEPT IN THE REPOSITORY
+// guards: UC-028; TEST RESULTS ARE KEPT IN THE REPOSITORY
 // given: a repository whose records can be read
 // input: the route rendered for the commit
 // expect: no notice that the records cannot be read, no link to the branch test-results or to the runs of the commit, and webLinks asked for neither

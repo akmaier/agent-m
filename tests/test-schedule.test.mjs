@@ -71,7 +71,7 @@ report: build/junit.xml
 `;
 
 // TST-473098 · level: unit · module: MOD-test-schedule
-// guards: THE DEFAULT SCHEDULE FOLLOWS THE BOOK (its absence: a product's own schedule carries no such mark)
+// guards: THE DEFAULT SCHEDULE FOLLOWS THE BOOK
 // given: PRODUCT_SCHEDULE, a product's own docs/tests/schedule.md — a declared nightly time, a command and a report path (so it runs its tests with neither node's own test runner nor its JUnit reporter), a tick pattern that differs from the book's default in every one of the five occasion columns, and one row naming a self-hosted runner
 // input: readDocument(scheduleSchema, "docs/tests/schedule.md", PRODUCT_SCHEDULE)
 // expect: the front matter and the "## Levels" table read back exactly as given, with no finding; document.default is left unset — only defaultSchedule()'s own document carries it
@@ -109,7 +109,7 @@ Not part of the format.
 `;
 
 // TST-473099 · level: unit · module: MOD-test-schedule
-// guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT (through scheduleSchema's own rule, which every finding here names, since no closer part of the schema names one)
+// guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT
 // given: MALFORMED_SCHEDULE — no declared nightly time, a Row this format names none of its six for, and a section the format does not allow
 // input: documentFindings(scheduleSchema, readDocument(scheduleSchema, "docs/tests/schedule.md", MALFORMED_SCHEDULE))
 // expect: three findings, each in MOD-text-tools' one line form: the missing nightly (line 1, where a missing key always stands), the Row integration (line 8, the row it stands on), and the forbidden section ## Notes (line 10) — each naming THE TEST SCHEDULE IS DECLARED PER PRODUCT, the schema's own rule

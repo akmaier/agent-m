@@ -130,7 +130,7 @@ const writtenEntry = (plan, id = "SRC-ai-act") => {
 // input: fetchLegalText({ celex: "32024R1689" })
 // expect: one fetched file with the fixture bytes, retrieved date 2024-07-16, repositoryVersion cellar-2024-07-12, and a request to /resource/celex/32024R1689?language=eng
 // TST-584014 · level: unit · module: MOD-source-register
-// guards: AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY; UC-004 step 7
+// guards: AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY; UC-004
 // given: a CELEX identifier and a fixture publication repository answer with a Date header, ETag repository version and filename
 // input: fetchLegalText({ celex: "32024R1689" })
 // expect: one fetched file with the fixture bytes, retrieved date 2024-07-16, repositoryVersion cellar-2024-07-12, and a request to /resource/celex/32024R1689?language=eng
@@ -161,7 +161,7 @@ test("fetchLegalText - fetches a CELEX text with retrieval date, repository vers
 // input: fetchLegalText({ eli: "http://data.europa.eu/eli/reg/2024/1689/oj" })
 // expect: the publication repository is requested through /resource/eli/reg/2024/1689/oj?language=eng
 // TST-584015 · level: unit · module: MOD-source-register
-// guards: AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY; UC-004 step 7
+// guards: AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY; UC-004
 // given: an ELI identifier
 // input: fetchLegalText({ eli: "http://data.europa.eu/eli/reg/2024/1689/oj" })
 // expect: the publication repository is requested through /resource/eli/reg/2024/1689/oj?language=eng
@@ -183,7 +183,7 @@ test("fetchLegalText - fetches an ELI text through the publication repository's 
 // input: fetchLegalText(identifier) for each
 // expect: NotFound names the address; Unreachable names the reason; neither returns guessed files
 // TST-584016 · level: unit · module: MOD-source-register
-// guards: AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY; UC-004 step 7a
+// guards: AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY; UC-004
 // given: a publication repository 404, and then an unreachable fetch
 // input: fetchLegalText(identifier) for each
 // expect: NotFound names the address; Unreachable names the reason; neither returns guessed files
@@ -209,7 +209,7 @@ test("fetchLegalText - names NotFound and Unreachable, and guesses no text", asy
 // input: versionCommits(entry, files, { version, date, retrieved, repositoryVersion, repository: INSTANCE })
 // expect: the instance plan appends the new row and files with SHA-256s and the version hash; the earlier version block remains byte for byte
 // TST-584017 · level: unit · module: MOD-source-register
-// guards: A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; A SOURCE VERSION IS NEVER OVERWRITTEN; UC-004 step 7
+// guards: A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; A SOURCE VERSION IS NEVER OVERWRITTEN; UC-004
 // given: a source entry with one existing version, and two fetched files for a newer version
 // input: versionCommits(entry, files, { version, date, retrieved, repositoryVersion, repository: INSTANCE })
 // expect: the instance plan appends the new row and files with SHA-256s and the version hash; the earlier version block remains byte for byte
@@ -277,7 +277,7 @@ test("versionCommits - SameBytes refuses a byte set that is already recorded", a
 // input: the derived predicate: identifier recognised by recogniseLegalText and ## Versions has no row
 // expect: only the recognised legal-text entry with no row waits for its fetch
 // TST-584019 · level: unit · module: MOD-source-register
-// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-004 step 7
+// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-004
 // given: one legal-text source entry with no version, one with a version, and one non-EU identifier with no version
 // input: the derived predicate: identifier recognised by recogniseLegalText and ## Versions has no row
 // expect: only the recognised legal-text entry with no row waits for its fetch

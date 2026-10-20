@@ -12,7 +12,8 @@
 // sections and a requirement before every section, and a group file that arranges the requirements of the two sections in two groups (ITM-595). The fake has no write method, so rendering has no write path.
 // Readings the version-choice cases take: the ref the caller hands is "current" when the Host names it the default branch, else it is
 // offered under its own name; the tags are those listTags gives, newest first by their vYYYY.MINOR.PATCH numbers, a tag of another form
-// after them; a Host whose listTags fails offers no tag; any ref that is not the default branch is read-only and the view says "as of" it.
+// after them; a Host whose listTags fails offers no tag and says so as a failed read, never as a product without a release (ITM-658); any ref that is not the default branch is read-only and the view says "as of" it.
+// A failed read is named by what failed, followed by MOD-site-frame's readProblem of the failure with the context's tokenStored (ITM-658): a failure that is no Host's reads "This page could not be drawn: <message>".
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -185,7 +186,7 @@ const CURRENT_NAMES = ["OUTSIDE REQUIREMENT", "FIRST REQUIREMENT", "SECOND REQUI
 
 // CASE ITM-594-01
 // TST-594000 · level: unit · module: MOD-trace-pages
-// guards: UC-020 (steps 1, 1a); THE BROWSER SHOWS ANY RELEASED VERSION
+// guards: UC-020; THE BROWSER SHOWS ANY RELEASED VERSION
 // given: a Host that names main the default branch and gives the tags v2026.1.9, v2026.10.0, nightly, v2026.2.0, v2025.12.3 in that order
 // input: the route rendered at main
 // expect: the options are, in this order, main (shown as "current"), v2026.10.0, v2026.2.0, v2026.1.9, v2025.12.3, nightly (shown by their names); main is selected; no "as of" line
@@ -199,22 +200,26 @@ test("the version choice offers the default branch as current and every tag, new
 
 // CASE ITM-594-02
 // TST-594001 · level: unit · module: MOD-trace-pages
-// guards: UC-020 (step 1c); THE BROWSER SHOWS ANY RELEASED VERSION
+// guards: UC-020; THE BROWSER SHOWS ANY RELEASED VERSION
 // given: a Host that names main the default branch and gives no tag; and one whose listTags fails
 // input: the route rendered at main with each
-// expect: for each, the only option is main shown as "current", and a note says that no release is tagged yet and points to UC-013
-test("a product without tags is offered only current, with a pointer to UC-013", async () => {
-  for (const productHost of [host(SPEC, { defaultBranch: "main" }), host(SPEC, { defaultBranch: "main", tagsFail: true })]) {
-    const target = await render(productHost, mainParams);
-    assert.deepEqual(options(target).map((node) => [node.value, node.textContent]), [["main", "current"]]);
-    assert.deepEqual(find(target, (node) => node.localName === "p" && node.className === "version-none").map((node) => node.textContent),
-      ["No release is tagged yet (UC-013); only the current text can be shown."]);
-  }
+// expect: for each, the only option is main shown as "current"; the first says that no release is tagged yet and points to UC-013; the second never says so but names the failed read, "The tags could not be read: This page could not be drawn: tags unavailable"
+test("a product without tags is offered only current, with a pointer to UC-013; a failed listTags is named, never read as no release", async () => {
+  const none = await render(host(SPEC, { defaultBranch: "main" }), mainParams);
+  assert.deepEqual(options(none).map((node) => [node.value, node.textContent]), [["main", "current"]]);
+  assert.deepEqual(find(none, (node) => node.localName === "p" && node.className === "version-none").map((node) => node.textContent),
+    ["No release is tagged yet (UC-013); only the current text can be shown."]);
+  const failed = await render(host(SPEC, { defaultBranch: "main", tagsFail: true }), mainParams);
+  assert.deepEqual(options(failed).map((node) => [node.value, node.textContent]), [["main", "current"]]);
+  assert.deepEqual(find(failed, (node) => node.className === "version-none").map((node) => node.textContent), []);
+  assert.doesNotMatch(failed.textContent, /No release is tagged yet/);
+  assert.deepEqual(find(failed, (node) => node.className === "traces-problem").map((node) => node.textContent),
+    ["The tags could not be read: This page could not be drawn: tags unavailable"]);
 });
 
 // CASE ITM-594-03
 // TST-594002 · level: unit · module: MOD-trace-pages
-// guards: UC-020 (steps 1, 1a); THE BROWSER SHOWS ANY RELEASED VERSION
+// guards: UC-020; THE BROWSER SHOWS ANY RELEASED VERSION
 // given: main has OUTSIDE, FIRST and SECOND REQUIREMENT and is the default branch; the tag v2026.1.0 has OLD REQUIREMENT only
 // input: the route rendered at main, then v2026.1.0 chosen
 // expect: at main three Edit links, two + Requirement links and no "as of"; readSnapshot is then asked main, v2026.1.0 and nothing else; the tree lists only OLD REQUIREMENT; v2026.1.0 is selected; the view says "as of v2026.1.0"; no Edit and no + Requirement link
@@ -236,7 +241,7 @@ test("choosing a tag draws the SPEC of that tag, read-only and as of it", async 
 
 // CASE ITM-594-04
 // TST-594003 · level: unit · module: MOD-trace-pages
-// guards: UC-020 (steps 1, 1a); THE BROWSER SHOWS ANY RELEASED VERSION
+// guards: UC-020; THE BROWSER SHOWS ANY RELEASED VERSION
 // given: the route rendered at main and the tag v2026.1.0 chosen
 // input: main chosen again
 // expect: readSnapshot is asked main, v2026.1.0, main; the three current requirements are listed with five Edit and + Requirement links; main is selected; no "as of" line
@@ -255,7 +260,7 @@ test("choosing current again draws the default branch editable", async () => {
 
 // CASE ITM-594-05
 // TST-594004 · level: unit · module: MOD-trace-pages
-// guards: UC-020 (step 1a); THE BROWSER SHOWS ANY RELEASED VERSION
+// guards: UC-020; THE BROWSER SHOWS ANY RELEASED VERSION
 // given: the route rendered at main (the params keep ref main), v2026.1.0 chosen, OLD REQUIREMENT opened
 // input: route.subject(params, context) with the context the route was drawn with
 // expect: kind "converse", no draft route, title "OLD REQUIREMENT at v2026.1.0", a key holding ref=v2026.1.0, and a page text holding "Version: v2026.1.0" and "Old rule."
@@ -278,16 +283,16 @@ test("the subject of a chosen tag is about the version shown, not the ref the ca
 
 // CASE ITM-594-06
 // TST-594005 · level: unit · module: MOD-trace-pages
-// guards: UC-020 (step 1a); THE BROWSER SHOWS ANY RELEASED VERSION
+// guards: UC-020; THE BROWSER SHOWS ANY RELEASED VERSION
 // given: a Host that gives the tags v2026.1.0 and v2026.0.1 and cannot read the snapshot of v2026.0.1
 // input: the route rendered at main, v2026.0.1 chosen, then v2026.1.0
-// expect: after the first choice the page says "v2026.0.1 could not be read: unreachable", lists no requirement and keeps the choice with v2026.0.1 selected; after the second it lists OLD REQUIREMENT and no problem line
+// expect: after the first choice the page says "v2026.0.1 could not be read: This page could not be drawn: unreachable" (readProblem's element follows what failed), lists no requirement and keeps the choice with v2026.0.1 selected; after the second it lists OLD REQUIREMENT and no problem line
 test("a chosen tag that cannot be read is named in place of the tree and the choice stays", async () => {
-  const problems = (target) => find(target, (node) => node.localName === "p" && node.className === "version-problem").map((node) => node.textContent);
+  const problems = (target) => find(target, (node) => node.className === "version-problem").map((node) => node.textContent);
   const target = await render(tagged({ tags: ["v2026.1.0", "v2026.0.1"], unreadable: ["v2026.0.1"] }), mainParams);
   choose(target, "v2026.0.1");
   await until(() => problems(target).length === 1);
-  assert.deepEqual(problems(target), ["v2026.0.1 could not be read: unreachable"]);
+  assert.deepEqual(problems(target), ["v2026.0.1 could not be read: This page could not be drawn: unreachable"]);
   assert.deepEqual(names(target), []);
   assert.equal(selectOf(target).value, "v2026.0.1");
   choose(target, "v2026.1.0");
@@ -297,7 +302,7 @@ test("a chosen tag that cannot be read is named in place of the tree and the cho
 
 // CASE ITM-594-07
 // TST-594006 · level: unit · module: MOD-trace-pages
-// guards: UC-020 (step 1); THE BROWSER SHOWS ANY RELEASED VERSION
+// guards: UC-020; THE BROWSER SHOWS ANY RELEASED VERSION
 // given: a Host whose snapshot of v2026.1.0 waits for a gate that opens later
 // input: v2026.1.0 chosen, then main chosen before the gate opens; then the gate opens and 50 ms of the clock pass
 // expect: the page shows main's three requirements with main selected and no "as of" line; the slower, earlier choice does not replace it
@@ -547,14 +552,14 @@ test("the view's trace graph is built when a requirement is opened, or for the c
 // guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
 // given: the fixture, in which every read of UC-001's file fails as an unreachable server does until the test lets it succeed (the draw reads it too, for the impact lists of the open entries)
 // input: ALPHA RULE opened, closed, the file made readable, ALPHA RULE opened again
-// expect: the first opening keeps the four fields and says "What traces to this requirement could not be read: unreachable" with no list; the second opening reads again and lists UC-001 as "accepted"
+// expect: the first opening keeps the four fields and says "What traces to this requirement could not be read: This page could not be drawn: unreachable" with no list; the second opening reads again and lists UC-001 as "accepted"
 test("a graph that cannot be read is named in place of the traces, the four fields stay, and the next opening reads it again", async () => {
   let unreachable = true;
   const productHost = treeHost({ trees: { main: TRACE_FILES }, failing: (path) => unreachable && path === "docs/use-cases/UC-001-first.md" });
   const target = await render(productHost, mainParams);
   const row = await openRequirement(target, "ALPHA RULE");
   assert.match(row.textContent, /Alpha rule\./);
-  assert.match(row.textContent, /What traces to this requirement could not be read: unreachable/);
+  assert.match(row.textContent, /What traces to this requirement could not be read: This page could not be drawn: unreachable/);
   assert.equal(traceSection(row, "Use cases") === undefined, true, "no lists beside the problem");
   find(target, (node) => node.localName === "button" && node.textContent === "ALPHA RULE")[0].dispatchEvent(new Event("click"));
   unreachable = false;
@@ -568,10 +573,11 @@ test("a graph that cannot be read is named in place of the traces, the four fiel
 // guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
 // given: the fixture, in which every read of docs/sources.md fails as an unreachable server does
 // input: ALPHA RULE opened
-// expect: Sources says "The sources could not be read: unreachable"; the use cases are listed all the same
+// expect: Sources says "The sources could not be read: This page could not be drawn: unreachable"; the use cases are listed all the same
 test("a part that cannot be read is named in its own section and leaves the others", async () => {
   const row = await openRequirement(await render(treeHost({ trees: { main: TRACE_FILES }, failing: (path) => path === "docs/sources.md" }), mainParams), "ALPHA RULE");
-  assert.deepEqual(paragraphs(row, "Sources"), ["traces-problem: The sources could not be read: unreachable"]);
+  assert.match(traceSection(row, "Sources").textContent, /The sources could not be read: This page could not be drawn: unreachable/);
+  assert.deepEqual(paragraphs(row, "Sources"), ["problem: This page could not be drawn: unreachable"]);
   assert.equal(listed(row, "Use cases").length, 3);
 });
 
@@ -659,12 +665,12 @@ test("the Gaps link encodes the ref it leads to", async () => {
 // guards: UC-020; THE BROWSER SHOWS ANY RELEASED VERSION
 // given: main is the default branch and holds OUTSIDE, FIRST and SECOND REQUIREMENT; the tag v2026.1.0 has a SPEC that cannot be read (its snapshot is unreachable)
 // input: the route rendered at main; v2026.1.0 chosen
-// expect: the page says "v2026.1.0 could not be read: unreachable" in place of the tree, and the one Gaps link, still beside the choice, has the href "#trace/key=gaps/ref=v2026.1.0"
+// expect: the page says "v2026.1.0 could not be read: This page could not be drawn: unreachable" in place of the tree, and the one Gaps link, still beside the choice, has the href "#trace/key=gaps/ref=v2026.1.0"
 test("a chosen version that cannot be read keeps the choice and its Gaps link at that version", async () => {
   const target = await render(tagged({ unreadable: ["v2026.1.0"] }), mainParams);
   choose(target, "v2026.1.0");
   await until(() => find(target, (node) => node.className === "version-problem").length === 1);
-  assert.deepEqual(find(target, (node) => node.className === "version-problem").map((node) => node.textContent), ["v2026.1.0 could not be read: unreachable"]);
+  assert.deepEqual(find(target, (node) => node.className === "version-problem").map((node) => node.textContent), ["v2026.1.0 could not be read: This page could not be drawn: unreachable"]);
   assert.deepEqual(gapsLinks(target).map((node) => node.getAttribute("href")), ["#trace/key=gaps/ref=v2026.1.0"]);
 });
 
@@ -682,4 +688,38 @@ test("the page text the specification gives the prompt bar names the Gaps link",
   const page = route.subject(mainParams, context).paramsFor({}).page;
   assert.equal(page.includes("Gaps"), true);
   assert.equal(page.includes("OUTSIDE REQUIREMENT"), true);
+});
+
+// CASE ITM-658-01
+// TST-658001 · level: unit · module: MOD-trace-pages
+// guards: UC-020; EVERY STEP EXPLAINS ITSELF
+// given: the fixture whose read of docs/sources.md fails as a Host fails when the repository is not found (a HostError NotFound); the context says tokenStored false, then true, then says nothing
+// input: ALPHA RULE opened, for each context
+// expect: with tokenStored false the sources say the repository is private or does not exist and offer "Store a token" (a.token-step); with tokenStored true they give the host's own message and offer no link; with no tokenStored they give the host's message and no private-or-missing sentence and no link
+test("a failed read of the specification view is named by readProblem with the context's tokenStored", async () => {
+  const { HostError } = await import("../src/repository-hosts/index.mjs");
+  const cases = async (tokenStored) => {
+    const productHost = treeHost({ trees: { main: TRACE_FILES } });
+    const readSnapshot = productHost.readSnapshot;
+    productHost.readSnapshot = async (ref) => {
+      const snapshot = await readSnapshot(ref);
+      const read = snapshot.read;
+      return Object.assign(Object.create(snapshot), { read: async (path) => { if (path === "docs/sources.md") throw new HostError("NotFound", {}, "Not Found"); return read(path); } });
+    };
+    const target = document.createElement("div");
+    document.body.append(target);
+    await route.render(target, { product: { host: productHost, ...(tokenStored === undefined ? {} : { tokenStored }) } }, mainParams);
+    const section = traceSection(await openRequirement(target, "ALPHA RULE"), "Sources");
+    return { text: section.textContent, links: find(section, (node) => node.className === "token-step").length };
+  };
+  const without = await cases(false);
+  assert.match(without.text, /The sources could not be read: This repository is private or does not exist/);
+  assert.equal(without.links, 1);
+  const stored = await cases(true);
+  assert.match(stored.text, /The sources could not be read: Not Found/);
+  assert.equal(stored.links, 0);
+  const unknown = await cases(undefined);
+  assert.match(unknown.text, /The sources could not be read: Not Found/);
+  assert.doesNotMatch(unknown.text, /private or does not exist/);
+  assert.equal(unknown.links, 0);
 });

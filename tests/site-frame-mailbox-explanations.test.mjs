@@ -60,7 +60,7 @@ test("explain — each topic of connecting a mailbox is a folded What is this? w
 });
 
 // TST-472817 · level: unit · module: MOD-site-frame
-// guards: A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE; THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE; UC-037 (step 1, table)
+// guards: A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE; THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE; UC-037
 // given: the topic mailbox-routes
 // input: explain("mailbox-routes")
 // expect: text giving the two routes with the table's rows: for whom, how to sign in, what each needs, why
@@ -83,7 +83,7 @@ test("explain — mailbox-routes: the two routes (UC-037)", () => {
 });
 
 // TST-472818 · level: unit · module: MOD-site-frame
-// guards: UC-037 (step 2, alternative 2a)
+// guards: UC-037
 // given: the topic mailbox-app-registration
 // input: explain("mailbox-app-registration")
 // expect: text saying the app is registered once: what to enter (name Agent M, single-page application, the return address, the client ID copied back); that an institution may allow it only to its administrators; whom to ask and for what; and the IMAP route in the meantime
@@ -102,7 +102,7 @@ test("explain — mailbox-app-registration: registering the app, and whom to ask
 });
 
 // TST-472819 · level: unit · module: MOD-site-frame
-// guards: UC-037 (step 4.1)
+// guards: UC-037
 // given: the topic mail-server-settings
 // input: explain("mail-server-settings")
 // expect: text saying where a mail provider usually lists the IMAP and SMTP settings, and the presets for the ports
@@ -119,7 +119,7 @@ test("explain — mail-server-settings: where a provider lists IMAP and SMTP set
 });
 
 // TST-472820 · level: unit · module: MOD-site-frame
-// guards: UC-037 (step 4.2, alternative 7c)
+// guards: UC-037
 // given: the topic gmail-app-password
 // input: explain("gmail-app-password")
 // expect: text saying Gmail refuses the account password over IMAP and accepts an app password; that this needs 2-Step Verification; that work or school accounts may not offer it, the organisation's administrator deciding; and the same when a login is refused with two-factor login on
@@ -138,7 +138,7 @@ test("explain — gmail-app-password: Gmail's app password, 2-Step Verification,
 });
 
 // TST-472821 · level: unit · module: MOD-site-frame
-// guards: UC-037 (step 6, alternative 6a)
+// guards: UC-037
 // given: the topic mailbox-processing-places
 // input: explain("mailbox-processing-places")
 // expect: text saying what the processing places are, with examples; that none is ticked at first and mails are then only read; the notice for a place outside the EU naming the GDPR and the AI Act, which can still be allowed and is recorded; and that places can be changed later without recalling a mail already handed over
@@ -171,7 +171,7 @@ test("explain — the topics of connecting a mailbox point to no chapter of the 
 });
 
 // TST-472823 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-037 (step 4.2: "A folded explanation links Google's page for creating one")
+// guards: EVERY STEP EXPLAINS ITSELF; UC-037
 // given: the renderer, shown on a Markdown link as the known positive; and the five topics of connecting a mailbox
 // input: explain("gmail-app-password"), and explain of each of the other four
 // expect: the app-password topic holds exactly one link, to https://myaccount.google.com/apppasswords — the address that Google's own help page "Sign in with app passwords" (https://support.google.com/accounts/answer/185833) gives as "Create and manage your app passwords" — whose text names app passwords; none of the other four holds a link

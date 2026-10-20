@@ -48,7 +48,7 @@ const summary = (findings) => findings.map((found) => [found.artifact, found.kin
 const CASE = { identifier: "TST-754001", level: "unit", guards: ["A RULE"], expected: "round" };
 
 // TST-754101 · level: unit · module: MOD-result-records
-// guards: A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT; UC-026 (8)
+// guards: A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT; UC-026
 // given: a branch that adds one unit test TST-754001 with its valid counter-proof record (outcome failed, a fault, a result), and the reviewed case it implements
 // input: the check test-proposals on the report of the branch
 // expect: no finding
@@ -58,7 +58,7 @@ test("test-proposals (write-tests) — a test with a valid counter-proof passes"
 });
 
 // TST-754102 · level: unit · module: MOD-result-records
-// guards: A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT; UC-026 (8b)
+// guards: A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT; UC-026
 // given: a branch that adds two unit tests, TST-754001 with no counter-proof record and TST-754002 with its record; both reported passed
 // input: the check test-proposals on the report
 // expect: one error finding under A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT, on the file PATH at the declaration line of TST-754001 (line 1), naming TST-754001 in what; none for TST-754002
@@ -73,7 +73,7 @@ test("test-proposals (write-tests) — a new test without its counter-proof reco
 });
 
 // TST-754103 · level: unit · module: MOD-result-records
-// guards: A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT; UC-026 (8b)
+// guards: A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT; UC-026
 // given: a branch that adds three unit tests, each with a counter-proof record that does not record the failure: TST-754001 outcome passed, TST-754002 a blank ## Result, TST-754003 a blank ## Fault
 // input: the check test-proposals on the report (all reported passed)
 // expect: three error findings under A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT, one for each, naming its test
@@ -87,7 +87,7 @@ test("test-proposals (write-tests) — a counter-proof that does not record the 
 });
 
 // TST-754104 · level: unit · module: MOD-result-records
-// guards: UC-026 (8a); A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT
+// guards: UC-026; A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT
 // given: a branch that adds unit tests TST-754001 (no counter-proof record, reported failed), TST-754002 (no counter-proof record, reported passed)
 // input: the check test-proposals on the report
 // expect: one error finding, for TST-754002 only; none for TST-754001, which awaits implementation
@@ -99,7 +99,7 @@ test("test-proposals (write-tests) — a test the draft reports failing on the c
 });
 
 // TST-754105 · level: unit · module: MOD-result-records
-// guards: UC-026 (1a); A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT
+// guards: UC-026; A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT
 // given: a branch that adds one test of level user, TST-754001, with no counter-proof record
 // input: the check test-proposals on the report
 // expect: no finding
@@ -109,7 +109,7 @@ test("test-proposals (write-tests) — a test of level user takes no counter-pro
 });
 
 // TST-754106 · level: unit · module: MOD-result-records
-// guards: A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT; A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS; UC-026 (6)
+// guards: A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT; A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS; UC-026
 // given: reviewed cases TST-754001 (unit, guards A RULE, expected round) to TST-754004, and a branch with their tests with valid counter-proofs: TST-754001 written at level component, TST-754002 guarding ANOTHER RULE,
 //   TST-754003 expecting square, TST-754004 with ROUND in other case and spacing (equal), and TST-754005, which no case has
 // input: the check test-proposals on the report, with the cases in the job's parameters
@@ -126,7 +126,7 @@ test("test-proposals (write-tests) — a written test that differs from its revi
 });
 
 // TST-754107 · level: unit · module: MOD-result-records
-// guards: A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT; UC-026 (8)
+// guards: A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT; UC-026
 // given: a product whose own test file declares TST-754009 and has no counter-proof record, and a branch that changes that file by adding TST-754001 (with its record) and leaves TST-754009; and a report of a branch the host does not hold
 // input: the check test-proposals on each
 // expect: no finding for the first (the existing test is not new); for the second, an error finding naming the branch

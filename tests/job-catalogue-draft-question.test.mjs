@@ -14,7 +14,7 @@ import assert from "node:assert/strict";
 import { kindOf } from "../src/job-catalogue/index.mjs";
 
 // TST-1026001 · level: unit · module: MOD-job-catalogue
-// guards: UC-039 (1a)
+// guards: UC-039
 // given: the kind draft-replies as its definition file gives it, and the kind propose-issues beside it
 // input: kindOf of each
 // expect: the purpose of draft-replies names the parameter `question` as the person's point to ask, one question to the reporter of a listed mail of an open issue, and still one reply per mail of a closed issue; the other kind's purpose names no such parameter;

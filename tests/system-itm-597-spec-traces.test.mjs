@@ -57,7 +57,7 @@ test("the dashboard reads the artifacts when a requirement is opened, not when #
 
 // CASE ITM-595-SYSTEM-01
 // TST-597203 · level: system · module: MOD-trace-pages
-// guards: UC-020 (step 3); A REQUIREMENT SHOWS WHAT TRACES TO IT
+// guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
 // given: the dashboard without a token on the same repository with the queue 2026-10-09_traced, whose open entry changes TRACED RULE
 // input: the real #spec drawn; its requirement opened; closed; opened again
 // expect: the page draws TRACED RULE as "change proposed" (known positive), having requested the three artifact files once for the entry's impact list; opening, closing and opening again request none of them again

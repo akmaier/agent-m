@@ -355,7 +355,7 @@ test("MOD-review-pages decision/<id>/edit and module/<id>/edit — Save commits 
 });
 
 // TST-472610 · level: unit · module: MOD-review-pages
-// guards: ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS; UC-022 (10a)
+// guards: ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS; UC-022
 // given: ARC-004, which names UC-002, a use case that is open; MOD-finer, which names a requirement the SPEC does not hold; and, to show a file that names accepted artifacts only, ARC-002
 // input: the routes decision and module rendered for each
 // expect: for ARC-004 a section of what it rests on that is not accepted, naming it and UC-002 and no other; for MOD-finer the same naming A FINE IS CHARGED PER DAY and UC-002, in the order the file names them; no Accept and no GitHub page on either; nothing written; ARC-002 has no such section

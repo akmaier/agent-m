@@ -143,7 +143,7 @@ const boxesIn = (scope) => byClass(scope, "pre", "diff").map((box) => ({ scrollT
 // ---------------------------------------------------------------- the boxes
 
 // TST-877001 · level: unit · module: MOD-review-pages
-// guards: UC-008 (steps 2a, 3e); A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT
+// guards: UC-008; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT
 // given: ARC-003, 39 lines, whose only change is line 30 (0-based), in a box 200 px high of lines 20 px high
 // input: the route decision drawn for ARC-003
 // expect: one box, in the section of the difference, holding all 39 lines and the empty one after the last newline (40 rows); its scrollTop 510, the line's middle (30 * 20 + 10 = 610) at the middle of the box (100 px down): 610 - 100
@@ -153,7 +153,7 @@ test("TST-877001 decision/<id> — the difference opens with its first change in
 });
 
 // TST-877002 · level: unit · module: MOD-review-pages
-// guards: UC-008 (step 3e); UC-023 (step 5)
+// guards: UC-008; UC-023
 // given: ARC-003 changed on line 30, MOD-shelf changed on line 12 (its heading) and on line 36
 // input: the route decision drawn with the id all (the whole architecture)
 // expect: each file has a box of its own: ARC-003's scrollTop 510; MOD-shelf's 150 (12 * 20 + 10 - 100)
@@ -163,7 +163,7 @@ test("TST-877002 decision/all — each difference has a box of its own, opened a
 });
 
 // TST-877003 · level: unit · module: MOD-review-pages
-// guards: UC-008 (steps 2a, 3e)
+// guards: UC-008
 // given: MOD-shelf, 37 lines, changed on line 12 and on line 36 (0-based)
 // input: the route module drawn with the id all, and the route module drawn for MOD-shelf
 // expect: on both pages the box of MOD-shelf has the scrollTop 150, not the position of its later change (36 * 20 + 10 - 100 = 630): the first change decides
@@ -175,7 +175,7 @@ test("TST-877003 module/all and module/<id> — the first change decides, not a 
 });
 
 // TST-877006 · level: unit · module: MOD-review-pages
-// guards: UC-008 (steps 2a, 3e)
+// guards: UC-008
 // given: MOD-shelf with its title changed too, so that its first change stands on line 2 (0-based), whose middle (2 * 20 + 10 = 50) is above the middle of the box
 // input: the route module drawn with the id all, and the route module drawn for MOD-shelf
 // expect: the scrollTop 0 on both: a box does not scroll to a negative position
@@ -187,7 +187,7 @@ test("TST-877006 module/all and module/<id> — a first change near the top leav
 });
 
 // TST-877004 · level: unit · module: MOD-review-pages
-// guards: UC-008 (step 2a)
+// guards: UC-008
 // given: the same architecture; ARC-003 changed
 // input: the route decision drawn for ARC-003
 // expect: the box holds the lines before the change that are more than three lines from it: "Filler line 1." (line 13) is in the box, marked as unchanged ("  Filler line 1."), and the changed line is in it as removed and as added
@@ -198,7 +198,7 @@ test("TST-877004 decision/<id> — the box holds the whole file, each line marke
 });
 
 // TST-877005 · level: unit · module: MOD-review-pages
-// guards: UC-008 (step 2a)
+// guards: UC-008
 // given: docs/assets/style.css, which docs/index.html loads
 // input: the rule for `.accepted-diff .diff`
 // expect: known positive for the box that scrolls: the rule sets a maximum height and overflow: auto

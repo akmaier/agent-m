@@ -147,7 +147,7 @@ const switchOn = (page) => click(one(page.line, "settings-recording-on"), true);
 const tick = async (page) => { const box = one(page.line, "settings-recording-ack"); box.checked = true; await box.fire("change"); };
 
 // TST-511001 · level: unit · module: MOD-settings-pages
-// guards: UC-042 (step 3: shows off — the default — or on); A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
+// guards: UC-042; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
 // given: instance repositories whose switch file docs/conversation-recording.md holds `recording: on`, holds `recording: off`, holds
 //   front matter without the key recording, or does not exist
 // input: the Settings page is rendered for each
@@ -203,7 +203,7 @@ test("Switch on shows the notice and saves nothing; Save works only after I have
 });
 
 // TST-511003 · level: unit · module: MOD-settings-pages
-// guards: UC-042 (step 3: the three statements); SWITCHING CONVERSATION RECORDING ON STATES WHAT FOLLOWS
+// guards: UC-042; SWITCHING CONVERSATION RECORDING ON STATES WHAT FOLLOWS
 // given: an instance repository without a switch file
 // input: the person presses Switch on
 // expect: the notice says, in its own words, that every message of a conversation in the prompt bar, the person's and the participant's, will be committed to the repository of the
@@ -220,7 +220,7 @@ test("the notice states the three statements of UC-042 step 3", async () => {
 });
 
 // TST-511004 · level: unit · module: MOD-settings-pages
-// guards: SWITCHING CONVERSATION RECORDING ON STATES WHAT FOLLOWS (the notice names each repository its server reports as public); A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
+// guards: SWITCHING CONVERSATION RECORDING ON STATES WHAT FOLLOWS; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
 // given: an instance whose server reports it public; the products https://github.com/fixture/pub (public, with a token of its own, ghp_PUB), https://github.com/fixture/priv
 //   (private, without a token of its own, so read with the instance's ghp_INSTANCE), https://github.com/fixture/broken (its server answers 500)
 // input: the person presses Switch on
@@ -247,7 +247,7 @@ test("the notice names the instance and each product its server reports as publi
 });
 
 // TST-511005 · level: unit · module: MOD-settings-pages
-// guards: SWITCHING CONVERSATION RECORDING ON STATES WHAT FOLLOWS (counter-proof: a private repository is not named as public)
+// guards: SWITCHING CONVERSATION RECORDING ON STATES WHAT FOLLOWS
 // given: an instance whose server reports it private; one product, https://github.com/fixture/priv, private
 // input: the person presses Switch on
 // expect: the notice says "No repository is reported as public."; the paragraphs of the repositories reported as public and of the unknown ones are not shown; neither fixture/instance nor priv is named anywhere in the notice
@@ -264,7 +264,7 @@ test("with no repository reported as public the notice says so and names none", 
 });
 
 // TST-511006 · level: unit · module: MOD-settings-pages
-// guards: A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-042 (step 3b)
+// guards: A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-042
 // given: an instance repository whose switch file holds `recording: on`, and one product https://github.com/fixture/pub, public
 // input: a script presses Switch off (a click that is not trusted); the person presses Switch off
 // expect: the script's click writes nothing; the person's click writes at once one commit of the one file docs/conversation-recording.md with exactly
@@ -286,7 +286,7 @@ test("Switch off saves at once without a notice and says that written records st
 });
 
 // TST-511007 · level: unit · module: MOD-settings-pages
-// guards: A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; UC-042 (step 3)
+// guards: A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; UC-042
 // given: an instance repository without a switch file
 // input: the person presses Switch on and ticks I have read this; another writer then creates the switch file with `recording: off`; the person presses Save
 // expect: nothing is written by the page; the line says "changed meanwhile; nothing was written" and still states "Recording conversations is off."
@@ -302,7 +302,7 @@ test("a switch file created meanwhile refuses the save and nothing is written", 
 });
 
 // TST-511008 · level: unit · module: MOD-settings-pages
-// guards: EVERY STEP EXPLAINS ITSELF; UC-042 (every section and line carries a folded What is this?)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-042
 // given: an instance repository without a switch file
 // input: the Settings page is rendered
 // expect: the line holds one folded explanation — a details of class explain — with the summary "What is this?". The fixture DOM of this file renders no Markdown, so the
@@ -315,7 +315,7 @@ test("the line has its folded explanation", async () => {
 });
 
 // TST-511009 · level: unit · module: MOD-settings-pages
-// guards: UC-042 (step 3); EVERY SETTING IS REACHED FROM ONE PAGE
+// guards: UC-042; EVERY SETTING IS REACHED FROM ONE PAGE
 // given: a Settings page whose instance is not connected (no host), and one whose instance repository cannot be read
 // input: the Settings page is rendered for each
 // expect: no exception; the line says "not connected" for the first and "could not be read" for the second, and neither offers Switch on nor Switch off; the page still shows its other tabs
@@ -337,7 +337,7 @@ test("an instance that is not connected or cannot be read gives a line without a
 });
 
 // TST-511010 · level: unit · module: MOD-settings-pages
-// guards: UC-042 (step 1: one line per setting with its state); UC-049 (3c: the page names the settings and their states)
+// guards: UC-042; UC-049
 // given: an instance repository whose switch file holds `recording: on`
 // input: the Settings page is rendered and left on its first tab, General; the person then opens the tab Repositories
 // expect: while the first tab is shown the page asks the instance repository for no file at all and the line states "Recording conversations is not read yet."; once the tab Repositories is opened the

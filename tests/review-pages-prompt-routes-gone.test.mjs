@@ -22,7 +22,7 @@ test.afterEach(() => { assert.deepEqual(fetched.splice(0), [], "no request left 
 const ROOT = new URL("../", import.meta.url);
 
 // TST-551001 · level: unit · module: MOD-review-pages
-// guards: UC-019 (step 1)
+// guards: UC-019
 // given: the open use case UC-007 of a product, with a token
 // input: the route use-case with the id UC-007
 // expect: the page offers Edit, a link to #use-case/id=UC-007/edit=1, as the known positive; it offers no Change by prompt: no anchor of the class prompt-link, no text "Change by prompt" and no anchor whose address holds "prompt"

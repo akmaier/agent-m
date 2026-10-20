@@ -92,7 +92,7 @@ test("testAccess — every repository reached", async () => {
 });
 
 // TST-472075 · level: unit · module: MOD-bridge-jobs
-// guards: A LOCAL AGENT USES THE PERSON'S OWN LOGIN; UC-044; UC-011 3c
+// guards: A LOCAL AGENT USES THE PERSON'S OWN LOGIN; UC-044; UC-011
 // given: the instance and a served product the login reaches, and a served product it does not — a path that is no repository
 // input: testAccess({ instance, products: [a, missing, b] })
 // expect: the one it does not reach is { reachable: false, reason: git's words — "does not appear to be a git repository" —, naming the repository }, the others reached with no reason, in the order given

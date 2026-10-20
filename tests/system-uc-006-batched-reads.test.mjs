@@ -21,7 +21,7 @@ const QUEUE = "docs/spec-freigaben/2026-03-01_sample";
 // built) in the next one, the entry's proposal and rationale in a third, all before the trace graph's.
 
 // TST-479101 · level: system · module: MOD-review-pages; MOD-trace-graph; MOD-repository-hosts
-// guards: UC-006 main flow steps 1 and 2; UC-006 3b; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT
+// guards: UC-006; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT
 // given: a product on GitHub with 1,332 files (SPEC.md, 2 use cases, 1,329 backlog items) and one open entry 07 that changes "A WRITE RULE", which UC-002 realises; the reviewer's token is stored
 // input: open the SPEC-entry page of entry 07
 // expect: the page shows the current text, the proposal, the difference, the rationale and the impact list "A WRITE RULE — changed, named by UC-002", as before; in all at most 20 requests (1 repository + 2 snapshot + 17 GraphQL queries: one of the queue's 2 files, one of SPEC.md, one of the entry's 2 files (proposal and rationale), and the trace graph's 13 of 100 files and one of 31), of which the GETs of file contents are none; nothing is written
@@ -44,7 +44,7 @@ test("TST-479101: UC-006 3b opens an entry with its impact list over 1,332 files
 });
 
 // TST-479102 · level: system · module: MOD-review-pages; MOD-spec-changes; MOD-repository-hosts
-// guards: UC-006 main flow step 1
+// guards: UC-006
 // given: the same product of 1,332 files and the reviewer's token
 // input: open the SPEC entries list (the page without an id)
 // expect: the list shows entry 07 as open; at most 5 requests (1 repository + 2 snapshot + 2 GraphQL queries: one of the queue's index and decisions, one of SPEC.md), no read of a file on its own, no read of a backlog item
@@ -60,7 +60,7 @@ test("TST-479102: UC-006 1 opens the SPEC entries list over 1,332 files in at mo
 });
 
 // TST-479103 · level: system · module: MOD-review-pages; MOD-trace-graph; MOD-repository-hosts
-// guards: UC-006 3b; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST
+// guards: UC-006; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST
 // given: the product of 1,332 files; GraphQL answers UC-002 (the file that names "A WRITE RULE") as truncated, backlog item 1 as binary and backlog item 2 as not given
 // input: open the SPEC-entry page of entry 07
 // expect: the impact list still reads "A WRITE RULE — changed, named by UC-002", since the three files the batch could not give are fetched by their own reads: the GETs of file contents are those 3 files, 3 in all; the queries are the queue's 2, the entry's 1 and the trace graph's 14, 17 in all
@@ -76,7 +76,7 @@ test("TST-479103: UC-006 3b still names the use case whose file the batch could 
 });
 
 // TST-479104 · level: system · module: MOD-review-pages; MOD-trace-graph; MOD-repository-hosts
-// guards: UC-006 3b; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST
+// guards: UC-006; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST
 // given: the product of 1,332 files on a GitHub whose /graphql answers 404 (a server that serves none); the reviewer's token
 // input: open the SPEC-entry page of entry 07
 // expect: the page is the same as with GraphQL (impact list "A WRITE RULE — changed, named by UC-002", the five sections); the batch is tried once by each of the four reads ahead (4 requests to /graphql: the queue's two files, SPEC.md, the entry's proposal and rationale, the trace graph's first 100), then every file is read on its own: 1,331 backlog and use-case files + the 5 files of the page = 1,336 GETs of file contents
@@ -93,7 +93,7 @@ test("TST-479104: UC-006 3b is unchanged on a server that serves no /graphql", a
 });
 
 // TST-479105 · level: system · module: MOD-review-pages; MOD-trace-graph; MOD-repository-hosts
-// guards: UC-006 4b; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
+// guards: UC-006; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
 // given: the product of 1,332 files, public, and no token stored in the browser
 // input: open the SPEC-entry page of entry 07
 // expect: the page shows the impact list "A WRITE RULE — changed, named by UC-002"; nothing is read ahead: 0 requests to /graphql, no request carries an Authorization header, and every file is read on its own from GitHub's raw host (1,336 reads: 1,331 + the 5 own reads)

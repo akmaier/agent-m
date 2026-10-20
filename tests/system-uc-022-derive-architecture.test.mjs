@@ -343,7 +343,7 @@ async function context(kind, product, overrides = {}) {
 const partsByRecipe = (prepared, recipe) => prepared.parts.filter((part) => part.recipe === recipe);
 
 // TST-448001 · level: system · module: MOD-review-pages; MOD-job-runner; MOD-reuse-facts; MOD-artifact-edits; MOD-approvals
-// guards: UC-022 main flow; THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE; THE ARCHITECTURE'S PARTICIPANTS RECEIVE THE WHOLE PROJECT; AN ARCHITECTURE DRAFT IS CHECKED BEFORE A PERSON SEES IT; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; SEVERAL FILES ARE ACCEPTED IN ONE CLICK
+// guards: UC-022; THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE; THE ARCHITECTURE'S PARTICIPANTS RECEIVE THE WHOLE PROJECT; AN ARCHITECTURE DRAFT IS CHECKED BEFORE A PERSON SEES IT; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; SEVERAL FILES ARE ACCEPTED IN ONE CLICK
 // given: a product with two accepted use cases, no architecture and an MIT LICENSE; a drafter and a reviewer with another model; fixture registry facts for one chosen and one alternative npm package
 // input: prepare derive-architecture, run it attended, write the result on the person's click, then accept every open architecture file shown
 // expect: the run panel covers every requirement and use case with no selection; both participants receive the whole project and chapters 9-12; the reviewer warning is answered before the person sees the draft; Write proposals writes open architecture files with provenance only in the commit; Accept all writes one approval record per shown file
@@ -425,7 +425,7 @@ test("TST-448001: UC-022 derives, writes and accepts the first architecture as o
 });
 
 // TST-448002 · level: system · module: MOD-approvals; MOD-job-runner
-// guards: UC-022 alternative flows 1a, 1b, 1c, 2a, 3a, 4a; ARCHITECTURE IS DESIGNED ONLY AGAINST ACCEPTED USE CASES; NO REVIEWER IS THE DRAFTER; NOTHING IS LEFT OUT OF AN ARCHITECTURE PROMPT SILENTLY; ONE CLICK PER DECISION
+// guards: UC-022; ARCHITECTURE IS DESIGNED ONLY AGAINST ACCEPTED USE CASES; NO REVIEWER IS THE DRAFTER; NOTHING IS LEFT OUT OF AN ARCHITECTURE PROMPT SILENTLY; ONE CLICK PER DECISION
 // given: fixture variants with an open use case, an open SPEC change, an existing architecture, a same-model reviewer, a too-small context and a prepared-but-not-run job
 // input: prepare derive-architecture for each variant
 // expect: the open use case and existing architecture block; the open SPEC change is a warning only; same-model reviewer blocks; too-small context is named; preparation alone sends nothing and writes nothing
@@ -462,7 +462,7 @@ test("TST-448002: UC-022 pre-run alternatives name what blocks or warns before a
 });
 
 // TST-448003 · level: system · module: MOD-job-runner; MOD-reuse-facts; MOD-artifact-edits
-// guards: UC-022 alternative flows 5a, 6a, 6b, 6c, 7a, 7b, 7c, 7d, 8a; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; THE ROUNDS ARE COUNTED AND SHOWN; A REUSE DECISION RECORDS ITS DUE DILIGENCE
+// guards: UC-022; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; THE ROUNDS ARE COUNTED AND SHOWN; A REUSE DECISION RECORDS ITS DUE DILIGENCE
 // given: checked architecture drafts with reviewer findings, unreadable review answers, missing registry candidates, a blocked registry, restrictive licences, and no product LICENSE
 // input: run derive-architecture attended, and for the blocked registry try Write proposals
 // expect: findings are warnings sent back or left for the person; unreadable reviewer output marks the draft not checked; missing candidates warn without blocking; blocked registry prevents writing; restrictive and unchecked licences are visible in due diligence; rejecting every alternative is represented as an edited draft awaiting another whole check
@@ -518,7 +518,7 @@ test("TST-448003: UC-022 post-run alternatives keep findings visible and refuse 
 });
 
 // TST-448004 · level: system · module: MOD-approvals; MOD-review-pages
-// guards: UC-022 alternative flow 10a; ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS; SEVERAL FILES ARE ACCEPTED IN ONE CLICK
+// guards: UC-022; ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS; SEVERAL FILES ARE ACCEPTED IN ONE CLICK
 // given: a shown architecture decision names UC-002, whose current text has no approval record, while UC-001 is accepted
 // input: Accept all shown with that decision's current blob
 // expect: no approval record is written for the decision; the left-out result names that the file rests on what is not accepted and names UC-002

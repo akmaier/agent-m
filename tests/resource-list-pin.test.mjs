@@ -45,7 +45,7 @@ const named = (name, message = name) => Object.assign(new Error(message), { name
 // ---------------------------------------------------------------- readPin
 
 // TST-472574 · level: unit · module: MOD-resource-list
-// guards: A RESOURCE IS PINNED TO AN EXACT STATE; UC-040 (3)
+// guards: A RESOURCE IS PINNED TO AN EXACT STATE; UC-040
 // given: a repository, a data and a model resource, and readers answering head NEWER and Hub revision "rev-2"
 // input: readPin of each
 // expect: the repository's Pin is { kind: "commit", value: NEWER }, read by the repository reader for its address alone; data's and the model's { kind: "revision", value: "rev-2" }, read by the Hub reader for their addresses alone
@@ -61,7 +61,7 @@ test("readPin reads a repository's head and a Hub resource's revision through th
 });
 
 // TST-472575 · level: unit · module: MOD-resource-list
-// guards: A REMOTE INTERFACE NAMES HOW IT FAILS; UC-040 (3b)
+// guards: A REMOTE INTERFACE NAMES HOW IT FAILS; UC-040
 // given: a repository reader that rejects with a RateLimited error, a Hub reader that rejects with a TokenRefused error, and a Hub reader that rejects with a TypeError "Failed to fetch"
 // input: readPin of a repository, a data resource and a model; the answering readers first shown to answer
 // expect: the first two failures are passed on as the readers made them, the same error; the third is HubNotAnswering naming the resource and its address, whose message tells the person to paste a full revision
@@ -95,7 +95,7 @@ test("readPin reads nothing upstream for compute, an endpoint or an agent", asyn
 // ---------------------------------------------------------------- checkPlan
 
 // TST-472577 · level: unit · module: MOD-resource-list
-// guards: A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER; UC-040 (4c)
+// guards: A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER; UC-040
 // given: a repository, data and a model, whatever their route says; compute by `bridge lab-pc` and by `runner:gpu`; an endpoint and an agent by `bridge workstation`, by `runner:cpu`, and by their own address
 // input: checkPlan of each
 // expect: read on its host for the first three; compute by Bridge probes `partitions` through the Bridge named; compute by runner is a check job on the label; an endpoint probes `served models` and an agent `answers` through the Bridge their route names; either by a runner is a check job on its label; by their own address read on their host
@@ -126,7 +126,7 @@ test("checkPlan refuses a compute route that names neither a Bridge nor a runner
 // ---------------------------------------------------------------- newerState
 
 // TST-472579 · level: unit · module: MOD-resource-list
-// guards: A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT; UC-040 (7)
+// guards: A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT; UC-040
 // given: a repository pinned to COMMIT, frozen deeply; upstream Pins of kind commit with value NEWER and with value COMMIT; a data resource pinned to "rev-1" and upstream "rev-2"
 // input: newerState of each
 // expect: NEWER → { newer: true, upstream: the same Pin }; COMMIT → { newer: false, upstream }; "rev-2" against "rev-1" newer; the resource's pin is as it was and the upstream Pin is the object that was given

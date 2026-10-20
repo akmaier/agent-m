@@ -43,7 +43,7 @@ const CASE = { identifier: "TST-960", level: "unit", guards: ["A SELECTED RULE"]
 const files = { "docs/resources.md": RESOURCES };
 
 // TST-851101 · level: unit · module: MOD-result-records
-// guards: COMMIT TESTS CALL NO PAID SERVICE; A FINDING READS LIKE A COMPILER MESSAGE; UC-026 (6)
+// guards: COMMIT TESTS CALL NO PAID SERVICE; A FINDING READS LIKE A COMPILER MESSAGE; UC-026
 // given: a product with docs/resources.md (translator paid, local-model free) and no saved schedule, so the default holds; a proposal of three cases: (1) level unit, paid "translator", (2) level unit, paid "local-model", (3) level unit, no paid
 // input: the check test-proposals on the proposal
 // expect: one error finding under COMMIT TESTS CALL NO PAID SERVICE, for case 1 (line 1, artifact TST-961), whose what names translator and the level unit and whose fix is not empty; none for cases 2 and 3
@@ -56,7 +56,7 @@ test("test-proposals — a unit case that reaches a paid service is an error und
 });
 
 // TST-851102 · level: unit · module: MOD-result-records
-// guards: COMMIT TESTS CALL NO PAID SERVICE; UC-026 (6)
+// guards: COMMIT TESTS CALL NO PAID SERVICE; UC-026
 // given: the default schedule (none saved) and a paid service; four cases of the levels unit, component, system and release, each with paid "translator"
 // input: the check test-proposals on the proposal
 // expect: error findings for the unit (line 1), component (line 2) and system (line 3) cases, which the default runs on every commit; none for the release case (line 4), which it runs only on a release candidate and on demand
@@ -68,7 +68,7 @@ test("test-proposals — under the default schedule unit, component and system c
 });
 
 // TST-851103 · level: unit · module: MOD-result-records
-// guards: COMMIT TESTS CALL NO PAID SERVICE; UC-026 (6)
+// guards: COMMIT TESTS CALL NO PAID SERVICE; UC-026
 // given: a product whose docs/tests/schedule.md runs unit on every commit, component only on a pull request and system only nightly; three cases of those levels, each with paid "translator"
 // input: the check test-proposals on the proposal
 // expect: error findings for the unit case (line 1, every commit) and the component case (line 2, pull request); none for the system case (line 3), which runs only nightly and on a release candidate and on demand
@@ -80,7 +80,7 @@ test("test-proposals — the product's own schedule decides the commit-level: a 
 });
 
 // TST-851104 · level: unit · module: MOD-result-records
-// guards: COMMIT TESTS CALL NO PAID SERVICE; UC-026 (6)
+// guards: COMMIT TESTS CALL NO PAID SERVICE; UC-026
 // given: a product that holds no docs/resources.md; one case of level unit with paid "translator", and one of level unit with paid "nobody-lists-this" in a product whose resources do not name it
 // input: the check test-proposals on each
 // expect: no finding for either: a service that no resource lists is not one paidServices marks paid

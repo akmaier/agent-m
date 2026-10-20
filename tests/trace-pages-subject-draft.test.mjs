@@ -113,7 +113,7 @@ const LENDING_DRAFT_ROUTE = "draft/subject=trace%2Fkey%3Dspecification%2Fref%3Dm
 const STEPS = "The author has no personal source linked to this product. Register the person as a source (#library) and link that source to the product (#sources), then ask again.";
 
 // TST-558001 · level: unit · module: MOD-trace-pages
-// guards: UC-019 (steps 1, 8); UC-049
+// guards: UC-019; UC-049
 // given: the specification of a library on its default branch main, product https://github.com/acme/library; the requirement A LOAN HAS A DUE DATE opened
 // input: route.subject(params, context)
 // expect: key "trace/key=specification/ref=main/requirement=A%20LOAN%20HAS%20A%20DUE%20DATE/product=https%3A%2F%2Fgithub.com%2Facme%2Flibrary";
@@ -129,7 +129,7 @@ test("TST-558001 the draft route of an open requirement is draft/subject=<the ke
 });
 
 // TST-558002 · level: unit · module: MOD-trace-pages
-// guards: UC-019 (steps 1, 8); UC-049
+// guards: UC-019; UC-049
 // given: the same specification; the group "1. Lending" (holding A LOAN HAS A DUE DATE then A BOOK IS SHELVED) opened; then A BOOK IS SHELVED opened inside it
 // input: route.subject for the group, then with the requirement open
 // expect: group: key "trace/key=specification/ref=main/requirements=%5B%22A%20LOAN%20HAS%20A%20DUE%20DATE%22%2C%22A%20BOOK%20IS%20SHELVED%22%5D/product=https%3A%2F%2Fgithub.com%2Facme%2Flibrary" and
@@ -151,7 +151,7 @@ test("TST-558002 the draft route of an open group is draft/subject=<its key, enc
 });
 
 // TST-558003 · level: unit · module: MOD-trace-pages
-// guards: UC-019 (4b); THE PERSON WHO PROMPTS IS A SOURCE
+// guards: UC-019; THE PERSON WHO PROMPTS IS A SOURCE
 // given: a requirement open on main; the known positive: the product links the person's source SRC-acme-person; then (a) the links file holds no row for the person, (b) the register holds only a person of another account,
 //   (c) the context has no instance, (d) the instance's Host fails
 // input: route.subject, then subject.paramsFor(participant), under a fetch spy
@@ -192,7 +192,7 @@ test("TST-558003 without the person's source linked by the product, paramsFor re
 });
 
 // TST-558004 · level: unit · module: MOD-trace-pages
-// guards: UC-019 (4b); THE PERSON WHO PROMPTS IS A SOURCE
+// guards: UC-019; THE PERSON WHO PROMPTS IS A SOURCE
 // given: the product's links file holds no row for the person; the group "1. Lending" opened
 // input: route.subject, then subject.paramsFor(participant); the same at the released version v1.0 with a requirement open (a subject that needs no source)
 // expect: the group's subject refuses with NoPersonSource and the message of TST-558003; at v1.0 the subject (kind "converse") gives its parameters, the single key "page", and does not refuse

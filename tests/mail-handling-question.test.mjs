@@ -27,7 +27,7 @@ const parts = (due, params) => recipe()({ params: { due, host, ...params } }, { 
 const textOf = (given) => given.map((part) => part.text).join("\n");
 
 // TST-1026101 · level: unit · module: MOD-mail-handling
-// guards: UC-039 (1a); A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE
+// guards: UC-039; A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE
 // given: an open issue with one listed mail found in the mailbox, and the person's point
 // input: reply-inputs with the parameter question
 // expect: three parts in the order issue, question, mail: the issue part holds the issue's number, title and text and no "Solved by" or "Release"; the question part holds the person's point; the mail part holds the mail's identifier, subject, date and text and not its sender's name or address
@@ -54,7 +54,7 @@ test("without the parameter question the recipe is the recipe of replies", async
 });
 
 // TST-1026103 · level: unit · module: MOD-mail-handling
-// guards: UC-039 (1a)
+// guards: UC-039
 // given: a blank question; a due whose mail is not in the mailbox; a due with two mails found
 // input: reply-inputs with the parameter question for each
 // expect: each is refused with a TypeError and gives no part
@@ -65,7 +65,7 @@ test("a blank question, no mail found and more than one mail are refused", async
 });
 
 // TST-1026104 · level: unit · module: MOD-mail-handling
-// guards: UC-039 (1a); EVERY OUTGOING MAIL IS RELEASED BY A PERSON
+// guards: UC-039; EVERY OUTGOING MAIL IS RELEASED BY A PERSON
 // given: the question the participant drafted for the mail of an open issue, and a mailbox that records what it is given
 // input: the writer mail-drafts with the question as the reply text
 // expect: one draft is stored through the mailbox, to that mail's reporter, subject Re: its subject, the text above the original quoted; nothing is sent (no sendDraft)

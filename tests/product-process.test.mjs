@@ -643,7 +643,7 @@ Fixture practice.
 });
 
 // TST-472455 · level: unit · module: MOD-product-process
-// guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL; MOD-product-process
+// guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL
 // given: the same selected practice, but its valid ## Adds holds the model's gate table directly, with no extra heading
 // input: workflowOf(declaration, team-scrum, [practice], instance SPEC)
 // expect: the exact model-schema table still adds its marked gate; prose and unrecognised text stay outside the workflow
@@ -692,7 +692,7 @@ test("workflowOf — the job rules are the Definition of Done when the declarati
 });
 
  // TST-472457 · level: unit · module: MOD-product-process
- // guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL; MOD-product-process
+ // guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL
  // given: a schema-valid selected practice whose bare ## Adds phase table names a documented artifact kind
  // input: workflowOf(declaration, team-scrum, [practice], instance SPEC)
  // expect: the phase produces the kind TST, without the explanatory parenthesis
@@ -723,7 +723,7 @@ Fixture practice.
 });
 
  // TST-472458 · level: unit · module: MOD-product-process
- // guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL; MOD-product-process
+ // guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL
  // given: a schema-valid selected practice whose bare ## Adds holds consecutive Phases and Roles model tables
  // input: workflowOf(declaration, team-scrum, [practice], instance SPEC)
  // expect: each contiguous table contributes only to its matching workflow collection

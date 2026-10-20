@@ -150,7 +150,7 @@ for (const [what, answer, name, check] of [
     (error) => assert.match(error.reason, /Post request failed/)],
 ]) {
   // TST-477012 · level: unit · module: MOD-mail-routes
-  // guards: UC-037 (3a, 3b); AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN
+  // guards: UC-037; AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN
   // given: the stand-in, whose login fails, each time as the library fails
   // input: signIn(CLIENT, "reports@example.org") for each answer
   // expect: the error named after it — PopupBlocked (the browser blocked the window), SignInCancelled (the person closed it), PermissionDeclined naming the permission, RegistrationRefused with Microsoft's own message, Unreachable with the reason
@@ -166,7 +166,7 @@ for (const [what, answer, name, check] of [
 }
 
 // TST-472391 · level: unit · module: MOD-mail-routes
-// guards: AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN; THE MAIL SIGN-IN TOKEN GOES ONLY TO ITS PROVIDER; UC-037 (step 3)
+// guards: AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN; THE MAIL SIGN-IN TOKEN GOES ONLY TO ITS PROVIDER; UC-037
 // given: the stand-in; the page of the instance alice/agent-m
 // input: signIn(CLIENT, address) for reports@example.org, for Reports@Uni-Example.DE,
 // expect: the authority the institution's own tenant: https://login.microsoftonline.com/example.org, .../uni-example.de (the domain in lower case), for a quoted local part holding an @ the domain after the last @, and for the address with no domain Microsoft's multi-tenant /common; always on the host login.microsoftonline.com, no query
@@ -180,7 +180,7 @@ test("signIn — signs in at the tenant of the mail address's domain", async () 
 });
 
 // TST-472392 · level: unit · module: MOD-mail-routes
-// guards: AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN; UC-037 (step 3)
+// guards: AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN; UC-037
 // given: the stand-in; no address (null), an empty one, one without a domain ("reports"), one ending in @
 // input: signIn(CLIENT, address) for each
 // expect: each refused with MailAddressNeeded whose message asks for the mail address; no client created, no window opened, nothing common

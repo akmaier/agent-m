@@ -78,7 +78,7 @@ async function newVersion(page, version) {
 }
 
 // TST-705003 · level: unit · module: MOD-settings-pages
-// guards: UC-016 1, 2; A LIVING SOURCE IS PINNED; A SOURCE VERSION IS NEVER OVERWRITTEN; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION
+// guards: UC-016; A LIVING SOURCE IS PINNED; A SOURCE VERSION IS NEVER OVERWRITTEN; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION
 // given: SRC-guide, a repository source (identifier https://github.com/erin/guide) registered with its version 2026-10-01 read at the commit 96210fa4…; the repository now stands at a newer commit, 240ddc98…; the
 // token of erin/guide stored
 // input: render library/SRC-guide; press + New version; type the version 2026-11-01 and the same date; choose no file; press Save new version
@@ -113,7 +113,7 @@ test("new version — a repository source records the commit the repository stan
 });
 
 // TST-705004 · level: unit · module: MOD-settings-pages
-// guards: UC-016 1a; A SOURCE VERSION IS NEVER OVERWRITTEN; A LIVING SOURCE IS PINNED
+// guards: UC-016; A SOURCE VERSION IS NEVER OVERWRITTEN; A LIVING SOURCE IS PINNED
 // given: the same source with a second version, 2026-11-01, read at the commit 240ddc98…; the repository stands at that commit, the one 2026-11-01 records (and not the one 2026-10-01 records)
 // input: + New version 2026-12-01, Save
 // expect: the result reads "✗ SRC-guide already records the same bytes as 2026-11-01 — nothing was recorded." (it names the version that records the commit, not the first); nothing is committed anywhere and
@@ -134,7 +134,7 @@ test("new version — the commit an existing version records is refused as the s
 });
 
 // TST-705005 · level: unit · module: MOD-settings-pages
-// guards: UC-016 1; A PAGE LOAD READS THE REPOSITORY IN BATCHES; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
+// guards: UC-016; A PAGE LOAD READS THE REPOSITORY IN BATCHES; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
 // given: the same source with the repository at the newer commit; once with the tokens stored and once with none
 // input: render library/SRC-guide; + New version 2026-11-01, Save
 // expect: opening sends no request to erin/guide; the press of Save sends 3 to it, with a token and without one — the repository's information 1, its head 1, its tree 1 —, none of them a write; with the token
@@ -154,7 +154,7 @@ test("new version — one Save reads the repository in 3 requests, with and with
 });
 
 // TST-705006 · level: unit · module: MOD-settings-pages
-// guards: UC-016 1; A SOURCE VERSION IS NEVER OVERWRITTEN
+// guards: UC-016; A SOURCE VERSION IS NEVER OVERWRITTEN
 // given: the same source whose repository the server does not know
 // input: + New version 2026-11-01, Save
 // expect: the result begins "✗ ", names erin/guide as not found and ends " — nothing was recorded." — it does not speak of the same bytes, since no commit was read to compare —; nothing is committed and the
@@ -172,7 +172,7 @@ test("new version — a repository that cannot be read records nothing, and the 
 });
 
 // TST-705007 · level: unit · module: MOD-settings-pages
-// guards: UC-016 1; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH
+// guards: UC-016; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH
 // given: SRC-guide as an EU legal text: kind regulation, identifier https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689 (an address that reads as a GitLab project's), no version row yet (it waits for its fetch; a fetched one starts the fetch run instead, tests/settings-pages-library-legal-text-version.test.mjs)
 // input: render library/SRC-guide; press + New version
 // expect: the panel offers the field for files, as for any source that is no repository (the page reads the repository of no EU legal text), and its statement begins "Becomes public: the register entry, always"

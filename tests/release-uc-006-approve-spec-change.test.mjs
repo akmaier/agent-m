@@ -72,7 +72,7 @@ const REVIEW_ONLY = [
 ];
 
 // TST-371101 · level: release · module: MOD-review-pages; MOD-spec-changes; MOD-workflow-entries
-// guards: UC-006; all realised requirements whose SPEC check names a test
+// guards: UC-006
 // given: UC-006's `realises` list and SPEC's current Check lines
 // input: compare the realised requirements with COVERED_BY_RELEASE and REVIEW_ONLY
 // expect: every requirement with an executable SPEC check has coverage evidence, every review-only requirement is named, and no realised requirement is in neither or both lists

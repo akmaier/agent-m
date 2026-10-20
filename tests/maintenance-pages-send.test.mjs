@@ -34,7 +34,7 @@ async function issue4(extra = {}) {
 }
 
 // TST-967001 · level: unit · module: MOD-maintenance-pages
-// guards: EVERY OUTGOING MAIL IS RELEASED BY A PERSON; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-039 (5)
+// guards: EVERY OUTGOING MAIL IS RELEASED BY A PERSON; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-039
 // given: the draft of the mail of issue 4 that has one
 // input: a click a script makes on Send; the person's click on Send; the dialog declined (Cancel)
 // expect: the script's click opens no dialog; the person's click opens one dialog that repeats the recipient and the subject, and nothing is sent; declining sends nothing and notes nothing
@@ -54,7 +54,7 @@ test("no send happens without the dialog's confirmation, and the dialog repeats 
 });
 
 // TST-967002 · level: unit · module: MOD-maintenance-pages
-// guards: EVERY OUTGOING MAIL IS RELEASED BY A PERSON; A SENT REPLY IS NOTED IN THE ISSUE; UC-039 (5, 6)
+// guards: EVERY OUTGOING MAIL IS RELEASED BY A PERSON; A SENT REPLY IS NOTED IN THE ISSUE; UC-039
 // given: the draft shown, the Bridge sending as it should
 // input: the person's click on Send and the dialog's Send
 // expect: exactly one confirm-send and one send, both with the reference and the SHA-256 of the draft as it was shown; one comment on issue 4, the note reply-sent naming the mail's identifier and the day it was sent (2026-10-19); the item says it was sent and noted
@@ -75,7 +75,7 @@ test("with the confirmation exactly one sendReply is made with the mail shown, a
 });
 
 // TST-967003 · level: unit · module: MOD-maintenance-pages
-// guards: EVERY OUTGOING MAIL IS RELEASED BY A PERSON; UC-039 (5a)
+// guards: EVERY OUTGOING MAIL IS RELEASED BY A PERSON; UC-039
 // given: the draft edited and saved (Save draft)
 // input: the person's click on Send
 // expect: the dialog shows the edited text and the new reference's draft; nothing is sent before the confirmation; the send that follows is of the edited draft's reference
@@ -99,7 +99,7 @@ test("after an edit the dialog shows the edited mail before anything is sent", a
 });
 
 // TST-967004 · level: unit · module: MOD-maintenance-pages
-// guards: EVERY OUTGOING MAIL IS RELEASED BY A PERSON; A SENT REPLY IS NOTED IN THE ISSUE; UC-039 (6a)
+// guards: EVERY OUTGOING MAIL IS RELEASED BY A PERSON; A SENT REPLY IS NOTED IN THE ISSUE; UC-039
 // given: the mail server refuses the mail (the Bridge answers upstream-failed "550 relay denied")
 // input: the person's click on Send and the dialog's Send
 // expect: the page shows the server's answer; the draft stays shown; nothing is noted in the issue
@@ -115,7 +115,7 @@ test("SendRefused shows the server's answer and leaves the draft", async () => {
 });
 
 // TST-967005 · level: unit · module: MOD-maintenance-pages
-// guards: EVERY OUTGOING MAIL IS RELEASED BY A PERSON; UC-039 (5a)
+// guards: EVERY OUTGOING MAIL IS RELEASED BY A PERSON; UC-039
 // given: the Bridge answers that the draft is not the mail that was confirmed (DraftChanged)
 // input: the person's click on Send and the dialog's Send
 // expect: the page says the draft changed and shows it again (read again from the mailbox); nothing is noted
@@ -134,7 +134,7 @@ test("DraftChanged shows the draft again and notes nothing", async () => {
 });
 
 // TST-967006 · level: unit · module: MOD-maintenance-pages
-// guards: A SENT REPLY IS NOTED IN THE ISSUE; UC-039 (6)
+// guards: A SENT REPLY IS NOTED IN THE ISSUE; UC-039
 // given: the mail is sent, and the token is refused when the note is written (HTTP 403)
 // input: the person's click on Send and the dialog's Send; then the note permitted and the click on Note the reply again
 // expect: the page names the reply as sent and not noted and offers the note again; Send is no longer offered for it; the click comments once more, with the note reply-sent, and the item then says it is noted
@@ -156,7 +156,7 @@ test("a reply sent but not noted offers its note again", async () => {
 });
 
 // TST-967007 · level: unit · module: MOD-maintenance-pages
-// guards: CLOSING AN ISSUE PREPARES ITS REPLIES; ONE CLICK PER DECISION; UC-039 (2c, 2b, 4a)
+// guards: CLOSING AN ISSUE PREPARES ITS REPLIES; ONE CLICK PER DECISION; UC-039
 // given: issue 4 with a mail with a draft, a mail not in the mailbox and a mail that is not sendable
 // input: the person's click on No reply for the mail with a draft; a click a script makes on No reply for the missing mail; the person's click on it
 // expect: noReply is called once for the first (one comment, the note no-reply with its identifier); the script's click does nothing; the missing mail then gets one note too; the notes name identifiers and a day, nothing else of a mail

@@ -114,7 +114,7 @@ const nothingToSave = async () => {};
 // ---------------------------------------------------------------- schemaForm (Interfaces: schemaForm)
 
 // TST-472865 · level: unit · module: MOD-site-frame
-// guards: UC-002 (the declaration is edited in a form built from its schema)
+// guards: UC-002
 // given: SCHEMA — the keys model, model_version and sprint_close; the sections ## Roles, holding a table, ## Practices, which may be left out, and ## Definition of Done — and DECLARATION, which holds model and model_version, ## Roles, ## Definition of Done and ## Model, a section the schema does not name
 // input: schemaForm(SCHEMA, DECLARATION, { onSave })
 // expect: one field for each key and each section of the schema, in the schema's order — model, model_version, sprint_close, ## Roles, ## Practices, ## Definition of Done —, and none for ## Model; the field of each key holds its value, that of sprint_close none; the field of each section holds its text in an editor, that of ## Practices none
@@ -128,7 +128,7 @@ test("schemaForm — a field for each key and each section of the schema, holdin
 });
 
 // TST-472866 · level: unit · module: MOD-site-frame
-// guards: UC-002 (each finding of the declaration beside its field, and Save only while no error remains: 4a)
+// guards: UC-002
 // given: DECLARATION with the model_version "0123abc", which MOD-documents' documentFindings finds not to be 40 hexadecimal digits; and an extra check, as the page of UC-002 adds its own, that warns of the row of the Developers in ## Roles — line 12 of the file
 // input: schemaForm(SCHEMA, that declaration, { onSave, extraChecks }); then the person types SHA into model_version
 // expect: beside model_version, its error; beside line 5 of the editor of ## Roles — the row of the Developers —, the warning, in the one form of a finding; nothing beside any other field or line, nor at the end of the form; Save not offered. After the typing: nothing beside model_version, the warning still beside its line, and Save offered: a warning keeps nothing from being saved
@@ -189,7 +189,7 @@ const SAVED = [
 ].join("\n");
 
 // TST-472867 · level: unit · module: MOD-site-frame
-// guards: ONE CLICK PER DECISION; UC-002 (step 9: one click on Save, and the declaration is handed over to be committed)
+// guards: ONE CLICK PER DECISION; UC-002
 // given: the form of DECLARATION, whose caller's onSave keeps every document it is given
 // input: the person types "scrum-master-session" into sprint_close, "- none" into ## Practices, which the declaration lacks, and a condition in place of the text of ## Definition of Done; then clicks Save, once
 // expect: nothing is handed over before the click; after it, exactly one document. Written with MOD-documents' writeDocument, it is SAVED: the new key in the schema's order; ## Practices in the schema's place, its text with the line end that keeps the next heading on a line of its own; the condition; every other part as it was, ## Model included. Read back from SAVED, it is the same document, each section and row on its line — but for its body, which stays the text it was read from, as writeDocument needs it
@@ -241,7 +241,7 @@ const topicText = (topic) => EXPLANATIONS.split(/^## /m).slice(1).find((part) =>
   ?.slice(topic.length + 1);
 
 // TST-472869 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-002 (step 8: a folded explanation says that in Scrum the Developers meet the Definition of Done, whoever presses merge)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-002
 // given: the topic definition-of-done, as explanations.md holds it
 // input: explain("definition-of-done")
 // expect: a <details class="explain">, folded — no open attribute —, holding <summary>What is this?</summary> and then the topic's Markdown rendered, the HTML MOD-markdown-render's renderArtifact gives for it, which says that in Scrum the Developers meet the Definition of Done, whoever presses merge
@@ -259,7 +259,7 @@ test("explain — the folded What is this? of a topic, rendered from explanation
 });
 
 // TST-472870 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF (a topic the file does not hold shows nothing, and the page goes on)
+// guards: EVERY STEP EXPLAINS ITSELF
 // given: known positive — the search below finds the topic definition-of-done in explanations.md —; it finds no topic no-such-topic
 // input: explain("no-such-topic")
 // expect: no exception; an element without any child
@@ -287,7 +287,7 @@ test("explain — an empty element for a topic the file does not hold", () => {
 const bodyText = (topic) => (explain(topic).children[1]?.textContent ?? "").replace(/\s+/g, " ");
 
 // TST-472871 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-001 (step 2: pasting the product repository's address)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-001
 // given: the topic repository, as ITM-255 adds it to explanations.md
 // input: explain("repository")
 // expect: text saying a repository holds a project's files and history, with an example address for a GitHub and for a GitLab product, as UC-001 step 2 gives them
@@ -300,7 +300,7 @@ test("explain — repository: what a repository is (UC-001)", () => {
 });
 
 // TST-472872 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-001 (Step A: a key for the product); A GITHUB PRODUCT USES A TOKEN OF ITS OWN
+// guards: EVERY STEP EXPLAINS ITSELF; UC-001; A GITHUB PRODUCT USES A TOKEN OF ITS OWN
 // given: the topic product-key
 // input: explain("product-key")
 // expect: text saying the product gets a key of its own, and naming the GitLab project access token as the same idea on that kind of server
@@ -312,7 +312,7 @@ test("explain — product-key: why the product gets a key of its own (UC-001)", 
 });
 
 // TST-472873 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-001 (Step C: Add the product, one click)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-001
 // given: the topic review-layout-commit
 // input: explain("review-layout-commit")
 // expect: text naming the folders and files UC-001 step 5 writes, and that only what is missing is written
@@ -327,7 +327,7 @@ test("explain — review-layout-commit: what the commit contains (UC-001)", () =
 });
 
 // TST-472874 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-001 (5b: the product already has the complete layout — nothing is committed)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-001
 // given: the topic reverting-the-commit
 // input: explain("reverting-the-commit")
 // expect: text saying the commit is ordinary and can be reverted on GitHub, and that nothing is committed when nothing was missing
@@ -340,7 +340,7 @@ test("explain — reverting-the-commit: how to undo it (UC-001)", () => {
 });
 
 // TST-472875 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-001 (NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; 1a: another browser's list is empty)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-001; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY
 // given: the topic the-product-list
 // input: explain("the-product-list")
 // expect: text saying the address is kept only in this browser, nothing is written into the instance repository, and another browser starts with an empty list
@@ -353,7 +353,7 @@ test("explain — the-product-list: why the product list lives in this browser o
 });
 
 // TST-472876 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-013 (step 2: the complete test suite, every level, on the release candidate)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-013
 // given: the topic release-test-levels
 // input: explain("release-test-levels")
 // expect: text naming the four levels UC-013 step 2 runs and what each checks
@@ -367,7 +367,7 @@ test("explain — release-test-levels: what each level checks (UC-013)", () => {
 });
 
 // TST-472877 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-013 (RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER; 2a: only the implementing participant is available)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-013; RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER
 // given: the topic independent-release-tests
 // input: explain("independent-release-tests")
 // expect: text saying release tests are written by someone other than the implementer, and what 2a asks the author to do when only the implementer is available
@@ -379,7 +379,7 @@ test("explain — independent-release-tests: why a different participant writes 
 });
 
 // TST-472878 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-013 (A VERSION IS NOT REWRITTEN; 4a: the tag already exists)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-013; A VERSION IS NOT REWRITTEN
 // given: the topic version-not-rewritten
 // input: explain("version-not-rewritten")
 // expect: text saying a tag is never moved once set, and that a correction becomes the next version
@@ -406,7 +406,7 @@ function bridgeStorage() {
 }
 
 // TST-472879 · level: unit · module: MOD-site-frame
-// guards: UC-044; UC-003; MOD-site-frame; MOD-identifiers; EVERY STEP EXPLAINS ITSELF
+// guards: UC-044; UC-003; EVERY STEP EXPLAINS ITSELF
 // given: an own-protocol Bridge window whose location has the configured Pages hostname and path, an empty browser store, and one loaded Bridge view whose route records the real context it receives
 // input: startPage({ page: "bridge", views: [view], menuViews: [] }), then the route is changed through the fragment
 // expect: the Bridge header and first route are drawn; the context names the configured fork, an empty product state, the real store and host, and a go callback. The later fragment redraws that route. No repository request or strategy registration occurs for this empty-strategy page.
@@ -469,7 +469,7 @@ test("startPage — Bridge-only frame routes its loaded view with the configured
 });
 
 // TST-472880 · level: unit · module: MOD-site-frame
-// guards: MOD-site-frame; MOD-identifiers
+// guards: AN INSTANCE IS A FORK OF AGENT M
 // given: a Pages location and an ordinary local location
 // input: instanceOf(location)
 // expect: the Pages address uses MOD-identifiers' owner/name result, and every other host takes the declared upstream fallback
@@ -479,7 +479,7 @@ test("instanceOf — Pages identity through MOD-identifiers and the upstream fal
 });
 
 // TST-472881 · level: unit · module: MOD-site-frame
-// guards: UC-044; ONE CLICK PER DECISION; MOD-site-frame
+// guards: UC-044; ONE CLICK PER DECISION
 // given: the started Bridge frame and a supplied notice, then a decision with a title, two lines and a reason field
 // input: notice followed by confirmDecision, first cancelled and then confirmed with the person's reason
 // expect: the notice preserves its text and link; cancellation remains cancelled, and confirmation returns only confirmed plus the typed reason.
@@ -519,7 +519,7 @@ test("notice and confirmDecision — supplied notice text/link and the person's 
 });
 
 // TST-472882 · level: unit · module: MOD-site-frame
-// guards: UC-044; EVERY STEP EXPLAINS ITSELF; MOD-site-frame
+// guards: UC-044; EVERY STEP EXPLAINS ITSELF
 // given: the pairing explanation the Bridge shell names
 // input: explain("bridge-pairing")
 // expect: the shared renderer supplies the folded explanation and it tells the person that the displayed token pairs this dashboard with this local Bridge.

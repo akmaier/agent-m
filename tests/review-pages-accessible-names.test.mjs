@@ -135,7 +135,7 @@ const ticksOf = (root) => elements(root).filter((node) => node.localName === "in
 // ---------------------------------------------------------------- the ticks
 
 // TST-921001 · level: unit · module: MOD-review-pages
-// guards: THE SITE SERVES A SCREEN READER; UC-008 (step 3d)
+// guards: THE SITE SERVES A SCREEN READER; UC-008
 // given: the use cases UC-041 and UC-044 open, UC-043 changed since acceptance; a token
 // input: the route use-case drawn as the list
 // expect: three ticks, in the rows UC-041, UC-043 and UC-044, each named by a name that holds the identifier of its row
@@ -144,7 +144,7 @@ test("TST-921001 use-case list — each tick is named by the file it accepts", a
 });
 
 // TST-921002 · level: unit · module: MOD-review-pages
-// guards: THE SITE SERVES A SCREEN READER; UC-023 (step 3)
+// guards: THE SITE SERVES A SCREEN READER; UC-023
 // given: the decisions ARC-002 open and ARC-003 changed; the modules MOD-desk and MOD-queue open; a token
 // input: the route decision drawn as the list; the route module drawn as the list
 // expect: decisions: two ticks, in the rows ARC-002 and ARC-003; modules: two ticks, in the rows MOD-desk and MOD-queue; every tick named by a name that holds the identifier of its row
@@ -156,7 +156,7 @@ test("TST-921002 decision and module lists — each tick is named by the file it
 // ---------------------------------------------------------------- the box of a difference
 
 // TST-921003 · level: unit · module: MOD-review-pages
-// guards: THE SITE SERVES A SCREEN READER; UC-008 (step 2a)
+// guards: THE SITE SERVES A SCREEN READER; UC-008
 // given: ARC-003 changed since acceptance
 // input: the route decision drawn for ARC-003
 // expect: one box of a difference (<pre class="diff">), and its tabindex is "0": the box that scrolls takes the focus
@@ -166,7 +166,7 @@ test("TST-921003 decision/<id> — the box of the difference takes the focus", a
 });
 
 // TST-921004 · level: unit · module: MOD-review-pages
-// guards: THE SITE SERVES A SCREEN READER; UC-023 (step 5)
+// guards: THE SITE SERVES A SCREEN READER; UC-023
 // given: ARC-003 changed since acceptance, ARC-002 and the modules new
 // input: the route decision drawn with the id all (the whole architecture)
 // expect: every box of a difference on the page has tabindex "0", and the page has at least one box (the known positive: ARC-003's)

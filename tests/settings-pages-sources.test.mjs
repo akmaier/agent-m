@@ -80,7 +80,7 @@ const choose = async (select, value) => { select.value = value; select.dispatchE
 const productCommits = (page) => page.world.commits(PRODUCT_REPO);
 
 // TST-590301 · level: unit · module: MOD-settings-pages
-// guards: UC-015 step 1; A FORM OPENS WITH ITS FIRST FIELD FOCUSED
+// guards: UC-015; A FORM OPENS WITH ITS FIRST FIELD FOCUSED
 // given: the library holds SRC-act-pending (no version yet), SRC-ai-act (versions v1 of 2025-08-02 and v2 of 2026-02-02), SRC-handbook and SRC-iec-62304; the product has no docs/sources.md
 // input: render the route sources for the product
 // expect: the page is headed "Requirement sources"; one section for each source in the order of the register's files, SRC-act-pending, SRC-ai-act, SRC-handbook, SRC-iec-62304, none ticked, each with its line "<id> · <kind> · <authority>"; SRC-ai-act offers the versions "v1 · 2025-08-02" and "v2 · 2026-02-02" and is preset to v2 with the line "Hash of this version: " and the 64 digits 2; SRC-act-pending cannot be ticked and says "No version is recorded yet; a source without a version cannot be linked."; the focus is on the box of SRC-ai-act, the first that can be ticked
@@ -102,7 +102,7 @@ test("sources — the library's sources are listed with kind, authority and vers
 });
 
 // TST-590302 · level: unit · module: MOD-settings-pages
-// guards: UC-015 steps 2 to 4; A PRODUCT LINKS THE SOURCES THAT APPLY; A LINK NAMES THE PART THAT APPLIES; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION
+// guards: UC-015; A PRODUCT LINKS THE SOURCES THAT APPLY; A LINK NAMES THE PART THAT APPLIES; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION
 // given: the same library; the product has SPEC.md and no docs/sources.md
 // input: tick SRC-ai-act, choose v1, type the part "risk category: high-risk"; tick SRC-iec-62304 and press the suggested part "safety class B"; press Save
 // expect: one commit in the product's repository and none in the instance's, holding exactly the file docs/sources.md, with the text "# Requirement sources of thesis-tool", a blank line, the table "| Source | Version | Hash | Part |" over "|---|---|---|---|" with the row SRC-ai-act, v1, the 64 digits 1, "risk category: high-risk" and the row SRC-iec-62304, "IEC 62304:2006+AMD1:2015", the 64 digits 3, "safety class B", and a line end; the commit is made with the product's token; the result reads "✓ docs/sources.md is saved in https://github.com/alice/thesis-tool (commit " and the first seven characters of the commit and ")."
@@ -126,7 +126,7 @@ test("sources — ticking sources, choosing a version and a part and pressing Sa
 });
 
 // TST-590303 · level: unit · module: MOD-settings-pages
-// guards: UC-015 step 3; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH
+// guards: UC-015; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH
 // given: the library with SRC-ai-act at v1 (the digits 1) and v2 (the digits 2); no docs/sources.md
 // input: tick SRC-ai-act, leave the version at its preset v2 and press Save; then, in a second page, choose v1 before pressing Save
 // expect: the first page writes the row with v2 and the 64 digits 2; the second writes v1 with the 64 digits 1; choosing a version changes the line "Hash of this version: " to that version's digits
@@ -144,7 +144,7 @@ test("sources — the link records the chosen version and that version's hash", 
 });
 
 // TST-590304 · level: unit · module: MOD-settings-pages
-// guards: UC-015 step 3; A LINK NAMES THE PART THAT APPLIES
+// guards: UC-015; A LINK NAMES THE PART THAT APPLIES
 // given: SRC-ai-act with the parts "risk category: high-risk" and "risk category: limited risk", SRC-iec-62304 with "safety class A", "safety class B" and "safety class C", SRC-handbook with none
 // input: render the route; press the suggestion "safety class C" of SRC-iec-62304; type into SRC-handbook the part "Chapter 3, Annex II" and Save with SRC-iec-62304 and SRC-handbook ticked
 // expect: the suggestions of SRC-ai-act read "risk category: high-risk", "risk category: limited risk"; of SRC-iec-62304 "safety class A", "safety class B", "safety class C"; SRC-handbook has none; pressing one puts its text in the part field; the file holds the part "safety class C" for SRC-iec-62304 and "Chapter 3, Annex II" for SRC-handbook, as typed
@@ -166,7 +166,7 @@ test("sources — parts are suggested from the entry's Parts, and any text is al
 });
 
 // TST-590305 · level: unit · module: MOD-settings-pages
-// guards: UC-015 step 2, 2b; A REQUIREMENT HAS A REGISTERED SOURCE
+// guards: UC-015; A REQUIREMENT HAS A REGISTERED SOURCE
 // given: the product's docs/sources.md links SRC-ai-act (v1, "risk category: high-risk") and SRC-iec-62304 ("safety class B"); its SPEC.md has the requirements EXPORT IS A PDF (sources "SRC-ai-act, Art. 13" and "PO B. Example"), TITLE PAGE NAMES THE AUTHOR ("SRC-ai-act" and "SRC-iec-62304, class B") and NOTHING IS NAMED
 // input: render the route; untick SRC-ai-act; tick it again; untick SRC-iec-62304
 // expect: both linked sources are ticked, SRC-ai-act at v1 with its hash and part, SRC-iec-62304 with "safety class B"; on the first untick the note of SRC-ai-act reads "Removing SRC-ai-act: the requirements that name it — EXPORT IS A PDF, TITLE PAGE NAMES THE AUTHOR — would lose that source. They are listed, not deleted."; on the tick again it is empty; on the untick of SRC-iec-62304 its note reads "Removing SRC-iec-62304: the requirements that name it — TITLE PAGE NAMES THE AUTHOR — would lose that source. They are listed, not deleted."; nothing has been committed
@@ -190,7 +190,7 @@ test("sources — a linked source is ticked with its version and part, and untic
 });
 
 // TST-590306 · level: unit · module: MOD-settings-pages
-// guards: UC-015 2b; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
+// guards: UC-015; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
 // given: docs/sources.md links SRC-ai-act and SRC-iec-62304 as in the test before, and SRC-handbook (version 1, part "all") which no requirement names
 // input: untick SRC-handbook; then untick SRC-ai-act and press Save
 // expect: the note of SRC-handbook reads "Removing SRC-handbook: no requirement of this product names it."; Save writes one commit with the title, the table header and only the row of SRC-iec-62304 as the file had it, and the result reads "✓ docs/sources.md is saved"; the requirements are not touched: SPEC.md is not among the committed files
@@ -210,7 +210,7 @@ test("sources — a removed link leaves the file with the other rows as they wer
 });
 
 // TST-590307 · level: unit · module: MOD-settings-pages
-// guards: UC-015 step 3; A LINK NAMES THE PART THAT APPLIES
+// guards: UC-015; A LINK NAMES THE PART THAT APPLIES
 // given: docs/sources.md links SRC-ai-act with the version written in backticks, `v1`, and no part, and SRC-iec-62304 as before
 // input: type the part "risk category: limited risk" for SRC-ai-act and press Save
 // expect: one commit; SRC-ai-act's row keeps its version as the file had it, `v1`, and its hash, and has the part; SRC-iec-62304's row is as it was
@@ -224,7 +224,7 @@ test("sources — a row the person only changes the part of keeps its other cell
 });
 
 // TST-590308 · level: unit · module: MOD-settings-pages
-// guards: UC-015 step 3; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH
+// guards: UC-015; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH
 // given: docs/sources.md links SRC-ai-act at "v0" with the digits 5, a version the library does not record, and SRC-iec-62304
 // input: render the route; type a part for SRC-ai-act; press Save
 // expect: SRC-ai-act offers "v0 · not recorded in the library" besides v1 and v2 and is preset to v0, with the line "Hash of this version: " and the digits 5; the file keeps v0 and the digits 5 with the part
@@ -240,7 +240,7 @@ test("sources — a link that names a version the library does not record keeps 
 });
 
 // TST-590309 · level: unit · module: MOD-settings-pages
-// guards: UC-015 step 2
+// guards: UC-015
 // given: docs/sources.md also holds a row for SRC-gone, a source the library does not hold
 // input: render the route; tick SRC-handbook; press Save
 // expect: the page says "Linked, but not in the library: SRC-gone — kept as they are."; the file keeps the row of SRC-gone first, then SRC-ai-act's, and adds SRC-handbook's
@@ -254,7 +254,7 @@ test("sources — a link to a source the library does not hold is named and kept
 });
 
 // TST-590310 · level: unit · module: MOD-settings-pages
-// guards: UC-015 3a; A LINK NAMES THE PART THAT APPLIES
+// guards: UC-015; A LINK NAMES THE PART THAT APPLIES
 // given: SRC-handbook (licence "restricted — internal") and SRC-iec-62304 (restricted) and SRC-ai-act (may be republished); the product has no docs/sources.md; the token reaches the instance and the product only
 // input: tick SRC-handbook and press Save
 // expect: SRC-handbook and SRC-iec-62304 say "Restricted: its content needs access. Linking needs none — the entry, its versions and their hashes are public."; SRC-ai-act says none; the row of SRC-handbook with its version 1 and the digits 4 is committed; every request went to the API of the instance's or the product's repository, and none read a source's content
@@ -277,7 +277,7 @@ test("sources — a restricted source links like any other: only its content nee
 });
 
 // TST-590311 · level: unit · module: MOD-settings-pages
-// guards: UC-015 2a; EVERY STEP EXPLAINS ITSELF
+// guards: UC-015; EVERY STEP EXPLAINS ITSELF
 // given: the page of a product; the library route with a product, and without one
 // input: press "Open the library" on the sources page; render the library route for the product and press "Back to Requirement sources"; render the library route without a product
 // expect: the first press goes to the route library with no parameters; the library of a product has the button "Back to Requirement sources", whose press goes to the route sources with no parameters; the library without a product has no such button and its other controls are as they were (+ Register source)
@@ -296,7 +296,7 @@ test("sources — the page links the library and the library links back, for a p
 });
 
 // TST-590312 · level: unit · module: MOD-settings-pages
-// guards: UC-015 2c; EVERY STEP EXPLAINS ITSELF
+// guards: UC-015; EVERY STEP EXPLAINS ITSELF
 // given: the frame's explain("repository") is a folded details of class explain (a known positive); explain("requirement-sources") is a details with a body
 // input: render the route sources
 // expect: exactly one <details class="explain"> on the page, folded, not built by the route: its structure and text are explain("requirement-sources")'s
@@ -314,7 +314,7 @@ test("sources — the folded What is this? is the frame's topic requirement-sour
 });
 
 // TST-590313 · level: unit · module: MOD-settings-pages
-// guards: UC-015 step 4; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-015; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: SRC-ai-act ticked, no docs/sources.md
 // input: a click on Save that the page itself dispatched (untrusted); then nothing ticked and a person's click on Save; then a person's click with SRC-ai-act ticked and the file already as it will be written
 // expect: the untrusted click writes nothing and shows nothing; the person's click with nothing ticked in a product without docs/sources.md writes nothing and says "Nothing changed; nothing was written."; so does a Save that would write the file as it is
@@ -336,7 +336,7 @@ test("sources — Save acts on a person's click only, and writes nothing when no
 });
 
 // TST-590314 · level: unit · module: MOD-settings-pages
-// guards: UC-015 step 4; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE
+// guards: UC-015; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE
 // given: the page open on a product whose docs/sources.md links SRC-iec-62304; another person then commits another docs/sources.md to the product
 // input: tick SRC-ai-act and press Save
 // expect: nothing is written; the result reads "docs/sources.md changed since this page read it; nothing was written. Your choices stay here; open the page again to read the newer file."; SRC-ai-act stays ticked; the product's file is the other person's
@@ -353,7 +353,7 @@ test("sources — a save is refused when docs/sources.md changed meanwhile, and 
 });
 
 // TST-590315 · level: unit · module: MOD-settings-pages
-// guards: UC-015 step 1
+// guards: UC-015
 // given: a context with no chosen product; a context whose instance repository the server does not hold; an instance whose library holds no source
 // input: render the route sources in each
 // expect: with no product, the page says "Choose a product: the sources a product must meet are linked in the product's own repository, so this page is drawn for one." and sends no request; with an unreadable library it says "The library could not be read: " and offers no Save; an empty library says "The library holds no source yet." and still offers "Open the library"
@@ -397,7 +397,7 @@ test("sources — the module's view holds one route sources under the entry sett
 });
 
 // TST-637005 · level: unit · module: MOD-settings-pages
-// guards: UC-015 2b; A REQUIREMENT HAS A REGISTERED SOURCE
+// guards: UC-015; A REQUIREMENT HAS A REGISTERED SOURCE
 // given: the library of the tests above and SRC-handbook-annex, titled `Faculty handbook, annex II`; the product's docs/sources.md links SRC-ai-act, SRC-iec-62304 (title `IEC 62304`, designation `IEC 62304:2006+AMD1:2015`), SRC-handbook (title `Faculty handbook`) and SRC-handbook-annex; its SPEC.md has the requirements EXPORT NAMES THE ACT BY ITS TITLE (`EU AI Act, Art. 13`), PAGE NAMES THE ACT BY ITS IDENTIFIER (`SRC-ai-act`), STANDARD BY DESIGNATION (`IEC 62304:2006+AMD1:2015, class B`), STANDARD BY TITLE (`IEC 62304, class C`), HANDBOOK BY TITLE (`Faculty handbook, ch. 3`) and ANNEX BY TITLE (`Faculty handbook, annex II`)
 // input: render the route; untick SRC-ai-act; untick SRC-iec-62304; untick SRC-handbook; untick SRC-handbook-annex
 // expect: the note of SRC-ai-act reads "Removing SRC-ai-act: the requirements that name it — EXPORT NAMES THE ACT BY ITS TITLE, PAGE NAMES THE ACT BY ITS IDENTIFIER — would lose that source. They are listed, not deleted."; the note of SRC-iec-62304 lists STANDARD BY DESIGNATION, STANDARD BY TITLE; the note of SRC-handbook lists HANDBOOK BY TITLE alone, the longer name of the annex not being the handbook's; the note of SRC-handbook-annex lists ANNEX BY TITLE alone; the four unticks send no request, so the number of requests the page has made is the same after them as before; nothing has been committed

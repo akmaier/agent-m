@@ -27,10 +27,10 @@ const answer = () => ({ draft: { proposals: [{ mail: A.id, product: PRODUCT_URL,
 const open = (extra = {}) => openReplies({ route: "imap", fragment: "#mail", rows: ROWS, answer, issues: [issueRecord(3, "open", [])], inbox: [rawMail("a", { subject: "Export fails", body: BODY })], ...extra });
 
 // TST-965101 · level: system · module: MOD-maintenance-pages · MOD-mail-protocols
-// guards: UC-038 main flow, steps 1, 2, 4, 5, 7 and 8, and the postcondition; READING THE MAILBOX CHANGES NOTHING IN IT; MAIL STAYS IN THE MAILBOX; THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE; THE PRODUCT ISSUE CARRIES NO PERSONAL DATA
+// guards: UC-038; READING THE MAILBOX CHANGES NOTHING IN IT; MAIL STAYS IN THE MAILBOX; THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE; THE PRODUCT ISSUE CARRIES NO PERSONAL DATA
 // given: the page on the IMAP route in front of the Bridge over the local IMAP server (INBOX holds the mail a from Erika Mustermann); the mailbox password is the marker password; local-llm and three checkers at this machine
 // input: the person's click on Read mailbox; local-llm chosen and a name typed; Propose; the person's click on Create issue
-// expect: the Bridge's read ran after the server's TLS and logged in with the marker password, and the server saw no STORE, APPEND, EXPUNGE, COPY or MOVE and no FETCH that sets a flag; INBOX holds the mail as it was; the mail is listed with sender and subject; one issue is created labelled defect, listing a's identifier and holding none of the mail's names or sentences; the password reached the Bridge with each call and no request to the tracker or to an endpoint
+// expect: the Bridge's read ran after the server's TLS and logged in with the marker password, and the server saw no STORE, APPEND, EXPUNGE, COPY or MOVE and no FETCH that sets a flag; INBOX holds the mail as it was; the mail is listed with sender and subject; one issue is created labelled defect, listing a's identifier and holding none of the mail's names or sentences; the password reached the Bridge with each call and no request to the tracker or to an endpoint (flow: UC-038 main flow, steps 1, 2, 4, 5, 7 and 8, and the postcondition)
 test("main flow on the IMAP route: the Bridge reads read-only with the password it is given, the mail is unchanged, and the issue names the identifier and no person", async () => {
   const inbox = [rawMail("a", { subject: "Export fails", body: BODY })];
   const p = await open({ inbox });
@@ -69,10 +69,10 @@ test("main flow on the IMAP route: the Bridge reads read-only with the password 
 });
 
 // TST-965102 · level: system · module: MOD-maintenance-pages · MOD-mail-protocols
-// guards: UC-038 alternative 2a; A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE
+// guards: UC-038; A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE
 // given: the page on the IMAP route and a Bridge that does not answer (it is paused)
 // input: the person's click on Read mailbox
-// expect: nothing is listed; the page names the Bridge's reason in the problem of the mailbox; nothing was written to the tracker and the server was not logged into
+// expect: nothing is listed; the page names the Bridge's reason in the problem of the mailbox; nothing was written to the tracker and the server was not logged into (flow: UC-038 alternative 2a)
 test("alternative 2a: a Bridge that does not answer is named, nothing is read and nothing is written", async () => {
   const p = await open();
   await lastly(p, async () => {

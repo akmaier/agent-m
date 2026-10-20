@@ -115,7 +115,7 @@ async function startVersion(page, version, date, files) {
 const save = async (page) => { await click(one_(page.target, "library-version-save")); };
 
 // TST-591301 · level: unit · module: MOD-settings-pages
-// guards: UC-016 1, 2; A SOURCE VERSION IS NEVER OVERWRITTEN; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION; A FORM OPENS WITH ITS FIRST FIELD FOCUSED
+// guards: UC-016; A SOURCE VERSION IS NEVER OVERWRITTEN; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION; A FORM OPENS WITH ITS FIRST FIELD FOCUSED
 // given: SRC-ai-act with the versions v1 and v2, each of the file act.md stored in the instance; the browser keeps no product
 // input: render library/SRC-ai-act; press + New version; type the version v3 and the date 2026-03-03; choose the file act.md holding "Article 1\nArticle 5\n"; press Save new version
 // expect: before the press the panel is hidden, after it shown with the focus on the version field and the date field preset to today; the statement reads "Becomes public: the register entry, always, in the instance repository akmaier/agent-m. Content, public in the instance repository: act.md."; one commit in the instance and no other, holding exactly docs/sources/SRC-ai-act.md and docs/sources/SRC-ai-act/v3/act.md (the bytes chosen), made with the instance's token, its message "New version v3 of SRC-ai-act (Agent M dashboard)"; the entry file keeps the rows of v1 and v2 as they were and adds a row of v3 dated 2026-03-03 with the version hash of the file, and the table "### Files of v3" with the SHA-256 of the file and "—" as where it is kept; the result reads "✓ v3 is recorded for SRC-ai-act: committed to akmaier/agent-m."; the entry now lists v1, v2 and v3
@@ -151,7 +151,7 @@ test("new version — + New version records a version by one click: the plan of 
 });
 
 // TST-591302 · level: unit · module: MOD-settings-pages
-// guards: UC-016 1a; A SOURCE VERSION IS NEVER OVERWRITTEN
+// guards: UC-016; A SOURCE VERSION IS NEVER OVERWRITTEN
 // given: SRC-ai-act with v1 (act.md holding "Article 1\nArticle 2\nArticle 3\n") and v2 (act.md holding "Article 1\nArticle 2 amended\nArticle 3\nArticle 4\n")
 // input: + New version with the version "v1b" and the file act.md holding the bytes of v1, Save; then with the version "v2b" and the bytes of v2, Save; and versionCommits called with the bytes of v1
 // expect: the first result reads "✗ SRC-ai-act already records the same bytes as v1 — nothing was recorded."; the second names v2 in the same words; nothing is committed and the page sent no write; the entry still lists v1 and v2 only; versionCommits rejects with the failure named SameBytes whose field version is "v1", its name and message not replaced by the field
@@ -175,7 +175,7 @@ test("new version — the same bytes as an existing version are refused with the
 });
 
 // TST-591303 · level: unit · module: MOD-settings-pages
-// guards: UC-016 1; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE
+// guards: UC-016; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE
 // given: SRC-ai-act as before; the file act.md holding "Article 1\nArticle 5\n"
 // input: + New version v3 with the file, the box "Only hash it" ticked; Save with no note; the note "cabinet 3, shelf B" typed; Save once more; and versionCommits called for the file only hashed with no note
 // expect: before the tick the field for the note is hidden, after it shown; the first Save commits nothing and its result reads "✗ act.md is only hashed, and no note says where its copy is kept — nothing was recorded."; the second makes one commit holding the entry alone — no file anywhere —, whose row of v3 ends "; not stored: act.md |" and whose table "### Files of v3" has the row "| `act.md` | `<SHA-256>` | cabinet 3, shelf B |"; versionCommits rejects with the failure named NoteMissing whose field file is "act.md"
@@ -205,7 +205,7 @@ test("new version — a file only hashed asks for its note; without it the modul
 });
 
 // TST-591304 · level: unit · module: MOD-settings-pages
-// guards: UC-016 1; RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
+// guards: UC-016; RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
 // given: SRC-handbook, restricted, whose entry names the repository https://github.com/alice/handbook-content for its content; the token of that repository stored; the file handbook.md holding "Chapter 3\n"
 // input: + New version 3 with the file, Save; and the same where the named repository does not exist for the token
 // expect: the statement reads "Becomes public: the register entry, always, in the instance repository akmaier/agent-m. Content, stored only in alice/handbook-content and not in the public instance: handbook.md."; one commit in the named repository holding exactly docs/sources/SRC-handbook/3/handbook.md, made with the named repository's token, then one in the instance holding exactly docs/sources/SRC-handbook.md — the named repository's commit is moved first; where the named repository is not found, the result names alice/handbook-content and the token, links the server's token page, and nothing is committed to the instance
@@ -233,7 +233,7 @@ test("new version — the content of a restricted source goes to its named repos
 });
 
 // TST-591305 · level: unit · module: MOD-settings-pages
-// guards: UC-016 3; A PRODUCT LINKS THE SOURCES THAT APPLY
+// guards: UC-016; A PRODUCT LINKS THE SOURCES THAT APPLY
 // given: the browser keeps four products: thesis-tool (links SRC-ai-act at v1), other-tool (links it at v2, the newest), third-tool (has no docs/sources.md), and one the server does not know
 // input: render library/SRC-ai-act; then record a version v3 and look at the list again
 // expect: one product is listed, "https://github.com/alice/thesis-tool links v1; the newest is v2. Move to the new version"; the product not known is named as one that could not be read, its line beginning "https://github.com/dave/missing could not be read: "; other-tool and third-tool are not listed; after v3 is recorded thesis-tool is listed with "links v1; the newest is v3." and other-tool with "links v2; the newest is v3.", and the page sent no request to any product's repository to find out
@@ -251,7 +251,7 @@ test("new version — the products still on an older version are listed, and a n
 });
 
 // TST-591306 · level: unit · module: MOD-settings-pages
-// guards: UC-016 3; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH
+// guards: UC-016; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH
 // given: a source whose newest version is the only one; a product whose link names a version the entry does not record
 // input: render library/SRC-ai-act with thesis-tool linking "v0" (not recorded) and other-tool linking v1
 // expect: only other-tool is listed, "links v1; the newest is v2."; no line speaks of thesis-tool being older
@@ -262,7 +262,7 @@ test("new version — a link that names a version the entry does not record is n
 });
 
 // TST-591307 · level: unit · module: MOD-settings-pages
-// guards: UC-016 3, 4, 5; A PRODUCT LINKS THE SOURCES THAT APPLY; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION; THE PAGE NAMES WHERE IT SENDS; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST
+// guards: UC-016; A PRODUCT LINKS THE SOURCES THAT APPLY; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION; THE PAGE NAMES WHERE IT SENDS; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST
 // given: thesis-tool links SRC-ai-act at v1 with the part "Art. 13"; its SPEC.md has EXPORT IS A PDF (source "SRC-ai-act, Art. 13") and TITLE PAGE NAMES THE AUTHOR (sources "SRC-ai-act" and "SRC-iec-62304, class B"); v1 holds act.md "Article 1\nArticle 2\nArticle 3\n", v2 "Article 1\nArticle 2 amended\nArticle 3\nArticle 4\n"
 // input: press "Move to the new version" of thesis-tool; read the panel; press Move
 // expect: the panel reads "Requirements that name SRC-ai-act: EXPORT IS A PDF, TITLE PAGE NAMES THE AUTHOR.", lists for act.md the passages "+ Article 2 amended", "- Article 2", "+ Article 4" in that order, and "Move writes docs/sources.md in https://github.com/alice/thesis-tool as your own commit, and writes nothing else."; listing wrote nothing; Move makes one commit in the product's repository, with the product's token, holding exactly docs/sources.md with the row of SRC-ai-act now at v2 with the version hash of v2 and the part "Art. 13" kept, and the message "edit sources.md (Agent M dashboard)\n\nSource moved: SRC-ai-act v1 to v2\nRequirement affected: EXPORT IS A PDF\nRequirement affected: TITLE PAGE NAMES THE AUTHOR"; the instance is not written, SPEC.md is not among the committed files; the result reads "✓ https://github.com/alice/thesis-tool links SRC-ai-act at v2 (commit " and the first seven characters of the commit and ")."; the product is no longer listed
@@ -288,7 +288,7 @@ test("move — it lists the requirements and the passages, and one click commits
 });
 
 // TST-591308 · level: unit · module: MOD-settings-pages
-// guards: UC-016 4a; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-016; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: thesis-tool on v1 as before
 // input: press "Move to the new version"; a click on Move that the page itself dispatched; leave the page
 // expect: nothing is written by the listing or by the dispatched click; the link stays at v1 in the product's repository, and a fresh render of the entry lists thesis-tool again as on v1 (the library keeps showing that a newer version exists)
@@ -306,7 +306,7 @@ test("move — a product the author keeps on the old version is left alone: list
 });
 
 // TST-591309 · level: unit · module: MOD-settings-pages
-// guards: UC-016 4; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH
+// guards: UC-016; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH
 // given: SRC-iec-62304 with the versions 2006 and 2015, each of the file iec.pdf only hashed (not stored); a product linking 2006 whose SPEC.md has TITLE PAGE NAMES THE AUTHOR naming "SRC-iec-62304, class B"; the version 2015 records a version hash
 // input: press "Move to the new version"
 // expect: the requirements are listed, "Requirements that name SRC-iec-62304: TITLE PAGE NAMES THE AUTHOR."; where the passages would be, "The passages are not listed: iec.pdf is not stored."; no content of the source is requested; Move is offered
@@ -325,7 +325,7 @@ test("move — passages are listed only when both versions are text that is stor
 });
 
 // TST-591310 · level: unit · module: MOD-settings-pages
-// guards: UC-016 5; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH
+// guards: UC-016; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH
 // given: a source whose newest version records no version hash (the cell holds "none"), both versions' file only hashed; a product linking the earlier version
 // input: press "Move to the new version"; press Move
 // expect: the panel says "v2 records no version hash, so a link cannot name it."; Move is disabled and a press writes nothing
@@ -343,7 +343,7 @@ test("move — a newest version that records no version hash cannot be moved to"
 });
 
 // TST-591311 · level: unit · module: MOD-settings-pages
-// guards: UC-016 4
+// guards: UC-016
 // given: thesis-tool on v1; the file act.md of v2 is missing in the instance
 // input: press "Move to the new version"
 // expect: the panel reads "✗ The move could not be prepared: akmaier/agent-m does not hold docs/sources/SRC-ai-act/v2/act.md." and offers no Move
@@ -357,7 +357,7 @@ test("move — content that cannot be read is named, and no Move is offered", as
 });
 
 // TST-591312 · level: unit · module: MOD-settings-pages
-// guards: UC-016 4; RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE
+// guards: UC-016; RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE
 // given: SRC-handbook, restricted, with its content in https://github.com/alice/handbook-content (handbook.md "Chapter 1\n" in version 1, "Chapter 1\nChapter 2\n" in version 2); a product linking version 1
 // input: press "Move to the new version"
 // expect: the passage "+ Chapter 2" under handbook.md; the content was read from the named repository with its token and the instance was asked for no file under docs/sources/SRC-handbook/
@@ -372,7 +372,7 @@ test("move — the passages of a restricted source are read where its content li
 });
 
 // TST-591313 · level: unit · module: MOD-settings-pages
-// guards: UC-016 3, 4, 5; A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// guards: UC-016; A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the instance's register of two entries (as the repository holds), two products that the browser keeps and that link SRC-ai-act (thesis-tool on v1, other-tool on v2), each with its docs/sources.md; once with a token stored and once with none
 // input: render library/SRC-ai-act; press "Move to the new version" of thesis-tool; (with a token) press Move
 // expect: opening sends, with a token, 13 requests: 5 to the instance (the repository's information 1, its snapshot 2, its two entries in one query of GitHub's GraphQL API 1, the list of the fetch workflow's runs 1), 4 to thesis-tool and 4 to other-tool (information 1, snapshot 2, docs/sources.md 1), and, without one, 14: 6 to the instance (the two entries 2, one request each), 4 and 4; no request to a product asks for its SPEC.md or a source's content; the press of "Move to the new version" sends 6 requests, 1 to thesis-tool (SPEC.md) and 5 to the instance (information 1, snapshot 2, the two versions' files 2); the press of Move sends 8, all to thesis-tool (information 1, snapshot 2, the branch's head 1, its commit 1, the tree 1, the new commit 1, the move of the branch 1); with no token stored the press of Move is refused by the server, writes nothing, and its result begins with ✗
@@ -403,7 +403,7 @@ test("budget — opening a source reads each kept product's docs/sources.md once
 });
 
 // TST-591314 · level: unit · module: MOD-settings-pages
-// guards: UC-004 1a
+// guards: UC-004
 // given: the register holds SRC-ai-act (EU AI Act); the documents route with a file chosen
 // input: the title "EU AI Act" typed in the form; the offer pressed
 // expect: the form names the source as already in the library, "SRC-ai-act", and says to add a new version of it instead; the offer is the button "Add a new version of SRC-ai-act", whose press goes to the route library for the source SRC-ai-act, where + New version is; Save stays disabled

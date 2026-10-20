@@ -113,7 +113,7 @@ async function shown({ key = "specification", ref = "main", product = productHos
 const PARTICIPANT = { name: "po-opus" };
 
 // TST-600150 · level: unit · module: MOD-trace-pages
-// guards: UC-049; UC-019 (step 1, step 3); THE PERSON WHO PROMPTS IS A SOURCE
+// guards: UC-049; UC-019; THE PERSON WHO PROMPTS IS A SOURCE
 // given: the specification of a library on its default branch main; the instance acme/agent-m, whose register holds SRC-acme-person, a person of the account github.com/acme, which the product links
 // input: the route rendered at main, then the requirement A LOAN HAS A DUE DATE opened through its requirement-name control, then route.subject(params, context)
 // expect: kind "change-requirements"; draftRoute "draft/subject=" followed by encodeURIComponent of the subject's key (ITM-558); withhold null; refuses []; paramsFor gives exactly { requirements: ["A LOAN HAS A DUE DATE"], source: "SRC-acme-person" }; a key that is a non-empty string
@@ -132,7 +132,7 @@ test("TST-600150 on the default branch the open requirement is the subject, with
 });
 
 // TST-600151 · level: unit · module: MOD-trace-pages
-// guards: UC-049; UC-019 (step 1); THE PERSON WHO PROMPTS IS A SOURCE
+// guards: UC-049; UC-019; THE PERSON WHO PROMPTS IS A SOURCE
 // given: the same specification on main, whose group "1. Lending" holds A LOAN HAS A DUE DATE then A BOOK IS SHELVED and whose group "2. Membership" holds A MEMBER HAS A CARD
 // input: the group "1. Lending" opened through its spec-group-toggle control; then A BOOK IS SHELVED opened inside it; then that requirement closed; then the group closed
 // expect: group open: change-requirements with requirements [LOAN, SHELF] in group order, source "SRC-acme-person", draftRoute "draft";
@@ -165,7 +165,7 @@ test("TST-600151 an open group gives the names it holds in group order, an open 
 });
 
 // TST-600152 · level: unit · module: MOD-trace-pages
-// guards: UC-049; UC-019 (step 1)
+// guards: UC-049; UC-019
 // given: the same specification on main, and two requirements opened in turn: A LOAN HAS A DUE DATE, then A MEMBER HAS A CARD
 // input: route.subject after each; then A MEMBER HAS A CARD closed again
 // expect: the last one opened is the subject: [LOAN], then [CARD]; once CARD is closed, LOAN, still open, is the subject again: [LOAN]; with LOAN closed too, kind "converse"
@@ -182,7 +182,7 @@ test("TST-600152 of several open requirements the one opened last is the subject
 });
 
 // TST-600153 · level: unit · module: MOD-trace-pages
-// guards: UC-049 (2a); UC-020 (1a)
+// guards: UC-049; UC-020
 // given: a Host whose SPEC at the tag v1.0 gives A LOAN HAS A DUE DATE the rule "Every loan is returned within fourteen days." and at main "Every loan states the date by which the book is returned."; the default branch main
 // input: the route rendered at v1.0, A LOAN HAS A DUE DATE opened, then route.subject; the same at main as the known positive
 // expect: at v1.0: kind "converse"; draftRoute null; paramsFor gives exactly the key "page", whose text holds "v1.0", the name, the rule as it read at the tag and not the rule at main, and the product's address;
@@ -207,13 +207,13 @@ test("TST-600153 at a released version the requirement as it read there is the s
 
 // TST-600154 · level: unit · module: MOD-trace-pages
 // guards: UC-049; UC-020
-// given: the route rendered with the key "audit" at v1.0 and at main — a view the specification route does not draw (the key "tests" is drawn since ITM-766) — and the specification view at main with nothing opened
+// given: the route rendered with the key "timeline" at v1.0 and at main — a view the specification route does not draw (the key "tests" is drawn since ITM-766) — and the specification view at main with nothing opened
 // input: route.subject for each
 // expect: each is the frame's default: kind "converse", draftRoute null, withhold null, refuses [], title "Current requirements", paramsFor giving exactly the key "page" whose text holds the title,
 //         the product's address and the version shown — "v1.0", "main"; two different versions are two different keys
 test("TST-600154 every other view, and the specification with nothing open, give the frame's default with the version shown", async () => {
-  const tests = await shown({ key: "audit", ref: "v1.0" });
-  const audit = await shown({ key: "audit", ref: "main" });
+  const tests = await shown({ key: "timeline", ref: "v1.0" });
+  const audit = await shown({ key: "timeline", ref: "main" });
   const nothingOpen = await shown({ key: "specification", ref: "main" });
   for (const [page, version] of [[tests, "v1.0"], [audit, "main"], [nothingOpen, "main"]]) {
     const subject = page.subject();
@@ -231,7 +231,7 @@ test("TST-600154 every other view, and the specification with nothing open, give
 });
 
 // TST-600155 · level: unit · module: MOD-trace-pages
-// guards: UC-049; UC-019 (step 3); THE PERSON WHO PROMPTS IS A SOURCE
+// guards: UC-049; UC-019; THE PERSON WHO PROMPTS IS A SOURCE
 // given: the subject of an open requirement on main (known positive: source "SRC-acme-person"); then the same page where (a) the product's links file holds no row for the person, (b) the register holds only a person of another account,
 //        (c) the context has no instance at all, as in the tests of ITM-360, (d) the instance's Host fails
 // input: A LOAN HAS A DUE DATE opened and route.subject for each
@@ -259,7 +259,7 @@ test("TST-600155 a person whose source is not found, or cannot be read, refuses 
 });
 
 // TST-600156 · level: unit · module: MOD-trace-pages
-// guards: UC-049 (key names the subject, so that a draft is shown only for the subject it was drafted on)
+// guards: UC-049
 // given: the subjects of A LOAN HAS A DUE DATE and of A BOOK IS SHELVED on main, of A LOAN HAS A DUE DATE at v1.0, and of A LOAN HAS A DUE DATE on main of another product
 // input: route.subject for each
 // expect: four keys, all different; and the key of A LOAN HAS A DUE DATE on main is the same in two renderings of the same page

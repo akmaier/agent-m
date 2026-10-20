@@ -51,7 +51,7 @@ const MISSING_CHECKS = { "tests/test_issue_to_spec.py": ["EVOLUTION ENTERS THROU
 const REVIEW_ONLY = ["ONE CLICK PER DECISION"];
 
 // TST-965201 · level: release · module: MOD-maintenance-pages
-// guards: UC-038; every requirement UC-038 realises; RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER
+// guards: UC-038; RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER
 // given: UC-038's `realises` list, SPEC's current Check lines, the two system tests of UC-038 and the files that check the requirements
 // input: compare the realised requirements with the SPEC's Check lines; read the declarations of the system tests
 // expect: every realised requirement is checked at review only, or its Check names files that exist — a system test of UC-038 among the evidence, each with a level — or a file listed as missing; the system tests declare the main flow and each alternative flow the item names: 2a, 4b, 4c, 6a, 6c, 7a, 7b, 8a
@@ -87,7 +87,7 @@ test("TST-965201: UC-038 release coverage names every automatic requirement and 
 });
 
 // TST-965202 · level: release · module: MOD-maintenance-pages
-// guards: UC-038; the checks the SPEC names for the requirements of UC-038 exist
+// guards: UC-038
 // given: the SPEC's Check lines of the requirements UC-038 realises
 // input: look for each file they name
 // expect: every file exists; FINDING UC038-checks — `tests/test_issue_to_spec.py`, the check of EVOLUTION ENTERS THROUGH THE SPECIFICATION, does not exist

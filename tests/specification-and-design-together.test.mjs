@@ -153,7 +153,7 @@ const stateOf = async (fake, queue, number) => (await queues(await fake.snapshot
 
 // Module (as the file header stated it): MOD-approvals · MOD-spec-changes · MOD-artifact-edits
 // TST-476046 · level: component · module: MOD-spec-changes
-// guards: A SPEC EDIT IS SAVED AS A PROPOSAL; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; UC-018 5; UC-006 4
+// guards: A SPEC EDIT IS SAVED AS A PROPOSAL; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; UC-018; UC-006
 // given: the product, whose SPEC holds the section Reading; alice edits it in the editor and saves; she then opens the entry on the review page and accepts what she is shown
 // input: proposeSection(host, the edit); entryView of the entry it names; acceptEntries(host, [what entryView shows], "alice", now, sources)
 // expect: after the save one commit, the SPEC byte-identical and the queue's entry open; entryView shows the section that holds now beside the proposal, each with the git blob of its bytes; after the acceptance one more commit, the SPEC holding exactly the proposal in the place of the section and every other byte as it was; one record naming the proposal's blob, one decision row naming the record; the entry now `in SPEC`
@@ -187,7 +187,7 @@ test("a requirement edit — saved as a proposal, shown beside the current text,
 
 // Module (as the file header stated it): MOD-approvals · MOD-spec-changes · MOD-artifact-edits
 // TST-476047 · level: component · module: MOD-spec-changes
-// guards: AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; UC-006 4
+// guards: AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; UC-006
 // given: two copies of the product with the same saved edit; in the first the entry is accepted on the dashboard; in the second the approval record is committed by hand, as GitHub's page does without a token
 // input: acceptEntries in the first; applyApproved(snapshot of the second, now)
 // expect: applyApproved applies the record and returns, for SPEC.md and for the queue's entscheidungen.md, exactly the bytes the dashboard's acceptance committed in the first copy; nothing refused; and it writes nothing itself
@@ -217,7 +217,7 @@ test("a record committed without the dashboard — applyApproved returns the SPE
 
 // Module (as the file header stated it): MOD-approvals · MOD-spec-changes · MOD-artifact-edits
 // TST-476048 · level: component · module: MOD-approvals
-// guards: STATUS IS DERIVED FROM THE RECORDS; UC-008 3, 3e; UC-018 1
+// guards: STATUS IS DERIVED FROM THE RECORDS; UC-008; UC-018
 // given: UC-001 accepted by a record on its first text; the person edits it and saves
 // input: statuses before and after saveFile(host, the edit on the blob it was opened on); acceptShown of the saved text; lastAcceptedText("UC-001"); statuses again
 // expect: accepted before the save; `changed` after it, the last accepted text still the first; after acceptShown one record naming the saved blob, the last accepted text the saved text with its blob and path, and the status accepted again
@@ -243,7 +243,7 @@ test("a use case — saved, it counts as changed; accepted, its last accepted te
 
 // Module (as the file header stated it): MOD-approvals · MOD-spec-changes · MOD-artifact-edits
 // TST-476049 · level: component · module: MOD-approvals
-// guards: STATUS IS DERIVED FROM THE RECORDS; UC-008 3b
+// guards: STATUS IS DERIVED FROM THE RECORDS; UC-008
 // given: UC-001 accepted on its first text, saved with a second, shown to the reviewer with the second, and then changed again by another writer to a third
 // input: acceptShown(host, [the second text's blob])
 // expect: it rejects with NothingToAccept naming the file left out as `changed since shown`; no commit is made; the last accepted text is still the first and the status `changed`
@@ -268,7 +268,7 @@ test("a use case saved and then changed again — the acceptance of the text sho
 
 // Module (as the file header stated it): MOD-approvals · MOD-spec-changes · MOD-artifact-edits
 // TST-476050 · level: component · module: MOD-approvals
-// guards: STATUS IS DERIVED FROM THE RECORDS; A REQUIREMENT HAS A REGISTERED SOURCE; UC-008 3c; UC-006 4
+// guards: STATUS IS DERIVED FROM THE RECORDS; A REQUIREMENT HAS A REGISTERED SOURCE; UC-008; UC-006
 // given: a requirement that only a proposal in an open queue holds (an edit of section 2 adding AN ADDED RULE), and UC-002, which realises it
 // input: acceptShown of UC-002; acceptEntries of the proposal; acceptShown of UC-002 again
 // expect: the first rejects with NothingToAccept, UC-002 left out as `rests on what is not accepted` naming AN ADDED RULE; after the proposal is in the SPEC the second records UC-002
@@ -295,7 +295,7 @@ test("a use case resting on a requirement of an open entry — left out until th
 
 // Module (as the file header stated it): MOD-approvals · MOD-spec-changes · MOD-artifact-edits
 // TST-476051 · level: component · module: MOD-artifact-edits
-// guards: A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT; UC-018 1b
+// guards: A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT; UC-018
 // given: UC-001 opened at its first text; another writer's commit changes it
 // input: saveFile of the person's edit on the first text's blob; then acceptShown of the first text, as a page that still shows it would
 // expect: the save is refused with the other writer's text and blob, nothing written; the acceptance of the text shown is refused as well (NothingToAccept, `changed since shown`) and writes nothing
@@ -314,7 +314,7 @@ test("a use case that moved meanwhile — the save and the acceptance of the old
 
 // Module (as the file header stated it): MOD-approvals · MOD-spec-changes · MOD-artifact-edits
 // TST-476052 · level: component · module: MOD-spec-changes
-// guards: A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT; UC-018 5b
+// guards: A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT; UC-018
 // given: an edit of the section Reading opened on the SPEC as it stands; meanwhile another entry for the same section is accepted, so that the section on the default branch is another
 // input: proposeSection with the opened blob of the old section
 // expect: { refused: "changed meanwhile", current: the section that holds now }, so that the editor keeps the edit beside it; no commit; the queue gains no entry
@@ -335,7 +335,7 @@ test("a requirement edit on a section that was accepted over meanwhile — refus
 
 // Module (as the file header stated it): MOD-approvals · MOD-spec-changes · MOD-artifact-edits
 // TST-476053 · level: component · module: MOD-spec-changes
-// guards: A STALE APPROVAL IS NOT APPLIED; A SPEC EDIT IS SAVED AS A PROPOSAL; UC-006 3a, 4a
+// guards: A STALE APPROVAL IS NOT APPLIED; A SPEC EDIT IS SAVED AS A PROPOSAL; UC-006
 // given: alice's entry shown to a reviewer; before the click she saves a second edit of the same section, which replaces the entry's proposal
 // input: acceptEntries with the proposal blob that was shown
 // expect: { refused: [{ queue, entry: 1, reason }] }; no commit; the SPEC byte-identical; the entry still open
@@ -358,7 +358,7 @@ test("an entry whose proposal was replaced after it was shown — the acceptance
 
 // Module (as the file header stated it): MOD-approvals · MOD-spec-changes · MOD-artifact-edits
 // TST-476054 · level: component · module: MOD-spec-changes
-// guards: A STALE APPROVAL IS NOT APPLIED; UC-006 4a
+// guards: A STALE APPROVAL IS NOT APPLIED; UC-006
 // given: an entry shown beside the section as it stood, and another writer's commit that edits that section of the SPEC directly
 // input: acceptEntries with the section blob that was shown
 // expect: { refused: [the entry] }; no commit; the SPEC is the other writer's, not the proposal
@@ -379,7 +379,7 @@ test("a SPEC section changed after the entry was shown — the acceptance is ref
 
 // Module (as the file header stated it): MOD-approvals · MOD-spec-changes · MOD-artifact-edits
 // TST-476055 · level: component · module: MOD-spec-changes
-// guards: A STALE APPROVAL IS NOT APPLIED; WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; UC-006 4a
+// guards: A STALE APPROVAL IS NOT APPLIED; WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; UC-006
 // given: a record committed by hand for the first proposal; afterwards (1) the entry's proposal is replaced by a second edit, or (2) another writer changes the SPEC section; each in its own copy
 // input: applyApproved on each copy's snapshot
 // expect: in each the record is refused and named, nothing applied, and no changed SPEC returned (the SPEC of the copy stays as the host holds it); with the same record on an untouched copy it is applied, so the refusal is the stale text's

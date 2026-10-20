@@ -166,7 +166,7 @@ test("TST-398017: coding agents receive ordinary DriverInput exactly once", asyn
 // TST-398018
 // level: unit
 // module: MOD-agent-processes
-// guards: UC-019 step 8; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
+// guards: UC-019; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
 // given: each controlled supported coding agent after its known-positive ordinary task
 // input: a second public agentDriver send with the complete current draft in previous and no findings
 // expect: one additional task carries the current draft once and does not append recipe parts again

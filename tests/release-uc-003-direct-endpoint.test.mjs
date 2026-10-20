@@ -128,7 +128,7 @@ test("TST-292006: an endpoint credential stays out of URLs and repository writes
 
 // Module (as the case stated it): MOD-settings-pages → MOD-endpoint-calls
 // TST-292007 · level: release · module: MOD-settings-pages
-// guards: UC-003 alternative 4a; AN UNSUPPORTED ENDPOINT SAYS SO
+// guards: UC-003; AN UNSUPPORTED ENDPOINT SAYS SO
 // given: the configured endpoint is blocked by the browser before a response is available.
 // input: the author presses Save and test.
 // expect: the observable diagnosis names the browser block and CI and Bridge as routes that work.
@@ -148,7 +148,7 @@ test("TST-292007: browser blocking remains actionable at the release route", asy
 
 // Module (as the case stated it): MOD-settings-pages → MOD-browser-store
 // TST-292008 · level: release · module: MOD-settings-pages
-// guards: UC-003 alternative 2b; A CLEAR IS A REAL CLEAR
+// guards: UC-003; A CLEAR IS A REAL CLEAR
 // given: a real endpoint record exists in the dashboard browser's localStorage.
 // input: the author reloads the named route and presses Clear.
 // expect: localStorage no longer has the record after a further route reload.

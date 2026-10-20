@@ -58,12 +58,12 @@ const COVERED_BY_RELEASE = {
 };
 
 // TST-433101 - level: release - module: MOD-settings-pages; MOD-mail-routes; MOD-browser-store; MOD-bridge-client; MOD-mail-protocols
-// guards: UC-037; every requirement realised by UC-037
+// guards: UC-037
 // given: UC-037's realised requirements and the evidence map in this release test
 // input: compare the realised requirements with COVERED_BY_RELEASE
 // expect: every realised requirement is covered exactly once in the map, and every evidence file exists
 // TST-584002 · level: release · module: MOD-settings-pages · MOD-mail-routes · MOD-browser-store · MOD-bridge-client · MOD-mail-protocols
-// guards: UC-037; every requirement realised by UC-037
+// guards: UC-037
 // given: UC-037's realised requirements and the evidence map in this release test
 // input: compare the realised requirements with COVERED_BY_RELEASE
 // expect: every realised requirement is covered exactly once in the map, and every evidence file exists

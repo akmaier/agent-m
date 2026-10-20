@@ -49,7 +49,7 @@ async function mailRouteRead(f) {
 }
 
 // TST-510001 · level: unit · module: MOD-maintenance-pages
-// guards: THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL; MAIL STAYS IN THE MAILBOX; UC-049 (3b)
+// guards: THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL; MAIL STAYS IN THE MAILBOX; UC-049
 // given: the route mail after Read mailbox, one mail listed with an attachment; a mailbox that allows the place "this machine"; participants: local-llm (this machine, draft text), cli-writer (this machine, also write to the repository), cloud-llm (a provider in the USA),
 //        and a person with no place
 // input: the subject's paramsFor for each
@@ -72,7 +72,7 @@ test("the page of the route mail holds a mail's text only for a participant at a
 });
 
 // TST-510002 · level: unit · module: MOD-maintenance-pages
-// guards: THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL; UC-049 (3b), UC-039
+// guards: THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL; UC-049
 // given: the route replies after Read replies, the mails of issue 4 found in the mailbox
 // input: the subject's paramsFor for local-llm, cli-writer and cloud-llm
 // expect: local-llm's page holds a found mail's identifier, sender and text; the others' pages hold identifiers only; the subject refuses propose-edit and hand-over
@@ -93,7 +93,7 @@ test("the page of the route replies holds the mails' texts under the same rule",
 });
 
 // TST-510003 · level: unit · module: MOD-maintenance-pages
-// guards: NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY; MAIL STAYS IN THE MAILBOX; A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE; UC-049 (3b)
+// guards: NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY; MAIL STAYS IN THE MAILBOX; A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE; UC-049
 // given: the route mail with the listed mail whose sender is Erika Mustermann <erika@example.invalid> and whose text names the phone number +49 170 1234567 and the account @erika_m
 // input: withhold of a message that holds the name; the address; the phone number; the account; a passage of the mail's own text; a message that holds none of them
 // expect: each of the first five gives a reason (a text); the last gives null
@@ -110,7 +110,7 @@ test("withhold finds a planted name, address, phone number, account and a passag
 });
 
 // TST-510004 · level: unit · module: MOD-maintenance-pages
-// guards: MAIL STAYS IN THE MAILBOX; UC-049 (3b)
+// guards: MAIL STAYS IN THE MAILBOX; UC-049
 // given: the route mail drawn anew after an earlier reading, before any reading of its own
 // input: the subject's paramsFor for local-llm; withhold of a message
 // expect: the page holds the route's title and no mail; withhold finds nothing in a text that no listed mail's people occur in

@@ -62,7 +62,7 @@ test("explain — each topic of deriving the architecture is a folded What is th
 });
 
 // TST-472792 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-022 (step 1, the table)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-022
 // given: the topic what-is-an-architecture
 // input: explain("what-is-an-architecture")
 // expect: text giving the definition, that the first architecture is derived in one piece, the system, subsystems and modules, the four kinds of file of the table, the four views with the scenarios, the three families of patterns, the eight design principles, and the pointer to chapter 10 of the book
@@ -92,7 +92,7 @@ test("explain — what-is-an-architecture: what an architecture is (UC-022 1)", 
 });
 
 // TST-472793 · level: unit · module: MOD-site-frame
-// guards: A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A REVIEW FINDING IS WEIGHED BEFORE IT IS ACTED ON; THE CORRECTION LOOP HAS A FIXED LIMIT; UC-022 (step 6)
+// guards: A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A REVIEW FINDING IS WEIGHED BEFORE IT IS ACTED ON; THE CORRECTION LOOP HAS A FIXED LIMIT; UC-022
 // given: the topic architecture-reviewer
 // input: explain("architecture-reviewer")
 // expect: text saying a second participant of another model checks the whole draft against the whole SPEC, level by level, not the modules against the use cases; findings are warnings with file, line and requirement; the deriving participant weighs each; rounds end on no finding, the limit or an unchanged round; what is shown to the person; no test or CI checks the draft
@@ -118,7 +118,7 @@ test("explain — architecture-reviewer: the reviewing participant and its round
 });
 
 // TST-472794 · level: unit · module: MOD-site-frame
-// guards: A REUSE DECISION RECORDS ITS DUE DILIGENCE; UC-022 (steps 7, 7a, 7b, 7d)
+// guards: A REUSE DECISION RECORDS ITS DUE DILIGENCE; UC-022
 // given: the topic due-diligence
 // input: explain("due-diligence")
 // expect: text saying which facts are read from the registry and the source repository, that each is stored with address and date, what happens to a candidate not found and to an unreadable registry, that the product's own licence stands beside, and the pointer to chapter 6, section 5
@@ -141,7 +141,7 @@ test("explain — due-diligence: the due diligence (UC-022 7)", () => {
 });
 
 // TST-472795 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-022 (steps 7c, 7d)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-022
 // given: the topic licence-permits
 // input: explain("licence-permits")
 // expect: text saying what a licence is and that without one there is no permission, what permissive and copyleft licences permit and ask, that a licence can restrict the product's own distribution, how Agent M marks candidates, and what happens without a LICENSE file

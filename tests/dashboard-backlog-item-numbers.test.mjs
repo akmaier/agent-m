@@ -73,7 +73,7 @@ const refs = (created) => async (url, init) => {
 };
 
 // TST-1087004 · level: unit · module: MOD-implementation-pages
-// guards: EVERY ARTIFACT HAS AN IDENTIFIER; UC-032 step 6
+// guards: EVERY ARTIFACT HAS AN IDENTIFIER; UC-032
 // given: a team with no sprint and the items ITM-1000, ITM-101 and ITM-999 in its backlog, none building on another
 // input: Plan sprint for the team; tick ITM-1000 and ITM-101; Start sprint
 // expect: the sprint file written holds the selection ITM-101, ITM-1000 — in the order of their numbers, not of their file names as text

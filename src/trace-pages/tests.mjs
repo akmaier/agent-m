@@ -1,6 +1,7 @@
 // The tests page of the trace Route (UC-029 steps 1 to 3, 1a, 2a): the tests of the version drawn as a tree by level, test file and test case, or grouped by
 // requirement, by use case or by module; each test with its identifier, its title and its outcome on the commit of that version, read from the branch
-// `test-results`; the filters; the Incomplete group; a guarded name that matches nothing, shown as a broken link with its test kept. It reads the
+// `test-results`; the filters; the Incomplete group; a guarded name that matches nothing, shown as a broken link with its test kept; and, at a release,
+// the comparison with another release (step 6): the tests added, removed, changed in what they guard or expect, and changed in outcome. It reads the
 // version's test files through the snapshot and writes nothing. A private repository no token reaches never gets here: the first read of the version fails
 // in the route, which leaves it to the frame to say.
 //
@@ -8,6 +9,7 @@
 
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
 import { resultsAt } from "../result-records/index.mjs";
+import { showTestDetail } from "./test-detail.mjs";
 
 const LEVELS = ["unit", "component", "system", "release", "user"];
 const GROUPINGS = ["level", "requirement", "use case", "module"];
@@ -65,8 +67,15 @@ const KEEP = {
   "guards nothing": (test) => guardsOf(test.declaration).length === 0,
 };
 
-function caseLine(test, withMissing) {
-  const line = el("div", "tests-case", el("span", "tests-id", test.declaration.id), " ", el("span", "tests-title", test.declaration.title ?? ""), " ",
+// The identifier of a test, as the link that opens it: `trace/tests/<TST>` at the version shown.
+function idLink(id, ref) {
+  const link = el("a", "tests-id", id);
+  link.setAttribute("href", `#trace/key=tests/ref=${encodeURIComponent(ref)}/row=${encodeURIComponent(id)}`);
+  return link;
+}
+
+function caseLine(test, withMissing, ref) {
+  const line = el("div", "tests-case", idLink(test.declaration.id, ref), " ", el("span", "tests-title", test.declaration.title ?? ""), " ",
     el("span", "tests-outcome", outcomeText(test)));
   if (withMissing) line.append(" ", el("span", "tests-missing", test.missing.join(", ")));
   return line;
@@ -96,14 +105,14 @@ function levelsLine(group) {
   }));
 }
 
-function groupBox(group) {
+function groupBox(group, ref) {
   const name = el("span", group.broken ? "tests-group-name tests-broken" : "tests-group-name", group.name);
   const head = el("h3", null, name);
   if (group.broken) head.append(" ", el("span", "tests-broken-note", "broken link: nothing of the version has this name"));
-  return el("section", "tests-group", head, levelsLine(group), ...group.tests.map((test) => caseLine(test, false)));
+  return el("section", "tests-group", head, levelsLine(group), ...group.tests.map((test) => caseLine(test, false, ref)));
 }
 
-function treeBoxes(tests) {
+function treeBoxes(tests, ref) {
   const boxes = [];
   for (const level of LEVELS) {
     const inLevel = tests.filter((test) => test.declaration.level === level);
@@ -111,16 +120,65 @@ function treeBoxes(tests) {
     const files = [...new Set(inLevel.map((test) => test.declaration.path))];
     boxes.push(el("section", "tests-group", el("h3", null, el("span", "tests-group-name", level)),
       ...files.map((path) => el("section", "tests-file", el("h4", null, el("span", "tests-file-name", path)),
-        ...inLevel.filter((test) => test.declaration.path === path).map((test) => caseLine(test, false))))));
+        ...inLevel.filter((test) => test.declaration.path === path).map((test) => caseLine(test, false, ref))))));
   }
   return boxes;
+}
+
+// ---------------------------------------------------------------- comparing two releases (UC-029 step 6)
+
+// The tests of a version by identifier, each with its declaration and the outcome as the page shows it.
+async function testsOf(host, snapshot) {
+  const declarations = await declarationsOf(snapshot);
+  const found = await outcomesOf(host, snapshot, declarations);
+  return { tests: new Map(declarations.map((declaration) => [declaration.id, { declaration, outcome: outcomeText(found.outcomes.get(declaration.id) ?? { outcome: "not run", runs: null }) }])),
+    problem: found.problem };
+}
+
+const expectOf = (declaration) => String(declaration.expect ?? "").trim();
+const sameSet = (a, b) => a.length === b.length && a.every((name) => b.includes(name));
+
+// What differs between the older and the newer version of the tests: { added, removed, changed, outcome }, each a list of { declaration, changes } in the order of the identifiers. A test is
+// changed in what it guards when its set of guarded names differs, in what it expects when its expected result does; in both ways it is in `changed` once, and in `outcome` as well when its outcome differs.
+function comparison(older, newer) {
+  const byId = (a, b) => (a.declaration.id < b.declaration.id ? -1 : 1);
+  const found = { added: [], removed: [], changed: [], outcome: [] };
+  for (const [id, now] of newer) {
+    const was = older.get(id);
+    if (!was) { found.added.push({ declaration: now.declaration, changes: [] }); continue; }
+    const changes = [];
+    if (!sameSet(guardsOf(was.declaration), guardsOf(now.declaration))) changes.push(`guards: ${guardsOf(was.declaration).join("; ")} → ${guardsOf(now.declaration).join("; ")}`);
+    if (expectOf(was.declaration) !== expectOf(now.declaration)) changes.push(`expect: ${expectOf(was.declaration)} → ${expectOf(now.declaration)}`);
+    if (changes.length) found.changed.push({ declaration: now.declaration, changes });
+    if (was.outcome !== now.outcome) found.outcome.push({ declaration: now.declaration, changes: [`${was.outcome} → ${now.outcome}`] });
+  }
+  for (const [id, was] of older) if (!newer.has(id)) found.removed.push({ declaration: was.declaration, changes: [] });
+  for (const list of Object.values(found)) list.sort(byId);
+  return found;
+}
+
+function comparedSection(className, heading, entries) {
+  const items = entries.map(({ declaration, changes }) => el("li", "tests-compared", el("span", "tests-compared-id", declaration.id), " ", el("span", "tests-compared-title", declaration.title ?? ""),
+    ...changes.flatMap((change) => [" ", el("span", "tests-compared-change", change)])));
+  return el("section", className, el("h3", null, heading), items.length ? el("ul", "list", ...items) : el("p", "none", "none"));
+}
+
+// The comparison of the version shown with another release: both versions' declarations and the records of both commits. The older of the two is the one that comes later in `tags`, which are newest first.
+async function compareReleases(host, shown, current, other) {
+  const [older, newer] = shown.tags.indexOf(shown.ref) > shown.tags.indexOf(other) ? [current, await testsOf(host, await host.readSnapshot(other))] : [await testsOf(host, await host.readSnapshot(other)), current];
+  const found = comparison(older.tests, newer.tests);
+  const problem = older.problem ?? newer.problem;
+  return el("section", "tests-compare", el("h2", null, `Compared with ${other}`),
+    ...(problem ? [el("p", "traces-problem", `The results could not be read: ${problem?.message ?? problem}`)] : []),
+    comparedSection("tests-compare-added", "Added", found.added), comparedSection("tests-compare-removed", "Removed", found.removed),
+    comparedSection("tests-compare-changed", "Changed in what they guard or expect", found.changed), comparedSection("tests-compare-outcome", "Changed in outcome", found.outcome));
 }
 
 /**
  * Draws the tests page into `place`: reads the version's test files, their outcomes and what the grouping needs, then the page whose grouping and filter
  * the two selects change without reading again.
  */
-export async function showTests(place, shown) {
+export async function showTests(place, shown, params = {}) {
   const { snapshot, spec, context } = shown;
   let declarations, found;
   try {
@@ -159,12 +217,47 @@ export async function showTests(place, shown) {
   };
   function draw() {
     const keep = KEEP[state.filter] ?? KEEP.all;
-    const boxes = state.grouping === "level" ? treeBoxes(complete.filter(keep)) : groupsOf(state.grouping, complete.filter(keep), names[state.grouping]).map(groupBox);
+    const boxes = state.grouping === "level" ? treeBoxes(complete.filter(keep), shown.ref) : groupsOf(state.grouping, complete.filter(keep), names[state.grouping]).map((group) => groupBox(group, shown.ref));
     const left = incomplete.filter(keep);
-    body.replaceChildren(...boxes, ...(left.length ? [el("section", "tests-incomplete", el("h3", null, "Incomplete"), ...left.map((test) => caseLine(test, true)))] : []));
+    body.replaceChildren(...boxes, ...(left.length ? [el("section", "tests-incomplete", el("h3", null, "Incomplete"), ...left.map((test) => caseLine(test, true, shown.ref)))] : []));
     if (!boxes.length && !left.length) body.append(el("p", "none", "No test matches."));
   }
   draw();
-  place.replaceChildren(el("div", "tests-bar", choice("tests-grouping", "Group by", GROUPINGS, "grouping"), " ", choice("tests-filter", "Show", FILTERS, "filter"),
-    ...(found.problem ? [el("p", "traces-problem", `The results could not be read: ${found.problem?.message ?? found.problem}`)] : [])), body);
+  const compared = el("div", "tests-compared-box");
+  const bar = el("div", "tests-bar", choice("tests-grouping", "Group by", GROUPINGS, "grouping"), " ", choice("tests-filter", "Show", FILTERS, "filter"),
+    ...(found.problem ? [el("p", "traces-problem", `The results could not be read: ${found.problem?.message ?? found.problem}`)] : []));
+  const others = (shown.tags ?? []).filter((tag) => tag !== shown.ref);
+  if ((shown.tags ?? []).includes(shown.ref) && others.length) {
+    const select = el("select", "tests-compare-with");
+    select.setAttribute("aria-label", "Compare with");
+    for (const value of ["none", ...others]) {
+      const option = el("option", null, value);
+      option.value = value;
+      select.append(option);
+    }
+    let latest = 0;
+    const compare = async () => {
+      const mine = ++latest;
+      if (select.value === "none") { compared.replaceChildren(); return; }
+      compared.replaceChildren(el("p", "traces-reading", "Comparing…"));
+      let drawn;
+      try {
+        drawn = await compareReleases(context.product.host, shown, { tests: new Map(tests.map((test) => [test.declaration.id, { declaration: test.declaration, outcome: outcomeText(test) }])), problem: found.problem }, select.value);
+      } catch (failure) {
+        drawn = el("p", "traces-problem", `The comparison could not be read: ${failure?.message ?? failure}`);
+      }
+      if (mine === latest) compared.replaceChildren(drawn);
+    };
+    select.value = others.includes(params.compare) ? params.compare : "none";
+    select.addEventListener("change", compare);
+    bar.append(" ", el("label", null, "Compare with ", select));
+    if (select.value !== "none") compare();
+  }
+  place.replaceChildren(bar, compared, body);
+  // A test opened by the param `row` (`trace/tests/<TST>`) is shown above the tree.
+  if (typeof params.row === "string" && params.row !== "") {
+    const detail = el("div", "test-detail-box", el("p", "traces-reading", "Reading the test…"));
+    place.insertBefore(detail, bar);
+    detail.replaceChildren(await showTestDetail({ host: context.product.host, shown, id: params.row, declarations, declarationsOf }));
+  }
 }

@@ -63,7 +63,7 @@ test("kindOfIdentifier — null for a string that is none of the scheme's kinds"
 });
 
 // TST-472243 · level: unit · module: MOD-identifiers
-// guards: MOD-identifiers; AN INSTANCE IS A FORK OF AGENT M
+// guards: AN INSTANCE IS A FORK OF AGENT M
 // given: a GitHub Pages hostname with a repository as its first path segment, and a known positive matching that shape
 // input: instanceOfPagesAddress on that address and on a non-Pages hostname
 // expect: owner/name for the Pages address, and null for the other host

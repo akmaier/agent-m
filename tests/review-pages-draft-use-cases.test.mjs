@@ -194,7 +194,7 @@ test("view — hands the frame the strategies the kind derive-use-cases uses in 
 // ---------------------------------------------------------------- the list leads here
 
 // TST-472615 · level: unit · module: MOD-review-pages
-// guards: EVERY STEP EXPLAINS ITSELF; UC-007 (step 1)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-007
 // given: the list of use cases of a product with a token
 // input: the route use-case with no id
 // expect: a link "Draft use cases" to #use-case/id=draft
@@ -209,7 +209,7 @@ test("use-case — the list's Draft use cases leads to the drafting page", async
 // ---------------------------------------------------------------- the selection and the participants
 
 // TST-472616 · level: unit · module: MOD-review-pages
-// guards: UC-007 (steps 1, 2); THE PAGE NAMES WHERE IT SENDS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; EVERY STEP EXPLAINS ITSELF
+// guards: UC-007; THE PAGE NAMES WHERE IT SENDS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; EVERY STEP EXPLAINS ITSELF
 // given: a product with the requirements A LOAN HAS A DUE DATE (realised by UC-001 and UC-002) and A BOOK IS SHELVED (realised by none); the register with a model endpoint and a CI agent that declare draft text and a person that does not; the product holds no job workflow
 // input: the page #use-case/id=draft
 // expect: both requirements listed, only the unrealised one checked; the two drafting participants listed, each with where it processes data and its route — the endpoint's the tab, the CI agent's one that cannot be taken, with the reason naming the workflow file —, the person not; no Run on the page; the explanations of the selection and of the participant folded in it; nothing written, nothing sent
@@ -235,7 +235,7 @@ test("use-case/draft — the requirements to cover by default, and the participa
 });
 
 // TST-494007 · level: unit · module: MOD-review-pages
-// guards: UC-017; UC-049 (1b); UC-007 (step 1)
+// guards: UC-017; UC-049; UC-007
 // given: a register with the CLI agent lead (route `bridge lab-pc agent claude`), the subagent sub (route `through lead`) and the subagent orphan (route `through nobody`), each declaring draft text; the product holds no job workflow
 // input: the page #use-case/id=draft
 // expect: lead and sub are listed, orphan is not (its route reaches no CLI agent of the register); the route of lead reads "bridge lab-pc", and the route of sub reads "bridge lab-pc" too — the route of the participant it is reached through — and not "no route of a job"
@@ -255,7 +255,7 @@ test("use-case/draft — a subagent is listed with the route of the participant 
 // ---------------------------------------------------------------- the run panel
 
 // TST-472617 · level: unit · module: MOD-review-pages
-// guards: THE PAGE NAMES WHERE IT SENDS; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-007 (step 2)
+// guards: THE PAGE NAMES WHERE IT SENDS; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-007
 // given: the page with the requirement A BOOK IS SHELVED checked
 // input: choosing the endpoint participant and pressing Show the run panel
 // expect: the run panel of derive-use-cases — the destination drafter-a, where it processes data, the parts sent: the requirement, every existing use case, the book's chapter 8 —, and in it the only Run; nothing written, nothing sent
@@ -281,7 +281,7 @@ test("use-case/draft — Run is offered only from the run panel, which states wh
 // ---------------------------------------------------------------- Run in the tab
 
 // TST-472618 · level: unit · module: MOD-review-pages
-// guards: A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; A GENERATED ARTIFACT IS A PROPOSAL; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-007 (steps 3 to 6)
+// guards: A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; A GENERATED ARTIFACT IS A PROPOSAL; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-007
 // given: the page with the panel of the endpoint participant, whose endpoint answers a use case that realises A BOOK IS SHELVED
 // input: a click on Run
 // expect: one request to the endpoint; the use case written as a new file under docs/use-cases/ in one commit, beside the job's record in docs/jobs/ (its start and taking in one commit, its end in another); the page naming the file written; after a new draw of the list, the file listed as open
@@ -304,7 +304,7 @@ test("use-case/draft — Run runs the job in this tab and writes the drafted use
 });
 
 // TST-472619 · level: unit · module: MOD-review-pages
-// guards: THE ROUNDS ARE COUNTED AND SHOWN; UC-007 (step 5)
+// guards: THE ROUNDS ARE COUNTED AND SHOWN; UC-007
 // given: an endpoint whose first answer realises a name the SPEC does not hold and whose second realises A BOOK IS SHELVED
 // input: Run on the panel
 // expect: the page says "Correction rounds: 2" and lists no finding left
@@ -320,7 +320,7 @@ test("use-case/draft — the rounds are shown, and nothing is left when the loop
 });
 
 // TST-472620 · level: unit · module: MOD-review-pages
-// guards: THE ROUNDS ARE COUNTED AND SHOWN; UC-007 (step 5)
+// guards: THE ROUNDS ARE COUNTED AND SHOWN; UC-007
 // given: an endpoint that always answers a use case without its section Postcondition
 // input: Run on the panel
 // expect: the page shows the rounds and, among what the loop left, the finding that names the missing section
@@ -339,7 +339,7 @@ test("use-case/draft — what the loop left is shown beside the rounds", async (
 });
 
 // TST-472621 · level: unit · module: MOD-review-pages
-// guards: UC-007 (step 4b)
+// guards: UC-007
 // given: an endpoint that always answers a use case that realises no requirement
 // input: Run on the panel; then the page of the use case written
 // expect: the use case is written, and beside it on its own page the note of the job's end record — the use case realises no requirement (UC-007 4b) —; the page of UC-001 shows no such notes
@@ -361,7 +361,7 @@ test("use-case/draft — the note of the job stands beside the use case it conce
 // ---------------------------------------------------------------- another route
 
 // TST-472622 · level: unit · module: MOD-review-pages
-// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; ONE CLICK PER DECISION; UC-007 (step 2)
+// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; ONE CLICK PER DECISION; UC-007
 // given: a product that holds the job workflow, the CI agent among the participants
 // input: choosing the CI agent, the run panel, Run
 // expect: nothing sent to any endpoint; one commit holding the job's start record in docs/jobs/ and nothing else; the page says the job is queued, naming its identifier, and writes no use case
@@ -383,7 +383,7 @@ test("use-case/draft — a job on the CI route is queued there and not run in th
 });
 
 // TST-472623 · level: unit · module: MOD-review-pages
-// guards: A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; UC-007 (step 6)
+// guards: A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; UC-007
 // given: a use case a job wrote, with a note of that job, which a person has since accepted by a record naming its text
 // input: the page of that use case
 // expect: no notes of the job: they stand beside an open use case only
@@ -418,7 +418,7 @@ test("use-case/draft — without a token the run panel is not offered, and the t
 });
 
 // TST-472625 · level: unit · module: MOD-review-pages
-// guards: THE PAGE NAMES WHERE IT SENDS; UC-007 (step 1)
+// guards: THE PAGE NAMES WHERE IT SENDS; UC-007
 // given: the page, whose selection the person changes: A LOAN HAS A DUE DATE ticked, A BOOK IS SHELVED unticked
 // input: the run panel; then Run
 // expect: the panel's parts name the requirement ticked and not the one unticked; the job's record names the selection as the requirements it works on

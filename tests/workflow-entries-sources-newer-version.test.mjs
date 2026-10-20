@@ -43,7 +43,7 @@ const versionsOf = (entry) => entry.sections[0].rows.map((row) => row.cells.Vers
 const run = (instance, inputs) => runEntry("onSourcesCommitted", envOf(instance, inputs), { now: NOW });
 
 // TST-900001 · level: unit · module: MOD-workflow-entries
-// guards: UC-016 1, 2; A SOURCE VERSION IS NEVER OVERWRITTEN; AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY
+// guards: UC-016; A SOURCE VERSION IS NEVER OVERWRITTEN; AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY
 // given: SRC-ai-act, an EU legal text with the version cellar-existing (32024R1689.xhtml holding the old text), and SRC-other-law, another legal text with a version; the publication repository answers a newer text (ETag cellar-2024-07-12)
 // input: onSourcesCommitted in a run started by hand with the input source = SRC-ai-act
 // expect: outcome done, its summary naming SRC-ai-act; the publication repository is asked once; one commit on main, changing exactly docs/sources/SRC-ai-act.md and docs/sources/SRC-ai-act/cellar-2024-07-12/32024R1689.xhtml (the new bytes);
@@ -69,7 +69,7 @@ test("onSourcesCommitted — a run started for an entry that has a version appen
 });
 
 // TST-900002 · level: unit · module: MOD-workflow-entries
-// guards: UC-016 1a; A SOURCE VERSION IS NEVER OVERWRITTEN
+// guards: UC-016; A SOURCE VERSION IS NEVER OVERWRITTEN
 // given: SRC-ai-act with the version cellar-existing, whose file 32024R1689.xhtml has the SHA-256 of the text the publication repository answers now
 // input: onSourcesCommitted in a run started with the input source = SRC-ai-act
 // expect: outcome "nothing to do", its summary naming SRC-ai-act and cellar-existing; the publication repository is asked once; no commit is made and the working tree is clean
@@ -87,7 +87,7 @@ test("onSourcesCommitted — a fetched text whose SHA-256 equals an existing ver
 });
 
 // TST-900003 · level: unit · module: MOD-workflow-entries
-// guards: UC-004 7; UC-016 1; AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY
+// guards: UC-004; UC-016; AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY
 // given: SRC-ai-act, an EU legal text whose identifier is the bare CELEX number 32024R1689 as the library's form writes it, with no version row; and SRC-ai-act-2, the same with the version cellar-existing
 // input: onSourcesCommitted in a push run (no input); then, in a fresh instance, in a run with the input source = SRC-ai-act-2
 // expect: the push run completes SRC-ai-act (outcome done, one commit, SRC-ai-act-2 untouched, the publication repository asked once); the run with the input appends cellar-2024-07-12 to SRC-ai-act-2 as a further version after cellar-existing (outcome done)
@@ -112,7 +112,7 @@ test("onSourcesCommitted — an entry whose identifier is a bare CELEX number is
 });
 
 // TST-900004 · level: unit · module: MOD-workflow-entries
-// guards: UC-016 1; AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY
+// guards: UC-016; AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY
 // given: SRC-ai-act with a version, a push run's environment with no input; and the same entry with a run that names it
 // input: onSourcesCommitted in the push run; and in the run with the input, with a publication repository that cannot be reached
 // expect: the push run is "nothing to do" with the summary "No EU legal text is waiting for its fetch.", the publication repository not asked and nothing committed; the run with the input is failed, its summary naming SRC-ai-act and the
@@ -156,7 +156,7 @@ test("onSourcesCommitted — an input that names no entry, or an entry that is n
 });
 
 // TST-900006 · level: unit · module: MOD-workflow-entries
-// guards: UC-016 1; AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY
+// guards: UC-016; AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY
 // given: the workflow file .github/workflows/fetch-sources.yml, which the module file names
 // input: its text, read
 // expect: under `workflow_dispatch:` it declares `inputs:` with an input `source:` (GitHub refuses a dispatch carrying an input a workflow does not declare), and it still runs `node src/workflow-entries/main.mjs onSourcesCommitted`

@@ -69,7 +69,7 @@ test("TST-827001 the view hands the frame the routes home and jobs, home first, 
 });
 
 // TST-827002 · level: unit · module: MOD-main-page
-// guards: THE MAIN PAGE SHOWS EACH PRODUCT'S PROGRESS BY STAGE; UC-046 (step 3, 3c)
+// guards: THE MAIN PAGE SHOWS EACH PRODUCT'S PROGRESS BY STAGE; UC-046
 // given: this browser keeps the product alice/product, which holds two requirements, two use cases of which UC-001 is accepted, one backlog item, no architecture file, no tag and no declared process model
 // input: the route home drawn
 // expect: one card named "alice/product", its address https://github.com/alice/product, saying "Its process is chosen when implementation starts", with six stages in this order — Requirements 100 % "2 requirements, no change open", Use cases 50 % "1 of 2 accepted", Architecture 0 % "not designed yet", Implementation ? "the process is configured when implementation starts", Tests 0 % "0 of 2 requirements guarded by a passing test", Release 0 % "no release yet" — and the stage it is in marked: Use cases, and only it; counter-proof: with both use cases accepted, Use cases reads 100 % "2 of 2 accepted" and the stage marked is Architecture
@@ -97,7 +97,7 @@ test("TST-827002 a kept product has a card with its six stages, each with its sh
 });
 
 // TST-827003 · level: unit · module: MOD-main-page
-// guards: THE BUILD IS SHOWN AS IT HAPPENS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-046 (step 4)
+// guards: THE BUILD IS SHOWN AS IT HAPPENS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-046
 // given: the product of TST-827002 with UC-001 accepted, the item ITM-0900 that builds on it and a job record JOB-20261016-1000-ffff of dev-cli for ITM-0900, taken by the Bridge lab-pc-4 and not ended, started at 10:00 UTC; the clock at 12:00 UTC; this browser keeps lab-pc-4, which lists that job as running
 // input: the route home drawn; and drawn again where lab-pc-4 lists no job
 // expect: the build holds one row, ["ITM-0900", "JOB-20261016-1000-ffff", "dev-cli", "running", "2h 0m 0s"], and lab-pc-4 was asked exactly once; counter-proof: where the Bridge lists no job, the same row is ["ITM-0900", "JOB-20261016-1000-ffff", "dev-cli", "ended without record", "0h 0m 0s"] — the state and the elapsed time come from what the runtime reports (MOD-job-ledger counts a job's time only while its runtime knows it), and not from the record alone; a product whose item has no job has no build
@@ -121,7 +121,7 @@ test("TST-827003 the build lists the item in progress with its job, participant,
 });
 
 // TST-827004 · level: unit · module: MOD-main-page
-// guards: THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE; UC-046 (step 5)
+// guards: THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE; UC-046
 // given: the product of TST-827002 (UC-001 accepted, UC-002 open), and a second kept product bob/other that holds one open use case UC-001 and one accepted use case UC-002
 // input: the route home drawn with the first product only; with both; and with the first product's UC-002 accepted
 // expect: with one card the list reads "use case: UC-002"; with both cards it reads "use case: UC-002 · alice/product" and "use case: UC-001 · bob/other"; counter-proof: once UC-002 of the first product is accepted too, the first product's line is gone, and where nothing at all waits the page says "Nothing waits for a person."
@@ -143,7 +143,7 @@ test("TST-827004 what waits for a person across the cards, each with its kind an
 });
 
 // TST-827005 · level: unit · module: MOD-main-page
-// guards: WITHOUT A PRODUCT, THE MAIN PAGE SHOWS AGENT M'S OWN PROGRESS; UC-046 (3a)
+// guards: WITHOUT A PRODUCT, THE MAIN PAGE SHOWS AGENT M'S OWN PROGRESS; UC-046
 // given: this browser keeps no product; the instance alice/agent-m holds the files of the product of TST-827002
 // input: the route home drawn; and drawn where the browser keeps the product alice/product
 // expect: one card named "Agent M" at https://github.com/alice/agent-m, whose stages are read from the instance repository (Use cases 50 % "1 of 2 accepted"); counter-proof: with a product kept, no card is named "Agent M" and the product's is
@@ -214,7 +214,7 @@ test("TST-827008 each repository is read with the token this browser keeps for i
 });
 
 // TST-827009 · level: unit · module: MOD-main-page
-// guards: THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE; UC-046 (3b)
+// guards: THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE; UC-046
 // given: this browser keeps the product alice/product and a product carol/missing that the server does not find
 // input: the route home drawn
 // expect: two cards; the first is alice/product's with its six stages; the second is <article class="card is-error"> named "carol/missing" with its address and the reason its host gives, "https://github.com/carol/missing was not found — a private repository is found only with a token that reaches it."; what waits is still the first product's, "use case: UC-002 · alice/product"; counter-proof: with carol/missing left out, no card is an error
@@ -234,7 +234,7 @@ test("TST-827009 a product whose repository cannot be read has a card that says 
 });
 
 // TST-827010 · level: unit · module: MOD-main-page
-// guards: THE BUILD IS SHOWN AS IT HAPPENS; UC-046 (4a)
+// guards: THE BUILD IS SHOWN AS IT HAPPENS; UC-046
 // given: a build of one row whose job's runtime does not answer, as MOD-progress-measures' buildInProgress gives it (reachable false), and a build of one row whose runtime answers
 // input: productCard drawn with each
 // expect: the first row ends with "not reachable" and shows the state its record gives ("running"); the second row has no such mark
@@ -250,7 +250,7 @@ test("TST-827010 a build row whose runtime does not answer is marked as not reac
 });
 
 // TST-827011 · level: unit · module: MOD-main-page
-// guards: THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE; UC-046 (step 5)
+// guards: THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE; UC-046
 // given: the product alice/product with the open use case UC-002, an open SPEC change entry (queue 2026-10-01a_fixture, entry 1) and a failed job JOB-20261016-1000-ffff; the browser's ViewContext records every call of go(route, params)
 // input: the route home drawn; the "Open" button of each of the three items pressed in turn
 // expect: three items wait, each with one button; pressing them calls go exactly as ["use-case", { id: "UC-002", product: "https://github.com/alice/product" }], ["spec-entry", { id: "spec-2026-10-01a_fixture-01", product: … }] and ["job", { id: "JOB-20261016-1000-ffff", product: … }], in the order of the list, and nothing before the press; counter-proof: with Agent M's own card (no product kept) the call for its open use case is ["use-case", { id: "UC-002" }] with no product
@@ -277,7 +277,7 @@ test("TST-827011 each item that waits for a person opens the page where it is de
 });
 
 // TST-827012 · level: unit · module: MOD-main-page
-// guards: WITHOUT A PRODUCT, THE MAIN PAGE SHOWS AGENT M'S OWN PROGRESS; UC-046 (3a)
+// guards: WITHOUT A PRODUCT, THE MAIN PAGE SHOWS AGENT M'S OWN PROGRESS; UC-046
 // given: this browser keeps no product; and, for the counter-proof, keeps alice/product
 // input: the route home drawn; the "+ Add product" button pressed
 // expect: one button reading "+ Add product" stands beside Agent M's card, and pressing it calls go("add-product", {}) once; with a product kept there is no such button
@@ -296,7 +296,7 @@ test("TST-827012 while no product is kept, + Add product opens the add-product r
 });
 
 // TST-827013 · level: unit · module: MOD-main-page
-// guards: THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE; UC-046 (3b)
+// guards: THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE; UC-046
 // given: this browser keeps alice/product and carol/missing, which the server does not find
 // input: the route home drawn; the token-setting button of carol/missing's card pressed
 // expect: the unreadable card holds one button reading "Open the token's setting", the readable card none; pressing it calls go("settings", none given) once
@@ -322,7 +322,7 @@ const addressOf = (request) => new URL(request.url).pathname.replace(/[0-9a-f]{4
 const problemsOf = (target) => byClass(target, "reread-problem").map((node) => node.textContent);
 
 // TST-847001 · level: unit · module: MOD-main-page
-// guards: THE BUILD IS SHOWN AS IT HAPPENS; UC-046 (step 4)
+// guards: THE BUILD IS SHOWN AS IT HAPPENS; UC-046
 // given: this browser keeps alice/product, whose job JOB-20261016-1000-ffff runs on the Bridge lab-pc-4; the timers a page sets are kept by the test and fired by it
 // input: the route home drawn; the timer fired at 12:01 UTC; and, for the counter-proof, the route drawn where the one product kept is carol/missing, which cannot be read
 // expect: after the draw exactly one timer waits, of 60000 milliseconds; after it was fired exactly one waits again, of 60000 milliseconds; counter-proof: where no card could be read, no timer waits
@@ -340,7 +340,7 @@ test("TST-847001 the page reads the jobs' states again once a minute, and sets n
 });
 
 // TST-847002 · level: unit · module: MOD-main-page
-// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-046 (step 4)
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-046
 // given: this browser keeps the product alice/product of 600 backlog items and 400 job records, none of them taken or ended, with a token for it and one for the instance (the page of TST-827006 read it in 23 requests)
 // input: the route home drawn; the timer fired at 12:01 UTC, the requests since the draw counted; then one job record, JOB-20261014-0900-0001, given its end on the server and the timer fired at 12:02
 // expect: the first reading sends exactly 2 requests, both to alice/product and both with the product's token — the commit of main and the tree of that commit —, and not one file, batch, pull request, tag or repository
@@ -368,7 +368,7 @@ test("TST-847002 with a token, a reading of the jobs' states is the product's co
 });
 
 // TST-847003 · level: unit · module: MOD-main-page
-// guards: THE BUILD IS SHOWN AS IT HAPPENS; UC-046 (step 4)
+// guards: THE BUILD IS SHOWN AS IT HAPPENS; UC-046
 // given: the product, the instance and the browser of TST-847002, with no token stored for the instance or the product (the page of TST-827007 read it in 1,013 requests); and, for the counter-proof, the same
 // where the product's token is stored and the instance's is not
 // input: the route home drawn
@@ -390,7 +390,7 @@ test("TST-847003 a card whose repository this browser keeps no token for is not 
 });
 
 // TST-847004 · level: unit · module: MOD-main-page
-// guards: THE BUILD IS SHOWN AS IT HAPPENS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-046 (step 4, 4a)
+// guards: THE BUILD IS SHOWN AS IT HAPPENS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-046
 // given: the product of TST-827003 (UC-001 accepted, the item ITM-0900, the job JOB-20261016-1000-ffff of dev-cli taken by the Bridge lab-pc-4 and not ended, started at 10:00 UTC), which lab-pc-4 lists as running; the page drawn at 12:00 UTC
 // input: the timer fired at 12:01; the Bridge then listing no job and the timer fired at 12:02; the record then ended as done at 11:00 UTC on the server and the timer fired at 12:03
 // expect: the build holds one row throughout — after the draw ["ITM-0900", JOB, "dev-cli", "running", "2h 0m 0s"]; after 12:01 the same row at "2h 1m 0s", the Bridge asked once more (2 times in all); after 12:02
@@ -419,7 +419,7 @@ test("TST-847004 the build's row moves with the job's record and its runtime: ru
 });
 
 // TST-847005 · level: unit · module: MOD-main-page
-// guards: THE BUILD IS SHOWN AS IT HAPPENS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-046 (steps 3 to 5)
+// guards: THE BUILD IS SHOWN AS IT HAPPENS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-046
 // given: the product of TST-847004 drawn at 12:00 UTC (Use cases 50 % "1 of 2 accepted", "use case: UC-002" waiting); then, on the server, UC-002 accepted and the job ended as done
 // input: the timer fired at 12:01; and, for the counter-proof, the route drawn anew
 // expect: the build's row reads "done"; the six stages are exactly what they were (Use cases still 50 % "1 of 2 accepted") and what waits is still "use case: UC-002"; the reading sent 3 requests — the commit, the
@@ -447,7 +447,7 @@ test("TST-847005 a reading moves the build's rows and nothing else: the stages a
 });
 
 // TST-847006 · level: unit · module: MOD-main-page
-// guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-046 (3b, step 4)
+// guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-046
 // given: this browser keeps alice/product and bob/other, each with a token of its own, and carol/missing, which the server does not find; the page drawn with two cards and one that says it could not be read;
 // and, for the counter-proof, the same where bob/other has no token stored
 // input: the timer fired at 12:01 UTC, the requests since the draw listed
@@ -475,7 +475,7 @@ test("TST-847006 a reading asks each card that was read, and has a token, for it
 });
 
 // TST-847007 · level: unit · module: MOD-main-page
-// guards: THE BUILD IS SHOWN AS IT HAPPENS; UC-046 (step 4)
+// guards: THE BUILD IS SHOWN AS IT HAPPENS; UC-046
 // given: the page drawn into an element, with a job running; the timer fired once while the cards are in the element
 // input: the frame draws another route into the same element (the cards are no longer in it); the timer set after the first reading is fired
 // expect: the first firing sends 2 requests to GitHub and 1 to the Bridge lab-pc-4 (the job has not ended) and sets the next timer; the second sends none and sets none, so that no reading is made once the route is
@@ -498,7 +498,7 @@ test("TST-847007 the readings stop once the route is no longer the one shown", a
 });
 
 // TST-847008 · level: unit · module: MOD-main-page
-// guards: THE BUILD IS SHOWN AS IT HAPPENS; UC-046 (step 4)
+// guards: THE BUILD IS SHOWN AS IT HAPPENS; UC-046
 // given: the page drawn at 12:00 UTC with a job running (row "2h 0m 0s"); GitHub then answers every request of its API with a server error, 500
 // input: the timer fired at 12:01; GitHub then answering again and the timer fired at 12:02
 // expect: after the failure the row still reads ["ITM-0900", JOB, "dev-cli", "running", "2h 0m 0s"], one paragraph reads "The jobs' states could not be read again. alice/product: GitHub answered 500", and one timer
@@ -520,7 +520,7 @@ test("TST-847008 a reading that fails leaves the cards as drawn, says why, and t
 });
 
 // TST-847009 · level: unit · module: MOD-main-page
-// guards: WITHOUT A PRODUCT, THE MAIN PAGE SHOWS AGENT M'S OWN PROGRESS; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-046 (3a, step 4)
+// guards: WITHOUT A PRODUCT, THE MAIN PAGE SHOWS AGENT M'S OWN PROGRESS; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-046
 // given: this browser keeps no product; the instance alice/agent-m holds the files of the product of TST-847004, whose job lab-pc-4 lists as running; the page drawn at 12:00 UTC
 // input: the timer fired at 12:01 UTC, the requests since the draw listed
 // expect: exactly 2 requests, the commit of main and its tree of alice/agent-m, both with "Bearer <the instance's token>", and none to alice/product; the Bridge lab-pc-4 is asked once more (2 times in all); the row reads
@@ -541,7 +541,7 @@ test("TST-847009 Agent M's own card is read again through the instance's host, 2
 });
 
 // TST-847010 · level: unit · module: MOD-main-page
-// guards: THE BUILD IS SHOWN AS IT HAPPENS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-046 (step 4)
+// guards: THE BUILD IS SHOWN AS IT HAPPENS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-046
 // given: the product with two jobs, JOB-20261016-1000-aaaa and JOB-20261016-1000-bbbb, taken by CI runs (https://github.com/alice/product/actions/runs/101 and …/102) and not ended; the job workflow's run list, one page,
 // holds run 101 in progress and run 102 completed with success
 // input: the route home drawn; the timer fired at 12:01 UTC, the requests since the draw listed
@@ -561,7 +561,7 @@ test("TST-847010 a job taken by a CI run that has not ended costs one request of
 });
 
 // TST-847011 · level: unit · module: MOD-main-page
-// guards: A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; UC-046 (step 4)
+// guards: A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; UC-046
 // given: the page drawn at 12:00 UTC with a job running (row "2h 0m 0s"); GitHub then refuses its API with a used-up limit of the account, which resets at 13:00 UTC (X-RateLimit-Reset 2026-10-16T13:00:00Z)
 // input: the timer fired at 12:01; the limit then given back and the timer fired at 13:00
 // expect: after the refusal the row still reads ["ITM-0900", JOB, "dev-cli", "running", "2h 0m 0s"], one paragraph reads "The jobs' states could not be read again. alice/product: GitHub's request limit for the
@@ -588,7 +588,7 @@ test("TST-847011 a used-up limit makes the next reading wait until the limit res
 });
 
 // TST-847012 · level: unit · module: MOD-main-page
-// guards: A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-046 (step 4)
+// guards: A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-046
 // given: this browser keeps alice/product and bob/other, each with a token of its own; the page drawn at 12:00 UTC; GitHub then refuses requests to alice/product only, with a used-up limit that resets at 13:00 UTC
 // input: the timer fired at 12:01; the timer fired at 12:02, the requests since each firing listed
 // expect: the firing at 12:01 sends 3 requests — the commit of main of alice/product, which is refused, and the commit and the tree of bob/other —, and one timer waits, of 60000 milliseconds, since bob/other's
@@ -612,7 +612,7 @@ test("TST-847012 a limit used up by one card's token holds back only that card; 
 });
 
 // TST-847013 · level: unit · module: MOD-main-page
-// guards: A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; UC-046 (step 4)
+// guards: A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; UC-046
 // given: the page drawn at 12:00 UTC with a job running; GitHub then refuses its API with a used-up limit of the account and sends no time at which it resets (no X-RateLimit-Reset)
 // input: the timer fired at 12:01
 // expect: one paragraph reads "The jobs' states could not be read again. alice/product: GitHub's request limit for the account these requests are made with is used up; GitHub does not tell this page when it
@@ -633,7 +633,7 @@ test("TST-847013 a used-up limit with no reset time given is tried again at the 
 const askedSince = (sent) => [net.requests.slice(sent).filter((request) => request.host === "api.github.com").length, net.requests.slice(sent).filter((request) => request.host === "127.0.0.1:4711").length];
 
 // TST-858001 · level: unit · module: MOD-main-page
-// guards: THE BUILD IS SHOWN AS IT HAPPENS; UC-046 (step 4)
+// guards: THE BUILD IS SHOWN AS IT HAPPENS; UC-046
 // given: the page drawn at 12:00 UTC with a job running on the Bridge lab-pc-4 (a reading costs 2 requests to GitHub and 1 to the Bridge), the tab shown
 // input: the tab hidden (document.visibilityState "hidden", then visibilitychange); the timer fired at 12:01, and the next one, if one waits, at 12:02 and 12:03; the requests since the hiding counted
 // expect: no request at all in the three minutes, to GitHub or to the Bridge (the base sends 3 for each firing: 9), and no timer waits afterwards — the readings are paused, not postponed
@@ -650,7 +650,7 @@ test("TST-858001 while the tab is hidden the page starts no reading and sets no 
 });
 
 // TST-858002 · level: unit · module: MOD-main-page
-// guards: THE BUILD IS SHOWN AS IT HAPPENS; UC-046 (step 4)
+// guards: THE BUILD IS SHOWN AS IT HAPPENS; UC-046
 // given: the page of TST-858001, hidden at 12:00, its timer fired at 12:01 while hidden; the job still running
 // input: the tab shown again at 12:05 UTC (visibilitychange)
 // expect: at once, and with no timer fired, exactly one reading: 2 requests to GitHub — the commit and the tree of alice/product — and 1 to the Bridge; the row reads
@@ -670,7 +670,7 @@ test("TST-858002 when the tab is shown again the card whose reading fell due is 
 });
 
 // TST-858003 · level: unit · module: MOD-main-page
-// guards: THE BUILD IS SHOWN AS IT HAPPENS; UC-046 (step 4)
+// guards: THE BUILD IS SHOWN AS IT HAPPENS; UC-046
 // given: the page drawn at 12:00 UTC, the first reading due at 12:01
 // input: the tab hidden and shown again, both at 12:00, before the reading fell due
 // expect: no request; exactly one timer waits, of 60000 milliseconds (the reading is still due at 12:01, and the timer that was waiting is not left beside a second one)
@@ -686,7 +686,7 @@ test("TST-858003 a tab shown again before a reading fell due reads nothing, and 
 });
 
 // TST-858004 · level: unit · module: MOD-main-page
-// guards: A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; THE BUILD IS SHOWN AS IT HAPPENS; UC-046 (step 4)
+// guards: A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; THE BUILD IS SHOWN AS IT HAPPENS; UC-046
 // given: this browser keeps alice/product and bob/other, each with its own token; the page drawn at 12:00; GitHub then refuses requests to alice/product with a used-up limit that resets at 13:00; the timer fired at 12:01 (alice/product's reading
 // fails and is next due at 13:00, bob/other's is read and next due at 12:02); the tab hidden at 12:01; GitHub answering again
 // input: the tab shown at 12:05
@@ -705,7 +705,7 @@ test("TST-858004 on resuming only the cards whose reading fell due are read", as
 });
 
 // TST-858005 · level: unit · module: MOD-main-page
-// guards: THE BUILD IS SHOWN AS IT HAPPENS; UC-046 (step 4)
+// guards: THE BUILD IS SHOWN AS IT HAPPENS; UC-046
 // given: the page of TST-858002 hidden at 12:00, a card due; the tab shown twice at 12:05, both visibilitychange events fired before either reading has ended
 // input: the two events
 // expect: the card is read once: 2 requests to GitHub and 1 to the Bridge, not 4 and 2 (a reading in flight is not started again)
@@ -721,7 +721,7 @@ test("TST-858005 a tab shown twice in a row reads a due card once", async () => 
 });
 
 // TST-858006 · level: unit · module: MOD-main-page
-// guards: THE BUILD IS SHOWN AS IT HAPPENS; UC-046 (step 4)
+// guards: THE BUILD IS SHOWN AS IT HAPPENS; UC-046
 // given: the page drawn into an element (it listens for visibilitychange while its cards are shown)
 // input: the frame draws another route into the same element; the tab is hidden at 12:04 and shown again at 12:05
 // expect: no request, and the page no longer listens (visibility.listening is 0 after the event that found the cards gone), so that no reading is made for a route that is no longer shown
@@ -841,7 +841,7 @@ test("TST-943004 each card reads its own head's overview, and an overview stored
 // ---------------------------------------------------------------- whether a token is stored is the frame's to say (ITM-856)
 
 // TST-856004 · level: unit · module: MOD-main-page
-// guards: THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-046 (step 4)
+// guards: THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-046
 // given: this browser keeps the product alice/product, with its own token github-token:alice/product; and, for the counter-proof, the same browser with no token of that product; the pages are counted by the
 // reads of that one key from the browser's local storage — the number of reads one call of MOD-site-frame's chosenProduct makes for the product, and the number the route home makes in drawing its card
 // input: chosenProduct({ store, fragment: "#home/product=<the product>" }) called alone, its reads of the key counted; then the route home drawn on a fresh browser of the same kind, its reads counted

@@ -50,7 +50,7 @@ test("explain — setup-key and setup-store are folded What is this? with their 
 });
 
 // TST-588016 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; ONE GITHUB TOKEN SERVES EVERY FEATURE; A TOKEN IS SCOPED TO WHAT IT WRITES; UC-014 step 7
+// guards: EVERY STEP EXPLAINS ITSELF; ONE GITHUB TOKEN SERVES EVERY FEATURE; A TOKEN IS SCOPED TO WHAT IT WRITES; UC-014
 // given: the topics setup-key and setup-key-permissions
 // input: explain("setup-key") and explain("setup-key-permissions", "Why these?")
 // expect: known positive — the topic repository says "folder on GitHub". The text of setup-key says what a token is: a key created on GitHub and given to the page; and why Only select repositories: GitHub preselects All repositories, which would let the page write to every repository the person owns; it names none of the six permissions. The file holds the heading `## setup-key-permissions` exactly once; its text says, for each permission of the one key, what it is for: Contents "read and write" to save and accept, Issues "read and write" for reports that become issues, Pull requests "read and write" for the jobs' changes, Actions "read and write" to start a run, Workflows "read and write" for a generated CI configuration, Metadata "read" to read the repository; it does not mention Only select repositories. explain("setup-key-permissions", "Why these?") is a folded <details class="explain"> whose summary reads "Why these?" and whose body is that text rendered
@@ -80,7 +80,7 @@ test("explain — setup-key says what a token is and why Only select repositorie
 });
 
 // TST-628001 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-014 step 7
+// guards: EVERY STEP EXPLAINS ITSELF; UC-014
 // given: the topic repository, which the file holds; a topic the file does not hold, `no-such-topic`
 // input: explain("repository"), explain("repository", "Why these?"), explain("no-such-topic", "Why these?")
 // expect: explain("repository") is a folded <details class="explain"> whose summary reads "What is this?"; explain("repository", "Why these?") is the same folded details with the same body whose summary reads "Why these?"; explain("no-such-topic", "Why these?") is an element with no children and no text, and does not throw
@@ -101,7 +101,7 @@ test("explain — the label is the summary, What is this? without one, and a top
 });
 
 // TST-588017 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; CONFIGURATION LIVES IN THE BROWSER; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-014 step 8
+// guards: EVERY STEP EXPLAINS ITSELF; CONFIGURATION LIVES IN THE BROWSER; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-014
 // given: the topic setup-store
 // input: explain("setup-store")
 // expect: the text says the token is kept in this browser in its localStorage and never in a cookie, an address or a repository; that it is sent only to GitHub's API, as a header; and that Import settings moves it to another computer or browser

@@ -43,7 +43,7 @@ async function drawn(name) {
 }
 
 // TST-1128001 · level: unit · module: MOD-settings-pages
-// guards: UC-049 alternative 1a; EVERY STEP EXPLAINS ITSELF
+// guards: UC-049; EVERY STEP EXPLAINS ITSELF
 // given: the settings pages of a browser whose register lists one participant
 // input: the participants route and the endpoint route drawn
 // expect: each page holds one sentence that names the prompt bar and says that it appears once a model endpoint, a CLI agent or a sandboxed agent is configured and reachable from this browser; the sentence stands in the page's text, not in a

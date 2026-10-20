@@ -61,7 +61,7 @@ test("explain — each topic of registering a source is a folded What is this? w
 });
 
 // TST-472857 · level: unit · module: MOD-site-frame
-// guards: UC-004 (step 2)
+// guards: UC-004
 // given: the topic source-kinds
 // input: explain("source-kinds")
 // expect: text naming the four kinds of source — an EU legal text, a standard, documents, a repository — each with an example and how it is entered
@@ -79,7 +79,7 @@ test("explain — source-kinds: the four kinds of source, with an example each (
 });
 
 // TST-472858 · level: unit · module: MOD-site-frame
-// guards: UC-004 (steps 3 and 1a)
+// guards: UC-004
 // given: the topic source-name
 // input: explain("source-name")
 // expect: text saying the name is how the library and the linking products call the source, with examples, and that an existing source gets a new version, not a second registration
@@ -94,7 +94,7 @@ test("explain — source-name: the name of a source (UC-004)", () => {
 });
 
 // TST-472859 · level: unit · module: MOD-site-frame
-// guards: UC-004 (step 3); UC-005 (7a)
+// guards: UC-004; UC-005
 // given: the topic source-authority
 // input: explain("source-authority")
 // expect: text naming the three authorities with an example each, and saying a normative source does not win automatically: a person decides, since the product may be out of its scope
@@ -111,7 +111,7 @@ test("explain — source-authority: the authority of a source (UC-004)", () => {
 });
 
 // TST-472860 · level: unit · module: MOD-site-frame
-// guards: UC-004 (steps 3 and 4b)
+// guards: UC-004
 // given: the topic source-licence
 // input: explain("source-licence")
 // expect: text naming the two licences with an example each: republishable content stored in the public instance, restricted content in a repository the person names, never in the public instance; and that an unknown licence is treated as restricted
@@ -127,7 +127,7 @@ test("explain — source-licence: the licence of a source (UC-004)", () => {
 });
 
 // TST-472861 · level: unit · module: MOD-site-frame
-// guards: A STANDARD IS REGISTERED BY ITS DESIGNATION; UC-004 (step 4)
+// guards: A STANDARD IS REGISTERED BY ITS DESIGNATION; UC-004
 // given: the topic standard-designation
 // input: explain("standard-designation")
 // expect: text saying a standard is registered by its full designation with edition and amendments, with the example; where it stands on the cover page; why the amendment matters; and that the licence is preset to restricted
@@ -146,7 +146,7 @@ test("explain — standard-designation: where a standard's designation stands an
 });
 
 // TST-472862 · level: unit · module: MOD-site-frame
-// guards: UC-004 (alternative 4a)
+// guards: UC-004
 // given: the topic file-only-hashed
 // input: explain("file-only-hashed")
 // expect: text saying a file that is only hashed is selected but not sent: the browser computes its SHA-256 without sending the file anywhere; only the designation and the hash are recorded, with a note where the copy is kept, so the text is not stored; and anyone with the same copy can check the hash
@@ -164,7 +164,7 @@ test("explain — file-only-hashed: a file that is only hashed (UC-004 4a)", () 
 });
 
 // TST-472863 · level: unit · module: MOD-site-frame
-// guards: UC-004 (step 5)
+// guards: UC-004
 // given: the topic source-public
 // input: explain("source-public")
 // expect: text saying Agent M states before saving what becomes public: the register entry always, with its fields; the content only if the licence says it may be republished; restricted content going to the named repository, public only as far as that is

@@ -157,7 +157,7 @@ async function chooseMicrosoft(page, { clientId = CLIENT, folders = "INBOX, Rece
 }
 
 // TST-472782 · level: unit · module: MOD-settings-pages
-// guards: AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN; EVERY STEP EXPLAINS ITSELF; UC-037 2
+// guards: AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN; EVERY STEP EXPLAINS ITSELF; UC-037
 // given: the form with the Microsoft route chosen
 // input: the route field
 // expect: the Microsoft part shown and the IMAP part hidden; the button to Microsoft's page for a new app registration, whose address is providerLinks'; what to enter there — the name Agent M, the kind single-page application — and the return address of the dashboard, with a copy button that copies it and says so; the field of the client identifier; the folded explanation of the app registration; choosing IMAP again swaps them back
@@ -187,7 +187,7 @@ test("mailbox — the Microsoft route shows the app registration's steps with th
 });
 
 // TST-472783 · level: unit · module: MOD-settings-pages
-// guards: THE MAIL SIGN-IN ASKS ONLY FOR READING, DRAFTING AND SENDING; ONE CLICK PER DECISION; UC-037 3
+// guards: THE MAIL SIGN-IN ASKS ONLY FOR READING, DRAFTING AND SENDING; ONE CLICK PER DECISION; UC-037
 // given: the Microsoft route; the library's client that records the page's text at the moment its window opens
 // input: Sign in with Microsoft without a client identifier; then with one
 // expect: without it no window and a message; with it, the three permissions — Mail.ReadWrite with what it allows, Mail.Send, offline_access — already named in the page when the window opens, and nothing else asked; the window opened once with exactly those scopes and the address as the hint; the account shown as signed in; no connection stored by it
@@ -217,7 +217,7 @@ test("mailbox — Sign in with Microsoft names the three permissions before the 
 });
 
 // TST-472784 · level: unit · module: MOD-settings-pages
-// guards: THE MAIL SIGN-IN ASKS ONLY FOR READING, DRAFTING AND SENDING; UC-037 3a
+// guards: THE MAIL SIGN-IN ASKS ONLY FOR READING, DRAFTING AND SENDING; UC-037
 // given: Microsoft's window in which the person declines Mail.Send; one in which they decline Mail.ReadWrite; one in which they decline offline_access
 // input: Sign in with Microsoft, then Store and test
 // expect: the permission named with what would not work without it — sending replies for Mail.Send, reading and drafting for Mail.ReadWrite, staying signed in for offline_access —; nothing stored, and Store and test refused while no account is signed in
@@ -240,7 +240,7 @@ test("mailbox — a declined permission is named with what would not work, and n
 });
 
 // TST-472785 · level: unit · module: MOD-settings-pages
-// guards: AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN; UC-037 2a
+// guards: AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN; UC-037
 // given: Microsoft that refuses the registration (an unknown application); a window the person closed; a blocked window
 // input: Sign in with Microsoft
 // expect: the refusal's own message, what to ask the administrators for — a single-page application named Agent M, the return address, the three permissions — and the IMAP route offered meanwhile, which switches the route; the closed and the blocked window each said in their own words; nothing stored
@@ -275,7 +275,7 @@ test("mailbox — a refused registration says what to ask the administrators for
 });
 
 // TST-472786 · level: unit · module: MOD-settings-pages
-// guards: THE MAIL SIGN-IN TOKEN GOES ONLY TO ITS PROVIDER; CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE; ONE CLICK PER DECISION; UC-037 7
+// guards: THE MAIL SIGN-IN TOKEN GOES ONLY TO ITS PROVIDER; CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE; ONE CLICK PER DECISION; UC-037
 // given: a signed-in account, two folders, a place that is this machine
 // input: Store and test, once
 // expect: the connection stored — the address, the route graph, the folders, the ticked place, and the client identifier with the account, no password, no IMAP part —; the test through the mailbox: both folders with their counts, Drafts, Sent, sending, the route and the encryption shown; the token only in the authorisation header of requests to Microsoft Graph and in no address; the mailbox shown as connected with its route; the test recorded as working; no cookie written and the address untouched
@@ -305,7 +305,7 @@ test("mailbox — Store and test on the Microsoft route stores the client identi
 });
 
 // TST-472787 · level: unit · module: MOD-settings-pages
-// guards: THE MAIL SIGN-IN ASKS ONLY FOR READING, DRAFTING AND SENDING; UC-037 3b
+// guards: THE MAIL SIGN-IN ASKS ONLY FOR READING, DRAFTING AND SENDING; UC-037
 // given: a signed-in account whose sign-in has expired when the test asks for the token silently, then signed in again
 // input: Store and test; Sign in with Microsoft again; Store and test
 // expect: the first says the sign-in has expired and to sign in with Microsoft again, the connection stored and shown as untested, the test recorded as refused, the sign-in button the way forward; after signing in again the window opens a second time and the test shows its counts
@@ -329,7 +329,7 @@ test("mailbox — an expired sign-in is asked again at the next use", async (t) 
 });
 
 // TST-472788 · level: unit · module: MOD-settings-pages
-// guards: THE MAIL SIGN-IN TOKEN GOES ONLY TO ITS PROVIDER; UC-037 7
+// guards: THE MAIL SIGN-IN TOKEN GOES ONLY TO ITS PROVIDER; UC-037
 // given: Microsoft Graph that refuses a permission (403), asks to wait (429 with Retry-After), cannot be reached, and lacks the folder Receipts
 // input: Store and test for each
 // expect: each failure said as the mailbox names it — Mail.ReadWrite refused, the seconds to wait, Microsoft Graph unreachable, the folder Receipts missing —; the connection stored and shown as untested; the test recorded as refused
@@ -354,7 +354,7 @@ test("mailbox — each failure of Microsoft Graph is shown as the mailbox names 
 });
 
 // TST-472789 · level: unit · module: MOD-settings-pages
-// guards: A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT; UC-037 6
+// guards: A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT; UC-037
 // given: the Microsoft route, signed in, a place outside the EU ticked without its notice's tick
 // input: Store and test
 // expect: nothing stored and the notice named; with the tick the connection records the place with notCompliantNoted
@@ -376,7 +376,7 @@ test("mailbox — a place outside the EU is stored on the Microsoft route only a
 });
 
 // TST-472790 · level: unit · module: MOD-settings-pages
-// guards: AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN; UC-037 1
+// guards: AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN; UC-037
 // given: an address whose domain Microsoft's sign-in service knows
 // input: the address field
 // expect: the route preselected as the Microsoft one, and its part shown with the IMAP part hidden, without the person choosing it

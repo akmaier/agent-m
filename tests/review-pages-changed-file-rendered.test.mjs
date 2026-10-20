@@ -134,7 +134,7 @@ const SHAPE = (shown) => [shown.diffs, shown.rendereds, shown.renderedAfterDiff,
 // ---------------------------------------------------------------- the pages
 
 // TST-876001 · level: unit · module: MOD-review-pages
-// guards: UC-008 (steps 2, 2a); A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT
+// guards: UC-008; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT
 // given: ARC-003, accepted at "Books stand on a shelf." and edited since to "Books stand on a shelf by their number.", the text holding a Mermaid diagram
 // input: the route decision drawn for ARC-003
 // expect: one difference and one rendered file; the rendered file after the difference on the page; the diagram once in the rendered file and none in the difference; the rendered file holds the new sentence
@@ -145,7 +145,7 @@ test("TST-876001 decision/<id> — a changed decision shows its difference and, 
 });
 
 // TST-876002 · level: unit · module: MOD-review-pages
-// guards: UC-008 (step 3e); UC-023 (step 5); A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT
+// guards: UC-008; UC-023; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT
 // given: the same architecture; ARC-003 changed
 // input: the route decision drawn with the id all
 // expect: in the section of ARC-003 one difference and one rendered file, the rendered file after the difference, the diagram once in it and none in the difference, the new sentence in it
@@ -156,7 +156,7 @@ test("TST-876002 decision/all — a changed file on Review all shows its differe
 });
 
 // TST-876003 · level: unit · module: MOD-review-pages
-// guards: UC-008 (steps 2, 2a, 3e); UC-023 (step 5)
+// guards: UC-008; UC-023
 // given: MOD-shelf, accepted at "It keeps books." and edited since to "It keeps books in order of their number.", the text holding a Mermaid diagram
 // input: the route module drawn for MOD-shelf, and with the id all
 // expect: on each page one difference and one rendered file, the rendered file after the difference, the diagram once in it and none in the difference, the new sentence in it
@@ -168,7 +168,7 @@ test("TST-876003 module/<id> and module/all — a changed module file shows its 
 });
 
 // TST-876004 · level: unit · module: MOD-review-pages
-// guards: UC-008 (step 2)
+// guards: UC-008
 // given: the same architecture; ARC-001 accepted, ARC-003 changed
 // input: the route decision drawn with the id all
 // expect: no section for ARC-001 (an accepted file is not on Review all); in the section of ARC-003 one rendered file and one diagram: the page does not render a file twice

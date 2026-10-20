@@ -62,7 +62,7 @@ const leftTheRepositories = (page) => page.world.requests.filter((request) => re
   || ![INSTANCE, PRODUCT_REPO].includes(request.repository));
 
 // TST-590401 · level: system · module: MOD-settings-pages; MOD-site-frame
-// guards: UC-015 steps 1 to 4; A PRODUCT LINKS THE SOURCES THAT APPLY; A LINK NAMES THE PART THAT APPLIES; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION
+// guards: UC-015; A PRODUCT LINKS THE SOURCES THAT APPLY; A LINK NAMES THE PART THAT APPLIES; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION
 // given: this browser keeps the product https://github.com/alice/thesis-tool with its token; the library holds SRC-ai-act (v1, v2), SRC-handbook and SRC-iec-62304; the product has SPEC.md and no docs/sources.md
 // input: open the address #sources/product=<the product>; tick SRC-ai-act, choose v1, type the part "risk category: high-risk"; tick SRC-iec-62304 and press its suggested part "safety class B"; press Save
 // expect: the frame shows the route in its main area, headed "Requirement sources", with the menu entry Settings the active one, and the three sources of the library; one commit lands in alice/thesis-tool, made with the product's token, holding only docs/sources.md with the two rows (SRC-ai-act, v1, the digits 1, "risk category: high-risk"; SRC-iec-62304, "IEC 62304:2006+AMD1:2015", the digits 3, "safety class B"); nothing is committed to the instance; every request went to the API of the instance's or the product's repository
@@ -88,7 +88,7 @@ test("UC-015 steps 1 to 4 — through the frame, ticking sources, choosing a ver
 });
 
 // TST-590402 · level: system · module: MOD-settings-pages; MOD-site-frame
-// guards: UC-015 2b; A REQUIREMENT HAS A REGISTERED SOURCE; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
+// guards: UC-015; A REQUIREMENT HAS A REGISTERED SOURCE; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
 // given: the product's docs/sources.md links SRC-ai-act (v1, "risk category: high-risk") and SRC-iec-62304 ("safety class B"); its SPEC.md has the requirement EXPORT IS A PDF, which names "SRC-ai-act, Art. 13", and NOTHING IS NAMED
 // input: open #sources/product=<the product>; untick SRC-ai-act; untick SRC-iec-62304; press Save
 // expect: after the first untick the page lists "EXPORT IS A PDF" for SRC-ai-act ("Removing SRC-ai-act: the requirements that name it — EXPORT IS A PDF — would lose that source. They are listed, not deleted."); after the second it says "Removing SRC-iec-62304: no requirement of this product names it."; before Save nothing is committed; Save commits docs/sources.md with the table and no row, and SPEC.md is as it was
@@ -107,7 +107,7 @@ test("UC-015 2b — through the frame, the requirements that name a source are l
 });
 
 // TST-590403 · level: system · module: MOD-settings-pages; MOD-site-frame
-// guards: UC-015 2a, 2c; EVERY STEP EXPLAINS ITSELF
+// guards: UC-015; EVERY STEP EXPLAINS ITSELF
 // given: the page of the product at #sources/product=<the product>
 // input: press "Open the library"; the fragment changes as the frame writes it; press "Back to Requirement sources"
 // expect: the first press sets the fragment #library/product=<the product> and the frame shows the Library with the button "Back to Requirement sources"; its press sets #sources/product=<the product> and the frame shows Requirement sources again; the sources page holds exactly one folded What is this? whose text names UC-040 as a link to #use-case/id=UC-040
@@ -128,7 +128,7 @@ test("UC-015 2a and 2c — through the frame, the page links the library and the
 });
 
 // TST-590404 · level: system · module: MOD-settings-pages; MOD-site-frame
-// guards: UC-015 3a; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
+// guards: UC-015; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
 // given: SRC-handbook and SRC-iec-62304 are restricted in the library; the token of the person reaches the instance and the product only
 // input: open #sources/product=<the product>; tick SRC-handbook and SRC-iec-62304; press Save
 // expect: both carry the note "Restricted: its content needs access. Linking needs none — the entry, its versions and their hashes are public."; one commit holds both rows with their versions and hashes (SRC-handbook, 1, the digits 4; SRC-iec-62304, its designation, the digits 3); no request read the content of a source, and none went beyond the two repositories
@@ -150,7 +150,7 @@ test("UC-015 3a — through the frame, a restricted source is linked like any ot
 });
 
 // TST-590405 · level: system · module: MOD-settings-pages; MOD-site-frame
-// guards: UC-015 step 4; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE
+// guards: UC-015; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE
 // given: the page of the product is open on a docs/sources.md that links SRC-iec-62304; another person then commits another docs/sources.md to the product
 // input: tick SRC-ai-act; press Save
 // expect: nothing is committed by the page; the result says "docs/sources.md changed since this page read it; nothing was written. Your choices stay here; open the page again to read the newer file."; opening the address again shows the other person's file: SRC-handbook ticked, SRC-iec-62304 not
@@ -168,7 +168,7 @@ test("UC-015 step 4 — through the frame, a save on a file that changed meanwhi
 });
 
 // TST-590406 · level: system · module: MOD-settings-pages; MOD-site-frame
-// guards: UC-015 step 1
+// guards: UC-015
 // given: this browser keeps the product; the address names no product, or a product this browser does not keep
 // input: open #sources; open #sources/product=https://github.com/alice/other
 // expect: with no product the frame shows the route's sentence "Choose a product: the sources a product must meet are linked in the product's own repository, so this page is drawn for one." and no Save; with an unknown product the frame shows the same sentence and, in its notices, that this browser does not keep the product; nothing was written

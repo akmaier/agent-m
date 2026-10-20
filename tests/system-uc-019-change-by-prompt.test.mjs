@@ -217,7 +217,7 @@ const filesDraft = (...files) => ({ files });
 // TST-377004
 // level: system
 // module: MOD-review-pages; MOD-site-frame; MOD-prompt-bar
-// guards: UC-019 (steps 1 to 3, 4); THE PAGE NAMES WHERE IT SENDS; A PROMPTED USE-CASE CHANGE SEES ITS NEIGHBOURS
+// guards: UC-019; THE PAGE NAMES WHERE IT SENDS; A PROMPTED USE-CASE CHANGE SEES ITS NEIGHBOURS
 // given: the page of UC-007 with UC-007 and UC-008 in the product, and the register offering drafter (this machine, draft text) and observer (Anthropic, USA, read the repository only)
 // input: the author writes "align UC-007 and UC-008 with the new rule" in the bar without naming a target, and presses Send with drafter
 // expect: before Send the bar names drafter with its place, the only participant that can draft text, and not observer, and nothing has been sent; the one request holds the instruction, the file of UC-007 as the target, the requirement A LOAN HAS A DUE DATE it realises and UC-008 as another use case; the bar names "drafter — this machine" as the destination
@@ -240,7 +240,7 @@ test("TST-377004: UC-019 1-3 the instruction is written in the prompt bar and th
 // TST-377005
 // level: system
 // module: MOD-prompt-bar; MOD-review-pages
-// guards: UC-019 (5, 5a); ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-019; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the page of UC-007 and an instruction written in the bar
 // input: wait without pressing Send; then press Send once
 // expect: without Send no request goes to the endpoint and nothing is written; Send makes exactly one request, and still writes nothing
@@ -259,7 +259,7 @@ test("TST-377005: UC-019 5 and 5a Send is the decision to send", async () => {
 // TST-377006
 // level: system
 // module: MOD-prompt-bar; MOD-job-runner; MOD-review-pages
-// guards: UC-019 (4a); NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY
+// guards: UC-019; NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY
 // given: the page of UC-007, the participant drafter whose context holds 1 token, and observer, whose context holds 200000 but which cannot draft text and is not offered
 // input: the author writes an instruction and presses Send with drafter
 // expect: nothing is sent and nothing is written; the bar says "Nothing was sent." and "drafter does not hold this message: its context holds 1 tokens", and "No offered participant has a larger context."; observer is not offered, so it is not named as one to choose
@@ -279,7 +279,7 @@ test("TST-377006: UC-019 4a a context that does not fit sends nothing and names 
 // TST-377007
 // level: system
 // module: MOD-prompt-bar; MOD-review-pages; MOD-site-frame
-// guards: UC-019 (step 8)
+// guards: UC-019
 // given: the draft of UC-007 and UC-008 on the route draft, with the added alternative flow 2b
 // input: the author writes the follow-up "make 2b say what is logged" in the bar and presses Send; the participant answers it with a draft of the same kind (the change kind reads only a draft)
 // expect: nothing is written before the author's Save; the follow-up goes to the endpoint on the author's Send only, and the draft as it stands - its added line "2b. The service fails." - is among what the participant is given
@@ -303,7 +303,7 @@ test("TST-377007: UC-019 8 a follow-up instruction in the prompt bar goes with t
 // TST-377008
 // level: system
 // module: MOD-prompt-bar; MOD-review-pages; MOD-runtimes
-// guards: UC-019 (6b); UC-049 (4a); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-019; UC-049; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the page of a use case, and a participant whose answer proposes handing a task on
 // input: the author presses Send
 // expect: the bar shows the proposal with its kind, what it works on and its task; it offers no button *Hand over*, and nothing is queued or written - no job record, no commit
@@ -324,7 +324,7 @@ test("TST-377008: UC-019 6b a proposed hand-over is shown and nothing is queued"
 // TST-377009
 // level: system
 // module: MOD-review-pages; MOD-artifact-edits; MOD-prompt-bar
-// guards: UC-019 (steps 8b, 9); AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
+// guards: UC-019; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
 // given: the draft of UC-007 and UC-008 for the instruction "align UC-007 and UC-008 with the new rule", recording off
 // input: Review the draft, then press Save
 // expect: one commit holds both files as drafted; its message holds Agent-M-Kind: change-use-case, Agent-M-Participant: drafter, Agent-M-Model: fixture-model and Agent-M-Rounds: 1, an Agent-M-Version line, and no line that holds the instruction; no file names the instruction; no job record and no conversation record is written
@@ -350,7 +350,7 @@ test("TST-377009: UC-019 9 Save records the participant, model, version and roun
 // TST-377014
 // level: system
 // module: MOD-prompt-bar; MOD-job-runner; MOD-participant-list
-// guards: UC-019 (3a); A PARTICIPANT DECLARES ITS CAPABILITIES
+// guards: UC-019; A PARTICIPANT DECLARES ITS CAPABILITIES
 // given: the page of UC-007, and a participant, observer, that declares only the capability "read repository", beside drafter
 // input: the author presses Send
 // expect: observer is not offered, so it is not chosen: the message goes to drafter alone ("Sent to:" names drafter and not observer), and the endpoint receives one request
@@ -367,7 +367,7 @@ test("TST-377014: UC-019 3a a participant that cannot draft text is not offered,
 // TST-377015
 // level: system
 // module: MOD-prompt-bar; MOD-job-runner; MOD-review-pages
-// guards: UC-019 (6c); A GENERATED ARTIFACT IS A PROPOSAL
+// guards: UC-019; A GENERATED ARTIFACT IS A PROPOSAL
 // given: the page of UC-007 and a participant that returns "not an artifact: retained verbatim" at every exchange
 // input: the author presses Send
 // expect: two exchanges (the answer and its correction); the bar says "The participant's answer could not be read. Nothing was changed." and shows the raw answer folded, exactly "not an artifact: retained verbatim"; it offers no Review the draft; nothing is written
@@ -391,7 +391,7 @@ test("TST-377015: UC-019 6c an unusable answer is named, its raw text folded, an
 // TST-377010
 // level: system
 // module: MOD-prompt-bar; MOD-participant-list
-// guards: UC-019 (steps 2, 3a)
+// guards: UC-019
 // given: the register of an instance with one participant that can draft text (drafter) and one that cannot (observer), and the page of UC-007
 // input: read what the bar offers; then, in an instance whose only participant is observer, put the cursor in the bar's input, read what the page says and press its link
 // expect: the bar offers drafter only; with no participant able to draft, the bar says that no participant can do change-use-case and that it needs "draft text", offers no participant and no Send to choose, and its link opens the route participants (UC-017's page)
@@ -420,7 +420,7 @@ test("TST-377010: UC-019 2 and 3a the bar offers only participants that can draf
 // TST-377011
 // level: system
 // module: MOD-prompt-bar; MOD-job-runner
-// guards: UC-019 (4a); NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY
+// guards: UC-019; NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY
 // given: the page of UC-007 with UC-007 and UC-008 in the product, and a participant whose context holds 1 token
 // input: Send
 // expect: the bar says how many use cases and requirements there are and how much fits
@@ -434,7 +434,7 @@ test("TST-377011: UC-019 4a the bar says how many requirements and use cases the
 // TST-377012
 // level: system
 // module: MOD-prompt-bar; MOD-review-pages; MOD-site-frame
-// guards: UC-019 (step 8)
+// guards: UC-019
 // given: the draft of UC-007 on the route draft, and a participant that answers a further change as a draft of the same kind
 // input: the author writes a follow-up instruction in the bar and presses Send
 // expect: the follow-up is a change of the use case again (steps 5 to 7 repeat), and the bar offers *Review the draft* for the newer draft
@@ -450,7 +450,7 @@ test("TST-377012: UC-019 8 a follow-up instruction repeats steps 5 to 7 and give
 // TST-377013
 // level: system
 // module: MOD-prompt-bar; MOD-runtimes
-// guards: UC-019 (6b); UC-049 (4a); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
+// guards: UC-019; UC-049; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
 // given: the page of a use case with UC-007 and UC-008 in the product, recording off; the participant answers with a hand-over of the kind change-use-case on UC-007 with the task HANDED_TASK
 // input: the author presses Send on MESSAGE; then a click a script makes on Hand over; then the author's own click on Hand over
 // expect: the bar shows Kind: change-use-case, Works on: UC-007, the task, and a button Hand over; after the script's click nothing is written; after the author's click exactly one job record is written, for the kind change-use-case on UC-007 with the route "ci hosted",

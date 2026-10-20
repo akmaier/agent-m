@@ -73,7 +73,7 @@ function assertPermissionWithWhy(text) {
 }
 
 // TST-627001 · level: release · module: MOD-settings-pages
-// guards: UC-014 step 7; THE TOKEN LINK IS PREFILLED
+// guards: UC-014; THE TOKEN LINK IS PREFILLED
 // given: a fresh browser; the instance akmaier/agent-m; no token stored; known positive — the page has both steps
 // input: render the route `setup`; read Step A's link
 // expect: UC-014 step 7 "A button opens GitHub's token page with name, description, expiry ... prefilled": Step A holds a link to https://github.com/settings/personal-access-tokens/new whose
@@ -89,7 +89,7 @@ test("release · UC-014 7: Step A opens GitHub's new-token page with name, descr
 });
 
 // TST-627002 · level: release · module: MOD-settings-pages
-// guards: UC-014 step 7; ONE GITHUB TOKEN SERVES EVERY FEATURE
+// guards: UC-014; ONE GITHUB TOKEN SERVES EVERY FEATURE
 // given: the page of TST-627001
 // input: read every parameter of Step A's link other than name, description, expires_in and target_name (GitHub's owner parameter)
 // expect: exactly Contents, Issues and Pull requests write; Actions and Workflows write; Metadata read — six permissions, none more, none less, none with another access
@@ -103,7 +103,7 @@ test("release · UC-014 7: the prefilled link asks for exactly the permissions e
 });
 
 // TST-627003 · level: release · module: MOD-settings-pages
-// guards: UC-014 step 7; THE REPOSITORY CHOICE IS SPELLED OUT
+// guards: UC-014; THE REPOSITORY CHOICE IS SPELLED OUT
 // given: the page of TST-627001
 // input: read the text of Step A that stands outside its folded explanation
 // expect: UC-014 step 7 "Underneath, what to do there: choose Only select repositories, pick <owner>/agent-m — only the instance ..., press Generate token, copy it": the text names
@@ -119,7 +119,7 @@ test("release · UC-014 7: underneath, Step A says to choose Only select reposit
 });
 
 // TST-627004 · level: release · module: MOD-settings-pages
-// guards: UC-014 step 7; EVERY STEP EXPLAINS ITSELF
+// guards: UC-014; EVERY STEP EXPLAINS ITSELF
 // given: the page of TST-627001
 // input: read the folded explanations in Step A, however many there are and in whatever order
 // expect: UC-014 step 7 "A folded ... says what each is for": among Step A's details there is one, not open, whose text, for each of Contents (read and write), Issues (read and write),
@@ -149,7 +149,7 @@ test("release · A TOKEN IS SCOPED TO WHAT IT WRITES: the step states Only selec
 });
 
 // TST-627006 · level: release · module: MOD-settings-pages
-// guards: UC-014 step 8; EVERY STEP EXPLAINS ITSELF
+// guards: UC-014; EVERY STEP EXPLAINS ITSELF
 // given: the page of TST-627001
 // input: read the details elements of Step A and of Step B
 // expect: UC-014 "Both steps carry a folded What is this?": among its details each step holds one whose summary reads "What is this?", folded (no open attribute), with a body of more
@@ -173,7 +173,7 @@ test("release · UC-014 7–8: both steps carry a folded What is this?, and Step
 });
 
 // TST-627007 · level: release · module: MOD-settings-pages
-// guards: UC-014 step 8; THE SHARED PAGES ORIGIN IS DISCLOSED; CONFIGURATION LIVES IN THE BROWSER
+// guards: UC-014; THE SHARED PAGES ORIGIN IS DISCLOSED; CONFIGURATION LIVES IN THE BROWSER
 // given: a fresh browser; no acknowledgement stored; a server that would answer 200 for the instance
 // input: render the route; read Step B; paste a valid token into the field without ticking "I have read this"; press Store and check
 // expect: THE SHARED PAGES ORIGIN IS DISCLOSED "states, before a token or key is stored, that every GitHub Pages site under the same <owner>.github.io domain can read what Agent M stores
@@ -196,7 +196,7 @@ test("release · UC-014 8: the shared-origin notice stands before the token fiel
 });
 
 // TST-627008 · level: release · module: MOD-settings-pages
-// guards: UC-014 step 8; CONFIGURATION LIVES IN THE BROWSER
+// guards: UC-014; CONFIGURATION LIVES IN THE BROWSER
 // given: a fresh browser; the page rendered on a day D
 // input: read the date field of Step B
 // expect: UC-014 step 8 "confirms its expiry date — preset to the 90 days of the prefilled link": the date field holds the date 90 days after D (UTC date)
@@ -206,7 +206,7 @@ test("release · UC-014 8: the expiry date is preset to 90 days from today", asy
 });
 
 // TST-627009 · level: release · module: MOD-settings-pages
-// guards: UC-014 step 8; CONFIGURATION LIVES IN THE BROWSER
+// guards: UC-014; CONFIGURATION LIVES IN THE BROWSER
 // given: a fresh browser; the tick ticked; the date left at its preset; a public repository akmaier/agent-m that the server answers with its default branch
 // input: paste the token github_pat_RELEASE0123456789abcdefgh; press Store and check
 // expect: UC-014 step 8 "Agent M stores both in localStorage and checks that the token reaches the instance": the store holds the setting github-token with the pasted token as its value and
@@ -223,7 +223,7 @@ test("release · UC-014 8: Store and check keeps the token and its expiry date i
 });
 
 // TST-627010 · level: release · module: MOD-settings-pages
-// guards: UC-014 step 8; CONFIGURATION LIVES IN THE BROWSER
+// guards: UC-014; CONFIGURATION LIVES IN THE BROWSER
 // given: a fresh browser; the tick ticked; a private repository akmaier/agent-m
 // input: set the date to 2027-01-15 ("to be corrected if they changed it on GitHub"); paste the token; press Store and check
 // expect: the stored expires is 2027-01-15, not the preset
@@ -235,7 +235,7 @@ test("release · UC-014 8: a corrected expiry date is the one that is kept", asy
 });
 
 // TST-627011 · level: release · module: MOD-settings-pages
-// guards: UC-014 step 9
+// guards: UC-014
 // given: a fresh browser; the tick ticked; a server that answers 200 for the instance
 // input: paste a token; press Store and check; then press the button that says the instance is ready; then press "+ Add product"
 // expect: UC-014 step 9 "The main page shows the instance, ready: ... and + Add product (UC-001)": after the read the page offers a button whose label contains "ready" and a button
@@ -253,7 +253,7 @@ test("release · UC-014 9: after a successful read the instance is shown ready, 
 });
 
 // TST-627012 · level: release · module: MOD-settings-pages
-// guards: UC-014 step 8
+// guards: UC-014
 // given: a fresh browser; the tick ticked; the server answers 401 (a token that does not reach the instance), then, on a fresh page, 404
 // input: paste a token; press Store and check
 // expect: UC-014 step 8 "checks that the token reaches the instance" and step 9 shows the instance ready only after it does: with 401 and with 404 the page shows no button saying the

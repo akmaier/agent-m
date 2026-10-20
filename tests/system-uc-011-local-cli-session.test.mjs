@@ -106,7 +106,7 @@ const FLOW_EVIDENCE = [
       {
         file: "tests/runtimes-bridge.test.mjs",
         id: "TST-472695",
-        guards: ["A JOB IS RECORDED IN ITS PRODUCT REPOSITORY", "UC-011 step 2"],
+        guards: ["A JOB IS RECORDED IN ITS PRODUCT REPOSITORY", "UC-011"],
         phrases: ["POST /v1/jobs", "start record alone"],
       },
     ],
@@ -117,7 +117,7 @@ const FLOW_EVIDENCE = [
       {
         file: "tests/bridge-jobs-watch.test.mjs",
         id: "TST-472096",
-        guards: ["UC-011 (steps 3 to 5)", "A JOB IS RECORDED IN ITS PRODUCT REPOSITORY", "A LOCAL AGENT USES THE PERSON'S OWN LOGIN"],
+        guards: ["UC-011", "A JOB IS RECORDED IN ITS PRODUCT REPOSITORY", "A LOCAL AGENT USES THE PERSON'S OWN LOGIN"],
         phrases: ["the record is taken by `lab-pc` once", "ends `done`", "the agent was started once"],
       },
       {
@@ -192,7 +192,7 @@ const FLOW_EVIDENCE = [
       {
         file: "tests/bridge-jobs-watch.test.mjs",
         id: "TST-472097",
-        guards: ["UC-011 (step 3)", "A LOCAL AGENT USES THE PERSON'S OWN LOGIN"],
+        guards: ["UC-011", "A LOCAL AGENT USES THE PERSON'S OWN LOGIN"],
         phrases: ["a job of another Bridge", "is left alone"],
       },
     ],
@@ -220,7 +220,7 @@ const FLOW_EVIDENCE = [
       {
         file: "tests/runtimes-bridge.test.mjs",
         id: "TST-472696",
-        guards: ["A JOB IS RECORDED IN ITS PRODUCT REPOSITORY", "UC-011 step 2a"],
+        guards: ["A JOB IS RECORDED IN ITS PRODUCT REPOSITORY", "UC-011"],
         phrases: ["TokenRefused", "the start stays committed"],
       },
     ],
@@ -231,13 +231,13 @@ const FLOW_EVIDENCE = [
       {
         file: "tests/bridge-jobs-watch.test.mjs",
         id: "TST-472098",
-        guards: ["UC-011 (3b)"],
+        guards: ["UC-011"],
         phrases: ["invalid-request naming no agent started"],
       },
       {
         file: "tests/bridge-jobs-agents.test.mjs",
         id: "TST-472082",
-        guards: ["THE BRIDGE FINDS THE INSTALLED AGENTS", "UC-011 (step 3)"],
+        guards: ["THE BRIDGE FINDS THE INSTALLED AGENTS", "UC-011"],
         phrases: ["agent not offered", "without a working folder"],
       },
     ],
@@ -248,7 +248,7 @@ const FLOW_EVIDENCE = [
       {
         file: "tests/bridge-jobs-access.test.mjs",
         id: "TST-472075",
-        guards: ["A LOCAL AGENT USES THE PERSON'S OWN LOGIN", "UC-011 3c"],
+        guards: ["A LOCAL AGENT USES THE PERSON'S OWN LOGIN", "UC-011"],
         phrases: ["does not appear to be a git repository"],
       },
     ],
@@ -259,7 +259,7 @@ const FLOW_EVIDENCE = [
       {
         file: "tests/runtimes-bridge.test.mjs",
         id: "TST-472696",
-        guards: ["A JOB IS RECORDED IN ITS PRODUCT REPOSITORY", "UC-011 step 2a"],
+        guards: ["A JOB IS RECORDED IN ITS PRODUCT REPOSITORY", "UC-011"],
         phrases: ["NoAnswer", "the start stays committed"],
       },
       {

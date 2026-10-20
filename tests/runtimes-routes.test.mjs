@@ -170,7 +170,7 @@ const BRIDGE_WORKSTATION_OFFER = { route: { kind: "bridge", bridge: "workstation
 const WITH_SUBS = [...REGISTER, SUB_OF_WORKSTATION, SUB_OF_SUB];
 
 // TST-494001 · level: unit · module: MOD-runtimes
-// guards: A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE; UC-017; UC-049 (1b)
+// guards: A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE; UC-017; UC-049
 // given: a register with the CLI agent cli-workstation (route `bridge workstation agent claude`) and the subagent sub-a (route `through cli-workstation`); a private product that holds the job workflow
 // input: routesFor(sub-a, the register, the product, []); and routesFor(cli-workstation, …) as the known positive
 // expect: for cli-workstation one offer `{ route: { kind: "bridge", bridge: "workstation" }, available: true, reason: null }`; for sub-a exactly the same one offer
@@ -180,7 +180,7 @@ test("routesFor — a subagent through a CLI agent of the register has that agen
 });
 
 // TST-494002 · level: unit · module: MOD-runtimes
-// guards: A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE; UC-049 (1b)
+// guards: A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE; UC-049
 // given: the register of TST-494001 and a private product that holds the job workflow
 // input: routesFor(sub-a, the register, the product, needs) for a need reached by `bridge workstation`, and for one reached by `bridge lab-pc`
 // expect: for the need `bridge workstation` sub-a's offer is the Bridge workstation, available with no reason; for the need `bridge lab-pc` it is the same route, unavailable, with a reason of one line that names the resource and `bridge lab-pc`
@@ -195,7 +195,7 @@ test("routesFor — a subagent's offer is judged by the rules of the participant
 });
 
 // TST-494003 · level: unit · module: MOD-runtimes
-// guards: UC-017; UC-049 (1b)
+// guards: UC-017; UC-049
 // given: a register with cli-workstation (a CLI agent), drafter-a (a model endpoint), ci-hosted (a CI agent), cli-lab (a sandboxed agent) and six subagents, reached through: sub-a → cli-workstation; sub-self → sub-self; sub-nobody → nobody (no participant of the register); sub-endpoint → drafter-a; sub-ci → ci-hosted; sub-sandbox → cli-lab
 // input: routesFor(each subagent, the register, a private product with the job workflow, [])
 // expect: sub-a has one offer, the Bridge workstation, available; sub-self, sub-nobody, sub-endpoint, sub-ci and sub-sandbox have none — an empty list, no unavailable offer
@@ -211,7 +211,7 @@ test("routesFor — a subagent through itself, through no CLI agent or through n
 });
 
 // TST-494004 · level: unit · module: MOD-runtimes
-// guards: UC-017; UC-049 (1b)
+// guards: UC-017; UC-049
 // given: the register of TST-494001, in which sub-b is reached through sub-a, which is reached through cli-workstation; and a register in which cyc-a is reached through cyc-b and cyc-b through cyc-a, with cli-workstation also in it
 // input: routesFor(sub-b, …, []); routesFor(cyc-a, …, []); routesFor(cyc-b, …, [])
 // expect: sub-b has the one offer of the Bridge workstation, available; cyc-a and cyc-b have none, and each call returns
@@ -230,7 +230,7 @@ const TAB_OFFER = { route: { kind: "tab" }, available: true, reason: null };
 const HOSTED_OFFER = { route: { kind: "ci", runner: "hosted" }, available: true, reason: null };
 
 // TST-494005 · level: unit · module: MOD-runtimes
-// guards: A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; AGENT M WORKS WITHOUT A LOCAL INSTALLATION; UC-049 (4a)
+// guards: A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; AGENT M WORKS WITHOUT A LOCAL INSTALLATION; UC-049
 // given: drafter-s, a model endpoint whose route is `endpoint fau-nhr secret NHR_KEY`; a private product that holds the job workflow
 // input: routesFor(drafter-s, the register, the product, []); and, as the known negative, routesFor(drafter-a, …), whose route `endpoint fau-nhr` names no secret
 // expect: for drafter-s two offers, in this order: the tab `{ route: { kind: "tab" }, available: true, reason: null }`, then `{ route: { kind: "ci", runner: "hosted" }, available: true, reason: null }`; for drafter-a the one offer of the tab

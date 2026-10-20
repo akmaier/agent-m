@@ -341,7 +341,7 @@ test("decision/draft — the derivation covers every requirement and every use c
 // ---------------------------------------------------------------- the findings of the precondition
 
 // TST-442002 · level: unit · module: MOD-review-pages
-// guards: ARCHITECTURE IS DESIGNED ONLY AGAINST ACCEPTED USE CASES; UC-022 (1a)
+// guards: ARCHITECTURE IS DESIGNED ONLY AGAINST ACCEPTED USE CASES; UC-022
 // given: a product whose use case UC-002 is open (no approval record), UC-001 accepted
 // input: the page; then the choice of drafter-a and reviewer-b and the run panel
 // expect: an error finding naming UC-002 and not UC-001, with a link Review UC-002 to #use-case/id=UC-002; the run panel offers no Run and lists the finding as blocking; nothing sent
@@ -365,7 +365,7 @@ test("decision/draft — an open use case is named with the link to its review, 
 });
 
 // TST-442003 · level: unit · module: MOD-review-pages
-// guards: THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE; UC-022 (1b)
+// guards: THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE; UC-022
 // given: a product whose use cases are accepted and whose change queue holds an entry no record decides
 // input: the page; then the choice of drafter-a and reviewer-b and the run panel
 // expect: a warning finding naming the entry's proposal, with a link to #spec-entry to decide it first; the run panel still offers Run — the SPEC change is the person's choice, not a block
@@ -386,7 +386,7 @@ test("decision/draft — an open SPEC change is named with the choice to decide 
 });
 
 // TST-442004 · level: unit · module: MOD-review-pages
-// guards: THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE; UC-022 (1c)
+// guards: THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE; UC-022
 // given: a product that holds an architecture decision already, ARC-001
 // input: the page; then the run panel
 // expect: an error finding saying the product has an architecture, with a link naming UC-023 to #decision; the run panel offers no Run
@@ -407,7 +407,7 @@ test("decision/draft — an existing architecture leads to UC-023, and no first 
 // ---------------------------------------------------------------- the participants
 
 // TST-442005 · level: unit · module: MOD-review-pages
-// guards: NO REVIEWER IS THE DRAFTER; UC-022 (2)
+// guards: NO REVIEWER IS THE DRAFTER; UC-022
 // given: the register holds drafter-a (model-a), twin-a (model-a), reviewer-b (model-b), far-c, small-d, a CI agent and a person that cannot draft text
 // input: the page; then drafter-a chosen as drafter
 // expect: before the choice, no reviewer offered; the drafters are the six that can draft text, each with its place; after it, the reviewers are reviewer-b, far-c and small-d — not drafter-a, not twin-a, which uses drafter-a's model
@@ -426,7 +426,7 @@ test("decision/draft — a reviewer is offered only if it differs from the draft
 });
 
 // TST-442006 · level: unit · module: MOD-review-pages
-// guards: NO REVIEWER IS THE DRAFTER; UC-022 (2a)
+// guards: NO REVIEWER IS THE DRAFTER; UC-022
 // given: a register whose only participants that can draft text are drafter-a and twin-a, which use the same model
 // input: drafter-a chosen; then Show the run panel
 // expect: no reviewer offered and a paragraph naming the reason — no other participant uses another model; the panel states the reason as a finding of NO REVIEWER IS THE DRAFTER and offers no Run; nothing sent
@@ -446,7 +446,7 @@ test("decision/draft — when no reviewer differs from the drafter, Run is not o
 });
 
 // TST-442007 · level: unit · module: MOD-review-pages
-// guards: RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; UC-022 (2)
+// guards: RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; UC-022
 // given: the product links the restricted source SRC-secret, whose register entry permits the place "this machine"; the participants far-c (a server in Singapore) and ci-agent (GitHub Actions in the USA) process data elsewhere
 // input: the page; drafter-a chosen; and, as a known positive, the same page of a product that links no restricted source
 // expect: far-c and ci-agent are offered neither as drafter nor as reviewer; the others are; on the product without the link, both are offered
@@ -461,7 +461,7 @@ test("decision/draft — a participant whose place a linked source forbids is le
 });
 
 // TST-1142005 · level: unit · module: MOD-review-pages
-// guards: RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; UC-022 (2)
+// guards: RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; UC-022
 // given: the instance's register holds the restricted source SRC-secret (permitting "this machine" only), which the product does not link; the participants far-c and ci-agent process data elsewhere
 // input: the page of a product that links no source
 // expect: far-c and ci-agent are offered (the offer is judged against the places of the sources the product links, which the job's parts can carry; the context's places take every restricted source, MOD-source-register's restrictedPlaces)
@@ -474,7 +474,7 @@ test("decision/draft — an unlinked restricted source of the register leaves no
 // ---------------------------------------------------------------- the run panel
 
 // TST-442008 · level: unit · module: MOD-review-pages
-// guards: THE PAGE NAMES WHERE IT SENDS; NOTHING IS LEFT OUT OF AN ARCHITECTURE PROMPT SILENTLY; ONE CLICK PER DECISION; UC-022 (3, 4)
+// guards: THE PAGE NAMES WHERE IT SENDS; NOTHING IS LEFT OUT OF AN ARCHITECTURE PROMPT SILENTLY; ONE CLICK PER DECISION; UC-022
 // given: the ready product; drafter-a and reviewer-b chosen
 // input: Show the run panel
 // expect: two destinations — drafter-a as drafter and reviewer-b as reviewer, each with its place — each receiving seven parts: SPEC.md, both use cases and chapters 9 to 12 of the book; in it the only Run; nothing written, nothing sent
@@ -499,7 +499,7 @@ test("decision/draft — the run panel names every destination and every part, a
 });
 
 // TST-442009 · level: unit · module: MOD-review-pages
-// guards: NOTHING IS LEFT OUT OF AN ARCHITECTURE PROMPT SILENTLY; UC-022 (3a)
+// guards: NOTHING IS LEFT OUT OF AN ARCHITECTURE PROMPT SILENTLY; UC-022
 // given: the ready product; small-d, whose context holds 50000 tokens, chosen as drafter, with reviewer-b
 // input: Show the run panel
 // expect: the panel names small-d as unable to hold what it would receive, with the size and its context; it offers no Run; nothing written, nothing sent
@@ -520,7 +520,7 @@ test("decision/draft — a participant whose context is too small is named, and 
 // ---------------------------------------------------------------- Run
 
 // TST-442010 · level: unit · module: MOD-review-pages
-// guards: ONE CLICK PER DECISION; THE PAGE NAMES WHERE IT SENDS; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-022 (4, 4a)
+// guards: ONE CLICK PER DECISION; THE PAGE NAMES WHERE IT SENDS; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-022
 // given: the panel of drafter-a with reviewer-b, whose endpoints answer an empty architecture and no findings
 // input: a click on Run
 // expect: the job runs in this tab: one request to each endpoint, the record of one job of the kind derive-architecture in docs/jobs/ — its start with taking in one commit, its end in another —, naming every requirement and use case it works on; the page says the job ran
@@ -542,7 +542,7 @@ test("decision/draft — Run starts one job in this tab, attended", async () => 
 });
 
 // TST-442011 · level: unit · module: MOD-review-pages
-// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; ONE CLICK PER DECISION; UC-022 (4)
+// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; ONE CLICK PER DECISION; UC-022
 // given: a product that holds the job workflow; the CI agent chosen as drafter, with reviewer-b
 // input: the run panel, Run
 // expect: nothing sent to any endpoint; one commit holding the job's start record in docs/jobs/ and nothing else; the page says the job is queued, naming its identifier; the record names the route ci hosted
@@ -730,7 +730,7 @@ async function afterRun(fake = fakeProduct({ ...READY, LICENSE: "MIT License\n" 
 }
 
 // TST-067105 · level: unit · module: MOD-review-pages
-// guards: UC-018 (7a); UC-022
+// guards: UC-018; UC-022
 // given: the architecture draft shown after Run, the decision's text changed, and a confirmation that first declines, then accepts
 // input: route.leave() twice; route.unsaved() before and after the change
 // expect: leave is a function; unsaved is false before the change and true after; the first leave returns false and asks "Discard unsaved changes?" once, and the text is still there; the second returns true and asks again
@@ -752,7 +752,7 @@ test("decision/draft - leave asks when a drafted file was edited, keeps the page
 });
 
 // TST-067106 · level: unit · module: MOD-review-pages
-// guards: UC-018 (7a); UC-022
+// guards: UC-018; UC-022
 // given: the architecture draft shown after Run with no edit, and a confirmation that would decline
 // input: route.leave()
 // expect: counter-proof — an unedited draft lets itself be left: true, nothing asked
@@ -766,7 +766,7 @@ test("decision/draft - an unedited draft lets itself be left without asking", as
 });
 
 // TST-067107 · level: unit · module: MOD-review-pages
-// guards: UC-018 (7a); UC-022; ONE CLICK PER DECISION
+// guards: UC-018; UC-022; ONE CLICK PER DECISION
 // given: the architecture draft shown after Run, its text changed and Write proposals pressed, which writes it; a confirmation that would decline
 // input: route.leave()
 // expect: counter-proof — what was written is saved: unsaved is false; changed again after the write, it is unsaved once more, and back to the written text it is not; leave then returns true and asks nothing
@@ -789,7 +789,7 @@ test("decision/draft - after Write proposals the written text is not unsaved, a 
 });
 
 // TST-067110 · level: unit · module: MOD-review-pages
-// guards: UC-018 (7a); UC-022
+// guards: UC-018; UC-022
 // given: the architecture draft shown after Run, the decision's text changed, and Check this edit pressed, which draws the checked draft again
 // input: route.unsaved() after the check, and route.leave()
 // expect: counter-proof — the checked draft is the text shown now, not an edit: unsaved is false, and leave returns true and asks nothing

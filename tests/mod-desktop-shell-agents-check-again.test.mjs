@@ -38,7 +38,7 @@ const until = async (condition) => { for (let i = 0; i < 150 && !condition(); i 
 const script = (folder, name, body) => writeFileSync(join(folder, name), `#!/bin/sh\n${body}\n`, { mode: 0o755 });
 
 // TST-1050101 · level: unit · module: MOD-desktop-shell
-// guards: THE BRIDGE FINDS THE INSTALLED AGENTS; THE BRIDGE GUIDES THE INSTALLATION OF A MISSING AGENT; UC-044 (3a)
+// guards: THE BRIDGE FINDS THE INSTALLED AGENTS; THE BRIDGE GUIDES THE INSTALLATION OF A MISSING AGENT; UC-044
 // given: a Bridge computer on whose PATH only the fixture Claude is installed, so that Codex is missing; the window opened on Agents
 // input: the fixture Codex is put on the PATH; the view is looked at again (nothing pressed); then the button Check again is pressed
 // expect: before the press the view still lists Codex as missing, with its How to install link and one Choose folder (Claude's) — nothing is polled behind the person's back —; the view has a Check again button; after the press Codex is listed as installed — two Choose folder buttons, one How to install link fewer — without the Bridge restarting, and Claude is still listed

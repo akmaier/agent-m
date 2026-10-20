@@ -111,7 +111,7 @@ test("TST-281 UC-001 main flow stores a product token and adds the missing layou
 });
 
 // TST-282 · level: system · module: MOD-settings-pages
-// guards: UC-001 5b; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; CONFIGURATION LIVES IN THE BROWSER
+// guards: UC-001; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; CONFIGURATION LIVES IN THE BROWSER
 // given: a product with the complete review layout and its own stored token
 // input: a synthetic Add product click, then a trusted person click
 // expect: the synthetic event writes neither repository nor browser; the trusted event remembers the address and skips a commit
@@ -137,7 +137,7 @@ test("TST-282 UC-001 alternatives 1a and 5b distinguish a synthetic click from a
 });
 
 // TST-284 · level: system · module: MOD-settings-pages
-// guards: UC-001 2a, 3a, 3b, 4a and 5a; A PRODUCT IS NAMED BY ITS ADDRESS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-001; A PRODUCT IS NAMED BY ITS ADDRESS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: product repositories that are missing, inaccessible, private with the instance key, keyless, or read-only
 // input: use the actual Check or Add product control for each alternative
 // expect: refusal and missing paths write no list or repository; a private existing product can use the proven instance key; a keyless page disables Add product
@@ -190,7 +190,7 @@ test("TST-284 UC-001 GitHub alternatives preserve the product and browser bounda
 });
 
 // TST-285 · level: system · module: MOD-settings-pages
-// guards: UC-001 3c and 3d; GITLAB PRODUCTS ARE SUPPORTED; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
+// guards: UC-001; GITLAB PRODUCTS ARE SUPPORTED; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
 // given: a GitLab product and its project token, or a project where the person is not Maintainer
 // input: paste the project address and token on the actual dashboard route
 // expect: the token reaches only that GitLab API and adds its layout; the page explains the Maintainer/project-token remedy

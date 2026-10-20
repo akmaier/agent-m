@@ -33,7 +33,7 @@ import { BRIDGE, ERIKA, SECRET, PRODUCT_URL, buttonsOf, byClass, flush, itemOf, 
 afterEach(restoreWorld);
 
 // TST-966001 · level: unit · module: MOD-maintenance-pages
-// guards: CLOSING AN ISSUE PREPARES ITS REPLIES; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-039 (1)
+// guards: CLOSING AN ISSUE PREPARES ITS REPLIES; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-039
 // given: a closed issue listing four mails none of which has a note, an issue labelled waiting-for-reporter with a newer mail, an open issue, and a closed issue whose one mail has a reply note
 // input: the route replies drawn; the person's click on Read replies
 // expect: drawing reads and writes nothing; the groups are drawn: to answer holds issue 4 alone (the answered issue 7 is in none), answer received holds 5, open holds 6; each issue links to its route; GitHub received no write
@@ -47,7 +47,7 @@ test("the three groups are drawn, and a closed issue with an unnoted mail is und
 });
 
 // TST-966002 · level: unit · module: MOD-maintenance-pages
-// guards: CLOSING AN ISSUE PREPARES ITS REPLIES; THE SEND DASHBOARD LISTS THE DRAFTS OF LISTED MAILS; A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER; UC-039 (2, 2b, 4a)
+// guards: CLOSING AN ISSUE PREPARES ITS REPLIES; THE SEND DASHBOARD LISTS THE DRAFTS OF LISTED MAILS; A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER; UC-039
 // given: the closed issue 4 and its four mails: found without a draft, found with a draft, not in the mailbox, found with a sender that is no address
 // input: the route replies/<4> drawn after the reading
 // expect: the page shows what solved the issue (the pull request) and that the release is not known; each found mail with reporter, date and subject; the drafted mail shows its draft complete (recipient, subject, body in an editable field, the attachment
@@ -75,7 +75,7 @@ test("the issue shows what solved it and each mail with its draft, a missing mai
 });
 
 // TST-966003 · level: unit · module: MOD-maintenance-pages
-// guards: A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-039 (4)
+// guards: A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-039
 // given: the drafted mail of issue 4
 // input: the text of the draft changed; a click a script makes on Save draft; the person's click on Save draft
 // expect: the script's click saves nothing; the person's click calls the mailbox's update-draft once with the reference of the draft and the new body, the recipient and the subject unchanged, and the page shows the draft as stored (the new reference)
@@ -103,7 +103,7 @@ test("an edit of a draft is saved to the draft", async () => {
 });
 
 // TST-966004 · level: unit · module: MOD-maintenance-pages
-// guards: A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-039 (3a)
+// guards: A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-039
 // given: the mail of issue 4 that has no draft
 // input: the person's click on Write the reply myself
 // expect: one draft is stored through the mailbox to that mail's reporter alone, subject Re: its subject, an empty reply above the original quoted line by line; the page then shows that draft, editable; nothing else is stored
@@ -123,7 +123,7 @@ test("a reply written without a participant opens an empty draft with the origin
 });
 
 // TST-966005 · level: unit · module: MOD-maintenance-pages
-// guards: THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT; A ROLE NAMES THE CAPABILITIES IT NEEDS; UC-039 (3)
+// guards: THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT; A ROLE NAMES THE CAPABILITIES IT NEEDS; UC-039
 // given: a mailbox that allows the place "this machine"; a register with local-llm (draft text, this machine), cloud-llm (draft text, a provider in the USA) and checker (no draft text, this machine)
 // input: the issue 4 drawn; and again with the mailbox also allowing the USA place, noted as outside the EU
 // expect: first only local-llm is offered; then local-llm and cloud-llm, cloud-llm with the mark not compliant and its place named, local-llm without; checker is offered in neither
@@ -147,7 +147,7 @@ test("Draft replies offers only participants that can draft at a place the mailb
 });
 
 // TST-966006 · level: unit · module: MOD-maintenance-pages
-// guards: THE PAGE NAMES WHERE IT SENDS; MAIL STAYS IN THE MAILBOX; UC-039 (3)
+// guards: THE PAGE NAMES WHERE IT SENDS; MAIL STAYS IN THE MAILBOX; UC-039
 // given: local-llm chosen with a name; issue 4 with one mail with a draft, one without
 // input: the choice of the participant
 // expect: the run panel names the destination local-llm, where it processes data, and the parts it receives: the issue and the mail without a draft (by identifier), and not the mail that has a draft; Run is offered; nothing is sent or written yet
@@ -170,7 +170,7 @@ test("the run panel names the participant, its place and what it receives", asyn
 });
 
 // TST-966007 · level: unit · module: MOD-maintenance-pages
-// guards: A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; MAIL STAYS IN THE MAILBOX; UC-039 (3, 4)
+// guards: A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; MAIL STAYS IN THE MAILBOX; UC-039
 // given: the run panel of TST-966006 and a model endpoint (the fake runner) that returns one text for the mail without a draft
 // input: the person's click on Run
 // expect: the endpoint is asked once, at ep1; the text is stored as a draft through the mailbox, to that reporter alone, subject Re: its subject, the text above the original quoted; the page then shows that draft; the job's start record names the issue and no mail text or address;
@@ -212,7 +212,7 @@ test("Run drafts a reply with the participant and stores it as a draft, which th
 });
 
 // TST-966008 · level: unit · module: MOD-maintenance-pages
-// guards: CLOSING AN ISSUE PREPARES ITS REPLIES; READING THE MAILBOX CHANGES NOTHING IN IT; UC-039 (1)
+// guards: CLOSING AN ISSUE PREPARES ITS REPLIES; READING THE MAILBOX CHANGES NOTHING IN IT; UC-039
 // given: the Bridge does not answer
 // input: the person's click on Read replies
 // expect: no group is drawn; the page names why in .replies-problem; nothing is written to GitHub
@@ -260,7 +260,7 @@ test("the view holds the route replies and hands the frame mailStrategies", () =
 });
 
 // TST-1108001 · level: unit · module: MOD-maintenance-pages
-// guards: UC-039; MOD-site-frame.md:133 (the parts of the fragment after the first are the route's parameters)
+// guards: UC-039
 // given: the replies read: the issues 4, 5 and 6 of alice/product listed in their groups
 // input: the link of each issue read; the link of issue 5 followed as the frame reads an address (routeOf) and the route drawn with what it gives
 // expect: each link is the address the frame writes for that route and those parameters (fragmentOf: `#replies/issue=<n>/product=<address>`, every part percent-encoded); followed, it gives the route replies with the parameters issue "5" and product alice/product, and the page shows issue #5 of that product

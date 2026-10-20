@@ -168,7 +168,7 @@ const problemsOf = (target) => elements(target).filter((node) => node.localName 
 // ---------------------------------------------------------------- the link on the list
 
 // TST-898001 · level: component · module: MOD-review-pages
-// guards: UC-008 (step 1); UC-023
+// guards: UC-008; UC-023
 // given: the default branch of the fixture; a token stored, or none
 // input: the routes use-case, decision, module and spec-entry drawn as the list
 // expect: on each, with and without a token, the last element of the page is a link whose address is #<route>/id=history
@@ -186,7 +186,7 @@ for (const token of [true, false]) {
 }
 
 // TST-898002 · level: component · module: MOD-review-pages
-// guards: UC-008 (step 1)
+// guards: UC-008
 // given: the default branch of the fixture; a token stored
 // input: the route use-case drawn as the list
 // expect: no request asks for "List commits": the history is read only on its own page

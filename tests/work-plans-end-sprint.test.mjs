@@ -56,7 +56,7 @@ test("endSprint — a sprint without a time box gets ## Ended with the day of no
 });
 
 // TST-481782 · level: unit · module: MOD-work-plans
-// guards: A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-032 6b
+// guards: A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-032
 // given: (a) a sprint with a time box, its end 2026-10-18; (b) a sprint without one that holds its ## Ended already
 // input: endSprint of each
 // expect: NotEndable in both, and nothing committed
@@ -71,7 +71,7 @@ test("endSprint — refused with NotEndable, nothing written, for a sprint with 
 });
 
 // TST-481901 · level: unit · module: MOD-work-plans
-// guards: UC-032 6b; ONE CLICK PER DECISION
+// guards: UC-032; ONE CLICK PER DECISION
 // given: a product whose files hold team2's sprint 01 only; no record of team2/99
 // input: endSprint(host, "team2/99", { head: HEAD, now, trailers })
 // expect: NotFound naming the path docs/backlog/sprints/team2/99.md, and nothing committed

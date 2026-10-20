@@ -50,7 +50,7 @@ const OUTCOMES = [{ test: "TST-101", level: "unit", outcome: "passed" }, { test:
 const RESULT = { draft: { outcomes: OUTCOMES }, drafter: { name: "runner-a" }, rounds: [], remaining: [], forPerson: [], written: null };
 
 // TST-586101 · level: unit · module: MOD-result-records
-// guards: A RELEASE RUNS EVERY TEST AT EVERY LEVEL; UC-013 (2)
+// guards: A RELEASE RUNS EVERY TEST AT EVERY LEVEL; UC-013
 // given: a release candidate job on commit cccc… of a product with no saved schedule, so the book's default holds
 // input: the recipe commit-and-levels
 // expect: one required part named commit-and-levels; its text holds the commit, the levels unit, component, system, release and user, and says the tests run with node's own test runner; it lists no level `paid`
@@ -66,7 +66,7 @@ test("commit-and-levels gives the commit, every level the default schedule runs 
 });
 
 // TST-586102 · level: unit · module: MOD-result-records
-// guards: A RELEASE RUNS EVERY TEST AT EVERY LEVEL; UC-013 (2)
+// guards: A RELEASE RUNS EVERY TEST AT EVERY LEVEL; UC-013
 // given: a product whose docs/tests/schedule.md names the command "make check", and ticks the release candidate column for unit, component, system and release but not user
 // input: the recipe commit-and-levels
 // expect: the part's text holds "make check", the levels unit, component, system and release, and not the level user nor "node's own test runner"
@@ -80,7 +80,7 @@ test("commit-and-levels takes the levels and the command from the product's sche
 });
 
 // TST-586103 · level: unit · module: MOD-result-records
-// guards: A RELEASE RUNS EVERY TEST AT EVERY LEVEL; UC-013 (2)
+// guards: A RELEASE RUNS EVERY TEST AT EVERY LEVEL; UC-013
 // given: a job with params.commit = cccc…, params.levels = ["unit"] and no candidate
 // input: the recipe commit-and-levels
 // expect: the text holds the commit and the level unit and none of component, system, release, user
@@ -92,7 +92,7 @@ test("commit-and-levels names the levels the job's parameters give, on the commi
 });
 
 // TST-586104 · level: unit · module: MOD-result-records
-// guards: A RELEASE RUNS EVERY TEST AT EVERY LEVEL; UC-013 (2)
+// guards: A RELEASE RUNS EVERY TEST AT EVERY LEVEL; UC-013
 // given: a job whose parameters name no commit
 // input: the recipe commit-and-levels
 // expect: it rejects with an error named NoCommit
@@ -101,7 +101,7 @@ test("commit-and-levels refuses a job that names no commit", async () => {
 });
 
 // TST-586105 · level: unit · module: MOD-result-records
-// guards: EVERY TEST RUN LEAVES A RESULT RECORD; TEST RESULTS ARE KEPT IN THE REPOSITORY; UC-013 (postcondition 2)
+// guards: EVERY TEST RUN LEAVES A RESULT RECORD; TEST RESULTS ARE KEPT IN THE REPOSITORY; UC-013
 // given: a release candidate job on commit cccc… whose runner runner-a reported three outcomes (unit passed, component failed, release not run); an empty branch test-results at head h0; now 2026-10-19 08:05 UTC
 // input: the writer result-record
 // expect: one commit on test-results on head h0 adding exactly one file runs/cccc…/20261019-0805-release-candidate-<4 hex>.md; read with the run schema its fields are commit cccc…, levels unit, component, system, release, user, occasion release-candidate, participant runner-a, date 2026-10-19 08:05 UTC, no run, no uncommitted; its Outcomes rows are TST-101 unit passed, TST-102 component failed, TST-103 release not run, with Runs empty; the outcome is { commits: [h1], files: [the path], pullRequest: null, shown: null, notes: [] }
@@ -120,7 +120,7 @@ test("result-record appends the run's record to test-results on the head it read
 });
 
 // TST-586106 · level: unit · module: MOD-result-records
-// guards: EVERY TEST RUN LEAVES A RESULT RECORD; UC-013 (postcondition 2)
+// guards: EVERY TEST RUN LEAVES A RESULT RECORD; UC-013
 // given: the job and the branch of TST-586105, after the writer ran; the record's declared tests TST-101 unit, TST-102 component, TST-103 release
 // input: resultsAt on the branch test-results at commit cccc…, the reading of the release panel and the test pages
 // expect: level unit passed 1 failed 0; level component passed 0 failed 1; level release notRun 1 and passed 0 — the levels the record holds, from the one record the writer appended
@@ -133,7 +133,7 @@ test("the record the writer appends is the one resultsAt reads for the commit", 
 });
 
 // TST-586107 · level: unit · module: MOD-result-records
-// guards: EVERY TEST RUN LEAVES A RESULT RECORD; UC-013 (postcondition 2)
+// guards: EVERY TEST RUN LEAVES A RESULT RECORD; UC-013
 // given: a draft of two outcomes, the second without a level; an empty branch test-results
 // input: the writer result-record
 // expect: it rejects with an error named OutcomeWithoutLevel, and no commit was asked for
@@ -145,7 +145,7 @@ test("result-record refuses an outcome without a level and commits nothing", asy
 });
 
 // TST-586108 · level: unit · module: MOD-result-records
-// guards: A RESULT RECORD IS NEVER REWRITTEN; TEST RESULTS ARE KEPT IN THE REPOSITORY; UC-013 (postcondition 2)
+// guards: A RESULT RECORD IS NEVER REWRITTEN; TEST RESULTS ARE KEPT IN THE REPOSITORY; UC-013
 // given: a branch test-results that already holds a record of another run on commit cccc…, and a host whose head moves once before the commit
 // input: the writer result-record
 // expect: the error of the host, Moved, comes through unchanged; the earlier record's bytes are unchanged and no second file was added

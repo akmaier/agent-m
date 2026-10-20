@@ -64,7 +64,7 @@ async function saveAndTest(page, endpoint) {
 
 // Module (as the case stated it): MOD-settings-pages → MOD-browser-store
 // TST-290132 · level: system · module: MOD-settings-pages
-// guards: UC-042 step 2; UC-003; EVERY SETTING IS REACHED FROM ONE PAGE; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
+// guards: UC-042; UC-003; EVERY SETTING IS REACHED FROM ONE PAGE; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
 // given: Settings is open in a browser that keeps no endpoint; the endpoint answers its test request.
 // input: the author opens Endpoints & Agents, presses Configure a model endpoint, fills the endpoint campus and presses Save and test; then presses Clear in the same form.
 // expect: right after Save and test, the tab lists the endpoint campus beside the form, which still shows that the model is working, and Endpoints & Agents stays the selected tab; right after the form's Clear, the tab lists no endpoint, and Endpoints & Agents is still selected.
@@ -89,7 +89,7 @@ test("TST-290132: the endpoint just stored or cleared in place is listed or gone
 });
 
 // TST-290133 · level: system · module: MOD-settings-pages
-// guards: UC-042 steps 1 and 2; EVERY SETTING IS REACHED FROM ONE PAGE; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
+// guards: UC-042; EVERY SETTING IS REACHED FROM ONE PAGE; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
 // given: this browser keeps the endpoints campus and lab; Settings is open.
 // input: the author selects Endpoints & Agents and presses Clear on the line of lab, which renders the page again; then leaves Settings and opens it anew.
 // expect: after the Clear, Endpoints & Agents is still the selected tab and lists campus alone; Settings opened anew shows its first tab, General.
@@ -111,7 +111,7 @@ test("TST-290133: the page keeps the chosen tab across its own renders and opens
 
 // Module (as the case stated it): MOD-settings-pages → MOD-browser-store → MOD-endpoint-calls
 // TST-290134 · level: system · module: MOD-settings-pages
-// guards: UC-042 step 1; UC-003 steps 4 and 5, alternative 4b; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
+// guards: UC-042; UC-003; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
 // given: Settings is open in a browser that keeps no endpoint.
 // input: the author stores and tests the endpoint campus through the form, which answers; then stores it again with a key the endpoint refuses.
 // expect: after the first test, the browser keeps campus's last test as working, with its date, and campus's line says "Works. Last successful test: <that date>."; after the second, the last test is refused and the line says "Refused.".
@@ -138,7 +138,7 @@ test("TST-290134: the form's test is recorded as the endpoint's last test and sh
 
 // Module (as the case stated it): MOD-settings-pages → MOD-browser-store
 // TST-290135 · level: system · module: MOD-settings-pages
-// guards: UC-042 step 2; UC-003; CONFIGURATION LIVES IN THE BROWSER; EVERY SETTING IS REACHED FROM ONE PAGE
+// guards: UC-042; UC-003; CONFIGURATION LIVES IN THE BROWSER; EVERY SETTING IS REACHED FROM ONE PAGE
 // given: Settings is open in a browser that keeps no endpoint; both endpoints answer their test requests.
 // input: the author stores and tests the endpoint campus through the form, then presses Configure a model endpoint again and stores and tests the endpoint lab.
 // expect: the browser keeps both endpoints, each under its own name, and the tab lists both, each line with Test, Change and Clear.

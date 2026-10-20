@@ -39,7 +39,7 @@ const registered = async () => writtenEntry(await registrationCommits(FORM, [], 
 const later = (version, commit) => ({ version, date: version, repository: INSTANCE, commit });
 
 // TST-705001 · level: unit · module: MOD-source-register
-// guards: UC-016 1, 2; A LIVING SOURCE IS PINNED; A SOURCE VERSION IS NEVER OVERWRITTEN
+// guards: UC-016; A LIVING SOURCE IS PINNED; A SOURCE VERSION IS NEVER OVERWRITTEN
 // given: the entry SRC-guide of a repository source, identifier https://github.com/erin/guide, registered with its first version 2026-10-01 read at the commit 96210fa4… and no file
 // input: versionCommits(entry, [], { version: "2026-11-01", date: "2026-11-01", repository: "akmaier/agent-m", commit: "240ddc98…" }), and the register entry of the plan read back
 // expect: the call resolves — the first version's file set is as empty as the new one's, and that is no reason to refuse it; the plan has one commit, to akmaier/agent-m, holding exactly
@@ -62,7 +62,7 @@ test("versionCommits — a repository's new version with a commit and no file re
 });
 
 // TST-705002 · level: unit · module: MOD-source-register
-// guards: UC-016 1a; A SOURCE VERSION IS NEVER OVERWRITTEN; A LIVING SOURCE IS PINNED
+// guards: UC-016; A SOURCE VERSION IS NEVER OVERWRITTEN; A LIVING SOURCE IS PINNED
 // given: the same entry with the versions 2026-10-01 (commit 96210fa4…) and 2026-11-01 (commit 240ddc98…)
 // input: versionCommits(entry, [], …) with the commit 96210fa4…, then with 240ddc98…, then with fc67b7a0…
 // expect: the first rejects with the failure named SameBytes whose field version is "2026-10-01" and whose message is "SRC-guide already records the same bytes as 2026-10-01"; the second the same

@@ -262,7 +262,7 @@ test("onRecordsChanged — the job's context names the instance's checkout", asy
 // ---------------------------------------------------------------- no change
 
 // TST-473205 · level: unit · module: MOD-workflow-entries
-// guards: A CI AGENT'S DRAFT ENTERS AS OPEN; UC-010 4a
+// guards: A CI AGENT'S DRAFT ENTERS AS OPEN; UC-010
 // given: the product already holds the gate's record exactly as the writer would write it, and a queued job
 // input: onRecordsChanged
 // expect: outcome `done`; no commit of the writer; the job taken and ended `done` with the result `no change`; the summary says `no change`
@@ -280,7 +280,7 @@ test("onRecordsChanged — a result equal to the current files ends done with no
 // ---------------------------------------------------------------- a dispatched job
 
 // TST-473206 · level: unit · module: MOD-workflow-entries
-// guards: UC-010 step 1; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; A CI AGENT'S DRAFT ENTERS AS OPEN
+// guards: UC-010; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; A CI AGENT'S DRAFT ENTERS AS OPEN
 // given: a product with another queued job and no record of the one started, and a start from the server's own page with the inputs job, kind, participant, works_on and the parameters
 // input: onDispatch, the event's payload read from the file GITHUB_EVENT_PATH names
 // expect: outcome `done`; the start record committed at docs/jobs/<job>.md — route `ci hosted`, started by the actor, the inputs' parameters —, then taken and run as a queued job is: the writer's commit and the End; the other queued job is left as it is

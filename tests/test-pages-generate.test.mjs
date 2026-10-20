@@ -155,7 +155,7 @@ const runButtons = (root) => find(root, (node) => node.localName === "button" &&
 // ================================================================== the tests
 
 // TST-763001 · level: unit · module: MOD-test-pages
-// guards: UC-026 (1, 2); TEST GENERATION SEES THE EXISTING TESTS; EVERY STEP EXPLAINS ITSELF
+// guards: UC-026; TEST GENERATION SEES THE EXISTING TESTS; EVERY STEP EXPLAINS ITSELF
 // given: a product with the requirements RULE ONE (guarded at release and user) and RULE TWO (guarded at neither), the use cases UC-001 (guarded at system) and UC-002 (not), the modules MOD-a (no test) and MOD-b (unit and component)
 // input: the route generate, drawn
 // expect: every requirement, use case and module listed with the levels that guard it; RULE TWO, UC-002 and MOD-a preselected and the others not; all five levels preselected, since each is lacking for a name; each level with a folded explanation that names chapter 13; nothing written, nothing sent
@@ -181,7 +181,7 @@ test("generate — what can be tested with the levels that guard it, the uncover
 });
 
 // TST-763002 · level: unit · module: MOD-test-pages
-// guards: UC-026 (4); RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER; A ROLE NAMES THE CAPABILITIES IT NEEDS
+// guards: UC-026; RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER; A ROLE NAMES THE CAPABILITIES IT NEEDS
 // given: writer-a recorded as the implementer of UC-002 by a job of kind implement; the register with writer-a, writer-b, a CI agent that declare the three capabilities and a drafter that declares only draft text; UC-002 selected and release chosen
 // input: the route generate, drawn; then release unticked
 // expect: writer-b and the CI agent are offered and the drafter is not; writer-a is left out and named; with release unticked writer-a is offered too
@@ -198,7 +198,7 @@ test("generate — the implementer is left out for release and named, and a part
 });
 
 // TST-763003 · level: unit · module: MOD-test-pages
-// guards: UC-026 (4a); RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER
+// guards: UC-026; RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER
 // given: the register holds only writer-a, the implementer of UC-002; release is chosen
 // input: the route generate, drawn; then release unticked
 // expect: no participant is offered, and the page says release tests need a different participant and links UC-017 and UC-002; with release unticked writer-a is offered
@@ -217,7 +217,7 @@ test("generate — when the only participant is the implementer, release is said
 });
 
 // TST-763004 · level: unit · module: MOD-test-pages
-// guards: UC-026 (3, 4); THE PAGE NAMES WHERE IT SENDS; ONE CLICK PER DECISION; A TEST JOB RECEIVES THE CHAPTER ON TESTING
+// guards: UC-026; THE PAGE NAMES WHERE IT SENDS; ONE CLICK PER DECISION; A TEST JOB RECEIVES THE CHAPTER ON TESTING
 // given: the page with the preselection and the CI agent chosen, a person's name entered
 // input: pressing Show the run panel; then Run twice
 // expect: the panel names the participant, where it processes data and what is sent — the selection and the book's chapter on testing —; nothing is written before Run; Run queues exactly one job: one commit of one record docs/jobs/JOB-….md of kind propose-tests, naming the selected names, the participant and the route ci hosted, with the levels as parameters
@@ -250,7 +250,7 @@ test("generate — the run panel names where the selection goes and Run queues o
 });
 
 // TST-763005 · level: unit · module: MOD-test-pages
-// guards: UC-026 (3a); THE PAGE NAMES WHERE IT SENDS
+// guards: UC-026; THE PAGE NAMES WHERE IT SENDS
 // given: a CI agent whose context holds 100 tokens, much less than the selection and its existing tests
 // input: the preselection, the small CI agent chosen, Show the run panel
 // expect: the panel offers no Run; the page says how many existing tests guard the selection and offers a smaller selection or a participant with a larger context; nothing is written or sent
@@ -301,7 +301,7 @@ test("view — hands the frame the strategies the kind propose-tests uses", () =
 });
 
 // TST-763008 · level: unit · module: MOD-test-pages
-// guards: UC-026 (3); NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED
+// guards: UC-026; NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED
 // given: the preselection names the use case UC-002, which no record accepts
 // input: the CI agent chosen, Show the run panel
 // expect: the panel names UC-002 as not accepted and offers no Run, so that nothing is sent or written
@@ -347,7 +347,7 @@ async function readProposal(fake, { register } = {}) {
 const parametersOf = (text) => JSON.parse(/## Parameters\n+```json\n([\s\S]*?)\n```/.exec(text)[1]);
 
 // TST-764001 · level: unit · module: MOD-test-pages
-// guards: UC-026 (5, 7, 5a, 1a); WHAT A PERSON DECIDES IS NOT SENT BACK; THE ROUNDS ARE COUNTED AND SHOWN; A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS
+// guards: UC-026; WHAT A PERSON DECIDES IS NOT SENT BACK; THE ROUNDS ARE COUNTED AND SHOWN; A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS
 // given: an ended job of the kind propose-tests whose record holds six cases — unit, system, an extension of the existing test TST-5, a release case that needs a paid call, a user case and a duplicate — and two rounds, the last with one flag left
 // input: the route generate drawn, then Read the proposal pressed
 // expect: the cases grouped by level in the order of the levels and by what they guard; TST-5 beside the existing test TST-5 with its expected result; the release case marked for the nightly run, the user case marked manual with the reason that no counter-proof is taken; "Correction rounds: 2" and the flag; nothing written
@@ -369,7 +369,7 @@ test("generate — the proposal is read from the job's record, grouped by level 
 });
 
 // TST-764002 · level: unit · module: MOD-test-pages
-// guards: UC-026 (7, 8); WHAT A PERSON DECIDES IS NOT SENT BACK; ONE CLICK PER DECISION; A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT
+// guards: UC-026; WHAT A PERSON DECIDES IS NOT SENT BACK; ONE CLICK PER DECISION; A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT
 // given: the proposal of the previous test; the person edits the expected result of TST-7001, reclassifies TST-7002 to the level release and removes the duplicate TST-7005
 // input: Write tests pressed once
 // expect: one commit of one record of the kind write-tests, for the participant of the proposal on the route ci hosted, whose parameters hold the selection and levels of the proposal, the route, and five cases as the person left them, in the order of the panel: the edited expected result, the new level, no TST-7005
@@ -400,7 +400,7 @@ test("generate — Write tests queues one job of the kind write-tests with the c
 });
 
 // TST-764003 · level: unit · module: MOD-test-pages
-// guards: UC-026 (6a); ONE CLICK PER DECISION
+// guards: UC-026; ONE CLICK PER DECISION
 // given: a proposal in which every case is a duplicate of an existing test
 // input: the route generate drawn, Read the proposal pressed; then, for a proposal of two new cases, both reclassified as duplicates and Write tests pressed
 // expect: the page says every case is a duplicate, offers no Write tests and queues nothing; in the second case the press names that nothing is written and queues nothing
@@ -422,7 +422,7 @@ test("generate — when every case is a duplicate the page says so and writes no
 });
 
 // TST-764004 · level: unit · module: MOD-test-pages
-// guards: UC-026 (8b); A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT
+// guards: UC-026; A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT
 // given: the proposal, and the end record of a job of the kind write-tests whose report lists TST-7001 in notWritten because it stays green with the fault planted
 // input: Read the proposal pressed
 // expect: TST-7001 is shown again among the cases, with the reason and the words sharpen or drop; the other cases carry no such mark
@@ -438,7 +438,7 @@ test("generate — a test the participant reports green with its fault is shown 
 });
 
 // TST-764005 · level: unit · module: MOD-test-pages
-// guards: UC-026 (5)
+// guards: UC-026
 // given: a product whose jobs hold no propose-tests job with cases
 // input: Read the proposal pressed
 // expect: the page says that no proposal is recorded yet and offers no Write tests
@@ -449,7 +449,7 @@ test("generate — without an ended proposal the page says none is recorded", as
 });
 
 // TST-764006 · level: unit · module: MOD-test-pages
-// guards: UC-026 (8)
+// guards: UC-026
 // given: the view of the module
 // input: its strategies, as the frame registers them
 // expect: they hold the writer branch-and-pull-request that the kind write-tests names
@@ -465,7 +465,7 @@ test("view — hands the frame the writer the kind write-tests uses", () => {
 // graph `onMainChanged` stored for it is read where there is one (MOD-workflow-entries)." The stored graph is seen in a module only it holds, MOD-stored, which the page lists only if it read the stored graph.
 
 // TST-1119003 · level: unit · module: MOD-test-pages
-// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-026 (1)
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-026
 // given: the product of the first test, whose snapshot offers readOn, and the branch trace-cache holding the graph of its commit with one module more than the files hold (MOD-stored)
 // input: the route generate, drawn
 // expect: the page lists MOD-stored beside the modules of the files, which it could only know from the stored graph; readOn was asked for trace-cache / <commit>.json
@@ -484,7 +484,7 @@ test("generate — the graph is asked for with its commit, so that the graph sto
 });
 
 // TST-1119004 · level: unit · module: MOD-test-pages
-// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-026 (1)
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-026
 // given: the same product, the branch trace-cache holding no graph of the commit
 // input: the route generate, drawn
 // expect: counter-proof: the graph is built from the files — MOD-stored is not listed, the test file is read —, and readOn was asked once

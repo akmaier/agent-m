@@ -48,7 +48,7 @@ test("the check for the task in a record finds a planted task, and finds none in
 });
 
 // TST-495002 · level: unit · module: MOD-runtimes
-// guards: NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-049 4a
+// guards: NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-049
 // given: a prepared job with one blocking finding (the precondition of a use case that is open); known positive first — the same job without it, which is handed over
 // input: handOverJob on the CI route and on the Bridge route with the blocking job
 // expect: rejects with name NotStartable and `findings` holding exactly that finding (deep-equal, one entry); nothing committed, no workflow started, no request to the Bridge
@@ -70,7 +70,7 @@ test("handOverJob — a blocking job is refused as NotStartable with its finding
 });
 
 // TST-495003 · level: unit · module: MOD-runtimes
-// guards: NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY; UC-049 3a, 4a
+// guards: NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY; UC-049
 // given: a prepared job that does not fit its participant drafter-a, whose context holds 1000 tokens against a job of 52000
 // input: handOverJob on the CI route with it
 // expect: rejects with name NotStartable and exactly one finding: kind "error", artifact "write-tests", whose `what` names drafter-a, 1000 and 52000 and which is a valid finding as MOD-text-tools makes one and reads back from its text form; nothing committed, no workflow started
@@ -92,7 +92,7 @@ test("handOverJob — a job that does not fit is refused as NotStartable with a 
 });
 
 // TST-495004 · level: unit · module: MOD-runtimes
-// guards: A JOB STOPS AT EVERY GATE; UC-049 4a
+// guards: A JOB STOPS AT EVERY GATE; UC-049
 // given: a kind whose gate points are before-write and question; known positive first — a kind whose gate points are before-merge and question, and one with none
 // input: handOverJob on the CI route and on the Bridge route with the before-write kind
 // expect: the positive kinds are handed over (one commit each); the before-write kind rejects with name NotStartable and exactly one finding: kind "error", artifact "write-tests", whose `what` names "before-write" and which is valid as MOD-text-tools makes a finding; nothing committed, no workflow started, no request to the Bridge
@@ -139,7 +139,7 @@ test("handOverJob — the findings of a blocking, a not fitting and a before-wri
 });
 
 // TST-495006 · level: unit · module: MOD-runtimes
-// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; A REMOTE INTERFACE NAMES HOW IT FAILS; UC-049 4c
+// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; A REMOTE INTERFACE NAMES HOW IT FAILS; UC-049
 // given: a product on GitHub (1) and on GitLab (2) whose default branch holds no Agent M job workflow; known positive first — the same product with its workflow
 // input: handOverJob on the CI route with the head read
 // expect: with the workflow, one commit and one start; without it, rejects with name WorkflowMissing and `files` [".github/workflows/agent-m-jobs.yml"] (1) or [".gitlab/agent-m-jobs.yml"] (2); nothing committed and no workflow started
@@ -176,7 +176,7 @@ test("handOverJob — a moved head is refused as the host names it, with nothing
 });
 
 // TST-495008 · level: unit · module: MOD-runtimes
-// guards: A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; UC-049 4a
+// guards: A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; UC-049
 // given: a hand-over that could not carry its task: to the tab's route; with an empty task; to a Bridge route without the Bridge's handle; known positive first — the same call to the CI route with a task
 // input: handOverJob with each
 // expect: the positive is handed over; each of the three rejects with a TypeError; nothing committed, no workflow started, no request to the Bridge
@@ -203,7 +203,7 @@ function dispatchInputs(text) {
 }
 
 // TST-495009 · level: unit · module: MOD-runtimes
-// guards: A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET; UC-049 4a
+// guards: A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET; UC-049
 // given: jobWorkflowFiles for GitHub, for an instance alice/agent-m at a commit, with a token secret and a key secret
 // input: the inputs the file declares under workflow_dispatch
 // expect: three inputs in this order: job (required true), task (required false), endpoint (required false)

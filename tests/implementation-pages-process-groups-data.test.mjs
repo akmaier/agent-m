@@ -338,7 +338,7 @@ async function groupsOf(files) {
 // ---------------------------------------------------------------- the test
 
 // TST-812006 · level: unit · module: MOD-implementation-pages
-// guards: UC-002 (step 2); THE CATALOGUE IS DATA (a shipped model added as data appears in the group of its kind)
+// guards: UC-002; THE CATALOGUE IS DATA
 // given: the module tree loaded anew with a list of shipped files that names two more model files after the five shipped ones: fixture-planned, of kind planned, and fixture-pulled, of kind pulled
 // input: route.render, over an instance that holds no model of its own
 // expect: Plan-driven holds waterfall, v-model, reuse-oriented and then fixture-planned; Agile holds scrum, kanban and then fixture-pulled; there is no group This instance

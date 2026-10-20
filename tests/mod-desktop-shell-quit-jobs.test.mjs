@@ -121,7 +121,7 @@ printf '%s\\n' '${event}' '{"type":"step_finish","part":{"tokens":{"input":1,"ou
 }
 
 // TST-1055104 · level: unit · module: MOD-desktop-shell
-// guards: THE BRIDGE RUNS AS AN APP; A CANCELLED JOB WRITES NOTHING MORE; UC-044 (7b)
+// guards: THE BRIDGE RUNS AS AN APP; A CANCELLED JOB WRITES NOTHING MORE; UC-044
 // given: the app started over a Bridge that watches a product with two queued jobs, one for each of two fixture agents (opencode, claude) that wait for a gate which is never opened
 // input: wait until both agents run; the window's request running-jobs; the quit the window asks for after the person's confirmation (the ipc request quit, then Electron's before-quit)
 // expect: running-jobs names both job identifiers, each running; after the quit both records end `state: cancelled` with the reason "the Bridge was quit", once each, and no file of the writer is on the product

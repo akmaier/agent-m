@@ -57,7 +57,7 @@ async function recordTakenBy(by) {
 }
 
 // TST-1025001 · level: unit · module: MOD-runtimes
-// guards: ONE DASHBOARD SHOWS EVERY JOB; UC-036 (1b)
+// guards: ONE DASHBOARD SHOWS EVERY JOB; UC-036
 // given: a tab at alice.github.io/agent-m/ with an empty localStorage
 // input: queueJob on the tab's route, twice
 // expect: each record's `## Taken` names `tab <browser>`, <browser> sixteen hexadecimal digits; both name the same one; it is stored under the key `browser` of the instance alice/agent-m
@@ -99,7 +99,7 @@ test("without an instance or without localStorage the job is named by this tab's
 });
 
 // TST-1025004 · level: unit · module: MOD-runtimes
-// guards: ONE DASHBOARD SHOWS EVERY JOB; UC-036 (1b)
+// guards: ONE DASHBOARD SHOWS EVERY JOB; UC-036
 // given: this browser's identifier 0123456789abcdef in the store; a job whose `## Taken` is `tab fedcba9876543210`, another browser's, that this tab does not hold
 // input: liveState of the record; jobState with that live state; listJobs
 // expect: reachable false, known false, with the reason that its live state and log exist only in that browser's tab; the job's state is "running" (the record alone says it); its row says its source is not reachable, with that reason
@@ -118,7 +118,7 @@ test("a job another browser took is reachable: false with the note that its live
 });
 
 // TST-1025005 · level: unit · module: MOD-runtimes
-// guards: ONE DASHBOARD SHOWS EVERY JOB; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-036 (1c)
+// guards: ONE DASHBOARD SHOWS EVERY JOB; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-036
 // given: this browser's identifier 0123456789abcdef in the store; a job taken by `tab 0123456789abcdef` that this tab does not hold; and one taken by the bare `tab`
 // input: liveState of each; jobState with each
 // expect: reachable true and known false for both, so that both are "ended without record"

@@ -141,7 +141,10 @@ test("TST-1041101: the system test declares every step and every alternative flo
   const declarations = testDeclarations(SYSTEM, read(SYSTEM));
   assert.ok(declarations.length >= 16, `known positive: the declarations of the system test are found (${declarations.length})`);
   assert.ok(declarations.every((one) => one.level === "system"), "every declaration of the system test is level system");
-  const guards = declarations.flatMap((one) => one.guards.flatMap((guard) => guard.split(";").map((part) => part.trim()))).filter((guard) => /^UC-040 (?:steps?|alternatives?) /.test(guard));
+  // The flows a case walks stand in its comment block - guards, given, input and expect, whose lines may wrap -; the guards name the use case alone.
+  const rows = read(SYSTEM).split("\n");
+  const block = (one) => { const text = []; for (let at = one.line - 1; at < rows.length && /^\s*\/\//.test(rows[at]); at += 1) text.push(rows[at].replace(/^\s*\/\/\s?/, "")); return text.join(" "); };
+  const guards = declarations.flatMap((one) => [...block(one).matchAll(/UC-040 (?:steps?|alternatives?) [^)\n;]*/g)].map((match) => match[0].trim()));
   assert.ok(guards.length >= 16, `known positive: the system test names the steps it walks (${guards.length})`);
   const named = guards.join(" ");
   const steps = new Set();
@@ -155,7 +158,7 @@ test("TST-1041101: the system test declares every step and every alternative flo
 });
 
 // TST-1041110 · level: release · module: MOD-settings-pages; MOD-resource-list
-// guards: UC-040; every requirement UC-040 realises
+// guards: UC-040
 // given: UC-040's `realises` list, SPEC's current Check lines and the files of tests/
 // input: for each realised requirement read the Check line; list the files it names that do not exist; list the requirements with an automatic check that neither the system test (by its guards) nor an existing named file checks
 // expect: every requirement UC-040 realises has a Check line in the SPEC; every file a Check line names exists; every requirement with an automatic check is guarded by the system test or checked by an existing file
@@ -178,7 +181,7 @@ test("TST-1041110: every automatic requirement UC-040 realises is checked by evi
 // ---------------------------------------------------------------- the flow, as a person reads and presses it
 
 // TST-1041102 · level: release · module: MOD-settings-pages; MOD-site-frame
-// guards: UC-040 steps 1 and 2; A PRODUCT DECLARES ITS RESOURCES; THE INSTANCE DECLARES ITS OWN RESOURCES
+// guards: UC-040; A PRODUCT DECLARES ITS RESOURCES; THE INSTANCE DECLARES ITS OWN RESOURCES
 // given: this browser keeps the product with its token; the product's docs/resources.md names the repository dlls (MIT, the Acme organisation) and the compute resource cluster (runner gpu); the instance's names shared-llm and cluster
 // input: open #resources/product=<the product>; then open #resources
 // expect: step 1 "Agent M shows the declared resources grouped by kind, each with its pin, licence, maintainer and route": the first page is headed "Resources", has the groups Repository and Compute, shows dlls with
@@ -205,7 +208,7 @@ test("release · UC-040 1–2 and 1b: the page shows the declared resources by k
 });
 
 // TST-1041103 · level: release · module: MOD-settings-pages; MOD-resource-list
-// guards: UC-040 steps 2 to 8; A PRODUCT DECLARES ITS RESOURCES; A RESTRICTED RESOURCE IS REFERENCED, NEVER COPIED; A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE
+// guards: UC-040; A PRODUCT DECLARES ITS RESOURCES; A RESTRICTED RESOURCE IS REFERENCED, NEVER COPIED; A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE
 // given: the page of TST-1041102; alice/dlls2 is readable with the product's token and holds a file whose text is a sentinel
 // input: choose the kind repository, name "tools", paste https://github.com/alice/dlls2, press "+ Add resource"; type the licence "MIT", the maintainer "the Acme organisation" and the secret "ci:DLLS_TOKEN" into the row; press "Save" once; press "Check" on tools
 // expect: step 3 "Agent M reads the current commit ... and pins it": the row is pinned to the head of alice/dlls2 (the SHA-1 of "alice/dlls2#0"); nothing is committed before Save; step 8 "Save — one click ... commits the
@@ -233,7 +236,7 @@ test("release · UC-040 2–8: a repository is added, pinned to its head and sav
 });
 
 // TST-1041104 · level: release · module: MOD-settings-pages; MOD-resource-list
-// guards: UC-040 steps 3, 6, 7, 8; A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER; A RESOURCE DECLARES WHERE IT PROCESSES DATA
+// guards: UC-040; A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER; A RESOURCE DECLARES WHERE IT PROCESSES DATA
 // given: the page of TST-1041102; this browser keeps the Bridge hpc (http://127.0.0.1:4712) whose fake answers the harmless request for the partitions with debug (up) and gpu (drain)
 // input: choose the kind compute, name "alex", address "alex.nhr.fau.de", press "+ Add resource"; type the route "bridge hpc" and the place "NHR@FAU, Erlangen" into the row; press "Save"; press "Check" on alex
 // expect: step 3 "compute: ... the route: a Bridge, chosen by its name": the row has no pin (a dash); Save is not offered while the route and the place are left out; one commit holds only docs/resources.md with the
@@ -261,7 +264,7 @@ test("release · UC-040 3, 6–8: a compute resource on a Bridge is declared wit
 });
 
 // TST-1041105 · level: release · module: MOD-settings-pages; MOD-resource-list
-// guards: UC-040 steps 7b and 9b; A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE
+// guards: UC-040; A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE
 // given: a private product with Agent M's job workflow, whose list names cluster on the runner gpu; the instance's register holds the CI agent ci-drafter on `ci runner:gpu secret CI_KEY`; the same product public
 // input: press "Check" on cluster; press "Run"; then the same Check on the public product
 // expect: 7b "The route is a self-hosted runner. The browser cannot reach it; Agent M offers a check job on that runner label through the product's workflow": the page names the job, the runner gpu and ci-drafter
@@ -289,7 +292,7 @@ test("release · UC-040 7b and 9b: a resource on a runner is checked by a job th
 });
 
 // TST-1041106 · level: release · module: MOD-settings-pages; MOD-resource-list
-// guards: UC-040 alternatives 1b and 2c; INSTANCE AND PRODUCT RESOURCES ARE INDEPENDENT; THE INSTANCE DECLARES ITS OWN RESOURCES
+// guards: UC-040; INSTANCE AND PRODUCT RESOURCES ARE INDEPENDENT; THE INSTANCE DECLARES ITS OWN RESOURCES
 // given: the instance's list holds shared-llm and cluster; the product's list holds dlls and cluster
 // input: on the product's page choose shared-llm in "An instance resource", press "Copy from the instance" and "Save"; on #resources change the place of shared-llm and press "Save"; on the product's page change the place of its copy and press "Save"
 // expect: 2c "the entry is copied into the product's list, where it is edited and saved like any other. The copy is not linked; a later change on either side leaves the other unchanged": only shared-llm is offered; the
@@ -325,7 +328,7 @@ test("release · UC-040 1b and 2c: an instance resource is copied into the produ
 });
 
 // TST-1041107 · level: release · module: MOD-settings-pages; MOD-resource-list
-// guards: UC-040 alternative 9a; A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT
+// guards: UC-040; A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT
 // given: the product's list pins dlls and a second repository, other, to the commit of 40 "b"; alice/dlls stands at its head (the SHA-1 of "alice/dlls#0")
 // input: press "Check" on dlls; press "Check" on dlls and "Move" by a click a script makes; press "Move" as a person
 // expect: 9a "A newer state exists upstream — a newer commit. The dashboard shows it beside the pin ...; the pin changes only when the author presses Move — one click — which commits the new pin to docs/resources.md":
@@ -352,7 +355,7 @@ test("release · UC-040 9a: a newer state upstream is shown beside the pin, and 
 });
 
 // TST-1041108 · level: release · module: MOD-settings-pages; MOD-resource-list
-// guards: UC-040 alternatives 3a and 7a; A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT; ONE CLICK PER DECISION
+// guards: UC-040; A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT; ONE CLICK PER DECISION
 // given: https://github.com/alice/hidden is not readable with the stored token; the product's list names shared-llm on `bridge workstation`, and this browser keeps no Bridge of that name
 // input: press "Check" on shared-llm; add the repository "hidden" at that address
 // expect: 7a "The Bridge the route names does not answer. Agent M names the reason ... and saves nothing": the entry says that this browser does not keep Bridge workstation, and nothing is committed; 3a "A private
@@ -373,7 +376,7 @@ test("release · UC-040 3a and 7a: what cannot be reached is named, and nothing 
 // ---------------------------------------------------------------- findings
 
 // TST-1041109 · level: release · module: MOD-settings-pages; MOD-site-frame
-// guards: UC-040 step 8; A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE; NO SECRET IN THE REPOSITORY
+// guards: UC-040; A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE; NO SECRET IN THE REPOSITORY
 // given: the page of TST-1041104 without the Bridge
 // input: add the compute resource "alex"; type the route "bridge hpc", the place and, as its secret, the value "sk-live-0123456789abcdef" into the row; press "Save"
 // expect: step 8 "name of the secret — never its value": the value stands in no commit of any repository

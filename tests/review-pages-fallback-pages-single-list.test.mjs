@@ -133,7 +133,7 @@ const written = (fake) => fake.writes().filter((change) => change.files.length >
 // ---------------------------------------------------------------- the entry edited in place
 
 // TST-622001 · level: unit · module: MOD-review-pages
-// guards: UC-018 (step 4a); WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
+// guards: UC-018; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
 // given: a GitHub product whose host cannot write and no token stored; the open entry 01 of the sample queue edited in place — the section "1. Lending" with one book standing on "one shelf" — with a Why
 // input: a click on Save
 // expect: nothing committed; a paragraph above the list is exactly "There is no token: GitHub's page opens for each file, and you commit them there."; two pages — the entry's proposal and its rationale —, each
@@ -154,7 +154,7 @@ test("spec-entry/<id>/edit — without a token the entry's pages are fallbackPag
 });
 
 // TST-622002 · level: unit · module: MOD-review-pages
-// guards: UC-018 (step 4a); WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
+// guards: UC-018; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
 // given: the product of TST-622001, whose default branch no longer has the entry's proposal between two readings of one snapshot — the file the edit began with
 // input: a click on Save
 // expect: the page of the proposal carries the warning "The file differs on the default branch; compare before committing." beside its text; the page of the rationale carries no warning and still its text
@@ -173,7 +173,7 @@ test("spec-entry/<id>/edit — without a token a file that already differs is wa
 // ---------------------------------------------------------------- the draft of files
 
 // TST-622003 · level: unit · module: MOD-review-pages
-// guards: UC-019 (step 9); UC-018 (step 4a); WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
+// guards: UC-019; UC-018; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
 // given: a GitHub product whose host cannot write and no token stored; the draft of UC-007 and UC-008, each with an added alternative flow 2b, in their editors
 // input: a click on Save
 // expect: nothing committed; a paragraph above the list is exactly "There is no token: GitHub's page opens for each file, and you commit them there."; two pages — UC-007's file and UC-008's, in this order —,
@@ -192,7 +192,7 @@ test("draft — without a token the pages of a draft of files are fallbackPages'
 });
 
 // TST-622004 · level: unit · module: MOD-review-pages
-// guards: UC-019 (step 9); UC-018 (step 4a); WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
+// guards: UC-019; UC-018; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
 // given: the product of TST-622003, whose default branch no longer has UC-007's file between two readings of one snapshot — the file the draft began with
 // input: a click on Save
 // expect: the page of UC-007 carries the warning "The file differs on the default branch; compare before committing." beside its text; the page of UC-008 carries no warning and still its text
@@ -211,7 +211,7 @@ test("draft — without a token a file of a draft that already differs is warned
 // ---------------------------------------------------------------- the draft of requirements
 
 // TST-622005 · level: unit · module: MOD-review-pages
-// guards: UC-019 (steps 8, 9); UC-018 (step 4a); WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
+// guards: UC-019; UC-018; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
 // given: a GitHub product whose host cannot write and no token stored; the draft of a change of A LOAN HAS A DUE DATE — its rule gains "and says when it is overdue." — from the source SRC-alice
 // input: a click on Save
 // expect: nothing committed; a paragraph above the list is exactly "There is no token: GitHub's page opens for each file, and you commit them there."; four pages — the queue's index and decisions file, the
@@ -238,7 +238,7 @@ test("draft — without a token the pages of a draft of requirements are fallbac
 });
 
 // TST-622006 · level: unit · module: MOD-review-pages
-// guards: UC-019 (steps 8, 9); UC-018 (step 4a); WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
+// guards: UC-019; UC-018; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
 // given: the product of TST-622005, whose default branch gains the queue's index between two readings of one snapshot — the file the draft began without
 // input: a click on Save
 // expect: the page of the index carries the warning "The file differs on the default branch; compare before committing." beside its text; no other page carries a warning, and each other page still carries its text
@@ -261,7 +261,7 @@ test("draft — without a token the index of a draft of requirements that alread
 // ---------------------------------------------------------------- what the edit began from
 
 // TST-611007 · level: unit · module: MOD-review-pages
-// guards: UC-018 (step 4a); WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
+// guards: UC-018; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
 // given: the product of TST-622001, whose default branch has moved to another commit since the entry's editor was opened, and whose repository at the commit it was opened on lacked the entry's proposal that the default branch holds now
 // input: a click on Save
 // expect: the page of the proposal carries the warning "The file differs on the default branch; compare before committing." beside its text; the page of the rationale carries no warning and still its text
@@ -275,7 +275,7 @@ test("spec-entry/<id>/edit — without a token a file that appeared on the defau
 });
 
 // TST-611008 · level: unit · module: MOD-review-pages
-// guards: UC-019 (steps 8, 9); UC-018 (step 4a); WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
+// guards: UC-019; UC-018; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
 // given: the product of TST-622005, whose default branch has moved to another commit since the draft was opened, and whose repository at the commit it was opened on held the index of the queue the draft starts, which the default branch no longer holds
 // input: a click on Save
 // expect: the page of the index carries the warning "The file differs on the default branch; compare before committing." beside its text; no other page carries a warning, and each other page still carries its text

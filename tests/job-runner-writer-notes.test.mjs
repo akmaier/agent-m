@@ -58,7 +58,7 @@ const attended = async (writer = WRITER) => {
 };
 
 // TST-472371 · level: unit · module: MOD-job-runner
-// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-007 4a
+// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-007
 // given: a writer that changes the draft while writing and returns one note for each change, with its commit
 // input: runJob where nobody attends; then runJob where a person attends, and writeResult on their click with a draft they changed
 // expect: the result's `written` is the outcome the writer returned, notes included, in their order, one line each; the same outcome comes from writeResult, whose writer was given the person's draft; known positive first — the writer was called, with the draft
@@ -79,7 +79,7 @@ test("runJob and writeResult — the notes of a writer are handed on, in their o
 });
 
 // TST-472372 · level: unit · module: MOD-job-runner
-// guards: A RECORD IS EVIDENCE, NOT A PROPOSAL; UC-010 4a
+// guards: A RECORD IS EVIDENCE, NOT A PROPOSAL; UC-010
 // given: a writer whose every file already stands on the head as it would write it: it commits nothing and returns an outcome without a commit
 // input: runJob where nobody attends; writeResult on a person's click
 // expect: the outcome as the writer returned it — `commits` empty, no pull request, and its notes, none — and not an outcome with a commit made up by the runner; the same from writeResult; a writer with a commit, called first, gives its commit

@@ -107,7 +107,7 @@ const ticked = (box) => box.getAttribute("disabled") === null && (box.checked ==
 const reasons = (target, id) => found(rowOf(target, id), "[data-reasons]").map(text).join(" ");
 
 // TST-732001 · level: unit · module: MOD-implementation-pages
-// guards: UC-024 (2); A PLANNED MODEL IMPLEMENTS ITS IMPLEMENTATION PLAN; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// guards: UC-024; A PLANNED MODEL IMPLEMENTS ITS IMPLEMENTATION PLAN; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: a V-model product with an accepted architecture and a plan of four steps whose order puts ITM-012 and ITM-010 in Testing and ITM-011 and ITM-013 in Implementation; ITM-011 builds on ITM-010
 // input: the route implement's render
 // expect: the steps stand in the plan's order ITM-012, ITM-010, ITM-011, ITM-013, with the states ready, ready, waiting for an item it builds on, waiting, and the phases of the order; nothing is committed
@@ -121,7 +121,7 @@ test("the implement page of a planned model lists the steps in the plan's order 
 });
 
 // TST-732002 · level: unit · module: MOD-implementation-pages
-// guards: UC-024 (2), 2a, 2b; NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; THE MODEL DETERMINES THE PHASES AND THE GATES
+// guards: UC-024; NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; THE MODEL DETERMINES THE PHASES AND THE GATES
 // given: the product of TST-732001, whose gate Design → Implementation, decided by the Reviewer, has no record
 // input: the route's render
 // expect: the ready steps of the current phase, Testing — ITM-012 and ITM-010 — are ticked; ITM-011 is not selectable and its reason names ITM-010 (2a); ITM-013 is not selectable and its reason names the gate Design → Implementation and its decider, the Reviewer (2b)
@@ -136,7 +136,7 @@ test("the ready steps of the current phase are ticked; a waiting step and a step
 });
 
 // TST-732003 · level: unit · module: MOD-implementation-pages
-// guards: UC-024 (3)
+// guards: UC-024
 // given: the product of TST-732001, its two ready steps ticked
 // input: the person unticks ITM-012
 // expect: the page says one step is selected; ITM-010 stays ticked (the selection narrows down to one step)
@@ -151,7 +151,7 @@ test("the author narrows the selection down to one step", async () => {
 });
 
 // TST-732004 · level: unit · module: MOD-implementation-pages
-// guards: UC-024 (1), 1a, 1b; EVERY STEP EXPLAINS ITSELF
+// guards: UC-024; EVERY STEP EXPLAINS ITSELF
 // given: a product without a declared process model; one with a V-model and no plan; one whose model works from a backlog; and the planned product
 // input: the route's render for each
 // expect: the first names the missing process model and links #process; the second says no plan is saved and links #plan and #process, and lists no step; the third links #backlog; every page holds the folded What is this? of the route the model prescribes
@@ -169,7 +169,7 @@ test("without a model or without a plan nothing starts and what is missing is na
 });
 
 // TST-732005 · level: unit · module: MOD-implementation-pages
-// guards: UC-024 (2); A PLANNED MODEL IMPLEMENTS ITS IMPLEMENTATION PLAN
+// guards: UC-024; A PLANNED MODEL IMPLEMENTS ITS IMPLEMENTATION PLAN
 // given: the product of TST-732001 and a fifth step ITM-014, ready and with no gate before its phase, Validation & Verification, a phase after the current one
 // input: the route's render
 // expect: ITM-014 is ready and may be ticked by the author, but is not preselected; the ready steps of the current phase, Testing, still are (the counter-proof of TST-732002: only the current phase is preselected)

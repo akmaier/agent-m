@@ -55,7 +55,7 @@ const hostOf = (held) => {
 };
 
 // TST-472903 · level: unit · module: MOD-source-register
-// guards: A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; UC-004 step 6
+// guards: A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; UC-004
 // given: the entry of a registration with two files kept and one only hashed, as registrationCommits plans it, and a product's links file that names its version with the version's hash over all three files
 // input: linkedVersion(links, [entry], "SRC-x"), its version's files
 // expect: three files by name, chapter-1.md and appendix.md stored, paid.pdf not; each with the SHA-256 of its bytes; and the hash the link records is the hash of the lines `<SHA-256> <name>` of all three files, the one hashed only included

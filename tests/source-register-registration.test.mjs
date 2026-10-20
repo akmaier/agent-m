@@ -79,7 +79,7 @@ const readBack = (commits, id) => {
 };
 
 // TST-472924 · level: unit · module: MOD-source-register
-// guards: THE INSTANCE KEEPS THE SOURCE REGISTER; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; UC-004 step 6
+// guards: THE INSTANCE KEEPS THE SOURCE REGISTER; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; UC-004
 // given: the entry of a source whose licence may be republished, with its first version `2026-10-12`, and three files the person kept, one of them a PDF of bytes that are no UTF-8 text
 // input: registrationCommits(entry, [CHAPTER, APPENDIX, SCAN], "alice/requirements")
 // expect: one repository, the instance, and in it four files: the register entry at docs/sources/SRC-open-handbook.md and the three files at docs/sources/SRC-open-handbook/2026-10-12/<name>, the PDF holding exactly the bytes given
@@ -101,7 +101,7 @@ test("registrationCommits — a source that may be republished: the entry and th
 });
 
 // TST-472925 · level: unit · module: MOD-source-register
-// guards: A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; THE INSTANCE KEEPS THE SOURCE REGISTER; UC-004 step 6
+// guards: A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; THE INSTANCE KEEPS THE SOURCE REGISTER; UC-004
 // given: the same entry and files, one of them a PDF of bytes that are no UTF-8 text
 // input: registrationCommits(entry, [CHAPTER, APPENDIX, SCAN], instance), and the register entry of the plan read back through MOD-documents
 // expect: the entry has its first version's row as the form gave it, its Files cell `3 files, listed below; version hash `<hash>``, the hash that Data defines over the files' SHA-256 of their bytes; under `### Files of 2026-10-12` a row for each file with the SHA-256 of its bytes; the front matter, the text before ## Versions and ## Parts as they were
@@ -125,7 +125,7 @@ test("registrationCommits — the entry holds the first version with every file'
 });
 
 // TST-472926 · level: unit · module: MOD-source-register
-// guards: RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; UC-004 steps 4 and 6
+// guards: RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; UC-004
 // given: the entry of a restricted source that names a content repository, and two files the person kept
 // input: registrationCommits(entry, [CHAPTER, APPENDIX], instance)
 // expect: two repositories, the instance first, then the named one; the instance gets only the register entry; the named repository gets the two files at docs/sources/SRC-paid-standard/2026-10-12/<name> and nothing else; no file of the version is in the instance
@@ -142,7 +142,7 @@ test("registrationCommits — restricted content goes to the repository the pers
 });
 
 // TST-472927 · level: unit · module: MOD-source-register
-// guards: RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; UC-004 step 4a
+// guards: RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; UC-004
 // given: a restricted entry that names a content repository, one file kept and one only hashed; and an entry that may be republished with the same two files
 // input: registrationCommits for each
 // expect: the file only hashed is in no repository's plan, for either entry, while its SHA-256 is in the entry's table; the kept file goes where its licence sends it; the cell Files names the file after `not stored:`; the version's hash counts both files
@@ -163,7 +163,7 @@ test("registrationCommits — a file the person only hashed is planned nowhere, 
 });
 
 // TST-472928 · level: unit · module: MOD-source-register
-// guards: RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; UC-004 step 4
+// guards: RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; UC-004
 // given: a restricted entry that names no content repository; the same entry with a content repository; an entry whose licence is `unknown`
 // input: registrationCommits(entry, [CHAPTER]) for the first and the last; registrationCommits(entry, [HASHED]) for the first
 // expect: the first call, with a file to keep, rejects with ContentRepositoryMissing, and so does the call for the `unknown` licence, which counts as restricted; the call with the one file only hashed succeeds, with the register entry alone in the instance, since nothing is to be stored
@@ -192,7 +192,7 @@ test("registrationCommits — an entry without its first version's row is refuse
 });
 
 // TST-472930 · level: unit · module: MOD-source-register
-// guards: A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; UC-004 step 6
+// guards: A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; UC-004
 // given: the entry of a source that may be republished, once with a single file kept and one only hashed, once with two only hashed
 // input: registrationCommits(entry, [CHAPTER]) and registrationCommits(entry, [HASHED, { ...HASHED, name: "second.pdf" }]); the Files cell of each
 // expect: `1 file, listed below; version hash `<hash>`` for the first; for the second `2 files, listed below; version hash `<hash>`; not stored: paid.pdf, second.pdf` — the names in the order given, separated by a comma and a space

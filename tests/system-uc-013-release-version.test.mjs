@@ -31,37 +31,37 @@ const UC013_FLOWS = [
   {
     id: "TST-473091",
     flow: "main flow",
-    guards: ["UC-013 main flow", "ONE CLICK PER DECISION", "EVERY STEP EXPLAINS ITSELF", "A PERSON'S OWN INPUT IS COMMITTED DIRECTLY"],
+    guards: ["UC-013", "ONE CLICK PER DECISION", "EVERY STEP EXPLAINS ITSELF", "A PERSON'S OWN INPUT IS COMMITTED DIRECTLY"],
     expectedText: ["Start release candidate", "Check results", "Accept and release", "the rendered report names"],
   },
   {
     id: "TST-473092",
     flow: "1a",
-    guards: ["UC-013 1a", "CALENDAR VERSIONS"],
+    guards: ["UC-013", "CALENDAR VERSIONS"],
     expectedText: ["<this year>.1.0"],
   },
   {
     id: "TST-473093",
     flow: "2a",
-    guards: ["UC-013 2a", "RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER"],
+    guards: ["UC-013", "RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER"],
     expectedText: ["Only the implementer", "assign a second participant", "no candidate"],
   },
   {
     id: "TST-473094",
     flow: "3a and 3b",
-    guards: ["UC-013 3a", "3b", "A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED"],
+    guards: ["UC-013", "A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED"],
     expectedText: ["failing test", "worse than", "reason for each", "it releases"],
   },
   {
     id: "TST-473095",
     flow: "4a",
-    guards: ["UC-013 4a", "A VERSION IS NOT REWRITTEN"],
+    guards: ["UC-013", "A VERSION IS NOT REWRITTEN"],
     expectedText: ["already stands", "existing tag is not moved"],
   },
   {
     id: "TST-473096",
     flow: "4b",
-    guards: ["UC-013 4b"],
+    guards: ["UC-013"],
     expectedText: ["default branch moves on", "candidate's own tested commit"],
   },
 ];

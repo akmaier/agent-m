@@ -77,7 +77,7 @@ const COVERED_BY_RELEASE = {
 const REVIEW_ONLY = ["ONE CLICK PER DECISION"];
 
 // TST-969201 · level: release · module: MOD-maintenance-pages · MOD-mail-handling
-// guards: UC-039; every requirement UC-039 realises; RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER
+// guards: UC-039; RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER
 // given: UC-039's `realises` list, SPEC's current Check lines, the two system tests of UC-039 and the files that check the requirements
 // input: compare the realised requirements with COVERED_BY_RELEASE and REVIEW_ONLY; read the declarations of the system tests
 // expect: every realised requirement is either checked automatically and covered by evidence that exists, a system test among it, or checked at review only; the files the SPEC names as a requirement's check are among its evidence; the system tests declare the main flow and each alternative flow UC-039 names — 1a, 1b, 2a, 2b, 2c, 3a, 3b, 4a, 5a, 5b, 6a and 7a — and every declaration of them is at level system
@@ -110,7 +110,7 @@ test("TST-969201: UC-039 release coverage names every automatic requirement and 
 });
 
 // TST-969202 · level: release · module: MOD-maintenance-pages · MOD-mail-handling
-// guards: UC-039; the evidence of every requirement is an executable test; THE SEND DASHBOARD LISTS THE DRAFTS OF LISTED MAILS
+// guards: UC-039; THE SEND DASHBOARD LISTS THE DRAFTS OF LISTED MAILS
 // given: the evidence files of UC-039
 // input: read the files' text
 // expect: every evidence file is an executable test file, and the Python files that the SPEC names for the mail requirements are at release level

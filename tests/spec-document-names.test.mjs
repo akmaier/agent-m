@@ -87,7 +87,7 @@ const EXPORT_MIXED = { name: "Export Is A Pdf", source: "Product Owner;\nVibe Co
   check: "no automatic check; at review.", checkPaths: [], section: "## 1. Names", line: 14 };
 
 // TST-473056 · level: unit · module: MOD-spec-document
-// guards: A REQUIREMENT HAS FOUR FIELDS; EVERY ARTIFACT HAS AN IDENTIFIER; UC-005 (step 6, a candidate under a name of its own)
+// guards: A REQUIREMENT HAS FOUR FIELDS; EVERY ARTIFACT HAS AN IDENTIFIER; UC-005
 // given: NAMES — a head line of the requirement's form whose name is not in capitals: `Export is a pdf`; then one in capitals; then, directly after it with no empty line, `export as csv`, a name with no capital letter; then `Export Is A Pdf`, a name in capitals and small letters, with a source over two lines
 // input: parseSpec(NAMES)
 // expect: four requirements, in the order they stand, each read with its name as written, its source and that source's items, its rule, its check, its section and the line of its head line — 3, 7, 10 and 14 —, none lost into another: the check of EXPORT IS A PDF ends on line 9, where the head line on line 10 begins; the section lists the four names in order
@@ -98,7 +98,7 @@ test("parseSpec — a head line whose name is not in capitals is read as a requi
 });
 
 // TST-473057 · level: unit · module: MOD-spec-document
-// guards: EVERY ARTIFACT HAS AN IDENTIFIER; UC-005 (step 6) and UC-019 (step 7), findings sent back to the participant
+// guards: EVERY ARTIFACT HAS AN IDENTIFIER; UC-005
 // given: NAMES; and JUDGED — a requirement named `Export is a pdf` whose check is missing, which is otherwise whole
 // input: requirementFindings of each, read by parseSpec
 // expect: for NAMES, exactly one finding for each of the three requirements whose name is not in capitals, an error under EVERY ARTIFACT HAS AN IDENTIFIER that names the requirement and the line of its head line — Export is a pdf on line 3, export as csv on 10, Export Is A Pdf on 14 — and says something of its name; none for EXPORT IS A PDF; for JUDGED the same error on line 3 and, as for any other requirement, an error under A REQUIREMENT HAS FOUR FIELDS for the check that is missing — such a requirement is judged, not passed over

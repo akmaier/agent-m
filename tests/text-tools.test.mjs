@@ -58,7 +58,7 @@ const NONE = "# How the product is developed\n\n**REGISTER**\n\nThe roles are as
 const BROKEN = "---\nmodel: scrum-wip\npractices:\n  - devops\n# How the product is developed\n\n**REGISTER**\n";
 
 // TST-473100 · level: unit · module: MOD-text-tools
-// guards: UC-002 (the declaration is read from its front matter)
+// guards: UC-002
 // given: WITH, a text whose front matter holds text values, a list of two items and an empty list
 // input: parseFrontMatter(WITH)
 // expect: the fields by key — the empty `gates:` a list —, the keys in the order they stand, the body as every byte after the closing line, and 11 as the line on which the body begins

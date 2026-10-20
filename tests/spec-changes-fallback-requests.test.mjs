@@ -107,7 +107,7 @@ const entry = (openedHead = OPENED) => (host) => saveEntry(host, { queue: QUEUE,
 const atOpened = (requests) => requests.filter((request) => request.includes(OPENED));
 
 // TST-611009 · level: unit · module: MOD-spec-changes
-// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A SPEC EDIT IS SAVED AS A PROPOSAL; UC-018 4a
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A SPEC EDIT IS SAVED AS A PROPOSAL; UC-018
 // given: the fake GitHub at two commits, OPENED the one the edit was opened on and HEAD the default branch's head; a section edited
 // input: one click, proposeSection, without a token and with one
 // expect: without a token GitHub's pages are returned; opened on OPENED, exactly two requests name OPENED — its commit and its tree — and the click sends 9 requests (proposeSection) or 11 (saveEntry); opened on HEAD, 7 or 9; with a token a commit is made and no request names OPENED
@@ -123,7 +123,7 @@ test("proposeSection — a save without a token sends two requests at the commit
 });
 
 // TST-611010 · level: unit · module: MOD-spec-changes
-// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A SPEC EDIT IS SAVED AS A PROPOSAL; UC-018 4a
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A SPEC EDIT IS SAVED AS A PROPOSAL; UC-018
 // given: the fake GitHub as in TST-611009, and an open entry
 // input: one click, saveEntry, without a token and with one
 // expect: without a token GitHub's pages are returned; opened on OPENED, exactly two requests name OPENED — its commit and its tree — and the click sends 9 requests (proposeSection) or 11 (saveEntry); opened on HEAD, 7 or 9; with a token a commit is made and no request names OPENED
@@ -139,7 +139,7 @@ test("saveEntry — a save without a token sends two requests at the commit the 
 });
 
 // TST-611011 · level: unit · module: MOD-spec-changes
-// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018 4a
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018
 // given: the fake GitHub as in TST-611009
 // input: one click each of proposeSection and saveEntry, without a token for an edit opened on an earlier commit, on the current head and on no commit (null, an empty repository), and with a token
 // expect: without a token for an earlier commit 9 requests for proposeSection and 11 for saveEntry — the 7 and 9 of the edit opened on the current head, which reads nothing more, and the 2 for the earlier commit and its tree; for null 7 and 9, as nothing is read; with a token 11 and 13: the repository's information, commit and tree (3), `SPEC.md` by its own read (1) in the click of proposeSection, the queue's two files in one batch (1) and the trace graph's use case in one batch (1), and the 5 requests of the commit (ref, commit, tree, new commit, ref update) for proposeSection (13 for saveEntry, which instead reads the target `SPEC.md` in a batch of the queue read, and its entry's two files by their own reads)
@@ -150,7 +150,7 @@ test("proposeSection and saveEntry — the requests of a whole click, without a 
 });
 
 // TST-611012 · level: unit · module: MOD-spec-changes
-// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018 4a
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018
 // given: the fake GitHub as in TST-611009, and an open entry; the edit opened on no commit (null, an empty repository)
 // input: one click, saveEntry, without a token
 // expect: no request names OPENED; both files of the entry did not exist when the edit began, so both pages are GitHub's new-file pages and differs is true for both, since both exist on the default branch

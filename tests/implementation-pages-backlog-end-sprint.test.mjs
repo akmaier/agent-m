@@ -96,7 +96,7 @@ async function render(overrides) {
 const endButtons = (target, team) => found(target, `[data-end-sprint="${team}"]`);
 
 // TST-783001 · level: unit · module: MOD-implementation-pages
-// guards: UC-032 6b
+// guards: UC-032
 // given: team1's sprint 01 runs without a time box; team2's sprint 01 has ended on its date (2026-09-07)
 // input: the route backlog's render
 // expect: team1's panel offers End sprint (one button, data-end-sprint="team1"); team2's panel, with no running sprint, offers none
@@ -108,7 +108,7 @@ test("the backlog page offers End sprint for a running sprint without a time box
 });
 
 // TST-783002 · level: unit · module: MOD-implementation-pages
-// guards: UC-032 6b
+// guards: UC-032
 // given: team1's running sprint has a time box (end: 2099-12-31); and, as a second page, one without a time box whose record already holds `## Ended` of today (so that the sprint still runs: it is final from the day after)
 // input: the route backlog's render, both ways
 // expect: neither page offers End sprint (the counter-proof of TST-783001)

@@ -84,7 +84,7 @@ const row = (html, role) => { const at = html.indexOf(`data-role="${role}"`); re
 // ---------------------------------------------------------------- the main flow
 
 // TST-1063001 · level: system · module: MOD-implementation-pages
-// guards: UC-048 main flow, steps 1 to 4; A ROLE ASSIGNMENT FILLS THE ROLES; THE PROCESS NAMES ROLES, NOT PARTICIPANTS; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION
+// guards: UC-048; A ROLE ASSIGNMENT FILLS THE ROLES; THE PROCESS NAMES ROLES, NOT PARTICIPANTS; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION
 // given: the product declares its model (Scrum) and the instance lists its participants; team1 and team2 have their role assignments
 // input: UC-048 main flow: open #roles; read the role assignments and the roles; choose + Team and name it team3; assign alice to Owner and dev-a to Builders and Checker; press Save once; open #roles again
 // expect: step 1 shows team1 and team2 with who fills which role, and every role of the model with who may fill it, how many and what it needs; Save is disabled until a person holds Owner and then enabled; one click commits one file, docs/role-assignments/team3.md, whose whole text is the roles of the model with their participants by name and nothing of the process (no model, no branch, no Definition of Done); the process declaration is not in the commit; opened again, the page shows team3 with its holders
@@ -114,7 +114,7 @@ test("UC-048 main flow — open Roles, name a role assignment, assign participan
 // ---------------------------------------------------------------- alternative flows
 
 // TST-1063002 · level: system · module: MOD-implementation-pages
-// guards: UC-048 alternative 2a; A PRODUCT HAS ONE ROLE ASSIGNMENT, OR ONE PER TEAM; A PARTICIPANT MAY SERVE SEVERAL TEAMS
+// guards: UC-048; A PRODUCT HAS ONE ROLE ASSIGNMENT, OR ONE PER TEAM; A PARTICIPANT MAY SERVE SEVERAL TEAMS
 // given: a model with sprints and a product with two teams, team1 (alice, dev-a) and team2 (bob, dev-b)
 // input: alternative 2a: + Team, name team3, assign alice to Owner and dev-a, who already holds roles in team1, to Builders and Checker; Save
 // expect: + Team is offered; the new team's assignment is saved in a role assignment of its own with no complaint that alice and dev-a hold roles in team1 as well; only team3's file is committed, team1's is not touched
@@ -131,7 +131,7 @@ test("UC-048 alternative 2a — + Team in a model with sprints: a role assignmen
 });
 
 // TST-1063003 · level: system · module: MOD-implementation-pages
-// guards: UC-048 alternative 2b; A PRODUCT HAS ONE ROLE ASSIGNMENT, OR ONE PER TEAM
+// guards: UC-048; A PRODUCT HAS ONE ROLE ASSIGNMENT, OR ONE PER TEAM
 // given: a model that works without sprints, and the product's one role assignment
 // input: alternative 2b: open #roles
 // expect: the one role assignment is shown and + Team is not offered; no Remove team is offered for a team the model does not have
@@ -143,7 +143,7 @@ test("UC-048 alternative 2b — a model without sprints shows its one role assig
 });
 
 // TST-1063004 · level: system · module: MOD-implementation-pages
-// guards: UC-048 alternative 3a; A ROLE NAMES HOW MANY FILL IT; A ROLE NAMES THE CAPABILITIES IT NEEDS
+// guards: UC-048; A ROLE NAMES HOW MANY FILL IT; A ROLE NAMES THE CAPABILITIES IT NEEDS
 // given: the + Team form with no participant assigned; the role Owner needs a person
 // input: alternative 3a: look for an agent among the holders offered for Owner; assign agents to the other roles
 // expect: Save stays disabled and the form names the role Owner as the one that needs a person; an agent is not among the participants offered for Owner
@@ -160,7 +160,7 @@ test("UC-048 alternative 3a — a role that needs a person has none: Save stays 
 });
 
 // TST-1063005 · level: system · module: MOD-implementation-pages
-// guards: UC-048 alternative 3b; A ROLE NAMES THE CAPABILITIES IT NEEDS; A PARTICIPANT DECLARES ITS CAPABILITIES
+// guards: UC-048; A ROLE NAMES THE CAPABILITIES IT NEEDS; A PARTICIPANT DECLARES ITS CAPABILITIES
 // given: an instance whose agents cannot use tools, which Builders need, and one model endpoint that can only draft text and read; known positive: the same instance with agents that can
 // input: alternative 3b: open #roles
 // expect: the known positive offers dev-a and dev-b for Builders and never the model endpoint; without the capability Builders names the missing capability use tools and links to the participants' page (UC-017)
@@ -175,7 +175,7 @@ test("UC-048 alternative 3b — no participant has the capabilities a role needs
 });
 
 // TST-1063006 · level: system · module: MOD-implementation-pages
-// guards: UC-048 alternative 3c; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
+// guards: UC-048; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
 // given: the product links SRC-restricted, whose content may be given only at NHR@FAU, Erlangen; dev-a processes data on this machine
 // input: alternative 3c: open #roles, change team1, press Save
 // expect: the page names the source SRC-restricted, the role Builders and dev-a; the assignment stays possible: Save is enabled and commits docs/role-assignments/team1.md
@@ -192,7 +192,7 @@ test("UC-048 alternative 3c — a holder at a place a linked source does not per
 });
 
 // TST-1063007 · level: system · module: MOD-implementation-pages
-// guards: UC-048 alternative 3d; A ROLE NAMES HOW MANY FILL IT
+// guards: UC-048; A ROLE NAMES HOW MANY FILL IT
 // given: team1, whose Owner alice is a role that one participant fills; known positive: team1 as it stands may be saved
 // input: alternative 3d: change team1 and give Owner a second participant, bob
 // expect: Save is disabled and the page says that the model lets one participant fill the role Owner; nothing is saved; taking bob off again enables Save
@@ -211,7 +211,7 @@ test("UC-048 alternative 3d — a second participant for a role one fills is ref
 });
 
 // TST-1063008 · level: system · module: MOD-implementation-pages
-// guards: UC-048 alternative 4a; A ROLE ASSIGNMENT FILLS THE ROLES; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
+// guards: UC-048; A ROLE ASSIGNMENT FILLS THE ROLES; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
 // given: team1 with Owner alice, Builders and Checker dev-a
 // input: alternative 4a: open team1 from the list of step 1, give Owner to bob instead of alice and Builders to dev-b instead of dev-a, press Save
 // expect: one commit of docs/role-assignments/team1.md, in which Owner is bob, Builders dev-b and Checker dev-a, and nothing of the process
@@ -232,7 +232,7 @@ test("UC-048 alternative 4a — changing a role assignment commits the file with
 });
 
 // TST-1063009 · level: system · module: MOD-implementation-pages
-// guards: UC-048 alternative 4b; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; A PRODUCT HAS ONE ROLE ASSIGNMENT, OR ONE PER TEAM
+// guards: UC-048; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; A PRODUCT HAS ONE ROLE ASSIGNMENT, OR ONE PER TEAM
 // given: two teams: team1, one of whose sprints holds ITM-001, and team2, which runs none
 // input: alternative 4b: remove team1; then remove team2
 // expect: team1 is not removed: the page names ITM-001 and nothing is written; team2's role assignment is removed in one commit that deletes docs/role-assignments/team2.md
@@ -247,7 +247,7 @@ test("UC-048 alternative 4b — a team whose sprint holds items cannot be remove
 });
 
 // TST-1063011 · level: system · module: MOD-implementation-pages
-// guards: UC-048 alternative 4b; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH
+// guards: UC-048; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH
 // given: team1, whose closed sprint selected ITM-001, and a product whose server cannot list its pull requests (500)
 // input: alternative 4b: remove team1
 // expect: the team is not removed, never guessed released: the page names ITM-001 and nothing is written
@@ -264,7 +264,7 @@ test("UC-048 alternative 4b — when the pull requests of the team's items canno
 });
 
 // TST-1063010 · level: system · module: MOD-implementation-pages
-// guards: UC-048 (every step carries a folded What is this?); EVERY STEP EXPLAINS ITSELF
+// guards: UC-048; EVERY STEP EXPLAINS ITSELF
 // given: the Roles page with a team open for a change
 // input: open #roles, change team1
 // expect: the head and every panel carry a folded What is this?; together they say what a role is, that the process names roles and no one, that only Scrum has teams, and point to chapter 6 and chapter 7

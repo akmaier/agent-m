@@ -42,10 +42,10 @@ async function pressSend(item) {
   assert.notEqual(dialog(), undefined, `the dialog opened: ${textOf(item)}`);
 }
 // TST-969101 · level: system · module: MOD-maintenance-pages · MOD-mail-handling · MOD-mail-protocols
-// guards: UC-039 main flow; THE BRIDGE SENDS ONLY WITH A CONFIRMATION OF THE MAIL SHOWN; THE MAIL SERVER IS REACHED ONLY OVER TLS; A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER; A REPLY GOES TO ONE REPORTER; A REPLY IS THREADED ON THE REPORTER'S MAIL; A SENT REPLY IS NOTED IN THE ISSUE; THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE
+// guards: UC-039; THE BRIDGE SENDS ONLY WITH A CONFIRMATION OF THE MAIL SHOWN; THE MAIL SERVER IS REACHED ONLY OVER TLS; A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER; A REPLY GOES TO ONE REPORTER; A REPLY IS THREADED ON THE REPORTER'S MAIL; A SENT REPLY IS NOTED IN THE ISSUE; THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE
 // given: the page on the IMAP route in front of the Bridge over the local IMAP server (INBOX holds m1 from Erika) and SMTP server; the closed issue 4 lists m1; the mailbox password is the marker password
 // input: issue 4 opened; the person's click on Write the reply myself; the person's click on Send and the dialog's Send
-// expect: the draft is in the server's Drafts with one To (Erika), Re: Subject m1, In-Reply-To and References from m1's Message-ID, and the original quoted; the dialog repeats recipient and subject and nothing reaches SMTP before its confirmation; then the Bridge asks for a confirmation of the SHA-256 of that draft's bytes and sends with it — exactly one mail reaches the SMTP server, over TLS, to Erika alone, with the bytes of the draft —, a copy is in Sent, the draft is gone from Drafts, INBOX is as it was, and the issue has one comment, Reply sent to the identifier of m1 on a day; every login of IMAP and SMTP was after TLS with the marker password, and the password is in no request but those to the Bridge
+// expect: the draft is in the server's Drafts with one To (Erika), Re: Subject m1, In-Reply-To and References from m1's Message-ID, and the original quoted; the dialog repeats recipient and subject and nothing reaches SMTP before its confirmation; then the Bridge asks for a confirmation of the SHA-256 of that draft's bytes and sends with it — exactly one mail reaches the SMTP server, over TLS, to Erika alone, with the bytes of the draft —, a copy is in Sent, the draft is gone from Drafts, INBOX is as it was, and the issue has one comment, Reply sent to the identifier of m1 on a day; every login of IMAP and SMTP was after TLS with the marker password, and the password is in no request but those to the Bridge (flow: UC-039 main flow)
 test("main flow on the IMAP route: the Bridge stores the draft, sends with the confirmation of the mail shown over TLS, copies it to Sent, and the reply is noted", async () => {
   const inbox = [rawMail("m1")];
   const p = await openReplies({ route: "imap", inbox, issues: [closed([M1])] });
@@ -90,10 +90,10 @@ test("main flow on the IMAP route: the Bridge stores the draft, sends with the c
 });
 
 // TST-969102 · level: system · module: MOD-maintenance-pages · MOD-mail-handling · MOD-mail-protocols
-// guards: UC-039 alternative 5a; UC-039 alternative 5b; THE BRIDGE SENDS ONLY WITH A CONFIRMATION OF THE MAIL SHOWN; EVERY OUTGOING MAIL IS RELEASED BY A PERSON
+// guards: UC-039; THE BRIDGE SENDS ONLY WITH A CONFIRMATION OF THE MAIL SHOWN; EVERY OUTGOING MAIL IS RELEASED BY A PERSON
 // given: the page on the IMAP route with a stored draft of m1; the closed issue 4 lists m1
 // input: the person's edit of the draft and Save draft; the click on Send and the dialog's Send; afterwards the same send request again with the confirmation the Bridge had spent
-// expect: after the edit the draft in Drafts has other bytes — its SHA-256 changes with them — and the confirmation the Bridge is asked for carries the SHA-256 of the edited bytes; the edited mail is sent once; the same request twice — a reload, a double click — sends nothing the second time: the Bridge refuses the spent confirmation and the SMTP server holds the one mail
+// expect: after the edit the draft in Drafts has other bytes — its SHA-256 changes with them — and the confirmation the Bridge is asked for carries the SHA-256 of the edited bytes; the edited mail is sent once; the same request twice — a reload, a double click — sends nothing the second time: the Bridge refuses the spent confirmation and the SMTP server holds the one mail (flow: UC-039 alternative 5a; UC-039 alternative 5b)
 test("alternatives 5a and 5b on the IMAP route: the hash changes with the edit, and a spent confirmation sends nothing", async () => {
   const p = await openReplies({ route: "imap", inbox: [rawMail("m1")], issues: [closed([M1])] });
   await lastly(p, async () => {
@@ -126,10 +126,10 @@ test("alternatives 5a and 5b on the IMAP route: the hash changes with the edit, 
 });
 
 // TST-969103 · level: system · module: MOD-maintenance-pages · MOD-mail-handling · MOD-mail-protocols
-// guards: UC-039 alternative 6a; EVERY OUTGOING MAIL IS RELEASED BY A PERSON; A SENT REPLY IS NOTED IN THE ISSUE
+// guards: UC-039; EVERY OUTGOING MAIL IS RELEASED BY A PERSON; A SENT REPLY IS NOTED IN THE ISSUE
 // given: the page on the IMAP route with a stored draft of m1; the SMTP server answers the finished mail with 554
 // input: the person's click on Send and the dialog's Send; then the Bridge not running (it answers that it is paused) and the click on Send again
-// expect: the page shows the server's answer (554); nothing is noted in the issue; the draft stays in Drafts and on the page; nothing is in Sent; with the Bridge not running the page names the failure (the draft cannot be read, so no dialog opens), the draft stays, and nothing is noted either
+// expect: the page shows the server's answer (554); nothing is noted in the issue; the draft stays in Drafts and on the page; nothing is in Sent; with the Bridge not running the page names the failure (the draft cannot be read, so no dialog opens), the draft stays, and nothing is noted either (flow: UC-039 alternative 6a)
 test("alternative 6a on the IMAP route: SMTP refuses or the Bridge is not running — nothing is noted and the draft stays", async () => {
   const p = await openReplies({ route: "imap", inbox: [rawMail("m1")], issues: [closed([M1])], refuseMail: true });
   await lastly(p, async () => {
@@ -155,10 +155,10 @@ test("alternative 6a on the IMAP route: SMTP refuses or the Bridge is not runnin
 });
 
 // TST-969104 · level: system · module: MOD-maintenance-pages · MOD-mail-handling · MOD-mail-protocols
-// guards: UC-039 alternative 2b; A MAIL IS FOUND AGAIN BY ITS IDENTIFIER; MAIL STAYS IN THE MAILBOX
+// guards: UC-039; A MAIL IS FOUND AGAIN BY ITS IDENTIFIER; MAIL STAYS IN THE MAILBOX
 // given: the closed issue 4 lists m1 and m3; m3 lies in the folder Reports, which the connection does not name (it names INBOX)
 // input: issue 4 opened; then the connection names the folder Reports as well and the issue is read again
-// expect: m3 says it was not found in the mailbox and cannot be sent; after the folder is named the same mail is found again through its identifier and offered a reply; the mailbox was written nowhere by the reading
+// expect: m3 says it was not found in the mailbox and cannot be sent; after the folder is named the same mail is found again through its identifier and offered a reply; the mailbox was written nowhere by the reading (flow: UC-039 alternative 2b)
 test("alternative 2b on the IMAP route: a mail filed into a folder the connection does not name is not found until the folder is named", async () => {
   const p = await openReplies({ route: "imap", inbox: [rawMail("m1")], reports: [rawMail("m3")], issues: [closed([M1, M3])] });
   await lastly(p, async () => {

@@ -18,12 +18,14 @@
 //     test whose outcome depends on a model's answer. A test that declares phrasings and no runs is the other fault, and a test
 //     that declares neither does not depend on a model, so it has no runs to count.
 
+import { kindOfIdentifier } from "../identifiers/index.mjs";
 import { finding } from "../text-tools/index.mjs";
 
 const ONE_LEVEL = "EVERY TEST HAS ONE LEVEL";
 const EXPECTED_RESULT = "A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS";
 const ORIGIN = "EVERY ARTIFACT NAMES ITS ORIGIN";
 const RATE = "A MODEL-DEPENDENT TEST IS MEASURED AS A RATE";
+const REFERENCE = "A REFERENCE NAMES THE IDENTIFIER, NOT THE POSITION";
 
 const LEVELS = ["unit", "component", "system", "release", "user"];
 const MINIMUM_RUNS = 2;
@@ -37,7 +39,8 @@ const given = (value) => value !== null && value !== undefined;
 // level; under A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS for a missing precondition, input or expected result; under
 // EVERY ARTIFACT NAMES ITS ORIGIN for a test that guards nothing or names no module, or a test of level unit or component that
 // names system; under A MODEL-DEPENDENT TEST IS MEASURED AS A RATE for a test with phrasings and no runs, or with fewer than
-// two runs. Each finding names the declaration and its line.
+// two runs; under A REFERENCE NAMES THE IDENTIFIER, NOT THE POSITION for each guards entry that is neither a requirement's name nor a use case's identifier.
+// Each finding names the declaration and its line.
 export function testFindings(declaration) {
   const d = declaration;
   const found = [];
@@ -56,6 +59,14 @@ export function testFindings(declaration) {
   if (!d.guards || d.guards.length === 0) {
     add(ORIGIN, "the test guards nothing",
       "name what it guards in a line guards:, separated by ; — requirements by their names, use cases as UC-<nnn>");
+  }
+  // A guards entry is a requirement's name or a use case's identifier (MOD-identifiers' scheme), and nothing else: a use case written with its step is none.
+  for (const entry of d.guards ?? []) {
+    const kind = kindOfIdentifier(entry);
+    if (kind !== "requirement" && kind !== "UC") {
+      add(REFERENCE, `the guards entry "${entry}" is neither a requirement's name nor a use case's identifier`,
+        "write the requirement's name, or the use case as UC-<nnn> without its step, and nothing else");
+    }
   }
   if (left(d.module)) {
     add(ORIGIN, "the test names no module",

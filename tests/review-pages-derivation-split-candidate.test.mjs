@@ -190,7 +190,7 @@ const splitOf = (item) => byClass(item, "button", "split");
 const proposalsOf = (product) => product.writes().filter((files) => files.some((file) => file.path.includes("docs/spec-freigaben/")));
 
 // TST-578001 · level: unit · module: MOD-review-pages
-// guards: UC-005 (step 6.3, alternative flow 6a); ONE STATEMENT PER REQUIREMENT
+// guards: UC-005; ONE STATEMENT PER REQUIREMENT
 // given: the endpoint answers, in every round, a candidate whose rule says two things (A LOAN STATES TWO THINGS: "... due date and its return place.") and a clean one (A MEMBER CAN RENEW ONCE)
 // input: the route spec-entry/draft, drafter-a, Run; the correction loop ends "unchanged" with the warning of ONE STATEMENT PER REQUIREMENT left on the first candidate
 // expect: the panel reads "Correction rounds: 2"; its list of what is left holds the one finding `ONE STATEMENT PER REQUIREMENT: the rule contains "and" - split it into two requirements, or keep it and give a one-line reason`;
@@ -208,7 +208,7 @@ test("spec-entry/draft - a candidate a finding the loop left names offers Split,
 });
 
 // TST-578002 · level: unit · module: MOD-review-pages
-// guards: UC-005 (alternative flow 6a)
+// guards: UC-005
 // given: the endpoint answers two candidates of which no finding is left (A BOOK STANDS ON A SHELF, A MEMBER CAN RENEW ONCE; each rule states one thing)
 // input: the route spec-entry/draft, drafter-a, Run
 // expect: the panel reads "Correction rounds: 1", its list of what is left is empty, and no button "Split" stands anywhere
@@ -220,7 +220,7 @@ test("spec-entry/draft - without a finding left, no candidate offers Split", asy
 });
 
 // TST-578003 · level: unit · module: MOD-review-pages
-// guards: UC-005 (alternative flow 6a); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-005; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the flagged draft of TST-578001
 // input: Split on A LOAN STATES TWO THINGS
 // expect: the candidates stand in the order A LOAN STATES TWO THINGS, part of A LOAN STATES TWO THINGS, A MEMBER CAN RENEW ONCE; the part's class select reads "new", its "of" field is empty, its name
@@ -239,7 +239,7 @@ test("spec-entry/draft - Split adds a part after the candidate, of the same clas
 });
 
 // TST-578004 · level: unit · module: MOD-review-pages
-// guards: UC-005 (alternative flow 6a)
+// guards: UC-005
 // given: the flagged draft of TST-578001
 // input: Split on A LOAN STATES TWO THINGS twice
 // expect: the candidates stand in the order A LOAN STATES TWO THINGS, part of A LOAN STATES TWO THINGS, part of A LOAN STATES TWO THINGS, A MEMBER CAN RENEW ONCE
@@ -251,7 +251,7 @@ test("spec-entry/draft - a second Split adds a second part after the first", asy
 });
 
 // TST-578005 · level: unit · module: MOD-review-pages
-// guards: UC-005 (step 8, alternative flow 6a); ONE STATEMENT PER REQUIREMENT; A GENERATED ARTIFACT IS A PROPOSAL
+// guards: UC-005; ONE STATEMENT PER REQUIREMENT; A GENERATED ARTIFACT IS A PROPOSAL
 // given: the flagged draft of TST-578001, split; the part named A LOAN SHOWS ITS DATE with the rule "Every loan states its due date."; the first's rule edited to "Every loan states its return place."
 // input: Write proposals
 // expect: one commit holds docs/spec-freigaben/<queue>/01-lending.md; its text holds, in this order, the blocks of A LOAN STATES TWO THINGS ("Every loan states its return place."), A LOAN SHOWS ITS DATE
@@ -280,7 +280,7 @@ test("spec-entry/draft - Write proposals writes each part as a requirement of it
 });
 
 // TST-578006 · level: unit · module: MOD-review-pages
-// guards: UC-005 (alternative flow 6a); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-005; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the flagged draft of TST-578001, split, the part left without a name or a rule
 // input: Write proposals
 // expect: the panel shows a problem reading "A split part of A LOAN STATES TWO THINGS needs a name and a rule: nothing was written."; nothing is written to docs/spec-freigaben; Write proposals is enabled again
@@ -296,7 +296,7 @@ test("spec-entry/draft - a split part without a name and a rule is not written",
 });
 
 // TST-578007 · level: unit · module: MOD-review-pages
-// guards: UC-005 (alternative flow 6a)
+// guards: UC-005
 // given: the flagged draft of TST-578001, split, the part given the rule "Every loan states its due date." and the name A MEMBER CAN RENEW ONCE, which another candidate bears
 // input: Write proposals
 // expect: the panel shows a problem reading "The split part A MEMBER CAN RENEW ONCE has the name of another candidate: nothing was written."; nothing is written to docs/spec-freigaben
@@ -313,7 +313,7 @@ test("spec-entry/draft - a split part bearing another candidate's name is not wr
 });
 
 // TST-578008 · level: unit · module: MOD-review-pages
-// guards: UC-005 (step 8, alternative flow 6a); ONE STATEMENT PER REQUIREMENT
+// guards: UC-005; ONE STATEMENT PER REQUIREMENT
 // given: the endpoint answers, in every round, a `change` of A LOAN HAS A DUE DATE named THE DUE DATE IS SHOWN, whose rule says two things ("Every loan shows its due date and its return place."); the person splits it,
 //   names the part THE RETURN PLACE IS SHOWN with the rule "Every loan shows its return place.", leaves the part's class and "of" as the split showed them, and edits the first's rule to "Every loan shows its due date."
 // input: Write proposals
@@ -338,7 +338,7 @@ test("spec-entry/draft - a split change candidate is written with both parts", a
 });
 
 // TST-578009 · level: unit · module: MOD-review-pages
-// guards: UC-005 (steps 7 and 8); A GENERATED ARTIFACT IS A PROPOSAL
+// guards: UC-005; A GENERATED ARTIFACT IS A PROPOSAL
 // given: the endpoint answers one candidate that constrains the process, class `new` (A GATE DECISION IS RECORDED, rule "Every gate decision is recorded."); the instance's SPEC holds EVERY GATE NAMES WHO DECIDES IT;
 //   no split: the person sets the candidate's class to `change` and its "of" to EVERY GATE NAMES WHO DECIDES IT
 // input: Write proposals
@@ -386,7 +386,7 @@ const lendingEntry = (product) => proposalsOf(product)[0].find((file) => /docs\/
 const blockOf = (name, rule) => `**${name}** *(SRC-policy, ch. 1)*\n${rule}\n*Check:* \`tests/fixture.test.mjs\``;
 
 // TST-634001 · level: unit · module: MOD-review-pages
-// guards: UC-005 (alternative flow 6a); ONE STATEMENT PER REQUIREMENT
+// guards: UC-005; ONE STATEMENT PER REQUIREMENT
 // given: the endpoint answers, in every round, a `change` of A LOAN HAS A DUE DATE named THE DUE DATE IS SHOWN, whose rule says two things
 // input: Split on THE DUE DATE IS SHOWN twice
 // expect: after the first Split the candidates stand in the order THE DUE DATE IS SHOWN, part of THE DUE DATE IS SHOWN; the candidate still reads `change` of A LOAN HAS A DUE DATE; the part reads `new` with an empty "of";
@@ -407,7 +407,7 @@ test("spec-entry/draft - Split of a change candidate adds parts that show new wi
 });
 
 // TST-634002 · level: unit · module: MOD-review-pages
-// guards: UC-005 (alternative flow 6a)
+// guards: UC-005
 // given: the endpoint answers, in every round, one candidate of class `duplicate` of A LOAN HAS A DUE DATE, whose rule says two things; and the same with class `conflict`
 // input: Split on the candidate, once for each class
 // expect: for `duplicate` the part's class select reads `duplicate` and its "of" reads A LOAN HAS A DUE DATE; for `conflict` the part reads `conflict` and A LOAN HAS A DUE DATE: every class but `change` is copied
@@ -421,7 +421,7 @@ for (const class_ of ["duplicate", "conflict"]) {
 }
 
 // TST-634003 · level: unit · module: MOD-review-pages
-// guards: UC-005 (alternative flow 6a); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-005; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the `change` candidate of TST-634001, split; the part named THE RETURN PLACE IS SHOWN with the rule "Every loan shows its return place."; the person sets the part's class to `change` and its "of" to A LOAN HAS A DUE DATE
 // input: Write proposals; then the person sets the part back to `new` with an empty "of" and presses Write proposals again
 // expect: the first press shows a problem reading "TwoChanges: THE DUE DATE IS SHOWN and THE RETURN PLACE IS SHOWN change A LOAN HAS A DUE DATE: one block would replace the other. Nothing was composed. To go on, give one of the two the class new, or merge them into one."; nothing is written to docs/spec-freigaben; Write proposals is enabled again;
@@ -443,7 +443,7 @@ test("spec-entry/draft - a part set to change what its candidate changes is refu
 });
 
 // TST-634004 · level: unit · module: MOD-review-pages
-// guards: UC-005 (alternative flow 6a); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-005; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the flagged draft of TST-578001 (A LOAN STATES TWO THINGS, class `new`), split twice; both parts named and given a rule; the person sets both parts' class to `change` and their "of" to A LOAN HAS A DUE DATE
 // input: Write proposals
 // expect: a problem reading "TwoChanges: A LOAN SHOWS ITS DATE and A LOAN SHOWS ITS PLACE change A LOAN HAS A DUE DATE: one block would replace the other. Nothing was composed. To go on, give one of the two the class new, or merge them into one."; nothing is written to docs/spec-freigaben
@@ -461,7 +461,7 @@ test("spec-entry/draft - two parts that change one requirement are refused, noth
 });
 
 // TST-634005 · level: unit · module: MOD-review-pages
-// guards: UC-005 (step 8, alternative flow 6a); ONE STATEMENT PER REQUIREMENT
+// guards: UC-005; ONE STATEMENT PER REQUIREMENT
 // given: the `change` candidate of TST-634001 (of A LOAN HAS A DUE DATE), split; the part named THE SHELF IS NAMED with the rule "Every book is put on a named shelf."; the person sets the part's class to `change` and its "of" to A BOOK IS SHELVED;
 //   the first's rule is edited to "Every loan shows its due date."
 // input: Write proposals
@@ -483,7 +483,7 @@ test("spec-entry/draft - a part that changes another requirement than its candid
 });
 
 // TST-634006 · level: unit · module: MOD-review-pages
-// guards: UC-005 (step 8, alternative flow 6a); ONE STATEMENT PER REQUIREMENT
+// guards: UC-005; ONE STATEMENT PER REQUIREMENT
 // given: the `change` candidate of TST-634001, split; the part named THE RETURN PLACE IS SHOWN with the rule "Every loan shows its return place." left as the split showed it (`new`, empty "of"); the first's rule edited to "Every loan shows its due date."
 // input: Write proposals
 // expect: one commit; the entry 01-lending.md holds the block of A LOAN HAS A DUE DATE with the rule "Every loan shows its due date." and the block THE RETURN PLACE IS SHOWN with the rule "Every loan shows its return place.";
@@ -503,7 +503,7 @@ test("spec-entry/draft - a split change candidate is written as the panel shows 
 });
 
 // TST-634007 · level: unit · module: MOD-review-pages
-// guards: UC-005 (step 8, alternative flow 6a)
+// guards: UC-005
 // given: the `change` candidate of TST-634001 (of A LOAN HAS A DUE DATE), split; the part named THE RETURN PLACE IS SHOWN with the rule "Every loan shows its return place."; the person sets the part's class to `new` and its "of" to A LOAN HAS A DUE DATE
 // input: Write proposals
 // expect: no problem; the entry 01-lending.md holds the block THE RETURN PLACE IS SHOWN with the rule "Every loan shows its return place.": only a part whose class is `change` counts among the parts that change one requirement
@@ -520,7 +520,7 @@ test("spec-entry/draft - a part of class new naming the candidate's requirement 
 });
 
 // TST-634008 · level: unit · module: MOD-review-pages
-// guards: UC-005 (alternative flow 6a)
+// guards: UC-005
 // given: the endpoint answers, in every round, A LOAN STATES TWO THINGS (class `new`, rule says two things) and A MEMBER CAN RENEW ONCE as a `change` of A LOAN HAS A DUE DATE; the first is split, its part named A LOAN SHOWS ITS DATE with a rule
 //   and set to class `change` of A LOAN HAS A DUE DATE
 // input: Write proposals
@@ -536,7 +536,7 @@ test("spec-entry/draft - a part and another candidate that change one requiremen
 });
 
 // TST-634009 · level: unit · module: MOD-review-pages
-// guards: UC-005 (alternative flow 6a)
+// guards: UC-005
 // given: the `change` candidate of TST-634001, split; the part named THE RETURN PLACE IS SHOWN with the rule "Every loan shows its return place."; the person sets the part's class to `change` and clears its "of"; the candidate's "of" is cleared too
 // input: Write proposals
 // expect: no problem: a `change` with an empty "of" names no requirement, so two of them are not two changes of one requirement; the write result is shown
@@ -555,7 +555,7 @@ test("spec-entry/draft - two parts of class change with an empty of are not refu
 // ---------------------------------------------------------------- ITM-636: two candidates that change one requirement are refused by the writer
 
 // TST-636010 · level: unit · module: MOD-review-pages
-// guards: UC-005 (step 8); A CHANGE IS PROPOSED UNDER THE EXISTING NAME; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-005; A CHANGE IS PROPOSED UNDER THE EXISTING NAME; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the endpoint answers, in every round, two different candidates, THE DUE DATE IS SHOWN and A MEMBER CAN RENEW ONCE, each a `change` of A LOAN HAS A DUE DATE; no split
 // input: Write proposals; then the person sets A MEMBER CAN RENEW ONCE to `new` with an empty "of" and presses Write proposals again
 // expect: the first press shows a problem reading "TwoChanges: THE DUE DATE IS SHOWN and A MEMBER CAN RENEW ONCE change A LOAN HAS A DUE DATE: one block would replace the other. Nothing was composed. To go on, give one of the two the class new, or merge them into one."; nothing is written to docs/spec-freigaben;

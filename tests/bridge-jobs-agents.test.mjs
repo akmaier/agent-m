@@ -94,7 +94,7 @@ async function until(condition, what) {
 // ---------------------------------------------------------------- GET /v1/agents
 
 // TST-472077 · level: unit · module: MOD-bridge-jobs
-// guards: THE BRIDGE FINDS THE INSTALLED AGENTS; UC-011 (step 3); UC-017 (step 3)
+// guards: THE BRIDGE FINDS THE INSTALLED AGENTS; UC-011; UC-017
 // given: a computer with claude (version 2.1.300, logged in) and codex (installed) and no opencode; settings that name claude and opencode with working folders
 // input: GET /v1/agents
 // expect: agents holding claude alone — its version, ready true, logged in true; missing holding opencode alone; codex, installed and not offered, in neither list; no agent was given a task
@@ -128,7 +128,7 @@ test("GET /v1/agents — an agent not logged in, or without a working folder, is
 // ---------------------------------------------------------------- POST /v1/probes/agent
 
 // TST-472079 · level: unit · module: MOD-bridge-jobs
-// guards: UC-017 (step 6); A LOCAL AGENT USES THE PERSON'S OWN LOGIN
+// guards: UC-017; A LOCAL AGENT USES THE PERSON'S OWN LOGIN
 // given: a computer with claude, which answers, and codex, which is installed and not offered; claude offered; then claude changed to one that exits with an error on a task
 // input: POST /v1/probes/agent for claude; for codex; with no agent named; and for claude that fails
 // expect: { answer: { answered: true, version: "2.1.300" } } for claude; invalid-request for codex, with nothing started and codex never asked; invalid-request with no agent; for the failing claude { answer: { answered: false, reason } } and no error
@@ -161,7 +161,7 @@ test("POST /v1/probes/agent — testAgent's answer for the offered agent, invali
 // ---------------------------------------------------------------- POST /v1/ask, GET /v1/ask/{ask}
 
 // TST-472080 · level: unit · module: MOD-bridge-jobs
-// guards: UC-011 (step 3); A LOCAL AGENT USES THE PERSON'S OWN LOGIN
+// guards: UC-011; A LOCAL AGENT USES THE PERSON'S OWN LOGIN
 // given: a computer with opencode, which waits for a gate and then answers with the folder it runs in and reports 11 input and 7 output tokens; opencode offered with its working folder
 // input: POST /v1/ask with { agent: "opencode", input: <a prompt> }; GET /v1/ask/{ask} before the gate opens and after it
 // expect: the answer to the post is { ask } with a text; the first read { state: "running", text: null, usage: null, error: null }; after the gate { state: "done", text: <the agent's answer, naming its working folder>, usage: { inputTokens: 11, outputTokens: 7, minutes: null, cost: null }, error: null }, and the same on a second read; a second ask has another identifier and leaves the first as it was
@@ -190,7 +190,7 @@ test("POST /v1/ask and GET /v1/ask/{ask} — an ask running, then done with its 
 });
 
 // TST-472081 · level: unit · module: MOD-bridge-jobs
-// guards: UC-011 (step 3)
+// guards: UC-011
 // given: a computer with an opencode that fails — it writes "boom" to its error output and exits with 3
 // input: POST /v1/ask, then GET /v1/ask/{ask} until it is not running
 // expect: { state: "failed", text: null, usage: null, error } with an error that names the failure and the agent's last output, "boom"
@@ -210,7 +210,7 @@ test("GET /v1/ask/{ask} — a failed ask with its error", async () => {
 });
 
 // TST-472082 · level: unit · module: MOD-bridge-jobs
-// guards: THE BRIDGE FINDS THE INSTALLED AGENTS; UC-011 (step 3)
+// guards: THE BRIDGE FINDS THE INSTALLED AGENTS; UC-011
 // given: a computer with opencode and codex, opencode offered with a folder, codex installed and not offered, claude named without a folder
 // input: POST /v1/ask for codex, for an agent nobody names, for claude, with an input that is no text; and GET /v1/ask/{ask} for an ask nobody made; and, to show an ask started, one for opencode
 // expect: invalid-request for the first four, with no agent started by them; not-found for the unknown ask; the ask for opencode answered
@@ -235,7 +235,7 @@ test("POST /v1/ask — an agent not offered, one without a working folder and an
 });
 
 // TST-472083 · level: unit · module: MOD-bridge-jobs
-// guards: NO SECRET IN THE REPOSITORY; UC-011 (step 3)
+// guards: NO SECRET IN THE REPOSITORY; UC-011
 // given: a computer with an opencode; the file functions that write, append, create or open a file for writing watched; an ask whose prompt holds a marker
 // input: POST /v1/ask and GET /v1/ask/{ask} until it is done
 // expect: the ask done; no file function called by the handler; the working folder as empty as it was, and no file of the computer's folder holds the marker, apart from the agent's own call log
