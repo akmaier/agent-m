@@ -45,9 +45,10 @@ const trusted = () => Object.defineProperty(new Event("click"), "isTrusted", { v
 
 
 // ---------------------------------------------------------------- the strategies the kind names: stand-ins
+const broken = { on: false };
 const part = (name, sources = []) => ({ name, text: name, size: 0, sources, required: true });
 registerStrategies("tests/implementation-pages-implement-places.test.mjs", {
-  recipes: { "implementation-inputs": async (_, params) => [part(`inputs of ${(params.items ?? []).join(", ")}`, (params.items ?? []).includes("ITM-005") ? ["SRC-fixture"] : [])],
+  recipes: { "implementation-inputs": async (_, params) => { if (broken.on) throw new Error("the inputs cannot be read"); return [part(`inputs of ${(params.items ?? []).join(", ")}`, (params.items ?? []).includes("ITM-005") ? ["SRC-fixture"] : [])]; },
     "chapters-for-implementation": async () => [part("chapters 9, 11, 12 and 13")], "resource-pins": async () => [] },
   preconditions: { "rests-on-accepted": async () => [] },
   writers: { "branch-and-pull-request": async () => ({ commits: [], files: [], pullRequest: null, shown: null, notes: [] }) },
@@ -168,4 +169,37 @@ test("a source that may be republished forbids no place", async () => {
   const target = await render({ licence: "may be republished - fixture", places: [] });
   assert.deepEqual(offered(target, "ITM-005"), ["dev-a", "dev-b"]);
   assert.equal(withheld(target, "ITM-005"), "");
+});
+
+// TST-1160005 · level: unit · module: MOD-implementation-pages
+// guards: UC-024; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
+// given: SRC-fixture is restricted and permits no place; ITM-005's job would include its content
+// input: the route's render
+// expect: ITM-005 offers no participant; the row says that no holder is at a place the linked sources permit for this job (not that no holder can write and run tests), and names dev-a and dev-b as withheld; ITM-001 still offers both
+// Planted fault: the message of a role with no capable holder where every holder is withheld fails.
+test("where every holder's place is forbidden the row says so, and names them", async () => {
+  const target = await render({ places: [] });
+  assert.deepEqual(offered(target, "ITM-005"), []);
+  const shown = text(row(target, "ITM-005"));
+  assert.match(shown, /at a place the linked sources permit/);
+  assert.doesNotMatch(shown, /can write and run tests/);
+  assert.match(withheld(target, "ITM-005"), /dev-a/);
+  assert.match(withheld(target, "ITM-005"), /dev-b/);
+  assert.deepEqual(offered(target, "ITM-001"), ["dev-a", "dev-b"]);
+});
+
+// TST-1160006 · level: unit · module: MOD-implementation-pages
+// guards: UC-024; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
+// given: the recipe of the job's inputs fails, so the job cannot be prepared for any participant
+// input: the route's render
+// expect: every holder of the role is still offered, none is named as withheld; the failure is what the row shows where it shows what is sent
+// Planted fault: withholding a participant for which the job cannot be prepared fails.
+test("a job that cannot be prepared withholds no participant", async () => {
+  broken.on = true;
+  try {
+    const target = await render();
+    assert.deepEqual(offered(target, "ITM-005"), ["dev-a", "dev-b"]);
+    assert.equal(withheld(target, "ITM-005"), "");
+    assert.match(text(found(row(target, "ITM-005"), `[data-sent="ITM-005"]`)[0]), /the inputs cannot be read/);
+  } finally { broken.on = false; }
 });
