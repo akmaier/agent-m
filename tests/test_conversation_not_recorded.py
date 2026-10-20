@@ -145,7 +145,7 @@ for (const step of input.steps) {
     one(target, "participant").value = step.to ?? "tooler";
     one(target, "instruction").value = step.send;
     const asked = replies.length;
-    one(target, "send").dispatchEvent(personal());
+    one(target, "send").dispatchEvent(new Event("click"));
     await until(() => !one(target, "send").disabled && replies.length <= asked && byClass(target, "status").length > 0, "the message has run");
     await settle();
     said.push(...byClass(target, "answer").map((node) => node.textContent));
