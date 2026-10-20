@@ -48,7 +48,11 @@ if (!NO_VIRTUAL_SCREEN) {
   });
 }
 
-const REAL_GIT = spawnSync("sh", ["-c", "command -v git"], { encoding: "utf8" }).stdout.trim();
+// The git of this test and of the Bridge it starts has no configuration of the machine and an identity of its own (as tests/bridge-jobs-watch.test.mjs sets it): a runner has no global identity. The test's own
+// calls take it from this process's environment, the Bridge's from the environment it is started with (`environment` below).
+const GIT_IDENTITY = { GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_SYSTEM: "/dev/null", GIT_TERMINAL_PROMPT: "0", GIT_AUTHOR_NAME: "Seed", GIT_AUTHOR_EMAIL: "seed@example.org", GIT_COMMITTER_NAME: "Seed", GIT_COMMITTER_EMAIL: "seed@example.org" };
+Object.assign(process.env, GIT_IDENTITY);
+const REAL_GIT =spawnSync("sh", ["-c", "command -v git"], { encoding: "utf8" }).stdout.trim();
 const INSTANCE_ADDRESS = "https://github.com/release-owner/release-frame", PRODUCT = "https://github.com/acme/product-a";
 const ORIGIN = "https://release-owner.github.io", TOKEN_HEADER = "x-agent-m-bridge-token";
 const git = (cwd, ...args) => {
@@ -107,8 +111,7 @@ printf '%s\\n' '{"type":"step_finish","part":{"tokens":{"input":11,"output":7}}}
     const [port] = await unusedPorts(1);
     saveSettings(data, { "agent-m-bridge-settings": 1, name: "lab-pc", port, agents: [{ name: "opencode", folder: work }], products: [PRODUCT], every: 3600, paused: false, jumpHost: null, tunnels: [] });
     const pairs = [[INSTANCE_ADDRESS, instance.origin], [PRODUCT, product.origin]];
-    const environment = { GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_SYSTEM: "/dev/null", GIT_TERMINAL_PROMPT: "0", GIT_AUTHOR_NAME: "Seed", GIT_AUTHOR_EMAIL: "seed@example.org", GIT_COMMITTER_NAME: "Seed",
-      GIT_COMMITTER_EMAIL: "seed@example.org", PATH: `${bin}${delimiter}${process.env.PATH}`, GIT_CONFIG_COUNT: String(pairs.length) };
+    const environment = { ...GIT_IDENTITY, PATH: `${bin}${delimiter}${process.env.PATH}`, GIT_CONFIG_COUNT: String(pairs.length) };
     pairs.forEach(([address, path], at) => { environment[`GIT_CONFIG_KEY_${at}`] = `url.${path}.insteadOf`; environment[`GIT_CONFIG_VALUE_${at}`] = address; });
     const app = startApp({ executable, dataFolder: data, port, environment });
     const base = `http://127.0.0.1:${port}`;
