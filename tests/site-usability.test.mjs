@@ -76,28 +76,40 @@ let site = null, browser = null;
 const started = Date.now();
 const progress = (step) => console.log(`site-usability ${((Date.now() - started) / 1000).toFixed(1)} s: ${step}`);
 
-// A failure after the window opened carries the tail of the browser child's stderr (withStderr), which nothing else writes.
+// Each width's routes are drawn by WINDOWS windows at once, the routes dealt out in turn: a route waits for its page to be quiet (400 ms, DRAWN) and for the measure's
+// own 100 ms, which no window can shorten but all can spend together. Each window has a folder of its own for the browser's data, so that no two share a lock.
+const WINDOWS = 3;
+const windows = [];
+const drawn = async (executable, kind, width, routes, index) => {
+  const window_ = await openWindow(executable, `${site.address}/__blank`);
+  windows.push(window_);
+  const page = window_.page;
+  await configure(page, "Page.addScriptToEvaluateOnNewDocument", { source: OBSERVE });
+  await configure(page, "Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: kind === "phone" });
+  const took = [];
+  for (const route of routes) {
+    const at = Date.now();
+    await show(page, site, route.address);
+    const drawnAt = Date.now() - at;
+    measured.set(`${route.address} ${kind}`, await page.evaluate(MEASURE(width)));
+    took.push([route.address, drawnAt, Date.now() - at]);
+  }
+  progress(`window ${index + 1} of the ${kind}'s width has drawn ${routes.length} routes; the slowest (drawn ms, measured ms): ${JSON.stringify(took.sort((a, b) => b[2] - a[2]).slice(0, 2))}`);
+  return window_;
+};
+
 const setUp = async () => {
   site = await serveSite({ files: await files(), history: await history(), handlers: [pullsHandler(REPO), tagsHandler(REPO)] });
   progress("the site is served");
   const executable = await stageElectron();
   progress("Electron is staged");
-  browser = await openWindow(executable, `${site.address}/__blank`);
-  progress("the window is open");
+  const opened = await Promise.all(WIDTHS.flatMap(([kind, width]) => Array.from({ length: WINDOWS }, (_, index) =>
+    drawn(executable, kind, width, ROUTES.filter((_route, at) => at % WINDOWS === index), index))));
+  progress("every route is drawn at both widths");
+  // The first window drew the phone's routes; the counter-proofs below plant in it, and the others are closed.
+  browser = opened[0];
+  for (const each of opened.slice(1)) each.close();
   const page = browser.page;
-  await configure(page, "Page.addScriptToEvaluateOnNewDocument", { source: OBSERVE });
-  for (const [kind, width] of WIDTHS) {
-    await configure(page, "Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: kind === "phone" });
-    const took = [];
-    for (const route of ROUTES) {
-      const at = Date.now();
-      await show(page, site, route.address);
-      const drawn = Date.now() - at;
-      measured.set(`${route.address} ${kind}`, await page.evaluate(MEASURE(width)));
-      took.push([route.address, drawn, Date.now() - at]);
-    }
-    progress(`every route is drawn at a ${kind}'s width; the slowest (drawn ms, measured ms): ${JSON.stringify(took.sort((a, b) => b[2] - a[2]).slice(0, 4))}`);
-  }
   // The counter-proofs: the same page at a phone's width, first as it is, then with a table 600 px wide, a button 10 px square and an
   // embedded style sheet planted in it.
   await configure(page, "Emulation.setDeviceMetricsOverride", { width: 390, height: 900, deviceScaleFactor: 1, mobile: true });
@@ -114,10 +126,11 @@ const setUp = async () => {
   planted.afterDiagram = await page.evaluate(MEASURE(390));
   console.log(`site-usability ${JSON.stringify([...measured].map(([key, value]) => [key, value.sheets, value.targets.length, value.widths.length]))}`);
 };
+// A failure after the window opened carries the tail of the browser child's stderr (withStderr), which nothing else writes.
 before(async () => { try { await setUp(); } catch (failure) { throw browser ? withStderr(failure, browser.stderr()) : failure; } }, { timeout: 110000 });
 
 after(async () => {
-  browser?.close();
+  for (const each of windows) each.close();
   await site?.close();
 });
 
