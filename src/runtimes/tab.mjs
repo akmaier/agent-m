@@ -1,5 +1,5 @@
 // tab.mjs — jobs running in this tab (docs/architecture/MOD-runtimes.md, Parts: "tab.mjs — jobs running in this tab"). Of it, ITM-319 builds queueOnTab,
-// the tab route of queueJob, and runOnTab. The Bridge's drivers (bridgeDriver, ITM-325, bridge.mjs) are built for an agent on a Bridge and for an endpoint a Bridge calls.
+// the tab route of queueJob, and runOnTab; ITM-790 the result kept for a job that waits at a gate and the end appended when it goes on (requireWaitingOnTab, endOnTab). The Bridge's drivers (bridgeDriver, ITM-325, bridge.mjs) are built for an agent on a Bridge and for an endpoint a Bridge calls.
 //
 // Module: MOD-runtimes
 //
@@ -123,6 +123,8 @@ export function tabContext({ kind, params, product, instance, participants, plac
 // The jobs this tab runs with a record, by the record's id, each with the controller that aborts it: held from the start of its runOnTab until that call settles (MOD-runtimes, Data: it keeps, in memory, the
 // jobs running in this tab). cancelJob aborts one through abortOnTab; liveState asks heldOnTab.
 const held = new Map();
+// The result of each job of this tab that waits at a gate, by the record's id, with its drafter (for the cost of its end): kept when runOnTab stops at a gate, taken when the job goes on (MOD-runtimes, Data).
+const waiting = new Map();
 export const heldOnTab = (id) => held.has(id);
 export function abortOnTab(id) {
   held.get(id)?.abort();
@@ -158,7 +160,6 @@ async function runHeld(prepared, context, connections, { host, record, refine, f
     await host.commitFiles({ branch: defaultBranch, expectedHead: snapshot.commit, files: [{ path: record.path, text }],
       message: `Job ${record.id}: ${part.part}` });
   };
-  const ended = (fields) => ({ part: "end", at: new Date(), draft: null, rounds: [], usage: null, reason: null, log: null, results: [], ...fields });
   const onGate = async (name) => {
     const gate = context.gates.find((each) => each.name === name);
     await append({ part: "gate reached", at: new Date(), gate: name, decider: gate?.decider ?? name });
@@ -174,13 +175,44 @@ async function runHeld(prepared, context, connections, { host, record, refine, f
     await append(ended({ state: "failed", reason: `${error.name}: ${error.message}`, cost: jobCost(null, prepared.drafter) })).catch(() => {});
     throw error;
   }
-  if (result.stoppedBecause === "gate") return result;
+  if (result.stoppedBecause === "gate") {
+    if (record) waiting.set(record.id, { result, drafter: prepared.drafter });
+    return result;
+  }
+  await append(ended(endFields(result, prepared.drafter)));
+  return result;
+}
+
+const ended = (fields) => ({ part: "end", at: new Date(), draft: null, rounds: [], usage: null, reason: null, log: null, results: [], ...fields });
+
+// The end of a job of this tab from its result. For a job that stopped at a gate `stoppedBecause` is "gate": the loop's own reason is not kept, so the record derives it from the last round.
+function endFields(result, drafter) {
   const usage = usageOf(result.usage);
   const failed = result.stoppedBecause === "unusable";
-  await append(ended({
+  return {
     state: failed ? "failed" : "done", reason: failed ? "the participant's answer could not be read" : null, results: failed ? [] : resultsOf(result.written),
-    draft: result.written?.shown ?? null, rounds: result.rounds, forPerson: result.forPerson, stoppedBecause: result.stoppedBecause, usage,
-    cost: jobCost(usage, prepared.drafter),
-  }));
-  return result;
+    draft: result.written?.shown ?? null, rounds: result.rounds, forPerson: result.forPerson, stoppedBecause: result.stoppedBecause === "gate" ? undefined : result.stoppedBecause, usage,
+    cost: jobCost(usage, drafter),
+  };
+}
+
+/**
+ * requireWaitingOnTab(id) — throws RuntimeError NotHeld { job } where this tab keeps no result for the job that waits at a gate: it was not run here, or the tab was closed (UC-036: its record shows it as ended without record).
+ */
+export function requireWaitingOnTab(id) {
+  if (!waiting.has(id)) throw new RuntimeError("NotHeld", { job: id }, `this tab keeps no result of the job ${id}: it was not run here, or the tab was closed`);
+}
+
+/**
+ * endOnTab(record, host) -> Promise<void> — the job goes on from the result the tab kept for it: its end is appended on the head the branch has, as a job of the tab ends. The result is taken once the end is committed;
+ * a commit the host refuses leaves it kept.
+ */
+export async function endOnTab(record, host) {
+  requireWaitingOnTab(record.id);
+  const { result, drafter } = waiting.get(record.id);
+  const { defaultBranch } = await host.repositoryInfo();
+  const snapshot = await host.readSnapshot(defaultBranch);
+  const text = appendToRecord(await snapshot.read(record.path), ended(endFields(result, drafter)));
+  await host.commitFiles({ branch: defaultBranch, expectedHead: snapshot.commit, files: [{ path: record.path, text }], message: `Job ${record.id}: end` });
+  waiting.delete(record.id);
 }

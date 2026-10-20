@@ -3,13 +3,13 @@
 // read, as the person's commit, whose push starts the product's job workflow; WorkflowMissing, naming the job
 // workflow's file, for a product without it; and the host's other failures, by name. ITM-318 builds RouteOffer, ResourceNeed
 // and routesFor (routes.mjs): the routes a participant offers, with the reason of each that cannot be taken. ITM-322 builds
-// jobWorkflowFiles (ci.mjs) with the templates workflow/github.yml and workflow/gitlab.yml. bridgeAgentDriver,
-// resumeJob and retryJob are not part of
-// this item (UC-010, UC-011, UC-036) and are not built yet; nor is a job of a run
+// jobWorkflowFiles (ci.mjs) with the templates workflow/github.yml and workflow/gitlab.yml. bridgeAgentDriver
+// is not part of
+// this item (UC-010, UC-011, UC-036) and is not built yet; nor is a job of a run
 // (start.run, MOD-job-ledger's appendToRecord). ITM-319 builds queueJob's tab route and runOnTab (tab.mjs); ITM-325 its Bridge route and bridgeDriver (bridge.mjs).
 // ITM-535 builds liveState, jobLog and cancelJob for the CI route, the tab's route and a job no runtime has taken; ITM-545 for a job taken on a Bridge, through MOD-bridge-client's bridgeJobs, bridgeJobLog and cancelOnBridge (bridge.mjs).
 // ITM-495 builds handOverJob (hand-over.mjs) and the inputs task and endpoint of the GitHub template; ITM-973 builds retryJob (retry.mjs).
-// ITM-567 builds routeStrategies (pull-request.mjs): the writer branch-and-pull-request.
+// ITM-567 builds routeStrategies (pull-request.mjs): the writer branch-and-pull-request. ITM-790 builds resumeJob.
 //
 // Module: MOD-runtimes
 //
@@ -18,9 +18,9 @@
 
 import { appendToRecord } from "../job-ledger/index.mjs";
 import { cancelRun, queueOnCi, runOfAddress } from "./ci.mjs";
-import { abortOnTab, heldOnTab, queueOnTab, tookOnTab } from "./tab.mjs";
+import { abortOnTab, endOnTab, heldOnTab, queueOnTab, requireWaitingOnTab, tookOnTab } from "./tab.mjs";
 import { retryJob as retryWith } from "./retry.mjs";
-import { bridgeNamed, cancelBridgeJob, followBridgeLog, listedOnBridge, queueOnBridge } from "./bridge.mjs";
+import { bridgeNamed, cancelBridgeJob, followBridgeLog, handOverAgain, listedOnBridge, queueOnBridge } from "./bridge.mjs";
 
 export { routesFor } from "./routes.mjs";
 export { jobWorkflowFiles } from "./ci.mjs";
@@ -67,6 +67,21 @@ export async function queueJob(host, start, route, head, bridge) {
  */
 export function retryJob(record, choice, host, head) {
   return retryWith(record, choice, host, head, queueJob);
+}
+
+/**
+ * resumeJob(record, gateRecord, route, host, head, bridge?) -> Promise<void> (MOD-runtimes, Interfaces; ITM-790) — appends the resumption, naming the gate record, to the record on the head read, as the person's commit, and hands the job
+ * back to its route: in the tab it goes on from the result the tab kept for it, its end appended as a job of the tab ends; on a Bridge it is handed over again when `bridge` is given, else the Bridge takes it up when it next
+ * reads the repository; on CI the push itself starts the job workflow. Fails with NotHeld { job } for a tab job of which the tab keeps no result — before anything is committed —, with MOD-job-ledger's NotWaiting for a job
+ * at no gate or at a gate already resumed and RecordEnded for an ended one, with what the host names (Moved among them: nothing is committed then), and with what the Bridge client names after the commit.
+ */
+export async function resumeJob(record, gateRecord, route, host, head, bridge) {
+  if (route.kind === "tab") requireWaitingOnTab(record.id);
+  const [{ defaultBranch }, snapshot] = await Promise.all([host.repositoryInfo(), host.readSnapshot(head)]);
+  const text = appendToRecord(await snapshot.read(record.path), { part: "resumed", at: new Date(), gateRecord });
+  const { commit } = await host.commitFiles({ branch: defaultBranch, expectedHead: head, files: [{ path: record.path, text }], message: `Job ${record.id}: resumed` });
+  if (route.kind === "tab") await endOnTab(record, host);
+  else if (route.kind === "bridge" && bridge) await handOverAgain(bridge, snapshot.repository.web, record.path, commit);
 }
 
 // ---------------------------------------------------------------- a job's live state, its log and its cancel (ITM-535, ITM-545)
