@@ -26,9 +26,13 @@ uses:
   - MOD-repository-hosts.setIssueLabels
   - MOD-repository-hosts.commentOnIssue
   - MOD-repository-hosts.webLinks
+  - MOD-repository-hosts.listPullRequests
+  - MOD-repository-hosts.pullRequestFacts
   - MOD-documents.artifactSchemas
   - MOD-documents.readRegister
   - MOD-documents.readDocument
+  - MOD-test-document.isTestFile
+  - MOD-test-document.testDeclarations
   - MOD-resource-list.resourceSchema
   - MOD-resource-list.reachableBy
   - MOD-mail-routes.mailbox
@@ -156,6 +160,10 @@ instance's participants.
   MOD-repository-hosts.listIssues — issues and what a job's context needs; MOD-repository-hosts.setIssueState —
   *Close and reply*, *Reopen*; MOD-repository-hosts.setIssueLabels — the label `waiting-for-reporter` removed;
   MOD-repository-hosts.commentOnIssue — a note offered again; MOD-repository-hosts.webLinks — an issue's page.
+- MOD-repository-hosts.listPullRequests, MOD-repository-hosts.pullRequestFacts — a fix's pull request before it is
+  merged, and the texts of its changed files on both sides; MOD-test-document.isTestFile,
+  MOD-test-document.testDeclarations — the existing tests among those files, and each one's requirement and expected
+  result, old and new, side by side (UC-012 5a).
 - MOD-documents.artifactSchemas — the item's schema for its form; MOD-documents.readRegister — the participant list
   and the product's resources; MOD-documents.readDocument — the product's `docs/settings.md`, with `settingsSchemas`;
   MOD-resource-list.resourceSchema, MOD-resource-list.reachableBy — the routes that reach the product's resources, for
