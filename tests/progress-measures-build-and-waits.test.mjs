@@ -18,6 +18,7 @@
 import test, { afterEach, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { buildInProgress, currentStage, waitingForAPerson } from "../src/progress-measures/index.mjs";
+import { itemStates } from "../src/work-plans/index.mjs";
 import { facts, itemState, jobRow, queueOf, statusMap } from "./progress-measures-facts.mjs";
 
 let fetched = [];
@@ -88,6 +89,30 @@ test("buildInProgress — an item leaves the list once its pull request is merge
   const missing = [itemState("ITM-009", "in progress", { job: "JOB-zz" })];
   assert.deepEqual(buildInProgress(facts({ plan: { order: null, items: [], states: missing }, jobs: BUILD_JOBS })), []);
   assert.deepEqual(buildInProgress(facts()), []);
+});
+
+// TST-864005 · level: unit · module: MOD-progress-measures
+// guards: THE BUILD IS SHOWN AS IT HAPPENS; UC-046
+// given: the plan states MOD-work-plans' itemStates derives for three items whose job ended as done at 09:00 — ITM-010 with no pull request yet, ITM-011 with a pull request opened at 10:00 and open, ITM-012 with one opened at 10:00 and merged
+// input: buildInProgress(facts) over those states and the job rows
+// expect: ITM-010 and ITM-011 each listed with their job, its state done, and the participant and elapsed time of its record; ITM-012 not listed — it leaves the list once its pull request is merged
+test("buildInProgress — a step whose job ended as done is listed with state done until its pull request is merged", () => {
+  const rows = [["JOB-d", "ITM-010"], ["JOB-e", "ITM-011"], ["JOB-f", "ITM-012"]].map(([id, item]) => {
+    const row = jobRow({ id, participant: "developer-i", worksOn: [item], state: "done", elapsed: 90 });
+    return { ...row, record: { ...row.record, start: new Date("2026-10-20T09:00:00Z") } };
+  });
+  const items = ["ITM-010", "ITM-011", "ITM-012"].map((id) => ({ kind: "item", path: `docs/backlog/${id}-x.md`, id,
+    fields: { id, realises: [], builds_on: [] }, sections: [] }));
+  const pull = (number, state) => ({ number, title: `ITM-0${number} work`, branch: `item/ITM-0${number}`, base: "main", head: "a".repeat(40),
+    state, draft: false, url: `https://example.invalid/${number}`, opened: "2026-10-20T10:00:00Z",
+    merged: state === "merged" ? "2026-10-20T11:00:00Z" : null, closed: null });
+  const states = itemStates(items, null, { statuses: new Map(), queues: [], jobs: rows, pullRequests: [pull(11, "open"), pull(12, "merged")],
+    gates: [], workflow: null });
+  assert.deepEqual(states.map((s) => [s.item, s.state]), [["ITM-010", "in progress"], ["ITM-011", "in progress"], ["ITM-012", "done"]]);
+  assert.deepEqual(buildInProgress(facts({ plan: { order: null, items, states }, jobs: rows })), [
+    { item: "ITM-010", job: "JOB-d", participant: "developer-i", state: "done", elapsed: 90, reachable: true },
+    { item: "ITM-011", job: "JOB-e", participant: "developer-i", state: "done", elapsed: 90, reachable: true },
+  ]);
 });
 
 // ---------------------------------------------------------------- waitingForAPerson
