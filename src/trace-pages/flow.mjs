@@ -561,38 +561,37 @@ async function moduleFilesOf(snapshot) {
 }
 
 // The table of the modules (UC-025 step 3), one row for each module of moduleRows: its subsystem and that decision's review status, the requirements it realises each in the SPEC or not, its file with its review status,
-// its code and its tests; the name opens the row onto the module's file and folder (step 6).
+// its code and its tests; the name opens the row onto the module's file and folder (step 6). A row is a block of labelled lines, not a line of cells, so that it fits the window of a phone.
 function modulesTable(rows, graph, reviewOf, snapshot) {
-  const body = el("tbody");
   const statusOf = (path) => REVIEW[reviewOf.get(path)?.status] ?? "open";
+  const list = (items) => el("ul", null, ...items.map((text) => el("li", null, text)));
+  const line = (label, className, content) => [el("dt", null, label), el("dd", className, content)];
+  const section = el("section", "modules-table", el("h3", null, "Modules"));
   for (const row of rows) {
     const name = el("button", "module-name btn small", row.module);
     name.type = "button";
     const subsystem = row.subsystem === null ? "none" : `${row.subsystem} — ${statusOf(graph.nodes.get(row.subsystem)?.path)}`;
-    const realises = row.realises.map((each) => el("li", null, `${each} — ${graph.nodes.get(each)?.kind === "requirement" ? "in SPEC" : "not in the SPEC"}`));
-    const tr = el("tr", "module-row", el("td", "module-name-cell", name), el("td", "module-subsystem", subsystem), el("td", "module-realises", el("ul", null, ...realises)),
-      el("td", "module-file", `${row.describedBy} — ${statusOf(row.describedBy)}`), el("td", "module-code", el("ul", null, ...row.code.map((path) => el("li", null, path)))),
-      el("td", "module-tests", el("ul", null, ...row.tests.map((id) => el("li", null, id)))));
-    tr.setAttribute("data-module", row.module);
-    const opened = el("tr", "module-opened");
+    const realises = row.realises.map((each) => `${each} — ${graph.nodes.get(each)?.kind === "requirement" ? "in SPEC" : "not in the SPEC"}`);
+    const opened = el("div", "module-opened");
+    const block = el("article", "module-row", el("h4", null, name), el("dl", null, ...line("Subsystem", "module-subsystem", subsystem), ...line("Realises", "module-realises", list(realises)),
+      ...line("File", "module-file", `${row.describedBy} — ${statusOf(row.describedBy)}`), ...line("Code", "module-code", list(row.code)), ...line("Tests", "module-tests", list(row.tests))), opened);
+    block.setAttribute("data-module", row.module);
     let open = false;
     name.addEventListener("click", async () => {
       open = !open;
       if (!open) { opened.replaceChildren(); return; }
-      const cellOpened = el("td", "panel");
-      cellOpened.setAttribute("colspan", "6");
-      opened.replaceChildren(cellOpened);
+      const panel = el("div", "panel");
+      opened.replaceChildren(panel);
       try {
         const file = renderArtifact((await snapshot.read(row.describedBy)) ?? "");
-        if (open) cellOpened.append(file, el("p", "module-folder", `Folder: ${graph.nodes.get(row.module)?.folder ?? ""}`), el("ul", null, ...row.code.map((path) => el("li", null, path))));
+        if (open) panel.append(file, el("p", "module-folder", `Folder: ${graph.nodes.get(row.module)?.folder ?? ""}`), list(row.code));
       } catch (failure) {
-        if (open) cellOpened.append(problemLine("The module's file", failure));
+        if (open) panel.append(problemLine("The module's file", failure));
       }
     });
-    body.append(tr, opened);
+    section.append(block);
   }
-  const head = el("tr", null, ...["Module", "Subsystem", "Realises", "File", "Code", "Tests"].map((title) => el("th", null, title)));
-  return el("section", "modules-table", el("table", "list", el("thead", null, head), body));
+  return section;
 }
 
 // Every gap of moduleRows with the artifact it concerns (UC-025 step 4), or the line that there is none (4a).
