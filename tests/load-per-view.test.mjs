@@ -114,13 +114,16 @@ test("the start page sends its commit and tree once and one batch of the files i
 // given: the fixture product, whose architecture files decide #arc
 // input: open #arc with a token
 // expect: the commit and the tree once, then one batch of the 4 architecture files, the repository's information once, and no use
-//         case, no queue file, no file by itself
+//         case, no queue file, no file by itself; then, for the table and the gaps of the modules view (ITM-721), the graph of the commit: the
+//         stored graph asked for by one file (none is stored) and one batch of the 7 files of the graph that the first batch did not read
 test("#arc sends its commit and tree once and one batch of the files it shows — no use case and no queue file", async () => {
   const repo = await product(), srv = await server(repo);
   const page = await openDashboard({ server: srv, hash: "#arc" });
   for (const id of ["ARC-001", "MOD-page", "MOD-reader", "MOD-review"]) assert.match(page.main(), new RegExp(id));
-  assert.deepEqual(page.requests, ["commit", "tree", "batch 4", "repository"]);
-  assert.deepEqual(srv.batches.map(sorted), [sorted([ARC, PAGE, READER, REVIEW])]);
+  assert.deepEqual(page.requests, ["commit", "tree", "batch 4", "repository", `file ${STORED_GRAPH}`, "batch 7"]);
+  assert.deepEqual(sorted(srv.batches[0]), sorted([ARC, PAGE, READER, REVIEW]));
+  assert.equal(srv.batches.length, 2);
+  assert.equal(new Set(srv.batches.flat()).size, srv.batches.flat().length, "no file twice");
 });
 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS
@@ -334,6 +337,8 @@ test("#uc/<id> and #arc/<id> of an accepted file read that one file by itself", 
 const decision = (n) => base[ARC].replaceAll("ARC-001", `ARC-${n}`);
 const ARC2 = "docs/architecture/ARC-002-second.md", ARC3 = "docs/architecture/ARC-003-third.md";
 const MODULES = [PAGE, READER, REVIEW];
+// The file the graph of the fixture's commit would be stored in (the commit the harness's server answers), asked for once by a page that reads the graph.
+const STORED_GRAPH = "c0ffee0000000000000000000000000000000000.json";
 
 // The files each address shows: the fixture's two use cases, three decisions and three module files.
 const SHOWN = { "#use-case": [UC1, UC2], "#decision": [ARC, ARC2, ARC3], "#module": MODULES };
@@ -344,14 +349,18 @@ const withDecisions = () => product({ [ARC2]: decision("002"), [ARC3]: decision(
 //        (MOD-page, MOD-reader, MOD-review)
 // input: open #use-case (then #decision, then #module) with a token
 // expect: the commit and the tree once, one batch of exactly the files of its own kind — 2 files for #use-case, 3 for #decision, 3 for
-//         #module —, the repository's information once, and no file by itself
+//         #module —, the repository's information once, and no file by itself; #module also shows the modules view (ITM-721), which reads the
+//         graph of the commit: the stored graph asked for by one file (none is stored), then one batch of the 10 files of the graph that the first did not read
+const GRAPH_AFTER = { "#module": [`file ${STORED_GRAPH}`, "batch 10"] };
 for (const [hash, paths] of Object.entries(SHOWN)) {
   test(`${hash} sends its commit and tree once and one batch of the files it shows`, async () => {
     const srv = await server(await withDecisions());
     const page = await openDashboard({ server: srv, hash });
-    assert.deepEqual(page.requests, ["commit", "tree", `batch ${paths.length}`, "repository"]);
-    assert.deepEqual(srv.batches.map(sorted), [sorted(paths)]);
-    assert.deepEqual(files(page.requests), [], "no file by itself");
+    const graph = GRAPH_AFTER[hash] ?? [];
+    assert.deepEqual(page.requests, ["commit", "tree", `batch ${paths.length}`, "repository", ...graph]);
+    assert.deepEqual(sorted(srv.batches[0]), sorted(paths));
+    assert.equal(srv.batches.length, graph.length ? 2 : 1);
+    assert.deepEqual(files(page.requests).filter((path) => path !== STORED_GRAPH), [], "no file by itself");
   });
 }
 
