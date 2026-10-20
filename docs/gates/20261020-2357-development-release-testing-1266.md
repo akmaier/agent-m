@@ -25,7 +25,7 @@ sprint branch leaves release tests out.
    - `91efebae` is the code: the new `src/trace-pages/export.mjs`, the part MOD-trace-pages' Parts name for saving the
      audit document, and `audit.mjs`.
 2. **The readings, judged.** UC-030 step 5 reads: "The auditor presses **Export** — one click. Agent M produces one
-   Markdown document … The browser saves it". MOD-trace-pages.md:129 reads: "It writes one file, and only on a person's
+   Markdown document … The browser saves it". MOD-trace-pages.md, in its accepted text `88c20200` (line 129), reads: "It writes one file, and only on a person's
    click: the audit document under `docs/audits/<tag>.md` (*Commit export*)". So:
    - *Export* saves `auditDocument`'s text as `<tag>.md`.
    - *Commit export* is offered only to a person who may write, on a trusted click, and writes `docs/audits/<tag>.md`,
