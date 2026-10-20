@@ -360,8 +360,10 @@ let loads = 0;
 // -> { main() -> the HTML of <main>, el(id) -> the HTML of another element, requests since the load began,
 //      go(hash) -> the requests that view made, click(selector, event) -> the requests the click made }
 // entries: further settings in this browser when the page opens, { key: raw value } — a product's own token, for one.
+// views: the slugs of the view modules the page's script tag names in `data-views`, which the app loads (MOD-site-frame, Data: the page setup); by default the six the live page names.
+export const LIVE_VIEWS = ["review-pages", "trace-pages", "implementation-pages", "test-pages", "maintenance-pages", "settings-pages"];
 export async function openDashboard({ server, hash = "", caches = null, token = TOKEN, search = "", entries = {},
-  assets = new URL(".", APP_FILE) }) {
+  assets = new URL(".", APP_FILE), views = LIVE_VIEWS }) {
   // The renderer (MOD-markdown-render) draws only where the browser can sanitise (DOMPurify.isSupported) and, for a Mermaid block, draws
   // SVG (SVGElement). This fake DOM has no HTML parser, so it sanitises nothing: the HTML of a text that holds a Mermaid block, which the
   // renderer wrote itself, passes as it is, and any other text is refused as a browser without DOMPurify refuses it, so the renderer shows
@@ -375,7 +377,10 @@ export async function openDashboard({ server, hash = "", caches = null, token = 
   globalThis.SVGElement ??= class SVGElement {};
   const els = new Map();
   const head = { children: [], append(x) { this.children.push(x); } }; // the stylesheets a view links into the page
+  // The script tag that loads the app, with the setup of the page in its attributes (MOD-site-frame, Data).
+  const appTag = { getAttribute: (name) => ({ src: new URL("dashboard-app.mjs", assets).href, "data-views": views.join(" ") })[name] ?? null };
   const doc = { getElementById: (id) => { if (!els.has(id)) els.set(id, element(id)); return els.get(id); },
+    baseURI: "https://akmaier.github.io/agent-m/", getElementsByTagName: (name) => (name === "script" ? [appTag] : []),
     querySelectorAll: () => [], createElement: (tag) => domElement(tag), body: Object.assign(domElement("body"), { contains: () => true }), head };
   const loc = { hostname: "akmaier.github.io", pathname: "/agent-m/", search, hash, origin: "https://akmaier.github.io",
     get href() { return `https://akmaier.github.io/agent-m/${this.search}${this.hash}`; } };
