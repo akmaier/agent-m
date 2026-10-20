@@ -9,7 +9,7 @@
 //
 //   - `queue` is the queue's folder as Queue.folder gives it, docs/spec-freigaben/<folder>; a queue or an entry the snapshot does not
 //     hold is a RangeError (entryView) or a refusal (acceptEntries, applyApproved).
-//   - `current` is the section that holds now: MOD-spec-document's sectionText of the entry's target — the file its own row names —
+//   - `current` is the section that holds now — the entry's span, every section from its anchor up to its `until` (queues.mjs spanText): MOD-spec-document's sectionText of the entry's target — the file its own row names —
 //     for its anchor, with the blob of those exact bytes. Where the target does not hold the anchor — a new section, or an entry
 //     that waits for its anchor — or the snapshot cannot read the target, there is none and `current` is null; `createdBy` names
 //     the entry that creates the anchor.
@@ -38,31 +38,46 @@
 //     or not.
 //   - The commit's message names the entries and, as MOD-approvals' acceptShown does, the person who accepted.
 
-import { parseSpec, renamedRequirements, replaceSection, sectionText } from "../spec-document/index.mjs";
+import { parseSpec, renamedRequirements, sectionText } from "../spec-document/index.mjs";
 import { blobSha, lineDiff } from "../text-tools/index.mjs";
 import { requirementImpact, traceGraph } from "../trace-graph/index.mjs";
 import { readDocument, writeDocument } from "../documents/index.mjs";
 import { approvalSchema } from "../approvals/index.mjs";
 import { sourceFindings, sourceSchemas } from "../source-register/index.mjs";
-import { queueAt, queuesAt, queues } from "./queues.mjs";
+import { queueAt, queuesAt, queues, replaceSpan, spanText } from "./queues.mjs";
 
 // Whether a requirement stated by the proposal is another than the one the section holds under its name: its source, rule or check.
 const differs = (was, is) => was.source !== is.source || was.rule !== is.rule || was.check !== is.check;
 
+// The trace graph of a snapshot, built once for as long as the snapshot object lives (a snapshot is one repository at one commit and does not change), so that N open entries of one snapshot build one graph
+// and not N: entryView's signature is unchanged. The promise is kept, so that entries asked at once share the build; a build that failed is not kept, and the next call builds it again.
+const GRAPHS = new WeakMap();
+export function graphOf(snapshot) {
+  if (!GRAPHS.has(snapshot)) {
+    const built = traceGraph(snapshot);
+    GRAPHS.set(snapshot, built);
+    built.catch(() => { if (GRAPHS.get(snapshot) === built) GRAPHS.delete(snapshot); });
+  }
+  return GRAPHS.get(snapshot);
+}
+
 // The impact list of a proposal against the section that holds now (both texts, "" for none): every name withdrawn, added or
 // changed, with the identifiers of the artifacts that name it. The graph of the snapshot is built only when a name is touched.
-export async function impactOf(snapshot, before, after) {
+// `elsewhere` (the requirements the whole target holds, by name) is given where the section that holds now is none — the entry's anchor is not in the target: a name the target already holds is then no addition,
+// it is changed when its source, rule or check differs from the target's, and not named otherwise.
+export async function impactOf(snapshot, before, after, elsewhere = null) {
   const was = parseSpec(before).requirements, is = parseSpec(after).requirements;
   const { withdrawn, added } = renamedRequirements(before, after);
   const named = [
     ...withdrawn.map((name) => ({ name, change: "withdrawn" })),
     ...[...is.keys()].flatMap((name) => {
+      if (added.includes(name) && elsewhere?.has(name)) return differs(elsewhere.get(name), is.get(name)) ? [{ name, change: "changed" }] : [];
       if (added.includes(name)) return [{ name, change: "added" }];
       return differs(was.get(name), is.get(name)) ? [{ name, change: "changed" }] : [];
     }),
   ];
   if (named.length === 0) return [];
-  const graph = await traceGraph(snapshot);
+  const graph = await graphOf(snapshot);
   return named.map(({ name, change }) => ({
     name, change, referencedBy: [...new Set(requirementImpact(graph, name).map((place) => place.id))],
   }));
@@ -80,7 +95,7 @@ export async function entryView(queue, entry, snapshot) {
   const item = found?.entries.find((candidate) => candidate.number === entry);
   if (!item) throw new RangeError(`entryView: the snapshot holds no entry ${entry} of the queue ${queue}`);
   const targetText = await snapshot.read(item.file);
-  const heldNow = typeof targetText === "string" ? sectionText(targetText, item.anchor) : null;
+  const heldNow = typeof targetText === "string" ? spanText(targetText, item.anchor, item.until) : null;
   const proposalText = item.proposal.path ? (await snapshot.read(item.proposal.path)) ?? "" : "";
   const rationale = item.rationale ? (await snapshot.read(item.rationale)) ?? "" : "";
   return {
@@ -88,7 +103,7 @@ export async function entryView(queue, entry, snapshot) {
     proposal: { text: proposalText, blob: item.proposal.blob },
     difference: lineDiff(heldNow ?? "", proposalText),
     rationale,
-    impact: await impactOf(snapshot, heldNow ?? "", proposalText),
+    impact: await impactOf(snapshot, heldNow ?? "", proposalText, heldNow === null && typeof targetText === "string" ? parseSpec(targetText).requirements : null),
     state: item.state,
     createdBy: item.createdBy,
   };
@@ -150,7 +165,7 @@ async function plan(snapshot, loaded, items, { sources, now, verb, records }) {
       }
       const spec = await get(entry.file);
       if (typeof spec !== "string") { refuse(item, `the target ${entry.file} does not exist`); continue; }
-      const before = sectionText(spec, entry.anchor);
+      const before = spanText(spec, entry.anchor, entry.until);
       if (before === null) {
         const by = entry.createdBy;
         refuse(item, by === null ? `its heading “${entry.anchor}” is not in ${entry.file}, and no entry of the queue creates it`
@@ -166,7 +181,7 @@ async function plan(snapshot, loaded, items, { sources, now, verb, records }) {
         refuse(item, `the SPEC section changed after it was ${verb} — open it again`);
         continue;
       }
-      put(entry.file, replaceSection(spec, entry.anchor, proposal));
+      put(entry.file, replaceSpan(spec, entry.anchor, entry.until, proposal));
       const recordFile = item.record.slice(APPROVALS.length);
       if (records) {
         files.set(item.record, writeDocument(approvalSchema, { fields: { kind: "spec", queue: queue.folder, entry: pad2(entry.number),

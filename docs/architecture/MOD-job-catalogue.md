@@ -92,15 +92,15 @@ built into MOD-job-runner.
 | `draft-plan` | UC-045 | draft text | `rests-on-accepted` | `architecture-and-model` | `plan-checks` | | | `person` · `plan-steps` | steps |
 | `propose-items` | UC-032 | draft text | `rests-on-accepted` | `backlog-inputs` | `backlog-checks`, `candidate-classes` | | | `person` · `backlog-items` | items |
 | `close-sprint` | UC-041 | draft text, read the repository, write to the repository | | `sprint-facts` | `sprint-record-checks` | | | `none` · `sprint-record` | the review, the retrospective, the proposed changes |
-| `implement` | UC-024, UC-034, UC-043 | write to the repository, run code and tests | `rests-on-accepted` | `instruction?`, `implementation-inputs`, `chapters-for-implementation` | | | | `none` · `branch-and-pull-request` | the agent's report: branch, commits, pull request |
-| `refactor` | UC-024 | write to the repository, run code and tests | `rests-on-accepted` | `instruction?`, `implementation-inputs` | | | | `none` · `branch-and-pull-request` | the same |
+| `implement` | UC-024, UC-034, UC-043 | write to the repository, run code and tests | `rests-on-accepted` | `instruction?`, `implementation-inputs`, `chapters-for-implementation`, `resource-pins` | | | | `none` · `branch-and-pull-request` | the agent's report: branch, commits, pull request |
+| `refactor` | UC-024 | write to the repository, run code and tests | `rests-on-accepted` | `instruction?`, `implementation-inputs`, `resource-pins` | | | | `none` · `branch-and-pull-request` | the same |
 | `decide-gate` | UC-034, UC-036 | read the repository | | `gate-inputs` | | | | `none` · `gate-record` | the decision and its reasoning |
 | `set-up-ci` | UC-043, UC-027 | — | | | | | | `none` · `ci-configuration` | — |
 | `propose-tests` | UC-026, UC-043 | read the repository, write to the repository, run code and tests | `rests-on-accepted` | `test-selection`, `chapters-for-tests` | `test-proposals`, `candidate-classes` | | | `person` · `return-draft` | test cases: identifier, level, what each guards, precondition, input, expected result, class |
-| `write-tests` | UC-026, UC-043 | read the repository, write to the repository, run code and tests | `rests-on-accepted` | `instruction?`, `draft`, `test-selection`, `chapters-for-tests` | `test-declarations`, `test-proposals` | | | `none` · `branch-and-pull-request` | the agent's report: branch, commits, pull request; each test with its outcome and its counter-proof, or why it was not written |
-| `run-tests` | UC-028, UC-013 | run code and tests | | `commit-and-levels` | | | | `none` · `result-record` | the outcomes |
+| `write-tests` | UC-026, UC-043 | read the repository, write to the repository, run code and tests | `rests-on-accepted` | `instruction?`, `draft`, `test-selection`, `chapters-for-tests`, `resource-pins` | `test-declarations`, `test-proposals` | | | `none` · `branch-and-pull-request` | the agent's report: branch, commits, pull request; each test with its outcome and its counter-proof, or why it was not written |
+| `run-tests` | UC-028, UC-013 | run code and tests | | `commit-and-levels`, `resource-pins` | | | | `none` · `result-record` | the outcomes |
 | `analyse-issue` | UC-012 | draft text | | `issue-context` | | | | `none` · `return-draft` | the class and its reasoning |
-| `fix-bug` | UC-012 | write to the repository, run code and tests | | `instruction?`, `fix-inputs`, `chapters-for-tests` | | | | `none` · `branch-and-pull-request` | the agent's report |
+| `fix-bug` | UC-012 | write to the repository, run code and tests | | `instruction?`, `fix-inputs`, `chapters-for-tests`, `resource-pins` | | | | `none` · `branch-and-pull-request` | the agent's report |
 | `propose-issues` | UC-038 | draft text | | `mail-batch` | `people-search` | | | `none` · `return-draft` | one proposal per mail |
 | `rewrite-without-persons` | UC-038 | draft text | | `report-data` | `people-search` | `check-for-persons` × 3 | | `none` · `return-draft` | the rewritten text |
 | `check-for-persons` | UC-038 | draft text | | `draft` | | | | `none` · `return-draft` | findings |
@@ -139,8 +139,7 @@ the cases it was handed, each with its counter-proof.
 For `derive-requirements`, `change-requirements` and the architecture kinds, `person_decides` names `A CONFLICT IS
 DECIDED BY A PERSON`. For `implement`, `refactor` and `fix-bug`, `gate_points` names `before-merge` and `question`, the
 latter for tests that pass before any code exists (UC-024, UC-034); for `write-tests`, `before-merge`. `implement`,
-`refactor`, `fix-bug`, `write-tests` and `run-tests` have `resources: product`, and each of them names among its recipes
-MOD-resource-list's `resource-pins`, which gives the job the product's resources its route reaches with their pins.
+`refactor`, `fix-bug`, `write-tests` and `run-tests` have `resources: product` (MOD-resource-list's `resource-pins`).
 
 A job of `change-requirements` takes as its parameter `source` the own source of the person who starts it — the linked
 register entry that MOD-source-register's `personSource` names for their account —, so that every requirement it drafts

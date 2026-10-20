@@ -14,6 +14,7 @@ import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
 import { prepareJob } from "../job-runner/index.mjs";
 import { runOnTab, tabContext } from "../runtimes/index.mjs";
 import { readParticipants } from "./offer.mjs";
+import { restrictedPlaces } from "./places.mjs";
 import { recordingOf } from "./record.mjs";
 
 /** defaultSnapshot(host: Host) -> Promise<Snapshot> — the repository at its default branch now. */
@@ -74,7 +75,7 @@ export async function prepareMessage({ subject, participant, instruction, conver
   const inputs = {
     params: { ...subject.paramsFor(participant), instruction, conversation, entry: subject.entry, refuses: subject.refuses },
     product: page, instance: { snapshot: instanceSnapshot, host: instance.host }, participants,
-    places: { sources: {}, mailbox: null, contents: [] }, gates: [], person, agentM: { version: commit, commit }, jobId: null,
+    places: { ...(await restrictedPlaces(instanceSnapshot)), mailbox: null }, gates: [], person, agentM: { version: commit, commit }, jobId: null,
   };
   // The kind's definition is the job's own: prepareJob reads it by name, and the context that runs the job carries it.
   const prepared = await prepareJob(subject.kind, tabContext({ kind: null, ...inputs }), { drafter: participant, reviewers: [] });

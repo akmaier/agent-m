@@ -29,7 +29,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 
-import apply_approvals as ap  # noqa: E402
+import spec_apply as ap  # noqa: E402
 from jsrun import js  # noqa: E402
 
 FIX = Path(__file__).resolve().parent / "fixtures" / "gates"
@@ -79,9 +79,11 @@ class Repo:
         assert len(rows) == 1, rows
         rec = ap.parse_record(self.text(f"docs/approvals/{rows[0]}"))
         before = self.git("show", f"HEAD^:{rec['target']}")
-        text = ap.section_text(ap.extract_section(before, rec["anchor"]))
-        assert ap.blob_sha(text) == rec["section"], "the text found is the one the record names"
-        return text
+        # The workflow's record names the section as applyApproved takes it, the dashboard's as its own engine does; the text found is the one the record names.
+        found = [text for text in (ap.section_text(ap.extract_section(before, rec["anchor"])),
+                                   ap.legacy_section_text(ap.legacy_extract_section(before, rec["anchor"]))) if ap.blob_sha(text) == rec["section"]]
+        assert found, "the text found is the one the record names"
+        return found[0]
 
 
 class ReplacedInHistory(unittest.TestCase):
@@ -95,7 +97,7 @@ class ReplacedInHistory(unittest.TestCase):
         self.assertNotIn(MARK, self.r.text("SPEC.md"), "the section is replaced")
         self.assertEqual(self.r.changed_by_head(), changed)
         self.assertEqual(self.r.holding(MARK), [], "no copy of the replaced text in the working tree")
-        self.assertEqual(self.r.replaced_from_history(), self.r.section)
+        self.assertIn(self.r.replaced_from_history(), (self.r.section, ap.legacy_section_text(ap.legacy_extract_section(self.r.spec, ANCHOR))))
 
     def test_the_workflow_leaves_the_replaced_text_in_the_history_only(self):
         # The person commits the approval record on GitHub's page; the workflow writes the section and commits.
@@ -113,7 +115,7 @@ class ReplacedInHistory(unittest.TestCase):
         files = {p.relative_to(self.r.root).as_posix(): p.read_bytes().decode("utf-8") for p in self.r.root.rglob("*")
                  if p.is_file() and ".git" not in p.relative_to(self.r.root).parts}
         item = {"kind": "spec", "queue": Q, "qname": Path(Q).name, "nr": 1, "nn": "01", "proposalPath": PROPOSAL,
-                "proposalBlob": ap.blob_sha(self.r.text(PROPOSAL)), "sectionBlob": ap.blob_sha(self.r.section),
+                "proposalBlob": ap.blob_sha(self.r.text(PROPOSAL)), "sectionBlob": ap.blob_sha(ap.legacy_section_text(ap.legacy_extract_section(self.r.spec, ANCHOR))),
                 "targetPath": "SPEC.md", "anchor": ANCHOR, "bis": None, "needs": []}
         plan = js(f"const f = {json.dumps(files)};"
                   f"return core.planAcceptance({{ items: [{json.dumps(item)}], now: new Date('2026-10-01T12:00:00Z'),"

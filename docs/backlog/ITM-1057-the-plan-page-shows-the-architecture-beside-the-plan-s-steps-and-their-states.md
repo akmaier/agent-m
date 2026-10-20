@@ -22,7 +22,7 @@ origin:
 
 ## Outcome
 
-MOD-implementation-pages.md:156-157: "`plan` — the architecture's subsystems and modules beside the plan's steps with their
+MOD-implementation-pages.md:163-165: "`plan` — the architecture's subsystems and modules beside the plan's steps with their
 derived states and what each waits for". UC-045 step 1 (UC-045.md:63-66), 1a and 1b (UC-045.md:105-107). The route is not
 built (`src/implementation-pages/index.mjs:3`). `itemStates` already orders the steps by `docs/plan/order.md` and gives a
 step that waits for a gate as `waiting` (`src/work-plans/states.mjs:27-62`, `:166`).

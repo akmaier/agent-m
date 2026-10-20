@@ -82,6 +82,15 @@ export function loadSettings(dataFolder, supplied = {}) {
   return canonical(dataFolder, JSON.parse(readFileSync(fileOf(dataFolder), "utf8")));
 }
 
+// setJumpHost(dataFolder, { hostname, user, sshPort }) — keeps the jump host the person entered in the window (UC-044 6a.1): hostname and SSH user trimmed, the SSH port 22 where none is given. An empty hostname, an
+// empty user and a port outside 1 to 65535 are refused with InvalidSettings, and nothing is written. The other settings stay as they are.
+export function setJumpHost(dataFolder, value) {
+  const hostname = text(value?.hostname)?.trim(), user = text(value?.user)?.trim();
+  const sshPort = value?.sshPort === undefined || value.sshPort === null || String(value.sshPort).trim() === "" ? 22 : Number(value.sshPort);
+  if (!hostname || !user || !port(sshPort)) throw namedError("InvalidSettings", "The jump host needs a hostname, an SSH user and an SSH port from 1 to 65535.");
+  return saveSettings(dataFolder, { ...loadSettings(dataFolder), jumpHost: { hostname, user, sshPort } });
+}
+
 export function saveSettings(dataFolder, value) {
   const settings = canonical(dataFolder, value);
   mkdirSync(dataFolder, { recursive: true, mode: 0o700 });

@@ -81,11 +81,11 @@ test("nextIdentifier — the first identifier of a numbered kind is 001", () => 
 
 // TST-472248 · level: unit · module: MOD-identifiers
 // guards: EVERY ARTIFACT HAS AN IDENTIFIER
-// given: ARC, TST and ITM, which the scheme gives exactly three digits, with ARC-998, TST-998 and ITM-998 as the highest number; then with 999 as the highest; and UC, which takes three digits or more, with UC-999 as the highest
+// given: ARC and TST, which the scheme gives exactly three digits, with ARC-998 and TST-998 as the highest number; then with 999 as the highest; and UC and ITM, which take three digits or more, with UC-999 and ITM-999 as the highest
 // input: nextIdentifier(kind, [<kind>-001, <kind>-<highest>]) for each
-// expect: <kind>-999 after 998 — still an identifier of the scheme —; after 999 a RangeError for each of ARC, TST and ITM, since ARC-1000 is no identifier of the scheme (kindOfIdentifier gives null); UC-1000, which is one, for UC
-test("nextIdentifier — after 999 a three-digit kind has no next identifier, a use case has UC-1000", () => {
-  for (const kind of ["ARC", "TST", "ITM"]) {
+// expect: <kind>-999 after 998 — still an identifier of the scheme —; after 999 a RangeError for each of ARC and TST, since ARC-1000 is no identifier of the scheme (kindOfIdentifier gives null); UC-1000 and ITM-1000, which are, for UC and ITM
+test("nextIdentifier — after 999 a three-digit kind has no next identifier, a use case has UC-1000 and an item ITM-1000", () => {
+  for (const kind of ["ARC", "TST"]) {
     // Known positive: 999 itself is still given.
     assert.equal(nextIdentifier(kind, [`${kind}-001`, `${kind}-998`]), `${kind}-999`, kind);
     assert.equal(kindOfIdentifier(`${kind}-1000`), null, `${kind}-1000 is outside the scheme`);
@@ -93,6 +93,9 @@ test("nextIdentifier — after 999 a three-digit kind has no next identifier, a 
   }
   assert.equal(nextIdentifier("UC", ["UC-001", "UC-999"]), "UC-1000");
   assert.equal(kindOfIdentifier("UC-1000"), "UC");
+  assert.equal(nextIdentifier("ITM", ["ITM-001", "ITM-998"]), "ITM-999");
+  assert.equal(nextIdentifier("ITM", ["ITM-001", "ITM-999"]), "ITM-1000");
+  assert.equal(kindOfIdentifier("ITM-1000"), "ITM");
 });
 
 // ---------------------------------------------------------------- a slug kind

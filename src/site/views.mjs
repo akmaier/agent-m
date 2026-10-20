@@ -23,9 +23,11 @@ export const DASHBOARD = [
   { view: "resources", file: "resources-view.mjs", useCases: ["UC-040"] },
   { view: "participants", file: "participants-view.mjs", useCases: ["UC-017"] },
   { view: "process-models", file: "process-models-view.mjs", useCases: ["UC-031"] },
-  { view: "process", file: "process-view.mjs", useCases: ["UC-002"] },
-  { view: "roles", file: "roles-view.mjs", useCases: ["UC-048"] },
-  { view: "backlog", file: "backlog-view.mjs", useCases: ["UC-032", "UC-033"] },
+  // UC-002 and UC-048 are rendered by MOD-implementation-pages through dashboard-app's public route dispatch; they have no dashboard view file.
+  { view: "process", builtIn: true, useCases: ["UC-002"] },
+  { view: "roles", builtIn: true, useCases: ["UC-048"] },
+  // UC-032 and UC-033 are rendered by MOD-implementation-pages through dashboard-app's public route dispatch; they have no dashboard view file.
+  { view: "backlog", builtIn: true, useCases: ["UC-032", "UC-033"] },
   { view: "progress", file: "progress-view.mjs", useCases: ["UC-035"] },
   { view: "sprint-close", file: "sprint-close-view.mjs", useCases: ["UC-041"] },
   { view: "jobs", file: "jobs-view.mjs", useCases: ["UC-036"] },
@@ -34,11 +36,14 @@ export const DASHBOARD = [
   { view: "tests-browser", file: "tests-browser-view.mjs", useCases: ["UC-029"] },
   { view: "tests-schedule", file: "tests-schedule-view.mjs", useCases: ["UC-027"] },
   { view: "tests-generate", file: "tests-generate-view.mjs", useCases: ["UC-026"] },
-  { view: "release", file: "release-view.mjs", useCases: ["UC-013"] },
+  // UC-013 is rendered by MOD-test-pages through dashboard-app's public route dispatch; it has no dashboard view file.
+  { view: "release", builtIn: true, useCases: ["UC-013"] },
   { view: "audit", file: "audit-view.mjs", useCases: ["UC-030"] },
   { view: "issues", file: "issues-view.mjs", useCases: ["UC-012", "UC-033"] },
-  { view: "mail", file: "mail-view.mjs", useCases: ["UC-038"] },
-  { view: "mail-replies", file: "mail-replies-view.mjs", useCases: ["UC-039"] },
+  // UC-038 is rendered by MOD-maintenance-pages through dashboard-app's public route dispatch; it has no dashboard view file.
+  { view: "mail", builtIn: true, useCases: ["UC-038"] },
+  // UC-039 is rendered by MOD-maintenance-pages through dashboard-app's public route dispatch; it has no dashboard view file.
+  { view: "replies", builtIn: true, useCases: ["UC-039"] },
   { view: "how", file: "how-view.mjs", useCases: ["UC-006", "UC-008"] },
   { view: "settings", file: "settings-view.mjs", useCases: ["UC-042"] },
   // UC-001 is rendered by MOD-settings-pages through dashboard-app's public route dispatch; it has no dashboard view file.
@@ -56,8 +61,9 @@ export const DASHBOARD = [
   { section: "clear", builtIn: true, useCases: ["UC-042"] },
 ];
 
-// The views whose file is built: builtFiles is the list of docs/assets/dashboard/built.json. -> Set of view names
+// The views that are built: those whose file is in builtFiles, the list of docs/assets/dashboard/built.json, and the built-in
+// ones, which the app hands to a module's route. -> Set of view names
 export function builtViews(builtFiles) {
   const built = new Set(builtFiles);
-  return new Set(DASHBOARD.filter((v) => v.view && built.has(v.file)).map((v) => v.view));
+  return new Set(DASHBOARD.filter((v) => v.view && (v.builtIn || built.has(v.file))).map((v) => v.view));
 }

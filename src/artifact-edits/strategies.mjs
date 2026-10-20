@@ -1,5 +1,5 @@
 // strategies.mjs — the check and the writer of editStrategies (MOD-artifact-edits, Parts; Interfaces: editStrategies): the check
-// `identifier-kept` and the writer `open-files`. ITM-336 builds them; the recipe `items-of-kind` (UC-021) is not built yet.
+// `identifier-kept` and the writer `open-files`. ITM-336 builds them; the recipe `items-of-kind` (UC-021) is ITM-723's.
 //
 // Module: MOD-artifact-edits
 //
@@ -23,6 +23,7 @@
 import { artifactSchemaOf, readDocument } from "../documents/index.mjs";
 import { kindOfIdentifier, nextIdentifier } from "../identifiers/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
+import { traceGraph } from "../trace-graph/index.mjs";
 import { finding } from "../text-tools/index.mjs";
 import { provenanceLines } from "../job-runner/index.mjs";
 import { declaredId, keptIdentifier } from "./save.mjs";
@@ -161,5 +162,29 @@ async function openFiles(result, context) {
   return { commits: [commit], files: files.map((file) => file.path), pullRequest: null, shown: null, notes };
 }
 
+// The kind of node, in MOD-trace-graph's graph, that the group file of each kind arranges (as the check group-rules reads them).
+const ARRANGED = { requirements: "requirement", "use-cases": "UC", architecture: "ARC", modules: "MOD", tests: "TST" };
+
+/**
+ * recipe items-of-kind — for the kind the job's parameter `kind` names (requirements, use-cases, architecture, modules or tests), two parts: `the <kind>`, one line
+ * `- <identifier> — <title>` for each item of that kind in the product's graph, sorted by identifier — an item with no title, a test, is `- <identifier>`; a requirement is
+ * `- <name>` with its whole text on the lines after it, MOD-spec-document's parseSpec giving the rule —; and, where the product has one, `docs/groups/<kind>.md`, the group
+ * file as it stands. Reads the product's snapshot. An unknown kind gives no part.
+ */
+async function itemsOfKind(context, params) {
+  const kind = params?.kind ?? context.params?.kind;
+  if (!Object.hasOwn(ARRANGED, kind)) return [];
+  const { snapshot } = context.product;
+  const rules = kind === "requirements" ? new Map([...parseSpec((await snapshot.read("SPEC.md")) ?? "").requirements].map(([name, each]) => [name, each.rule])) : null;
+  const nodes = [...(await traceGraph(snapshot)).nodes.values()].filter((node) => node.kind === ARRANGED[kind])
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const lines = nodes.flatMap((node) => [`- ${node.id}${node.title ? ` — ${node.title}` : ""}`, ...(rules ? [String(rules.get(node.id) ?? "").trim()].filter(Boolean) : [])]);
+  const parts = [{ name: `the ${kind}`, text: `${lines.join("\n")}${lines.length ? "\n" : ""}`, size: 0, sources: [], required: true }];
+  const path = `docs/groups/${kind}.md`;
+  const group = await snapshot.read(path);
+  if (group !== null && group !== undefined) parts.push({ name: path, text: group, size: 0, sources: [], required: true });
+  return parts;
+}
+
 /** editStrategies — the strategies this module offers the job runner (ARC-046). */
-export const editStrategies = { recipes: {}, checks: { "identifier-kept": identifierKept }, preconditions: {}, steps: {}, writers: { "open-files": openFiles } };
+export const editStrategies = { recipes: { "items-of-kind": itemsOfKind }, checks: { "identifier-kept": identifierKept }, preconditions: {}, steps: {}, writers: { "open-files": openFiles } };

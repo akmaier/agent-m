@@ -288,3 +288,19 @@ test("legal-text fetch waiting state is derived from the recognised identifier a
   assert.equal(waitsForFetch(existingEntry()), false);
   assert.equal(waitsForFetch(waitingEntry("https://example.org/legal")), false);
 });
+
+// TST-925001 · level: unit · module: MOD-source-register
+// guards: A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; A SOURCE VERSION IS NEVER OVERWRITTEN
+// given: an entry whose existing version 2024-06-01 records old.xhtml with the bytes "old text"; known positive: a new version 2024-07-12 with other bytes resolves
+// input: versionCommits(entry, [new.xhtml with other bytes], { version: "2024-06-01", … }) — the identifier of the existing version, other bytes; and the same with bytes that equal the existing version's
+// expect: the first rejects with the failure named VersionExists whose field version is "2024-06-01" and whose message names that identifier, and no plan is returned (nothing is recorded); the second is refused as SameBytes, which keeps precedence (MOD-source-register: onSourcesCommitted catches only SameBytes)
+test("versionCommits - a new version with the identifier of an existing version and other bytes is refused as VersionExists", async () => {
+  const other = [{ name: "new.xhtml", bytes: encode("new text\n"), keep: true }];
+  const plan = await versionCommits(existingEntry(), other, { version: "2024-07-12", date: "2024-07-12", repository: INSTANCE });
+  assert.equal(plan.length > 0, true, "known positive: a new identifier with other bytes is recorded");
+  await assert.rejects(versionCommits(existingEntry(), other, { version: "2024-06-01", date: "2024-07-12", repository: INSTANCE }),
+    (error) => error.name === "VersionExists" && error.version === "2024-06-01" && error.message.includes("2024-06-01"));
+  const same = [{ name: "old.xhtml", bytes: encode("old text\n"), keep: true }];
+  await assert.rejects(versionCommits(existingEntry(), same, { version: "2024-06-01", date: "2024-07-12", repository: INSTANCE }),
+    (error) => error.name === "SameBytes" && error.version === "2024-06-01");
+});

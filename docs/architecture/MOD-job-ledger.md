@@ -18,6 +18,7 @@ uses:
   - MOD-job-runner.Round
   - MOD-job-runner.roundsText
   - MOD-participant-list.Participant
+  - MOD-text-tools.parseFinding
 provides:
   - JobStart
   - RecordPart
@@ -88,7 +89,7 @@ happen, each with `at:` and its own lines:
 
 | Section | Lines |
 |---|---|
-| `## Taken` | `by:` the route that took it — a CI run's address, a Bridge's name, or `tab <browser>` for a tab, `<browser>` the identifier MOD-browser-store keeps for the browser that took it |
+| `## Taken` | `by:` the route that took it — a CI run's address, a Bridge's name, or `tab <browser>` for a tab, `<browser>` the identifier of the browser or tab that took it (MOD-runtimes, Data) |
 | `## Gate reached` | `gate:` its name, `decider:` the role, agent or check that decides it — or `question:` for a question to the author |
 | `## Resumed` | `gate record:` the record whose decision resumed it |
 | `## Job started` | in a run's record: `job:` the identifier of a job the run started, `kind:`, `works on:` — one part per job, committed together with that job's start record |
@@ -132,7 +133,7 @@ limit: 5
 ## Taken
 
 at: <date and time, UTC>
-by: tab
+by: tab <identifier>
 ````
 
 ## Interfaces
@@ -199,3 +200,4 @@ RUN`); it does start Agent M's job workflow, which is how a CI route notices it.
 - `MOD-job-runner.Usage`, `MOD-job-runner.Round`, `MOD-job-runner.roundsText` — the usage a runtime reports, and the
   round record written into a job's end.
 - `MOD-participant-list.Participant` — the declared price of a job's cost.
+- `MOD-text-tools.parseFinding` — a finding of a round, as the job's end record writes it, read back into its parts.

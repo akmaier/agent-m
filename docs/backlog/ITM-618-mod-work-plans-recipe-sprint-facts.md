@@ -9,6 +9,7 @@ modules:
 builds_on:
   - ITM-610
   - ITM-581
+  - ITM-1100
 tests:
   - unit
 origin:
@@ -29,3 +30,15 @@ It adds its strategy to `workStrategies`, which ITM-610 builds and registers, an
 
 - The strategy works as MOD-work-plans' file states it, with a counter-proof.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+## Waits for a draft for akmaier (2026-10-19)
+
+Settling its readings found inputs that MOD-work-plans' Uses do not name:
+- `sprint-facts` needs the product's jobs (`listJobs`), the branch `test-results` (`readSnapshot`) and the tests with what they guard
+  (`testDeclarations`);
+- `plan-checks` needs the product's workflow (`workflowOf`, from the declaration, the instance's `catalogue` and its SPEC).
+A draft of MOD-work-plans names them and is under review before it goes to akmaier. The item is ready once it is accepted.
+
+**The draft is on main for akmaier** (`3baeb13a`, reviewed). Once accepted, the item is ready. A reading for its build:
+MOD-workflow-entries' `onSchedule` queues the `close-sprint` job, and puts the sprint into its parameters as `sprint`. No
+kind file declares parameters, so this needs no text change.

@@ -2,4 +2,4 @@
 
 export { jobHandlers } from "./handlers.mjs";
 export { testAccess } from "./access.mjs";
-export { startWatching, stopWatching } from "./watch.mjs";
+export { startWatching, stopWatching, listJobs } from "./watch.mjs";

@@ -848,3 +848,101 @@ test("participants — a CLI agent reached on a Bridge is offered as a subagent 
   assert.equal(byClass(page, "participant-bridge").length, 1);
   assert.equal(one(page, "participant-route-preview").textContent, "bridge laptop agent codex");
 });
+
+// ---------------------------------------------------------------- use tools is preset from the endpoint's last test (ITM-998)
+
+const LAST = (tools) => ({ at: "2026-10-19T10:00:00.000Z", outcome: "working", ...(tools === undefined ? {} : { tools }) });
+const ENDPOINT_OF = (model) => ({ url: `https://${model}.example/v1`, kind: "openai-compatible", model });
+const checkedCapabilities = (page) => byClass(page, "participant-capability").filter((box) => box.checked).map((box) => box.value);
+const CALLED_THE_TOOL = { choices: [{ message: { content: null, tool_calls: [{ id: "1", type: "function", function: { name: "agent_m_probe", arguments: "{}" } }] } }] };
+
+// TST-998002 · level: unit · module: MOD-settings-pages
+// guards: UC-017 (step 3); A PARTICIPANT DECLARES ITS CAPABILITIES
+// given: this browser keeps three endpoints: one whose last test says the model called the tool (tools true), one whose says it answered in text only (tools false), one never tested; and a fourth whose last test was refused (no tools)
+// input: the author adds a participant of the type model endpoint and chooses each endpoint
+// expect: with the first, the capability "use tools" is ticked beside "draft text", and the saved row holds both; with the others only "draft text" is ticked and the saved row holds only that
+test("participants — a model endpoint's use tools is preset from its endpoint's last test", async (t) => {
+  const cases = [["called", LAST(true), ["draft text", "use tools"]], ["text", LAST(false), ["draft text"]], ["fresh", undefined, ["draft text"]],
+    ["refused", { at: "2026-10-19T10:00:00.000Z", outcome: "refused" }, ["draft text"]]];
+  for (const [name, last, expected] of cases) {
+    const settings = { [`endpoint:${name}`]: ENDPOINT_OF(name), ...(last ? { [`last-test:endpoint:${name}`]: last } : {}) };
+    const b = browser(t, { settings });
+    const page = await b.page();
+    await addParticipant(page, "model endpoint");
+    assert.equal(one(page, "participant-endpoint").value, name);
+    assert.deepEqual(checkedCapabilities(page), expected, `${name}: ticked capabilities`);
+    await put(one(page, "participant-name"), `model-${name}`);
+    await put(one(page, "participant-place"), "FAU data centre (EU)");
+    await save(page);
+    assert.deepEqual(committedRows(b).at(-1).Capabilities, expected, `${name}: saved capabilities`);
+  }
+});
+
+// TST-998003 · level: unit · module: MOD-settings-pages
+// guards: UC-017 (step 3)
+// given: two kept endpoints, tooled whose last test says tools true and plain whose says tools false; the author adds a model endpoint participant and also ticks "run code and tests" by hand
+// input: the endpoint select is changed to plain and back to tooled
+// expect: "use tools" is ticked for tooled, unticked for plain and ticked again for tooled; the capability the author ticked by hand stays ticked throughout
+test("participants — choosing another endpoint changes use tools with its last test and leaves the other capabilities", async (t) => {
+  const settings = { "endpoint:plain": ENDPOINT_OF("plain"), "last-test:endpoint:plain": LAST(false), "endpoint:tooled": ENDPOINT_OF("tooled"), "last-test:endpoint:tooled": LAST(true) };
+  const b = browser(t, { settings });
+  const page = await b.page();
+  await addParticipant(page, "model endpoint");
+  await put(one(page, "participant-endpoint"), "tooled", "change");
+  const box = (name) => byClass(page, "participant-capability").find((candidate) => candidate.value === name);
+  box("run code and tests").checked = true;
+  await fire(box("run code and tests"), "change");
+  assert.deepEqual(checkedCapabilities(page), ["draft text", "run code and tests", "use tools"]);
+  await put(one(page, "participant-endpoint"), "plain", "change");
+  assert.deepEqual(checkedCapabilities(page), ["draft text", "run code and tests"]);
+  await put(one(page, "participant-endpoint"), "tooled", "change");
+  assert.deepEqual(checkedCapabilities(page), ["draft text", "run code and tests", "use tools"]);
+});
+
+// TST-998004 · level: unit · module: MOD-settings-pages
+// guards: UC-017 (step 3); UC-003 (step 5)
+// given: no endpoint kept, so that the form configures one in place; the endpoint answers the test request with a call of the probe tool (and in a second case with text only)
+// input: the author fills the endpoint's name, URL and model and presses Test endpoint
+// expect: after a test in which the model called the tool, "use tools" is ticked; after one in which it answered in text only, it is not
+test("participants — testing a new endpoint in place presets use tools from that test", async (t) => {
+  for (const [answer, expected] of [[CALLED_THE_TOOL, ["draft text", "use tools"]], [{ choices: [{ message: { content: "no tools" } }] }, ["draft text"]]]) {
+    withFetch(t, async () => json(answer));
+    const b = browser(t);
+    const page = await b.page();
+    await addParticipant(page, "model endpoint");
+    await put(one(page, "participant-endpoint-name"), "inline");
+    await put(one(page, "participant-endpoint-url"), "https://models.example/v1");
+    await put(one(page, "participant-endpoint-model"), "llama-inline");
+    await click(one(page, "participant-endpoint-test"));
+    assert.deepEqual(checkedCapabilities(page), expected);
+  }
+});
+
+// TST-1096001 · level: unit · module: MOD-settings-pages
+// guards: UC-017; THE MODEL DETERMINES THE PHASES AND THE GATES; PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE
+// given: two products whose declarations name the model docs/process-models/team-scrum.md at the commit VERSION; an instance that held the model at VERSION with the role Developers needing read, write and run code and tests, and holds it now, on its default branch, with the role needing one more capability, "sign releases"; dev-a holds the first three
+// input: the author opens Change for dev-a, unchecks "write to the repository", and the page lists the product use
+// expect: the instance was asked for its snapshot at VERSION; the list says that holder dev-a of the role Developers lacks the capability write to the repository, and does not say that it lacks "sign releases" (the model is read as the product declared it, at model_version, not as the instance holds it now)
+// Planted fault: reading the instance's current catalogue, as productBasisOf did, adds "sign releases" to what dev-a lacks and never asks for VERSION.
+test("participants — each product's roles are read from the model at the version its declaration names", async (t) => {
+  const products = fixtureProductHosts();
+  const b = browser(t, { files: { [PARTICIPANTS]: USED_PARTICIPANTS, ...instanceProcessFiles(), [MODEL_PATH]: MODEL_TEXT.replace("run code and tests |", "run code and tests, sign releases |") },
+    settings: { products: [PRODUCT_ALPHA, PRODUCT_BETA] }, products });
+  const asked = [];
+  const current = b.context.instance.host.readSnapshot;
+  b.context.instance.host.readSnapshot = async (ref) => {
+    asked.push(ref);
+    if (ref !== VERSION) return current(ref);
+    const files = { ...instanceProcessFiles(), [PARTICIPANTS]: USED_PARTICIPANTS };
+    return { commit: VERSION, paths: Object.keys(files).sort(), read: async (path) => files[path] ?? null, blob: (path) => (files[path] === undefined ? null : blobSha(files[path])) };
+  };
+  const page = await b.page();
+  await click(changeButton(page, "dev-a"));
+  const write = byClass(page, "participant-capability").find((box) => box.value === "write to the repository");
+  write.checked = false;
+  await fire(write, "change");
+  const use = one(page, "participant-product-use");
+  assert.ok(asked.includes(VERSION), `the instance was read at ${VERSION}; asked: ${asked.join(", ")}`);
+  assert.match(use.textContent, /holder dev-a of the role Developers lacks the capability write to the repository/);
+  assert.doesNotMatch(use.textContent, /sign releases/);
+});

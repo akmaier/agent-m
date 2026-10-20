@@ -31,6 +31,16 @@ export function tracesTo(graph, name) {
     items: unique(naming("ITM")) };
 }
 
+// systemDecisions(graph: Graph) -> { system: string[], subsystems: string[] } — the decisions that refine no other, and the subsystems' decisions: those that refine one of them and design at least
+// one module; each list by identifier. A decision that refines the system and designs no module, and one that refines a subsystem's decision, is in neither.
+export function systemDecisions(graph) {
+  const from = (id, via) => graph.edges.filter((edge) => edge.from === id && edge.via === via);
+  const decisions = [...graph.nodes.values()].filter((node) => node.kind === "ARC");
+  const system = decisions.filter((node) => from(node.id, "refines").length === 0).map((node) => node.id).sort(byText);
+  const subsystems = decisions.filter((node) => from(node.id, "refines").some((edge) => system.includes(edge.to)) && from(node.id, "designs").length > 0).map((node) => node.id).sort(byText);
+  return { system, subsystems };
+}
+
 // requirementImpact(graph: Graph, name: string) -> ImpactEntry[] — every artifact that names the requirement, to be listed beside a
 // change to it (A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST): one row for each place an edge of the graph points at `name` —
 // a use case's, a module's or an item's `realises`, a decision's `forced_by`, a test's `guards`, a text that names it —, with the

@@ -8,6 +8,8 @@ follows:
 uses:
   - MOD-model-catalogue.Model
   - MOD-model-catalogue.Catalogue
+  - MOD-model-catalogue.catalogue
+  - MOD-model-catalogue.modelSchema
   - MOD-participant-list.participantSchema
   - MOD-participant-list.participantsOf
   - MOD-participant-list.eligible
@@ -42,6 +44,7 @@ provides:
   - roleAssignmentSchema
   - roleAssignmentFindings
   - workflowOf
+  - productWorkflow
   - holdsRole
   - gateSchema
   - gateStates
@@ -160,6 +163,11 @@ once (`THE GATE IS RECORDED`, `A RECORD IS EVIDENCE, NOT A PROPOSAL`):
   add, as the declaration's `## Gates added by requirements` names them, each marked with its requirement and the source
   that requirement names in the instance's SPEC, `instanceSpec`; nothing else enters the workflow. A gate whose
   requirement that SPEC does not hold stays in the workflow with `addedBy.source` null; `declarationFindings` names it.
+- `productWorkflow(declaration: Document, instanceAt: (commit: string) -> Promise<Snapshot>, instanceSpec: string) ->
+  Promise<Workflow | null>` — the product's workflow as it declared it: MOD-model-catalogue's `catalogue` over the
+  instance at the commit the declaration's `model_version` names (`instanceAt`), the model it holds at `model_file`,
+  the practices the declaration names read with `modelSchema`, and `workflowOf` of them; `null` where that catalogue
+  holds no model at `model_file`. Fails as `instanceAt` fails.
 - `holdsRole(assignment: Document, participant: string, role: string) -> boolean` — whether the role assignment gives the
   participant the role (`A JOB GOES ONLY TO A HOLDER OF ITS ROLE`). A job's role assignment is its team's in a model with
   sprints, and the product's one otherwise (MOD-work-plans).
@@ -217,7 +225,8 @@ once (`THE GATE IS RECORDED`, `A RECORD IS EVIDENCE, NOT A PROPOSAL`):
 ## Uses
 
 - MOD-model-catalogue.Model, Catalogue — the declared model, and the catalogue at the commit the declaration names, with
-  each model's findings and each practice's `fits`.
+  each model's findings and each practice's `fits`; MOD-model-catalogue.catalogue, modelSchema — that catalogue and
+  its practices read, for `productWorkflow`.
 - MOD-participant-list.participantSchema, participantsOf, eligible — the holders' capabilities and processing places.
 - MOD-source-register.sourceSchemas, permittedPlaces — where the content of a linked source may go.
 - MOD-spec-document.parseSpec — the process requirements, which the instance's SPEC holds, and their sources.

@@ -53,7 +53,7 @@ def keys_without_place(keys: list[str], places: dict) -> list[str]:
 # named with that line's text.
 PLACES = {
     "github-token": "GitHub token", "products": "Products", "notifications": "Notifications", "notified": "Notifications",
-    "bridge": "Bridge", "jump-host": "Jump host", "mailbox": "Mailbox",
+    "bridge": "Bridge", "jump-host": "Jump host", "mailbox": "Mailbox", "browser": "Browser identifier", "not-an-issue": "Mails marked not an issue",
     "github-token:sample": "GitHub token: sample", "gitlab-token:sample": "GitLab token: sample", "endpoint:sample": "Endpoint: sample",
     "bridge:sample": "Bridge: sample", "remote-session:sample": "Remote session: sample",
     "last-test:sample": "GitHub token", "acknowledged:sample": "GitHub token", "resource-key:sample": "Resource key: sample",
@@ -61,7 +61,7 @@ PLACES = {
 STORED = {
     "github-token": TOKEN, "products": ["https://github.com/alice/thesis"], "notifications": {"on": False}, "notified": ["docs/a.md"],
     "bridge": {"address": "https://bridge.example.test", "token": "bridgetok"}, "jump-host": JUMP,
-    "mailbox": {"address": "me@example.org", "route": "imap", "imap": {"bridge": "lab"}, "folders": ["INBOX"], "places": []},
+    "mailbox": {"address": "me@example.org", "route": "imap", "imap": {"bridge": "lab"}, "folders": ["INBOX"], "places": []}, "browser": "0123456789abcdef", "not-an-issue": ["MAIL-0123456789abcdef"],
     "github-token:sample": TOKEN, "gitlab-token:sample": TOKEN,
     "endpoint:sample": {"url": "https://m.example/v1", "kind": "openai-compatible", "model": "m", "key": "k", "throughBridge": False},
     "bridge:sample": {"address": "http://localhost:8765", "token": "labtok"}, "remote-session:sample": {"port": 20001, "token": BRIDGE_SECRET},

@@ -11,6 +11,8 @@ uses:
   - MOD-bridge-client.mailCall
   - MOD-mail-records.mailId
   - MOD-text-tools.sha256
+  - MOD-identifiers.instanceOfPagesAddress
+  - MOD-identifiers.pagesAddress
 provides:
   - routeFor
   - signIn
@@ -162,3 +164,5 @@ own: the connection is written by Access, the sign-in library's cache under the 
   BRIDGE`).
 - `MOD-mail-records.mailId` — the identifier of each mail read on the Graph route, and the search of `find`.
 - `MOD-text-tools.sha256` — the SHA-256 of a draft's bytes on the Graph route, compared before it is sent.
+- `MOD-identifiers.instanceOfPagesAddress`, `MOD-identifiers.pagesAddress` — the address Microsoft's sign-in window
+  returns to on the Graph route: the Pages address of the instance whose page it is, as the app registers it (UC-037).

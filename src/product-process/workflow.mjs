@@ -8,6 +8,8 @@
 // workflow entry. The Definition of Done is the job rules of the module file's Data, then the conditions the declaration
 // adds (THE DEFAULT DEFINITION OF DONE IS THE JOB RULES).
 
+import { readDocument } from "../documents/index.mjs";
+import { catalogue, modelSchema } from "../model-catalogue/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
 import { addedGatesOf, branchesOf, conditionsOf, practicesOf } from "./declaration.mjs";
 
@@ -114,4 +116,27 @@ export function workflowOf(declaration, model, practices, instanceSpec) {
     branches: Object.fromEntries(branchesOf(declaration).map(({ at, branch }) => [at, branch])),
     done: [...JOB_RULES, ...conditionsOf(declaration)],
   };
+}
+
+/**
+ * productWorkflow(declaration, instanceAt, instanceSpec) -> Promise<Workflow | null> — the product's workflow as it declared it: the catalogue
+ * of the instance at the commit the declaration's `model_version` names (`instanceAt`), the model it holds at `model_file`, the practices the
+ * declaration names, read with MOD-model-catalogue's practice schema from the instance at that commit, and `workflowOf` of them; null where that
+ * catalogue holds no model at `model_file`. Fails as `instanceAt` fails.
+ * @param {Document} declaration — the product's docs/process.md
+ * @param {(commit: string) => Promise<Snapshot>} instanceAt — the instance repository at one commit
+ * @param {string} instanceSpec — the text of the instance's SPEC.md
+ * @returns {Promise<Workflow | null>}
+ */
+export async function productWorkflow(declaration, instanceAt, instanceSpec) {
+  const at = await instanceAt(text(declaration.fields.model_version));
+  const held = await catalogue(at);
+  const model = held.models.find((candidate) => candidate.path === text(declaration.fields.model_file)) ?? null;
+  if (model === null) return null;
+  const named = new Set(practicesOf(declaration).map((practice) => practice.name));
+  const practices = (await Promise.all(held.practices.filter((practice) => named.has(practice.name)).map(async (practice) => {
+    const practiceText = await at.read(practice.path);
+    return practiceText === null ? null : readDocument(modelSchema.practice, practice.path, practiceText);
+  }))).filter(Boolean);
+  return workflowOf(declaration, model, practices, instanceSpec);
 }

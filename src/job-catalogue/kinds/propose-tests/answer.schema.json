@@ -15,7 +15,8 @@
               "unit",
               "component",
               "system",
-              "release"
+              "release",
+              "user"
             ]
           },
           "guards": {

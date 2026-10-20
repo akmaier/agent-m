@@ -45,7 +45,7 @@ const ARCHITECTURE_FILE = /^docs\/architecture\/(ARC|MOD)-[^/]+\.md$/;
 // The files of a draft: a change of a use case or of the architecture drafts `files`, a conversation `edits`.
 const filesOf = (draft) => (draft.kind === "converse" ? draft.result.draft.edits : draft.result.draft.files) ?? [];
 
-async function showFiles(where, draft, trailers, target, drop) {
+async function showFiles(where, draft, trailers, target, drop, hold) {
   const { snapshot, host } = where;
   const params = draft.params;
   // The text the job read: for the file the subject names, the blob in `version`; for any other, the one the page read.
@@ -71,11 +71,12 @@ async function showFiles(where, draft, trailers, target, drop) {
   if (typeof draft.result.draft.answer === "string") target.append(el("div", "answer", draft.result.draft.answer));
   target.append(...roundsAndLeft(draft.result));
   if (architecture) target.append(roundsSection(draft.result.rounds, draft.result.stoppedBecause));
-  const { drafts, discard, saved } = await fileDrafts({ files: filesOf(draft), snapshot, host, trailers, versionOf, check, extras, drop });
+  const { drafts, discard, saved, leave } = await fileDrafts({ files: filesOf(draft), snapshot, host, trailers, versionOf, check, extras, drop });
   target.append(explain("draft-difference"), drafts, discard, saved);
+  hold(leave);
 }
 
-async function show(where, params) {
+async function show(where, params, hold) {
   const { target, context } = where;
   target.append(el("h2", null, "The draft of the conversation"));
   const key = params.subject ?? null;
@@ -97,15 +98,20 @@ async function show(where, params) {
   if (draft.kind === "change-requirements") {
     target.append(...roundsAndLeft(draft.result), await requirementsDraft({ ...where, draft, trailers, drop }));
   } else {
-    await showFiles(where, draft, trailers, target, drop);
+    await showFiles(where, draft, trailers, target, drop, hold);
   }
 }
 
+// What the route's `leave` and `unsaved` ask: the editors of the page drawn last, or null where it drew none. A render that started earlier and ends later is not that page.
+let held = null, latest = 0;
+
 async function render(target, context, params) {
+  const mine = ++latest;
+  held = null;
   const where = await readPlace(target, context);
   if (where === null) return;
   try {
-    await show(where, params);
+    await show(where, params, (editors) => { if (mine === latest) held = editors; });
   } catch (failure) {
     target.append(readProblem(failure, Boolean(where.token)));
   }
@@ -130,4 +136,12 @@ function subject(params, context) {
     draftRoute: `draft/subject=${encodeURIComponent(key)}`, withhold: null, refuses: [] };
 }
 
-export const draftRoute = { name: "draft", entry: null, title: "The draft of the conversation", render, subject };
+// The frame asks this before it shows another route: the editors of the page drawn last close, asking first, or stay (UC-018 7a).
+function leave() {
+  if (held === null) return true;
+  const closed = held.close();
+  if (closed) held = null;
+  return closed;
+}
+
+export const draftRoute = { name: "draft", entry: null, title: "The draft of the conversation", render, subject, leave, unsaved: () => held !== null && held.unsaved() };

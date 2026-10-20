@@ -26,7 +26,7 @@ import { notice, noticePlace, showTokenNotices, refusedNotice } from "./notices.
 export { schemaForm } from "./forms.mjs";
 export { runPanel } from "./run-panel.mjs";
 export { menuOf } from "./menu.mjs";
-export { chosenProduct, productHostFollowingStore } from "./routing.mjs";
+export { chosenProduct, productHostFollowingStore, tokenKeyOf } from "./routing.mjs";
 export { notice } from "./notices.mjs";
 export { confirmDecision } from "./decision.mjs";
 

@@ -31,6 +31,7 @@ import { sourceStrategies } from "../source-register/index.mjs";
 import { specStrategies } from "../spec-changes/index.mjs";
 import { startable, workStrategies } from "../work-plans/index.mjs";
 import { readParticipants } from "./offer.mjs";
+import { restrictedPlaces } from "./places.mjs";
 import { connectionsOf, defaultSnapshot, personOf } from "./send.mjs";
 
 const WORKFLOWS = [".github/workflows/agent-m-jobs.yml", ".gitlab/agent-m-jobs.yml"];
@@ -118,7 +119,7 @@ export async function queue({ handOver, participant, assessment, store, instance
   const worksOn = worksOnOf(handOver);
   const params = paramsOf(worksOn, facts.snapshot);
   const inputs = { product: { address: page.address, snapshot: facts.snapshot, host: page.host }, instance: { snapshot: instanceSnapshot, host: instance.host }, participants,
-    places: { sources: {}, mailbox: null, contents: [] }, gates: [], person, agentM, jobId: id };
+    places: { ...(await restrictedPlaces(instanceSnapshot)), mailbox: null }, gates: [], person, agentM, jobId: id };
   const prepared = await prepareJob(handOver.kind, tabContext({ kind: null, params: { ...params, instruction: handOver.task }, ...inputs }), { drafter: participant, reviewers: [] });
   const start = { id, kind: handOver.kind, worksOn, participant: participant.name, model: participant.model ?? null, route: recordRoute(route), run: null, retries: null, startedBy: person,
     start: now, agentM, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit, task: "with the hand-over", conversation: conversation ?? null,

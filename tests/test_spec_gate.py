@@ -25,7 +25,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 
-import apply_approvals as ap  # noqa: E402
+import spec_apply as ap  # noqa: E402
 from jsrun import js  # noqa: E402
 
 FIX = Path(__file__).resolve().parent / "fixtures" / "gates"
@@ -73,7 +73,7 @@ class Product:
         """What the dashboard showed for entry `nr`: the proposal and the section beside it, by their blob SHAs."""
         name, anchor = ENTRIES[nr]
         return {"kind": "spec", "queue": Q, "qname": Path(Q).name, "nr": nr, "nn": f"{nr:02d}", "proposalPath": f"{Q}/{name}",
-                "proposalBlob": ap.blob_sha(self.text(f"{Q}/{name}")), "sectionBlob": ap.blob_sha(self.section(anchor)),
+                "proposalBlob": ap.blob_sha(self.text(f"{Q}/{name}")), "sectionBlob": ap.blob_sha(ap.legacy_section_text(ap.legacy_extract_section(self.text("SPEC.md"), anchor))),
                 "targetPath": "SPEC.md", "anchor": anchor, "bis": None, "needs": []}
 
     def plan(self, items: list) -> dict:
@@ -126,10 +126,9 @@ class SpecGate(unittest.TestCase):
         written = next(f["content"] for f in plan["files"] if f["path"] == "SPEC.md")
         self.assertEqual(written, expected)
 
-    @unittest.expectedFailure
     def test_the_workflow_changes_no_byte_outside_the_approved_section(self):
-        # FINDING F1: tools/apply_approvals.py reads SPEC.md with read_text() — universal newlines — and writes it back, so a
-        # SPEC with CR LF line ends anywhere is rewritten with LF throughout: bytes of sections nobody approved change.
+        # The workflow's writer, applyApproved, reads the SPEC's bytes as they stand, so a SPEC with CR LF line ends anywhere keeps them
+        # (the old Python tool read it with universal newlines and wrote LF throughout: finding F1).
         # Expected: as for the dashboard above — only 01's section is replaced, every other byte stays.
         crlf = self.p.text("SPEC.md").replace("## 1. Rules", "## 1. Rules\r", 1).replace("Rule one holds.", "Rule one holds.\r", 1)
         self.p.write("SPEC.md", crlf)

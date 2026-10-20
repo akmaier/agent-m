@@ -217,7 +217,10 @@ function network() {
 
 // The strategies of other modules that the kinds `converse` and `implement` name.
 registerStrategies("tests/prompt-bar-hand-over.test.mjs", {
-  recipes: { "chapters-for-page": async () => [], "implementation-inputs": async () => [], "chapters-for-implementation": async () => [], "resource-pins": async () => [] },
+  // implementation-inputs gives, as the real recipe does (src/run-planner/inputs.mjs), one part that carries the sources of every `context.places.contents` entry.
+  recipes: { "chapters-for-page": async () => [], "implementation-inputs": async (context) => ((context.places.contents ?? []).length
+    ? [{ name: "files", text: "a file of the product", size: 1, sources: context.places.contents.map(({ source }) => source), required: false, recipe: "implementation-inputs", artifacts: [] }] : []),
+    "chapters-for-implementation": async () => [], "resource-pins": async () => [] },
   preconditions: { "rests-on-accepted": approvalStrategies.preconditions["rests-on-accepted"] },
   writers: { "branch-and-pull-request": async () => ({ commits: [], files: [], pullRequest: null, shown: null, notes: [] }) },
 });
@@ -236,7 +239,7 @@ const subjectOf = () => ({ key: "use-case:UC-007", title: "UC-007 Derive use cas
   paramsFor: () => ({ page: "The page shows UC-007.", target: "UC-007" }), draftRoute: null, withhold: null, refuses: [] });
 
 // A page of the product (or of the instance): the instance with the register, a store keeping the endpoint ep1, the Bridge lab-pc and the tokens, and the bar started on it.
-function open({ files = scrumFiles(), rows = [DEV_CI, DEV_BRIDGE, OUTSIDER, TAB_ONLY], recording = false, store = null, went = [] } = {}) {
+function open({ files = scrumFiles(), rows = [DEV_CI, DEV_BRIDGE, OUTSIDER, TAB_ONLY], recording = false, store = null, went = [], instanceFiles = {} } = {}) {
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() });
   if (store === null) Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: new Storage() });
   const kept = store ?? openStore("alice/agent-m");
@@ -245,7 +248,7 @@ function open({ files = scrumFiles(), rows = [DEV_CI, DEV_BRIDGE, OUTSIDER, TAB_
   writeSetting(kept, "github-token", { value: "github_pat_INSTANCE0123456789abcdef", name: "alice", expires: "2027-01-01" });
   writeSetting(kept, "github-token:alice/thesis-tool", { value: "github_pat_PRODUCT0123456789abcdefg", name: "alice", expires: "2027-01-01" });
   const instance = repoOf(INSTANCE_WEB, { "SPEC.md": "# Instance spec\n", "docs/participants.md": register(ALICE, ...rows),
-    ...(recording ? { "docs/conversation-recording.md": "---\nrecording: on\n---\n# Recording of conversations\n" } : {}) });
+    ...instanceFiles, ...(recording ? { "docs/conversation-recording.md": "---\nrecording: on\n---\n# Recording of conversations\n" } : {}) });
   const product = repoOf(PRODUCT_WEB, files);
   const net = network();
   const target = document.createElement("div");
@@ -502,6 +505,29 @@ test("a hand-over of an open use case is refused by the job's own precondition w
   const text = textOf(proposal(it));
   assert.ok(text.includes("UC-002") && text.includes("NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED"), text);
   assert.equal(writesOf(it), 0, NOTHING_WRITTEN);
+});
+
+// TST-1123005 · level: component · module: MOD-prompt-bar
+// guards: UC-049 (4e); RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
+// given: the allowed hand-over of TST-505001, and the instance's register holds the source SRC-restricted (restricted, its content may go to "this machine" only); the recipe implementation-inputs gives one part that carries the sources of
+//   `places.contents`, as the real recipe does
+// input: a hand-over to dev-ci (place "Anthropic, USA"), a person's click on Hand over; the same hand-over to dev-bridge (place "this machine")
+// expect: the click on dev-ci's hand-over writes nothing and the page says "Nothing was queued." with a finding that names SRC-restricted and "Anthropic, USA"; dev-bridge's hand-over is queued by one commit (the counter-proof: a source whose
+//   licence allows the place is read)
+test("a hand-over to a participant at a place a restricted source does not allow queues nothing, and one at a place it allows is queued", async () => {
+  const restricted = ["---", "id: SRC-restricted", "title: A restricted handbook", "kind: document", "authority: informational", "licence: restricted - internal", "places:", "  - this machine", "---",
+    "# SRC-restricted A restricted handbook", "", "## Versions", "", "| Version | Date | Edition | Read from | Files |", "|---|---|---|---|---|", "| `1` | 2026-10-13 | fixture | here | one file, hashed only |", ""].join("\n");
+  const it = open({ instanceFiles: { "docs/sources/SRC-restricted.md": restricted } });
+  await proposes(it, ITEM("ITM-004"));
+  handOverButton(it).dispatchEvent(personal());
+  await until(() => textOf(proposal(it)).includes("Nothing was queued."), "the refusal is shown");
+  const text = textOf(proposal(it));
+  assert.ok(text.includes("SRC-restricted") && text.includes("Anthropic, USA"), text);
+  assert.equal(writesOf(it), 0, NOTHING_WRITTEN);
+  const allowed = open({ instanceFiles: { "docs/sources/SRC-restricted.md": restricted } });
+  await proposes(allowed, ITEM("ITM-004"), "dev-bridge");
+  await handsOver(allowed);
+  assert.equal(allowed.product.attempts.length, 1);
 });
 
 // ---------------------------------------------------------------- followed

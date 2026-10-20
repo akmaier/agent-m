@@ -68,3 +68,78 @@ test("TST-291006: production window navigation remains reachable after settings 
   await click(document.body, "Use this port");
   await click(document.body, "Settings"); assert.equal(location.hash, "#settings", "retry redraw retains context for navigation");
 });
+
+// TST-1004003 · level: unit · module: MOD-desktop-shell
+// guards: UC-044; THE BRIDGE SHOWS ITS PAIRING TOKEN IN ITS WINDOW; THE BRIDGE IS PAIRED ONCE
+// given: the production Bridge window entry and a constructed preload state that names pairedWith "https://carol.github.io" and, later, null
+// input: the Pairing route is drawn with each state
+// expect: with the origin, the page says "paired with https://carol.github.io" and not "not yet paired since this start"; with null, it says "not yet paired since this start" and not "paired with"
+// Planted fault: always saying one of them, or leaving the origin out, fails one of the two draws.
+test("TST-1004003: MOD-desktop-shell's Pairing view says which origin the Bridge is paired with, or that it is not yet paired since this start", async () => {
+  const document = { createElement: (name) => new Element(name), createTextNode: (value) => new Text(value) };
+  document.head = document.createElement("head"); document.body = document.createElement("body");
+  globalThis.document = document;
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() });
+  const browser = new EventTarget();
+  Object.defineProperty(globalThis, "location", { configurable: true, value: { hash: "#pairing" } });
+  Object.defineProperty(globalThis, "window", { configurable: true, value: browser });
+  let pairedWith = "https://carol.github.io";
+  browser.bridge = { async state() { return { address: "http://127.0.0.1:4711", token: "fixture-token", paused: false, pairedWith }; },
+    async copy() {}, async quit() {}, async retryPort() {}, async pairAnew() {}, async pause() {}, async resume() {} };
+  await import(`../src/desktop-shell/window.mjs?window-paired=${Date.now()}`);
+  const redraw = async () => { browser.dispatchEvent(new Event("hashchange")); await new Promise((resolve) => setImmediate(resolve)); };
+  await redraw();
+  assert.match(document.body.textContent, /paired with https:\/\/carol\.github\.io/);
+  assert.doesNotMatch(document.body.textContent, /not yet paired since this start/);
+  pairedWith = null;
+  await redraw();
+  assert.match(document.body.textContent, /not yet paired since this start/);
+  assert.doesNotMatch(document.body.textContent, /paired with/);
+});
+
+// TST-1054007 · level: unit · module: MOD-desktop-shell
+// guards: UC-044; THE BRIDGE IS UPDATED ONLY BY THE PERSON'S CHOICE; EVERY STEP EXPLAINS ITSELF
+// given: the production Bridge window entry and a constructed preload state: the running version 2026.10.0, a release 2026.11.0 offered with the notes "Fixes the tunnels.", and, after the click Download, the file ready; one job running
+// input: the route Updates is opened; Download is pressed; Install and restart is pressed, then its decision is confirmed
+// expect: the page names the running version, the offered version and its notes, and carries the folded explanation (What is this?, the topic bridge-updates); Download asks the main process to download and the page then offers Install and restart; pressing it shows a decision that names the running job and asks nothing of the main process to install; only the confirming click asks for the install, with { confirmed: true }, once
+// Planted fault: asking for the install at the first click, or without naming the job, fails the calls or the decision's text; a page without the explanation lacks "What is this?".
+test("TST-1054007 the Updates view shows the offer with its notes, and installs only after the decision that names the running jobs", async () => {
+  const document = { createElement: (name) => new Element(name), createTextNode: (value) => new Text(value) };
+  document.head = document.createElement("head"); document.body = document.createElement("body");
+  globalThis.document = document;
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() });
+  const browser = new EventTarget();
+  const location = { hash: "#updates" };
+  Object.defineProperty(globalThis, "location", { configurable: true, value: location });
+  Object.defineProperty(globalThis, "window", { configurable: true, value: browser });
+  const asked = [];
+  let ready = false;
+  browser.bridge = {
+    async state(action, value) {
+      asked.push([action, value]);
+      if (action === "updates") return { version: "2026.10.0", offer: { version: "2026.11.0", notes: "Fixes the tunnels." }, ready, refused: null, error: null };
+      if (action === "download-update") { ready = true; return { version: "2026.10.0", offer: { version: "2026.11.0", notes: "Fixes the tunnels." }, ready, refused: null, error: null }; }
+      if (action === "running-jobs") return { jobs: [{ id: "JOB-20261019-1000-abcd", kind: "implement", agent: "claude", product: "alice/product" }] };
+      return { address: "http://127.0.0.1:4711", token: "t", paused: false, pairedWith: null };
+    },
+    async copy() {}, async quit() {}, async retryPort() {}, async pairAnew() {}, async pause() {}, async resume() {},
+  };
+  await import(`../src/desktop-shell/window.mjs?window-updates=${Date.now()}`);
+  const redraw = async () => { browser.dispatchEvent(new Event("hashchange")); await new Promise((resolve) => setImmediate(resolve)); };
+  await redraw();
+  const page = () => document.body.textContent;
+  assert.match(page(), /2026\.10\.0/);
+  assert.match(page(), /2026\.11\.0/);
+  assert.match(page(), /Fixes the tunnels\./);
+  assert.match(page(), /What is this\?/, "the folded explanation (the topic bridge-updates) stands under the heading");
+  assert.doesNotMatch(page(), /Install and restart/, "not before the download");
+  await click(document.body, "Download");
+  assert.ok(asked.some(([action]) => action === "download-update"));
+  await redraw();
+  await click(document.body, "Install and restart");
+  assert.match(page(), /JOB-20261019-1000-abcd/, "the decision names the running job");
+  assert.ok(!asked.some(([action]) => action === "install-update"), "nothing is installed before the decision");
+  await clickLast(document.body, "Install and restart");
+  const installs = asked.filter(([action]) => action === "install-update");
+  assert.deepEqual(installs, [["install-update", { confirmed: true }]]);
+});

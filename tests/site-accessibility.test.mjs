@@ -35,13 +35,12 @@ const WIDTHS = [["phone", 390], ["desktop", 1280]];
 // what it found, and per route the rules it violates at one width or the other. Each is a todo until the module of its route fixes it.
 const RULE = {
   menu: "aria-required-children: the menu (nav#tabs, role tablist) holds children that are no tabs (the header of docs/index.html, src/site/menu.mjs)",
-  brand: "label-content-name-mismatch: the brand link's accessible name does not hold its visible text (index.html)",
   contrast: "color-contrast: the text of a status badge (.b-accepted) is below the contrast AA asks (MOD-review-pages' lists, look)",
   scroll: "scrollable-region-focusable: a box that scrolls cannot be reached with the keyboard",
   target: "target-size: a summary is smaller than 24 px at a phone's width",
 };
 const PER_ROUTE = {
-  "/": ["brand"],
+  "/": [],
   "#uc": ["menu", "contrast"], "#uc/UC-001": ["menu", "contrast"], "#use-case/id=UC-002/edit=1": ["menu", "target"],
   "#arc": ["menu", "contrast"], "#arc/ARC-001": ["menu", "contrast"], "#arc/MOD-reader": ["menu", "contrast"],
   "#decision/id=ARC-001/edit=1": ["menu", "target"], "#module": ["menu", "contrast"],
@@ -105,6 +104,10 @@ const setUp = async () => {
   await page.evaluate(`document.querySelector("main").insertAdjacentHTML("beforeend",
     '<pre class="diff" id="planted-diff" style="overflow:auto;width:80px;height:24px">a line of a difference that is much longer than the box that holds it, so that the box scrolls</pre>')`);
   planted.afterBox = await check();
+  // The same page with a link planted besides whose accessible name is not its visible text: the counter-proof of the rule label-content-name-mismatch.
+  await page.evaluate(`document.querySelector("main").insertAdjacentHTML("beforeend",
+    '<p><a id="planted-brand" href="#how" aria-label="The main page — Agent M">Agent M requirements-driven software engineering</a></p>')`);
+  planted.afterBrand = await check();
   progress("the counter-proofs are checked");
   for (const [key, value] of found) console.log(`site-accessibility ${key}: ${value.violations.map((each) => `${each.id}/${each.impact}/${each.nodes}[${each.first.slice(0, 70)}]`).join(" ")}`);
 };
@@ -263,4 +266,13 @@ test(`${testId(905, CASES[905].plantedDiff)}: a planted difference box that scro
   const after = planted.afterBox.find((each) => each.id === "scrollable-region-focusable");
   assert.ok(before && after, "the rule finds the planted boxes");
   assert.equal(after.nodes, before.nodes + 1);
+});
+
+// The brand link (ITM-923). Its accessible name must hold the text it shows (WCAG 2.5.3, the rule label-content-name-mismatch), so that a person who speaks to the page by what they read can reach it.
+// The counter-proof: the page before the planting has no violation of the rule; with a link planted whose aria-label does not begin with the text it shows, the rule finds it.
+test(`${testId(905, CASES[905].plantedBrand)}: a planted link whose accessible name lacks its visible text is found by the rule label-content-name-mismatch`, () => {
+  assert.equal(planted.afterBox.some((each) => each.id === "label-content-name-mismatch"), false, "known positive: the page before the planting has no violation of the rule");
+  const rule = planted.afterBrand.find((each) => each.id === "label-content-name-mismatch");
+  assert.ok(rule, `violations: ${planted.afterBrand.map((each) => each.id).join(", ")}`);
+  assert.ok(rule.first.includes("planted-brand"), `the first node is ${rule.first}`);
 });

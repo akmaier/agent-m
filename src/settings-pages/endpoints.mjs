@@ -29,11 +29,13 @@ function endpointKey(name) {
   return name ? `endpoint:${name}` : null;
 }
 
-// recordTest(store, key, checked) -> { at, outcome } — the endpoint's last test, kept beside it as the Settings page shows
-// it on the endpoint's line (A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN): when it ran, and whether the
-// endpoint answered. The form's Save and test and the line's Test record it alike.
+// recordTest(store, key, checked) -> { at, outcome, tools? } — the endpoint's last test, kept beside it as the Settings page shows
+// it on the endpoint's line (A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN): when it ran, whether the
+// endpoint answered and, where the test reached the model, whether the model called the tool it was offered (`tools`, which the
+// participants route presets *use tools* from; left out where the test did not reach the model). The form's Save and test and the
+// line's Test record it alike.
 export function recordTest(store, key, checked) {
-  const lastTest = { at: new Date().toISOString(), outcome: checked.works ? "working" : "refused" };
+  const lastTest = { at: new Date().toISOString(), outcome: checked.works ? "working" : "refused", ...(checked.works ? { tools: checked.tools === true } : {}) };
   writeSetting(store, `last-test:${key}`, lastTest);
   return lastTest;
 }
@@ -114,6 +116,9 @@ function applySetting(fields, name, setting) {
   fields.key.value = setting?.key ?? "";
   fields.bridge.value = setting?.bridge ?? "";
 }
+
+// What the participants page and this page say of the prompt bar (UC-049 1a): when it appears.
+export const PROMPT_BAR_NOTE = "The prompt bar appears once a model endpoint, a CLI agent or a sandboxed agent is configured and reachable from this browser.";
 
 export const route = {
   name: "endpoints",
@@ -242,6 +247,7 @@ export const route = {
     target.replaceChildren(
       el("h2", null, "Configure a model endpoint"),
       el("p", "muted", "Store an endpoint in this browser, then make one short test request."),
+      el("p", "muted prompt-bar-note", PROMPT_BAR_NOTE),
       el("p", null, el("label", null, "Name ", name)),
       el("p", null, el("label", null, "Endpoint URL ", url)),
       explain("endpoint-url"),

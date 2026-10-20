@@ -16,29 +16,33 @@
 import { readSetting } from "../browser-store/index.mjs";
 import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
-import { chosenProduct, confirmDecision, explain } from "../site-frame/index.mjs";
+import { chosenProduct, confirmDecision, explain, tokenKeyOf } from "../site-frame/index.mjs";
 import { listJobs } from "../job-ledger/index.mjs";
-import { cancelJob, liveState, jobLog, retryJob, routesFor } from "../runtimes/index.mjs";
+import { cancelJob, liveState, jobLog, jobTrail, retryJob, revertAfterCancel, routesFor } from "../runtimes/index.mjs";
 import { productFacts } from "../progress-measures/index.mjs";
 import { startable } from "../work-plans/index.mjs";
+import { mayDecide, recordGateDecision } from "../product-process/index.mjs";
 import { currentJob } from "../prompt-bar/index.mjs";
 import { el, clock } from "./cards.mjs";
 
-// The sources, each with the host the frame connected: the instance's own (the ViewContext's), then each address of the setting `products` that parses, once, through MOD-site-frame's chosenProduct,
-// which connects it with its own token to its own server only and with the stored secrets the host refuses to write. A product the frame cannot connect is { address, reason }.
-export async function sourcesOf(context) {
+// The sources of a route, each with the host the frame connected: the products this browser keeps (the setting `products`), each address that parses once, connected through MOD-site-frame's
+// chosenProduct — with its own token to its own server only and with the stored secrets the host refuses to write —, and the instance's own (the ViewContext's) where the route lists it: always on the
+// route `jobs`, and on the route `home` only while this browser keeps no product (then it is Agent M's own card). A product equal to a source already listed is not read again. A product the frame
+// cannot connect is { address, reason }; one it can carries its host and whether a token is stored for it. `route` names the route whose address (`#<route>/product=…`) the frame connects the product for.
+export async function sourcesOf(context, route = "jobs") {
   const { store, instance } = context;
   const own = parseAddress(`https://github.com/${instance.repository}`).web;
-  const seen = new Set([own]);
-  const sources = [{ address: own, host: instance.host }];
-  for (const text of readSetting(store, "products") ?? []) {
-    let web;
-    try { web = parseAddress(text).web; } catch { continue; /* an address that is none names no source */ }
-    if (seen.has(web)) continue;
-    seen.add(web);
-    try { sources.push({ address: web, host: (await chosenProduct({ store, fragment: `#jobs/product=${encodeURIComponent(web)}` })).host }); } catch (failure) { sources.push({ address: web, reason: String(failure?.message ?? failure) }); }
-  }
-  return sources;
+  const kept = [...new Set((readSetting(store, "products") ?? []).flatMap((text) => { try { return [parseAddress(text).web]; } catch { return []; /* an address that is none names no source */ } }))];
+  const listsInstance = route === "jobs" || kept.length === 0;
+  const products = await Promise.all(kept.filter((web) => !(listsInstance && web === own)).map(async (web) => {
+    try {
+      const product = await chosenProduct({ store, fragment: `#${route}/product=${encodeURIComponent(web)}` });
+      return { address: web, host: product.host, tokenStored: product.tokenStored };
+    } catch (failure) {
+      return { address: web, reason: String(failure?.message ?? failure) };
+    }
+  }));
+  return [...(listsInstance ? [{ address: own, host: instance.host, own: true }] : []), ...products];
 }
 
 // One source read: its default branch as a snapshot. A source that fails is { address, reason }.
@@ -272,7 +276,10 @@ async function renderJob(target, context, params, note = null) {
   }
   if (CANCELLABLE.has(row.state)) page.append(cancelControls(target, context, params, held, read));
   if (note) page.append(el("p", "job-cancel-result", note));
+  if (gate) page.append(await gateDecision(context, held, read, gate));
   if (RETRIABLE.has(row.state)) page.append(await retryControls(context, held, read));
+  if (row.state === "cancelled") page.append(await afterCancelSection(held, read));
+  page.append(await trailSection(held, read));
   page.append(el("h3", null, "Cost"), el("p", "job-cost", costLine(held.cost)));
   const log = el("div", "job-log");
   page.append(el("h3", null, "Log"), log);
@@ -287,6 +294,7 @@ async function renderJob(target, context, params, note = null) {
 //   - The participants offered are those for which MOD-work-plans' startable admits every plan item the job works on (the product's facts of the scope `work`, as the prompt bar reads them); for a job on no plan item, the job's own participant.
 //     The team's role assignment and sprint are those whose sprint holds the item, else the one assignment of a product without sprints. Where none is admitted, the reasons are shown and nothing is queued (7a).
 //   - The routes offered are those routesFor gives the chosen participant that are available, no resource need being passed (the scope `work` reads none), as the record writes them.
+//   - The same check comes first for a job that ran in a tab and a job whose task travelled with its hand-over: where no participant is admitted, they are offered neither Retry nor the prompt bar.
 //   - A job that ran in a tab, and a job whose task travelled with its hand-over, are not queued: the prompt bar is opened with the job's kind and parameters, by the route `job` with the parameter `retry`, whose `subject` gives the bar its Subject.
 
 const RETRIABLE = new Set(["failed", "cancelled", "ended without record"]);
@@ -319,15 +327,6 @@ async function retryControls(context, held, read) {
     button.addEventListener("click", (event) => { if (event.isTrusted) openBar(); });
     return button;
   };
-  if (record.task === "with the hand-over") {
-    result.textContent = "Its task travelled with its hand-over and is not in the record: write it again in the prompt bar.";
-    box.append(result, el("p", null, barButton("retry-prompt-bar", "Open the prompt bar")));
-    return box;
-  }
-  if (record.route === "tab") {
-    box.append(el("p", null, barButton("retry", "Retry")), result);
-    return box;
-  }
   const host = read.hostOf.get(held.product);
   let facts, visibility;
   try {
@@ -353,6 +352,15 @@ async function retryControls(context, held, read) {
   }));
   if (holders.length === 0) {
     box.append(el("p", null, "This job cannot be retried now:"), el("ul", "retry-reasons", ...[...reasons].map((reason) => el("li", "retry-reason", reason))), result);
+    return box;
+  }
+  if (record.task === "with the hand-over") {
+    result.textContent = "Its task travelled with its hand-over and is not in the record: write it again in the prompt bar.";
+    box.append(result, el("p", null, barButton("retry-prompt-bar", "Open the prompt bar")));
+    return box;
+  }
+  if (record.route === "tab") {
+    box.append(el("p", null, barButton("retry", "Retry")), result);
     return box;
   }
   holders.sort((a, b) => (b.name === record.participant) - (a.name === record.participant));
@@ -392,6 +400,143 @@ async function retryControls(context, held, read) {
 }
 
 const decisionFailure = (failure) => (failure?.name === "Moved" ? "The product changed meanwhile: nothing was written. Open the job again." : `${String(failure?.message ?? failure)} — nothing was written.`);
+
+// ---------------------------------------------------------------- a gate the job waits at (UC-034 step 7, 7a)
+//
+// Where the texts leave a reading open, this file takes the one it names:
+//   - The person is named as the product's stored token names them (its `name`), as the prompt bar names the person who starts a job; the name is the decider of the record, its kind `person`.
+//   - The job's role assignment is the team's whose sprint holds the job's item (the facts' `held`), else the one role assignment of a product without sprints; the participant whose work the gate
+//     checks is the job's participant. A gate decided by a CI check is decided by that check, and gets no buttons.
+//   - `on` of the record is the job's inputs (`<path>@<blob>`), else the head commit the facts were read at.
+
+function assignmentOf(record, facts, workflow) {
+  const item = record.worksOn.find((each) => facts.plan.states.some((state) => state.item === each));
+  const held = item === undefined ? undefined : facts.held.find((each) => each.item === item);
+  if (held) return facts.assignments.find((each) => each.path.endsWith(`/${held.team}.md`)) ?? null;
+  return workflow?.model?.flow?.sprints !== true && facts.assignments.length === 1 ? facts.assignments[0] : null;
+}
+
+function personOf(store, product) {
+  try {
+    const name = readSetting(store, tokenKeyOf(parseAddress(product)))?.name;
+    return typeof name === "string" && name ? name : null;
+  } catch { return null; }
+}
+
+// What the page says of a gate decision's failure.
+const gateFailure = (failure) => (failure?.name === "Moved" ? "The product changed meanwhile: nothing was written. Open the job again, since the gate may have been decided." : `${String(failure?.message ?? failure)} — nothing was written.`);
+
+async function gateDecision(context, held, read, gate) {
+  const box = el("div", "gate-decision");
+  const { record } = held;
+  const host = read.hostOf.get(held.product);
+  let facts;
+  try {
+    const instanceHost = context.instance.host;
+    const snapshot = await instanceHost.readSnapshot((await instanceHost.repositoryInfo()).defaultBranch);
+    facts = await productFacts(host, snapshot, (commit) => instanceHost.readSnapshot(commit), new Date(), { scope: "work" });
+  } catch (failure) {
+    box.append(el("p", "warn gate-unreadable", `The gate could not be read: ${String(failure?.message ?? failure)}`));
+    return box;
+  }
+  const workflow = facts.workflow === "unknown" ? null : facts.workflow;
+  const named = workflow?.gates.find((each) => each.name === gate.gate);
+  if (!named || /^check:/.test(named.decider)) return box;
+  box.append(el("p", "gate-checks", `It checks: ${named.condition}`), el("p", "gate-examine", `To examine: ${named.artifacts}`));
+  const assignment = assignmentOf(record, facts, workflow);
+  const person = personOf(context.store, held.product);
+  const pass = el("button", "gate-pass btn primary", "Pass gate"), reject = el("button", "gate-reject btn", "Reject");
+  for (const button of [pass, reject]) button.setAttribute("type", "button");
+  const result = el("p", "gate-result");
+  box.append(el("p", null, pass, " ", reject), result);
+  const may = assignment === null || person === null ? null : mayDecide({ name: person, kind: "person" }, gate.gate, workflow, assignment, record.participant ? [record.participant] : []);
+  if (!may?.may) {
+    pass.disabled = true;
+    reject.disabled = true;
+    const why = assignment === null ? "this job has no role assignment to decide it in" : person === null ? "this browser stores no token that names you" : may.reason;
+    const holders = may?.holders ?? [];
+    box.append(el("p", "gate-unavailable", `Only a holder of the role ${named.decider} decides this gate${holders.length ? `; its holders are ${holders.join(", ")}` : ""}. You cannot decide it: ${why}.`));
+    return box;
+  }
+  const decide = async (decision, title, confirm, lines, withReason) => {
+    const answer = await confirmDecision({ title, lines, confirm, reason: withReason });
+    if (!answer.confirmed) return;
+    pass.disabled = true;
+    reject.disabled = true;
+    try {
+      await recordGateDecision(host, { gate: gate.gate, job: record.id, decider: { name: person, kind: "person" }, role: named.decider, decision, reason: withReason ? answer.reason : null,
+        on: record.inputs.length ? record.inputs : [facts.snapshot.commit] },
+      { workflow, assignment, workBy: record.participant ? [record.participant] : [], head: facts.snapshot.commit, now: new Date(), trailers: [] });
+      result.textContent = `The gate ${gate.gate} was ${decision} by ${person}; the job's route resumes or ends the job when it notices the record.`;
+    } catch (failure) {
+      result.textContent = gateFailure(failure);
+      pass.disabled = false;
+      reject.disabled = false;
+    }
+  };
+  pass.addEventListener("click", (event) => {
+    if (event.isTrusted && !pass.disabled) decide("passed", `Pass ${gate.gate}?`, "Pass the gate", [`${person} passes the gate ${gate.gate} for ${record.id}, as a holder of ${named.decider}.`, "The decision is recorded in the product's repository."], false);
+  });
+  reject.addEventListener("click", (event) => {
+    if (event.isTrusted && !reject.disabled) decide("rejected", `Reject ${gate.gate}?`, "Reject the gate", [`${person} rejects the gate ${gate.gate} for ${record.id}. A rejection needs its reason.`], true);
+  });
+  return box;
+}
+
+// What the job left in its product (UC-036 step 4): the commits of its branch, its pull request and the CI runs of those commits, read through MOD-runtimes' jobTrail. A trail that cannot be read is said so;
+// the rest of the page stands.
+async function trailSection(held, read) {
+  const box = el("div", "job-trail");
+  let trail;
+  try {
+    trail = await jobTrail(held.record, { host: read.hostOf.get(held.product) });
+  } catch (failure) {
+    box.append(el("p", "warn job-trail-problem", `What the job left in its product could not be read: ${String(failure?.message ?? failure)}`));
+    return box;
+  }
+  const link = (className, address, text) => { const anchor = el("a", className, text); anchor.setAttribute("href", address); anchor.setAttribute("target", "_blank"); anchor.setAttribute("rel", "noopener"); return anchor; };
+  box.append(el("h3", null, "Commits"));
+  box.append(trail.commits.length ? el("ul", "job-commits", ...trail.commits.map((entry) => el("li", "job-commit", `${entry.commit.slice(0, 12)} ${String(entry.message).split("\n")[0]} (${entry.date})`)))
+    : el("p", "job-commits-none", "No commits yet."));
+  box.append(el("h3", null, "Pull request"));
+  box.append(trail.pullRequest ? el("p", "job-pull-request", `#${trail.pullRequest.number} ${trail.pullRequest.title} — ${trail.pullRequest.state} `, link("pull-link", trail.pullRequest.url, "Open"))
+    : el("p", "job-pull-request", "No pull request."));
+  box.append(el("h3", null, "CI runs"));
+  box.append(trail.runs.length ? el("ul", "job-runs", ...trail.runs.map((each) => el("li", "job-run", `${each.workflow} — ${each.state} `, link("run-link", each.url, "Open"))))
+    : el("p", "job-runs-none", "No CI runs."));
+  return box;
+}
+
+// A commit the job made after its cancel is flagged, with Revert beside the commits (UC-036 6a): MOD-runtimes' liveState reports them, revertAfterCancel reverts them in one commit on the job's branch. Revert is one click through the
+// frame's dialog of a decision, on the person's click alone; it reverts all the commits flagged. The branch's head is read just before, and a branch that moved meanwhile is told, with nothing written.
+async function afterCancelSection({ record, product }, read) {
+  const host = read.hostOf.get(product);
+  let commits;
+  try {
+    commits = (await liveState(record, { host }, read.bridges)).writtenAfterCancel;
+  } catch {
+    return el("div", "job-after-cancel-none");
+  }
+  if (commits.length === 0) return el("div", "job-after-cancel-none");
+  const result = el("p", "job-revert-result");
+  const revert = el("button", "job-revert btn", "Revert");
+  revert.setAttribute("type", "button");
+  revert.addEventListener("click", async (event) => {
+    if (!event.isTrusted) return;
+    const decision = await confirmDecision({ title: `Revert the commits written after the cancel of ${record.id}?`, lines: [`One commit on the branch ${record.id} gives back every file these ${commits.length} commit${commits.length === 1 ? "" : "s"} changed its text from before them.`, ...commits.map((commit) => commit.slice(0, 12))], confirm: "Revert the commits" });
+    if (!decision.confirmed) return;
+    revert.disabled = true;
+    try {
+      const [{ commit: head }] = await host.readHistory(null, { ref: record.id, limit: 1, changes: false });
+      const { commit } = await revertAfterCancel(record, { host }, commits, head);
+      result.textContent = `Reverted in ${commit.slice(0, 12)}.`;
+    } catch (failure) {
+      revert.disabled = false;
+      result.textContent = failure?.name === "Moved" ? "The branch moved meanwhile: nothing was written. Read the page again." : `The commits could not be reverted: ${String(failure?.message ?? failure)}`;
+    }
+  });
+  return el("section", "job-after-cancel", el("h3", null, "Written after the cancel"), el("ul", null, ...commits.map((commit) => el("li", "job-after-cancel-commit", `${commit.slice(0, 12)} was written after the cancel`))), el("p", null, revert), result);
+}
 
 // A job shown as cancelling is read again later, while its page stands (UC-036 6a).
 const AGAIN = 5000;

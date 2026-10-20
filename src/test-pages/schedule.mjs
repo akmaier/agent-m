@@ -4,8 +4,10 @@
 // findings are those of scheduleFindings, the runner per row among the participants with "run code and tests", and the secrets needed by name with the
 // server's secrets page — never a field for a value.
 //
-// Not part of this item: Save and what follows it (ITM-759), and the state of a chosen self-hosted runner, the server's runner registration page and the
-// command to run on that machine (UC-027 3b, ITM-850). The form's Save therefore hands the document to nothing yet; the runner choice shows the
+// ITM-850 adds UC-027 3b: for each row whose runner is a participant with the route `ci runner:<label>`, the server's runner page (webLinks().runners, which shows the command
+// to run on the machine), the label, a folded explanation, and the default branch's runs in the state queued whose ciRunLabels hold the row's label (ITM-1081). The page reads no runner's state.
+//
+// Not part of this item: Save and what follows it (ITM-759). The form's Save therefore hands the document to nothing yet; the runner choice shows the
 // declared runner and offers the eligible participants, and writing a choice into the schedule is the Save's.
 //
 // The folded explanations are built here, not by the frame's `explain`: explanations.md holds no topic of the schedule, and it is the frame's file.
@@ -112,6 +114,50 @@ function levelsTable(schedule, counts, offered) {
   return el("table", "levels", el("thead", null, head), el("tbody", null, ...body));
 }
 
+const RUNNER_TEXT = "A row on a self-hosted runner waits until a machine of yours is registered to this repository with the label shown. Open the server's runner page: it shows the command to run on that machine, with a short-lived token of its own, which Agent M never sees. Until a runner with the label is online, the runs of the row stay queued. Book: ch. 12, Test Automation and Continuous Integration.";
+
+// The label a CI agent's route `ci runner:<label> ...` names, or null.
+const runnerLabel = (route) => /^ci runner:(\S+)/.exec(route ?? "")?.[1] ?? null;
+
+// The rows whose chosen runner is a self-hosted runner of the register, each with its label.
+function selfHostedRows(schedule, participants) {
+  const rows = schedule.sections.find((section) => section.heading === "## Levels")?.rows ?? [];
+  return rows.flatMap((row) => {
+    const label = runnerLabel(participantsOf(participants).find((each) => each.name === row.cells["runs on"])?.route);
+    return label === null ? [] : [{ row: row.cells.Row, label }];
+  });
+}
+
+// The runs of the default branch that wait, each with the runner labels it asks for: unreadable runs or labels are said so, the registration stays.
+async function queuedRuns(host) {
+  try {
+    const { defaultBranch } = await host.repositoryInfo();
+    const queued = (await host.listCiRuns({ branch: defaultBranch })).filter((run) => run.state === "queued");
+    return await Promise.all(queued.map(async (run) => ({ run, labels: await host.ciRunLabels(run.id) })));
+  } catch {
+    return null;
+  }
+}
+
+function runnerBlocks(rows, runnersPage, asked) {
+  return rows.map(({ row, label }) => {
+    const queued = asked === null ? null : asked.filter(({ labels }) => labels.includes(label)).map(({ run }) => run);
+    const link = el("a", "runner-page", "Open the server's runner page");
+    link.setAttribute("href", runnersPage);
+    const waiting = queued === null ? el("p", "runs-unreadable", "The runs of this repository cannot be read, so the queued ones are not shown.")
+      : queued.length === 0 ? el("p", "no-queued", "No run waits for a runner.")
+        : el("ul", "queued-runs", ...queued.map((run) => {
+          const item = el("a", null, `${run.workflow} ${run.commit.slice(0, 7)} (queued)`);
+          item.setAttribute("href", run.url);
+          return el("li", null, item);
+        }));
+    const block = el("div", "runner-registration", el("h3", null, `Row ${row}: a self-hosted runner`),
+      el("p", null, "The runner must carry the label ", el("span", "runner-label", label), ". ", link), waiting, fold(RUNNER_TEXT));
+    block.setAttribute("data-row", row);
+    return block;
+  });
+}
+
 function secretsBlock(names, secretsPage) {
   const link = el("a", "secrets-page", "Open the server's secrets page");
   link.setAttribute("href", secretsPage);
@@ -142,9 +188,11 @@ async function render(target, context) {
     },
   });
   const secrets = resourcesText ? secretsNeeded(schedule, readDocument(resourceSchema(), RESOURCES_PATH, resourcesText)) : [];
+  const selfHosted = selfHostedRows(schedule, participants);
+  const runners = selfHosted.length ? runnerBlocks(selfHosted, host.webLinks().runners, await queuedRuns(host)) : [];
   target.replaceChildren(
     ...(schedule.default ? [el("p", "default-schedule", "This is the book's default schedule, not yet saved for this product.")] : []),
-    levelsTable(schedule, counts, offered), findings, form, secretsBlock(secrets, host.webLinks().secrets));
+    levelsTable(schedule, counts, offered), ...runners, findings, form, secretsBlock(secrets, host.webLinks().secrets));
 }
 
 export const route = { name: "schedule", entry: "tests", title: "Schedule", render };

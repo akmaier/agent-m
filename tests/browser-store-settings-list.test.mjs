@@ -58,7 +58,7 @@ test("TST-272 listSettings lists implemented literal settings without exposing t
   writeSetting(store, "last-test:github-token", { at: "2026-10-07T10:00:00.000Z", outcome: "working" });
 
   const settings = byKey(listSettings(store));
-  for (const key of ["github-token", "products", "notifications", "notified", "bridge"]) {
+  for (const key of ["github-token", "products", "notifications", "notified", "bridge", "browser"]) {
     assert.ok(settings.has(key), `${key} is listed even when unset`);
     assertSettingInfo(settings.get(key), key);
   }

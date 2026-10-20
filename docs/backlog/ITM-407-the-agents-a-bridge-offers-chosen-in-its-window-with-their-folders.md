@@ -40,3 +40,9 @@ missing. The composition hands the offered agents to the job handlers and to wat
   request.
 - The existing tests stay green, with no expected result changed.
 - Only `src/desktop-shell/` and the tests that name MOD-desktop-shell change.
+
+## Built (read on main by po-opus-b, 2026-10-19)
+
+Built in team 2's sprint 33, before the pull-request flow: `d3fd9221`, `98e006d9` (tests) and `e8dcd807`, with TST-407001 and
+TST-407002 in `tests/mod-desktop-shell-agents.test.mjs`. No pull request names the item, so the backlog's state did not show it
+done. Sprint 97's selection of it (97.md) was the Product Owner's mistake.

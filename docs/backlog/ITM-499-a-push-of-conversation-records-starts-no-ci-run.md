@@ -27,3 +27,13 @@ under `docs/jobs/` or `docs/conversations/`.
 
 - The generated file ignores both folders for GitHub and GitLab; a push that also changes another file starts the
   run.
+
+## Met before it was built (sprint team2/96)
+
+developer-sonnet-g found the Acceptance already holds on `main`:
+- ITM-744 (`505bb814`) and `9cc8ae23` built it;
+- `tests/test-schedule-ci-configuration.test.mjs` pins both points, for GitHub and GitLab: a push of only `docs/jobs/` or
+  `docs/conversations/` starts nothing, and one that also changes another file starts the run.
+
+Three faults g planted in the generator were each caught. No test is added and no pull request is opened. The item
+leaves sprint 96 as met, as team 1 did with ITM-1028.

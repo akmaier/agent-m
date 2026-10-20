@@ -148,8 +148,8 @@ test("a model or data pinned to a branch name, an abbreviation or a tag is named
 // TST-472588 · level: unit · module: MOD-resource-list
 // guards: A RESOURCE DECLARES ITS LICENCE; A RESOURCE NAMES ITS MAINTAINER; A RESOURCE DECLARES WHERE IT PROCESSES DATA; A RESOURCE IS PINNED TO AN EXACT STATE; UC-040 (2a)
 // given: one resource of each kind with everything its kind requires; then each with a column its kind requires taken away
-// input: resourceFindings of each; the schema's reading of a list with a repository without a licence, a compute without a place and an endpoint without a pin
-// expect: none for the complete ones; for the incomplete an error naming the column's rule — licence for a repository, data and a model; maintainer for a repository, data, a model and an agent; processing place for compute, an endpoint and an agent; pin for every kind but compute; and the schema names the same rules
+// input: resourceFindings of each; a list with a repository without a licence, a compute without a place and an endpoint without a pin, read with resourceSchema and judged by documentFindings and by resourceFindings of its rows
+// expect: none for the complete ones; for the incomplete an error naming the column's rule — licence for a repository, data and a model; maintainer for a repository, data, a model and an agent; processing place for compute, an endpoint and an agent; pin for every kind but compute; and the list is refused for the same rules; the schema alone names none of them, since the columns a kind requires are stated once, in resourceFindings
 test("a column its kind requires, missing, is named", () => {
   for (const kind of Object.keys(GOOD)) assert.deepEqual(findingsFor(GOOD[kind]), [], `known positive: ${kind}`);
   const required = [
@@ -172,7 +172,10 @@ test("a column its kind requires, missing, is named", () => {
   const text = listOf(row({ Name: "tools", Kind: "repository", Address: "https://github.com/acme/tools", Pin: COMMIT, Maintainer: "Acme", Route: "read" }),
     row({ Name: "cluster", Kind: "compute", Address: "cluster.example.org", Route: "runner:gpu" }),
     row({ Name: "llm", Kind: "endpoint", Address: "http://h:8000/v1", Route: "bridge ws", "Processing place": "ws", Paid: "no" }));
-  assert.deepEqual(rulesOf(schemaFindings(text)).sort(), ["A RESOURCE DECLARES ITS LICENCE", "A RESOURCE DECLARES WHERE IT PROCESSES DATA", "A RESOURCE IS PINNED TO AN EXACT STATE"]);
+  assert.deepEqual(rulesOf(schemaFindings(text)), [], "the schema states no kind's required columns");
+  const rows = readRegister(resourceSchema(), PATH, text).rows.map(({ cells: c }) => ({ name: c.Name, kind: c.Kind, address: c.Address, pin: c.Pin ?? null, licence: c.Licence ?? null, maintainer: c.Maintainer ?? null,
+    route: c.Route ?? "", place: c["Processing place"] ?? null, paid: c.Paid === "yes" ? true : c.Paid === "no" ? false : null, secret: c.Secret ?? null }));
+  assert.deepEqual(rulesOf([...schemaFindings(text), ...resourceFindings(rows)]).sort(), ["A RESOURCE DECLARES ITS LICENCE", "A RESOURCE DECLARES WHERE IT PROCESSES DATA", "A RESOURCE IS PINNED TO AN EXACT STATE"]);
 });
 
 // TST-472589 · level: unit · module: MOD-resource-list

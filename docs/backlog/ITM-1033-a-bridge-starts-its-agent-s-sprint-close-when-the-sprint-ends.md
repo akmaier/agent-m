@@ -40,3 +40,7 @@ MOD-bridge-jobs.md:127-130:
 - Unit tests that name MOD-bridge-jobs: with a served fixture product whose sprint's `closer` is an agent this Bridge
   offers, a watch round after the time box's end runs `close-sprint` once; a sprint closed by another participant is left.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Its merge waits for draft `3f71e653` (sprint team2/97, po-opus-b).** `src/bridge-jobs` imports five interfaces that
+MOD-bridge-jobs' uses do not name. #1184 adds one of them, `newJobId`. The draft names all five, and #1184 merges once an
+approval record names the draft's blob.

@@ -39,6 +39,7 @@ provides:
   - startWorkflow
   - cancelCiRun
   - ciRunLog
+  - ciRunLabels
   - listIssues
   - createIssue
   - commentOnIssue
@@ -99,9 +100,10 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
 - `RepositoryAddress` — `{ server: "github" | "gitlab", origin: string, path: string, web: string }`: the server, its
   origin such as `https://gitlab.rrze.fau.de`, the repository's path such as `alice/thesis-tool` or a GitLab group path,
   and the address a person opens (`A PRODUCT IS NAMED BY ITS ADDRESS`).
-- `Credentials` — `{ token?: string, tokenName?: string, clone?: string, secrets?: string[] }`: the token and the name under
-  which the person stored it; in Node, the folder of a local clone to work in; the values of every configured secret, which
-  no commit may contain.
+- `Credentials` — `{ token?: string, tokenName?: string, clone?: string, secrets?: string[], defaultBranch?: string }`: the
+  token and the name under which the person stored it; in Node, the folder of a local clone to work in; the values of every
+  configured secret, which no commit may contain; the repository's default branch as `repositoryInfo` reports it, on which
+  `WebLinks`' `newFile` and `editFile` build their pages — `main` where none is given.
 - `Host` — the object `connect` returns; the functions below, from `readSnapshot` on, are its functions.
 - `Snapshot` — `{ repository: RepositoryAddress, ref: string, commit: string | null, paths: string[], read(path: string) ->
   Promise<string | null>, readMany(paths: string[]) -> Promise<void>, readOn(branch: string, path: string) -> Promise<string | null>, blob(path:
@@ -119,10 +121,14 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
 - `HistoryEntry` — `{ commit: string, parents: string[], author: { account: string | null, name: string }, date: string,
   message: string, changes: { path: string, change: "added" | "modified" | "deleted" | "renamed", from?: string }[] }`.
 - `FileWrite` — `{ path: string, text?: string, bytes?: Uint8Array, delete?: true }`: one file of a commit.
-- `PullRequest` — `{ number: number, title: string, branch: string, base: string, head: string, state: "open" | "merged" |
-  "closed", draft: boolean, url: string, opened: string, merged: string | null, closed: string | null, body: string }`: a pull
-  request on GitHub, a merge request on GitLab, with the dates it was opened, merged and closed — what a burn-down, a flow
-  or a timeline is computed from —, and its description, `""` where it has none.
+- `PullRequest` — `{ number: number, title: string, branch: string, base: string, head: string, mergeCommit: string |
+  null, state: "open" | "merged" | "closed", draft: boolean, url: string, opened: string, merged: string | null, closed:
+  string | null, body: string }`: a pull request on GitHub, a merge request on GitLab, with the dates it was opened,
+  merged and closed — what a burn-down, a flow or a timeline is computed from —, and its description, `""` where it has
+  none. `mergeCommit` is the commit its merge put on `base`, as the server names it — the merge commit, or the last
+  commit of a squash or a rebase (GitHub's `merge_commit_sha` of a merged pull request; GitLab's `merge_commit_sha`,
+  else its `squash_commit_sha`, else, for a fast-forward, `head`) —, and `null` while it is not merged, whatever the
+  server names then.
 - `PullRequestFacts` — `{ pullRequest: PullRequest, commits: { sha: string, message: string, files: string[], ci: "success"
   | "failure" | "running" | "none" }[], files: { path: string, change: string }[], reviews: { reviewer: string, verdict:
   "approved" | "changes requested" | "commented" | "dismissed", commit: string, date: string }[], checks: { name: string,
@@ -134,7 +140,8 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
 - `CiRun` — `{ id: string, workflow: string, commit: string, event: string, state: "queued" | "running" | "waiting" |
   "success" | "failure" | "cancelled" | "skipped", url: string, started: string | null, ended: string | null }`.
 - `Issue` — `{ number: number, title: string, body: string, labels: string[], state: "open" | "closed", url: string,
-  comments: { author: string, body: string, date: string }[] }`.
+  opened: string, closed: string | null, comments: { author: string, body: string, date: string }[] }`: `opened` the
+  date and time the issue was opened, `closed` the date and time the server reports it closed, `null` while it is open.
 - `RepositoryInfo` — `{ defaultBranch: string, visibility: "public" | "private" | "internal", canWrite: boolean,
   archived: boolean, description: string }`: `description` is the repository's one-line description on its server, empty
   where it has none.
@@ -213,9 +220,9 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
   `NotSupported`.
 - `listPullRequests(filter: { state?: "open" | "merged" | "closed" | "all", branch?: string }) -> Promise<PullRequest[]>` —
   crosses the network; fails as `readSnapshot`.
-- `containsCommit(branch: string, commit: string) -> Promise<boolean>` — whether the branch's history holds the commit:
-  on GitHub and GitLab through the server's comparison of the two, in a clone with `git merge-base --is-ancestor`. A
-  commit the server does not know is not contained. Crosses the network; fails as `readSnapshot`.
+- `containsCommit(ref: string, commit: string) -> Promise<boolean>` — whether the history of a branch or a tag holds the
+  commit: on GitHub and GitLab through the server's comparison of the two, in a clone with `git merge-base
+  --is-ancestor`. A commit the server does not know is not contained. Crosses the network; fails as `readSnapshot`.
 - `pullRequestFacts(number: number) -> Promise<PullRequestFacts>` — the commits of a pull request in order, the files each
   changed, the CI result of each commit, and the texts of changed files on both sides. Crosses the network; fails as
   `readSnapshot`.
@@ -233,6 +240,9 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
   Crosses the network; fails as `startWorkflow`.
 - `ciRunLog(id: string) -> Promise<string | null>` — the run's log, or `null` when the server no longer keeps it. Crosses
   the network; fails as `readSnapshot`.
+- `ciRunLabels(id: string) -> Promise<string[]>` — the runner labels the run's jobs ask for: on GitHub the `labels` of
+  each job of the workflow run, on GitLab the tags of each job of the pipeline; each once, empty for a run whose jobs
+  ask for none. Crosses the network; fails as `readSnapshot`.
 - `listIssues(filter: { state?: "open" | "closed" | "all", labels?: string[], search?: string }) -> Promise<Issue[]>` —
   crosses the network; fails as `readSnapshot`, and with `NotSupported` through a clone.
 - `createIssue(issue: { title: string, body: string, labels: string[] }) -> Promise<Issue>` — crosses the network; fails

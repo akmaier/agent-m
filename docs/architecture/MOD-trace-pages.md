@@ -17,6 +17,7 @@ uses:
   - MOD-markdown-render.showDifference
   - MOD-repository-hosts.readSnapshot
   - MOD-repository-hosts.readHistory
+  - MOD-repository-hosts.readFileAt
   - MOD-repository-hosts.listTags
   - MOD-repository-hosts.webLinks
   - MOD-repository-hosts.repositoryInfo
@@ -46,10 +47,9 @@ uses:
   - MOD-result-records.testHistory
   - MOD-release-evidence.auditRows
   - MOD-product-process.declarationSchema
-  - MOD-product-process.workflowOf
+  - MOD-product-process.productWorkflow
   - MOD-product-process.gateSchema
   - MOD-product-process.gateStates
-  - MOD-model-catalogue.catalogue
   - MOD-release-evidence.auditDocument
   - MOD-artifact-edits.saveFile
   - MOD-source-register.personSource
@@ -137,8 +137,10 @@ instance's host that the frame gives every route, it also reads the instance's p
   MOD-site-frame.confirmDecision — the frame's parts of every route.
 - MOD-markdown-render.renderArtifact, MOD-markdown-render.renderMermaid, MOD-markdown-render.showDifference — rows'
   details, the component diagram, the comparison of versions.
-- MOD-repository-hosts.readSnapshot, MOD-repository-hosts.readHistory, MOD-repository-hosts.listTags,
-  MOD-repository-hosts.webLinks — the version, the history of a requirement's section, the release tags, a test's code
+- MOD-repository-hosts.readSnapshot, MOD-repository-hosts.readHistory, MOD-repository-hosts.readFileAt,
+  MOD-repository-hosts.listTags,
+  MOD-repository-hosts.webLinks — the version, the history of a requirement's section, the text of a file at the commits
+  of its history, the release tags, a test's code
   and a run's log on the server; for the audit, the instance at the commit the release's declaration names;
   MOD-repository-hosts.repositoryInfo — the default branch, on which alone a requirement leads to editing, and at which
   the instance's links are read for the person's own source.
@@ -159,9 +161,8 @@ instance's host that the frame gives every route, it also reads the instance's p
   MOD-result-records.testHistory — outcomes, flaky tests, rates and history.
 - MOD-release-evidence.auditRows, MOD-release-evidence.auditDocument — the audit and its document; the audit is given the
   instance's SPEC, where the process requirements stand.
-- MOD-product-process.declarationSchema, workflowOf, gateSchema, gateStates — the product's workflow and its gate records at
-  the release's commit, from which the audit's process rows take each process requirement's gates and records (UC-030).
-  The workflow is derived from the model the product had declared at the release.
-- MOD-model-catalogue.catalogue — the catalogue at the commit the release's declaration names, which holds the declared
-  model and its practices as the product kept them (UC-031 6a; ARC-042: earlier work keeps the model it was done under).
+- MOD-product-process.declarationSchema, productWorkflow, gateSchema, gateStates — the product's workflow and its gate
+  records at the release's commit, from which the audit's process rows take each process requirement's gates and records
+  (UC-030). The workflow is `productWorkflow` of the declaration at the release, so it is derived from the model the
+  product had declared then.
 - MOD-artifact-edits.saveFile — *Commit export*, as the person's own input.
