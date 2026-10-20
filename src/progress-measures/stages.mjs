@@ -16,6 +16,7 @@
 import { statuses } from "../approvals/index.mjs";
 import { queues } from "../spec-changes/index.mjs";
 import { reportsAwaitingAcceptance } from "../release-evidence/index.mjs";
+import { factsPath, factsText } from "./stored.mjs";
 
 // The human-readable kind MOD-progress-measures' waitingForAcceptance names a reviewed file by (Interfaces), keyed by
 // MOD-approvals' own kind (approval-record.schema.md). A kind with no entry here — release-report — names no
@@ -211,21 +212,24 @@ export async function waitingForAcceptance(host, snapshot) {
 const OVERVIEW_BRANCH = "overview-cache";
 
 /**
- * publishOverview(host, snapshot, facts) -> Promise<{ commit: string, written: boolean }> — adds `<commit>.json` to the branch
- * `overview-cache` by commitFiles, on the head it read: `{ commit, shares, waiting }`, the stage shares and what waits for a person from
- * `facts`, read with the scope `all` at the snapshot's commit. `written` is false when the branch holds the file already, which is left as it
- * is. Crosses the network; fails as commitFiles fails, and with the host's NotFound where the repository has no such branch.
+ * publishOverview(host, snapshot, facts) -> Promise<{ commit: string, written: boolean }> — adds `<commit>.json` and `<commit>.facts.json` to the branch `overview-cache` by commitFiles, in one commit on the head
+ * it read: the stage shares and what waits for a person from `facts`, and the facts the commit's files alone give (stored.mjs), `facts` being read with the scope `all` at the snapshot's commit. A file the branch holds
+ * already is left as it is, and the other is added; `written` is false when the branch holds both. Crosses the network; fails as commitFiles fails, and with the host's NotFound where the repository has no such branch.
  * @param {object} host MOD-repository-hosts' Host @param {object} snapshot the product's snapshot @param {object} facts
  */
 export async function publishOverview(host, snapshot, facts) {
   const commit = snapshot.commit;
   if (typeof commit !== "string" || commit === "") throw new TypeError("publishOverview needs the snapshot of a commit");
-  const path = `${commit}.json`;
   const branch = await host.readSnapshot(OVERVIEW_BRANCH);
-  if (branch.paths.includes(path)) return { commit, written: false };
-  const overview = { commit, shares: await stageShares(facts), waiting: waitingForAPerson(facts) };
-  await host.commitFiles({ branch: OVERVIEW_BRANCH, expectedHead: branch.commit ?? null, message: `Overview of ${commit}`,
-    files: [{ path, text: `${JSON.stringify(overview)}\n` }] });
+  const files = [];
+  if (!branch.paths.includes(`${commit}.json`)) {
+    const overview = { commit, shares: await stageShares(facts), waiting: waitingForAPerson(facts) };
+    files.push({ path: `${commit}.json`, text: `${JSON.stringify(overview)}
+` });
+  }
+  if (!branch.paths.includes(factsPath(commit))) files.push({ path: factsPath(commit), text: await factsText(snapshot, facts) });
+  if (files.length === 0) return { commit, written: false };
+  await host.commitFiles({ branch: OVERVIEW_BRANCH, expectedHead: branch.commit ?? null, message: `Overview of ${commit}`, files });
   return { commit, written: true };
 }
 
