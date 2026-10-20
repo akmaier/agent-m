@@ -21,7 +21,7 @@
 //   - the link to the code is WebLinks' `file` for the test's file at the version shown;
 //   - a model-dependent test has a rate line with a point for each release that holds its runs, "<tag>: <k> of <n>";
 //   - a test that is not declared at the version shown is looked for in the release tags, newest first; the commit that removed it is the first, in the history of its file, whose version no longer declares it
-//     (the item's reading of 5a); a test no release declares is unknown;
+//     (the item's reading of 5a), however many commits of the file came after it; a test no release declares is unknown;
 //   - what the page reads for a part and cannot read is named in a line `traces-problem` and leaves the other parts.
 // Each case states its input and its expected result before it runs (given / input / expect). The counter-proofs are run as mutations and recorded in the pull request.
 
@@ -76,8 +76,8 @@ const HISTORY = [
 ];
 
 const asked = [];
-function hostOf({ files = MAIN_FILES, results = RESULTS, failResults = false } = {}) {
-  const base = treeHost({ trees: { main: files, "v2026.1.0": TAG_FILES, "test-results": results }, tags: ["v2026.1.0"], history: HISTORY });
+function hostOf({ files = MAIN_FILES, results = RESULTS, failResults = false, history = HISTORY } = {}) {
+  const base = treeHost({ trees: { main: files, "v2026.1.0": TAG_FILES, "test-results": results }, tags: ["v2026.1.0"], history });
   return { ...base,
     async readSnapshot(ref) {
       if (failResults && ref === "test-results") throw Object.assign(new Error("unreachable"), { name: "Unreachable" });
@@ -218,4 +218,21 @@ test("a history that cannot be read is named and leaves the other parts", async 
   assert.equal(textOf(target, "test-schedule"), "every commit, pull request");
   assert.equal(textOf(target, "test-participant"), "dev-sonnet-x");
   assert.equal(withClass(target, "test-code").length, 1);
+});
+
+// TST-767010 · level: unit · module: MOD-trace-pages
+// guards: UC-029 (step 5a)
+// given: the fixture, but the history of tests/old.test.mjs is 42 commits: the first declares TST-899, the second removes it, and the forty after it change the file without declaring it again
+// input: TST-899 opened at main
+// expect: "Removed at commit 0000002 (2026-10-02)" — the removing commit, which lies beyond the latest thirty commits of the file
+test("the commit that removed a test is named however many commits of its file came after it", async () => {
+  const commit = (n) => String(n).padStart(40, "0");
+  const history = [];
+  for (let n = 42; n >= 1; n -= 1) {
+    const text = n === 1 ? OLD_AT_TAG : `${OLD_AT_MAIN}// edit ${n}\n`;
+    history.push({ commit: commit(n), date: `2026-10-${String(n < 10 ? n : 9 + 1).padStart(2, "0")}T10:00:00Z`, files: { "tests/old.test.mjs": text } });
+  }
+  history[history.length - 2].date = "2026-10-02T10:00:00Z";
+  const target = await render(hostOf({ history }), "TST-899");
+  assert.equal(textOf(target, "test-removed"), "Removed at commit 0000002 (2026-10-02)");
 });
