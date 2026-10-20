@@ -7,7 +7,7 @@ decision: passed
 on:
   - 2117d74e58b1e066050bb09aab422314ddb8bc79
   - https://github.com/akmaier/agent-m/pull/1263
-date: 2026-10-20 23:35 UTC
+date: 2026-10-20 23:31 UTC
 ---
 # Release testing → Sprint review: sprint team1/102
 
