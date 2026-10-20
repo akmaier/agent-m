@@ -73,15 +73,15 @@ function factsOf(address, host, hostFacts) {
 }
 
 /**
- * The release that contains what solved an issue: the commit of the address it was closed with — a commit's own, or the head of the
- * merged pull request — and, of the product's tags that contain it, the earliest (the one whose commit the others contain). null where the
+ * The release that contains what solved an issue: the commit of the address it was closed with — a commit's own, or the commit the merge of the
+ * pull request made (its `mergeCommit`; a squash or a rebase puts other commits than its head on the default branch) — and, of the product's tags that contain it, the earliest (the one whose commit the others contain). null where the
  * address names no commit, the pull request is not merged, or no tag contains it yet.
  */
 async function releaseOf(address, host, closedWith, hostFacts) {
   const facts = factsOf(address, host, hostFacts);
   let commit = COMMIT_ADDRESS.exec(closedWith)?.[1] ?? null;
   const number = commit ? null : PULL_ADDRESS.exec(closedWith)?.[1];
-  if (number) commit = (await facts.pulls()).find((pull) => String(pull.number) === number)?.head ?? null;
+  if (number) commit = (await facts.pulls()).find((pull) => String(pull.number) === number)?.mergeCommit ?? null;
   if (!commit) return null;
   let earliest = null;
   for (const tag of await facts.tags()) {
