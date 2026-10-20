@@ -63,7 +63,7 @@ test("explain — each topic of drafting and changing by prompt is a folded What
 });
 
 // TST-472807 · level: unit · module: MOD-site-frame
-// guards: UC-007 (step 1)
+// guards: UC-007
 // given: the topic requirements-to-cover
 // input: explain("requirements-to-cover")
 // expect: text saying the requirements to cover are those the drafted use cases should realise, by default all that no use case realises yet, and that the selection can be changed
@@ -76,7 +76,7 @@ test("explain — requirements-to-cover: what is covered by default and that the
 });
 
 // TST-472808 · level: unit · module: MOD-site-frame
-// guards: A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; A PARTICIPANT DECLARES ITS CAPABILITIES; UC-007 (step 2); UC-019 (step 3)
+// guards: A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; A PARTICIPANT DECLARES ITS CAPABILITIES; UC-007; UC-019
 // given: the topic drafting-participant
 // input: explain("drafting-participant")
 // expect: text saying the participant writes the draft; that only participants of the instance's list declared able to draft text are offered; that the place where each processes data is shown, since what is sent goes there; and that nothing is sent before Run
@@ -92,7 +92,7 @@ test("explain — drafting-participant: who drafts and where it processes data (
 });
 
 // TST-472809 · level: unit · module: MOD-site-frame
-// guards: THE PAGE NAMES WHERE IT SENDS; NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY; UC-007 (steps 2 and 3); UC-019 (steps 4, 4a and 5)
+// guards: THE PAGE NAMES WHERE IT SENDS; NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY; UC-007; UC-019
 // given: the topic run-panel
 // input: explain("run-panel")
 // expect: text saying the panel comes before anything is sent; names every participant that will receive something, where it processes data and what it receives part by part with sizes against its context — requirements, every existing use case, a chapter of the book, the prompt —; that when the whole does not fit nothing is sent, the panel says how much there is and how much fits, and nothing is left out silently; and that Run is the one click that sends
@@ -113,7 +113,7 @@ test("explain — run-panel: what the panel before a run shows (UC-007, UC-019)"
 });
 
 // TST-472810 · level: unit · module: MOD-site-frame
-// guards: A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A FINDING READS LIKE A COMPILER MESSAGE; AN ERROR MUST BE FIXED, A WARNING FIXED OR JUSTIFIED; THE CORRECTION LOOP HAS A FIXED LIMIT; THE ROUNDS ARE COUNTED AND SHOWN; UC-007 (step 5); UC-019 (step 7)
+// guards: A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A FINDING READS LIKE A COMPILER MESSAGE; AN ERROR MUST BE FIXED, A WARNING FIXED OR JUSTIFIED; THE CORRECTION LOOP HAS A FIXED LIMIT; THE ROUNDS ARE COUNTED AND SHOWN; UC-007; UC-019
 // given: the topic correction-loop
 // input: explain("correction-loop")
 // expect: text saying the draft is checked without a model before the person sees it; every finding goes back to the participant as one line like a compiler message with file and line, error or warning, rule and correction; an error must be fixed, a warning fixed or kept with a one-line reason; the loop ends when the draft passes, at the limit shown on the run panel, or when a round changes nothing; the rounds are counted and shown with the draft, and findings left are shown beside it
@@ -134,7 +134,7 @@ test("explain — correction-loop: the findings, the rounds and when it stops (U
 });
 
 // TST-472811 · level: unit · module: MOD-site-frame
-// guards: A GENERATED ARTIFACT IS A PROPOSAL; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; UC-007 (step 6, postcondition); UC-008
+// guards: A GENERATED ARTIFACT IS A PROPOSAL; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; UC-007; UC-008
 // given: the topic drafted-use-cases
 // input: explain("drafted-use-cases")
 // expect: text saying a drafted use case is one file in docs/use-cases/ on the default branch, open — a proposal, not yet accepted —; that nothing relies on it until it is accepted; and that each is reviewed and accepted on its own, writing an approval record for exactly the text read
@@ -150,7 +150,7 @@ test("explain — drafted-use-cases: written open, accepted one by one (UC-007, 
 });
 
 // TST-472812 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-019 (step 1: the examples of an instruction stand in the topic prompt-bar)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-019
 // given: explanations.md; known positive — the topic prompt-bar is held and explain("prompt-bar") has two children —; the topic change-instruction, which belonged to the removed prompt pages
 // input: the topic's text in explanations.md, and explain("change-instruction")
 // expect: the file holds no line `## change-instruction`; explain gives an element without any child
@@ -162,7 +162,7 @@ test("explain — change-instruction: the topic is gone, UC-019's examples stand
 });
 
 // TST-472813 · level: unit · module: MOD-site-frame
-// guards: A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; UC-019 (steps 8 and 7b)
+// guards: A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; UC-019
 // given: the topic draft-difference
 // input: explain("draft-difference")
 // expect: text saying the draft is shown against the current text line by line, so that only what changed is read; that a name dropped from the realised requirements shows in it and is not an error; and that the draft can be edited or refined before saving
@@ -177,7 +177,7 @@ test("explain — draft-difference: the draft against the current text (UC-019)"
 });
 
 // TST-472814 · level: unit · module: MOD-site-frame
-// guards: A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; ONE CLICK PER DECISION; UC-019 (steps 9 and 9a)
+// guards: A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; ONE CLICK PER DECISION; UC-019
 // given: the topic save-use-case
 // input: explain("save-use-case")
 // expect: text saying Save is one click; that it commits a use case as open, not accepted; that the commit records the instruction, the participant, its model, the Agent M version, the date and the rounds; and that when the file changed meanwhile nothing is written and the draft stays beside the newer version
@@ -193,7 +193,7 @@ test("explain — save-use-case: Save writes a use case open (UC-019)", () => {
 });
 
 // TST-472815 · level: unit · module: MOD-site-frame
-// guards: A CI AGENT'S DRAFT ENTERS AS OPEN; UC-019 (step 6b)
+// guards: A CI AGENT'S DRAFT ENTERS AS OPEN; UC-019
 // given: the topic ci-agent-draft
 // input: explain("ci-agent-draft")
 // expect: text saying a CI agent runs in a GitHub Actions workflow, nobody waiting; that the workflow runs the same correction loop and commits the draft to the default branch, a use case as open and a change to requirements as an entry in a new queue, the SPEC untouched; that it is reviewed afterwards on the dashboard; and that nothing counts before it is accepted

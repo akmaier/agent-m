@@ -575,7 +575,7 @@ test("participants — a participant no product uses saves without the product-u
 });
 
 // TST-352005 · level: unit · module: MOD-settings-pages
-// guards: UC-017 step 5; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
+// guards: UC-017; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
 // given: the public participants Route, an empty register, and a Bridge and an endpoint kept in this browser
 // input: the author chooses each type in turn and has not typed a processing place
 // expect: the place is preset where it can be told — CI agent "GitHub hosted runner", CLI agent "this machine", sandboxed agent
@@ -598,7 +598,7 @@ test("participants — the processing place is preset by type where it can be to
 });
 
 // TST-352006 · level: unit · module: MOD-settings-pages
-// guards: UC-017 step 3; A PARTICIPANT HAS ONE OF FIVE TYPES; NO SECRET IN THE REPOSITORY
+// guards: UC-017; A PARTICIPANT HAS ONE OF FIVE TYPES; NO SECRET IN THE REPOSITORY
 // given: the public participants Route, an empty register, and the CI-agent form with its runner on the server's machines
 // input: the author chooses the self-hosted runner, types the runner's label gpu and the key's secret name MODEL_KEY, saves; and, on another page, leaves the label empty
 // expect: no runner-label field while the runner is the server's own; with the self-hosted runner a runner-label field, the route
@@ -625,7 +625,7 @@ test("participants — a CI agent's route is written in the schema's form, with 
 });
 
 // TST-1019001 · level: unit · module: MOD-settings-pages
-// guards: UC-017 step 3; A PARTICIPANT HAS ONE OF FIVE TYPES
+// guards: UC-017; A PARTICIPANT HAS ONE OF FIVE TYPES
 // given: the public participants Route, an empty register and the CI-agent form, once with the runner on the server's machines and once with the self-hosted runner (which adds the runner's label); every control of the form (its inputs and its selects, the capability boxes among them) is read from the page
 // input: for each control in turn, the form is filled with one set of values, the control is changed to another value (a text to another text, a select to its other option, a box toggled), and Save is clicked once
 // expect: no control is a Workflow field (no .participant-workflow, no label "Workflow"); known positive: the form holds the name, model, context, price, processing place, runner, key secret name and capability controls (and the runner's label in the self-hosted form); every one of them changes the row that is saved — the row after the change differs from the row saved without it —, so that no field is drawn that is not saved; counter-proof: a control the row does not hold (the Workflow field as it stood) leaves the row as it was, and fails this test
@@ -689,7 +689,7 @@ test("participants — every control of a CI agent's form changes the saved row,
 });
 
 // TST-1031002 · level: unit · module: MOD-settings-pages
-// guards: UC-040 (2a); UC-017 step 3; ONE SYSTEM IN TWO ROLES IS TWO ENTRIES
+// guards: UC-040; UC-017; ONE SYSTEM IN TWO ROLES IS TWO ENTRIES
 // given: the public participants Route and an empty register; this browser keeps no endpoint
 // input: the route opened with the parameters type "model endpoint" and address "http://workstation.example.org:8000/v1"
 // expect: the form of a new participant is open ("Add participant"), its type reads "model endpoint" and its endpoint URL reads the address — the endpoint is configured inline, as for a browser that keeps none —; the register is not written
@@ -703,7 +703,7 @@ test("participants — opened with a type and an address, the form of a new part
 });
 
 // TST-1031003 · level: unit · module: MOD-settings-pages
-// guards: UC-040 (2a); UC-017 step 3
+// guards: UC-040; UC-017
 // given: this browser keeps the endpoint campus at https://models.example/v1; and, in another browser, only the endpoint other at https://other.example/v1
 // input: the route opened with type "model endpoint" and the address https://models.example/v1; and with the address http://workstation.example.org:8000/v1
 // expect: for the address a kept endpoint has, the endpoint is that one (the select reads campus); for an address none has, the endpoint URL of an inline form reads the address, whatever endpoints are kept; and with the type "CLI agent" the form is open with that type
@@ -720,7 +720,7 @@ test("participants — the address picks the kept endpoint that has it, or is th
 });
 
 // TST-1031004 · level: unit · module: MOD-settings-pages
-// guards: UC-040 (2a); UC-017
+// guards: UC-040; UC-017
 // given: the same registers
 // input: the route opened with no parameters, with only an address, and with a type no participant has
 // expect: counter-proof: the form of a new participant stays closed (hidden), the type empty, and no endpoint URL is drawn — a form without the parameters stays empty
@@ -734,7 +734,7 @@ test("participants — without a type and an address the form stays closed and e
 });
 
 // TST-352007 · level: unit · module: MOD-settings-pages
-// guards: UC-017 step 7a; PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE
+// guards: UC-017; PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE
 // given: a register with three CI agents: one on the schema's route "ci runner:gpu secret GPU_KEY", and two saved earlier in the form
 //   "workflow agent-m.yml on github-hosted secret OLD_KEY" and "workflow agent-m.yml on self-hosted secret SELF_KEY"
 // input: the author opens Change for each
@@ -857,7 +857,7 @@ const checkedCapabilities = (page) => byClass(page, "participant-capability").fi
 const CALLED_THE_TOOL = { choices: [{ message: { content: null, tool_calls: [{ id: "1", type: "function", function: { name: "agent_m_probe", arguments: "{}" } }] } }] };
 
 // TST-998002 · level: unit · module: MOD-settings-pages
-// guards: UC-017 (step 3); A PARTICIPANT DECLARES ITS CAPABILITIES
+// guards: UC-017; A PARTICIPANT DECLARES ITS CAPABILITIES
 // given: this browser keeps three endpoints: one whose last test says the model called the tool (tools true), one whose says it answered in text only (tools false), one never tested; and a fourth whose last test was refused (no tools)
 // input: the author adds a participant of the type model endpoint and chooses each endpoint
 // expect: with the first, the capability "use tools" is ticked beside "draft text", and the saved row holds both; with the others only "draft text" is ticked and the saved row holds only that
@@ -879,7 +879,7 @@ test("participants — a model endpoint's use tools is preset from its endpoint'
 });
 
 // TST-998003 · level: unit · module: MOD-settings-pages
-// guards: UC-017 (step 3)
+// guards: UC-017
 // given: two kept endpoints, tooled whose last test says tools true and plain whose says tools false; the author adds a model endpoint participant and also ticks "run code and tests" by hand
 // input: the endpoint select is changed to plain and back to tooled
 // expect: "use tools" is ticked for tooled, unticked for plain and ticked again for tooled; the capability the author ticked by hand stays ticked throughout
@@ -900,7 +900,7 @@ test("participants — choosing another endpoint changes use tools with its last
 });
 
 // TST-998004 · level: unit · module: MOD-settings-pages
-// guards: UC-017 (step 3); UC-003 (step 5)
+// guards: UC-017; UC-003
 // given: no endpoint kept, so that the form configures one in place; the endpoint answers the test request with a call of the probe tool (and in a second case with text only)
 // input: the author fills the endpoint's name, URL and model and presses Test endpoint
 // expect: after a test in which the model called the tool, "use tools" is ticked; after one in which it answered in text only, it is not

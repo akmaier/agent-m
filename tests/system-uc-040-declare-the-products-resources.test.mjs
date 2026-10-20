@@ -128,7 +128,7 @@ const secretsInCommits = (page) => SECRETS.filter((secret) => allCommits(page).s
 const readContent = (page) => page.world.requests.filter((request) => ["alice/dlls", "alice/dlls2"].includes(request.repository) && (/\/contents\//.test(request.url.pathname) || request.url.origin !== "https://api.github.com"));
 
 // TST-1041001 · level: system · module: MOD-settings-pages; MOD-resource-list
-// guards: UC-040 steps 1 and 2; A PRODUCT DECLARES ITS RESOURCES; EVERY STEP EXPLAINS ITSELF
+// guards: UC-040; A PRODUCT DECLARES ITS RESOURCES; EVERY STEP EXPLAINS ITSELF
 // given: this browser keeps the product with its token; its docs/resources.md names the repository dlls (pinned, MIT, maintained by the Acme organisation) and the compute resource cluster (runner gpu)
 // input: open the address #resources/product=<the product>
 // expect: UC-040 step 1 "Agent M shows the declared resources grouped by kind, each with its pin, licence, maintainer and route. A folded What is this? explains the three-way difference above with the
@@ -157,7 +157,7 @@ test("UC-040 steps 1 and 2 — through the frame, the page lists the declared re
 });
 
 // TST-1041002 · level: system · module: MOD-settings-pages; MOD-resource-list
-// guards: UC-040 steps 2 to 5, 7 and 8; A RESOURCE IS PINNED TO AN EXACT STATE; A RESOURCE DECLARES ITS LICENCE; A RESOURCE NAMES ITS MAINTAINER; A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION; A RESTRICTED RESOURCE IS REFERENCED, NEVER COPIED
+// guards: UC-040; A RESOURCE IS PINNED TO AN EXACT STATE; A RESOURCE DECLARES ITS LICENCE; A RESOURCE NAMES ITS MAINTAINER; A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION; A RESTRICTED RESOURCE IS REFERENCED, NEVER COPIED
 // given: the page of TST-1041001; the repository alice/dlls2 is readable with the product's token and holds a file whose text is the sentinel; the instance's list is the one of the fixture
 // input: choose the kind repository, name the resource "tools", paste https://github.com/alice/dlls2, press "+ Add resource"; type into the list its licence "MIT", its maintainer "the Acme organisation" and its secret "ci:DLLS_TOKEN"; press Save; press Check on tools
 // expect: step 3 "Agent M reads the current commit with the stored token of that server and pins it": the form's list holds the new row pinned to the head of alice/dlls2 (a full commit of 40 digits), and
@@ -194,7 +194,7 @@ test("UC-040 steps 2 to 8 — through the frame, a repository is added, pinned t
 });
 
 // TST-1041003 · level: system · module: MOD-settings-pages; MOD-resource-list
-// guards: UC-040 steps 3, 6, 7 and 8; A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER; A RESOURCE DECLARES WHERE IT PROCESSES DATA; A RESOURCE IS PINNED TO AN EXACT STATE; A RESOURCE CREDENTIAL GOES ONLY TO ITS RESOURCE
+// guards: UC-040; A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER; A RESOURCE DECLARES WHERE IT PROCESSES DATA; A RESOURCE IS PINNED TO AN EXACT STATE; A RESOURCE CREDENTIAL GOES ONLY TO ITS RESOURCE
 // given: the page of TST-1041001; this browser keeps the Bridge hpc (address http://127.0.0.1:4712, a pairing token), whose fake answers the harmless request for the partitions with debug (up) and gpu (drain)
 // input: choose the kind compute, name "alex", give the address "alex.nhr.fau.de", press "+ Add resource"; type the route "bridge hpc" and the place "NHR@FAU, Erlangen" into the list and press Save; press Check on alex
 // expect: step 3 "the author names it and the route: a Bridge, chosen by its name": a compute resource needs no pin (the software environment on it is pinned in the product's job files, not here); the form
@@ -230,7 +230,7 @@ test("UC-040 steps 3, 6, 7, 8 — through the frame, a compute resource on a Bri
 });
 
 // TST-1041004 · level: system · module: MOD-settings-pages; MOD-resource-list
-// guards: UC-040 steps 3, 7 and 7b; A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER; A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE; ONE CLICK PER DECISION; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
+// guards: UC-040; A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER; A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE; ONE CLICK PER DECISION; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
 // given: the product is private and holds Agent M's job workflow; the instance's register holds the CI agent ci-drafter on `ci runner:gpu secret CI_KEY`
 // input: choose the kind compute, name "gpu-box", give the address "gpu01.example.org", press "+ Add resource"; type the route "runner:gpu" and the place "the group's workstation"; press Save; open the page again; press Check on gpu-box; a click a script makes on Run; the person's click on Run
 // expect: Save gives one commit holding only docs/resources.md with the row; 7b "The route is a self-hosted runner. The browser cannot reach it; Agent M offers a check job on that runner label through the
@@ -271,7 +271,7 @@ test("UC-040 step 7b — through the frame, a compute resource on a runner is ch
 });
 
 // TST-1041005 · level: system · module: MOD-settings-pages; MOD-resource-list
-// guards: UC-040 steps 7b and 9b; A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE
+// guards: UC-040; A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE
 // given: the product is public (a self-hosted runner serves a private repository only) and holds Agent M's job workflow; its list names cluster on the runner gpu; the instance's register holds ci-drafter on `ci runner:gpu`
 // input: press Check on cluster
 // expect: 9b "No runtime reaches the resource. The job is not offered; Agent M names the resource and the missing route": the page says that no CI agent of the instance reaches the runner gpu and that nothing
@@ -286,7 +286,7 @@ test("UC-040 steps 7b, 9b — through the frame, a check job is not offered wher
 });
 
 // TST-1041006 · level: system · module: MOD-settings-pages; MOD-resource-list
-// guards: UC-040 alternative 1a; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION
+// guards: UC-040; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION
 // given: the product holds the job record docs/jobs/JOB-20261005-1432-7f3a.md whose inputs pin dlls, the record JOB-20261005-1500-aaaa whose inputs pin another resource, the test tests/dlls.test.mjs that names dlls and tests/other.test.mjs that does not
 // input: press Remove on dlls; press Save
 // expect: 1a "Agent M lists the jobs and tests that name it; they are listed, not changed, and the removal is committed on Save": Remove lists the first record and tests/dlls.test.mjs in the entry and neither of
@@ -311,7 +311,7 @@ test("UC-040 alternative 1a — through the frame, Remove lists the jobs and tes
 });
 
 // TST-1041007 · level: system · module: MOD-settings-pages; MOD-resource-list
-// guards: UC-040 alternative 1b; THE INSTANCE DECLARES ITS OWN RESOURCES; INSTANCE AND PRODUCT RESOURCES ARE INDEPENDENT; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
+// guards: UC-040; THE INSTANCE DECLARES ITS OWN RESOURCES; INSTANCE AND PRODUCT RESOURCES ARE INDEPENDENT; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
 // given: the instance's list holds shared-llm and cluster; the product's list holds dlls and cluster
 // input: open #resources (which names no product); read the page; choose the kind compute, name "alex", address "alex.nhr.fau.de", press "+ Add resource"; type the route "bridge hpc" and the place; press Save; then open the product's page and press Save of a new entry there
 // expect: 1b "Settings → Instance resources runs the same steps 2–8 and commits to docs/resources.md of the instance repository; no product's list changes": the page is headed "Instance resources", names akmaier/agent-m,
@@ -347,7 +347,7 @@ test("UC-040 alternative 1b — through the frame, the instance's list is declar
 });
 
 // TST-1041008 · level: system · module: MOD-settings-pages; MOD-resource-list
-// guards: UC-040 alternative 2c; INSTANCE AND PRODUCT RESOURCES ARE INDEPENDENT; ONE CLICK PER DECISION
+// guards: UC-040; INSTANCE AND PRODUCT RESOURCES ARE INDEPENDENT; ONE CLICK PER DECISION
 // given: the instance's list holds shared-llm and cluster; the product's list holds dlls and cluster
 // input: on the product's page choose shared-llm in "An instance resource" and press "Copy from the instance"; press Save; then change the place of shared-llm in the instance's page and press Save; then change its place in the product's page and press Save
 // expect: 2c "Agent M offers Copy from the instance: the entry is copied into the product's list, where it is edited and saved like any other. The copy is not linked; a later change on either side leaves the
@@ -390,7 +390,7 @@ async function openEdit(page) {
 }
 
 // TST-1041009 · level: system · module: MOD-settings-pages; MOD-resource-list
-// guards: UC-040 alternative 9a; A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT; ONE CLICK PER DECISION; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
+// guards: UC-040; A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT; ONE CLICK PER DECISION; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
 // given: the product's list pins dlls to the commit of 40 "b" and a second repository, other, to the commit of 40 "b" as well; the repository alice/dlls stands at its head (the SHA-1 of "alice/dlls#0"); the product holds the job record
 //   docs/jobs/JOB-20261005-1432-7f3a.md whose inputs pin dlls and the test tests/dlls.test.mjs that names it
 // input: add the entry "tools" (alice/dlls2) and save; press Check on dlls; a click a script makes on Move; the person's click on Move; press Check on dlls again
@@ -436,7 +436,7 @@ test("UC-040 alternative 9a — through the frame, a newer state upstream is sho
 const LLM_ROW_ONLY = { "docs/resources.md": list("thesis-tool", DLLS, LLM), ...WORKFLOW };
 
 // TST-1041010 · level: system · module: MOD-settings-pages; MOD-resource-list
-// guards: UC-040 steps 7 and 7c; A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT; A RESOURCE CREDENTIAL GOES ONLY TO ITS RESOURCE
+// guards: UC-040; A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT; A RESOURCE CREDENTIAL GOES ONLY TO ITS RESOURCE
 // given: the product's list pins the endpoint shared-llm to the served model "example-model"; this browser keeps the Bridge workstation, whose fake answers the harmless request for the served models with "other-model" and "example-model-2"
 // input: press Check on shared-llm
 // expect: 7 "through the Bridge the route names, with its token, a harmless request — for an endpoint the list of served models — and shows what answered": one request, to
@@ -455,7 +455,7 @@ test("UC-040 steps 7, 7c — through the frame, an endpoint that serves another 
 });
 
 // TST-1041011 · level: system · module: MOD-settings-pages; MOD-resource-list
-// guards: UC-040 alternative 7a; A RESOURCE CREDENTIAL GOES ONLY TO ITS RESOURCE; THE LOCAL BRIDGE REQUIRES A TOKEN; ONE CLICK PER DECISION
+// guards: UC-040; A RESOURCE CREDENTIAL GOES ONLY TO ITS RESOURCE; THE LOCAL BRIDGE REQUIRES A TOKEN; ONE CLICK PER DECISION
 // given: the product's list names shared-llm on `bridge workstation`; four browsers: one keeps no Bridge of that name, one keeps it at an address where nothing answers, one keeps it and the fake refuses its token (401), one keeps it without a token
 // input: in each, press Check on shared-llm; in the first, then press Edit the list, change the processing place and press Save
 // expect: 7a "The Bridge the route names does not answer. Agent M names the reason — not running, wrong address, token missing — and saves nothing until the author decides to save unchecked": the entry says
@@ -487,7 +487,7 @@ test("UC-040 alternative 7a — through the frame, a Bridge that does not answer
 });
 
 // TST-1041012 · level: system · module: MOD-settings-pages; MOD-resource-list
-// guards: UC-040 alternative 3a; A RESOURCE IS PINNED TO AN EXACT STATE; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; A RESTRICTED RESOURCE IS REFERENCED, NEVER COPIED
+// guards: UC-040; A RESOURCE IS PINNED TO AN EXACT STATE; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; A RESTRICTED RESOURCE IS REFERENCED, NEVER COPIED
 // given: the repository https://github.com/alice/hidden is not readable with the stored token (its host answers not found)
 // input: choose the kind repository, name "hidden", paste its address, press "+ Add resource"; then type the pin (40 hex digits), the licence "restricted — internal" and the maintainer "the Acme organisation" and press Save
 // expect: 3a "A private repository is not readable with the stored token. Agent M says so ...; nothing is saved until the check succeeds or the author saves it unchecked": the page says that the head of the
@@ -510,7 +510,7 @@ test("UC-040 alternative 3a — through the frame, a repository the token cannot
 });
 
 // TST-1041013 · level: system · module: MOD-settings-pages; MOD-resource-list
-// guards: UC-040 alternatives 4a, 4b and 4c; A RESTRICTED RESOURCE IS REFERENCED, NEVER COPIED; A RESOURCE DECLARES ITS LICENCE; A RESOURCE NAMES ITS MAINTAINER
+// guards: UC-040; A RESTRICTED RESOURCE IS REFERENCED, NEVER COPIED; A RESOURCE DECLARES ITS LICENCE; A RESOURCE NAMES ITS MAINTAINER
 // given: the repository alice/dlls is readable with the token and holds a file whose text is the sentinel; the product's list is empty of it
 // input: add the repository "lib" (https://github.com/alice/dlls); type the licence "unknown" and the maintainer "@alice" (one account); press Save; read the entry; open the list with Edit the list
 // expect: 4a "The licence is unknown. The resource is treated as restricted until someone records a licence": the folded explanation of the licence says that an unknown licence counts as restricted and, for a
@@ -542,7 +542,7 @@ test("UC-040 alternatives 4a, 4b, 4c — through the frame, an unknown licence c
 });
 
 // TST-1041014 · level: system · module: MOD-settings-pages; MOD-resource-list
-// guards: UC-040 step 5; A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE; A RESOURCE CREDENTIAL GOES ONLY TO ITS RESOURCE; NO SECRET IN THE REPOSITORY
+// guards: UC-040; A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE; A RESOURCE CREDENTIAL GOES ONLY TO ITS RESOURCE; NO SECRET IN THE REPOSITORY
 // given: the product's list holds shared-llm with the secret `browser` and dlls with the secret `ci:DLLS_TOKEN`; this browser keeps the Bridge workstation, whose fake answers the served models
 // input: read the entries; type the key "sk-llm-key-…" into the key field of shared-llm and press Save key; press Check on shared-llm; type the same key for the Hub model tiny (secret `browser`), press Save key and Check on tiny (the Hub's fake answers the revision); press Edit the list, change the processing place of shared-llm and press Save
 // expect: 5 "the author says where it is held: as a CI secret — only its name — or as a key in this browser, stored in localStorage and sent only to that resource's server": the entry of shared-llm reads
@@ -595,7 +595,7 @@ test("UC-040 step 5 — through the frame, a secret is named in the list and a k
 });
 
 // TST-1041015 · level: system · module: MOD-resource-list; MOD-runtimes
-// guards: UC-040 steps 9 and 9b; A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE
+// guards: UC-040; A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE
 // given: a list of four resources: dlls read on its host, cluster on the runner gpu, hpc on the Bridge hpc, and the endpoint local-llm called at its own address; the instance's register holds the CI agents ci-gpu on `ci runner:gpu secret K`
 //   and ci-hosted on `ci hosted secret K`, both in a private product that holds the job workflow
 // input: reachableBy over the list; routesFor for each CI agent with the needs it gives
@@ -623,7 +623,7 @@ test("UC-040 steps 9, 9b — the routes of a job's participants reach only the r
 });
 
 // TST-1041016 · level: system · module: MOD-settings-pages; MOD-resource-list
-// guards: UC-040 alternative 2a; ONE SYSTEM IN TWO ROLES IS TWO ENTRIES; ONE CLICK PER DECISION
+// guards: UC-040; ONE SYSTEM IN TWO ROLES IS TWO ENTRIES; ONE CLICK PER DECISION
 // given: the product's list holds the endpoint shared-llm and the repository dlls; the participants route is among the frame's routes
 // input: press Add as participant on shared-llm; follow the fragment the frame wrote
 // expect: 2a "a link opens UC-017 with type and address prefilled. The two entries share no fields": a repository has no such button; the press writes nothing, sets a fragment that names the route
@@ -645,7 +645,7 @@ test("UC-040 alternative 2a — through the frame, a system that also works on t
 });
 
 // TST-1041021 · level: system · module: MOD-settings-pages; MOD-resource-list
-// guards: UC-040 alternatives 3b and 9a; A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT; A RESOURCE IS PINNED TO AN EXACT STATE; ONE CLICK PER DECISION
+// guards: UC-040; A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT; A RESOURCE IS PINNED TO AN EXACT STATE; ONE CLICK PER DECISION
 // given: the product's list pins the Hub model someone/tiny (resource "tiny") to the revision of 40 "b"; the Hub's fake answers a revision of 40 "c"; a second browser where the Hub does not answer
 // input: press Check on tiny; a click a script makes on Move; the person's click on Move; in the second browser press Check on tiny
 // expect: 9a "a newer commit, revision or served model ... the pin changes only when the author presses Move": Check reads the Hub (one request to huggingface.co) and writes nothing, shows the revision of 40 "c" beside
@@ -691,7 +691,7 @@ test("UC-040 alternatives 3b, 9a — through the frame, a Hub model's newer revi
 const FORM_FINDING = "src/site-frame/forms.mjs:80-81 (documentNow) hands a section the person edited over as { heading, line, text } with no rows; documentFindings (forms.mjs:102) and the page's extraChecks (src/settings-pages/resources.mjs:63 rowsOf, called by checksOf) find no row in it and report nothing, and Save writes the typed text (resources.mjs:129 writeDocument) unchecked";
 
 // TST-1041017 · level: system · module: MOD-settings-pages; MOD-site-frame
-// guards: UC-040 steps 5 and 8; A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE; NO SECRET IN THE REPOSITORY
+// guards: UC-040; A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE; NO SECRET IN THE REPOSITORY
 // given: the page of TST-1041003
 // input: add the compute resource "alex"; type the route "bridge hpc", the place and, as its secret, the value "sk-live-0123456789abcdef"; press Save
 // expect: 8 "name of the secret — never its value": the form names A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE and Save is disabled, and the value stands in no commit
@@ -706,7 +706,7 @@ test("UC-040 step 8 — through the frame, a secret's value typed into the list 
   });
 
 // TST-1041018 · level: system · module: MOD-settings-pages; MOD-site-frame
-// guards: UC-040 steps 3 and 8; A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER; THE RESOURCE KIND IS ONE OF A CLOSED SET
+// guards: UC-040; A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER; THE RESOURCE KIND IS ONE OF A CLOSED SET
 // given: the page of TST-1041003
 // input: add the compute resource "alex"; type the route "ssh alex" and a place; press Save
 // expect: 3 "the route: a Bridge ... or a self-hosted runner": the form names A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER and Save is disabled; nothing is committed
@@ -721,7 +721,7 @@ test("UC-040 step 3 — through the frame, a compute route that is neither a Bri
   });
 
 // TST-1041019 · level: system · module: MOD-settings-pages; MOD-resource-list
-// guards: UC-040 steps 7 and 7b; A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE
+// guards: UC-040; A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE
 // given: the page of TST-1041004, in which the person has just saved the resource "gpu-box" on the runner gpu and has not opened the page again
 // input: press Check on gpu-box
 // expect: 7b "Agent M offers a check job on that runner label through the product's workflow": the page shows the run panel for the job, as it does for a resource that stood in the list when the page was opened
@@ -736,7 +736,7 @@ test("UC-040 step 7b — through the frame, a runner resource just saved can be 
   });
 
 // TST-1041020 · level: system · module: MOD-settings-pages; MOD-site-frame
-// guards: UC-040 step 7; EVERY STEP EXPLAINS ITSELF
+// guards: UC-040; EVERY STEP EXPLAINS ITSELF
 // given: the page of TST-1041004 (a private product with the job workflow, cluster on the runner gpu), whose Check shows the folded explanation of the check; the same page checks a resource on a Bridge (TST-1041003)
 // input: press Check on cluster and read the explanation the page shows
 // expect: the explanation does not say that the page makes no request through a Bridge, since Check makes it

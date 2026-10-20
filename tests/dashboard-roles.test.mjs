@@ -90,7 +90,7 @@ const row = (html, role) => { const at = html.indexOf(`data-role="${role}"`); re
 // ---------------------------------------------------------------- step 1
 
 // TST-472139 · level: component · module: MOD-implementation-pages
-// guards: UC-048 step 1 and 3, 3b; A ROLE NAMES HOW MANY FILL IT; A ROLE NAMES THE CAPABILITIES IT NEEDS
+// guards: UC-048; A ROLE NAMES HOW MANY FILL IT; A ROLE NAMES THE CAPABILITIES IT NEEDS
 // given: the fixture product; then the same instance whose agents cannot use tools, which Builders need
 // input: open #roles
 // expect: one row per role of the model, with who may fill it, how many, what it needs, and who may hold it with where each processes data — Owner: alice and bob, people; Builders: dev-a on this machine and dev-b at a provider in the USA, never ep, which cannot write; Checker: dev-a and dev-b, never alice, who cannot run code. Without use tools, Builders names that capability as the one no participant has, and links to the participants
@@ -112,7 +112,7 @@ test("#roles — the model's roles: who may fill each, how many, what each needs
 });
 
 // TST-472140 · level: component · module: MOD-implementation-pages
-// guards: UC-048 step 1, 2a, 2b; A PRODUCT HAS ONE ROLE ASSIGNMENT, OR ONE PER TEAM
+// guards: UC-048; A PRODUCT HAS ONE ROLE ASSIGNMENT, OR ONE PER TEAM
 // given: the fixture product with team1 and team2; then one whose model works without sprints, with its one assignment
 // input: open #roles
 // expect: a panel per team, each naming who fills which role; + Team offered with sprints and not without
@@ -129,7 +129,7 @@ test("#roles — each role assignment with who fills which role; + Team in a mod
 // ---------------------------------------------------------------- steps 2–4
 
 // TST-472141 · level: component · module: MOD-implementation-pages
-// guards: UC-048 2a, steps 3 and 4, 3a; A ROLE ASSIGNMENT FILLS THE ROLES; A PROCESS MODEL ORGANISES PEOPLE AND AGENTS; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
+// guards: UC-048; A ROLE ASSIGNMENT FILLS THE ROLES; A PROCESS MODEL ORGANISES PEOPLE AND AGENTS; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
 // given: the fixture product
 // input: + Team; name it team3; tick Owner alice, Builders and Checker dev-a; Save
 // expect: before any tick, Save is disabled and the form names Owner as the role that needs a person and has none; once alice holds it, Save is enabled; one commit of docs/role-assignments/team3.md, whose ## Roles names Owner alice, Builders dev-a and Checker dev-a
@@ -149,7 +149,7 @@ test("#roles — + Team: Save stays disabled until a person holds Owner; the tea
 });
 
 // TST-472142 · level: component · module: MOD-implementation-pages
-// guards: UC-048 3a, 3d, 4a; A ROLE NAMES HOW MANY FILL IT; A PROCESS MODEL ORGANISES PEOPLE AND AGENTS
+// guards: UC-048; A ROLE NAMES HOW MANY FILL IT; A PROCESS MODEL ORGANISES PEOPLE AND AGENTS
 // given: team1, its Owner alice
 // input: Change team1; (a) tick bob as a second Owner; (b) untick him again; (c) untick alice
 // expect: known positive — team1 as it stands may be saved —; (a) Save disabled, and the form says that one participant fills Owner; (b) Save enabled again; (c) Save disabled, and the form says that Owner needs a person; nothing written
@@ -169,7 +169,7 @@ test("#roles — a second participant for a role one fills, or no person for a r
 });
 
 // TST-472143 · level: component · module: MOD-implementation-pages
-// guards: UC-048 3c, 4a; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
+// guards: UC-048; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
 // given: the product links SRC-restricted, which permits only NHR@FAU, Erlangen; dev-a processes on this machine
 // input: open #roles; Change team1 and Save it unchanged
 // expect: team1's panel, and its form, warn that dev-a, a holder of Builders, is at a place SRC-restricted does not permit; the warning leaves Save enabled, which commits docs/role-assignments/team1.md
@@ -186,7 +186,7 @@ test("#roles — a holder at a place a linked source does not permit is named wi
 });
 
 // TST-472144 · level: component · module: MOD-implementation-pages
-// guards: UC-048 4b; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH
+// guards: UC-048; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH
 // given: team1, whose sprint holds ITM-001; team2, which runs no sprint
 // input: Remove team for team1; then Remove team for team2
 // expect: team1 is not removed — the result names ITM-001 — and nothing is written; team2's role assignment is removed in one commit
@@ -201,7 +201,7 @@ test("#roles — a team whose sprint holds items is not removed; one whose sprin
 });
 
 // TST-472145 · level: component · module: MOD-implementation-pages
-// guards: EVERY STEP EXPLAINS ITSELF; UC-048: "Every step carries a folded What is this?: what a role is and why it is filled apart from the process, why Scrum has teams and Kanban and the V-model do not, and pointers to book ch. 6 and ch. 7."
+// guards: EVERY STEP EXPLAINS ITSELF; UC-048
 // given: the fixture product, team1's assignment open for a change; the topic roles-and-participants of src/site-frame/explanations.md, whose first sentence is "A model names its roles."
 // input: open #roles, Change team1
 // expect: the head and every panel carry a folded What is this?; the roles' panel carries that topic; the page's explanations say what a role is, that the process names roles and no one, that only Scrum has teams and why Kanban and the V-model do not, and point to chapter 6 and chapter 7
@@ -219,7 +219,7 @@ test("#roles — every step explains itself: what a role is, why only Scrum has 
 });
 
 // TST-472146 · level: component · module: MOD-implementation-pages
-// guards: EVERY STEP EXPLAINS ITSELF; the user's layout of the pages
+// guards: EVERY STEP EXPLAINS ITSELF
 // given: the fixture product, team1's assignment open for a change
 // input: open #roles, Change team1
 // expect: the title in a section.head, every button a btn and every folded explanation a details.explain; no style attribute, and no class docs/assets/style.css — the stylesheet of #uc and #arc — does not define, outside the folded explanations, whose inside is MOD-site-frame's and its Markdown renderer's (in this harness, which cannot sanitise HTML, the renderer shows each as its source); every panel explains itself
@@ -277,7 +277,7 @@ async function removeTeam1(list, { closed = false } = {}) {
 }
 
 // TST-1064001 · level: component · module: MOD-implementation-pages
-// guards: UC-048 4b; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH
+// guards: UC-048; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH
 // given: team1, whose sprint selected ITM-001, and a product whose server lists the merged pull request of ITM-001 into the default branch main
 // input: Remove team for team1
 // expect: the server was asked for the product's pull requests; the team is removed in one commit that deletes docs/role-assignments/team1.md; the result names no held item
@@ -290,7 +290,7 @@ test("#roles — a team whose sprint's item has a pull request merged into the d
 });
 
 // TST-1064002 · level: component · module: MOD-implementation-pages
-// guards: UC-048 4b; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH
+// guards: UC-048; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH
 // given: team1, whose sprint selected ITM-001; known positive: TST-1064001; and, in turn, a product whose server lists an open pull request of ITM-001, none at all, a pull request merged into another branch that no later merge brings to main, and a merged pull request of another item
 // input: Remove team for team1 in each
 // expect: in each the team is not removed, the result names ITM-001, and nothing is written
@@ -306,7 +306,7 @@ test("#roles — a team with an item whose pull request is open, merged elsewher
 });
 
 // TST-1064003 · level: component · module: MOD-implementation-pages
-// guards: UC-048 4b; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH
+// guards: UC-048; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH
 // given: team1, whose sprint selected ITM-001 and is open, and again closed (its review recorded); a product whose server cannot list its pull requests (500)
 // input: Remove team for team1 in each
 // expect: the pull requests were asked for; the team is not removed, never guessed released: the result names ITM-001, and nothing is written

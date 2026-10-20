@@ -142,7 +142,7 @@ test("the implement page lists the items with their state, and names why an item
 });
 
 // TST-789002 · level: unit · module: MOD-implementation-pages
-// guards: UC-034 (2); NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED
+// guards: UC-034; NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED
 // given: the same product, in which ITM-006 realises a requirement the SPEC does not hold and ITM-004 builds on ITM-003, which is not done
 // input: the route's render
 // expect: ITM-006 is not startable and its reason names RULE NOT ACCEPTED; ITM-004 is not startable and its reason names ITM-003
@@ -155,7 +155,7 @@ test("an item with a requirement not accepted, or with an item it builds on not 
 });
 
 // TST-789003 · level: unit · module: MOD-implementation-pages
-// guards: UC-034 (2); NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT
+// guards: UC-034; NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT
 // given: team1's sprint selects ITM-001, ITM-003 and ITM-005, ITM-001 and ITM-003 each having an open pull request, and the model's limit is 2
 // input: the route's render, then a click of a person on Start jobs
 // expect: ITM-005 is not startable and its reason names the work-in-progress limit; with no startable item the click says so and nothing is committed
@@ -170,7 +170,7 @@ test("above the work-in-progress limit an item is not started, and with no start
 });
 
 // TST-789004 · level: unit · module: MOD-implementation-pages
-// guards: UC-034 (3); A JOB GOES ONLY TO A HOLDER OF ITS ROLE; THE PAGE NAMES WHERE IT SENDS
+// guards: UC-034; A JOB GOES ONLY TO A HOLDER OF ITS ROLE; THE PAGE NAMES WHERE IT SENDS
 // given: the product of TST-789001
 // input: the route's render
 // expect: ITM-005 offers dev-a, the holder of the implementing role Builders in team1's assignment, and says where it processes data (this machine) and its route (ci hosted); who merges, the attempt limit and the target branch (main) are shown, with the gate Building → Checking and its decider Owner; what is sent where names dev-a and the part chapters 9, 11, 12 and 13
@@ -194,7 +194,7 @@ test("a startable item offers the holders of the implementing role with where th
 });
 
 // TST-789005 · level: unit · module: MOD-implementation-pages
-// guards: UC-034 (4); A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; ONE CLICK PER DECISION
+// guards: UC-034; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; ONE CLICK PER DECISION
 // given: the product of TST-789001, whose job workflow stands in the repository
 // input: a click a script makes on Start jobs; then a click of a person
 // expect: the script's click commits nothing; the person's click commits one start record under docs/jobs/ for ITM-005 alone — naming dev-a as its participant, the item in works_on and, in the parameters, who merges —, and none for ITM-003, ITM-004 or ITM-006
@@ -216,7 +216,7 @@ test("Start jobs writes one start record for each startable item, naming a holde
 });
 
 // TST-789006 · level: unit · module: MOD-implementation-pages
-// guards: UC-034 (1); A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT
+// guards: UC-034; A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT
 // given: the product of TST-789001
 // input: the route's render with the parameter sprint=team1/01 (Start sprint work); and, as the counter-proof, the render without it
 // expect: with the parameter only the items of the sprint's selection are listed — ITM-004, ITM-005 and ITM-006, not ITM-003; without it ITM-003 stands in the list

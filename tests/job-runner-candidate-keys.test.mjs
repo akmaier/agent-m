@@ -58,7 +58,7 @@ const brief = (findings) => findings.map((found) => [found.artifact, found.kind,
 const UC_NEW = file("docs/use-cases/UC-050-import-a-report.md", useCase("UC-050", "Import a report"));
 
 // TST-472310 · level: unit · module: MOD-job-runner
-// guards: EXACT DUPLICATES ARE FOUND WITHOUT A MODEL; UC-007 6a; THE DERIVATION RULES HOLD FOR ARCHITECTURE
+// guards: EXACT DUPLICATES ARE FOUND WITHOUT A MODEL; UC-007; THE DERIVATION RULES HOLD FOR ARCHITECTURE
 // given: a part showing UC-001 "Export a report", ARC-003 "Use a static client", MOD-reader and the item ITM-010 "Read a file"; a draft of files that holds a use case titled as UC-001 (other letters and spacing), a decision titled as ARC-003 and a module with the identifier MOD-reader, each classed new, and a use case of another title, classed new
 // input: the check, once, on the draft
 // expect: three errors under EXACT DUPLICATES ARE FOUND WITHOUT A MODEL, in one line each, one for each of the three files, naming UC-001, ARC-003 and MOD-reader respectively — each its own —, and none for the use case of another title
@@ -77,7 +77,7 @@ test("candidate-classes — a drafted use case, decision or module with an exist
 });
 
 // TST-472311 · level: unit · module: MOD-job-runner
-// guards: EXACT DUPLICATES ARE FOUND WITHOUT A MODEL; UC-007 6a
+// guards: EXACT DUPLICATES ARE FOUND WITHOUT A MODEL; UC-007
 // given: the same part; a draft of items with an item titled as ITM-010 ("read A file"), classed new, and an item of another title
 // input: the check on `{ items }`
 // expect: one error under EXACT DUPLICATES ARE FOUND WITHOUT A MODEL, naming the item by its title and ITM-010; none for the other item

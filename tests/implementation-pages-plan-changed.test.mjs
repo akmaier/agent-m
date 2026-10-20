@@ -154,7 +154,7 @@ const marks = (row) => byData(row, "data-mark").map((node) => text(node));
 const archRow = (target, id) => byData(target, "data-architecture", id)[0];
 
 // TST-1036001 · level: unit · module: MOD-implementation-pages
-// guards: UC-045 (1c); AN IMPLEMENTATION PLAN ASSEMBLES THE SYSTEM FROM ITS MODULES
+// guards: UC-045; AN IMPLEMENTATION PLAN ASSEMBLES THE SYSTEM FROM ITS MODULES
 // given: a plan whose steps were saved on 2026-10-01 and an architecture accepted; known positive: every architecture file is older than the steps; then the file of MOD-reader is changed on 2026-10-10
 // input: the route plan, for each
 // expect: the known positive marks no step; after the change the steps that implement MOD-reader, ITM-010 and ITM-013, are marked, each naming docs/architecture/MOD-reader.md as changed after the step, and ITM-011 and ITM-012 are not
@@ -172,7 +172,7 @@ test("plan — the step that implements a module whose file changed after the st
 });
 
 // TST-1036002 · level: unit · module: MOD-implementation-pages
-// guards: UC-045 (1c); AN IMPLEMENTATION PLAN ASSEMBLES THE SYSTEM FROM ITS MODULES
+// guards: UC-045; AN IMPLEMENTATION PLAN ASSEMBLES THE SYSTEM FROM ITS MODULES
 // given: the same plan with a further step ITM-014 for MOD-gone, whose file the architecture no longer holds
 // input: the route plan
 // expect: ITM-014 is marked, naming docs/architecture/MOD-gone.md as removed; no other step is marked
@@ -186,7 +186,7 @@ test("plan — the step of a module whose file was removed is marked", async () 
 });
 
 // TST-1036003 · level: unit · module: MOD-implementation-pages
-// guards: UC-045 (1c); AN IMPLEMENTATION PLAN ASSEMBLES THE SYSTEM FROM ITS MODULES
+// guards: UC-045; AN IMPLEMENTATION PLAN ASSEMBLES THE SYSTEM FROM ITS MODULES
 // given: an architecture with a module MOD-added, accepted after the plan was saved, that no step implements; known positive: MOD-reader, which a step implements
 // input: the route plan
 // expect: MOD-added is marked in the architecture's list as having no step; MOD-reader, MOD-writer and MOD-loose, which have steps, are not
@@ -201,7 +201,7 @@ test("plan — a module added after the plan was saved is named as without a ste
 });
 
 // TST-1036004 · level: unit · module: MOD-implementation-pages
-// guards: UC-045 (1c); PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// guards: UC-045; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the plan of the first test with MOD-reader changed after its steps, and a host that records every commit it is asked for
 // input: the route plan
 // expect: no commit is asked for; the plan's files are as they were: the page marks and writes nothing until the planner saves
@@ -212,7 +212,7 @@ test("plan — the marks write nothing", async () => {
 });
 
 // TST-1036005 · level: unit · module: MOD-implementation-pages
-// guards: UC-045 (1c)
+// guards: UC-045
 // given: the plan of the first test, on a server whose history cannot be read (readHistory fails)
 // input: the route plan
 // expect: the page is drawn all the same: the architecture, the steps and their states; no step carries a mark, since none could be derived

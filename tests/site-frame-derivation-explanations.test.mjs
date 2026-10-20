@@ -62,7 +62,7 @@ test("explain — each topic of deriving requirements is a folded What is this? 
 });
 
 // TST-472799 · level: unit · module: MOD-site-frame
-// guards: AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; A REQUIREMENT HAS A REGISTERED SOURCE; UC-005 (step 1) and alternative 1a
+// guards: AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; A REQUIREMENT HAS A REGISTERED SOURCE; UC-005
 // given: the topic linked-version
 // input: explain("linked-version")
 // expect: text saying Agent M reads exactly the version linked to the product; checks the file's hash, the SHA-256 against the one recorded when the version was registered; and that when it differs nothing is sent, and a new version must be registered
@@ -79,7 +79,7 @@ test("explain — linked-version: exactly the linked version is read and its has
 });
 
 // TST-472800 · level: unit · module: MOD-site-frame
-// guards: DERIVATION SEES THE EXISTING REQUIREMENTS; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY; UC-005 (steps 2 and 4) and alternative 2a
+// guards: DERIVATION SEES THE EXISTING REQUIREMENTS; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY; UC-005
 // given: the topic existing-requirements
 // input: explain("existing-requirements")
 // expect: text saying candidates are drafted against the existing requirements, not beside them; that Agent M collects every existing requirement, those of the SPEC and of the open change queues, and sends them with the excerpt and chapter 8 of the book; that when it does not fit nothing is sent, the count and what fits are told, a larger context or a smaller part offered, and no requirement is dropped silently
@@ -98,7 +98,7 @@ test("explain — existing-requirements: every existing requirement goes with th
 });
 
 // TST-472801 · level: unit · module: MOD-site-frame
-// guards: THE PAGE NAMES WHERE IT SENDS; ONE CLICK PER DECISION; UC-005 (step 3) and alternative 3a
+// guards: THE PAGE NAMES WHERE IT SENDS; ONE CLICK PER DECISION; UC-005
 // given: the topic derivation-run-panel
 // input: explain("derivation-run-panel")
 // expect: text saying the panel comes before anything is sent; names the destination and where it processes data; says exactly what is sent — the excerpt and the existing requirements, with the chapter — and how many requirements are included; states the limit of correction rounds; and that Run is the one click that sends, nothing being sent without it
@@ -116,7 +116,7 @@ test("explain — derivation-run-panel: what the panel before a derivation shows
 });
 
 // TST-472802 · level: unit · module: MOD-site-frame
-// guards: A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT; EXACT DUPLICATES ARE FOUND WITHOUT A MODEL; THE MODEL'S CLASSIFICATION IS MEASURED, NOT TRUSTED; UC-005 (steps 5 and 6.2 and 7)
+// guards: A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT; EXACT DUPLICATES ARE FOUND WITHOUT A MODEL; THE MODEL'S CLASSIFICATION IS MEASURED, NOT TRUSTED; UC-005
 // given: the topic candidate-classes
 // input: explain("candidate-classes")
 // expect: text defining the four classes — new: nothing existing covers it; change: it alters a named existing requirement; duplicate: it restates one; conflict: it contradicts one —; saying an exact match of name or normalised rule is a duplicate without a model, whatever the model said; that the panel groups candidates by class beside the requirement each refers to; and that a candidate can be moved to another class
@@ -134,7 +134,7 @@ test("explain — candidate-classes: the four classes of a candidate (UC-005 ste
 });
 
 // TST-472803 · level: unit · module: MOD-site-frame
-// guards: A REQUIREMENT HAS FOUR FIELDS; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A FINDING READS LIKE A COMPILER MESSAGE; AN ERROR MUST BE FIXED, A WARNING FIXED OR JUSTIFIED; WHAT A PERSON DECIDES IS NOT SENT BACK; THE CORRECTION LOOP HAS A FIXED LIMIT; THE ROUNDS ARE COUNTED AND SHOWN; UC-005 (step 6.3)
+// guards: A REQUIREMENT HAS FOUR FIELDS; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A FINDING READS LIKE A COMPILER MESSAGE; AN ERROR MUST BE FIXED, A WARNING FIXED OR JUSTIFIED; WHAT A PERSON DECIDES IS NOT SENT BACK; THE CORRECTION LOOP HAS A FIXED LIMIT; THE ROUNDS ARE COUNTED AND SHOWN; UC-005
 // given: the topic candidate-correction
 // input: explain("candidate-correction")
 // expect: text saying the checks need no model and the findings go back as one line each, like compiler messages; that a candidate without one of the four fields of a requirement — its name, its source, its rule or its check, as A REQUIREMENT HAS FOUR FIELDS gives them — is an error, and a rule with a conjunction a warning to split or justify; that the participant corrects up to the limit of rounds on the run panel; that conflicts are never sent back; and that what is left after the last round is shown flagged, with the rounds counted
@@ -154,7 +154,7 @@ test("explain — candidate-correction: findings sent back, the rounds and what 
 });
 
 // TST-472804 · level: unit · module: MOD-site-frame
-// guards: A CONFLICT IS DECIDED BY A PERSON; UC-005 (steps 6, 7 and 8) and alternative 7a
+// guards: A CONFLICT IS DECIDED BY A PERSON; UC-005
 // given: the topic conflict-and-normative-source
 // input: explain("conflict-and-normative-source")
 // expect: text saying a conflict contradicts a named existing requirement; a person decides each, it is not sent back; that when it involves a normative source the panel says which side is normative, yet a normative source does not win automatically, because the product may be out of its scope; and that an undecided conflict stays in the panel and is not written
@@ -170,7 +170,7 @@ test("explain — conflict-and-normative-source: a person decides, a normative s
 });
 
 // TST-472805 · level: unit · module: MOD-site-frame
-// guards: A GENERATED ARTIFACT IS A PROPOSAL; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; A CHANGE IS PROPOSED UNDER THE EXISTING NAME; A DUPLICATE ADDS A SOURCE, NOT A REQUIREMENT; NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; UC-005 (step 8)
+// guards: A GENERATED ARTIFACT IS A PROPOSAL; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; A CHANGE IS PROPOSED UNDER THE EXISTING NAME; A DUPLICATE ADDS A SOURCE, NOT A REQUIREMENT; NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; UC-005
 // given: the topic write-proposals
 // input: explain("write-proposals")
 // expect: text saying Write proposals is one click that writes a new queue under docs/spec-freigaben/, its entries open until accepted; the entry for each class — new adds the requirement to its section; change changes it under its name with the current text beside it and its impact list; duplicate adds the new source; conflict is written only as resolved —; that every entry records the Agent M version, participant, model and date; and that the SPEC is unchanged until entries are accepted

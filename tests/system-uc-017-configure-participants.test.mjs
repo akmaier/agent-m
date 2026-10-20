@@ -299,7 +299,7 @@ async function fillCommon(page, fields) {
 }
 
 // TST-375001 · level: system · module: MOD-settings-pages; MOD-participant-list
-// guards: UC-017 main flow; PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE; A PARTICIPANT HAS ONE OF FIVE TYPES; A PARTICIPANT DECLARES ITS CAPABILITIES; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL; NO COST IS GUESSED; NO SECRET IN THE REPOSITORY; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF
+// guards: UC-017; PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE; A PARTICIPANT HAS ONE OF FIVE TYPES; A PARTICIPANT DECLARES ITS CAPABILITIES; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL; NO COST IS GUESSED; NO SECRET IN THE REPOSITORY; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF
 // given: the public Participants settings route, an empty instance participants register, one configured model endpoint and one Bridge setting
 // input: the author adds a person, a model endpoint, a CI agent, a CLI agent and a sandboxed agent, filling the type-specific fields and pressing Save once for each
 // expect: each type opens with folded explanations and schemaForm, presets its typical capabilities, commits exactly docs/participants.md with type, model/context/price where required, capabilities, processing place and route, and commits no endpoint key or Bridge token
@@ -362,7 +362,7 @@ test("TST-375001: UC-017 main flow saves each participant type from the Particip
 });
 
 // TST-375002 · level: system · module: MOD-settings-pages; MOD-bridge-client; MOD-bridge-jobs; MOD-agent-processes
-// guards: UC-017 main flow step 6 and alternative 6a; THE BRIDGE FINDS THE INSTALLED AGENTS; A BRIDGE BEHIND NAT IS REACHED THROUGH A REVERSE TUNNEL; A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL; ONE CLICK PER DECISION; NO SECRET IN THE REPOSITORY
+// guards: UC-017; THE BRIDGE FINDS THE INSTALLED AGENTS; A BRIDGE BEHIND NAT IS REACHED THROUGH A REVERSE TUNNEL; A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL; ONE CLICK PER DECISION; NO SECRET IN THE REPOSITORY
 // given: this browser keeps a direct Bridge and a Bridge reached through the jump host, and fixture Bridge handlers answer pair, agent-list and probe requests
 // input: the author chooses the jump-host Bridge on a CLI participant, lists offered agents, adds a ready agent, tests it successfully and saves; then another Bridge probe fails and the author chooses Save untested
 // expect: only fixture handlers are called; the offered ready agent fills Agent, Model, processing place and route; the probe body names that agent; secrets stay out of the commit; on failure Save is withheld until Save untested
@@ -430,7 +430,7 @@ test("TST-375002: UC-017 lists Bridge-offered agents, tests them, and handles Br
 });
 
 // TST-375003 · level: system · module: MOD-settings-pages
-// guards: UC-017 alternative 3a; UC-017 alternative 3b; EVERY STEP EXPLAINS ITSELF; NO SECRET IN THE REPOSITORY
+// guards: UC-017; EVERY STEP EXPLAINS ITSELF; NO SECRET IN THE REPOSITORY
 // given: the Participants page with no endpoint configured, and the CI-agent form on a self-hosted runner
 // input: the author opens the model-endpoint inline form, then opens a CI-agent participant and reads the runner/SSH explanations
 // expect: the inline endpoint fields stay on the Participants page and include UC-003's endpoint test request; the CI form explains the SSH-without-runner alternative, naming the SSH key as an Actions secret, internet reachability and the runner recommendation
@@ -475,7 +475,7 @@ test("TST-375003: UC-017 alternatives 3a and 3b are present on the Participants 
 });
 
 // TST-375004 · level: system · module: MOD-settings-pages; MOD-participant-list
-// guards: UC-017 alternative 5a; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE REPOSITORY; EVERY STEP EXPLAINS ITSELF
+// guards: UC-017; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE REPOSITORY; EVERY STEP EXPLAINS ITSELF
 // given: the instance contains a restricted source that permits only FAU data centre (EU), while the author adds a self-hosted CI agent that processes data in US cloud
 // input: the CI-agent participant is filled, the self-hosted runner is selected, and Save is pressed
 // expect: the folded runner explanation says private repositories only, the form lists the source/place warning before Save, and the participant can still be saved to docs/participants.md
@@ -507,7 +507,7 @@ test("TST-375004: UC-017 alternative 5a names restricted sources and still permi
 });
 
 // TST-375005 · level: system · module: MOD-settings-pages; MOD-participant-list
-// guards: UC-017 alternative 7a; PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY
+// guards: UC-017; PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY
 // given: two fixture product repositories name participant dev-a in role assignments, and dev-a currently has the capabilities those roles need
 // input: the author changes dev-a on the Participants page and removes write to the repository
 // expect: the page lists the products and roles that use dev-a, shows the assignment that is now invalid and the missing capability, saves only docs/participants.md, and writes no product repository

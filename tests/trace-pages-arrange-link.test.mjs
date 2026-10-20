@@ -49,7 +49,7 @@ async function render(productHost, ref) {
 const links = (target, className) => find(target, (node) => node.localName === "a" && node.className.split(/\s+/).includes(className));
 
 // TST-737001 · level: unit · module: MOD-trace-pages
-// guards: ARTIFACTS ARE ARRANGED IN NESTED GROUPS; UC-021 (step 1)
+// guards: ARTIFACTS ARE ARRANGED IN NESTED GROUPS; UC-021
 // given: the specification of a library on the default branch main
 // input: the public trace/specification route rendered at the ref main
 // expect: one anchor "Arrange" of the class arrange-link, to #arrange/kind=requirements
@@ -60,7 +60,7 @@ test("TST-737001 the specification view on the default branch links Arrange to a
 });
 
 // TST-737002 · level: unit · module: MOD-trace-pages
-// guards: ARTIFACTS ARE ARRANGED IN NESTED GROUPS; UC-021 (step 1)
+// guards: ARTIFACTS ARE ARRANGED IN NESTED GROUPS; UC-021
 // given: the same specification; known positive: the page at main holds the link, and the links of the view beside it (+ Requirement)
 // input: the route rendered at the tag v1.0, at a commit of forty digits, and with a Host that cannot name its default branch (no repositoryInfo)
 // expect: the specification is shown (its requirement is listed), and no Arrange is offered

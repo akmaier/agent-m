@@ -313,7 +313,7 @@ test("TST-290113: Settings removes one legacy collaborator consent row without a
 });
 
 // TST-290130 · level: unit · module: MOD-settings-pages
-// guards: UC-042 (step 3); UC-001; EVERY SETTING IS REACHED FROM ONE PAGE; A FORM OPENS WITH ITS FIRST FIELD FOCUSED
+// guards: UC-042; UC-001; EVERY SETTING IS REACHED FROM ONE PAGE; A FORM OPENS WITH ITS FIRST FIELD FOCUSED
 // given: the public Settings Route with a stored product list and a product's own token; the page's go records every route it is asked for; GitHub's replies for that product are constructed, its review layout complete
 // input: the person opens Repositories, presses the product list's Change, Add or remove products, types the product's address, presses Add product, then Switch to the new product
 // expect: Add a product opens in place, in the Repositories tab, with its address field focused, and the page asks for no route; Switch to the new product, a route that is no form of the tab, still reaches the page's go with the product
@@ -368,7 +368,7 @@ test("TST-290130: the product list's Change opens Add a product in place, in the
 });
 
 // TST-638001 · level: unit · module: MOD-settings-pages
-// guards: UC-015 (step 1); EVERY SETTING IS REACHED FROM ONE PAGE
+// guards: UC-015; EVERY SETTING IS REACHED FROM ONE PAGE
 // given: the public Settings Route for a chosen product, in each state its section shows — writable (a token that can write), read-only (no token), and its repository metadata unavailable (repositoryInfo fails); the page's go records every route it is asked for. And the Route with no product chosen
 // input: the person opens Repositories and presses Requirement sources in the product's section
 // expect: in each of the three states the product's section holds exactly one button reading Requirement sources, and pressing it asks the page's go for the route sources with no parameters of its own (the frame adds the chosen product); with no product chosen the page holds no such button (known positive: the section says Choose a product)

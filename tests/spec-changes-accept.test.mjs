@@ -205,7 +205,7 @@ const written = (fake) => Object.fromEntries(fake.writes()[0].change.files.map((
 // ---------------------------------------------------------------- acceptEntries
 
 // TST-472940 · level: unit · module: MOD-spec-changes
-// guards: A QUEUE IS ACCEPTED IN ITS ORDER; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; THE APPROVED TEXT IS TAKEN VERBATIM; UC-006 ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON; THE GATE IS RECORDED; THE REPLACED TEXT STAYS REACHABLE
+// guards: A QUEUE IS ACCEPTED IN ITS ORDER; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; THE APPROVED TEXT IS TAKEN VERBATIM; UC-006; THE GATE IS RECORDED; THE REPLACED TEXT STAYS REACHABLE
 // given: the product above, whose default branch `trunk` holds the queue with entries 05 and 06 — 05 replaces section 1 and creates the section "1a", 06 starts with "1a" — and the person alice, who was shown 05 beside section 1 and 06 beside no section; given in the order 06, 05
 // input: acceptEntries(host, [06 shown, 05 shown], "alice", now, sources)
 // expect: one commit on `trunk`, on the head that was read, holding exactly the two records, the SPEC and the decisions file; the SPEC with section 1 as 05 proposes it and section "1a" as 06 proposes it, every other byte as it was; the two records named by the first twelve digits of each proposal's blob, with 05's section the blob of section 1 and 06's the blob of the section "1a" as 05 wrote it; two decision rows appended to the decisions file, 05's first; a message that names alice and the two entries; the result { commit }; the replaced text is still in the head that was read, and no copy of it is added

@@ -87,7 +87,7 @@ const drawJob = (context) => draw(job, context, { id: ID });
 const dialog = () => byClass(document.body, "decision")[0];
 
 // TST-1023101 · level: unit · module: MOD-main-page
-// guards: A CANCELLED JOB WRITES NOTHING MORE; UC-036 (6a)
+// guards: A CANCELLED JOB WRITES NOTHING MORE; UC-036
 // given: a cancelled job whose branch has two commits after the cancel and one before it; and one whose branch has none after it; and a done job with the same branch
 // input: the route job drawn for each
 // expect: the first page flags the two later commits (twelve digits each, not the earlier one) and has one button Revert; the second and the done job's page have no flag and no Revert; drawing writes nothing
@@ -111,7 +111,7 @@ test("TST-1023101 a cancelled job's page flags the commits written after the can
 });
 
 // TST-1023102 · level: unit · module: MOD-main-page
-// guards: A CANCELLED JOB WRITES NOTHING MORE; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; UC-036 (6a)
+// guards: A CANCELLED JOB WRITES NOTHING MORE; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; UC-036
 // given: the cancelled job with two commits after the cancel; the branch stands at the newest of them
 // input: a click a script makes on Revert; the person's click on Revert with the dialog declined (its button Cancel); the person's click and the dialog's Revert the commits
 // expect: the script's click opens no dialog and the declined one writes nothing; the confirmed click writes exactly one commit on the job's branch (the ref moved once): a tree that gives src/kept.txt and src/gone.txt their text from before the cancel and deletes src/new.txt; the page names the new commit

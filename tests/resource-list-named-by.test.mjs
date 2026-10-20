@@ -27,7 +27,7 @@ const snapshotOf = (files) => {
 };
 
 // TST-1030001 · level: unit · module: MOD-resource-list
-// guards: UC-040 step 1a, 9a
+// guards: UC-040
 // given: job records whose inputs are "dlls@bbbb…" (JOB-1), "SPEC.md@abc" and "other@bbbb…" (JOB-2); tests/uses-dlls.test.mjs, whose text names dlls, and tests/uses-other.test.mjs, whose text names other
 // input: namedBy(snapshot, "dlls")
 // expect: { jobs: ["docs/jobs/JOB-1.md"], tests: ["tests/uses-dlls.test.mjs"] } and nothing else
@@ -38,7 +38,7 @@ test("namedBy — gives the job record whose inputs pin the resource and the tes
 });
 
 // TST-1030002 · level: unit · module: MOD-resource-list
-// guards: UC-040 step 1a, 9a
+// guards: UC-040
 // given: the snapshot of TST-1030001 and a record JOB-3 whose input is "dlls-extra@bbbb…"; a test whose text names only dlls-extra
 // input: namedBy(snapshot, "dlls")
 // expect: the record JOB-3 and the test about dlls-extra are not listed (counter-proof: a record that names another resource fails the test)
@@ -49,7 +49,7 @@ test("namedBy — a record or a test that names another resource, even one that 
 });
 
 // TST-1030003 · level: unit · module: MOD-resource-list
-// guards: UC-040 step 1a, 9a
+// guards: UC-040
 // given: a snapshot with no job record and no test that names "gone"
 // input: namedBy(snapshot, "gone")
 // expect: { jobs: [], tests: [] }
@@ -59,7 +59,7 @@ test("namedBy — a resource nothing names gives two empty lists", async () => {
 });
 
 // TST-1030004 · level: unit · module: MOD-resource-list
-// guards: UC-040 step 1a, 9a; A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT
+// guards: UC-040; A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT
 // given: a snapshot of one record and one test, whose reads are recorded and which has no write
 // input: namedBy(snapshot, "dlls")
 // expect: the snapshot's paths and commit are as before, and only paths of docs/jobs/ and tests/ were read

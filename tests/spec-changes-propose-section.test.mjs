@@ -92,7 +92,7 @@ const written = (commit) => Object.fromEntries(commit.files.map((file) => [file.
 const schemaText = readFileSync(new URL("../src/spec-changes/queue-rationale.schema.md", import.meta.url), "utf8");
 
 // TST-472983 · level: unit · module: MOD-spec-changes
-// guards: A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE; UC-018 5
+// guards: A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE; UC-018
 // given: queues of the day: 'mine' by alice, all open; 'mine-b' by alice with an entry in SPEC; 'bobs' by bob, open; a queue of another day by alice; and alice's 'mine' touched later by bob
 // input: openQueueOf for alice and for bob and for carol, on the day and on a day with none
 // expect: alice's newest queue of the day with no entry in SPEC — 'mine', since 'mine-b' has one —, bob's his own, carol none, the day with none none; the person is the author of the commit that created the index, not of a later one
@@ -110,7 +110,7 @@ test("openQueueOf — the person's newest queue of the day with no entry in SPEC
 });
 
 // TST-472984 · level: unit · module: MOD-spec-changes
-// guards: A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE; UC-018 5, 5a
+// guards: A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE; UC-018
 // given: a person with no open queue of the day
 // input: proposeSection of an edit of the section Reading
 // expect: one commit on the default branch at the head read, holding a new queue of the day — index.md, entscheidungen.md, the entry 01-reading.md with the section as edited, its rationale — and nothing else; the index's row for the entry; the SPEC untouched; the result names the commit, the queue, the entry 1 and no other entry it replaces
@@ -133,7 +133,7 @@ test("proposeSection — an edit of a section is one commit holding a new queue 
 });
 
 // TST-472985 · level: unit · module: MOD-spec-changes
-// guards: A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; A SPEC EDIT IS SAVED AS A PROPOSAL; UC-018 5
+// guards: A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; A SPEC EDIT IS SAVED AS A PROPOSAL; UC-018
 // given: the edit of A SAMPLE RULE, which UC-001 realises
 // input: proposeSection; then the written queue read back through queues and entryView
 // expect: the rationale in the schema queue-rationale without a finding: the title `# 1. Reading: …`, the change, the Why as given, the impact list naming A SAMPLE RULE changed and UC-001, the origin as given with the person; read back, the queue is found with the entry open and the section that holds now beside the proposal, the same impact
@@ -161,7 +161,7 @@ test("proposeSection — the rationale holds the change, the Why, the impact lis
 });
 
 // TST-472986 · level: unit · module: MOD-spec-changes
-// guards: A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE; UC-018 5
+// guards: A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE; UC-018
 // given: alice's open queue of the day, with an entry for Reading
 // input: proposeSection of an edit of the section Writing
 // expect: no new queue: the entry 02 and its rationale added to that queue, its index row appended to the index with every other byte of it as it was; the earlier entry's files untouched; the result names that queue and entry 2
@@ -180,7 +180,7 @@ test("proposeSection — an edit of another section is added to the person's ope
 });
 
 // TST-472987 · level: unit · module: MOD-spec-changes
-// guards: A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE; UC-018 6a
+// guards: A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE; UC-018
 // given: alice's open queue, whose entry 01 edits Reading, and a second edit of Reading
 // input: proposeSection
 // expect: the entry 01's proposal and rationale replaced in one commit; no second row in the index, which is not written again; no new entry; the result names entry 1
@@ -200,7 +200,7 @@ test("proposeSection — a second edit of a section replaces the entry of that q
 });
 
 // TST-472988 · level: unit · module: MOD-spec-changes
-// guards: A RENAMED REQUIREMENT IS WITHDRAWN AND ADDED; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; UC-018 5
+// guards: A RENAMED REQUIREMENT IS WITHDRAWN AND ADDED; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; UC-018
 // given: an edit that renames A SAMPLE RULE to A READING RULE
 // input: proposeSection; and the entry read back
 // expect: the rationale's impact list names A SAMPLE RULE withdrawn, with UC-001, and A READING RULE added; the entry read back lists the same two names, not one name changed
@@ -218,7 +218,7 @@ test("proposeSection — a rename is proposed as the old name withdrawn and the 
 });
 
 // TST-472989 · level: unit · module: MOD-spec-changes
-// guards: A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT; UC-018 3a
+// guards: A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT; UC-018
 // given: an edit opened on a blob that is no longer the section's; and, to show the call writing, the same edit on the section's blob
 // input: proposeSection
 // expect: the refusal `changed meanwhile` with the section's text as it is now, and no commit; the same edit on the right blob is written
@@ -232,7 +232,7 @@ test("proposeSection — a section that changed meanwhile is refused with its ne
 });
 
 // TST-472990 · level: unit · module: MOD-spec-changes
-// guards: AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; UC-019 9
+// guards: AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; UC-019
 // given: an edit with a job's provenance lines as trailers, and one of a person's own with none
 // input: proposeSection
 // expect: the message of the first ends, after a blank line, with the lines as given; the second's message holds none; the files hold none of them
@@ -248,7 +248,7 @@ test("proposeSection — the trailers end the commit's message, and a person's o
 });
 
 // TST-472991 · level: unit · module: MOD-spec-changes
-// guards: A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE; UC-018 5
+// guards: A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE; UC-018
 // given: other open entries that replace Reading: bob's in his queue; and none that replace Writing but one in SPEC that replaced Reading
 // input: proposeSection of an edit of Reading in alice's own queue
 // expect: alsoReplacing names bob's queue and entry; an entry in SPEC and an entry of another section are not named; bob's files are untouched
@@ -263,7 +263,7 @@ test("proposeSection — other open entries that replace the same section are na
 });
 
 // TST-472992 · level: unit · module: MOD-spec-changes
-// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL; UC-018 4a
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL; UC-018
 // given: a GitHub product and a host with no token (canWrite false)
 // input: proposeSection
 // expect: nothing written; the pages of GitHub's web interface for each file of the entry — the new-file page for each, as the queue is new —, each with its path in the address and its text beside it, never in it
@@ -283,7 +283,7 @@ test("proposeSection — without a token on GitHub it writes nothing and returns
 });
 
 // TST-472993 · level: unit · module: MOD-spec-changes
-// guards: A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; UC-018 4b
+// guards: A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; UC-018
 // given: a GitLab product and a host with no token
 // input: proposeSection
 // expect: TokenRequired, and nothing written; with a token the same edit is written
@@ -296,7 +296,7 @@ test("proposeSection — without a token on GitLab it fails with TokenRequired",
 });
 
 // TST-472994 · level: unit · module: MOD-spec-changes
-// guards: A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE; UC-018 5
+// guards: A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE; UC-018
 // given: three open queues of alice on the day: one with no letter, one with the letter b, one with the letter c, and an edit of a section none of them holds
 // input: openQueueOf; proposeSection
 // expect: the newest is the one with the latest letter — c; the edit is added to it as entry 2
@@ -311,7 +311,7 @@ test("openQueueOf — the newest of several open queues of the day is the one wi
 });
 
 // TST-611001 · level: unit · module: MOD-spec-changes
-// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018 4a
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018
 // given: a GitHub product, a host with no token, alice's open queue holding an entry for Reading, and a second edit of Reading, which replaces that entry's proposal and rationale; the proposal did not exist on the default branch at OPENED
 // input: proposeSection
 // expect: two pages in the order proposal, rationale; the proposal's page is GitHub's new-file page and differs is true — it exists now, and did not when the edit began; the rationale's page is GitHub's editor and differs is false
@@ -327,7 +327,7 @@ test("proposeSection — without a token a file that appeared on the default bra
 });
 
 // TST-611002 · level: unit · module: MOD-spec-changes
-// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018 4a
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018
 // given: a GitHub product, a host with no token and no queue of the person; at OPENED the repository held the index of the queue the edit now starts, which the default branch no longer holds
 // input: proposeSection
 // expect: four pages; the index's is GitHub's editor, since the file existed when the edit began, and differs is true; the other three are new-file pages and differs is false
@@ -341,7 +341,7 @@ test("proposeSection — without a token a file that disappeared from the defaul
 });
 
 // TST-611003 · level: unit · module: MOD-spec-changes
-// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018 4a
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018
 // given: the same edit saved by a host with no token and by one with a token
 // input: proposeSection
 // expect: the refs the host was asked to read are ["main", OPENED] without a token and ["main"] with one: the repository at OPENED is read only to build GitHub's pages
@@ -355,7 +355,7 @@ test("proposeSection — the repository at the commit the edit was opened on is 
 });
 
 // TST-611013 · level: unit · module: MOD-spec-changes
-// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018 4a
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018
 // given: the setting of TST-611001 (a second edit of Reading, whose proposal OPENED lacked), but the edit was opened on the commit of the snapshot the save reads, "h" repeated forty times
 // input: proposeSection without a token
 // expect: only "main" is read; the files are taken as that snapshot holds them, so both pages are GitHub's editor and differs is false for both, though OPENED lacked the proposal
@@ -370,7 +370,7 @@ test("proposeSection — an edit opened on the commit the save already read read
 });
 
 // TST-611014 · level: unit · module: MOD-spec-changes
-// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018 4a
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018
 // given: the setting of TST-611001, but the edit was opened on no commit (null, an empty repository)
 // input: proposeSection without a token
 // expect: only "main" is read; no file existed when the edit began, so both pages are GitHub's new-file pages and differs is true for both, since both exist now
@@ -385,7 +385,7 @@ test("proposeSection — an edit opened on no commit holds no file and reads no 
 });
 
 // TST-593001 · level: unit · module: MOD-spec-changes
-// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018 6b
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018
 // given: a GitHub product and a host whose token may write as far as repositoryInfo knows (canWrite true), but whose server refuses the commit with PermissionMissing; and the same product with a host with no token
 // input: proposeSection of the same edit to each
 // expect: the refused one writes nothing and returns the pages GitHub's web interface offers for each file of the entry, the same as the one with no token returns (paths, addresses, texts, differs)
@@ -399,7 +399,7 @@ test("proposeSection — when GitHub refuses the commit for a missing write perm
 });
 
 // TST-593002 · level: unit · module: MOD-spec-changes
-// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; UC-018 6b
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; UC-018
 // given: a GitLab product whose server refuses the commit with PermissionMissing, which has no fallback; and a GitHub product whose server refuses it with TokenRefused
 // input: proposeSection of the edit to each
 // expect: the GitLab one throws PermissionMissing; the GitHub one throws TokenRefused — only a missing write permission is answered with the pages —; nothing is written by either

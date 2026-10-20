@@ -82,7 +82,7 @@ function world(person) {
 const drawJob = async (context) => draw(job, context, { id: ID });
 
 // TST-801001 · level: unit · module: MOD-main-page
-// guards: A JOB STOPS AT EVERY GATE; UC-034 (step 7)
+// guards: A JOB STOPS AT EVERY GATE; UC-034
 // given: the job waiting at the gate Review → Done of the kanban model (condition: the review has checked the item; artifacts: the item's MOD and TST; decider: Reviewer); the person carol, a holder of Reviewer, whom the product's token names
 // input: the route job drawn
 // expect: the gate part names the gate and the decider; the page shows what the gate checks and what to examine, from the workflow; Pass gate and Reject are offered and enabled; nothing is written before a click
@@ -102,7 +102,7 @@ test("TST-801001 a holder of the deciding role is shown the gate — what it che
 });
 
 // TST-801002 · level: unit · module: MOD-main-page
-// guards: THE GATE IS RECORDED; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-034 (step 7)
+// guards: THE GATE IS RECORDED; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-034
 // given: the world of TST-801001
 // input: a click a script makes on Pass gate; the person's click on Pass gate with the dialog declined; then the person's click and the dialog's Pass the gate
 // expect: the first two write nothing; the third writes one commit whose message is "gates: Review → Done passed by carol" and whose tree holds one new file under docs/gates/ naming the gate, the job, the decider carol, the role Reviewer, the decision passed and the job's input `docs/backlog/ITM-0900-work.md@<blob>` among its `on`; the page says the gate was passed by carol
@@ -130,7 +130,7 @@ test("TST-801002 a holder passes the gate with one click, and the record names t
 });
 
 // TST-801003 · level: unit · module: MOD-main-page
-// guards: A GATE IS NOT DECIDED BY THE PARTICIPANT WHOSE WORK IT CHECKS; A GATE IS DECIDED WITHIN THE JOB'S ROLE ASSIGNMENT; UC-034 (7a)
+// guards: A GATE IS NOT DECIDED BY THE PARTICIPANT WHOSE WORK IT CHECKS; A GATE IS DECIDED WITHIN THE JOB'S ROLE ASSIGNMENT; UC-034
 // given: the world of TST-801001, but the token names dev-cli, who did the job's work and holds Developer; and then dave, who holds no role
 // input: the route job drawn for each; the person's click on the disabled Pass gate
 // expect: Pass gate and Reject are disabled, and the page names the role Reviewer and its holders (carol) and the reason — for dev-cli "did the work this gate checks", for dave "not a holder of the deciding role"; a click writes nothing (counter-proof: the implementer's own Pass gate fails when enabled)
@@ -151,7 +151,7 @@ test("TST-801003 the implementer's own Pass gate, and a non-holder's, are unavai
 });
 
 // TST-801004 · level: unit · module: MOD-main-page
-// guards: THE GATE IS RECORDED; ONE CLICK PER DECISION; UC-034 (step 7)
+// guards: THE GATE IS RECORDED; ONE CLICK PER DECISION; UC-034
 // given: the world of TST-801001
 // input: the person's click on Reject, confirmed with the reason left empty; then the same with the reason "the review found no test"
 // expect: the first writes nothing and the page says the rejection needs its reason; the second writes one record with the decision rejected, whose text holds the reason

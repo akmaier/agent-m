@@ -90,7 +90,7 @@ test("TST-398011: OpenAI ordinary DriverInput reaches the transport exactly once
 // TST-398012
 // level: unit
 // module: MOD-endpoint-calls
-// guards: UC-019 step 8; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
+// guards: UC-019; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
 // given: the same OpenAI driver after its known-positive ordinary exchange
 // input: send DriverInput with the current draft in previous and no findings
 // expect: the second request carries the entire current draft exactly once without duplicating prompt parts
@@ -126,7 +126,7 @@ test("TST-398014: Anthropic ordinary DriverInput reaches the transport exactly o
 // TST-398015
 // level: unit
 // module: MOD-endpoint-calls
-// guards: UC-019 step 8; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
+// guards: UC-019; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
 // given: the same Anthropic driver after its known-positive ordinary exchange
 // input: send DriverInput with the current draft in previous and no findings
 // expect: the second request carries the entire current draft exactly once without duplicating prompt parts

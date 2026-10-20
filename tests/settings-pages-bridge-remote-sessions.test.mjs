@@ -40,7 +40,7 @@ async function renderBridge(store) { const target = document.createElement("div"
 // TST-287001
 // level: unit
 // module: MOD-settings-pages
-// guards: UC-011; UC-042; UC-044; EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE; THE DASHBOARD WRITES THE TUNNEL COMMANDS; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS; A REVERSE TUNNEL LISTENS ONLY ON THE JUMP HOST'S LOOPBACK; A STORED SECRET IS HIDDEN UNTIL SHOWN.
+// guards: UC-011; UC-042; UC-044; EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE; THE DASHBOARD WRITES THE TUNNEL COMMANDS; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS; A REVERSE TUNNEL LISTENS ONLY ON THE JUMP HOST'S LOOPBACK; A STORED SECRET IS HIDDEN UNTIL SHOWN
 // given: canonical jump-host storage has 40100–40102 and its first remote session occupies 40100.
 // input: the public Bridge route saves the named second session with its copied token, copies its written commands, and is reopened.
 // expect: it stores remote-session:lab-pc at lowest free port 40101, reloads its hidden token, copies the public reverse,
@@ -86,7 +86,7 @@ test("TST-287001: the public Bridge route persists a distinct remote session and
 // TST-287002
 // level: unit
 // module: MOD-settings-pages
-// guards: UC-011; UC-042; UC-044; EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE; THE DASHBOARD WRITES THE TUNNEL COMMANDS; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS.
+// guards: UC-011; UC-042; UC-044; EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE; THE DASHBOARD WRITES THE TUNNEL COMMANDS; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
 // given: a canonical one-port jump-host range already belongs to an existing session, then no jump host at all.
 // input: the public Bridge route is asked to save another named remote session in each state.
 // expect: exhaustion and missing setup are named, no remote-session record is written, and neither state claims a tunnel or tested HTTPS connection.

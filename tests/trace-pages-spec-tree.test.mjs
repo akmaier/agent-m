@@ -69,7 +69,7 @@ const titleOf = (group) => find(group, (node) => node.localName === "button" && 
 const spanOf = (group, name) => find(group, (node) => node.localName === "span" && hasClass(node, name))[0].textContent;
 
 // TST-595001 · level: component · module: MOD-trace-pages
-// guards: UC-020 (step 3); AN UNGROUPED ITEM IS SHOWN AT THE TOP LEVEL
+// guards: UC-020; AN UNGROUPED ITEM IS SHOWN AT THE TOP LEVEL
 // given: the fixture on the default branch main: DELTA RULE named by no group, EPSILON RULE added by the open entry and named by no group, ZETA RULE added by it and named by a group, GHOST RULE named by a group but by no requirement
 // input: the public trace/specification route rendered at the ref main
 // expect: each requirement once, with its status, in the order of the tree: the top level first (DELTA RULE in SPEC, EPSILON RULE proposed), then Lending rules (ALPHA RULE
@@ -86,7 +86,7 @@ test("every requirement appears once in the tree of the group file, with its sta
 });
 
 // TST-595002 · level: component · module: MOD-trace-pages
-// guards: UC-020 (step 3)
+// guards: UC-020
 // given: the fixture on main; UC-001 realises ALPHA RULE, UC-002 realises GAMMA RULE, none realises BETA RULE, DELTA RULE or the added EPSILON RULE
 // input: the route rendered at main
 // expect: the groups in the order of the file, the group below another inside it; Lending rules holds 3 requirements (those of Loans too), 2 that no use case realises (BETA RULE, and ZETA RULE,
@@ -105,7 +105,7 @@ test("each group shows how many requirements it holds and how many of them no us
 });
 
 // TST-595003 · level: component · module: MOD-trace-pages
-// guards: UC-020 (step 3); AN UNGROUPED ITEM IS SHOWN AT THE TOP LEVEL
+// guards: UC-020; AN UNGROUPED ITEM IS SHOWN AT THE TOP LEVEL
 // given: the fixture on main
 // input: the route rendered at main
 // expect: DELTA RULE (named by no group) and EPSILON RULE (added by the open entry) stand in a table of the page itself, in no group; the other rows stand in groups
@@ -118,7 +118,7 @@ test("a requirement no group names, and a proposed one, stand at the top level",
 });
 
 // TST-595004 · level: component · module: MOD-trace-pages
-// guards: UC-020 (step 3); AN UNGROUPED ITEM IS SHOWN AT THE TOP LEVEL
+// guards: UC-020; AN UNGROUPED ITEM IS SHOWN AT THE TOP LEVEL
 // given: the fixture, whose group Membership rules names GHOST RULE, which no requirement has; known positive: it names GAMMA RULE too, which has one
 // input: the route rendered at main
 // expect: GHOST RULE is a row of the class requirement-unknown, with no control that opens it, in Membership rules; GAMMA RULE is a row that opens
@@ -132,7 +132,7 @@ test("a member that names no requirement is shown as unknown", async () => {
 });
 
 // TST-595005 · level: component · module: MOD-trace-pages
-// guards: UC-020 (steps 1a, 3)
+// guards: UC-020
 // given: the fixture on main, and the same files at the tag v2026.1.0; known positive: at main ALPHA RULE reads change proposed
 // input: the route rendered at the ref v2026.1.0
 // expect: the tree of the tag's group file with every SPEC requirement "in SPEC", no EPSILON RULE, ZETA RULE an unknown member, the counts of the groups as without the entry
@@ -152,7 +152,7 @@ test("at a released version every requirement reads in SPEC and the tree is the 
 });
 
 // TST-595006 · level: component · module: MOD-trace-pages
-// guards: UC-020 (step 3)
+// guards: UC-020
 // given: the fixture on main
 // input: the control of Lending rules clicked; then the control of Loans inside it; then Lending rules again
 // expect: every group starts closed; Lending rules opens its own list and the group below it, and leaves Membership rules closed; Loans opens on its own; closing Lending rules closes what is in it
@@ -172,7 +172,7 @@ test("a group opens and closes with its control and leaves the other groups as t
 });
 
 // TST-595007 · level: component · module: MOD-trace-pages
-// guards: UC-020 (step 3)
+// guards: UC-020
 // given: the fixture on main, in which every read of UC-001's file fails as an unreachable server does; known positive: the same page with the file readable counts 1 for Loans
 // input: the route rendered at main
 // expect: the groups still show how many they hold (the impact list of the entry reads the same file and fails too, so ZETA RULE is unknown and not counted), and where the unrealised count would stand they read "whether a use case realises them could not be read"
@@ -185,7 +185,7 @@ test("a trace graph that cannot be read leaves the counts of held requirements a
 });
 
 // TST-595008 · level: component · module: MOD-trace-pages
-// guards: UC-020 (step 3); AN UNGROUPED ITEM IS SHOWN AT THE TOP LEVEL
+// guards: UC-020; AN UNGROUPED ITEM IS SHOWN AT THE TOP LEVEL
 // given: the fixture without a group file; known positive: with it, Lending rules exists
 // input: the route rendered at main
 // expect: no group, and every requirement of the SPEC at the top level in the order of the SPEC, EPSILON RULE and ZETA RULE after them
@@ -200,7 +200,7 @@ test("without a group file every requirement stands at the top level", async () 
 });
 
 // TST-595009 · level: component · module: MOD-trace-pages
-// guards: UC-020 (step 3)
+// guards: UC-020
 // given: the fixture with a second queue, newer than the first (2026-10-10), whose open entry proposes the section "## Lending" with BETA RULE alone, so that it withdraws ALPHA RULE, which the older queue's entry changes
 // input: the route rendered at main
 // expect: ALPHA RULE reads "removal proposed", the status the first entry that names it gives (the queues are taken newest first, as MOD-spec-changes gives them), and not "change proposed"; known positive:

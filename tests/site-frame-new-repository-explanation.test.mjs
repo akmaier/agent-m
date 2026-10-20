@@ -27,7 +27,7 @@ const topicText = (topic) => EXPLANATIONS.split(/^## /m).slice(1).find((part) =>
 const bodyText = (topic) => (explain(topic).children[1]?.textContent ?? "").replace(/\s+/g, " ");
 
 // TST-575005 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-001 2a
+// guards: EVERY STEP EXPLAINS ITSELF; UC-001
 // given: explanations.md; known positive — the topic repository, which the file holds
 // input: explain("new-repository")
 // expect: the file holds the heading `## new-repository` exactly once; explain gives a <details class="explain"> without the open attribute, holding <summary>What is this?</summary> and then the topic's Markdown rendered, in which no asterisk or backtick of the Markdown shows
@@ -48,7 +48,7 @@ test("explain — new-repository is a folded What is this? with its text", () =>
 });
 
 // TST-575006 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-001 2a (the choices there)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-001
 // given: the topic new-repository
 // input: explain("new-repository")
 // expect: known positive — the topic repository says "folder on GitHub". The text of new-repository names the choices of the server's page: the owner of the repository, the name it is given, its visibility as Public and Private, the starter files README and .gitignore and a licence, and a GitLab server's page for a new project
@@ -67,7 +67,7 @@ test("explain — new-repository: the choices on the server's page for a new rep
 });
 
 // TST-575007 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-001 2a (the sprint's reading: a private repository where the product holds what it should not publish)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-001
 // given: the topic new-repository
 // input: explain("new-repository")
 // expect: known positive — the topic review-layout-commit says "only whatever of this is missing". The text of new-repository names a private repository as the place for a product that holds what it should not publish, and says that what a public repository holds is published

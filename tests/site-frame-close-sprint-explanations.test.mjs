@@ -54,7 +54,7 @@ test("explain — each topic of closing a sprint is a folded What is this? with 
 });
 
 // TST-988002 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; A SPRINT ENDS WITH A REVIEW OF ITS INCREMENT; UC-041 (step 2 and 2a)
+// guards: EVERY STEP EXPLAINS ITSELF; A SPRINT ENDS WITH A REVIEW OF ITS INCREMENT; UC-041
 // given: the topic sprint-increment
 // input: explain("sprint-increment")
 // expect: text saying the increment is the set of done items, that an item is done when it is merged and its Definition of Done is met and is shown with its pull request, the requirements it realises and the tests that guard them, that an item that does not meet the Definition of Done is not part of the increment, however close it is, that it is shown among the items not done with its state and the reason, and that with no item done the increment is empty and the review says so
@@ -70,7 +70,7 @@ test("explain — sprint-increment: an item that does not meet the Definition of
 });
 
 // TST-988003 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM; UC-041 (step 3, 3a and 1a)
+// guards: EVERY STEP EXPLAINS ITSELF; AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM; UC-041
 // given: the topic sprint-feedback
 // input: explain("sprint-feedback")
 // expect: text saying feedback is entered as one line per point, each either new backlog item, change to an existing item, or noted, that a new backlog item and a change are written to the backlog when the sprint is closed, that the review says when no stakeholder took part, and that an agent's review names where its feedback came from
@@ -85,7 +85,7 @@ test("explain — sprint-feedback: one line per point, and what each kind become
 });
 
 // TST-988004 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; UC-041 (step 4 and 6)
+// guards: EVERY STEP EXPLAINS ITSELF; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; UC-041
 // given: the topic sprint-unfinished-items
 // input: explain("sprint-unfinished-items")
 // expect: text saying an unfinished item is a selected item that is not done, that for each the Product Owner chooses back to the backlog or into the next sprint, that an item that goes back to the backlog is no longer held by the sprint, and that the done items stay held until the sprint's increment is merged into the default branch
@@ -99,7 +99,7 @@ test("explain — sprint-unfinished-items: back to the backlog or into the next 
 });
 
 // TST-988005 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; A SPRINT ENDS WITH A RETROSPECTIVE; AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF; UC-041 (step 5, 6a and 1a)
+// guards: EVERY STEP EXPLAINS ITSELF; A SPRINT ENDS WITH A RETROSPECTIVE; AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF; UC-041
 // given: the topic sprint-retrospective
 // input: explain("sprint-retrospective")
 // expect: text saying the team writes what went well, what did not and what it will change; that each change names where it goes — the process model (UC-031), the product's Definition of Done (UC-002), a participant's instructions or configuration (UC-017), or team agreement only; that the numbers of the sprint are offered as material, derived and not typed: jobs failed or retried, time items waited for a person, flaky tests, and cost where it is known; that Close sprint stays disabled until the retrospective has at least one entry; and that a change an agent's retrospective recommends is proposed for a person to accept and not applied by the agent
@@ -115,7 +115,7 @@ test("explain — sprint-retrospective: what is written, where a change goes, an
 });
 
 // TST-988006 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF (no existing topic changes)
+// guards: EVERY STEP EXPLAINS ITSELF
 // given: explanations.md, and the topics definition-of-done and branch-of-its-own as they stood before ITM-988
 // input: the SHA-256 of each topic's Markdown
 // expect: each equals the digest of the text as it stood: the new topics change neither of the two they sit beside

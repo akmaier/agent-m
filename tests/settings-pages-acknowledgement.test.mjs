@@ -94,7 +94,7 @@ const shownWithin = (row, control) => {
 };
 
 // TST-472729 · level: component · module: MOD-settings-pages
-// guards: UC-042 step 2; THE SHARED PAGES ORIGIN IS DISCLOSED; A FORM OPENS WITH ITS FIRST FIELD FOCUSED
+// guards: UC-042; THE SHARED PAGES ORIGIN IS DISCLOSED; A FORM OPENS WITH ITS FIRST FIELD FOCUSED
 // given: the public Settings page with a stored token and no shared-origin acknowledgement in this browser.
 // input: the person looks at the token's line, then presses Change.
 // expect: before Change the line shows neither the shared-origin notice nor I have read this, nor Save: nothing the person cannot use yet. Change shows the notice, I have read this — enabled, focused, and ticked by the person's click — and Save, in place.

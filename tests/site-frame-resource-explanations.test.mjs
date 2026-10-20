@@ -61,7 +61,7 @@ test("the topic resource-licence links UC-004 and UC-015, tells the PEAKS exampl
 });
 
 // TST-1125001 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-040 step 7
+// guards: EVERY STEP EXPLAINS ITSELF; UC-040
 // given: the topic `resource-check`, the folded explanation of Check on a resource (the page makes a check through the Bridge a resource's route names: one harmless request, shown, nothing written)
 // input: read its section
 // expect: it keeps the sentence that a check makes one harmless request, and says of a resource reached through a Bridge that the page asks that Bridge, which lists a cluster's partitions, the models an endpoint serves or gets an answer from an agent, and that the page shows the answer; it does not say that the page does not make that request

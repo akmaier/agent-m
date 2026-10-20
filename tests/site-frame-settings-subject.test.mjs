@@ -92,7 +92,7 @@ async function sends(page, text) {
 }
 
 // TST-511201 · level: unit · module: MOD-site-frame · MOD-settings-pages
-// guards: A STORED SECRET IS HIDDEN UNTIL SHOWN; UC-049 (3c); UC-042 (step 3)
+// guards: A STORED SECRET IS HIDDEN UNTIL SHOWN; UC-049; UC-042
 // given: the review page at #settings (the real Settings route, which gives no subject of its own), in a browser that stores the instance's token
 //   github_pat_SECRET_TOKEN_VALUE_0123456789 and an instance without a switch file
 // input: the person opens the tab Repositories; Send "what is stored?"; the person presses Show on the token's line; Send "and now?"
@@ -120,7 +120,7 @@ test("the Settings routes keep the frame's default subject: the settings and the
 });
 
 // TST-511202 · level: unit · module: MOD-site-frame · MOD-settings-pages
-// guards: EVERY STEP EXPLAINS ITSELF; UC-042 (every section and line carries a folded What is this?)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-042
 // given: the review page at #settings (the real Settings route), an instance without a switch file, and explanations.md (the data under test, read only to find the topic)
 // input: the Settings page is drawn
 // expect: the line Recording conversations holds one folded explanation — a details of class explain, without the open attribute, with the summary "What is this?" — whose body is

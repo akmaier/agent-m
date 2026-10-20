@@ -129,7 +129,7 @@ function listed(target) {
 }
 
 // TST-592001 · level: unit · module: MOD-review-pages
-// guards: UC-018 (step 4a); WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL
+// guards: UC-018; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL
 // given: a GitHub product whose host cannot write (no token), whose default branch holds no queue of the person; the editor with the rule of A LOAN HAS A DUE DATE edited and a Why
 // input: a click on Save
 // expect: nothing committed; four pages — the queue's index, its decisions file, the entry's proposal and its rationale —, each with exactly one text beside its link; the proposal's text is
@@ -154,7 +154,7 @@ test("requirement/<name> — without a token each of GitHub's pages carries its 
 });
 
 // TST-592002 · level: unit · module: MOD-review-pages
-// guards: UC-018 (step 4a); WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
+// guards: UC-018; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
 // given: the product of TST-592001, whose default branch gains the queue's index between two readings of one snapshot — the file the edit began without
 // input: a click on Save
 // expect: the page of the index carries the warning that the file differs on the default branch, beside its text; no other page carries a warning, and each other page still carries its text
@@ -178,7 +178,7 @@ test("requirement/<name> — without a token a file that already differs is warn
 });
 
 // TST-611006 · level: unit · module: MOD-review-pages
-// guards: UC-018 (step 4a); WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
+// guards: UC-018; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
 // given: the product of TST-592001, whose default branch has moved to another commit since the editor was opened, and whose repository at the commit it was opened on held the index of the queue the edit starts, which the default branch no longer holds
 // input: a click on Save
 // expect: the page of the index carries one warning that the file differs on the default branch, beside its text; no other page carries a warning

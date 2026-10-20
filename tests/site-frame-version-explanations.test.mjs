@@ -44,7 +44,7 @@ test("explain — source-new-version and source-move are folded What is this? wi
 });
 
 // TST-591402 · level: unit · module: MOD-site-frame
-// guards: UC-016 (steps 1, 2 and 1a); A SOURCE VERSION IS NEVER OVERWRITTEN
+// guards: UC-016; A SOURCE VERSION IS NEVER OVERWRITTEN
 // given: the topic source-new-version
 // input: explain("source-new-version")
 // expect: text saying a new version is a newer edition or revision of a source already in the library; that it is added beside the old versions, which are never overwritten; that saving commits it to the instance repository under the person's own account; that files with exactly the same bytes as an existing version are refused and nothing is recorded; and that products stay on the version they link until the person moves them
@@ -61,7 +61,7 @@ test("explain — source-new-version: what a new version is, that none is overwr
 });
 
 // TST-915001 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-016 (step 1)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-016
 // given: the topic source-new-version
 // input: explain("source-new-version")
 // expect: text saying what a new version records for each kind of source — for documents and standards their files, each with its SHA-256; for a repository no file, the commit the repository stands at when the person saves, with no file of the repository stored; for an EU legal text that was fetched before no file either, the fetch run that + New version starts recording the newer text as a further version
@@ -77,7 +77,7 @@ test("explain — source-new-version: what a new version records for each kind o
 });
 
 // TST-915002 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; A SOURCE VERSION IS NEVER OVERWRITTEN; UC-016 (steps 1 and 2, 1a)
+// guards: EVERY STEP EXPLAINS ITSELF; A SOURCE VERSION IS NEVER OVERWRITTEN; UC-016
 // given: the topic source-new-version, and the route of a repository source: its new version records the commit read and no file, and a commit that an existing version records is refused (UC-016 1a)
 // input: explain("source-new-version"), and for the counter-proof the sentence the topic held before — "Choose + New version, give the version a name that tells it apart, such as the edition or its date, and select its files;"
 // expect: the topic does not tell the person, for every kind of source, to select the version's files — the old sentence is found by the same check, the topic is not — and it says that a commit an existing version already records is refused with nothing recorded
@@ -90,7 +90,7 @@ test("explain — source-new-version: does not tell a repository's new version t
 });
 
 // TST-591403 · level: unit · module: MOD-site-frame
-// guards: UC-016 (steps 4 and 5, 4a)
+// guards: UC-016
 // given: the topic source-move
 // input: explain("source-move")
 // expect: text saying moving changes which version of the source the product links; that the requirements naming the source and the passages that changed are shown first; that Move writes one commit to docs/sources.md of the product's repository under the person's own account and nothing else; and that without pressing Move the product stays on its version

@@ -48,7 +48,7 @@ const contextOf = (params, files = FILES) => ({ kind: null, params,
   gates: [], person: "alice", now: new Date("2026-10-17T08:00:00Z"), agentM: { version: "unreleased", commit: "a".repeat(40) }, jobId: null });
 
 // TST-752101 · level: unit · module: MOD-result-records
-// guards: TEST GENERATION SEES THE EXISTING TESTS; UC-026 (3)
+// guards: TEST GENERATION SEES THE EXISTING TESTS; UC-026
 // given: a product with two requirements, a test file of two tests guarding the first and a test file of one test guarding the second
 // input: the recipe test-selection with the parameter requirements = the first requirement
 // expect: one part; its text holds the first requirement's name and rule, the declaration lines and code of both tests that guard it, and nothing of the second requirement or of the test that guards it — whose requirement, declaration and code the same product holds
@@ -71,7 +71,7 @@ test("test-selection gives the selected requirement and the two tests that guard
 });
 
 // TST-752102 · level: unit · module: MOD-result-records
-// guards: COMMIT TESTS CALL NO PAID SERVICE; UC-026 (3)
+// guards: COMMIT TESTS CALL NO PAID SERVICE; UC-026
 // given: a product whose list holds an endpoint marked paid, a data source marked free and a repository
 // input: the recipe test-selection with any selected requirement
 // expect: the text marks the endpoint `translator` paid and the data source `open-data` free, each on a line of its own with its kind and address, and names the repository `tools` nowhere

@@ -105,7 +105,7 @@ const TOPICS = {
 };
 
 // TST-643101 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-042 (every line and section of the Settings page has its folded What is this?)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-042
 // given: explanations.md, and the sixteen topics the Settings page names; known positive — the topic endpoint-test, which the file held before
 // input: explain(<topic>) for each of the sixteen
 // expect: for each, the file holds the topic, and the element is a folded What is this? — a <details class="explain"> without the open attribute, holding <summary>What is this?</summary> and then one body with the topic's text; the known positive gives the same shape
@@ -153,7 +153,7 @@ test("explain — settings-job-workflow shows the secret's name as code", () => 
 });
 
 // TST-643104 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF (a topic the file does not hold shows nothing, and the page goes on)
+// guards: EVERY STEP EXPLAINS ITSELF
 // given: known positive — explain("settings-notifications") is a folded What is this? with a text —; a topic the file does not hold, settings-notifications-nothing
 // input: explain("settings-notifications-nothing")
 // expect: no exception; an element without any child, where explain("settings-notifications") has two

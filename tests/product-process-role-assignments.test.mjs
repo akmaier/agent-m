@@ -280,7 +280,7 @@ test("roleAssignmentFindings — a role the process does not have, or anything b
 });
 
 // TST-472435 · level: unit · module: MOD-product-process
-// guards: UC-048 3d; A ROLE NAMES HOW MANY FILL IT
+// guards: UC-048; A ROLE NAMES HOW MANY FILL IT
 // given: known positive first — team1, whose Developers, which several may fill, are dev-a and dev-b; then team1 with its Product Owner, whom one participant fills, given alice and bob
 // input: roleAssignmentFindings of each, alone
 // expect: no finding for the first; for the second, one error on the row of Product Owner (line 7), naming A ROLE NAMES HOW MANY FILL IT; its text names the role
@@ -303,7 +303,7 @@ test("roleAssignmentFindings — a name the instance's list does not hold is an 
 });
 
 // TST-472437 · level: unit · module: MOD-product-process
-// guards: UC-048 3a; A PROCESS MODEL ORGANISES PEOPLE AND AGENTS
+// guards: UC-048; A PROCESS MODEL ORGANISES PEOPLE AND AGENTS
 // given: team1 with its Product Owner, whom team-scrum fills by a person, (a) held by dev-a, a CLI agent; (b) without a row
 // input: roleAssignmentFindings of each, alone
 // expect: (a) one error on the row of Product Owner (line 7); (b) one error on the heading ## Roles (line 3); each naming A PROCESS MODEL ORGANISES PEOPLE AND AGENTS, its text naming the role

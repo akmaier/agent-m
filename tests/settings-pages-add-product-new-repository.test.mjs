@@ -64,7 +64,7 @@ const GH_WEB = "https://github.com/alice/thesis-tool";
 const GL_WEB = "https://gitlab.rrze.fau.de/fau-ai-taskforce/tools/thesis-tool";
 
 // TST-575001 · level: unit · module: MOD-settings-pages
-// guards: UC-001 2a (Check); EVERY STEP EXPLAINS ITSELF
+// guards: UC-001; EVERY STEP EXPLAINS ITSELF
 // given: a fresh store and a GitHub address whose repository the server answers 404 for
 // input: Check
 // expect: known positive — explain("new-repository") is a folded details of class explain. The notice that names the repository as not found holds, in its own element, the link to https://github.com/new and then exactly one folded explanation as its own child, whose text is the text of explain("new-repository"); no other folded explanation stands in the notice
@@ -87,7 +87,7 @@ test("add-product — 2a: the notice of Check on a 404 carries explain('new-repo
 });
 
 // TST-575002 · level: unit · module: MOD-settings-pages
-// guards: UC-001 2a (Add product); EVERY STEP EXPLAINS ITSELF
+// guards: UC-001; EVERY STEP EXPLAINS ITSELF
 // given: a GitHub product's own token stored, and an address whose repository the server answers 404 for
 // input: Add product
 // expect: known positive — the topic new-repository gives a folded details. The notice in Step C that names the repository as not found holds the link to https://github.com/new and, after it, one folded explanation with the text of explain("new-repository"); no other folded explanation stands in that notice
@@ -108,7 +108,7 @@ test("add-product — 2a: the notice of Add product on a 404 carries explain('ne
 });
 
 // TST-575003 · level: unit · module: MOD-settings-pages
-// guards: UC-001 2a (a GitLab server); EVERY STEP EXPLAINS ITSELF
+// guards: UC-001; EVERY STEP EXPLAINS ITSELF
 // given: a project token stored for a GitLab project address (the page then offers Check in Step B, "Give the key to Agent M"), whose project the server answers 404 for
 // input: Check
 // expect: known positive — the topic new-repository gives a folded details. The notice names the project as not found, links https://gitlab.rrze.fau.de/projects/new, and holds after that link one folded explanation with the text of explain("new-repository")
@@ -128,7 +128,7 @@ test("add-product — 2a: the notice of Check on a GitLab 404 links the server's
 });
 
 // TST-575004 · level: unit · module: MOD-settings-pages
-// guards: UC-001 4a (the check fails otherwise); EVERY STEP EXPLAINS ITSELF
+// guards: UC-001; EVERY STEP EXPLAINS ITSELF
 // given: a fresh store and a GitHub address; the server answers 401 once, then 200 for a private repository the key can write to
 // input: Check, and Check again
 // expect: known positive — the topic new-repository gives a folded details. After the 401, Step B's last result begins with ✗, does not say "was not found" and holds no folded explanation; after the 200, its last result says "is reachable" and holds none either

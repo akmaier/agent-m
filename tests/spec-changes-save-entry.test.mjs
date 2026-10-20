@@ -102,7 +102,7 @@ const EDIT = (queue, more = {}) => ({ queue, entry: 1, text: READING_RENAMED, wh
 const proposalPath = (queue) => `${queue}/01-reading.md`;
 
 // TST-473025 · level: unit · module: MOD-spec-changes
-// guards: A SPEC EDIT IS SAVED AS A PROPOSAL; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; UC-006 3a; UC-018 1a
+// guards: A SPEC EDIT IS SAVED AS A PROPOSAL; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; UC-006; UC-018
 // given: alice's open queue with an entry for Reading whose first edit changed A SAMPLE RULE, and a second edit that renames it to A READING RULE
 // input: saveEntry
 // expect: one commit on the default branch at the head read, holding the entry's proposal (the new text) and its rationale and nothing else — no index, no other queue, not the SPEC; the result names the commit; the rationale is in the schema queue-rationale without a finding, its Why the new one, its impact list computed anew (A SAMPLE RULE withdrawn with UC-001, A READING RULE added), its Origin as it was; read back, the queue is still the one queue, the entry open with the new proposal
@@ -135,7 +135,7 @@ test("saveEntry — an open entry is saved in place in one commit, with its impa
 });
 
 // TST-473026 · level: unit · module: MOD-spec-changes
-// guards: A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT; UC-018 3a
+// guards: A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT; UC-018
 // given: an entry whose proposal changed after it was opened (the blob it was opened on is not the proposal's now); and, to show the call writing, the same edit on the right blob
 // input: saveEntry
 // expect: `changed meanwhile` with the proposal's text as it is now, and no commit; the same edit on the right blob is written
@@ -149,7 +149,7 @@ test("saveEntry — a proposal that changed meanwhile is refused with its newer 
 });
 
 // TST-473027 · level: unit · module: MOD-spec-changes
-// guards: A SPEC EDIT IS SAVED AS A PROPOSAL; UC-018 1a
+// guards: A SPEC EDIT IS SAVED AS A PROPOSAL; UC-018
 // given: an entry that was accepted (a decision of the queue's entscheidungen.md says so), and an entry number the queue does not hold
 // input: saveEntry
 // expect: `not open` naming the state in SPEC, with no commit, even on the proposal's blob; a RangeError for the missing entry, with no commit
@@ -165,7 +165,7 @@ test("saveEntry — an entry that is no longer open is refused naming its state"
 });
 
 // TST-473028 · level: unit · module: MOD-spec-changes
-// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL; UC-018 4a
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL; UC-018
 // given: a GitHub product and a host with no token
 // input: saveEntry
 // expect: nothing written; GitHub's editor page for the proposal and for the rationale — both exist —, each with its path in the address and its text beside it, never in it
@@ -184,7 +184,7 @@ test("saveEntry — without a token on GitHub it writes nothing and returns GitH
 });
 
 // TST-473029 · level: unit · module: MOD-spec-changes
-// guards: A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; UC-018 4b
+// guards: A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; UC-018
 // given: a GitLab product and a host with no token
 // input: saveEntry
 // expect: TokenRequired, and nothing written; with a token the same edit is written
@@ -197,7 +197,7 @@ test("saveEntry — without a token on GitLab it fails with TokenRequired", asyn
 });
 
 // TST-473030 · level: unit · module: MOD-spec-changes
-// guards: A SPEC EDIT IS SAVED AS A PROPOSAL; UC-006 3a
+// guards: A SPEC EDIT IS SAVED AS A PROPOSAL; UC-006
 // given: an entry that a job drafted, whose rationale carries a Provenance paragraph beside its Origin
 // input: saveEntry with a new text and a new Why
 // expect: the rationale made anew — the new Why — keeps the Origin and the Provenance paragraph as they were, and is still in the schema queue-rationale
@@ -214,7 +214,7 @@ test("saveEntry — the origin and the provenance of a drafted entry are kept", 
 });
 
 // TST-611004 · level: unit · module: MOD-spec-changes
-// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018 4a
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018
 // given: a GitHub product, a host with no token and an open entry whose proposal did not exist on the default branch at OPENED
 // input: saveEntry
 // expect: two pages in the order proposal, rationale; the proposal's page is GitHub's new-file page and differs is true; the rationale's page is GitHub's editor and differs is false
@@ -228,7 +228,7 @@ test("saveEntry — without a token a file that appeared on the default branch s
 });
 
 // TST-611005 · level: unit · module: MOD-spec-changes
-// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018 4a
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018
 // given: the same entry saved by a host with no token and by one with a token
 // input: saveEntry
 // expect: the refs the host was asked to read, after the queue was made, are ["main", OPENED] without a token and ["main"] with one
@@ -244,7 +244,7 @@ test("saveEntry — the repository at the commit the edit was opened on is read 
 });
 
 // TST-611015 · level: unit · module: MOD-spec-changes
-// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018 4a
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018
 // given: the setting of TST-611004 (a proposal that OPENED lacked), but the edit was opened on the commit of the snapshot the save reads, "h" repeated forty times
 // input: saveEntry without a token
 // expect: only "main" is read after the queue was made; both pages are GitHub's editor and differs is false for both, though OPENED lacked the proposal
@@ -259,7 +259,7 @@ test("saveEntry — an edit opened on the commit the save already read reads no 
 });
 
 // TST-611016 · level: unit · module: MOD-spec-changes
-// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018 4a
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018
 // given: the setting of TST-611004, but the edit was opened on no commit (null, an empty repository)
 // input: saveEntry without a token
 // expect: only "main" is read after the queue was made; no file existed when the edit began, so both pages are GitHub's new-file pages and differs is true for both
@@ -273,7 +273,7 @@ test("saveEntry — an edit opened on no commit holds no file and reads no snaps
 });
 
 // TST-593003 · level: unit · module: MOD-spec-changes
-// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018 6b
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-018
 // given: a GitHub product with an open entry and a host whose server refuses the commit with PermissionMissing; and the same with a host with no token
 // input: saveEntry of the same edit to each
 // expect: the refused one writes nothing and returns GitHub's pages for the proposal and the rationale, the same as the one with no token returns
@@ -287,7 +287,7 @@ test("saveEntry — when GitHub refuses the commit for a missing write permissio
 });
 
 // TST-593004 · level: unit · module: MOD-spec-changes
-// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; UC-018 6b
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; UC-018
 // given: an open entry on a GitLab product whose server refuses the commit with PermissionMissing, and on a GitHub product whose server refuses it with TokenRefused
 // input: saveEntry to each
 // expect: the GitLab one throws PermissionMissing, the GitHub one TokenRefused; nothing is written

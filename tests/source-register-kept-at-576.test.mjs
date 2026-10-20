@@ -52,7 +52,7 @@ const storedOf = (entry, version) => Object.fromEntries(linkedVersion(linksOf(ve
 const isNoteMissing = (name) => (error) => error.name === "NoteMissing" && error.file === name;
 
 // TST-576001 · level: unit · module: MOD-source-register
-// guards: A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; UC-004 step 4a
+// guards: A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; UC-004
 // given: the entry of a source that may be republished, with its first version `2026-10-12`; one file kept, chapter-1.md, and one only hashed, paid.pdf, with the note `cabinet 3, shelf B`
 // input: registrationCommits(entry, [CHAPTER, HASHED], "alice/requirements"), and the register entry of the plan read back
 // expect: under `### Files of 2026-10-12` the table `| File | SHA-256 | Kept at |` with the separator `|---|---|---|`, the row of chapter-1.md ending `| — |` and the row of paid.pdf ending `| cabinet 3, shelf B |`, each with the SHA-256 of its bytes, in the order of the files given; the cell Files of the version's row unchanged: `2 files, listed below; version hash `<hash>`; not stored: paid.pdf`
@@ -68,7 +68,7 @@ test("registrationCommits — the file table has the column Kept at: the note fo
 });
 
 // TST-576002 · level: unit · module: MOD-source-register
-// guards: A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; UC-004 step 4a
+// guards: A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; UC-004
 // given: the same entry, and a note with a bar in it: `drawer A | box 2`
 // input: registrationCommits(entry, [CHAPTER, { ...HASHED, note }], instance), the register entry of the plan read back, and its version read through linkedVersion
 // expect: the row of paid.pdf ends `| drawer A \| box 2 |`, the bar escaped; the file table still has its three columns in every row; chapter-1.md is read as stored and paid.pdf as not stored
@@ -81,7 +81,7 @@ test("registrationCommits — a bar in a note is written escaped, and the versio
 });
 
 // TST-576003 · level: unit · module: MOD-source-register
-// guards: A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; UC-004 step 4a
+// guards: A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; UC-004
 // given: the same entry, and a note that names a file that is kept and holds a comma and a space: `next to chapter-1.md, shelf B`
 // input: registrationCommits(entry, [CHAPTER, { ...HASHED, note }], instance), and the version read through linkedVersion
 // expect: the cell Files names only paid.pdf after `not stored:`, not the note; chapter-1.md is read as stored and paid.pdf as not stored
@@ -95,7 +95,7 @@ test("registrationCommits — a note is no part of the cell Files, so a name or 
 });
 
 // TST-576004 · level: unit · module: MOD-source-register
-// guards: A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; UC-004 step 4a
+// guards: A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; UC-004
 // given: the same entry; a file only hashed with a note (the known positive); the same file with no note, with an empty note and with a note of blanks; two files only hashed, the first with a note and the second with none
 // input: registrationCommits for each
 // expect: the known positive gives a plan; each of the three refusals rejects with NoteMissing naming paid.pdf; the last rejects with NoteMissing naming the second file, second.pdf; a file kept needs no note, and its call gives a plan

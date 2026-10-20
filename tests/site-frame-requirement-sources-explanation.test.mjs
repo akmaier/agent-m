@@ -52,7 +52,7 @@ test("explain — requirement-sources names the three differences: library again
 });
 
 // TST-590320 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-015 2c
+// guards: EVERY STEP EXPLAINS ITSELF; UC-015
 // given: the topic requirement-sources
 // input: read its rendered links and text
 // expect: exactly one link in it, to the route of the use case UC-040 — the address "#use-case/id=UC-040" — with the text "UC-040"; and the text says that the terms a resource comes with, such as a licence or a usage policy, are registered in the library as a source and linked here

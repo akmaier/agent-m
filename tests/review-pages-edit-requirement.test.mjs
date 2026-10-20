@@ -138,7 +138,7 @@ const proposals = (fake) => fake.writes().flatMap((change) => change.files).filt
 // ---------------------------------------------------------------- opened, edited, saved
 
 // TST-472626 · level: unit · module: MOD-review-pages
-// guards: UC-018 (steps 1, 2, 3); NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; A REQUIREMENT HAS FOUR FIELDS; ONE STATEMENT PER REQUIREMENT; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-018; NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; A REQUIREMENT HAS FOUR FIELDS; ONE STATEMENT PER REQUIREMENT; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the requirement A LOAN HAS A DUE DATE in the section "1. Lending", whose other requirement A BOOK IS SHELVED lacks its check
 // input: the page #requirement/name=A LOAN HAS A DUE DATE
 // expect: the editor holding the section byte for byte; the mark of the missing check on the line of the other requirement, without blocking Save; a Why field; an empty impact list; nothing written
@@ -154,7 +154,7 @@ test("requirement/<name> — the editor opens on the requirement's section with 
 });
 
 // TST-472627 · level: unit · module: MOD-review-pages
-// guards: UC-018 (steps 4, 5); A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST
+// guards: UC-018; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST
 // given: the editor on the section; UC-001 names A LOAN HAS A DUE DATE
 // input: the rule of A LOAN HAS A DUE DATE edited
 // expect: the impact list names it as changed, named by UC-001; the other requirement not at all
@@ -168,7 +168,7 @@ test("requirement/<name> — the impact list shows the requirement the edit chan
 });
 
 // TST-472628 · level: unit · module: MOD-review-pages
-// guards: UC-018 (steps 6, 7); A SPEC EDIT IS SAVED AS A PROPOSAL; A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE; ONE CLICK PER DECISION
+// guards: UC-018; A SPEC EDIT IS SAVED AS A PROPOSAL; A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE; ONE CLICK PER DECISION
 // given: the editor with the rule edited and a Why
 // input: a click on Save
 // expect: one commit holding a new queue's index, the proposal — the section as edited, byte for byte — and its rationale; SPEC.md untouched; the page links the commit and the new entry, #spec-entry/id=spec-<queue>-01
@@ -194,7 +194,7 @@ test("requirement/<name> — Save writes the edited section as an entry and link
 });
 
 // TST-472629 · level: unit · module: MOD-review-pages
-// guards: UC-018 (step 6)
+// guards: UC-018
 // given: the editor with a rule edited and no Why
 // input: a click on Save
 // expect: nothing written; the editor says a Why is needed
@@ -210,7 +210,7 @@ test("requirement/<name> — a save without a Why is not sent", async () => {
 // ---------------------------------------------------------------- a new requirement
 
 // TST-472630 · level: unit · module: MOD-review-pages
-// guards: UC-018 (step 3, 3d); A REQUIREMENT HAS FOUR FIELDS; A SPEC EDIT IS SAVED AS A PROPOSAL
+// guards: UC-018; A REQUIREMENT HAS FOUR FIELDS; A SPEC EDIT IS SAVED AS A PROPOSAL
 // given: the section "1. Lending", handed in by the specification browser
 // input: the page #requirements/section=## 1. Lending; then the four fields written and a Why; then Save
 // expect: the editor opens on the section followed by the four empty fields, whose marks name the missing fields; after writing them the impact list names the new requirement as added; Save writes one entry whose proposal is the section with the new requirement
@@ -233,7 +233,7 @@ test("requirements/new — the four empty fields in the section handed in, saved
 // ---------------------------------------------------------------- a rename
 
 // TST-472631 · level: unit · module: MOD-review-pages
-// guards: UC-018 (step 4a); A RENAMED REQUIREMENT IS WITHDRAWN AND ADDED; THE NAME IS THE ID AND IT SURVIVES
+// guards: UC-018; A RENAMED REQUIREMENT IS WITHDRAWN AND ADDED; THE NAME IS THE ID AND IT SURVIVES
 // given: the editor on A LOAN HAS A DUE DATE, which UC-001 names
 // input: the name changed to A LOAN IS DUE
 // expect: the page says the name is the identifier and that the change is the old name withdrawn and the new one added; the impact list shows the old name withdrawn, named by UC-001, and the new one added; after Save the rationale names both
@@ -257,7 +257,7 @@ test("requirement/<name> — a changed name is shown as the old one withdrawn an
 // ---------------------------------------------------------------- another proposal
 
 // TST-472632 · level: unit · module: MOD-review-pages
-// guards: UC-018 (step 3a); NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE
+// guards: UC-018; NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE
 // given: an open entry of another queue that proposes the same section "1. Lending"
 // input: the page of the requirement; then Save
 // expect: the page names that entry among the other open proposals on the section, with a link to it; after Save the entry it replaces in another queue is named
@@ -287,7 +287,7 @@ test("requirement/<name> — another open proposal on the same section is named"
 // ---------------------------------------------------------------- a refused save
 
 // TST-472633 · level: unit · module: MOD-review-pages
-// guards: UC-018 (step 5a); A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT
+// guards: UC-018; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT
 // given: the editor with an edit and a Why; then another writer changes the section on the default branch
 // input: a click on Save
 // expect: nothing written; the edit stays in the text area; the newer version of the section is beside it
@@ -309,7 +309,7 @@ test("requirement/<name> — a save the text changed under is refused, and the e
 // ---------------------------------------------------------------- without a token
 
 // TST-472634 · level: unit · module: MOD-review-pages
-// guards: UC-018 (step 7a); WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL
+// guards: UC-018; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL
 // given: a GitHub product whose host cannot write (no token), the editor with an edit and a Why
 // input: a click on Save
 // expect: nothing written; GitHub's pages offered, one for each file of the entry, none with the text in its address
@@ -328,7 +328,7 @@ test("requirement/<name> — without a token on GitHub, GitHub's pages open per 
 });
 
 // TST-472635 · level: unit · module: MOD-review-pages
-// guards: UC-018 (step 7a); A GITLAB PRODUCT IS WRITTEN WITH A TOKEN
+// guards: UC-018; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN
 // given: a GitLab product, no token stored
 // input: the page of the requirement
 // expect: the section shown, but no editor and no Save; the token's step linked; nothing written
@@ -343,7 +343,7 @@ test("requirement/<name> — on GitLab without a token there is no Save", async 
 });
 
 // TST-472636 · level: unit · module: MOD-review-pages
-// guards: UC-018 (step 1)
+// guards: UC-018
 // given: the SPEC, which holds no requirement NO SUCH RULE
 // input: the page #requirement/name=NO SUCH RULE
 // expect: the page names the requirement as missing; no editor; nothing written

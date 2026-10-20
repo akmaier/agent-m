@@ -86,7 +86,7 @@ const host = (secrets) => connect(GITLAB, { token: GL_TOKEN, secrets });
 // ---------------------------------------------------------------- create, and update so that none is added
 
 // TST-749001 · level: unit · module: MOD-repository-hosts
-// guards: UC-027 (3a); GITLAB PRODUCTS ARE SUPPORTED; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; A CREDENTIAL IS NEVER PLACED IN A URL
+// guards: UC-027; GITLAB PRODUCTS ARE SUPPORTED; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: a GitLab project with no pipeline schedule, and its access token
 // input: setPipelineSchedule(the nightly schedule: description "Agent M nightly", cron "0 2 * * *", timezone "Europe/Berlin", ref "main", active)
 // expect: two requests — the project's schedules read, then one POST creating the schedule with description, ref, cron, cron_timezone and active, the token in PRIVATE-TOKEN and in no address —; the answer holds the new schedule's id as text and the project's pipeline schedules page as url
@@ -104,7 +104,7 @@ test("setPipelineSchedule on GitLab — a project without the schedule gets it c
 });
 
 // TST-749002 · level: unit · module: MOD-repository-hosts
-// guards: UC-027 (3a); GITLAB PRODUCTS ARE SUPPORTED
+// guards: UC-027; GITLAB PRODUCTS ARE SUPPORTED
 // given: a GitLab project whose server keeps what is created; the nightly schedule set once; then set again with the same description, another cron, timezone, ref and inactive
 // input: setPipelineSchedule(the nightly schedule) twice; the second time with cron "30 3 * * 1", timezone "UTC", ref "release", active false
 // expect: the second call sends one PUT to the first call's schedule and no POST; the server holds exactly one schedule, with the second call's fields; both calls answer the same id and the pipeline schedules page
@@ -122,7 +122,7 @@ test("setPipelineSchedule on GitLab — saving again updates the schedule and ad
 });
 
 // TST-749003 · level: unit · module: MOD-repository-hosts
-// guards: UC-027 (3a)
+// guards: UC-027
 // given: a GitLab project with 100 other schedules on the first page of its list, and the nightly one, with another description beside it, on the second
 // input: setPipelineSchedule(the nightly schedule) with a changed cron
 // expect: the nightly schedule on the second page is updated — one PUT to its id — and none is created; the other schedules are not touched
@@ -140,7 +140,7 @@ test("setPipelineSchedule on GitLab — the schedule is found by its description
 // ---------------------------------------------------------------- variables
 
 // TST-749004 · level: unit · module: MOD-repository-hosts
-// guards: UC-027 (3a)
+// guards: UC-027
 // given: a GitLab project with no pipeline schedule
 // input: setPipelineSchedule(the nightly schedule with variables { SUITE: "nightly", RETRIES: "2" })
 // expect: the schedule is created, then one POST of its variables for each — key and value —; the server holds the schedule with exactly those two variables
@@ -153,7 +153,7 @@ test("setPipelineSchedule on GitLab — the variables of a created schedule are 
 });
 
 // TST-749005 · level: unit · module: MOD-repository-hosts
-// guards: UC-027 (3a)
+// guards: UC-027
 // given: a GitLab project whose nightly schedule has the variables SUITE "nightly", KEEP "1" and OLD "x"
 // input: setPipelineSchedule(the nightly schedule with variables { SUITE: "full", KEEP: "1", NEW: "y" })
 // expect: SUITE and KEEP, which the schedule has, are each set by a PUT (the key in the address), NEW is created by a POST, OLD is deleted by a DELETE; the server holds exactly SUITE "full", KEEP "1", NEW "y" and one schedule
@@ -170,7 +170,7 @@ test("setPipelineSchedule on GitLab — an update makes the variables those give
 // ---------------------------------------------------------------- failures
 
 // TST-749006 · level: unit · module: MOD-repository-hosts
-// guards: A REMOTE INTERFACE NAMES HOW IT FAILS; UC-027 (3a)
+// guards: A REMOTE INTERFACE NAMES HOW IT FAILS; UC-027
 // given: a GitLab project that first lets the call through; then a server whose answer to the schedules read, and then to the creation, is 403 — the token has no role Maintainer
 // input: setPipelineSchedule(the nightly schedule)
 // expect: PermissionMissing at either request, naming the role Maintainer and the project's access tokens page as the renewal; for the refused creation nothing is stored

@@ -66,7 +66,7 @@ test("explain — each topic of the routes and of the participants is a folded W
 });
 
 // TST-472825 · level: unit · module: MOD-site-frame
-// guards: A PARTICIPANT DECLARES ITS CAPABILITIES; UC-017 (steps 2 and 3, table)
+// guards: A PARTICIPANT DECLARES ITS CAPABILITIES; UC-017
 // given: the topic participant-person
 // input: explain("participant-person")
 // expect: text saying a person is a colleague reached through a GitHub or GitLab account and the dashboard, can do everything and takes the decisions; what it means for cost, speed and control
@@ -83,7 +83,7 @@ test("explain — participant-person: a person (UC-017)", () => {
 });
 
 // TST-472826 · level: unit · module: MOD-site-frame
-// guards: A PARTICIPANT DECLARES ITS CAPABILITIES; UC-017 (steps 2 and 3, table)
+// guards: A PARTICIPANT DECLARES ITS CAPABILITIES; UC-017
 // given: the topic participant-model-endpoint
 // input: explain("participant-model-endpoint")
 // expect: text saying a model endpoint is a model reached over the network, with examples; that it only drafts text; that a hosted one is billed per use and one you run costs the machine; that you control which model answers and where hosted data is processed; reached directly or through a Bridge
@@ -102,7 +102,7 @@ test("explain — participant-model-endpoint: a model endpoint (UC-017)", () => 
 });
 
 // TST-472827 · level: unit · module: MOD-site-frame
-// guards: A PARTICIPANT DECLARES ITS CAPABILITIES; UC-017 (steps 2 and 3, table)
+// guards: A PARTICIPANT DECLARES ITS CAPABILITIES; UC-017
 // given: the topic participant-ci-agent
 // input: explain("participant-ci-agent")
 // expect: text saying a CI agent runs inside a GitHub Actions or GitLab CI job, reached through a workflow; that it reads, writes, runs code and tests; that on GitHub's machines nothing is installed but each call is billed per use and a job takes a workflow run; that a self-hosted runner is a program on a machine you control and gives more control
@@ -120,7 +120,7 @@ test("explain — participant-ci-agent: a CI agent (UC-017)", () => {
 });
 
 // TST-472828 · level: unit · module: MOD-site-frame
-// guards: A PARTICIPANT DECLARES ITS CAPABILITIES; UC-017 (steps 2 and 3, table)
+// guards: A PARTICIPANT DECLARES ITS CAPABILITIES; UC-017
 // given: the topic participant-cli-agent
 // input: explain("participant-cli-agent")
 // expect: text saying a CLI agent is a coding agent such as Claude Code or Codex on a computer of the person's, reached through the Bridge; its capabilities; that it uses its own login and so the person's subscription; that it starts at once; that it is the most controlled, working in its own folder
@@ -138,7 +138,7 @@ test("explain — participant-cli-agent: a CLI agent (UC-017)", () => {
 });
 
 // TST-472829 · level: unit · module: MOD-site-frame
-// guards: A PARTICIPANT DECLARES ITS CAPABILITIES; UC-017 (steps 2 and 3, table)
+// guards: A PARTICIPANT DECLARES ITS CAPABILITIES; UC-017
 // given: the topic participant-sandboxed-agent
 // input: explain("participant-sandboxed-agent")
 // expect: text saying a sandboxed agent is a CLI agent inside a virtual machine or container reached through the Bridge in it over a tunnel; that it does what a CLI agent does, isolated; and that it is the choice when the agent should not touch the rest of the computer
@@ -154,7 +154,7 @@ test("explain — participant-sandboxed-agent: a sandboxed agent (UC-017)", () =
 });
 
 // TST-472830 · level: unit · module: MOD-site-frame
-// guards: A PARTICIPANT DECLARES ITS CAPABILITIES; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; UC-017 (steps 4, 5 and 5a)
+// guards: A PARTICIPANT DECLARES ITS CAPABILITIES; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; UC-017
 // given: the topic capabilities-and-place
 // input: explain("capabilities-and-place")
 // expect: text naming the six capabilities, saying they are preset for the type and adjusted, that a role needs a participant with every capability it needs, and what the processing place is and why it matters for linked sources
@@ -171,7 +171,7 @@ test("explain — capabilities-and-place: capabilities and the processing place 
 });
 
 // TST-472831 · level: unit · module: MOD-site-frame
-// guards: UC-017 (step 3, CI agent); A CI AGENT'S DRAFT ENTERS AS OPEN
+// guards: UC-017; A CI AGENT'S DRAFT ENTERS AS OPEN
 // given: the topic ci-agent-runner
 // input: explain("ci-agent-runner")
 // expect: text saying a workflow runs on its runner, not in this browser, so nothing stored here reaches it; that a self-hosted runner on the agent's own machine reaches the agent locally with no inbound SSH, no key on GitHub, and works behind NAT; and that it serves private repositories only, since a fork's pull request could run code on the machine
@@ -191,7 +191,7 @@ test("explain — ci-agent-runner: why a CI agent's workflow reaches nothing sto
 });
 
 // TST-472832 · level: unit · module: MOD-site-frame
-// guards: UC-017 (alternative 3b)
+// guards: UC-017
 // given: the topic ci-ssh-alternative
 // input: explain("ci-ssh-alternative")
 // expect: text saying a workflow can reach an agent behind SSH without a runner, at two costs — the SSH key stored as an Actions secret and a machine reachable from the internet — and that the runner is recommended
@@ -206,7 +206,7 @@ test("explain — ci-ssh-alternative: the SSH key as an Actions secret and its c
 });
 
 // TST-472833 · level: unit · module: MOD-site-frame
-// guards: UC-017 (steps 6 and 6a)
+// guards: UC-017
 // given: the topic agent-test
 // input: explain("agent-test")
 // expect: text saying the test sends a harmless request through the Bridge the participant names and shows what answered; that if the Bridge does not answer the dashboard names the reason and saves nothing until the person decides to save untested
@@ -221,7 +221,7 @@ test("explain — agent-test: an agent's test through the Bridge (UC-017)", () =
 });
 
 // TST-472834 · level: unit · module: MOD-site-frame
-// guards: THE PAGE NAMES WHERE IT SENDS; UC-010 (precondition); EVERY STEP EXPLAINS ITSELF
+// guards: THE PAGE NAMES WHERE IT SENDS; UC-010; EVERY STEP EXPLAINS ITSELF
 // given: the topic job-workflow
 // input: explain("job-workflow")
 // expect: text saying the job workflow runs a job on GitHub's machines; reads two Actions secrets, the key of the agent or endpoint and the person's Agent M token, each named by the dashboard, which opens the secrets page and never asks for the value; that the token makes the job's pushes start CI; that the calls are billed per use by the agent's provider; and a pointer to chapter 10, section 6 of the book
@@ -240,7 +240,7 @@ test("explain — job-workflow: Agent M's job workflow, its two secrets and the 
 });
 
 // TST-472835 · level: unit · module: MOD-site-frame
-// guards: UC-011 (preconditions, 3c); UC-044 (step 3)
+// guards: UC-011; UC-044
 // given: the topic bridge-own-login
 // input: explain("bridge-own-login")
 // expect: text saying a job handed to a Bridge runs on the person's computer with the agent's own login and the computer's own git login, with no key on GitHub, using the person's subscription; and that the git login must reach the instance and the product, the Bridge otherwise refusing the job and naming the repository
@@ -255,7 +255,7 @@ test("explain — bridge-own-login: a job handed to a Bridge with the computer's
 });
 
 // TST-472836 · level: unit · module: MOD-site-frame
-// guards: UC-011 (alternative 2a, 1c)
+// guards: UC-011
 // given: the topic bridge-https-route
 // input: explain("bridge-https-route")
 // expect: text saying some browsers, as Safari, block the call to the Bridge's local address http://127.0.0.1; that the site says why and points to the route over HTTPS through the jump host; and that the same route reaches a machine behind NAT

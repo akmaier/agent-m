@@ -44,7 +44,7 @@ const run = (value) => {
 const rules = (found) => found.map((each) => each.rule);
 
 // TST-619001 · level: unit · module: MOD-work-plans
-// guards: UC-041 (1a); AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM
+// guards: UC-041; AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM
 // given: an agent's close whose review names its sources and says that no stakeholder took part, with a retrospective whose one change is a proposal (goes: "team agreement")
 // input: the check on that draft
 // expect: no finding — the known positive of every test below
@@ -54,7 +54,7 @@ test("sprint-record-checks — a review with sources that says no stakeholder to
 });
 
 // TST-619002 · level: unit · module: MOD-work-plans
-// guards: UC-041 (1a); AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM
+// guards: UC-041; AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM
 // given: the clean draft, then the same with the sources null, and with the sources empty
 // input: the check on each
 // expect: the clean one gives no finding; each of the others gives exactly one error under AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM, naming the sources
@@ -69,7 +69,7 @@ test("sprint-record-checks — a review that names no source is an error", async
 });
 
 // TST-619003 · level: unit · module: MOD-work-plans
-// guards: UC-041 (1a); AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM
+// guards: UC-041; AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM
 // given: a review with a stakeholder, Erika, in tookPart: first her feedback is recorded in a feedback line, then she stands among the sources, then neither; and a review with two names of which one is recorded
 // input: the check on each
 // expect: no finding while the feedback of each name is recorded in a line or among the sources (without regard to case); one error naming the name whose feedback is recorded nowhere
@@ -88,7 +88,7 @@ test("sprint-record-checks — a stakeholder who took part must have feedback re
 });
 
 // TST-619004 · level: unit · module: MOD-work-plans
-// guards: UC-041 (1a); AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM
+// guards: UC-041; AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM
 // given: a review with an empty tookPart and no feedback line that says no stakeholder took part; then one with such a line
 // input: the check on each
 // expect: the first gives one error under AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM saying that the review must state that no stakeholder took part; the second none
@@ -103,7 +103,7 @@ test("sprint-record-checks — an empty tookPart passes only when a feedback lin
 });
 
 // TST-619005 · level: unit · module: MOD-work-plans
-// guards: UC-041 (6a); A SPRINT ENDS WITH A RETROSPECTIVE
+// guards: UC-041; A SPRINT ENDS WITH A RETROSPECTIVE
 // given: the clean draft with an empty retrospective
 // input: the check on it
 // expect: one error under A SPRINT ENDS WITH A RETROSPECTIVE
@@ -114,7 +114,7 @@ test("sprint-record-checks — a retrospective without an entry is an error", as
 });
 
 // TST-619006 · level: unit · module: MOD-work-plans
-// guards: UC-041 (1a); AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF
+// guards: UC-041; AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF
 // given: a retrospective whose entry of kind change has no `goes`; then the same entry with goes "Definition of Done", "process model" and "a participant's instructions"
 // input: the check on each
 // expect: the first gives one error under AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF naming the entry; the others none — closeSprint writes them as "change, to <goes>", a proposal to where it goes
@@ -129,7 +129,7 @@ test("sprint-record-checks — a change without the place it is proposed to is a
 });
 
 // TST-619007 · level: unit · module: MOD-work-plans
-// guards: UC-041 (1a); AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF
+// guards: UC-041; AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF
 // given: the clean draft with a key outside the shape of close — a `files` list to write at its top, a `writes` key in the review, a `file` key in a retrospective entry
 // input: the check on each
 // expect: one error each under AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF naming the key: nothing of the process may be written by the draft itself
@@ -146,7 +146,7 @@ test("sprint-record-checks — a draft with a key outside the shape of close, su
 });
 
 // TST-619008 · level: unit · module: MOD-work-plans
-// guards: UC-041 (1a)
+// guards: UC-041
 // given: a draft with several faults at once: no sources, an empty tookPart without the statement, no retrospective, and a key to write
 // input: the check on it
 // expect: one error for each of the four, in the order of the review's, the retrospective's and the process's rules; each finding is MOD-text-tools' finding with the line 1

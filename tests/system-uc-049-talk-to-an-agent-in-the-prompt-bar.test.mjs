@@ -29,7 +29,7 @@ const UNREACHED_AGENT = "| far-agent | CLI agent | far-model | 200000 | - | draf
 const select = (s, name) => { const selector = all(barOf(s), "select", "participant")[0]; assert.ok(selector, `known positive: the bar offers a choice (${barText(s).slice(-200)})`); selector.value = name; };
 
 // TST-513001 · level: system · module: MOD-prompt-bar · MOD-site-frame · MOD-job-runner
-// guards: UC-049 main flow (1, 2, 3, 5, 6); THE PAGE NAMES WHERE IT SENDS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; EVERY STEP EXPLAINS ITSELF
+// guards: UC-049; THE PAGE NAMES WHERE IT SENDS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; EVERY STEP EXPLAINS ITSELF
 // given: the specification browser of the product at its default branch; the register offers drafter (a model endpoint at "this machine") and tooler (a model endpoint at "Anthropic, USA"); both endpoints are configured in this browser; recording is off
 // input: the page opened; tooler chosen in the selector; the message "Which rules does this page list?" written, and then Send pressed; then the answer, a second message "And the second one?" and Send
 // expect: above the input the bar names each participant with its place ("drafter — this machine", "tooler — Anthropic, USA") and a folded "What is this?" explains the bar; writing sends nothing; Send sends exactly one request, to tooler's endpoint, naming the destination before it is made ("Sent to: tooler — Anthropic, USA"); the message holds the person's words, the page as the author sees it (the view, the product, the version and the requirements listed) and the chapters of the book for requirements; the answer appears in the conversation under tooler's name; the second message carries the conversation so far (the first message and its answer)
@@ -61,7 +61,7 @@ test("main flow: the bar names the participant with its place, Send is the decis
 });
 
 // TST-513002 · level: system · module: MOD-prompt-bar · MOD-job-catalogue
-// guards: UC-049 main flow (3); ONE DEFINITION, THREE DRIVERS
+// guards: UC-049; ONE DEFINITION, THREE DRIVERS
 // given: the page of TST-513001
 // input: a message sent to drafter
 // expect: UC-049 step 3 says the system prompt holds "Agent M's rules for what the participant drafts — everything is a proposal; a change of the SPEC is saved as a queue entry": the message the participant receives says that what it drafts is a proposal and that a change of the SPEC becomes a queue entry. FINDING: the message of the kind `converse` holds neither (it says only to change nothing the person did not ask for), so this case is red on main until the prompt carries the rules
@@ -77,7 +77,7 @@ test("main flow (3): the system prompt carries the rules for what the participan
 });
 
 // TST-513003 · level: system · module: MOD-prompt-bar · MOD-runtimes · MOD-repository-hosts
-// guards: UC-049 main flow (4, endpoint that can use tools); A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; NO SERVER
+// guards: UC-049; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; NO SERVER
 // given: tooler declares "use tools" and "read the repository"; its endpoint first asks for list-files and read-file of SPEC.md, then answers
 // input: a message sent to tooler
 // expect: the request offers the kind's tools (list-files, read-file, search-files, propose-edit, hand-over); the loop runs in this tab: the tab reads the product through the repository server's API with the author's token of that product — every request the message makes to the product's server carries that token and no other — and returns the results to the endpoint in a second request (two tool results); the answer appears; nothing is written to any repository
@@ -101,7 +101,7 @@ test("main flow (4): a model endpoint that can use tools works in a loop in the 
 });
 
 // TST-513004 · level: system · module: MOD-prompt-bar · MOD-runtimes
-// guards: UC-049 main flow (4, endpoint without use tools); A PARTICIPANT DECLARES ITS CAPABILITIES
+// guards: UC-049; A PARTICIPANT DECLARES ITS CAPABILITIES
 // given: drafter declares "draft text" only
 // input: a message sent to drafter
 // expect: exactly one request to the endpoint, which offers no tools; the answer is text and appears in the conversation
@@ -117,7 +117,7 @@ test("main flow (4): a model endpoint without the capability use tools answers o
 });
 
 // TST-513005 · level: system · module: MOD-prompt-bar · MOD-runtimes · MOD-bridge-client
-// guards: UC-049 main flow (4, CLI agent); THE PAGE NAMES WHERE IT SENDS; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
+// guards: UC-049; THE PAGE NAMES WHERE IT SENDS; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
 // given: agent-cli, a CLI agent on the paired Bridge release-bridge at "this machine", and drafter, whose endpoint is reached directly
 // input: a message sent to agent-cli
 // expect: the Bridge receives the message as one ask of the agent claude, with the pairing token, whose input holds the person's words and the page; no request goes to a model endpoint; the answer appears in the conversation
@@ -137,7 +137,7 @@ test("main flow (4): a CLI agent receives the message through its Bridge", async
 });
 
 // TST-513006 · level: system · module: MOD-prompt-bar · MOD-participant-list
-// guards: UC-049 alternative 1a
+// guards: UC-049
 // given: the register lists a model endpoint whose endpoint is configured nowhere in this browser, and a CLI agent on a Bridge this browser has not paired
 // input: the page opened
 // expect: the prompt bar is not shown — the footer holds no bar — and nothing was asked of any model; with the same register and the endpoint `fixture` configured (a known positive) the bar is shown
@@ -150,7 +150,7 @@ test("alternative 1a: with no participant offered the prompt bar is not shown", 
 });
 
 // TST-513007 · level: system · module: MOD-prompt-bar · MOD-participant-list
-// guards: UC-049 alternative 1b; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
+// guards: UC-049; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
 // given: the register lists drafter, sub-cli (a subagent that agent-cli starts), agent-cli (a CLI agent on the paired Bridge) and ci-agent (a CI agent)
 // input: the page opened
 // expect: the bar offers drafter and agent-cli, each with its place, and neither the subagent nor the CI agent
@@ -163,7 +163,7 @@ test("alternative 1b: a participant reached only through another one is not offe
 });
 
 // TST-513008 · level: system · module: MOD-prompt-bar · MOD-trace-pages
-// guards: UC-049 alternative 2a
+// guards: UC-049
 // given: the product has a release v1.0.0; the specification browser shows that version, with A LOAN HAS A DUE DATE open
 // input: the message "Make the due date visible." sent to drafter
 // expect: the participant is given the version as the page shows it ("Version: v1.0.0") and the requirement as it reads there; the message is of the kind that answers about the page, not of the kind that drafts a change of requirements (no "The requirements to change" part), and the bar offers no Review the draft: a change is drafted only against the current text
@@ -184,7 +184,7 @@ test("alternative 2a: at a released version the participant is given that versio
 });
 
 // TST-513009 · level: system · module: MOD-prompt-bar · MOD-job-runner
-// guards: UC-049 alternative 3a; THE PAGE NAMES WHERE IT SENDS
+// guards: UC-049; THE PAGE NAMES WHERE IT SENDS
 // given: drafter's context holds 1 500 tokens, which the page and its chapters do not fit into; and, in a second page, a participant with a larger context is offered beside it
 // input: a message sent to drafter
 // expect: nothing is sent; the bar says that nothing was sent, which participant does not hold the message and how many tokens it holds against how many the message needs; with no larger participant it says so; with a larger one it offers it by name; nothing is left out silently (the message is not shortened and sent)
@@ -231,7 +231,7 @@ const handedOver = async (options = {}) => {
 };
 
 // TST-513010 · level: system · module: MOD-prompt-bar · MOD-runtimes · MOD-workflow-entries
-// guards: UC-049 alternative 4a; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; NO SECRET IN THE REPOSITORY
+// guards: UC-049; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; NO SECRET IN THE REPOSITORY
 // given: handy, a model endpoint at "GitHub Actions in the USA" with the CI secret CI_KEY, that can run code and tests; the product holds Agent M's job workflow; handy answers a message by proposing to hand over a converse job on A LOAN HAS A DUE DATE with a task
 // input: the proposal shown; a click that a script makes on Hand over; the person's click on Hand over; the run (the real entry onDispatch on fixture checkouts, with the coding agent a fixture executable) ; the next poll
 // expect: the proposal shows the kind, what it works on, the task, "handy — GitHub Actions in the USA" and the route "ci hosted"; nothing is written before the person's click and a script's click writes nothing; the click commits one file, the record of the job, which names the participant, the model, the route and what it works on and holds none of the conversation's messages and not the task (the record says the task travels with the hand-over); the job workflow is started once with the job and the task as its inputs; the bar says waiting for GitHub Actions; the run ends done in its record without a commit of the task, and the bar shows the end
@@ -282,7 +282,7 @@ test("alternative 4a: the participant proposes a hand-over, the person's click q
 });
 
 // TST-513011 · level: system · module: MOD-prompt-bar · MOD-job-ledger
-// guards: UC-049 alternative 4b; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// guards: UC-049; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: a conversation with a message and its answer, and a job handed over from it (the record queued in the product); then the tab is closed — the page opened again in a new tab, whose storage is empty — while the product keeps the record
 // input: the page opened in the new tab
 // expect: the conversation is gone — the bar shows none of its messages and follows no job —, and the job's record is still in the product repository, naming the participant and what it works on
@@ -299,7 +299,7 @@ test("alternative 4b: when the tab is closed the conversation is gone and the jo
 });
 
 // TST-513012 · level: system · module: MOD-prompt-bar · MOD-runtimes
-// guards: UC-049 alternative 4c; EVERY STEP EXPLAINS ITSELF
+// guards: UC-049; EVERY STEP EXPLAINS ITSELF
 // given: a product that holds no job workflow
 // input: the participant proposes a hand-over
 // expect: nothing is handed over — no Hand over, no write, no workflow started —; the conversation says what is missing (the job workflow) and links the route that sets it up (settings); following the link goes there
@@ -320,7 +320,7 @@ test("alternative 4c: a product without the job workflow gets nothing handed ove
 });
 
 // TST-513013 · level: system · module: MOD-prompt-bar · MOD-workflow-entries · MOD-endpoint-calls
-// guards: UC-049 alternative 4d; AN UNSUPPORTED ENDPOINT SAYS SO
+// guards: UC-049; AN UNSUPPORTED ENDPOINT SAYS SO
 // given: a hand-over to handy whose endpoint GitHub's runners cannot reach (the fixture's fetch fails in the run) and whose coding agent fails
 // input: the person's click on Hand over; the run (the real entry on fixture checkouts); the next poll
 // expect: the run ends failed and its record names the reason — the run failed against the endpoint, why, and the routes that would work: a self-hosted runner, or a Bridge —; the bar shows the end as failed with that reason
@@ -344,7 +344,7 @@ test("alternative 4d: when GitHub's runners cannot reach the endpoint the run fa
 });
 
 // TST-513014 · level: system · module: MOD-prompt-bar · MOD-runtimes
-// guards: UC-049 alternative 5a; A CANCELLED JOB WRITES NOTHING MORE; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-049; A CANCELLED JOB WRITES NOTHING MORE; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: a message that is still running in the tab (the endpoint has not answered)
 // input: the person's click on Stop; then the endpoint is let to answer
 // expect: the message is aborted — the bar can be used again, nothing was written to any repository, and the answer that comes too late is not added to the conversation
@@ -365,7 +365,7 @@ test("alternative 5a: Stop ends the loop in the tab and nothing is written", asy
 });
 
 // TST-513015 · level: system · module: MOD-prompt-bar · MOD-runtimes
-// guards: UC-049 alternative 5a; A CANCELLED JOB WRITES NOTHING MORE
+// guards: UC-049; A CANCELLED JOB WRITES NOTHING MORE
 // given: a job handed over to GitHub Actions and taken by the run, which the server lists as running
 // input: the person's click on Stop
 // expect: the CI is asked to cancel the run once; the bar shows cancelled and the record ends cancelled; nothing more is committed to the product after the cancel (the only commit is the record of the hand-over and its end)
@@ -397,7 +397,7 @@ const filesDraft = (...files) => ({ files });
 const draftOf = (s) => all(s.target, "div", "draft")[0];
 
 // TST-513016 · level: system · module: MOD-prompt-bar · MOD-review-pages
-// guards: UC-049 main flow (5, 6); UC-049 alternative 6a; A GENERATED ARTIFACT IS A PROPOSAL; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-049; A GENERATED ARTIFACT IS A PROPOSAL; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the page of the use case UC-007, and a participant whose answer proposes an edit of UC-007 and of UC-008
 // input: Send; Review the draft; the person's click on Discard
 // expect: the proposed edits open in the editor as their difference against the current text (the added line of 2b is marked); before the person's decision nothing is written; Discard writes nothing — no commit, no job record, no conversation record — and the draft is gone from the tab
@@ -417,7 +417,7 @@ test("main flow (5, 6) and alternative 6a: a proposed edit opens as a difference
 });
 
 // TST-513017 · level: system · module: MOD-prompt-bar · MOD-review-pages · MOD-artifact-edits
-// guards: UC-049 alternative 6b; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; UC-018 5a
+// guards: UC-049; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; UC-018
 // given: the draft of UC-007 shown in the editor; another writer then changes UC-007 on the default branch
 // input: the person's click on Save
 // expect: nothing is written; the page says the file changed, and the edit stays in the editor beside the newer version
@@ -435,7 +435,7 @@ test("alternative 6b: when the file changed while the participant worked nothing
 });
 
 // TST-513018 · level: system · module: MOD-prompt-bar · MOD-repository-hosts
-// guards: UC-049 alternative 6c; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; A RECORDED CONVERSATION IS KEPT WHERE IT WAS HELD; A RECORD IS EVIDENCE, NOT A PROPOSAL; ONE CLICK PER DECISION
+// guards: UC-049; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; A RECORDED CONVERSATION IS KEPT WHERE IT WAS HELD; A RECORD IS EVIDENCE, NOT A PROPOSAL; ONE CLICK PER DECISION
 // given: the instance records conversations (docs/conversation-recording.md says so); the page is the specification browser of the product akmaier/lending-tool
 // input: the bar read; "Hello, what is this?" sent to drafter and answered; a second message sent
 // expect: the bar says above the selector that the conversation is recorded; the first Send commits a conversation record docs/conversations/<yyyymmdd>-<hhmm>-<4 hex>.md in the product's repository — not the instance's — as a commit, then the answer is appended to the same record, each message its own section with the participant and its model and the page it was held on; the second message and its answer are appended to the same file, nothing earlier changed; no commit touches the instance's repository; the record is no proposal (no queue entry, no approval)
@@ -466,7 +466,7 @@ test("alternative 6c: with recording on every message is appended to the convers
 });
 
 // TST-513019 · level: system · module: MOD-prompt-bar · MOD-repository-hosts
-// guards: UC-049 postcondition; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
+// guards: UC-049; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
 // given: recording is off (no switch file), the page of the product
 // input: two messages sent and answered, one of them drafting a change of requirements, then Review the draft and Save
 // expect: no message of the conversation is written to any repository — no docs/conversations/ file anywhere, and no text of any message in any commit —; what the author saved is written as an open proposal, and the commit names no message
@@ -484,7 +484,7 @@ test("postcondition: with recording off only what the author saved is written, a
 });
 
 // TST-513024 · level: system · module: MOD-prompt-bar · MOD-job-runner · MOD-source-register
-// guards: UC-049 alternative 4e; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
+// guards: UC-049; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
 // given: the product holds the content of the source SRC-restricted at docs/sources/SRC-restricted/handbook.md (reading: the source's content lies in a folder of the product named by the source); the source's entry says its licence is restricted and its content may go to "this machine" only; tooler works at "Anthropic, USA" and asks for read-file of that path
 // input: a message sent to tooler, whose endpoint asks for the file and then answers
 // expect: the tool refuses and says why — the result the endpoint receives names the source SRC-restricted and the place "Anthropic, USA" — and does not hold the text of the file; the participant continues (the answer is shown). FINDING: the context the bar prepares a message with names no restricted source (places.sources and places.contents are empty in src/prompt-bar/send.mjs), so nothing is refused and the endpoint receives the text: this case is red on main until the bar gives the tool the places of the sources
@@ -504,7 +504,7 @@ test("alternative 4e: a tool refuses content of a source whose licence does not 
 });
 
 // TST-513026 · level: system · module: MOD-prompt-bar · MOD-repository-hosts
-// guards: UC-049 alternative 6c; A RECORDED CONVERSATION IS KEPT WHERE IT WAS HELD
+// guards: UC-049; A RECORDED CONVERSATION IS KEPT WHERE IT WAS HELD
 // given: the instance records conversations; the page is a page of the instance itself (the specification browser without a product)
 // input: a message sent to drafter and answered
 // expect: the conversation record is in the instance's repository under docs/conversations/ and in no product's
@@ -518,7 +518,7 @@ test("alternative 6c: a conversation held on a page of the instance is recorded 
 });
 
 // TST-513027 · level: system · module: MOD-prompt-bar · MOD-workflow-entries · MOD-spec-changes
-// guards: UC-049 alternative 4a; A GENERATED ARTIFACT IS A PROPOSAL
+// guards: UC-049; A GENERATED ARTIFACT IS A PROPOSAL
 // given: handy proposes handing over a change of the requirement A LOAN HAS A DUE DATE (the kind change-requirements); the person's click queues it; the run is the real entry onDispatch on fixture checkouts, with the coding agent answering a draft of the change
 // input: Hand over; the run
 // expect: UC-049 4a.3 says the run's answer appears with the commits it made — artifacts committed as open —: the run ends done and commits the change as an open proposal. FINDING: the run ends failed with "entrySections needs the job's source as text": the record the bar queues carries the requirement and no source (the person's own source, which the message of the tab names), so this case is red on main until the hand-over gives the job its source

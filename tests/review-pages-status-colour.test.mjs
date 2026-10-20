@@ -176,7 +176,7 @@ const reviewAllOf = (target, route) => find(target, (node) => node.localName ===
 // ---------------------------------------------------------------- the use cases
 
 // TST-874001 · level: unit · module: MOD-review-pages
-// guards: UC-008 (step 1); STATUS IS DERIVED FROM THE RECORDS
+// guards: UC-008; STATUS IS DERIVED FROM THE RECORDS
 // given: the use cases UC-041 and UC-044 open, UC-043 changed since acceptance, UC-042 and UC-045 accepted
 // input: the route use-case drawn as the list
 // expect: the badge of each row carries exactly the classes badge and b-<status>: UC-041 b-open, UC-042 b-accepted, UC-043 b-changed, UC-044 b-open, UC-045 b-accepted; the texts stay open, accepted, changed since acceptance
@@ -188,7 +188,7 @@ test("TST-874001 use-case list — each status badge carries b-<status>, the cla
 });
 
 // TST-874002 · level: unit · module: MOD-review-pages
-// guards: UC-008 (steps 2, 5a); STATUS IS DERIVED FROM THE RECORDS
+// guards: UC-008; STATUS IS DERIVED FROM THE RECORDS
 // given: the same use cases
 // input: the route use-case drawn for UC-041 (open), UC-043 (changed) and UC-042 (accepted), one page each
 // expect: the page's badge carries exactly the classes badge and b-open, badge and b-changed, badge and b-accepted respectively
@@ -199,7 +199,7 @@ test("TST-874002 use-case file page — the status badge carries b-<status>", as
 });
 
 // TST-874003 · level: unit · module: MOD-review-pages
-// guards: UC-008 (step 3e); SEVERAL FILES ARE ACCEPTED IN ONE CLICK
+// guards: UC-008; SEVERAL FILES ARE ACCEPTED IN ONE CLICK
 // given: the same use cases
 // input: the route use-case drawn with the id all
 // expect: three files on the page, UC-041 with badge and b-open, UC-043 with badge and b-changed, UC-044 with badge and b-open
@@ -210,7 +210,7 @@ test("TST-874003 use-case Review all page — each file's status badge carries b
 });
 
 // TST-874004 · level: unit · module: MOD-review-pages
-// guards: UC-008 (step 3e); SEVERAL FILES ARE ACCEPTED IN ONE CLICK; ONE CLICK PER DECISION
+// guards: UC-008; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; ONE CLICK PER DECISION
 // given: the same use cases, three of the five not accepted
 // input: the route use-case drawn as the list
 // expect: one link to #use-case/id=all, of the classes btn and primary, whose text is exactly "Review all 3 not accepted"; the Review all page it leads to offers "Accept all 3 shown"
@@ -225,7 +225,7 @@ test("TST-874004 use-case list — Review all is a btn primary link naming the t
 // ---------------------------------------------------------------- the architecture
 
 // TST-874005 · level: unit · module: MOD-review-pages
-// guards: UC-023 (step 4); STATUS IS DERIVED FROM THE RECORDS
+// guards: UC-023; STATUS IS DERIVED FROM THE RECORDS
 // given: the decisions ARC-001 accepted, ARC-002 open, ARC-003 changed since acceptance; the modules MOD-shelf accepted, MOD-desk and MOD-queue open
 // input: the route decision drawn as the list; the route module drawn as the list
 // expect: the decisions' rows carry badge and b-accepted, badge and b-open, badge and b-changed; the modules' rows MOD-desk badge and b-open, MOD-queue badge and b-open, MOD-shelf badge and b-accepted
@@ -236,7 +236,7 @@ test("TST-874005 architecture lists — each status badge carries b-<status>", a
 });
 
 // TST-874006 · level: unit · module: MOD-review-pages
-// guards: UC-023 (steps 3, 4); STATUS IS DERIVED FROM THE RECORDS
+// guards: UC-023; STATUS IS DERIVED FROM THE RECORDS
 // given: the same architecture
 // input: the route decision drawn for ARC-002 (open), ARC-003 (changed) and ARC-001 (accepted); the route module drawn for MOD-desk (open) and MOD-shelf (accepted)
 // expect: the badge of each page carries exactly badge and b-open, badge and b-changed, badge and b-accepted; badge and b-open, badge and b-accepted
@@ -249,7 +249,7 @@ test("TST-874006 architecture file pages — the status badge carries b-<status>
 });
 
 // TST-874007 · level: unit · module: MOD-review-pages
-// guards: UC-023 (step 5); SEVERAL FILES ARE ACCEPTED IN ONE CLICK
+// guards: UC-023; SEVERAL FILES ARE ACCEPTED IN ONE CLICK
 // given: the same architecture
 // input: the route decision drawn with the id all (the whole architecture)
 // expect: four files — ARC-002 and MOD-desk and MOD-queue badge and b-open, ARC-003 badge and b-changed; none for ARC-001 and MOD-shelf
@@ -261,7 +261,7 @@ test("TST-874007 whole-architecture Review all page — each file's status badge
 });
 
 // TST-874008 · level: unit · module: MOD-review-pages
-// guards: UC-023 (step 5); SEVERAL FILES ARE ACCEPTED IN ONE CLICK; ONE CLICK PER DECISION
+// guards: UC-023; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; ONE CLICK PER DECISION
 // given: the same architecture: of the decisions and modules four are not accepted, of the modules two
 // input: the route decision drawn as the list; the route module drawn as the list
 // expect: the decisions' list has one link to #decision/id=all of the classes btn and primary, with the text "Review all 4 not accepted" (the files its page shows); the modules' list one to #module/id=all, btn and primary, "Review all 2 not accepted"
@@ -276,7 +276,7 @@ test("TST-874008 architecture lists — Review all is a btn primary link naming 
 // ---------------------------------------------------------------- the SPEC change entries
 
 // TST-874009 · level: unit · module: MOD-review-pages
-// guards: UC-006 (steps 1, 7); STATUS IS DERIVED FROM THE RECORDS
+// guards: UC-006; STATUS IS DERIVED FROM THE RECORDS
 // given: a queue of four entries — 01 open, 02 approved (a record, no decision row), 03 stale (a record naming another section), 04 in SPEC (a decision row)
 // input: the route spec-entry drawn as the list
 // expect: the badges' classes are badge and b-open, badge and b-approved, badge and b-stale, badge and b-applied; their texts open, approved, stale, in SPEC
@@ -288,7 +288,7 @@ test("TST-874009 spec-entry list — each state's badge carries the class the pa
 });
 
 // TST-874010 · level: unit · module: MOD-review-pages
-// guards: UC-006 (steps 1, 7, 4c); STATUS IS DERIVED FROM THE RECORDS
+// guards: UC-006; STATUS IS DERIVED FROM THE RECORDS
 // given: the same queue
 // input: the route spec-entry drawn for each of the four entries, one page each
 // expect: the badge of each page carries exactly badge and b-open, badge and b-approved, badge and b-stale, badge and b-applied

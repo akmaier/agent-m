@@ -173,7 +173,7 @@ test("open-files — a change of UC-004 is written into its file", async () => {
 });
 
 // TST-472035 · level: unit · module: MOD-artifact-edits
-// guards: THE NAME IS THE ID AND IT SURVIVES; A GENERATED ARTIFACT IS A PROPOSAL; UC-007 6a
+// guards: THE NAME IS THE ID AND IT SURVIVES; A GENERATED ARTIFACT IS A PROPOSAL; UC-007
 // given: two drafted use cases its participant classed new, under the placeholders UC-900 and UC-901, which the result's classes — as the person left them — make a change of UC-004 and a duplicate of UC-004
 // input: the writer, once for each
 // expect: each written as a change to UC-004's file — its path, its id and its first heading UC-004's, the rest as drafted — and no new identifier: the head after each commit holds UC-001 to UC-004 only
@@ -194,7 +194,7 @@ test("open-files — a draft the classes make a change or a duplicate of UC-004 
 // ---------------------------------------------------------------- unknown names
 
 // TST-472036 · level: unit · module: MOD-artifact-edits
-// guards: UC-007 4a, 4b; A GENERATED ARTIFACT IS A PROPOSAL
+// guards: UC-007; A GENERATED ARTIFACT IS A PROPOSAL
 // given: a drafted new use case that realises A LOAN HAS A DUE DATE and AN UNKNOWN RULE, which the SPEC does not hold, and another that realises only AN UNKNOWN RULE
 // input: the writer
 // expect: both written, as UC-007 and UC-008: the first without the line of the unknown name, the second with its `realises:` list empty — every other byte as drafted —; the notes name the first use case and the name, the second and the name, and that the second realises no requirement

@@ -136,7 +136,7 @@ const expiredOnce = () => standIn({ silent: { accessToken: TOKEN, scopes: SCOPES
 const line = (shown) => one(shown, "mailbox-setting");
 
 // TST-993001 · level: unit · module: MOD-settings-pages
-// guards: UC-037 (3b); AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN
+// guards: UC-037; AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN
 // given: a stored Microsoft 365 mailbox whose sign-in has expired: the library's cache holds no account for it
 // input: the Settings page; Test on the mailbox line
 // expect: the line says the sign-in has expired and offers one Sign in with Microsoft; no request reaches Microsoft Graph; the connection stays stored; the test is recorded as refused
@@ -154,7 +154,7 @@ test("settings — Test finds an expired Microsoft sign-in and the line offers S
 });
 
 // TST-993002 · level: unit · module: MOD-settings-pages
-// guards: UC-037 (3b); AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN; ONE CLICK PER DECISION
+// guards: UC-037; AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN; ONE CLICK PER DECISION
 // given: the expired sign-in of the previous test, with the stored client identifier, address, two folders and a place
 // input: one click on Sign in with Microsoft; then Test
 // expect: the window opens once, for the stored client identifier and the stored address as the login hint, asking for the three permissions; the stored `mailbox` is the same entry apart from graph.account, which is the signed-in account — address, route, folders, places and client identifier unchanged —; the click writes no record of a test; the next Test works and is recorded as working
@@ -182,7 +182,7 @@ test("settings — one click renews the sign-in on the stored connection, which 
 });
 
 // TST-993003 · level: unit · module: MOD-settings-pages
-// guards: UC-037 (3b); THE MAIL SIGN-IN ASKS ONLY FOR READING, DRAFTING AND SENDING
+// guards: UC-037; THE MAIL SIGN-IN ASKS ONLY FOR READING, DRAFTING AND SENDING
 // given: the expired sign-in; the provider's window is closed without signing in (SignInCancelled), then a permission is declined
 // input: Sign in with Microsoft, twice
 // expect: each time the line says why and the stored connection is exactly as it was; nothing is renewed
@@ -200,7 +200,7 @@ test("settings — a sign-in that fails changes nothing that is stored", async (
 });
 
 // TST-993004 · level: unit · module: MOD-settings-pages
-// guards: UC-037 (3b)
+// guards: UC-037
 // given: a stored IMAP connection whose test fails with the mail server's refusal, and a Microsoft connection whose account the library knows and whose Graph refuses a permission (403)
 // input: Test on each line
 // expect: both tests fail and neither line offers Sign in with Microsoft: it is offered after SignInExpired only
@@ -224,7 +224,7 @@ test("settings — Sign in with Microsoft is offered after an expired sign-in on
 });
 
 // TST-993006 · level: unit · module: MOD-settings-pages
-// guards: UC-037 (3b); AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN
+// guards: UC-037; AN API MAILBOX IS OPENED BY THE PROVIDER'S SIGN-IN
 // given: a stored Microsoft 365 mailbox whose account the library knows, but whose refresh token has run out: the silent token request throws interaction_required
 // input: Test on the mailbox line; one click on Sign in with Microsoft; Test
 // expect: the line offers Sign in with Microsoft after the first Test; after the click the stored entry differs from the first only in graph.account; the second Test is recorded as working
@@ -242,7 +242,7 @@ test("settings — a refresh token that has run out is renewed in the same way",
 });
 
 // TST-993005 · level: unit · module: MOD-settings-pages
-// guards: UC-037 (3b); EVERY STEP EXPLAINS ITSELF
+// guards: UC-037; EVERY STEP EXPLAINS ITSELF
 // given: a stored Microsoft 365 mailbox, and a stored IMAP one, each with the places it allows
 // input: the route mailbox opened as the line's Change would open it
 // expect: the Microsoft one shows the address, the route graph with its part visible, both folders, the client identifier, the place ticked and no token; the IMAP one shows the address, the route imap, the servers with their ports and encryption, the account, the Bridge and the place ticked, and no password

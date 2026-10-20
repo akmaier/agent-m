@@ -52,7 +52,7 @@ const current = (root) => byClass(root, "step").filter((step) => step.getAttribu
 const hrefs = (root) => byTag(root, "a").map((anchor) => anchor.href).filter((href) => /^https:\/\/(github\.com|[a-z]+\.github\.io)\//.test(href ?? ""));
 
 // TST-587018 · level: component · module: MOD-settings-pages, MOD-site-frame
-// guards: UC-014 step 4, 4a; AN INSTANCE IS A FORK OF AGENT M
+// guards: UC-014; AN INSTANCE IS A FORK OF AGENT M
 // given: the review page of the person's own instance acme/agent-m, served from https://acme.github.io/agent-m/docs/index.html; the settings-pages view as an entry page loads it; the address
 //   #get-your-own/step=actions, as the review pages link it
 // input: startPage with the fragment #get-your-own/step=actions
@@ -71,7 +71,7 @@ test("startPage serves #get-your-own/step=actions as the Actions step of the per
 });
 
 // TST-587019 · level: component · module: MOD-settings-pages, MOD-site-frame
-// guards: UC-014 steps 1 to 5; EVERY STEP EXPLAINS ITSELF
+// guards: UC-014; EVERY STEP EXPLAINS ITSELF
 // given: the original dashboard akmaier/agent-m, served from https://akmaier.github.io/agent-m/docs/index.html; the address #get-your-own/owner=acme, which names a GitHub name and no step
 // input: startPage with the fragment #get-your-own/owner=acme
 // expect: Step 1 is the one current step; every step holds one folded explanation; the field holds acme; the links are those of acme as above; the frame requested nothing for the route

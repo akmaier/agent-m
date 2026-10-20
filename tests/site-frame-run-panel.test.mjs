@@ -218,7 +218,7 @@ test("runPanel — the limit of correction rounds fixed for the job", () => {
 // ---------------------------------------------------------------- the decision
 
 // TST-472853 · level: unit · module: MOD-site-frame
-// guards: ONE CLICK PER DECISION; THE PAGE NAMES WHERE IT SENDS; UC-005 step 3
+// guards: ONE CLICK PER DECISION; THE PAGE NAMES WHERE IT SENDS; UC-005
 // given: the Prepared value above, a handler onRun that counts its calls
 // input: runPanel, nothing pressed; then Run pressed twice
 // expect: nothing sent before the press; after it onRun called once, the second press calling nothing; the Run button disabled
@@ -255,7 +255,7 @@ test("runPanel — counter-proof: a click a script makes on Run calls nothing", 
 });
 
 // TST-472854 · level: unit · module: MOD-site-frame
-// guards: ONE CLICK PER DECISION; UC-019 5a
+// guards: ONE CLICK PER DECISION; UC-019
 // given: the Prepared value above; handlers with and without onCancel
 // input: runPanel for each; Cancel pressed where it is offered
 // expect: no Cancel button without onCancel; with it a Cancel button that calls onCancel once and does not call onRun

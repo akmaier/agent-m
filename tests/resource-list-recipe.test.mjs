@@ -51,7 +51,7 @@ const textOf = async (context) => (await recipe(context))[0].text;
 const failureOf = (p) => Promise.resolve(p).then(() => null, (error) => error);
 
 // TST-472580 · level: unit · module: MOD-resource-list
-// guards: A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER; UC-040 (7b)
+// guards: A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER; UC-040
 // given: a product whose list holds a compute resource `cluster` on the runner gpu; a job that names it
 // input: the recipe resource-check
 // expect: one part named cluster, with no source, no artifact and required; its text names the resource, its kind and its address, the runner `gpu` and the processing place, and asks for the partitions with the scheduler's own read-only command — for SLURM sinfo —, as the one request, and nothing else
@@ -70,7 +70,7 @@ test("resource-check gives, as one part, a compute resource and the harmless req
 });
 
 // TST-472581 · level: unit · module: MOD-resource-list
-// guards: A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER; UC-040 (7)
+// guards: A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER; UC-040
 // given: an endpoint and an agent whose route names the runner cpu; compute on the runner gpu first
 // input: the recipe for each
 // expect: compute on its runner is given; the endpoint and the agent are refused with NotRunnerCheck naming the resource and its kind — they are checked by a harmless probe through the Bridge their route names, not by a runner's check job — and no part is given
@@ -121,7 +121,7 @@ test("resource-check names a secret and holds no secret's value", async () => {
 });
 
 // TST-472584 · level: unit · module: MOD-resource-list
-// guards: ONE DEFINITION, THREE DRIVERS; UC-040 (7b)
+// guards: ONE DEFINITION, THREE DRIVERS; UC-040
 // given: the recipe registered with the job runner under MOD-resource-list, the kind check-resource, and a drafter that runs code and tests
 // input: prepareJob("check-resource", the context)
 // expect: the job is prepared with one part, of the recipe resource-check, naming cluster; nothing blocks it

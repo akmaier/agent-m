@@ -166,7 +166,7 @@ test("TST-726001 the hierarchy of a kind with a group file: every item once, an 
 });
 
 // TST-726002 · level: unit · module: MOD-review-pages
-// guards: UC-021 (3c); AN ITEM HAS ONE PLACE IN ITS HIERARCHY
+// guards: UC-021; AN ITEM HAS ONE PLACE IN ITS HIERARCHY
 // given: a group file that names UC-001 under Review twice over — under Review and again under Review's second line (UC-001 stands in two places)
 // input: the route arrange drawn
 // expect: UC-001 is shown in both places, each marked "named twice"; no item is dropped
@@ -180,7 +180,7 @@ test("TST-726002 a member named twice is shown in both places, marked, until one
 });
 
 // TST-726003 · level: unit · module: MOD-review-pages
-// guards: UC-021 (1a); A REGROUPING IS COMMITTED DIRECTLY; AN UNGROUPED ITEM IS SHOWN AT THE TOP LEVEL
+// guards: UC-021; A REGROUPING IS COMMITTED DIRECTLY; AN UNGROUPED ITEM IS SHOWN AT THE TOP LEVEL
 // given: the product with no group file; the person adds the group "Review" and moves UC-001 into it
 // input: the route arrange drawn; "+ Group" with the title Review; "Move to …" of UC-001 to Review; Save arrangement
 // expect: all four use cases at the top level, each marked "not yet placed", before the changes; then one commit on the head that was read, holding docs/groups/use-cases.md and no other file, with the canonical text of the file with the group Review holding UC-001; the commit as a link; the new hierarchy shows UC-001 in Review and no longer marked
@@ -205,7 +205,7 @@ test("TST-726003 without a group file the first save creates it, and only it", a
 });
 
 // TST-726004 · level: unit · module: MOD-review-pages
-// guards: UC-021 (2, 2a, 2b); A GROUP HOLDS ONE KIND OF ARTIFACT
+// guards: UC-021; A GROUP HOLDS ONE KIND OF ARTIFACT
 // given: the product with the group file above
 // input: Move to … of UC-004 to Derivation; Move to … of the group Derivation to Review; a drag of UC-002 onto the group Derivation's place at the top level; Rename of Review to Chapters; Move content up one level of Chapters; + Group with the title UC-005 (an identifier)
 // expect: each accepted move is a line of the pending changes, in order, and the tree shows it at once; the group titled by an identifier is refused with its reason, listed beside the tree, and is not a pending change; nothing is written
@@ -241,7 +241,7 @@ test("TST-726004 each kind of move shows at once and is a pending change, a refu
 });
 
 // TST-726005 · level: unit · module: MOD-review-pages
-// guards: UC-021 (5a); A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT
+// guards: UC-021; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT
 // given: the product with the group file above; the person moved UC-004 into Review and added the group "Later"; then another writer's commit renames the group Review to Chapters
 // input: Save arrangement
 // expect: nothing is written; the page shows the newer hierarchy (the group Chapters, not Review) with the pending change "add the group Later" still applied, and the move of UC-004 into Review named as no longer applying; the next Save is on the newer blob
@@ -268,7 +268,7 @@ test("TST-726005 a changed group file writes nothing and shows the newer hierarc
 });
 
 // TST-726006 · level: unit · module: MOD-review-pages
-// guards: UC-021 (5c); NO TEXT TRAVELS IN A URL; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
+// guards: UC-021; NO TEXT TRAVELS IN A URL; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
 // given: the product with the group file above, no token stored on GitHub; and a GitLab product with no token
 // input: a move, then Save arrangement; and the same on GitLab
 // expect: GitHub — nothing committed; a link to GitHub's editor for docs/groups/use-cases.md whose address holds only the path, and the new file's text on the clipboard; GitLab — no save: the page says the product is written with the project's own token and offers the step that stores one, and nothing is committed

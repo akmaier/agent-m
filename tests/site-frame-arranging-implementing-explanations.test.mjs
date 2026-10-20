@@ -38,7 +38,7 @@ function assertClaims(topic, claims) {
 }
 
 // TST-725001 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-021 (the folded What is this?); UC-024 (steps 1 and 5)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-021; UC-024
 // given: explanations.md, and the three new topics of arranging and of implementing
 // input: explain(topic) for each
 // expect: each is the folded What is this? — a <details class="explain"> without the open attribute, holding <summary>What is this?</summary> and then the topic's Markdown rendered, in which no asterisk or backtick of the source is left standing
@@ -60,7 +60,7 @@ test("explain — each topic of arranging and of implementing is a folded What i
 });
 
 // TST-725002 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-021 (the folded What is this? beside the arrangement)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-021
 // given: the topic group-is-a-heading
 // input: explain("group-is-a-heading")
 // expect: text saying a group is only a heading; it has no identifier; nothing realises or tests it; moving an item never changes the item; a group holds one kind of artifact and an item has one place; saving commits only the group file
@@ -80,7 +80,7 @@ test("explain — group-is-a-heading: a group is only a heading (UC-021)", () =>
 });
 
 // TST-725003 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-024 (step 1, the table and the pointer to the book)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-024
 // given: the topic implementation-route
 // input: explain("implementation-route")
 // expect: text saying the process model decides how the software is assembled, the three rows of UC-024's table (plan-driven, Scrum, Kanban) with where the work comes from, what one job implements and the order, that every job is the same at its core, and the pointer to chapter 6 for the plan-driven models and chapter 7 for the agile ones
@@ -105,7 +105,7 @@ test("explain — implementation-route: the route a process model prescribes (UC
 });
 
 // TST-725004 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-024 (step 5 and its actors)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-024
 // given: the topic coding-participants
 // input: explain("coding-participants")
 // expect: text saying who may offer, then for each of the CLI agent (local bridge), the sandboxed agent (tunnel) and the CI agent (self-hosted runner) its setup, its speed where the accepted texts give one, and its isolation
@@ -134,7 +134,7 @@ test("explain — coding-participants: the three kinds compared in setup, speed 
 });
 
 // TST-725005 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF (no existing topic changes)
+// guards: EVERY STEP EXPLAINS ITSELF
 // given: explanations.md, and the topics participant-ci-agent, participant-cli-agent and participant-sandboxed-agent as they stood before ITM-725
 // input: the SHA-256 of each topic's Markdown
 // expect: each equals the digest of the text as it stood: the new topic changes none of the three it compares

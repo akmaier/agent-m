@@ -37,7 +37,7 @@ const CASE = { identifier: "TST-910", level: "unit", guards: ["ANOTHER RULE"], p
 const rules = (findings) => findings.map((found) => [found.artifact, found.line, found.kind, found.rule]);
 
 // TST-753101 · level: unit · module: MOD-result-records
-// guards: A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS; UC-026 (6)
+// guards: A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS; UC-026
 // given: a proposal of three cases: a clean one, one whose expected result is missing and one whose expected result is blank
 // input: the check test-proposals on the proposal
 // expect: two error findings, for the second case (line 2) and the third (line 3), each under A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS, with the case's identifier as artifact and a fix; none for the first
@@ -51,7 +51,7 @@ test("test-proposals — a case without an expected result is an error under A T
 });
 
 // TST-753102 · level: unit · module: MOD-result-records
-// guards: A MODEL-DEPENDENT TEST IS MEASURED AS A RATE; UC-026 (6)
+// guards: A MODEL-DEPENDENT TEST IS MEASURED AS A RATE; UC-026
 // given: a proposal of four cases with phrasings: one with runs 5, one with runs 1, one with no runs, and one without phrasings and without runs (deterministic)
 // input: the check test-proposals on the proposal
 // expect: two error findings under A MODEL-DEPENDENT TEST IS MEASURED AS A RATE, for the case with runs 1 (line 2) and the case with no runs (line 3); none for the case with runs 5 or the deterministic case
@@ -64,7 +64,7 @@ test("test-proposals — a model-dependent case judged on a single run is an err
 });
 
 // TST-753103 · level: unit · module: MOD-result-records
-// guards: EVERY ARTIFACT NAMES ITS ORIGIN; UC-026 (6)
+// guards: EVERY ARTIFACT NAMES ITS ORIGIN; UC-026
 // given: a proposal of two cases: one whose guards is empty and one that guards a name
 // input: the check test-proposals on the proposal
 // expect: one error finding under EVERY ARTIFACT NAMES ITS ORIGIN, for the case with empty guards (line 1); none for the other
@@ -74,7 +74,7 @@ test("test-proposals — a case that guards nothing is an error", async () => {
 });
 
 // TST-753104 · level: unit · module: MOD-result-records
-// guards: TEST GENERATION SEES THE EXISTING TESTS; UC-026 (6)
+// guards: TEST GENERATION SEES THE EXISTING TESTS; UC-026
 // given: an existing test TST-901 guarding A SELECTED RULE, input "its shape", expect "round"; a proposal of six cases: (1) class new with the same guard, input and expected result (input in other case and spacing), (2) class duplicate with the same, (3) class new with the same guard and input but expected "square", (4) class new with the same input and expected result but guarding ANOTHER RULE, (5) class extends with the same guard, input and expected result, (6) class new with the same guard and expected result but another input
 // input: the check test-proposals on the proposal
 // expect: error findings under TEST GENERATION SEES THE EXISTING TESTS for case 1 (line 1) and case 5 (line 5), each naming TST-901 in what or fix; none for cases 2, 3, 4 and 6
@@ -94,7 +94,7 @@ test("test-proposals — a case equal to an existing test in guard, input and ex
 });
 
 // TST-753105 · level: unit · module: MOD-result-records
-// guards: UC-026 (6); A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS
+// guards: UC-026; A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS
 // given: the product of the other tests, with an existing test, and a clean proposal: a deterministic new case, a model-dependent case with 5 runs, and a duplicate classed duplicate; and, as the known positive, the same proposal with one expected result removed
 // input: the check test-proposals on each
 // expect: no finding for the clean proposal; one finding for the proposal with the expected result removed; no finding for a draft with no cases

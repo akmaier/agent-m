@@ -92,7 +92,7 @@ function bridgesAnswer() {
 test.afterEach(() => { globalThis.fetch = realFetch; fake = null; });
 
 // TST-472695 · level: unit · module: MOD-runtimes
-// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-011 step 2
+// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-011
 // given: a repository whose default branch is `trunk`; a job's start on a Bridge's route; the Bridge `lab-pc`
 // input: queueJob(host, START, { kind: "bridge", bridge: "lab-pc" }, head, bridge); and, as a known positive of the absence, the same without a Bridge handle
 // expect: one commit, on `trunk`, on the head read, of the start record alone — as startRecord gives it, with no `## Taken`: the Bridge takes the job —, made before the hand-over request; then one request, POST /v1/jobs to the Bridge, with its token, naming the product's address, the record's path and that commit; the path and commit returned; without a handle, the commit alone and no request
@@ -116,7 +116,7 @@ test("queueJob — the Bridge route commits the start, then hands the job over t
 });
 
 // TST-472696 · level: unit · module: MOD-runtimes
-// guards: A REMOTE INTERFACE NAMES HOW IT FAILS; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-011 step 2a
+// guards: A REMOTE INTERFACE NAMES HOW IT FAILS; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-011
 // given: a Bridge that gives no answer, one that refuses the token, and one that is paused; known positive first — a Bridge that accepts
 // input: queueJob on the Bridge route with each
 // expect: the Bridge client's own error by name — NoAnswer, TokenRefused, BridgeFailed with `paused` — thrown after the commit; the start stays committed (one commit, a record without `## Taken`, which the Bridge takes when it next reads the repository), and the error carries what was queued, `{ path, commit }`
@@ -204,7 +204,7 @@ test("TST-398020: Bridge targets receive ordinary DriverInput exactly once", asy
 // TST-398021
 // level: unit
 // module: MOD-runtimes
-// guards: UC-019 step 8; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
+// guards: UC-019; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
 // given: both Bridge target kinds after a known-positive ordinary exchange
 // input: bridgeDriver sends a second DriverInput with the current draft in previous and no findings
 // expect: one additional ask contains the entire current draft once without duplicating prompt parts

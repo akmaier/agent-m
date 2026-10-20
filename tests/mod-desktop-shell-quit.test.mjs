@@ -60,7 +60,7 @@ async function windowOver(jobs) {
 const decision = (document) => descendants(document.body, (node) => node.className === "decision")[0];
 
 // TST-1055101 · level: unit · module: MOD-desktop-shell
-// guards: THE BRIDGE RUNS AS AN APP; UC-044 (7b)
+// guards: THE BRIDGE RUNS AS AN APP; UC-044
 // given: the production window on Pairing, over a Bridge with two jobs still running (JOB-20261019-0900-aaaa on opencode, JOB-20261019-0905-bbbb on claude)
 // input: Quit pressed; then Cancel on what it shows; then Quit again and the confirmation Quit of the decision
 // expect: after the first press the window asked the entry for the running jobs, shows a decision whose text names both job identifiers and says they end as cancelled, and has quit nothing; after Cancel the decision is gone and quit was not called; after the second press and the confirmation quit was called once
@@ -87,7 +87,7 @@ test("Quit with two jobs running shows a decision that names both, and quits onl
 });
 
 // TST-1055102 · level: unit · module: MOD-desktop-shell
-// guards: THE BRIDGE RUNS AS AN APP; UC-044 (7b)
+// guards: THE BRIDGE RUNS AS AN APP; UC-044
 // given: the production window on Pairing, over a Bridge with no job running
 // input: Quit pressed
 // expect: quit was called once at once, and no decision was shown
@@ -100,7 +100,7 @@ test("Quit with no job running quits at once", async () => {
 });
 
 // TST-1055106 · level: unit · module: MOD-desktop-shell
-// guards: THE BRIDGE RUNS AS AN APP; UC-044 (7b)
+// guards: THE BRIDGE RUNS AS AN APP; UC-044
 // given: the production window over a Bridge with two jobs running, and the main process's request to quit — what the tray's Quit sends (TST-1055105) — delivered through the preload's onQuitRequested
 // input: the request; then the confirmation Quit of the decision it shows
 // expect: the window registered a handler; the request shows the same decision, naming both job identifiers, and quits nothing; the confirmation quits once

@@ -72,7 +72,7 @@ const current = (main) => byClass(main, "step").filter((step) => step.getAttribu
 const links = (main) => byTag(main, "a").map((anchor) => anchor.href).filter((href) => GITHUB.test(href ?? ""));
 
 // TST-587020 · level: system · module: MOD-settings-pages, MOD-site-frame
-// guards: UC-014 steps 1 to 5; AN INSTANCE IS A FORK OF AGENT M; THE PAGES ROOT IS THE REPOSITORY ROOT
+// guards: UC-014; AN INSTANCE IS A FORK OF AGENT M; THE PAGES ROOT IS THE REPOSITORY ROOT
 // given: the original dashboard akmaier/agent-m, served from https://akmaier.github.io/agent-m/docs/index.html; known positive — the same page started on the address #settings draws the route settings, not the steps
 // input: start the page on #get-your-own; the person types the GitHub name acme; then types a name GitHub does not allow, acme corp/evil, then acme again
 // expect: before a name, the page shows the four steps with Step 1 current and one link, the fork page https://github.com/akmaier/agent-m/fork; after acme the links are, in order, that fork page,
@@ -98,7 +98,7 @@ test("system — the name entered gives each step its exact GitHub page, and a n
 });
 
 // TST-587021 · level: system · module: MOD-settings-pages, MOD-site-frame
-// guards: UC-014 steps 3, 4 and 3a
+// guards: UC-014
 // given: the page started on #get-your-own/owner=acme
 // input: read Step 2 and Step 4; read Step 3 and press Later
 // expect: Step 2 names "Deploy from a branch", the branch "main", the folder "/ (root)" and "Save"; Step 4 says GitHub needs about a minute before the address answers; Step 3 says the workflows are needed only for EU
@@ -123,7 +123,7 @@ test("system — the Pages choice is named, Step 3 offers Later, and Later moves
 });
 
 // TST-587022 · level: system · module: MOD-settings-pages, MOD-site-frame
-// guards: UC-014 step 4, 4a; AN INSTANCE IS A FORK OF AGENT M
+// guards: UC-014; AN INSTANCE IS A FORK OF AGENT M
 // given: the page started on #get-your-own, the person's name acme entered
 // input: the address changes to #get-your-own/step=actions, as the review pages link it, with the owner named: #get-your-own/owner=acme/step=actions
 // expect: the page draws the route again with Step 3 as the one current step and the owner field holding acme; Step 3's link is https://github.com/acme/agent-m/actions; the address changing to #get-your-own/step=pages
@@ -140,7 +140,7 @@ test("system — the address #get-your-own/step=actions opens the Actions step o
 });
 
 // TST-587023 · level: system · module: MOD-settings-pages, MOD-site-frame
-// guards: UC-014 "Both steps carry a folded What is this?"; EVERY STEP EXPLAINS ITSELF
+// guards: UC-014; EVERY STEP EXPLAINS ITSELF
 // given: the page started on #get-your-own/owner=acme
 // input: read the folded explanations of the four steps
 // expect: each step holds exactly one folded <details class="explain">, which is the frame's explain of its topic: Step 1 get-your-own-fork, Step 2 get-your-own-pages, Step 3 get-your-own-actions, Step 4

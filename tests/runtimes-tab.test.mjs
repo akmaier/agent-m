@@ -129,7 +129,7 @@ const hooksOf = (fake, record = { ...START, path: RECORD_PATH, run: null }) => (
 const run = (job, fake, { context = contextOf(), record } = {}) => runtimes.runOnTab(job, context, CONNECTIONS, hooksOf(fake, record));
 
 // TST-472711 · level: unit · module: MOD-runtimes
-// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-010 step 2
+// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-010
 // given: a repository whose default branch is `trunk` (not `main`), with no job workflow; a job's start on the tab's route
 // input: queueJob(host, START, { kind: "tab" }, the head read)
 // expect: one commit, on `trunk`, on the head that was read, holding the one file at the record's path: the start record as MOD-job-ledger's startRecord gives it, with its `## Taken` — `by: tab <browser>` (MOD-runtimes.md:172), at the job's start — in the same commit; the path and commit returned; no workflow is needed
@@ -164,7 +164,7 @@ test("queueJob — the tab's route refuses a moved head, with nothing written", 
 });
 
 // TST-472713 · level: unit · module: MOD-runtimes
-// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; ONE DEFINITION, THREE DRIVERS; UC-019 step 6
+// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; ONE DEFINITION, THREE DRIVERS; UC-019
 // given: a queued job of a kind whose result a person reviews (`review: person`), attended; a drafter on an endpoint that answers a draft
 // input: runOnTab(prepared, context, connections, { host, record })
 // expect: the result for the page holds the draft, stopped because passed, and nothing written (the writer not called); the endpoint was called at its own address; the record has its end — state done, `waits for a person` — and the round record, appended in one commit on the head that was read
@@ -204,7 +204,7 @@ test("runOnTab — a kind of review none is written at once, and its end lists t
 });
 
 // TST-472715 · level: unit · module: MOD-runtimes
-// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-007 4a
+// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-007
 // given: a job of review none whose writer changed the draft while writing and committed, with two notes; and one whose every file already stood, so it committed nothing and has no note
 // input: runOnTab of each
 // expect: the first end lists the commit and, one line each in their order, `note: <note>`, and not `no change`; the second end lists exactly `no change`
@@ -221,7 +221,7 @@ test("runOnTab — the writer's notes are listed in the end, and a writer that c
 });
 
 // TST-472716 · level: unit · module: MOD-runtimes
-// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-011 step 5
+// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-011
 // given: a queued job of `review: person` whose record names a run; known positive first — the same job whose record names none
 // input: runOnTab of each
 // expect: attended unless the record names a run: the first (no run) is attended, its writer not called; the second is written at once, the writer called with the draft, and its end — the kind hands its draft back (`written.shown`) — holds that draft as `draft:` and `waits for a person`
@@ -347,7 +347,7 @@ test("runOnTab — an answer that cannot be read ends the job as failed, with it
 });
 
 // TST-398007 · level: unit · module: MOD-runtimes
-// guards: UC-019 step 8; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; THE ROUNDS ARE COUNTED AND SHOWN
+// guards: UC-019; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; THE ROUNDS ARE COUNTED AND SHOWN
 // given: two queued attended jobs on the tab route, and an endpoint that answers each; the second call's hooks carry a current draft as `refine`
 // input: runOnTab first without `refine`, then with `refine: { text: "the current draft" }`
 // expect: the ordinary request reaches the endpoint without that draft (the counter-proof); the refined request reaches MOD-job-runner with it and carries it as `previous`
@@ -394,7 +394,7 @@ test("runOnTab — the hook from begins with the draft a person changed and chec
 // TST-398023
 // level: unit
 // module: MOD-runtimes
-// guards: UC-019 step 8; ONE DEFINITION, THREE DRIVERS; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A FINDING READS LIKE A COMPILER MESSAGE
+// guards: UC-019; ONE DEFINITION, THREE DRIVERS; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A FINDING READS LIKE A COMPILER MESSAGE
 // given: an attended tab job with a recipe part, an edited draft and a check rejecting the first returned draft
 // input: runOnTab with refine; the endpoint returns first, then second
 // expect: two exchanges each contain the recipe part once; the first carries the edited draft once, the second the current draft and canonical finding once, with no stale edited draft

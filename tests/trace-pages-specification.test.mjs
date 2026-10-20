@@ -186,7 +186,7 @@ const CURRENT_NAMES = ["OUTSIDE REQUIREMENT", "FIRST REQUIREMENT", "SECOND REQUI
 
 // CASE ITM-594-01
 // TST-594000 · level: unit · module: MOD-trace-pages
-// guards: UC-020 (steps 1, 1a); THE BROWSER SHOWS ANY RELEASED VERSION
+// guards: UC-020; THE BROWSER SHOWS ANY RELEASED VERSION
 // given: a Host that names main the default branch and gives the tags v2026.1.9, v2026.10.0, nightly, v2026.2.0, v2025.12.3 in that order
 // input: the route rendered at main
 // expect: the options are, in this order, main (shown as "current"), v2026.10.0, v2026.2.0, v2026.1.9, v2025.12.3, nightly (shown by their names); main is selected; no "as of" line
@@ -200,7 +200,7 @@ test("the version choice offers the default branch as current and every tag, new
 
 // CASE ITM-594-02
 // TST-594001 · level: unit · module: MOD-trace-pages
-// guards: UC-020 (step 1c); THE BROWSER SHOWS ANY RELEASED VERSION
+// guards: UC-020; THE BROWSER SHOWS ANY RELEASED VERSION
 // given: a Host that names main the default branch and gives no tag; and one whose listTags fails
 // input: the route rendered at main with each
 // expect: for each, the only option is main shown as "current"; the first says that no release is tagged yet and points to UC-013; the second never says so but names the failed read, "The tags could not be read: This page could not be drawn: tags unavailable"
@@ -219,7 +219,7 @@ test("a product without tags is offered only current, with a pointer to UC-013; 
 
 // CASE ITM-594-03
 // TST-594002 · level: unit · module: MOD-trace-pages
-// guards: UC-020 (steps 1, 1a); THE BROWSER SHOWS ANY RELEASED VERSION
+// guards: UC-020; THE BROWSER SHOWS ANY RELEASED VERSION
 // given: main has OUTSIDE, FIRST and SECOND REQUIREMENT and is the default branch; the tag v2026.1.0 has OLD REQUIREMENT only
 // input: the route rendered at main, then v2026.1.0 chosen
 // expect: at main three Edit links, two + Requirement links and no "as of"; readSnapshot is then asked main, v2026.1.0 and nothing else; the tree lists only OLD REQUIREMENT; v2026.1.0 is selected; the view says "as of v2026.1.0"; no Edit and no + Requirement link
@@ -241,7 +241,7 @@ test("choosing a tag draws the SPEC of that tag, read-only and as of it", async 
 
 // CASE ITM-594-04
 // TST-594003 · level: unit · module: MOD-trace-pages
-// guards: UC-020 (steps 1, 1a); THE BROWSER SHOWS ANY RELEASED VERSION
+// guards: UC-020; THE BROWSER SHOWS ANY RELEASED VERSION
 // given: the route rendered at main and the tag v2026.1.0 chosen
 // input: main chosen again
 // expect: readSnapshot is asked main, v2026.1.0, main; the three current requirements are listed with five Edit and + Requirement links; main is selected; no "as of" line
@@ -260,7 +260,7 @@ test("choosing current again draws the default branch editable", async () => {
 
 // CASE ITM-594-05
 // TST-594004 · level: unit · module: MOD-trace-pages
-// guards: UC-020 (step 1a); THE BROWSER SHOWS ANY RELEASED VERSION
+// guards: UC-020; THE BROWSER SHOWS ANY RELEASED VERSION
 // given: the route rendered at main (the params keep ref main), v2026.1.0 chosen, OLD REQUIREMENT opened
 // input: route.subject(params, context) with the context the route was drawn with
 // expect: kind "converse", no draft route, title "OLD REQUIREMENT at v2026.1.0", a key holding ref=v2026.1.0, and a page text holding "Version: v2026.1.0" and "Old rule."
@@ -283,7 +283,7 @@ test("the subject of a chosen tag is about the version shown, not the ref the ca
 
 // CASE ITM-594-06
 // TST-594005 · level: unit · module: MOD-trace-pages
-// guards: UC-020 (step 1a); THE BROWSER SHOWS ANY RELEASED VERSION
+// guards: UC-020; THE BROWSER SHOWS ANY RELEASED VERSION
 // given: a Host that gives the tags v2026.1.0 and v2026.0.1 and cannot read the snapshot of v2026.0.1
 // input: the route rendered at main, v2026.0.1 chosen, then v2026.1.0
 // expect: after the first choice the page says "v2026.0.1 could not be read: This page could not be drawn: unreachable" (readProblem's element follows what failed), lists no requirement and keeps the choice with v2026.0.1 selected; after the second it lists OLD REQUIREMENT and no problem line
@@ -302,7 +302,7 @@ test("a chosen tag that cannot be read is named in place of the tree and the cho
 
 // CASE ITM-594-07
 // TST-594006 · level: unit · module: MOD-trace-pages
-// guards: UC-020 (step 1); THE BROWSER SHOWS ANY RELEASED VERSION
+// guards: UC-020; THE BROWSER SHOWS ANY RELEASED VERSION
 // given: a Host whose snapshot of v2026.1.0 waits for a gate that opens later
 // input: v2026.1.0 chosen, then main chosen before the gate opens; then the gate opens and 50 ms of the clock pass
 // expect: the page shows main's three requirements with main selected and no "as of" line; the slower, earlier choice does not replace it
@@ -692,7 +692,7 @@ test("the page text the specification gives the prompt bar names the Gaps link",
 
 // CASE ITM-658-01
 // TST-658001 · level: unit · module: MOD-trace-pages
-// guards: UC-020 (2a); EVERY STEP EXPLAINS ITSELF
+// guards: UC-020; EVERY STEP EXPLAINS ITSELF
 // given: the fixture whose read of docs/sources.md fails as a Host fails when the repository is not found (a HostError NotFound); the context says tokenStored false, then true, then says nothing
 // input: ALPHA RULE opened, for each context
 // expect: with tokenStored false the sources say the repository is private or does not exist and offer "Store a token" (a.token-step); with tokenStored true they give the host's own message and offer no link; with no tokenStored they give the host's message and no private-or-missing sentence and no link

@@ -87,7 +87,7 @@ const drawJob = async (context) => draw(job, context, { id: ID });
 const use = (n) => { ID = `JOB-20261016-1000-7e0${n}`; };
 
 // TST-974001 · level: unit · module: MOD-main-page
-// guards: UC-036 (step 7, 1c); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-036; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the job dev-cli worked on, in each of the states failed, cancelled, ended without record, running (the Bridge lists it) and done
 // input: the route job drawn for each
 // expect: a button Retry for failed, cancelled and ended without record, and none for running and done (counter-proof: Retry on a running job fails); nothing is written by drawing
@@ -108,7 +108,7 @@ test("TST-974001 Retry is offered for a failed, cancelled or ended job, and not 
 });
 
 // TST-974002 · level: unit · module: MOD-main-page
-// guards: UC-036 (step 7); A JOB GOES ONLY TO A HOLDER OF ITS ROLE; A JOB IDENTIFIER IS NEVER REUSED; ONE CLICK PER DECISION
+// guards: UC-036; A JOB GOES ONLY TO A HOLDER OF ITS ROLE; A JOB IDENTIFIER IS NEVER REUSED; ONE CLICK PER DECISION
 // given: the failed job of dev-cli (scrum, team1's sprint selects ITM-0900; Developers are dev-cli and dev-two; Bridge routes for both)
 // input: the route job drawn; the participants and routes offered; dev-two chosen; a click a script makes on Retry; the person's click, declined; the person's click, confirmed
 // expect: the participants offered are dev-cli (first) and dev-two, and the route offered is `bridge lab-pc-4`; the script's click and the declined dialog write nothing; the confirmed one writes one commit with one new record under docs/jobs/ whose identifier is not the earlier job's, whose participant is dev-two, whose `retries` names the earlier job and whose inputs and parameters are the earlier job's; the page names the new job
@@ -138,7 +138,7 @@ test("TST-974002 one confirmed click retries the job with the chosen holder and 
 });
 
 // TST-974003 · level: unit · module: MOD-main-page
-// guards: UC-036 (7a); A JOB GOES ONLY TO A HOLDER OF ITS ROLE
+// guards: UC-036; A JOB GOES ONLY TO A HOLDER OF ITS ROLE
 // given: the failed job of dev-cli, in a product whose work-in-progress limit is reached — here: whose role assignment names nobody for the role Developers
 // input: the route job drawn
 // expect: no button Retry; the page lists the reasons startable gives (naming the role), and nothing is written
@@ -154,7 +154,7 @@ test("TST-974003 where no holder may start the item, the reasons are shown and n
 });
 
 // TST-974004 · level: unit · module: MOD-main-page
-// guards: UC-036 (step 7); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-036; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: a failed job that ran in a tab (its record's route is tab, taken by the tab)
 // input: the route job drawn; the person's click on Retry; the route's subject for the parameters of the go() it made
 // expect: nothing is queued or written; go("job", { id, product, retry: "implement-item" }) was called once; the route's subject for those parameters is the Subject of the bar: kind implement-item, key retry:<id>, no menu entry, and as parameters those of the record ({ item: "ITM-0900" }); the route's subject for the parameters of an ordinary page is null
@@ -174,7 +174,7 @@ test("TST-974004 a job that ran in a tab opens the prompt bar with its kind and 
 });
 
 // TST-974005 · level: unit · module: MOD-main-page
-// guards: UC-036 (step 7); A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
+// guards: UC-036; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
 // given: a failed job whose task travelled with its hand-over (its record says task: with the hand-over)
 // input: the route job drawn; the person's click on Open the prompt bar
 // expect: no button Retry and no select of participants; the page says the task is not in the record and offers the prompt bar; the click calls go("job", { id, product, retry: "implement-item" }) and writes nothing
@@ -208,7 +208,7 @@ const retryButtons = (target) => walk(target, (node) => node.localName === "butt
 const reasonsOf = (target) => byClass(target, "retry-reason").map((node) => node.textContent);
 
 // TST-1024001 · level: unit · module: MOD-main-page
-// guards: UC-036 (7a); A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT
+// guards: UC-036; A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT
 // given: the failed job of dev-cli on ITM-0900, whose sprint (team1's) no longer selects ITM-0900 (it selects ITM-0901)
 // input: the route job drawn
 // expect: no button Retry; the page lists a reason that says ITM-0900 is not selected for a sprint; nothing is written
@@ -222,7 +222,7 @@ test("TST-1024001 a job whose item left its sprint is offered no retry, and the 
 });
 
 // TST-1024002 · level: unit · module: MOD-main-page
-// guards: UC-036 (7a); NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT
+// guards: UC-036; NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT
 // given: the failed job of dev-cli on ITM-0900 in a kanban product (WIP limit 3) in which ITM-0901, ITM-0902 and ITM-0903 are in progress (a taken job each, none ended)
 // input: the route job drawn
 // expect: no button Retry; the page lists a reason that names the work-in-progress limit; nothing is written
@@ -236,7 +236,7 @@ test("TST-1024002 a job whose product is at its work-in-progress limit is offere
 });
 
 // TST-1024003 · level: unit · module: MOD-main-page
-// guards: UC-036 (7a); A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-036; A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the failed job that ran in a tab, on ITM-0900, which team1's sprint no longer selects
 // input: the route job drawn; a click a person makes on every button the page offers
 // expect: no button Retry or Open the prompt bar; a reason naming ITM-0900 and the sprint; go() is never called; nothing is written (counter-proof: with the item selected, TST-974004 retries the tab job)
@@ -251,7 +251,7 @@ test("TST-1024003 a job that ran in a tab, whose item left its sprint, opens no 
 });
 
 // TST-1024004 · level: unit · module: MOD-main-page
-// guards: UC-036 (7a); NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT
+// guards: UC-036; NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT
 // given: the failed job whose task travelled with its hand-over, on ITM-0900, in a kanban product at its work-in-progress limit (three other items in progress)
 // input: the route job drawn
 // expect: no button Open the prompt bar or Retry; a reason naming the work-in-progress limit; go() is never called; nothing is written
@@ -266,7 +266,7 @@ test("TST-1024004 a job whose task travelled with its hand-over, at the work-in-
 });
 
 // TST-1024005 · level: unit · module: MOD-main-page
-// guards: UC-036 (7a); NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT
+// guards: UC-036; NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT
 // given: as TST-1024002, but only two other items are in progress, so that ITM-0900 is under the limit of 3
 // input: the route job drawn
 // expect: a button Retry and no reason (the retry of a startable item is still offered)
@@ -281,7 +281,7 @@ test("TST-1024005 a job whose product is under its work-in-progress limit is sti
 });
 
 // TST-1024006 · level: unit · module: MOD-main-page
-// guards: UC-036 (7a); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-036; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: a failed job that ran in a tab and one whose task travelled with its hand-over, in a product whose facts cannot be read (the instance's repository is refused with an error)
 // input: the route job drawn for each
 // expect: no button Retry and no Open the prompt bar; the page says "Retry could not be prepared" and names the reason the read failed (the failure's own message, not an empty reason); go() is never called; nothing is written

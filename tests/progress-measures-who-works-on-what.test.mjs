@@ -75,7 +75,7 @@ test("whoWorksOnWhat — what each team's sprint holds, and no team in a product
 });
 
 // TST-799003 · level: unit · module: MOD-progress-measures
-// guards: UC-035 1b; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// guards: UC-035; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the product of the first case, whose JOB-4 runs on the Bridge far-pc that answers "connect ECONNREFUSED 127.0.0.1:8765", plus JOB-7, a second job on that Bridge, and JOB-8, whose record cannot be read: no route, the reason "not held at this commit", the path docs/jobs/JOB-8.md
 // input: whoWorksOnWhat(facts); and whoWorksOnWhat of the same facts with every source reachable
 // expect: unreachable lists the Bridge far-pc once, with its reason, and docs/jobs/JOB-8.md with "not held at this commit", in the order of the jobs; no job of either source is in any participant's jobs; with every source reachable, unreachable is empty and JOB-4 stands among dev-c's jobs

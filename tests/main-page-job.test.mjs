@@ -64,7 +64,7 @@ const one = (target, name) => byClass(target, name)[0];
 const textsOf = (target, name) => byClass(target, name).map((node) => node.textContent);
 
 // TST-971001 · level: unit · module: MOD-main-page
-// guards: ONE DASHBOARD SHOWS EVERY JOB; A RECORD IS EVIDENCE, NOT A PROPOSAL; UC-036 (step 4)
+// guards: ONE DASHBOARD SHOWS EVERY JOB; A RECORD IS EVIDENCE, NOT A PROPOSAL; UC-036
 // given: the product alice/product holding the record of JOB-20261016-1000-ffff (implement-item for ITM-0900, dev-cli, taken by the Bridge lab-pc-4, which lists it as running), whose inputs are docs/use-cases/UC-001-first.md and SPEC.md, whose destination is dev-cli at lab-pc-4 with the parts "the chosen item" and "SPEC.md", and whose parameters are { "item": "ITM-0900" }
 // input: the route job drawn with params { id: "JOB-20261016-1000-ffff" }
 // expect: the heading "Job JOB-20261016-1000-ffff"; the facts name the product's address, ITM-0900, implement-item, dev-cli, lab-pc-4 and the state running; the inputs are the two paths in the order of the record; the destination reads "dev-cli, at lab-pc-4: the chosen item, SPEC.md."; the parameters read as the JSON of { "item": "ITM-0900" }
@@ -83,7 +83,7 @@ test("TST-971001 a job's page shows its inputs, destinations and parameters from
 });
 
 // TST-971002 · level: unit · module: MOD-main-page
-// guards: ONE DASHBOARD SHOWS EVERY JOB; UC-036 (step 4)
+// guards: ONE DASHBOARD SHOWS EVERY JOB; UC-036
 // given: the job of TST-971001, running on lab-pc-4, whose log the Bridge gives in two answers: from line 0 "compiling" and "testing" (not ended), and, once the test releases it, from line 2 "all green" (ended)
 // input: the route job drawn; then the second answer released
 // expect: once drawn, the log lines read "compiling" and "testing", the Bridge having been asked from line 0 and, its first answer not ended, from line 2, which it holds back; after the release they read "compiling", "testing" and "all green" — the log grows as the Bridge streams it, and the page was drawn before the stream ended
@@ -105,7 +105,7 @@ test("TST-971002 a Bridge job's log grows as the Bridge streams it", async () =>
 });
 
 // TST-971003 · level: unit · module: MOD-main-page
-// guards: ONE DASHBOARD SHOWS EVERY JOB; UC-036 (step 4)
+// guards: ONE DASHBOARD SHOWS EVERY JOB; UC-036
 // given: a job taken by the CI run https://github.com/alice/product/actions/runs/101, which the job workflow's run list holds in progress
 // input: the route job drawn
 // expect: the log is a link to https://github.com/alice/product/actions/runs/101 (class log-link) and no line of a log; the Bridge was not asked for any log
@@ -121,7 +121,7 @@ test("TST-971003 a CI job's log is a link to the run", async () => {
 });
 
 // TST-971004 · level: unit · module: MOD-main-page
-// guards: ONE DASHBOARD SHOWS EVERY JOB; A RECORD IS EVIDENCE, NOT A PROPOSAL; UC-036 (4a)
+// guards: ONE DASHBOARD SHOWS EVERY JOB; A RECORD IS EVIDENCE, NOT A PROPOSAL; UC-036
 // given: a job taken by this tab and done, whose end names the log https://github.com/alice/product/actions/runs/7 — the runtime keeps no log of a tab's job — and, for the counter-proof, a job that no runtime has taken
 // input: the route job drawn for each
 // expect: the page says "The runtime keeps no log for this job any more." (class log-gone) and links the log its end names (class record-link); the job no runtime has taken says the same and links nothing; neither shows a log line or a log link
@@ -140,7 +140,7 @@ test("TST-971004 a log the runtime no longer keeps is said so, with the links th
 });
 
 // TST-971005 · level: unit · module: MOD-main-page
-// guards: NO COST IS GUESSED; UC-036 (4b)
+// guards: NO COST IS GUESSED; UC-036
 // given: three jobs — JOB-20261016-0900-dddd done with a cost its runtime reported (0.41 EUR); JOB-20261016-1000-eeee running on lab-pc-4 whose Bridge reports 1,200 input and 300 output tokens and no cost, the participant declaring no price; JOB-20261016-0800-ffff failed with an unknown cost and no usage
 // input: the route job drawn for each
 // expect: the costs read "0.41 EUR (reported)"; "1200 input tokens, 300 output tokens · price unknown", which writes no amount and no currency; and exactly "unknown" — never a 0 for a cost nobody knows; counter-proof: a page that wrote 0 for an unknown cost, or an amount for the usage, fails this test
@@ -160,7 +160,7 @@ test("TST-971005 the cost is the reported amount, the usage with price unknown, 
 });
 
 // TST-971006 · level: unit · module: MOD-main-page
-// guards: ONE DASHBOARD SHOWS EVERY JOB; UC-036 (step 5)
+// guards: ONE DASHBOARD SHOWS EVERY JOB; UC-036
 // given: JOB-20261016-0900-1111, which reached the gate "pull request" decided by "Product Owner" and waits there, and JOB-20261016-0900-2222, which reached the gate "unit tests" decided by "check: unit-tests"
 // input: the route job drawn for each
 // expect: the first names the gate "pull request" and the decider "Product Owner" and does not say it decides by itself; the second names "unit tests" and "check: unit-tests" and says "decides by itself"; a job that waits at no gate (TST-971001's) shows no gate part
@@ -178,7 +178,7 @@ test("TST-971006 a job waiting at a gate names the gate and its decider, and say
 });
 
 // TST-971007 · level: unit · module: MOD-main-page
-// guards: ONE DASHBOARD SHOWS EVERY JOB; UC-036 (step 4)
+// guards: ONE DASHBOARD SHOWS EVERY JOB; UC-036
 // given: the product with one job; and an id none of the sources holds
 // input: the route jobs drawn and the button of the job's row pressed; the route job drawn for the id nobody holds
 // expect: pressing the button calls go("job", { id: "JOB-20261016-1000-ffff" }) once; the missing id gives "No job JOB-20261016-9999-zzzz in the instance or in the products this browser keeps." (class job-missing) and no facts

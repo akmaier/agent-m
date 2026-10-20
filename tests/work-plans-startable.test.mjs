@@ -112,7 +112,7 @@ test("startable — in a model with sprints nothing starts while the team runs n
 });
 
 // TST-473190 · level: unit · module: MOD-work-plans
-// guards: NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; UC-032 step 1
+// guards: NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; UC-032
 // given: ITM-001 (a) waiting for acceptance of UC-007; (b) waiting for ITM-009, an item it builds on that is not done; (c) a step waiting for the gate Design → Development, decided by the Product Owner; (d) done
 // input: startable("ITM-001", the states of each case, team1's context)
 // expect: one reason each, naming (a) UC-007, (b) ITM-009, (c) the gate Design → Development, (d) that ITM-001 is done
@@ -131,7 +131,7 @@ test("startable — an item whose state is not ready names why: what is not acce
 });
 
 // TST-473191 · level: unit · module: MOD-work-plans
-// guards: NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT; UC-032 7a
+// guards: NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT; UC-032
 // given: the limit 2; team1's sprint holds ITM-001, in progress with a job, and ITM-002, in progress with its pull request open — waiting for review —; team2's sprint holds ITM-004, in progress; ITM-003 ready
 // input: startable("ITM-003", those states, team1's context); then the same with ITM-001 done; and startable("ITM-005", the first states, team2's context)
 // expect: ITM-003: one reason, naming the limit 2, ITM-001 and ITM-002, and that ITM-002 waits for review; once ITM-001 is done, startable; ITM-005 under team2: startable — only ITM-004 is in progress under team2's assignment

@@ -154,7 +154,7 @@ function shownBy(target) {
 // ---------------------------------------------------------------- the use cases
 
 // TST-879001 · level: unit · module: MOD-review-pages
-// guards: UC-008 (steps 1, 3d); STATUS IS DERIVED FROM THE RECORDS
+// guards: UC-008; STATUS IS DERIVED FROM THE RECORDS
 // given: the use cases UC-041 and UC-044 open, UC-043 changed since acceptance, UC-042 and UC-045 accepted; a token
 // input: the route use-case drawn as the list
 // expect: one first part, before the whole list, holding UC-041, UC-043, UC-044 with the statuses open, changed since acceptance, open and three ticks; the whole list holds UC-041 to UC-045 with their statuses and no tick
@@ -165,7 +165,7 @@ test("TST-879001 use-case list — the open and changed use cases first, with a 
 });
 
 // TST-879002 · level: unit · module: MOD-review-pages
-// guards: UC-008 (step 1); STATUS IS DERIVED FROM THE RECORDS
+// guards: UC-008; STATUS IS DERIVED FROM THE RECORDS
 // given: every use case accepted at its current text
 // input: the route use-case drawn as the list
 // expect: no first part; the whole list holds UC-041 to UC-045, each accepted, with no tick
@@ -175,7 +175,7 @@ test("TST-879002 use-case list — with every use case accepted there is no firs
 });
 
 // TST-879003 · level: unit · module: MOD-review-pages
-// guards: UC-008 (steps 1, 3d)
+// guards: UC-008
 // given: the same use cases, no token stored
 // input: the route use-case drawn as the list
 // expect: the first part holds UC-041, UC-043, UC-044 and no tick; the whole list holds all five
@@ -187,7 +187,7 @@ test("TST-879003 use-case list without a token — the first part is shown, with
 // ---------------------------------------------------------------- the architecture
 
 // TST-879004 · level: unit · module: MOD-review-pages
-// guards: UC-023 (step 3); STATUS IS DERIVED FROM THE RECORDS
+// guards: UC-023; STATUS IS DERIVED FROM THE RECORDS
 // given: the decisions ARC-002 open, ARC-003 changed, ARC-001 accepted; the modules MOD-desk and MOD-queue open, MOD-shelf accepted; a token
 // input: the route decision drawn as the list; the route module drawn as the list
 // expect: decisions: a first part before the whole list holding ARC-002, ARC-003 (open, changed since acceptance) with two ticks, the whole list ARC-001 to ARC-003 with no tick; modules: the first part MOD-desk, MOD-queue (open, open) with two ticks, the whole list MOD-desk, MOD-queue, MOD-shelf with no tick
@@ -199,7 +199,7 @@ test("TST-879004 decision and module lists — the open and changed files first,
 });
 
 // TST-879005 · level: unit · module: MOD-review-pages
-// guards: UC-023 (step 3); STATUS IS DERIVED FROM THE RECORDS
+// guards: UC-023; STATUS IS DERIVED FROM THE RECORDS
 // given: every decision and module accepted at its current text
 // input: the route decision drawn as the list; the route module drawn as the list
 // expect: no first part on either; the whole lists hold ARC-001 to ARC-003 and MOD-desk, MOD-queue, MOD-shelf, each accepted

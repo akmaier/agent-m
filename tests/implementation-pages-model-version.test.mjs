@@ -397,7 +397,7 @@ const part = (target, name) => { const section = byClass(target, "version-change
 // ---------------------------------------------------------------- the tests
 
 // TST-780001 · level: unit · module: MOD-implementation-pages
-// guards: UC-031 (6a: the phases, gates and roles of workflowOf under each version, side by side)
+// guards: UC-031
 // given: a declaration naming commit B; the instance's model at B has phases Design and Build, the gate Design → Build and the roles Owner, Reviewer, Developers; as it stands it has Design and Construct, Design → Construct, Owner and Developers
 // input: route.render
 // expect: the version-change section holds a version-before part with the phases Design and Build, the gate Design → Build and the three roles, and a version-after part with Design and Construct, Design → Construct and two roles
@@ -414,7 +414,7 @@ test("process route — a changed model shows the workflows under both versions 
 });
 
 // TST-780002 · level: unit · module: MOD-implementation-pages
-// guards: UC-031 (6a: the difference of the two model files, with showDifference)
+// guards: UC-031
 // given: the fixture of TST-780001: the model file at B and as it stands differ in the phase Build, its gate and its transition
 // input: route.render
 // expect: the version-difference part holds exactly what showDifference gives for the file at B and the file as it stands
@@ -428,7 +428,7 @@ test("process route — a changed model shows the difference of the two model fi
 });
 
 // TST-780003 · level: unit · module: MOD-implementation-pages
-// guards: UC-031 (6a: what becomes invalid — declarationFindings for the declaration as it would be saved, against the catalogue as it stands)
+// guards: UC-031
 // given: the declaration's Branches name the phase Build, which the model as it stands lacks, and held at B
 // input: route.render
 // expect: the version-declaration-findings list holds exactly one error, naming Build
@@ -441,7 +441,7 @@ test("process route — a changed model lists what the declaration's findings sa
 });
 
 // TST-780004 · level: unit · module: MOD-implementation-pages
-// guards: UC-031 (6a: what becomes invalid — roleAssignmentFindings for the role assignments against the new version's workflow)
+// guards: UC-031
 // given: the product's one role assignment fills Owner, Reviewer and Developers; the model as it stands has no Reviewer
 // input: route.render
 // expect: the version-assignment-findings list holds exactly one error, naming Reviewer
@@ -454,7 +454,7 @@ test("process route — a changed model lists what the role assignments' finding
 });
 
 // TST-780005 · level: unit · module: MOD-implementation-pages
-// guards: UC-031 (6a: with an unchanged model none of it is shown)
+// guards: UC-031
 // given: the instance's head moved on from B and another file changed, but the model's file is the same as at B
 // input: route.render
 // expect: no version-change section, no version-before, version-after or version-difference part, and no findings list of a version
@@ -467,7 +467,7 @@ test("process route — an unchanged model shows no comparison", async () => {
 });
 
 // TST-859001 · level: unit · module: MOD-implementation-pages
-// guards: UC-031 (6a: the route does not throw when the commit the declaration names cannot be read)
+// guards: UC-031
 // given: the declaration names commit B; the instance's host answers readSnapshot(B) with a rejection "NotFound: no such commit" and the head as usual
 // input: route.render
 // expect: render resolves; the models and the form stand as for an unchanged model; one warn line names commit B and holds the host's message; no version-change section and none of its parts; nothing is written

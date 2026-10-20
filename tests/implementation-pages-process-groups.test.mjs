@@ -323,7 +323,7 @@ async function groupsOf(files) {
 // ---------------------------------------------------------------- the tests
 
 // TST-812001 · level: unit · module: MOD-implementation-pages
-// guards: UC-002 (step 2: the book's models in the groups Plan-driven and Agile); THE CATALOGUE IS DATA
+// guards: UC-002; THE CATALOGUE IS DATA
 // given: an instance that holds no model of its own, over the shipped catalogue
 // input: route.render
 // expect: exactly the groups Plan-driven (waterfall, v-model, reuse-oriented) and Agile (scrum, kanban), in that order and with those models in that order, and no group This instance
@@ -335,7 +335,7 @@ test("process route — the shipped catalogue shows the same groups, models and 
 });
 
 // TST-812002 · level: unit · module: MOD-implementation-pages
-// guards: THE CATALOGUE IS DATA (a group is built from each model's kind, in the catalogue's order)
+// guards: THE CATALOGUE IS DATA
 // given: the shipped catalogue as `catalogue` returns it
 // input: route.render
 // expect: Plan-driven lists the shipped models of kind planned and Agile those of kind pulled, each in the catalogue's order
@@ -348,7 +348,7 @@ test("process route — the shipped models stand in the group of their kind, in 
 });
 
 // TST-812003 · level: unit · module: MOD-implementation-pages
-// guards: UC-002 (step 2); THE CATALOGUE IS DATA (an instance's model is found by its path)
+// guards: UC-002; THE CATALOGUE IS DATA
 // given: an instance with a planned model fixture-plan and a pulled model fixture-pull under docs/process-models/
 // input: route.render
 // expect: both stand under This instance, in the order of their paths, and neither stands in Plan-driven or Agile; the shipped groups are unchanged
@@ -363,7 +363,7 @@ test("process route — an instance's models of either kind stand under This ins
 });
 
 // TST-812004 · level: unit · module: MOD-implementation-pages
-// guards: THE CATALOGUE IS DATA (the instance's model is told from a shipped one by its path, not by its name)
+// guards: THE CATALOGUE IS DATA
 // given: an instance whose own model, docs/process-models/mine.md, is named like a shipped model, kanban, but is planned
 // input: route.render
 // expect: that model stands under This instance, and the shipped kanban stays under Agile
@@ -375,7 +375,7 @@ test("process route — an instance's model named like a shipped one stands unde
 });
 
 // TST-812005 · level: unit · module: MOD-implementation-pages
-// guards: THE CATALOGUE IS DATA (no model and no practice is named in code)
+// guards: THE CATALOGUE IS DATA
 // given: the shipped catalogue's model and practice names, and the files of src/implementation-pages/
 // input: read each file
 // expect: no file contains the name of a shipped model or practice, in any letter case

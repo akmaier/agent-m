@@ -161,7 +161,7 @@ const SOURCES = lines(
 );
 
 // TST-473061 · level: unit · module: MOD-spec-document
-// guards: A REQUIREMENT HAS FOUR FIELDS; UC-002 (each gate a process requirement adds is marked with the source it comes from)
+// guards: A REQUIREMENT HAS FOUR FIELDS; UC-002
 // given: SOURCES — a source of one item without a part, one of one item with the part it draws on, one of three items with and without their parts, and one that runs over three lines
 // input: parseSpec(SOURCES)
 // expect: each requirement's source as written between `*(` and `)*`, its line breaks kept; its items in `sources`, split at `;` and trimmed, each keeping the part it draws on — `, ` splits nothing —; the source over several lines read up to its `)*` on line 17, and the rule beginning on the line after it
@@ -332,7 +332,7 @@ const PRODUCT = lines(
 );
 
 // TST-473065 · level: unit · module: MOD-spec-document
-// guards: A REQUIREMENT NAMES WHAT IT CONSTRAINS; UC-002 (the requirements of the instance's SPEC are the process requirements)
+// guards: A REQUIREMENT NAMES WHAT IT CONSTRAINS; UC-002
 // given: INSTANCE, the instance's SPEC, whose requirements constrain the development process, and PRODUCT, a product's SPEC, whose requirements constrain the product
 // input: parseSpec of each
 // expect: every requirement of either SPEC has exactly the fields of the module file's Requirement — name, source, sources, rule, check, checkPaths, section, line —, none of which says what it constrains; A GATE DECISION IS KEPT is read alike from both, apart from its line, 30 and 13: what it constrains is the SPEC its caller read it from

@@ -42,7 +42,7 @@ async function started(platform = null) {
 }
 
 // TST-1055103 · level: unit · module: MOD-desktop-shell
-// guards: THE BRIDGE RUNS AS AN APP; UC-044 (7b)
+// guards: THE BRIDGE RUNS AS AN APP; UC-044
 // given: the app started over a Bridge whose job list holds two running jobs, one done and one cancelled
 // input: the window's request running-jobs; then the same with no job at all
 // expect: the answer is { jobs } with exactly the two running jobs, in the order of the list, each as the list gives it; with no job, { jobs: [] }
@@ -60,7 +60,7 @@ test("running-jobs answers the jobs whose state is running", async () => {
 const trayQuit = (app) => app.fake.trays[0].menu.template.find((item) => item.label === "Quit");
 
 // TST-1055105 · level: unit · module: MOD-desktop-shell
-// guards: THE BRIDGE RUNS AS AN APP; UC-044 (7b)
+// guards: THE BRIDGE RUNS AS AN APP; UC-044
 // given: the app started on macOS (it makes a tray) over a Bridge whose job list holds two running jobs
 // input: the tray's item Quit pressed
 // expect: the app did not quit (Electron's quit was not asked for); the window was shown and was sent the message quit-requested, once — the window then shows the decision that names the jobs (TST-1055106)
@@ -77,7 +77,7 @@ test("the tray's Quit with jobs running does not quit but asks the window for th
 });
 
 // TST-1055107 · level: unit · module: MOD-desktop-shell
-// guards: THE BRIDGE RUNS AS AN APP; UC-044 (7b)
+// guards: THE BRIDGE RUNS AS AN APP; UC-044
 // given: the app started on macOS over a Bridge whose job list holds one job that has ended and none running
 // input: the tray's item Quit pressed
 // expect: the app quits at once (Electron's quit asked for once) and the window was sent nothing
@@ -92,7 +92,7 @@ test("the tray's Quit with no job running quits at once", async () => {
 });
 
 // TST-1055108 · level: unit · module: MOD-desktop-shell
-// guards: THE BRIDGE RUNS AS AN APP; UC-044 (7b)
+// guards: THE BRIDGE RUNS AS AN APP; UC-044
 // given: src/desktop-shell/preload.cjs run with a constructed `electron` module that records what it exposes and what it listens to
 // input: the exposed bridge's onQuitRequested(callback); then the main process sends quit-requested
 // expect: the preload listens on the channel quit-requested, and the message calls the callback once; the other calls of the bridge are those the window had (state, chooseFolder, copy, pairAnew, pause, resume, retryPort, quit)

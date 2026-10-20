@@ -379,7 +379,7 @@ function workflowEnv(fixture, extra = {}) {
 }
 
 // TST-371001 · level: system · module: MOD-review-pages; MOD-spec-changes
-// guards: UC-006 main flow; UC-006 3b; A SPECIFICATION CHANGE IS APPROVED BEFORE IT IS WRITTEN; NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; THE APPROVED TEXT IS TAKEN VERBATIM; THE GATE IS RECORDED; THE REPLACED TEXT STAYS REACHABLE; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; AN APPROVAL NAMES THE EXACT TEXT; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL
+// guards: UC-006; A SPECIFICATION CHANGE IS APPROVED BEFORE IT IS WRITTEN; NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; THE APPROVED TEXT IS TAKEN VERBATIM; THE GATE IS RECORDED; THE REPLACED TEXT STAYS REACHABLE; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; AN APPROVAL NAMES THE EXACT TEXT; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL
 // given: a product whose queue has entry 07 replacing "## 2. Writing"; the product links Fixture PO and the instance register holds that source
 // input: open the SPEC-entry page and click Accept once
 // expect: before the click nothing is written; the page shows current text, proposal, diff, rationale and impact; after the click one commit holds the approval record, SPEC and decisions, with the proposal bytes in SPEC and the old section reachable at the head read
@@ -411,7 +411,7 @@ test("TST-371001: UC-006 main flow accepts one SPEC entry from the review page",
 });
 
 // TST-371002 · level: system · module: MOD-review-pages; MOD-spec-changes
-// guards: UC-006 3a; EDITS ARE PREPARED ON THE DASHBOARD; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-006; EDITS ARE PREPARED ON THE DASHBOARD; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the same product and an open entry 07
 // input: open its edit page, change the proposal, give a Why, and click Save
 // expect: one commit changes only the entry proposal and rationale in its own queue; SPEC.md is not written; before Save nothing is written
@@ -438,7 +438,7 @@ test("TST-371002: UC-006 3a saves different wording in the entry's own queue", a
 });
 
 // TST-371003 · level: system · module: MOD-review-pages; MOD-spec-changes
-// guards: UC-006 4a; UC-006 4d; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-006; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: a queue whose entry 05 creates heading "## 1a. Added" and entry 06 changes it
 // input: first tick only 06 and click Accept ticked, then in a fresh repository tick 05 and 06 and click Accept ticked once
 // expect: 06 alone is refused and names 05; with both entries one commit writes 05 before 06; doing nothing on an entry page writes nothing and leaves it open
@@ -473,7 +473,7 @@ test("TST-371003: UC-006 4d accepts ticked queue entries in queue order and name
 });
 
 // TST-371004 · level: system · module: MOD-review-pages; MOD-spec-changes
-// guards: UC-006 5a; A STALE APPROVAL IS NOT APPLIED; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-006; A STALE APPROVAL IS NOT APPLIED; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: entry 07 was shown with the blob of its proposal
 // input: another commit changes the proposal before the reviewer clicks Accept, then the reviewer clicks Accept
 // expect: nothing is written by the acceptance attempt, and the page names the stale proposal
@@ -491,7 +491,7 @@ test("TST-371004: UC-006 5a refuses a SPEC entry whose proposal changed after it
 });
 
 // TST-371005 · level: system · module: MOD-review-pages; MOD-spec-changes
-// guards: UC-006 4b; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; EDITS ARE PREPARED ON THE DASHBOARD
+// guards: UC-006; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; EDITS ARE PREPARED ON THE DASHBOARD
 // given: the instance's own SPEC queue entry is open, and the browser stores no token
 // input: open the entry page, then open the edit page, edit the proposal, give a Why and click Save
 // expect: accepting offers GitHub's new-file page for the approval record; editing offers GitHub pages for the proposal and rationale; no repository write is made from the dashboard
@@ -519,7 +519,7 @@ test("TST-371005: UC-006 4b offers GitHub fallback pages for the instance withou
 });
 
 // TST-371006 · level: system · module: MOD-workflow-entries; MOD-spec-changes
-// guards: UC-006 4c; WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; THE APPROVED TEXT IS TAKEN VERBATIM; A STALE APPROVAL IS NOT APPLIED
+// guards: UC-006; WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; THE APPROVED TEXT IS TAKEN VERBATIM; A STALE APPROVAL IS NOT APPLIED
 // given: a person committed the approval record of the instance's own SPEC entry through GitHub's web interface, and no decision row names it
 // input: run the instance workflow entry onApprovalsCommitted from a temporary checkout
 // expect: one workflow commit writes only SPEC.md and the queue decisions; the approval record stays as the person committed it

@@ -76,7 +76,7 @@ test("TST-420003: mailHandlers test refuses a server without TLS before login", 
 });
 
 // TST-420004 · level: unit · module: MOD-mail-protocols
-// guards: THE BRIDGE HOLDS THE MAILBOX PASSWORD ONLY FOR ONE REQUEST; UC-037 7c
+// guards: THE BRIDGE HOLDS THE MAILBOX PASSWORD ONLY FOR ONE REQUEST; UC-037
 // given: an IMAP server over STARTTLS that refuses the marker password with its answer
 // input: the mailbox test handler
 // expect: it fails with code/name `login-refused`, preserving the server's answer
@@ -92,7 +92,7 @@ test("TST-420004: mailHandlers test preserves a refused-login answer", async () 
 });
 
 // TST-420005 · level: unit · module: MOD-mail-protocols
-// guards: UC-037 7d
+// guards: UC-037
 // given: an IMAP server over STARTTLS that has INBOX but no Missing folder
 // input: the mailbox test handler for folders INBOX and Missing
 // expect: it fails with code/name `not-found`, naming the Missing folder

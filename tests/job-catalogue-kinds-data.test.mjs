@@ -60,7 +60,7 @@ function fits(value, schema, at = "draft") {
 const CANDIDATE = { name: "A THING IS DONE", rule: "A thing is done.", check: "A test does it.", constrains: "product", passage: "§ 3", class: "new" };
 
 // TST-472277 · level: unit · module: MOD-job-catalogue
-// guards: ONE DEFINITION, THREE DRIVERS; UC-005 5a
+// guards: ONE DEFINITION, THREE DRIVERS; UC-005
 // given: the table's cell "Draft it expects" of `derive-requirements`, which adds to a candidate's name, rule, check, what it constrains, source passage and class "the source of a rule it points to, where that is not the job's"; and the draft's schema of the kind
 // input: kindOf("derive-requirements").answer; candidates without and with a `source`, and with a `source` that is not a text
 // expect: the candidate keeps its seven fields, the six required as before, and `source` is a text that may be left out; a candidate naming a source is accepted and one without is too; a source that is a number is refused
@@ -77,7 +77,7 @@ test("derive-requirements — a candidate may name the source of the rule it poi
 });
 
 // TST-472278 · level: unit · module: MOD-job-catalogue
-// guards: ONE DEFINITION, THREE DRIVERS; THE PERSON WHO PROMPTS IS A SOURCE; UC-019 step 6
+// guards: ONE DEFINITION, THREE DRIVERS; THE PERSON WHO PROMPTS IS A SOURCE; UC-019
 // given: the table's cell "Draft it expects" of `change-requirements`, "the same"; and the sentence under the table, "A job of `change-requirements` takes as its parameter `source` the own source of the person who starts it"
 // input: the draft's schema of both kinds; the purpose of both kinds
 // expect: the two schemas equal; the purpose of `change-requirements` names the parameter `source` as the own source of the person who starts the job; the purpose of `derive-requirements` names no such parameter
@@ -95,7 +95,7 @@ test("change-requirements — the same candidates as a derivation, and the param
 const OPERATIONS = [...GROUPS.match(/- `GroupMove` —[\s\S]*?(?=\n- `Hierarchy`)/)[0].matchAll(/\{ op: "([a-z-]+)"/g)].map((m) => m[1]);
 
 // TST-472279 · level: unit · module: MOD-job-catalogue
-// guards: ONE DEFINITION, THREE DRIVERS; UC-021 1b
+// guards: ONE DEFINITION, THREE DRIVERS; UC-021
 // given: the table's cell "Draft it expects" of `propose-groups`, "moves, each a `GroupMove` of MOD-group-document"; MOD-group-document's six forms
 // input: kindOf("propose-groups").answer; one move of each form, and the old shape { item, group }
 // expect: the six operations read from MOD-group-document are create, rename, move, move-group, delete and lift; a list of `moves` is the draft; a move is an object that requires `op`, an enum of exactly these operations, with the texts title, item and the lists of texts in, group, to; a move of each form is accepted, and so is the empty list
@@ -119,7 +119,7 @@ test("propose-groups — the draft is a list of GroupMoves of MOD-group-document
 });
 
 // TST-472280 · level: unit · module: MOD-job-catalogue
-// guards: ONE DEFINITION, THREE DRIVERS; UC-021 1b
+// guards: ONE DEFINITION, THREE DRIVERS; UC-021
 // given: the draft's schema of `propose-groups`; the answers the kind gave before — moves of the form { item, group } with the group as a text —, and answers that are no GroupMove
 // input: fits of each against the schema; a known positive first
 // expect: the known positive is accepted; { item, group: "Safety / Alarms" } is refused for want of `op`; the same with an `op` and `group` as a text is refused as not a list; an operation outside the six, `to` as a text, a move that is not an object and a missing `moves` are refused
@@ -135,7 +135,7 @@ test("propose-groups — an answer of { item, group } is refused, and so is anyt
 });
 
 // TST-472281 · level: unit · module: MOD-job-catalogue
-// guards: ONE DEFINITION, THREE DRIVERS; UC-021 1b
+// guards: ONE DEFINITION, THREE DRIVERS; UC-021
 // given: the prompt of `propose-groups`, which tells the participant what to return
 // input: kindOf("propose-groups").prompt
 // expect: it lists each of the six operations, one line each, and no longer asks for a move as an item with the titles of its group joined by ` / `
