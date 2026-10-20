@@ -41,3 +41,5 @@ why. MOD-job-runner runs it where the kind `derive-architecture` names it.
   request.
 - The existing tests stay green, with no expected result changed.
 - Only `src/reuse-facts/` and the tests that name MOD-reuse-facts change.
+
+**Done (sprint team2/98, po-opus-b):** read against its Acceptance on `main` at `3436203a`: TST-436001 to 436004 (`tests/reuse-facts.test.mjs:276-356`) state the section a decision gains, the GPL-3.0 mark, the unknown candidate's warning, the blocked registry's error mark and *not checked* without a `LICENSE`; they pass on `main`; `src/reuse-facts/index.mjs:642` (`dueDiligence`); built in team 2's sprint 29. No pull request names it, since it predates the pull-request flow or was built by another item. No code changes.

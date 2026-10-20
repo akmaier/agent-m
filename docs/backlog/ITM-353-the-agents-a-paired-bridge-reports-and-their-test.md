@@ -40,3 +40,5 @@ person decides to save untested (6a).
   request.
 - The existing tests stay green, with no expected result changed.
 - Only `src/settings-pages/` and the tests that name MOD-settings-pages change.
+
+**Done (sprint team2/98, po-opus-b):** read against its Acceptance on `main` at `3436203a`: TST-353001 and TST-353002 (`tests/settings-pages-participants.test.mjs:406`, `:462`) state each Acceptance line (the chosen Bridge's agents, one-click add, *Test* through `probe`, *Save* withheld until saved untested) and pass on `main`; `src/settings-pages/participants.mjs:571`, `:601`; built in team 2's sprint 42 (`53e81f1d`). No pull request names it, since it predates the pull-request flow or was built by another item. No code changes.

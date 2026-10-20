@@ -40,3 +40,5 @@ reported as not found.
 - Where the code does not do what the requirement says, the test follows the requirement and the disagreement is named
   as a finding.
 - Only the new test file and its data file change.
+
+**Done (sprint team2/98, po-opus-b):** read against its Acceptance on `main` at `3436203a`: TST-446100 to 446102 (`tests/test_reuse_due_diligence.py`, cases in `tests/test_reuse_due_diligence.md`) pass on `main`; written in team 2's sprint 35 by developer-terra-b, who implemented none of ITM-436 (`docs/backlog/sprints/team2/35.md:32-33`). A fault planted now — `licenceVerdict` always `compatible` (`src/reuse-facts/index.mjs:157`) — fails them, and they pass again once it is restored. No pull request names it, since it predates the pull-request flow or was built by another item. No code changes.

@@ -38,3 +38,5 @@ entry.
   request.
 - The existing tests stay green, with no expected result changed.
 - Only `src/settings-pages/` and the tests that name MOD-settings-pages change.
+
+**Done (sprint team2/98, po-opus-b):** read against its Acceptance on `main` at `3436203a`: TST-402001 (`tests/settings-pages-library.test.mjs:530`) states waiting, fetched and failed from the entry and the runs, and *Fetch again* starting `fetch-sources.yml` once with nothing committed by the page; it passes on `main`; built in team 2's sprint 50 (`72e83c5a`). No pull request names it, since it predates the pull-request flow or was built by another item. No code changes.

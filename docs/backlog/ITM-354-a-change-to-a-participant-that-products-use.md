@@ -39,3 +39,4 @@ role assignments name it, with their roles; a capability removed that a role nee
 use"), with `productUseFor`, `renderProductUse` and `updateProductUse` in `src/settings-pages/participants.mjs`. TST-354001
 and TST-354002 in `tests/settings-pages-participants.test.mjs` check each Acceptance line and pass unchanged. It is done.
 
+**Done (sprint team2/98, po-opus-b):** read against its Acceptance on `main` at `3436203a`: TST-354001 and TST-354002 (`tests/settings-pages-participants.test.mjs`) pass on `main`; built by `a3272908`. No pull request names it, since it predates the pull-request flow or was built by another item. No code changes.

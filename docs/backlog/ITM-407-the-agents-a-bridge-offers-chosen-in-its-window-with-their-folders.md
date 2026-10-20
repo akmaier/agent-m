@@ -46,3 +46,5 @@ missing. The composition hands the offered agents to the job handlers and to wat
 Built in team 2's sprint 33, before the pull-request flow: `d3fd9221`, `98e006d9` (tests) and `e8dcd807`, with TST-407001 and
 TST-407002 in `tests/mod-desktop-shell-agents.test.mjs`. No pull request names the item, so the backlog's state did not show it
 done. Sprint 97's selection of it (97.md) was the Product Owner's mistake.
+
+**Done (sprint team2/98, po-opus-b):** read against its Acceptance on `main` at `3436203a`: TST-407001 and TST-407002 (`tests/mod-desktop-shell-agents.test.mjs`) pass on `main`; built in team 2's sprint 33. No pull request names it, since it predates the pull-request flow or was built by another item. No code changes.

@@ -45,3 +45,5 @@ The cases of reading, finding, threading and sending that name the same check wa
 This item is built: commit `206064c7` ("Team2 sprint52 ITM-431 bridge mail release check") is on `main`. No merged pull request names it, because it predates the record
 format in which a merge names its item. So MOD-work-plans' reading of the pull requests still shows it open. The gap analysis
 of UC-036 to UC-049 found its code and tests on `main`.
+
+**Done (sprint team2/98, po-opus-b):** read against its Acceptance on `main` at `3436203a`: `tests/test_bridge_mail.py` and `tests/system-uc-037-connect-mailbox.test.mjs` pass on `main`; built by `206064c7`. No pull request names it, since it predates the pull-request flow or was built by another item. No code changes.

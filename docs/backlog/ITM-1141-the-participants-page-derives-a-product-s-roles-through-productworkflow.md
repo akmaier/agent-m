@@ -44,3 +44,5 @@ This item was written against `main`, which did not hold the sprint yet. ITM-109
 (`src/settings-pages/participants.mjs:13`, `:281`). On that branch, `git grep model-catalogue -- src/settings-pages` finds
 nothing; the same search finds `productWorkflow`, as the known positive. Its two pinning tests pass 22 of 22, and
 system-uc-017 5 of 5. Nothing is left to build.
+
+**Done (sprint team2/98, po-opus-b):** read against its Acceptance on `main` at `3436203a`: ITM-1096 (#1134) built it, and it reached `main` with team 2's sprint 97 (#1191): `src/settings-pages/participants.mjs:13`, `:281` take the workflow from `productWorkflow`. No pull request names it, since it predates the pull-request flow or was built by another item. No code changes.
