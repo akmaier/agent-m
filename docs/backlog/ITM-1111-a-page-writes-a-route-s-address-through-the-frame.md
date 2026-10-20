@@ -38,3 +38,11 @@ links take it from there.
 
 - Once the draft is accepted: the replies page's issue link is the frame's address for `replies` with `issue` and `product`.
   Counter-proof: a hand-written link fails it.
+
+**A second caller (team 2's sprint 100, po-opus-b).** ITM-684's live main page links its waits, its card's token setting
+and *+ Add product* into `docs/index.html`.
+- Until the frame gives a route's address, it writes the `docs/index.html#<route>/<params>` form itself, a second copy of
+  the frame's writer (MOD-site-frame.md:158).
+- This item's draft, when it is committed again, also gives the address of a review page's route on the main page, so
+  that the copy goes.
+

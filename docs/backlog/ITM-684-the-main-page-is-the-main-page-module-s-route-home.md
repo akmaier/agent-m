@@ -16,6 +16,7 @@ builds_on:
   - ITM-809
   - ITM-655
   - ITM-842
+  - ITM-1165
 tests:
   - unit
 origin:
@@ -72,3 +73,36 @@ token it reads the texts its cards and its waits list show one by one.
   `docs/measurements/2026-10-18_page-loads-once-per-commit.md` §2).
 - The file belongs to no module, so it is not fixed in place (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`,
   SPEC.md:1441). This item's switch is the fix.
+
+**Stopped at its first task, and decided (team 2's sprint 100, po-opus-b, with architecture-reviewer a2fd6f0bd4f5027fd).**
+
+developer-sonnet-h ran the real `startPage({ page: "main", views: [mainPage.view] })`.
+- The known positive, `#job/id=…`, is served.
+- These fall back to `routes[0]` or say "not built yet": `#use-case/id=…` and `#spec-entry/id=…`
+  (`src/main-page/waits.mjs:14-15`), `#process` for a gate (`:17-20`), `#add-product` (`home.mjs:98`) and `#settings`
+  (`cards.mjs:92`).
+- The cause: each is `context.go()`, which on the main page only sets the hash (`src/site-frame/index.mjs:347-350`).
+
+**The way, by the texts: links, not loaded views.**
+- MOD-site-frame.md:172-173 reads "On the main page each entry links into the review pages … so that the main page loads
+  none of their views". MOD-main-page.md:110 reads "each item linked to the page where it is decided".
+- So these become links into `docs/index.html`, as *Get your own Agent M* and `menuOf("main")` already are. No draft is
+  needed.
+- `tests/main-page-home.test.mjs`, MOD-main-page's own test, changes with them.
+- **Named, principle 2:** the main page writes the `docs/index.html#<route>/<params>` form itself, a second copy of the
+  frame's internal writer (MOD-site-frame.md:158). ITM-1111, the frame's `addressOf`, now also covers the review pages'
+  addresses for this caller, and the copy goes with it.
+
+**What the live `docs/index.html` serves today**, probed with `tests/app-harness.mjs`' `openDashboard`, against
+`#zz-not-a-route`:
+- served: `#settings`, `#use-case/id=…`, `#spec-entry/id=…`, `#process` and `#add`;
+- not served: `#add-product` and `#get-your-own`, which render the same use-case list as the negative.
+- Today's live main page links "+ Add product" to `docs/index.html#add` (`src/home/home.mjs:79`).
+
+**The order.**
+- ITM-700 switches `docs/index.html`, and builds on this item through ITM-687 and ITM-689. So the live app learns the two
+  names first, which is ITM-1165, and this item builds on it.
+- ITM-1165 changes MOD-site-frame, which team 1's sprint 102 (ITM-768, 769, 658, 667) uses. So it waits for that sprint to
+  reach `main` (SPEC.md:1678-1680).
+- This item leaves sprint 100 until then.
+
