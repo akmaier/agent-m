@@ -60,3 +60,11 @@ Each part of the Acceptance has its code and its test, and no part needs a draft
   - Its test: `tests/progress-measures-build-and-waits.test.mjs:99`.
 
 So ITM-828 is recorded as done once #1251 is merged, and ITM-684's builds_on are then all done.
+
+**Done (team 2's sprint 100's start, po-opus-b):** read on `main` at `064d185e`, where sprint 99 is merged (#1251). Each part
+of the Acceptance named above has its code and its test there:
+- the rows that go: TST-685011 and TST-685013;
+- the job not reachable: `src/job-ledger/index.mjs:432-433`, `tests/job-ledger.test.mjs:558`;
+- the done step: ITM-864, `tests/progress-measures-build-and-waits.test.mjs:99`.
+
+No pull request names this item, and no code of its own changes.
