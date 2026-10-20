@@ -87,7 +87,7 @@ async function start() {
 async function sends(page, text) {
   one(page.footer, "instruction").value = text;
   const before = seen.length;
-  one(page.footer, "send").dispatchEvent(new Event("click"));
+  one(page.footer, "send").dispatchEvent(Object.defineProperty(new Event("click"), "isTrusted", { value: true }));
   await until(() => seen.length === before + 1 && one(page.footer, "send").disabled === false, "the message has run");
 }
 

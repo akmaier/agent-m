@@ -264,7 +264,7 @@ async function proposes(it, handOver, participant = "dev-ci") {
   it.net.handOver = handOver;
   one(it.target, "participant").value = participant;
   one(it.target, "instruction").value = "hand this on";
-  one(it.target, "send").dispatchEvent(scripted());
+  one(it.target, "send").dispatchEvent(personal());
   await until(() => byClass(it.target, "hand-over").length > 0, "the proposal is shown");
   await until(() => !textOf(one(it.target, "hand-over")).includes("Checking"), "the proposal is checked");
 }
@@ -759,4 +759,29 @@ test("a run that failed for another reason, or is still running, shows no link t
   running.product.logs.set("7", NOT_RUN);
   await after(15000);
   assert.equal(byClass(one(running.target, "following"), "secrets-link").length, 0);
+});
+
+// ---------------------------------------------------------------- Send is a person's click (ITM-1139)
+
+// TST-1139001 · level: component · module: MOD-prompt-bar
+// guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; UC-049
+// given: recording is on at the instance; the bar is drawn on the product's page, a participant chosen and a message written; known positive: a person's click records the message and sends it
+// input: a click a script makes on Send (isTrusted false); then a person's click (isTrusted true)
+// expect: after the script's click nothing was sent (no request at all), no commit was attempted on the product or the instance, and the conversation shows no message; after the person's click the message was sent to the model endpoint and the conversation record was committed on the product (the record names the message)
+test("with recording on, a script's click on Send sends nothing and commits nothing; a person's click sends and records", async () => {
+  const it = open({ recording: true });
+  await until(() => one(it.target, "instruction") !== undefined, "the bar is drawn");
+  one(it.target, "participant").value = "dev-ci";
+  one(it.target, "instruction").value = "SCRIPTED-MESSAGE-4F7A please";
+  one(it.target, "send").dispatchEvent(scripted());
+  await settle();
+  assert.deepEqual(it.net.seen, [], "no request was made");
+  assert.equal(writesOf(it), 0, NOTHING_WRITTEN);
+  assert.equal(it.product.attempts.length + it.instance.attempts.length, 0);
+  assert.equal(byClass(it.target, "message").length, 0, "the conversation holds no message");
+  assert.equal(one(it.target, "instruction").value, "SCRIPTED-MESSAGE-4F7A please", "the person's words stay in the input");
+  one(it.target, "send").dispatchEvent(personal());
+  await until(() => it.net.seen.some((call) => call.origin === MODELS) && it.product.attempts.length > 0, "the message is sent and recorded");
+  const recorded = it.product.attempts.map((attempt) => attempt.files.map((file) => file.text).join("\n")).join("\n");
+  assert.ok(recorded.includes("SCRIPTED-MESSAGE-4F7A"), "the record names the message");
 });

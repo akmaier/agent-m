@@ -162,7 +162,7 @@ test("the bar stays fixed when the route changes and a message is sent on the ne
   const root = it.target.childNodes[0];
   it.current.subject = subjectOf("use-case:UC-008", "UC-008 Another use case");
   one(it.target, "instruction").value = "go on";
-  one(it.target, "send").dispatchEvent(new Event("click"));
+  one(it.target, "send").dispatchEvent(Object.defineProperty(new Event("click"), "isTrusted", { value: true }));
   await until(() => requests === 1 && one(it.target, "answer"), "the answer is shown");
   assert.ok(one(it.target, "answer").textContent.includes("Done."));
   assert.equal(it.target.childNodes.length, 1);
