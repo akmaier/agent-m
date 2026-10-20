@@ -102,7 +102,8 @@ test("storedImpacts reads the stored lists in one readOn", async () => {
 
 // TST-939003 · level: unit · module: MOD-trace-graph
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
-// given: the stored lists of TST-939002, and these sources: (a) no readOn; (b) readOn answering null (no branch or no file); (c) readOn answering a text that is no JSON; (d) readOn answering "{}"; (e) readOn answering the text of the commit's graph file// input: storedImpacts(each source, commit)
+// given: the stored lists of TST-939002, and these sources: (a) no readOn; (b) readOn answering null (no branch or no file); (c) readOn answering a text that is no JSON; (d) readOn answering "{}"; (e) readOn answering the text of the commit's graph file
+// input: storedImpacts(each source, commit)
 // expect: null for each of the five; and, as the known positive, a Map of two entries for the source that serves the stored text
 test("storedImpacts gives null without readOn, for a missing branch or file, and for another format", async () => {
   const { host, state } = fakeHost();

@@ -77,8 +77,7 @@ test("TST-856002 the instance's token and another product's token are not the ch
 
 // TST-856003 · level: unit · module: MOD-site-frame
 // guards: A PRODUCT IS NAMED BY ITS ADDRESS; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
-// given: a browser that keeps the GitLab product https://gitlab.example.org/team/app and the token gitlab-token:gitlab.example.org/team/app; and, for the counter-proof, a browser that keeps the same product and
-// only the token github-token:team/app, which is a token of the other kind under the same path
+// given: a browser that keeps the GitLab product https://gitlab.example.org/team/app and the token gitlab-token:gitlab.example.org/team/app; and, for the counter-proof, a browser that keeps the same product and only the token github-token:team/app, which is a token of the other kind under the same path
 // input: chosenProduct({ store, fragment: "#alpha/product=<the app>" })
 // expect: kind is "gitlab" and tokenStored is true; counter-proof: with only the GitHub-kind token of the same path, kind is "gitlab" and tokenStored is false
 test("TST-856003 the chosen GitLab product says its own project token is stored; a GitHub token of the same path is not it", async () => {

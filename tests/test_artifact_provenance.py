@@ -105,8 +105,7 @@ class ArtifactProvenance(unittest.TestCase):
 
     # TST-519015 · level: system · module: system
     # guards: AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
-    # given: the unchanged text of UC-002 as the driver returns it, and three plants: an Agent-M-Participant line, a prose line
-    #        naming the version, and the model in the first line
+    # given: the unchanged text of UC-002 as the driver returns it, and three plants: an Agent-M-Participant line, a prose line naming the version, and the model in the first line
     # input: the detector over each text
     # expect: the unchanged text yields nothing; the plants yield the participant and a trailer line / the version / the model
     def test_counter_proof_a_provenance_line_planted_in_a_text_is_found(self):

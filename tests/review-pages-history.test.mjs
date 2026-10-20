@@ -200,8 +200,7 @@ test("TST-898002 the list reads no history", async () => {
 
 // TST-898003 · level: component · module: MOD-review-pages
 // guards: UC-008; STATUS IS DERIVED FROM THE RECORDS; AN APPROVAL NAMES THE EXACT TEXT
-// given: five commits added the use cases' records — UC-042 (older text) by carol-c on 2026-09-01, UC-043 by bob-b on 2026-09-03 (the file has been renamed since), UC-044 and UC-045
-//   together with MOD-desk's record by alice-a on 2026-10-01, UC-042 (current text) by bob-b on 2026-10-04 — and one commit of code and two of other kinds' records between them
+// given: five commits added the use cases' records — UC-042 (older text) by carol-c on 2026-09-01, UC-043 by bob-b on 2026-09-03 (the file has been renamed since), UC-044 and UC-045 together with MOD-desk's record by alice-a on 2026-10-01, UC-042 (current text) by bob-b on 2026-10-04 — and one commit of code and two of other kinds' records between them
 // input: the route use-case drawn with the id history, a token stored
 // expect: five rows, newest first, each with the identifier, the file the record names (UC-043's as it was named), the person and the date as the host gives it; no record of another kind
 test("TST-898003 use-case history — the approval records of the use cases, newest first, each with its file, its person and its date", async () => {
@@ -218,11 +217,9 @@ test("TST-898003 use-case history — the approval records of the use cases, new
 
 // TST-898004 · level: component · module: MOD-review-pages
 // guards: UC-023; STATUS IS DERIVED FROM THE RECORDS
-// given: the same repository; ARC-001's record was added by Dana D, whom GitHub names no account for, on 2026-10-02, together with the record of the SPEC change entry spec-2026-02-01_other-01;
-//   MOD-desk's by alice-a on 2026-10-01
+// given: the same repository; ARC-001's record was added by Dana D, whom GitHub names no account for, on 2026-10-02, together with the record of the SPEC change entry spec-2026-02-01_other-01; MOD-desk's by alice-a on 2026-10-01
 // input: the routes decision, module and spec-entry drawn with the id history
-// expect: decision: one row, ARC-001 with its file, "Dana D" and the date; module: one row, MOD-desk with alice-a and 2026-10-01T10:00:00Z; spec-entry: one row, the entry with its proposal,
-//   "Dana D" and the date — each page lists the records of its own kind only
+// expect: decision: one row, ARC-001 with its file, "Dana D" and the date; module: one row, MOD-desk with alice-a and 2026-10-01T10:00:00Z; spec-entry: one row, the entry with its proposal, "Dana D" and the date — each page lists the records of its own kind only
 test("TST-898004 decision, module and SPEC entry history — each lists the records of its own kind, a person without an account by name", async () => {
   const shown = {};
   for (const route of ["decision", "module", "spec-entry"]) shown[route] = rowsOf((await draw(route, { id: "history" }, fakeGitHub())).target);

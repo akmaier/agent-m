@@ -38,14 +38,9 @@ function pageWithScript(attributes, fragment = "") {
 
 // TST-531012 · level: unit · module: MOD-site-frame
 // guards: THE MENU FOLLOWS THE PROCESS
-// given: a page whose script tag loading start.mjs has data-page="review", data-views naming the fixture views view-a (routes
-//   alpha under requirements and list-of-cases under use-cases, the check itm531CheckA) and view-b (route beta under tests, the
-//   check itm531CheckB) and an empty data-menu-views; the fragment #alpha/q=1
+// given: a page whose script tag loading start.mjs has data-page="review", data-views naming the fixture views view-a (routes alpha under requirements and list-of-cases under use-cases, the check itm531CheckA) and view-b (route beta under tests, the check itm531CheckB) and an empty data-menu-views; the fragment #alpha/q=1
 // input: start.mjs is loaded (its top level runs), then the fragment changes to #beta
-// expect: the route area reads `alpha page=review params={"q":"1"}`, then `beta`; the menu serves requirements, use-cases and
-//   tests with links #requirements, #use-cases and #tests; registering the check itm531CheckA again is refused as a
-//   DuplicateStrategy whose first owner is ../tests/site-frame-start.d/view-a, and itm531CheckB's first owner is
-//   ../tests/site-frame-start.d/view-b; a check name no view registered is accepted
+// expect: the route area reads `alpha page=review params={"q":"1"}`, then `beta`; the menu serves requirements, use-cases and tests with links #requirements, #use-cases and #tests; registering the check itm531CheckA again is refused as a DuplicateStrategy whose first owner is ../tests/site-frame-start.d/view-a, and itm531CheckB's first owner is ../tests/site-frame-start.d/view-b; a check name no view registered is accepted
 test("TST-531012 start.mjs reads its script tag, loads the named views, registers their strategies under their slugs and starts the page", async () => {
   const page = pageWithScript({ "data-page": "review", "data-views": `${VIEW_A} ${VIEW_B}`, "data-menu-views": "" }, "#alpha/q=1");
   await import("../src/site-frame/start.mjs?review");
@@ -65,13 +60,9 @@ test("TST-531012 start.mjs reads its script tag, loads the named views, register
 
 // TST-531013 · level: unit · module: MOD-site-frame
 // guards: THE MENU FOLLOWS THE PROCESS
-// given: a page whose script tag has data-page="main", empty data-views and a data-menu-views attribute naming a view module that
-//   does not exist (../tests/site-frame-start.d/not-a-view), which start.mjs would fail on if it imported it
+// given: a page whose script tag has data-page="main", empty data-views and a data-menu-views attribute naming a view module that does not exist (../tests/site-frame-start.d/not-a-view), which start.mjs would fail on if it imported it
 // input: start.mjs is loaded (a second evaluation of it, under another query)
-// expect: the main page is started and the load does not reject: its menu has eight entries, all links into the review pages,
-//   docs/index.html#requirements, docs/index.html#use-cases, docs/index.html#architecture, docs/index.html#implementation,
-//   docs/index.html#tests, docs/index.html#releases, docs/index.html#maintenance and docs/index.html#settings, in that order, and
-//   its route area reads "This page is not built yet."
+// expect: the main page is started and the load does not reject: its menu has eight entries, all links into the review pages, docs/index.html#requirements, docs/index.html#use-cases, docs/index.html#architecture, docs/index.html#implementation, docs/index.html#tests, docs/index.html#releases, docs/index.html#maintenance and docs/index.html#settings, in that order, and its route area reads "This page is not built yet."
 test("TST-531013 start.mjs starts the main page with eight links into the review pages and imports no view for its menu", async () => {
   const page = pageWithScript({ "data-page": "main", "data-views": "", "data-menu-views": "../tests/site-frame-start.d/not-a-view" });
   await import("../src/site-frame/start.mjs?main");
@@ -84,11 +75,9 @@ test("TST-531013 start.mjs starts the main page with eight links into the review
 
 // TST-506009 · level: unit · module: MOD-site-frame
 // guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
-// given: the two pages started by the tests above (the review page and the main page), each with the prompt bar, which reads the
-//   instance when it is drawn, and each given an offline fetch; the fetch that stands for the network records what reaches it
+// given: the two pages started by the tests above (the review page and the main page), each with the prompt bar, which reads the instance when it is drawn, and each given an offline fetch; the fetch that stands for the network records what reaches it
 // input: the requests the pages made, as the offline fetch and as the network recorded them
-// expect: the pages did ask the instance's API (every request to https://api.github.com/repos/acme/instance, none to another
-//   address), and no request reached the network: none left the fixture
+// expect: the pages did ask the instance's API (every request to https://api.github.com/repos/acme/instance, none to another address), and no request reached the network: none left the fixture
 test("TST-506009 the pages started by start.mjs ask only the offline fetch, and no request leaves the fixture", () => {
   assert.ok(outside.seen.length > 0, "the bar did read the instance, so the offline fetch saw it");
   assert.deepEqual([...new Set(outside.seen)], ["https://api.github.com/repos/acme/instance"]);

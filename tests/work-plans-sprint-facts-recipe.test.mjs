@@ -156,11 +156,9 @@ test("the item states are derived with the product's workflow, read at the commi
 
 // TST-1102003 · level: unit · module: MOD-work-plans
 // guards: UC-041; AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM
-// given: the fixture, sprint team1/01 (time box 2026-10-12 to 2026-10-19); the host lists issue 20 (opened 2026-10-13, closed 2026-10-15, no comment), 21 (opened 2026-09-01, still open, no comment), 22 (opened 2026-09-01, closed 2026-10-16),
-//   23 (opened 2026-10-18, still open), 24 (opened 2026-09-01, closed 2026-09-02, with a comment dated 2026-10-14), 25 (opened 2026-10-19T23:00:00Z, the last day), 26 (opened 2026-10-11T23:59:59Z, the day before)
+// given: the fixture, sprint team1/01 (time box 2026-10-12 to 2026-10-19); the host lists issue 20 (opened 2026-10-13, closed 2026-10-15, no comment), 21 (opened 2026-09-01, still open, no comment), 22 (opened 2026-09-01, closed 2026-10-16), 23 (opened 2026-10-18, still open), 24 (opened 2026-09-01, closed 2026-09-02, with a comment dated 2026-10-14), 25 (opened 2026-10-19T23:00:00Z, the last day), 26 (opened 2026-10-11T23:59:59Z, the day before)
 // input: the recipe
-// expect: the issues part names 20, 22, 23 and 25 and not 21, 24 or 26; the host was asked with state "all"; the facts part is the same as without the issues
-// Planted fault: reading a comment's date instead of the issue's dates names 24 and misses 20; reading only `opened` misses 22; asking for open issues only misses 20 and 22; a time box end taken as exclusive misses 25.
+// expect: the issues part names 20, 22, 23 and 25 and not 21, 24 or 26; the host was asked with state "all"; the facts part is the same as without the issues Planted fault: reading a comment's date instead of the issue's dates names 24 and misses 20; reading only `opened` misses 22; asking for open issues only misses 20 and 22; a time box end taken as exclusive misses 25.
 test("an issue opened or closed within the sprint's time box is among its facts, with or without a comment; one opened before and still open is not", async () => {
   const note = [{ author: "alice", body: "seen", date: "2026-10-14T10:00:00Z" }];
   const issues = [issue(20, "2026-10-13T08:00:00Z", "2026-10-15T09:00:00Z"), issue(21, "2026-09-01T08:00:00Z"), issue(22, "2026-09-01T08:00:00Z", "2026-10-16T09:00:00Z"), issue(23, "2026-10-18T08:00:00Z"),

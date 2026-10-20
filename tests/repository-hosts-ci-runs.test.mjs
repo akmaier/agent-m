@@ -219,8 +219,7 @@ test("cancelCiRun makes the one cancel request, on each server", async () => {
 
 // TST-546008 · level: unit · module: MOD-repository-hosts
 // guards: A CANCELLED JOB WRITES NOTHING MORE; A REMOTE INTERFACE NAMES HOW IT FAILS
-// given: a GitHub run 9001 that has completed, whose cancel the server answers 409 ("Cannot cancel a workflow run that is completed.") and whose run it reports as status completed; a GitHub run 9002 whose cancel it
-//   answers 409 although the run is in_progress; a GitLab pipeline 61 that has finished, whose cancel the server answers 200 with the pipeline, status success
+// given: a GitHub run 9001 that has completed, whose cancel the server answers 409 ("Cannot cancel a workflow run that is completed.") and whose run it reports as status completed; a GitHub run 9002 whose cancel it answers 409 although the run is in_progress; a GitLab pipeline 61 that has finished, whose cancel the server answers 200 with the pipeline, status success
 // input: cancelCiRun("9001"); cancelCiRun("9002") on GitHub; cancelCiRun("61") on GitLab
 // expect: 9001 returns (no failure; two requests — the cancel, then GET …/actions/runs/9001); 9002 fails Unreachable (the adapter's refusal of a 409 it cannot read as an ended run); 61 returns after one request
 test("cancelCiRun — a run that has already ended is not a failure; a refusal for a run that has not ended is", async () => {
@@ -285,8 +284,7 @@ test("ciRunLog on GitLab — the jobs' traces in the order the server lists them
 
 // TST-546011 · level: unit · module: MOD-repository-hosts
 // guards: UC-049; A REMOTE INTERFACE NAMES HOW IT FAILS
-// given: on each server a run of three jobs "a", "b", "c"; first the server keeps the log of "b" only (the log of "a" is answered 404, that of "c" 410); then it keeps none (the logs of "a" and "b" 404, that of "c" 410);
-//   then the run has no job
+// given: on each server a run of three jobs "a", "b", "c"; first the server keeps the log of "b" only (the log of "a" is answered 404, that of "c" 410); then it keeps none (the logs of "a" and "b" 404, that of "c" 410); then the run has no job
 // input: ciRunLog on each
 // expect: the first: "b\nb text\n" — a job without a log has no text and no name line; the second: null; the third: null
 test("ciRunLog — a job whose log is answered 404 or 410 has no text; null where no job has one", async () => {

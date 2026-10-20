@@ -125,12 +125,9 @@ test("TST-683005 a token the server refused is named with its renewal, and a ref
 
 // TST-683006 · level: unit · module: MOD-site-frame
 // guards: A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED
-// given: a GitHub product https://github.com/acme/widget and a GitLab product https://gitlab.example.org/team/app, each with a token of
-//   its own expiring in 5 days, and the instance's token expiring in 60 days
+// given: a GitHub product https://github.com/acme/widget and a GitLab product https://gitlab.example.org/team/app, each with a token of its own expiring in 5 days, and the instance's token expiring in 60 days
 // input: startPage on the widget's pages, on the app's pages, and on the instance's pages
-// expect: the widget's pages show "Your GitHub token expires on <date> (Agent M for https://github.com/acme/widget)" with GitHub's list of tokens;
-//   the app's pages show "Your GitLab project token expires on <date> (Agent M for https://gitlab.example.org/team/app)" with https://gitlab.example.org/team/app/-/settings/access_tokens; the instance's
-//   pages name neither (counter-proof)
+// expect: the widget's pages show "Your GitHub token expires on <date> (Agent M for https://github.com/acme/widget)" with GitHub's list of tokens; the app's pages show "Your GitLab project token expires on <date> (Agent M for https://gitlab.example.org/team/app)" with https://gitlab.example.org/team/app/-/settings/access_tokens; the instance's pages name neither (counter-proof)
 test("TST-683006 a product's own token is named on that product's pages only, with its server's renewal page", async () => {
   const tokens = { "github-token": { expires: day(60) }, "github-token:acme/widget": { expires: day(5) }, "gitlab-token:gitlab.example.org/team/app": { value: "glpat-X", expires: day(5) } };
   const widget = await start({ tokens, products: [WIDGET, APP], fragment: `#alpha/product=${encodeURIComponent(WIDGET)}` });
@@ -144,12 +141,9 @@ test("TST-683006 a product's own token is named on that product's pages only, wi
 
 // TST-683007 · level: unit · module: MOD-site-frame
 // guards: AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED
-// given: a view whose route fails with MOD-repository-hosts' TokenRefused { tokenName: "Agent M for acme/widget", renewal: "https://example.test/renew" }
-//   and a view whose route fails with another error, Error("something else")
+// given: a view whose route fails with MOD-repository-hosts' TokenRefused { tokenName: "Agent M for acme/widget", renewal: "https://example.test/renew" } and a view whose route fails with another error, Error("something else")
 // input: startPage with each
-// expect: the first page starts and shows one notice of kind token-refused, "The server refused your token Agent M for acme/widget.",
-//   linked to https://example.test/renew; the second start resolves, shows no notice, and its main area reads "This page could not be drawn: something else"
-//   (ITM-865: it rejected with that error before)
+// expect: the first page starts and shows one notice of kind token-refused, "The server refused your token Agent M for acme/widget.", linked to https://example.test/renew; the second start resolves, shows no notice, and its main area reads "This page could not be drawn: something else" (ITM-865: it rejected with that error before)
 test("TST-683007 a route that fails with TokenRefused shows the refusal as a notice; another failure is shown as a fault of the page", async () => {
   const failing = (error) => ({ routes: [{ name: "alpha", entry: "requirements", title: "alpha", async render() { throw error; } }], strategies: [] });
   const refusal = Object.assign(new Error("rejected"), { name: "TokenRefused", tokenName: "Agent M for acme/widget", renewal: "https://example.test/renew" });

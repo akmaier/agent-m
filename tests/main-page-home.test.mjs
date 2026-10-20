@@ -369,11 +369,9 @@ test("TST-847002 with a token, a reading of the jobs' states is the product's co
 
 // TST-847003 · level: unit · module: MOD-main-page
 // guards: THE BUILD IS SHOWN AS IT HAPPENS; UC-046
-// given: the product, the instance and the browser of TST-847002, with no token stored for the instance or the product (the page of TST-827007 read it in 1,013 requests); and, for the counter-proof, the same
-// where the product's token is stored and the instance's is not
+// given: the product, the instance and the browser of TST-847002, with no token stored for the instance or the product (the page of TST-827007 read it in 1,013 requests); and, for the counter-proof, the same where the product's token is stored and the instance's is not
 // input: the route home drawn
-// expect: 1,013 requests for the draw and no timer waiting, so that no reading is made — GitHub's limit without a token is 60 requests an hour for the network, which a reading each minute would use up in half an
-// hour; counter-proof: with the product's token stored, one timer of 60000 milliseconds waits
+// expect: 1,013 requests for the draw and no timer waiting, so that no reading is made — GitHub's limit without a token is 60 requests an hour for the network, which a reading each minute would use up in half an hour; counter-proof: with the product's token stored, one timer of 60000 milliseconds waits
 test("TST-847003 a card whose repository this browser keeps no token for is not read again", async () => {
   net = network({ [PRODUCT]: productFiles({ items: 600, jobs: 400 }), [INSTANCE]: instanceFiles() });
   net.install();
@@ -448,11 +446,9 @@ test("TST-847005 a reading moves the build's rows and nothing else: the stages a
 
 // TST-847006 · level: unit · module: MOD-main-page
 // guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-046
-// given: this browser keeps alice/product and bob/other, each with a token of its own, and carol/missing, which the server does not find; the page drawn with two cards and one that says it could not be read;
-// and, for the counter-proof, the same where bob/other has no token stored
+// given: this browser keeps alice/product and bob/other, each with a token of its own, and carol/missing, which the server does not find; the page drawn with two cards and one that says it could not be read; and, for the counter-proof, the same where bob/other has no token stored
 // input: the timer fired at 12:01 UTC, the requests since the draw listed
-// expect: exactly 4 requests, the commit of main and the tree of each of alice/product and bob/other — no request to carol/missing and none to the instance alice/agent-m —, those to alice/product carrying
-// "Bearer <the product's token>" and those to bob/other carrying "Bearer <bob/other's token>"; counter-proof: where bob/other has no token, exactly 2 requests, the commit of main and the tree of alice/product
+// expect: exactly 4 requests, the commit of main and the tree of each of alice/product and bob/other — no request to carol/missing and none to the instance alice/agent-m —, those to alice/product carrying "Bearer <the product's token>" and those to bob/other carrying "Bearer <bob/other's token>"; counter-proof: where bob/other has no token, exactly 2 requests, the commit of main and the tree of alice/product
 test("TST-847006 a reading asks each card that was read, and has a token, for its commit and tree with its own token, and no other", async () => {
   net = network({ [PRODUCT]: smallProduct(), [OTHER]: smallProduct({ accepted: ["UC-002"] }), [INSTANCE]: instanceFiles() });
   net.install();
@@ -542,11 +538,9 @@ test("TST-847009 Agent M's own card is read again through the instance's host, 2
 
 // TST-847010 · level: unit · module: MOD-main-page
 // guards: THE BUILD IS SHOWN AS IT HAPPENS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-046
-// given: the product with two jobs, JOB-20261016-1000-aaaa and JOB-20261016-1000-bbbb, taken by CI runs (https://github.com/alice/product/actions/runs/101 and …/102) and not ended; the job workflow's run list, one page,
-// holds run 101 in progress and run 102 completed with success
+// given: the product with two jobs, JOB-20261016-1000-aaaa and JOB-20261016-1000-bbbb, taken by CI runs (https://github.com/alice/product/actions/runs/101 and …/102) and not ended; the job workflow's run list, one page, holds run 101 in progress and run 102 completed with success
 // input: the route home drawn; the timer fired at 12:01 UTC, the requests since the draw listed
-// expect: 4 requests in all — the commit, the tree and, for each of the two jobs, one request of the job workflow's run list (/repos/alice/product/actions/workflows/agent-m-jobs.yml/runs); where no job
-// is taken by a CI run (TST-847002), the reading sends no such request
+// expect: 4 requests in all — the commit, the tree and, for each of the two jobs, one request of the job workflow's run list (/repos/alice/product/actions/workflows/agent-m-jobs.yml/runs); where no job is taken by a CI run (TST-847002), the reading sends no such request
 test("TST-847010 a job taken by a CI run that has not ended costs one request of the run list for each job, in each reading", async () => {
   const run = (id, status, conclusion) => ({ id, status, conclusion, html_url: `https://github.com/alice/product/actions/runs/${id}`, path: ".github/workflows/agent-m-jobs.yml", head_sha: "a".repeat(40), event: "push" });
   const jobs = [runningJob({ id: "JOB-20261016-1000-aaaa", by: "https://github.com/alice/product/actions/runs/101" }), runningJob({ id: "JOB-20261016-1000-bbbb", by: "https://github.com/alice/product/actions/runs/102" })];
@@ -687,8 +681,7 @@ test("TST-858003 a tab shown again before a reading fell due reads nothing, and 
 
 // TST-858004 · level: unit · module: MOD-main-page
 // guards: A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; THE BUILD IS SHOWN AS IT HAPPENS; UC-046
-// given: this browser keeps alice/product and bob/other, each with its own token; the page drawn at 12:00; GitHub then refuses requests to alice/product with a used-up limit that resets at 13:00; the timer fired at 12:01 (alice/product's reading
-// fails and is next due at 13:00, bob/other's is read and next due at 12:02); the tab hidden at 12:01; GitHub answering again
+// given: this browser keeps alice/product and bob/other, each with its own token; the page drawn at 12:00; GitHub then refuses requests to alice/product with a used-up limit that resets at 13:00; the timer fired at 12:01 (alice/product's reading fails and is next due at 13:00, bob/other's is read and next due at 12:02); the tab hidden at 12:01; GitHub answering again
 // input: the tab shown at 12:05
 // expect: exactly 2 requests, the commit and the tree of bob/other (the card whose reading fell due); none to alice/product, whose reading is due at 13:00
 test("TST-858004 on resuming only the cards whose reading fell due are read", async () => {
@@ -842,11 +835,9 @@ test("TST-943004 each card reads its own head's overview, and an overview stored
 
 // TST-856004 · level: unit · module: MOD-main-page
 // guards: THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-046
-// given: this browser keeps the product alice/product, with its own token github-token:alice/product; and, for the counter-proof, the same browser with no token of that product; the pages are counted by the
-// reads of that one key from the browser's local storage — the number of reads one call of MOD-site-frame's chosenProduct makes for the product, and the number the route home makes in drawing its card
+// given: this browser keeps the product alice/product, with its own token github-token:alice/product; and, for the counter-proof, the same browser with no token of that product; the pages are counted by the reads of that one key from the browser's local storage — the number of reads one call of MOD-site-frame's chosenProduct makes for the product, and the number the route home makes in drawing its card
 // input: chosenProduct({ store, fragment: "#home/product=<the product>" }) called alone, its reads of the key counted; then the route home drawn on a fresh browser of the same kind, its reads counted
-// expect: the call alone reads the key at least once (known positive: the count sees a read) and the route home reads it exactly as often as that call alone, with a token and without — the route reads nothing for "is a token
-// stored" besides what the frame's chosenProduct reads and says — , and the card, drawn with the token, sets the timer of the readings again (one timer of 60000 milliseconds) and, drawn without it, sets none
+// expect: the call alone reads the key at least once (known positive: the count sees a read) and the route home reads it exactly as often as that call alone, with a token and without — the route reads nothing for "is a token stored" besides what the frame's chosenProduct reads and says — , and the card, drawn with the token, sets the timer of the readings again (one timer of 60000 milliseconds) and, drawn without it, sets none
 test("TST-856004 the route home reads the product's token key no oftener than the frame's chosenProduct does, and takes from it whether a token is stored", async () => {
   const key = `github-token:${PRODUCT}`;
   for (const [tokens, delays] of [[{ [PRODUCT]: PRODUCT_TOKEN }, [60000]], [{}, []]]) {

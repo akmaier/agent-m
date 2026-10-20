@@ -87,10 +87,8 @@ const commit = (host, text) => host.commitFiles({ branch: "main", expectedHead: 
 // TST-869001 · level: unit · module: MOD-site-frame
 // guards: UC-042; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
 // given: the review page on the route setup in a browser that keeps no token
-// input: the route setup stores the setting github-token { value: github_pat_FIRST… } as "Store and check" does; then the person opens
-//   the route next, without a reload
-// expect: the instance's requests of the page next are exactly one, to https://api.github.com/repos/acme/instance, carrying the
-//   authorisation "Bearer github_pat_FIRST0123456789abcdefghijkl"
+// input: the route setup stores the setting github-token { value: github_pat_FIRST… } as "Store and check" does; then the person opens the route next, without a reload
+// expect: the instance's requests of the page next are exactly one, to https://api.github.com/repos/acme/instance, carrying the authorisation "Bearer github_pat_FIRST0123456789abcdefghijkl"
 test("TST-869001 a token stored on the setup route is sent by the instance's requests of the next page, opened without a reload", async () => {
   const page = await start();
   onSetup = (store) => writeSetting(store, "github-token", stored(TOKEN_A));
@@ -144,8 +142,7 @@ test("TST-869004 the host a route is given refuses a commit that holds a secret 
 // TST-869005 · level: unit · module: MOD-site-frame
 // guards: NO SECRET IN THE REPOSITORY
 // given: the review page started in a browser that keeps no token and no Bridge
-// input: after the page started, the route setup stores the token github_pat_SECOND… and the Bridge token bridge-token-STORED-LATER-…;
-//   the person opens the route next and its host is asked to commit notes.md holding the Bridge token, then notes.md holding the token
+// input: after the page started, the route setup stores the token github_pat_SECOND… and the Bridge token bridge-token-STORED-LATER-…; the person opens the route next and its host is asked to commit notes.md holding the Bridge token, then notes.md holding the token
 // expect: both commits fail with a HostError named SecretRefused, and no request is sent for either
 test("TST-869005 the host a route is given refuses a commit that holds a secret stored after the page started", async () => {
   const page = await start();

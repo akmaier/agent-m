@@ -90,8 +90,7 @@ test("TST-937005: a new route counts up from the highest number of each series",
 });
 
 // TST-937006 · level: unit · module: MOD-site-frame
-// given: identifiers that documents cite: TST-904054 and TST-904072 (the width checks of #arc and #module), TST-905001 (the main page drawn), TST-904168 and 904169 (the
-//   difference box of #uc/UC-001 and #review/uc), TST-905109 to 905111 (the changed use case's keyboard, rule and planted box)
+// given: identifiers that documents cite: TST-904054 and TST-904072 (the width checks of #arc and #module), TST-905001 (the main page drawn), TST-904168 and 904169 (the difference box of #uc/UC-001 and #review/uc), TST-905109 to 905111 (the changed use case's keyboard, rule and planted box)
 // input: the table and CASES
 // expect: each identifier names the same test as before: the number the table or CASES holds for it
 test("TST-937006: the identifiers that documents cite name the tests they named", () => {

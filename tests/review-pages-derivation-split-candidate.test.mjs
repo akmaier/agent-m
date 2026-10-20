@@ -314,11 +314,9 @@ test("spec-entry/draft - a split part bearing another candidate's name is not wr
 
 // TST-578008 · level: unit · module: MOD-review-pages
 // guards: UC-005; ONE STATEMENT PER REQUIREMENT
-// given: the endpoint answers, in every round, a `change` of A LOAN HAS A DUE DATE named THE DUE DATE IS SHOWN, whose rule says two things ("Every loan shows its due date and its return place."); the person splits it,
-//   names the part THE RETURN PLACE IS SHOWN with the rule "Every loan shows its return place.", leaves the part's class and "of" as the split showed them, and edits the first's rule to "Every loan shows its due date."
+// given: the endpoint answers, in every round, a `change` of A LOAN HAS A DUE DATE named THE DUE DATE IS SHOWN, whose rule says two things ("Every loan shows its due date and its return place."); the person splits it, names the part THE RETURN PLACE IS SHOWN with the rule "Every loan shows its return place.", leaves the part's class and "of" as the split showed them, and edits the first's rule to "Every loan shows its due date."
 // input: Write proposals
-// expect: right after Split the part's class select reads `new` and its "of" field is empty; the entry 01-lending.md holds the changed block of A LOAN HAS A DUE DATE with the rule "Every loan shows its due date." AND
-//   a block THE RETURN PLACE IS SHOWN *(SRC-policy, ch. 1)* with the rule "Every loan shows its return place.", each followed by "*Check:* `tests/fixture.test.mjs`": neither part is lost
+// expect: right after Split the part's class select reads `new` and its "of" field is empty; the entry 01-lending.md holds the changed block of A LOAN HAS A DUE DATE with the rule "Every loan shows its due date." AND a block THE RETURN PLACE IS SHOWN *(SRC-policy, ch. 1)* with the rule "Every loan shows its return place.", each followed by "*Check:* `tests/fixture.test.mjs`": neither part is lost
 test("spec-entry/draft - a split change candidate is written with both parts", async () => {
   const CHANGE = "THE DUE DATE IS SHOWN";
   const { panel, product } = await panelOf({ candidates: [{ ...candidate(CHANGE, "Every loan shows its due date and its return place."), class: "change", of: LOAN }] });
@@ -339,11 +337,9 @@ test("spec-entry/draft - a split change candidate is written with both parts", a
 
 // TST-578009 · level: unit · module: MOD-review-pages
 // guards: UC-005; A GENERATED ARTIFACT IS A PROPOSAL
-// given: the endpoint answers one candidate that constrains the process, class `new` (A GATE DECISION IS RECORDED, rule "Every gate decision is recorded."); the instance's SPEC holds EVERY GATE NAMES WHO DECIDES IT;
-//   no split: the person sets the candidate's class to `change` and its "of" to EVERY GATE NAMES WHO DECIDES IT
+// given: the endpoint answers one candidate that constrains the process, class `new` (A GATE DECISION IS RECORDED, rule "Every gate decision is recorded."); the instance's SPEC holds EVERY GATE NAMES WHO DECIDES IT; no split: the person sets the candidate's class to `change` and its "of" to EVERY GATE NAMES WHO DECIDES IT
 // input: Write proposals
-// expect: the instance's host takes one commit whose entry 01-process.md holds `**EVERY GATE NAMES WHO DECIDES IT** *(PO A. Maier; SRC-policy, ch. 1)*` (the source the job adds to the requirement's), the rule "Every gate decision is recorded." and "*Check:* `tests/fixture.test.mjs`" - a change under the
-//   existing name - and holds no block named A GATE DECISION IS RECORDED; the product's host takes no commit under docs/spec-freigaben
+// expect: the instance's host takes one commit whose entry 01-process.md holds `**EVERY GATE NAMES WHO DECIDES IT** *(PO A. Maier; SRC-policy, ch. 1)*` (the source the job adds to the requirement's), the rule "Every gate decision is recorded." and "*Check:* `tests/fixture.test.mjs`" - a change under the existing name - and holds no block named A GATE DECISION IS RECORDED; the product's host takes no commit under docs/spec-freigaben
 test("spec-entry/draft - an unsplit write hands the writer the class and the of the person left", async () => {
   const NEW = "A GATE DECISION IS RECORDED";
   const instance = writableInstance();
@@ -462,11 +458,9 @@ test("spec-entry/draft - two parts that change one requirement are refused, noth
 
 // TST-634005 · level: unit · module: MOD-review-pages
 // guards: UC-005; ONE STATEMENT PER REQUIREMENT
-// given: the `change` candidate of TST-634001 (of A LOAN HAS A DUE DATE), split; the part named THE SHELF IS NAMED with the rule "Every book is put on a named shelf."; the person sets the part's class to `change` and its "of" to A BOOK IS SHELVED;
-//   the first's rule is edited to "Every loan shows its due date."
+// given: the `change` candidate of TST-634001 (of A LOAN HAS A DUE DATE), split; the part named THE SHELF IS NAMED with the rule "Every book is put on a named shelf."; the person sets the part's class to `change` and its "of" to A BOOK IS SHELVED; the first's rule is edited to "Every loan shows its due date."
 // input: Write proposals
-// expect: no problem; the entry 01-lending.md holds the changed block of A LOAN HAS A DUE DATE with the rule "Every loan shows its due date." AND the changed block of A BOOK IS SHELVED with the rule "Every book is put on a named shelf.":
-//   two changes of two requirements are not refused
+// expect: no problem; the entry 01-lending.md holds the changed block of A LOAN HAS A DUE DATE with the rule "Every loan shows its due date." AND the changed block of A BOOK IS SHELVED with the rule "Every book is put on a named shelf.": two changes of two requirements are not refused
 test("spec-entry/draft - a part that changes another requirement than its candidate is written", async () => {
   const { panel, product } = await panelOf(changeDraft());
   click(splitOf(itemOf(panel, CHANGED))[0]);
@@ -521,8 +515,7 @@ test("spec-entry/draft - a part of class new naming the candidate's requirement 
 
 // TST-634008 · level: unit · module: MOD-review-pages
 // guards: UC-005
-// given: the endpoint answers, in every round, A LOAN STATES TWO THINGS (class `new`, rule says two things) and A MEMBER CAN RENEW ONCE as a `change` of A LOAN HAS A DUE DATE; the first is split, its part named A LOAN SHOWS ITS DATE with a rule
-//   and set to class `change` of A LOAN HAS A DUE DATE
+// given: the endpoint answers, in every round, A LOAN STATES TWO THINGS (class `new`, rule says two things) and A MEMBER CAN RENEW ONCE as a `change` of A LOAN HAS A DUE DATE; the first is split, its part named A LOAN SHOWS ITS DATE with a rule and set to class `change` of A LOAN HAS A DUE DATE
 // input: Write proposals
 // expect: a problem reading "TwoChanges: A LOAN SHOWS ITS DATE and A MEMBER CAN RENEW ONCE change A LOAN HAS A DUE DATE: one block would replace the other. Nothing was composed. To go on, give one of the two the class new, or merge them into one.": the refusal is the writer's, so a part and another candidate that change one requirement are refused as two candidates are; nothing is written to docs/spec-freigaben
 test("spec-entry/draft - a part and another candidate that change one requirement are refused, nothing written", async () => {
