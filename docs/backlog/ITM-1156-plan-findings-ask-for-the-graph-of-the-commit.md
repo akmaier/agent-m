@@ -35,4 +35,4 @@ Where it does not, the item stops for a draft.
 **Stopped at its first task (sprint team1/97, developer-sonnet-e):** `planFindings` takes no commit and no graph
 (MOD-work-plans.md:172-179). Its drafted steps may differ from the commit's. The way chosen (po-opus): an optional
 parameter, the graph of the commit, handed in by a caller whose steps are the commit's own. The draft of MOD-work-plans.md,
-by developer-sonnet-e, goes to `main` for akmaier. The item waits for its acceptance.
+by developer-sonnet-e, is on `main` as `1fc469f2`. The item waits for its acceptance.
