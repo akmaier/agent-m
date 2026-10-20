@@ -170,14 +170,17 @@ assignment is the one of the team whose sprint holds it, and the product's one i
   holds that is the item itself, changes a module the item changes or uses, or uses a module the item changes, with that
   module (`SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES`).
 - `planFindings(plan: Document, steps: Document[], architecture: Document[], workflow: Workflow, source: TextSource,
-  history?: { host: Host }) -> Promise<Finding[]>` — a module, a subsystem or the system without a step; with `history`, a
+  history?: { host: Host }, graph?: Graph) -> Promise<Finding[]>` — a module, a subsystem or the system without a step; with `history`, a
   step whose module or subsystem file was removed, and a step whose module or subsystem file was changed by a commit later
   than the step's own last commit (`readHistory` of both files, `changes: false`), each naming the file and the step, so
   that the plan page marks them after an architecture change (UC-045); a module ordered before one whose interface
   it uses; a step without a phase of the model; and the findings MOD-trace-graph's `graphFindings` gives on
   `traceGraph(source)`, `source` being the product's files with the drafted steps in place, of those steps: a step
   without the tests of its level, or with the tests of another, and a cycle in the modules' uses, naming its modules.
-  Crosses the network through `source` for the files it has not read; fails with its errors.
+  `graph`, the graph `traceGraph` gives, is passed only by a caller whose steps are the commit's own — the plan page,
+  with the graph it asked for with its commit (ITM-1120) —; `graphFindings` then runs on it and `source` is read for no
+  graph. Without `graph`, the graph is built from `source`, as above. Crosses the network through `source` for the
+  files it has not read; fails with its errors.
 - `backlogFindings(items: Document[], architecture: Document[]) -> Finding[]` — an item that realises nothing; that names
   no module the architecture describes; that builds on an item that does not exist, or on one that builds on it in turn;
   and, as a warning, an item that restates an existing one.
@@ -252,8 +255,8 @@ assignment is the one of the team whose sprint holds it, and the product's one i
     without live states), of the branch `test-results` (the product host's `readSnapshot`), of its pull requests, and of
     the issues whose `opened` or `closed` falls within the sprint; where the product's host gives no issues, they are
     left out and named as not read;
-  - check `plan-checks` — `planFindings` on a drafted plan, with the product's workflow; where the product has no
-    workflow, one error finding naming the declared model and its commit;
+  - check `plan-checks` — `planFindings` on a drafted plan, with the product's workflow and no `graph`, since its steps
+    are drafted; where the product has no workflow, one error finding naming the declared model and its commit;
   - check `backlog-checks` — `backlogFindings` on drafted items;
   - check `sprint-record-checks` — an agent's review that does not name the sources of its feedback, or does not say that
     no stakeholder took part when none did (`AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM`); a retrospective
