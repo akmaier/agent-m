@@ -34,3 +34,10 @@ POSITION`:
 - A `guards` entry that is neither a requirement's name nor a use case's identifier is a finding, naming the test and the entry.
 - Its counter-proof is a bare identifier, and it gives no finding.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Stopped at its first task (sprint team1/100, developer-sonnet-d):** MOD-test-document's `testFindings` names no
+malformed `guards` entry. The draft of MOD-test-document.md, by developer-sonnet-d, adds the error (A REFERENCE NAMES THE
+IDENTIFIER, NOT THE POSITION) and the use of MOD-identifiers' `kindOfIdentifier`. The finding is an error from the start.
+The item cleans the headers it finds; those of release tests are cleaned by another participant in a commit of its own.
+The item waits for the draft's acceptance.
+
