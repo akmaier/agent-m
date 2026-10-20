@@ -47,6 +47,7 @@ uses:
   - MOD-product-process.doneCheck
   - MOD-product-process.processStrategies
   - MOD-work-plans.planSchemas
+  - MOD-work-plans.targetBranch
   - MOD-work-plans.itemStates
   - MOD-work-plans.startable
   - MOD-work-plans.giveUpIncrement
@@ -238,7 +239,8 @@ product's `docs/sources.md`.
 - MOD-work-plans.planSchemas, MOD-work-plans.itemStates, MOD-work-plans.startable, MOD-work-plans.giveUpIncrement,
   MOD-work-plans.planFindings,
   MOD-work-plans.backlogFindings, MOD-work-plans.sprintFacts, MOD-work-plans.heldItems, MOD-work-plans.conflicts —
-  plans, backlogs, sprints, their states, and what the teams' sprints hold;
+  plans, backlogs, sprints, their states, and what the teams' sprints hold; MOD-work-plans.targetBranch — the target
+  branch the route `implement` shows for each step or item;
   MOD-work-plans.savePlan, MOD-work-plans.saveItems, MOD-work-plans.startSprint,
   MOD-work-plans.endSprint, MOD-work-plans.closeSprint — every save of a plan, a backlog or a sprint.
 - MOD-run-planner.runOf, MOD-run-planner.nextActions, MOD-run-planner.raiseLimits, MOD-run-planner.finishRun — a run,

@@ -4,7 +4,12 @@ title: An item's pull request targets its sprint's branch where the sprint has o
 level: module
 realises:
   - UC-034
+  - A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN
+  - WORK MERGES INTO THE DEFAULT BRANCH UNLESS A BRANCH IS SET
 modules:
+  - MOD-work-plans
+  - MOD-product-process
+  - MOD-implementation-pages
   - MOD-runtimes
 builds_on:
 tests:
@@ -34,3 +39,14 @@ stated with the interface it reads, so that the module does not read sprint reco
 - An implementation job for an item of a sprint with a branch opens its pull request into that branch. Without one, it
   opens into the default branch. A test checks both, with a counter-proof.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**The draft (team 2's sprint 102's close, po-opus-b, reviewed twice by a2fd6f0bd4f5027fd).**
+- MOD-work-plans gains `targetBranch`. It gives the open sprint's branch, else the phase's declared branch, else the
+  default branch.
+- The implement page's two derivations and the writer use it.
+- MOD-product-process provides `branchesOf`, the one reader of the declaration's `## Branches`.
+- The item's modules are now the four.
+- **The code that follows:**
+  - the page's `<item>` placeholder (`implement.mjs:178`) goes, since no accepted text defines per-item branch names;
+  - `branchesOf` is exported (`src/product-process/declaration.mjs:88`), and `workflowOf` keeps using it.
+
