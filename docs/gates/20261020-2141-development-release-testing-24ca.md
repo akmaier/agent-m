@@ -36,3 +36,11 @@ ITM-655, pull request #1244 into `sprint/team2/99`, passes on `c619bbad`. CI is 
 4. **Scope.** The pull request changes `src/main-page/greeting.mjs`, `home.mjs`, a new test, and one comment line in
    `tests/main-page-home.test.mjs`. All are MOD-main-page's, and no expected value changes.
 5. **Reading.** One passage each of AGENTS.md, SPEC.md and chapters 9, 11, 12 and 13 is named in the description.
+
+## Note (after #1251's red CI)
+
+This gate passed #1244 with `UC-014 (step 1)` as a guard. That is no identifier, and the release test
+`tests/release-sprint-02-d-traceability.test.mjs:334` fails it. CI on the sprint branch leaves release tests out, and
+this gate ran only the item's own files, so it did not see the failure. It surfaced on #1251, and #1252 fixes it. An item
+gate also runs the release tests that read every test file.
+
