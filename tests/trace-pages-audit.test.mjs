@@ -149,7 +149,8 @@ const instanceFiles = () => ({ "SPEC.md": INSTANCE_SPEC, "docs/sources/SRC-vibe-
 
 // The product's host: refs by name, the commit of a tag as COMMIT, the run page and the file page a server offers (`links` false: it offers none), and the history of the
 // approval record, which the commit ACCEPTING added.
-function productHost({ product = productFiles(), head = headFiles(), results = resultFiles(), tags = [TAG, OLDER, "nightly"], links = true } = {}) {
+const ACCEPTED_BY = { commit: ACCEPTING, parents: [], author: { account: "akmaier", name: "Andreas Maier" }, date: "2026-10-12 08:30 UTC", message: "", changes: [] };
+function productHost({ product = productFiles(), head = headFiles(), results = resultFiles(), tags = [TAG, OLDER, "nightly"], links = true, recordHistory = [ACCEPTED_BY] } = {}) {
   const base = treeHost({ trees: { [TAG]: product, main: head, "test-results": results }, tags });
   const commits = { [TAG]: COMMIT, main: HEAD };
   const log = { runs: [], files: [], histories: [] };
@@ -159,8 +160,7 @@ function productHost({ product = productFiles(), head = headFiles(), results = r
     async listTags() { return tags.map((name) => ({ name, commit: name === TAG ? COMMIT : `commit-of-${name}` })); },
     async readHistory(path, options = {}) {
       log.histories.push([path, options]);
-      return path === RECORD && head[RECORD] !== undefined
-        ? [{ commit: ACCEPTING, parents: [], author: { account: "akmaier", name: "Andreas Maier" }, date: "2026-10-12 08:30 UTC", message: "", changes: [] }] : [];
+      return path === RECORD && head[RECORD] !== undefined ? recordHistory : [];
     },
     webLinks: links ? () => ({ commitRuns: (commit) => { log.runs.push(commit); return `${ADDRESS}/commit/${commit}/checks`; },
       file: (path, ref) => { log.files.push([path, ref]); return `${ADDRESS}/blob/${ref}/${path}`; } }) : undefined,
@@ -423,4 +423,60 @@ test("a release before the test records says which parts cannot be derived and s
   assert.match(limitations, /cannot be derived: acceptance/);
   assert.deepEqual(names(target), ALL);
   assert.deepEqual([...new Set(textsOf(target, "audit-outcome"))], ["cannot be derived"]);
+});
+
+// TST-768016 · level: component · module: MOD-trace-pages
+// guards: UC-030; THE TRACEABILITY MATRIX IS DERIVED
+// given: the fixture, with no result record of TST-756106 (A SECOND RULE's only test) on the release commit
+// input: the number a test did not pass is pressed
+// expect: its outcome reads `not run` and the rows left are A SECOND RULE alone: a test that did not run is a test that did not pass
+// Planted fault: counting only the failed outcomes leaves no row.
+test("a test with no result on the release commit reads not run and is counted among the tests that did not pass", async () => {
+  const results = resultFiles();
+  results[`runs/${COMMIT}/b.md`] = run(COMMIT, [["TST-756104", "unit", "failed", ""]]);
+  const target = await render(productHost({ results }));
+  assert.deepEqual(textsOf(rowOf(target, R2), "audit-outcome"), ["not run"]);
+  await press(countOf(target, "notPassed"));
+  assert.deepEqual(names(target), [R2]);
+});
+
+// TST-768017 · level: component · module: MOD-trace-pages
+// guards: UC-030; THE RELEASE TEST REPORT IS ACCEPTED BY A PERSON
+// given: the fixture, whose approval record was added by akmaier at ACCEPTING and changed later by another person at a newer commit (history newest first)
+// input: Route.render with the key "audit"
+// expect: the report was accepted by akmaier on 2026-10-12 08:30 UTC, and the approval link is the record at ACCEPTING: the commit that added the record, the oldest
+// Planted fault: reading the newest commit of the record's history names the other person and the newer commit.
+test("the acceptance is the commit that added the approval record, not a later change of it", async () => {
+  const later = { ...ACCEPTED_BY, commit: "9".repeat(40), author: { account: "other", name: "Other" }, date: "2026-10-13 09:00 UTC" };
+  const target = await render(productHost({ recordHistory: [later, ACCEPTED_BY] }));
+  assert.match(textsOf(rowOf(target, R1), "audit-evidence")[0], /accepted by akmaier on 2026-10-12 08:30 UTC/);
+  assert.equal(withClass(rowOf(target, R1), "audit-approval")[0].getAttribute("href"), `${ADDRESS}/blob/${ACCEPTING}/${RECORD}`);
+});
+
+// TST-768018 · level: component · module: MOD-trace-pages
+// guards: UC-030; THE GATE IS RECORDED; THE TRACEABILITY MATRIX IS DERIVED
+// given: a product whose declaration adds the gate of A PROCESS RULE between Build and Release, which the workflow reaches only through the gate Plan → Build; that gate's record names SPEC.md at the blob the tag holds
+// input: Route.render with the key "audit"
+// expect: A PROCESS RULE is a row and lists its gate record; the gate Plan → Build is read as passed on the text the tag holds
+// Planted fault: reading the gate records against another text than the tag's leaves Plan → Build passed on an earlier text, the gate after it not reached, and no process row.
+test("a gate behind another gate is read against the texts the tag holds", async () => {
+  const later = PROCESS_MD.replace("| Plan → Build | SPEC.md |", "| Build → Release | SPEC.md |");
+  const through = GATE_RECORD.replace(`gate: ${PROCESS}`, "gate: Plan → Build").replace("role: Lead", "role: Lead");
+  const product = { ...productFiles(), "docs/process.md": later, "docs/gates/20261010-0900-plan-build-alic.md": through };
+  const target = await render(productHost({ product }));
+  assert.deepEqual(names(target), ALL);
+  assert.deepEqual(textsOf(rowOf(target, PROCESS), "audit-gate"), [GATE_PATH]);
+});
+
+// TST-768019 · level: component · module: MOD-trace-pages
+// guards: UC-030
+// given: the fixture; A THIRD RULE has no test, so no run of its tests exists
+// input: the rows A THIRD RULE and A FIRST RULE are read, with a server that offers the run page, and without one
+// expect: A THIRD RULE has neither a run link nor the mark unavailable; A FIRST RULE has the one or the other
+// Planted fault: a run link on a row with no test fails.
+test("a row with no test links no run", async () => {
+  const target = await render();
+  assert.equal(withClass(rowOf(target, R3), "audit-run").length + withClass(rowOf(target, R3), "audit-run-unavailable").length, 0);
+  const without = await render(productHost({ links: false }));
+  assert.equal(withClass(rowOf(without, R3), "audit-run-unavailable").length, 0);
 });
