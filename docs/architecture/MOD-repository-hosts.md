@@ -153,9 +153,10 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
 - `WebLinks` — `{ newToken(name: string, description: string, days: number) -> string, tokens: string,
   projectTokens: string | null, secrets: string, newFile(path: string, record: string) -> string | null, editFile(path:
   string) -> string, actions: string, run(id: string) -> string, commitRuns(commit: string) -> string, branch(name:
-  string) -> string, runners: string, pipelineSchedules: string | null, pagesSettings: string, fork: string | null,
-  newRepository: string }`: the server's own pages; a page the server does not offer is `null`. `commitRuns` is the page
-  of the runs or pipelines of one commit, `branch` the page of a branch's files, `runners` the page on which a self-hosted
+  string) -> string, file(path: string, ref: string) -> string, runners: string, pipelineSchedules: string | null,
+  pagesSettings: string, fork: string | null, newRepository: string }`: the server's own pages; a page the server does not offer is `null`. `commitRuns` is the page
+  of the runs or pipelines of one commit, `branch` the page of a branch's files, `file` the page that shows one file as it
+  stands at a branch, a tag or a commit, to read and not to edit, `runners` the page on which a self-hosted
   runner is registered to the repository, which shows the command to run on its machine.
 - `HostError` — the failures every function below names, each an error with its fields:
   `TokenRefused { tokenName, renewal }` — the server refused the token, which is named with the page where it is renewed
