@@ -172,7 +172,6 @@ class TestResources(unittest.TestCase):
     # FINDING R1: the list is accepted. documentFindings reports nothing for the two columns, and the readers of a list (resourceOf in src/resource-list/strategies.mjs:29, in
     # src/settings-pages/resources.mjs) build a Resource from the ten named columns only, so capabilities and role never reach resourceFindings, which refuses an entry that carries them
     # (rules.mjs) - the rule can be met only by a Resource object that no reader makes.
-    @unittest.expectedFailure
     def test_a_list_whose_entry_carries_participant_columns_is_rejected(self):
         check(self, "A RESOURCE IS USED, A PARTICIPANT DEVELOPS - a list's columns")
 
