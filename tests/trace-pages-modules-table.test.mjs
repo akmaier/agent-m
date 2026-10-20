@@ -157,13 +157,13 @@ test("the table of the modules stands in the site's scroll box, which a keyboard
 // TST-072106 · level: component · module: MOD-trace-pages
 // guards: UC-025 (step 6)
 // given: the fixture product, drawn at main, whose rows are MOD-page's and MOD-review's
-// input: a click on MOD-review's name (the second row)
-// expect: the opened row is the row directly below MOD-review's, and none stands below MOD-page's
+// input: a click on MOD-page's name (the first row)
+// expect: the opened row is the row directly below MOD-page's, before MOD-review's
 test("the opened row stands directly below the module's own", async () => {
   const target = await render(hostOf());
   const [table] = find(target, (node) => node.localName === "tbody");
-  byClass(rowOf(target, "MOD-review"), "button", "module-name")[0].dispatchEvent(new Event("click"));
+  byClass(rowOf(target, "MOD-page"), "button", "module-name")[0].dispatchEvent(new Event("click"));
   await new Promise((resolve) => setTimeout(resolve, 20));
   const kids = [...table.childNodes].map((node) => (node.className.includes("module-opened") ? "opened" : node.getAttribute("data-module")));
-  assert.deepEqual(kids, ["MOD-page", "MOD-review", "opened"]);
+  assert.deepEqual(kids, ["MOD-page", "opened", "MOD-review"]);
 });
