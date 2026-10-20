@@ -141,7 +141,10 @@ test("TST-1041101: the system test declares every step and every alternative flo
   const declarations = testDeclarations(SYSTEM, read(SYSTEM));
   assert.ok(declarations.length >= 16, `known positive: the declarations of the system test are found (${declarations.length})`);
   assert.ok(declarations.every((one) => one.level === "system"), "every declaration of the system test is level system");
-  const guards = declarations.flatMap((one) => one.guards.flatMap((guard) => guard.split(";").map((part) => part.trim()))).filter((guard) => /^UC-040 (?:steps?|alternatives?) /.test(guard));
+  // The flows a case walks stand in its comment block - guards, given, input and expect, whose lines may wrap -; the guards name the use case alone.
+  const rows = read(SYSTEM).split("\n");
+  const block = (one) => { const text = []; for (let at = one.line - 1; at < rows.length && /^\s*\/\//.test(rows[at]); at += 1) text.push(rows[at].replace(/^\s*\/\/\s?/, "")); return text.join(" "); };
+  const guards = declarations.flatMap((one) => [...block(one).matchAll(/UC-040 (?:steps?|alternatives?) [^)\n;]*/g)].map((match) => match[0].trim()));
   assert.ok(guards.length >= 16, `known positive: the system test names the steps it walks (${guards.length})`);
   const named = guards.join(" ");
   const steps = new Set();
