@@ -67,8 +67,9 @@ function ciOf(checks) {
 }
 
 // A pull request of "List pull requests" / "Get a pull request" as the PullRequest: a closed one with a merged_at is merged.
-const pullOf = (p) => ({ number: p.number, title: p.title, branch: p.head.ref, base: p.base.ref, head: p.head.sha, state: p.state === "open" ? "open" : p.merged_at ? "merged" : "closed",
-  draft: p.draft === true, url: p.html_url, opened: p.created_at, merged: p.merged_at ?? null, closed: p.closed_at ?? null, body: p.body ?? "" });
+// mergeCommit: the commit the merge put on the base as the server names it (merge_commit_sha), and null while the pull request is not merged — GitHub then names a test merge commit.
+const pullOf = (p) => ({ number: p.number, title: p.title, branch: p.head.ref, base: p.base.ref, head: p.head.sha, mergeCommit: p.state !== "open" && p.merged_at ? p.merge_commit_sha ?? null : null,
+  state: p.state === "open" ? "open" : p.merged_at ? "merged" : "closed", draft: p.draft === true, url: p.html_url, opened: p.created_at, merged: p.merged_at ?? null, closed: p.closed_at ?? null, body: p.body ?? "" });
 
 // The bytes of a file as base64, in pieces small enough for String.fromCharCode.
 function base64(bytes) {

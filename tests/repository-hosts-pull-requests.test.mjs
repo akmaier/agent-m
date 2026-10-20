@@ -127,7 +127,7 @@ test("listPullRequests on GitHub — every page, each record in the one shape", 
     assert.equal(result.length, 130);
     assert.deepEqual(requests.map((r) => [r.method, r.path, r.query.get("state"), r.query.get("per_page"), r.query.get("page")]), [["GET", `${GH}/pulls`, "all", "100", "1"], ["GET", `${GH}/pulls`, "all", "100", "2"]]);
     assert.ok(requests.every((r) => r.host === "api.github.com" && r.headers.authorization === `Bearer ${GH_TOKEN}` && !r.href.includes(GH_TOKEN)));
-    assert.deepEqual(result[0], { number: 1, title: "Pull 1", branch: "feature-1", base: "main", head: C2, state: "merged", draft: false, url: "https://github.com/carol/sprint-tool/pull/1",
+    assert.deepEqual(result[0], { number: 1, title: "Pull 1", branch: "feature-1", base: "main", head: C2, mergeCommit: null, state: "merged", draft: false, url: "https://github.com/carol/sprint-tool/pull/1",
       opened: "2026-10-10T08:00:00Z", merged: "2026-10-12T08:00:00Z", closed: "2026-10-12T08:00:00Z", body: "Description of pull 1" });
     assert.deepEqual(result.slice(0, 10).map((p) => [p.state, p.draft]), [["merged", false], ["merged", false], ["merged", false], ["closed", false], ["closed", false], ["closed", false], ["closed", false], ["open", true], ["open", false], ["open", false]]);
     assert.deepEqual([result[3].merged, result[3].closed, result[8].closed], [null, "2026-10-11T08:00:00Z", null]);
@@ -171,7 +171,7 @@ test("listPullRequests on GitHub — the state and branch filters", async () => 
 test("pullRequestFacts on GitHub — commits in order with their files and ci, files, reviews and head checks", async () => {
   const host = connect(GITHUB, { token: GH_TOKEN });
   const { result: facts, requests } = await serving(github(), () => host.pullRequestFacts(7));
-  assert.deepEqual(facts.pullRequest, { number: 7, title: "Pull 7", branch: "feature-7", base: "main", head: C2, state: "open", draft: false, url: "https://github.com/carol/sprint-tool/pull/7",
+  assert.deepEqual(facts.pullRequest, { number: 7, title: "Pull 7", branch: "feature-7", base: "main", head: C2, mergeCommit: null, state: "open", draft: false, url: "https://github.com/carol/sprint-tool/pull/7",
     opened: "2026-10-10T08:00:00Z", merged: null, closed: null, body: "Description of pull 7" });
   assert.deepEqual(facts.commits, [
     { sha: C1, message: "first\n", files: ["a.md"], ci: "success" },
@@ -245,7 +245,7 @@ test("listPullRequests on GitLab — every page, each record in the one shape, t
   assert.equal(result.length, 130);
   assert.deepEqual(requests.map((r) => [r.path, r.query.get("state"), r.query.get("per_page"), r.query.get("page")]), [[`${GL}/merge_requests`, "all", "100", "1"], [`${GL}/merge_requests`, "all", "100", "2"]]);
   assert.ok(requests.every((r) => r.host === "gitlab.example.org" && r.headers["private-token"] === GL_TOKEN && !r.href.includes(GL_TOKEN) && r.headers.authorization === undefined));
-  assert.deepEqual(result[0], { number: 1, title: "Merge 1", branch: "feature-1", base: "main", head: C2, state: "merged", draft: false, url: "https://gitlab.example.org/space/sprint-tool/-/merge_requests/1",
+  assert.deepEqual(result[0], { number: 1, title: "Merge 1", branch: "feature-1", base: "main", head: C2, mergeCommit: C2, state: "merged", draft: false, url: "https://gitlab.example.org/space/sprint-tool/-/merge_requests/1",
     opened: "2026-10-10T08:00:00.000Z", merged: "2026-10-12T08:00:00.000Z", closed: null, body: "Description of merge 1" });
   assert.deepEqual(result.slice(0, 7).map((p) => [p.state, p.draft]), [["merged", false], ["merged", false], ["closed", false], ["closed", false], ["open", false], ["open", true], ["open", false]]);
   for (const [filter, key, value] of [[{ state: "open" }, "state", "opened"], [{ state: "merged" }, "state", "merged"], [{ state: "closed" }, "state", "closed"], [{ branch: "feature-9" }, "source_branch", "feature-9"]]) {
@@ -263,7 +263,7 @@ test("listPullRequests on GitLab — every page, each record in the one shape, t
 test("pullRequestFacts on GitLab — commits, files, approvals, head jobs and the exact sides", async () => {
   const host = connect(GITLAB, { token: GL_TOKEN });
   const { result: facts, requests } = await serving(gitlab(), () => host.pullRequestFacts(7));
-  assert.deepEqual(facts.pullRequest, { number: 7, title: "Merge 7", branch: "feature-7", base: "main", head: C2, state: "open", draft: false,
+  assert.deepEqual(facts.pullRequest, { number: 7, title: "Merge 7", branch: "feature-7", base: "main", head: C2, mergeCommit: null, state: "open", draft: false,
     url: "https://gitlab.example.org/space/sprint-tool/-/merge_requests/7", opened: "2026-10-10T08:00:00.000Z", merged: null, closed: null, body: "Description of merge 7" });
   assert.deepEqual(facts.commits, [
     { sha: C1, message: "first\n", files: ["a.md"], ci: "success" },
@@ -460,4 +460,43 @@ test("PullRequest.body on GitLab — the description as written, \"\" where ther
   const factsWith = (description) => serving((r) => (r.path === `${GL}/merge_requests/7` ? json(200, glMr(7, { description })) : base(r)), () => host.pullRequestFacts(7));
   assert.equal((await factsWith("Facts text")).result.pullRequest.body, "Facts text");
   assert.equal((await factsWith(null)).result.pullRequest.body, "");
+});
+
+// ---------------------------------------------------------------- the commit a merge made (ITM-1110)
+//
+// MOD-repository-hosts (Interfaces: `PullRequest`): "`mergeCommit` is the commit its merge put on `base`, as the server names it — the merge commit, or the last commit of a squash or a rebase (GitHub's `merge_commit_sha` of a
+// merged pull request; GitLab's `merge_commit_sha`, else its `squash_commit_sha`, else, for a fast-forward, `head`) —, and `null` while it is not merged, whatever the server names then." Readings the text leaves open:
+//   - A GitHub pull request that is merged and for which the server names no `merge_commit_sha` has `mergeCommit` null (the server names none).
+//   - GitLab's fast-forward is a merged merge request with neither `merge_commit_sha` nor `squash_commit_sha`: the fixture confirms what the draft reads, that `head` has then landed on the base.
+
+const MERGED = "5".repeat(40), SQUASHED = "6".repeat(40), TEST_MERGE = "7".repeat(40);
+
+// TST-1110001 · level: unit · module: MOD-repository-hosts
+// guards: UC-039
+// given: a GitHub repository whose pull requests are one merged with merge_commit_sha 5…5 (a squash: its head is C2), one closed unmerged and one open, each naming a merge_commit_sha (GitHub names a test merge commit for an open one), and one merged naming none
+// input: listPullRequests({})
+// expect: the merged one has mergeCommit 5…5, whatever its head; the closed and the open one null although the server names a commit; the merged one that names none null
+test("listPullRequests on GitHub — a merged pull request names the commit its merge made, an unmerged one none", async () => {
+  const merged = { state: "closed", merged_at: "2026-10-12T08:00:00Z", closed_at: "2026-10-12T08:00:00Z", merge_commit_sha: MERGED };
+  const pulls = [ghPull(7, merged), ghPull(2, { state: "closed", closed_at: "2026-10-11T08:00:00Z", merge_commit_sha: TEST_MERGE }), ghPull(3, { merge_commit_sha: TEST_MERGE }),
+    ghPull(4, { state: "closed", merged_at: "2026-10-12T09:00:00Z", closed_at: "2026-10-12T09:00:00Z" })];
+  const host = connect(GITHUB, { token: GH_TOKEN });
+  const { result } = await serving(server([[`${GH}/pulls`, pages(pulls)]]), () => host.listPullRequests({}));
+  assert.deepEqual(result.map((pull) => [pull.number, pull.state, pull.mergeCommit]), [[7, "merged", MERGED], [2, "closed", null], [3, "open", null], [4, "merged", null]]);
+  assert.equal(result[0].head, C2);
+});
+
+// TST-1110002 · level: unit · module: MOD-repository-hosts
+// guards: UC-039
+// given: a GitLab project whose merge requests are one merged with merge_commit_sha 5…5, one merged by a squash (merge_commit_sha null, squash_commit_sha 6…6), one merged by a fast-forward (both null; its sha C2 has landed on the target), one closed and one opened that name a merge_commit_sha
+// input: listPullRequests({})
+// expect: the mergeCommit of the first is 5…5; of the second 6…6; of the third its head C2; of the closed and of the opened one null
+test("listPullRequests on GitLab — the merge commit, else the squash commit, else for a fast-forward the head, and null while not merged", async () => {
+  const mrs = [glMr(1, { state: "merged", merged_at: "2026-10-12T08:00:00.000Z", merge_commit_sha: MERGED, squash_commit_sha: null }),
+    glMr(2, { state: "merged", merged_at: "2026-10-12T08:00:00.000Z", merge_commit_sha: null, squash_commit_sha: SQUASHED }),
+    glMr(3, { state: "merged", merged_at: "2026-10-12T08:00:00.000Z", merge_commit_sha: null, squash_commit_sha: null }),
+    glMr(4, { state: "closed", closed_at: "2026-10-11T08:00:00.000Z", merge_commit_sha: TEST_MERGE }), glMr(5, { merge_commit_sha: TEST_MERGE })];
+  const host = connect(GITLAB, { token: GL_TOKEN });
+  const { result } = await serving(server([[`${GL}/merge_requests`, pages(mrs)]]), () => host.listPullRequests({}));
+  assert.deepEqual(result.map((pull) => [pull.number, pull.state, pull.mergeCommit]), [[1, "merged", MERGED], [2, "merged", SQUASHED], [3, "merged", C2], [4, "closed", null], [5, "open", null]]);
 });

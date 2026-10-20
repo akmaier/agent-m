@@ -99,6 +99,33 @@ export function permittedPlaces(entry) {
   return Array.isArray(places) ? [...places] : [];
 }
 
+// Two repository addresses name the same repository when they are equal once a trailing slash, a trailing `.git` and the case of the text are left out.
+const sameRepository = (a, b) => {
+  const plain = (address) => String(address ?? "").trim().toLowerCase().replace(/\/+$/, "").replace(/\.git$/, "").replace(/\/+$/, "");
+  return plain(a) !== "" && plain(a) === plain(b);
+};
+
+/**
+ * restrictedPlaces(register, product) -> { sources, contents } — the `places.sources` and `places.contents` of MOD-job-runner's JobContext, in one place for every caller (RESTRICTED CONTENT GOES ONLY
+ * WHERE ITS SOURCE PERMITS). `register` is every entry of the instance's register, whether or not the product links it; `product` the product's address. For each entry whose content may not be
+ * republished — an unknown licence counts as restricted —, `sources` gives, by its identifier and in the register's order, the places permittedPlaces gives (an empty list where it declares none).
+ * `contents` gives a restricted source's content only where the product holds it: when the entry's `content_repository` is the repository `product` names, the folder `docs/sources/<identifier>/`
+ * of the product; a source whose content lies in another repository has no entry. Pure: no request is made.
+ * @param {Document[]} register — the register's entries, as readDocument returns them with the schema sourceSchemas gives
+ * @param {string} product — the product's address
+ * @returns {{ sources: Record<string, string[]>, contents: { source: string, paths: string[] }[] }}
+ */
+export function restrictedPlaces(register, product) {
+  const sources = {}, contents = [];
+  for (const entry of register) {
+    const allowed = permittedPlaces(entry);
+    if (allowed === "any") continue;
+    sources[entry.id] = allowed;
+    if (sameRepository(entry.fields.content_repository, product)) contents.push({ source: entry.id, paths: [`docs/sources/${entry.id}`] });
+  }
+  return { sources, contents };
+}
+
 /**
  * registrationCommits(entry: Document, files: { name: string, bytes: Uint8Array, keep: boolean, note?: string }[], instance:
  * string) -> Promise<CommitPlan> — what to commit where when a source is registered: the register entry with its first version,

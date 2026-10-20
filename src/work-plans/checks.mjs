@@ -79,17 +79,18 @@ const LEVEL = "A PLAN STEP NAMES THE TESTS OF ITS LEVEL";
 const CYCLE = "MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE";
 
 /**
- * planFindings(plan, steps, architecture, workflow, source, history?) -> Promise<Finding[]> — the findings of an implementation plan (MOD-work-plans, Interfaces):
+ * planFindings(plan, steps, architecture, workflow, source, history?, graph?) -> Promise<Finding[]> — the findings of an implementation plan (MOD-work-plans, Interfaces):
  * - a module, a subsystem or the system without a step: a step names a module by level `module` and `modules`; a subsystem's integration is a step of level `subsystem` whose `modules` hold
  *   every module its decision designs (a decision that refines the system and designs a module is a subsystem); the system's step has level `system`;
  * - with `history`, a step whose module (or whose subsystem's) file was removed from the architecture, and a step whose module or subsystem file was changed by a commit later than the step's
  *   own last commit (`readHistory` with `changes: false`, newest entry), each naming the file and the step; a step with no history, a drafted one, is not asked about;
  * - a module ordered before one whose interface it uses (`plan`'s order, by the module steps);
  * - a step without a phase of the model: absent from the order, or in a phase `workflow.phases` lacks;
- * - of the findings `graphFindings` gives on `traceGraph(source)`, those of the steps' tests of their level and of a cycle among the modules' uses.
+ * - of the findings `graphFindings` gives on `traceGraph(source)`, those of the steps' tests of their level and of a cycle among the modules' uses; on `graph`, the graph of the commit, where a caller
+ *   whose steps are the commit's own passes it (the plan page), and `source` is then read for no graph.
  * `plan` is the order document, `steps` the step documents, `architecture` the decisions and module files; every finding is an error at line 1.
  */
-export async function planFindings(plan, steps, architecture, workflow, source, history) {
+export async function planFindings(plan, steps, architecture, workflow, source, history, graph) {
   const found = [];
   const add = (artifact, rule, what, fix) => found.push(finding({ artifact, line: 1, kind: "error", rule, what, fix }));
   const decisions = architecture.filter((document) => idOf(document).startsWith("ARC-"));
@@ -136,7 +137,7 @@ export async function planFindings(plan, steps, architecture, workflow, source, 
 
   // The checks of the graph, on the product's files with the steps in place.
   const stepIds = new Set(steps.map(idOf));
-  for (const each of graphFindings(await traceGraph(source))) {
+  for (const each of graphFindings(graph ?? await traceGraph(source))) {
     if ((each.rule === LEVEL && stepIds.has(each.artifact)) || each.rule === CYCLE) found.push(each);
   }
 

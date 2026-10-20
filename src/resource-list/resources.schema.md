@@ -9,6 +9,9 @@ The schema states the form of each column's value, and the full 40-digit commit 
 `rules.mjs` (`resourceFindings`): `Pin` for every kind but compute; `Licence` for a repository, data and a model; `Maintainer` for those and for an
 agent; `Processing place` for compute, an endpoint and an agent; `Paid`, `yes` or `no`, for an endpoint and an agent. In a table, `—` is a value left out.
 
+The columns Capabilities and Role are optional: a list as written in the module's file leaves them out, and a list that names them is read, so that `rules.mjs` can refuse an entry that fills one
+(`A RESOURCE IS USED, A PARTICIPANT DEVELOPS`). A header that lacks another column, names the columns in another order or adds a column the schema does not name is refused under the schema's rule.
+
 What the language cannot say is written in `rules.mjs` too: the columns a kind requires, the form of a compute route, the form of a secret, a
 maintainer who is a single person, and an entry that carries a participant's capabilities or role.
 
@@ -35,7 +38,9 @@ person.
       { "name": "Route", "value": { "type": "text", "required": true } },
       { "name": "Processing place", "value": { "type": "text", "rule": "A RESOURCE DECLARES WHERE IT PROCESSES DATA" } },
       { "name": "Paid", "value": { "type": "enum", "values": ["yes", "no"], "rule": "COMMIT TESTS CALL NO PAID SERVICE" } },
-      { "name": "Secret", "value": { "type": "text", "rule": "A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE" } }
+      { "name": "Secret", "value": { "type": "text", "rule": "A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE" } },
+      { "name": "Capabilities", "optional": true, "value": { "type": "text", "rule": "A RESOURCE IS USED, A PARTICIPANT DEVELOPS" } },
+      { "name": "Role", "optional": true, "value": { "type": "text", "rule": "A RESOURCE IS USED, A PARTICIPANT DEVELOPS" } }
     ] } }
   ]
 }

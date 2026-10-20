@@ -345,8 +345,9 @@ function checker(owner) {
     const names = [];
     value.columns.forEach((column, i) => {
       const cat = `${at}.columns[${i}]`;
-      if (!isObject(column)) fail(cat, "a column is { name, value }");
-      onlyKeys(column, ["name", "value"], cat, "a column");
+      if (!isObject(column)) fail(cat, "a column is { name, value, optional }");
+      onlyKeys(column, ["name", "value", "optional"], cat, "a column");
+      isBoolean(column.optional, `${cat}.optional`);
       if (typeof column.name !== "string" || !column.name.trim() || column.name !== column.name.trim() || /[|\r\n]/.test(column.name)) {
         fail(`${cat}.name`, "a column's name: a text without | or a line break");
       }
