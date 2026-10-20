@@ -47,3 +47,23 @@ files and, for the done row, the SPEC sentence or its Check. This item then buil
 
 - On the live main page, a job whose runtime does not answer is shown as not reachable (UC-046 4a), and a step that is done
   shows as the accepted text says, with tests.
+
+**Read again (team 2's sprint 98, 2026-10-20, po-opus-b), after review by a2fd6f0bd4f5027fd.**
+- **The reachability part is built.**
+  - `listJobs` marks a read record whose runtime does not answer as not reachable (`src/job-ledger/index.mjs:432-433`,
+    `b0929e22`), as MOD-job-ledger.md:176 says.
+  - `home` and re-read derive the rows with the live states (`src/main-page/home.mjs:68-69`, `reread.mjs:44-46`).
+- **The done step is the remaining gap.** The SPEC's counter-proof reads: "once the job has ended, the step shows done"
+  (SPEC.md:928-929).
+  - A step whose job ended as done, with its pull request open, gets `job: null` (`src/work-plans/states.mjs:181`). With
+    no pull request it is `ready` (:184).
+  - `buildInProgress` lists only `in progress` states with a job (`src/progress-measures/stages.mjs:143`), so the step
+    vanishes.
+- **There is no difference from UC-046.** A build row's state is its job's state (UC-046:63). "Moves on to done when its
+  pull request is merged" (UC-046:64) is the item's own state.
+- **The draft belongs in MOD-work-plans, not in MOD-progress-measures or MOD-main-page** (principle 2):
+  - `ItemState.job` is the newest job whose record works on the item, also once that job has ended;
+  - `itemStates` keeps that job while the pull request is open;
+  - the draft decides whether a job ended as done with no pull request yet leaves the item `in progress` or `ready`.
+- `buildInProgress` and the main page stay as they are.
+- **It waits for ITM-1156**, team 1's sprint 98 item on MOD-work-plans.
