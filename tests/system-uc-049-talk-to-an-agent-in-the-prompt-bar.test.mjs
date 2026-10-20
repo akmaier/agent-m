@@ -522,7 +522,7 @@ test("alternative 6c: a conversation held on a page of the instance is recorded 
 // given: handy proposes handing over a change of the requirement A LOAN HAS A DUE DATE (the kind change-requirements); the person's click queues it; the run is the real entry onDispatch on fixture checkouts, with the coding agent answering a draft of the change
 // input: Hand over; the run
 // expect: UC-049 4a.3 says the run's answer appears with the commits it made — artifacts committed as open —: the run ends done and commits the change as an open proposal. FINDING: the run ends failed with "entrySections needs the job's source as text": the record the bar queues carries the requirement and no source (the person's own source, which the message of the tab names), so this case is red on main until the hand-over gives the job its source
-test("alternative 4a: a hand-over of a change of requirements runs to its end and commits an open proposal", { todo: "FINDING UC049-4a-source — a handed-over change-requirements job fails in the workflow for want of its source (the record queued by the bar names the requirement and no source) — ITM-1129" }, async () => {
+test("alternative 4a: a hand-over of a change of requirements runs to its end and commits an open proposal", async () => {
   const s = await scenario({ instanceFiles: register(DRAFTER, HANDY), answers: [{ answer: "x" }] });
   const w = watch(s, { script: [answer("Handing on.", { handOver: { kind: "change-requirements", works_on: [LOAN], task: "Make the due date visible." } })] });
   const clock = followClock();
