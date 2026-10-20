@@ -51,13 +51,14 @@ test("a code file that imports a module its module's uses do not name is a findi
 // guards: A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES
 // given: the same files, with MOD-alpha's uses naming MOD-beta.thing; with a use of another module; with a code file that imports its own module, a package and a node: name
 // input: graphFindings of each
-// expect: counter-proof — none is a finding under the rule: an import of a module that the uses name by any interface is named; an import within the module, of a package or of a node: name makes no edge
+// expect: counter-proof — none is a finding under the rule: an import of a module that the uses name by any interface is named; an import within the module, of a package or of a node: name makes no edge; a file in no module's folder is no module's
 test("an import the uses name, or that makes no edge between modules, is no finding", async () => {
   assert.equal((await found(product({}, IMPORTS_BETA))).length, 1, "known positive");
   assert.deepEqual(await found(product({ uses: ["MOD-beta.thing"] }, IMPORTS_BETA)), []);
   assert.equal((await found(product({ uses: ["MOD-gamma.thing"] }, IMPORTS_BETA))).length, 1, "a use of another module names nothing of beta");
   const quiet = { "src/alpha/index.mjs": 'import { x } from "./inner.mjs";\nimport fs from "node:fs";\nimport pkg from "left-pad";\nexport { x, fs, pkg };\n', "src/alpha/inner.mjs": "export const x = 1;\n" };
   assert.deepEqual(await found(product({}, quiet)), []);
+  assert.deepEqual(await found(product({}, { "tools/outside.mjs": 'import { thing } from "../src/beta/index.mjs";\n' })), [], "a file in no module's folder is no module's file: its gap is another");
 });
 
 // TST-106803 · level: component · module: MOD-trace-graph
