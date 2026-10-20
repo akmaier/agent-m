@@ -34,3 +34,5 @@ used for. No code changes.
 - Once the draft is accepted, ITM-1068's check finds no import of MOD-implementation-pages that its uses do not name.
 
 **The draft is on `main` as `4008e93b`** (MOD-implementation-pages, by developer-sonnet-b). The item is done once it is accepted.
+
+**Done (sprint team1/99, po-opus):** akmaier accepted the draft (`197060d8`), and the accepted blob `49cf2cba` is the draft's. No code changes.
