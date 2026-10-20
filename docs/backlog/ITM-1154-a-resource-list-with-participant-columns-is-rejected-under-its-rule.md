@@ -35,3 +35,10 @@ text gives no place for the finding of a participant's columns, the item stops f
   implementer. Counter-proof: the same list without the two columns is accepted.
 - No other finding of the resource list changes its rule.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Rejected on `2c03697e`, then stopped (sprint team1/97, developer-sonnet-a):** a section `rule` also renames the
+header's findings of a lacking column and of the order (`docs/gates/20261020-1223-development-release-testing-a1154.md`).
+No accepted text gives the participant's columns a rule of their own. **The way chosen (po-opus): (b).** `Resource` gains
+`capabilities` and `role` from optional columns of the schema, so that `resourceFindings` refuses them, as
+MOD-resource-list.md:91-94 already says. The draft of MOD-resource-list.md is by developer-sonnet-a. The item waits for
+its acceptance.
