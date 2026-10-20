@@ -8,13 +8,12 @@
 //
 // The route is called through its public Route.render with a Host/Snapshot-shaped fake that holds the files of a small product (tests/trace-pages-harness.mjs); Mermaid is a recorder. The expected texts are written
 // in each case; none is read from a document. Readings the cases take, which the pull request names:
-//   - The table is <section class="modules-table"> with an <article class="module-row" data-module> for each module of `moduleRows`, in its order — a block of labelled lines and not a line of cells, so that it fits the
-//     window of a phone (EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE) —, whose lines are <dd class="module-subsystem"> (the subsystem decision, with the review status of its file), <dd class="module-realises"> (an <li> for
-//     each requirement the row names, "<name> — in SPEC" or "<name> — not in the SPEC"), <dd class="module-file"> (the path of its file and the review status of that file: open, accepted or changed since acceptance),
-//     <dd class="module-code"> (an <li> for each code file) and <dd class="module-tests"> (an <li> for each test).
+//   - The table is <section class="modules-table"> with a <tr class="module-row" data-module> for each module of `moduleRows`, in its order, whose cells are <td class="module-subsystem"> (the subsystem decision, with the review
+//     status of its file), <td class="module-realises"> (an <li> for each requirement the row names, "<name> — in SPEC" or "<name> — not in the SPEC"), <td class="module-file"> (the path of its file and the review status
+//     of that file: open, accepted or changed since acceptance), <td class="module-code"> (an <li> for each code file) and <td class="module-tests"> (an <li> for each test).
 //   - The gaps are <section class="modules-gaps"> with an <li class="module-gap" data-kind> for each gap, its artifact and what is missing; where there is none, a <p class="no-gaps"> "There are no gaps at <version>."
-//   - A row opens at the click on <button class="module-name"> in its first cell: the <div class="module-opened"> in it, empty until then, holds the module's file as it reads in the version (rendered),
-//     <p class="module-folder"> "Folder: <folder>" and an <li> for each code file of the folder; a second click empties it again.
+//   - A row opens at the click on <button class="module-name"> in its first cell: a <tr class="module-opened"> follows it with the module's file as it reads in the version (rendered), <p class="module-folder">
+//     "Folder: <folder>" and an <li> for each code file of the folder; a second click closes it.
 //   - The component diagram stays above the table, drawn as before.
 // Each case states its input and its expected result before it runs (given / input / expect). The counter-proofs are run as mutations and recorded in the pull request.
 
@@ -63,8 +62,8 @@ async function render(productHost, given = params) {
   return target;
 }
 const byClass = (root, name, className) => find(root, (node) => node.localName === name && node.className.split(" ").includes(className));
-const rowOf = (target, id) => byClass(target, "article", "module-row").find((row) => row.getAttribute("data-module") === id);
-const cell = (row, className) => byClass(row, "dd", className)[0];
+const rowOf = (target, id) => byClass(target, "tr", "module-row").find((row) => row.getAttribute("data-module") === id);
+const cell = (row, className) => byClass(row, "td", className)[0];
 const items = (node) => find(node, (each) => each.localName === "li").map((each) => each.textContent);
 
 // TST-072101 · level: component · module: MOD-trace-pages
@@ -75,7 +74,7 @@ const items = (node) => find(node, (each) => each.localName === "li").map((each)
 //   src/page/extra.mjs and src/page/index.mjs, its tests TST-1; MOD-review's tests none
 test("the modules view shows a table with a row for each module: subsystem, requirements with their statuses, file, code and tests", async () => {
   const target = await render(hostOf());
-  const rows = byClass(target, "article", "module-row");
+  const rows = byClass(target, "tr", "module-row");
   assert.deepEqual(rows.map((row) => row.getAttribute("data-module")), ["MOD-page", "MOD-review"]);
   const page = rowOf(target, "MOD-page");
   assert.match(cell(page, "module-subsystem").textContent, /ARC-001/);
@@ -109,21 +108,20 @@ test("the modules view lists every gap, and says so when there is none", async (
 // guards: UC-025 (step 6)
 // given: the fixture product, drawn at main
 // input: a click on MOD-page's name, then on it again
-// expect: before the click the row below MOD-page's is empty; after it it holds the text of the file as it reads in the version ("Renders it."), "Folder: src/page/" and its code files; after the second click it is empty again
+// expect: before the click no row is opened; after it a row follows MOD-page's, holding the text of its file as it reads in the version ("Renders it."), "Folder: src/page/" and its code files; after the second click it is gone
 test("a click on a module opens its file and its folder in a row below it, and a second click closes it", async () => {
   const target = await render(hostOf());
-  const openedRows = () => byClass(target, "div", "module-opened");
-  assert.equal(openedRows().length, 2, "known positive: a row below each module");
-  assert.deepEqual(openedRows().map((row) => row.textContent), ["", ""]);
+  assert.equal(byClass(target, "tr", "module-opened").length, 0);
   const name = byClass(rowOf(target, "MOD-page"), "button", "module-name")[0];
   name.dispatchEvent(new Event("click"));
   await new Promise((resolve) => setTimeout(resolve, 20));
-  const opened = openedRows()[0];
+  const [opened] = byClass(target, "tr", "module-opened");
+  assert.ok(opened, "the row is opened");
   assert.match(opened.textContent, /Renders it\./);
   assert.equal(byClass(opened, "p", "module-folder")[0].textContent, "Folder: src/page/");
   assert.deepEqual(items(opened).filter((text) => text.startsWith("src/")), ["src/page/extra.mjs", "src/page/index.mjs"]);
   name.dispatchEvent(new Event("click"));
-  assert.equal(openedRows()[0].textContent, "");
+  assert.equal(byClass(target, "tr", "module-opened").length, 0);
 });
 
 // TST-072104 · level: component · module: MOD-trace-pages
@@ -137,4 +135,21 @@ test("the modules view reads the graph in one batch for its diagram, its table a
   assert.equal(productHost.log.manys.length, 1);
   const told = new Set(productHost.log.manys[0]);
   for (const path of ["docs/architecture/MOD-page.md", "src/page/index.mjs", "tests/page.test.mjs"]) assert.ok(told.has(path), `${path} is read in the batch`);
+});
+
+// TST-072105 · level: component · module: MOD-trace-pages
+// guards: UC-025; EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE
+// given: the fixture product at main
+// input: Route.render with the key "modules" at main
+// expect: the table of the modules is a <table class="list"> inside a <div class="table-scroll"> (the site's box that scrolls a wide table sideways, so that the page keeps its margins on a phone), which is focusable by the
+//   keyboard (tabindex 0) and named (a role region and an aria-label) because it scrolls
+test("the table of the modules stands in the site's scroll box, which a keyboard reaches", async () => {
+  const target = await render(hostOf());
+  const [box] = byClass(target, "div", "table-scroll");
+  assert.ok(box, "the scroll box stands");
+  assert.equal(find(box, (node) => node.localName === "table" && node.className.split(" ").includes("list")).length, 1);
+  assert.equal(byClass(box, "tr", "module-row").length, 2);
+  assert.equal(box.getAttribute("tabindex"), "0");
+  assert.equal(box.getAttribute("role"), "region");
+  assert.match(box.getAttribute("aria-label") ?? "", /modules/i);
 });
