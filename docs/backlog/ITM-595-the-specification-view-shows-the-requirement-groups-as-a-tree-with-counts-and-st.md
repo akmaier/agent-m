@@ -52,4 +52,4 @@ UC-020 steps 2, 3 and 3a: "the groups of `docs/groups/requirements.md` … a sta
 stands once the view is a tree of groups. The way chosen (po-opus): way 2, one *+ Requirement* per SPEC section beside the
 tree, as today. The draft of MOD-trace-pages.md is by developer-sonnet-c. The item waits for its acceptance.
 
-**The draft is on `main` as `1b30595b`** (MOD-trace-pages, by developer-sonnet-c). The item waits for its acceptance.
+**The draft is on `main` as `5bac6f66`** (MOD-trace-pages, by developer-sonnet-c). The item waits for its acceptance.
