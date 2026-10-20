@@ -43,12 +43,12 @@ const bySize = (sizes) => [...sizes].sort((a, b) => b - a);
 // given: a product of 600 backlog items, 400 job records, SPEC.md and one test file, an instance holding its participant list; a token
 // input: productFacts(…, { scope: "all" })
 // expect: 19 requests in all — the repository 1, the commits of main and of test-results 2, the tree of main 1, the pull requests 1, the tags 1, and 13 batch requests; the batches hold 100 files ten times and 1 file three times (the 1,001 files productFacts itself reads — the 600 items, the 400 job records and SPEC.md — are 10 full batches and a batch of 1; the trace graph's batch is the one test file; the instance's batch is its participant list); not one file is read by a request of its own
-test("productFacts, scope all, with a token — 600 items and 400 job records are read in 13 batches of at most a hundred, 19 requests in all", async () => {
+test("productFacts, scope all, with a token — 600 items and 400 job records are read in 13 batches of at most a hundred, 20 requests in all", async () => {
   const { seen } = await facts("all", true);
-  assert.equal(seen.total, 19);
-  assert.deepEqual(seen.kinds, { repository: 1, commit: 2, tree: 1, "pull requests": 1, tags: 1, batch: 13 });
+  assert.equal(seen.total, 20);
+  assert.deepEqual(seen.kinds, { repository: 1, commit: 2, tree: 1, "pull requests": 1, tags: 1, batch: 13, file: 1 });
   assert.deepEqual(bySize(seen.batches), [...hundreds(10), 1, 1, 1]);
-  assert.deepEqual(seen.singles, []);
+  assert.deepEqual(seen.singles.map((path) => path.replace(/^[0-9a-f]{40}/, "<commit>")), ["<commit>.facts.json"], "the one file read by its own request is the stored facts' (none is stored here)");
 });
 
 // TST-826002 · level: unit · module: MOD-progress-measures
@@ -56,12 +56,12 @@ test("productFacts, scope all, with a token — 600 items and 400 job records ar
 // given: the product and instance of TST-826001; a token
 // input: productFacts(…, { scope: "work" })
 // expect: 15 requests in all (before the read-ahead, with the same token, the same product cost 1,005: see TST-826003) — the repository 1, the commit 1, the tree 1, the pull requests 1, and 11 batch requests: 100 files ten times (the 600 items and 400 job records) and 1 file once (the instance's participant list); not one file is read by a request of its own; no tags, no branch test-results, no test file read
-test("productFacts, scope work, with a token — 600 items and 400 job records are read in 11 batches, 15 requests in all", async () => {
+test("productFacts, scope work, with a token — 600 items and 400 job records are read in 11 batches, 16 requests in all", async () => {
   const { seen } = await facts("work", true);
-  assert.equal(seen.total, 15);
-  assert.deepEqual(seen.kinds, { repository: 1, commit: 1, tree: 1, "pull requests": 1, batch: 11 });
+  assert.equal(seen.total, 16);
+  assert.deepEqual(seen.kinds, { repository: 1, commit: 1, tree: 1, "pull requests": 1, batch: 11, file: 1 });
   assert.deepEqual(bySize(seen.batches), [...hundreds(10), 1]);
-  assert.deepEqual(seen.singles, []);
+  assert.deepEqual(seen.singles.map((path) => path.replace(/^[0-9a-f]{40}/, "<commit>")), ["<commit>.facts.json"], "the one file read by its own request is the stored facts' (none is stored here)");
   assert.ok(!seen.allFiles.includes("tests/unit.test.mjs"), "the scope work reads no test file");
 });
 
@@ -70,11 +70,11 @@ test("productFacts, scope work, with a token — 600 items and 400 job records a
 // given: the product and instance of TST-826001; no token, so that the host has no batch request and every file is read by its own request, as every file was read with a token before the read-ahead
 // input: productFacts(…, { scope: "work" })
 // expect: 1,005 requests — the repository 1, the commit 1, the tree 1, the pull requests 1, and 1,001 files each by a request of its own (the 600 items, the 400 job records and the instance's participant list); no batch request
-test("productFacts, scope work, without a token — every file is read by a request of its own, 1,005 requests (the count before the read-ahead)", async () => {
+test("productFacts, scope work, without a token — every file is read by a request of its own, 1,006 requests (the count before the read-ahead)", async () => {
   const { seen } = await facts("work", false);
-  assert.equal(seen.total, 1005);
-  assert.deepEqual(seen.kinds, { repository: 1, commit: 1, tree: 1, "pull requests": 1, file: 1001 });
-  assert.equal(seen.singles.length, 1001);
+  assert.equal(seen.total, 1006);
+  assert.deepEqual(seen.kinds, { repository: 1, commit: 1, tree: 1, "pull requests": 1, file: 1002 });
+  assert.equal(seen.singles.length, 1002);
 });
 
 // TST-826004 · level: unit · module: MOD-progress-measures
@@ -122,7 +122,7 @@ test("productFacts, scope all — a branch test-results is read as a Snapshot, b
   assert.equal(result.results.ref, "test-results");
   assert.deepEqual([...result.results.paths], ["runs/aaaa/r1.md", "runs/aaaa/r2.md"]);
   assert.notEqual(result.results.commit, result.snapshot.commit);
-  assert.equal(seen.total, 20);
-  assert.deepEqual(seen.kinds, { repository: 1, commit: 2, tree: 2, "pull requests": 1, tags: 1, batch: 13 });
+  assert.equal(seen.total, 21);
+  assert.deepEqual(seen.kinds, { repository: 1, commit: 2, tree: 2, "pull requests": 1, tags: 1, batch: 13, file: 1 });
   assert.ok(!seen.allFiles.some((path) => path.startsWith("runs/")), "no file of the branch is read");
 });

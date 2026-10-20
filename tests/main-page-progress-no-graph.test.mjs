@@ -61,10 +61,10 @@ const bySize = (sizes) => [...sizes].sort((a, b) => b - a);
 test("productFacts, scope all, with a token — 250 use cases nothing but the trace graph read are not read: 19 requests in all, as without them", async () => {
   const { seen } = await facts("all", true);
   assert.deepEqual(seen.allFiles.filter((path) => path.startsWith("docs/use-cases/")), []);
-  assert.equal(seen.total, 19);
-  assert.deepEqual(seen.kinds, { repository: 1, commit: 2, tree: 1, "pull requests": 1, tags: 1, batch: 13 });
+  assert.equal(seen.total, 20);
+  assert.deepEqual(seen.kinds, { repository: 1, commit: 2, tree: 1, "pull requests": 1, tags: 1, batch: 13, file: 1 });
   assert.deepEqual(bySize(seen.batches), [...hundreds(10), 1, 1, 1]);
-  assert.deepEqual(seen.singles, []);
+  assert.deepEqual(seen.singles.map((path) => path.replace(/^[0-9a-f]{40}/, "<commit>")), ["<commit>.facts.json"], "the one file read by its own request is the stored facts' (none is stored here)");
 });
 
 // TST-873002 · level: unit · module: MOD-progress-measures
@@ -75,8 +75,8 @@ test("productFacts, scope all, with a token — 250 use cases nothing but the tr
 test("productFacts, scope all, without a token — the 250 use cases are not read, 1,009 requests in all", async () => {
   const { seen } = await facts("all", false);
   assert.equal(seen.singles.filter((path) => path.startsWith("docs/use-cases/")).length, 0);
-  assert.equal(seen.total, 1009);
-  assert.deepEqual(seen.kinds, { repository: 1, commit: 2, tree: 1, "pull requests": 1, tags: 1, file: 1003 });
+  assert.equal(seen.total, 1010);
+  assert.deepEqual(seen.kinds, { repository: 1, commit: 2, tree: 1, "pull requests": 1, tags: 1, file: 1004 });
 });
 
 // TST-873003 · level: unit · module: MOD-progress-measures

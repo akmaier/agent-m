@@ -452,6 +452,7 @@ test("productFacts — the scope all adds the requirements, tests, results, tags
 //   - A file of the stored overview is `{ commit, shares, waiting }` as JSON and a line end; one of another shape, or naming another commit, is another format.
 
 import * as measures from "../src/progress-measures/index.mjs";
+import { listJobs } from "../src/job-ledger/index.mjs";
 
 const TEST_FILE = "tests/unit.test.mjs";
 const withTests = () => ({ ...productFiles(), [TEST_FILE]: "// TST-001 · level: unit · module: MOD-store\n// guards: FIRST RULE\ntest(\"a\", () => {});\n" });
@@ -742,7 +743,7 @@ test("TST-1117001 publishOverview adds <commit>.facts.json beside <commit>.json 
   const host = overviewHost(overviewBranch());
   assert.deepEqual(await measures.publishOverview(host, facts.snapshot, facts), { commit: COMMIT, written: true });
   assert.equal(host.commits.length, 1);
-  assert.deepEqual(host.commits[0].files.map((file) => file.path).sort(), [`${COMMIT}.json`, FACTS_FILE]);
+  assert.deepEqual(host.commits[0].files.map((file) => file.path).sort(), [`${COMMIT}.json`, FACTS_FILE].sort());
   const file = host.commits[0].files.find((each) => each.path === FACTS_FILE);
   assert.equal(file.text.endsWith("}\n"), true);
   const stored = JSON.parse(file.text);
@@ -854,23 +855,29 @@ test("TST-1117006 productFacts reads the files as before where the stored facts 
 });
 
 // TST-1117007 · level: unit · module: MOD-progress-measures
-// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
-// given: the facts file written at 2026-10-16 12:00 UTC, and the clock at 2026-10-17 12:00 UTC when it is read; the job record started at 2026-10-14 09:00 UTC and not ended
-// input: productFacts with the scope "all" from the stored facts and from the files, the clock being the later one
-// expect: the job's row is the same in both — state queued, elapsed 74 hours at the read (266,400 seconds), not 51 hours as at the writing — and the store holds the record, not a row
-test("TST-1117007 a job that has not ended shows its elapsed time at the read, not at the time the facts were written", async () => {
+// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: the facts file written at 2026-10-16 12:00 UTC, the clock at 2026-10-17 12:00 UTC when it is read; the job record started at 2026-10-14 09:00 UTC and not ended; a caller that derives the rows again with listJobs, over the snapshot of the facts and a live state that knows the job (as MOD-main-page does)
+// input: productFacts with the scope "all" from the stored facts and from the files, and then listJobs over each facts' snapshot with that live state
+// expect: the rows are the same from both — elapsed 75 hours at the read (270,000 seconds), not at the writing; the caller's listJobs reads no job record file from the repository's snapshot when the facts are stored (the snapshot of the facts serves the stored records); and the store holds the record, not a row
+test("TST-1117007 a job that has not ended shows its elapsed time at the read, and the caller that derives its row again reads no record file", async () => {
   const text = await storedText(storedFiles());
   const RealDate = globalThis.Date;
   const later = new RealDate("2026-10-17T12:00:00Z").getTime();
   class FixedDate extends RealDate { constructor(...given) { if (given.length === 0) super(later); else super(...given); } static now() { return later; } }
+  const live = new Map([["JOB-20261014-0900-a1b2", { reachable: true, reason: null, known: true, running: true, cancelling: false, log: null, usage: null, writtenAfterCancel: [] }]]);
+  const JOB_PATH = "docs/jobs/JOB-20261014-0900-a1b2.md";
   globalThis.Date = FixedDate;
   try {
     const stored = withStored(storedFiles(), text);
     const files = withStored(storedFiles(), undefined);
     const got = await productFacts(stored.host, stored.instance, stored.instanceAt, NOW, { scope: "all" });
     const expected = await productFacts(files.host, files.instance, files.instanceAt, NOW, { scope: "all" });
-    assert.equal(expected.jobs[0].elapsed, 266400);
-    assert.deepEqual(got.jobs.map((row) => [row.record.id, row.state, row.elapsed, row.cost]), expected.jobs.map((row) => [row.record.id, row.state, row.elapsed, row.cost]));
+    const gotRows = await listJobs([{ address: got.address, snapshot: got.snapshot }], live);
+    const expectedRows = await listJobs([{ address: expected.address, snapshot: expected.snapshot }], live);
+    assert.equal(expectedRows[0].elapsed, 270000);
+    assert.deepEqual(gotRows.map((row) => [row.record.id, row.state, row.elapsed, row.cost]), expectedRows.map((row) => [row.record.id, row.state, row.elapsed, row.cost]));
+    assert.equal(stored.product.reads.has(JOB_PATH), false, "the record file is not read from the repository");
+    assert.equal(files.product.reads.has(JOB_PATH), true, "known positive: without the store it is");
   } finally { globalThis.Date = RealDate; }
   assert.equal(Object.hasOwn(JSON.parse(text).jobs[0], "elapsed"), false);
 });
