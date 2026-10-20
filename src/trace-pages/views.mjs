@@ -42,6 +42,14 @@ export const modules = {
   shape: "table",
 };
 
-const descriptors = new Map([[specification.key, specification], [gaps.key, gaps], [modules.key, modules], [tests.key, tests]]);
+export const audit = {
+  key: "audit",
+  entry: "releases",
+  title: "Audit",
+  versions: "tags",
+  shape: "table",
+};
+
+const descriptors = new Map([[specification.key, specification], [gaps.key, gaps], [modules.key, modules], [tests.key, tests], [audit.key, audit]]);
 
 export const descriptorFor = (key) => descriptors.get(key) ?? null;
