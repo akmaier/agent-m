@@ -28,3 +28,5 @@ The draft adds the use to MOD-test-pages's `uses:` and its Uses section, with wh
 ## Acceptance
 
 - Once the draft is accepted, the check of ITM-1068 finds no import of MOD-test-pages that its uses do not name.
+
+**The draft is on `main` as `258f72be`** (MOD-test-pages), written in sprint team1/98. The item is built once it is accepted.
