@@ -41,3 +41,4 @@ IDENTIFIER, NOT THE POSITION) and the use of MOD-identifiers' `kindOfIdentifier`
 The item cleans the headers it finds; those of release tests are cleaned by another participant in a commit of its own.
 The item waits for the draft's acceptance.
 
+**The draft is on `main` as `d6d24cbe`** (MOD-test-document, by developer-sonnet-d).
