@@ -460,6 +460,17 @@ test("decision/draft — a participant whose place a linked source forbids is le
   assert.deepEqual(namesOf(target, "reviewer"), ["reviewer-b", "small-d"]);
 });
 
+// TST-1142005 · level: unit · module: MOD-review-pages
+// guards: RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; UC-022 (2)
+// given: the instance's register holds the restricted source SRC-secret (permitting "this machine" only), which the product does not link; the participants far-c and ci-agent process data elsewhere
+// input: the page of a product that links no source
+// expect: far-c and ci-agent are offered (the offer is judged against the places of the sources the product links, which the job's parts can carry; the context's places take every restricted source, MOD-source-register's restrictedPlaces)
+test("decision/draft — an unlinked restricted source of the register leaves no participant out of the offer", async () => {
+  endpointsAnswer();
+  const target = await show(fakeProduct(), { entries: { "docs/sources/SRC-secret.md": SECRET_ENTRY } });
+  assert.ok(namesOf(target, "participant").includes("far-c") && namesOf(target, "participant").includes("ci-agent"), namesOf(target, "participant").join(", "));
+});
+
 // ---------------------------------------------------------------- the run panel
 
 // TST-442008 · level: unit · module: MOD-review-pages
