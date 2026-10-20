@@ -236,3 +236,15 @@ test("the commit that removed a test is named however many commits of its file c
   const target = await render(hostOf({ history }), "TST-899");
   assert.equal(textOf(target, "test-removed"), "Removed at commit 0202020 (2026-10-02)");
 });
+
+// TST-767011 · level: unit · module: MOD-trace-pages
+// guards: UC-029 (step 5a)
+// given: the fixture, but every commit of the history of tests/old.test.mjs (35 of them) declares TST-899, so that no commit of the file's history removes it
+// input: TST-899 opened at main
+// expect: the page ends, saying "Removed (no commit of its file's history is found that declares it and one after it that does not)" and naming no commit
+test("a removed test whose removing commit the file's history does not show is said so, and the page ends", async () => {
+  const history = [];
+  for (let n = 35; n >= 1; n -= 1) history.push({ commit: String(n).padStart(2, "0").repeat(20), date: "2026-10-01T10:00:00Z", files: { "tests/old.test.mjs": `${OLD_AT_TAG}// edit ${n}\n` } });
+  const target = await render(hostOf({ history }), "TST-899");
+  assert.equal(textOf(target, "test-removed"), "Removed (no commit of its file's history is found that declares it and one after it that does not)");
+});
