@@ -39,9 +39,11 @@ lacks or puts out of order, for every schema. The item is built once an approval
 
 ## Acceptance
 
-- TST-1130013 passes, and its `@unittest.expectedFailure` is removed by a participant other than this item's implementer.
-  Counter-proof: the same list without the two columns is accepted.
+- A `docs/resources.md` whose table adds the columns Capabilities and Role is rejected by `documentFindings`.
+  Counter-proof: the same list without the two columns is accepted. That the rejection names A RESOURCE IS USED, A
+  PARTICIPANT DEVELOPS, which TST-1130013 asks, is MOD-resource-list's and ITM-1154's.
 - A unit test of `documentFindings` names a participants register with a `Notes` column. Over every document on `main`,
   read with `readDocument`, the new finding fires on none.
-- A row with more cells than its table has columns is checked to give a finding; if it does not, that is a new item.
+- A row with more cells than its table has columns is checked to give a finding; if it does not, that is a new item
+  (ITM-1155).
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
