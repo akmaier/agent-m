@@ -1153,3 +1153,27 @@ The participant drafts the plan from the bottom up: one step for each module, a 
 ## plan-save
 
 *Save plan* is one click: it commits one Markdown file for each step under `docs/plan/`, each an item `ITM-<nnn>-<slug>.md` naming what it implements or integrates and the tests of its level, and the order of the steps in `docs/plan/order.md`. From then on implementation jobs start only for steps of the plan. Nothing is written before the click.
+
+## get-your-own-owner
+
+Your own Agent M lives in a *fork*: a copy of Agent M that GitHub keeps under a GitHub account or an organisation. Name the account or organisation you want it under. An account or organisation used for nothing else is recommended: every GitHub Pages site under the same `<owner>.github.io` address can read what this browser stores for your dashboard, so a site of yours that has nothing to do with Agent M should not share that owner with it.
+
+## get-your-own-fork
+
+A *fork* is your own copy of Agent M on GitHub. Press the button, choose the account or organisation to fork into, and press *Create fork*. The fork keeps the name `agent-m`; nothing you do in it changes the original.
+
+## get-your-own-pages
+
+*GitHub Pages* publishes the files of a repository as a website. Your dashboard is that website, so it has to be switched on once. On GitHub's page under *Build and deployment* choose *Deploy from a branch*, then the branch `main` and the folder `/ (root)`, and press *Save*. GitHub lets no one but the owner of the repository switch this on, which is why the link opens a page you must be signed in to.
+
+## get-your-own-actions
+
+*Workflows* are the small programs GitHub runs for a repository. GitHub disables workflows on every fork until its owner enables them. Agent M needs them only to fetch EU legal texts for the source library and to write an accepted change of the instance's own SPEC without a token, when you accept it on GitHub's page. Everything else works without them, so you can press *Later*; the dashboard shows this step again when a feature first needs them. On GitHub's page press *I understand my workflows, go ahead and enable them*.
+
+## get-your-own-open
+
+Your dashboard is the website of your fork: `https://<owner>.github.io/agent-m/`. GitHub needs about a minute after the Pages step before the address answers; until then it shows a page that says it cannot be found, and nothing is wrong. When it opens, the dashboard asks you to finish setting up.
+
+## get-your-own-licence
+
+Agent M is published under the MIT licence. That licence is what allows the fork: you may copy, change and use Agent M as you like. It covers Agent M only; the licence of every product stays yours.
