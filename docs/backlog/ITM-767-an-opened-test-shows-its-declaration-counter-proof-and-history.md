@@ -55,3 +55,4 @@ the link to the test's code have no interface among MOD-trace-pages' uses.
 - MOD-repository-hosts' `WebLinks` gains a page of one file at a ref, which MOD-trace-pages uses.
 - The item waits for their acceptance.
 
+**The drafts are on `main`:** `be70bf16` (MOD-repository-hosts, WebLinks' `file`) and `c496dedf` (MOD-trace-pages' uses), by developer-sonnet-c. The second rests on the first.
