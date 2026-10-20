@@ -111,7 +111,7 @@ test("the other gaps offer neither link", async () => {
 test("at a version that is not the default branch the gaps offer no link, and a product without a gap offers none", async () => {
   const tagged = await render(hostOf(), "v2026.1.0");
   assert.ok(gaps(tagged).length > 0, "known positive: the gaps are listed");
-  assert.equal(find(tagged, (node) => node.className === "gap-implement" || node.className === "gap-change-architecture").length, 0);
+  assert.equal(byClass(tagged, "a", "gap-implement").length + byClass(tagged, "a", "gap-change-architecture").length, 0);
   const clean = await render(hostOf(CLEAN));
   assert.equal(gaps(clean).length, 0);
   assert.equal(byClass(clean, "a", "gap-implement").length, 0);
