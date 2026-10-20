@@ -130,12 +130,12 @@ test("resources — a secret's name is shown and a value written in its column i
 // input: render the route resources for the product
 // expect: both entries are read and listed; the line of coder shows an error under A RESOURCE IS USED, A PARTICIPANT DEVELOPS, and the line of cluster shows none of that rule
 test("resources — an entry that fills the optional columns Capabilities and Role is shown with its error", async (t) => {
-  const header = `${HEADER.split("\n")[0].slice(0, -1)} Capabilities | Role |\n|---|---|---|---|---|---|---|---|---|---|---|---|`;
+  const header = `${HEADER.split("\n")[0].replace(/ \|$/, " | Capabilities | Role |")}\n|---|---|---|---|---|---|---|---|---|---|---|---|`;
   const coder = "| coder | agent | https://agents.example.org/coder | coder-v1 | — | unknown | bridge workstation | NHR@FAU, Erlangen | no | — | draft text | Builders |";
-  const cluster = `${CLUSTER.slice(0, -1)} — | — |`;
+  const cluster = CLUSTER.replace(/ \|$/, " | — | — |");
   const files = { "docs/resources.md": `# Resources of thesis-tool\n\n${header}\n${coder}\n${cluster}\n` };
   const { target } = await open(t, { productFiles: files });
-  assert.deepEqual(withClass(target, "resource").map((node) => node.getAttribute("data-resource")), ["coder", "cluster"]);
+  assert.deepEqual(withClass(target, "resource").map((node) => node.getAttribute("data-resource")).sort(), ["cluster", "coder"]);
   assert.match(line(target, "coder", "resource-findings"), /A RESOURCE IS USED, A PARTICIPANT DEVELOPS/);
   assert.doesNotMatch(withClass(entry(target, "cluster"), "resource-findings")[0]?.textContent ?? "", /A RESOURCE IS USED, A PARTICIPANT DEVELOPS/);
 });

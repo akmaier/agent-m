@@ -208,8 +208,20 @@ export function cellsOf(line) {
   return text.split(/(?<!\\)\|/).map((cell) => cell.trim().replace(/\\\|/g, "|"));
 }
 
-// The first table of a section's lines when the section holds a table and none of its tables has a header row that names exactly the table's columns, in their order — the section's table is then found
-// nowhere and its rows are not read: { index, header } of that first table's header row; null where a table names the columns, or the section holds no table.
+// The columns of a table that a header row names — the table's columns in their order, each column marked optional that the header leaves out left out —, or null where the header is not the table's:
+// it names a column the table does not, names them in another order, or leaves out a column that is not optional.
+export function headerColumns(table, header) {
+  const named = [];
+  let at = 0;
+  for (const column of table.columns) {
+    if (header[at] === column.name) { named.push(column); at += 1; }
+    else if (!column.optional) return null;
+  }
+  return at === header.length ? named : null;
+}
+
+// The first table of a section's lines when the section holds a table and none of its tables has a header row that names the table's columns, in their order (an optional column named or left out) — the section's table is then found
+// nowhere and its rows are not read: { index, header } of that first table's header row; { columns } — the columns the header names — where a table names the columns; null where the section holds no table.
 function unreadTable(table, lines) {
   const { inBlock } = fences(lines);
   const isRow = (i) => !inBlock[i] && /^[ \t]*\|/.test(lines[i]);
@@ -218,7 +230,8 @@ function unreadTable(table, lines) {
   while (from < lines.length) {
     if (!isRow(from)) { from += 1; continue; }
     const header = cellsOf(lines[from]);
-    if (header.length === names.length && header.every((cell, i) => cell === names[i])) return null;
+    const named = headerColumns(table, header);
+    if (named !== null) return { columns: named };
     first ??= { index: from, header };
     while (from < lines.length && isRow(from)) from += 1;
   }
@@ -285,18 +298,20 @@ export function documentFindings(schema, document) {
     }
     const table = named.spec.table;
     const unread = table && table.header !== false ? unreadTable(table, textLines(section.text ?? "")) : null;
-    if (unread) {
+    if (unread?.header) {
       const names = table.columns.map((column) => column.name);
-      const added = unread.header.filter((cell) => !names.includes(cell)), lacks = names.filter((name) => !unread.header.includes(name));
+      const added = unread.header.filter((cell) => !names.includes(cell)), lacks = table.columns.filter((column) => !column.optional && !unread.header.includes(column.name)).map((column) => column.name);
       const says = [...(added.length ? [`adds ${added.join(", ")}`] : []), ...(lacks.length ? [`lacks ${lacks.join(", ")}`] : []),
         ...(!added.length && !lacks.length ? ["puts the columns out of order"] : [])].join("; ");
       add(section.line + 1 + unread.index, [named.spec.rule], `the header of the table under ${section.heading} names ${unread.header.join(", ")}, where the format ${schema.schema} names ${names.join(", ")} in that order: it ${says}, so no row of the table is read`,
-        `make the header row name exactly the columns ${names.join(", ")}, in that order`);
+        `make the header row name ${table.columns.some((column) => column.optional) ? "the columns" : "exactly the columns"} ${names.join(", ")}, in that order${table.columns.some((column) => column.optional)
+          ? `, of which ${table.columns.filter((column) => column.optional).map((column) => column.name).join(", ")} may be left out` : ""}`);
     }
     for (const row of table ? section.rows ?? [] : []) {
       const names = table.columns.map((column) => column.name);
       const lookup = (name) => (names.includes(name) ? textOf(row.cells[name]) : frontLookup(name));
       for (const column of table.columns) {
+        if (unread?.columns && !unread.columns.includes(column)) continue;
         const check = valueCheck(row.cells[column.name], column.value, lookup, "cell");
         if (check) {
           add(row.line, [...valueRules(check, column.value, lookup), named.spec.rule], `the column ${column.name} ${check.why}`,

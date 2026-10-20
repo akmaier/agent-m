@@ -110,3 +110,20 @@ test("writeDocument — a row follows the columns the header names, and a new ta
   const plain = { ...bare, sections: [{ ...bare.sections[0], rows: [{ cells: { Name: "a", Kind: "k" } }] }] };
   assert.match(writeDocument(schema, plain), /\| Name \| Kind \|\n/);
 });
+
+// TST-115414 · level: unit · module: MOD-documents
+// guards: A DATA FORMAT IS DEFINED ONCE
+// given: a schema whose optional column Owner has a value that is required where the column is named; a list that leaves the column out, and one that names it with the cell left out
+// input: documentFindings of each; writeDocument of a row without an Owner
+// expect: a column that is left out asks nothing of its value: the first list has no finding and the row is written; the second, which names the column, is refused for the missing cell
+test("an optional column that the header leaves out asks nothing of its value, and one it names is required as its value says", () => {
+  const strict = JSON.parse(JSON.stringify(SCHEMA));
+  strict.sections[0].table.columns[3].value = { type: "text", required: true };
+  const schema = load(strict);
+  const check = (text) => documentFindings(schema, readRegister(schema, "docs/listing.md", text).document);
+  assert.deepEqual(check(tableOf(["Name", "Kind"], ["a", "k"])), []);
+  assert.equal(check(tableOf(["Name", "Kind", "Owner"], ["a", "k", "—"])).length, 1, "known positive: a named column with its cell left out is refused");
+  const { document } = readRegister(schema, "docs/listing.md", tableOf(["Name", "Kind"], ["a", "k"]));
+  const added = { ...document, sections: [{ ...document.sections[0], rows: [...document.sections[0].rows, { cells: { Name: "b", Kind: "k2" } }] }] };
+  assert.equal(writeDocument(schema, added), tableOf(["Name", "Kind"], ["a", "k"], ["b", "k2"]));
+});
