@@ -27,7 +27,7 @@ import { productFacts } from "../progress-measures/index.mjs";
 import { queueJob, routesFor } from "../runtimes/index.mjs";
 import { explain as frameExplain } from "../site-frame/index.mjs";
 import { startable } from "../work-plans/index.mjs";
-import { contextOf, derivedOf, runningOf } from "./backlog.mjs";
+import { assignmentOf, contextOf, derivedOf, participantsIn } from "./backlog.mjs";
 
 const REGISTER = "docs/participants.md";
 const WORKFLOWS = [".github/workflows/agent-m-jobs.yml", ".gitlab/agent-m-jobs.yml"];
@@ -65,19 +65,6 @@ function bridgesOf(participants, store) {
     if (stored) bridges[name] = bridgeAt(settingsOf({ name, ...stored }, readSetting(store, "jump-host")));
   }
   return bridges;
-}
-
-// The role assignment of an item: its team's — the team whose newest running sprint selects it —, else the product's first.
-function assignmentOf(ctx, d, id) {
-  for (const team of ctx.teams) {
-    const running = runningOf(ctx, d, team);
-    if (running && list(running.appended?.filter((section) => section.heading === "## Selection").at(-1)?.fields?.selection ?? running.fields.selection).includes(id)) {
-      return { assignment: ctx.assignments.find((each) => ASSIGNMENT_FILE.exec(each.path)?.[1] === team) ?? null, sprint: running, team };
-    }
-  }
-  const first = ctx.assignments[0] ?? null;
-  const team = first ? ASSIGNMENT_FILE.exec(first.path)?.[1] : null;
-  return { assignment: first, sprint: team ? runningOf(ctx, d, team) : null, team };
 }
 
 // What one startable item shows: the holders that can implement, and for the chosen one what is sent where.
@@ -127,13 +114,15 @@ async function drawPlan(target, context, facts, ctx, participants, workflow) {
   target.querySelectorAll("[data-select-step]").forEach((box) => box.addEventListener("change", count));
 }
 
+// A box is ticked by its property; a document that does not keep the property is read by the attribute the page wrote.
+const isTicked = (box) => box !== null && box !== undefined && (box.checked === undefined ? box.getAttribute("checked") !== null : box.checked === true);
+
 async function draw(target, context, params) {
   const { product, instance } = context;
   const instanceSnapshot = await instance.host.readSnapshot((await instance.host.repositoryInfo()).defaultBranch);
   const facts = await productFacts(product.host, instanceSnapshot, (commit) => instance.host.readSnapshot(commit), new Date(), { scope: "work" });
   const workflow = facts.workflow !== "unknown" ? facts.workflow : null;
-  const register = await instanceSnapshot.read(REGISTER);
-  const participants = register === null ? [] : participantsOf(readDocument(participantSchema(), REGISTER, register));
+  const participants = await participantsIn(context);
   if (facts.declaration === null || facts.model === null || facts.model === "unknown") {
     headOf(target, `<p class="warn" data-missing>${facts.declaration === null ? "No process model is declared for this product" : "The declared process model could not be read"}, so there is nothing to start. <a href="#process">Declare or open the process</a>; the plan or the backlog follows it (<a href="#plan">plan</a>, <a href="#backlog">backlog</a>).</p>`);
     return;
@@ -169,7 +158,7 @@ async function draw(target, context, params) {
   const gatesText = (workflow?.gates ?? []).filter((gate) => implementingRoles(workflow).some((role) => (workflow.phases.find((phase) => phase.name === gate.from)?.roles ?? []).includes(role.name)))
     .map((gate) => `${h(gate.name)} (decided by ${h(gate.decider)})`);
   const body = rows.length === 0 ? `<p>No item is waiting to be implemented.</p>` : `<table class="list"><thead><tr><th></th><th>Item</th><th>State</th><th>Start</th></tr></thead><tbody>${rows.map((row) => `
-    <tr data-item="${h(row.id)}" data-state="${h(row.state.state)}" data-startable="${row.verdict.startable}"><td>${row.verdict.startable ? `<input type="checkbox" data-start-item="${h(row.id)}" checked aria-label="Start ${h(row.id)}">` : ""}</td>
+    <tr data-item="${h(row.id)}" data-state="${h(row.state.state)}" data-startable="${row.verdict.startable}"><td>${row.verdict.startable ? `<input type="checkbox" data-start-item="${h(row.id)}"${params?.item && params.item !== row.id ? "" : " checked"} aria-label="Start ${h(row.id)}">` : ""}</td>
     <td>${h(row.id)}</td><td><span class="badge">${h(row.state.state)}</span></td>
     <td>${row.verdict.startable ? (row.holders.length === 0 ? `<p class="warn" data-reasons>No holder of the implementing role can write and run tests.</p>` : `
       <label>Participant <select data-participant-of="${h(row.id)}">${row.holders.map((participant) => `<option value="${h(participant.name)}">${h(participant.name)}</option>`).join("")}</select></label>
@@ -203,7 +192,7 @@ async function draw(target, context, params) {
   target.querySelector("[data-start-jobs]")?.addEventListener("click", async (event) => {
     if (event?.isTrusted === false) return;
     const out = target.querySelector("[data-start-result]");
-    const chosen = rows.filter((row) => row.verdict.startable && row.holders.length && target.querySelector(`[data-start-item="${row.id}"]`)?.checked !== false);
+    const chosen = rows.filter((row) => row.verdict.startable && row.holders.length && isTicked(target.querySelector(`[data-start-item="${row.id}"]`)));
     if (chosen.length === 0) { out.innerHTML = `<p class="warn">No startable item is ticked: nothing starts.</p>`; return; }
     const lines = [];
     for (const row of chosen) {

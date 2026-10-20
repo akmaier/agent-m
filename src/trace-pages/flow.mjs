@@ -21,7 +21,7 @@ import { artifactSchemas, readDocument } from "../documents/index.mjs";
 import { statuses } from "../approvals/index.mjs";
 import { entryView, queues } from "../spec-changes/index.mjs";
 import { affectedRequirements, linkedVersion, sourceSchemas } from "../source-register/index.mjs";
-import { coverageGaps, traceGraph, tracesTo } from "../trace-graph/index.mjs";
+import { coverageGaps, moduleRows, traceGraph, tracesTo } from "../trace-graph/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { componentDiagram } from "./diagram.mjs";
 import { descriptorFor } from "./views.mjs";
@@ -645,11 +645,10 @@ const OTHER = {
 // What each drawn route keeps for its subject, by the context it was drawn with: the frame asks the route for the subject with the same context.
 const drawn = new WeakMap();
 
-// The module files of a snapshot as componentDiagram takes them: the files docs/architecture/MOD-<slug>.md read in one batch and by their schema, nothing else of the
-// repository (the diagram needs no code and no test file, so the graph of the version is not built).
+// The module files of a snapshot as componentDiagram takes them: the files docs/architecture/MOD-<slug>.md by their schema. The graph of the version has told readMany every path it reads, these among them, so
+// they are not named again.
 async function moduleFilesOf(snapshot) {
   const paths = snapshot.paths.filter((path) => /^docs\/architecture\/MOD-[^/]+\.md$/.test(path));
-  if (paths.length) await snapshot.readMany?.(paths);
   const schema = artifactSchemas().module;
   const files = [];
   for (const path of paths) {
@@ -665,16 +664,69 @@ async function moduleFilesOf(snapshot) {
   return files;
 }
 
-// The modules page (UC-025 step 5): the component diagram of the modules of the version handed, from the module files of that version, drawn through renderMermaid. It offers no
+// The table of the modules (UC-025 step 3), one row for each module of moduleRows: its subsystem and that decision's review status, the requirements it realises each in the SPEC or not, its file with its review status,
+// its code and its tests; the name opens the row onto the module's file and folder (step 6). The table stands in the site's scroll box, so that on a phone it scrolls sideways in a box of its own and the page keeps its
+// margins; the box is reached by the keyboard and named, as it scrolls.
+function modulesTable(rows, graph, reviewOf, snapshot) {
+  const statusOf = (path) => REVIEW[reviewOf.get(path)?.status] ?? "open";
+  const list = (items) => el("ul", null, ...items.map((text) => el("li", null, text)));
+  const body = el("tbody");
+  for (const row of rows) {
+    const name = el("button", "module-name btn small", row.module);
+    name.type = "button";
+    const subsystem = row.subsystem === null ? "none" : `${row.subsystem} — ${statusOf(graph.nodes.get(row.subsystem)?.path)}`;
+    const realises = row.realises.map((each) => `${each} — ${graph.nodes.get(each)?.kind === "requirement" ? "in SPEC" : "not in the SPEC"}`);
+    const tr = el("tr", "module-row", el("td", "module-name-cell", name), el("td", "module-subsystem", subsystem), el("td", "module-realises", list(realises)),
+      el("td", "module-file", `${row.describedBy} — ${statusOf(row.describedBy)}`), el("td", "module-code", list(row.code)), el("td", "module-tests", list(row.tests)));
+    tr.setAttribute("data-module", row.module);
+    let opened = null;
+    name.addEventListener("click", async () => {
+      if (opened) { opened.parentNode?.removeChild(opened); opened = null; return; }
+      const here = el("tr", "module-opened");
+      const panel = el("td", "panel");
+      panel.setAttribute("colspan", "6");
+      here.append(panel);
+      opened = here;
+      body.insertBefore(here, tr.nextSibling);
+      try {
+        const file = renderArtifact((await snapshot.read(row.describedBy)) ?? "");
+        if (opened === here) panel.append(file, el("p", "module-folder", `Folder: ${graph.nodes.get(row.module)?.folder ?? ""}`), list(row.code));
+      } catch (failure) {
+        if (opened === here) panel.append(problemLine("The module's file", failure));
+      }
+    });
+    body.append(tr);
+  }
+  const head = el("tr", null, ...["Module", "Subsystem", "Realises", "File", "Code", "Tests"].map((title) => el("th", null, title)));
+  const box = el("div", "table-scroll", el("table", "list", el("thead", null, head), body));
+  box.setAttribute("tabindex", "0");
+  box.setAttribute("role", "region");
+  box.setAttribute("aria-label", "Modules");
+  return el("section", "modules-table", el("h3", null, "Modules"), box);
+}
+
+// Every gap of moduleRows with the artifact it concerns (UC-025 step 4), or the line that there is none (4a).
+function modulesGaps(gaps, ref) {
+  if (!gaps.length) return el("p", "no-gaps", `There are no gaps at ${ref}.`);
+  const list = el("ul", "trace-list", ...gaps.map((gap) => {
+    const item = el("li", "module-gap", `${gap.artifact} — ${gap.what}`);
+    item.setAttribute("data-kind", gap.kind);
+    return item;
+  }));
+  return el("section", "modules-gaps", el("h3", null, "Gaps"), list);
+}
+
+// The modules page (UC-025): the component diagram of the modules of the version handed, drawn through renderMermaid, the table of the modules and every gap, all from the one graph of that version. It offers no
 // version choice and reads no tag: the view's versions are "branch". Where the version holds no module it says so, and where the graph cannot be read it names that.
 async function drawModules(target, context, host, ref, descriptor) {
   const shown = { target, ref, onDefaultBranch: false, spec: null, source: null, requirements: [], groups: [], context, snapshot: null, facts: null };
   drawn.set(context, shown);
   const place = el("div", "modules-body", el("p", "traces-reading", "Reading the modules…"));
   target.replaceChildren(el("section", "modules head", el("h2", null, descriptor.title), place));
-  let files;
+  let files, graph;
   try {
     shown.snapshot = await host.readSnapshot(ref);
+    graph = await factsOf(shown).graph();
     files = await moduleFilesOf(shown.snapshot);
   } catch (failure) {
     place.replaceChildren(problemLine("The modules", failure));
@@ -684,7 +736,8 @@ async function drawModules(target, context, host, ref, descriptor) {
     place.replaceChildren(el("p", "gaps-missing", `No modules exist at ${ref}.`));
     return;
   }
-  place.replaceChildren(await renderMermaid(componentDiagram(files)), explain("component-diagram"));
+  const { rows, gaps } = moduleRows(graph);
+  place.replaceChildren(await renderMermaid(componentDiagram(files)), explain("component-diagram"), modulesTable(rows, graph, statuses(shown.snapshot), shown.snapshot), modulesGaps(gaps, ref));
 }
 
 export const route = {

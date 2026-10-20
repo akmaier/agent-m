@@ -160,15 +160,16 @@ test("a graph that cannot be read is named in place of the diagram", async () =>
 // guards: UC-025; A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: one Host for main, whose snapshots count every readMany
 // input: the modules view rendered at main; then the gaps view at main with the same Host
-// expect: after the modules view readMany has been told the paths of the four module files, once and nothing else (no code and no test file); the gaps view then tells it the paths of the graph once more
-test("the modules view reads the module files in one batch; the gaps view reads the graph in another", async () => {
+// expect: after the modules view readMany has been told the paths of the graph once — the four module files among them, and the code and test files its table and gaps need (ITM-721) —; the gaps view of the same version then reads no more: the graph of a commit is built once and kept (ITM-598), so it tells readMany nothing again
+test("the modules view reads the graph in one batch; the gaps view of the same version shares it", async () => {
   const productHost = hostOf();
   await render(productHost);
   assert.equal(productHost.log.manys.length, 1);
-  assert.deepEqual([...productHost.log.manys[0]].sort(), Object.keys(FILES).filter((path) => path.startsWith("docs/architecture/MOD-")).sort(), "the module files and no other");
+  const told = new Set(productHost.log.manys[0]);
+  for (const path of Object.keys(FILES).filter((path) => path.startsWith("docs/architecture/MOD-"))) assert.ok(told.has(path), `${path} is read in the batch`);
   const { target } = await render(productHost, { key: "gaps", ref: "main" });
   assert.ok(find(target, (node) => node.className === "gaps-body").length === 1, "known positive: the gaps were drawn");
-  assert.equal(productHost.log.manys.length, 2);
+  assert.equal(productHost.log.manys.length, 1, "the graph of the commit is shared");
 });
 
 // CASE ITM-720-06
