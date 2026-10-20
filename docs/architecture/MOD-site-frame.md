@@ -85,7 +85,17 @@ It runs in a browser — the instance's pages, and the Bridge's window, which is
   form built from a schema.
 - `subject.mjs` — the subject of the route shown, its own or the frame's default, with the route's menu entry.
 - `look.css` — colours, fonts and the header, footer and menu of the lab's look: FAU blue `#04316a`, dark blue `#041e42`,
-  metallic `#8c9fb1`, and their tints, for light and dark mode.
+  metallic `#8c9fb1`, and their tints, for light and dark mode; and how a page reflows on a phone, one rule for every route
+  (`EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE`):
+  - **A table** below a phone's width (600 px) takes its narrow form: each row is a block whose cells stand one under
+    another, and a table, its rows and its cells are never wider than the window. A cell is labelled by its column: the
+    label is the cell's attribute `data-label`, which the route that draws the table sets to the column's title, and the
+    stylesheet shows it before the cell's content; a cell without the attribute stands unlabelled. A route that draws a table
+    sets `data-label` on each cell and no style of its own, so `#backlog`, `#roles`, `#arc` and `#module` take the same rule.
+  - **The burn-down chart** is drawn at the width the property `--burn-down-width` (700 px) gives it, and, in a window
+    narrower than that, no wider than the window less the page's margins; the property holds the width the route asks
+    Mermaid for. Its text is the page's body text in size at every width, so a narrower chart is drawn with fewer labels
+    on its axes, never with smaller ones.
 - `brand/` — the logo files of the Pattern Recognition Lab, lettered and as a sign, for light and dark backgrounds, the
   page icons, and a `README.md` stating the terms under which the logo is used.
 - `explanations.md` — the folded explanations, as data.
