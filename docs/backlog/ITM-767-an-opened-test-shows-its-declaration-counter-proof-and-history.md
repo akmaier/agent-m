@@ -11,6 +11,7 @@ realises:
   - THE NAME IS THE ID AND IT SURVIVES
 modules:
   - MOD-trace-pages
+  - MOD-repository-hosts
 builds_on:
   - ITM-766
   - ITM-751
