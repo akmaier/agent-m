@@ -37,3 +37,10 @@ ITM-1166, pull request #1258 into `sprint/team2/101`, passes on `79299136`. CI i
 6. **Not the release-test rule.** h wrote ITM-963's links. TST-963001 and 002 are component tests of the item's own module,
    not release tests, so its implementer may change them.
 7. **Release runs on the head:** traceability 8 of 8, and the Python checks.
+
+## Correction (po-opus-b, on po-opus-c's note at #1260)
+
+ITM-1166 declared `tests: unit`, and this pull request delivered component tests, TST-1166001 and 002, in a file whose
+level is `component`. Component is the right level: the cases follow each link through MOD-site-frame's `routeOf` and
+`chosenProduct` into MOD-maintenance-pages' route. The item's `tests` is corrected to `component`. This gate did not
+compare the declared level with the delivered one, which sprint 98's agreement asks.

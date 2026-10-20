@@ -9,7 +9,7 @@ modules:
 builds_on:
   - ITM-582
 tests:
-  - unit
+  - component
 origin:
   - the gate of #1255 (ITM-582, team 2's sprint 100), developer-sonnet-f's finding
 ---
@@ -31,3 +31,13 @@ origin:
 - Both links lead to `#issue/number=<n>`, and a test opens each and finds that issue's page, with a counter-proof.
 - The tests that pin the old form change with them. They are MOD-maintenance-pages' own unit and component tests.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Its level corrected (team 2's sprint 102's planning, po-opus-b, on po-opus-c's note at #1260).** The item declared `unit`.
+Its tests are component tests, and component is the right level:
+- TST-1166001 and 002 (`tests/maintenance-pages-mail.test.mjs:397`, `:416`) follow each link as the frame does:
+  MOD-site-frame's `routeOf` and `chosenProduct`, then MOD-maintenance-pages' route `issue`.
+- That is two modules working together, and the file's header and the other cases it changes, TST-963001 and 002, are
+  `component` as well.
+- So the item's `tests` now reads `component`, as delivered. The gate of #1258 did not compare the declared level with the
+  delivered one, and its record is corrected.
+
