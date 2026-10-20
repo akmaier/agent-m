@@ -136,6 +136,8 @@ const environment = (w, extra = {}) => ({ GITHUB_ACTIONS: "true", GITHUB_EVENT_N
 const headOf = (w) => git(w.product, "rev-parse", "main");
 const subjects = (w) => git(w.product, "log", "--format=%s", "main").split("\n");
 const fileAt = (w, path) => git(w.product, "show", `main:${path}`).concat("\n");
+// Whether main holds the file: git's exit status and its listing decide, never the words of its refusal, which follow the machine's language.
+const isWritten = (w, path) => git(w.product, "ls-tree", "--name-only", "main", "--", path) === path;
 
 // The fake model endpoint: answers as an OpenAI-compatible one does and records every request.
 function fakeEndpoint({ reason = REASON } = {}) {
@@ -311,20 +313,21 @@ test("onDispatch — a dispatched job is started and run", async () => {
 // guards: NO SECRET IN THE REPOSITORY; A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
 // given: the job run as in the first test; and a job whose endpoint, a leaky one, quotes the key it was given in the reason of its decision
 // input: onRecordsChanged for each; every commit of the product's origin searched for the person's token and the key
-// expect: in neither run does a commit hold either; in the second the writer's commit is refused — nothing of the decision is written — and the job ends `failed`, the status `failed`
+// expect: in neither run does a commit hold either; the first run's gate record is on main; in the second the writer's commit is refused — nothing of the decision is written — and the job ends `failed`, the status `failed`
 test("onRecordsChanged — no secret value in any commit", async () => {
   const holdsSecret = (w) => [TOKEN, KEY].some((secret) => git(w.product, "log", "-p", "--all").includes(secret));
   fakeEndpoint();
   await withWorkspace({ records: (agentM) => [recordFile(jobStart(JOB, { agentM }))] }, async (w) => {
     assert.equal((await run(w)).outcome, "done");
     assert.equal(holdsSecret(w), false, "a normal run");
+    assert.equal(isWritten(w, GATE_PATH), true, "known positive: a normal run writes the gate's record");
   });
   fakeEndpoint({ reason: `authorised with ${KEY}` });
   await withWorkspace({ records: (agentM) => [recordFile(jobStart(JOB, { agentM }))] }, async (w) => {
     const status = await run(w);
     assert.equal(status.outcome, "failed");
     assert.equal(holdsSecret(w), false, "a leaky endpoint");
-    assert.throws(() => fileAt(w, GATE_PATH), /does not exist|exists on disk, but not/, "nothing of the decision is written");
+    assert.equal(isWritten(w, GATE_PATH), false, "nothing of the decision is written");
     assert.match(fileAt(w, `docs/jobs/${JOB}.md`), /## End[^]*state: failed/);
   });
 });
