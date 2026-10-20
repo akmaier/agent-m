@@ -19,7 +19,8 @@ const failure = (name, message, fields) => Object.assign(new Error(message), { n
 
 // The Resource a row of the list is: a left-out value is null, the Paid mark a boolean.
 const resourceOf = ({ cells: c }) => ({ name: c.Name, kind: c.Kind, address: c.Address, pin: c.Pin ?? null, licence: c.Licence ?? null, maintainer: c.Maintainer ?? null,
-  route: c.Route ?? "", place: c["Processing place"] ?? null, paid: c.Paid === "yes" ? true : c.Paid === "no" ? false : null, secret: c.Secret ?? null });
+  route: c.Route ?? "", place: c["Processing place"] ?? null, paid: c.Paid === "yes" ? true : c.Paid === "no" ? false : null, secret: c.Secret ?? null,
+  capabilities: c.Capabilities ?? null, role: c.Role ?? null });
 
 // The resource a list holds under the name, or null; a list that is missing or does not read holds none.
 async function found(snapshot, name) {

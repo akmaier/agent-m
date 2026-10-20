@@ -23,7 +23,7 @@ export { namedBy } from "./named-by.mjs";
  * its licence and maintainer; the route jobs reach it by; where the data given to it is processed; whether a service it is charges per call, null for
  * a kind without the mark; and the name of its secret, never its value.
  * @typedef {{ name: string, kind: "repository" | "data" | "model" | "compute" | "endpoint" | "agent", address: string, pin: string | null,
- *   licence: string | null, maintainer: string | null, route: string, place: string | null, paid: boolean | null, secret: string | null }} Resource
+ *   licence: string | null, maintainer: string | null, route: string, place: string | null, paid: boolean | null, secret: string | null, capabilities: string | null, role: string | null }} Resource
  */
 
 const OWNER = "MOD-resource-list";

@@ -80,20 +80,20 @@ test("TST-1143003 a section with no table, or whose table stands after another t
 });
 
 // TST-1143004 · level: unit · module: MOD-documents
-// guards: A RESOURCE IS USED, A PARTICIPANT DEVELOPS (SPEC.md:2197)
-// given: a resource list whose table has the columns Capabilities and Role besides the ten of the list, with an agent that fills them; and the same list without those two columns
+// guards: A PRODUCT DECLARES ITS RESOURCES
+// given: a resource list whose table has the columns Notes and Owner, which the schema does not name, besides the ten of the list, with an agent that fills them; and the same list without those two columns
 // input: documentFindings with the resource schema for each
-// expect: the first gets a finding that names Capabilities and Role as added; the second none (the counter-proof: the same list without the two columns is accepted)
-test("TST-1143004 a resource list that carries a participant's columns is rejected, and the same list without them is accepted", () => {
+// expect: the first gets a finding that names Notes and Owner as added, under the schema's rule; the second none (the counter-proof: the same list without the two columns is accepted). The columns Capabilities and Role are the schema's own optional columns (ITM-1154)
+test("TST-1143004 a resource list that adds columns the schema does not name is rejected, and the same list without them is accepted", () => {
   const schema = resourceSchema();
   const columns = ["Name", "Kind", "Address", "Pin", "Licence", "Maintainer", "Route", "Processing place", "Paid", "Secret"];
   const row = ["agent-service", "agent", "https://agent.example.org", "example-agent", "—", "the Acme organisation", "bridge workstation", "the group's workstation", "no", "—"].join(" | ");
   const list = (names, cells) => ["# Resources of the product", "", `| ${names.join(" | ")} |`, `|${names.map(() => "---").join("|")}|`, `| ${cells} |`, ""].join("\n");
   const without = header(findingsOf(schema, "docs/resources.md", list(columns, row)));
   assert.deepEqual(without, []);
-  const carried = header(findingsOf(schema, "docs/resources.md", list([...columns, "Capabilities", "Role"], `${row} | draft text | developer`)));
+  const carried = header(findingsOf(schema, "docs/resources.md", list([...columns, "Notes", "Owner"], `${row} | a note | alice`)));
   assert.equal(carried.length, 1);
-  assert.equal(carried[0].what.includes("Capabilities") && carried[0].what.includes("Role"), true, carried[0].what);
+  assert.equal(carried[0].what.includes("adds Notes, Owner"), true, carried[0].what);
 });
 
 // TST-1143005 · level: unit · module: MOD-documents

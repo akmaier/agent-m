@@ -115,7 +115,7 @@ function tableRows(table, lines, frontLookup) {
     if (rowsFrom < at.to && isSeparator(lines[rowsFrom])) rowsFrom += 1;
   }
   const rows = [];
-  for (let i = rowsFrom; i < at.to; i += 1) rows.push({ index: i, cells: cellsByColumn(table.columns, cellsOf(lines[i]), frontLookup) });
+  for (let i = rowsFrom; i < at.to; i += 1) rows.push({ index: i, cells: cellsByColumn(at.columns, cellsOf(lines[i]), frontLookup) });
   return { at, rowsFrom, rows };
 }
 
@@ -306,6 +306,7 @@ function checkRows(table, section, frontLookup) {
     }
     const lookup = (name) => (names.includes(name) ? textOf(cells[name]) : frontLookup(name));
     for (const column of table.columns) {
+      if (column.optional && cells[column.name] === undefined) continue;
       const why = valueProblem(cells[column.name], column.value, lookup, "cell");
       if (why) throw cellError(section.heading, i + 1, line, column.name, why);
     }
@@ -352,6 +353,17 @@ function withTable(table, section, original, frontLookup) {
       }
     }
   }
+  const lines = text.split("\n");
+  const { at, rowsFrom } = tableRows(table, lines.map(bare), frontLookup);
+  // The columns a row is written with: those of the header the table has, else the columns that are not optional and the optional ones some row fills.
+  const columns = at ? at.columns : table.columns.filter((column) => !column.optional || rows.some((row) => isObject(row?.cells) && row.cells[column.name] !== undefined));
+  rows.forEach((row, k) => {
+    for (const column of table.columns) {
+      if (isObject(row?.cells) && row.cells[column.name] !== undefined && !columns.includes(column)) {
+        throw cellError(section.heading, k + 1, Number.isInteger(row.line) && row.line > 0 ? row.line : null, column.name, "is a column the table's header leaves out");
+      }
+    }
+  });
   const written = [];
   let next = 0;
   for (const row of rows) {
@@ -362,14 +374,12 @@ function withTable(table, section, original, frontLookup) {
       written.push(before[match].bytes);
       next = match + 1;
     } else {
-      written.push(rowLine(table.columns, cells));
+      written.push(rowLine(columns, cells));
     }
   }
-  const lines = text.split("\n");
-  const { at, rowsFrom } = tableRows(table, lines.map(bare), frontLookup);
   if (at) return [...lines.slice(0, rowsFrom), ...written, ...lines.slice(at.to)].join("\n");
   if (!written.length) return text;
-  return appendBlock(text, [...(table.header !== false ? headerLines(table.columns) : []), ...written].join("\n"));
+  return appendBlock(text, [...(table.header !== false ? headerLines(columns) : []), ...written].join("\n"));
 }
 
 // A section's text with its key: value lines holding the section's fields: each line of a field given rewritten with its
