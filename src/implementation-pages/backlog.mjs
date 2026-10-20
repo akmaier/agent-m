@@ -50,7 +50,7 @@ const byNumber = (a, b) => numberOf(a) - numberOf(b) || (a < b ? -1 : a > b ? 1 
 // What the route needs besides the pull requests: the declaration and its model, the teams, their sprints, the items, the modules, and what is accepted. The facts are MOD-progress-measures' productFacts with the scope `work`:
 // where the facts of the commit are stored they are taken from the store and none of the files they come from is read; otherwise the files are read in batches. The requirements and the module files, which Facts does not carry,
 // come from the stored facts' lists, or from the files.
-async function contextOf(context) {
+export async function contextOf(context) {
   const { product, instance } = context;
   // The product's host as productFacts reads it: the branch the page has read, where the caller says which it is (else the default branch the repository reports), and each snapshot read once — the instance's too, where
   // the product is the instance.
@@ -113,7 +113,7 @@ function statusesOf(ctx) {
 }
 
 // What the route derives: the pull requests, each item's state and when a done item was merged, what the sprints hold, each team's sprint.
-async function derivedOf(context, ctx) {
+export async function derivedOf(context, ctx) {
   const pull = await pullRequestsOf(context, ctx);
   const states = itemStates(ctx.items, null, { statuses: statusesOf(ctx), queues: [], jobs: [], pullRequests: pull, gates: [], workflow: null });
   const mergedAt = new Map();
@@ -283,7 +283,7 @@ function uncoveredPanel(ctx) {
 }
 
 // The sprint of `team` that is running, or null.
-function runningOf(ctx, d, team) {
+export function runningOf(ctx, d, team) {
   const newest = ctx.newest.get(team) ?? null;
   return newest && !d.progress?.sprints.find((each) => each.team === team)?.final ? newest.record : null;
 }
