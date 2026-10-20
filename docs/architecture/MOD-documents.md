@@ -277,8 +277,8 @@ record, the appended sections in order. **A row** of a table: `{ line, cells }`,
   their type or the variant that holds, empty where `nonEmpty`; each row of a table, cell by cell, in the same way, and a
   row with more cells than the table has columns, named at its line with the cells beyond the last column, whether the
   table has a header row or none; a
-  section whose schema names a table with a header row, that holds a table but none whose header row names exactly the
-  table's columns, named at its first table's header with the columns that header adds, lacks or puts out of order; the
+  section whose schema names a table with a header row, that holds a table but none whose header row names the
+  table's columns in their order, where an optional column may be named or left out, named at its first table's header with the columns that header adds, lacks or puts out of order — a left-out optional column is not a lack; the
   title; required sections missing, sections out of order, sections the schema forbids; values that `describedIn`
   requires and the section does not describe; a diagram missing where `required`, and any image
   (`DIAGRAMS ARE MERMAID IN MARKDOWN`); and, for a `noHistory` schema, each mark of history
