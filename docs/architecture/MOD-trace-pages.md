@@ -41,10 +41,13 @@ uses:
   - MOD-source-register.linkedVersion
   - MOD-source-register.affectedRequirements
   - MOD-test-schedule.occasionsOf
+  - MOD-test-schedule.scheduleSchema
+  - MOD-test-schedule.defaultSchedule
   - MOD-result-records.resultsAt
   - MOD-result-records.flakyTests
   - MOD-result-records.rateComparison
   - MOD-result-records.testHistory
+  - MOD-result-records.resultSchema
   - MOD-release-evidence.auditRows
   - MOD-product-process.declarationSchema
   - MOD-product-process.productWorkflow
@@ -140,7 +143,7 @@ instance's host that the frame gives every route, it also reads the instance's p
 - MOD-repository-hosts.readSnapshot, MOD-repository-hosts.readHistory, MOD-repository-hosts.readFileAt,
   MOD-repository-hosts.listTags,
   MOD-repository-hosts.webLinks — the version, the history of a requirement's section, the text of a file at the commits
-  of its history, the release tags, a test's code
+  of its history, the release tags, a test's code (`WebLinks`' `file`, the page of the test's file at the version shown)
   and a run's log on the server; for the audit, the instance at the commit the release's declaration names;
   MOD-repository-hosts.repositoryInfo — the default branch, on which alone a requirement leads to editing, and at which
   the instance's links are read for the person's own source.
@@ -156,9 +159,12 @@ instance's host that the frame gives every route, it also reads the instance's p
   MOD-source-register.personSource, MOD-source-register.personAccount — the person's own source, which the subject of a
   requirement carries.
 - MOD-prompt-bar.Subject — the subject each route gives the prompt bar.
-- MOD-test-schedule.occasionsOf — when the schedule runs a test.
+- MOD-test-schedule.occasionsOf — when the schedule runs a test; MOD-test-schedule.scheduleSchema reads the product's
+  `docs/tests/schedule.md` at the version shown, and MOD-test-schedule.defaultSchedule gives the book's schedule where the
+  product has none, the document `occasionsOf` is given.
 - MOD-result-records.resultsAt, MOD-result-records.flakyTests, MOD-result-records.rateComparison,
-  MOD-result-records.testHistory — outcomes, flaky tests, rates and history.
+  MOD-result-records.testHistory — outcomes, flaky tests, rates and history; MOD-result-records.resultSchema reads a
+  test's counter-proof record, whose `participant` is shown as the one who wrote the test.
 - MOD-release-evidence.auditRows, MOD-release-evidence.auditDocument — the audit and its document; the audit is given the
   instance's SPEC, where the process requirements stand.
 - MOD-product-process.declarationSchema, productWorkflow, gateSchema, gateStates — the product's workflow and its gate
