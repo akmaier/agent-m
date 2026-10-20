@@ -14,13 +14,23 @@ import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
 import { prepareJob } from "../job-runner/index.mjs";
 import { runOnTab, tabContext } from "../runtimes/index.mjs";
 import { readParticipants } from "./offer.mjs";
-import { restrictedPlaces } from "./places.mjs";
+import { readDocument } from "../documents/index.mjs";
+import { registerPaths, restrictedPlaces, sourceSchemas } from "../source-register/index.mjs";
 import { recordingOf } from "./record.mjs";
 
 /** defaultSnapshot(host: Host) -> Promise<Snapshot> — the repository at its default branch now. */
 export async function defaultSnapshot(host) {
   const { defaultBranch } = await host.repositoryInfo();
   return host.readSnapshot(defaultBranch);
+}
+
+// The places a job is given for the restricted sources (JobContext.places): the entries of the instance's register, read from its snapshot, and MOD-source-register's restrictedPlaces over them for the page's
+// repository. The rule itself is that function's; this reads the entries. Empty for an instance without sources.
+export async function placesOf(instanceSnapshot, address) {
+  const { entry } = sourceSchemas();
+  const register = [];
+  for (const path of registerPaths(instanceSnapshot.paths)) register.push(readDocument(entry, path, (await instanceSnapshot.read(path)) ?? ""));
+  return restrictedPlaces(register, address);
 }
 
 /**
@@ -75,7 +85,7 @@ export async function prepareMessage({ subject, participant, instruction, conver
   const inputs = {
     params: { ...subject.paramsFor(participant), instruction, conversation, entry: subject.entry, refuses: subject.refuses },
     product: page, instance: { snapshot: instanceSnapshot, host: instance.host }, participants,
-    places: { ...(await restrictedPlaces(instanceSnapshot)), mailbox: null }, gates: [], person, agentM: { version: commit, commit }, jobId: null,
+    places: { ...(await placesOf(instanceSnapshot, page.address)), mailbox: null }, gates: [], person, agentM: { version: commit, commit }, jobId: null,
   };
   // The kind's definition is the job's own: prepareJob reads it by name, and the context that runs the job carries it.
   const prepared = await prepareJob(subject.kind, tabContext({ kind: null, ...inputs }), { drafter: participant, reviewers: [] });
