@@ -15,7 +15,7 @@
 // open, which the tests state (the pull request names them):
 //   - For each ticked step the page shows <div data-job-of="<step>"> with <select data-participant-of> (the holders of the implementing role with both capabilities), <p data-places-of> (where each processes data),
 //     <input data-limit-of> (the attempt limit), <select data-merges-of> (`agent` or `person`), <input type="checkbox" data-refactor-of> (3a), <p data-branch-of> (the target branch), <p data-gates-of> (the gates from the step's phase on,
-//     with their deciders), <div data-sent-of> (what is sent where); with no participant <p data-none-of> and a link to #participants (5a).
+//     with their deciders), <div data-sent-of> (what is sent where); with no holder that can implement, <p data-none-of> beside the step's reasons, with a link to #participants (5a).
 //   - The target branch is the default branch, or the declaration's branch for the step's phase with <item> replaced by the step.
 //   - Start jobs is <button data-start-jobs>; its outcome <div data-start-result>. A start record is docs/jobs/JOB-<stamp>-<4 hex>.md; `kind: refactor` when *refactoring* is ticked; the attempt limit is its `limit`; who merges is
 //     `merges` in its parameters. A route that does not answer is named and the job is not started (7a); a token that may not start workflows gives <a data-run-workflow> to the workflow's page with the job's inputs named (7b).
@@ -29,6 +29,10 @@ import { readFileSync } from "node:fs";
 import "./site-frame-dom.mjs";
 const { view } = await import("../src/implementation-pages/index.mjs");
 const { registerStrategies } = await import("../src/job-runner/index.mjs");
+const { openStore } = await import("../src/browser-store/index.mjs");
+const kept = new Map();
+Object.defineProperty(globalThis, "localStorage", { configurable: true, value: { getItem: (key) => (kept.has(key) ? kept.get(key) : null), setItem: (key, value) => { kept.set(key, String(value)); }, removeItem: (key) => { kept.delete(key); },
+  key: (at) => [...kept.keys()][at] ?? null, get length() { return kept.size; } } });
 const route = view.routes.find((candidate) => candidate.name === "implement");
 
 const fetched = [];
@@ -119,10 +123,10 @@ function hostOf(files, commits, failure = null) {
     },
   };
 }
-async function render(files, { register = REGISTER, failure = null } = {}) {
+async function render(files, { register = REGISTER, failure = null, store = {} } = {}) {
   const commits = [];
   const instance = hostOf({ "SPEC.md": "# Instance\n", "docs/participants.md": register }, [], null);
-  const context = { page: "review", instance: { repository: "acme/agent-m", host: instance }, product: { address: ADDRESS, kind: "github", host: hostOf(files, commits, failure), tokenStored: true }, store: {}, go() {} };
+  const context = { page: "review", instance: { repository: "acme/agent-m", host: instance }, product: { address: ADDRESS, kind: "github", host: hostOf(files, commits, failure), tokenStored: true }, store, go() {} };
   const target = document.createElement("div");
   document.body.append(target);
   globalThis.mermaid = { initialize() {}, mermaidAPI: { getDiagramFromText: async () => ({ db: { getVertices: () => ({}) } }) }, run: async () => {} };
@@ -204,12 +208,12 @@ test("Start jobs commits one start record per selected step with the attempt lim
 // guards: UC-024 (5a); A JOB GOES ONLY TO A HOLDER OF ITS ROLE
 // given: the role assignment gives the roles only to dev-c, which cannot run tests
 // input: the route's render
-// expect: each selected step says that no participant can write and run tests and links to #participants; no start record is committed by a click on Start jobs
+// expect: the step says, beside its reasons, that no participant can write and run tests and links to #participants; no start record is committed by a click on Start jobs
 test("a step no participant can implement says so and links to the participants", async () => {
   const noDev = productFiles();
   noDev["docs/role-assignments/product.md"] = ASSIGNMENT.replaceAll("dev-a, dev-c", "dev-c");
   const { target, commits } = await render(noDev);
-  const none = found(jobOf(target, "ITM-012"), "[data-none-of]")[0];
+  const none = found(rowOf(target, "ITM-012"), "[data-none-of]")[0];
   assert.match(text(none), /No participant can write and run tests/);
   assert.ok(found(none, "a").some((link) => link.getAttribute("href") === "#participants"));
   found(target, "[data-start-jobs]")[0].dispatchEvent(trusted());
@@ -224,7 +228,7 @@ test("a step no participant can implement says so and links to the participants"
 // expect: the result names the Bridge lab-pc as the reason, and no start record is committed
 test("a Bridge that does not answer is named and nothing is started", async () => {
   const register = REGISTER.replace("ci hosted secret DEV_KEY |\n| dev-b", "bridge lab-pc agent claude |\n| dev-b");
-  const { target, commits } = await render(productFiles(), { register });
+  const { target, commits } = await render(productFiles(), { register, store: openStore("acme/agent-m") });
   found(target, "[data-start-jobs]")[0].dispatchEvent(trusted());
   await settle();
   assert.match(text(found(target, "[data-start-result]")[0]), /lab-pc/);
