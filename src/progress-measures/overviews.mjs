@@ -69,3 +69,69 @@ export function whoWorksOnWhat(facts) {
   }
   return { participants: [...entries.values()], held: facts.held, unreachable };
 }
+
+// For blocked (UC-035 step 4; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED, SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES).
+// Where the module file leaves a reading open, this file takes the one it names:
+//   - An entry is an item or step of facts.plan.states with the first reason that applies, in the order of the plan; its `detail` is the sentence
+//     the item's state gives (the gate and its decider are in it), or, for the two reasons only the facts can give, the sentence built here.
+//   - A state `blocked` is a failed job or a job waiting at a gate by the state of the row of its job in facts.jobs; without that row it is not listed.
+//   - A `ready` item is held by another team's sprint for each module it changes (facts.plan.items) that a held item of another team changes or uses;
+//     the modules an item uses are not in the facts, so they are not compared.
+//   - A `ready` item meets the work-in-progress limit (facts.model.flow.wip) when the items in progress under its team number at least the limit: in a
+//     model with sprints those held by the same team's sprint, and none for an item no sprint holds; otherwise all of them.
+
+const listed = (names) => (names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`);
+const modulesOf = (document) => {
+  const value = document?.fields?.modules;
+  return Array.isArray(value) ? value : String(value ?? "").split(",").map((part) => part.trim()).filter(Boolean);
+};
+
+// The modules `item` changes that a held item of another team changes or uses, one sentence for each, in the order of the held items and of the modules.
+function heldBy(item, team, facts) {
+  const changes = modulesOf(facts.plan.items.find((candidate) => candidate.id === item));
+  const sentences = [];
+  for (const other of facts.held) {
+    if (other.team === team) continue;
+    for (const module of [...new Set([...other.changes, ...other.uses])].sort()) {
+      if (changes.includes(module)) sentences.push(`${module} is held by ${other.item} in ${other.sprint} of ${other.team}`);
+    }
+  }
+  return sentences;
+}
+
+// The sentence of the work-in-progress limit when it keeps `item` from moving, else null.
+function limitOf(item, team, facts) {
+  const flow = facts.model?.flow;
+  if (typeof flow?.wip !== "number" || (flow.sprints && team === undefined)) return null;
+  const busy = facts.plan.states.filter((state) => state.state === "in progress"
+    && (!flow.sprints || facts.held.some((entry) => entry.item === state.item && entry.team === team)));
+  if (busy.length < flow.wip) return null;
+  return `the limit of ${flow.wip} is reached${flow.sprints ? ` under ${team}` : ""}: ${listed(busy.map((state) => state.item))} ${busy.length === 1 ? "is" : "are"} in progress`;
+}
+
+/**
+ * blocked(facts: Facts) -> Array<{ item, reason: "failed job" | "waiting at a gate" | "requirement not accepted" | "work-in-progress limit" | "held by another
+ * team's sprint", detail }> — every item or plan entry that cannot move, each with its reason; for a gate, the role or check that decides it; for a held
+ * module, the other team's sprint and the module.
+ * @param {object} facts MOD-progress-measures' Facts
+ */
+export function blocked(facts) {
+  const found = [];
+  for (const state of facts.plan.states) {
+    const entry = (reason, detail) => found.push({ item: state.item, reason, detail });
+    if (state.state === "blocked") {
+      const job = facts.jobs.find((row) => row.record.id === state.job);
+      if (job?.state === "failed") entry("failed job", state.reason);
+      else if (job?.state === "waiting at a gate") entry("waiting at a gate", state.reason);
+    } else if (state.state === "waiting") entry("waiting at a gate", state.reason);
+    else if (state.state === "waiting for acceptance") entry("requirement not accepted", state.reason);
+    else if (state.state === "ready") {
+      const team = facts.held.find((other) => other.item === state.item)?.team;
+      const held = heldBy(state.item, team, facts);
+      const limit = limitOf(state.item, team, facts);
+      if (held.length) entry("held by another team's sprint", held.join("; "));
+      else if (limit !== null) entry("work-in-progress limit", limit);
+    }
+  }
+  return found;
+}
