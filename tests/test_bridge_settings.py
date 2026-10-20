@@ -234,10 +234,8 @@ class TestBridgeSettings(unittest.TestCase):
     # TST-1056101 · level: release · module: MOD-desktop-shell
     # guards: THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT
     # given: the Bridge's app running with its window, on a computer that has one supported agent installed; the Bridge was paired with a first token
-    # input: in the window, set the name, the port, the served products and the interval and press Save settings; set the jump host and press Save jump host; tick the installed agent, give it a working folder and
-    #   press Save agents; press Pair anew and confirm
-    # expect: every setting is kept as it was set in the settings file (the name, the port the Bridge then listens on, the products, the interval, the jump host, the agent with its working folder), the pairing
-    #   token is kept by a save of settings and replaced by Pair anew, after which the old token is refused and the new one answered
+    # input: in the window, set the name, the port, the served products and the interval and press Save settings; set the jump host and press Save jump host; tick the installed agent, give it a working folder and press Save agents; press Pair anew and confirm
+    # expect: every setting is kept as it was set in the settings file (the name, the port the Bridge then listens on, the products, the interval, the jump host, the agent with its working folder), the pairing token is kept by a save of settings and replaced by Pair anew, after which the old token is refused and the new one answered
     def test_every_setting_is_kept_as_it_was_set_in_the_window(self):
         for loaded in of_kind("set-in-the-window"):
             with self.subTest(case=loaded["name"]):
@@ -245,12 +243,9 @@ class TestBridgeSettings(unittest.TestCase):
 
     # TST-1056102 · level: release · module: MOD-desktop-shell
     # guards: THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT
-    # given: a Bridge whose settings were set in the window, and a fixture settings export written by the dashboard's own writer, plain or locked, with products, the jump host, two Bridges reached through it and secrets
-    #   (a repository token, an endpoint key, a mailbox password, the jump host's web login)
+    # given: a Bridge whose settings were set in the window, and a fixture settings export written by the dashboard's own writer, plain or locked, with products, the jump host, two Bridges reached through it and secrets (a repository token, an endpoint key, a mailbox password, the jump host's web login)
     # input: in the window, Import settings export for the Bridge named in the export, for the person's own computer, with a wrong passphrase, and for an export of another instance
-    # expect: the part the export holds is taken from the file (the products, the jump host, the named Bridge's name and its token as the pairing token, the reverse tunnel with its port on the jump host; for the own
-    #   computer a forward for each Bridge and the name and token kept); the Bridge's own port and the interval stay; no secret of the export is written anywhere; an export of another instance and a wrong
-    #   passphrase are refused and change nothing
+    # expect: the part the export holds is taken from the file (the products, the jump host, the named Bridge's name and its token as the pairing token, the reverse tunnel with its port on the jump host; for the own computer a forward for each Bridge and the name and token kept); the Bridge's own port and the interval stay; no secret of the export is written anywhere; an export of another instance and a wrong passphrase are refused and change nothing
     def test_the_part_an_export_holds_is_taken_from_the_file_and_nothing_else(self):
         for loaded in of_kind("imported"):
             with self.subTest(case=loaded["name"]):
