@@ -124,6 +124,22 @@ test("resources — a secret's name is shown and a value written in its column i
   assert.match(line(target, "token-host", "resource-findings"), /A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE/);
 });
 
+// TST-115405 · level: unit · module: MOD-settings-pages
+// guards: UC-040; A RESOURCE IS USED, A PARTICIPANT DEVELOPS
+// given: a list whose table has, besides its ten columns, the optional columns Capabilities and Role, with the entry coder filling them and the entry cluster leaving them out
+// input: render the route resources for the product
+// expect: both entries are read and listed; the line of coder shows an error under A RESOURCE IS USED, A PARTICIPANT DEVELOPS, and the line of cluster shows none of that rule
+test("resources — an entry that fills the optional columns Capabilities and Role is shown with its error", async (t) => {
+  const header = `${HEADER.split("\n")[0].slice(0, -1)} Capabilities | Role |\n|---|---|---|---|---|---|---|---|---|---|---|---|`;
+  const coder = "| coder | agent | https://agents.example.org/coder | coder-v1 | — | unknown | bridge workstation | NHR@FAU, Erlangen | no | — | draft text | Builders |";
+  const cluster = `${CLUSTER.slice(0, -1)} — | — |`;
+  const files = { "docs/resources.md": `# Resources of thesis-tool\n\n${header}\n${coder}\n${cluster}\n` };
+  const { target } = await open(t, { productFiles: files });
+  assert.deepEqual(withClass(target, "resource").map((node) => node.getAttribute("data-resource")), ["coder", "cluster"]);
+  assert.match(line(target, "coder", "resource-findings"), /A RESOURCE IS USED, A PARTICIPANT DEVELOPS/);
+  assert.doesNotMatch(withClass(entry(target, "cluster"), "resource-findings")[0]?.textContent ?? "", /A RESOURCE IS USED, A PARTICIPANT DEVELOPS/);
+});
+
 // TST-642003 · level: unit · module: MOD-settings-pages
 // guards: UC-040 step 1b; THE INSTANCE DECLARES ITS OWN RESOURCES; INSTANCE AND PRODUCT RESOURCES ARE INDEPENDENT
 // given: the instance's docs/resources.md (shared-llm, cluster) and a product's (dlls, cluster); the page drawn with no product
