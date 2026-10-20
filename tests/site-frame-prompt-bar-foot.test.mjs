@@ -118,10 +118,8 @@ async function pageWithBar(page, height) {
 // TST-542001 · level: unit · module: MOD-site-frame
 // guards: UC-049
 // given: a browser with a ResizeObserver and a MutationObserver; the register offers drafter-a; the bar, once drawn, is 120 pixels high
-// input: startPage on the main page, then on the review page; the bar is drawn into the footer; the browser tells the footer's
-//   MutationObserver that its children changed
-// expect: on each page the footer's style declares height as "120px" — the bar's height — before any ResizeObserver callback; the
-//   footer's MutationObserver observes the footer for its children (childList true)
+// input: startPage on the main page, then on the review page; the bar is drawn into the footer; the browser tells the footer's MutationObserver that its children changed
+// expect: on each page the footer's style declares height as "120px" — the bar's height — before any ResizeObserver callback; the footer's MutationObserver observes the footer for its children (childList true)
 test("TST-542001 the footer takes the height of the bar when the bar is drawn", async () => {
   for (const name of ["main", "review"]) {
     withObservers({ resize: true });
@@ -134,10 +132,8 @@ test("TST-542001 the footer takes the height of the bar when the bar is drawn", 
 // TST-542002 · level: unit · module: MOD-site-frame
 // guards: UC-049
 // given: as TST-542001, on the review page, with the bar drawn at 120 pixels and the footer at "120px"
-// input: the bar grows to 200 pixels (a conversation, a draft); the browser calls the ResizeObserver's callback; then the bar shrinks to
-//   64 pixels and the callback is called again
-// expect: the ResizeObserver observes the bar (the footer's first child); the footer's style declares height as "200px" after the first
-//   call and "64px" after the second
+// input: the bar grows to 200 pixels (a conversation, a draft); the browser calls the ResizeObserver's callback; then the bar shrinks to 64 pixels and the callback is called again
+// expect: the ResizeObserver observes the bar (the footer's first child); the footer's style declares height as "200px" after the first call and "64px" after the second
 test("TST-542002 the footer takes the new height whenever the bar changes, with a ResizeObserver", async () => {
   withObservers({ resize: true });
   const it = await pageWithBar("review", 120);

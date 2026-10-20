@@ -735,12 +735,9 @@ test("participants — without a type and an address the form stays closed and e
 
 // TST-352007 · level: unit · module: MOD-settings-pages
 // guards: UC-017; PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE
-// given: a register with three CI agents: one on the schema's route "ci runner:gpu secret GPU_KEY", and two saved earlier in the form
-//   "workflow agent-m.yml on github-hosted secret OLD_KEY" and "workflow agent-m.yml on self-hosted secret SELF_KEY"
+// given: a register with three CI agents: one on the schema's route "ci runner:gpu secret GPU_KEY", and two saved earlier in the form "workflow agent-m.yml on github-hosted secret OLD_KEY" and "workflow agent-m.yml on self-hosted secret SELF_KEY"
 // input: the author opens Change for each
-// expect: the runner, the runner's label and the secret are read back from the route — gpu / GPU_KEY, the server's own runner / OLD_KEY,
-//   and, for the earlier self-hosted form, the label self-hosted (the label every self-hosted runner has) / SELF_KEY — and the route
-//   preview shows each in the schema's form
+// expect: the runner, the runner's label and the secret are read back from the route — gpu / GPU_KEY, the server's own runner / OLD_KEY, and, for the earlier self-hosted form, the label self-hosted (the label every self-hosted runner has) / SELF_KEY — and the route preview shows each in the schema's form
 test("participants — Change reads a CI agent's route in the schema's form and in the form saved earlier", async (t) => {
   const row = (name, route) => `| ${name} | CI agent | gpt-5 | — | — | draft text, read the repository | lab machine | ${route} |`;
   const register = `${EMPTY_PARTICIPANTS}${[

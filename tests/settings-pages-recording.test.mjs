@@ -148,11 +148,9 @@ const tick = async (page) => { const box = one(page.line, "settings-recording-ac
 
 // TST-511001 · level: unit · module: MOD-settings-pages
 // guards: UC-042; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
-// given: instance repositories whose switch file docs/conversation-recording.md holds `recording: on`, holds `recording: off`, holds
-//   front matter without the key recording, or does not exist
+// given: instance repositories whose switch file docs/conversation-recording.md holds `recording: on`, holds `recording: off`, holds front matter without the key recording, or does not exist
 // input: the Settings page is rendered for each
-// expect: the line states "Recording conversations is on." for the first and "Recording conversations is off." for the other three; for
-//   the first Switch off is shown and Switch on is not; for the other three Switch on is shown and Switch off is not
+// expect: the line states "Recording conversations is on." for the first and "Recording conversations is off." for the other three; for the first Switch off is shown and Switch on is not; for the other three Switch on is shown and Switch off is not
 test("the line shows on only for the switch file with recording: on, and off for off, a missing key and a missing file", async () => {
   const cases = [
     [file("recording: on\n"), "on"], [file("recording: off\n"), "off"], [file("note: x\n"), "off"], [undefined, "off"],
@@ -221,12 +219,9 @@ test("the notice states the three statements of UC-042 step 3", async () => {
 
 // TST-511004 · level: unit · module: MOD-settings-pages
 // guards: SWITCHING CONVERSATION RECORDING ON STATES WHAT FOLLOWS; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
-// given: an instance whose server reports it public; the products https://github.com/fixture/pub (public, with a token of its own, ghp_PUB), https://github.com/fixture/priv
-//   (private, without a token of its own, so read with the instance's ghp_INSTANCE), https://github.com/fixture/broken (its server answers 500)
+// given: an instance whose server reports it public; the products https://github.com/fixture/pub (public, with a token of its own, ghp_PUB), https://github.com/fixture/priv (private, without a token of its own, so read with the instance's ghp_INSTANCE), https://github.com/fixture/broken (its server answers 500)
 // input: the person presses Switch on
-// expect: the paragraph of the repositories reported as public names fixture/instance and https://github.com/fixture/pub and does not name priv or broken; the paragraph of the
-//   repositories whose visibility is not known names https://github.com/fixture/broken, says "visibility not known", and does not name pub, priv or the instance; the page asked
-//   pub with "Bearer ghp_PUB" and priv with "Bearer ghp_INSTANCE"
+// expect: the paragraph of the repositories reported as public names fixture/instance and https://github.com/fixture/pub and does not name priv or broken; the paragraph of the repositories whose visibility is not known names https://github.com/fixture/broken, says "visibility not known", and does not name pub, priv or the instance; the page asked pub with "Bearer ghp_PUB" and priv with "Bearer ghp_INSTANCE"
 test("the notice names the instance and each product its server reports as public, an unreadable one as visibility not known, a private one not at all", async () => {
   installServers({ pub: "public", priv: "private" });
   const page = await open({

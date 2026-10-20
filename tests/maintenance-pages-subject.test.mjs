@@ -50,8 +50,7 @@ async function mailRouteRead(f) {
 
 // TST-510001 · level: unit · module: MOD-maintenance-pages
 // guards: THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL; MAIL STAYS IN THE MAILBOX; UC-049
-// given: the route mail after Read mailbox, one mail listed with an attachment; a mailbox that allows the place "this machine"; participants: local-llm (this machine, draft text), cli-writer (this machine, also write to the repository), cloud-llm (a provider in the USA),
-//        and a person with no place
+// given: the route mail after Read mailbox, one mail listed with an attachment; a mailbox that allows the place "this machine"; participants: local-llm (this machine, draft text), cli-writer (this machine, also write to the repository), cloud-llm (a provider in the USA), and a person with no place
 // input: the subject's paramsFor for each
 // expect: for local-llm the page holds the mail's identifier, sender (name and address), subject, date, text and the attachment's name and text; for each of the others only the identifier, none of the rest; the subject is of the kind converse and refuses propose-edit and hand-over
 test("the page of the route mail holds a mail's text only for a participant at an allowed place that does not write", async () => {

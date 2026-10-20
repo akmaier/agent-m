@@ -79,14 +79,10 @@ async function newVersion(page, version) {
 
 // TST-705003 · level: unit · module: MOD-settings-pages
 // guards: UC-016; A LIVING SOURCE IS PINNED; A SOURCE VERSION IS NEVER OVERWRITTEN; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION
-// given: SRC-guide, a repository source (identifier https://github.com/erin/guide) registered with its version 2026-10-01 read at the commit 96210fa4…; the repository now stands at a newer commit, 240ddc98…; the
-// token of erin/guide stored
+// given: SRC-guide, a repository source (identifier https://github.com/erin/guide) registered with its version 2026-10-01 read at the commit 96210fa4…; the repository now stands at a newer commit, 240ddc98…; the token of erin/guide stored
 // input: render library/SRC-guide; press + New version; type the version 2026-11-01 and the same date; choose no file; press Save new version
 // expect: the panel offers no field for files; its statement reads "Becomes public: the register entry, always, in the instance repository akmaier/agent-m. No file is stored: the commit
-// https://github.com/erin/guide stands at when you save is recorded."; one commit in the instance and none in erin/guide, holding exactly docs/sources/SRC-guide.md, made with the instance's token, its message
-// "New version 2026-11-01 of SRC-guide (Agent M dashboard)"; the entry keeps the row of 2026-10-01 line for line and has the row `| `2026-11-01` | 2026-11-01 | - | https://github.com/erin/guide commit
-// 240ddc98fbd96ee987230e72d664cfd892e6574e | …`; the result reads "✓ 2026-11-01 is recorded for SRC-guide: committed to akmaier/agent-m."; the entry lists 2026-10-01 and 2026-11-01, the second
-// "read from https://github.com/erin/guide commit 240ddc98fbd96ee987230e72d664cfd892e6574e"; erin/guide was read with its own token and written nowhere
+// https://github.com/erin/guide stands at when you save is recorded."; one commit in the instance and none in erin/guide, holding exactly docs/sources/SRC-guide.md, made with the instance's token, its message "New version 2026-11-01 of SRC-guide (Agent M dashboard)"; the entry keeps the row of 2026-10-01 line for line and has the row `| `2026-11-01` | 2026-11-01 | - | https://github.com/erin/guide commit 240ddc98fbd96ee987230e72d664cfd892e6574e | …`; the result reads "✓ 2026-11-01 is recorded for SRC-guide: committed to akmaier/agent-m."; the entry lists 2026-10-01 and 2026-11-01, the second "read from https://github.com/erin/guide commit 240ddc98fbd96ee987230e72d664cfd892e6574e"; erin/guide was read with its own token and written nowhere
 test("new version — a repository source records the commit the repository stands at now, with no file", async (t) => {
   const page = await open(t, { newer: true });
   await click(one(page.target, "library-new-version"));

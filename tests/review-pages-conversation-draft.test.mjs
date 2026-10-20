@@ -103,12 +103,9 @@ test("draft — a changed identifier the loop left is restored before the editor
 
 // TST-507043 · level: component · module: MOD-review-pages
 // guards: UC-019; A FINDING READS LIKE A COMPILER MESSAGE
-// given: the draft of UC-007 with two findings left by the loop: the error "UC-007:2: id changed from UC-007 to UC-043 [AN EDITED FILE KEEPS ITS IDENTIFIER]" with the fix "keep UC-007", and the warning "UC-007:12:
-//   realises \"EXPORT AS PDF\" matches no requirement [A USE CASE REALISES NAMED REQUIREMENTS]" with the fix "use an existing name or remove the line"
+// given: the draft of UC-007 with two findings left by the loop: the error "UC-007:2: id changed from UC-007 to UC-043 [AN EDITED FILE KEEPS ITS IDENTIFIER]" with the fix "keep UC-007", and the warning "UC-007:12: realises \"EXPORT AS PDF\" matches no requirement [A USE CASE REALISES NAMED REQUIREMENTS]" with the fix "use an existing name or remove the line"
 // input: the route draft
-// expect: the list of the findings left holds two items, in this order and each exactly one line of the one fixed text form, the artifact and the line first, then the kind, the finding, the rule in brackets and the fix:
-//   `UC-007:2: error: id changed from UC-007 to UC-043 [AN EDITED FILE KEEPS ITS IDENTIFIER] — keep UC-007.` and
-//   `UC-007:12: warning: realises "EXPORT AS PDF" matches no requirement [A USE CASE REALISES NAMED REQUIREMENTS] — use an existing name or remove the line.`
+// expect: the list of the findings left holds two items, in this order and each exactly one line of the one fixed text form, the artifact and the line first, then the kind, the finding, the rule in brackets and the fix: `UC-007:2: error: id changed from UC-007 to UC-043 [AN EDITED FILE KEEPS ITS IDENTIFIER] — keep UC-007.` and `UC-007:12: warning: realises "EXPORT AS PDF" matches no requirement [A USE CASE REALISES NAMED REQUIREMENTS] — use an existing name or remove the line.`
 test("draft — each finding left is shown in the one fixed text form of a compiler message", async () => {
   const error = finding({ artifact: "UC-007", line: 2, kind: "error", rule: "AN EDITED FILE KEEPS ITS IDENTIFIER", what: "id changed from UC-007 to UC-043", fix: "keep UC-007" });
   const warning = finding({ artifact: "UC-007", line: 12, kind: "warning", rule: "A USE CASE REALISES NAMED REQUIREMENTS", what: "realises \"EXPORT AS PDF\" matches no requirement", fix: "use an existing name or remove the line" });
@@ -298,12 +295,9 @@ const proposalsOf = (fake) => written(fake).flatMap((change) => change.files).fi
 
 // TST-507029 · level: component · module: MOD-review-pages
 // guards: UC-019; A CONFLICT IS DECIDED BY A PERSON; A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT; THE ROUNDS ARE COUNTED AND SHOWN
-// given: the draft of a change of A LOAN HAS A DUE DATE: the requirement changed (class change, of itself), A MEMBER CAN RENEW ONCE (new) and THE DUE DATE MAY BE HIDDEN (a conflict with A LOAN HAS A DUE
-//   DATE); the person's source SRC-alice (authority informative); one round
+// given: the draft of a change of A LOAN HAS A DUE DATE: the requirement changed (class change, of itself), A MEMBER CAN RENEW ONCE (new) and THE DUE DATE MAY BE HIDDEN (a conflict with A LOAN HAS A DUE DATE); the person's source SRC-alice (authority informative); one round
 // input: the route draft
-// expect: three candidates, each with its class — change, new, conflict —; the first beside the requirement it refers to, "Every loan states the date by which the book is returned." with the
-//   difference to the drafted rule; the conflict beside the same requirement with the source "SRC-alice (informative)"; the composed section "## 1. Lending" with the changed rule and the new
-//   requirement and without the conflict's rule; "Correction rounds: 1"; one Save and one Discard; nothing written
+// expect: three candidates, each with its class — change, new, conflict —; the first beside the requirement it refers to, "Every loan states the date by which the book is returned." with the difference to the drafted rule; the conflict beside the same requirement with the source "SRC-alice (informative)"; the composed section "## 1. Lending" with the changed rule and the new requirement and without the conflict's rule; "Correction rounds: 1"; one Save and one Discard; nothing written
 test("draft — requirements are shown with their classes, beside the requirement each refers to, a conflict kept out of the composed section", async () => {
   const fake = fakeProduct();
   const { target } = await showRequirements(fake);

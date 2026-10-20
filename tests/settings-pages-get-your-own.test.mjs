@@ -187,11 +187,9 @@ test("get-your-own — typing the GitHub name fills the links of Steps 2 to 4, a
 
 // TST-587010 · level: unit · module: MOD-settings-pages
 // guards: UC-014; EVERY STEP EXPLAINS ITSELF
-// given: known positive — explain("repository") is a folded details of class explain; the frame's topics get-your-own-fork, get-your-own-pages, get-your-own-actions and
-//   get-your-own-open, each non-empty
+// given: known positive — explain("repository") is a folded details of class explain; the frame's topics get-your-own-fork, get-your-own-pages, get-your-own-actions and get-your-own-open, each non-empty
 // input: render the route get-your-own with owner = acme; read the folded explanations of each step
-// expect: each of the four steps holds exactly one <details class="explain">, folded, which is the frame's explain of its own topic: Step 1 get-your-own-fork, Step 2
-//   get-your-own-pages, Step 3 get-your-own-actions, Step 4 get-your-own-open; none is built by the route
+// expect: each of the four steps holds exactly one <details class="explain">, folded, which is the frame's explain of its own topic: Step 1 get-your-own-fork, Step 2 get-your-own-pages, Step 3 get-your-own-actions, Step 4 get-your-own-open; none is built by the route
 test("get-your-own — every step carries the frame's folded explanation of its topic", async () => {
   assert.equal(explain("repository").localName, "details", "known positive: the frame gives a folded explanation for a topic it holds");
   const topics = ["get-your-own-fork", "get-your-own-pages", "get-your-own-actions", "get-your-own-open"];

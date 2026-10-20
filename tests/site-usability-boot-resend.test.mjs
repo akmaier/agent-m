@@ -104,8 +104,7 @@ test("TST-930005: a Page.navigate that is never answered ends the wait at its li
 
 // The commands the boot sets before the first route is drawn: the page domain of the window, and what each check sets in the window.
 // TST-930006 · level: unit · module: MOD-site-frame
-// given: a page whose first call of the method is never answered, for each of Page.enable, Page.addScriptToEvaluateOnNewDocument and
-//   Emulation.setDeviceMetricsOverride
+// given: a page whose first call of the method is never answered, for each of Page.enable, Page.addScriptToEvaluateOnNewDocument and Emulation.setDeviceMetricsOverride
 // input: configure(page, method, {}, { answerWithin: 100, limit: 5000 })
 // expect: configure returns the answer {}; the method was sent exactly twice
 for (const method of ["Page.enable", "Page.addScriptToEvaluateOnNewDocument", "Emulation.setDeviceMetricsOverride"]) {
