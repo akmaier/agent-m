@@ -380,7 +380,7 @@ test("#backlog — every table stands in a box of its own that scrolls sideways"
   const html = page.main();
   const tables = html.match(/<table\b/g) ?? [];
   assert.equal(tables.length, 4, "known positive: team1's sprint, the plan, the held items and the backlog each show a table");
-  const boxes = [...html.matchAll(/<div class="([\w-]+)">\s*<table\b[\s\S]*?<\/table>\s*<\/div>/g)].map(([, name]) => name);
+  const boxes = [...html.matchAll(/<div class="([\w-]+)"(?: tabindex="0")?>\s*<table\b[\s\S]*?<\/table>\s*<\/div>/g)].map(([, name]) => name);
   assert.equal(boxes.length, tables.length, `every table stands alone in a box: ${boxes.length} of ${tables.length}`);
   const sheets = linkedSheets().filter((path) => path.startsWith("src/")).map(read).join("\n");
   assert.match(sheets, /\.menu\s*\{[^}]*overflow-x:\s*auto/, "known positive: the menu scrolls sideways on a phone");
