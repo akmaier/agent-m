@@ -9,7 +9,7 @@
 //
 // This imports the shared small DOM of tests/site-frame-dom.mjs unchanged, as the other tests of the views do, and calls the public trace/specification route with a Host of the test's own that keeps to
 // MOD-repository-hosts' interface (repositoryInfo, readSnapshot) and has no write. Where the file leaves a reading open, the test states the one it takes, and the pull request names it:
-//   - The link is one anchor with the text "Arrange" and the class arrange-link, to #arrange/requirements, in the address form the frame reads (the other links of the view to the review pages are such anchors).
+//   - The link is one anchor with the text "Arrange" and the class arrange-link, to #arrange/kind=requirements, which is the address form the frame reads for the review pages' route `arrange/<group kind>` (routeOf takes the parts after the name as key=value, and the route arrange reads its parameter `kind`: a link to #arrange/requirements would open the page that asks which kind).
 //   - The default branch is on view when the route's `ref` is the branch the Host's repositoryInfo names as the default (as tests/trace-pages-edit-links.test.mjs reads it); a tag is not.
 // Each test states its input and its expected result before it runs; where a test expects the link to be absent, the same page is first shown to hold it. The counter-proofs are recorded in the pull request.
 
@@ -52,11 +52,11 @@ const links = (target, className) => find(target, (node) => node.localName === "
 // guards: ARTIFACTS ARE ARRANGED IN NESTED GROUPS; UC-021 (step 1)
 // given: the specification of a library on the default branch main
 // input: the public trace/specification route rendered at the ref main
-// expect: one anchor "Arrange" of the class arrange-link, to #arrange/requirements
-test("TST-737001 the specification view on the default branch links Arrange to arrange/requirements", async () => {
+// expect: one anchor "Arrange" of the class arrange-link, to #arrange/kind=requirements
+test("TST-737001 the specification view on the default branch links Arrange to arrange/requirements (#arrange/kind=requirements)", async () => {
   const target = await render(host(), "main");
   const arrange = links(target, "arrange-link");
-  assert.deepEqual(arrange.map((node) => [node.textContent, node.getAttribute("href")]), [["Arrange", "#arrange/requirements"]]);
+  assert.deepEqual(arrange.map((node) => [node.textContent, node.getAttribute("href")]), [["Arrange", "#arrange/kind=requirements"]]);
 });
 
 // TST-737002 · level: unit · module: MOD-trace-pages
