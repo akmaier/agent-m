@@ -8,6 +8,7 @@ realises:
   - SEVERAL FILES ARE ACCEPTED IN ONE CLICK
 modules:
   - MOD-review-pages
+  - MOD-approvals
 builds_on:
   - ITM-729
 tests:
