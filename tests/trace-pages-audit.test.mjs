@@ -480,3 +480,28 @@ test("a row with no test links no run", async () => {
   const without = await render(productHost({ links: false }));
   assert.equal(withClass(rowOf(without, R3), "audit-run-unavailable").length, 0);
 });
+
+// TST-658002 · level: component · module: MOD-trace-pages
+// guards: UC-020 (2a); EVERY STEP EXPLAINS ITSELF
+// given: a product whose listTags fails with a plain error; and one whose listTags fails as a Host does when the repository is not found, in a context that says no token is stored
+// input: Route.render with the key "audit"
+// expect: the page says "The tags could not be read: This page could not be drawn: tags unavailable" and never that no release is tagged; for the Host's failure without a stored token it names the private or missing repository and offers "Store a token"; it draws no row
+// Planted fault: reading a failed listTags as no tags makes the page say that no release is tagged.
+test("a failed listTags is named through the frame in the audit view, never read as no release", async () => {
+  const { HostError } = await import("../src/repository-hosts/index.mjs");
+  const drawn = async (failure, product) => {
+    const target = document.createElement("div");
+    document.body.append(target);
+    const host = { ...productHost(), async listTags() { throw failure; } };
+    await route.render(target, { product: { address: ADDRESS, host, ...product }, instance: { host: instanceHost() } }, { key: "audit", ref: TAG });
+    return target;
+  };
+  const plain = await drawn(new Error("tags unavailable"), {});
+  assert.match(plain.textContent, /The tags could not be read: This page could not be drawn: tags unavailable/);
+  assert.doesNotMatch(plain.textContent, /No release is tagged/);
+  assert.equal(rows(plain).length, 0);
+  const missing = await drawn(new HostError("NotFound", {}, "Not Found"), { tokenStored: false });
+  assert.match(missing.textContent, /The tags could not be read: This repository is private or does not exist/);
+  assert.equal(withClass(missing, "token-step").length, 1);
+  assert.doesNotMatch(missing.textContent, /No release is tagged/);
+});
