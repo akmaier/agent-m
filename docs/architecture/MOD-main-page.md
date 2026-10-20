@@ -110,8 +110,10 @@ once, when the page is drawn, and never again (UC-046 4b). It stores nothing bet
     below the cards, what waits for a person across the instance, each item linked to the page where it is decided.
     A card first reads the overview stored for its default branch's head (MOD-progress-measures' `storedOverview`, one
     request). Where there is one, its stage bar and what waits come from it, and only the build is read, with
-    `productFacts`' scope `build`. Where there is none, the card reads the scope `all` as before. The stored overview is a
-    record of the repository, derived from that commit alone by `onMainChanged` (MOD-workflow-entries), never kept in the
+    `productFacts`' scope `build`. Where there is none, the card reads the scope `all` as before. Without a token and
+    without facts stored for the head (`storedFacts`), that reading costs one request per test file of the default
+    branch (MOD-progress-measures' `stageShares`); that cost is accepted. The stored overview is a record of the
+    repository, derived from that commit alone by `onMainChanged` (MOD-workflow-entries), never kept in the
     browser. The rows of the build are the same whether the stage bar comes from a stored overview or from the scope `all`.
   - `jobs` — every job of every product and of the instance in one list — the job of this tab's conversation in the
     prompt bar among them, which has no record and is shown as this tab's (`currentJob`) —, waiting at a gate first, filtered by product,

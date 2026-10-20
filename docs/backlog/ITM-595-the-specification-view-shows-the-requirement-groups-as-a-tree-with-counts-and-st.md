@@ -47,3 +47,9 @@ UC-020 steps 2, 3 and 3a: "the groups of `docs/groups/requirements.md` … a sta
 - Each group shows how many it holds and how many no use case realises.
 - An unknown member is shown as such.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Stopped at its first task (sprint team1/99, developer-sonnet-c):** the accepted text does not say where *+ Requirement*
+stands once the view is a tree of groups. The way chosen (po-opus): way 2, one *+ Requirement* per SPEC section beside the
+tree, as today. The draft of MOD-trace-pages.md is by developer-sonnet-c. The item waits for its acceptance.
+
+**The draft is on `main` as `5bac6f66`** (MOD-trace-pages, by developer-sonnet-c). The item waits for its acceptance.

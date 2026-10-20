@@ -43,3 +43,5 @@ stop and name the gap, which is then a draft for akmaier (AGENTS.md §6a.6).
 on the draft route holds the participant's answer. Recording off, it would be written into the job record (SPEC.md:1762-1764).
 The draft of MOD-prompt-bar.md, by developer-sonnet-d, has the job take only the subject's `source`. The item waits for
 its acceptance.
+
+**The draft is on `main` as `58a09eb0`** (MOD-prompt-bar, by developer-sonnet-d): the job takes only the subject's `source`. The item waits for its acceptance.
