@@ -26,6 +26,7 @@ import { explain, readProblem } from "../site-frame/index.mjs";
 import { componentDiagram } from "./diagram.mjs";
 import { descriptorFor } from "./views.mjs";
 import { showTests } from "./tests.mjs";
+import { drawAudit } from "./audit.mjs";
 import { instanceSnapshot, opening, personsSource, subjectOf } from "./subject.mjs";
 
 const SPEC_PATH = "SPEC.md";
@@ -776,6 +777,10 @@ export const route = {
     const host = context.product.host;
     if (descriptor.key === "modules") {
       await drawModules(target, context, host, params.ref, descriptor);
+      return;
+    }
+    if (descriptor.key === "audit") {
+      await drawAudit(target, context, host, params.ref, descriptor, (await tagsOf(host)).filter((tag) => RELEASE.test(tag)));
       return;
     }
     const handed = params.ref;
