@@ -9,22 +9,20 @@
 //
 // Module: MOD-implementation-pages
 //
-// What a render reads, through the product's host: the declaration docs/process.md; the role assignments under docs/role-assignments/, which name the teams; every
-// team's sprints under docs/backlog/sprints/<team>/; every item under docs/backlog/; the SPEC, which names the accepted requirements; the approval statuses of the use cases (MOD-approvals' statuses, which read no file); in a
-// product with several teams, the architecture's module files; the product's pull requests, of which those into the default branch or into a sprint's branch count; and, through the instance's host, the catalogue of
-// process models, in which the model the declaration names is found by its file. MOD-work-plans decides each item's state (itemStates, from the pull requests, the approval statuses and the requirements the SPEC
-// holds), what the sprints hold (heldItems), what keeps an item from a team (conflicts) and how a sprint starts (startSprint); MOD-progress-measures derives each team's sprint and its burn-down (progressIn).
+// What a render reads: the facts of the product, which MOD-progress-measures' productFacts gives with the scope `work` — the declaration docs/process.md, the role assignments under docs/role-assignments/, which name the teams,
+// every team's sprints under docs/backlog/sprints/<team>/, every item under docs/backlog/, the approval statuses (MOD-approvals' statuses, which read no file), the product's pull requests, and the model the declaration names as the
+// instance's catalogue held it at the commit its model_version names; where the facts of the commit are stored they are taken from the store and none of those files is read. Besides: the SPEC, which names the accepted requirements,
+// and, in a product with several teams, the architecture's module files — from the stored facts' lists, or from the files. Of the pull requests those into the default branch or into a sprint's branch count. MOD-work-plans decides
+// each item's state (itemStates, from the pull requests, the approval statuses and the requirements the SPEC holds), what the sprints hold (heldItems), what keeps an item from a team (conflicts) and how a sprint starts
+// (startSprint); MOD-progress-measures derives each team's sprint and its burn-down (progressIn). A model version the instance cannot read is named on the page (modelUnread); the catalogue as it stands now is not used instead.
 // Readings the texts leave open, which this file takes: a requirement named in the SPEC is accepted — the approval statuses MOD-work-plans' itemStates reads hold the reviewed files only, so the route adds the SPEC's
-// requirements to them; a model is found in the catalogue by the file the declaration names, as the route `roles` finds it; after Start sprint the route draws itself again, and the frame's host serves the snapshot the commit made.
+// requirements to them; the model is the one productFacts gives, found in the catalogue by the file the declaration names; after Start sprint the route draws itself again, and the frame's host serves the snapshot the commit made.
 
-import { statuses } from "../approvals/index.mjs";
 import { artifactSchemas, readDocument } from "../documents/index.mjs";
 import { renderArtifact, renderMermaid } from "../markdown-render/index.mjs";
-import { catalogue } from "../model-catalogue/index.mjs";
-import { declarationSchema, roleAssignmentSchema } from "../product-process/index.mjs";
-import { progressIn } from "../progress-measures/index.mjs";
+import { productFacts, progressIn, storedFacts } from "../progress-measures/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
-import { conflicts, heldItems, itemStates, planSchemas, startSprint } from "../work-plans/index.mjs";
+import { conflicts, heldItems, itemStates, startSprint } from "../work-plans/index.mjs";
 
 const DECLARATION = "docs/process.md";
 const ITEM_FILE = /^docs\/backlog\/(ITM-\d{3,})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
@@ -49,48 +47,61 @@ const byNumber = (a, b) => numberOf(a) - numberOf(b) || (a < b ? -1 : a > b ? 1 
 
 // ---------------------------------------------------------------- reading
 
-// What the route needs besides the pull requests: the declaration and its model, the teams, their sprints, the items, the modules, and what is accepted.
+// What the route needs besides the pull requests: the declaration and its model, the teams, their sprints, the items, the modules, and what is accepted. The facts are MOD-progress-measures' productFacts with the scope `work`:
+// where the facts of the commit are stored they are taken from the store and none of the files they come from is read; otherwise the files are read in batches. The requirements and the module files, which Facts does not carry,
+// come from the stored facts' lists, or from the files.
 export async function contextOf(context) {
   const { product, instance } = context;
-  // The branch the page has read, where the caller says which it is; else the default branch the repository reports.
+  // The product's host as productFacts reads it: the branch the page has read, where the caller says which it is (else the default branch the repository reports), and each snapshot read once — the instance's too, where
+  // the product is the instance.
+  const shots = new Map();
+  // A snapshot that asks the branch of the stored facts once, whoever asks.
+  const once = (snapshot) => {
+    if (typeof snapshot.readOn !== "function") return snapshot;
+    const asked = new Map();
+    return { ...snapshot, readOn: (branch, path) => { const key = `${branch}\n${path}`; if (!asked.has(key)) asked.set(key, snapshot.readOn(branch, path)); return asked.get(key); } };
+  };
+  const reading = (host, ref) => {
+    const own = Object.create(host);
+    const set = (name, value) => Object.defineProperty(own, name, { value, writable: true, configurable: true, enumerable: true });
+    if (ref) set("repositoryInfo", async () => ({ defaultBranch: ref }));
+    set("readSnapshot", (at) => { if (!shots.has(at)) shots.set(at, host.readSnapshot(at).then(once)); return shots.get(at); });
+    return own;
+  };
   const ref = product.ref ?? (await product.host.repositoryInfo()).defaultBranch;
-  const snapshot = await product.host.readSnapshot(ref);
-  const paths = (re) => snapshot.paths.filter((path) => re.test(path)).sort();
-  const modulePaths = paths(MODULE_FILE);
-  const wanted = [DECLARATION, "SPEC.md", ...paths(ITEM_FILE), ...paths(SPRINT_FILE), ...paths(ASSIGNMENT_FILE)].filter((path) => snapshot.paths.includes(path));
-  const teamNames = new Set([...paths(ASSIGNMENT_FILE).map((path) => ASSIGNMENT_FILE.exec(path)[1]), ...paths(SPRINT_FILE).map((path) => SPRINT_FILE.exec(path)[1])]);
-  await snapshot.readMany?.([...wanted, ...(teamNames.size > 1 ? modulePaths : [])]);
-  const readAll = (list_, schema) => Promise.all(list_.map(async (path) => readDocument(schema, path, (await snapshot.read(path)) ?? "")));
-  const [declarationText, specText] = await Promise.all([snapshot.read(DECLARATION), snapshot.read("SPEC.md")]);
-  const declaration = declarationText !== null ? readDocument(declarationSchema, DECLARATION, declarationText) : null;
+  const host = reading(product.host, product.ref);
+  const same = instance.host === product.host;
+  const instanceHost = same ? host : instance.host;
+  const instanceSnapshot = same ? await host.readSnapshot(ref) : await instanceHost.readSnapshot((await instanceHost.repositoryInfo()).defaultBranch);
+  const facts = await productFacts(host, instanceSnapshot, (commit) => instanceHost.readSnapshot(commit), new Date(), { scope: "work" });
+  const snapshot = facts.snapshot;
+  const { declaration, assignments, sprints } = facts;
+  const items = facts.plan.items.filter((doc) => ITEM_FILE.test(text(doc.path)));
   const modelFile = text(declaration?.fields?.model_file) || null;
-  const [assignments, sprints, items] = await Promise.all([readAll(paths(ASSIGNMENT_FILE), roleAssignmentSchema), readAll(paths(SPRINT_FILE), planSchemas.sprint),
-    readAll(paths(ITEM_FILE), artifactSchemas().item)]);
+  // The model as the instance held it at the commit the declaration's model_version names (UC-031 step 6a); where that cannot be read, none — and the page says so (modelUnread), never today's catalogue.
+  const model = facts.model !== null && typeof facts.model === "object" ? facts.model : null;
   const teams = [...new Set([...assignments.map((a) => ASSIGNMENT_FILE.exec(a.path)?.[1]), ...sprints.map((s) => SPRINT_FILE.exec(s.path)?.[1])].filter(Boolean))];
-  const modules = teams.length > 1 ? await readAll(modulePaths, artifactSchemas().module) : [];
-  // The instance is read for the model the declaration names, and for that file only, as it stood at the commit the declaration's model_version names (UC-031 step 6a); where that is not named or cannot be read, as it stands now.
-  const declaredCommit = text(declaration?.fields?.model_version);
-  const instanceNow = async () => (instance.host === product.host ? snapshot : instance.host.readSnapshot((await instance.host.repositoryInfo()).defaultBranch));
-  const instanceSnapshot = declaredCommit ? await instance.host.readSnapshot(declaredCommit).catch(instanceNow) : await instanceNow();
-  const onlyThat = { paths: instanceSnapshot.paths.filter((path) => path === modelFile), read: (path) => instanceSnapshot.read(path), blob: (path) => instanceSnapshot.blob(path) };
-  const model = modelFile ? ((await catalogue(onlyThat)).models.find((each) => each.path === modelFile) ?? null) : null;
+  const stored = await storedFacts(snapshot);
+  const modulePaths = snapshot.paths.filter((path) => MODULE_FILE.test(path)).sort();
+  const modules = teams.length < 2 ? [] : stored ? stored.modules
+    : await Promise.all(modulePaths.map(async (path) => readDocument(artifactSchemas().module, path, (await snapshot.read(path)) ?? "")));
   const newest = new Map();
   for (const record of sprints) {
     const [, team, nn] = SPRINT_FILE.exec(record.path);
     if (!newest.has(team) || Number(nn) > Number(newest.get(team).nn)) newest.set(team, { record, nn, name: `${team}/${nn}` });
   }
   items.sort((a, b) => byNumber(idOf(a), idOf(b)));
-  const requirements = [...parseSpec(specText ?? "").requirements.keys()];
-  const reviewed = statuses(snapshot);
+  const requirements = stored ? stored.requirements : [...parseSpec((await snapshot.read("SPEC.md")) ?? "").requirements.keys()];
+  const reviewed = facts.statuses;
   const useCases = [...reviewed.values()].filter((entry) => entry.kind === "use-case" && entry.status === "accepted").map((entry) => entry.id);
-  return { ref, snapshot, declaration, modelFile, model, assignments, sprints, items, modules, teams, newest, requirements, useCases, reviewed };
+  return { ref, snapshot, facts, declaration, modelFile, model, modelUnread: facts.modelUnread, assignments, sprints, items, modules, teams, newest, requirements, useCases, reviewed };
 }
 
-// The pull requests the page derives from, in one listing of all of them: an item's hold can outlast its sprint, and an item can be done before any sprint ran. Only those into the default branch or into the branch of a
+// The pull requests the page derives from, in one listing of all of them (the facts hold it): an item's hold can outlast its sprint, and an item can be done before any sprint ran. Only those into the default branch or into the branch of a
 // sprint count, whatever else the server answers.
 async function pullRequestsOf(context, ctx) {
   const bases = new Set([ctx.ref, ...ctx.sprints.map((sprint) => text(sprint.fields.branch)).filter(Boolean)]);
-  const found = await context.product.host.listPullRequests();
+  const found = ctx.facts.pullRequests === "unknown" ? await context.product.host.listPullRequests() : ctx.facts.pullRequests;
   return found.filter((pullRequest) => bases.has(pullRequest.branchBase ?? pullRequest.base));
 }
 
@@ -336,8 +347,9 @@ async function draw(target, context) {
   const ctx = await contextOf(context);
   const d = await derivedOf(context, ctx);
   const { model } = ctx;
-  const noModel = !ctx.declaration ? `<p class="warn">This product declares no process model yet: <code>docs/process.md</code> names it (UC-002).</p>`
-    : !model ? `<p class="warn">The declaration names the model file <code>${h(ctx.modelFile ?? "—")}</code>, which the catalogue does not hold.</p>` : "";
+  const unread = ctx.modelUnread ? `<p class="warn">The model version <code>${h(ctx.modelUnread.commit)}</code> the declaration names cannot be read from the instance (${h(ctx.modelUnread.error)}), so no process model is shown.</p>` : "";
+  const noModel = unread || (!ctx.declaration ? `<p class="warn">This product declares no process model yet: <code>docs/process.md</code> names it (UC-002).</p>`
+    : !model ? `<p class="warn">The declaration names the model file <code>${h(ctx.modelFile ?? "—")}</code>, which the catalogue does not hold.</p>` : "");
   const planned = model?.kind === "planned" ? `<p class="warn">This product's model plans its work in advance: there is no backlog (UC-032 1b) — its progress is shown on <a href="#progress">Progress</a>.</p>` : "";
   const sprints = model?.flow?.sprints === true;
   const teamsPart = sprints

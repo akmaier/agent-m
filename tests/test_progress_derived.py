@@ -29,7 +29,7 @@ const item = (id, realises) => `---\nid: ${id}\ntitle: The work of ${id}\nlevel:
   `---\n# ${id} The work of ${id}\n\n## Outcome\n\nDone.\n\n## Acceptance\n\n- a unit test.\n`;
 const files = {
   "SPEC.md": "# SPEC\n\n## 1. Rules\n\n**RULE ONE** *(PO, 2026-09-01)*\nA rule.\n*Check:* no automatic check; at review.\n",
-  "docs/process.md": `---\nmodel: fixture-scrum-wip\nmodel_file: docs/process-models/fixture.md\nmodel_version: ${"a".repeat(40)}\n---\n# How\n`,
+  "docs/process.md": `---\nmodel: fixture-scrum-wip\nmodel_file: docs/process-models/fixture.md\nmodel_version: ${"c0ffee".padEnd(40, "0")}\n---\n# How\n`,
   "docs/role-assignments/team1.md": "# team1\n\n## Roles\n\n| Role | Participants |\n|---|---|\n| Owner | owner |\n| Builders | developer-x |\n",
   "docs/process-models/fixture.md": MODEL,
   "docs/backlog/sprints/team1/01.md": "---\nsprint: 1\ngoal: Derive the states\nstart: 2026-10-01\nend:\ncloser: owner\n" +
