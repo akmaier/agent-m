@@ -89,13 +89,13 @@ function driverOf(participant, connections) {
   return endpointDriver(entry.config, participant);
 }
 
-// The usage of a job: the tokens and the cost its exchanges reported, summed; null while none reported any. The cost is summed only where every reported cost is in one currency: no amount is made of two.
+// The usage of a job: the tokens and the cost its exchanges reported, summed; null while none reported any. The cost counts only where every exchange that reported usage also reported a cost, all in one currency: otherwise it is null, since a sum of some exchanges' costs is not the job's cost.
 function usageOf(exchanges) {
   const known = exchanges.map((each) => each.usage).filter(Boolean);
   if (known.length === 0) return null;
   const sum = (key) => (known.some((usage) => usage[key] !== null) ? known.reduce((total, usage) => total + (usage[key] ?? 0), 0) : null);
-  const costs = known.map((usage) => usage.cost).filter(Boolean);
-  const cost = costs.length > 0 && costs.every((each) => each.currency === costs[0].currency)
+  const costs = known.map((usage) => usage.cost);
+  const cost = costs.every(Boolean) && costs.every((each) => each.currency === costs[0].currency)
     ? { amount: costs.reduce((total, each) => total + each.amount, 0), currency: costs[0].currency } : null;
   return { inputTokens: sum("inputTokens"), outputTokens: sum("outputTokens"), minutes: null, cost };
 }
