@@ -586,7 +586,7 @@ test("Commit export is not offered without write access", async () => {
   const commits = [], { target, restore } = await renderExportable(withWrite(false, commits));
   try {
     assert.ok(buttonNamed(target, "Export"), "known positive: Export is offered");
-    assert.equal(buttonNamed(target, "Commit export"), undefined);
+    assert.equal(buttonNamed(target, "Commit export") === undefined, true, "Commit export is not on the page");
     assert.deepEqual(commits, []);
   } finally { restore(); }
 });
