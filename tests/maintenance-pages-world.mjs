@@ -61,7 +61,7 @@ const issueRecord = (number, state, mails, { comments = [], labels = [] } = {}) 
  * Returns what the fakes kept: the operations the Bridge received, the requests GitHub received, the texts the endpoint returned.
  * For the route `mail` (ITM-964): `reading` is what the Bridge's operation `read` returns; `answer(request)` is the answer of a model endpoint or of an agent on the Bridge to a request ({ origin, body }), a draft object that is wrapped as the endpoint answers; `product` adds files to the product's repository.
  */
-function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], places = [{ place: "this machine", outsideEu: false }], texts = [], send = "ok", commentStatus = null, reading = null, stateDelay = 0, answer = null, product = {} }) {
+function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], places = [{ place: "this machine", outsideEu: false }], texts = [], send = "ok", commentStatus = null, createStatus = null, reading = null, stateDelay = 0, answer = null, product = {} }) {
   const files = { ...instanceFiles(), "docs/participants.md": REGISTER(rows) };
   const productFiles = { ...smallProduct(), ...product };
   let pending = {};
@@ -76,7 +76,7 @@ function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], 
   writeSetting(context.store, "endpoint:ep1", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "model-a", key: "k1" });
   writeSetting(context.store, "endpoint:ep2", { url: "https://ep2.example.test/v1", kind: "openai-compatible", model: "model-b", key: "k2" });
   const asked = new Map();
-  const kept = { bridge: [], github: [], endpoint: [], ask: [], drafts: [...drafts], issues: issues.map((issue) => ({ ...issue })), send, commentStatus };
+  const kept = { bridge: [], github: [], endpoint: [], ask: [], drafts: [...drafts], issues: issues.map((issue) => ({ ...issue })), send, commentStatus, createStatus, created: [] };
   let nextUid = 100;
   let inner = globalThis.fetch;
   const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -126,6 +126,15 @@ function world({ mails, drafts = [], issues, rows = [LOCAL, CLOUD, NO_DRAFTER], 
     if (url.host === "api.github.com" && url.pathname.startsWith(`/repos/${PRODUCT}/issues`)) {
       kept.github.push({ method, path: url.pathname, body: init.body ?? null });
       if (method === "GET" && url.pathname === `/repos/${PRODUCT}/issues`) return json(kept.issues.map((issue) => ({ number: issue.number, title: issue.title, body: issue.body, state: issue.state, labels: issue.labels, comments: issue.comments.length, html_url: `${PRODUCT_URL}/issues/${issue.number}` })));
+      if (method === "POST" && url.pathname === `/repos/${PRODUCT}/issues`) {
+        if (kept.createStatus) return json({ message: "Resource not accessible by personal access token" }, kept.createStatus);
+        const given = JSON.parse(init.body);
+        const number = 100 + kept.created.length;
+        const made = { number, title: given.title, body: given.body, state: "open", labels: given.labels ?? [], comments: [] };
+        kept.created.push(made);
+        kept.issues.push(made);
+        return json({ number, title: made.title, body: made.body, labels: made.labels.map((name) => ({ name })), state: "open", html_url: `https://github.com/${PRODUCT}/issues/${number}` }, 201);
+      }
       const comments = /^\/repos\/alice\/product\/issues\/(\d+)\/comments$/.exec(url.pathname);
       if (method === "GET" && comments) return json((kept.issues.find((issue) => issue.number === Number(comments[1]))?.comments ?? []).map((comment) => ({ user: { login: "dev" }, body: comment, created_at: "2026-10-18T09:00:00Z" })));
       const one_ = /^\/repos\/alice\/product\/issues\/(\d+)$/.exec(url.pathname);
