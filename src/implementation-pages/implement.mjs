@@ -110,7 +110,7 @@ async function placed(holders, prepare) {
 const agentMOf = (snapshot) => ({ version: snapshot.commit ?? "unknown", commit: snapshot.commit ?? "unknown" });
 function jobContextOf(m, definition, params) {
   return { kind: definition, params, product: { address: m.ctx.snapshot.repository?.web ?? m.context.product.address, snapshot: m.ctx.snapshot, host: m.context.product.host },
-    instance: { snapshot: m.instanceSnapshot, host: m.context.instance.host, checkout: null }, connect: async () => m.context.product.host, participants: m.participants, places: { sources: {}, mailbox: null }, gates: [],
+    instance: { snapshot: m.instanceSnapshot, host: m.context.instance.host, checkout: null }, connect: async () => m.context.product.host, participants: m.participants, places: m.places, gates: [],
     person: personOf(m.context), now: new Date(), agentM: agentMOf(m.instanceSnapshot), jobId: null };
 }
 const prepareFor = (m, definition, params, participant) => prepareJob(definition.name, jobContextOf(m, definition, params), { drafter: participant, reviewers: [] });
@@ -184,13 +184,21 @@ async function drawPlan(target, context, facts, ctx, participants, workflow, m) 
     if (!jobBox) return;
     const boxes = target.querySelectorAll("[data-select-step]");
     const steps = rows.filter((row, at) => row.verdict.startable && isTickedBox(boxes[at]));
-    const holders = holdersFor();
+    const capable = holdersFor();
+    const placedBy = new Map();
+    for (const row of steps) placedBy.set(row.state.item, await placed(capable, (participant) => prepareFor(m, definitions.implement, { steps: [row.state.item] }, participant)));
+    const holdersOf = (step) => placedBy.get(step).offered;
     jobBox.innerHTML = steps.map((row) => {
       const step = row.state.item;
-      return holders.length === 0
+      const { offered: holders, withheld } = placedBy.get(step);
+      const withheldText = withheld.length ? `<p class="warn small" data-withheld-of="${h(step)}">${withheld.map(({ said }) => said.map(h).join("; ")).join("; ")}</p>` : "";
+      return capable.length === 0
         ? `<div data-job-of="${h(step)}"><h3>${h(step)}</h3><p class="warn" data-none-of="${h(step)}">No participant can write and run tests, so ${h(step)} cannot start. <a href="#participants">Declare a participant with the capabilities</a>; a model endpoint can draft a decision, not implement it.</p></div>`
+        : holders.length === 0
+        ? `<div data-job-of="${h(step)}"><h3>${h(step)}</h3><p class="warn" data-none-of="${h(step)}">No holder of the implementing role is at a place the linked sources permit for this job, so ${h(step)} cannot start.</p>${withheldText}</div>`
         : `<div data-job-of="${h(step)}"><h3>${h(step)}</h3>
           <label>Participant <select data-participant-of="${h(step)}">${holders.map((participant) => `<option value="${h(participant.name)}">${h(participant.name)}</option>`).join("")}</select></label>
+          ${withheldText}
           <p class="small" data-places-of="${h(step)}">${holders.map((participant) => `${h(participant.name)} processes data at ${h(participant.place ?? "no declared place")}`).join("; ")}</p>
           <label>Attempt limit <input type="number" data-limit-of="${h(step)}" value="${h(definitions.implement.limit)}"></label>
           <label>Merges <select data-merges-of="${h(step)}"><option value="agent">the coding agent</option><option value="person">a person</option></select></label>
@@ -203,7 +211,7 @@ async function drawPlan(target, context, facts, ctx, participants, workflow, m) 
       const step = row.state.item;
       const sent = target.querySelector(`[data-sent-of="${step}"]`);
       const draw_ = async () => {
-        const participant = holders.find((each) => each.name === choice(step, "participant")?.value) ?? holders[0];
+        const participant = holdersOf(step).find((each) => each.name === choice(step, "participant")?.value) ?? holdersOf(step)[0];
         if (!participant || !sent) return;
         const kind = choice(step, "refactor")?.checked === true ? "refactor" : "implement";
         try {
@@ -249,7 +257,8 @@ const isTicked = (box) => box !== null && box !== undefined && (box.checked === 
 // What starting jobs needs of the page: its context and facts, the participants, what the product allows of a route, and the job identifiers taken.
 async function machineryFor(context, ctx, instanceSnapshot, participants) {
   const info = await context.product.host.repositoryInfo();
-  return { context, ctx, instanceSnapshot, participants, defaultBranch: info.defaultBranch, productInfo: { visibility: info.visibility, jobWorkflow: WORKFLOWS.some((path) => ctx.snapshot.paths.includes(path)) },
+  const places = { ...(await placesOf(instanceSnapshot, ctx.snapshot.repository?.web ?? context.product.address)), mailbox: null };
+  return { context, ctx, instanceSnapshot, participants, places, defaultBranch: info.defaultBranch, productInfo: { visibility: info.visibility, jobWorkflow: WORKFLOWS.some((path) => ctx.snapshot.paths.includes(path)) },
     taken: new Set(ctx.snapshot.paths.map((path) => JOB_FILE.exec(path)?.[1]).filter(Boolean)) };
 }
 
