@@ -17,7 +17,7 @@ import { kindOf } from "../job-catalogue/index.mjs";
 import { prepareJob, writeResult } from "../job-runner/index.mjs";
 import { approvalStrategies, statuses } from "../approvals/index.mjs";
 import { differs, eligible, participantSchema, participantsOf } from "../participant-list/index.mjs";
-import { linkedVersion, permittedPlaces } from "../source-register/index.mjs";
+import { linkedVersion, restrictedPlaces } from "../source-register/index.mjs";
 import { queueJob, routesFor, runOnTab } from "../runtimes/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
 import { runPanel, explain, readProblem } from "../site-frame/index.mjs";
@@ -453,16 +453,14 @@ async function presentRequirements(outcome, result, run) {
 const ONLY_ACCEPTED = "ARCHITECTURE IS DESIGNED ONLY AGAINST ACCEPTED USE CASES";
 const NO_REVIEWER = "NO REVIEWER IS THE DRAFTER";
 
-// The places the product's linked sources allow: for each restricted source the product's links file holds a row of, the places its register entry permits.
+// The places of the restricted sources, as MOD-source-register's restrictedPlaces gives them over every entry of the instance's register: `context` is what the job's context carries, `offered` the same
+// narrowed to the sources the product links (its links file holds a row of them), which the job's parts can carry and against which the participants offered are judged.
 async function placesOf(where) {
   const { links, register } = await sourcesOf(where);
   const linked = new Set(links.sections.flatMap((section) => section.rows ?? []).map((row) => String(row.cells.Source ?? "").replaceAll("`", "")));
-  const sources = {};
-  for (const entry of register.filter((each) => linked.has(each.id))) {
-    const allowed = permittedPlaces(entry);
-    if (allowed !== "any") sources[entry.id] = allowed;
-  }
-  return { sources, mailbox: null };
+  const all = restrictedPlaces(register, where.context.product?.address ?? where.snapshot.repository?.web ?? "");
+  const context = { ...all, mailbox: null };
+  return { context, offered: { sources: Object.fromEntries(Object.entries(all.sources).filter(([id]) => linked.has(id))), mailbox: null } };
 }
 
 // What the precondition `architecture-ready` found, with the way on: to an open use case's review, to the SPEC changes to decide first, to UC-023 for an existing architecture.
@@ -494,11 +492,11 @@ function noReviewer(drafter, participants, needs, places) {
 async function showArchitectureDraft(where, kind) {
   const { target, snapshot, token, context } = where;
   target.append(el("h2", null, "Draft the architecture"), explain(kind.explain.draft.whole), link(`#${kind.route}`, null, `All ${kind.plural}`));
-  let graph, loaded, places, found, reviewing;
+  let graph, loaded, places, offeredPlaces, found, reviewing;
   try {
     graph = await traceGraph(snapshot, { commit: snapshot.commit });
     loaded = await loadStage(where, kind.draft);
-    places = await placesOf({ ...where, instanceSnapshot: loaded.instanceSnapshot });
+    ({ context: places, offered: offeredPlaces } = await placesOf({ ...where, instanceSnapshot: loaded.instanceSnapshot }));
     found = await approvalStrategies.preconditions["architecture-ready"]({ product: { snapshot, address: snapshot.repository?.web ?? "" } });
     reviewing = await kindOf(loaded.definition.reviewer);
   } catch (failure) {
@@ -513,7 +511,7 @@ async function showArchitectureDraft(where, kind) {
   covers.append(el("ul", "covered", ...requirements.map((name) => el("li", "requirement", name)), ...useCases.map((id) => el("li", "use-case", id))));
   target.append(covers, readiness(found, snapshot));
 
-  const placed = Object.entries(places.sources).map(([from, allowed]) => ({ from, allowed }));
+  const placed = Object.entries(offeredPlaces.sources).map(([from, allowed]) => ({ from, allowed }));
   const drafters = eligible(participants, { capabilities: definition.needs, places: placed }).eligible;
   const reviewable = eligible(participants, { capabilities: reviewing.needs, places: placed }).eligible;
   const offered = participantList(drafters, participants, product, needs);
@@ -524,7 +522,7 @@ async function showArchitectureDraft(where, kind) {
     const drafter = drafterChosen();
     reviewers.replaceChildren();
     if (!drafter) reviewers.append(el("p", "none", "Choose the drafting participant first; the reviewer must use another model."));
-    else if (reviewersFor(drafter).length === 0) reviewers.append(el("p", "no-reviewer", noReviewer(drafter, participants, reviewing.needs, places)));
+    else if (reviewersFor(drafter).length === 0) reviewers.append(el("p", "no-reviewer", noReviewer(drafter, participants, reviewing.needs, offeredPlaces)));
     else reviewers.append(participantList(reviewersFor(drafter), participants, product, needs, "reviewer"));
   }
   for (const box of inputsOf(offered, "participant")) box.addEventListener("change", showReviewers);
@@ -547,7 +545,7 @@ async function showArchitectureDraft(where, kind) {
     if (candidates.length && !reviewer) { stage.append(el("p", "problem", "Choose the participant that reviews.")); return; }
     // An open SPEC change is a warning the person decides on: the page names it, and Run is still offered. A missing reviewer keeps Run from being offered.
     const relax = (prepared) => ({ ...prepared, blocking: [...prepared.blocking.filter((each) => each.kind === "error"), ...(reviewer ? [] : [{ artifact: "docs/participants.md", line: 1,
-      kind: "error", rule: NO_REVIEWER, what: noReviewer(chosen, participants, reviewing.needs, places), fix: "declare a participant that can draft text and uses another model" }])] });
+      kind: "error", rule: NO_REVIEWER, what: noReviewer(chosen, participants, reviewing.needs, offeredPlaces), fix: "declare a participant that can draft text and uses another model" }])] });
     await panelOf({ ...where, definition, kind, jobKind: kind.draft, params: {}, worksOn: [...requirements, ...useCases], present: presentDerivation, chosen,
       reviewers: reviewer ? [reviewer] : [], places, relax, participants, instanceSnapshot, product, needs, stage });
   });

@@ -14,7 +14,6 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { restrictedPlaces } from "../src/prompt-bar/places.mjs";
 import { prepareMessage } from "../src/prompt-bar/send.mjs";
 import { tools } from "../src/job-runner/tools.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
@@ -23,35 +22,15 @@ import { freshStore } from "./settings-pages-setup.d/dom.mjs";
 // The strategy of another module that the kind `converse` names.
 registerStrategies("tests/prompt-bar-places.test.mjs", { recipes: { "chapters-for-page": async () => [] } });
 
-const entry = (id, licence, places = []) => ["---", `id: ${id}`, `title: ${id} title`, "kind: document", "authority: informational", `licence: ${licence}`, ...(places.length ? ["places:", ...places.map((each) => `  - ${each}`)] : []),
+const entry = (id, licence, places = [], content = null) => ["---", `id: ${id}`, `title: ${id} title`, "kind: document", "authority: informational", `licence: ${licence}`, ...(places.length ? ["places:", ...places.map((each) => `  - ${each}`)] : []), ...(content ? [`content_repository: ${content}`] : []),
   "---", `# ${id} ${id} title`, "", "## Versions", "", "| Version | Date | Edition | Read from | Files |", "|---|---|---|---|---|", "| `1` | 2026-10-13 | fixture | here | one file, hashed only |", ""].join("\n");
 const REGISTER = {
   "docs/sources/SRC-open.md": entry("SRC-open", "may be republished - EU law"),
-  "docs/sources/SRC-restricted.md": entry("SRC-restricted", "restricted - internal", ["this machine"]),
+  "docs/sources/SRC-restricted.md": entry("SRC-restricted", "restricted - internal", ["this machine"], "https://github.com/acme/instance"),
   "docs/sources/SRC-unknown.md": entry("SRC-unknown", "unknown"),
 };
 const snapshotOf = (files) => ({ repository: { server: "github", path: "acme/instance", web: "https://github.com/acme/instance" }, ref: "main", commit: "c".repeat(40), paths: Object.keys(files),
   blob: () => null, read: async (path) => files[path] ?? null });
-
-// TST-1123001 · level: unit · module: MOD-prompt-bar
-// guards: UC-049 4e; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
-// given: the instance's register holds SRC-open (may be republished), SRC-restricted (restricted, its content may go to "this machine" only) and SRC-unknown (licence unknown, no places), and a file docs/sources/notes.txt that is no entry
-// input: restrictedPlaces over the instance's snapshot
-// expect: the sources are SRC-restricted -> ["this machine"] and SRC-unknown -> [] (unknown counts as restricted and declares no place); SRC-open is not among them; the contents are the folders docs/sources/SRC-restricted and docs/sources/SRC-unknown, one entry per source
-test("restrictedPlaces — the restricted sources of the register with the places they allow, and the folders that hold their content", async () => {
-  const found = await restrictedPlaces(snapshotOf({ ...REGISTER, "docs/sources/notes.txt": "x", "docs/sources/SRC-restricted/handbook.md": "text" }));
-  assert.deepEqual(found.sources, { "SRC-restricted": ["this machine"], "SRC-unknown": [] });
-  assert.deepEqual(found.contents, [{ source: "SRC-restricted", paths: ["docs/sources/SRC-restricted"] }, { source: "SRC-unknown", paths: ["docs/sources/SRC-unknown"] }]);
-});
-
-// TST-1123002 · level: unit · module: MOD-prompt-bar
-// guards: UC-049 4e; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
-// given: an instance without a register of sources
-// input: restrictedPlaces
-// expect: no source and no content
-test("restrictedPlaces — an instance without sources gives none", async () => {
-  assert.deepEqual(await restrictedPlaces(snapshotOf({ "README.md": "x" })), { sources: {}, contents: [] });
-});
 
 // The context a message is prepared with, for a drafter at `place`.
 async function prepared(place) {
@@ -66,13 +45,13 @@ async function prepared(place) {
 
 // TST-1123003 · level: unit · module: MOD-prompt-bar
 // guards: UC-049 4e; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
-// given: the register of TST-1123001; the product holds the content of SRC-restricted and of SRC-open; a drafter at "Anthropic, USA"
+// given: the register above (SRC-open, SRC-restricted whose content repository is the product, SRC-unknown); the product holds the content of SRC-restricted and of SRC-open; a drafter at "Anthropic, USA"
 // input: prepareMessage; the job's tool read-file on docs/sources/SRC-restricted/handbook.md and on docs/sources/SRC-open/law.md
-// expect: the context names the restricted sources in places.sources and places.contents as restrictedPlaces gives them; the read of the restricted file is refused, names SRC-restricted and "Anthropic, USA", and does not hold its text; the read of the open file gives its text
+// expect: the context names the restricted sources in places.sources (SRC-restricted and SRC-unknown, the unknown licence counting as restricted) and, in places.contents, the folder docs/sources/SRC-restricted alone, since only that source's content repository is the product (MOD-source-register's restrictedPlaces); the read of the restricted file is refused, names SRC-restricted and "Anthropic, USA", and does not hold its text; the read of the open file gives its text
 test("prepareMessage — the job's context carries the restricted sources, so read-file refuses the content of one whose licence does not allow the drafter's place", async () => {
   const { ready, context } = await prepared("Anthropic, USA");
   assert.deepEqual(context.places.sources, { "SRC-restricted": ["this machine"], "SRC-unknown": [] });
-  assert.deepEqual(context.places.contents.map((each) => each.source), ["SRC-restricted", "SRC-unknown"]);
+  assert.deepEqual(context.places.contents, [{ source: "SRC-restricted", paths: ["docs/sources/SRC-restricted"] }]);
   const refused = await tools["read-file"]({ path: "docs/sources/SRC-restricted/handbook.md" }, context);
   assert.match(String(refused.text ?? refused), /SRC-restricted/);
   assert.match(String(refused.text ?? refused), /Anthropic, USA/);
