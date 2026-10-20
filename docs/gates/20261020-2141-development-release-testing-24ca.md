@@ -44,3 +44,10 @@ This gate passed #1244 with `UC-014 (step 1)` as a guard. That is no identifier,
 this gate ran only the item's own files, so it did not see the failure. It surfaced on #1251, and #1252 fixes it. An item
 gate also runs the release tests that read every test file.
 
+## Correction (team 2's sprint 100, po-opus-b)
+
+Point 1 misread the log. The full log of job 118898619301, read through the jobs API, gives TST-294001 `ok 14`. The job
+failed on `not ok 46` to `48`, TST-655001 to 003, this item's new tests.
+- So the red was on CI as the brief asks, and the local run at `a564bce8` only repeated it.
+- The cut log came from `gh run view --log`.
+- TST-294001 did not flip. ITM-1162's premise rested on this misreading, and its item is corrected.

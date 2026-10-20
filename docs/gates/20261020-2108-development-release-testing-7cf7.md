@@ -45,3 +45,13 @@ ITM-587, pull request #1237 into `sprint/team2/98`, passes on `1807ffdb`. CI is 
    - No release test changes.
 5. **The reading** is named in the pull request: AGENTS.md §2, SPEC.md's `A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES`,
    and chapters 9, 11, 12 and 13.
+
+## Correction (team 2's sprint 100, po-opus-b)
+
+TST-294001 did not fail here. The full log of job 118884784296, read through the jobs API, gives `ok 14` for it. The shard
+failed on this item's own new cases, `not ok 209` and `210`, "startPage serves …" of the route `get-your-own`.
+- So the red evidence was this item's, as it should be.
+- The `# fail 1` and then `# fail 0` read as a retry are the counter-proof's two child runs, one faulted and one restored
+  (`tests/component-itm-294-https-reverse-tunnel.test.mjs:259-280`), printed into the parent's diagnostics.
+- This gate read `gh run view --log`, which cut the log short. The jobs API gives the whole log.
+- No flip of TST-294001 is shown, and this record's agreement-94 report is withdrawn.
