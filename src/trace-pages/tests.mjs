@@ -9,6 +9,7 @@
 
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
 import { resultsAt } from "../result-records/index.mjs";
+import { showTestDetail } from "./test-detail.mjs";
 
 const LEVELS = ["unit", "component", "system", "release", "user"];
 const GROUPINGS = ["level", "requirement", "use case", "module"];
@@ -66,8 +67,15 @@ const KEEP = {
   "guards nothing": (test) => guardsOf(test.declaration).length === 0,
 };
 
-function caseLine(test, withMissing) {
-  const line = el("div", "tests-case", el("span", "tests-id", test.declaration.id), " ", el("span", "tests-title", test.declaration.title ?? ""), " ",
+// The identifier of a test, as the link that opens it: `trace/tests/<TST>` at the version shown.
+function idLink(id, ref) {
+  const link = el("a", "tests-id", id);
+  link.setAttribute("href", `#trace/key=tests/ref=${encodeURIComponent(ref)}/row=${encodeURIComponent(id)}`);
+  return link;
+}
+
+function caseLine(test, withMissing, ref) {
+  const line = el("div", "tests-case", idLink(test.declaration.id, ref), " ", el("span", "tests-title", test.declaration.title ?? ""), " ",
     el("span", "tests-outcome", outcomeText(test)));
   if (withMissing) line.append(" ", el("span", "tests-missing", test.missing.join(", ")));
   return line;
@@ -97,14 +105,14 @@ function levelsLine(group) {
   }));
 }
 
-function groupBox(group) {
+function groupBox(group, ref) {
   const name = el("span", group.broken ? "tests-group-name tests-broken" : "tests-group-name", group.name);
   const head = el("h3", null, name);
   if (group.broken) head.append(" ", el("span", "tests-broken-note", "broken link: nothing of the version has this name"));
-  return el("section", "tests-group", head, levelsLine(group), ...group.tests.map((test) => caseLine(test, false)));
+  return el("section", "tests-group", head, levelsLine(group), ...group.tests.map((test) => caseLine(test, false, ref)));
 }
 
-function treeBoxes(tests) {
+function treeBoxes(tests, ref) {
   const boxes = [];
   for (const level of LEVELS) {
     const inLevel = tests.filter((test) => test.declaration.level === level);
@@ -112,7 +120,7 @@ function treeBoxes(tests) {
     const files = [...new Set(inLevel.map((test) => test.declaration.path))];
     boxes.push(el("section", "tests-group", el("h3", null, el("span", "tests-group-name", level)),
       ...files.map((path) => el("section", "tests-file", el("h4", null, el("span", "tests-file-name", path)),
-        ...inLevel.filter((test) => test.declaration.path === path).map((test) => caseLine(test, false))))));
+        ...inLevel.filter((test) => test.declaration.path === path).map((test) => caseLine(test, false, ref))))));
   }
   return boxes;
 }
@@ -209,9 +217,9 @@ export async function showTests(place, shown, params = {}) {
   };
   function draw() {
     const keep = KEEP[state.filter] ?? KEEP.all;
-    const boxes = state.grouping === "level" ? treeBoxes(complete.filter(keep)) : groupsOf(state.grouping, complete.filter(keep), names[state.grouping]).map(groupBox);
+    const boxes = state.grouping === "level" ? treeBoxes(complete.filter(keep), shown.ref) : groupsOf(state.grouping, complete.filter(keep), names[state.grouping]).map((group) => groupBox(group, shown.ref));
     const left = incomplete.filter(keep);
-    body.replaceChildren(...boxes, ...(left.length ? [el("section", "tests-incomplete", el("h3", null, "Incomplete"), ...left.map((test) => caseLine(test, true)))] : []));
+    body.replaceChildren(...boxes, ...(left.length ? [el("section", "tests-incomplete", el("h3", null, "Incomplete"), ...left.map((test) => caseLine(test, true, shown.ref)))] : []));
     if (!boxes.length && !left.length) body.append(el("p", "none", "No test matches."));
   }
   draw();
@@ -246,4 +254,10 @@ export async function showTests(place, shown, params = {}) {
     if (select.value !== "none") compare();
   }
   place.replaceChildren(bar, compared, body);
+  // A test opened by the param `row` (`trace/tests/<TST>`) is shown above the tree.
+  if (typeof params.row === "string" && params.row !== "") {
+    const detail = el("div", "test-detail-box", el("p", "traces-reading", "Reading the test…"));
+    place.insertBefore(detail, bar);
+    detail.replaceChildren(await showTestDetail({ host: context.product.host, shown, id: params.row, declarations, declarationsOf }));
+  }
 }
