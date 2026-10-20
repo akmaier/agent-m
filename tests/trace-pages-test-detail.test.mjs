@@ -248,3 +248,21 @@ test("a removed test whose removing commit the file's history does not show is s
   const target = await render(hostOf({ history }), "TST-899");
   assert.equal(textOf(target, "test-removed"), "Removed (no commit of its file's history is found that declares it and one after it that does not)");
 });
+
+// TST-767012 · level: unit · module: MOD-trace-pages
+// guards: UC-029 (step 5a); A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: the history of TST-767010 (42 commits of tests/old.test.mjs, the removal at the second), over a Host that notes every commit whose text of the file it is asked for
+// input: TST-899 opened at main
+// expect: the removing commit named (0202020), the text of the file asked for at forty-two commits, each once: no commit appears twice among the commits asked for, however many times the history was read
+test("the text of a test file at a commit is read once, however far back the removal lies", async () => {
+  const history = [];
+  for (let n = 42; n >= 1; n -= 1) history.push({ commit: String(n).padStart(2, "0").repeat(20), date: "2026-10-02T10:00:00Z", files: { "tests/old.test.mjs": n === 1 ? OLD_AT_TAG : `${OLD_AT_MAIN}// edit ${n}\n` } });
+  const host = hostOf({ history });
+  const asked = [];
+  const readFileAt = host.readFileAt;
+  host.readFileAt = async (path, commits) => { if (path === "tests/old.test.mjs") asked.push(...commits); return readFileAt.call(host, path, commits); };
+  const target = await render(host, "TST-899");
+  assert.match(textOf(target, "test-removed"), /^Removed at commit 0202020/);
+  assert.equal(asked.length, 42, "the text at each of the forty-two commits is asked for");
+  assert.equal(new Set(asked).size, asked.length, "and no commit twice");
+});
