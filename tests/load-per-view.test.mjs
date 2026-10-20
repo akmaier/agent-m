@@ -209,13 +209,12 @@ test("the repository's information is read once for as long as the page is open"
 // given: a product that declares its process model, with one team, its sprint and two items
 // input: open #backlog with a token
 // expect: the commit and the tree once, one batch of the 7 files it shows — the declaration, the SPEC, the team's role
-//         assignment and sprint, the 2 items, and the record that decides UC-002's status —; then the view reads the commit the declaration's model_version names (the fixture's is not
-//         in the repository, so the model is read as it stands) and the process
-//         model the declaration names itself, in one request of its own, since one file meets "requests of at most 100 files
-//         each"; no use case, no module file (one team), and no other file by itself
+//         assignment and sprint, the 2 items, and the record that decides UC-002's status —; then the facts stored for the commit are asked for (none), and the facts the page takes from MOD-progress-measures'
+//         productFacts are read in batches: the 3 module files, the 3 files of the change queues; then the instance at the commit the declaration's model_version names (the commit, the tree) and the process
+//         model it names in one batch of its own; no use case and no other file by itself
 test("#backlog sends its commit and tree once, one batch of the files it shows, and the process model by one request of its own", async () => {
   const repo = await product({
-    "docs/process.md": ["---", "model: fixture-scrum-wip", "model_file: docs/process-models/fixture.md", `model_version: ${"a".repeat(40)}`,
+    "docs/process.md": ["---", "model: fixture-scrum-wip", "model_file: docs/process-models/fixture.md", `model_version: ${"c0ffee".padEnd(40, "0")}`,
       "---", "# How the fixture product is developed", ""].join("\n"),
     "docs/process-models/fixture.md": readFileSync(new URL("./fixtures/flow/scrum-wip.md", import.meta.url), "utf8"),
     "docs/role-assignments/team1.md": "# team1\n\n## Roles\n\n| Role | Participants |\n|---|---|\n| Owner | alice |\n| Builders | dev-a |\n| Checker | dev-a |\n",
@@ -227,10 +226,11 @@ test("#backlog sends its commit and tree once, one batch of the files it shows, 
   const srv = await server(repo, [pulls]);
   const page = await openDashboard({ server: srv, hash: "#backlog" });
   assert.match(page.main(), /ITM-001/);
-  assert.deepEqual(page.requests.filter((r) => !r.startsWith("handler ")), ["commit", "tree", "batch 7", `other GET https://api.github.com/repos/${REPO}/commits/${"a".repeat(40)}`, "file docs/process-models/fixture.md"]);
+  assert.deepEqual(page.requests.filter((r) => !r.startsWith("handler ")), ["commit", "tree", "batch 7", `file ${"c0ffee".padEnd(40, "0")}.facts.json`, "batch 3", "batch 3", "commit", "tree", "batch 1"]);
   const wave1 = sorted(["docs/process.md", "SPEC.md", "docs/role-assignments/team1.md", "docs/backlog/sprints/team1/01.md",
     "docs/backlog/ITM-001-item-1.md", "docs/backlog/ITM-002-item-2.md", ...recordOf(repo, "UC-002")]);
-  assert.deepEqual(srv.batches.map(sorted), [wave1]);
+  assert.deepEqual(srv.batches.map(sorted).slice(0, 1), [wave1]);
+  assert.equal(srv.batches.flat().filter((path) => path === "SPEC.md").length, 1, "no file twice");
 });
 
 const item = (n) => ["---", `id: ITM-00${n}`, `title: The work of item ${n}`, "level: module", "realises:", "  - RULE ONE", "modules:", "  - MOD-reader",
