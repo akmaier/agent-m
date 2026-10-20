@@ -48,6 +48,8 @@ export function webLinks(address, defaultBranch = DEFAULT_BRANCH) {
       newFile: (path, record) => `${address.web}/new/${branch}?filename=${encodeURIComponent(path)}&value=${encodeURIComponent(record)}`,
       // The editor page of a file. The model is editUrl in docs/assets/git-host.mjs.
       editFile: (path) => `${address.web}/edit/${branch}/${encodedPath(path)}`,
+      // The page that shows one file as it stands at a branch, a tag or a commit, to read it.
+      file: (path, ref) => `${address.web}/blob/${encodedPath(ref)}/${encodedPath(path)}`,
       // UC-010: the repository's Settings > Secrets and variables > Actions, where the person stores a secret's value — the address names
       // no secret and carries no value (A CREDENTIAL IS NEVER PLACED IN A URL) —, its workflow runs, and one run.
       secrets: `${address.web}/settings/secrets/actions`,
@@ -74,6 +76,8 @@ export function webLinks(address, defaultBranch = DEFAULT_BRANCH) {
     // GitLab has no new-file page that takes a record (UC-008 3c): null. Its single-file editor, as GitLab links it itself.
     newFile: () => null,
     editFile: (path) => `${address.web}/-/edit/${branch}/${encodedPath(path)}`,
+    // The page that shows one file as it stands at a branch, a tag or a commit, to read it.
+    file: (path, ref) => `${address.web}/-/blob/${encodedPath(ref)}/${encodedPath(path)}`,
     // UC-010: the project's Settings > CI/CD, where its Variables are, its pipelines, and one pipeline.
     secrets: `${address.web}/-/settings/ci_cd`,
     actions: `${address.web}/-/pipelines`,
