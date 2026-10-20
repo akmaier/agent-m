@@ -28,6 +28,7 @@ uses:
   - MOD-repository-hosts.RepositoryInfo
   - MOD-repository-hosts.listPullRequests
   - MOD-repository-hosts.listTags
+  - MOD-repository-hosts.containsCommit
   - MOD-browser-store.Store
   - MOD-browser-store.readSetting
   - MOD-browser-store.writeSetting
@@ -147,8 +148,10 @@ the mailbox through MOD-mail-routes, and the marks *not an issue* through Access
   comments, read and written with the person's token.
 - `MOD-repository-hosts.repositoryInfo`, `RepositoryInfo` — each product's one-line `description`, for the recipe
   `mail-batch`.
-- `MOD-repository-hosts.listPullRequests`, `MOD-repository-hosts.listTags` — what solved an issue, and the release that
-  contains it.
+- `MOD-repository-hosts.listPullRequests`, `MOD-repository-hosts.listTags`, `MOD-repository-hosts.containsCommit` — what
+  solved an issue, the `mergeCommit` of the pull request that closed it, and the release that contains it: of the
+  release tags `v<version>` — release candidates' `-rc.<N>` tags left out —, the one of the lowest version whose history
+  holds that commit, asked in the order of their versions.
 - `MOD-browser-store.Store`, `MOD-browser-store.readSetting`, `MOD-browser-store.writeSetting` — the identifiers marked
   *not an issue*, in the store the page hands in.
 - `MOD-job-runner.Strategies` — the type of `mailStrategies`.

@@ -28,7 +28,7 @@ origin:
 
 ## Outcome
 
-MOD-maintenance-pages.md:112-116 (blob `acdb0521`, accepted): "`mail` — *Read mailbox*; the mails no issue lists and
+MOD-maintenance-pages.md:112-116 (blob `f2155115`, accepted): "`mail` — *Read mailbox*; the mails no issue lists and
 nobody marked *not an issue*, with sender, subject and date in this browser only; ... per mail, the mail in full beside
 the proposal, its text editable, every hit of the mail's people marked; *Create issue* — only without a hit —, *Add to
 #n*, *Not an issue*." Parts: "`mail.mjs` — reading mail into issues" (:91).

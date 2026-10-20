@@ -58,6 +58,7 @@ uses:
   - MOD-participant-list.participantsOf
   - MOD-participant-list.reachedThrough
   - MOD-product-process.declarationSchema
+  - MOD-product-process.productWorkflow
   - MOD-source-register.sourceSchemas
   - MOD-source-register.registrationCommits
   - MOD-source-register.versionCommits
@@ -272,7 +273,8 @@ reaches.
   on; MOD-artifact-edits.reviewLayoutCommit — the review layout of a new product.
 - MOD-participant-list.participantSchema, MOD-participant-list.participantsOf — the participant register and its
   participants; MOD-participant-list.reachedThrough — the CLI agent a subagent is reached through, kept when its row is
-  changed; MOD-product-process.declarationSchema — the products and roles that use a participant.
+  changed; MOD-product-process.declarationSchema, productWorkflow — the products and roles that use a participant,
+  each product's roles from its declared workflow.
 - MOD-source-register.sourceSchemas, MOD-source-register.registrationCommits, MOD-source-register.versionCommits,
   MOD-source-register.linkedVersion, MOD-source-register.affectedRequirements, MOD-source-register.changedPassages,
   MOD-source-register.recogniseLegalText, MOD-source-register.permittedPlaces — the source library and a product's links;

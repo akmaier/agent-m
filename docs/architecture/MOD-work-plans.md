@@ -8,6 +8,7 @@ follows:
 uses:
   - MOD-product-process.Workflow
   - MOD-product-process.gateStates
+  - MOD-product-process.productWorkflow
   - MOD-product-process.holdsRole
   - MOD-model-catalogue.Model
   - MOD-approvals.statuses
@@ -31,12 +32,16 @@ uses:
   - MOD-identifiers.identifiersIn
   - MOD-identifiers.nextIdentifier
   - MOD-job-ledger.JobRow
+  - MOD-job-ledger.listJobs
+  - MOD-test-document.isTestFile
+  - MOD-test-document.testDeclarations
   - MOD-participant-list.Participant
   - MOD-result-records.flakyTests
   - MOD-repository-hosts.Host
   - MOD-repository-hosts.Snapshot
   - MOD-repository-hosts.PullRequest
   - MOD-repository-hosts.Issue
+  - MOD-repository-hosts.readSnapshot
   - MOD-repository-hosts.readHistory
   - MOD-repository-hosts.listPullRequests
   - MOD-repository-hosts.listIssues
@@ -241,8 +246,14 @@ assignment is the one of the team whose sprint holds it, and the product's one i
   - recipe `backlog-inputs` — the accepted requirements and use cases, those no item realises yet, the architecture, and
     the existing items, which its part carries as artifacts keyed by their title;
   - recipe `sprint-facts` — the sprint's facts, the product's issues opened or closed during the sprint, its job records
-    and result records — each named as a source; never a mail;
-  - check `plan-checks` — `planFindings` on a drafted plan;
+    and result records — each named as a source; never a mail. The sprint is the one the job's parameter `sprint` names;
+    its facts are `sprintFacts` of the product's items, of its tests with what each guards (`isTestFile`,
+    `testDeclarations`), of the items' states (`itemStates`, with the product's workflow), of its jobs (`listJobs`,
+    without live states), of the branch `test-results` (the product host's `readSnapshot`), of its pull requests, and of
+    the issues whose `opened` or `closed` falls within the sprint; where the product's host gives no issues, they are
+    left out and named as not read;
+  - check `plan-checks` — `planFindings` on a drafted plan, with the product's workflow; where the product has no
+    workflow, one error finding naming the declared model and its commit;
   - check `backlog-checks` — `backlogFindings` on drafted items;
   - check `sprint-record-checks` — an agent's review that does not name the sources of its feedback, or does not say that
     no stakeholder took part when none did (`AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM`); a retrospective
@@ -269,7 +280,9 @@ assignment is the one of the team whose sprint holds it, and the product's one i
 ## Uses
 
 - MOD-product-process.Workflow, gateStates, holdsRole — the phases and gates, a gate's state, the implementing role's
-  holders in a role assignment.
+  holders in a role assignment; MOD-product-process.productWorkflow — the product's workflow in a job, of its
+  declaration `docs/process.md`, the instance read through its host's `readSnapshot`, and the instance's SPEC, for
+  `plan-checks` and `sprint-facts`.
 - MOD-model-catalogue.Model — the phases a plan's steps belong to.
 - MOD-approvals.statuses, MOD-spec-changes.Queue, queues, MOD-spec-document.parseSpec — whether what an item names is
   accepted.
@@ -281,12 +294,14 @@ assignment is the one of the team whose sprint holds it, and the product's one i
   artifactSchemas — the files by their schemas, the item schema, the appended sprint sections, and items that restate
   existing ones.
 - MOD-identifiers.identifiersIn, nextIdentifier — new item identifiers, never one the history holds.
-- MOD-job-ledger.JobRow — the jobs of an item, with their states and costs.
+- MOD-job-ledger.JobRow, listJobs — the jobs of an item, with their states and costs; a product's jobs, for
+  `sprint-facts`.
+- MOD-test-document.isTestFile, testDeclarations — the product's tests and what each guards, for `sprint-facts`.
 - MOD-participant-list.Participant — the holders of the implementing role and their capabilities.
 - MOD-result-records.flakyTests — the flaky tests of a sprint.
 - MOD-repository-hosts.Host, Snapshot, PullRequest, Issue, readHistory, listPullRequests, listIssues, createBranch,
   commitFiles — the product's files and history, its pull requests and issues, a sprint's branch, and the saves'
-  commits.
+  commits; MOD-repository-hosts.readSnapshot — the branch `test-results` and the instance at a commit, in a job.
 - MOD-text-tools.Finding, finding — the findings.
 - MOD-job-runner.sourcesOf — the sources a part carries.
 - MOD-job-runner.Strategies, JobContext, Part, JobResult, provenanceLines — the form of the strategies and the

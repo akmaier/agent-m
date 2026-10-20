@@ -270,15 +270,18 @@ record, the appended sections in order. **A row** of a table: `{ line, cells }`,
   Throws `DocumentError` naming the field, or the row and column, when a value does not fit its specification, and
   `NotAppendable` naming the row when an append-only table would lose or change a row of the text it was read from.
 - `documentFindings(schema: Schema, document: Document) -> Finding[]` — every finding the schema can decide: the path
-  against its pattern; the identifier against the path; front matter keys missing — also where a `requiredWhen` condition
-  holds —, unknown, out of order, or present where a `forbiddenWhen` condition holds; values that do not fit their type or
-  the variant that holds, empty where `nonEmpty`; each row of a table, cell by cell, in the same way; the title; required sections missing, sections out of order, sections the
-  schema forbids; values that `describedIn` requires and the section does not describe; a diagram missing where
-  `required`, and any image (`DIAGRAMS ARE MERMAID IN MARKDOWN`); and, for a `noHistory` schema, each mark of history
+  against its pattern; the identifier against the path; front matter keys missing — also where a `requiredWhen`
+  condition holds —, unknown, out of order, or present where a `forbiddenWhen` condition holds; values that do not fit
+  their type or the variant that holds, empty where `nonEmpty`; each row of a table, cell by cell, in the same way; a
+  section whose schema names a table with a header row, that holds a table but none whose header row names exactly the
+  table's columns, named at its first table's header with the columns that header adds, lacks or puts out of order; the
+  title; required sections missing, sections out of order, sections the schema forbids; values that `describedIn`
+  requires and the section does not describe; a diagram missing where `required`, and any image
+  (`DIAGRAMS ARE MERMAID IN MARKDOWN`); and, for a `noHistory` schema, each mark of history
   (`A DOCUMENT HOLDS NO HISTORY`). Each finding is an error and names its line and the requirement it applies: the one
   named here in brackets, else the `rule` of the part of the schema closest to it (Data, *The requirement a finding
-  names*). What needs other artifacts — whether a named requirement exists, whether a used interface is provided — is not decided here but on
-  the trace graph (MOD-trace-graph).
+  names*). What needs other artifacts — whether a named requirement exists, whether a used interface is provided — is
+  not decided here but on the trace graph (MOD-trace-graph).
 - `readRegister(schema: Schema, path: string, text: string) -> { document: Document, rows: Row[] }` — reads a register:
   the document, and the rows of the one table its schema names. A register is written with `writeDocument`, its rows in
   the document's section.

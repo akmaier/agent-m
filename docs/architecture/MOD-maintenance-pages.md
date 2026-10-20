@@ -26,8 +26,12 @@ uses:
   - MOD-repository-hosts.setIssueLabels
   - MOD-repository-hosts.commentOnIssue
   - MOD-repository-hosts.webLinks
+  - MOD-repository-hosts.pullRequestFacts
   - MOD-documents.artifactSchemas
   - MOD-documents.readRegister
+  - MOD-documents.readDocument
+  - MOD-test-document.isTestFile
+  - MOD-test-document.testDeclarations
   - MOD-resource-list.resourceSchema
   - MOD-resource-list.reachableBy
   - MOD-mail-routes.mailbox
@@ -35,9 +39,11 @@ uses:
   - MOD-mail-records.listedMailIds
   - MOD-mail-records.notesOf
   - MOD-mail-records.noteText
+  - MOD-personal-data.peopleIn
   - MOD-personal-data.personHits
   - MOD-personal-data.checkersFor
   - MOD-personal-data.pseudonymisationOf
+  - MOD-personal-data.settingsSchemas
   - MOD-personal-data.privacyStrategies
   - MOD-mail-handling.readNewMail
   - MOD-mail-handling.decideMail
@@ -57,14 +63,17 @@ uses:
   - MOD-spec-changes.specStrategies
   - MOD-participant-list.participantSchema
   - MOD-participant-list.eligible
+  - MOD-participant-list.participantsOf
   - MOD-job-catalogue.kindOf
   - MOD-job-runner.prepareJob
   - MOD-job-runner.writeResult
   - MOD-job-ledger.newJobId
+  - MOD-job-ledger.recordsNewestFirst
   - MOD-runtimes.routesFor
   - MOD-runtimes.queueJob
   - MOD-runtimes.runOnTab
   - MOD-runtimes.liveState
+  - MOD-runtimes.jobTrail
   - MOD-runtimes.routeStrategies
   - MOD-prompt-bar.Subject
 provides:
@@ -152,15 +161,24 @@ instance's participants.
   MOD-repository-hosts.listIssues — issues and what a job's context needs; MOD-repository-hosts.setIssueState —
   *Close and reply*, *Reopen*; MOD-repository-hosts.setIssueLabels — the label `waiting-for-reporter` removed;
   MOD-repository-hosts.commentOnIssue — a note offered again; MOD-repository-hosts.webLinks — an issue's page.
+- MOD-job-ledger.recordsNewestFirst, MOD-runtimes.jobTrail — an issue's fix: the newest `fix-bug` job whose `works_on`
+  names the issue, and the pull request of its branch, which the job's trail gives; the same link serves *closing an
+  issue with links once its pull request is merged*. MOD-repository-hosts.pullRequestFacts — that pull request before it
+  is merged, with the texts of its changed files on both sides; MOD-test-document.isTestFile,
+  MOD-test-document.testDeclarations — the existing tests among those files, and each one's requirement and expected
+  result, old and new, side by side (UC-012 5a).
 - MOD-documents.artifactSchemas — the item's schema for its form; MOD-documents.readRegister — the participant list
-  and the product's resources; MOD-resource-list.resourceSchema, MOD-resource-list.reachableBy — the routes that reach
-  the product's resources, for the route of `fix-bug`.
+  and the product's resources; MOD-documents.readDocument — the product's `docs/settings.md`, with `settingsSchemas`;
+  MOD-resource-list.resourceSchema, MOD-resource-list.reachableBy — the routes that reach the product's resources, for
+  the route of `fix-bug`.
 - MOD-mail-routes.mailbox, MOD-mail-routes.signIn — the mailbox, and signing in again when the provider's sign-in has
   expired.
 - MOD-mail-records.listedMailIds, MOD-mail-records.notesOf, MOD-mail-records.noteText — an issue's mails, its notes, and
   the text of a note offered again.
-- MOD-personal-data.personHits, MOD-personal-data.checkersFor, MOD-personal-data.pseudonymisationOf — the hits of the
-  mail's people, the three checkers, and whether the product rewrites report data.
+- MOD-personal-data.peopleIn — the people of a mail `repliesDue` gives, which carries none;
+  MOD-personal-data.personHits, MOD-personal-data.checkersFor, MOD-personal-data.pseudonymisationOf — the hits of the
+  mail's people, the three checkers, and whether the product rewrites report data; MOD-personal-data.settingsSchemas —
+  the schema `docs/settings.md` is read with, for `pseudonymisationOf`.
 - MOD-mail-handling.readNewMail, MOD-mail-handling.decideMail, MOD-mail-handling.repliesDue,
   MOD-mail-handling.storeReplies, MOD-mail-handling.sendReply, MOD-mail-handling.askReporter,
   MOD-mail-handling.noReply — every decision on a mail and a reply.
@@ -168,8 +186,8 @@ instance's participants.
   MOD-issue-handling.closeWithLinks — every decision on an issue.
 - MOD-work-plans.backlogFindings — the item's marks while the person edits it; MOD-spec-changes.queues — the change's
   queue entries an item realises.
-- MOD-participant-list.participantSchema, MOD-participant-list.eligible — who may analyse, fix, propose, rewrite, check
-  or draft.
+- MOD-participant-list.participantSchema, MOD-participant-list.participantsOf, MOD-participant-list.eligible — the
+  participants of the register, and who may analyse, fix, propose, rewrite, check or draft.
 - MOD-job-catalogue.kindOf, MOD-job-runner.prepareJob — the run panels; MOD-job-runner.writeResult — the drafted change
   written on the person's click; MOD-job-ledger.newJobId, MOD-runtimes.routesFor, MOD-runtimes.queueJob,
   MOD-runtimes.runOnTab, MOD-runtimes.liveState — running the kinds of this page on their routes.

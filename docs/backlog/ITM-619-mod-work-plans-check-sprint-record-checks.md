@@ -30,3 +30,23 @@ It adds its strategy to `workStrategies`, which ITM-610 builds and registers, an
 
 - The strategy works as MOD-work-plans' file states it, with a counter-proof.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+## Ready: the readings, settled by the Product Owner (AGENTS.md §6a.6, 2026-10-19)
+
+No text needs to change. The check reads the draft of a `close-sprint` job, which has the shape of MOD-work-plans'
+`closeSprint` `close` (`review: { feedback, tookPart, sources }`, `retrospective: [{ text, kind, goes }]`, MOD-work-plans.md:222-227).
+A `close-sprint` job is always an agent's, so every draft it checks is an agent's review (UC-041 1a). Its findings, each
+an error naming its rule:
+1. `review.sources` null or empty — `AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM`.
+2. **Who took part.**
+   - Each name in `review.tookPart` must be one whose feedback the review recorded, in a feedback line or among `sources`.
+   - An empty `tookPart` passes only when a feedback line says that no stakeholder took part.
+   - This is UC-041 1a's "stating that no stakeholder took part unless their feedback is recorded somewhere it read" — same
+     rule.
+3. `retrospective` empty — a retrospective without an entry.
+4. **Process changes stay proposals** — `AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF`.
+   - An entry of kind `change` without `goes` is an error. `closeSprint` writes an entry with `goes` as "change, to <goes>",
+     a proposal to where it goes.
+   - So is a draft that holds any key outside the shape of `close`, such as a file to write: nothing of the process may be
+     written by the draft itself.
+Each with a counter-proof. Its builds_on, ITM-610, is done.

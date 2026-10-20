@@ -240,7 +240,9 @@ product's `docs/sources.md`.
 - MOD-run-planner.runOf, MOD-run-planner.nextActions, MOD-run-planner.raiseLimits, MOD-run-planner.finishRun — a run,
   its next actions, its end, and the
   limits a person raises to continue it.
-- MOD-trace-graph.traceGraph, MOD-trace-graph.moduleRows — a finished run's validation, at the commit its end names.
+- MOD-trace-graph.traceGraph, MOD-trace-graph.moduleRows — a finished run's validation, at the commit its end names; the
+  architecture's subsystems and modules beside the plan, from the graph of the commit shown. Each graph is asked for
+  with its commit, so that the graph `onMainChanged` stored for it is read where there is one (MOD-workflow-entries).
 - MOD-progress-measures.productFacts, MOD-progress-measures.progressIn, MOD-progress-measures.gateOverview,
   MOD-progress-measures.blocked, MOD-progress-measures.whoWorksOnWhat — the product's facts and its progress.
 - MOD-participant-list.participantSchema, MOD-participant-list.participantsOf, MOD-participant-list.eligible — the

@@ -47,10 +47,9 @@ uses:
   - MOD-result-records.testHistory
   - MOD-release-evidence.auditRows
   - MOD-product-process.declarationSchema
-  - MOD-product-process.workflowOf
+  - MOD-product-process.productWorkflow
   - MOD-product-process.gateSchema
   - MOD-product-process.gateStates
-  - MOD-model-catalogue.catalogue
   - MOD-release-evidence.auditDocument
   - MOD-artifact-edits.saveFile
   - MOD-source-register.personSource
@@ -162,9 +161,8 @@ instance's host that the frame gives every route, it also reads the instance's p
   MOD-result-records.testHistory — outcomes, flaky tests, rates and history.
 - MOD-release-evidence.auditRows, MOD-release-evidence.auditDocument — the audit and its document; the audit is given the
   instance's SPEC, where the process requirements stand.
-- MOD-product-process.declarationSchema, workflowOf, gateSchema, gateStates — the product's workflow and its gate records at
-  the release's commit, from which the audit's process rows take each process requirement's gates and records (UC-030).
-  The workflow is derived from the model the product had declared at the release.
-- MOD-model-catalogue.catalogue — the catalogue at the commit the release's declaration names, which holds the declared
-  model and its practices as the product kept them (UC-031 6a; ARC-042: earlier work keeps the model it was done under).
+- MOD-product-process.declarationSchema, productWorkflow, gateSchema, gateStates — the product's workflow and its gate
+  records at the release's commit, from which the audit's process rows take each process requirement's gates and records
+  (UC-030). The workflow is `productWorkflow` of the declaration at the release, so it is derived from the model the
+  product had declared then.
 - MOD-artifact-edits.saveFile — *Commit export*, as the person's own input.

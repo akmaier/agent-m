@@ -14,10 +14,12 @@ uses:
   - MOD-endpoint-calls.endpointDriver
   - MOD-endpoint-calls.endpointExchange
   - MOD-repository-hosts.connect
+  - MOD-repository-hosts.parseAddress
   - MOD-repository-hosts.readSnapshot
   - MOD-documents.readDocument
   - MOD-documents.readRegister
   - MOD-participant-list.participantSchema
+  - MOD-participant-list.participantsOf
   - MOD-agent-processes.installedAgents
   - MOD-agent-processes.agentDriver
   - MOD-agent-processes.testAgent
@@ -31,6 +33,9 @@ uses:
   - MOD-job-ledger.takeJob
   - MOD-job-ledger.appendToRecord
   - MOD-job-ledger.jobState
+  - MOD-job-ledger.recordsNewestFirst
+  - MOD-job-ledger.newJobId
+  - MOD-job-ledger.jobCost
   - MOD-progress-measures.productFacts
   - MOD-runtimes.queueJob
   - MOD-run-planner.runOf
@@ -168,18 +173,21 @@ clones. Nothing else.
 ## Uses
 
 - `MOD-bridge-http.bridgeApi`, `MOD-bridge-http.BridgeHandlers` — the routes it answers.
-- `MOD-repository-hosts.connect`, `MOD-repository-hosts.readSnapshot` — the served products, through the local clone with
-  the computer's own git login; the instance at the commit a declaration or a job's record names, through its clone,
-  which fetches the commit with that login; and the test of that login.
+- `MOD-repository-hosts.connect`, `MOD-repository-hosts.readSnapshot`, `MOD-repository-hosts.parseAddress` — the served
+  products, each connected by its address, through the local clone with the computer's own git login; the instance at
+  the commit a declaration or a job's record names, through its clone, which fetches the commit with that login; and the
+  test of that login.
 - `MOD-documents.readDocument`, `MOD-documents.readRegister`, `MOD-participant-list.participantSchema`,
-  `MOD-product-process.declarationSchema` — the participants of this Bridge and the product's declaration.
+  `MOD-participant-list.participantsOf`, `MOD-product-process.declarationSchema` — the participants of this Bridge and
+  the product's declaration.
 - `MOD-agent-processes.installedAgents`, `agentDriver`, `testAgent` — the agents of this computer and their driver.
 - `MOD-endpoint-calls.EndpointConfig`, `testEndpoint`, `listModels`, `endpointDriver` — an endpoint's test, its models'
   listing and the requests of a job of the page to a model endpoint.
 - `MOD-job-runner.JobContext`, `Prepared`, `prepareJob`, `runJob`, `MOD-job-catalogue.kindOf` — running a job of any kind
   from its record, unattended.
 - `MOD-job-ledger.JobRecord`, `RecordPart`, `takeJob`, `appendToRecord`, `jobState` — taking, resuming and ending jobs in
-  their records, a draft handed back in the end.
+  their records, a draft handed back in the end; `recordsNewestFirst` — the job records of a served product it looks
+  through; `jobCost` — the cost an end records; `newJobId` — the identifier of a sprint's close it starts.
 - `MOD-runtimes.queueJob` — queueing the next actions of other routes.
 - `MOD-progress-measures.productFacts` — the facts of a served product, read through the local clone, from which its runs'
   next actions are computed.
