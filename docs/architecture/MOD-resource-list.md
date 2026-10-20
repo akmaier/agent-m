@@ -64,6 +64,7 @@ runs in a browser and in Node, and keeps nothing.
 | Processing place | where the data given to it is processed (`A RESOURCE DECLARES WHERE IT PROCESSES DATA`) | for compute, endpoint, agent |
 | Paid | for a service the product calls, `yes` when it charges per call and `no` otherwise (`COMMIT TESTS CALL NO PAID SERVICE`); `—` for data that is downloaded rather than called, and for the other kinds | for endpoint, agent, and data the product calls as a service |
 | Secret | `ci:<NAME>` for a CI secret, `browser` for a key kept in a browser, or `—` (`A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE`) | always |
+| Capabilities, Role | optional columns after Secret, left out of a list as written here and left out of an entry (`—`): a participant's capabilities and role, which a resource never holds. They are read so that an entry that fills one is refused (`A RESOURCE IS USED, A PARTICIPANT DEVELOPS`) | never |
 
 An entry holds no capabilities and no role: whatever works on the product is a participant (`A RESOURCE IS USED, A
 PARTICIPANT DEVELOPS`); a system in both roles is one entry here and one in the participant register (`ONE SYSTEM IN TWO
@@ -82,7 +83,8 @@ ENTER AS A SOURCE`), not here.
 
 - `Resource` — `{ name: string, kind: "repository" | "data" | "model" | "compute" | "endpoint" | "agent", address:
   string, pin: string | null, licence: string | null, maintainer: string | null, route: string, place: string | null,
-  paid: boolean | null, secret: string | null }`: one row as MOD-documents reads it with this module's schema.
+  paid: boolean | null, secret: string | null, capabilities: string | null, role: string | null }`: one row as MOD-documents reads it with this module's schema; `capabilities` and `role` are the
+  cells of the optional columns Capabilities and Role, `null` where the list has no such column or the cell is left out.
 - `Pin` — `{ kind: "commit" | "revision" | "files" | "served model", value: string | Record<string, string> }`.
 - `CheckPlan` — `{ how: "read on its host" } | { how: "probe through the Bridge", bridge: string, probe: "served models"
   | "partitions" | "answers" } | { how: "check job on a runner", label: string }`: `bridge` is the name of the Bridge the
@@ -91,7 +93,7 @@ ENTER AS A SOURCE`), not here.
 - `resourceFindings(resources: Resource[]) -> Finding[]` — what the schema cannot express: the pin's form for the kind —
   a full commit, not a branch name such as `main` —, the columns its kind requires, a compute route other than
   `bridge <name>` or `runner:<label>`, an endpoint or agent without its Paid mark, an entry that carries a participant's capabilities or
-  role, a secret's value where its name belongs, and, as a warning, a maintainer who is a single person.
+  role — a `Resource` whose `capabilities` or `role` is set —, a secret's value where its name belongs, and, as a warning, a maintainer who is a single person.
 - `readPin(resource: Resource, readers: { repositoryHead: (address: string) => Promise<string>, hubRevision: (id: string)
   => Promise<{ revision: string, licence: string | null }> }) -> Promise<Pin>` — the current state upstream, read through
   the readers the caller hands in: the repository host's head, or the Hub's revision. It crosses the network through them
@@ -123,7 +125,8 @@ ENTER AS A SOURCE`), not here.
 ## Files
 
 It reads its own schema file. The lists `docs/resources.md` of a product and of the instance are read and written by its
-callers through MOD-documents with `resourceSchema`, and committed through Access.
+callers through MOD-documents with `resourceSchema`, and committed through Access. A caller that makes a `Resource` of a row reads every column of the row, Capabilities and Role among them, so
+that `resourceFindings` sees an entry that fills one.
 
 ## Uses
 
