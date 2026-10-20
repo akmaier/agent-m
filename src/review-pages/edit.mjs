@@ -53,7 +53,7 @@ export async function showEdit(where, kind, params) {
   }
   let graph, all;
   try {
-    graph = await traceGraph(snapshot);
+    graph = await traceGraph(snapshot, { commit: snapshot.commit });
     all = await queues(snapshot);
   } catch (failure) {
     target.append(readProblem(failure, Boolean(token)));
