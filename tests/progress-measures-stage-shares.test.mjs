@@ -21,8 +21,8 @@
 
 import test, { afterEach, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { stageShares } from "../src/progress-measures/index.mjs";
-import { COMMIT, facts, graphOf, itemState, queueOf, resultsSnapshot, runRecord, statusMap } from "./progress-measures-facts.mjs";
+import { currentStage, stageShares } from "../src/progress-measures/index.mjs";
+import { facts, itemState, queueOf, resultsSnapshot, runRecord, statusMap } from "./progress-measures-facts.mjs";
 
 let fetched = [];
 const realFetch = globalThis.fetch;
@@ -140,31 +140,103 @@ test("stageShares — the release stage is full once a release is tagged; a cand
 
 // ---------------------------------------------------------------- tests
 
-const REQS = ["REQ A", "REQ B", "REQ C"];
-const decl = (id) => ({ id, level: "unit", module: "MOD-x", guards: [] });
-const NO_SHARE = { stage: "Tests", share: null, detail: "the commits of the default branch are unknown" };
 
-// TST-685007 · level: unit · module: MOD-progress-measures
+const REQS = ["REQ A", "REQ B", "REQ C"];
+const decl = (id, ...guards) => ({ id, level: "unit", module: "MOD-x", guards });
+const C1 = "1".repeat(40), C2 = "2".repeat(40), OTHER = "9".repeat(40);
+const record = (commit, rows, name = "20261016-1000-commit-aaaa") => ({ [`runs/${commit}/${name}.md`]: runRecord(commit, rows) });
+const pass = (...ids) => ids.map((id) => [id, "unit", "passed"]);
+const fail = (...ids) => ids.map((id) => [id, "unit", "failed"]);
+const guarded = (n) => ({ stage: "Tests", share: n / 3, detail: `${n} of 3 requirements guarded by a passing test` });
+// Three requirements: TST-1 and TST-3 guard REQ A, TST-2 guards REQ B, and nothing guards REQ C.
+const known = (texts, resultCommits, over = {}) => ({ requirements: REQS, resultCommits, results: resultsSnapshot(texts),
+  tests: [decl("TST-1", "REQ A"), decl("TST-2", "REQ B"), decl("TST-3", "REQ A")], ...over });
+
+// TST-809001 · level: unit · module: MOD-progress-measures
 // guards: THE MAIN PAGE SHOWS EACH PRODUCT’S PROGRESS BY STAGE; UC-046
-// given: three requirements, TST-1 and TST-3 guarding REQ A and TST-2 guarding REQ B, and a record of the commit of the facts in which all three passed — every other fact of the Tests stage known
+// given: three requirements, TST-1 and TST-3 guarding REQ A and TST-2 guarding REQ B, and resultCommits [C2, C1] (C2 newer). (a) C1 holds a record in which TST-1, TST-2 and TST-3 passed, C2 one in which TST-1 failed; (b) the same, and C2’s record also fails TST-3; (c) C2 holds a record in which TST-1 passed and C1 one in which it failed, and TST-1 is the only test; (d) the records stand at a commit OTHER that is not in resultCommits, and C1 holds none
 // input: stageShares(facts)
-// expect: Tests has no share (null) and the detail "the commits of the default branch are unknown": Facts holds no list of the commits of the default branch, which the text “a test passes by the newest result record of a commit of the default branch that ran it” needs, so the share is not told from the one commit of the facts
-test("stageShares — the tests stage has no share: the commits of the default branch are not in the facts", async () => {
-  const rows = [["TST-1", "unit", "passed"], ["TST-2", "unit", "passed"], ["TST-3", "unit", "passed"]];
-  const known = { requirements: REQS, graph: graphOf(REQS, [["TST-1", "REQ A"], ["TST-2", "REQ B"], ["TST-3", "REQ A"]]),
-    tests: [decl("TST-1"), decl("TST-2"), decl("TST-3")],
-    results: resultsSnapshot({ ["runs/" + COMMIT + "/20261016-1000-commit-aaaa.md"]: runRecord(COMMIT, rows) }) };
-  assert.deepEqual(await of(known, "Tests"), NO_SHARE);
+// expect: (a) Tests 2/3, "2 of 3 requirements guarded by a passing test": TST-1 fails by C2’s record, the newest that ran it, but TST-3 (not named at C2) passes by C1’s and guards REQ A, and TST-2 passes by C1’s and guards REQ B; (b) 1/3: REQ B alone; (c) 1/3: TST-1 passes by C2’s record, the older failure is not looked at; (d) 0 of 3: a commit that is not one of resultCommits counts for nothing
+test("stageShares — the tests stage is the share of the requirements a passing test guards; a test passes by the newest record of a commit of the default branch that ran it", async () => {
+  const older = record(C1, pass("TST-1", "TST-2", "TST-3"));
+  assert.deepEqual(await of(known({ ...older, ...record(C2, fail("TST-1")) }, [C2, C1]), "Tests"), guarded(2));
+  assert.deepEqual(await of(known({ ...older, ...record(C2, fail("TST-1", "TST-3")) }, [C2, C1]), "Tests"), guarded(1));
+  const only = { tests: [decl("TST-1", "REQ A")] };
+  assert.deepEqual(await of(known({ ...record(C2, pass("TST-1")), ...record(C1, fail("TST-1")) }, [C2, C1], only), "Tests"), guarded(1));
+  assert.deepEqual(await of(known(record(OTHER, pass("TST-1", "TST-2", "TST-3")), [C1]), "Tests"), guarded(0));
 });
 
-// TST-685008 · level: unit · module: MOD-progress-measures
+// TST-809002 · level: unit · module: MOD-progress-measures
 // guards: THE MAIN PAGE SHOWS EACH PRODUCT’S PROGRESS BY STAGE; UC-046
-// given: (a) facts of a product with nothing; (b) three requirements and no test guarding any; (c) no branch test-results yet (null); (d) the requirements not read; (e) a repository with no commit yet
+// given: the requirements of TST-809001 and resultCommits [C1]; (a) C1 holds a record in which TST-1 both passed and failed (a deterministic test that flips on one commit is flaky); (b) TST-1 is declared and has no record at all; (c) C1’s record reports TST-1 as not run
+// input: stageShares(facts)
+// expect: Tests 0 of 3 in each case — only an outcome passed is a pass
+test("stageShares — a flaky, an unrun and a not-run test does not pass", async () => {
+  const only = { tests: [decl("TST-1", "REQ A")] };
+  assert.deepEqual(await of(known(record(C1, [...pass("TST-1"), ...fail("TST-1")]), [C1], only), "Tests"), guarded(0));
+  assert.deepEqual(await of(known(record(C1, pass("TST-2")), [C1], only), "Tests"), guarded(0));
+  assert.deepEqual(await of(known(record(C1, [["TST-1", "unit", "not run"]]), [C1], only), "Tests"), guarded(0));
+});
+
+// TST-809003 · level: unit · module: MOD-progress-measures
+// guards: THE MAIN PAGE SHOWS EACH PRODUCT’S PROGRESS BY STAGE; UC-046
+// given: the requirements and tests of TST-809001; (a) resultCommits [C2, C1], C2 holds a record in which all three tests passed, C1 one in which they failed; (b) no branch test-results (results null) and resultCommits []; (c) the requirements are []; (d) TST-1 guards REQ A and TST-2 guards REQ B and REQ C, with the records of (a)
+// input: stageShares(facts), counting the reads of the branch test-results
+// expect: (a) Tests 2 of 3 (REQ C has no test), and only C2’s record is read — it settles every test; (b) 0 of 3; (c) 0, "no requirement yet"; (d) 3 of 3, "3 of 3 requirements guarded by a passing test"
+test("stageShares — it asks no older commit once every test is settled, and counts a branch without results as nothing passed", async () => {
+  const texts = { ...record(C2, pass("TST-1", "TST-2", "TST-3")), ...record(C1, fail("TST-1", "TST-2", "TST-3")) };
+  const a = known(texts, [C2, C1]);
+  assert.deepEqual(await of(a, "Tests"), guarded(2));
+  assert.deepEqual(a.results.reads, [`runs/${C2}/20261016-1000-commit-aaaa.md`]);
+  assert.deepEqual(await of(known({}, [], { results: null }), "Tests"), guarded(0));
+  assert.deepEqual(await of(known(texts, [C2, C1], { requirements: [] }), "Tests"), { stage: "Tests", share: 0, detail: "no requirement yet" });
+  const all = { requirements: ["REQ A", "REQ B", "REQ C"], tests: [decl("TST-1", "REQ A"), decl("TST-2", "REQ B", "REQ C")] };
+  assert.deepEqual(await of(known(texts, [C2, C1], all), "Tests"), guarded(3));
+});
+
+// TST-809004 · level: unit · module: MOD-progress-measures
+// guards: THE MAIN PAGE SHOWS EACH PRODUCT’S PROGRESS BY STAGE; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-046
+// given: a product that is fully known, with passing records at C1; then (a) resultCommits "unknown"; (b) results "unknown"; (c) requirements "unknown"; (d) tests "unknown"; (e) the facts of a product with nothing read
 // input: stageShares of each
-// expect: in every case Tests has no share (null) and the detail "the commits of the default branch are unknown" — the missing fact is the same whatever else is known
-test("stageShares — the tests stage has the same missing fact whatever else the facts hold", async () => {
-  const noCommit = { commit: null, paths: [], blob: () => null, read: async () => null };
-  for (const over of [{}, { requirements: REQS, graph: graphOf(REQS, []) }, { results: null }, { requirements: "unknown" }, { snapshot: noCommit }]) {
-    assert.deepEqual(await of(over, "Tests"), NO_SHARE);
-  }
+// expect: Tests has no share (null) in each, whose detail names the missing fact: (a) "the commits of the default branch are unknown"; (b) "the test results are unknown"; (c) "the requirements are unknown"; (d) "the tests are unknown"; (e) "the requirements are unknown"; with the fully known product Tests has a share
+test("stageShares — the tests stage has no share while a fact it needs is unknown, and its detail says which", async () => {
+  const texts = record(C1, pass("TST-1", "TST-2", "TST-3"));
+  assert.equal((await of(known(texts, [C1]), "Tests")).share, 2 / 3);
+  const none = (what) => ({ stage: "Tests", share: null, detail: `the ${what} unknown` });
+  assert.deepEqual(await of(known(texts, "unknown"), "Tests"), none("commits of the default branch are"));
+  assert.deepEqual(await of(known(texts, [C1], { results: "unknown" }), "Tests"), none("test results are"));
+  assert.deepEqual(await of(known(texts, [C1], { requirements: "unknown" }), "Tests"), none("requirements are"));
+  assert.deepEqual(await of(known(texts, [C1], { tests: "unknown" }), "Tests"), none("tests are"));
+  assert.deepEqual(await of({}, "Tests"), none("requirements are"));
+});
+
+// ---------------------------------------------------------------- the instance’s own bar
+
+const RELEASE = { tags: [{ name: "v2026.1.0", commit: C1 }] };
+const shares = async (over) => (await stageShares(facts(over))).map(({ stage, share }) => [stage, share]);
+const ALL_FULL = ["Requirements", "Use cases", "Architecture", "Implementation", "Tests", "Release"].map((stage) => [stage, 1]);
+
+// TST-809005 · level: unit · module: MOD-progress-measures
+// guards: WITHOUT A PRODUCT, THE MAIN PAGE SHOWS AGENT M’S OWN PROGRESS; UC-046
+// given: a repository that is the instance’s own (own true) with nothing accepted and no requirement; (a) its first release tagged; (b) no tag; (c) only a release candidate tagged (v2026.1.0-rc.1); (d) tags unknown; and, as the counter-proof, (e) a product (own false) with the same facts and its release tagged
+// input: stageShares of each
+// expect: (a) all six stages 1 — the bar is full once the first release is tagged; (b) the stages as for a product: Use cases 0 and Release 0; (c) the same, Release 0; (d) Release null, and no other stage is made full; (e) Release 1 and the other stages as the facts give them, Use cases 0
+test("stageShares — for the instance’s own repository the bar is full once its first release is tagged", async () => {
+  assert.deepEqual(await shares({ own: true, ...RELEASE }), ALL_FULL);
+  assert.deepEqual((await shares({ own: true, tags: [] })).filter(([stage]) => stage === "Use cases" || stage === "Release"), [["Use cases", 0], ["Release", 0]]);
+  assert.deepEqual((await shares({ own: true, tags: [{ name: "v2026.1.0-rc.1", commit: C1 }] })).at(-1), ["Release", 0]);
+  const unknown = await shares({ own: true, tags: "unknown" });
+  assert.deepEqual([unknown.at(-1), unknown[1]], [["Release", null], ["Use cases", 0]]);
+  const product = await shares({ own: false, ...RELEASE });
+  assert.deepEqual([product[1], product.at(-1)], [["Use cases", 0], ["Release", 1]]);
+});
+
+// TST-809006 · level: unit · module: MOD-progress-measures
+// guards: WITHOUT A PRODUCT, THE MAIN PAGE SHOWS AGENT M’S OWN PROGRESS; UC-046
+// given: the instance’s own repository with its first release tagged
+// input: currentStage of stageShares(facts); and of a product with the same tags
+// expect: null — every stage is full; the product’s current stage is Requirements, the first stage that is not full
+test("currentStage — the instance’s own repository, once released, is in no stage", async () => {
+  assert.equal(currentStage(await stageShares(facts({ own: true, ...RELEASE }))), null);
+  assert.equal(currentStage(await stageShares(facts({ own: false, ...RELEASE }))), "Requirements");
 });

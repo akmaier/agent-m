@@ -7,7 +7,10 @@
 //
 // Where the module file leaves a reading open, this file takes the one it names:
 //   - A SPEC change entry is decided when its state is `approved` or `in SPEC` (MOD-spec-changes): a person's acceptance names it.
-//   - The tests stage has no share: it needs the commits of the default branch, which Facts does not hold.
+//   - A requirement is guarded by a passing test when a test whose `guards` name it passes (a test's `guards` is what MOD-trace-graph draws its
+//     `guards` edges from; Facts.graph is never built). A test passes when its outcome is `passed` in the records of the first of
+//     `resultCommits` that names it (MOD-result-records' resultsAt); a test no commit names is not run.
+//   - For the instance's own repository (`own`), the bar is full once its first release is tagged: every stage is then full.
 //   - A gate waits for a person when it is pending and its deciding role is held, in some role assignment, by a participant of the
 //     type `person`; a gate decided by a check has no holder. The path of such a gate is the record of the job waiting at it, else the
 //     product's declaration, where its gates are declared.
@@ -16,6 +19,7 @@
 import { statuses } from "../approvals/index.mjs";
 import { queues } from "../spec-changes/index.mjs";
 import { reportsAwaitingAcceptance } from "../release-evidence/index.mjs";
+import { resultsAt } from "../result-records/index.mjs";
 import { factsPath, factsText } from "./stored.mjs";
 
 // The human-readable kind MOD-progress-measures' waitingForAcceptance names a reviewed file by (Interfaces), keyed by
@@ -91,10 +95,36 @@ function implementationStage(facts) {
   return { share: done / states.length, detail: `${done} of ${states.length} ${steps ? "steps" : "items"} done` };
 }
 
-// A test passes “by the newest result record of a commit of the default branch that ran it”; Facts holds no list of the commits of
-// the default branch, so the share is not told.
-function testsStage() {
-  return unknown("commits of the default branch are");
+// The tests that pass: those whose outcome in the records of the first of `commits` (newest first) that names them is `passed`. Each commit's
+// records are read once, for the tests no newer commit named; the reading stops when every test is settled.
+async function passingTests(results, commits, tests) {
+  const passing = new Set();
+  let pending = tests;
+  for (const commit of commits) {
+    if (pending.length === 0) break;
+    const named = new Set();
+    for (const group of await resultsAt(results, commit, pending.map(({ id, level }) => ({ id, level })))) {
+      for (const test of group.tests.filter((entry) => entry.records.length > 0)) {
+        named.add(test.id);
+        if (test.outcome === "passed") passing.add(test.id);
+      }
+    }
+    pending = pending.filter(({ id }) => !named.has(id));
+  }
+  return passing;
+}
+
+// A test passes “by the newest result record of a commit of the default branch that ran it”: the share of the requirements that a passing test guards.
+async function testsStage(facts) {
+  if (facts.requirements === "unknown") return unknown("requirements are");
+  if (facts.tests === "unknown") return unknown("tests are");
+  if (facts.results === "unknown") return unknown("test results are");
+  if (facts.resultCommits === "unknown") return unknown("commits of the default branch are");
+  if (!facts.requirements.length) return { share: 0, detail: "no requirement yet" };
+  const passing = facts.results === null ? new Set() : await passingTests(facts.results, facts.resultCommits, facts.tests);
+  const guarded = new Set(facts.tests.filter(({ id }) => passing.has(id)).flatMap((test) => test.guards));
+  const count = facts.requirements.filter((requirement) => guarded.has(requirement)).length;
+  return { share: count / facts.requirements.length, detail: `${count} of ${facts.requirements.length} requirements guarded by a passing test` };
 }
 
 function releaseStage(facts) {
@@ -107,7 +137,7 @@ function releaseStage(facts) {
 /**
  * stageShares(facts) -> Promise<Array<{ stage: string, share: number | null, detail: string }>> — the six stages of the main
  * page's bar, in their order: Requirements, Use cases, Architecture, Implementation, Tests, Release. A share is between 0 and 1;
- * a stage whose share needs an unknown fact has none (null), and its detail says which. Reads nothing.
+ * a stage whose share needs an unknown fact has none (null), and its detail says which. The tests stage reads the records of the branch test-results through resultsAt (MOD-result-records), the commits of resultCommits newest first, as far as a test is not settled; nothing else is read. For the instance's own repository (own), the bar is full once its first release is tagged.
  * @param {object} facts MOD-progress-measures' Facts
  */
 export async function stageShares(facts) {
@@ -116,10 +146,12 @@ export async function stageShares(facts) {
     ["Use cases", acceptedStage(facts, new Set(["use-case"]), { of: "accepted", none: "no use case yet" })],
     ["Architecture", acceptedStage(facts, new Set(["architecture-decision", "module"]), { of: "files accepted", none: "not designed yet" })],
     ["Implementation", implementationStage(facts)],
-    ["Tests", testsStage()],
+    ["Tests", await testsStage(facts)],
     ["Release", releaseStage(facts)],
   ];
-  return stages.map(([stage, { share, detail }]) => ({ stage, share, detail }));
+  // The instance's own repository has no product: its bar is full once its first release is tagged.
+  const full = facts.own && stages.at(-1)[1].share === 1;
+  return stages.map(([stage, { share, detail }]) => ({ stage, share: full ? 1 : share, detail }));
 }
 
 /**

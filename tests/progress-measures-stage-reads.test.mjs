@@ -1,6 +1,7 @@
 // What stageShares reads, at this repository's size — MOD-progress-measures' stageShares tells the six stages from the facts it is
-// given: it reads no record of the branch test-results and no file of the product's snapshot, and sends no request, however many
-// requirements and tests the product holds and however many commits the branch test-results holds records of. The size is this repository's
+// given: it reads the records of the branch test-results only of the commits of `resultCommits` that it needs, newest first, and no file of
+// the product's snapshot, and sends no request, however many requirements and tests the product holds and however many commits the branch
+// test-results holds records of. The size is this repository's
 // (the sizes are stated below, as counted on the base of sprint 74): 412 requirements in SPEC.md, 2499 distinct test identifiers
 // declared in tests/, and the 85 commits whose records stand on the branch test-results.
 // Run: node --test tests/progress-measures-stage-reads.test.mjs
@@ -17,7 +18,7 @@
 import test, { afterEach, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { stageShares } from "../src/progress-measures/index.mjs";
-import { COMMIT, facts, graphOf, resultsSnapshot, runRecord } from "./progress-measures-facts.mjs";
+import { COMMIT, facts, resultsSnapshot, runRecord } from "./progress-measures-facts.mjs";
 
 let fetched = [];
 const realFetch = globalThis.fetch;
@@ -50,8 +51,8 @@ function repository(over = {}) {
   const snapshot = { commit: COMMIT, paths: [], blob: () => null, read: async (path) => { productReads.push(path); return null; } };
   return {
     results, productReads,
-    facts: facts({ requirements: names, graph: graphOf(names, ids.map((id, i) => [id, names[i % REQUIREMENTS]])),
-      tests: ids.map((id) => ({ id, level: "unit", module: "MOD-x", guards: [] })), results, snapshot, ...over }),
+    facts: facts({ requirements: names, resultCommits: [COMMIT, ...Object.keys(texts).map((path) => path.split("/")[1]).filter((c) => c !== COMMIT)],
+      tests: ids.map((id, i) => ({ id, level: "unit", module: "MOD-x", guards: [names[i % REQUIREMENTS]] })), results, snapshot, ...over }),
   };
 }
 
@@ -59,11 +60,11 @@ function repository(over = {}) {
 // guards: THE MAIN PAGE SHOWS EACH PRODUCT’S PROGRESS BY STAGE; UC-046
 // given: this repository’s size — 412 requirements, 2499 tests each guarding one of them, the branch test-results holding 86 records of 85 commits, two of them of the commit of the facts
 // input: stageShares(facts), counting the reads of the branch test-results and of the product’s snapshot
-// expect: no read of either — the stages are told from the facts as they are held; the tests stage has no share
-test("stageShares — at this repository’s size it reads no record and no file", async () => {
+// expect: the tests stage is full (1, "412 of 412 requirements guarded by a passing test"); the only records read are the two of the commit of the facts, which name every test, so that none of the 84 older commits is asked; no file of the product’s snapshot is read
+test("stageShares — at this repository’s size it reads the records of the newest commit and no file", async () => {
   const r = repository();
   const tests = (await stageShares(r.facts)).find((s) => s.stage === "Tests");
-  assert.equal(tests.share, null);
-  assert.deepEqual(r.results.reads, []);
+  assert.deepEqual(tests, { stage: "Tests", share: 1, detail: "412 of 412 requirements guarded by a passing test" });
+  assert.deepEqual(r.results.reads.sort(), [`runs/${COMMIT}/20261016-1000-commit-aaaa.md`, `runs/${COMMIT}/20261016-1010-pull-request-bbbb.md`]);
   assert.deepEqual(r.productReads, []);
 });
