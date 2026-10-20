@@ -172,7 +172,8 @@ const OLD_SPEC = `# Fixture — Specification
 Old rule.
 *Check:* \`tests/old.test.mjs\`
 `;
-const options = (target) => find(target, (node) => node.localName === "option");
+// The choices of the version, not those of the filters that narrow the tree (ITM-596).
+const options = (target) => find(target, (node) => node.localName === "select" && node.className.includes("version-choice")).flatMap((select) => find(select, (node) => node.localName === "option"));
 const selectOf = (target) => find(target, (node) => node.localName === "select")[0];
 const names = (target) => find(target, (node) => node.localName === "button" && node.className.includes("requirement-name")).map((node) => node.textContent);
 const choose = (target, ref) => { const select = selectOf(target); select.value = ref; select.dispatchEvent(new Event("change")); };
