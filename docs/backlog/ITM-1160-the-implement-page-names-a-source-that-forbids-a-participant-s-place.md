@@ -35,3 +35,5 @@ participants on the route `implement`.
   only where the job needs none of that content, and the content is named. Counter-proof: a participant whose place
   the source allows is offered as before.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**The draft is on `main` as `04132d07`** (MOD-implementation-pages, by developer-sonnet-e). The item is built once it is accepted.
