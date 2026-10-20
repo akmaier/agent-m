@@ -30,7 +30,7 @@ const route = view.routes.find((candidate) => candidate.name === "implement");
 // ---------------------------------------------------------------- the DOM: the selectors the route finds its controls by
 const matches = (element, selector) => {
   const attribute = /^\[([a-z-]+)(?:="([^"]*)")?\]$/.exec(selector);
-  return attribute ? (attribute[2] === undefined ? element.getAttribute(attribute[1]) !== null : element.getAttribute(attribute[1]) === attribute[2]) : false;
+  return attribute ? (attribute[2] === undefined ? element.getAttribute(attribute[1]) !== null : element.getAttribute(attribute[1]) === attribute[2]) : element.localName === selector;
 };
 const found = (root, selector) => {
   const all = [];
@@ -240,6 +240,6 @@ test("a pull request of no job the product started is not shown", async () => {
   const foreign = pullOf({ number: 11, item: "ITM-005", jobId: "JOB-20260916-0900-e1e2", digit: "9", body: "A change somebody made by hand.\n" });
   const { target, calls } = await render([pull], { extraPulls: [foreign] });
   shown(target, 7);
-  assert.equal(pullBox(target, 11), undefined);
+  assert.ok(!pullBox(target, 11), "the pull request of no job is not shown");
   assert.ok(!calls.some((call) => call[0] === "pullRequestFacts" && call[1] === 11), "the facts of a foreign pull request are not read");
 });
