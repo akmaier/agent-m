@@ -153,37 +153,56 @@ function pullRequestFor(item, pullRequests, state) {
   return (pullRequests ?? []).find((pullRequest) => pullRequest?.state === state && namesPullRequest(pullRequest, id)) ?? null;
 }
 
+// A pull request of the item opened after the job's start: the job's own. Without a readable date it is not.
+function openedAfter(pullRequest, job) {
+  return new Date(pullRequest?.opened) > new Date(job?.record?.start);
+}
+
 function derivedState(item, phase, states, facts) {
   const id = idOf(item);
+  const job = jobFor(item, facts.jobs);
+  const named = job ? jobId(job) : null;
   const acceptance = acceptanceReasons(item, facts);
-  if (acceptance.length) return { item: id, state: "waiting for acceptance", reason: acceptance.join("; "), job: null, pullRequest: null };
+  if (acceptance.length) return { item: id, state: "waiting for acceptance", reason: acceptance.join("; "), job: named, pullRequest: null };
 
   const prerequisites = unfinishedPrerequisites(item, states);
   if (prerequisites.length) return { item: id, state: "waiting for an item it builds on",
-    reason: `${listed(prerequisites)} ${prerequisites.length === 1 ? "is" : "are"} not done`, job: null, pullRequest: null };
+    reason: `${listed(prerequisites)} ${prerequisites.length === 1 ? "is" : "are"} not done`, job: named, pullRequest: null };
 
   const gates = gatesBefore(phase, facts);
-  if (gates.length) return { item: id, state: "waiting", reason: gates.map(gateReason).join("; "), job: null, pullRequest: null };
+  if (gates.length) return { item: id, state: "waiting", reason: gates.map(gateReason).join("; "), job: named, pullRequest: null };
 
-  const job = jobFor(item, facts.jobs);
   if (["failed", "waiting at a gate"].includes(job?.state)) {
-    return { item: id, state: "blocked", reason: blockedJobReason(job), job: jobId(job), pullRequest: null };
+    return { item: id, state: "blocked", reason: blockedJobReason(job), job: named, pullRequest: null };
   }
   if (["queued", "running", "cancelling"].includes(job?.state)) {
-    return { item: id, state: "in progress", reason: `job ${jobId(job)} is ${job.state}`, job: jobId(job), pullRequest: null };
+    return { item: id, state: "in progress", reason: `job ${named} is ${job.state}`, job: named, pullRequest: null };
   }
 
   if (facts.pullRequests === "unknown") {
-    return { item: id, state: "unknown", reason: "pull request facts are unknown", job: null, pullRequest: null };
+    return { item: id, state: "unknown", reason: "pull request facts are unknown", job: named, pullRequest: null };
   }
 
   const open = pullRequestFor(item, facts.pullRequests, "open");
   if (open) return { item: id, state: "in progress", reason: `pull request ${pullRequestRef(open)} is open for review`,
-    job: null, pullRequest: pullRequestRef(open) };
-  const merged = pullRequestFor(item, facts.pullRequests, "merged");
-  if (merged) return { item: id, state: "done", reason: null, job: null, pullRequest: pullRequestRef(merged) };
+    job: named, pullRequest: pullRequestRef(open) };
 
-  return { item: id, state: "ready", reason: null, job: null, pullRequest: null };
+  // A job that ended as done keeps the item in progress until a pull request opened after its start is merged or closed.
+  if (job?.state === "done") {
+    const ofJob = (facts.pullRequests ?? []).filter((pullRequest) => namesPullRequest(pullRequest, id) && openedAfter(pullRequest, job));
+    const mergedOfJob = ofJob.find((pullRequest) => pullRequest?.state === "merged");
+    if (mergedOfJob) return { item: id, state: "done", reason: null, job: named, pullRequest: pullRequestRef(mergedOfJob) };
+    if (!ofJob.some((pullRequest) => pullRequest?.state === "closed")) {
+      return { item: id, state: "in progress", reason: `job ${named} is done, and no pull request of it is merged yet`,
+        job: named, pullRequest: null };
+    }
+    return { item: id, state: "ready", reason: null, job: named, pullRequest: null };
+  }
+
+  const merged = pullRequestFor(item, facts.pullRequests, "merged");
+  if (merged) return { item: id, state: "done", reason: null, job: named, pullRequest: pullRequestRef(merged) };
+
+  return { item: id, state: "ready", reason: null, job: named, pullRequest: null };
 }
 
 /**

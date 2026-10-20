@@ -2,7 +2,7 @@
 // (docs/architecture/MOD-progress-measures.md): its interface. Built: productFacts with the scopes `build`, `work` and `all` (facts.mjs; a fact
 // neither scope reads is "unknown"), progressIn for a model with sprints (measures.mjs; its
 // grid of a planned model and the board's flow are null), and stageShares, currentStage, buildInProgress, waitingForAPerson and
-// waitingForAcceptance (stages.mjs). gateOverview and whoWorksOnWhat (overviews.mjs) too; blocked is not built yet.
+// waitingForAcceptance (stages.mjs). gateOverview, whoWorksOnWhat and blocked (overviews.mjs) too.
 //
 // Module: MOD-progress-measures
 
@@ -10,4 +10,4 @@ export { waitingForAcceptance, stageShares, currentStage, buildInProgress, waiti
 export { progressIn } from "./measures.mjs";
 export { productFacts } from "./facts.mjs";
 export { storedFacts } from "./stored.mjs";
-export { gateOverview, whoWorksOnWhat } from "./overviews.mjs";
+export { blocked, gateOverview, whoWorksOnWhat } from "./overviews.mjs";
