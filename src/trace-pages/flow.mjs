@@ -780,7 +780,7 @@ export const route = {
       return;
     }
     if (descriptor.key === "audit") {
-      await drawAudit(target, context, host, params.ref, descriptor, (await tagsOf(host)).filter((tag) => RELEASE.test(tag)));
+      await drawAudit(target, context, host, params.ref, descriptor, (await tagsOf(host)).names.filter((tag) => RELEASE.test(tag)));
       return;
     }
     const handed = params.ref;
