@@ -10,6 +10,7 @@ uses:
   - MOD-work-plans.Held
   - MOD-work-plans.itemStates
   - MOD-work-plans.heldItems
+  - MOD-work-plans.conflicts
   - MOD-work-plans.undecidedHeads
   - MOD-work-plans.planSchemas
   - MOD-product-process.Workflow
@@ -137,14 +138,17 @@ The six stages of the main page, each a share between 0 and 1:
   Document | "unknown", ci: { runs: CiRun[] | "unknown", configured: boolean, drift: Array<{ path: string, difference:
   string }>, jobWorkflow: boolean } | "unknown", tags: Array<{ name: string, commit: string }> | "unknown", results:
   Snapshot | null | "unknown", tests: TestDeclaration[] | "unknown", resourceNeeds: ResourceNeed[] | "unknown",
-  resultCommits: string[] | "unknown", own: boolean }`: `requirements` the accepted ones; `model` the declared model as the
+  resultCommits: string[] | "unknown", own: boolean, modules: Document[] }`: `requirements` the accepted ones;
+  `model` the declared model as the
   instance's catalogue held it at the commit the declaration's `model_version` names — the version the product declared
   and keeps (UC-031 6a) —, and `workflow` derived from it. Both are `"unknown"` when that commit cannot be read, and
   `modelUnread` then names the commit and the error it was read with. `modelSince` is the date the declared model was
   declared; `plan`
   the steps of the implementation plan in their order, or the backlog items after the items they build on, with their
   states; `sprints` the sprints of every team, a team's running or last sprint being its newest; `assignments` the
-  role assignments; `held` what the teams' sprints hold (MOD-work-plans' `heldItems`); `jobs` every job of the product, each with the state its record gives — a caller that asks the live
+  role assignments; `held` what the teams' sprints hold (MOD-work-plans' `heldItems`), and `modules` the architecture's
+  module files it is computed with; `jobs` every job of the product, each with the state its record gives — a caller
+  that asks the live
   states of those that have not ended derives the rows again with MOD-job-ledger's `listJobs` —; `schedule` the product's test schedule, or the book's default where none is saved; `ci.runs`
   the runs of the default branch's head; `ci.configured` whether the configuration Agent M generates from the schedule
   is present, `ci.drift` how it differs from the schedule, `ci.jobWorkflow` whether the job workflow of MOD-runtimes is
@@ -236,7 +240,7 @@ The six stages of the main page, each a share between 0 and 1:
 - `blocked(facts: Facts) -> Array<{ item: string, reason: "failed job" | "waiting at a gate" | "requirement not
   accepted" | "work-in-progress limit" | "held by another team's sprint", detail: string }>` — every item or plan entry
   that cannot move, each with its reason; for a gate, the role or check that decides it; for a held module, the other
-  team's sprint and the module.
+  team's sprint and the module, as MOD-work-plans' `conflicts` gives them over `held` and `modules`.
 - `whoWorksOnWhat(facts: Facts) -> { participants: Array<{ participant: string, roles: string[], teams: string[], jobs:
   string[] }>, held: Held[], unreachable: Array<{ route: string, reason: string | null }> }` — each participant of the
   product with its roles, its teams in a product with several teams, and its current jobs; what each team's sprint holds; and each source of jobs that could not be read, whose running jobs are not shown. A job record
@@ -307,7 +311,8 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
 ## Uses
 
 - MOD-work-plans.ItemState, Held, itemStates, heldItems, undecidedHeads, planSchemas — the steps and items, their order, the sprints,
-  what they hold, and each one's state.
+  what they hold, and each one's state; MOD-work-plans.conflicts — what keeps an item from its team's selection, for
+  `blocked`.
 - MOD-product-process.Workflow, declarationSchema, productWorkflow, gateSchema, gateStates, roleAssignmentSchema — the
   declared process, its gates and their states, and the role assignments. The workflow is `productWorkflow`'s, read with
   the instance's SPEC, where the process requirements stand.
