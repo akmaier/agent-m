@@ -10,8 +10,8 @@
 // Level: component
 //
 // The fixture is a small product: a SPEC of four requirements in two sections; a group file with two top groups, one holding a group; one use case that realises ALPHA RULE and
-// one that realises GAMMA RULE; and a queue of one open entry, which proposes the section "## Lending" without BETA RULE, with ALPHA RULE's rule changed and with EPSILON RULE added.
-// The group file names GHOST RULE, which no requirement has, and leaves DELTA RULE unnamed. The expected values are written in each case; none is read from a document.
+// one that realises GAMMA RULE; and a queue of one open entry, which proposes the section "## Lending" without BETA RULE, with ALPHA RULE's rule changed and with EPSILON RULE and ZETA RULE added.
+// The group file names GHOST RULE, which no requirement has, and ZETA RULE, which the entry would add, and leaves DELTA RULE and EPSILON RULE unnamed. The expected values are written in each case; none is read from a document.
 // Readings the cases take where the texts leave one open, each named in the pull request:
 //   - "how many it holds" counts the requirements of the group and of the groups below it, once each; a member that names no requirement is not one, and a requirement an open entry would add is;
 //   - a requirement an open entry would add is one that no use case realises, since the trace graph does not hold it;
@@ -38,8 +38,9 @@ const PROPOSAL = [
   "## Lending", "",
   "**ALPHA RULE** *(Source)*", "Alpha rule, changed.", "*Check:* at review.", "",
   "**EPSILON RULE** *(Source)*", "Epsilon rule.", "*Check:* at review.", "",
+  "**ZETA RULE** *(Source)*", "Zeta rule.", "*Check:* at review.", "",
 ].join("\n");
-const GROUPS = ["- Lending rules", "  - ALPHA RULE", "  - Loans", "    - BETA RULE", "- Membership rules", "  - GAMMA RULE", "  - GHOST RULE", ""].join("\n");
+const GROUPS = ["- Lending rules", "  - ALPHA RULE", "  - Loans", "    - BETA RULE", "    - ZETA RULE", "- Membership rules", "  - GAMMA RULE", "  - GHOST RULE", ""].join("\n");
 const QUEUE = "docs/spec-freigaben/2026-10-09_lending";
 const FILES = {
   "SPEC.md": SPEC,
@@ -69,15 +70,15 @@ const spanOf = (group, name) => find(group, (node) => node.localName === "span" 
 
 // TST-595001 · level: component · module: MOD-trace-pages
 // guards: UC-020 (step 3); AN UNGROUPED ITEM IS SHOWN AT THE TOP LEVEL
-// given: the fixture on the default branch main: DELTA RULE named by no group, EPSILON RULE added by the open entry, GHOST RULE named by a group but by no requirement
+// given: the fixture on the default branch main: DELTA RULE named by no group, EPSILON RULE added by the open entry and named by no group, ZETA RULE added by it and named by a group, GHOST RULE named by a group but by no requirement
 // input: the public trace/specification route rendered at the ref main
 // expect: each requirement once, with its status, in the order of the tree: the top level first (DELTA RULE in SPEC, EPSILON RULE proposed), then Lending rules (ALPHA RULE
-//         change proposed, BETA RULE removal proposed), then Membership rules (GAMMA RULE in SPEC, GHOST RULE as an unknown member)
+//         change proposed; below it, in Loans, BETA RULE removal proposed, ZETA RULE proposed), then Membership rules (GAMMA RULE in SPEC, GHOST RULE as an unknown member)
 test("every requirement appears once in the tree of the group file, with its status", async () => {
   const target = await render(treeHost({ trees: { main: FILES } }));
   assert.deepEqual(rowsOf(target), [
     ["DELTA RULE", "in SPEC"], ["EPSILON RULE", "proposed"],
-    ["ALPHA RULE", "change proposed"], ["BETA RULE", "removal proposed"],
+    ["ALPHA RULE", "change proposed"], ["BETA RULE", "removal proposed"], ["ZETA RULE", "proposed"],
     ["GAMMA RULE", "in SPEC"], ["GHOST RULE", "unknown: no requirement of this name"],
   ]);
   const opening = find(target, (node) => node.localName === "button" && hasClass(node, "requirement-name")).map((node) => node.textContent);
@@ -88,15 +89,15 @@ test("every requirement appears once in the tree of the group file, with its sta
 // guards: UC-020 (step 3)
 // given: the fixture on main; UC-001 realises ALPHA RULE, UC-002 realises GAMMA RULE, none realises BETA RULE, DELTA RULE or the added EPSILON RULE
 // input: the route rendered at main
-// expect: the groups in the order of the file, the group below another inside it; Lending rules holds 2 requirements, 1 that no use case realises (BETA RULE); Loans holds 1, 1;
-//         Membership rules holds 1 (GHOST RULE is no requirement), 0 that no use case realises
+// expect: the groups in the order of the file, the group below another inside it; Lending rules holds 3 requirements (those of Loans too), 2 that no use case realises (BETA RULE, and ZETA RULE,
+//         which the entry would add and nothing realises yet); Loans holds 2, 2; Membership rules holds 1 (GHOST RULE is no requirement), 0 that no use case realises
 test("each group shows how many requirements it holds and how many of them no use case realises", async () => {
   const target = await render(treeHost({ trees: { main: FILES } }));
   const all = groups(target);
   assert.deepEqual(all.map(titleOf), ["Lending rules", "Loans", "Membership rules"]);
   assert.deepEqual(all.map((group) => [spanOf(group, "spec-group-held"), spanOf(group, "spec-group-unrealised")]), [
-    ["2 requirements", "1 that no use case realises"],
-    ["1 requirement", "1 that no use case realises"],
+    ["3 requirements", "2 that no use case realises"],
+    ["2 requirements", "2 that no use case realises"],
     ["1 requirement", "0 that no use case realises"],
   ]);
   assert.deepEqual(find(all[0], (node) => node.localName === "section" && hasClass(node, "spec-group") && node !== all[0]).map(titleOf), ["Loans"], "Loans stands inside Lending rules");
@@ -111,7 +112,7 @@ test("each group shows how many requirements it holds and how many of them no us
 test("a requirement no group names, and a proposed one, stand at the top level", async () => {
   const target = await render(treeHost({ trees: { main: FILES } }));
   const inside = new Set(groups(target).flatMap((group) => rowsOf(group).map(([name]) => name)));
-  assert.deepEqual([...inside].sort(), ["ALPHA RULE", "BETA RULE", "GAMMA RULE", "GHOST RULE"]);
+  assert.deepEqual([...inside].sort(), ["ALPHA RULE", "BETA RULE", "GAMMA RULE", "GHOST RULE", "ZETA RULE"]);
   const topLevel = rowsOf(target).map(([name]) => name).filter((name) => !inside.has(name));
   assert.deepEqual(topLevel, ["DELTA RULE", "EPSILON RULE"]);
 });
@@ -134,13 +135,14 @@ test("a member that names no requirement is shown as unknown", async () => {
 // guards: UC-020 (steps 1a, 3)
 // given: the fixture on main, and the same files at the tag v2026.1.0; known positive: at main ALPHA RULE reads change proposed
 // input: the route rendered at the ref v2026.1.0
-// expect: the tree of the tag's group file with every SPEC requirement "in SPEC", no EPSILON RULE, the counts of the groups as at main
+// expect: the tree of the tag's group file with every SPEC requirement "in SPEC", no EPSILON RULE, ZETA RULE an unknown member, the counts of the groups as without the entry
 test("at a released version every requirement reads in SPEC and the tree is the tag's", async () => {
   const productHost = treeHost({ trees: { main: FILES, "v2026.1.0": FILES }, tags: ["v2026.1.0"] });
   assert.deepEqual(rowsOf(await render(productHost)).find(([name]) => name === "ALPHA RULE"), ["ALPHA RULE", "change proposed"]);
   const target = await render(productHost, { key: "specification", ref: "v2026.1.0" });
   assert.deepEqual(rowsOf(target), [
-    ["DELTA RULE", "in SPEC"], ["ALPHA RULE", "in SPEC"], ["BETA RULE", "in SPEC"], ["GAMMA RULE", "in SPEC"], ["GHOST RULE", "unknown: no requirement of this name"],
+    ["DELTA RULE", "in SPEC"], ["ALPHA RULE", "in SPEC"], ["BETA RULE", "in SPEC"], ["ZETA RULE", "unknown: no requirement of this name"],
+    ["GAMMA RULE", "in SPEC"], ["GHOST RULE", "unknown: no requirement of this name"],
   ]);
   assert.deepEqual(groups(target).map((group) => [titleOf(group), spanOf(group, "spec-group-held"), spanOf(group, "spec-group-unrealised")]), [
     ["Lending rules", "2 requirements", "1 that no use case realises"],
@@ -173,10 +175,10 @@ test("a group opens and closes with its control and leaves the other groups as t
 // guards: UC-020 (step 3)
 // given: the fixture on main, in which every read of UC-001's file fails as an unreachable server does; known positive: the same page with the file readable counts 1 for Loans
 // input: the route rendered at main
-// expect: the groups still show how many they hold, and where the unrealised count would stand they read "whether a use case realises them could not be read"
+// expect: the groups still show how many they hold (the impact list of the entry reads the same file and fails too, so ZETA RULE is unknown and not counted), and where the unrealised count would stand they read "whether a use case realises them could not be read"
 test("a trace graph that cannot be read leaves the counts of held requirements and names what is missing", async () => {
   const positive = await render(treeHost({ trees: { main: FILES } }));
-  assert.equal(spanOf(groups(positive)[1], "spec-group-unrealised"), "1 that no use case realises");
+  assert.equal(spanOf(groups(positive)[1], "spec-group-unrealised"), "2 that no use case realises");
   const target = await render(treeHost({ trees: { main: FILES }, failing: (path) => path === "docs/use-cases/UC-001-first.md" }));
   assert.deepEqual(groups(target).map((group) => [spanOf(group, "spec-group-held"), spanOf(group, "spec-group-unrealised")]),
     ["2 requirements", "1 requirement", "1 requirement"].map((held) => [held, "whether a use case realises them could not be read"]));
@@ -186,13 +188,32 @@ test("a trace graph that cannot be read leaves the counts of held requirements a
 // guards: UC-020 (step 3); AN UNGROUPED ITEM IS SHOWN AT THE TOP LEVEL
 // given: the fixture without a group file; known positive: with it, Lending rules exists
 // input: the route rendered at main
-// expect: no group, and every requirement of the SPEC at the top level in the order of the SPEC, EPSILON RULE after them
+// expect: no group, and every requirement of the SPEC at the top level in the order of the SPEC, EPSILON RULE and ZETA RULE after them
 test("without a group file every requirement stands at the top level", async () => {
   const { "docs/groups/requirements.md": _group, ...without } = FILES;
   assert.ok(groups(await render(treeHost({ trees: { main: FILES } }))).length > 0, "known positive: the group file gives groups");
   const target = await render(treeHost({ trees: { main: without } }));
   assert.equal(groups(target).length, 0);
   assert.deepEqual(rowsOf(target), [
-    ["ALPHA RULE", "change proposed"], ["BETA RULE", "removal proposed"], ["GAMMA RULE", "in SPEC"], ["DELTA RULE", "in SPEC"], ["EPSILON RULE", "proposed"],
+    ["ALPHA RULE", "change proposed"], ["BETA RULE", "removal proposed"], ["GAMMA RULE", "in SPEC"], ["DELTA RULE", "in SPEC"], ["EPSILON RULE", "proposed"], ["ZETA RULE", "proposed"],
   ]);
+});
+
+// TST-595009 · level: component · module: MOD-trace-pages
+// guards: UC-020 (step 3)
+// given: the fixture with a second queue, newer than the first (2026-10-10), whose open entry proposes the section "## Lending" with BETA RULE alone, so that it withdraws ALPHA RULE, which the older queue's entry changes
+// input: the route rendered at main
+// expect: ALPHA RULE reads "removal proposed", the status the first entry that names it gives (the queues are taken newest first, as MOD-spec-changes gives them), and not "change proposed"; known positive:
+//         with the older queue alone it reads "change proposed"
+test("of two open entries that name a requirement the first gives its status", async () => {
+  const newer = "docs/spec-freigaben/2026-10-10_withdraw";
+  const files = {
+    ...FILES,
+    [`${newer}/index.md`]: FILES[`${QUEUE}/index.md`].replace("2026-10-09 · lending", "2026-10-10 · withdraw"),
+    [`${newer}/entscheidungen.md`]: "# Decisions — queue 2026-10-10 withdraw\n\nAppend-only.\n",
+    [`${newer}/01-entry.md`]: ["## Lending", "", "**BETA RULE** *(Source)*", "Beta rule.", "*Check:* at review.", ""].join("\n"),
+  };
+  const statusOfAlpha = async (tree) => rowsOf(await render(treeHost({ trees: { main: tree } }))).find(([name]) => name === "ALPHA RULE")[1];
+  assert.equal(await statusOfAlpha(FILES), "change proposed", "known positive");
+  assert.equal(await statusOfAlpha(files), "removal proposed");
 });
