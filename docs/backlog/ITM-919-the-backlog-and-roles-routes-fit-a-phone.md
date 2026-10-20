@@ -45,6 +45,8 @@ The draft, of MOD-site-frame, gives one rule that serves `#backlog`, `#roles`, `
 
 ITM-1159 starts on the same draft.
 
+**The draft is `3ef0fce2`**, on `main`, waiting for akmaier.
+
 ## Acceptance
 
 - At a phone's width, the module's `backlog` and `roles` routes hold no table or chart wider than the window. The todos for

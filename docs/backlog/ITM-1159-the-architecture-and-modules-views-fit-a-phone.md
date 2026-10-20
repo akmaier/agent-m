@@ -31,6 +31,8 @@ The two findings stand as todos in the `TODAY` map of `tests/site-usability.test
 cells stand one under another, each labelled by its column. Read too whether one such rule serves `#backlog` and `#roles`
 as well (*nothing twice*). Where the text does not give it, the item stops for a draft.
 
+**The draft is `3ef0fce2`**, of MOD-site-frame, written at ITM-919's stop. It waits for akmaier.
+
 ## Acceptance
 
 - At a phone's width, `#arc` and `#module` hold no element wider than the window, and their todos go. The views still
