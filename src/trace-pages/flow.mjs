@@ -561,37 +561,44 @@ async function moduleFilesOf(snapshot) {
 }
 
 // The table of the modules (UC-025 step 3), one row for each module of moduleRows: its subsystem and that decision's review status, the requirements it realises each in the SPEC or not, its file with its review status,
-// its code and its tests; the name opens the row onto the module's file and folder (step 6). A row is a block of labelled lines, not a line of cells, so that it fits the window of a phone.
+// its code and its tests; the name opens the row onto the module's file and folder (step 6). The table stands in the site's scroll box, so that on a phone it scrolls sideways in a box of its own and the page keeps its
+// margins; the box is reached by the keyboard and named, as it scrolls.
 function modulesTable(rows, graph, reviewOf, snapshot) {
   const statusOf = (path) => REVIEW[reviewOf.get(path)?.status] ?? "open";
   const list = (items) => el("ul", null, ...items.map((text) => el("li", null, text)));
-  const line = (label, className, content) => [el("dt", null, label), el("dd", className, content)];
-  const section = el("section", "modules-table", el("h3", null, "Modules"));
+  const body = el("tbody");
   for (const row of rows) {
     const name = el("button", "module-name btn small", row.module);
     name.type = "button";
     const subsystem = row.subsystem === null ? "none" : `${row.subsystem} — ${statusOf(graph.nodes.get(row.subsystem)?.path)}`;
     const realises = row.realises.map((each) => `${each} — ${graph.nodes.get(each)?.kind === "requirement" ? "in SPEC" : "not in the SPEC"}`);
-    const opened = el("div", "module-opened");
-    const block = el("article", "module-row", el("h4", null, name), el("dl", null, ...line("Subsystem", "module-subsystem", subsystem), ...line("Realises", "module-realises", list(realises)),
-      ...line("File", "module-file", `${row.describedBy} — ${statusOf(row.describedBy)}`), ...line("Code", "module-code", list(row.code)), ...line("Tests", "module-tests", list(row.tests))), opened);
-    block.setAttribute("data-module", row.module);
-    let open = false;
+    const tr = el("tr", "module-row", el("td", "module-name-cell", name), el("td", "module-subsystem", subsystem), el("td", "module-realises", list(realises)),
+      el("td", "module-file", `${row.describedBy} — ${statusOf(row.describedBy)}`), el("td", "module-code", list(row.code)), el("td", "module-tests", list(row.tests)));
+    tr.setAttribute("data-module", row.module);
+    let opened = null;
     name.addEventListener("click", async () => {
-      open = !open;
-      if (!open) { opened.replaceChildren(); return; }
-      const panel = el("div", "panel");
-      opened.replaceChildren(panel);
+      if (opened) { opened.parentNode?.removeChild(opened); opened = null; return; }
+      const here = el("tr", "module-opened");
+      const panel = el("td", "panel");
+      panel.setAttribute("colspan", "6");
+      here.append(panel);
+      opened = here;
+      body.insertBefore(here, tr.nextSibling);
       try {
         const file = renderArtifact((await snapshot.read(row.describedBy)) ?? "");
-        if (open) panel.append(file, el("p", "module-folder", `Folder: ${graph.nodes.get(row.module)?.folder ?? ""}`), list(row.code));
+        if (opened === here) panel.append(file, el("p", "module-folder", `Folder: ${graph.nodes.get(row.module)?.folder ?? ""}`), list(row.code));
       } catch (failure) {
-        if (open) panel.append(problemLine("The module's file", failure));
+        if (opened === here) panel.append(problemLine("The module's file", failure));
       }
     });
-    section.append(block);
+    body.append(tr);
   }
-  return section;
+  const head = el("tr", null, ...["Module", "Subsystem", "Realises", "File", "Code", "Tests"].map((title) => el("th", null, title)));
+  const box = el("div", "table-scroll", el("table", "list", el("thead", null, head), body));
+  box.setAttribute("tabindex", "0");
+  box.setAttribute("role", "region");
+  box.setAttribute("aria-label", "Modules");
+  return el("section", "modules-table", el("h3", null, "Modules"), box);
 }
 
 // Every gap of moduleRows with the artifact it concerns (UC-025 step 4), or the line that there is none (4a).
