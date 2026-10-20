@@ -36,5 +36,5 @@ stop and name the gap, which is then a draft for akmaier (AGENTS.md §6a.6).
 - MOD-prompt-bar's text names no parameters for a hand-over.
 - **The way chosen (po-opus):** for the subject's own kind, a hand-over's job takes the subject's `paramsFor`, with its
   source. A missing own source refuses the hand-over by name, with `NoPersonSource`.
-- The draft of MOD-prompt-bar.md, by developer-sonnet-d, goes to `main` for akmaier. The item waits for its
+- The draft of MOD-prompt-bar.md, by developer-sonnet-d, is on `main` as `1d0003e1`. The item waits for its
   acceptance.
