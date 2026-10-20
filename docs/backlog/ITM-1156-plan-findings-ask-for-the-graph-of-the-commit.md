@@ -6,6 +6,7 @@ realises:
   - A PAGE LOAD READS THE REPOSITORY IN BATCHES
 modules:
   - MOD-work-plans
+  - MOD-implementation-pages
 builds_on:
   - ITM-1120
 tests:
