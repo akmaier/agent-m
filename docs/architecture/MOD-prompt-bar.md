@@ -198,9 +198,10 @@ IN THE REPOSITORY`).
   the result of the same *Send*. *Stop* aborts the job in the tab (UC-049 5a). A hand-over the participant proposed
   (UC-049 4a) is shown with its kind, what it works on, its task, the participant with its processing place and the
   route it would take, which `routesFor` gives; *Hand over* is the decision. For the subject's own kind, the hand-over's job
-  takes the parameters the subject's `paramsFor` gives for the participant, its `source` included, beside what the hand-over
-  works on; where the subject finds no own source of the person, `paramsFor` refuses by name, `NoPersonSource`, and so does the
-  hand-over, with nothing queued (`THE PERSON WHO PROMPTS IS A SOURCE`). For a kind of the product's workflow, it is
+  takes, beside what the hand-over works on, only the `source` that the subject's `paramsFor` gives for the participant — no other
+  parameter, so that no message and no page text enters the job's record (`A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN
+  RECORDING IS ON`); where the subject finds no own source of the person, `paramsFor` refuses by name, `NoPersonSource`, and so
+  does the hand-over, with nothing queued (`THE PERSON WHO PROMPTS IS A SOURCE`). For a kind of the product's workflow, it is
   queued only when MOD-work-plans' `startable`, on the item states `itemStates` derives from the facts
   MOD-progress-measures' `productFacts` reads, finds no reason — not selected for its team's sprint, a requirement or use
   case not accepted, the work-in-progress limit, a gate not recorded — and MOD-product-process' `holdsRole` finds the
