@@ -11,13 +11,13 @@
 // run as they are; only `fetch` is faked, by this file: the Bridge on the loopback answers the mail operation `read` (POST /v1/mail/read) with the mails given, and GitHub's REST API for alice/product answers the issues, their
 // comments, the creation of an issue and of a comment, keeping what it is given. The store is a Map-backed localStorage that holds the mailbox connection, the Bridge, the product and its token. Nothing leaves the process.
 // Readings the texts leave open, which the tests state (the pull request names them):
-//   - The page: <button class="read-mailbox"> "Read mailbox"; <p class="mail-decided"> (how many were left out); <ul class="mail-attached"> of <li class="mail-attached-item"> with <a class="issue-link"> to #issue/<n>; <ul class="mail-list"> of
+//   - The page: <button class="read-mailbox"> "Read mailbox"; <p class="mail-decided"> (how many were left out); <ul class="mail-attached"> of <li class="mail-attached-item"> with <a class="issue-link"> to the address the frame writes for the issue, #issue/number=<n>/product=<address>; <ul class="mail-list"> of
 //     <li class="mail" data-mail="<MAIL-id>"> with .mail-sender, .mail-subject, .mail-date, <pre class="mail-text"> (the mail in full), <select class="mail-product">, <select class="mail-kind"> (defect, change), <input class="mail-title">,
 //     <textarea class="mail-body">, <ul class="mail-hits"> of <li class="mail-hit"> (one per hit of the mail's people in the title and the text), <button class="create-issue"> "Create issue", <input class="mail-issue-number"> with
 //     <button class="add-to-issue"> "Add to #<n>", <button class="not-an-issue"> "Not an issue", and <p class="mail-result"> (what came of a click). <p class="mailbox-problem"> names why nothing was read.
 //   - Each decision is made on a click the browser marks as a person's (isTrusted); a click a script makes does nothing. Create issue is disabled while a hit stands, and while the title or the text is empty.
 //   - After Create issue or Add to #n the mail stays in the list, with the result (7b: Create issue once per concern); after Not an issue it leaves it. Reading again leaves out every mail an issue lists or the store marks.
-//   - A created issue of the kind change is followed by <a class="issue-link"> to #issue/<n> (UC-038 step 10: the issue's route drafts the change); one of the kind defect has none.
+//   - A created issue of the kind change is followed by <a class="issue-link"> to #issue/number=<n>/product=<address> (UC-038 step 10: the issue's route drafts the change); one of the kind defect has none.
 //   - A refused token (HTTP 401) or a missing permission (403) on Create issue is named with the product, with <a class="token-step"> to the step that stores the token (#add-product); nothing is written.
 //   - Every step is folded with <details class="explain">: reading, the list, the review of a mail, the decisions.
 //   - The route gives the prompt bar a subject whose page holds the `MAIL-` identifiers of the listed mails and no mail text, and which refuses propose-edit and hand-over (MOD-maintenance-pages.md:123-130); ITM-510 extends it for allowed participants.
@@ -28,6 +28,7 @@ import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { openStore, writeSetting, readSetting } from "../src/browser-store/index.mjs";
 import { mailId, withMailIds, noteText } from "../src/mail-records/index.mjs";
+import { chosenProduct, fragmentOf, routeOf } from "../src/site-frame/routing.mjs";
 
 const pages = await import("../src/maintenance-pages/index.mjs").catch((error) => ({ error }));
 const route = () => pages.view?.routes.find((candidate) => candidate.name === "mail");
@@ -137,7 +138,7 @@ const writesToGitHub = () => sent.filter((request) => request.method !== "GET");
 // guards: A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN; A MAIL IN A KNOWN THREAD IS MATCHED WITHOUT A MODEL; READING THE MAILBOX CHANGES NOTHING IN IT; UC-038 (1, 2, 3)
 // given: the mailbox holds a new mail, a mail an issue lists, a mail this browser marked, and a reply in the thread of the listed mail
 // input: the route mail drawn; the person's click on Read mailbox
-// expect: drawing reads nothing (no request); the list shows the new mail alone, with sender, subject and date; the page says two mails were left out as decided; the reply is shown under issue #4 with a link to #issue/4 and an
+// expect: drawing reads nothing (no request); the list shows the new mail alone, with sender, subject and date; the page says two mails were left out as decided; the reply is shown under issue #4 with a link to the address the frame writes for issue 4 of alice/product (fragmentOf) and an
 //         issue-link only for it; the Bridge got one request, the read; GitHub received one write, the note that lists the reply on #4
 test("Read mailbox lists only the undecided mails, with sender, subject and date, and shows a mail of a known thread under its issue", async () => {
   const fresh = await mailOf("new"), listed = await mailOf("listed"), marked = await mailOf("marked");
@@ -156,7 +157,7 @@ test("Read mailbox lists only the undecided mails, with sender, subject and date
   const attached = byClass(target, "mail-attached-item");
   assert.equal(attached.length, 1);
   assert.match(textOf(attached[0]), /#4/);
-  assert.deepEqual(byClass(attached[0], "issue-link").map((link) => link.getAttribute("href")), ["#issue/4"]);
+  assert.deepEqual(byClass(attached[0], "issue-link").map((link) => link.getAttribute("href")), [fragmentOf("issue", { number: "4", product: PRODUCT_URL })]);
   assert.deepEqual(requests, ["POST /v1/mail/read"]);
   assert.deepEqual(writesToGitHub().map((request) => `${request.method} ${request.path}`), ["POST /repos/alice/product/issues/4/comments"]);
   assert.equal(JSON.parse(writesToGitHub()[0].body).body, noteText("mail-added", reply.id, new Date().toISOString().slice(0, 10)));
@@ -167,7 +168,7 @@ test("Read mailbox lists only the undecided mails, with sender, subject and date
 // given: one new mail from Erika Mustermann; the proposal is empty (4b)
 // input: the title and the text typed with the sender's name in it; the title and the text edited without the name; a click a script makes on Create issue; the kind change chosen; the person's click on Create issue
 // expect: with the name the hit is listed in .mail-hits and Create issue is disabled; without it no hit and Create issue is enabled; the script's click writes nothing; the person's click creates exactly one issue, labelled change, whose text
-//         ends with the mail's identifier in a Mails line and holds none of the mail's text, sender or address; the page names issue #100, and, the kind being change, links #issue/100
+//         ends with the mail's identifier in a Mails line and holds none of the mail's text, sender or address; the page names issue #100, and, the kind being change, links the address the frame writes for issue 100 of alice/product
 test("Create issue is disabled while the text names the mail's people, and one click then creates one issue with the label and the Mails line", async () => {
   const mail = await mailOf("one");
   const w = world({ mails: [mail] });
@@ -197,7 +198,7 @@ test("Create issue is disabled while the text names the mail's people, and one c
   assert.ok(made.body.endsWith(`Mails: \`${mail.id}\``) || made.body.includes(mail.id), made.body);
   assert.equal(made.body.includes(SECRET_SENTENCE) || made.body.includes("Erika") || made.body.includes(ERIKA.address), false, "none of the mail's text, name or address");
   assert.match(textOf(byClass(item, "mail-result")[0]), /#100/);
-  assert.deepEqual(byClass(item, "issue-link").map((link) => link.getAttribute("href")), ["#issue/100"]);
+  assert.deepEqual(byClass(item, "issue-link").map((link) => link.getAttribute("href")), [fragmentOf("issue", { number: "100", product: PRODUCT_URL })]);
 });
 
 // TST-963003 · level: component · module: MOD-maintenance-pages
@@ -379,4 +380,62 @@ test("the view holds the route mail under the menu entry maintenance", () => {
   const mail = route();
   assert.ok(mail);
   assert.deepEqual([mail.entry, mail.title], ["maintenance", "Mail"]);
+});
+
+/** What the frame does with an address: the route and parameters routeOf reads, the product chosenProduct names (the fragment's `product`), and the route drawn with them. */
+async function followed(w, href) {
+  const { name, params: { product: _named, ...params } } = routeOf(href);
+  const issue = pages.view?.routes.find((candidate) => candidate.name === name);
+  assert.ok(issue, `the route ${name} for ${href}`);
+  const target = document.createElement("div");
+  document.body.append(target);
+  const product = await chosenProduct({ store: w.store, fragment: href });
+  await issue.render(target, { page: "main", instance: { repository: INSTANCE, host: null }, store: w.store, product, go: () => {} }, params);
+  return target;
+}
+
+// TST-1166001 · level: component · module: MOD-maintenance-pages
+// guards: UC-038; MOD-site-frame.md:133 (the parts of the fragment after the first are the route's parameters)
+// given: the mailbox holds a reply in the thread of issue #4 of alice/product, which GitHub lists as "Export fails"
+// input: the link under the reply (the issue of its thread) followed as the frame follows an address: routeOf, chosenProduct, the route drawn with what they give
+// expect: the link is the address the frame writes (fragmentOf: `#issue/number=4/product=<address>`); followed, it draws the page of issue #4 of alice/product ("Issue #4: Export fails"); counter-proof: the old form `#issue/4`, followed the same way, draws no such page
+test("the link to the issue of a mail's thread is the address the frame writes, and following it shows that issue's page", async () => {
+  const listed = await mailOf("listed"), reply = await mailOf("reply", { inReplyTo: listed.messageId, references: [listed.messageId] });
+  const w = world({ mails: [listed, reply], issues: [{ number: 4, title: "Export fails", body: withMailIds("Export fails.", [listed.id]) }] });
+  const target = await read(await open(w));
+  const href = byClass(byClass(target, "mail-attached-item")[0], "issue-link")[0].getAttribute("href");
+  assert.equal(href, fragmentOf("issue", { number: "4", product: PRODUCT_URL }));
+  const page = await followed(w, href);
+  await waitFor(() => /Issue #4/.test(textOf(page)) || byClass(page, "issue-problem").length > 0);
+  assert.match(textOf(page), /Issue #4: Export fails/);
+  const old = await followed(w, "#issue/4");
+  await waitFor(() => byClass(old, "issue-problem").length > 0);
+  assert.doesNotMatch(textOf(old), /Issue #4: Export fails/, "the old form shows no issue page");
+});
+
+// TST-1166002 · level: component · module: MOD-maintenance-pages
+// guards: UC-038 (10: Propose SPEC change); MOD-site-frame.md:133 (the parts of the fragment after the first are the route's parameters)
+// given: one new mail; GitHub creates the issue as #100
+// input: a change issue created with the person's click; the link Propose SPEC change followed as the frame follows an address
+// expect: the link is the address the frame writes (fragmentOf: `#issue/number=100/product=<address>`); followed, it draws the page of issue #100 of alice/product with the title the person typed; counter-proof: the old form `#issue/100` draws no such page
+test("the link Propose SPEC change is the address the frame writes, and following it shows the created issue's page", async () => {
+  const mail = await mailOf("one");
+  const w = world({ mails: [mail] });
+  const target = await read(await open(w));
+  const item = itemOf(target, mail.id);
+  await typed(byClass(item, "mail-title")[0], "PDF export fails with error E42");
+  await typed(byClass(item, "mail-body")[0], "Exporting a thesis as PDF fails with error E42 in version 1.4. A PDF file was expected.");
+  const kind = byClass(item, "mail-kind")[0];
+  kind.value = "change";
+  kind.dispatchEvent(new Event("change"));
+  await trusted(byClass(item, "create-issue")[0]);
+  await waitFor(() => byClass(item, "issue-link").length > 0);
+  const href = byClass(item, "issue-link")[0].getAttribute("href");
+  assert.equal(href, fragmentOf("issue", { number: "100", product: PRODUCT_URL }));
+  const page = await followed(w, href);
+  await waitFor(() => /Issue #100/.test(textOf(page)) || byClass(page, "issue-problem").length > 0);
+  assert.match(textOf(page), /Issue #100: PDF export fails with error E42/);
+  const old = await followed(w, "#issue/100");
+  await waitFor(() => byClass(old, "issue-problem").length > 0);
+  assert.doesNotMatch(textOf(old), /Issue #100: PDF export fails/, "the old form shows no issue page");
 });
