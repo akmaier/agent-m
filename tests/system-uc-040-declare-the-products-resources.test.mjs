@@ -695,8 +695,7 @@ const FORM_FINDING = "src/site-frame/forms.mjs:80-81 (documentNow) hands a secti
 // given: the page of TST-1041003
 // input: add the compute resource "alex"; type the route "bridge hpc", the place and, as its secret, the value "sk-live-0123456789abcdef"; press Save
 // expect: 8 "name of the secret — never its value": the form names A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE and Save is disabled, and the value stands in no commit
-test("UC-040 step 8 — through the frame, a secret's value typed into the list is refused and never committed",
-  { todo: `FINDING ITM-1122 — after the person edits the list the form checks nothing, so a secret's value typed into the Secret column is committed to the product repository. ${FORM_FINDING}.` }, async (t) => {
+test("UC-040 step 8 — through the frame, a secret's value typed into the list is refused and never committed", async (t) => {
     const page = await visit(t, FRAGMENT);
     await add(page, "compute", "alex", "alex.nhr.fau.de");
     await typeInto(areaOf(page), areaOf(page).value.replace("| alex | compute | alex.nhr.fau.de | — | — | — | — | — | — | — |", "| alex | compute | alex.nhr.fau.de | — | — | — | bridge hpc | NHR@FAU, Erlangen | — | sk-live-0123456789abcdef |"));
@@ -711,8 +710,7 @@ test("UC-040 step 8 — through the frame, a secret's value typed into the list 
 // given: the page of TST-1041003
 // input: add the compute resource "alex"; type the route "ssh alex" and a place; press Save
 // expect: 3 "the route: a Bridge ... or a self-hosted runner": the form names A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER and Save is disabled; nothing is committed
-test("UC-040 step 3 — through the frame, a compute route that is neither a Bridge nor a runner is refused and not committed",
-  { todo: `FINDING ITM-1122 — after the person edits the list the form checks nothing, so the route "ssh alex" is committed. ${FORM_FINDING}.` }, async (t) => {
+test("UC-040 step 3 — through the frame, a compute route that is neither a Bridge nor a runner is refused and not committed", async (t) => {
     const page = await visit(t, FRAGMENT);
     await add(page, "compute", "alex", "alex.nhr.fau.de");
     await typeInto(areaOf(page), areaOf(page).value.replace("| alex | compute | alex.nhr.fau.de | — | — | — | — | — | — | — |", "| alex | compute | alex.nhr.fau.de | — | — | — | ssh alex | NHR@FAU, Erlangen | — | — |"));
