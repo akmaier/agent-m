@@ -14,8 +14,8 @@
 //   - The fragment handed to chosenProduct is `#home/product=<the product's address, percent-encoded>`, the form the frame writes for a route with a product.
 //   - A product's name on its card is its repository's path, `owner/name`; Agent M's own card is called Agent M.
 //   - A card whose repository cannot be read says which, with the reason its host gives, and a button to the token's setting; each item that waits has a button to the page where it is decided;
-//     while no product is kept, *+ Add product* stands below Agent M's card. Each calls the ViewContext's `go(route, params)`; no address is written here. The greeting with its folded
-//     explanation, the links from the stages and *Get your own Agent M* are not drawn.
+//     while no product is kept, *+ Add product* stands below Agent M's card. Each calls the ViewContext's `go(route, params)`; no address is written here. The greeting is greeting.mjs's, with
+//     *Get your own Agent M* at the address of the route `get-your-own` of the review pages ("docs/index.html#get-your-own"), a link and not a call of go(), since the main page loads no view of the review pages.
 
 import { readSetting } from "../browser-store/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
@@ -89,7 +89,10 @@ async function render(target, context) {
   const sources = await cardSources(context);
   const nodes = sources.map((source) => (source.reason === undefined ? readingCard(source) : errorCard({ ...source, go: context.go })));
   const cards = el("section", "cards", ...nodes);
-  const greet = greeting({ useCasesHref: menuOf("main", []).find((entry) => entry.key === "use-cases").href });
+  const entries = menuOf("main", []);
+  // The route get-your-own is served by the review pages, under the entry Settings: the address of that entry with the route's name in its place.
+  const getYourOwnHref = entries.find((entry) => entry.key === "settings").href.replace(/settings$/, "get-your-own");
+  const greet = greeting({ useCasesHref: entries.find((entry) => entry.key === "use-cases").href, getYourOwnHref });
   const add = el("button", "add-product", "+ Add product");
   add.setAttribute("type", "button");
   add.addEventListener("click", () => context.go("add-product"));
