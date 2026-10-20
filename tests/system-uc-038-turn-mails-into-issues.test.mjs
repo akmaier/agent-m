@@ -75,7 +75,7 @@ const everyWrite = (p) => JSON.stringify([writes(p), graphWrites(p)]);
 // guards: UC-038; READING THE MAILBOX CHANGES NOTHING IN IT; MAIL STAYS IN THE MAILBOX; A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN; A MAIL IN A KNOWN THREAD IS MATCHED WITHOUT A MODEL
 // given: the page at the route mail over the Microsoft route; the INBOX holds a (new), listed (which the open issue 3 lists), marked (which the author marked not an issue in this browser) and reply (whose In-Reply-To names listed); no participant is chosen
 // input: the person's click on Read mailbox
-// expect: only a is listed, with sender, subject and date; the mail reply is attached to issue 3 at once — one comment that adds its identifier to the issue — and shown under it, without a participant: no request reached a model endpoint; listed and marked are left out; reading wrote nothing to the mailbox and nothing but that comment to the tracker
+// expect: only a is listed, with sender, subject and date; the mail reply is attached to issue 3 at once — one comment that adds its identifier to the issue — and shown under it, without a participant: no request reached a model endpoint; listed and marked are left out; reading wrote nothing to the mailbox and nothing but that comment to the tracker (flow: UC-038 main flow, steps 1 to 3)
 test("main flow, steps 1 to 3: the mailbox is read, decided mails are left out, a reply in a known thread is attached to its issue without a participant", async () => {
   const marked = await mailOf("marked");
   const p = await open({ issues: [issueRecord(3, "open", [D])],
@@ -103,7 +103,7 @@ test("main flow, steps 1 to 3: the mailbox is read, decided mails are left out, 
 // guards: UC-038; A MAIL BECOMES AN ISSUE ONLY BY A PERSON'S CLICK; ONE CLICK PER DECISION; AN ISSUE FROM A MAIL IS A DEFECT OR A CHANGE; THE PRODUCT ISSUE CARRIES NO PERSONAL DATA; MAIL STAYS IN THE MAILBOX; THE PAGE NAMES WHERE IT SENDS
 // given: two new mails a and b; the participants local-llm and three checkers at this machine; the answer of local-llm: a neutral defect for a, a neutral change for b
 // input: Read mailbox; local-llm chosen and a name typed; a click a script makes on Propose, then the person's click; a click a script makes on Create issue, then the person's click, for a and for b
-// expect: the panel names where local-llm processes data; the script's clicks send and write nothing; one Propose sends one request for both mails; the proposals are shown beside their mails and write nothing; Create issue creates one issue per mail — labelled defect and change — whose text lists the mail's MAIL identifier and holds no name, address, signature or sentence of the mail; for the change a link to the issue offers the SPEC change; the mailbox saw no write; the clicks of the reading are Read mailbox, Propose and one decision per mail
+// expect: the panel names where local-llm processes data; the script's clicks send and write nothing; one Propose sends one request for both mails; the proposals are shown beside their mails and write nothing; Create issue creates one issue per mail — labelled defect and change — whose text lists the mail's MAIL identifier and holds no name, address, signature or sentence of the mail; for the change a link to the issue offers the SPEC change; the mailbox saw no write; the clicks of the reading are Read mailbox, Propose and one decision per mail (flow: UC-038 main flow, steps 4, 5, 7 and 8, and the postcondition)
 test("main flow, steps 4 to 10: one Propose for all mails, one decision per mail, neutral issues with the label and the identifier, the mailbox untouched", async () => {
   const p = await open();
   await lastly(p, async () => {
@@ -146,7 +146,7 @@ test("main flow, steps 4 to 10: one Propose for all mails, one decision per mail
 // guards: UC-038; A DUPLICATE MAIL IS ADDED TO THE EXISTING ISSUE; A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN; ONE CLICK PER DECISION; THE ISSUE IS THE ONLY RECORD OF A MAIL'S HANDLING
 // given: two new mails a and b and the open issue 3
 // input: Read mailbox; the person's click on Add to #3 for a; the person's click on Not an issue for b; the mailbox read again
-// expect: Add to #3 writes one comment that lists a's identifier on issue 3, and nothing else; Not an issue writes nothing to any repository and marks b in this browser; the second reading lists neither a (an issue lists it now) nor b (marked); the mailbox saw no write
+// expect: Add to #3 writes one comment that lists a's identifier on issue 3, and nothing else; Not an issue writes nothing to any repository and marks b in this browser; the second reading lists neither a (an issue lists it now) nor b (marked); the mailbox saw no write (flow: UC-038 main flow, steps 7 and 9)
 test("steps 7 and 9: Add to #n lists the mail on the issue, Not an issue marks it in this browser, and neither is proposed again", async () => {
   const p = await open();
   await lastly(p, async () => {
@@ -174,7 +174,7 @@ test("steps 7 and 9: Add to #n lists the mail on the issue, Not an issue marks i
 // guards: UC-038; READING THE MAILBOX CHANGES NOTHING IN IT; A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE
 // given: the page over the Microsoft route, and a provider that cannot be reached when the mailbox is read
 // input: the person's click on Read mailbox
-// expect: nothing is listed; the page names the reason (the provider's answer) in the problem of the mailbox; no participant was asked and nothing was written to the tracker
+// expect: nothing is listed; the page names the reason (the provider's answer) in the problem of the mailbox; no participant was asked and nothing was written to the tracker (flow: UC-038 alternative 2a)
 test("alternative 2a: a mailbox that cannot be reached is named, nothing is read and nothing is written", async () => {
   const p = await open();
   await lastly(p, async () => {
@@ -192,7 +192,7 @@ test("alternative 2a: a mailbox that cannot be reached is named, nothing is read
 // guards: UC-038; A MAIL BECOMES AN ISSUE ONLY BY A PERSON'S CLICK; AN ISSUE FROM A MAIL IS A DEFECT OR A CHANGE
 // given: two new mails; the author presses no Propose
 // input: Read mailbox; for a: the kind change chosen, a title and a text typed by hand; the person's click on Create issue
-// expect: nothing was sent to any participant; Create issue is disabled while the proposal is empty and enabled by the typed title and text; the issue created holds the author's title, text and kind (the label change) and a's identifier
+// expect: nothing was sent to any participant; Create issue is disabled while the proposal is empty and enabled by the typed title and text; the issue created holds the author's title, text and kind (the label change) and a's identifier (flow: UC-038 alternative 4b)
 test("alternative 4b: without Propose the author decides a mail by hand with an empty proposal", async () => {
   const p = await open();
   await lastly(p, async () => {
@@ -216,7 +216,7 @@ test("alternative 4b: without Propose the author decides a mail by hand with an 
 // guards: UC-038; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED
 // given: a register whose only participant that drafts text processes data in the USA, and a mailbox that allows this machine only
 // input: Read mailbox
-// expect: the page says that no participant processes data at a place the mailbox allows, links the mailbox's processing places, and offers no participant; nothing was sent; the author can still decide a mail by hand
+// expect: the page says that no participant processes data at a place the mailbox allows, links the mailbox's processing places, and offers no participant; nothing was sent; the author can still decide a mail by hand (flow: UC-038 alternative 4c)
 test("alternative 4c: no participant at an allowed place is said, the mailbox's places are linked and nothing is sent", async () => {
   const p = await open({ rows: [CLOUD] });
   await lastly(p, async () => {
@@ -235,7 +235,7 @@ test("alternative 4c: no participant at an allowed place is said, the mailbox's 
 // guards: UC-038; A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE; THE PRODUCT ISSUE CARRIES NO PERSONAL DATA
 // given: the proposal for b names the reporter's address in its text
 // input: Read mailbox; local-llm chosen; Propose; the text edited to remove the address; the person's click on Create issue
-// expect: the hit is marked and Create issue disabled while it stands; after the edit no hit, Create issue enabled, and the issue is created without the address
+// expect: the hit is marked and Create issue disabled while it stands; after the edit no hit, Create issue enabled, and the issue is created without the address (flow: UC-038 alternative 6a)
 test("alternative 6a: a hit of the mail's people is marked, Create issue stays disabled until it is edited out", async () => {
   const p = await open({ answer: () => ({ draft: { proposals: [
     { mail: A.id, product: PRODUCT_URL, kind: "defect", title: "Export fails with E42", text: "The export fails with error E42.", duplicates: [] },
@@ -261,7 +261,7 @@ test("alternative 6a: a hit of the mail's people is marked, Create issue stays d
 // guards: UC-038; A REWRITTEN TEXT IS CHECKED BY THREE LLMS
 // given: a register with local-llm and only two checking participants at this machine
 // input: Read mailbox; local-llm chosen and a name typed
-// expect: the page names what is missing (a third checker) and links the participants and the mailbox's places; no run panel is drawn and nothing is sent; the author may still write the issue text by hand
+// expect: the page names what is missing (a third checker) and links the participants and the mailbox's places; no run panel is drawn and nothing is sent; the author may still write the issue text by hand (flow: UC-038 alternative 6c)
 test("alternative 6c: with fewer than three checkers the missing one is named and nothing is sent", async () => {
   const p = await open({ rows: [LOCAL, CHECKS[0], CHECKS[1]] });
   await lastly(p, async () => {
@@ -281,7 +281,7 @@ test("alternative 6c: with fewer than three checkers the missing one is named an
 // guards: UC-038; AN ISSUE FROM A MAIL IS A DEFECT OR A CHANGE; AN ISSUE FROM A MAIL NAMES ITS MAILS BY THEIR IDENTIFIERS
 // given: the proposal for a (a defect, titled "Export fails with E42")
 // input: Propose; the author changes the kind to change and the title; the person's click on Create issue; the title and text changed for a second concern; the person's click on Create issue again
-// expect: the issue is written as the author changed it (label change, her title), not as proposed; two issues are created, each listing a's identifier
+// expect: the issue is written as the author changed it (label change, her title), not as proposed; two issues are created, each listing a's identifier (flow: UC-038 alternative 7a; UC-038 alternative 7b)
 test("alternatives 7a and 7b: the author's choice is what is written, and a mail of two concerns gets one issue per concern", async () => {
   const p = await open();
   await lastly(p, async () => {
@@ -310,7 +310,7 @@ test("alternatives 7a and 7b: the author's choice is what is written, and a mail
 // guards: UC-038; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: a token that lacks the permission to create issues in alice/product (the tracker answers 403)
 // input: Read mailbox; a title and a text typed for a; the person's click on Create issue
-// expect: the page says that the token lacks the permission, names the product and links the token step; nothing was written
+// expect: the page says that the token lacks the permission, names the product and links the token step; nothing was written (flow: UC-038 alternative 8a)
 test("alternative 8a: an issue that cannot be created says which refusal it is, links the token step and writes nothing", async () => {
   const p = await open({ createStatus: 403 });
   await lastly(p, async () => {

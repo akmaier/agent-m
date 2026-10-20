@@ -47,7 +47,7 @@ async function sendOf(p, id, confirm = true) {
 // guards: UC-039; CLOSING AN ISSUE PREPARES ITS REPLIES; A REPLY GOES TO ONE REPORTER; A REPLY IS THREADED ON THE REPORTER'S MAIL; A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER; MAIL STAYS IN THE MAILBOX; THE PAGE NAMES WHERE IT SENDS
 // given: the page started at the route replies over the Microsoft route; the mailbox's INBOX holds m1 (from Erika) and m2 (from Erika, Reply-To Ada Reporter); the closed issue 4 lists both and says how it was closed; the participants local-llm (this machine, allowed), cloud-llm (a provider in the USA, not allowed) and checker (cannot draft)
 // input: the person's click on Read replies (steps 1 and 2: read, open issue 4); local-llm chosen and a name typed; the person's click on Run (step 3); a click a script makes on Run first
-// expect: reading writes nothing — no request but GETs reached Graph, no comment, no label, no state change — and issue 4 alone is under to answer; the issue shows what solved it (the closing pull request) and both mails with reporter, date and subject; only local-llm is offered, with its place; the run panel names where the texts go; the script's click asks no participant; the person's click asks the endpoint once and stores exactly two drafts in Drafts and nowhere else (INBOX unchanged, nothing in Sent, no send request), each with exactly one To — m1's to Erika, m2's to Ada, its Reply-To — no Cc and no Bcc, the subject Re: of the mail's subject, In-Reply-To and References from its Message-ID, the participant's text with the original quoted below it
+// expect: reading writes nothing — no request but GETs reached Graph, no comment, no label, no state change — and issue 4 alone is under to answer; the issue shows what solved it (the closing pull request) and both mails with reporter, date and subject; only local-llm is offered, with its place; the run panel names where the texts go; the script's click asks no participant; the person's click asks the endpoint once and stores exactly two drafts in Drafts and nowhere else (INBOX unchanged, nothing in Sent, no send request), each with exactly one To — m1's to Erika, m2's to Ada, its Reply-To — no Cc and no Bcc, the subject Re: of the mail's subject, In-Reply-To and References from its Message-ID, the participant's text with the original quoted below it (flow: UC-039 main flow)
 test("main flow, steps 1 to 4: the issue read, the participant chosen, one draft per mail stored in Drafts to that mail's reporter alone", async () => {
   const texts = [];
   const inbox = [rawMail("m1"), rawMail("m2", { replyTo: ADA, subject: "Subject m2" })];
@@ -99,7 +99,7 @@ test("main flow, steps 1 to 4: the issue read, the participant chosen, one draft
 // guards: UC-039; EVERY OUTGOING MAIL IS RELEASED BY A PERSON; A SENT REPLY IS NOTED IN THE ISSUE; THE ISSUE IS THE ONLY RECORD OF A MAIL'S HANDLING; ONE CLICK PER DECISION; THE SEND DASHBOARD LISTS THE DRAFTS OF LISTED MAILS
 // given: the closed issue 4 listing m1 and m2, and Drafts already holding Agent M's draft for each (from an earlier run), the mailbox on the Microsoft route
 // input: the issue opened; the preview of m1's draft read; a click a script makes on Send; the person's click on Send and Cancel; the person's click on Send and the dialog's Send; then the same for m2; then Read replies again
-// expect: the page lists both drafts with To, Subject, the full body and the attachments; a script's click opens no dialog; the dialog repeats recipient and subject and Cancel sends nothing and notes nothing; the confirmation sends exactly one mail — one send request — the provider removes the draft from Drafts and keeps the copy in Sent; the issue gets one comment each, Reply sent to the identifier on a day, and nothing of the mail (no address, subject or text) is in it; while m2 is unnoted issue 4 stays under to answer, and when both have a note it leaves
+// expect: the page lists both drafts with To, Subject, the full body and the attachments; a script's click opens no dialog; the dialog repeats recipient and subject and Cancel sends nothing and notes nothing; the confirmation sends exactly one mail — one send request — the provider removes the draft from Drafts and keeps the copy in Sent; the issue gets one comment each, Reply sent to the identifier on a day, and nothing of the mail (no address, subject or text) is in it; while m2 is unnoted issue 4 stays under to answer, and when both have a note it leaves (flow: UC-039 main flow)
 test("main flow, steps 5 to 7: Send repeats recipient and subject, the provider sends once, the reply is noted by identifier and date, and the issue leaves to answer", async () => {
   const p = await openReplies({ inbox: [rawMail("m1"), rawMail("m2")], drafts: [rawDraft("m1"), rawDraft("m2", { to: "Ada Reporter <ada@example.invalid>", body: "Second reply text." })], issues: [closed([M1, M2])] });
   await lastly(p, async () => {
@@ -152,7 +152,7 @@ test("main flow, steps 5 to 7: Send repeats recipient and subject, the provider 
 // guards: UC-039; A REPLY SENT FROM THE MAIL PROGRAM IS NOTED TOO; THE ISSUE IS THE ONLY RECORD OF A MAIL'S HANDLING; MAIL STAYS IN THE MAILBOX
 // given: the closed issue 4 listing m1 and m2; Sent holds a reply to m1 that the author sent from the mail program (In-Reply-To <m1@…>, dated 2026-10-18), and no note says so
 // input: the person's click on Read replies, twice
-// expect: the reply to m1 is noted in issue 4 at the first reading — one comment, Reply sent to the identifier of m1 on 2026-10-18 — and not again at the second; issue 4 stays under to answer for m2; the mailbox is written nowhere
+// expect: the reply to m1 is noted in issue 4 at the first reading — one comment, Reply sent to the identifier of m1 on 2026-10-18 — and not again at the second; issue 4 stays under to answer for m2; the mailbox is written nowhere (flow: UC-039 main flow)
 test("main flow, step 1: a reply found in Sent that no issue notes is noted in its issue, once", async () => {
   const sent = [["Message-ID: <hand@example.org>", "Date: Sun, 18 Oct 2026 12:00:00 +0000", `From: ${ACCOUNT}`, `To: ${ERIKA.address}`, "Subject: Re: Subject m1", "In-Reply-To: <m1@mail.example.invalid>", "References: <m1@mail.example.invalid>", "MIME-Version: 1.0", "Content-Type: text/plain; charset=utf-8", "", "Thanks, done.", ""].join("\r\n")];
   const p = await openReplies({ inbox: [rawMail("m1"), rawMail("m2")], sent, issues: [closed([M1, M2])] });
@@ -170,7 +170,7 @@ test("main flow, step 1: a reply found in Sent that no issue notes is noted in i
 // guards: UC-039; CLOSING AN ISSUE PREPARES ITS REPLIES; ONE CLICK PER DECISION
 // given: the open issue 6 listing m1, labelled with nothing, and no note
 // input: the issue opened from the group open; the person's click on Close and reply
-// expect: the page offers Close and reply on the open issue; a click a script makes changes nothing; the person's click closes the issue — one request that sets its state to closed — and the drafts section is offered as in step 2: the issue is now under to answer with its participants
+// expect: the page offers Close and reply on the open issue; a click a script makes changes nothing; the person's click closes the issue — one request that sets its state to closed — and the drafts section is offered as in step 2: the issue is now under to answer with its participants (flow: UC-039 alternative 2a)
 test("alternative 2a: Close and reply closes the open issue and the drafting appears as in step 2", async () => {
   const p = await openReplies({ inbox: [rawMail("m1")], issues: [issueRecord(6, "open", [M1])] });
   await lastly(p, async () => {
@@ -195,7 +195,7 @@ test("alternative 2a: Close and reply closes the open issue and the drafting app
 // guards: UC-039; CLOSING AN ISSUE PREPARES ITS REPLIES; ONE CLICK PER DECISION; THE ISSUE IS THE ONLY RECORD OF A MAIL'S HANDLING
 // given: the closed issue 4 listing m1 (in the mailbox) and m3 (in no folder the connection names; it lies in the folder Reports)
 // input: the issue opened; the person's click on No reply for m3, after a click a script makes on it; the person's click on No reply for m1
-// expect: m3 says it was not found in the mailbox and offers neither a draft nor Send, only No reply; a script's click notes nothing; the person's click notes No reply to the identifier, decided on a day — one comment — and the item says so; m1 likewise; afterwards the issue has no mail left to answer and leaves to answer; no mail was sent
+// expect: m3 says it was not found in the mailbox and offers neither a draft nor Send, only No reply; a script's click notes nothing; the person's click notes No reply to the identifier, decided on a day — one comment — and the item says so; m1 likewise; afterwards the issue has no mail left to answer and leaves to answer; no mail was sent (flow: UC-039 alternative 2b; UC-039 alternative 2c)
 test("alternatives 2b and 2c: a mail no longer in the mailbox cannot be sent, and No reply notes the decision once by identifier and date", async () => {
   const p = await openReplies({ inbox: [rawMail("m1")], reports: [rawMail("m3")], issues: [closed([M1, M3])] });
   await lastly(p, async () => {
@@ -226,7 +226,7 @@ test("alternatives 2b and 2c: a mail no longer in the mailbox cannot be sent, an
 // guards: UC-039; A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER; A REPLY GOES TO ONE REPORTER; A REPLY IS THREADED ON THE REPORTER'S MAIL
 // given: the closed issue 4 listing m1, no draft
 // input: the person's click on Write the reply myself for m1; an edit of the text and the click on Save draft
-// expect: an empty draft with the quoted original is stored in Drafts — one To (Erika), Re: Subject m1, In-Reply-To and References — and shown complete; the edit is saved to the draft (Drafts still holds one draft, with the new text, to the same recipient), and no participant was asked
+// expect: an empty draft with the quoted original is stored in Drafts — one To (Erika), Re: Subject m1, In-Reply-To and References — and shown complete; the edit is saved to the draft (Drafts still holds one draft, with the new text, to the same recipient), and no participant was asked (flow: UC-039 alternative 3a)
 test("alternative 3a: a reply written without a participant opens an empty draft with the quoted original, and every edit is saved to the draft", async () => {
   const p = await openReplies({ inbox: [rawMail("m1")], issues: [closed([M1])] });
   await lastly(p, async () => {
@@ -256,7 +256,7 @@ test("alternative 3a: a reply written without a participant opens an empty draft
 // guards: UC-039; THE PAGE NAMES WHERE IT SENDS; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; EVERY OUTGOING MAIL IS RELEASED BY A PERSON
 // given: the register lists the CLI agent agent-cli (this machine, reached through the Bridge lab-pc-4 as the agent claude) beside local-llm and cloud-llm; the mailbox allows this machine
 // input: agent-cli chosen and a name typed; the person's click on Run
-// expect: agent-cli is offered with its place and the run panel names it; the Bridge receives one ask for the agent claude whose input holds the issue, what solved it and the mail, and nothing that sends; the texts it returns are stored as drafts in Drafts; no send request reaches Graph and no mail operation of sending is asked of the Bridge — nothing is sent without the confirmation of step 5
+// expect: agent-cli is offered with its place and the run panel names it; the Bridge receives one ask for the agent claude whose input holds the issue, what solved it and the mail, and nothing that sends; the texts it returns are stored as drafts in Drafts; no send request reaches Graph and no mail operation of sending is asked of the Bridge — nothing is sent without the confirmation of step 5 (flow: UC-039 alternative 3b)
 test("alternative 3b: a CLI agent receives the job through its Bridge, returns the texts, and nothing is sent", async () => {
   const texts = [];
   const p = await openReplies({ inbox: [rawMail("m1")], issues: [closed([M1])], rows: [CLOUD, LOCAL, CLI], texts });
@@ -285,7 +285,7 @@ test("alternative 3b: a CLI agent receives the job through its Bridge, returns t
 // guards: UC-039; A REPLY GOES TO ONE REPORTER; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF
 // given: the closed issue 4 listing m1 and m3; m3's From is no address (nobody) and it has no Reply-To; m1 is fine
 // input: the issue opened
-// expect: m3 is marked not sendable and says why — it has no usable reply address —, offers No reply and nothing that drafts or sends; m1 is offered a draft; the participants are offered for m1 alone; every step carries its folded explanation
+// expect: m3 is marked not sendable and says why — it has no usable reply address —, offers No reply and nothing that drafts or sends; m1 is offered a draft; the participants are offered for m1 alone; every step carries its folded explanation (flow: UC-039 alternative 4a)
 test("alternative 4a: a mail whose reply address is missing or invalid is not sendable and can only be left unanswered", async () => {
   const p = await openReplies({ inbox: [rawMail("m1"), rawMail("m3", { from: "nobody" })], issues: [closed([M1, M3])] });
   await lastly(p, async () => {
@@ -304,7 +304,7 @@ test("alternative 4a: a mail whose reply address is missing or invalid is not se
 // guards: UC-039; EVERY OUTGOING MAIL IS RELEASED BY A PERSON; A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER
 // given: Drafts holds Agent M's draft for m1; the closed issue 4 lists m1
 // input: the person's edit of the text and click on Save draft; then the click on Send
-// expect: the dialog shows the edited mail — the new text — and nothing is sent before its confirmation; the mail sent is the edited draft, to Erika alone; Drafts holds no draft any more and Sent holds the edited mail
+// expect: the dialog shows the edited mail — the new text — and nothing is sent before its confirmation; the mail sent is the edited draft, to Erika alone; Drafts holds no draft any more and Sent holds the edited mail (flow: UC-039 alternative 5a)
 test("alternative 5a: the dialog shows the edited mail again before anything is sent", async () => {
   const p = await openReplies({ inbox: [rawMail("m1")], drafts: [rawDraft("m1")], issues: [closed([M1])] });
   await lastly(p, async () => {
@@ -335,7 +335,7 @@ test("alternative 5a: the dialog shows the edited mail again before anything is 
 // guards: UC-039; EVERY OUTGOING MAIL IS RELEASED BY A PERSON; A SENT REPLY IS NOTED IN THE ISSUE
 // given: the draft for m1 shown, the dialog confirmed once so that the mail is sent
 // input: the same request again: a second click on the Send button the page showed before, and a second confirmation of the dialog
-// expect: the provider is asked to send once; the issue has one note; the second request sends nothing
+// expect: the provider is asked to send once; the issue has one note; the second request sends nothing (flow: UC-039 alternative 5b)
 test("alternative 5b: the same request twice sends the mail once", async () => {
   const p = await openReplies({ inbox: [rawMail("m1")], drafts: [rawDraft("m1")], issues: [closed([M1, M2])] });
   await lastly(p, async () => {
@@ -360,7 +360,7 @@ test("alternative 5b: the same request twice sends the mail once", async () => {
 // guards: UC-039; EVERY OUTGOING MAIL IS RELEASED BY A PERSON; A SENT REPLY IS NOTED IN THE ISSUE
 // given: the provider refuses the send of the draft for m1 (403 with its answer)
 // input: the person's click on Send and the dialog's Send
-// expect: nothing is noted in the issue; the draft stays in Drafts and on the page; nothing is in Sent; the page shows a problem that names the refusal
+// expect: nothing is noted in the issue; the draft stays in Drafts and on the page; nothing is in Sent; the page shows a problem that names the refusal (flow: UC-039 alternative 6a)
 test("alternative 6a: when sending fails nothing is noted and the draft stays", async () => {
   const p = await openReplies({ inbox: [rawMail("m1")], drafts: [rawDraft("m1")], issues: [closed([M1])], refuseSend: true });
   await lastly(p, async () => {
@@ -379,7 +379,7 @@ test("alternative 6a: when sending fails nothing is noted and the draft stays", 
 // guards: UC-039; AN ISSUE WAITING FOR A REPORTER IS LABELLED; EVERY OUTGOING MAIL IS RELEASED BY A PERSON; ONE CLICK PER DECISION
 // given: the open issue 6 listing m1, no note, no label
 // input: the person's click on Ask the reporter; the text of the question typed and saved; the click on Send and wait and the dialog's Send and wait
-// expect: an empty question draft with the original quoted is stored in Drafts and shown; before the confirmation nothing is sent; then one mail is sent, the issue gets the label waiting-for-reporter and one comment, Question sent to the identifier on a day, and the issue stays open (no request sets its state)
+// expect: an empty question draft with the original quoted is stored in Drafts and shown; before the confirmation nothing is sent; then one mail is sent, the issue gets the label waiting-for-reporter and one comment, Question sent to the identifier on a day, and the issue stays open (no request sets its state) (flow: UC-039 alternative 1a)
 test("alternative 1a: Ask the reporter, Send and wait labels the issue waiting-for-reporter and notes the question, and the issue stays open", async () => {
   const p = await openReplies({ inbox: [rawMail("m1")], issues: [issueRecord(6, "open", [M1])] });
   await lastly(p, async () => {
@@ -410,7 +410,7 @@ test("alternative 1a: Ask the reporter, Send and wait labels the issue waiting-f
 // guards: UC-039; A REPORTER'S ANSWER IS SHOWN AT ITS ISSUE; AN ISSUE WAITING FOR A REPORTER IS LABELLED
 // given: the open issue 5, labelled waiting-for-reporter, whose comments say a question was sent for m1 and then that mail m1 was added; the open issue 6 listing m3; the open issue 7, whose comments say the same of m2 but which carries no label
 // input: the person's click on Read replies; issue 5 opened; the click on Remove the label
-// expect: issue 5 is under answer received, issues 6 and 7 under open (a new mail without the label waiting-for-reporter is no answer); issue 5 shows the new mail marked as new; the author can remove the label, ask again or close — the three buttons are offered; Remove the label removes the label from the issue, one request, and writes no comment
+// expect: issue 5 is under answer received, issues 6 and 7 under open (a new mail without the label waiting-for-reporter is no answer); issue 5 shows the new mail marked as new; the author can remove the label, ask again or close — the three buttons are offered; Remove the label removes the label from the issue, one request, and writes no comment (flow: UC-039 alternative 1b)
 test("alternative 1b: an issue with the reporter's answer appears under answer received and the author removes the label, asks again or closes", async () => {
   const waiting = issueRecord(5, "open", [M1], { labels: ["waiting-for-reporter"], comments: [noteText("question-sent", M1.id, "2026-10-17"), noteText("mail-added", M1.id, "2026-10-18")] });
   const unlabelled = issueRecord(7, "open", [M2], { comments: [noteText("question-sent", M2.id, "2026-10-17"), noteText("mail-added", M2.id, "2026-10-18")] });
@@ -435,7 +435,7 @@ test("alternative 1b: an issue with the reporter's answer appears under answer r
 // guards: UC-039; A REPORTER'S ANSWER IS SHOWN AT ITS ISSUE
 // given: as TST-969013: the answer's mail m1 lies in the mailbox with the text "Version 1.4, and the export fails with error E42"
 // input: issue 5 opened
-// expect: the mail is shown in full — UC-039 1b says "with the new mail shown in full" —: its text is on the page. FINDING: the page shows a mail's reporter, date and subject only (MOD-maintenance-pages' replies.mjs reads no text of a mail), so this case is red on main until the page shows the text
+// expect: the mail is shown in full — UC-039 1b says "with the new mail shown in full" —: its text is on the page. FINDING: the page shows a mail's reporter, date and subject only (MOD-maintenance-pages' replies.mjs reads no text of a mail), so this case is red on main until the page shows the text (flow: UC-039 alternative 1b)
 test("alternative 1b (finding): the new mail of the reporter's answer is shown in full", async () => {
   const waiting = issueRecord(5, "open", [M1], { labels: ["waiting-for-reporter"], comments: [noteText("question-sent", M1.id, "2026-10-17"), noteText("mail-added", M1.id, "2026-10-18")] });
   const p = await openReplies({ inbox: [rawMail("m1", { body: "Version 1.4, and the export fails with error E42" })], issues: [waiting] });
@@ -449,7 +449,7 @@ test("alternative 1b (finding): the new mail of the reporter's answer is shown i
 // guards: UC-039; A CLOSED ISSUE IS REOPENED ONLY BY A PERSON
 // given: the closed issue 4 listing m1 (answered: a reply note) and m2, whose mail-added note follows the note of the closing
 // input: the person's click on Read replies; issue 4 opened; a click a script makes on Reopen; the person's click on Leave closed; the issue opened again; the person's click on Reopen
-// expect: reading and showing the issue change no state — no mail reopens an issue by itself; the mail m2 is shown under the issue with the offer Reopen, Leave closed; a script's click reopens nothing; Leave closed calls nothing and takes the offer away; Reopen sets the issue's state to open, one request
+// expect: reading and showing the issue change no state — no mail reopens an issue by itself; the mail m2 is shown under the issue with the offer Reopen, Leave closed; a script's click reopens nothing; Leave closed calls nothing and takes the offer away; Reopen sets the issue's state to open, one request (flow: UC-039 alternative 7a)
 test("alternative 7a: a mail in the thread of a closed issue is shown, the issue stays closed until the person presses Reopen", async () => {
   const issue = closed([M1, M2], [noteText("reply-sent", M1.id, "2026-10-18"), noteText("closed-with", "ITM-001", "2026-10-17", "https://github.com/alice/product/pull/9"), noteText("mail-added", M2.id, "2026-10-18")]);
   const p = await openReplies({ inbox: [rawMail("m1"), rawMail("m2")], issues: [issue] });
