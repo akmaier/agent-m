@@ -48,6 +48,8 @@ export function el(name, className, ...children) {
 }
 export const fold = (text) => el("details", "explain", el("summary", null, "What is this?"), el("p", null, text));
 export const link = (href, className, text) => { const anchor = el("a", className, text); anchor.setAttribute("href", href); return anchor; };
+// The address of the route `issue` for an issue of a product, as the frame's routeOf reads it: `#issue/number=<n>/product=<address>`, every part percent-encoded (MOD-site-frame, Parts).
+export const issueRoute = (number, product) => `#issue/number=${encodeURIComponent(number)}${product ? `/product=${encodeURIComponent(product)}` : ""}`;
 // A listener that answers only a click the browser marks as a person's (THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK).
 export function button(className, text, listener) {
   const node = el("button", className, text);
@@ -247,7 +249,7 @@ function reviewOf({ mail, people }, { products, store, context, onMarked, sessio
       const { issue } = await decideMail({ id: mail.id, people }, decision, found?.host ?? null, store);
       if (decision.kind === "not-an-issue") { onMarked(mail.id); return; }
       result.replaceChildren(decision.kind === "create" ? `Created issue #${issue} in ${which}.` : `Added to #${decision.issue} of ${which}.`);
-      if (decision.kind === "create" && decision.label === "change") result.append(" ", link(`#issue/${issue}`, "issue-link", "Propose SPEC change"));
+      if (decision.kind === "create" && decision.label === "change") result.append(" ", link(issueRoute(issue, found?.address), "issue-link", "Propose SPEC change"));
     } catch (failure) {
       if (failure?.name === "PersonFound") { result.textContent = `The text names the mail's people: ${(failure.hits ?? []).map((hit) => hit.value).join(", ")}. Nothing was written.`; return; }
       if (failure?.name === "TokenRefused" || failure?.name === "PermissionMissing") {
@@ -383,7 +385,7 @@ async function render(target, context) {
     }
     listed = [...found.proposable];
     const attached = el("ul", "mail-attached", ...found.attached.map((each) => {
-      const issue = link(`#issue/${each.issue}`, "issue-link", `#${each.issue}`);
+      const issue = link(issueRoute(each.issue, each.product), "issue-link", `#${each.issue}`);
       return el("li", "mail-attached-item", `Mail ${each.id} belongs to the thread of issue `, issue);
     }));
     out.replaceChildren(el("p", "mail-decided", `${found.decided} mail${found.decided === 1 ? " was" : "s were"} left out as decided.`), attached, ...(propose ? [propose] : []),
