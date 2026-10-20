@@ -347,9 +347,9 @@ async function draw(target, context) {
   const ctx = await contextOf(context);
   const d = await derivedOf(context, ctx);
   const { model } = ctx;
-  const noModel = !ctx.declaration ? `<p class="warn">This product declares no process model yet: <code>docs/process.md</code> names it (UC-002).</p>`
-    : ctx.modelUnread ? `<p class="warn">The declaration's model version <code>${h(ctx.modelUnread.commit)}</code> cannot be read from the instance (${h(ctx.modelUnread.error)}), so no process model is shown.</p>`
-    : !model ? `<p class="warn">The declaration names the model file <code>${h(ctx.modelFile ?? "—")}</code>, which the catalogue does not hold.</p>` : "";
+  const unread = ctx.modelUnread ? `<p class="warn">The model version <code>${h(ctx.modelUnread.commit)}</code> the declaration names cannot be read from the instance (${h(ctx.modelUnread.error)}), so no process model is shown.</p>` : "";
+  const noModel = unread || (!ctx.declaration ? `<p class="warn">This product declares no process model yet: <code>docs/process.md</code> names it (UC-002).</p>`
+    : !model ? `<p class="warn">The declaration names the model file <code>${h(ctx.modelFile ?? "—")}</code>, which the catalogue does not hold.</p>` : "");
   const planned = model?.kind === "planned" ? `<p class="warn">This product's model plans its work in advance: there is no backlog (UC-032 1b) — its progress is shown on <a href="#progress">Progress</a>.</p>` : "";
   const sprints = model?.flow?.sprints === true;
   const teamsPart = sprints
