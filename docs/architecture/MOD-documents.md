@@ -272,7 +272,9 @@ record, the appended sections in order. **A row** of a table: `{ line, cells }`,
 - `documentFindings(schema: Schema, document: Document) -> Finding[]` — every finding the schema can decide: the path
   against its pattern; the identifier against the path; front matter keys missing — also where a `requiredWhen`
   condition holds —, unknown, out of order, or present where a `forbiddenWhen` condition holds; values that do not fit
-  their type or the variant that holds, empty where `nonEmpty`; each row of a table, cell by cell, in the same way; a
+  their type or the variant that holds, empty where `nonEmpty`; each row of a table, cell by cell, in the same way, and a
+  row with more cells than the table has columns, named at its line with the cells beyond the last column, whether the
+  table has a header row or none; a
   section whose schema names a table with a header row, that holds a table but none whose header row names exactly the
   table's columns, named at its first table's header with the columns that header adds, lacks or puts out of order; the
   title; required sections missing, sections out of order, sections the schema forbids; values that `describedIn`
