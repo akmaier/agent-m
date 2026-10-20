@@ -41,6 +41,7 @@ provides:
   - recogniseLegalText
   - fetchLegalText
   - permittedPlaces
+  - restrictedPlaces
   - sourceStrategies
 ---
 # MOD-source-register The register of requirement sources and a product's links
@@ -192,6 +193,17 @@ names no source.
   `Unreachable { reason }`; nothing is guessed.
 - `permittedPlaces(entry: Document) -> string[] | "any"` — the places a source's content may be given to: any for content
   that may be republished, its declared places otherwise, none when it declares none.
+- `restrictedPlaces(register: Document[], product: string) -> { sources: Record<string, string[]>, contents: { source:
+  string, paths: string[] }[] }` — the `places.sources` and `places.contents` of MOD-job-runner's `JobContext`, in one place
+  for every caller (`RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS`). `register` is every entry of the instance's
+  register, read with `sourceSchemas`, whether or not the product links it; `product` is the product's address. For each
+  entry whose content may not be republished — an unknown licence counts as restricted —, `sources` gives, by the entry's
+  identifier and in the register's order, the places `permittedPlaces` gives (none, an empty list, where it declares none).
+  `contents` gives a restricted source's content only where the product holds it: when the entry's `content_repository` is
+  the repository `product` names, the folder `docs/sources/<identifier>/` of the product; a source whose content lies in
+  another repository has no entry, since the product holds none of it (a version's content lies in the instance when the
+  licence permits republishing, in the named repository otherwise). Pure: no request is made, and the caller reads the
+  register.
 - `sourceStrategies` — `Partial<Strategies>` with the recipe `source-excerpt`: for the source a job's parameter
   `source` names, reads the version the product links, through `readContent`, where its content lies, and returns the
   texts of the files its parameter `part` names — every file of the version when it names none —, in the version's

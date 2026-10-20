@@ -67,6 +67,7 @@ uses:
   - MOD-release-evidence.acceptAndRelease
   - MOD-source-register.sourceSchemas
   - MOD-source-register.linkedVersion
+  - MOD-source-register.restrictedPlaces
   - MOD-source-register.personSource
   - MOD-source-register.personAccount
   - MOD-source-register.sourceStrategies
@@ -297,7 +298,11 @@ and `docs/participants.md` of the instance.
   MOD-artifact-edits.keptIdentifier — a drafted change's identifier restored before the editor opens.
 - MOD-release-evidence.acceptAndRelease — accepting an open release test report.
 - MOD-source-register.sourceSchemas, MOD-source-register.linkedVersion — the product's links file and register, and its
-  linked sources with their parts; MOD-source-register.personSource, MOD-source-register.personAccount — the source of
+  linked sources with their parts; MOD-source-register.restrictedPlaces — the `places` of the context of a job it
+  prepares, over every restricted source of the register and not only the linked ones, so that a drafter's tools refuse a
+  restricted source's content at a place it does not permit wherever the product holds it; the offer of participants for
+  a job is judged against the places of the sources the product links, which the job's parts can carry, and the module
+  keeps no copy of the rule that computes them; MOD-source-register.personSource, MOD-source-register.personAccount — the source of
   the person who gives an instruction.
 - MOD-approvals.approvalStrategies, MOD-spec-changes.specStrategies, MOD-artifact-edits.editStrategies,
   MOD-source-register.sourceStrategies, MOD-reuse-facts.reuseStrategies — the strategies of its kinds, handed to the frame.
