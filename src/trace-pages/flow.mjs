@@ -18,7 +18,7 @@ import { renderArtifact, renderMermaid } from "../markdown-render/index.mjs";
 import { artifactSchemas, readDocument } from "../documents/index.mjs";
 import { statuses } from "../approvals/index.mjs";
 import { queues } from "../spec-changes/index.mjs";
-import { linkedVersion, sourceSchemas } from "../source-register/index.mjs";
+import { affectedRequirements, linkedVersion, sourceSchemas } from "../source-register/index.mjs";
 import { coverageGaps, traceGraph, tracesTo } from "../trace-graph/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { componentDiagram } from "./diagram.mjs";
@@ -168,6 +168,80 @@ async function showTraces(box, requirement, shown) {
   box.replaceChildren(...sections);
 }
 
+// ---------------------------------------------------------------- source changed (UC-016 step 5)
+
+// How many commits of a file's history are looked at: one page, so that the marks cost one page of commits and one batch of files per history.
+const HISTORY_PAGE = 30;
+const SOURCE_LINKS = "docs/sources.md";
+
+// The version each source has in a links file's text: source identifier -> version.
+const versionsIn = (schema, text) => new Map((readDocument(schema, SOURCE_LINKS, text ?? "").sections[0]?.rows ?? []).map((row) => [row.cells.Source, row.cells.Version]));
+
+// The sources the product moved to another version, with the date of the move: the newest commit of docs/sources.md that holds the version the file names now, where the commit before it
+// held another version of the same source. A source that was added with its first version has not moved. One page of commits and one batch of files; a file with one commit in its
+// history cannot have moved a source, so it costs the page alone.
+async function movedSources(host, ref, schema) {
+  const commits = await host.readHistory(SOURCE_LINKS, { ref, limit: HISTORY_PAGE, changes: false });
+  if (commits.length < 2) return new Map();
+  const texts = await host.readFileAt(SOURCE_LINKS, commits.map(({ commit }) => commit));
+  const before = commits.map(({ commit }) => versionsIn(schema, texts.get(commit)));
+  const moved = new Map();
+  // The newest commit that changed the file holds the text the version drawn has: the file is not read from the snapshot, which drawing leaves unread.
+  for (const [source, version] of before[0]) {
+    let at = 0;
+    while (at < commits.length && before[at].get(source) === version) at += 1;
+    if (at > 0 && at < commits.length && before[at].has(source)) moved.set(source, commits[at - 1].date);
+  }
+  return moved;
+}
+
+// When each named requirement's text last changed: the date of the newest commit of SPEC.md whose text of it differs from the commit before; where it does not differ in the page of
+// commits looked at, the date of the oldest of them. One page of commits and one batch of files.
+async function sectionsChanged(host, ref, names) {
+  const commits = await host.readHistory(SPEC_PATH, { ref, limit: HISTORY_PAGE, changes: false });
+  if (!commits.length) return new Map();
+  const texts = await host.readFileAt(SPEC_PATH, commits.map(({ commit }) => commit));
+  const specs = commits.map(({ commit }) => parseSpec(texts.get(commit) ?? "").requirements);
+  const textOf = (requirements, name) => { const found = requirements.get(name); return found ? JSON.stringify([found.source, found.rule, found.check]) : null; };
+  return new Map(names.map((name) => {
+    let at = 0;
+    while (at + 1 < commits.length && textOf(specs[at], name) === textOf(specs[at + 1], name)) at += 1;
+    return [name, commits[at].date];
+  }));
+}
+
+// The names of the requirements marked *source changed*: those affectedRequirements names for a source the product moved after the requirement's text last changed.
+async function sourceChanged(shown) {
+  const { snapshot, context, ref } = shown;
+  if (!snapshot.paths.includes(SOURCE_LINKS)) return new Set();
+  const host = context.product.host;
+  const moved = await movedSources(host, ref, sourceSchemas().links);
+  if (!moved.size) return new Set();
+  // Only a product that moved a source reads the register, to find the requirements that name it.
+  const { register } = await factsOf(shown).sources();
+  const movedAt = new Map();
+  for (const [source, date] of moved) {
+    for (const name of affectedRequirements(shown.specText, register, source)) {
+      if (!(Date.parse(movedAt.get(name)) >= Date.parse(date))) movedAt.set(name, date);
+    }
+  }
+  if (!movedAt.size) return new Set();
+  const changed = await sectionsChanged(host, ref, [...movedAt.keys()]);
+  return new Set([...movedAt].filter(([name, date]) => Date.parse(date) > Date.parse(changed.get(name))).map(([name]) => name));
+}
+
+// Marks the rows of the requirements `sourceChanged` names, once the page is drawn; a history that cannot be read is said in a line, and marks nothing.
+async function markSourceChanged(shown) {
+  let names;
+  try {
+    names = await sourceChanged(shown);
+  } catch (failure) {
+    shown.target.querySelector?.(".current-requirements, .specification-page")?.append(problemLine("Whether a source moved on", failure));
+    return;
+  }
+  for (const [name, cell] of shown.cells ?? []) if (names.has(name)) cell.append(" ", el("span", "requirement-source-changed", "source changed"));
+}
+
 // ---------------------------------------------------------------- the gaps (UC-020 step 7)
 
 // A line of a list that opens, by a click and in place, onto what `detail` makes: a requirement or a use case as it read in the version drawn.
@@ -253,6 +327,7 @@ function requirementRows(requirement, editable, shown) {
   const button = el("button", "requirement-name btn small", requirement.name);
   button.type = "button";
   const cell = el("td", null, button);
+  (shown.cells ??= []).push([requirement.name, cell]);
   if (editable) cell.append(" ", reviewLink("requirement-edit", "Edit", "requirement", { name: requirement.name }));
   const row = el("tr", null, cell);
   const opened = el("tr", "requirement-opened");
@@ -478,6 +553,7 @@ export const route = {
         const text = await snapshot.read(SPEC_PATH);
         shown.onDefaultBranch = await onDefaultBranch(host, ref);
         shown.spec = parseSpec(text ?? "");
+        shown.specText = text ?? "";
         if (descriptor.key === "gaps") {
           const place = el("div", "gaps-body", el("p", "traces-reading", "Reading the gaps…"));
           body = el("section", "gaps head", el("h2", null, descriptor.title), place);
@@ -492,6 +568,7 @@ export const route = {
           body = shown.onDefaultBranch
             ? el("div", "specification-page", ...(waiting ? [waiting] : []), overview(shown.spec, true, shown), specChangeLinks())
             : overview(shown.spec, false, shown);
+          fill = () => markSourceChanged(shown);
         }
       } catch (error) {
         if (!chosen) throw error;

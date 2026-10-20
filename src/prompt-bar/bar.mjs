@@ -265,7 +265,8 @@ export function startPromptBar(target, setup) {
     return text;
   }
 
-  async function onSend() {
+  async function onSend(event) {
+    if (event?.isTrusted !== true) return; // THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK: a script's click sends nothing and records nothing
     if (state.controller || state.stopped) return;
     const instruction = input.value.trim();
     if (instruction === "") { show(problem("Write a message first.")); return; }

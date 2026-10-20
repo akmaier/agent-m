@@ -64,11 +64,11 @@ const withImplementer = { ...FILES, [`docs/jobs/${IMPLEMENTED.id}.md`]: startRec
 const UC_2 = "docs/use-cases/UC-002-two.md";
 const accepted = { ...FILES, [`docs/approvals/UC-002-${blobOf(FILES[UC_2]).slice(0, 12)}.md`]: writeDocument(approvalSchema, { fields: { kind: "use-case", file: UC_2, blob: blobOf(FILES[UC_2]) } }) };
 
-function fakeProduct(files = FILES) {
+function fakeProduct(files = FILES, { readOn = null } = {}) {
   const calls = [];
   let head = "a".repeat(40), tree = new Map(Object.entries(files)), made = 0;
   const snapshot = () => ({ repository: ON_GITHUB, ref: "trunk", commit: head, paths: [...tree.keys()].sort(), read: async (path) => (tree.has(path) ? tree.get(path) : null),
-    blob: (path) => (tree.has(path) ? blobOf(tree.get(path)) : null) });
+    blob: (path) => (tree.has(path) ? blobOf(tree.get(path)) : null), ...(readOn ? { readOn } : {}) });
   return {
     writes: () => calls,
     host: {
@@ -457,4 +457,42 @@ test("view — hands the frame the writer the kind write-tests uses", () => {
   const names = (category) => view.strategies.flatMap((strategies) => Object.keys(strategies[category] ?? {}));
   assert.ok(names("writers").includes("branch-and-pull-request"));
   assert.ok(names("checks").includes("test-proposals"));
+});
+
+// ---------------------------------------------------------------- the graph stored for the commit (ITM-1119)
+//
+// MOD-test-pages (Uses): "MOD-test-document.testDeclarations, MOD-trace-graph.traceGraph, MOD-trace-graph.tracesTo — which levels guard what. A graph of a commit's own files is asked for with that commit, so that the
+// graph `onMainChanged` stored for it is read where there is one (MOD-workflow-entries)." The stored graph is seen in a module only it holds, MOD-stored, which the page lists only if it read the stored graph.
+
+// TST-1119003 · level: unit · module: MOD-test-pages
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-026 (1)
+// given: the product of the first test, whose snapshot offers readOn, and the branch trace-cache holding the graph of its commit with one module more than the files hold (MOD-stored)
+// input: the route generate, drawn
+// expect: the page lists MOD-stored beside the modules of the files, which it could only know from the stored graph; readOn was asked for trace-cache / <commit>.json
+test("generate — the graph is asked for with its commit, so that the graph stored for it is read", async () => {
+  const { traceGraph, graphText } = await import("../src/trace-graph/index.mjs");
+  const probe = fakeProduct();
+  const shot = await probe.host.readSnapshot();
+  const graph = await traceGraph({ paths: shot.paths, read: shot.read }, { commit: shot.commit });
+  graph.nodes.set("MOD-stored", { ...graph.nodes.get("MOD-b"), id: "MOD-stored", title: "MOD-stored", path: "docs/architecture/MOD-stored.md" });
+  const asked = [];
+  const fake = fakeProduct(FILES, { readOn: async (branch, path) => { asked.push([branch, path]); return branch === "trace-cache" && path === `${shot.commit}.json` ? graphText(graph) : null; } });
+  const target = await show(fake);
+  const listed = byClass(target, "li", "uncovered").concat(byClass(target, "li", "covered")).map((item) => item.getAttribute("data-name")).sort();
+  assert.deepEqual(listed, ["MOD-a", "MOD-b", "MOD-stored", "RULE ONE", "RULE TWO", "UC-001", "UC-002"]);
+  assert.deepEqual(asked, [["trace-cache", `${shot.commit}.json`]]);
+});
+
+// TST-1119004 · level: unit · module: MOD-test-pages
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-026 (1)
+// given: the same product, the branch trace-cache holding no graph of the commit
+// input: the route generate, drawn
+// expect: counter-proof: the graph is built from the files — MOD-stored is not listed, the test file is read —, and readOn was asked once
+test("generate — where no graph is stored for the commit, it is built from the files", async () => {
+  const asked = [];
+  const fake = fakeProduct(FILES, { readOn: async (branch, path) => { asked.push([branch, path]); return null; } });
+  const target = await show(fake);
+  const listed = byClass(target, "li", "uncovered").concat(byClass(target, "li", "covered")).map((item) => item.getAttribute("data-name")).sort();
+  assert.deepEqual(listed, ["MOD-a", "MOD-b", "RULE ONE", "RULE TWO", "UC-001", "UC-002"]);
+  assert.equal(asked.length, 1);
 });

@@ -66,7 +66,7 @@ const COVERED_BY_RELEASE = {
   "THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED": [PAGES, "tests/test_mail_privacy.py"],
   "A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL": [PAGES, "tests/test_mail_privacy.py"],
   "A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT": [GRAPH, "tests/review-core.test.mjs"],
-  "NO SECRET IN THE REPOSITORY": [GRAPH, "tests/prompt-bar-record.test.mjs"],
+  "NO SECRET IN THE REPOSITORY": [GRAPH, "tests/prompt-bar-record.test.mjs", "tests/test_no_secret_written.py"],
   "NO SERVER": [GRAPH, "tests/test_no_backend.py"],
   "ONE DEFINITION, THREE DRIVERS": [GRAPH, "tests/runtimes-tab-endpoint-tools.test.mjs", "tests/test_single_definition.py"],
   "A GENERATED ARTIFACT IS A PROPOSAL": [GRAPH, "tests/review-core.test.mjs"],
@@ -85,10 +85,7 @@ const COVERED_BY_RELEASE = {
 };
 const REVIEW_ONLY = ["CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI", "ONE CLICK PER DECISION"];
 // The files the SPEC names as the check of a requirement of UC-049 and that this repository does not hold (the pull request names the items that build them).
-const MISSING_CHECKS = {
-  // ITM-1131
-  "tests/test_no_secret_written.py": ["NO SECRET IN THE REPOSITORY"],
-};
+const MISSING_CHECKS = {};
 
 // TST-513201 · level: release · module: MOD-prompt-bar · MOD-site-frame
 // guards: UC-049; every requirement UC-049 realises; RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER
@@ -136,8 +133,8 @@ test("TST-513201: UC-049 release coverage names every automatic requirement, and
 // guards: UC-049; every requirement UC-049 realises
 // given: the files the SPEC names as the checks of the requirements UC-049 realises
 // input: ask whether each exists
-// expect: every file the SPEC names exists. FINDING: one of them does not (MISSING_CHECKS: the check of the secret), so this case is red on main until they are written
-test("TST-513202: the checks the SPEC names for the requirements of UC-049 exist", { todo: "FINDING UC049-checks — one file the SPEC names as a check of a requirement UC-049 realises is not in the repository (MISSING_CHECKS: ITM-1131)" }, () => {
+// expect: every file the SPEC names exists (the check of the secret, tests/test_no_secret_written.py, is written; MISSING_CHECKS is empty)
+test("TST-513202: the checks the SPEC names for the requirements of UC-049 exist", () => {
   const absent = Object.keys(MISSING_CHECKS).filter((file) => !existsSync(new URL(file, ROOT)));
   assert.deepEqual(absent, [], `the SPEC names these files and they do not exist`);
 });

@@ -173,7 +173,7 @@ test("TST-827006 with a token, the route home reads 600 items and 400 job record
   for (const { kind } of net.server.log) kinds[kind] = (kinds[kind] ?? 0) + 1;
   assert.equal(cardsOf(target).length, 1);
   assert.equal(byClass(target, "is-error").length, 0);
-  assert.equal(net.requests.length, 23);
+  assert.equal(net.requests.length, 24);
   assert.deepEqual(kinds, { repository: 2, commit: 3, tree: 2, "pull requests": 1, tags: 1, batch: 13 });
   assert.deepEqual(net.server.log.filter((entry) => entry.kind === "file"), []);
   assert.deepEqual(net.requests.filter((request) => request.authorization === null), []);
@@ -191,8 +191,8 @@ test("TST-827007 without a token, the route home reads every file by a request o
   const kinds = {};
   for (const { kind } of net.server.log) kinds[kind] = (kinds[kind] ?? 0) + 1;
   assert.equal(byClass(target, "is-error").length, 0);
-  assert.equal(net.requests.length, 1013);
-  assert.deepEqual(kinds, { repository: 2, commit: 3, tree: 2, "pull requests": 1, tags: 1, file: 1004 });
+  assert.equal(net.requests.length, 1014);
+  assert.deepEqual(kinds, { repository: 2, commit: 3, tree: 2, "pull requests": 1, tags: 1, file: 1005 });
   assert.deepEqual(net.requests.filter((request) => request.authorization !== null), []);
 });
 
@@ -350,7 +350,7 @@ test("TST-847002 with a token, a reading of the jobs' states is the product's co
   net = network({ [PRODUCT]: productFiles({ items: 600, jobs: 400 }), [INSTANCE]: instanceFiles() });
   net.install();
   await draw(home, browser());
-  assert.equal(net.requests.length, 23);
+  assert.equal(net.requests.length, 24);
   const sent = net.requests.length, logged = net.server.log.length;
   await timers.fire(at("12:01"));
   assert.deepEqual(net.requests.slice(sent).map(addressOf), ["/repos/alice/product/commits/main", "/repos/alice/product/git/trees/<commit>"]);
@@ -378,7 +378,7 @@ test("TST-847003 a card whose repository this browser keeps no token for is not 
   net = network({ [PRODUCT]: productFiles({ items: 600, jobs: 400 }), [INSTANCE]: instanceFiles() });
   net.install();
   await draw(home, browser({ tokens: {}, instanceToken: null }));
-  assert.equal(net.requests.length, 1013);
+  assert.equal(net.requests.length, 1014);
   assert.deepEqual(waitingDelays(), []);
 
   net.restore();
@@ -753,7 +753,7 @@ const STORED_STAGES = [["Requirements", "100 %", "stored requirements"], ["Use c
   ["Implementation", "50 %", "stored implementation"], ["Tests", "?", "stored tests"], ["Release", "0 %", "stored release"]];
 const REVIEWED = /^(docs\/use-cases\/|docs\/architecture\/|tests\/)/;
 const filesRead = () => net.server.log.flatMap((entry) => entry.files);
-const overviewReads = () => net.requests.filter((request) => request.url.includes("ref=overview-cache"));
+const overviewReads = () => net.requests.filter((request) => request.url.includes("ref=overview-cache") && !request.url.includes(".facts.json"));
 
 // TST-943001 · level: unit · module: MOD-main-page
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; THE MAIN PAGE SHOWS EACH PRODUCT'S PROGRESS BY STAGE; UC-049
