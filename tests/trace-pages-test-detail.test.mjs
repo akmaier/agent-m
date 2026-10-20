@@ -99,7 +99,7 @@ const textOf = (root, name) => withClass(root, name)[0]?.textContent;
 const textsOf = (root, name) => withClass(root, name).map((node) => node.textContent);
 
 // TST-767001 · level: unit · module: MOD-trace-pages
-// guards: UC-029 (step 4); A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS
+// guards: UC-029; A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS
 // given: the fixture at main; known positive: without the param row the page has the tree and no detail
 // input: the route rendered with row TST-801
 // expect: a detail headed TST-801 alpha holds with its level unit, its guarded identifiers ALPHA RULE and UC-001, its precondition "a library with one loan", its input "the loan is returned" and its expected result "the loan is closed"
@@ -115,7 +115,7 @@ test("an opened test shows its level, guarded identifiers, precondition, input a
 });
 
 // TST-767002 · level: unit · module: MOD-trace-pages
-// guards: UC-029 (step 4)
+// guards: UC-029
 // given: the fixture, whose docs/tests/schedule.md ticks unit for every commit and pull request, component for nightly, and paid for nightly and release candidate; and the same product without that file
 // input: TST-801 (unit), TST-803 (component) and TST-802 (release, declaring a paid service) opened; TST-801 opened without the schedule file
 // expect: "every commit, pull request"; "nightly"; "nightly, release candidate" (the paid row); and, with the book's default, "every commit, pull request, nightly, release candidate, on demand" marked as the default
@@ -129,7 +129,7 @@ test("an opened test says when the schedule runs it, by its level or as a paid t
 });
 
 // TST-767003 · level: unit · module: MOD-trace-pages
-// guards: UC-029 (step 4); A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT
+// guards: UC-029; A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT
 // given: the fixture, whose docs/tests/counter-proofs/TST-801.md names the participant dev-sonnet-x; TST-802 has no record
 // input: TST-801 opened; TST-802 opened
 // expect: TST-801: the participant "dev-sonnet-x" and the record as its file reads (the fault "The loan's due date is dropped." in it); TST-802: "No counter-proof record." and no participant
@@ -143,7 +143,7 @@ test("an opened test shows its counter-proof record and the participant it names
 });
 
 // TST-767004 · level: unit · module: MOD-trace-pages
-// guards: UC-029 (step 4)
+// guards: UC-029
 // given: the fixture; WebLinks' file records what it is asked
 // input: TST-801 opened at main; at the tag v2026.1.0
 // expect: a link test-code to https://example.test/blob/main/tests/alpha.test.mjs, the file and the version asked for; at the tag …/blob/v2026.1.0/tests/alpha.test.mjs
@@ -154,7 +154,7 @@ test("an opened test links to its code at the version shown", async () => {
 });
 
 // TST-767005 · level: unit · module: MOD-trace-pages
-// guards: UC-029 (step 5); EVERY TEST RUN LEAVES A RESULT RECORD
+// guards: UC-029; EVERY TEST RUN LEAVES A RESULT RECORD
 // given: the fixture: TST-801 failed on the early commit and passed on the tag's and the latest; TST-803 passed and failed on the latest commit
 // input: TST-801 opened; TST-803 opened
 // expect: TST-801: one mark per commit that ran it, in the order of the records: cccccccc failed, bbbbbbb passed, aaaaaaa passed (first seven digits, then the outcome); one row for the tag v2026.1.0, passed; TST-803: the latest commit marked flaky
@@ -169,7 +169,7 @@ test("an opened test shows one mark per commit it ran on and one row per release
 });
 
 // TST-767006 · level: unit · module: MOD-trace-pages
-// guards: UC-029 (step 5); A MODEL-DEPENDENT TEST IS MEASURED AS A RATE
+// guards: UC-029; A MODEL-DEPENDENT TEST IS MEASURED AS A RATE
 // given: the fixture: TST-802 is model-dependent, 3 of 5 runs passed at the release v2026.1.0 (its tag's commit); TST-801 is not
 // input: TST-802 opened; TST-801 opened
 // expect: TST-802: a rate line with the point "v2026.1.0: 3 of 5"; TST-801: no rate line
@@ -179,7 +179,7 @@ test("a model-dependent test shows its rate per release as a line with the runs 
 });
 
 // TST-767007 · level: unit · module: MOD-trace-pages
-// guards: UC-029 (step 5a); THE NAME IS THE ID AND IT SURVIVES
+// guards: UC-029; THE NAME IS THE ID AND IT SURVIVES
 // given: the fixture: TST-899 is declared at the tag v2026.1.0 in tests/old.test.mjs and no longer at main; the history of that file is three commits, the first and the second declaring it, the third (2026-10-05) not
 // input: TST-899 opened at main; TST-810, which the file still declares, opened as the known positive; TST-777, which no release declares
 // expect: TST-899: "Removed at commit 3333333 (2026-10-05)"; TST-810: no removal; TST-777: "No test TST-777 is declared at this version or at a release." and no removal
@@ -193,7 +193,7 @@ test("a removed test is marked as removed at the commit that removed it, and an 
 });
 
 // TST-767008 · level: unit · module: MOD-trace-pages
-// guards: UC-029 (steps 4, 5)
+// guards: UC-029
 // given: the fixture on main
 // input: the route rendered without the param row
 // expect: the id of each test in the tree is a link to #trace/key=tests/ref=main/row=<id>, the text of the id unchanged
@@ -207,7 +207,7 @@ test("the id of a test in the tree is a link to its detail", async () => {
 });
 
 // TST-767009 · level: unit · module: MOD-trace-pages
-// guards: UC-029 (step 5)
+// guards: UC-029
 // given: the fixture, in which the branch test-results cannot be read
 // input: TST-801 opened
 // expect: a line "The history could not be read: unreachable"; the declaration, the schedule, the counter-proof and the link to the code stay
@@ -221,7 +221,7 @@ test("a history that cannot be read is named and leaves the other parts", async 
 });
 
 // TST-767010 · level: unit · module: MOD-trace-pages
-// guards: UC-029 (step 5a)
+// guards: UC-029
 // given: the fixture, but the history of tests/old.test.mjs is 42 commits: the first declares TST-899, the second removes it, and the forty after it change the file without declaring it again
 // input: TST-899 opened at main
 // expect: "Removed at commit 0202020 (2026-10-02)" — the removing commit, which lies beyond the latest thirty commits of the file
@@ -238,7 +238,7 @@ test("the commit that removed a test is named however many commits of its file c
 });
 
 // TST-767011 · level: unit · module: MOD-trace-pages
-// guards: UC-029 (step 5a)
+// guards: UC-029
 // given: the fixture, but every commit of the history of tests/old.test.mjs (35 of them) declares TST-899, so that no commit of the file's history removes it
 // input: TST-899 opened at main
 // expect: the page ends, saying "Removed (no commit of its file's history is found that declares it and one after it that does not)" and naming no commit
@@ -250,7 +250,7 @@ test("a removed test whose removing commit the file's history does not show is s
 });
 
 // TST-767012 · level: unit · module: MOD-trace-pages
-// guards: UC-029 (step 5a); A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// guards: UC-029; A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the history of TST-767010 (42 commits of tests/old.test.mjs, the removal at the second), over a Host that notes every commit whose text of the file it is asked for
 // input: TST-899 opened at main
 // expect: the removing commit named (0202020), the text of the file asked for at forty-two commits, each once: no commit appears twice among the commits asked for, however many times the history was read
