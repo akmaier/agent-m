@@ -136,7 +136,8 @@ The six stages of the main page, each a share between 0 and 1:
   string | null, difference: string | null }>, jobs: JobRow[], pullRequests: PullRequest[] | "unknown", schedule:
   Document | "unknown", ci: { runs: CiRun[] | "unknown", configured: boolean, drift: Array<{ path: string, difference:
   string }>, jobWorkflow: boolean } | "unknown", tags: Array<{ name: string, commit: string }> | "unknown", results:
-  Snapshot | null | "unknown", tests: TestDeclaration[] | "unknown", resourceNeeds: ResourceNeed[] | "unknown" }`: `requirements` the accepted ones; `model` the declared model as the
+  Snapshot | null | "unknown", tests: TestDeclaration[] | "unknown", resourceNeeds: ResourceNeed[] | "unknown",
+  resultCommits: string[] | "unknown", own: boolean }`: `requirements` the accepted ones; `model` the declared model as the
   instance's catalogue held it at the commit the declaration's `model_version` names — the version the product declared
   and keeps (UC-031 6a) —, and `workflow` derived from it. Both are `"unknown"` when that commit cannot be read, and
   `modelUnread` then names the commit and the error it was read with. `modelSince` is the date the declared model was
@@ -147,7 +148,10 @@ The six stages of the main page, each a share between 0 and 1:
   states of those that have not ended derives the rows again with MOD-job-ledger's `listJobs` —; `schedule` the product's test schedule, or the book's default where none is saved; `ci.runs`
   the runs of the default branch's head; `ci.configured` whether the configuration Agent M generates from the schedule
   is present, `ci.drift` how it differs from the schedule, `ci.jobWorkflow` whether the job workflow of MOD-runtimes is
-  present; `results` the branch `test-results`, `null` while there is none; `resourceNeeds` the routes that reach the
+  present; `results` the branch `test-results`, `null` while there is none; `resultCommits` the commits of the default
+  branch that `results` holds records of (`runs/<commit>/`), newest first by the default branch's history (`readHistory`,
+  `changes: false`), empty while there is no `results`, and `"unknown"` when that history cannot be read; `own` whether
+  the product's repository is the instance's own, the repository of `instance`; `resourceNeeds` the routes that reach the
   product's resources, `reachableBy` of MOD-resource-list over its `docs/resources.md`, which a caller hands to
   MOD-runtimes' `routesFor` for a job whose kind needs the product's resources. A fact only the server gives — `info`,
   `pullRequests`, `ci.runs`, `tags` — is `"unknown"` when the host does no server operations; whatever depends on an
@@ -214,10 +218,13 @@ The six stages of the main page, each a share between 0 and 1:
   sprints — and the items per state per day. Each item's state on
   a day is dated by the records and the pull requests. After a change of model, `since` is the change, and the chart starts
   there. Errors: `NoModel` when the product declares none.
-- `stageShares(facts: Facts) -> Array<{ stage: string, share: number | null, detail: string }>` — the six stages of the
-  table above, in their order; a stage whose share needs an unknown fact has none, and its detail says which; for the
-  instance's own repository, which has no product, the same bar for Agent M, full once its first release is tagged.
-- `currentStage(shares: Array<{ stage: string, share: number | null }>) -> string` — the first stage that is not full.
+- `stageShares(facts: Facts) -> Promise<Array<{ stage: string, share: number | null, detail: string }>>` — the six
+  stages of the table above, in their order; a stage whose share needs an unknown fact has none, and its detail says
+  which. The Tests stage takes, for each test, its outcome at the first of `resultCommits` whose records name it
+  (MOD-result-records' `resultsAt`); a test no such record names is not run. For the instance's own repository (`own`),
+  which has no product, the same bar for Agent M, full once its first release is tagged.
+- `currentStage(shares: Array<{ stage: string, share: number | null }>) -> string | null` — the first stage that is not
+  full; null when every stage is full.
 - `gateOverview(facts: Facts) -> Array<{ gate: string, state: "passed" | "passed on an earlier text" | "rejected" |
   "pending" | "not reached", decided: { by: string, date: string, on: string, record: string } | null, needs: string |
   null, difference: string | null, addedBy: { requirement: string, source: string } | null }>` — the workflow's gates in
