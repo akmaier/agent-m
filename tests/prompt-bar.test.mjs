@@ -51,6 +51,7 @@ const byClass = (root, name) => all(root, (node) => node.className.split(" ").in
 const one = (root, name) => byClass(root, name)[0];
 const textOf = (node) => node.textContent;
 const click = (node) => node.dispatchEvent(new Event("click"));
+const trusted = () => Object.defineProperty(new Event("click"), "isTrusted", { value: true });
 
 class Storage {
   constructor() { this.values = new Map(); }
@@ -171,7 +172,7 @@ function page({ rows = [DRAFTER], ep2 = false, recording = false, product = null
 const drawn = (it) => until(() => it.target.childNodes.length > 0, "the bar is drawn");
 async function sends(it, text) {
   one(it.target, "instruction").value = text;
-  click(one(it.target, "send"));
+  one(it.target, "send").dispatchEvent(trusted());
   await until(() => !one(it.target, "stop") || one(it.target, "stop").disabled, "the message has run");
   await tick();
 }
@@ -312,7 +313,7 @@ test("Stop — aborts the message running in this tab; currentJob gives it while
   const it = page();
   await drawn(it);
   one(it.target, "instruction").value = "plan the next sprint";
-  click(one(it.target, "send"));
+  one(it.target, "send").dispatchEvent(trusted());
   await until(() => requests.length === 1, "the request is sent");
   assert.deepEqual({ ...currentJob(), started: currentJob().started instanceof Date }, { kind: "converse", participant: "drafter-a", state: "running", started: true });
   assert.equal(one(it.target, "stop").disabled, false);

@@ -188,6 +188,8 @@ export async function onRequirementPage(s, name = LOAN) {
   await until(() => all(s.target, "textarea").length > 0, "the requirement's page");
 }
 // The person writes `text` in the bar, chooses `participant` where the bar offers several, and presses Send; resolves once the bar is free again.
+/** A click the browser marks as a person's (isTrusted), which *Send* takes (THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK). */
+export const trustedClick = () => Object.defineProperty(new Event("click"), "isTrusted", { value: true });
 export async function send(s, text = INSTRUCTION, { participant = null } = {}) {
   const bar = barOf(s);
   if (participant !== null) {
@@ -198,7 +200,7 @@ export async function send(s, text = INSTRUCTION, { participant = null } = {}) {
   }
   one(bar, "textarea", "instruction").value = text;
   const sent = one(bar, "button", "send");
-  click(sent);
+  sent.dispatchEvent(trustedClick());
   await rest(s);
   await until(() => sent.disabled === false, "the message has run");
   await rest(s);

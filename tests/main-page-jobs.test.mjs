@@ -340,7 +340,7 @@ test("TST-509006 the job of this tab's conversation is listed first among the ro
   byClass(foot, "instruction")[0].value = "what runs?";
   clock.now = NOW - 3723000;
   globalThis.Date = FixedDate;
-  byClass(foot, "send")[0].dispatchEvent(new Event("click"));
+  byClass(foot, "send")[0].dispatchEvent(Object.defineProperty(new Event("click"), "isTrusted", { value: true }));
   await until(() => spy.requests.some((request) => request.url.host === "models.example"), "the message is sent");
   globalThis.Date = RealDate;
 
@@ -479,7 +479,7 @@ test("TST-970003 the job of this tab's conversation is the first row of the runn
   byClass(foot, "instruction")[0].value = "what runs?";
   clock.now = NOW - 3723000;
   globalThis.Date = FixedDate;
-  byClass(foot, "send")[0].dispatchEvent(new Event("click"));
+  byClass(foot, "send")[0].dispatchEvent(Object.defineProperty(new Event("click"), "isTrusted", { value: true }));
   await until(() => spy.requests.some((request) => request.url.host === "models.example"), "the message is sent");
   globalThis.Date = RealDate;
   try {
