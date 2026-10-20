@@ -65,3 +65,13 @@ test("the live app loads the views data-views names, and fails naming one that i
   const page = await openDashboard({ server: await repoServer({ files: FILES }) });
   assert.ok(page.el("tabs").includes("Settings"), "the page opens without that slug");
 });
+
+// TST-1116004 · level: unit · module: MOD-site-frame
+// guards: DEVELOP AGAINST INTERFACES
+// given: the page's script tag names five of the six views, without maintenance-pages, whose routes the app dispatches to
+// input: open the dashboard
+// expect: the load fails with an error that names maintenance-pages — the app asks for no view the page did not name
+test("the live app fails naming a view its dispatching needs and data-views does not name", async () => {
+  const server = await repoServer({ files: FILES });
+  await assert.rejects(openDashboard({ server, views: ["review-pages", "trace-pages", "implementation-pages", "test-pages", "settings-pages"] }), /maintenance-pages/);
+});
