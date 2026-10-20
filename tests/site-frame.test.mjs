@@ -340,7 +340,7 @@ test("explain — reverting-the-commit: how to undo it (UC-001)", () => {
 });
 
 // TST-472875 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-001
+// guards: EVERY STEP EXPLAINS ITSELF; UC-001; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY
 // given: the topic the-product-list
 // input: explain("the-product-list")
 // expect: text saying the address is kept only in this browser, nothing is written into the instance repository, and another browser starts with an empty list
@@ -367,7 +367,7 @@ test("explain — release-test-levels: what each level checks (UC-013)", () => {
 });
 
 // TST-472877 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-013
+// guards: EVERY STEP EXPLAINS ITSELF; UC-013; RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER
 // given: the topic independent-release-tests
 // input: explain("independent-release-tests")
 // expect: text saying release tests are written by someone other than the implementer, and what 2a asks the author to do when only the implementer is available
@@ -379,7 +379,7 @@ test("explain — independent-release-tests: why a different participant writes 
 });
 
 // TST-472878 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-013
+// guards: EVERY STEP EXPLAINS ITSELF; UC-013; A VERSION IS NOT REWRITTEN
 // given: the topic version-not-rewritten
 // input: explain("version-not-rewritten")
 // expect: text saying a tag is never moved once set, and that a correction becomes the next version

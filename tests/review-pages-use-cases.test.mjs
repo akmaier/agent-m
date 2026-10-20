@@ -474,7 +474,7 @@ test("MOD-review-pages use-case/<id> — without a token on GitHub: GitHub's pre
 });
 
 // TST-472684 · level: unit · module: MOD-review-pages
-// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL; A GITHUB PRODUCT USES A TOKEN OF ITS OWN
 // given: a GitHub product with no token of its own stored in this browser; the instance's own token is stored, and is no token of this product; UC-041 open
 // input: the route use-case rendered with the id UC-041, and the list
 // expect: no Accept, no tick, no Accept ticked; the link to GitHub's new-file page with the record's path and the record, nothing else; nothing written

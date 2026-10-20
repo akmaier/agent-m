@@ -226,7 +226,7 @@ test("add-product — before a valid address, a placeholder with no known explan
 });
 
 // TST-478029 · level: unit · module: MOD-settings-pages
-// guards: UC-001
+// guards: UC-001; THE REPOSITORY CHOICE IS SPELLED OUT; A PRODUCT'S TOKEN IS NAMED AFTER THE PRODUCT; THE PAGE NAMES WHERE IT SENDS; EVERY STEP EXPLAINS ITSELF; ONE CLICK PER DECISION; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER
 // given: a fresh store, a GitHub address with nothing stored for it
 // input: type the address; Step A's prefilled link and repository-choice steps; store a token, which runs the check — a private, writable repository — without another click; Step C, one click
 // expect: the token page is prefilled with the product's own name/description/owner/days; the three choice steps name the repository; the key and the commit are each stated to go to GitHub alone; Step B shows the check's result without a second click, and Step A flips to "done"; Add product writes the missing layout in one commit and remembers the address, with no further, unscripted request
@@ -502,7 +502,7 @@ test("TST-278 add-product — a trusted GitLab Step C click commits and remember
 });
 
 // TST-472734 · level: unit · module: MOD-settings-pages
-// guards: UC-001
+// guards: UC-001; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; EVERY STEP EXPLAINS ITSELF
 // given: a fresh store, a GitLab project's address
 // input: type the address; store the project's token, which runs the check
 // expect: Step A only opens the project's Access tokens page and spells out role Maintainer/scope api, with the 3d fallback folded beneath it, and is never shown done; Step B is "Give the key to Agent M", sends the key only to that project's own API, and shows the check's result; Step C is enabled once the token is stored
