@@ -25,6 +25,7 @@ import { readDocument } from "../documents/index.mjs";
 import { holdsRole } from "../product-process/index.mjs";
 import { productFacts } from "../progress-measures/index.mjs";
 import { queueJob, routesFor } from "../runtimes/index.mjs";
+import { explain as frameExplain } from "../site-frame/index.mjs";
 import { startable } from "../work-plans/index.mjs";
 import { contextOf, derivedOf, runningOf } from "./backlog.mjs";
 
@@ -87,20 +88,64 @@ async function sentFor(prepare, participant) {
   return { prepared, html: `<ul>${sent.map((line) => `<li>${line}</li>`).join("")}</ul>${blocking.length ? `<p class="warn">${blocking.join("; ")}</p>` : ""}<p class="small">Correction rounds: at most ${h(prepared.limit)}</p>` };
 }
 
-async function draw(target, context, params) {
-  const { product, instance } = context;
-  const ctx = await contextOf(context);
-  const d = await derivedOf(context, ctx);
-  const head = (body) => { target.innerHTML = `<section class="panel head"><h2>Implement</h2>${explain("<p>Ready backlog items are handed to coding agents, one job per item (UC-034).</p>")}${body}</section>`; };
-  if (ctx.declaration === null || ctx.model === null) {
-    head(`<p class="warn">No process model is declared for this product, so there is nothing to implement from. <a href="#process">Declare one</a>.</p>`);
+// The page's head: the title, the folded explanation of the route the product's model prescribes (UC-024 step 1), and the part given.
+function headOf(target, body, note = "Ready backlog items are handed to coding agents, one job per item (UC-034).") {
+  target.innerHTML = `<section class="panel head"><h2>Implement</h2><div data-route-explain></div>${explain(`<p>${note}</p>`)}${body}</section>`;
+  target.querySelector("[data-route-explain]")?.append(frameExplain("implementation-route"));
+}
+
+// The phase each step is in, by the plan's order (a row of the order document names a step and its phase).
+const phasesOf = (order) => new Map((order?.sections ?? []).flatMap((section) => section.rows ?? []).map((row) => [text(row.cells?.Step), text(row.cells?.Phase)]));
+
+// For a model that plans its work (UC-024 steps 1 to 3): the steps of the plan in their order, each with its derived state and its phase; the ready, startable steps of the current phase ticked, the others
+// not selectable, with their reasons. The jobs' participants and *Start jobs* are not on this part of the page.
+async function drawPlan(target, context, facts, ctx, participants, workflow) {
+  if (facts.plan.items.length === 0) {
+    headOf(target, `<p class="warn" data-missing>This product has no implementation plan yet, so there is nothing to start. <a href="#plan">Plan the implementation</a>; the process is declared on <a href="#process">How this product is developed</a>.</p>`,
+      "A model that plans its work implements the steps of its implementation plan.");
     return;
   }
+  const phases = phasesOf(facts.plan.order);
+  const assignment = ctx.assignments[0] ?? null;
+  const states = facts.plan.states;
+  const rows = states.map((state) => ({ state, phase: phases.get(state.item) ?? "", verdict: startable(state.item, states, { workflow, assignment, sprint: null, held: [], wip: null, participants }) }));
+  const current = rows.find((row) => row.state.state !== "done")?.phase ?? null;
+  const preselected = (row) => row.verdict.startable && row.state.state === "ready" && row.phase === current;
+  headOf(target, rows.length === 0 ? "" : `<table class="list"><thead><tr><th></th><th>Step</th><th>Phase</th><th>State</th><th>Why not</th></tr></thead><tbody>${rows.map((row) => `
+    <tr data-step="${h(row.state.item)}" data-state="${h(row.state.state)}" data-phase="${h(row.phase)}"><td><input type="checkbox" data-select-step aria-label="Select ${h(row.state.item)}"${row.verdict.startable ? "" : " disabled"}${preselected(row) ? " checked" : ""}></td>
+    <td>${h(row.state.item)}</td><td>${h(row.phase)}</td><td><span class="badge">${h(row.state.state)}</span></td>
+    <td>${row.verdict.startable ? "" : `<ul data-reasons>${row.verdict.reasons.map((reason) => `<li>${h(reason)}</li>`).join("")}</ul>`}</td></tr>`).join("")}</tbody></table>
+    <p data-selected></p>`, "A model that plans its work implements the steps of its implementation plan, in the plan's order.");
+  // A box is ticked by its property; a document that does not keep the property is read by the attribute the page wrote.
+  const isTicked = (box) => box.getAttribute("disabled") === null && (box.checked === undefined ? box.getAttribute("checked") !== null : box.checked === true);
+  const count = () => {
+    const n = target.querySelectorAll("[data-select-step]").filter(isTicked).length;
+    const out = target.querySelector("[data-selected]");
+    if (out) out.textContent = `${n} step${n === 1 ? "" : "s"} selected`;
+  };
+  count();
+  target.querySelectorAll("[data-select-step]").forEach((box) => box.addEventListener("change", count));
+}
+
+async function draw(target, context, params) {
+  const { product, instance } = context;
   const instanceSnapshot = await instance.host.readSnapshot((await instance.host.repositoryInfo()).defaultBranch);
   const facts = await productFacts(product.host, instanceSnapshot, (commit) => instance.host.readSnapshot(commit), new Date(), { scope: "work" });
   const workflow = facts.workflow !== "unknown" ? facts.workflow : null;
   const register = await instanceSnapshot.read(REGISTER);
   const participants = register === null ? [] : participantsOf(readDocument(participantSchema(), REGISTER, register));
+  if (facts.declaration === null || facts.model === null || facts.model === "unknown") {
+    headOf(target, `<p class="warn" data-missing>${facts.declaration === null ? "No process model is declared for this product" : "The declared process model could not be read"}, so there is nothing to start. <a href="#process">Declare or open the process</a>; the plan or the backlog follows it (<a href="#plan">plan</a>, <a href="#backlog">backlog</a>).</p>`);
+    return;
+  }
+  const ctx = await contextOf(context);
+  if (facts.model.kind !== "pulled") { await drawPlan(target, context, facts, ctx, participants, workflow); return; }
+  const d = await derivedOf(context, ctx);
+  const head = (body) => headOf(target, `<p data-backlog-link>This model works from a backlog: <a href="#backlog">open the backlog</a>.</p>${body}`);
+  if (ctx.declaration === null || ctx.model === null) {
+    head(`<p class="warn">No process model is declared for this product, so there is nothing to implement from. <a href="#process">Declare one</a>.</p>`);
+    return;
+  }
   const definition = await kindOf("implement");
   const info = await product.host.repositoryInfo();
   const productInfo = { visibility: info.visibility, jobWorkflow: WORKFLOWS.some((path) => ctx.snapshot.paths.includes(path)) };
