@@ -22,7 +22,7 @@
 
 import { formatFrontMatter, parseFrontMatter } from "../text-tools/index.mjs";
 import { PATH, compiledOf, effective, fences, sectionOf, textLines } from "./schema-language.mjs";
-import { cellsOf, headerColumns, leftOut, textOf, valueProblem } from "./checks.mjs";
+import { cellsOf, isSeparator, leftOut, sectionTable, textOf, valueProblem } from "./checks.mjs";
 
 const HEADING = /^(#{1,6})[ \t]+\S/;
 const FIELD_LINE = /^([a-z][a-z0-9_-]*):[ \t]*(.*)$/;
@@ -103,24 +103,6 @@ const escapePipes = (text) => text.replace(/\|/g, "\\|");
 
 // ---------------------------------------------------------------- tables
 
-const isSeparator = (line) => cellsOf(line).every((cell) => /^:?-+:?$/.test(cell));
-
-// The section's table among a text's lines: { from, to, columns }, to exclusive, `columns` the columns its header names, or null — the first table whose header row names the table's columns, in their
-// order, an optional column named or left out; for a table without a header row, the first table.
-function sectionTable(table, lines) {
-  const { inBlock } = fences(lines);
-  const isRow = (i) => !inBlock[i] && /^[ \t]*\|/.test(lines[i]);
-  let from = 0;
-  while (from < lines.length) {
-    if (!isRow(from)) { from += 1; continue; }
-    let to = from;
-    while (to < lines.length && isRow(to)) to += 1;
-    const columns = table.header === false ? table.columns : headerColumns(table, cellsOf(lines[from]));
-    if (columns) return { from, to, columns };
-    from = to;
-  }
-  return null;
-}
 
 // The rows of a table: where its rows begin — after its header and separator lines when it has a header row —, and each row's
 // index among the text's lines and its cells.

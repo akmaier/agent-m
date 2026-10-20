@@ -46,7 +46,7 @@ async function marksOf(facts, graph, host) {
     const schemas = artifactSchemas();
     const architecture = await Promise.all([...graph.nodes.values()].filter((node) => node.kind === "ARC" || node.kind === "MOD")
       .map(async (node) => readDocument(node.kind === "ARC" ? schemas.decision : schemas.module, node.path, (await facts.snapshot.read(node.path)) ?? "")));
-    const found = await planFindings(facts.plan.order, facts.plan.items, architecture, null, facts.snapshot, { host });
+    const found = await planFindings(facts.plan.order, facts.plan.items, architecture, null, facts.snapshot, { host }, graph);
     return found.filter((each) => each.rule === ASSEMBLES);
   } catch {
     return [];
