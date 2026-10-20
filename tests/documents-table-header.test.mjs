@@ -116,3 +116,18 @@ test("TST-1143005 the finding fires on no document of the repository", () => {
   assert.equal(read >= 100, true, `read ${read} documents`);
   assert.deepEqual(fired, []);
 });
+
+// TST-1143006 · level: unit · module: MOD-documents
+// guards: A DOCUMENT IS READ BY ITS SCHEMA
+// given: a register with two tables, neither naming the columns: a first of two columns and a second with the column Notes added
+// input: documentFindings
+// expect: one finding, at the header row of the first table (named "at its first table's header"), and not at the second's
+test("TST-1143006 a section whose tables all fail is named at its first table's header", () => {
+  const schema = participantSchema();
+  const body = ["# Participants of this instance", "", "**REGISTER**", "", "The people and agents.", "", "| Note | Text |", "|---|---|", "| a | b |", "",
+    `| ${[...PARTICIPANTS, "Notes"].join(" | ")} |`, `|${[...PARTICIPANTS, "Notes"].map(() => "---").join("|")}|`, `| ${ROW} | hi |`, ""].join("\n");
+  const found = header(findingsOf(schema, "docs/participants.md", body));
+  assert.equal(found.length, 1);
+  assert.equal(found[0].line, 7);
+  assert.equal(found[0].what.includes("Note, Text"), true, found[0].what);
+});
