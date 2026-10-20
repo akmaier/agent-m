@@ -28,3 +28,13 @@ stop and name the gap, which is then a draft for akmaier (AGENTS.md §6a.6).
 
 - TST-513027 passes and its `todo` is removed. Counter-proof: a job without a source is still refused by name.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Stopped at its first task (sprint team1/97, developer-sonnet-d): no accepted text gives a hand-over's job its source.**
+- A hand-over's parameters come from `paramsOf` (`src/prompt-bar/hand-over.mjs`): requirements, use cases, items and
+  steps, and no source.
+- `entrySections` then throws "entrySections needs the job's source as text" (`src/spec-changes/propose.mjs:78`).
+- MOD-prompt-bar's text names no parameters for a hand-over.
+- **The way chosen (po-opus):** for the subject's own kind, a hand-over's job takes the subject's `paramsFor`, with its
+  source. A missing own source refuses the hand-over by name, with `NoPersonSource`.
+- The draft of MOD-prompt-bar.md, by developer-sonnet-d, goes to `main` for akmaier. The item waits for its
+  acceptance.
