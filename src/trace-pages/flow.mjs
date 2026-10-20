@@ -408,10 +408,12 @@ async function waitingSection(snapshot) {
   return el("section", "spec-waiting head", el("h2", null, "SPEC changes waiting for acceptance"), el("ul", "list", ...items));
 }
 
-// The links from the specification to the review pages' lists of the SPEC change entries and of their history, on the default branch only.
+// The links from the specification to the review pages' lists of the SPEC change entries and of their history, and to the arrangement of the requirements
+// (`#arrange/kind=requirements`: the route arrange reads its group kind as the parameter `kind`), on the default branch only.
 function specChangeLinks() {
   return el("p", "spec-change-links", reviewLink("spec-entries-link", "All SPEC change entries", "spec-entry", {}),
-    " ", reviewLink("spec-history-link", "History of SPEC changes", "spec-entry", { id: "history" }));
+    " ", reviewLink("spec-history-link", "History of SPEC changes", "spec-entry", { id: "history" }),
+    " ", reviewLink("arrange-link", "Arrange", "arrange", { kind: "requirements" }));
 }
 
 // Whether the ref on view is the repository's default branch, which the Host names: editing is offered there only (UC-018). A Host that cannot say is read as no.
