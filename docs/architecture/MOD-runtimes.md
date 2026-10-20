@@ -185,9 +185,9 @@ a person's decision.
   review pages and the prompt bar build every tab job's context with it.
 - `runOnTab(prepared: Prepared, context: JobContext, connections: { endpoints: Record<string, { config: EndpointConfig,
   bridge: string | null }>, bridges: Record<string, Bridge> }, hooks: { host: Host, record: JobRecord | null, from?:
-  unknown, onOutput?: (chunk: string) => void, signal?: AbortSignal }) -> Promise<JobResult>` — runs the prepared job in
+  unknown, refine?: unknown, onOutput?: (chunk: string) => void, signal?: AbortSignal }) -> Promise<JobResult>` — runs the prepared job in
   this tab with MOD-job-runner, attended unless its record names a run; with `from`, the draft a person changed and wants
-  checked again as a whole (UC-022, UC-023), which it hands to MOD-job-runner's `runJob` as its `from`; a conversation of the prompt bar passes no record, and then
+  checked again as a whole (UC-022, UC-023), which it hands to MOD-job-runner's `runJob` as its `from`; with `refine`, the draft the drafter is to change as the person's follow-up instruction says (UC-019 step 8), which it hands to `runJob` as its `refine`; a conversation of the prompt bar passes no record, and then
   nothing is appended anywhere: builds the drafter's and the reviewers' drivers from their routes — an
   endpoint's driver from its configuration, `endpointDriver` where its `bridge` is `null` and `bridgeDriver` with the
   endpoint on the Bridge its `bridge` names, and an agent on a Bridge through `bridgeDriver`, each Bridge by its name among
