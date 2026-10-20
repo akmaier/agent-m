@@ -30,3 +30,5 @@ The draft adds the use to MOD-mail-routes's `uses:` and its Uses section, with w
 ## Acceptance
 
 - Once the draft is accepted, the check of ITM-1068 finds no import of MOD-mail-routes that its uses do not name.
+
+**Done (sprint team1/100's start, po-opus):** the draft is accepted, and ITM-1068's check over the repository (TST-106805) finds no import this item names, on `main` at `e14efb7f`. No code changes.
