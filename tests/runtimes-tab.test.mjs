@@ -366,6 +366,31 @@ test("runOnTab — forwards the current draft to runJob as refine", async () => 
   assert.match(requestBodies[0], /the current draft/, "runJob receives the refinement draft as previous");
 });
 
+// TST-111501 · level: unit · module: MOD-runtimes
+// guards: UC-022; UC-023; ONE DEFINITION, THREE DRIVERS
+// given: an attended job on the tab route with no record, whose kind has a check that rejects the draft "first" and passes any other; an endpoint that answers "the draft"
+// input: runOnTab with the hook `from` set to { text: "second" }, and again to { text: "first" }; then with no `from` (the counter-proof)
+// expect: `from` the passing draft: no request reaches the endpoint, the result is that draft, stopped `passed`, and nothing is written (no record); `from` the rejected draft: the endpoint is asked once, with
+//   the finding "the draft is the first" in its request; without `from` the endpoint is asked for the draft and the result is the endpoint's answer
+test("runOnTab — the hook from begins with the draft a person changed and checks it again as a whole, and writes nothing without a record", async () => {
+  endpointAnswers();
+  const fake = fakeRepository();
+  const kept = await runtimes.runOnTab(jobOf("none", [], { checked: true }), contextOf(), CONNECTIONS, { host: fake.host, record: null, from: { text: "second" } });
+  assert.deepEqual([requests.length, kept.draft, kept.stoppedBecause], [0, { text: "second" }, "passed"]);
+  assert.deepEqual(fake.writes, [], "no record: nothing is written");
+
+  endpointAnswers(200, { drafts: [{ text: "second" }] });
+  const sent = await runtimes.runOnTab(jobOf("none", [], { checked: true }), contextOf(), CONNECTIONS, { host: fake.host, record: null, from: { text: "first" } });
+  assert.equal(requests.length, 1, "the finding goes back to the drafter");
+  assert.match(requestBodies[0], /the draft is the first/);
+  assert.deepEqual(sent.draft, { text: "second" });
+
+  endpointAnswers();
+  const ordinary = await runtimes.runOnTab(jobOf("none", [], { checked: true }), contextOf(), CONNECTIONS, { host: fake.host, record: null });
+  assert.equal(requests.length, 1, "counter-proof: without from the drafter is asked first");
+  assert.deepEqual(ordinary.draft, DRAFT);
+});
+
 // TST-398023
 // level: unit
 // module: MOD-runtimes
