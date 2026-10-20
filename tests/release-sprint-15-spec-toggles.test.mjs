@@ -19,7 +19,6 @@ The current rule is readable.
 const QUEUE = "2026-10-08_toggle-release";
 const FILES = {
   "SPEC.md": SPEC,
-  "docs/groups/requirements.md": "- A group\n  - READ-ONLY REQUIREMENT\n",
   [`docs/spec-freigaben/${QUEUE}/index.md`]: "# Queue\n\n**Zieldatei aller Einträge:** `SPEC.md`\n",
   [`docs/spec-freigaben/${QUEUE}/entscheidungen.md`]: "# Decisions\n",
 };
@@ -29,16 +28,16 @@ const writes = (server) => server.requests.filter((request) => /^(write|other|ha
 
 function controls() {
   const main = globalThis.document.getElementById("main");
-  const table = main.querySelector("section.spec-group").querySelector("div.spec-group-body");
+  const table = main.querySelector("section.spec-section").querySelector("table.list");
   table.removeAttribute = (name) => { delete table[name]; };
-  return { table, section: main.querySelector("button.spec-group-toggle"), requirement: main.querySelector("button.requirement-name") };
+  return { table, section: main.querySelector("button.spec-section-toggle"), requirement: main.querySelector("button.requirement-name") };
 }
 
 // CASE ITM-278-RELEASE-01
 // TST-472518 · level: release · module: MOD-trace-pages
 // guards: UC-020; A REQUIREMENT HAS FOUR FIELDS
 // given: the public #spec dashboard, once with its stored token and once with no token
-// input: open the fresh group then open, close, and reopen its current requirement
+// input: open the fresh section then open, close, and reopen its current requirement
 // expect: both views expose the same current detail and neither interaction writes a repository
 test("the release dashboard toggles current requirements without writes with or without a token", async () => {
   for (const [label, token] of [["stored token", TOKEN], ["no token", null]]) {
@@ -46,9 +45,9 @@ test("the release dashboard toggles current requirements without writes with or 
     const page = await openDashboard({ server, hash: "#spec", token });
     const { table, section, requirement } = controls();
     const detail = globalThis.document.getElementById("main").querySelector("tr.requirement-opened");
-    assert.equal(table.hidden, "hidden", `${label}: known positive, a fresh group begins collapsed`);
+    assert.equal(table.hidden, "hidden", `${label}: known positive, a fresh section begins collapsed`);
     assert.ok(section && requirement, `${label}: known positive, the public controls are rendered`);
-    await page.click("button.spec-group-toggle");
+    await page.click("button.spec-section-toggle");
     assert.equal(table.hidden, undefined, `${label}: the heading opens its current list`);
     await requirement.fire("click", { isTrusted: true });
     assert.match(detail?.textContent ?? "", /The current rule is readable\./,
