@@ -219,6 +219,17 @@ const GAPS = {
 // before the dot.
 const NAME_VIAS = new Set(["realises", "forced_by", "guards", "follows", "uses"]);
 const NAME_KINDS = new Set(["requirement", "UC", "ARC", "MOD"]);
+// The `imports` edges of the graph from a code file to a module that the file's own module names no interface of among its `uses` (a `uses` entry of that module, before the dot): { edge, own }, `own` the module of the
+// importing file, in the order of the edges. A file in no module's folder has none. The one decision both moduleRows (as a gap) and graphFindings (as a finding) make.
+export function importsNotNamed(graph) {
+  const moduleOf = moduleFinder([...graph.nodes.values()].filter((node) => node.kind === "MOD" && node.folder));
+  const used = new Set(graph.edges.filter((edge) => edge.via === "uses").map((edge) => `${edge.from} ${edge.to.split(".")[0]}`));
+  return graph.edges.filter((edge) => edge.via === "imports").flatMap((edge) => {
+    const own = moduleOf(edge.from);
+    return own === null || used.has(`${own} ${edge.to}`) ? [] : [{ edge, own }];
+  });
+}
+
 export function moduleRows(graph) {
   const nodes = [...graph.nodes.values()];
   const modules = nodes.filter((node) => node.kind === "MOD").sort((a, b) => byText(a.id, b.id));
@@ -270,12 +281,10 @@ export function moduleRows(graph) {
   for (const folder of unique(codeOutside.filter((path) => path.includes("/")).map((path) => path.slice(0, path.lastIndexOf("/"))))) {
     gap(GAPS.folderNamed, folder, folder, `no module names the folder ${folder}, which holds code files`);
   }
-  const used = new Set(edgesVia("uses").map((edge) => `${edge.from} ${edge.to.split(".")[0]}`));
   const reported = new Set();
-  for (const edge of imported) {
-    const own = moduleOf(edge.from);
+  for (const { edge, own } of importsNotNamed(graph)) {
     const key = `${edge.from} ${edge.to}`;
-    if (own === null || used.has(`${own} ${edge.to}`) || reported.has(key)) continue;
+    if (reported.has(key)) continue;
     reported.add(key);
     gap(GAPS.importNotUsed, edge.from, edge.from, `${edge.from} imports ${edge.to}, which the file of ${own} does not name among the interfaces it uses`);
   }

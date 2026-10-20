@@ -79,6 +79,7 @@ uses:
   - MOD-participant-list.participantsOf
   - MOD-participant-list.eligible
   - MOD-source-register.sourceSchemas
+  - MOD-spec-document.parseSpec
   - MOD-job-catalogue.kindOf
   - MOD-job-runner.prepareJob
   - MOD-job-runner.writeResult
@@ -249,6 +250,9 @@ product's `docs/sources.md`.
   participants a role or a job may have.
 - MOD-source-register.sourceSchemas — the product's links to its sources and the linked entries of the instance's
   register, which `roleAssignmentFindings` judges the holders' places against.
+- MOD-spec-document.parseSpec — the names of the requirements the product's SPEC holds, which the route `backlog` lists
+  where no item realises them; the facts of the scope `work` carry none, so the route takes them from the facts stored
+  for the commit and, where none are stored, reads the SPEC and parses it with `parseSpec`.
 - MOD-job-catalogue.kindOf — a kind's purpose and whether its result waits for a person; MOD-job-runner.prepareJob — the
   run panels; MOD-job-runner.writeResult — a drafted plan or drafted items written on the person's click.
 - MOD-job-ledger.newJobId, MOD-job-ledger.listJobs, MOD-job-ledger.jobState — the jobs a page starts and follows;

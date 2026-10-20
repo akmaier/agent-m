@@ -123,8 +123,9 @@ item schema of MOD-documents (`artifactSchemas().item`).
 
 An item's state, `ItemState`, is derived from the approval records, the queues, the job records and the pull requests:
 `waiting for acceptance`, `waiting for an item it builds on`, `ready`, `in progress` (a job runs, or its pull request is
-open), `blocked` (a job failed, or waits for a person), `done` (its pull request is merged). A plan step that waits for
-the gate before its phase is `waiting` with that gate named.
+open; and once its newest job has ended as done, until a pull request of it opened after that job's `start` is merged or
+closed without merge), `blocked` (a job failed, or waits for a person), `done` (its pull request is merged). A plan step
+that waits for the gate before its phase is `waiting` with that gate named.
 
 An item is held by a team's sprint from its selection until a pull request with its change is merged into the default
 branch, or until its sprint's close sends it back to the backlog or into the team's next sprint: once the close is recorded
@@ -136,7 +137,8 @@ assignment is the one of the team whose sprint holds it, and the product's one i
 
 - `ItemState` — `{ item: string, state: "waiting for acceptance" | "waiting for an item it builds on" | "waiting" |
   "ready" | "in progress" | "blocked" | "done" | "unknown", reason: string | null, job: string | null, pullRequest:
-  string | null }`; `unknown` when the state needs pull requests the host could not read.
+  string | null }`; `unknown` when the state needs pull requests the host could not read; `job` the newest job whose
+  record works on the item, also once that job has ended, and null when there is none.
 - `Held` — `{ item: string, sprint: string, team: string, changes: string[], uses: string[] }`: an item a team's sprint
   holds, with the modules it changes and the modules whose interfaces those use.
 - `planSchemas: { planOrder: Schema, sprint: Schema }` — the two schemas, for MOD-documents and
