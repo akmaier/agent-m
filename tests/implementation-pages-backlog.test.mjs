@@ -110,6 +110,7 @@ function hostOf(files, pullRequests, calls = [], commits = {}) {
     async repositoryInfo() { calls.push("repositoryInfo"); return { defaultBranch: "main", visibility: "public", canWrite: true, archived: false, description: "" }; },
     async readSnapshot(ref) { calls.push(`readSnapshot ${ref}`); return Object.hasOwn(commits, ref) ? snapshotOf(commits[ref]) : snapshot; },
     async listPullRequests() { calls.push("listPullRequests"); return pullRequests; },
+    async containsCommit() { calls.push("containsCommit"); return false; },
     async commitFiles() { calls.push("commitFiles"); throw new Error("a render writes nothing"); },
   };
 }

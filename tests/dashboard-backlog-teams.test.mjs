@@ -64,7 +64,7 @@ function refsApi(created) {
 const SPEC = "# SPEC\n\n## 1. Rules\n\n**RULE ONE** *(PO, 2026-09-01)*\nThe first rule.\n*Check:* no automatic check; at review.\n\n"
   + "**RULE TWO** *(PO, 2026-09-01)*\nThe second rule, which no item realises.\n*Check:* no automatic check; at review.\n";
 const DECLARATION = ["---", "model: fixture-scrum-wip", "model_file: docs/process-models/fixture.md",
-  `model_version: ${"a".repeat(40)}`, "---", "# How the fixture product is developed", "", "## Practices", "", "- none", "",
+  `model_version: ${"c0ffee".padEnd(40, "0")}`, "---", "# How the fixture product is developed", "", "## Practices", "", "- none", "",
   "## Branches", "", "| Phase or time box | Branch |", "|---|---|", "| Sprint | `sprint/<team>/<nn>` |", "",
   "## Definition of Done", "", "The job rules hold.", ""].join("\n");
 const assignment = (team, owner, builder) => `# ${team}\n\n## Roles\n\n| Role | Participants |\n|---|---|\n| Owner | ${owner} |\n`
@@ -214,13 +214,13 @@ test("#backlog — a team's closed sprint: its final chart from start through ea
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the fixture product, whose pull requests fit into one page of GitHub's pulls API
 // input: open #backlog
-// expect: the load lists the pull requests in one request, and makes 6 requests in all — the commit, the tree, the batch of its 16
-//         files, the commit its declaration's model_version names (the fixture's is not in the repository), the process model, and the pull requests: the merge times come from the
-//         pull requests the page reads anyway (A PAGE LOAD READS THE REPOSITORY IN BATCHES)
-test("#backlog — the chart's merges cost no request: one listing of the pull requests, and 6 requests in all", async () => {
+// expect: the load lists the pull requests in one request, and makes 9 requests in all — the commit, the tree, the batch of its 16 files, the facts stored for the commit (none), the pull requests, then the
+//         instance at the commit its declaration's model_version names (the commit, the tree and one batch) and the one question whether the default branch holds the head of a sprint's pull request: the merge
+//         times come from the pull requests the page reads anyway (A PAGE LOAD READS THE REPOSITORY IN BATCHES)
+test("#backlog — the chart's merges cost no request: one listing of the pull requests, and 9 requests in all", async () => {
   const { page } = await backlogPage();
   assert.equal(page.requests.filter((r) => /\/pulls(?:\?|\/|$)/.test(r)).length, 1, page.requests.join(" | "));
-  assert.equal(page.requests.length, 6, page.requests.join(" | "));
+  assert.equal(page.requests.length, 9, page.requests.join(" | "));
 });
 
 // guards: UC-032 step 6; UC-035

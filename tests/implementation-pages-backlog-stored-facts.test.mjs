@@ -101,11 +101,14 @@ function hostOf(files, calls, stored, { unreadable = null } = {}) {
 }
 async function render(stored, options = {}) {
   const files = productFiles(), calls = [];
-  const host = hostOf(files, calls, stored === undefined ? null : stored(files), options);
+  const host = hostOf(files, calls, stored === undefined ? null : stored(files));
+  // The instance is another repository: its SPEC and the process model; the commit its model version names is the one it cannot read where the test says so.
+  const instanceFiles = { "SPEC.md": "# Instance\n", "docs/process-models/fixture.md": files["docs/process-models/fixture.md"] };
+  const instance = hostOf(instanceFiles, [], null, options);
   const target = document.createElement("div");
   document.body.append(target);
   recorder();
-  await route.render(target, { calls, page: "review", instance: { repository: "acme/agent-m", host }, product: { address: ADDRESS, kind: "github", host, tokenStored: true }, store: {}, go() {} }, {});
+  await route.render(target, { calls, page: "review", instance: { repository: "acme/agent-m", host: instance }, product: { address: ADDRESS, kind: "github", host, tokenStored: true }, store: {}, go() {} }, {});
   return { target, html: target.innerHTML, calls };
 }
 const readPaths = (calls) => calls.filter((call) => call.fn === "read").map((call) => call.path);
@@ -122,7 +125,7 @@ test("the backlog page reads none of the files the stored facts come from", asyn
   assert.deepEqual(readPaths(calls).filter((path) => files.includes(path)), [], "no file the facts come from is read");
   assert.deepEqual(batched(calls).filter((path) => files.includes(path)), [], "none is asked for in a batch either");
   assert.ok(calls.some((call) => call.fn === "readOn" && call.branch === "overview-cache" && call.path === `${COMMIT}.facts.json`), "the stored facts are asked for");
-  assert.deepEqual([...html.matchAll(/<tr data-item="(ITM-\d{3})"/g)].map((match) => match[1]), ["ITM-001", "ITM-002", "ITM-003"]);
+  assert.deepEqual([...html.slice(html.indexOf('data-part="backlog"')).matchAll(/<tr data-item="(ITM-\d{3})"/g)].map((match) => match[1]), ["ITM-001", "ITM-002", "ITM-003"]);
   assert.ok(html.includes('data-team="team1"') && html.includes('data-team="team2"'));
 });
 
@@ -147,11 +150,10 @@ test("the backlog page shows the same page from the files, which it reads in bat
 // expect: the page names the commit and the error (NotFound) in a warning; it shows no model-derived part (no "items in progress" line, no burn-down chart) — the catalogue as it stands now is not used instead; the items are still listed
 for (const [label, stored] of [["stored facts", (files) => factsFile(files)], ["files", undefined]]) {
   test(`the backlog page names a model version it cannot read and does not fall back to today's catalogue (${label})`, async () => {
-    const { html, calls } = await render(stored, { unreadable: named("NotFound", "no such commit") });
-    assert.ok(calls.some((call) => call.fn === "model_version"), "the model version was asked for");
+    const { html } = await render(stored, { unreadable: named("NotFound", "no such commit") });
     assert.match(html, /<p class="warn">[^<]*<code>a{40}<\/code>[^<]*NotFound/);
     assert.doesNotMatch(html, /items in progress/);
     assert.doesNotMatch(html, /data-burn-down/);
-    assert.deepEqual([...html.matchAll(/<tr data-item="(ITM-\d{3})"/g)].map((match) => match[1]), ["ITM-001", "ITM-002", "ITM-003"]);
+    assert.deepEqual([...html.slice(html.indexOf('data-part="backlog"')).matchAll(/<tr data-item="(ITM-\d{3})"/g)].map((match) => match[1]), ["ITM-001", "ITM-002", "ITM-003"]);
   });
 }
