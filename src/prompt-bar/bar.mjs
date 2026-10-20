@@ -181,7 +181,7 @@ export function startPromptBar(target, setup) {
   }
 
   // The hand-over the participant proposed: whether the product's start rules let it start and the route it would take; *Hand over* queues it, on a person's click, and the bar follows it.
-  async function proposeHandOver(section, handOver, participant) {
+  async function proposeHandOver(section, handOver, participant, subject) {
     const outcome = el("div", "outcome", el("p", "checking", "Checking whether it can start…"));
     section.append(el("p", "proposed", `Participant: ${participant.name} — ${placeOf(participant)}`), outcome);
     const render = (assessment) => {
@@ -207,8 +207,11 @@ export function startPromptBar(target, setup) {
         const page = pageOf();
         const fresh = await assess({ handOver, participant, instance, page });
         if (fresh.reasons.length > 0 || fresh.route === null) { render(fresh); return; }
+        // For the subject's own kind the job takes the subject's parameters, its source included (THE PERSON WHO PROMPTS IS A SOURCE); where the subject finds no own source,
+        // paramsFor refuses by name (NoPersonSource) and nothing is queued.
+        const given = handOver.kind === subject.kind ? subject.paramsFor(participant) : {};
         const conversation = (await recordingOf(fresh.instanceSnapshot)) ? (readTabValue(store, RECORDS) ?? {})[page.address]?.path ?? null : null;
-        const queued = await queue({ handOver, participant, assessment: fresh, store, instance, page, ofProduct: setup.product() !== null, conversation });
+        const queued = await queue({ handOver, participant, assessment: fresh, store, instance, page, ofProduct: setup.product() !== null, conversation, given });
         outcome.replaceChildren(el("p", "queued", `Queued as ${queued.id}.`));
         keepJob({ id: queued.id, address: page.address });
         follow({ id: queued.id, address: page.address });
@@ -251,7 +254,7 @@ export function startPromptBar(target, setup) {
       const section = el("section", "hand-over", el("h3", null, "The participant proposes handing this on"),
         el("p", "kind", `Kind: ${kind}`), el("p", "works-on", `Works on: ${worksOnOf(draft.handOver).join(", ")}`), el("p", "task", `Task: ${task}`));
       parts.push(section);
-      proposeHandOver(section, draft.handOver, participant);
+      proposeHandOver(section, draft.handOver, participant, subject);
     }
     if (subject.draftRoute !== null) {
       const review = button("review", "Review the draft");
