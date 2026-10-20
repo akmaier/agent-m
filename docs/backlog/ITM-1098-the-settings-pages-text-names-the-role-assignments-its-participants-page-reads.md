@@ -33,3 +33,5 @@ Uses line. If the code uses them for something no use case asks, the draft says 
   for these two.
 
 **The draft is on `main` as `87d440a2`** (MOD-settings-pages), written in sprint team1/98. The item is built once it is accepted.
+
+**Done (sprint team1/98, po-opus):** akmaier accepted the draft (`614f164b`), and the accepted blob is the draft's. No code changes.
