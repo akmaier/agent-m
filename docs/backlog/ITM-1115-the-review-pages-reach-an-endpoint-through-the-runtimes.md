@@ -43,5 +43,5 @@ Where it does not, the item stops for a draft naming the use.
   - *Nothing twice:* one way builds a tab job's drivers.
   - *One responsibility:* MOD-runtimes runs the tab's jobs.
 - Naming the two imports in MOD-review-pages' uses instead would keep a second way to the same drivers.
-- The draft of MOD-runtimes.md, by developer-sonnet-a, goes to `main` for akmaier. The item waits for its acceptance.
+- The draft of MOD-runtimes.md, by developer-sonnet-a, is on `main` as `58e6f89c`. The item waits for its acceptance.
 
