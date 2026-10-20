@@ -230,7 +230,7 @@ function teamPanel(context, ctx, d, team) {
     ${wipLine(ctx, d, entry)}
     <div class="table-scroll"><table class="list"><thead><tr><th>Item</th><th>Title</th><th>State</th><th>Changes</th><th>Uses</th></tr></thead><tbody>${rows}</tbody></table></div>
     ${chart}
-    <p>${plan("Change the selection", false)}${endable ? ` <button class="btn" data-end-sprint="${h(team)}"${context.product.tokenStored === false ? " disabled" : ""}>End sprint</button>` : ""}</p>${why}</section>`;
+    <p>${plan("Change the selection", false)}${endable ? ` <button class="btn" data-end-sprint="${h(team)}">End sprint</button>` : ""}</p>${why}</section>`;
 }
 
 // What keeps an item from a team other than the one whose sprint holds it, one line per team.
