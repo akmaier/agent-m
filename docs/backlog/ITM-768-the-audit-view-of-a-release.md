@@ -46,3 +46,7 @@ stands.
   counted and 1a.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - Only `src/trace-pages/` and the tests that name MOD-trace-pages change.
+
+## Cut at its gate
+
+The two numbers that cannot open their rows from `auditRows`' rows, worse and by the implementer, are ITM-1163.
