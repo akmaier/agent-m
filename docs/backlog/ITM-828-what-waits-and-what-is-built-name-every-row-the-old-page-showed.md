@@ -43,3 +43,20 @@ job whose runtime does not answer is listed as not reachable. That fault is this
   reachability across MOD-job-ledger, MOD-progress-measures and MOD-main-page.
 - **The done row's SPEC Check and module text disagree.**
 - Both are ITM-864, a draft for akmaier first. The draft is kept as a patch for it.
+
+**Read again after ITM-864 (team 2's sprint 99, po-opus-b, on `sprint/team2/99`): met, with no code of its own, once #1251
+reaches `main`.**
+
+Each part of the Acceptance has its code and its test, and no part needs a draft.
+- **The rows that go are named and pinned.** The old page's architecture files, blocked rows and in-progress rows without
+  a job go. TST-685011 and TST-685013 (`tests/progress-measures-build-and-waits.test.mjs:68`, `:122`) pin that.
+- **A job whose runtime does not answer is listed as not reachable** (UC-046 4a):
+  - `listJobs` (`src/job-ledger/index.mjs:432-433`, `b0929e22`) and its test, `tests/job-ledger.test.mjs:558`;
+  - the main page derives its rows with the live states (`src/main-page/home.mjs:68-69`);
+  - `buildInProgress` copies `source.reachable`.
+- **The done step** (SPEC.md:928-929): ITM-864 (#1243, merged into `sprint/team2/99` as `d5baa103`).
+  - `itemStates` keeps an item in progress with its job once that job has ended as done.
+  - `buildInProgress` lists it as `done` until its pull request is merged.
+  - Its test: `tests/progress-measures-build-and-waits.test.mjs:99`.
+
+So ITM-828 is recorded as done once #1251 is merged, and ITM-684's builds_on are then all done.
