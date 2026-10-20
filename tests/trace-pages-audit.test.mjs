@@ -505,3 +505,107 @@ test("a failed listTags is named through the frame in the audit view, never read
   assert.equal(withClass(missing, "token-step").length, 1);
   assert.doesNotMatch(missing.textContent, /No release is tagged/);
 });
+
+// ---- the export (ITM-770; UC-030 step 5 and 5a): "Export" saves the audit document in the browser; "Commit export", for a person with write access, commits it to docs/audits/<tag>.md.
+// Readings the cases take, each from the sentence quoted:
+// - "The auditor presses Export - one click. ... The browser saves it" (UC-030 5): a button whose text is `Export` is on the audit page; its click makes the browser save one download - a Blob handed to URL.createObjectURL and an anchor with
+//   that address, whose attribute download names the tag and ends in .md, clicked once. The Blob's text is MOD-release-evidence's auditDocument of the audit the page draws; the case reads it by what that document must hold (UC-030 5: "the
+//   summary and every row, naming the tag, the commit SHA, the source versions with their hashes, and the blob SHAs of report and approvals") and by the second route to the same text, the committed file.
+// - "A person with write access presses Commit export; Agent M commits the document to docs/audits/<tag>.md" (UC-030 5a): a button whose text is `Commit export`, offered where repositoryInfo says canWrite, makes one commit with the Host's
+//   commitFiles through MOD-artifact-edits' saveFile: the default branch, at the head read, one file docs/audits/<tag>.md whose text is the downloaded text. Without write access the button is not on the page and nothing is committed.
+// - "on a person's click" (THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK): a click that is not the person's (isTrusted false) commits nothing. The cases call the listeners the page registered, as tests/implementation-pages-backlog.test.mjs does.
+const buttonNamed = (root, label) => find(root, (node) => node.localName === "button" && node.textContent === label)[0];
+// Renders the audit with every click listener kept by node, and a fake browser download; returns the page, a way to click with trust, and the downloads made.
+async function renderExportable(host) {
+  const listeners = [], add = EventTarget.prototype.addEventListener;
+  EventTarget.prototype.addEventListener = function (type, listener, ...rest) { if (type === "click") listeners.push([this, listener]); return add.call(this, type, listener, ...rest); };
+  const downloads = { blobs: [], clicked: [] }, realUrl = globalThis.URL, anchors = Object.getPrototypeOf(document.createElement("a"));
+  const had = Object.hasOwn(anchors, "click"), realClick = anchors.click;
+  globalThis.URL = Object.assign(function URLFake(...args) { return new realUrl(...args); }, { createObjectURL(blob) { downloads.blobs.push(blob); return "blob:fake-audit"; }, revokeObjectURL() {} });
+  anchors.click = function click() { downloads.clicked.push({ href: this.href ?? this.getAttribute?.("href"), download: this.download ?? this.getAttribute?.("download") }); };
+  let target;
+  try { target = await render(host); } finally { EventTarget.prototype.addEventListener = add; }
+  const restore = () => { globalThis.URL = realUrl; if (had) anchors.click = realClick; else delete anchors.click; };
+  const pressTrusted = async (button, trusted = true) => { await listeners.filter(([node]) => node === button).at(-1)[1]({ isTrusted: trusted }); await settle(); };
+  return { target, press: pressTrusted, downloads, restore };
+}
+const withWrite = (canWrite, commits, head) => ({ ...productHost(head ? { head } : {}),
+  async repositoryInfo() { return { defaultBranch: "main", visibility: "public", canWrite, archived: false, description: "" }; },
+  async commitFiles(change) { commits.push(change); return { commit: "e".repeat(40) }; } });
+
+// TST-770001 · level: component · module: MOD-trace-pages
+// guards: UC-030; ARTIFACTS ARE MARKDOWN
+// given: the audit of v2026.4.0 of the fixture product, drawn in a browser whose download is faked
+// input: Route.render with the key "audit", then the person's click on Export
+// expect: one download: a Blob handed to createObjectURL and one anchor with that address, download v2026.4.0.md, clicked once; the Blob's text is Markdown that names the tag v2026.4.0, the commit SHA, every requirement of the release (six), the hash of the source version SRC-vibe-coding records and the blob SHA of the report; the page commits nothing
+// Planted fault: saving another text (the page's visible text, or the document without its rows) fails the content assertions; no click on the anchor fails the second assertion.
+test("Export saves the audit document in the browser with one click", async () => {
+  const commits = [], { target, press, downloads, restore } = await renderExportable(withWrite(true, commits));
+  try {
+    await press(buttonNamed(target, "Export"));
+    assert.equal(downloads.blobs.length, 1, "one download");
+    assert.equal(downloads.clicked.length, 1, "one anchor clicked");
+    assert.equal(downloads.clicked[0].href, "blob:fake-audit");
+    assert.match(downloads.clicked[0].download, /^v2026\.4\.0\.md$/);
+    const text = await downloads.blobs[0].text();
+    for (const named of [TAG, COMMIT, ...ALL, gitBlob(REPORT_TEXT), versionHash(BOOK_FILES)]) assert.ok(text.includes(named), `the document names ${named}`);
+    assert.deepEqual(commits, [], "Export commits nothing");
+  } finally { restore(); }
+});
+
+// TST-770002 · level: component · module: MOD-trace-pages
+// guards: UC-030; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION
+// given: the same audit, for a person with write access (repositoryInfo says canWrite) to a product whose default branch holds no file under docs/audits/
+// input: Route.render with the key "audit", Export (to read the document), then a click that is not the person's on Commit export, then the person's click
+// expect: the first click commits nothing; the second makes one commit with commitFiles on the branch main at the head read (ffff…), holding one file, docs/audits/v2026.4.0.md, whose text is the exported document; the page names the new commit's short SHA (eeeeeee)
+// Planted fault: committing on an untrusted click fails the first assertion; committing another text or path fails the file assertions.
+test("Commit export commits the document to docs/audits/<tag>.md on the person's click, once", async () => {
+  const commits = [], { target, press, downloads, restore } = await renderExportable(withWrite(true, commits));
+  try {
+    await press(buttonNamed(target, "Export"));
+    const exported = await downloads.blobs[0].text();
+    assert.ok(buttonNamed(target, "Commit export"), "Commit export is offered to a person with write access");
+    await press(buttonNamed(target, "Commit export"), false);
+    assert.deepEqual(commits, [], "an untrusted click commits nothing");
+    await press(buttonNamed(target, "Commit export"));
+    assert.equal(commits.length, 1, "one commit");
+    assert.equal(commits[0].branch, "main");
+    assert.equal(commits[0].expectedHead, HEAD);
+    assert.deepEqual(commits[0].files, [{ path: `docs/audits/${TAG}.md`, text: exported }]);
+    assert.match(target.textContent, /eeeeeee/, "the page names the commit");
+  } finally { restore(); }
+});
+
+// TST-770003 · level: component · module: MOD-trace-pages
+// guards: UC-030; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// given: the same audit for a person without write access (repositoryInfo says canWrite false)
+// input: Route.render with the key "audit"
+// expect: Export is offered and Commit export is not on the page; nothing is committed (the counter-proof of TST-770002)
+// Planted fault: offering Commit export without write access fails the second assertion.
+test("Commit export is not offered without write access", async () => {
+  const commits = [], { target, restore } = await renderExportable(withWrite(false, commits));
+  try {
+    assert.ok(buttonNamed(target, "Export"), "known positive: Export is offered");
+    assert.equal(buttonNamed(target, "Commit export"), undefined);
+    assert.deepEqual(commits, []);
+  } finally { restore(); }
+});
+
+// TST-770004 · level: component · module: MOD-trace-pages
+// guards: UC-030; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE
+// given: the same audit for a person with write access, and a default branch that already holds docs/audits/v2026.4.0.md with an older text
+// input: Route.render with the key "audit", then the person's click on Commit export
+// expect: one commit of docs/audits/v2026.4.0.md with the new document, which replaces the older text: the file is saved on the blob the page read it with (saveFile refuses a file whose blob moved meanwhile, and creates one only where it is absent)
+// Planted fault: opening the file as absent (openedBlob null) is refused by saveFile as changed meanwhile, and nothing is committed.
+test("Commit export replaces an audit file that is committed already", async () => {
+  const commits = [], older = "# Audit of an earlier export\n";
+  const { target, press, restore } = await renderExportable(withWrite(true, commits, { ...headFiles(), [`docs/audits/${TAG}.md`]: older }));
+  try {
+    await press(buttonNamed(target, "Commit export"));
+    assert.equal(commits.length, 1, "one commit");
+    assert.equal(commits[0].files.length, 1);
+    assert.equal(commits[0].files[0].path, `docs/audits/${TAG}.md`);
+    assert.notEqual(commits[0].files[0].text, older);
+    assert.ok(commits[0].files[0].text.includes(TAG));
+  } finally { restore(); }
+});
