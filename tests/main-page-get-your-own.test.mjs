@@ -3,7 +3,7 @@
 // Run: node --test tests/main-page-get-your-own.test.mjs
 //
 // Module: MOD-main-page
-// Guards: UC-014 (step 1); AN INSTANCE IS A FORK OF AGENT M; THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE
+// Guards: UC-014; AN INSTANCE IS A FORK OF AGENT M; THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE
 // Level: unit
 //
 // Each test states its input and its expected values in its own text (given / input / expect); no expected value is read from a document. The real MOD-site-frame, MOD-progress-measures,
@@ -31,7 +31,7 @@ afterEach(() => {
 const linksNamed = (root, text) => find(root, (node) => node.localName === "a" && node.textContent === text);
 
 // TST-655001 · level: unit · module: MOD-main-page
-// guards: UC-014 (step 1); AN INSTANCE IS A FORK OF AGENT M
+// guards: UC-014; AN INSTANCE IS A FORK OF AGENT M
 // given: this browser keeps the product alice/product (a card is drawn for it)
 // input: the route home drawn
 // expect: the greeting holds exactly one link reading "Get your own Agent M", in the greeting's actions paragraph after the link "Review the use cases", whose address is exactly "docs/index.html#get-your-own" (opened in the same tab: no target); the link "Review the use cases" still leads to "docs/index.html#use-cases"; the greeting is still the page's first child; counter-proof: no other link of the page, a card's stage links included, leads to "docs/index.html#get-your-own"
@@ -53,7 +53,7 @@ test("TST-655001 the greeting offers Get your own Agent M, a link to the route g
 });
 
 // TST-655002 · level: unit · module: MOD-main-page
-// guards: UC-014 (step 1); WITHOUT A PRODUCT, THE MAIN PAGE SHOWS AGENT M'S OWN PROGRESS
+// guards: UC-014; WITHOUT A PRODUCT, THE MAIN PAGE SHOWS AGENT M'S OWN PROGRESS
 // given: this browser keeps no product, so that Agent M's own card is drawn; and, as a counter-proof, one that keeps alice/product
 // input: the route home drawn in each
 // expect: in both, the greeting holds one link "Get your own Agent M" at exactly "docs/index.html#get-your-own" — the same address, with no "product=" in it; counter-proof: the address does not follow the card, so that with a product kept it still names the instance's page and not the product
@@ -76,7 +76,7 @@ test("TST-655002 Get your own Agent M leads to the same address with Agent M's o
 });
 
 // TST-655003 · level: unit · module: MOD-main-page
-// guards: UC-014 (step 1); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; NO SERVER
+// guards: UC-014; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; NO SERVER
 // given: this browser keeps the product alice/product; the instance's token is stored
 // input: the route home drawn, and the link "Get your own Agent M" looked at without being pressed
 // expect: the link is an anchor with an address (a click on it is the browser's navigation): the page called no go() for it, and the greeting drew it without any request of its own — the requests of the page are those of a page without the link (the repository reads the cards and the waits take), none to github.com/akmaier/agent-m/fork or to any Pages settings address
