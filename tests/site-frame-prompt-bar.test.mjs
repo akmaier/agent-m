@@ -127,7 +127,7 @@ const participantReads = () => requests.filter((request) => request.url.includes
 async function sends(page, text) {
   const asked = requests.filter((request) => request.url === "https://models.example/v1/chat/completions").length;
   one(page.footer, "instruction").value = text;
-  one(page.footer, "send").dispatchEvent(new Event("click"));
+  one(page.footer, "send").dispatchEvent(Object.defineProperty(new Event("click"), "isTrusted", { value: true }));
   await until(() => requests.filter((request) => request.url === "https://models.example/v1/chat/completions").length === asked + 1
     && one(page.footer, "send").disabled === false, "the message has run");
 }

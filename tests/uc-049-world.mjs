@@ -16,7 +16,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
 import { click, until } from "./review-pages-draft-world.mjs";
-import { barOf, all, one, readOriginal, rest } from "./uc-019-prompt-bar-harness.mjs";
+import { barOf, all, one, readOriginal, rest, trustedClick } from "./uc-019-prompt-bar-harness.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
 import { handOverStrategies } from "../src/prompt-bar/index.mjs";
 
@@ -118,7 +118,7 @@ export async function sendNow(s, text, { participant = null } = {}) {
     if (selector) selector.value = participant;
   }
   instructionOf(s).value = text;
-  click(one(bar, "button", "send"));
+  one(bar, "button", "send").dispatchEvent(trustedClick());
   await rest(s);
 }
 /** Resolves once the bar's Send can be pressed again. */
