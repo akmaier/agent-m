@@ -229,7 +229,7 @@ function teamPanel(context, ctx, d, team) {
       <dt>Ends</dt><dd>${f.end ? h(text(f.end)) : "when its items are done or the Product Owner ends it — no time box"}</dd>
       <dt>Branch</dt><dd>${f.branch ? `<code>${h(text(f.branch))}</code>` : `none: <code>${h(ctx.ref)}</code>`}</dd><dt>Closed by</dt><dd>${h(text(f.closer))}</dd></dl>
     ${wipLine(ctx, d, entry)}
-    <div class="table-scroll"><table class="list"><thead><tr><th>Item</th><th>Title</th><th>State</th><th>Changes</th><th>Uses</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="table-scroll" tabindex="0"><table class="list"><thead><tr><th>Item</th><th>Title</th><th>State</th><th>Changes</th><th>Uses</th></tr></thead><tbody>${rows}</tbody></table></div>
     ${chart}
     <p>${plan("Change the selection", false)}${endable ? ` <button class="btn" data-end-sprint="${h(team)}">End sprint</button>` : ""}</p>${why}</section>`;
 }
@@ -261,7 +261,7 @@ function backlogPanel(context, ctx, d) {
   }).join("");
   return `<section class="panel" data-part="backlog"><h3>The backlog</h3>
     <p class="muted">${h(d.states.length)} items, each after the items it builds on.</p>
-    <div class="table-scroll"><table class="list"><thead><tr><th>#</th><th>Item</th><th>Title</th><th>Realises</th><th>State</th><th>Held or kept</th></tr></thead>
+    <div class="table-scroll" tabindex="0"><table class="list"><thead><tr><th>#</th><th>Item</th><th>Title</th><th>Realises</th><th>State</th><th>Held or kept</th></tr></thead>
       <tbody>${rows}</tbody></table></div>
     ${explain("<p>The backlog is everything the product is meant to do, one Markdown file per item under <code>docs/backlog/</code> " +
       "(UC-032). It keeps no order of its own: each item is listed after the items it builds on, and what is worth doing next is " +
@@ -311,7 +311,7 @@ function planPanel(context, ctx, d, team) {
     <p><label>Goal <input data-sprint-goal value="${h(text(running?.fields.goal))}"></label></p>
     <p><label>Start <input type="date" data-sprint-start value="${h(today())}"></label>
       <label>Closed by <input data-sprint-closer value="${h(text(running?.fields.closer) || ownerOf(ctx, team))}"></label></p>
-    <div class="table-scroll"><table class="list"><thead><tr><th>Select</th><th>Item</th><th>Title</th><th>State</th><th>Why it cannot be selected</th></tr></thead>
+    <div class="table-scroll" tabindex="0"><table class="list"><thead><tr><th>Select</th><th>Item</th><th>Title</th><th>State</th><th>Why it cannot be selected</th></tr></thead>
       <tbody>${rows}</tbody></table></div>
     <p><button class="btn primary" data-start-sprint="${h(team)}"${token ? "" : " disabled"}>Start sprint</button>
       <button class="btn" data-cancel-plan>Cancel</button></p>
@@ -333,7 +333,7 @@ function heldPanel(context, ctx, d, team) {
       <td>${h(each.sprint)}</td><td class="small">${each.changes.map(h).join(", ") || "—"}</td><td class="small">${each.uses.map(h).join(", ") || "—"}</td></tr>`;
   }).join("");
   return `<section class="panel" data-part="held"><h3>What the other teams' sprints hold</h3>
-    ${others.length ? `<div class="table-scroll"><table class="list"><thead><tr><th>Item</th><th>Title</th><th>Sprint</th><th>Changes</th><th>Uses</th></tr></thead>
+    ${others.length ? `<div class="table-scroll" tabindex="0"><table class="list"><thead><tr><th>Item</th><th>Title</th><th>Sprint</th><th>Changes</th><th>Uses</th></tr></thead>
       <tbody>${rows}</tbody></table></div>` : `<p class="muted">No other team's sprint holds an item.</p>`}
     ${explain("<p>A sprint holds the items it selected from its start until their change is merged into the default branch or " +
       "they go back to the backlog — after its close too, while its increment waits on its own branch. While another team's " +
@@ -426,9 +426,13 @@ async function draw(target, context) {
   }));
 }
 
-// Each block of Mermaid text the page holds is drawn by MOD-markdown-render.
+// Each block of Mermaid text the page holds is drawn by MOD-markdown-render; its box scrolls sideways where the page is narrower than the chart, so the keyboard reaches it (THE SITE SERVES A SCREEN READER).
 async function drawCharts(target) {
-  for (const code of [...target.querySelectorAll("pre > code.language-mermaid")]) code.parentNode.replaceWith(await renderMermaid(code.textContent));
+  for (const code of [...target.querySelectorAll("pre > code.language-mermaid")]) {
+    const chart = await renderMermaid(code.textContent);
+    chart.setAttribute("tabindex", "0");
+    code.parentNode.replaceWith(chart);
+  }
 }
 
 export const route = {
