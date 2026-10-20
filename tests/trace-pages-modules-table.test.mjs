@@ -12,8 +12,8 @@
 //     status of its file), <td class="module-realises"> (an <li> for each requirement the row names, "<name> — in SPEC" or "<name> — not in the SPEC"), <td class="module-file"> (the path of its file and the review status
 //     of that file: open, accepted or changed since acceptance), <td class="module-code"> (an <li> for each code file) and <td class="module-tests"> (an <li> for each test).
 //   - The gaps are <section class="modules-gaps"> with an <li class="module-gap" data-kind> for each gap, its artifact and what is missing; where there is none, a <p class="no-gaps"> "There are no gaps at <version>."
-//   - A row opens at the click on <button class="module-name"> in its first cell: a <tr class="module-opened"> follows it with the module's file as it reads in the version (rendered), <p class="module-folder">
-//     "Folder: <folder>" and an <li> for each code file of the folder; a second click closes it.
+//   - A row opens at the click on <button class="module-name"> in its first cell: the <tr class="module-opened"> that follows it, empty until then, holds the module's file as it reads in the version (rendered),
+//     <p class="module-folder"> "Folder: <folder>" and an <li> for each code file of the folder; a second click empties it again.
 //   - The component diagram stays above the table, drawn as before.
 // Each case states its input and its expected result before it runs (given / input / expect). The counter-proofs are run as mutations and recorded in the pull request.
 
@@ -108,20 +108,21 @@ test("the modules view lists every gap, and says so when there is none", async (
 // guards: UC-025 (step 6)
 // given: the fixture product, drawn at main
 // input: a click on MOD-page's name, then on it again
-// expect: before the click no row is opened; after it a row follows MOD-page's, holding the text of its file as it reads in the version ("Renders it."), "Folder: src/page/" and its code files; after the second click it is gone
+// expect: before the click the row below MOD-page's is empty; after it it holds the text of the file as it reads in the version ("Renders it."), "Folder: src/page/" and its code files; after the second click it is empty again
 test("a click on a module opens its file and its folder in a row below it, and a second click closes it", async () => {
   const target = await render(hostOf());
-  assert.equal(byClass(target, "tr", "module-opened").length, 0);
+  const openedRows = () => byClass(target, "tr", "module-opened");
+  assert.equal(openedRows().length, 2, "known positive: a row below each module");
+  assert.deepEqual(openedRows().map((row) => row.textContent), ["", ""]);
   const name = byClass(rowOf(target, "MOD-page"), "button", "module-name")[0];
   name.dispatchEvent(new Event("click"));
   await new Promise((resolve) => setTimeout(resolve, 20));
-  const [opened] = byClass(target, "tr", "module-opened");
-  assert.ok(opened, "the row is opened");
+  const opened = openedRows()[0];
   assert.match(opened.textContent, /Renders it\./);
   assert.equal(byClass(opened, "p", "module-folder")[0].textContent, "Folder: src/page/");
   assert.deepEqual(items(opened).filter((text) => text.startsWith("src/")), ["src/page/extra.mjs", "src/page/index.mjs"]);
   name.dispatchEvent(new Event("click"));
-  assert.equal(byClass(target, "tr", "module-opened").length, 0);
+  assert.equal(openedRows()[0].textContent, "");
 });
 
 // TST-072104 · level: component · module: MOD-trace-pages
