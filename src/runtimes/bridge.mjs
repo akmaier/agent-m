@@ -1,6 +1,6 @@
 // bridge.mjs — the Bridge route (docs/architecture/MOD-runtimes.md, Parts: "bridge.mjs — the Bridge route through the Bridge client, and the driver of an agent or an endpoint on a
 // Bridge"). Of it, ITM-325 builds queueJob's Bridge route (queueOnBridge) and bridgeDriver; ITM-545 the live state, the log and the cancel of a job taken on a Bridge (bridgeNamed, listedOnBridge,
-// followBridgeLog, cancelBridgeJob, used by index.mjs). Resuming and a job of a run are not built yet.
+// followBridgeLog, cancelBridgeJob, used by index.mjs); ITM-790 the hand-over again of a resumed job (handOverAgain). A job of a run is not built yet.
 //
 // Module: MOD-runtimes
 //
@@ -34,6 +34,14 @@ export async function queueOnBridge(host, start, head, bridge, task) {
     }
   }
   return { path, commit };
+}
+
+/**
+ * handOverAgain(bridge, product, path, commit) -> Promise<void> — a job that waits at a gate, resumed, handed to the Bridge again with the product's address, the record's path and the commit of the resumption
+ * (MOD-runtimes' resumeJob). Fails as the client fails.
+ */
+export async function handOverAgain(bridge, product, path, commit) {
+  await handOver(bridge, { product, record: path, commit });
 }
 
 /**

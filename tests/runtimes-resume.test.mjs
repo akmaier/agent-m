@@ -72,7 +72,7 @@ function repositoryAtGate(start = START, { resumed = false } = {}) {
   let text = startRecord(start).text;
   text = appendToRecord(text, { part: "gate reached", at: new Date("2026-10-20T09:40:00Z"), gate: GATE_NAME, decider: "the product owner" });
   if (resumed) text = appendToRecord(text, { part: "resumed", at: new Date("2026-10-20T09:50:00Z"), gateRecord: GATE });
-  return fakeRepository({ [RECORD_PATH]: text });
+  return fakeRepository({ [`docs/jobs/${start.id}.md`]: text });
 }
 
 // ---------------------------------------------------------------- the tab's job: a writer, an endpoint and a gate before the merge
