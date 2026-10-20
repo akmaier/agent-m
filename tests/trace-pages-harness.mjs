@@ -115,8 +115,8 @@ export function doc(id, title, keys = {}, body = "") {
 
 // A Host whose snapshots hold the files of `trees` by ref; `log` records every snapshot asked for, every read and every readMany. `failing(path, nth)` makes the nth
 // read of a path (from 1) fail as an unreachable server does. It has no write method and no repositoryInfo beyond the default branch.
-export function treeHost({ trees, tags = [], failing = () => false }) {
-  const log = { snapshots: [], reads: [], manys: [] };
+export function treeHost({ trees, tags = [], failing = () => false, history = [] }) {
+  const log = { snapshots: [], reads: [], manys: [], histories: [], fileAts: [] };
   const counts = new Map();
   return {
     log,
@@ -135,6 +135,17 @@ export function treeHost({ trees, tags = [], failing = () => false }) {
         async readMany(paths) { log.manys.push([...paths]); },
         blob: (path) => (Object.hasOwn(files, path) ? blobOf(files[path]) : null),
       };
+    },
+    // `history` is the commits of the default branch, newest first: { commit, date, files } with the whole tree of the commit. readHistory names those that changed a
+    // path (every commit for no path), as the Host does, newest first, up to the limit; readFileAt gives the text of the path at each commit asked, null where it has none.
+    async readHistory(path, options = {}) {
+      log.histories.push([path, options]);
+      const changed = history.filter((entry, index) => path === null || entry.files[path] !== history[index + 1]?.files[path]);
+      return changed.slice(0, options.limit ?? changed.length).map(({ commit, date }) => ({ commit, parents: [], author: { account: null, name: "fixture" }, date, message: "", changes: [] }));
+    },
+    async readFileAt(path, commits) {
+      log.fileAts.push([path, [...commits]]);
+      return new Map(commits.map((commit) => [commit, history.find((entry) => entry.commit === commit)?.files[path] ?? null]));
     },
     async listTags() { return tags.map((name) => ({ name, commit: `commit-of-${name}` })); },
     async repositoryInfo() { return { defaultBranch: "main", visibility: "public", canWrite: false, archived: false, description: "" }; },
