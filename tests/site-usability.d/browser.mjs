@@ -168,7 +168,7 @@ export async function openWindow(executable, address, { limit = 30000, launch = 
   const folder = mkdtempSync(join(tmpdir(), "agent-m-904-entry-"));
   const entry = join(folder, "main.mjs");
   writeFileSync(entry, ENTRY);
-  const launched = launch ?? electronCommand(executable, [...(process.platform === "linux" ? ["--no-sandbox"] : []), `--remote-debugging-port=${debug}`, entry, `--fixture-url=${address}`]);
+  const launched = launch ?? electronCommand(executable, [...(process.platform === "linux" ? ["--no-sandbox"] : []), `--remote-debugging-port=${debug}`, `--user-data-dir=${join(folder, "data")}`, entry, `--fixture-url=${address}`]);
   const child = spawn(launched.command, launched.arguments_, { detached: process.platform === "linux", stdio: ["ignore", "pipe", "pipe"] });
   let stdout = "", stderr = "", spawnError = null, page = null;
   child.stdout.on("data", (chunk) => { stdout = `${stdout}${chunk}`.slice(-4000); });
@@ -182,7 +182,8 @@ export async function openWindow(executable, address, { limit = 30000, launch = 
       if (process.platform === "linux" && child.pid) { try { process.kill(-child.pid, "SIGTERM"); } catch { child.kill(); } } else child.kill();
     }
     child.stdout.destroy(); child.stderr.destroy(); child.unref();
-    rmSync(folder, { recursive: true, force: true });
+    // The browser may still be writing its data folder as it ends: removal is tried again, and a folder that stays is left to the system's temporary folder.
+    try { rmSync(folder, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }); } catch { /* left behind */ }
   };
   try {
     const target = await until("the window's page appears among the debugging targets", async () => {
