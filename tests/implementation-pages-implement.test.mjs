@@ -9,7 +9,7 @@
 // Level: unit
 //
 // The product is the Scrum-with-limit fixture of tests/implementation-pages-backlog.test.mjs (one team here), held in memory behind a host of this file's own that answers MOD-repository-hosts' interface and keeps every
-// commit; the instance holds the register of participants with one builder, dev-a, whose route is the hosted CI. The strategies the kind `implement` names are stand-ins registered with the job runner: the recipes
+// commit; the instance holds the register of participants with two builders able to write and run tests, dev-a — whom team1's assignment gives the role Builders — and dev-b, whom it does not; whose route is the hosted CI. The strategies the kind `implement` names are stand-ins registered with the job runner: the recipes
 // give one part each, the writer and the precondition give nothing; the real ones are other modules'. Nothing reaches the network. Readings the texts leave open, which the tests state (the pull request names them):
 //   - Each item is a <tr data-item data-state data-startable>; its reasons are the <li> of <ul data-reasons>; for a startable item <select data-participant-of> lists the holders that can write and run tests, <p data-holders>
 //     says where each processes data and its routes, <select data-merges-of> is who merges (`agent` or `person`), and <div data-sent> says what is sent where; <input data-start-item> ticks a startable item; <button data-start-jobs>
@@ -92,7 +92,7 @@ const OPEN_PRS = [pr({ number: 1, item: "ITM-001" }), pr({ number: 2, item: "ITM
 const ROOT = new URL("../", import.meta.url);
 const onDisk = (path) => { try { return readFileSync(new URL(path, ROOT), "utf8"); } catch { return null; } };
 const HEAD = onDisk("docs/participants.md").split("\n").filter((row, at, all) => at <= all.findIndex((each) => each.startsWith("|---"))).join("\n");
-const REGISTER = `${HEAD}\n| dev-a | model endpoint | model-a | 200000 | — | read the repository, write to the repository, run code and tests, use tools | this machine | ci hosted secret DEV_KEY |\n`;
+const REGISTER = `${HEAD}\n| dev-a | model endpoint | model-a | 200000 | — | read the repository, write to the repository, run code and tests, use tools | this machine | ci hosted secret DEV_KEY |\n| dev-b | model endpoint | model-b | 200000 | — | read the repository, write to the repository, run code and tests, use tools | this machine | ci hosted secret DEV_KEY |\n`;
 
 // A host of this file's own: the part of MOD-repository-hosts' interface the route uses, keeping every commit it is asked for.
 function hostOf(files, pullRequests, commits) {
@@ -179,7 +179,7 @@ test("a startable item offers the holders of the implementing role with where th
   const options = found(row(target, "ITM-005"), `[data-participant-of="ITM-005"]`)[0];
   assert.ok(options, "a participant is offered");
   assert.match(text(options), /dev-a/);
-  assert.doesNotMatch(text(options), /alice/, "a holder of another role is not offered");
+  assert.doesNotMatch(text(options), /alice|dev-b/, "a participant that does not hold the implementing role in the item's assignment is not offered");
   const holders = text(found(row(target, "ITM-005"), "[data-holders]")[0]);
   assert.match(holders, /this machine/);
   assert.match(holders, /ci hosted/);
