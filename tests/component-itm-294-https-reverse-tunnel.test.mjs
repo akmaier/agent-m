@@ -99,7 +99,9 @@ test("TST-294001: Settings reaches the composed Bridge through real Apache and n
     const close = server => new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
     const hash = value => "{SHA}" + createHash("sha1").update(value).digest("base64");
     const reservePort = async () => { const server = net.createServer(); const port = await listen(server); await close(server); return port; };
-    const waitFor = async (check, label) => { for (let n = 0; n < 100; n += 1) { if (await check()) return; await pause(20); } throw new Error(label); };
+    // Waits on the condition itself. A check that throws ends the wait at once; the ceiling is only a backstop for a condition that never comes
+    // (three waits of it fit in the 40 s the test gives this worker), so a slow runner is waited for and a dead one is named with its state.
+    const waitFor = async (check, label, state = () => "", ceiling = 8000) => { const started = Date.now(); for (;;) { if (await check()) return; if (Date.now() - started >= ceiling) throw new Error(label + " after " + (Date.now() - started) + " ms: " + state()); await pause(20); } };
     // A cold runner answers late: the main run makes the web servers listen, and the jump host accept the reverse forward, 2.5 s after
     // they are asked. The counter-proof children run without that delay, so that the faulted one fails as fast as it did.
     const slowStart = process.env.AGENT_M_294_FAULT_CHILD ? 0 : 2500;
@@ -142,7 +144,8 @@ test("TST-294001: Settings reaches the composed Bridge through real Apache and n
     const bridge = await compose({ instance: "akmaier/agent-m", origin, dataFolder: bridgeFolder });
     assert.equal(bridge.key.publicKey, persistedPublicKey, "composition reuses the actual persisted Bridge public key required by the fixture jump host");
     assert.equal(Number(new URL(bridge.address).port), persistedPort, "composition listens at the Bridge port the reverse tunnel names");
-    await waitFor(() => bridge.tunnels().then(rows => rows[0]?.state === "open"), "reverse tunnel did not become open");
+    let tunnelRows = [];
+    await waitFor(async () => { tunnelRows = await bridge.tunnels(); return tunnelRows[0]?.state === "open"; }, "reverse tunnel did not become open", () => JSON.stringify(tunnelRows));
     assert.ok(signedAuthentication?.accepted && signedAuthentication.signed && signedAuthentication.signatureValid, "the reverse tunnel completed signed public-key authentication with the Bridge key");
     assert.ok(sshForwarding.length > 0 && sshForwarding.every(receipt => receipt.signedAuthenticationOrder < receipt.order), "every accepted reverse forward follows signed Bridge-key authentication");
     const directPair = await nativeFetch(bridge.address + "/v1/pair", { headers: { Origin: origin, "x-agent-m-bridge-token": bridge.token } });
@@ -196,6 +199,7 @@ test("TST-294001: Settings reaches the composed Bridge through real Apache and n
       const redact = value => String(value ?? "").replaceAll(bridge.token, "<bridge-token>").replaceAll(readinessAuthorization, "<jump-login-authorization>").replaceAll(login.password, "<jump-login-password>");
       const logTail = file => { try { return redact(readFileSync(file, "utf8").slice(-4000)); } catch (error) { return "unavailable:" + (error.code ?? error.name); } };
       const ready = async () => {
+        if (serverProcess.child.exitCode !== null || serverProcess.error()) throw new Error(kind + " exited, so it did not accept TLS");
         readiness.attempts += 1;
         try {
           const reply = await nativeFetch(base + "/v1/pair", { headers: { Origin: origin, Authorization: readinessAuthorization, "x-agent-m-bridge-token": bridge.token } });
@@ -206,7 +210,7 @@ test("TST-294001: Settings reaches the composed Bridge through real Apache and n
           return false;
         }
       };
-      try { await waitFor(ready, kind + " did not accept TLS"); return { base, process: serverProcess }; }
+      try { await waitFor(ready, kind + " did not accept TLS", () => "last status " + (readiness.statuses.at(-1) ?? "none")); return { base, process: serverProcess }; }
       catch (error) {
         const diagnostic = { kind, readiness: { attempts: readiness.attempts, statuses: [...new Set(readiness.statuses)], lastStatus: readiness.statuses.at(-1) ?? null, errors: [...new Set(readiness.errors)].slice(-4) }, process: { exitCode: serverProcess.child.exitCode, signalCode: serverProcess.child.signalCode, spawnError: serverProcess.error()?.code ?? null, stderr: redact(serverProcess.stderr()) }, logs: { errorLog: logTail(join(root, "error.log")), accessLog: logTail(join(root, "access.log")) } };
         console.log("TST-294001-readiness " + JSON.stringify(diagnostic));
