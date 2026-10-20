@@ -111,7 +111,7 @@ async function startVersion(page, version, date, files) {
 const saveVersion = (page) => click(buttonLabelled(page, /^Save new version$/));
 
 // TST-703001 · level: release · module: MOD-settings-pages; MOD-site-frame
-// guards: UC-016 steps 1 and 2; A SOURCE VERSION IS NEVER OVERWRITTEN; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; ONE CLICK PER DECISION
+// guards: UC-016; A SOURCE VERSION IS NEVER OVERWRITTEN; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; ONE CLICK PER DECISION
 // given: the library holds the EU AI Act (kind document) with the versions v1 and v2, each of the file act.md stored in the instance; this browser keeps no product
 // input: open #library; press the source's title "EU AI Act"; press + New version; type the version v3 and the date 2026-03-03; choose the new file act.md holding "Article 1\nArticle 5\n"; press Save new version once
 // expect: UC-016 step 1 "The author opens the source in the library and chooses + New version": pressing the title sets the fragment #library/source=SRC-ai-act and the frame shows the source, listing v1 and v2; before the Save nothing is committed; step 2 "Agent M records the new version with its identifier, date and hashes; earlier versions stay as they were": one Save gives one commit, to the instance only, holding exactly the entry docs/sources/SRC-ai-act.md and the new file docs/sources/SRC-ai-act/v3/act.md (the bytes chosen) and no file of v1 or v2; the entry keeps the rows of v1 and v2 line for line and adds a row of v3 with the date 2026-03-03 and the version hash of its file, and the SHA-256 of act.md; the page lists v1, v2 and v3
@@ -137,7 +137,7 @@ test("release · UC-016 1–2: + New version records a version with its identifi
 });
 
 // TST-703002 · level: release · module: MOD-settings-pages; MOD-site-frame
-// guards: UC-016 step 3; A PRODUCT LINKS THE SOURCES THAT APPLY
+// guards: UC-016; A PRODUCT LINKS THE SOURCES THAT APPLY
 // given: this browser keeps thesis-tool (links the AI Act at v1), other-tool (links it at v2, the newest) and third-tool (has no docs/sources.md); the source has v1 and v2
 // input: open #library/source=SRC-ai-act; read the products on older versions; record the version v3 (file act.md, "Article 1\nArticle 5\n"); read them again
 // expect: UC-016 step 3 "The library shows which products still link to an earlier version": first only thesis-tool is listed, naming v1 as its version and v2 as the newest; after v3 is recorded thesis-tool and other-tool are listed, each naming its version and v3 as the newest, and third-tool is not
@@ -155,7 +155,7 @@ test("release · UC-016 3: the library shows which products still link to an ear
 });
 
 // TST-703003 · level: release · module: MOD-settings-pages; MOD-site-frame
-// guards: UC-016 step 1 (a new designation); A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH
+// guards: UC-016; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH
 // given: the library holds IEC 62304 (kind standard, restricted) with the editions "IEC 62304:2006" and "IEC 62304:2015", each of the file iec.pdf only hashed and stored nowhere
 // input: open #library/source=SRC-iec-62304; press + New version; type the designation "IEC 62304:2026" as the version and the date 2026-04-01; choose the file iec.pdf holding "pages 2026"; tick the box that only hashes the file and type the note "cabinet 3, shelf B" where the copy is kept; press Save new version
 // expect: UC-016 step 1 "a new designation (for example the next edition of a norm)": one commit to the instance holding exactly the entry docs/sources/SRC-iec-62304.md and no file of the standard; the entry keeps the rows of "IEC 62304:2006" and "IEC 62304:2015" line for line, adds a row of "IEC 62304:2026" dated 2026-04-01 with the version hash of the file, and records the SHA-256 of iec.pdf with the note "cabinet 3, shelf B"
@@ -178,7 +178,7 @@ test("release · UC-016 1–2: the next edition of a standard is recorded under 
 });
 
 // TST-703004 · level: release · module: MOD-settings-pages; MOD-site-frame
-// guards: UC-016 step 1 (a newer commit of a repository); A LIVING SOURCE IS PINNED
+// guards: UC-016; A LIVING SOURCE IS PINNED
 // given: the library holds SRC-guide, a repository source (https://github.com/erin/guide) whose one version 2026-10-01 was read at the commit 96210fa4…; the repository then changes, so that its default branch stands at the commit 240ddc98…
 // input: open #library/source=SRC-guide; press + New version; type the version 2026-11-01 and the date 2026-11-01; press Save new version
 // expect: UC-016 step 1 "a newer commit of a repository": the panel offers no field for files; one commit to the instance holding exactly docs/sources/SRC-guide.md, whose row of 2026-10-01 stays as it was and which adds a row of 2026-11-01 recording the repository https://github.com/erin/guide and the commit 240ddc98fbd96ee987230e72d664cfd892e6574e; nothing is committed to erin/guide
@@ -200,7 +200,7 @@ test("release · UC-016 1–2: a newer commit of a repository is recorded as a n
 });
 
 // TST-703005 · level: release · module: MOD-settings-pages; MOD-site-frame
-// guards: UC-016 step 1 (a new EUR-Lex version, fetched by the Fetch workflow); A SOURCE VERSION IS NEVER OVERWRITTEN
+// guards: UC-016; A SOURCE VERSION IS NEVER OVERWRITTEN
 // given: the library holds SRC-eu-ai, an EU legal text with an EUR-Lex address as its identifier and one fetched version; the instance has the workflow fetch-sources.yml
 // input: open #library/source=SRC-eu-ai; press + New version
 // expect: the Fetch workflow actor of UC-016 is started for the source: fetch-sources.yml is dispatched once, on the branch main, with exactly the input source = SRC-eu-ai; the page offers no field for files and says that the workflow was started; the page writes nothing to any repository
@@ -214,7 +214,7 @@ test("release · UC-016 1: + New version of a fetched EU legal text starts the f
 });
 
 // TST-703006 · level: release · module: MOD-settings-pages; MOD-site-frame
-// guards: UC-016 1a; A SOURCE VERSION IS NEVER OVERWRITTEN
+// guards: UC-016; A SOURCE VERSION IS NEVER OVERWRITTEN
 // given: the AI Act with v1 (act.md holding "Article 1\nArticle 2\nArticle 3\n") and v2 (act.md holding "Article 1\nArticle 2 amended\nArticle 3\nArticle 4\n"); and SRC-guide whose one version 2026-10-01 records the commit 96210fa4…, at which the repository still stands
 // input: + New version "v1b" with the file act.md holding the bytes of v1, Save; then "v2b" with the bytes of v2, Save; and on SRC-guide + New version 2026-12-01, Save
 // expect: UC-016 1a "The new version has the same bytes as an existing one. Agent M says so and records nothing": for the first, the page says the bytes are the same as those of v1, for the second as those of v2, for the repository as those of 2026-10-01; nothing is committed anywhere and the page sent no write; the AI Act still lists v1 and v2 and no v1b or v2b
@@ -238,7 +238,7 @@ test("release · UC-016 1a: a new version with the same bytes as an existing one
 });
 
 // TST-703007 · level: release · module: MOD-settings-pages; MOD-site-frame
-// guards: UC-016 steps 4 and 5; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; ONE CLICK PER DECISION
+// guards: UC-016; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; ONE CLICK PER DECISION
 // given: thesis-tool links the AI Act at v1 with the part "Art. 13"; its SPEC.md has the requirements EXPORT IS A PDF (naming SRC-ai-act) and TITLE PAGE NAMES THE AUTHOR (naming SRC-ai-act and SRC-iec-62304) and NOTHING IS NAMED (naming no source); v1 holds act.md "Article 1\nArticle 2\nArticle 3\n", v2 "Article 1\nArticle 2 amended\nArticle 3\nArticle 4\n"
 // input: open #library/source=SRC-ai-act; press "Move to the new version" of thesis-tool; read what is listed; press Move once
 // expect: UC-016 step 4 "Agent M lists the product's requirements that came from this source, and - where both versions are text - which passages changed": the listing names EXPORT IS A PDF and TITLE PAGE NAMES THE AUTHOR and not NOTHING IS NAMED, and the passages that changed - "Article 2 amended" and "Article 4" - and not the lines that did not ("Article 1", "Article 3"); the listing wrote nothing; step 5 "The author presses Move - one click. Agent M updates the product's docs/sources.md": one commit to thesis-tool, with the product's token, holding exactly docs/sources.md, whose row of SRC-ai-act is now at v2 with the version hash of v2 and the part "Art. 13" kept; SPEC.md is not committed and stays as it was; nothing is committed to the instance; UC-016's postcondition "a move is visible in the product's history together with the requirements it affected": the commit's message names SRC-ai-act, v1 and v2, EXPORT IS A PDF and TITLE PAGE NAMES THE AUTHOR; thesis-tool is no longer listed as on an older version
@@ -264,7 +264,7 @@ test("release · UC-016 4–5: Move lists the affected requirements and the chan
 });
 
 // TST-703008 · level: release · module: MOD-settings-pages; MOD-site-frame
-// guards: UC-016 step 5; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST
+// guards: UC-016; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST
 // given: the move of TST-703007 done
 // input: after the click on Move, open the dashboard's current requirements of thesis-tool (#trace/key=specification/ref=main/product=<the product>)
 // expect: UC-016 step 5 "the listed requirements are marked source changed on the dashboard until each is looked at again": the page lists EXPORT IS A PDF and TITLE PAGE NAMES THE AUTHOR (known positive) and marks them as source changed
@@ -280,7 +280,7 @@ test("release · UC-016 5: the requirements a move affected are marked source ch
 });
 
 // TST-703009 · level: release · module: MOD-settings-pages; MOD-site-frame
-// guards: UC-016 step 4; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH
+// guards: UC-016; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH
 // given: device-tool links IEC 62304 at "IEC 62304:2006" (part "class B"); both editions' file iec.pdf are only hashed, stored nowhere; its SPEC.md has TITLE PAGE NAMES THE AUTHOR, which names SRC-iec-62304
 // input: open #library/source=SRC-iec-62304; press "Move to the new version" of device-tool; press Move
 // expect: UC-016 step 4 "where both versions are text - which passages changed": the listing names TITLE PAGE NAMES THE AUTHOR, says that the passages are not listed and names iec.pdf as the file that is not stored, and offers Move all the same; Move commits docs/sources.md of device-tool alone, now at "IEC 62304:2015" with its version hash and the part "class B" kept
@@ -300,7 +300,7 @@ test("release · UC-016 4: where the versions are not stored text no passages ar
 });
 
 // TST-703010 · level: release · module: MOD-settings-pages; MOD-site-frame
-// guards: UC-016 4a; ONE CLICK PER DECISION
+// guards: UC-016; ONE CLICK PER DECISION
 // given: thesis-tool links the AI Act at v1 while v2 exists
 // input: open #library/source=SRC-ai-act; press "Move to the new version" of thesis-tool and read the listing; do not press Move; go to #library; open the source again
 // expect: UC-016 4a "The author keeps a product on the old version. Nothing changes; the library keeps showing that a newer version exists": no request wrote anything; thesis-tool's docs/sources.md is as it was (v1); the reopened page lists thesis-tool as on v1 with v2 as the newest

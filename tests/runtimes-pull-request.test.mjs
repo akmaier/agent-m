@@ -115,7 +115,7 @@ async function writeRecording(server, params, draft) {
 }
 
 // TST-567001 · level: unit · module: MOD-runtimes
-// guards: CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; UC-024 step 11
+// guards: CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; UC-024
 // given: a server host whose default branch is `develop`, no pull request of the branch; the job's snapshot at c0 declares TST-001 (OLD RULE) in tests/old.test.mjs and TST-004 (UNTOUCHED RULE) in tests/same.test.mjs; the branch is at c1 and, besides src/alpha/index.mjs, changes tests/old.test.mjs to declare TST-001 and TST-002 (NEW RULE ONE, module MOD-alpha), adds tests/new.test.mjs declaring TST-003 (NEW RULE TWO and NEW RULE ONE, module MOD-beta) and TST-005 (NEW RULE THREE, module system); the job's snapshot also holds the backlog item ITM-9, which changes MOD-gamma then MOD-alpha, and the plan step ITM-10, which changes MOD-delta then MOD-alpha; the job JOB-20261017-1000-abcd of kind implement names the backlog item ITM-9 and the plan step ITM-10, and its instruction holds PLANTED-INSTRUCTION-91C2
 // input: the writer `branch-and-pull-request` of routeStrategies with the answer { branch: the job's id, commits: ["c1"], pullRequest: "" }, the drafter coder-a with model model-m, after two rounds
 // expect: one openPullRequest, with branch = the job's id, base "develop" and a title that names the job; its body holds the lines "Job: JOB-20261017-1000-abcd", "Kind: implement", "Plan step: ITM-10", "Backlog item: ITM-9", "Modules: MOD-delta, MOD-alpha, MOD-gamma" (the step's modules, then the item's, MOD-alpha once), "Requirements guarded by the new tests: NEW RULE TWO; NEW RULE ONE; NEW RULE THREE", and, after a blank line, exactly the six provenance lines ("Agent-M-Version: 2026.10.0, commit aaaa…", "Agent-M-Job: JOB-20261017-1000-abcd", "Agent-M-Kind: implement", "Agent-M-Participant: coder-a", "Agent-M-Model: model-m", "Agent-M-Rounds: 2"), and none of OLD RULE, UNTOUCHED RULE, MOD-beta (declared by a new test, named by no step or item), MOD-system or PLANTED-INSTRUCTION-91C2; the outcome's pullRequest is "https://github.com/acme/product/pull/7", its commits ["c1"] and its files the three paths the branch changes, sorted
@@ -142,7 +142,7 @@ test("the writer opens the pull request into the default branch with the job, th
 });
 
 // TST-567002 · level: unit · module: MOD-runtimes
-// guards: CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI; UC-024 step 11
+// guards: CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI; UC-024
 // given: the server host of TST-567001, known positive first; then the same host with an open pull request #5 of the branch (url https://github.com/acme/product/pull/5), and one with a merged pull request #4 of it
 // input: the writer with the same answer on each host
 // expect: with no pull request the writer opens one (positive); with the open one, and again with the merged one, it opens none and returns the existing pull request's url as `pullRequest`
@@ -160,7 +160,7 @@ test("the writer opens no pull request where the branch has one", async () => {
 });
 
 // TST-567003 · level: unit · module: MOD-runtimes
-// guards: UC-049 4a; A REMOTE INTERFACE NAMES HOW IT FAILS
+// guards: UC-049; A REMOTE INTERFACE NAMES HOW IT FAILS
 // given: a local host, a Bridge's clone: it holds the branch at c1, and every server request (listPullRequests, repositoryInfo, openPullRequest) throws NotSupported
 // input: the writer with the answer { branch: the job's id, commits: ["c1"], pullRequest: "https://github.com/acme/product/pull/3" }
 // expect: no openPullRequest call; the outcome's pullRequest is "https://github.com/acme/product/pull/3", its commits ["c1"]; and the same host with an answer that reports no pull request ("") gives pullRequest null
@@ -175,7 +175,7 @@ test("the writer on a local host opens nothing and returns the branch and the pu
 });
 
 // TST-567004 · level: unit · module: MOD-runtimes
-// guards: A REMOTE INTERFACE NAMES HOW IT FAILS; UC-024 step 11
+// guards: A REMOTE INTERFACE NAMES HOW IT FAILS; UC-024
 // given: known positive first — the server host holding the branch; then a host that holds no branch of that name (readSnapshot throws NotFound), a server one and a local one; and a host whose readSnapshot throws RateLimited
 // input: the writer with the answer naming the branch, and with an answer naming no branch (branch "")
 // expect: the positive resolves; a branch the host does not hold rejects with name NoBranch whose message names the branch, on the server host and on the local one, with no pull request opened; an answer without a branch rejects NoBranch; RateLimited rejects as RateLimited, unchanged
@@ -195,7 +195,7 @@ test("the writer fails with NoBranch for a branch the host does not hold, and wi
 });
 
 // TST-567005 · level: unit · module: MOD-runtimes
-// guards: A REMOTE INTERFACE NAMES HOW IT FAILS; UC-024 step 11
+// guards: A REMOTE INTERFACE NAMES HOW IT FAILS; UC-024
 // given: known positive first — the branch at c1; then the branch at c0, the commit of the job's snapshot, which has no commit beyond it
 // input: the writer with the answer naming the branch, on a server host and on a local one
 // expect: the positive resolves; the branch at c0 rejects with name NoCommits, naming the branch, on both hosts, with no pull request opened

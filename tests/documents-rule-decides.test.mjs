@@ -40,7 +40,7 @@ test("classifyCandidates — a candidate under an existing name with another rul
 });
 
 // TST-472181 · level: unit · module: MOD-documents
-// guards: EXACT DUPLICATES ARE FOUND WITHOUT A MODEL; UC-019 (step 5)
+// guards: EXACT DUPLICATES ARE FOUND WITHOUT A MODEL; UC-019
 // given: the same requirements; a candidate under the new name EXPORT AS A PDF with the rule of EXPORT IS A PDF, proposed new; another under the name of A REPORT HAS A TITLE with its rule in other letters, white space and quotation marks, proposed a conflict
 // input: classifyCandidates of both
 // expect: a duplicate of EXPORT IS A PDF by rule for the first, a duplicate of A REPORT HAS A TITLE by rule for the second, whatever each participant proposed

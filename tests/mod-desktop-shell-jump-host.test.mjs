@@ -64,7 +64,7 @@ async function windowOver(answer) {
 const fill = (document, host, user, port) => { inputOf(document.body, "Jump host").value = host; inputOf(document.body, "SSH user").value = user; inputOf(document.body, "SSH port").value = port; };
 
 // TST-1053101 · level: unit · module: MOD-desktop-shell
-// guards: THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT; UC-044 (6a.1)
+// guards: THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT; UC-044
 // given: the production window on Tunnels over a constructed preload that keeps no jump host at first and, when it is sent one, keeps it
 // input: hostname jump.example.test, SSH user agentm and SSH port 2222 entered, then the button Save jump host pressed
 // expect: before: no sentence names user@hostname; the window sent exactly one save-jump-host with { hostname: "jump.example.test", user: "agentm", sshPort: "2222" } — as typed, the port a text —; after: the Tunnels view is drawn again and names agentm@jump.example.test in its sentence
@@ -81,7 +81,7 @@ test("the window sends the jump host as typed and names it in the Tunnels view",
 });
 
 // TST-1053102 · level: unit · module: MOD-desktop-shell
-// guards: THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT; UC-044 (6a.1)
+// guards: THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT; UC-044
 // given: the production window on Tunnels over a constructed preload that refuses the request with an error named InvalidSettings ("The jump host needs a hostname.")
 // input: the hostname left empty, SSH user agentm, SSH port 22, then Save jump host
 // expect: the window shows "Not saved: The jump host needs a hostname." and names no user@hostname
@@ -96,7 +96,7 @@ test("the window shows a refusal of the jump host as not saved", async () => {
 });
 
 // TST-1053103 · level: unit · module: MOD-desktop-shell
-// guards: THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT; UC-044 (6a.1)
+// guards: THE BRIDGE IS CONFIGURED IN ITS WINDOW OR FROM AN EXPORT; UC-044
 // given: a Bridge data folder with no settings file
 // input: setJumpHost with an empty hostname, an empty user, a blank hostname, the port 70000 and the port 0; then with hostname " jump.example.test ", user "agentm" and an empty port; then with the port "2222"
 // expect: the first five throw an error named InvalidSettings and no settings.json exists; the sixth keeps { hostname: "jump.example.test", user: "agentm", sshPort: 22 }, the seventh the port 2222; the other settings are those of loadSettings

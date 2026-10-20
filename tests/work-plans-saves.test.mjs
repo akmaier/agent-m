@@ -138,7 +138,7 @@ test("startSprint — refused, with nothing written, for an item waiting for acc
 });
 
 // TST-473171 · level: unit · module: MOD-work-plans
-// guards: A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-032 6a
+// guards: A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-032
 // given: team1's running sprint 01, selecting ITM-001; a new start decision on 2026-10-14 selecting ITM-001 and ITM-003
 // input: startSprint(host, that decision, context with the running sprint)
 // expect: one commit of the running sprint's file, its text followed by ## Selection with at 2026-10-14 and both items; no branch created; added ITM-003, removed none
@@ -199,7 +199,7 @@ test("closeSprint — the review, the unfinished items and the retrospective are
 });
 
 // TST-473173 · level: unit · module: MOD-work-plans
-// guards: A SPRINT ENDS WITH A RETROSPECTIVE; UC-041 6a
+// guards: A SPRINT ENDS WITH A RETROSPECTIVE; UC-041
 // given: the open sprint; a close (a) without a retrospective entry, (b) without a decision for ITM-002, which is not done, (c) of a sprint whose record has its ## Review already
 // input: closeSprint of each
 // expect: (a) RetrospectiveMissing, (b) Undecided naming ITM-002, (c) AlreadyClosed — and nothing committed in any

@@ -59,7 +59,7 @@ function world(starts) {
 }
 
 // TST-973001 · level: unit · module: MOD-runtimes
-// guards: UC-036 step 7; A JOB IDENTIFIER IS NEVER REUSED; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
+// guards: UC-036; A JOB IDENTIFIER IS NEVER REUSED; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
 // given: a product holding a failed job JOB-20261007-0930-abcd (inputs, parameters, destinations as in START) and the job workflow
 // input: retryJob(record, { participant: drafter-b, route: ci hosted }, host, head)
 // expect: one commit on trunk, on the head read, creating a new start record whose identifier is another than the earlier job's, whose `retries` is the earlier identifier, whose participant is drafter-b, and whose inputs, parameters, kind, works_on and limit are the earlier job's; the earlier record is unchanged; the result is { path, commit } of the new record
@@ -84,7 +84,7 @@ test("retryJob — queues a new job with a new identifier, the same inputs and p
 });
 
 // TST-973002 · level: unit · module: MOD-runtimes
-// guards: UC-036 step 7; A JOB IDENTIFIER IS NEVER REUSED
+// guards: UC-036; A JOB IDENTIFIER IS NEVER REUSED
 // given: the product of TST-973001, and a second retry of the same job on the head the first left
 // input: retryJob twice for the same record
 // expect: two records beyond the earlier one, with three different identifiers in all, both naming the earlier job (counter-proof: a retry that reuses an identifier would write the earlier job's path again and be refused by the host or overwrite it; the paths differ here)
@@ -98,7 +98,7 @@ test("retryJob — every retry has an identifier of its own", async () => {
 });
 
 // TST-973003 · level: unit · module: MOD-runtimes
-// guards: UC-036 step 7; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
+// guards: UC-036; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
 // given: a failed job whose record says `task: with the hand-over`
 // input: retryJob(record, { participant: drafter-a, route: ci hosted }, host, head)
 // expect: fails with TaskNotInRecord; nothing written
@@ -111,7 +111,7 @@ test("retryJob — a job whose task travelled with its hand-over is not retried 
 });
 
 // TST-973004 · level: unit · module: MOD-runtimes
-// guards: UC-036 step 7; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
+// guards: UC-036; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
 // given: the product of TST-973001, with another writer's commit made after the head was read
 // input: retryJob with the head read before
 // expect: fails with Moved as the host names it; nothing written

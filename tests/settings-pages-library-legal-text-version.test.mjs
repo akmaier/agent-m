@@ -53,7 +53,7 @@ async function open(t, id, identifier, { dispatchStatus } = {}) {
 const one = (root, name) => { const found = byClass(root, name); assert.equal(found.length, 1, `exactly one .${name}`); return found[0]; };
 
 // TST-900007 · level: unit · module: MOD-settings-pages
-// guards: UC-016 1; AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY; ONE CLICK PER DECISION; A SOURCE VERSION IS NEVER OVERWRITTEN
+// guards: UC-016; AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY; ONE CLICK PER DECISION; A SOURCE VERSION IS NEVER OVERWRITTEN
 // given: the entry SRC-ai-act of an EU legal text with an EUR-Lex address as its identifier and one version, and the entry SRC-ai-bare with the bare CELEX number 32024R1689 and one version (each in its own instance)
 // input: render library/<entry>; press + New version
 // expect: for each, no field for files is offered; the instance's workflow fetch-sources.yml is started once, on the branch main, with exactly the input source = the entry's identifier (SRC-ai-act, SRC-ai-bare); the result
@@ -71,7 +71,7 @@ test("new version — of a fetched EU legal text it starts the fetch run for tha
 });
 
 // TST-900008 · level: unit · module: MOD-settings-pages
-// guards: UC-016 1; ONE CLICK PER DECISION
+// guards: UC-016; ONE CLICK PER DECISION
 // given: the same entry SRC-ai-act; the server refuses the dispatch (422, an input it does not know)
 // input: press + New version
 // expect: the result begins "✗ The fetch workflow could not be started for SRC-ai-act: " and says why in the server's words; nothing is written to any repository
@@ -87,7 +87,7 @@ test("new version — a fetch run the server refuses is said so, and nothing is 
 const hiddenAbove = (node) => { for (let n = node; n; n = n.parentNode) if (n.hasAttribute?.("hidden") || n.hidden === true) return true; return false; };
 
 // TST-951001 · level: unit · module: MOD-settings-pages
-// guards: EVERY STEP EXPLAINS ITSELF; UC-016 1
+// guards: EVERY STEP EXPLAINS ITSELF; UC-016
 // given: the entry SRC-ai-act of an EU legal text with an EUR-Lex address and one version (a fetched legal text); the route library/SRC-ai-act rendered, + New version not pressed
 // input: look at the page before any press
 // expect: exactly one folded What is this? of the topic source-new-version stands on the page — a details of class explain that is closed, none of whose ancestors is hidden, whose body is the same rendered text as explain("source-new-version") gives; pressing + New version afterwards leaves exactly that one on the page and still starts exactly one run
@@ -106,7 +106,7 @@ test("new version — of a fetched EU legal text the page shows the folded expla
 });
 
 // TST-951002 · level: unit · module: MOD-settings-pages
-// guards: EVERY STEP EXPLAINS ITSELF; UC-016 1
+// guards: EVERY STEP EXPLAINS ITSELF; UC-016
 // given: the same fetched legal text SRC-ai-act
 // input: look at the explanation shown before + New version is pressed
 // expect: its text says what + New version does for such a source: it contains "starts the fetch run for the entry" and "the same text is not recorded again"

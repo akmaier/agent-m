@@ -51,7 +51,7 @@ test("explain — the topics of get-your-own are folded What is this? with their
 });
 
 // TST-587014 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; THE SHARED PAGES ORIGIN IS DISCLOSED; UC-014 step 1
+// guards: EVERY STEP EXPLAINS ITSELF; THE SHARED PAGES ORIGIN IS DISCLOSED; UC-014
 // given: the topic get-your-own-owner; known positive — bodyText of the topic repository says "folder on GitHub"
 // input: bodyText("get-your-own-owner")
 // expect: it says the fork goes to a GitHub account or to an organisation; that an account or organisation used for nothing else is recommended; and the reason — every GitHub Pages site under
@@ -67,7 +67,7 @@ test("explain — get-your-own-owner says why an account used for nothing else i
 });
 
 // TST-587015 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; AN INSTANCE IS A FORK OF AGENT M; UC-014 steps 2 and 3
+// guards: EVERY STEP EXPLAINS ITSELF; AN INSTANCE IS A FORK OF AGENT M; UC-014
 // given: the topics get-your-own-fork and get-your-own-pages
 // input: bodyText of each
 // expect: the fork topic says a fork is one's own copy of Agent M on GitHub and names the button "Create fork"; the Pages topic says GitHub's Pages publishes the repository as a website, that
@@ -83,7 +83,7 @@ test("explain — get-your-own-fork and get-your-own-pages say what a fork and P
 });
 
 // TST-587016 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-014 steps 4, 4a and 5; AGENT M IS MIT-LICENSED
+// guards: EVERY STEP EXPLAINS ITSELF; UC-014; AGENT M IS MIT-LICENSED
 // given: the topics get-your-own-actions, get-your-own-open and get-your-own-licence
 // input: bodyText of each
 // expect: the Actions topic says GitHub disables workflows on every fork until its owner enables them; that they are needed only to fetch EU legal texts and to write an accepted change of the

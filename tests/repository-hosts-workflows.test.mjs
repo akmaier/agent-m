@@ -55,7 +55,7 @@ const pipeline = (status, more = {}) => ({ id: 61, iid: 21, sha: SHA, ref: "main
 // ---------------------------------------------------------------- GitHub
 
 // TST-472566 · level: unit · module: MOD-repository-hosts
-// guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; A CREDENTIAL IS NEVER PLACED IN A URL; UC-004 (7a)
+// guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; A CREDENTIAL IS NEVER PLACED IN A URL; UC-004
 // given: a GitHub repository and the person's token; the server answers 200 with the run it started
 // input: startWorkflow("agent-m-jobs.yml", "main", { job: "JOB-1", note: "again" })
 // expect: one request — POST to the workflow's dispatches, with the ref and the inputs, the token as a Bearer header and in no address —, and the run named at once
@@ -71,7 +71,7 @@ test("startWorkflow on GitHub — one dispatch with the ref and the inputs, and 
 });
 
 // TST-472567 · level: unit · module: MOD-repository-hosts
-// guards: UC-004 (7a)
+// guards: UC-004
 // given: a GitHub server that starts the workflow and names no run — 204, no body
 // input: startWorkflow("agent-m-jobs.yml", "main", {})
 // expect: null, after one request; the caller finds the run with listCiRuns
@@ -85,7 +85,7 @@ test("startWorkflow on GitHub — a server that names no run gives null", async 
 // ---------------------------------------------------------------- GitLab
 
 // TST-472568 · level: unit · module: MOD-repository-hosts
-// guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; A CREDENTIAL IS NEVER PLACED IN A URL; UC-004 (7a)
+// guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; A CREDENTIAL IS NEVER PLACED IN A URL; UC-004
 // given: a GitLab project and its access token; the server creates the pipeline
 // input: startWorkflow("agent-m-jobs.yml", "main", { job: "JOB-1" })
 // expect: one request — POST to the project's pipeline, with the ref and the inputs in the JSON body, the token in PRIVATE-TOKEN and in no address —, and the pipeline as the run
@@ -100,7 +100,7 @@ test("startWorkflow on GitLab — one pipeline with the ref and the inputs, retu
 });
 
 // TST-472569 · level: unit · module: MOD-repository-hosts
-// guards: UC-004 (7a)
+// guards: UC-004
 // given: GitLab pipelines in each status, one with times
 // input: startWorkflow on each
 // expect: queued for created, waiting_for_resource, preparing, pending, scheduled; running; waiting for manual; success; failure for failed; cancelled for canceled and canceling; skipped; and the times as the server gave them; a pipeline without a source has the event "api"

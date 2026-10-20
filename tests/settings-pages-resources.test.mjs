@@ -86,7 +86,7 @@ const registered = new Set();
 const registerOnce = () => { if (!registered.has("resources")) { registered.add("resources"); registerStrategies("tests/settings-pages-resources.test.mjs", view.strategies[0]); } };
 
 // TST-642001 · level: unit · module: MOD-settings-pages
-// guards: UC-040 step 1; A PRODUCT DECLARES ITS RESOURCES; A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE; EVERY STEP EXPLAINS ITSELF
+// guards: UC-040; A PRODUCT DECLARES ITS RESOURCES; A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE; EVERY STEP EXPLAINS ITSELF
 // given: a product whose docs/resources.md holds the repository dlls (pinned, MIT, maintained by the Acme organisation) and the compute resource cluster reached by the runner gpu; the page drawn for the product
 // input: render the route resources
 // expect: the page is headed "Resources" and names the repository; two groups, "Repository" and "Compute", in the order of the kinds, each entry in its group with its address and the lines "Pin: …", "Licence: …", "Maintainer: …", "Route: …", "Processing place: …" and "Secret: …", a value left out as "—"; the folded explanation of the topic resources stands on the page
@@ -111,7 +111,7 @@ test("resources — a product's list is shown grouped by kind with each entry's 
 });
 
 // TST-642002 · level: unit · module: MOD-settings-pages
-// guards: UC-040 step 5; A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE
+// guards: UC-040; A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE
 // given: a list whose entry token-host has `sk-live-0123456789abcdef` in its Secret column (a value, not a name) and whose entry shared-llm names `ci:LLM_KEY`
 // input: render the route resources for the product
 // expect: the line of shared-llm reads "Secret: ci:LLM_KEY"; the line of token-host reads "Secret: not the name of a secret (not shown)"; the text `sk-live-0123456789abcdef` stands nowhere on the page, and the entry shows an error naming the rule A RESOURCE ENTRY NAMES ITS SECRET, NOT ITS VALUE
@@ -141,7 +141,7 @@ test("resources — an entry that fills the optional columns Capabilities and Ro
 });
 
 // TST-642003 · level: unit · module: MOD-settings-pages
-// guards: UC-040 step 1b; THE INSTANCE DECLARES ITS OWN RESOURCES; INSTANCE AND PRODUCT RESOURCES ARE INDEPENDENT
+// guards: UC-040; THE INSTANCE DECLARES ITS OWN RESOURCES; INSTANCE AND PRODUCT RESOURCES ARE INDEPENDENT
 // given: the instance's docs/resources.md (shared-llm, cluster) and a product's (dlls, cluster); the page drawn with no product
 // input: render the route resources with no product
 // expect: the page is headed "Instance resources", names the repository akmaier/agent-m, lists shared-llm and cluster and not dlls, and offers no "Copy from the instance"; no request names the product's repository
@@ -155,7 +155,7 @@ test("resources — with no product the route shows the instance's list alone (r
 });
 
 // TST-642004 · level: unit · module: MOD-settings-pages
-// guards: UC-040 step 1; A PRODUCT DECLARES ITS RESOURCES
+// guards: UC-040; A PRODUCT DECLARES ITS RESOURCES
 // given: a product that has no docs/resources.md
 // input: render the route resources for the product
 // expect: the page says "<the product's address> declares no resource yet." and shows no entry; the page makes no write
@@ -167,7 +167,7 @@ test("resources — a product without a list shows an empty one and writes nothi
 });
 
 // TST-642005 · level: unit · module: MOD-settings-pages
-// guards: UC-040 steps 2 to 4, 8; A RESOURCE IS PINNED TO AN EXACT STATE; A RESOURCE DECLARES ITS LICENCE; A RESOURCE NAMES ITS MAINTAINER; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION
+// guards: UC-040; A RESOURCE IS PINNED TO AN EXACT STATE; A RESOURCE DECLARES ITS LICENCE; A RESOURCE NAMES ITS MAINTAINER; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION
 // given: the product's list (dlls, cluster); the repository alice/dlls2 at its first state (the first state is the SHA-1 of "alice/dlls2#0")
 // input: choose the kind repository, name "tools", address https://github.com/alice/dlls2, press "+ Add resource"; the form shows the draft row; set the licence MIT and the maintainer the Acme organisation in the list's text; press Save
 // expect: the form's list holds the new row pinned to the head of alice/dlls2 (the SHA-1 of "alice/dlls2#0"); before the licence and maintainer are entered the form shows errors naming A RESOURCE DECLARES ITS LICENCE and A RESOURCE NAMES ITS MAINTAINER and its Save is disabled; after, Save writes one commit in the product's repository and none in the instance's, holding exactly the file docs/resources.md with the three rows, signed with the product's token; the page then lists tools
@@ -202,7 +202,7 @@ test("resources — adding a repository pins it to its host's head, and Save com
 });
 
 // TST-642006 · level: unit · module: MOD-settings-pages
-// guards: UC-040 step 7, 9a; A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-040; A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the product's list pins dlls and a second repository, other, to the commit of 40 "b"; the repository alice/dlls stands at its head, the SHA-1 of "alice/dlls#0"
 // input: press Check on dlls; then a click a script makes on Move; then the person's click on Move
 // expect: Check writes nothing and shows "A newer state exists upstream: <the head>. The pin is bbbb…" and a button Move; the script's click writes nothing; the person's click writes one commit holding docs/resources.md with only the Pin of dlls changed to the head (the other rows, the pinned repository other among them, byte for byte), and the line "Pin: <the head>"; then Check says "alice/dlls stands at its pin" (the known positive of the newer-state check: it finds none once moved)
@@ -227,7 +227,7 @@ test("resources — Check shows a newer state beside the pin, and Move commits t
 });
 
 // TST-642007 · level: unit · module: MOD-settings-pages
-// guards: UC-040 step 8; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
+// guards: UC-040; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
 // given: the product's list opened on the page; another person then commits docs/resources.md in the product (a different text)
 // input: press Check on dlls and Move
 // expect: nothing is written by the page (one commit stands in the product, the other person's); the page says "docs/resources.md changed since this page read it; nothing was written. Open the page again to read the newer file."
@@ -241,7 +241,7 @@ test("resources — Move writes nothing when the list changed meanwhile", async 
 });
 
 // TST-642008 · level: unit · module: MOD-settings-pages
-// guards: UC-040 step 1a; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
+// guards: UC-040; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
 // given: the product's list (dlls, cluster)
 // input: press Remove on cluster; the form shows the list without it; press Save
 // expect: before Save nothing is written; Save writes one commit holding docs/resources.md with only the row of dlls; the page then lists dlls alone
@@ -257,7 +257,7 @@ test("resources — Remove opens the list without the entry, and Save commits th
 });
 
 // TST-642009 · level: unit · module: MOD-settings-pages
-// guards: UC-040 step 2c; INSTANCE AND PRODUCT RESOURCES ARE INDEPENDENT; ONE CLICK PER DECISION
+// guards: UC-040; INSTANCE AND PRODUCT RESOURCES ARE INDEPENDENT; ONE CLICK PER DECISION
 // given: the instance's list (shared-llm, cluster) and the product's (dlls, cluster)
 // input: choose shared-llm in "An instance resource" and press "Copy from the instance"; press Save
 // expect: only shared-llm is offered (cluster is already the product's); the form's list holds the product's rows and the copy of shared-llm; Save writes one commit in the product's repository with docs/resources.md holding the three rows, the copy byte for byte as the instance's row, and none in the instance's repository, whose list is unchanged
@@ -276,7 +276,7 @@ test("resources — Copy from the instance copies an entry into the product's li
 });
 
 // TST-642010 · level: unit · module: MOD-settings-pages
-// guards: UC-040 step 7b; A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE; THE PAGE NAMES WHERE IT SENDS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-040; A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE; THE PAGE NAMES WHERE IT SENDS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: a private product with Agent M's job workflow, whose list holds cluster reached by the runner gpu; the instance's register holds the CI agent ci-drafter on `ci runner:gpu secret CI_KEY`
 // input: press Check on cluster; a click a script makes on Run; the person's click on Run
 // expect: the page names the job on the runner gpu and ci-drafter, and shows the run panel with ci-drafter as destination and a button Run; the script's click writes nothing; the person's click writes one commit in the product's repository adding one file docs/jobs/JOB-….md that names the kind check-resource, the participant ci-drafter, the route "ci runner:gpu" and the resource cluster, signed with the product's token, and the page says "Queued as JOB-…"
@@ -307,7 +307,7 @@ test("resources — a compute resource reached by a runner is checked by a check
 });
 
 // TST-642011 · level: unit · module: MOD-settings-pages
-// guards: UC-040 step 7b, 9b; A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE REPOSITORY; A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE
+// guards: UC-040; A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE REPOSITORY; A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE
 // given: the same page of TST-642010 but the product is public
 // input: press Check on cluster
 // expect: the page says that no CI agent of the instance reaches the runner gpu and gives the reason MOD-runtimes' routesFor gives (a self-hosted runner serves private repositories only); it offers no Run and writes nothing
@@ -322,7 +322,7 @@ test("resources — a runner is not offered for a public product, and the page s
 });
 
 // TST-997001 · level: unit · module: MOD-settings-pages
-// guards: UC-040 step 7; THE LOCAL BRIDGE REQUIRES A TOKEN; A CREDENTIAL IS NEVER PLACED IN A URL
+// guards: UC-040; THE LOCAL BRIDGE REQUIRES A TOKEN; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: the product's list holds shared-llm, an endpoint reached by `bridge workstation`; this browser keeps the Bridge workstation (address http://127.0.0.1:4711, token bridge-token), whose fake answers the probe endpoint-models with the models served-a and served-b
 // input: press Check on shared-llm
 // expect: exactly one request goes to http://127.0.0.1:4711/v1/probes/endpoint-models, with the token in the protocol header and the body { args: { name: "shared-llm", kind: "openai-compatible", baseUrl: <its address>, model: "example-model", key: null } }; the entry says "✓ The Bridge workstation serves: served-a, served-b."; nothing is written and no request goes to GitHub
@@ -346,7 +346,7 @@ test("resources — Check on an endpoint asks the Bridge its route names for the
 });
 
 // TST-997002 · level: unit · module: MOD-settings-pages
-// guards: UC-040 step 7; A CREDENTIAL IS NEVER PLACED IN A URL
+// guards: UC-040; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: as TST-997001, but the Bridge answers { diagnosis: { reason: "key refused", message: "Invalid API key.", routes: [] } }
 // input: press Check on shared-llm
 // expect: the entry says "✗ The Bridge workstation could not list the models: Invalid API key." and does not say "serves" (counter-proof of TST-997001)
@@ -363,7 +363,7 @@ test("resources — a Bridge's diagnosis is shown as the failure it is", async (
 });
 
 // TST-997003 · level: unit · module: MOD-settings-pages
-// guards: UC-040 step 7
+// guards: UC-040
 // given: the product's list holds hpc, compute reached by `bridge hpc`; this browser keeps the Bridge hpc (address http://127.0.0.1:4712), whose fake answers the probe partitions with debug (up) and gpu (drain)
 // input: press Check on hpc
 // expect: one request, to http://127.0.0.1:4712/v1/probes/partitions with the body { args: {} }; the entry says "✓ The Bridge hpc lists the partitions: debug (up), gpu (drain)."
@@ -383,7 +383,7 @@ test("resources — Check on compute reached by a Bridge lists the cluster's par
 });
 
 // TST-997004 · level: unit · module: MOD-settings-pages
-// guards: UC-040 step 7; THE LOCAL BRIDGE REQUIRES A TOKEN
+// guards: UC-040; THE LOCAL BRIDGE REQUIRES A TOKEN
 // given: the product's list holds shared-llm reached by `bridge workstation`; this browser keeps no Bridge of that name
 // input: press Check on shared-llm
 // expect: the entry says "This browser does not keep Bridge workstation." and no request goes to any Bridge or server
@@ -410,7 +410,7 @@ const HUB_NEW = "c".repeat(40);
 const TINY = `| tiny | model | someone/tiny | ${OLD_PIN} | MIT | someone | read on its host | — | — | — |`;
 
 // TST-997005 · level: unit · module: MOD-settings-pages
-// guards: UC-040 step 8; A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT; ONE CLICK PER DECISION
+// guards: UC-040; A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT; ONE CLICK PER DECISION
 // given: the product's list pins the Hub model someone/tiny to the revision of 40 "b"; the Hub's fake answers the revision of 40 "c"
 // input: press Check on tiny; a click a script makes on Move; the person's click on Move
 // expect: Check reads the Hub (one request to huggingface.co) and writes nothing; it shows "A newer state exists upstream: cccc…. The pin is bbbb…." and Move; the script's click writes nothing; the person's click writes one commit with only the Pin of tiny changed
@@ -433,7 +433,7 @@ test("resources — a Hub model's pin is read from the Hub, shown beside the pin
 });
 
 // TST-997006 · level: unit · module: MOD-settings-pages
-// guards: UC-040 step 8; A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT
+// guards: UC-040; A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT
 // given: the same list; the Hub's fake answers the revision the list already pins
 // input: press Check on tiny
 // expect: the entry says "✓ someone/tiny stands at its pin, bbbb…." and offers no Move (counter-proof of TST-997005)
@@ -446,7 +446,7 @@ test("resources — a Hub model that stands at its pin offers no Move", async (t
 });
 
 // TST-997007 · level: unit · module: MOD-settings-pages
-// guards: UC-040 step 8; A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT
+// guards: UC-040; A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT
 // given: the same list; the Hub does not answer a browser (its fake rejects with a TypeError)
 // input: press Check on tiny
 // expect: the entry says "✗ the Hub did not answer for tiny (someone/tiny); paste a full revision instead — the pin stays as it is."; no Move; nothing is written
@@ -474,7 +474,7 @@ test("resources — each step carries its folded explanation, and the topics exi
 });
 
 // TST-642014 · level: unit · module: MOD-settings-pages
-// guards: UC-040 step 7b; ONE DEFINITION, THREE DRIVERS
+// guards: UC-040; ONE DEFINITION, THREE DRIVERS
 // given: the view MOD-settings-pages gives the frame
 // input: read view.routes and view.strategies
 // expect: the routes include one named resources, and the strategies hold one set with the recipes of MOD-resource-list, resource-check and resource-pins, which the frame registers for the page's run panel
@@ -485,7 +485,7 @@ test("resources — the view gives the route resources and hands the frame MOD-r
 });
 
 // TST-1030005 · level: unit · module: MOD-settings-pages
-// guards: UC-040 step 1a, 9a; A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT
+// guards: UC-040; A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT
 // given: the product holds the record docs/jobs/JOB-20261005-1432-7f3a.md whose inputs pin dlls, the record JOB-20261005-1500-aaaa whose inputs pin cluster-two, the test tests/dlls.test.mjs that names dlls, and tests/cluster.test.mjs that does not
 // input: press Remove on dlls; on another page, press Check on dlls
 // expect: Remove lists, in the entry of dlls, the record and tests/dlls.test.mjs and neither of the others, and writes nothing; Check, beside the line of the newer state and the button Move, lists the same two paths and writes nothing
@@ -566,7 +566,7 @@ test("resources — Save key with no key stores nothing", async (t) => {
 });
 
 // TST-1074001 · level: unit · module: MOD-settings-pages
-// guards: UC-040 step 7; A RESOURCE CREDENTIAL GOES ONLY TO ITS RESOURCE
+// guards: UC-040; A RESOURCE CREDENTIAL GOES ONLY TO ITS RESOURCE
 // given: the product's list holds shared-llm, an endpoint reached by `bridge workstation` whose secret is `browser`; this browser keeps its key under resource-key:shared-llm; the Bridge's fake answers the models only to a probe that carries that key, and otherwise with the diagnosis { reason: "key refused", message: "Invalid API key.", routes: [] }
 // input: press Check on shared-llm
 // expect: exactly one request goes to the Bridge, http://127.0.0.1:4711/v1/probes/endpoint-models, and neither its address, its headers nor its body hold the key — the body is { args: { name, kind: "openai-compatible", baseUrl, model, key: null } }, as for an entry with no key kept —; no request to any other server holds it; the entry says "✗ The Bridge workstation could not list the models: Invalid API key." (an endpoint that needs its key answers with its diagnosis); counter-proof: a probe that carries the key would be answered with the models, and the entry would say "serves"
@@ -594,7 +594,7 @@ test("resources — Check through a Bridge sends no resource key, and an endpoin
 });
 
 // TST-1031001 · level: unit · module: MOD-settings-pages
-// guards: UC-040 (2a); ONE SYSTEM IN TWO ROLES IS TWO ENTRIES
+// guards: UC-040; ONE SYSTEM IN TWO ROLES IS TWO ENTRIES
 // given: the product's list holds dlls (a repository), shared-llm (an endpoint at http://workstation.example.org:8000/v1) and coder (an agent at https://agents.example.org/coder)
 // input: the resources route drawn for the product; Add as participant pressed on shared-llm and on coder
 // expect: an endpoint and an agent each have an Add as participant button, and a repository has none (known positive: the other buttons of the entry are there); pressing it on shared-llm calls go("participants", { type: "model endpoint", address: "http://workstation.example.org:8000/v1" }) and on coder go("participants", { type: "CLI agent", address: "https://agents.example.org/coder" }) — one call each, nothing written, no request to any server

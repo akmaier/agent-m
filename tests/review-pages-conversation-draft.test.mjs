@@ -67,7 +67,7 @@ async function assertDropped(shown, key) {
 const kept = (shown, key) => assert.notEqual(latestDraft(shown.context.store, key), null, "known positive: the tab keeps the draft before the click");
 
 // TST-507020 · level: component · module: MOD-review-pages
-// guards: UC-049 (step 5); UC-019 (steps 7, 8); A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; THE ROUNDS ARE COUNTED AND SHOWN
+// guards: UC-049; UC-019; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; THE ROUNDS ARE COUNTED AND SHOWN
 // given: the conversation's draft for the page of UC-007: a changed UC-007 with an added alternative flow 2b, one correction round
 // input: the route draft with the subject of that page
 // expect: one draft, UC-007's, its editor holding the draft and the difference against the current text with the added line marked; "Correction rounds: 1"; one Save and one Discard; nothing written
@@ -86,7 +86,7 @@ test("draft — a changed use case opens in the editor as its difference against
 });
 
 // TST-507021 · level: component · module: MOD-review-pages
-// guards: UC-019 (7a); AN EDITED FILE KEEPS ITS IDENTIFIER; THE ROUNDS ARE COUNTED AND SHOWN
+// guards: UC-019; AN EDITED FILE KEEPS ITS IDENTIFIER; THE ROUNDS ARE COUNTED AND SHOWN
 // given: the draft of UC-007 under the identifier UC-043, which the loop left, with the finding "id changed from UC-007 to UC-043 [AN EDITED FILE KEEPS ITS IDENTIFIER]"
 // input: the route draft
 // expect: the finding is listed among those left; the editor opens with the identifier set back to UC-007 — only the id of the front matter, every other byte as drafted
@@ -102,7 +102,7 @@ test("draft — a changed identifier the loop left is restored before the editor
 });
 
 // TST-507043 · level: component · module: MOD-review-pages
-// guards: UC-019 (7a); A FINDING READS LIKE A COMPILER MESSAGE
+// guards: UC-019; A FINDING READS LIKE A COMPILER MESSAGE
 // given: the draft of UC-007 with two findings left by the loop: the error "UC-007:2: id changed from UC-007 to UC-043 [AN EDITED FILE KEEPS ITS IDENTIFIER]" with the fix "keep UC-007", and the warning "UC-007:12:
 //   realises \"EXPORT AS PDF\" matches no requirement [A USE CASE REALISES NAMED REQUIREMENTS]" with the fix "use an existing name or remove the line"
 // input: the route draft
@@ -121,7 +121,7 @@ test("draft — each finding left is shown in the one fixed text form of a compi
 });
 
 // TST-507044 · level: component · module: MOD-review-pages
-// guards: UC-019 (7a); A FINDING READS LIKE A COMPILER MESSAGE
+// guards: UC-019; A FINDING READS LIKE A COMPILER MESSAGE
 // given: the draft of a change of A LOAN HAS A DUE DATE with one finding left by the loop: the error "A LOAN HAS A DUE DATE:4: no check [A REQUIREMENT HAS FOUR FIELDS]" with the fix "add a line `Check:`"
 // input: the route draft
 // expect: the list of the findings left holds one item, exactly `A LOAN HAS A DUE DATE:4: error: no check [A REQUIREMENT HAS FOUR FIELDS] — add a line `Check:`.`
@@ -133,7 +133,7 @@ test("draft — a draft of requirements shows each finding left in the same text
 });
 
 // TST-507022 · level: component · module: MOD-review-pages
-// guards: UC-019 (8b, 9); AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; ONE CLICK PER DECISION; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
+// guards: UC-019; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; ONE CLICK PER DECISION; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
 // given: the draft of two use cases, UC-007 and UC-008, for the instruction "align UC-007 and UC-008 with the new rule" among the conversation's messages, the second edited by the person in its editor
 // input: a click on Save
 // expect: one commit holding both files — the first as drafted, the second as edited, byte for byte, no trailer in a file —, whose message ends with the provenance lines — Agent-M-Version: <the
@@ -168,7 +168,7 @@ test("draft — Save writes the use cases in one commit with the provenance line
 });
 
 // TST-507023 · level: component · module: MOD-review-pages
-// guards: UC-019 (9a); A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT
+// guards: UC-019; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT
 // given: the draft of UC-007 and UC-008 drawn; then another writer changes UC-008, which says "Agent M says so, at once."
 // input: a click on Save
 // expect: nothing written; both drafts stay in their editors as drafted; the newer UC-008 is beside the draft
@@ -185,7 +185,7 @@ test("draft — a use case changed after the page was drawn refuses the save and
 });
 
 // TST-507024 · level: component · module: MOD-review-pages
-// guards: UC-019 (9a); A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT
+// guards: UC-019; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT
 // given: the draft of UC-007 whose job read an older text of UC-007 — the parameter version is the blob of "an older text of UC-007" — than the one the product holds now; nothing changed after the page was drawn
 // input: a click on Save
 // expect: nothing written; the draft stays in its editor; the text the product holds now is beside it
@@ -200,7 +200,7 @@ test("draft — a use case changed while the participant drafted refuses the sav
 });
 
 // TST-507025 · level: component · module: MOD-review-pages
-// guards: UC-019 (9, UC-018 4a); WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL
+// guards: UC-019; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL
 // given: a GitHub product whose host cannot write, the draft of UC-007
 // input: a click on Save
 // expect: nothing written; GitHub's page for the file, its address without the text of the draft
@@ -214,7 +214,7 @@ test("draft — without a token, GitHub's page opens for each file", async () =>
 });
 
 // TST-507026 · level: component · module: MOD-review-pages
-// guards: UC-019 (8c); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-019; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the draft of UC-007 in its editor
 // input: a click on Discard
 // expect: the draft is gone from the page and the page says it was discarded and that nothing was written; nothing written; latestDraft for the subject gives null, and the route draft drawn again says that there is no draft
@@ -232,7 +232,7 @@ test("draft — Discard drops the draft and writes nothing", async () => {
 });
 
 // TST-507027 · level: component · module: MOD-review-pages
-// guards: UC-049 (step 5); A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
+// guards: UC-049; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
 // given: a tab that keeps the draft for UC-007; and a tab that keeps no draft
 // input: the route draft for the subject of UC-008; the route draft for the subject of UC-007 with no draft kept; the route draft with no subject
 // expect: each says there is no draft (<p class="none">), shows no editor and writes nothing; the first two link back to "#<the subject's key>" — "#use-case/id=UC-008/product=<address>" and "#use-case/id=UC-007/product=<address>"; the third links nowhere
@@ -253,7 +253,7 @@ test("draft — without a draft for the subject the page says so and links back 
 });
 
 // TST-507028 · level: component · module: MOD-review-pages
-// guards: UC-023; UC-049 (step 5); THE ROUNDS ARE COUNTED AND SHOWN; A REUSE DECISION RECORDS ITS DUE DILIGENCE; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
+// guards: UC-023; UC-049; THE ROUNDS ARE COUNTED AND SHOWN; A REUSE DECISION RECORDS ITS DUE DILIGENCE; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
 // given: the draft of the decision ARC-001 for a change of the architecture, whose text holds a due-diligence section, with one correction round that had a warning, fixed
 // input: the route draft; then a click on Save
 // expect: the page shows the file's difference against the current text, the rounds of the job (Round 1 with the warning) and the due diligence (a table with "lend-lib" and "GPL-3.0"); Save writes the
@@ -297,7 +297,7 @@ const candidateOf = (target, name) => byClass(target, "li", "candidate").find((i
 const proposalsOf = (fake) => written(fake).flatMap((change) => change.files).filter((file) => /^docs\/spec-freigaben\/[^/]+\/\d\d-[^/]+\.md$/.test(file.path) && !file.path.endsWith(".begruendung.md"));
 
 // TST-507029 · level: component · module: MOD-review-pages
-// guards: UC-019 (8, 8a); A CONFLICT IS DECIDED BY A PERSON; A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT; THE ROUNDS ARE COUNTED AND SHOWN
+// guards: UC-019; A CONFLICT IS DECIDED BY A PERSON; A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT; THE ROUNDS ARE COUNTED AND SHOWN
 // given: the draft of a change of A LOAN HAS A DUE DATE: the requirement changed (class change, of itself), A MEMBER CAN RENEW ONCE (new) and THE DUE DATE MAY BE HIDDEN (a conflict with A LOAN HAS A DUE
 //   DATE); the person's source SRC-alice (authority informative); one round
 // input: the route draft
@@ -328,7 +328,7 @@ test("draft — requirements are shown with their classes, beside the requiremen
 });
 
 // TST-507030 · level: component · module: MOD-review-pages
-// guards: UC-019 (9); A SPEC EDIT IS SAVED AS A PROPOSAL; THE PERSON WHO PROMPTS IS A SOURCE; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
+// guards: UC-019; A SPEC EDIT IS SAVED AS A PROPOSAL; THE PERSON WHO PROMPTS IS A SOURCE; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
 // given: the draft of TST-507029, the conflict undecided
 // input: a click on Save
 // expect: one commit in a change queue under docs/spec-freigaben/, SPEC.md byte-identical; the proposal holds the changed rule and the new requirement, both naming SRC-alice among their sources, and not the
@@ -355,7 +355,7 @@ test("draft — Save writes the composed section as an entry of a queue, the con
 });
 
 // TST-507031 · level: component · module: MOD-review-pages
-// guards: UC-019 (8a); A CONFLICT IS DECIDED BY A PERSON; A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT
+// guards: UC-019; A CONFLICT IS DECIDED BY A PERSON; A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT
 // given: the draft of TST-507029
 // input: the person sets the class of the conflict to new in its select, then clicks Save
 // expect: the composed section now holds the rule "Every loan may hide its due date."; the saved proposal holds it too, under the name THE DUE DATE MAY BE HIDDEN
@@ -374,7 +374,7 @@ test("draft — a conflict the author decides is composed and saved", async () =
 });
 
 // TST-507032 · level: component · module: MOD-review-pages
-// guards: UC-019 (9a); A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT
+// guards: UC-019; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT
 // given: the draft of TST-507029 drawn; then the SPEC section "## 1. Lending" changes on the default branch
 // input: a click on Save
 // expect: nothing written; the draft stays in the page; the section as it stands now is beside the composed section (<div class="newer">)
@@ -389,7 +389,7 @@ test("draft — a SPEC section changed after the page was drawn refuses the save
 });
 
 // TST-507033 · level: component · module: MOD-review-pages
-// guards: UC-019 (9a); A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE
+// guards: UC-019; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE
 // given: the draft of TST-507029 whose job read an older section — the parameter version is the blob of "an older section" — than the SPEC holds now
 // input: a click on Save
 // expect: nothing written; the section as it stands now is beside the composed section
@@ -402,7 +402,7 @@ test("draft — a SPEC section changed while the participant drafted refuses the
 });
 
 // TST-507034 · level: component · module: MOD-review-pages
-// guards: UC-019 (8c); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-019; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the draft of requirements in the page
 // input: a click on Discard
 // expect: the candidates are gone and the page says the draft was discarded and nothing written; nothing written; afterwards latestDraft for the subject gives null, and the route draft drawn again for it says that there is no draft (<p class="none">) and shows no editor
@@ -420,7 +420,7 @@ test("draft — Discard drops the requirements and writes nothing", async () => 
 });
 
 // TST-636011 · level: component · module: MOD-review-pages
-// guards: UC-019 (8, 9); A CHANGE IS PROPOSED UNDER THE EXISTING NAME; A SPEC EDIT IS SAVED AS A PROPOSAL
+// guards: UC-019; A CHANGE IS PROPOSED UNDER THE EXISTING NAME; A SPEC EDIT IS SAVED AS A PROPOSAL
 // given: the draft of a change of A LOAN HAS A DUE DATE with two candidates that change it: A LOAN HAS A DUE DATE (class change, of itself) and A MEMBER CAN RENEW ONCE (class change, of A LOAN HAS A DUE DATE)
 // input: the route draft; a click on Save; then the person sets the class of A MEMBER CAN RENEW ONCE to new and clicks Save
 // expect: the page shows no composed section and one problem reading "TwoChanges: A LOAN HAS A DUE DATE and A MEMBER CAN RENEW ONCE change A LOAN HAS A DUE DATE: one block would replace the other. Nothing was composed. To go on, give one of the two the class new, or merge them into one.";
@@ -452,7 +452,7 @@ test("draft — two candidates that change one requirement are refused on the pa
 });
 
 // TST-066501 · level: component · module: MOD-review-pages
-// guards: UC-019 (8, 9); EVERY STEP EXPLAINS ITSELF
+// guards: UC-019; EVERY STEP EXPLAINS ITSELF
 // given: the draft of a change with one candidate of the class change of a requirement the SPEC does not hold
 // input: the route draft
 // expect: counter-proof — the page shows one problem reading "RequirementNotFound: the SPEC holds no requirement NO SUCH REQUIREMENT", which gives no advice on how to go on: the panel's words for two changes are
@@ -480,7 +480,7 @@ const editFirst = (target, text) => { const area = areaIn(draftBoxes(target)[0])
 const filesDraft = () => ({ kind: "change-use-case", params: useCaseParams, result: resultOf({ files: [draft7(), draft8()] }, { rounds: [ROUND_ONE] }) });
 
 // TST-067101 · level: component · module: MOD-review-pages
-// guards: UC-018 (7a); UC-019
+// guards: UC-018; UC-019
 // given: the draft of UC-007 and UC-008 drawn, the first editor's text changed to "changed text", and a confirmation that first declines, then accepts
 // input: route.leave() twice
 // expect: leave is a function; the first call returns false and asks "Discard unsaved changes?" once, and the editor is still drawn with "changed text"; the second returns true, asks a second time, and the edited editor is removed (the one never changed is left with the page)
@@ -501,7 +501,7 @@ test("TST-067101 draft: leave asks through the editors' close, keeps the page wh
 });
 
 // TST-067102 · level: component · module: MOD-review-pages
-// guards: UC-018 (7a); UC-019
+// guards: UC-018; UC-019
 // given: the same draft with no editor changed, and a confirmation that would decline
 // input: route.leave() and route.unsaved()
 // expect: leave returns true and asks nothing; unsaved is false; after the first editor is changed it is true, without asking anyone
@@ -523,7 +523,7 @@ test("TST-067102 draft: an unchanged draft lets itself be left without asking, a
 });
 
 // TST-067103 · level: component · module: MOD-review-pages
-// guards: UC-018 (7a); UC-019
+// guards: UC-018; UC-019
 // given: the draft with an edited editor, then Discard pressed; and, in another page, a draft of requirements, which opens no editor; a confirmation that would decline
 // input: route.leave() after Discard, and route.leave() on the requirements' page
 // expect: counter-proof — a draft discarded, and a page without an editor, let themselves be left: true, nothing asked
@@ -545,7 +545,7 @@ test("TST-067103 draft: a discarded draft and a draft without an editor let them
 });
 
 // TST-067104 · level: component · module: MOD-review-pages
-// guards: UC-018 (7a); UC-019
+// guards: UC-018; UC-019
 // given: the draft of UC-007 and UC-008 with an edited editor, and then the route draft drawn again in a target of its own for a subject that has no draft, as the frame does once it was allowed to leave; a confirmation that would decline
 // input: route.leave()
 // expect: counter-proof — the editors of a page drawn earlier are not the route's now: leave returns true and asks nothing
@@ -563,7 +563,7 @@ test("TST-067104 draft: the editors of a page drawn earlier are not asked once t
 });
 
 // TST-067108 · level: component · module: MOD-review-pages
-// guards: UC-018 (7a); UC-019
+// guards: UC-018; UC-019
 // given: the route draft rendered twice for the same draft, the first render ending after the second: the first render's first read is held; the second renders, is drawn and its first editor changed
 // input: route.leave() after both have ended
 // expect: counter-proof — the late render's editors are not the route's: leave asks the newer editor: it returns false and asks once
@@ -595,7 +595,7 @@ test("TST-067108 draft: two renders, the first ending last, leave the newer page
 });
 
 // TST-067109 · level: component · module: MOD-review-pages
-// guards: UC-018 (7a); UC-019; ONE CLICK PER DECISION
+// guards: UC-018; UC-019; ONE CLICK PER DECISION
 // given: the draft of UC-007 and UC-008, the first editor's text changed, and Save pressed, which writes both files
 // input: route.unsaved() and route.leave()
 // expect: counter-proof — what was saved is not unsaved: false, and leave returns true and asks nothing
@@ -619,7 +619,7 @@ const NOTES_PATH = "docs/notes.md";
 const NOTES = "# Notes\n\nA note the participant proposed.\n";
 
 // TST-507035 · level: component · module: MOD-review-pages
-// guards: UC-049 (steps 5, 6); A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; A GENERATED ARTIFACT IS A PROPOSAL
+// guards: UC-049; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; A GENERATED ARTIFACT IS A PROPOSAL
 // given: the draft of a conversation of the kind converse: the answer "Here is the change." and two edits — UC-007 changed, and a new file docs/notes.md
 // input: the route draft; then a click on Save
 // expect: the answer is shown; two drafts, each in an editor, the new file as all added lines against nothing; Save writes both in one commit, the new file too, and the message holds Agent-M-Kind: converse; afterwards latestDraft for the subject gives null, and the route draft drawn again for it says that there is no draft (<p class="none">) and shows no editor
@@ -642,7 +642,7 @@ test("draft — the edits of a converse draft are shown and saved, a new file to
 });
 
 // TST-507036 · level: component · module: MOD-review-pages
-// guards: UC-049 (step 6); A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; AN EDITED FILE KEEPS ITS IDENTIFIER
+// guards: UC-049; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; AN EDITED FILE KEEPS ITS IDENTIFIER
 // given: a converse draft whose edit of UC-007 keeps its identifier and drops the section "## Postcondition", which the schema of a use case requires
 // input: the route draft; a click on Save
 // expect: the editor opens with Save disabled — "Save is disabled: the section ## Postcondition is required, and missing" —; the click writes nothing
@@ -659,7 +659,7 @@ test("draft — a converse edit its owner's schema finds an error in cannot be s
 // ---------------------------------------------------------------- from the subject to the draft
 
 // TST-507037 · level: component · module: MOD-review-pages
-// guards: UC-049 (steps 5, 6); UC-019 (steps 8, 9)
+// guards: UC-049; UC-019
 // given: the page of UC-007 drawn; the prompt bar keeps a draft for its subject and goes to the subject's draftRoute
 // input: the route the draftRoute names, drawn with the parameters the frame reads from it, in the same context; then Save
 // expect: the draft is shown — UC-007's editor with the difference; Save writes the file in one commit with the version the subject gave in the parameters of the draft

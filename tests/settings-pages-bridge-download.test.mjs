@@ -75,7 +75,7 @@ async function draw(agent, answer) {
 const offered = (target) => byClass(target, "bridge-file").map((link) => [link.textContent, link.getAttribute("href")]);
 
 // TST-1047001 · level: unit · module: MOD-settings-pages
-// guards: UC-044 (step 1); THE BRIDGE IS ONE FILE PER PLATFORM
+// guards: UC-044; THE BRIDGE IS ONE FILE PER PLATFORM
 // given: the release of the four files of MOD-bridge-build, its checksum file and its update feed; the browser is on macOS
 // input: the route bridge drawn
 // expect: the release was asked for once, as "latest"; exactly one file is offered, the .dmg, linking its download address, with its size "123.5 MB" and its SHA-256 (64 times a); the macOS .zip, which only the updater downloads, is not offered and its address stands nowhere on the page; no link to the checksum file, since the server reported the SHA-256
@@ -92,7 +92,7 @@ test("the bridge route offers the .dmg on macOS with its size and SHA-256, and n
 });
 
 // TST-1047002 · level: unit · module: MOD-settings-pages
-// guards: UC-044 (step 1); THE BRIDGE IS ONE FILE PER PLATFORM
+// guards: UC-044; THE BRIDGE IS ONE FILE PER PLATFORM
 // given: the same release; the browser on Windows, then on Linux
 // input: the route bridge drawn for each
 // expect: on Windows the .exe is offered with "98.8 MB" and its SHA-256 (c); on Linux the .AppImage with "105.0 MB" and its SHA-256 (d); each alone
@@ -106,7 +106,7 @@ test("the bridge route offers the .exe on Windows and the .AppImage on Linux, ea
 });
 
 // TST-1047003 · level: unit · module: MOD-settings-pages
-// guards: UC-044 (step 1); THE BRIDGE IS ONE FILE PER PLATFORM
+// guards: UC-044; THE BRIDGE IS ONE FILE PER PLATFORM
 // given: the release whose server reports no SHA-256 for any file; the browser on Windows
 // input: the route bridge drawn
 // expect: the .exe is offered with its size; no SHA-256 is written; a link to the release's checksum file SHA256SUMS stands beside it (class bridge-checksums, its download address)
@@ -119,7 +119,7 @@ test("the bridge route links the checksum file where the server reports no SHA-2
 });
 
 // TST-1047004 · level: unit · module: MOD-settings-pages
-// guards: UC-044 (steps 1 and 2); EVERY STEP EXPLAINS ITSELF
+// guards: UC-044; EVERY STEP EXPLAINS ITSELF
 // given: the release; the browser on Windows
 // input: the route bridge drawn; the folded explanations in the section of the download
 // expect: two explanations, both folded (no open attribute): the two levels under "What is this?" and the signed warning under "Why this warning?"; the levels' text says Level 1 and Level 2, the warning's names More info and Run anyway
@@ -134,7 +134,7 @@ test("the bridge route folds the explanation of the two levels and of the warnin
 });
 
 // TST-1047005 · level: unit · module: MOD-settings-pages
-// guards: UC-044 (step 1); THE BRIDGE IS ONE FILE PER PLATFORM
+// guards: UC-044; THE BRIDGE IS ONE FILE PER PLATFORM
 // given: a release that holds, for macOS, only the updater's .zip (no .dmg); and the browser on an Android phone, which no file of the release is for
 // input: the route bridge drawn for each
 // expect: counter-proof: on macOS no file is offered — the .zip is not offered in the .dmg's place — and the page says the release holds no file for this system (class bridge-no-file); on Android likewise
@@ -169,7 +169,7 @@ const NOTES = "Agent M 2026.10.19, commit abc1234.\n\nDue diligence: read.\n\nPu
 const warningOf = (target) => byTag(target, "details").find((fold) => fold.children[0].textContent === "Why this warning?");
 
 // TST-1079001 · level: unit · module: MOD-settings-pages
-// guards: UC-044 (steps 1 and 2); THE BRIDGE IS SIGNED BY ITS PUBLISHER; EVERY STEP EXPLAINS ITSELF
+// guards: UC-044; THE BRIDGE IS SIGNED BY ITS PUBLISHER; EVERY STEP EXPLAINS ITSELF
 // given: a release whose notes hold Publisher (macOS): Acme Software Inc. and Publisher (Windows): Acme Signing GmbH; the browser on macOS, then on Windows
 // input: the route bridge drawn for each
 // expect: on macOS the name beside the file is "Acme Software Inc." and the fold of Why this warning? holds the same name; on Windows "Acme Signing GmbH" in both; the other system's name stands nowhere on the page; no "names no publisher" sentence

@@ -53,7 +53,7 @@ const foldsOf = (node) => node.childNodes.filter((child) => child.nodeType === 1
 const bodyOf = (fold) => fold.childNodes.filter((child) => child !== fold.childNodes[0]).map((child) => child.textContent).join("").replace(/\s+/g, " ").trim();
 
 // TST-107501 · level: unit · module: MOD-settings-pages
-// guards: UC-042 (every section and every line carries a folded What is this?); EVERY STEP EXPLAINS ITSELF
+// guards: UC-042; EVERY STEP EXPLAINS ITSELF
 // given: the Settings page with an instance and a product, on its tab Repositories
 // input: the two sections of repository settings are looked at
 // expect: each is a section with exactly one folded What is this? of its own, whose body says something; the two bodies differ
@@ -74,7 +74,7 @@ test("the instance's and the product's section of repository settings each carry
 });
 
 // TST-107502 · level: unit · module: MOD-settings-pages
-// guards: UC-042 (every line carries a folded What is this?); EVERY STEP EXPLAINS ITSELF
+// guards: UC-042; EVERY STEP EXPLAINS ITSELF
 // given: the same page
 // input: the ten lines of the two sections are looked at
 // expect: counter-proof — a line whose topic the explanations file does not hold has an empty explanation and fails: each of the ten lines has exactly one folded What is this? with a body of

@@ -79,7 +79,7 @@ function fakeGitHub() {
 }
 
 // TST-677005 · level: component · module: MOD-spec-changes; MOD-repository-hosts
-// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; A QUEUE IS ACCEPTED IN ITS ORDER; UC-006 4d
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; A QUEUE IS ACCEPTED IN ITS ORDER; UC-006
 // given: a product on GitHub with two queues of one open entry each, both naming SPEC.md as their target, and the reader's token
 // input: acceptEntries of entry 01 of each queue
 // expect: one commit is made; each file is asked for exactly once: SPEC.md once, and not once for each queue, and none of the 8 files of the two queues (index, decisions, proposal, rationale of each) twice

@@ -73,7 +73,7 @@ const findingsFor = (...resources) => resourceFindings(resources);
 // ---------------------------------------------------------------- resourceSchema
 
 // TST-472585 · level: unit · module: MOD-resource-list
-// guards: A PRODUCT DECLARES ITS RESOURCES; UC-040 (step 2)
+// guards: A PRODUCT DECLARES ITS RESOURCES; UC-040
 // given: the example list of the module file's Data, with a title and a sentence as every list has
 // input: the list read with resourceSchema and judged by documentFindings; resourceSchema's own rule
 // expect: no finding at all; the schema names the rule `A PRODUCT DECLARES ITS RESOURCES` and the path docs/resources.md
@@ -86,7 +86,7 @@ test("resourceSchema reads the module file's example list without a finding", ()
 });
 
 // TST-472586 · level: unit · module: MOD-resource-list
-// guards: THE RESOURCE KIND IS ONE OF A CLOSED SET; UC-040 (4a)
+// guards: THE RESOURCE KIND IS ONE OF A CLOSED SET; UC-040
 // given: a list of one row of each of the six kinds, and the same list with one row of the kind `database`
 // input: both read with resourceSchema
 // expect: the first gives no finding; the second one finding, an error naming THE RESOURCE KIND IS ONE OF A CLOSED SET
@@ -107,7 +107,7 @@ test("a resource kind outside the closed set is refused", () => {
 });
 
 // TST-472587 · level: unit · module: MOD-resource-list
-// guards: A RESOURCE IS PINNED TO AN EXACT STATE; UC-040 (4a)
+// guards: A RESOURCE IS PINNED TO AN EXACT STATE; UC-040
 // given: resources of the type Resource: a repository pinned to a full commit; the same pinned to `main`, to a seven-digit abbreviation and to a tag
 // input: resourceFindings of each; and the schema reading of a list whose repository is pinned to `main`
 // expect: none for the commit; for each of the others an error naming A RESOURCE IS PINNED TO AN EXACT STATE and the resource and the pin; the schema's reading names the same rule
@@ -126,7 +126,7 @@ test("a repository pinned to a branch name, an abbreviation or a tag is named", 
 });
 
 // TST-1039001 · level: unit · module: MOD-resource-list
-// guards: A RESOURCE IS PINNED TO AN EXACT STATE; UC-040 (3b)
+// guards: A RESOURCE IS PINNED TO AN EXACT STATE; UC-040
 // given: a model and a data entry pinned to a full 40-hex revision, to the SHA-256 of its file, and to a per-file map `<file>=<64-hex>` (the reading the pull request names)
 // input: resourceFindings of each; then of the same entries pinned to `main`, to a seven-digit abbreviation and to a tag
 // expect: none for the exact pins; for each of the others one error naming A RESOURCE IS PINNED TO AN EXACT STATE, the resource and the pin
@@ -146,7 +146,7 @@ test("a model or data pinned to a branch name, an abbreviation or a tag is named
 });
 
 // TST-472588 · level: unit · module: MOD-resource-list
-// guards: A RESOURCE DECLARES ITS LICENCE; A RESOURCE NAMES ITS MAINTAINER; A RESOURCE DECLARES WHERE IT PROCESSES DATA; A RESOURCE IS PINNED TO AN EXACT STATE; UC-040 (2a)
+// guards: A RESOURCE DECLARES ITS LICENCE; A RESOURCE NAMES ITS MAINTAINER; A RESOURCE DECLARES WHERE IT PROCESSES DATA; A RESOURCE IS PINNED TO AN EXACT STATE; UC-040
 // given: one resource of each kind with everything its kind requires; then each with a column its kind requires taken away
 // input: resourceFindings of each; a list with a repository without a licence, a compute without a place and an endpoint without a pin, read with resourceSchema and judged by documentFindings and by resourceFindings of its rows
 // expect: none for the complete ones; for the incomplete an error naming the column's rule — licence for a repository, data and a model; maintainer for a repository, data, a model and an agent; processing place for compute, an endpoint and an agent; pin for every kind but compute; and the list is refused for the same rules; the schema alone names none of them, since the columns a kind requires are stated once, in resourceFindings
@@ -179,7 +179,7 @@ test("a column its kind requires, missing, is named", () => {
 });
 
 // TST-472589 · level: unit · module: MOD-resource-list
-// guards: A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER; UC-040 (4c)
+// guards: A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER; UC-040
 // given: compute resources whose route is `bridge lab-pc`, `runner:gpu`, and `ssh gpu`, `runner:`, `bridge`, `ci hosted`
 // input: resourceFindings of each
 // expect: none for the first two; for each other an error naming A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER and the route; an endpoint with its own address as route is not judged by this rule

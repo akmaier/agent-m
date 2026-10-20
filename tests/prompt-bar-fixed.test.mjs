@@ -116,7 +116,7 @@ async function drawnBar() {
 }
 
 // TST-600034 · level: unit · module: MOD-prompt-bar
-// guards: UC-049 (1)
+// guards: UC-049
 // given: one participant offered, drafter-a on the endpoint ep1; the bar started with a main-page route as its subject
 // input: startPromptBar, until the bar is drawn
 // expect: `target` holds exactly one element, the bar's root, and its style declares `position` as `fixed`
@@ -127,7 +127,7 @@ test("the bar's root element is positioned fixed", async () => {
 });
 
 // TST-600035 · level: unit · module: MOD-prompt-bar
-// guards: UC-049 (1)
+// guards: UC-049
 // given: as TST-600034
 // input: startPromptBar, until the bar is drawn
 // expect: the bar's root style declares `bottom` as `0`, so that the bar stands on the bottom edge of the window, and declares no `top`
@@ -139,7 +139,7 @@ test("the bar's root element stands on the bottom edge", async () => {
 });
 
 // TST-600036 · level: unit · module: MOD-prompt-bar
-// guards: UC-049 (1)
+// guards: UC-049
 // given: as TST-600034
 // input: startPromptBar, until the bar is drawn
 // expect: the bar's root style declares `left` as `0` and `right` as `0`, so that the bar spans the width of the window
@@ -151,7 +151,7 @@ test("the bar's root element spans the width of the window", async () => {
 });
 
 // TST-600037 · level: unit · module: MOD-prompt-bar
-// guards: UC-049 (1, 2)
+// guards: UC-049
 // given: as TST-600034; the endpoint ep1 answers "Done."; the bar's root element is kept
 // input: the route changes — the subject the frame hands over becomes "use-case:UC-008" — and a message "go on" is sent
 // expect: the answer "Done." is shown, `target` still holds the same root element, which is the only element in it, and its style still declares

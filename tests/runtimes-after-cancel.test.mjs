@@ -62,7 +62,7 @@ function fakeProduct({ history = HISTORY, historyFails = null, commitFails = nul
 const failure = (name, fields = {}) => Object.assign(new Error(name), { name, ...fields });
 
 // TST-1023001 · level: unit · module: MOD-runtimes
-// guards: A CANCELLED JOB WRITES NOTHING MORE; UC-036 (6a)
+// guards: A CANCELLED JOB WRITES NOTHING MORE; UC-036
 // given: a job cancelled at 11:00, whose branch (named by the job's identifier) has two commits after that and one before it
 // input: liveState of the record
 // expect: writtenAfterCancel holds the two later commits, newest first, and not the earlier one; the history was read for the branch named after the job with changes: false; the live state is reachable
@@ -75,7 +75,7 @@ test("liveState reports the commits the job's branch got after the cancel", asyn
 });
 
 // TST-1023002 · level: unit · module: MOD-runtimes
-// guards: A CANCELLED JOB WRITES NOTHING MORE; UC-036 (6a)
+// guards: A CANCELLED JOB WRITES NOTHING MORE; UC-036
 // given: a cancelled job whose branch has no commit after the cancel; one whose branch does not exist (NotFound); one with a commit dated at the very moment of the end
 // input: liveState of each
 // expect: writtenAfterCancel is empty for each, and each is reachable
@@ -118,7 +118,7 @@ test("a history that cannot be read gives reachable: false and the reason, never
 });
 
 // TST-1023005 · level: unit · module: MOD-runtimes
-// guards: A CANCELLED JOB WRITES NOTHING MORE; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-036 (6a)
+// guards: A CANCELLED JOB WRITES NOTHING MORE; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-036
 // given: the two commits written after the cancel (3, which deleted src/gone.txt and changed src/kept.txt, and 4, which added src/new.txt and changed src/kept.txt); the head the branch stands at, sha(4)
 // input: revertAfterCancel(record, { host }, [sha(4), sha(3)], sha(4))
 // expect: one commit on the branch named after the job, on the head given, with three files: src/kept.txt and src/gone.txt with their text at the parent of the oldest given commit (sha(2)), src/new.txt deleted; the answer is { commit }; the texts were read by readFileAt at sha(2)

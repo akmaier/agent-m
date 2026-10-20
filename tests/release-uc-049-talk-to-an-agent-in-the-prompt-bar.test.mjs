@@ -88,7 +88,7 @@ const REVIEW_ONLY = ["CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH
 const MISSING_CHECKS = {};
 
 // TST-513201 · level: release · module: MOD-prompt-bar · MOD-site-frame
-// guards: UC-049; every requirement UC-049 realises; RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER
+// guards: UC-049; RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER
 // given: UC-049's `realises` list, SPEC's current Check lines, the system tests of UC-049 and the files that check the requirements
 // input: compare the realised requirements with COVERED_BY_RELEASE and REVIEW_ONLY, and the files the SPEC names with the files that exist; read the declarations of the system tests
 // expect: every realised requirement is either checked automatically and covered by evidence that exists, a system test among it, or checked at review only; every file the SPEC names as a requirement's check is among its evidence or is listed as missing, and a file listed as missing does not exist; the system tests declare the main flow and each alternative flow UC-049 names — 1a, 1b, 2a, 3a, 3b, 3c, 4a, 4b, 4c, 4d, 4e, 5a, 6a, 6b and 6c — and every declaration of them is at level system
@@ -130,7 +130,7 @@ test("TST-513201: UC-049 release coverage names every automatic requirement, and
 });
 
 // TST-513202 · level: release · module: MOD-prompt-bar
-// guards: UC-049; every requirement UC-049 realises
+// guards: UC-049
 // given: the files the SPEC names as the checks of the requirements UC-049 realises
 // input: ask whether each exists
 // expect: every file the SPEC names exists (the check of the secret, tests/test_no_secret_written.py, is written; MISSING_CHECKS is empty)

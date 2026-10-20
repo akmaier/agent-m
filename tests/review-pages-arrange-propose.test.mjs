@@ -157,7 +157,7 @@ const pending = (target) => byClass(target, "li", "arrange-pending-item").map((i
 const requestsToModel = () => requests.filter((request) => request.href.includes("ep1.example.test"));
 
 // TST-072701 · level: unit · module: MOD-review-pages
-// guards: UC-021 (1b); THE PAGE NAMES WHERE IT SENDS; ONE CLICK PER DECISION
+// guards: UC-021; THE PAGE NAMES WHERE IT SENDS; ONE CLICK PER DECISION
 // given: the arrangement of the use cases of a product with four use cases and a group file; the instance's register holds the drafter drafter-a (an endpoint, "this machine") and a person who only reads
 // input: the page is drawn; drafter-a is chosen and Propose groups pressed
 // expect: only drafter-a is offered; the run panel names one destination, drafter-a as drafter at "this machine", receiving the parts "the use-cases" and "docs/groups/use-cases.md", and a Run
@@ -179,7 +179,7 @@ test("arrange — Propose groups shows what is sent where, and nothing is sent o
 });
 
 // TST-072702 · level: unit · module: MOD-review-pages
-// guards: UC-021 (1b, 3, 4); ONE CLICK PER DECISION
+// guards: UC-021; ONE CLICK PER DECISION
 // given: the same page, the panel shown, and a participant whose answer is three moves: a new group Lending, UC-004 into it, and UC-002 into it
 // input: Run; then Save arrangement
 // expect: after Run the model was asked once and the moves stand as three pending changes — "Add the group “Lending”", "Move UC-004 to “Lending”", "Move UC-002 to “Lending”" — beside the tree,
@@ -205,7 +205,7 @@ test("arrange — Run starts the job in the tab, the moves stand as pending chan
 });
 
 // TST-072703 · level: unit · module: MOD-review-pages
-// guards: UC-021 (1b); RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
+// guards: UC-021; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
 // given: the arrangement of the requirements of the same product
 // input: Propose groups with drafter-a, and Run
 // expect: the request to the model holds the requirement names and, for requirements, their text ("Every loan states the date by which the book is returned.")
@@ -221,7 +221,7 @@ test("arrange — for requirements the text of each is sent with its name", asyn
 });
 
 // TST-072704 · level: unit · module: MOD-review-pages
-// guards: UC-021 (1b); THE PAGE NAMES WHERE IT SENDS
+// guards: UC-021; THE PAGE NAMES WHERE IT SENDS
 // given: the same page without a token stored for the product
 // input: the page is drawn
 // expect: counter-proof — no run panel can be shown: Propose groups offers no Run, and says that a job is recorded and its result written with the person's token; the model is asked nothing
@@ -238,7 +238,7 @@ test("arrange — without a token Propose groups offers no run", async () => {
 });
 
 // TST-072705 · level: unit · module: MOD-review-pages
-// guards: UC-021 (1b); ONE CLICK PER DECISION
+// guards: UC-021; ONE CLICK PER DECISION
 // given: the same page and no participant chosen
 // input: Propose groups pressed
 // expect: counter-proof — "Choose the participant that drafts." is said, no run panel is shown, and nothing is sent
@@ -253,7 +253,7 @@ test("arrange — Propose groups without a chosen participant says so and shows 
 });
 
 // TST-072706 · level: unit · module: MOD-review-pages
-// guards: UC-021 (1b, 3, 2a); AN ITEM HAS ONE PLACE IN ITS HIERARCHY
+// guards: UC-021; AN ITEM HAS ONE PLACE IN ITS HIERARCHY
 // given: the same page and a participant whose answer holds a good move (UC-004 into the existing group Review) and one the tree refuses (UC-002 into a group that does not exist)
 // input: Run
 // expect: the good move is a pending change; the refused one is listed among the refused moves with its reason and is no pending change; the group file is unchanged
@@ -270,7 +270,7 @@ test("arrange — a proposed move the tree refuses is listed with its reason and
 });
 
 // TST-072707 · level: unit · module: MOD-review-pages
-// guards: UC-021 (1b, 2); ONE CLICK PER DECISION
+// guards: UC-021; ONE CLICK PER DECISION
 // given: the same page where the author has already added the group "Mine" by hand
 // input: Propose groups and Run, with a participant whose answer is one move (UC-004 into Review)
 // expect: the proposal is added to what the author did: two pending changes, the author's first, and nothing the author did is lost

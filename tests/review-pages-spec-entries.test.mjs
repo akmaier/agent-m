@@ -159,7 +159,7 @@ const written = (fake) => Object.fromEntries(fake.writes()[0].change.files.map((
 // ---------------------------------------------------------------- the list
 
 // TST-472660 · level: unit · module: MOD-review-pages
-// guards: UC-006 (step 1)
+// guards: UC-006
 // given: the instance whose queue 2026-03-01_sample holds the entries 05, 06 and 07, 06 waiting for the anchor 05 creates, and an older queue with one entry already accepted by its record; a token
 // input: the route spec-entry with no id
 // expect: the queues newest first; a row for each entry with its link to #spec-entry/id=<id>, its anchor and its state — open, waiting for its anchor, in SPEC —; a tick on each entry that is open or waits and none on an accepted one; nothing written
@@ -185,7 +185,7 @@ test("spec-entry — the list: every queue with its entries' states and a tick f
 // ---------------------------------------------------------------- one entry
 
 // TST-472661 · level: unit · module: MOD-review-pages
-// guards: NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; UC-006 (steps 2, 3)
+// guards: NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; UC-006
 // given: the entry 07, which replaces section 2, with its rationale; UC-001 names no requirement of it; and the entry 05 beside it in its queue
 // input: the route spec-entry with the id of entry 07
 // expect: the section that holds now beside the proposal, with the difference between them (the old line marked removed, the new one added); the rationale; the impact list naming A WRITE RULE as changed; the queue's order with its anchors; the state open; nothing written
@@ -209,7 +209,7 @@ test("spec-entry/<id> — one entry with the current section, the proposal, thei
 // ---------------------------------------------------------------- Accept
 
 // TST-472662 · level: unit · module: MOD-review-pages
-// guards: A SPECIFICATION CHANGE IS APPROVED BEFORE IT IS WRITTEN; ONE CLICK PER DECISION; A REQUIREMENT HAS A REGISTERED SOURCE; UC-006 (steps 4, 5)
+// guards: A SPECIFICATION CHANGE IS APPROVED BEFORE IT IS WRITTEN; ONE CLICK PER DECISION; A REQUIREMENT HAS A REGISTERED SOURCE; UC-006
 // given: the instance with the entry 07 open, the links and the register, and a token
 // input: a click on Accept
 // expect: one commit holding the approval record, the SPEC with section 2 as the proposal says it, byte for byte, and the decisions with the row; the page then shows the entry in SPEC; the entry 07 is no longer offered
@@ -246,7 +246,7 @@ test("spec-entry/<id> — counter-proof: a click a script makes on Accept writes
 });
 
 // TST-472663 · level: unit · module: MOD-review-pages
-// guards: A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; UC-006 (step 6)
+// guards: A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; UC-006
 // given: the list with the entries 05 and 07 open; 07 ticked first, then 05
 // input: a click on Accept ticked
 // expect: one commit with both records; the SPEC with section 1 and section 2 as proposed and the new section "1a"; the decisions with 05's row before 07's — the order of the queue's index, not of the ticks
@@ -266,7 +266,7 @@ test("spec-entry — two ticked entries are accepted in the order of the queue's
 });
 
 // TST-472664 · level: unit · module: MOD-review-pages
-// guards: A QUEUE IS ACCEPTED IN ITS ORDER; UC-006 (step 4b)
+// guards: A QUEUE IS ACCEPTED IN ITS ORDER; UC-006
 // given: the entries 05 and 06, 06 starting with the section "1a" that 05 creates
 // input: the page of entry 06; then 06 ticked alone and Accept ticked
 // expect: no Accept on the page of 06, which says it goes only with or after 05; the click of Accept ticked refused, naming 05, and nothing written
@@ -285,7 +285,7 @@ test("spec-entry — 06 is not offered alone, and 05 is named", async () => {
 });
 
 // TST-472665 · level: unit · module: MOD-review-pages
-// guards: A STALE APPROVAL IS NOT APPLIED; UC-006 (step 4c)
+// guards: A STALE APPROVAL IS NOT APPLIED; UC-006
 // given: the entry 07 shown; then another writer changes its proposal on main
 // input: a click on Accept
 // expect: nothing written; the refusal shown; the page drawn again with the newer proposal and the entry's state as the repository gives it now, Accept offered again to decide anew
@@ -306,7 +306,7 @@ test("spec-entry/<id> — a stale entry: nothing written, its new state shown", 
 // ---------------------------------------------------------------- without a token
 
 // TST-472666 · level: unit · module: MOD-review-pages
-// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL; UC-006 (step 4d)
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL; UC-006
 // given: the instance's own SPEC and no token stored
 // input: the page of entry 07
 // expect: no Accept; a link to GitHub's new-file page whose address holds the record's path and the record and no line of the proposal, the rationale or the SPEC; nothing written
@@ -328,7 +328,7 @@ test("spec-entry/<id> — the instance without a token: a link holding the recor
 });
 
 // TST-472667 · level: unit · module: MOD-review-pages
-// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; UC-006 (step 4d)
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; UC-006
 // given: a product's SPEC — the route given the product — and no token of its own stored
 // input: the page of entry 07
 // expect: no Accept; no link to a GitHub page; the token's step, #add, linked
@@ -346,7 +346,7 @@ test("spec-entry/<id> — a product without a token: no Accept, and the token's 
 // ---------------------------------------------------------------- the person, the gaps of the first pass
 
 // TST-472668 · level: unit · module: MOD-review-pages
-// guards: ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON; ONE CLICK PER DECISION; UC-006 (step 5)
+// guards: ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON; ONE CLICK PER DECISION; UC-006
 // given: the instance with the entry 07 open, and a token whose name is "Agent M · thesis-tool"
 // input: a click on Accept
 // expect: the commit's message names that person
@@ -359,7 +359,7 @@ test("spec-entry/<id> — Accept names the person of the token in the commit", a
 });
 
 // TST-472669 · level: unit · module: MOD-review-pages
-// guards: ONE CLICK PER DECISION; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; UC-006 (step 6)
+// guards: ONE CLICK PER DECISION; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; UC-006
 // given: the list with a token and no entry ticked
 // input: the page as drawn
 // expect: Accept ticked is there and cannot be clicked, saying (0); after a tick it can, saying (1); after the tick is taken back it cannot again
@@ -379,7 +379,7 @@ test("spec-entry — Accept ticked cannot be clicked while nothing is ticked", a
 });
 
 // TST-472670 · level: unit · module: MOD-review-pages
-// guards: A STALE APPROVAL IS NOT APPLIED; UC-006 (step 4c)
+// guards: A STALE APPROVAL IS NOT APPLIED; UC-006
 // given: the entry 07 with a record of its proposal that names another section than the one the SPEC holds now
 // input: the list and the page of entry 07
 // expect: the state stale, and Accept offered to decide anew
@@ -396,7 +396,7 @@ test("spec-entry/<id> — a stale entry is shown stale and may be accepted anew"
 });
 
 // TST-472671 · level: unit · module: MOD-review-pages
-// guards: A REQUIREMENT HAS A REGISTERED SOURCE; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-006 (step 5)
+// guards: A REQUIREMENT HAS A REGISTERED SOURCE; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-006
 // given: a product's SPEC with its token; the product holds the queue and the links, the instance holds the register of sources
 // input: a click on Accept on the page of entry 07
 // expect: one commit on the product, its SPEC as proposed — the register is the instance's, not the product's
@@ -411,7 +411,7 @@ test("spec-entry/<id> — a product's entry is accepted with the instance's regi
 });
 
 // TST-472672 · level: unit · module: MOD-review-pages
-// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-006 (step 4d)
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; UC-006
 // given: a product's SPEC and no token of its own
 // input: the list
 // expect: no tick and no Accept ticked; the token's step, #add, linked
@@ -425,7 +425,7 @@ test("spec-entry — the product's list without a token: no tick, and the token'
 });
 
 // TST-472673 · level: unit · module: MOD-review-pages
-// guards: UC-006 (step 2)
+// guards: UC-006
 // given: the instance without an entry spec-2026-03-01_sample-99
 // input: the page of that id
 // expect: the page says there is no such entry and links the list; nothing written
@@ -438,7 +438,7 @@ test("spec-entry/<id> — an id no queue holds: said so, with the list linked", 
 });
 
 // TST-472674 · level: unit · module: MOD-review-pages
-// guards: NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; UC-006 (step 3)
+// guards: NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; UC-006
 // given: the entry 07 on the section "## 2. Writing"; an older queue whose entry 01 proposes the same section and is open, whose entry 02 proposes it and is decided, and whose entry 03 proposes another section and is open
 // input: the page of entry 07
 // expect: the other proposals name 01 of the older queue only
@@ -460,7 +460,7 @@ test("spec-entry/<id> — the other open proposals on the same section", async (
 // ---------------------------------------------------------------- through the one review flow
 
 // TST-472675 · level: unit · module: MOD-review-pages
-// guards: THE ENTRIES TAKE PART IN THE ONE REVIEW FLOW THROUGH THEIR DESCRIPTOR (MOD-review-pages, Responsibility: "written once as a template method"; "a kind takes part through its descriptor"); WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
+// guards: THE ENTRIES TAKE PART IN THE ONE REVIEW FLOW THROUGH THEIR DESCRIPTOR; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
 // given: the instance's entry 07, no token — the page of any other kind, an accepted-by-record use case's, offers the record with a Copy button for its path and for its text
 // input: the page of entry 07
 // expect: the flow's fallback block: the explanation, the link, the path with a Copy button and the record with a Copy button
@@ -491,7 +491,7 @@ test("spec-entry/<id> — the flow's answer to a write the token may not make: t
 });
 
 // TST-472677 · level: unit · module: MOD-review-pages
-// guards: ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; UC-006 (step 6)
+// guards: ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; UC-006
 // given: the list with a token whose name is "Agent M · thesis-tool", entry 07 ticked
 // input: a click on Accept ticked
 // expect: the commit's message names that person; and the list offers Review all, the link ITM-909's Acceptance gives the SPEC changes list (TST-909004)
@@ -596,7 +596,7 @@ test("spec-entry — the list links Review all with the number open; with none o
 });
 
 // TST-909005 · level: unit · module: MOD-review-pages
-// guards: A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; UC-006 (step 4b)
+// guards: A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; UC-006
 // given: the queue of entries 05, 06 and 07, 06 waiting for the section "1a" that 05 creates; a token
 // input: the route spec-entry with the id all; then a click on the accept-all button
 // expect: sections for 05, 06 and 07 in that order, the button "Accept all 3 shown"; the click writes one commit with the three records and the decisions rows 5, 6, 7 in that order, the SPEC with sections 1, 1a and 2 as proposed

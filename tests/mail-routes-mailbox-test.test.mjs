@@ -87,7 +87,7 @@ function fakeGraph({ folders = { Reports: 7 }, inbox = 42 } = {}) {
 }
 
 // TST-472375 · level: unit · module: MOD-mail-routes
-// guards: UC-037 (7); A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE
+// guards: UC-037; A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE
 // given: a fake Microsoft Graph that holds INBOX with 42 mails and Reports with 7, and finds Drafts and Sent; the stand-in for the library's client, signed in as reports@example.org with all three scopes
 // input: mailbox(connection of the Microsoft route, null).test()
 // expect: { counts: { INBOX: 42, Reports: 7 }, drafts: true, sent: true, sending: "works", route: "graph", encryption: a text }; and, for a sign-in whose token lacks Mail.Send, `sending` is not "works" but a text that says why
@@ -163,7 +163,7 @@ function fakeBridge(answer) {
 }
 
 // TST-472378 · level: unit · module: MOD-mail-routes
-// guards: THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE; UC-037 (7)
+// guards: THE MAILBOX PASSWORD LEAVES THE BROWSER ONLY TO THE BRIDGE; UC-037
 // given: a fake Bridge that answers the operation test with { counts, drafts, sent, sending, route, encryption }
 // input: mailbox(connection of the Bridge route, bridge).test()
 // expect: one request, POST to /v1/mail/test on the Bridge, whose JSON body is { connection, args: {} } with the connection and its password; the Bridge's token in its header; the password in the body only, in no address and no header; the answer returned as the Bridge gave it

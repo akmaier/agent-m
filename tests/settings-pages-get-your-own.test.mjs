@@ -40,7 +40,7 @@ const hrefsIn = (step) => byTag(step, "a").map((anchor) => anchor.href);
 const current = (target) => byClass(target, "step").filter((step) => step.getAttribute("aria-current") === "step").map((step) => byTag(step, "h3")[0].textContent);
 
 // TST-587001 · level: unit · module: MOD-settings-pages
-// guards: UC-014 step 1; AN INSTANCE IS A FORK OF AGENT M
+// guards: UC-014; AN INSTANCE IS A FORK OF AGENT M
 // given: known positive — the route setup, which the same view serves, renders; the original dashboard akmaier/agent-m; no owner named in the address
 // input: render the route get-your-own with no parameters
 // expect: the route stands in the view's routes, under the entry settings; the page is headed "Get your own Agent M"; it asks for the person's GitHub name in a text field
@@ -61,7 +61,7 @@ test("get-your-own — the page asks for the GitHub name and holds the four step
 });
 
 // TST-587002 · level: unit · module: MOD-settings-pages
-// guards: UC-014 step 2; AN INSTANCE IS A FORK OF AGENT M
+// guards: UC-014; AN INSTANCE IS A FORK OF AGENT M
 // given: the original dashboard akmaier/agent-m, no owner known
 // input: render the route get-your-own
 // expect: Step 1 holds one link, "Open GitHub's fork page ↗", to exactly https://github.com/akmaier/agent-m/fork, opened in a new tab with rel noopener; Steps 2, 3 and 4 hold no
@@ -80,7 +80,7 @@ test("get-your-own — without an owner, Step 1 opens GitHub's fork page of akma
 });
 
 // TST-587003 · level: unit · module: MOD-settings-pages
-// guards: UC-014 steps 3, 4 and 5; THE PAGES ROOT IS THE REPOSITORY ROOT
+// guards: UC-014; THE PAGES ROOT IS THE REPOSITORY ROOT
 // given: the original dashboard; the owner acme named in the address (#get-your-own/owner=acme)
 // input: render the route get-your-own with the parameter owner = acme
 // expect: the field holds acme; Step 2 opens exactly https://github.com/acme/agent-m/settings/pages, Step 3 exactly https://github.com/acme/agent-m/actions, and Step 4 exactly
@@ -99,7 +99,7 @@ test("get-your-own — with the owner known, each step opens its exact GitHub pa
 });
 
 // TST-587004 · level: unit · module: MOD-settings-pages
-// guards: UC-014 step 3
+// guards: UC-014
 // given: the original dashboard; the owner acme
 // input: render the route get-your-own with owner = acme; read Step 2's words
 // expect: Step 2 says what to choose on GitHub's page: "Deploy from a branch", the branch "main", the folder "/ (root)" and "Save"
@@ -110,7 +110,7 @@ test("get-your-own — Step 2 says what to choose on the Pages settings page", a
 });
 
 // TST-587005 · level: unit · module: MOD-settings-pages
-// guards: UC-014 step 4, 4a
+// guards: UC-014
 // given: the original dashboard; the owner acme
 // input: render the route get-your-own with owner = acme; read Step 3's words and buttons
 // expect: Step 3 says the workflows are needed only to fetch EU legal texts and to write an accepted change of the instance's own SPEC without a token; it says GitHub disables
@@ -128,7 +128,7 @@ test("get-your-own — Step 3 says what the workflows are for and offers Later",
 });
 
 // TST-587006 · level: unit · module: MOD-settings-pages
-// guards: UC-014 step 4
+// guards: UC-014
 // given: the original dashboard; the owner acme; Step 3 current (step = actions)
 // input: press Later
 // expect: Step 4 becomes the current step and Step 3 is not; the page navigated nowhere (context.go was not called) and stored nothing in this browser
@@ -142,7 +142,7 @@ test("get-your-own — Later moves on to Step 4, navigates nowhere and stores no
 });
 
 // TST-587007 · level: unit · module: MOD-settings-pages
-// guards: UC-014 step 4a; EVERY STEP EXPLAINS ITSELF
+// guards: UC-014; EVERY STEP EXPLAINS ITSELF
 // given: the instance acme/agent-m, a person's own fork; the address #get-your-own/step=actions as the review pages link it, with no owner in it
 // input: render the route get-your-own with the parameter step = actions
 // expect: the Actions step, Step 3, is the one current step, and no other; the field holds acme, the owner of the instance; Step 3 opens exactly https://github.com/acme/agent-m/actions
@@ -154,7 +154,7 @@ test("get-your-own — the address with step=actions opens the Actions step, the
 });
 
 // TST-587008 · level: unit · module: MOD-settings-pages
-// guards: UC-014 steps 2 to 5
+// guards: UC-014
 // given: the original dashboard; known positive — step = actions makes Step 3 current; counter-proofs — step = pages, step = open, step = fork and an unknown step
 // input: render the route with each of the parameters step = pages, open, fork and nonsense
 // expect: pages makes Step 2 the one current step, open Step 4, fork Step 1, and the unknown name Step 1
@@ -166,7 +166,7 @@ test("get-your-own — each step name opens its step, and an unknown name opens 
 });
 
 // TST-587009 · level: unit · module: MOD-settings-pages
-// guards: UC-014 step 1; EVERY STEP EXPLAINS ITSELF
+// guards: UC-014; EVERY STEP EXPLAINS ITSELF
 // given: the original dashboard; no owner
 // input: type acme into the field, then acme corp/evil, then an empty name
 // expect: after acme the links of Steps 2 to 4 are those of acme (settings/pages, actions, acme.github.io/agent-m/) and say nothing of entering a name first; after
@@ -186,7 +186,7 @@ test("get-your-own — typing the GitHub name fills the links of Steps 2 to 4, a
 });
 
 // TST-587010 · level: unit · module: MOD-settings-pages
-// guards: UC-014 "Both steps carry a folded What is this?"; EVERY STEP EXPLAINS ITSELF
+// guards: UC-014; EVERY STEP EXPLAINS ITSELF
 // given: known positive — explain("repository") is a folded details of class explain; the frame's topics get-your-own-fork, get-your-own-pages, get-your-own-actions and
 //   get-your-own-open, each non-empty
 // input: render the route get-your-own with owner = acme; read the folded explanations of each step
@@ -209,7 +209,7 @@ test("get-your-own — every step carries the frame's folded explanation of its 
 });
 
 // TST-587011 · level: unit · module: MOD-settings-pages
-// guards: UC-014 "Agent M's MIT licence, shown with a folded explanation"; AGENT M IS MIT-LICENSED; EVERY STEP EXPLAINS ITSELF
+// guards: UC-014; AGENT M IS MIT-LICENSED; EVERY STEP EXPLAINS ITSELF
 // given: the original dashboard
 // input: render the route get-your-own; read the licence's words and fold
 // expect: the page says Agent M is MIT-licensed and that the licence of every product stays the person's; beside it a folded explanation, the frame's explain of the topic
@@ -227,7 +227,7 @@ test("get-your-own — the MIT licence is stated with a folded explanation", asy
 });
 
 // TST-587017 · level: unit · module: MOD-settings-pages
-// guards: UC-014 step 1; EVERY STEP EXPLAINS ITSELF
+// guards: UC-014; EVERY STEP EXPLAINS ITSELF
 // given: the original dashboard
 // input: render the route get-your-own; read the paragraph of the GitHub name
 // expect: the field has a label "Your GitHub name — or the organisation to fork into"; beneath it a folded explanation, the frame's explain of the topic get-your-own-owner; it is outside the four steps
@@ -243,7 +243,7 @@ test("get-your-own — the GitHub name carries the folded reason for an account 
 });
 
 // TST-587012 · level: unit · module: MOD-settings-pages
-// guards: UC-014 step 5; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; CONFIGURATION LIVES IN THE BROWSER
+// guards: UC-014; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; CONFIGURATION LIVES IN THE BROWSER
 // given: the original dashboard; a fake of fetch that records every request; an empty store
 // input: render the route with owner = acme, type bravo into the field, press Later
 // expect: no request was made, and nothing is stored in this browser

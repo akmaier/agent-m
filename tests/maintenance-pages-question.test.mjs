@@ -35,7 +35,7 @@ async function ready(texts = []) {
 }
 
 // TST-1026201 · level: unit · module: MOD-maintenance-pages
-// guards: THE PAGE NAMES WHERE IT SENDS; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; UC-039 (1a)
+// guards: THE PAGE NAMES WHERE IT SENDS; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; UC-039
 // given: the open issue 6 and its mail, found, without a draft; a mailbox that allows the place "this machine"; a register with local-llm there and cloud-llm in the USA
 // input: the person's click on Draft question; the point typed, local-llm chosen, a name given
 // expect: a section opens with a field for the point and the participants — local-llm alone —; no run panel before the point, a participant and a name are given; then the run panel names local-llm and its place and the parts it receives:
@@ -63,7 +63,7 @@ test("Draft question asks for the person's point and a participant at an allowed
 });
 
 // TST-1026202 · level: unit · module: MOD-maintenance-pages
-// guards: A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER; EVERY OUTGOING MAIL IS RELEASED BY A PERSON; NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY; UC-039 (1a)
+// guards: A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER; EVERY OUTGOING MAIL IS RELEASED BY A PERSON; NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY; UC-039
 // given: the run panel of TST-1026201 and a model endpoint that returns a question for the mail
 // input: a click a script makes on Run; the person's click on Run
 // expect: the script's click asks nothing; the endpoint is asked once and its request holds the person's point; the question is stored as a draft through the mailbox, to that reporter alone, subject Re: its subject, the text above the original quoted;
@@ -105,7 +105,7 @@ test("Run drafts the question with the participant and stores it as a draft show
 });
 
 // TST-1026203 · level: unit · module: MOD-maintenance-pages
-// guards: UC-039 (1a)
+// guards: UC-039
 // given: the closed issue 4 and the open issue 6
 // input: the issues drawn
 // expect: Draft question is offered on the open issue's mail and not on the closed issue's (a closed issue's mail is answered, not asked)

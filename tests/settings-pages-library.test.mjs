@@ -147,7 +147,7 @@ async function register(page, routeName) {
 }
 
 // TST-472750 · level: unit · module: MOD-settings-pages
-// guards: THE INSTANCE KEEPS THE SOURCE REGISTER; UC-004 1
+// guards: THE INSTANCE KEEPS THE SOURCE REGISTER; UC-004
 // given: an instance whose register holds two sources, one with a version of one file, one whose copy was only hashed
 // input: the route `library`
 // expect: each source listed by its name with its kind and its versions, the names in the order of the register; the register's files under a source's own folder are not sources; nothing is requested of the instance but its register and nothing is committed
@@ -165,7 +165,7 @@ test("library — the register's sources are listed with their versions, and not
 });
 
 // TST-472751 · level: unit · module: MOD-settings-pages
-// guards: ONE CLICK PER DECISION; A SOURCE DECLARES ITS AUTHORITY; THE SOURCE KIND IS ONE OF A CLOSED SET; UC-004 2, 3
+// guards: ONE CLICK PER DECISION; A SOURCE DECLARES ITS AUTHORITY; THE SOURCE KIND IS ONE OF A CLOSED SET; UC-004
 // given: + Register source, and each route chosen in turn
 // input: the route field
 // expect: for each route its own part and the others hidden; the form from the entry's schema with the kind preset — regulation, standard, document, system —, the standard's licence preset to restricted and the others' empty, and Save disabled while the form holds an error; a sentence and an example for each route, and the folded explanation of the kinds
@@ -191,7 +191,7 @@ test("library — + Register source offers the four routes, each with its form f
 });
 
 // TST-472752 · level: unit · module: MOD-settings-pages
-// guards: A STANDARD IS REGISTERED BY ITS DESIGNATION; UC-004 4
+// guards: A STANDARD IS REGISTERED BY ITS DESIGNATION; UC-004
 // given: the standard route; the EU legal text route with an EUR-Lex address and with an address that names no text; the repository route
 // input: the designation entered; the address pasted; the repository address pasted, a stored token reading its current commit
 // expect: the designation in the form's field, its explanation folded; the CELEX number recognised from the address — 32024R1689 for the AI Act — and shown, in the form's identifier; an address naming no text says so; the repository pinned to the commit its default branch stands at, shown and its address in the form's identifier
@@ -244,7 +244,7 @@ async function chooseFiles(page, files) {
 }
 
 // TST-472753 · level: unit · module: MOD-settings-pages
-// guards: RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION; UC-004 4, 5, 6
+// guards: RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION; UC-004
 // given: the documents route, two files selected, a licence that may be republished
 // input: the form filled in, Save once
 // expect: before Save nothing committed, the files hashed in the browser and shown with their SHA-256, and a statement that the entry and the files become public; one click commits to the instance the entry `docs/sources/SRC-handbook.md` with its first version, the day of registration, and each file under docs/sources/SRC-handbook/<version>/, bytes as selected; no other repository is asked
@@ -285,7 +285,7 @@ function slowDigest(t, ms) {
 }
 
 // TST-1011001 · level: unit · module: MOD-settings-pages
-// guards: UC-004 4; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
+// guards: UC-004; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
 // given: the documents route, the two files of TST-472753 ("# A\n", "# B\n"), and a browser whose every SHA-256 takes 20 ms longer than it does here
 // input: the two files chosen
 // expect: however long the hashing takes, the page shows both files, each with the SHA-256 of its own bytes, in the order chosen — sha256("# A\n") = aa1237b773c38dbddef583c4868aaea7a44c5237ea7923aecca5513764b42d80 and sha256("# B\n") = a81d3fbddd441e2d690b9c03c18251323a295c8eb8ebbfb81ca45b63bf8d5a06 — and the test does not read the page before it shows them
@@ -300,7 +300,7 @@ test("library — the files' hashes are shown whatever time the browser takes to
 });
 
 // TST-472754 · level: unit · module: MOD-settings-pages
-// guards: RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; A SOURCE DECLARES ITS LICENCE; UC-004 3, 4b, 6
+// guards: RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; A SOURCE DECLARES ITS LICENCE; UC-004
 // given: the documents route, two files, a licence `restricted`; and the same with `unknown`; the named repository without and with its address
 // input: the form filled in; Save
 // expect: without a named repository an error beside the form and Save disabled, for `unknown` as for `restricted`; with it the statement names that repository; Save commits the files only to it, at docs/sources/SRC-paid/<version>/, then the entry, which holds no file, to the instance, with `content_repository` the named address
@@ -331,7 +331,7 @@ test("library — restricted content goes only to the repository the person name
 });
 
 // TST-472755 · level: unit · module: MOD-settings-pages
-// guards: A STANDARD IS REGISTERED BY ITS DESIGNATION; RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; UC-004 4a
+// guards: A STANDARD IS REGISTERED BY ITS DESIGNATION; RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; UC-004
 // given: the standard route, a printed copy's file selected and only hashed, with the note `cabinet 3, shelf B` where the copy is kept; a licence preset restricted; the file explained
 // input: Save
 // expect: the file's SHA-256 shown and the statement that nothing of it is stored; one commit holding the entry alone — no file anywhere — whose version records the file with its hash and the note `not stored:`; no named repository is asked
@@ -360,7 +360,7 @@ test("library — a file that is only hashed is stored nowhere, and the note rec
 });
 
 // TST-576007 · level: unit · module: MOD-settings-pages
-// guards: A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; UC-004 4a
+// guards: A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; UC-004
 // given: the standard route, a printed copy's file iso-26262.pdf selected, the form filled in; the reading taken: the refusal of a file without a note is MOD-source-register's NoteMissing, not a check of the page, so Save is not disabled by the page
 // input: the file listed, then "Only hash it" ticked, then Save with no note, then the note `cabinet 3, shelf B` typed and Save once more
 // expect: before the tick the field for the note is hidden, after it shown; the first Save commits nothing to the instance, asks no named repository, and its result names iso-26262.pdf and does not say the source is registered; the second Save makes one commit holding the entry alone, whose file table under `### Files of ISO 26262:2018` is `| File | SHA-256 | Kept at |`, `|---|---|---|` and the row `| `iso-26262.pdf` | `<SHA-256>` | cabinet 3, shelf B |`
@@ -394,7 +394,7 @@ test("library — a file that is only hashed asks where its copy is kept, and wi
 });
 
 // TST-576008 · level: unit · module: MOD-settings-pages
-// guards: A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; UC-004 4a
+// guards: A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; UC-004
 // given: the documents route, two files a.md and b.md, a licence that may be republished; the first only hashed with the note `cabinet 3, shelf B`, the second kept
 // input: the form filled in, Save
 // expect: the instance gets the entry and b.md, not a.md; the file table has the row of a.md ending `| cabinet 3, shelf B |` and the row of b.md ending `| — |`; the field for the note of the second file is hidden
@@ -420,7 +420,7 @@ test("library — each file only hashed has its own note, and a file kept has a 
 });
 
 // TST-472756 · level: unit · module: MOD-settings-pages
-// guards: RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; UC-004 4c
+// guards: RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; UC-004
 // given: restricted files and a named repository that the token cannot reach (forbidden), and one that is not found
 // input: Save
 // expect: the repository named in the message, that the token cannot reach it, and the server's page to extend the token as a link; nothing is committed to the instance, so the entry never names content that was not stored; the form stays as it was
@@ -445,7 +445,7 @@ test("library — a named repository the token cannot reach is named, with how t
 });
 
 // TST-472757 · level: unit · module: MOD-settings-pages
-// guards: THE INSTANCE KEEPS THE SOURCE REGISTER; UC-004 1a
+// guards: THE INSTANCE KEEPS THE SOURCE REGISTER; UC-004
 // given: a register that holds EU AI Act (SRC-eu-ai-act) and IEC 62304 with its designation; a registration of the same title, of the same identifier, and of the standard's designation
 // input: the form filled in
 // expect: each named as already in the library with its identifier, Save disabled, and a button that leads to its entry; a name that no entry has is not
@@ -474,7 +474,7 @@ test("library — a source already in the library is named, with its entry linke
 });
 
 // TST-472758 · level: unit · module: MOD-settings-pages
-// guards: THE INSTANCE KEEPS THE SOURCE REGISTER; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; UC-004 1
+// guards: THE INSTANCE KEEPS THE SOURCE REGISTER; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; UC-004
 // given: a register with a source whose one file is stored and one whose copy was only hashed
 // input: the source's name clicked in the list; the entry's route
 // expect: the click goes to library with the source; the entry shows its fields, its versions with their files, the stored file as stored and the file only hashed as not stored
@@ -495,7 +495,7 @@ test("library — a registered source's name leads to its entry, which shows eac
 });
 
 // TST-472759 · level: unit · module: MOD-settings-pages
-// guards: A LIVING SOURCE IS PINNED; THE INSTANCE KEEPS THE SOURCE REGISTER; UC-004 4, 6; 7
+// guards: A LIVING SOURCE IS PINNED; THE INSTANCE KEEPS THE SOURCE REGISTER; UC-004
 // given: the EU legal text route with the AI Act's address; the repository route with a repository pinned to its commit
 // input: Save for each
 // expect: the legal text as its entry alone, its identifier the CELEX number and no version row — the fetch is not part of this —; the repository's entry with a version naming the address and the commit it was pinned to, no file stored
@@ -528,7 +528,7 @@ test("library — an EU legal text is registered as its entry alone, a repositor
 });
 
 // TST-402001 · level: unit · module: MOD-settings-pages
-// guards: AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; ONE CLICK PER DECISION; UC-004 7, 7a
+// guards: AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; ONE CLICK PER DECISION; UC-004
 // given: the library holds three EU legal-text entries: one whose identifier is an EUR-Lex address and has no version rows, one fetched with a version row, and one waiting whose latest onSourcesCommitted run failed naming that source
 // input: the route `library`, then the waiting source's Fetch again button
 // expect: the first source is shown as waiting with Fetch again; the fetched source is shown fetched from its entry; the failed source shows the failure from the run log; Fetch again starts `fetch-sources.yml` once on the default branch with the input source = that entry, and commits nothing from the page itself
@@ -555,7 +555,7 @@ test("library — legal text fetch state is derived from the entry and workflow 
 });
 
 // TST-472760 · level: unit · module: MOD-settings-pages
-// guards: ONE CLICK PER DECISION; RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; UC-004 5
+// guards: ONE CLICK PER DECISION; RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; UC-004
 // given: the documents route, a licence that may be republished, then restricted with a named repository, then only hashed
 // input: the licence and the choices changed
 // expect: the statement before Save follows: the entry always public; the files public in the instance; the files only in the named repository; nothing stored for a file only hashed
@@ -577,7 +577,7 @@ test("library — what becomes public is stated before Save and follows the lice
 });
 
 // TST-472761 · level: unit · module: MOD-settings-pages
-// guards: EVERY STEP EXPLAINS ITSELF; UC-004 3
+// guards: EVERY STEP EXPLAINS ITSELF; UC-004
 // given: the routes' parts and the form
 // input: the page
 // expect: the folded explanations of the kinds, the name, the authority, the licence, the standard's designation, the file only hashed and what becomes public, each a closed details
@@ -596,7 +596,7 @@ test("library — each step's explanation is folded", async (t) => {
 });
 
 // TST-472762 · level: unit · module: MOD-settings-pages
-// guards: THE SOURCE MODEL IS GENERIC; THE SOURCE KIND IS ONE OF A CLOSED SET; A STANDARD IS REGISTERED BY ITS DESIGNATION; A LIVING SOURCE IS PINNED; UC-004 3, 4
+// guards: THE SOURCE MODEL IS GENERIC; THE SOURCE KIND IS ONE OF A CLOSED SET; A STANDARD IS REGISTERED BY ITS DESIGNATION; A LIVING SOURCE IS PINNED; UC-004
 // given: the form filled in correctly for each route but for one thing: no file selected, an identifier that is no SRC- identifier, a kind outside the closed set, no designation for a standard, no EU legal text recognised, no repository pinned
 // input: the form
 // expect: Save disabled with the thing named beside the form, and enabled once it is put right
@@ -643,7 +643,7 @@ test("library — the schema's checks and the route's missing part keep Save dis
 });
 
 // TST-472763 · level: unit · module: MOD-settings-pages
-// guards: THE SOURCE MODEL IS GENERIC; EVERY STEP EXPLAINS ITSELF; UC-004 3
+// guards: THE SOURCE MODEL IS GENERIC; EVERY STEP EXPLAINS ITSELF; UC-004
 // given: the entry's schema, which names its rule (ITM-458), and MOD-site-frame's schemaForm built over it by the test itself
 // input: the page's form for each route
 // expect: the page's form has the fields schemaForm builds for that schema — one for each key of the front matter, `places` among them, and one editor for each section the schema names —, in the same order; its findings are documentFindings' (the schema's rule shown with them); it has no Save of the page's own, schemaForm's alone; and the page's form is not a form the page builds inside library.mjs: the same text of fields as the test's own schemaForm

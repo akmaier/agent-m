@@ -54,7 +54,7 @@ const ROWS = [
 ];
 
 // TST-600010 · level: unit · module: MOD-prompt-bar
-// guards: UC-049 (Precondition, 1b); THE PAGE NAMES WHERE IT SENDS
+// guards: UC-049; THE PAGE NAMES WHERE IT SENDS
 // given: a register of ten participants — endpoints ep-local (setting stored), ep-missing (no setting), ep-bridged (setting stored, naming the stored Bridge mac), ep-lost-bridge (setting stored, naming a Bridge not stored); CLI agent cli-on-bridge (Bridge mac stored), cli-no-bridge (Bridge not stored), sub (route `through cli-on-bridge`); sandboxed agent box (Bridge mac stored); CI agent ci; person alice
 // input: readParticipants(snapshot), then offeredAmong(participants, store)
 // expect: ten participants read in the register's order; offered, in that order: ep-local, ep-bridged, cli-on-bridge, box — and none of ep-missing, ep-lost-bridge, cli-no-bridge, sub, ci, alice
@@ -70,7 +70,7 @@ test("offeredAmong — an endpoint or an agent this browser reaches; never a sub
 });
 
 // TST-600011 · level: unit · module: MOD-prompt-bar
-// guards: UC-049 (1a); THE PAGE NAMES WHERE IT SENDS
+// guards: UC-049; THE PAGE NAMES WHERE IT SENDS
 // given: a store that keeps no endpoint and no Bridge, a register of one endpoint and one CLI agent; and an instance with no register at all
 // input: offeredAmong over the first register's participants; readParticipants over a snapshot without docs/participants.md
 // expect: nothing offered for the first; no participants (an empty list) for the second
@@ -93,7 +93,7 @@ test("placeOf — the declared place, or the statement that none is declared", (
 });
 
 // TST-600013 · level: unit · module: MOD-prompt-bar
-// guards: UC-049 (3a); UC-019 (4a, 4b)
+// guards: UC-049; UC-019
 // given: a prepared job with one finding that keeps it from starting, and one that does not fit the participant tiny (context 100, size 400), with the offered participants tiny, big (context 1000) and unknown (no context)
 // input: whyNot(prepared, offered)
 // expect: two lines — the finding as the run panel shows it (kind, what, fix, [rule]), and "tiny does not hold this message: its context holds 100 tokens, the job needs about 400. Choose big, whose context is larger."

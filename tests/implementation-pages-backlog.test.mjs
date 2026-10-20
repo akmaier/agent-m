@@ -137,7 +137,7 @@ function part(html, marker) {
 const row = (html, item) => { const at = html.indexOf(`data-item="${item}"`); return at < 0 ? "" : html.slice(at, html.indexOf("</tr>", at)); };
 
 // TST-681001 · level: unit · module: MOD-implementation-pages
-// guards: UC-032; UC-035; the user's order of the page
+// guards: UC-032; UC-035
 // given: the fixture product with both teams named by their role assignments
 // input: the route backlog's render
 // expect: the route is named backlog, under the entry implementation, titled Backlog; the page holds the head, then team1's panel, then team2's, then the backlog, then the names no item realises yet — in that order —, and a folded What is this? in the head
@@ -151,7 +151,7 @@ test("the backlog page shows the teams' sprints first, then the backlog, then wh
 });
 
 // TST-681002 · level: unit · module: MOD-implementation-pages
-// guards: UC-032 step 1; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES
+// guards: UC-032; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES
 // given: the fixture: ITM-001 merged into team1's sprint branch, ITM-002's pull request open, ITM-003 and ITM-005 ready, ITM-004 builds on ITM-003, ITM-006 realises a requirement that is not accepted; a pull request that names no item, and one of ITM-005 merged into a branch that is no sprint's
 // input: the route's render
 // expect: one row per item, each after the items it builds on — ITM-001 to ITM-006; ITM-001 done, ITM-002 in progress, ITM-003 ready, ITM-004 waiting for an item it builds on, naming ITM-003, ITM-006 waiting for acceptance, naming RULE NOT ACCEPTED; ITM-005 stays ready (a pull request into another branch counts for nothing) and is marked as kept from team2, naming the sprint team1/01, the item ITM-001 and the module MOD-store
@@ -260,7 +260,7 @@ test("without a token for the product Start sprint is disabled and says why", as
 });
 
 // TST-681007 · level: unit · module: MOD-implementation-pages
-// guards: UC-032 steps 5 and 6; EVERY STEP EXPLAINS ITSELF
+// guards: UC-032; EVERY STEP EXPLAINS ITSELF
 // given: the fixture, with ITM-1000 and ITM-999 among the items, and ITM-007, which builds on ITM-008, and an accepted use case no item realises, and an open one
 // input: the route's render
 // expect: the backlog lists the items in the order of their numbers — ITM-999 before ITM-1000 — except that ITM-008 stands before ITM-007, which builds on it; the names no item realises lists RULE TWO as an accepted requirement and UC-001 as an accepted use case, and not UC-002, which is open; every panel carries a folded explanation (details.explain)
@@ -284,7 +284,7 @@ test("items of four digits stand in the order of their numbers, and what no item
 });
 
 // TST-681008 · level: unit · module: MOD-implementation-pages
-// guards: UC-002; UC-032 1b
+// guards: UC-002; UC-032
 // given: a product that declares no process model; one whose declaration names a model file the catalogue does not hold; one whose model plans its work in advance (a V-model); one whose model works without sprints (Kanban, with a limit of 3)
 // input: the route's render for each
 // expect: the first says the product declares no process model yet and names docs/process.md; the second names the model file that the catalogue does not hold; the third says there is no backlog and links Progress; the fourth shows no team panel and the part Work in progress with its limit
@@ -366,7 +366,7 @@ test("Start sprint is taken up only on a trusted click", async () => {
 });
 
 // TST-681012 · level: unit · module: MOD-implementation-pages
-// guards: UC-031 step 6a; THE CATALOGUE IS DATA
+// guards: UC-031; THE CATALOGUE IS DATA
 // given: a declaration whose model_version names a commit of the instance; the model file at that commit plans sprints, and the same file now declares none (Sprints no)
 // input: the route's render with the two hosts
 // expect: the model is read as it stood at the commit the declaration names: the teams' sprint panels are drawn and the page does not say that the model works without sprints

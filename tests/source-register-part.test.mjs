@@ -85,7 +85,7 @@ test("source-excerpt — without a part, every file of the version, in its order
 });
 
 // TST-472915 · level: unit · module: MOD-source-register
-// guards: A LINK NAMES THE PART THAT APPLIES; UC-005 2a
+// guards: A LINK NAMES THE PART THAT APPLIES; UC-005
 // given: the same version; a part naming two of its files, given in another order than the version's
 // input: source-excerpt with { source: "SRC-handbook", part: ["03_third.md", "01_first.md"] }
 // expect: one part whose text is those two files in the version's order — first, then third —, a blank line between them, and not the second; its name names the version, the two files and the link's part
@@ -115,7 +115,7 @@ test("source-excerpt — a part that names a file the version does not hold is r
 });
 
 // TST-472917 · level: unit · module: MOD-source-register
-// guards: UC-005 2a; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY
+// guards: UC-005; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY
 // given: a version of one file
 // input: source-excerpt with no part; with a part naming its file; with a part naming a file it does not hold
 // expect: the file, whole, for the first two — a version of one file has no smaller part, and naming its one file sends it whole —; for the third NotInVersion naming the file it lacks, as for any version, and nothing read
@@ -147,7 +147,7 @@ test("source-excerpt — a restricted source's part reads only its named files f
 });
 
 // TST-472919 · level: unit · module: MOD-source-register
-// guards: NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY; UC-005 2a
+// guards: NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY; UC-005
 // given: the three-file version; a part that names no file — an empty list
 // input: source-excerpt with { source: "SRC-handbook", part: [] }
 // expect: the whole version, as without a part

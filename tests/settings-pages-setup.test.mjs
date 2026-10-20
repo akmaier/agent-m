@@ -57,7 +57,7 @@ async function storeAs(page, token, expires, answer) {
 }
 
 // TST-588001 · level: unit · module: MOD-settings-pages
-// guards: UC-014 step 7; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; ONE GITHUB TOKEN SERVES EVERY FEATURE
+// guards: UC-014; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; ONE GITHUB TOKEN SERVES EVERY FEATURE
 // given: a fresh store; the instance akmaier/agent-m; no token
 // input: render the route `setup`
 // expect: the page is headed "Finish setting up your instance" and holds the steps "Step A · Create your key on GitHub" and "Step B · Give the key to Agent M"; Step A's link opens GitHub's page for a new fine-grained token with exactly the name "Agent M · akmaier/agent-m", the description "Agent M dashboard of akmaier/agent-m: commits, issues, pull requests and runs of the work you start.", the owner akmaier, 90 days and the permissions contents, issues, pull_requests, actions and workflows write and metadata read; beneath it the three instructions: choose Only select repositories, pick akmaier/agent-m — nothing else, press Generate token and copy it
@@ -87,7 +87,7 @@ test("setup — Step A links GitHub's prefilled token page and spells out Only s
 });
 
 // TST-588002 · level: unit · module: MOD-settings-pages
-// guards: UC-014 steps 7 and 8; EVERY STEP EXPLAINS ITSELF
+// guards: UC-014; EVERY STEP EXPLAINS ITSELF
 // given: a fresh store; the instance akmaier/agent-m; known positive — explain("repository") is a folded details of class explain
 // input: render the route `setup`; read the folded explanations
 // expect: exactly three <details class="explain">, all folded, none built by the route. Step A holds two, in this order: first the frame's explain("setup-key") under the summary "What is this?", then the frame's explain("setup-key-permissions", "Why these?") under the summary "Why these?". Step B holds one: the frame's explain("setup-store") under the summary "What is this?". Each of the three topics is a non-empty folded details of the frame
@@ -114,7 +114,7 @@ test("setup — Step A carries the frame's What is this? for setup-key and its W
 });
 
 // TST-588003 · level: unit · module: MOD-settings-pages
-// guards: UC-014 step 8, 7a; THE SHARED PAGES ORIGIN IS DISCLOSED; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; A FORM OPENS WITH ITS FIRST FIELD FOCUSED
+// guards: UC-014; THE SHARED PAGES ORIGIN IS DISCLOSED; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; A FORM OPENS WITH ITS FIRST FIELD FOCUSED
 // given: a fresh store without an acknowledgement
 // input: render the route `setup`; press Import settings
 // expect: Step B states "Everything Agent M stores in this browser is stored for the address https://akmaier.github.io — every GitHub Pages site under that same akmaier.github.io domain can read it."; the box "I have read this." is not ticked and has the focus; the token field, the expiry field and Store and check are disabled; the expiry is preset to 90 days from today; Store and check names where it sends; Import settings stands in the same paragraph as Store and check, and pressing it goes to the route settings and stores nothing
@@ -140,7 +140,7 @@ test("setup — Step B shows the shared-origin notice with its box unticked and 
 });
 
 // TST-588004 · level: unit · module: MOD-settings-pages
-// guards: UC-014 step 8; THE SHARED PAGES ORIGIN IS DISCLOSED; A FORM OPENS WITH ITS FIRST FIELD FOCUSED
+// guards: UC-014; THE SHARED PAGES ORIGIN IS DISCLOSED; A FORM OPENS WITH ITS FIRST FIELD FOCUSED
 // given: a fresh store without an acknowledgement
 // input: tick I have read this; then untick it
 // expect: on the tick the acknowledgement is stored under acknowledged:shared-origin as a date YYYY-MM-DD, the token field, the expiry field and Store and check open, and the focus moves to the token field; on the untick the entry is removed from localStorage and the three are shut again
@@ -158,7 +158,7 @@ test("setup — ticking the notice stores its acknowledgement and opens the fiel
 });
 
 // TST-588005 · level: unit · module: MOD-settings-pages
-// guards: UC-014 step 8; A FORM OPENS WITH ITS FIRST FIELD FOCUSED
+// guards: UC-014; A FORM OPENS WITH ITS FIRST FIELD FOCUSED
 // given: a store that holds the acknowledgement of the shared-origin notice
 // input: render the route `setup`
 // expect: the box is ticked, the token field, the expiry field and Store and check are open, and the focus is on the token field
@@ -170,7 +170,7 @@ test("setup — with the notice already acknowledged the page opens with its box
 });
 
 // TST-588006 · level: unit · module: MOD-settings-pages
-// guards: UC-014 steps 8 and 9; CONFIGURATION LIVES IN THE BROWSER; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A TOKEN IS SCOPED TO WHAT IT WRITES
+// guards: UC-014; CONFIGURATION LIVES IN THE BROWSER; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A TOKEN IS SCOPED TO WHAT IT WRITES
 // given: a fresh store, the notice ticked, a public repository akmaier/agent-m that the server answers with its default branch main
 // input: paste the token github_pat_MINE0123456789abcdefghijkl, set the expiry 2027-01-15, press Store and check
 // expect: localStorage holds exactly the acknowledgement and github-token, the latter { value: the pasted token, name: "Agent M · akmaier/agent-m", expires: "2027-01-15", stored: today }; the token field is emptied; exactly one request is sent, a GET of https://api.github.com/repos/akmaier/agent-m carrying "Bearer " and the token; the check line reads "✓ akmaier/agent-m reachable — public, so write access is confirmed only by the first write"; the page offers "Your instance is ready →" and "+ Add a product"; nothing is written to the server
@@ -186,7 +186,7 @@ test("setup — Store and check keeps the token and its expiry in this browser, 
 });
 
 // TST-588007 · level: unit · module: MOD-settings-pages
-// guards: UC-014 step 8; A TOKEN IS SCOPED TO WHAT IT WRITES
+// guards: UC-014; A TOKEN IS SCOPED TO WHAT IT WRITES
 // given: a fresh store, the notice ticked, a private repository akmaier/agent-m
 // input: paste a token and press Store and check
 // expect: the check line reads "✓ akmaier/agent-m reachable" and nothing more, and the instance is shown ready
@@ -198,7 +198,7 @@ test("setup — a private instance is reported reachable without the note on pub
 });
 
 // TST-588008 · level: unit · module: MOD-settings-pages
-// guards: UC-014 step 9; ONE CLICK PER DECISION
+// guards: UC-014; ONE CLICK PER DECISION
 // given: the instance shown ready after Store and check
 // input: press "Your instance is ready →"; then press "+ Add a product"
 // expect: the first goes to the page main, the second to the route add-product, each once and with no parameters
@@ -212,7 +212,7 @@ test("setup — the ready buttons lead to the main page and to Add a product", a
 });
 
 // TST-588009 · level: unit · module: MOD-settings-pages
-// guards: UC-014 step 8; THE GITHUB TOKEN IS PASTED, NOT OBTAINED BY LOGIN
+// guards: UC-014; THE GITHUB TOKEN IS PASTED, NOT OBTAINED BY LOGIN
 // given: a fresh store, the notice ticked
 // input: paste the text "my password" and press Store and check
 // expect: nothing is stored but the acknowledgement; no request is sent; the check line reads "Nothing was stored: the token under github-token is refused. That is no token of either server." — connect's refusal, setup keeping no form of a token of its own; the instance is not shown ready
@@ -226,7 +226,7 @@ test("setup — a text that is no GitHub token is refused: nothing is stored, no
 });
 
 // TST-588010 · level: unit · module: MOD-settings-pages
-// guards: UC-014 step 8; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE
+// guards: UC-014; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE
 // given: a fresh store, the notice ticked
 // input: paste a GitHub token, empty the expiry date and press Store and check
 // expect: nothing is stored but the acknowledgement; no request is sent; the check line reads "Enter the date the token expires — GitHub showed it when you created the token."
@@ -239,7 +239,7 @@ test("setup — a token without an expiry date is refused: nothing is stored, no
 });
 
 // TST-588011 · level: unit · module: MOD-settings-pages
-// guards: UC-014 step 8; THE SHARED PAGES ORIGIN IS DISCLOSED; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-014; THE SHARED PAGES ORIGIN IS DISCLOSED; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: a fresh store, the notice not ticked, a valid token typed into the (shut) field
 // input: press Store and check
 // expect: nothing is stored, no request is sent, and the check line stays empty
@@ -254,7 +254,7 @@ test("setup — without the notice ticked, pressing Store and check stores nothi
 });
 
 // TST-588012 · level: unit · module: MOD-settings-pages
-// guards: UC-014 step 8; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED
+// guards: UC-014; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED
 // given: a fresh store, the notice ticked, a server that answers 401 to the token
 // input: paste a token and press Store and check
 // expect: the token stays stored as pasted; the check line reads "✗ akmaier/agent-m: GitHub rejected authentication with your Agent M · akmaier/agent-m. Renew it on https://github.com/settings/personal-access-tokens."; the instance is not shown ready
@@ -268,7 +268,7 @@ test("setup — a token the server refuses is named with its renewal page, and t
 });
 
 // TST-588013 · level: unit · module: MOD-settings-pages
-// guards: UC-014 step 8; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
+// guards: UC-014; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
 // given: a store that holds a token with the record of a test of it, and the acknowledgement
 // input: paste a new token and press Store and check
 // expect: the record of the last test is gone, since the new token has not been tested before; the token is the new one
@@ -298,7 +298,7 @@ test("setup — the module's view holds one route setup, under the entry setting
 });
 
 // TST-1021001 · level: unit · module: MOD-settings-pages
-// guards: UC-014 step 8; NO SECRET IN THE REPOSITORY; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
+// guards: UC-014; NO SECRET IN THE REPOSITORY; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
 // given: a store that holds a token with the record of a test of it, and the acknowledgement; the instance is a GitHub repository
 // input: paste a GitLab token (glpat-…) as the instance's token and press Store and check
 // expect: nothing is stored or forgotten — the token and the record of its last test stand as they were — no request leaves the page, and the page shows connect's refusal of the other kind of server, "Nothing was stored: the token under github-token is refused. That is a GitLab token; a GitHub repository is reached with the GitHub token.", which does not hold the pasted token. Known positive: a GitHub token pasted the same way is stored
@@ -323,7 +323,7 @@ test("setup — a token of the other kind of server is refused before it is stor
 });
 
 // TST-1065002 · level: unit · module: MOD-settings-pages
-// guards: UC-014 step 8; THE GITHUB TOKEN IS PASTED, NOT OBTAINED BY LOGIN
+// guards: UC-014; THE GITHUB TOKEN IS PASTED, NOT OBTAINED BY LOGIN
 // given: a fresh store, the notice ticked; the instance is a GitHub repository
 // input: paste the text github_pat_x, which begins as a GitHub token does and holds nothing more (setup keeps no length rule of its own), and press Store and check; then paste nothing and press it again
 // expect: github_pat_x is stored as the instance's token and the instance is read with it; with nothing pasted nothing more is stored and no request is sent, and the check line reads "Paste the token first."

@@ -94,7 +94,7 @@ function fnmatch(glob, file) {
 }
 
 // TST-744001 · level: unit · module: MOD-test-schedule
-// guards: THE CI CONFIGURATION IS GENERATED FROM THE SCHEDULE; GITLAB PRODUCTS ARE SUPPORTED; UC-027 (5)
+// guards: THE CI CONFIGURATION IS GENERATED FROM THE SCHEDULE; GITLAB PRODUCTS ARE SUPPORTED; UC-027
 // given: the book's default schedule and a changed fixture schedule (unit only on a pull request and at the release candidate and on demand, system only nightly and later, component on the self-hosted runner lab)
 // input: ciConfiguration(schedule, target, resources, participants) for each schedule on GitHub and on GitLab
 // expect: GitHub: one file, .github/workflows/agent-m-tests.yml, no include entry, no pipeline schedule; GitLab: one file, .gitlab/agent-m-tests.yml, the include entry { file: ".gitlab-ci.yml", entry: "- local: .gitlab/agent-m-tests.yml" }; in each file exactly the jobs named <row>-<occasion> that occasionsOf ticks, plus agent-m-done
@@ -113,7 +113,7 @@ for (const [server, target] of [["github", GITHUB], ["gitlab", GITLAB]]) {
 }
 
 // TST-744002 · level: unit · module: MOD-test-schedule
-// guards: THE CI CONFIGURATION IS GENERATED FROM THE SCHEDULE; UC-027 (5)
+// guards: THE CI CONFIGURATION IS GENERATED FROM THE SCHEDULE; UC-027
 // given: the default schedule and the changed fixture schedule
 // input: the GitHub file of each; the event condition (`if:`) of each test job
 // expect: a job of the occasion every commit runs on a push of a branch (not a tag); pull request on pull_request; nightly on schedule; release candidate on a pushed tag; on demand on workflow_dispatch and only when the input rows names its row — so the rows a condition lets run are exactly those the schedule ticks for the occasion
@@ -137,7 +137,7 @@ test("ciConfiguration — GitHub: each job runs on the event of its occasion", (
 });
 
 // TST-744003 · level: unit · module: MOD-test-schedule
-// guards: THE CI CONFIGURATION IS GENERATED FROM THE SCHEDULE; GITLAB PRODUCTS ARE SUPPORTED; UC-027 (5)
+// guards: THE CI CONFIGURATION IS GENERATED FROM THE SCHEDULE; GITLAB PRODUCTS ARE SUPPORTED; UC-027
 // given: the default schedule and the changed fixture schedule
 // input: the GitLab file of each; the rules (`- if:`) of each test job
 // expect: every commit on a push without a tag; pull request on merge_request_event; nightly on the schedule source; release candidate on a tag matching v*-rc.*; on demand on the web source and only when the variable ROWS names its row
@@ -160,7 +160,7 @@ test("ciConfiguration — GitLab: each job runs on the rule of its occasion", ()
 });
 
 // TST-744004 · level: unit · module: MOD-test-schedule
-// guards: A JOB RECORD STARTS NO CI RUN; UC-027 (7)
+// guards: A JOB RECORD STARTS NO CI RUN; UC-027
 // given: the GitHub file generated from the default schedule; pushes that change (a) only docs/jobs/run-1.md, (b) only docs/conversations/c1.md and docs/jobs/run-1.md, (c) docs/jobs/run-1.md and src/a.mjs
 // input: which of the pushes start a run according to the file's paths-ignore filter of the push trigger
 // expect: (a) and (b) start nothing; (c) starts the commit rows, as does a push of src/a.mjs alone
@@ -173,7 +173,7 @@ test("ciConfiguration — GitHub: a push that records only jobs or conversations
 });
 
 // TST-744005 · level: unit · module: MOD-test-schedule
-// guards: A JOB RECORD STARTS NO CI RUN; GITLAB PRODUCTS ARE SUPPORTED; UC-027 (7)
+// guards: A JOB RECORD STARTS NO CI RUN; GITLAB PRODUCTS ARE SUPPORTED; UC-027
 // given: the GitLab file generated from the default schedule
 // input: the rule of each job of the occasion every commit, whose `changes` globs are read with Ruby's File.fnmatch semantics (FNM_PATHNAME, braces, [!x]); pushes that change (a) only docs/jobs/run-1.md, (b) docs/conversations/c1.md and docs/jobs/run-1.md, (c) docs/jobs/run-1.md and src/a.mjs, (d) only src/a.mjs, docs/SPEC.md, README.md, docs/jobsx/a.md or docs/jobs.md
 // expect: the rule holds a `changes` list; (a) and (b) match no glob, so the job is not added; (c) matches, as does each push of (d); no job script holds a check of the changed files
@@ -193,7 +193,7 @@ test("ciConfiguration — GitLab: a commit job has a rule that a push of only jo
 });
 
 // TST-744006 · level: unit · module: MOD-test-schedule
-// guards: COMMIT TESTS CALL NO PAID SERVICE; UC-027 (2)
+// guards: COMMIT TESTS CALL NO PAID SERVICE; UC-027
 // given: the default schedule, which ticks the row paid for nightly, release candidate and on demand only; a schedule that ticks paid for every commit
 // input: ciConfiguration on GitHub and GitLab for the default; for the other, ciConfiguration on GitHub
 // expect: with the default no job paid-every-commit or paid-pull-request and the paid jobs hold neither the push-of-a-branch nor the pull-request condition; with the other the call throws InvalidSchedule whose findings name the row paid and the column every commit, and no file is returned
@@ -216,7 +216,7 @@ test("ciConfiguration — the row paid never runs on a commit or a pull request"
 });
 
 // TST-744007 · level: unit · module: MOD-test-schedule
-// guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT; A RELEASE RUNS EVERY TEST AT EVERY LEVEL; UC-027 (2)
+// guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT; A RELEASE RUNS EVERY TEST AT EVERY LEVEL; UC-027
 // given: a schedule whose row release leaves the release candidate column empty
 // input: ciConfiguration on GitLab
 // expect: InvalidSchedule, whose findings name the row release and the column release candidate; no file
@@ -232,7 +232,7 @@ test("ciConfiguration — InvalidSchedule names the findings of a schedule with 
 });
 
 // TST-744008 · level: unit · module: MOD-test-schedule
-// guards: THE CI CONFIGURATION IS GENERATED FROM THE SCHEDULE; UC-027 (3a)
+// guards: THE CI CONFIGURATION IS GENERATED FROM THE SCHEDULE; UC-027
 // given: a schedule whose nightly time is 03:30
 // input: ciConfiguration on GitHub and on GitLab
 // expect: GitHub: a schedule trigger with the cron "30 3 * * *" and no pipelineSchedule; GitLab: no schedule line in the file and pipelineSchedule { cron: "30 3 * * *", rows } with exactly the rows ticked for nightly
@@ -248,7 +248,7 @@ test("ciConfiguration — the nightly run is a schedule on GitHub and a pipeline
 });
 
 // TST-744009 · level: unit · module: MOD-test-schedule
-// guards: A RELEASE RUNS EVERY TEST AT EVERY LEVEL; UC-027 (5)
+// guards: A RELEASE RUNS EVERY TEST AT EVERY LEVEL; UC-027
 // given: the default schedule
 // input: the GitHub and GitLab files; the jobs of the occasion release candidate
 // expect: the file triggers on a pushed tag v*-rc.*; the jobs of the release candidate are one for each of the six rows
@@ -262,7 +262,7 @@ test("ciConfiguration — the release candidate runs every row on a tag v*-rc.*"
 });
 
 // TST-744010 · level: unit · module: MOD-test-schedule
-// guards: THE CI CONFIGURATION IS GENERATED FROM THE SCHEDULE; UC-027 (5)
+// guards: THE CI CONFIGURATION IS GENERATED FROM THE SCHEDULE; UC-027
 // given: the default schedule
 // input: the GitHub file's workflow_dispatch trigger; the GitLab file's rules of on-demand jobs
 // expect: GitHub: workflow_dispatch with an input rows; GitLab: the on-demand jobs run on the web source naming rows in the variable ROWS
@@ -274,7 +274,7 @@ test("ciConfiguration — on demand is a manual start that names its rows", () =
 });
 
 // TST-744011 · level: unit · module: MOD-test-schedule
-// guards: THE CI CONFIGURATION IS GENERATED FROM THE SCHEDULE; UC-027 (5, 6)
+// guards: THE CI CONFIGURATION IS GENERATED FROM THE SCHEDULE; UC-027
 // given: the default schedule and an instance commit
 // input: the job agent-m-done of the GitHub and of the GitLab file
 // expect: the job runs on pull requests only (pull_request / merge_request_event), is named "agent-m done" on GitHub, runs onDoneCheck from the instance repository at the instance commit
@@ -288,7 +288,7 @@ test("ciConfiguration — the job agent-m done runs onDoneCheck at the instance 
 });
 
 // TST-744012 · level: unit · module: MOD-test-schedule
-// guards: EVERY TEST RUN LEAVES A RESULT RECORD; UC-027 (7)
+// guards: EVERY TEST RUN LEAVES A RESULT RECORD; UC-027
 // given: the default schedule; a schedule whose front matter names the command "pytest -q" and the report "build/junit.xml"
 // input: a test job of each file
 // expect: the job runs the tests (for the default with node's test runner and its JUnit reporter, for the other with the command), then hands the report to onTestsFinished at the instance commit — the report agent-m-report.xml for the default, build/junit.xml for the other
@@ -306,7 +306,7 @@ test("ciConfiguration — after its tests every job hands the JUnit XML report t
 });
 
 // TST-744013 · level: unit · module: MOD-test-schedule
-// guards: NO SECRET IN THE REPOSITORY; UC-027 (4)
+// guards: NO SECRET IN THE REPOSITORY; UC-027
 // given: a resource list with a paid endpoint whose Secret is ci:ORACLE_KEY and a paid endpoint holding the value sk-live-abc123def456; a fixture store holding ORACLE_KEY = sk-live-store-7788
 // input: ciConfiguration with the default schedule on GitHub and on GitLab; the files and the jobs
 // expect: each name secretsNeeded gives (ORACLE_KEY) appears in the jobs of the row paid — on GitHub as ${{ secrets.ORACLE_KEY }} —, in no job of the occasions every commit or pull request; neither value appears in any file
@@ -325,7 +325,7 @@ test("ciConfiguration — the secrets by name, never a value", () => {
 });
 
 // TST-744014 · level: unit · module: MOD-test-schedule
-// guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT; GITLAB PRODUCTS ARE SUPPORTED; UC-027 (3)
+// guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT; GITLAB PRODUCTS ARE SUPPORTED; UC-027
 // given: the changed fixture schedule, whose row component runs on lab-runner (runner label lab) and whose other rows run hosted
 // input: the jobs of the row component and of the row unit, on GitHub and on GitLab
 // expect: GitHub: runs-on [self-hosted, lab] for component and ubuntu-latest for unit; GitLab: tags [lab] for component and no tags for unit

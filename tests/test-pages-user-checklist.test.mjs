@@ -91,7 +91,7 @@ const added = (branch) => [...branch.keys()].filter((path) => path !== EARLIER_P
 // ================================================================== the tests
 
 // TST-762001 · level: unit · module: MOD-test-pages
-// guards: UC-028 (1a); A RELEASE RUNS EVERY TEST AT EVERY LEVEL
+// guards: UC-028; A RELEASE RUNS EVERY TEST AT EVERY LEVEL
 // given: the commit c carries the tag v1.1.0-rc.1; the product's tests hold the user-level tests TST-762901 and TST-762902 as sections of a Markdown file; the schedule's row user runs on akmaier
 // input: the route runs rendered for the candidate's commit; and for the commit of the tag v1.0.0, which carries no release candidate
 // expect: the candidate's page has a checklist naming akmaier as assigned and holding TST-762901 and TST-762902 each with its expected result ("the report lists every requirement with its evidence", "the tag of the release appears"); the plain commit's page has no checklist
@@ -105,7 +105,7 @@ test("checklist — a release candidate's page lists its user-level tests with t
 });
 
 // TST-762002 · level: unit · module: MOD-test-pages
-// guards: UC-028 (1a)
+// guards: UC-028
 // given: a product with no schedule file, so the book's default, whose row user names no one
 // input: the route runs rendered for the candidate's commit
 // expect: the checklist is shown and says that no one is assigned; it names no person
@@ -137,7 +137,7 @@ test("checklist — one entered outcome adds one record at a new path and leaves
 });
 
 // TST-762004 · level: unit · module: MOD-test-pages
-// guards: UC-028 (1a); EVERY TEST RUN LEAVES A RESULT RECORD
+// guards: UC-028; EVERY TEST RUN LEAVES A RESULT RECORD
 // given: the earlier record in which TST-762901 passed, and no record for TST-762902
 // input: the route rendered; then akmaier enters her name and presses Passed for TST-762902
 // expect: first the checklist names TST-762902 as still missing and not TST-762901; after the outcome is entered it names nothing as missing, and the two tests read passed

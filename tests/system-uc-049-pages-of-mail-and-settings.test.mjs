@@ -56,10 +56,10 @@ async function ask(p, participant, text) {
 const sentBody = (request) => request.body.messages.map((message) => message.content).join("\n");
 
 // TST-513020 · level: system · module: MOD-prompt-bar · MOD-maintenance-pages · MOD-participant-list
-// guards: UC-049 alternative 3b; A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY; THE PAGE NAMES WHERE IT SENDS
+// guards: UC-049; A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY; THE PAGE NAMES WHERE IT SENDS
 // given: the page of mail shows one mail from Erika Mustermann with the subject "Help with the export"; the mailbox allows "this machine"; the register offers local-llm (this machine, draft text), writer (this machine, draft text and write to the repository) and cloud-llm (a provider in the USA, draft text)
 // input: the same question sent to local-llm, to writer and to cloud-llm
-// expect: the text of the mail (sender, subject and text) is given only to local-llm — a participant whose place the mailbox allows and that does not write to the repository; writer and cloud-llm are given the mail's MAIL- identifier only and nothing of the mail
+// expect: the text of the mail (sender, subject and text) is given only to local-llm — a participant whose place the mailbox allows and that does not write to the repository; writer and cloud-llm are given the mail's MAIL- identifier only and nothing of the mail (flow: UC-049 alternative 3b)
 test("alternative 3b: the text of a mail is given only to a participant the mailbox allows that does not write to the repository", async () => {
   const p = await mailPage();
   try {
@@ -77,10 +77,10 @@ test("alternative 3b: the text of a mail is given only to a participant the mail
 });
 
 // TST-513021 · level: system · module: MOD-prompt-bar · MOD-maintenance-pages
-// guards: UC-049 alternative 3b; A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL
+// guards: UC-049; A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL
 // given: the page of mail as in TST-513020, and local-tools, a participant at "this machine" that can use tools
 // input: a message sent to local-tools on the page of mail
-// expect: the tools the participant is offered are those that read — list-files, read-file, search-files — and not propose-edit and hand-over, so that nothing of a mail can reach a file or a job; (known positive: read-file is among the tools offered)
+// expect: the tools the participant is offered are those that read — list-files, read-file, search-files — and not propose-edit and hand-over, so that nothing of a mail can reach a file or a job; (known positive: read-file is among the tools offered) (flow: UC-049 alternative 3b)
 test("alternative 3b: on a page of mail the tools that write are not offered", async () => {
   const p = await mailPage();
   try {
@@ -92,10 +92,10 @@ test("alternative 3b: on a page of mail the tools that write are not offered", a
 });
 
 // TST-513022 · level: system · module: MOD-prompt-bar · MOD-settings-pages · MOD-site-frame
-// guards: UC-049 alternative 3c; A STORED SECRET IS HIDDEN UNTIL SHOWN; NO SECRET IN THE REPOSITORY
+// guards: UC-049; A STORED SECRET IS HIDDEN UNTIL SHOWN; NO SECRET IN THE REPOSITORY
 // given: the settings page of a browser that stores the instance's GitHub token, a model endpoint's key and a mailbox password
 // input: a message sent to local-llm on the settings page
-// expect: the context names the settings; it carries no stored token, key or password (none of github_pat_…, the endpoint's key k1 or the mailbox password mail-password-966)
+// expect: the context names the settings; it carries no stored token, key or password (none of github_pat_…, the endpoint's key k1 or the mailbox password mail-password-966) (flow: UC-049 alternative 3c)
 test("alternative 3c: the context of the settings page never carries a stored token, key or password", async () => {
   const p = await openReplies({ inbox: [rawMail("n1")], fragment: "#settings", views: [maintenance, settings], rows: [LOCAL, CLOUD] });
   try {
@@ -111,10 +111,10 @@ test("alternative 3c: the context of the settings page never carries a stored to
 });
 
 // TST-513023 · level: system · module: MOD-prompt-bar · MOD-settings-pages
-// guards: UC-049 alternative 3c; UC-049 main flow (3)
+// guards: UC-049
 // given: the settings page of a browser that stores a GitHub token, an endpoint key and a mailbox connection that signs in to Microsoft 365 (the world of tests/uc-039-world.mjs, route graph, stores the sign-in and no password)
 // input: a message sent on the settings page
-// expect: UC-049 3c says "The context names the settings and whether each is stored": the context says of the GitHub token, of the endpoint key and of the mailbox, by its line's name ("Mailbox sign-in" for Microsoft 365, "Mailbox password" for IMAP), that it is stored. FINDING: the context is the text the page has drawn, which names the settings but nowhere says, per setting, whether it is stored, so this case is red on main until the subject of the settings page gives that
+// expect: UC-049 3c says "The context names the settings and whether each is stored": the context says of the GitHub token, of the endpoint key and of the mailbox, by its line's name ("Mailbox sign-in" for Microsoft 365, "Mailbox password" for IMAP), that it is stored. FINDING: the context is the text the page has drawn, which names the settings but nowhere says, per setting, whether it is stored, so this case is red on main until the subject of the settings page gives that (flow: UC-049 alternative 3c; UC-049 main flow (3))
 test("alternative 3c: the context names each setting and whether it is stored", async () => {
   const p = await openReplies({ inbox: [rawMail("n1")], fragment: "#settings", views: [maintenance, settings], rows: [LOCAL, CLOUD] });
   try {
@@ -127,10 +127,10 @@ test("alternative 3c: the context names each setting and whether it is stored", 
 });
 
 // TST-513025 · level: system · module: MOD-prompt-bar · MOD-settings-pages
-// guards: UC-049 alternative 1a; EVERY STEP EXPLAINS ITSELF
+// guards: UC-049; EVERY STEP EXPLAINS ITSELF
 // given: the settings pages of a browser whose register lists one participant
 // input: the page of the participants and the page of the endpoint configuration read
-// expect: UC-049 1a says "The participants page and the endpoint configuration say that it appears once a model endpoint, a CLI agent or a sandboxed agent is configured and reachable from this browser": each of the two pages says that the prompt bar appears then. FINDING: neither page mentions the prompt bar (src/settings-pages/participants.mjs, endpoints.mjs), so this case is red on main until they do
+// expect: UC-049 1a says "The participants page and the endpoint configuration say that it appears once a model endpoint, a CLI agent or a sandboxed agent is configured and reachable from this browser": each of the two pages says that the prompt bar appears then. FINDING: neither page mentions the prompt bar (src/settings-pages/participants.mjs, endpoints.mjs), so this case is red on main until they do (flow: UC-049 alternative 1a)
 test("alternative 1a: the participants page and the endpoint configuration say that the prompt bar appears once a participant is reachable", async () => {
   for (const route of ["participants", "endpoints"]) {
     const p = await openReplies({ inbox: [rawMail("n1")], fragment: `#${route}`, views: [maintenance, settings], rows: [LOCAL] });

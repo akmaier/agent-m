@@ -179,7 +179,7 @@ async function sends(it, text) {
 const answer = (text, extra = {}) => ({ answer: text, ...extra });
 
 // TST-600020 · level: component · module: MOD-prompt-bar
-// guards: UC-049 (1a); THE PAGE NAMES WHERE IT SENDS
+// guards: UC-049; THE PAGE NAMES WHERE IT SENDS
 // given: an instance whose register offers no participant this browser reaches (the endpoint ep1 is stored, but the only row is a subagent reached through another participant), and a second instance with no register file
 // input: startPromptBar on each
 // expect: the target stays empty for both — nothing drawn, nothing said — and no request and no write is made
@@ -197,7 +197,7 @@ test("startPromptBar — with no participant offered it draws nothing and says n
 });
 
 // TST-600021 · level: component · module: MOD-prompt-bar
-// guards: UC-049 (1, 1b); THE PAGE NAMES WHERE IT SENDS; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; EVERY STEP EXPLAINS ITSELF
+// guards: UC-049; THE PAGE NAMES WHERE IT SENDS; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA; EVERY STEP EXPLAINS ITSELF
 // given: a register of drafter-a (endpoint ep1, place "Anthropic, USA") only; and one of drafter-a, drafter-b (endpoint ep2, place "this machine") and the subagent sub-agent (route `through drafter-a`)
 // input: startPromptBar on each
 // expect: for the first, the bar names "drafter-a — Anthropic, USA" and has no <select>; for the second a <select class="participant"> with exactly two options, "drafter-a — Anthropic, USA" and "drafter-b — this machine" (valued drafter-a, drafter-b), no sub-agent; both ask the frame to explain the topic "prompt-bar"; no request is made and nothing is written while the bar is drawn; the recording line is hidden
@@ -220,7 +220,7 @@ test("startPromptBar — one participant is named, several are chosen among, eac
 });
 
 // TST-600022 · level: component · module: MOD-prompt-bar
-// guards: UC-049 (2, 3, 5); THE PAGE NAMES WHERE IT SENDS; ONE CLICK PER DECISION
+// guards: UC-049; THE PAGE NAMES WHERE IT SENDS; ONE CLICK PER DECISION
 // given: one participant drafter-a on endpoint ep1 that answers "Split it in two."; the subject's menu entry "use-cases" and no refused tool; the message "split this use case"
 // input: Send, then a second message "and name the new one" in the same tab
 // expect: at the first request the page already names "drafter-a — Anthropic, USA" under "Sent to"; the request goes to https://models.example/v1/chat/completions and its text holds the instruction and the page "The page shows UC-007, drafted for drafter-a."; the kind's strategy was given the parameters instruction "split this use case", an empty conversation, entry "use-cases" and refuses []; the answer "Split it in two." and "Rounds: 1" are shown; the conversation holds the person's message (who alice) and the participant's (who drafter-a) and the input is emptied; the second request's text holds "alice: split this use case" and "drafter-a: Split it in two." (the conversation so far), and the strategy was given a two-message conversation; the tab's conversation holds four messages of the subject "use-case:UC-007"
@@ -250,7 +250,7 @@ test("Send — the destinations are named before the request, the page and the p
 });
 
 // TST-600023 · level: component · module: MOD-prompt-bar
-// guards: UC-049 (1, 3); UC-019 (4a, 4b); ONE CLICK PER DECISION
+// guards: UC-049; UC-019; ONE CLICK PER DECISION
 // given: two participants — the chosen one with a context of 100 tokens, the other with 200000; and, in a second page, one participant that declares no capability to draft text; an endpoint that would answer
 // input: choose the first, press Send with "why is this step red?"; then, on the second page, press Send
 // expect: nothing is sent (no request) and nothing is written; the page says "Nothing was sent." and lists a reason "drafter-a does not hold this message" that names drafter-b as one whose context is larger; the conversation stays empty and the input keeps the words; for the second page, whose participant cannot draft text and is therefore not offered, Send sends nothing and the page says "Nothing was sent."
@@ -278,7 +278,7 @@ test("Send — nothing is sent while the job does not fit or a finding keeps it 
 });
 
 // TST-600024 · level: component · module: MOD-prompt-bar
-// guards: UC-049 (5); UC-019; A GENERATED ARTIFACT IS A PROPOSAL
+// guards: UC-049; UC-019; A GENERATED ARTIFACT IS A PROPOSAL
 // given: a subject whose draftRoute is "use-case/id=UC-007/prompt=1"; an endpoint that answers "Here is the change." with one edit for docs/x.md; a second subject "use-case:UC-008" asked about afterwards
 // input: Send, then press the button "Review the draft"; latestDraft for both subjects
 // expect: before the press the tab keeps no draft and `go` was not called; the button is shown; after it `go` was called once with "use-case/id=UC-007/prompt=1"; latestDraft(store, "use-case:UC-007") holds subject, kind "converse", participant "drafter-a", the params the message was prepared with (instruction "change it") and the result whose draft has the edit; latestDraft(store, "use-case:UC-008") is null
@@ -304,7 +304,7 @@ test("Review the draft — keeps the ConversationDraft in the tab and goes to th
 });
 
 // TST-600025 · level: component · module: MOD-prompt-bar
-// guards: UC-049 (5a); A CANCELLED JOB WRITES NOTHING MORE; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-049; A CANCELLED JOB WRITES NOTHING MORE; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: an endpoint that does not answer until the request is aborted; recording off
 // input: Send, then (while it waits) currentJob(), then press Stop
 // expect: while it waits currentJob() holds kind "converse", participant "drafter-a", state "running" and a start date, and the button Stop is enabled; after Stop the page says "Stopped. Nothing was written.", currentJob() is null, Stop is disabled again, the answer is not shown, the participant's message is not in the conversation, and nothing was written to any repository
@@ -328,7 +328,7 @@ test("Stop — aborts the message running in this tab; currentJob gives it while
 });
 
 // TST-600026 · level: component · module: MOD-prompt-bar
-// guards: UC-049 (7); A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-049; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: recording off (no switch file) on a page of a product repository and on a page of the instance, an endpoint that answers; the person's token stored for each repository
 // input: Send one message on each page
 // expect: the answer is shown on each; not one commit was attempted on the instance or on the product repository, and the files of both are as they were; the recording line stays hidden
@@ -350,7 +350,7 @@ test("Send — with recording off no request writes anything", async () => {
 });
 
 // TST-600027 · level: component · module: MOD-prompt-bar
-// guards: UC-049 (6c); A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; A RECORDED CONVERSATION IS KEPT WHERE IT WAS HELD; A RECORD IS EVIDENCE, NOT A PROPOSAL
+// guards: UC-049; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; A RECORDED CONVERSATION IS KEPT WHERE IT WAS HELD; A RECORD IS EVIDENCE, NOT A PROPOSAL
 // given: the instance's switch docs/conversation-recording.md with `recording: on`; a page of the product alice/thesis-tool; the person's token for the product stored (name alice); an endpoint that answers "Shortened."; a subject titled "Main page"
 // input: Send "shorten the introduction"
 // expect: the recording line is shown above the selector; the first commit — made before the request to the endpoint was sent — is on the PRODUCT repository (the instance has none) and creates one file under docs/conversations/ whose text holds `started_by: alice`, a section `— alice` with `page: Main page` and "shorten the introduction"; after the answer a second commit appends a section `— drafter-a` with `model: model-drafter-a` and "Shortened." and the text before it is unchanged; both commits are on the head the one before made; the tab keeps one record for the product, and a second message is appended to the same file
@@ -416,7 +416,7 @@ test("Send — a message that cannot be recorded is not sent, and the page says 
 });
 
 // TST-600030 · level: component · module: MOD-prompt-bar
-// guards: UC-049 (4a); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION
+// guards: UC-049; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION
 // given: a register whose participant drafter-a is a model endpoint with the CI secret KEY_A in its route and "Anthropic, USA" as its place; an instance that holds Agent M's job workflow; an endpoint whose draft proposes a hand-over { kind: "implement", works_on: ["ITM-504"], task: "Add the bar." }
 // input: Send
 // expect: the page shows "Kind: implement", "Works on: ITM-504", "Task: Add the bar.", "Participant: drafter-a — Anthropic, USA" and "Route: ci hosted", and one button "Hand over"; no commit was attempted
@@ -435,7 +435,7 @@ test("Send — a hand-over the participant proposes is shown with its kind, what
 });
 
 // TST-600031 · level: component · module: MOD-prompt-bar
-// guards: UC-049 (5); THE ROUNDS ARE COUNTED AND SHOWN; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT
+// guards: UC-049; THE ROUNDS ARE COUNTED AND SHOWN; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT
 // given: an endpoint that answers with text that is no JSON answer
 // input: Send "hello"
 // expect: the page says the answer could not be read, folds the answer as received (holding that text), shows no answer; the conversation holds only the person's message; nothing is written
@@ -452,7 +452,7 @@ test("Send — an answer that cannot be read is named and kept folded, and is no
 });
 
 // TST-600032 · level: component · module: MOD-prompt-bar
-// guards: UC-049 (1); NO SERVER
+// guards: UC-049; NO SERVER
 // given: the conversation of a tab that already holds a person's message and the participant's answer, then the bar started again in that tab (another page of the same tab)
 // input: startPromptBar a second time on a new target with the same store
 // expect: the new bar lists the same two messages (person alice, participant drafter-a) holding "first question" and "First answer.", without any request
@@ -474,7 +474,7 @@ test("startPromptBar — the conversation of the tab is shown again on the next 
 });
 
 // TST-600033 · level: component · module: MOD-prompt-bar
-// guards: UC-049 (5); THE ROUNDS ARE COUNTED AND SHOWN; A FINDING READS LIKE A COMPILER MESSAGE; THE CORRECTION LOOP HAS A FIXED LIMIT
+// guards: UC-049; THE ROUNDS ARE COUNTED AND SHOWN; A FINDING READS LIKE A COMPILER MESSAGE; THE CORRECTION LOOP HAS A FIXED LIMIT
 // given: an endpoint that always answers with an edit of docs/use-cases/UC-999-broken.md whose text is "# broken" (a use case without its parts), so that the kind's check finds errors the drafter does not fix
 // input: Send "write the use case"
 // expect: the page shows "Rounds: " followed by a number above 1, and a list of the findings the loop left, each item reading `error: <what> — <fix> [<RULE>]` or the same with `warning`, at least one of them an error
@@ -491,7 +491,7 @@ test("Send — the findings the loop left are shown with the rounds, each as the
 });
 
 // TST-560001 · level: component · module: MOD-prompt-bar; MOD-job-runner
-// guards: UC-019 (7); THE CORRECTION LOOP HAS A FIXED LIMIT; THE PAGE NAMES WHERE IT SENDS
+// guards: UC-019; THE CORRECTION LOOP HAS A FIXED LIMIT; THE PAGE NAMES WHERE IT SENDS
 // given: one participant drafter-a on endpoint ep1 that answers "Split it in two."; the subject's kind converse, whose correction loop is limited to 5 rounds
 // input: Send "split this use case"
 // expect: at the moment of the first (and only) request the page already says "at most 5 rounds", after the names of the destinations ("Sent to:" … "drafter-a — Anthropic, USA"); after the answer it still says so, and the rounds shown are "Rounds: 1"
@@ -509,7 +509,7 @@ test("Send — the limit of correction rounds is named with the destinations, be
 });
 
 // TST-560002 · level: component · module: MOD-prompt-bar
-// guards: UC-019 (7); THE CORRECTION LOOP HAS A FIXED LIMIT
+// guards: UC-019; THE CORRECTION LOOP HAS A FIXED LIMIT
 // given: two participants, the chosen one with a context of 100 tokens that does not hold the message; an endpoint that would answer
 // input: choose the first, press Send "why is this step red?"
 // expect: nothing is sent and the page says "Nothing was sent."; it names no limit of rounds, since no round will run (the counter-proof of TST-560001: the same page with a participant that holds the message names it)
@@ -529,7 +529,7 @@ test("Send — a message that is not sent names no limit of rounds", async () =>
 });
 
 // TST-560003 · level: component · module: MOD-prompt-bar; MOD-participant-list
-// guards: UC-019 (2); A PARTICIPANT DECLARES ITS CAPABILITIES; THE PAGE NAMES WHERE IT SENDS
+// guards: UC-019; A PARTICIPANT DECLARES ITS CAPABILITIES; THE PAGE NAMES WHERE IT SENDS
 // given: a register of drafter-a (endpoint ep1, draft text, "Anthropic, USA") and reader (endpoint ep2, read the repository only, "this machine"), both reached by this browser; the subject's kind converse, which needs draft text
 // input: startPromptBar; then Send "split this use case"
 // expect: the bar names "drafter-a — Anthropic, USA" and offers no <select> and no reader; Send makes one request, to https://models.example/v1/chat/completions, and the destinations are "drafter-a — Anthropic, USA" alone
@@ -547,7 +547,7 @@ test("startPromptBar — of the participants reached it offers only each that ca
 });
 
 // TST-560004 · level: component · module: MOD-prompt-bar; MOD-participant-list
-// guards: UC-019 (3a); A PARTICIPANT DECLARES ITS CAPABILITIES
+// guards: UC-019; A PARTICIPANT DECLARES ITS CAPABILITIES
 // given: a register whose only participant, reader, is reached by this browser but declares only "read the repository"; the subject's kind converse, which needs draft text
 // input: startPromptBar; press the link; write "split this use case" and press Send
 // expect: the bar draws, names no participant, and says "No participant of this instance can do converse: it needs draft text."; the link calls go with the route "participants" once; Send sends nothing (no request) and says "Nothing was sent."
@@ -566,7 +566,7 @@ test("startPromptBar — where no participant reached can do the kind it says so
 });
 
 // TST-560005 · level: component · module: MOD-prompt-bar; MOD-job-catalogue
-// guards: UC-019 (2); A PARTICIPANT DECLARES ITS CAPABILITIES
+// guards: UC-019; A PARTICIPANT DECLARES ITS CAPABILITIES
 // given: drafter-a (draft text) and runner (draft text, run code and tests), both reached; the bar's subject getter first gives a subject of the kind converse (needs draft text), then one of the kind run-tests (needs run code and tests)
 // input: startPromptBar; the getter now gives the new subject; nothing is announced; the person puts the cursor in the input (focus)
 // expect: first the selector offers drafter-a and runner; before the bar is used it still shows both (the getter is read when the bar is used); once the input takes focus the bar names runner alone, without a select
@@ -585,7 +585,7 @@ test("startPromptBar — the offer belongs to the subject the getter gives when 
 });
 
 // TST-560006 · level: component · module: MOD-prompt-bar; MOD-job-catalogue
-// guards: UC-019 (2, 3a); A PARTICIPANT DECLARES ITS CAPABILITIES
+// guards: UC-019; A PARTICIPANT DECLARES ITS CAPABILITIES
 // given: drafter-a and drafter-b (draft text each), both reached; the getter first gives a subject of the kind converse, then one of the kind run-tests (needs run code and tests), which neither can do
 // input: startPromptBar; the getter now gives the new subject; the person writes "run the tests" and presses Send without the input having taken focus
 // expect: Send reads the getter: nothing is sent (no request), the page says "Nothing was sent." and that no participant can do run-tests, and the offer is replaced by that statement and its link

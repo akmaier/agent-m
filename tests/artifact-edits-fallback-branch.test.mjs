@@ -27,7 +27,7 @@ const FILES = [
 ];
 
 // TST-1076001 · level: unit · module: MOD-artifact-edits
-// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL; UC-018 (4a)
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL; UC-018
 // given: a GitHub repository whose default branch is `master`, and the snapshot a caller read at it (ref `master`); an existing file and a new one
 // input: fallbackEditLinks(FILES, snapshot)
 // expect: the editor page is https://github.com/alice/thesis-tool/edit/master/docs/use-cases/UC-041-check-out-a-book.md; the new-file page begins https://github.com/alice/thesis-tool/new/master?filename=docs%2Fgroups%2Fuse-cases.md and holds no text; no address names `main`

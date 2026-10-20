@@ -37,7 +37,7 @@ function assertClaims(topic, claims) {
 }
 
 // TST-1060001 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-045 (step 1)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-045
 // given: explanations.md, and the four topics of the plan
 // input: explain(topic) for each
 // expect: each is the folded What is this? — a <details class="explain"> without the open attribute, holding <summary>What is this?</summary> and then the topic's Markdown rendered, in which no asterisk or backtick of the source is left standing
@@ -59,7 +59,7 @@ test("explain — each topic of the plan is a folded What is this? with its text
 });
 
 // TST-1060002 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-045 (step 1, the table and the pointer to the book)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-045
 // given: the topic implementation-plan
 // input: explain("implementation-plan")
 // expect: text saying the plan integrates what the architecture decomposed (the V-model's idea of knowing how to check what is defined), the three rows of UC-045's table — a module (the module as its file describes it; unit tests), a subsystem (its modules as its decision describes their interplay; component tests), the system (the subsystems as the decision that states the system describes it; system tests and the release tests of the use cases, written by a participant other than the implementer) —, that a reuse-oriented model configures or adapts a module that adopts a library or a service, that in Scrum and Kanban the backlog takes the plan's place, and the pointer to chapter 6 of the book
@@ -79,7 +79,7 @@ test("explain — implementation-plan: the plan with the table of UC-045 and the
 });
 
 // TST-1060003 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-045 (step 1 and the postcondition)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-045
 // given: the topic plan-step-states
 // input: explain("plan-step-states")
 // expect: text naming the four states — waiting for a step it depends on, ready, in progress, done — and saying that no state is stored in the plan: each is derived from the job records and the pull requests
@@ -95,7 +95,7 @@ test("explain — plan-step-states: the four derived states of a step", () => {
 });
 
 // TST-1060004 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-045 (steps 2 and 3)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-045
 // given: the topic plan-draft
 // input: explain("plan-draft")
 // expect: text saying the run panel names the drafting participant, where it processes data and what is sent, and that the click on Run is the decision; the draft is made from the bottom up — a step for each module, after every module whose interface it uses, then each subsystem's integration, then the system, each step with its phase of the model —; Agent M checks the complete draft, and a module, subsystem or system without a step, a module ordered before one whose interface it uses, or a step without the tests of its level goes back to the participant as a finding
@@ -117,7 +117,7 @@ test("explain — plan-draft: the bottom-up draft and the check that sends findi
 });
 
 // TST-1060005 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-045 (step 5)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-045
 // given: the topic plan-save
 // input: explain("plan-save")
 // expect: text saying Save plan is one click; it commits one Markdown file for each step under docs/plan/, each an item ITM-<nnn>-<slug>.md naming what it implements or integrates and the tests of its level, and the order of the steps in docs/plan/order.md; from then on implementation jobs start only for steps of the plan; nothing is written before the click

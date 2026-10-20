@@ -169,7 +169,7 @@ const runs = (w) => w.calls().filter((line) => / run /.test(line));
 // ---------------------------------------------------------------- a queued job of this Bridge
 
 // TST-472096 · level: unit · module: MOD-bridge-jobs
-// guards: UC-011 (steps 3 to 5); A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; A LOCAL AGENT USES THE PERSON'S OWN LOGIN
+// guards: UC-011; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; A LOCAL AGENT USES THE PERSON'S OWN LOGIN
 // given: a product with one queued job of the participant `drafter`, whose route names this Bridge and opencode at the commit the record names; the instance, whose marker file reads v2 and whose register gives drafter another Bridge at its head, v1 and this Bridge at the commit the record names; opencode offered with a working folder
 // input: startWatching with an interval of 100 ms; wait for the record's end
 // expect: the record is taken by `lab-pc` once and ends `done`, its results the writer's commit and file and its usage the agent's 11 and 7 tokens; the writer's commit is on the origin's main and its file shows the agent worked in <folder>/jobs/<id> and the instance's checkout held the marker v1 at the record's commit; the agent was started once, in that folder; the working clone is removed
@@ -195,7 +195,7 @@ test("a queued job of this Bridge is taken, run in the agent's working folder wi
 });
 
 // TST-472097 · level: unit · module: MOD-bridge-jobs
-// guards: UC-011 (step 3); A LOCAL AGENT USES THE PERSON'S OWN LOGIN
+// guards: UC-011; A LOCAL AGENT USES THE PERSON'S OWN LOGIN
 // given: queued jobs of the participants other-drafter (a Bridge named other-pc), ci-drafter (a CI route), codex-drafter (this Bridge, an agent it does not offer) and, to show the watcher reads, drafter (this Bridge and opencode); opencode alone is offered
 // input: startWatching; wait for drafter's job to end, then three more intervals
 // expect: drafter's job ended; the other three records are exactly as they were committed; the agent was started once
@@ -216,7 +216,7 @@ test("a job of another Bridge, another route or an agent not offered is left alo
 // ---------------------------------------------------------------- the hand-over
 
 // TST-472098 · level: unit · module: MOD-bridge-jobs
-// guards: UC-011 (3b)
+// guards: UC-011
 // given: opencode offered with a working folder and claude named without one; queued jobs of claude-drafter (this Bridge, claude) and of drafter, and a Bridge that is not reading for a long time, an interval of an hour
 // input: POST /v1/jobs for drafter's job; then for claude-drafter's job; then a request without a commit
 // expect: the first is accepted with the job's identifier; the second is invalid-request naming no agent started, its record unchanged; the third is invalid-request
@@ -239,7 +239,7 @@ test("a hand-over for an agent without a working folder is refused", async () =>
 });
 
 // TST-472099 · level: unit · module: MOD-bridge-jobs
-// guards: UC-011 (step 2)
+// guards: UC-011
 // given: a queued job of drafter; a watcher whose interval is an hour
 // input: wait 400 ms; then POST /v1/jobs for the job
 // expect: the record is unchanged after the wait; the hand-over is accepted and the job ends well before the interval is over
@@ -260,7 +260,7 @@ test("a handed-over job is run before the interval ends", async () => {
 // ---------------------------------------------------------------- taken once
 
 // TST-472100 · level: unit · module: MOD-bridge-jobs
-// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY (UC-011)
+// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
 // given: two watchers of this Bridge's name, each with a working folder of its own for opencode, and one queued job
 // input: both startWatching with an interval of 20 ms; wait for the end and 400 ms more
 // expect: the record holds one `## Taken` and one `## End`, which says `done`; the agent was started once
@@ -308,7 +308,7 @@ test("an unreadable product is skipped with its reason and read at the next inte
 // ---------------------------------------------------------------- a job queued while the Bridge watches, and one that fails
 
 // TST-472102 · level: unit · module: MOD-bridge-jobs
-// guards: UC-011 (step 3)
+// guards: UC-011
 // given: a watcher with an interval of 100 ms and an empty queue, which has read the product at least once
 // input: wait 400 ms; then commit a queued job of drafter to the product, from another clone
 // expect: nothing was started during the wait; the job is taken at a later interval and ends done

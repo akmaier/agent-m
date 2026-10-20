@@ -62,7 +62,7 @@ const gapOf = (target, kind, artifact) => gaps(target).find((gap) => gap.getAttr
 const links = (gap, className) => byClass(gap, "a", className).map((link) => [link.textContent, link.getAttribute("href")]);
 
 // TST-073601 · level: component · module: MOD-trace-pages
-// guards: UC-025 (step 6); MODULE GAPS ARE REPORTED, NOT FORBIDDEN
+// guards: UC-025; MODULE GAPS ARE REPORTED, NOT FORBIDDEN
 // given: the fixture product at main, with GAMMA RULE realised by no module
 // input: Route.render with the key "modules" at main
 // expect: the gap "requirement-without-module" for GAMMA RULE offers the link "Change the architecture" to #decision and no Implement
@@ -75,7 +75,7 @@ test("a requirement without a module offers Change the architecture, to the arch
 });
 
 // TST-073602 · level: component · module: MOD-trace-pages
-// guards: UC-025 (step 6); MODULE GAPS ARE REPORTED, NOT FORBIDDEN
+// guards: UC-025; MODULE GAPS ARE REPORTED, NOT FORBIDDEN
 // given: the fixture product at main: MOD-empty has no code and no test, MOD-notest has code and no test
 // input: Route.render with the key "modules" at main
 // expect: the gaps "module-without-code" (MOD-empty), "module-without-test" (MOD-empty and MOD-notest) each offer the link "Implement" to #implement and no Change the architecture
@@ -91,7 +91,7 @@ test("a module without code and a module without tests offer Implement, to the i
 });
 
 // TST-073603 · level: component · module: MOD-trace-pages
-// guards: UC-025 (step 6); MODULE GAPS ARE REPORTED, NOT FORBIDDEN
+// guards: UC-025; MODULE GAPS ARE REPORTED, NOT FORBIDDEN
 // given: the fixture product at main, whose other gaps are an import of MOD-notest that MOD-page's file does not name, a code file outside every module's folder and its folder
 // input: Route.render with the key "modules" at main
 // expect: counter-proof — those gaps are listed and offer neither link; the only links on the page are those of the four gaps above
@@ -104,7 +104,7 @@ test("the other gaps offer neither link", async () => {
 });
 
 // TST-073604 · level: component · module: MOD-trace-pages
-// guards: UC-025 (step 6)
+// guards: UC-025
 // given: the fixture product, drawn at the tag v2026.1.0, a version that is not the default branch
 // input: Route.render with the key "modules" at the tag
 // expect: the gaps are listed (known positive) and offer neither link; a product without a gap offers none either
@@ -118,7 +118,7 @@ test("at a version that is not the default branch the gaps offer no link, and a 
 });
 
 // TST-073605 · level: component · module: MOD-trace-pages
-// guards: UC-025 (step 6)
+// guards: UC-025
 // given: the fixture product at main, a Host that has no write method
 // input: Route.render with the key "modules" at main, and a click on each link
 // expect: the links are anchors (the page changes by the address alone); the Host is asked nothing but reads; it has no commitFiles

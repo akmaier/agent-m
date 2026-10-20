@@ -90,7 +90,7 @@ test("TST-360001 Edit stands beside each requirement on the default branch and l
 });
 
 // TST-360002 · level: unit · module: MOD-trace-pages
-// guards: EDITS ARE PREPARED ON THE DASHBOARD; UC-018 (3d)
+// guards: EDITS ARE PREPARED ON THE DASHBOARD; UC-018
 // given: the same specification on the default branch, whose groups are Lending and Membership
 // input: the route rendered at main
 // expect: + Requirement once for each of the two sections of the SPEC, an anchor to #requirements/section=<the section's heading line, encoded> — "## 1. Lending", "## 2. Membership" —, in a list
@@ -142,7 +142,7 @@ test("TST-360004 the default branch is the Host's own, and a Host that cannot na
 });
 
 // TST-399001 · level: unit · module: MOD-trace-pages
-// guards: EDITS ARE PREPARED ON THE DASHBOARD; UC-019 (step 1)
+// guards: EDITS ARE PREPARED ON THE DASHBOARD; UC-019
 // given: the specification of the library on its default branch, with four requirements
 // input: the route rendered at main, then each requirement opened through its requirement-name control
 // expect: each of the four opened requirements shows its detail (a section.requirement-detail headed by its name) and Edit beside its name as the known positive; no opened requirement offers Change by prompt:
@@ -161,7 +161,7 @@ test("TST-399001 an opened requirement offers no Change by prompt", async () => 
 });
 
 // TST-399002 · level: unit · module: MOD-trace-pages
-// guards: EDITS ARE PREPARED ON THE DASHBOARD; UC-019 (step 1)
+// guards: EDITS ARE PREPARED ON THE DASHBOARD; UC-019
 // given: the same specification on the default branch, whose Lending group holds LOAN then SHELF and whose Membership group holds CARD
 // input: the route rendered at main, then each group opened through its spec-group-toggle control
 // expect: both groups are opened (their lists no longer hidden) with + Requirement for each section as the known positive; no group offers Change by prompt: no anchor of the class requirement-group-prompt, no text
@@ -179,7 +179,7 @@ test("TST-399002 an opened requirement group offers no Change by prompt", async 
 });
 
 // TST-399003 · level: unit · module: MOD-trace-pages
-// guards: EDITS ARE PREPARED ON THE DASHBOARD; UC-019 (step 1)
+// guards: EDITS ARE PREPARED ON THE DASHBOARD; UC-019
 // given: the same specification on the default branch main and at the tag v1.0
 // input: on each ref, every requirement and group is opened through its existing control
 // expect: main has four Edit and two + Requirement as the known positive and no Change by prompt control; the tag has none of them, while all four requirements remain readable
@@ -200,7 +200,7 @@ test("TST-399003 neither the default branch nor a tag offers Change by prompt on
 });
 
 // TST-515003 · level: unit · module: MOD-trace-pages
-// guards: THE SITE WEARS THE PATTERN RECOGNITION LAB'S LOOK; UC-020 (issue #519: + Requirement touched the table below it)
+// guards: THE SITE WEARS THE PATTERN RECOGNITION LAB'S LOOK; UC-020
 // given: the specification of a library on the default branch main, two sections
 // input: the route rendered at main
 // expect: each + Requirement is the last child of its list item, no table is its sibling, and the list follows the tree (the section that holds the requirements), so that no table stands against it

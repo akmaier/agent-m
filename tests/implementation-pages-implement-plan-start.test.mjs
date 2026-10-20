@@ -145,7 +145,7 @@ const settle = async () => { for (let turn = 0; turn < 60; turn += 1) await new 
 const startRecords = (commits) => commits.flatMap((commit) => commit.files).filter((file) => /^docs\/jobs\/JOB-/.test(file.path));
 
 // TST-733001 · level: unit · module: MOD-implementation-pages
-// guards: UC-024 (5); A JOB GOES ONLY TO A HOLDER OF ITS ROLE; A PARTICIPANT DECLARES ITS CAPABILITIES; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
+// guards: UC-024; A JOB GOES ONLY TO A HOLDER OF ITS ROLE; A PARTICIPANT DECLARES ITS CAPABILITIES; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
 // given: the V-model fixture, ITM-012 and ITM-010 ticked; dev-a holds Developer and Tester with every capability, dev-c holds both but lacks run code and tests, dev-b has every capability and holds no role
 // input: the route implement's render
 // expect: for ITM-012 only dev-a is offered, with where it processes data (this machine); neither dev-c nor dev-b is offered; nothing is committed
@@ -160,7 +160,7 @@ test("for each selected step only the holders of the implementing role with both
 });
 
 // TST-733002 · level: unit · module: MOD-implementation-pages
-// guards: UC-024 (6); WORK MERGES INTO THE DEFAULT BRANCH UNLESS A BRANCH IS SET; A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN; A GATE NAMES WHO DECIDES IT; THE PAGE NAMES WHERE IT SENDS
+// guards: UC-024; WORK MERGES INTO THE DEFAULT BRANCH UNLESS A BRANCH IS SET; A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN; A GATE NAMES WHO DECIDES IT; THE PAGE NAMES WHERE IT SENDS
 // given: the same page, the declaration setting the branch test/<item> for the phase Testing
 // input: the route's render
 // expect: ITM-012 names the target branch test/ITM-012, the attempt limit, who merges (a choice) and refactoring (a tick, not ticked); the gates from its phase on with their deciders — Validation & Verification → Operation & Maintenance, decided by Reviewer —; what is sent where names dev-a and the part inputs of ITM-012
@@ -178,7 +178,7 @@ test("a selected step names its target branch, the attempt limit, who merges, th
 });
 
 // TST-733003 · level: unit · module: MOD-implementation-pages
-// guards: UC-024 (7), 3a; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; ONE CLICK PER DECISION; A REFACTORING JOB BEGINS WITHOUT A FAILING TEST
+// guards: UC-024; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; ONE CLICK PER DECISION; A REFACTORING JOB BEGINS WITHOUT A FAILING TEST
 // given: the page with ITM-012 and ITM-010 ticked; the attempt limit of ITM-012 set to 3 and who merges to a person; refactoring ticked for ITM-010
 // input: a click a script makes on Start jobs; then a click of a person
 // expect: the script's click commits nothing; the person's commits one start record per step — ITM-012's of kind implement with the limit 3 and merges person, ITM-010's of kind refactor — each naming dev-a
@@ -205,7 +205,7 @@ test("Start jobs commits one start record per selected step with the attempt lim
 });
 
 // TST-733004 · level: unit · module: MOD-implementation-pages
-// guards: UC-024 (5a); A JOB GOES ONLY TO A HOLDER OF ITS ROLE
+// guards: UC-024; A JOB GOES ONLY TO A HOLDER OF ITS ROLE
 // given: the role assignment gives the roles only to dev-c, which cannot run tests
 // input: the route's render
 // expect: the step says, beside its reasons, that no participant can write and run tests and links to #participants; no start record is committed by a click on Start jobs
@@ -222,7 +222,7 @@ test("a step no participant can implement says so and links to the participants"
 });
 
 // TST-733005 · level: unit · module: MOD-implementation-pages
-// guards: UC-024 (7a); A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
+// guards: UC-024; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
 // given: dev-a is reached through a Bridge named lab-pc that is not connected
 // input: a click of a person on Start jobs
 // expect: the result names the Bridge lab-pc as the reason, and no start record is committed
@@ -236,7 +236,7 @@ test("a Bridge that does not answer is named and nothing is started", async () =
 });
 
 // TST-733006 · level: unit · module: MOD-implementation-pages
-// guards: UC-024 (7b)
+// guards: UC-024
 // given: the host refuses the commit as a token that may not start workflows does
 // input: a click of a person on Start jobs
 // expect: the result gives a link to the workflow's Run workflow page (the repository's actions) and names the job's inputs — its identifier, the kind and the participant dev-a

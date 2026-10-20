@@ -92,7 +92,7 @@ test("TST-265001: direct endpoint saves before its one short test", async () => 
 });
 
 // TST-265002 · level: unit · module: MOD-settings-pages
-// guards: UC-003 alternative 4a; AN UNSUPPORTED ENDPOINT SAYS SO
+// guards: UC-003; AN UNSUPPORTED ENDPOINT SAYS SO
 // given: a constructed browser refusal that names cross-origin blocking and CI/Bridge routes
 // input: the author presses Test on the public endpoints Route
 // expect: the Route shows the observed reason and both named alternatives
@@ -103,7 +103,7 @@ test("TST-265002: browser refusal is shown with CI and Bridge alternatives", asy
 });
 
 // TST-265003 · level: unit · module: MOD-settings-pages
-// guards: UC-003 alternative 4b; CONFIGURATION LIVES IN THE BROWSER
+// guards: UC-003; CONFIGURATION LIVES IN THE BROWSER
 // given: a key that a constructed provider response refuses
 // input: save and test, then reload the public endpoints Route
 // expect: the provider message is visible and the stored key remains until the author changes or clears it
@@ -114,7 +114,7 @@ test("TST-265003: a refused key remains stored and reloads", async () => {
 });
 
 // TST-265004 · level: unit · module: MOD-settings-pages
-// guards: UC-003 alternative 2b; A CLEAR IS A REAL CLEAR
+// guards: UC-003; A CLEAR IS A REAL CLEAR
 // given: endpoint:<name> is stored in localStorage and the endpoint form is rendered
 // input: the author presses Clear in the public endpoints Route
 // expect: the form is empty and the actual endpoint:<name> browser-store entry is removed
@@ -124,7 +124,7 @@ test("TST-265004: Clear removes the stored endpoint and empties the form", async
 });
 
 // TST-265005 · level: unit · module: MOD-settings-pages
-// guards: UC-003 alternative 2a; AN UNSUPPORTED ENDPOINT SAYS SO
+// guards: UC-003; AN UNSUPPORTED ENDPOINT SAYS SO
 // given: a stored named-Bridge endpoint for a local model server
 // input: the author opens the public endpoints Route and presses Test
 // expect: no direct request reaches its model, the setting is retained, and the missing Bridge setup is named
@@ -393,7 +393,7 @@ test("TST-512001: a model that called the tool is shown as can use tools", async
 });
 
 // TST-512002 · level: unit · module: MOD-settings-pages
-// guards: UC-003 alternative 5a; EVERY STEP EXPLAINS ITSELF
+// guards: UC-003; EVERY STEP EXPLAINS ITSELF
 // given: a constructed answer with the text "I cannot call tools." and no tool call
 // input: the author fills the endpoints Route and presses Save and test
 // expect: the result says "text only" and not "can use tools"; one details element of the class endpoint-tool-message holds exactly "I cannot call tools.", is not open, and the message stands once in the whole page
@@ -411,7 +411,7 @@ test("TST-512002: an answer without a tool call is text only, with the endpoint'
 });
 
 // TST-512003 · level: unit · module: MOD-settings-pages
-// guards: UC-003 alternative 5a
+// guards: UC-003
 // given: a constructed answer with an empty text and no tool call
 // input: the author fills the endpoints Route and presses Save and test
 // expect: the result says "text only"; there is no folded message, since the endpoint gave none
@@ -423,7 +423,7 @@ test("TST-512003: an empty answer is text only with no folded message", async ()
 });
 
 // TST-512004 · level: unit · module: MOD-settings-pages
-// guards: UC-003 alternative 5a; AN UNSUPPORTED ENDPOINT SAYS SO
+// guards: UC-003; AN UNSUPPORTED ENDPOINT SAYS SO
 // given: a constructed HTTP 400 whose message is "tools are not supported by this model"
 // input: the author fills the endpoints Route and presses Save and test
 // expect: the endpoint is shown as working with "text only"; the provider's message is folded in one endpoint-tool-message details, and the result does not show a failure mark
@@ -438,7 +438,7 @@ test("TST-512004: an endpoint that rejects the tool is working, text only, with 
 });
 
 // TST-512005 · level: unit · module: MOD-settings-pages
-// guards: UC-003 alternative 4b
+// guards: UC-003
 // given: a constructed 401 "Invalid API key."
 // input: the author fills the endpoints Route and presses Save and test
 // expect: the result shows the refusal and neither "can use tools" nor "text only", and no folded message (counter-proof of the cases above)
@@ -465,7 +465,7 @@ async function testedThroughBridge(answer) {
 }
 
 // TST-512006 · level: unit · module: MOD-settings-pages
-// guards: UC-003 alternative 2a
+// guards: UC-003
 // given: a paired Bridge that answers the probe with { works: true, model: "local-model", tools: true, toolMessage: null }
 // input: the author fills the endpoints Route, chooses the Bridge and presses Save and test
 // expect: the result says "can use tools" and not "text only"
@@ -477,7 +477,7 @@ test("TST-512006: through a Bridge, a model that called the tool is shown as can
 });
 
 // TST-512007 · level: unit · module: MOD-settings-pages
-// guards: UC-003 alternative 5a
+// guards: UC-003
 // given: a paired Bridge that answers the probe with { works: true, model: "local-model", tools: false, toolMessage: "no tools here" }
 // input: the author fills the endpoints Route, chooses the Bridge and presses Save and test
 // expect: the result says "text only" and not "can use tools"; one endpoint-tool-message details holds "no tools here" and is not open
@@ -512,7 +512,7 @@ test("TST-512008: showing the answer about tools keeps the stored last test as {
 });
 
 // TST-269007 · level: unit · module: MOD-settings-pages
-// guards: UC-003 alternative 2a; AN UNSUPPORTED ENDPOINT SAYS SO; CONFIGURATION LIVES IN THE BROWSER
+// guards: UC-003; AN UNSUPPORTED ENDPOINT SAYS SO; CONFIGURATION LIVES IN THE BROWSER
 // given: an old bridged value { url, kind, model, throughBridge: true } that names no Bridge, and two Bridges (lab, local) this browser keeps
 // input: the person opens the public endpoints Route for it and presses Save and test without choosing a Bridge
 // expect: no request of any kind is made (no direct call to the model, no call to either Bridge), the stored value is unchanged, and the page asks the person to choose the Bridge
@@ -532,7 +532,7 @@ test("TST-269007: an old bridged value asks for a named Bridge before testing an
 });
 
 // TST-269008 · level: unit · module: MOD-settings-pages
-// guards: UC-003 alternative 2a; CONFIGURATION LIVES IN THE BROWSER; A CREDENTIAL IS NEVER PLACED IN A URL
+// guards: UC-003; CONFIGURATION LIVES IN THE BROWSER; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: the same old bridged value and the same two kept Bridges
 // input: the person chooses the Bridge lab in the Bridge control and presses Save and test
 // expect: the value is saved as { url, kind, model, bridge: "lab" } without throughBridge, before exactly one request, which goes to the Bridge lab's probe address and to nothing else
@@ -562,7 +562,7 @@ test("TST-269008: after the person names a Bridge, the old bridged value is save
 });
 
 // TST-269009 · level: unit · module: MOD-settings-pages
-// guards: UC-003 alternative 2a; AN UNSUPPORTED ENDPOINT SAYS SO
+// guards: UC-003; AN UNSUPPORTED ENDPOINT SAYS SO
 // given: an old bridged value that names no Bridge, and no Bridge kept in this browser
 // input: the person opens the public endpoints Route for it and presses Save and test
 // expect: no request is made, the stored value is unchanged, and the page offers to set up a Bridge
@@ -583,7 +583,7 @@ test("TST-269009: an old bridged value with no Bridge kept offers the Bridge set
 });
 
 // TST-269010 · level: unit · module: MOD-settings-pages
-// guards: UC-003 alternative 2a; AN UNSUPPORTED ENDPOINT SAYS SO; THE PAGE NAMES WHERE IT SENDS
+// guards: UC-003; AN UNSUPPORTED ENDPOINT SAYS SO; THE PAGE NAMES WHERE IT SENDS
 // given: the Settings page lists an old bridged value { url, kind, model, throughBridge: true } that names no Bridge
 // input: the person reads the line's disclosure, then presses the line's Test
 // expect: the disclosure does not claim a request to the model's address; Test makes no request of any kind, records no test, leaves the stored value unchanged, and asks the person to choose the Bridge
@@ -605,7 +605,7 @@ test("TST-269010: the Settings line's Test of an old bridged value asks for a na
 });
 
 // TST-269011 · level: unit · module: MOD-settings-pages
-// guards: UC-003 alternative 2a; CONFIGURATION LIVES IN THE BROWSER
+// guards: UC-003; CONFIGURATION LIVES IN THE BROWSER
 // given: the Settings page lists an endpoint that names the kept Bridge lab
 // input: the person presses the line's Test
 // expect: exactly one request, to lab's probe address, and none to the model
@@ -636,7 +636,7 @@ async function storeAfterTest(answer) {
 }
 
 // TST-998001 · level: unit · module: MOD-settings-pages
-// guards: UC-003 (step 5); UC-017 (step 3)
+// guards: UC-003; UC-017
 // given: an endpoint tested directly three times: the model calls the probe tool; it answers in text only; the key is refused (401)
 // input: the author fills the endpoints Route and presses Save and test
 // expect: last-test:endpoint:campus holds tools true for the first, tools false for the second, and no `tools` key for the refused test (the test did not reach the model); each keeps its outcome as before

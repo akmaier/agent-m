@@ -38,7 +38,7 @@ const participant = { name: "drafter-a", model: "example-model" };
 const draftRouteOf = (key) => `draft/subject=${encodeURIComponent(key)}`;
 
 // TST-507001 · level: unit · module: MOD-review-pages
-// guards: UC-049 (step 3); UC-019 (steps 1, 3); A PROMPTED USE-CASE CHANGE SEES ITS NEIGHBOURS
+// guards: UC-049; UC-019; A PROMPTED USE-CASE CHANGE SEES ITS NEIGHBOURS
 // given: the page of the open use case UC-007 of a product; its editor
 // input: the subject of the route `use-case` with the id UC-007, and with the id UC-007 and the part edit
 // expect: for both the same subject — kind change-use-case, entry use-cases, title "UC-007 Derive use cases", key "use-case/id=UC-007/product=<the product's address, encoded>",
@@ -61,7 +61,7 @@ test("use-case/<id> and its editor — the subject is the use case, with the cha
 });
 
 // TST-507002 · level: unit · module: MOD-review-pages
-// guards: UC-049 (step 3); UC-023
+// guards: UC-049; UC-023
 // given: the pages of the architecture decision ARC-001 and of the module file MOD-reader
 // input: the subject of the route `decision` with the id ARC-001, and of the route `module` with the id MOD-reader and the part edit
 // expect: kind change-architecture and entry architecture for both; keys "decision/id=ARC-001/product=<address>" and "module/id=MOD-reader/product=<address>"; titles "ARC-001 Lending is a
@@ -83,7 +83,7 @@ test("decision/<id> and module/<id> — the subject is the architecture file, wi
 });
 
 // TST-507003 · level: unit · module: MOD-review-pages
-// guards: UC-019 (steps 3, 6); THE PERSON WHO PROMPTS IS A SOURCE
+// guards: UC-019; THE PERSON WHO PROMPTS IS A SOURCE
 // given: a product whose SPEC holds the requirement A LOAN HAS A DUE DATE in the section "## 1. Lending"; the instance's author github.com/alice, whose person source SRC-alice the product links
 // input: the subject of the route `requirement` with the name A LOAN HAS A DUE DATE
 // expect: kind change-requirements, entry requirements, title "A LOAN HAS A DUE DATE", key "requirement/name=<the name, encoded>/product=<address>", draftRoute "draft/subject=<key, encoded>";
@@ -101,7 +101,7 @@ test("requirement/<name> — the subject is the requirement, with change-require
 });
 
 // TST-507004 · level: unit · module: MOD-review-pages
-// guards: UC-019 (step 3, UC-018 3d); THE PERSON WHO PROMPTS IS A SOURCE
+// guards: UC-019; THE PERSON WHO PROMPTS IS A SOURCE
 // given: the page of a new requirement in the section "## 1. Lending"
 // input: the subject of the route `requirements` with the section "## 1. Lending"
 // expect: kind change-requirements; title "New requirement in ## 1. Lending"; key "requirements/section=<the heading, encoded>/product=<address>"; draftRoute "draft/subject=<key, encoded>"; the parameters
@@ -118,7 +118,7 @@ test("requirements/new — the subject is the new requirement in its section, wi
 });
 
 // TST-507005 · level: unit · module: MOD-review-pages
-// guards: UC-019 (step 3); UC-006
+// guards: UC-019; UC-006
 // given: the SPEC change entry 01 of a queue, which proposes the section "## 1. Lending" with both of its requirements
 // input: the subject of the route `spec-entry` with the id spec-2026-03-01_sample-01
 // expect: kind change-requirements, entry requirements, title "spec-2026-03-01_sample-01", key "spec-entry/id=spec-2026-03-01_sample-01/product=<address>", draftRoute "draft/subject=<key, encoded>";
@@ -136,7 +136,7 @@ test("spec-entry/<id> — the subject is the entry, with the requirements of its
 });
 
 // TST-507006 · level: unit · module: MOD-review-pages
-// guards: UC-019 (4b); THE PERSON WHO PROMPTS IS A SOURCE
+// guards: UC-019; THE PERSON WHO PROMPTS IS A SOURCE
 // given: a product whose links file names no source, so that the instance's author has no personal source the product links
 // input: the subject of the route `requirement` with the name A LOAN HAS A DUE DATE, then its parameters for a participant
 // expect: the parameters are refused with an error named NoPersonSource whose message names the two steps — registering the person as a source (#library) and linking that source to the
@@ -155,7 +155,7 @@ test("requirement/<name> — without a linked source of the person, the subject'
 });
 
 // TST-507007 · level: unit · module: MOD-review-pages
-// guards: UC-049 (step 3); THE PAGE NAMES WHERE IT SENDS
+// guards: UC-049; THE PAGE NAMES WHERE IT SENDS
 // given: the instance's own page, with no product chosen, and the same use case on a product's page
 // input: the subject of the route `use-case` with the id UC-007 on each
 // expect: the keys differ — "use-case/id=UC-007" on the instance's page, "use-case/id=UC-007/product=<address>" on the product's — so that a draft is shown only on the page it was drafted on; the
@@ -170,7 +170,7 @@ test("use-case/<id> — the same route on the instance and on a product are two 
 });
 
 // TST-507008 · level: unit · module: MOD-review-pages · MOD-site-frame
-// guards: UC-049 (step 3)
+// guards: UC-049
 // given: a product page of the route `use-case`
 // input: the route's own subject for the list (no part), for Review all (id=all), for the drafting page (id=draft) and for an identifier the product does not hold (UC-999); then the
 //   subject the frame gives for each, its `subjectOf` called with the route, the same parameters and context, and the text the route has drawn
@@ -205,7 +205,7 @@ test("the other routes of a kind give null, and the frame's default subject stan
 });
 
 // TST-507009 · level: unit · module: MOD-review-pages
-// guards: UC-049 (step 3); UC-019 (step 1)
+// guards: UC-049; UC-019
 // given: the view the module offers, a product with the use case UC-007 and the requirement A LOAN HAS A DUE DATE
 // input: the former routes of changing by prompt, drawn: `use-case/id=UC-007/prompt=1`, `requirement/name=A LOAN HAS A DUE DATE/prompt=1` and `requirements/requirements=["A LOAN HAS A DUE DATE"]/prompt=1`;
 //   known positives: the same routes without `prompt`
@@ -237,7 +237,7 @@ test("the old prompt routes are gone", async () => {
 });
 
 // TST-507010 · level: unit · module: MOD-review-pages
-// guards: UC-049 (step 5); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-049; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the view the module offers
 // input: its route named draft, and the drawing of a file's page
 // expect: the route draft is there, outside the menu (entry null), titled "The draft of the conversation"; drawing a page changes no file of the product
@@ -266,7 +266,7 @@ async function draftSubject(fake, { key = UC7_KEY, kind = "change-use-case", par
 }
 
 // TST-507038 · level: unit · module: MOD-review-pages
-// guards: UC-019 (step 8); UC-049 (step 5)
+// guards: UC-019; UC-049
 // given: the conversation's draft for the page of UC-007, kind change-use-case, prepared with {useCase: "UC-007", version: the blob of UC-007, instruction: "change it", conversation: []}, whose result holds one file
 // input: the subject of the route draft with the part subject=<that key>
 // expect: key "use-case/id=UC-007/product=<address>"; kind change-use-case; title "UC-007"; draftRoute "draft/subject=<that key, percent-encoded>"; withhold null; refuses [];
@@ -285,7 +285,7 @@ test("draft — the subject is the draft's: its key, kind and title, its own dra
 });
 
 // TST-507039 · level: unit · module: MOD-review-pages
-// guards: UC-019 (step 8); THE PERSON WHO PROMPTS IS A SOURCE
+// guards: UC-019; THE PERSON WHO PROMPTS IS A SOURCE
 // given: the conversation's draft for each of: the page of ARC-001 (change-architecture, prepared with target ARC-001 and its blob); the requirement A LOAN HAS A DUE DATE (change-requirements, prepared with
 //   requirements [LOAN], source SRC-alice and the blob of its section); a group of two requirements (change-requirements, requirements [LOAN, A BOOK IS SHELVED]); a document edit (converse, prepared with a page)
 // input: the subject of the route draft for each key
@@ -311,7 +311,7 @@ test("draft — the subject of an architecture, a requirements and a conversatio
 });
 
 // TST-507040 · level: unit · module: MOD-review-pages
-// guards: UC-019 (step 8); A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
+// guards: UC-019; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
 // given: the page of UC-007 drawn, whose subject writes its draft route; the conversation keeps a draft for that subject; and a draft for the instance's own page of UC-007 (key "use-case/id=UC-007")
 // input: the subject of the route draft shown with the parameters the frame reads from the first subject's draft route; the same for the instance's key
 // expect: the draft route of the route draft is the string the page's subject wrote - "draft/subject=" and the key percent-encoded, which holds the product's address encoded twice - and for the instance
@@ -334,7 +334,7 @@ test("draft — its draft route is the form the subject that wrote it used, and 
 });
 
 // TST-507041 · level: unit · module: MOD-review-pages · MOD-site-frame
-// guards: UC-049 (step 3)
+// guards: UC-049
 // given: a draft kept for the page of UC-007
 // input: the subject of the route draft shown with the key of another page, shown with no part subject, and, in the context of the draft, shown with the key of the draft after the draft was replaced by one for another page
 // expect: null in all three, and the frame takes its default for the route draft then - kind converse, no draft route, entry null - so that a draft is offered for review only on the subject it was drafted on
@@ -354,7 +354,7 @@ test("draft — without a draft for the subject its address names, the route giv
 });
 
 // TST-507042 · level: unit · module: MOD-review-pages
-// guards: UC-019 (step 8)
+// guards: UC-019
 // given: the conversation's draft for the page of UC-007 drawn on the route draft, its editor open on the text of UC-007's draft
 // input: the person types a line into the editor without saving; the subject of the route draft is asked for its parameters
 // expect: their `draft` is the result as the conversation kept it, deep equal to it - the draft's file text without the typed line; the typed line is in no part of them

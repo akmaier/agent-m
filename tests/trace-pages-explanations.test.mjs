@@ -37,7 +37,7 @@ const words = (fold) => find(fold, (each) => each.localName !== "summary").map((
 const heading = (fold) => find(fold, (each) => each.localName === "summary")[0].textContent;
 
 // TST-060201 · level: component · module: MOD-trace-pages
-// guards: UC-020 (a folded What is this? explains ... what a release tag is); EVERY STEP EXPLAINS ITSELF
+// guards: UC-020; EVERY STEP EXPLAINS ITSELF
 // given: the specification view and the gaps view of a product with a release tag
 // input: each is rendered at main
 // expect: the version bar of each holds exactly one folded What is this? whose text says what a release tag is and that the current text is the default branch's
@@ -55,7 +55,7 @@ test("the version choice of the specification and of the gaps carries a folded e
 });
 
 // TST-060202 · level: component · module: MOD-trace-pages
-// guards: UC-020 (explains the statuses); EVERY STEP EXPLAINS ITSELF
+// guards: UC-020; EVERY STEP EXPLAINS ITSELF
 // given: the specification view at main, ALPHA RULE opened; UC-001 realises it
 // input: the section Use cases of the opened requirement
 // expect: it lists UC-001 with its status (open) and holds exactly one folded What is this? whose text names the statuses open, accepted and changed since acceptance
@@ -72,7 +72,7 @@ test("the statuses of the use cases a requirement traces to are explained in a f
 });
 
 // TST-060203 · level: component · module: MOD-trace-pages
-// guards: UC-020 (7: the gaps are shown and block nothing); EVERY STEP EXPLAINS ITSELF
+// guards: UC-020; EVERY STEP EXPLAINS ITSELF
 // given: the gaps view at main
 // input: the gaps page is drawn
 // expect: the page holds a folded What is this? of its own, before its first list, whose text says what a gap is and that gaps block nothing

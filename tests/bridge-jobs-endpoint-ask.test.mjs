@@ -74,7 +74,7 @@ async function rejection(promise) {
 // ---------------------------------------------------------------- the ask
 
 // TST-472084 · level: unit · module: MOD-bridge-jobs
-// guards: A RUNTIME IS INTERCHANGEABLE; UC-003 (2a); UC-011
+// guards: A RUNTIME IS INTERCHANGEABLE; UC-003; UC-011
 // given: a model server (openai-compatible) that holds its answer until released, then answers "Drafted." with 5 prompt and 3 completion tokens
 // input: POST /v1/ask with { endpoint, input }; GET /v1/ask/{ask} before the server answers and after it
 // expect: the post answers { ask } alone; the first read { state: "running", text: null, usage: null, error: null }; then { state: "done", text: "Drafted.", usage: { inputTokens: 5, outputTokens: 3, minutes: null, cost: null }, error: null }; the server was asked once, at /v1/chat/completions, with the input as the user message and the model of the configuration
@@ -152,7 +152,7 @@ test("a refused key, an unreachable server and a rate limit are failed asks with
 });
 
 // TST-472087 · level: unit · module: MOD-bridge-jobs
-// guards: NO SECRET IN THE REPOSITORY; A CREDENTIAL IS NEVER PLACED IN A URL; UC-003 (2a)
+// guards: NO SECRET IN THE REPOSITORY; A CREDENTIAL IS NEVER PLACED IN A URL; UC-003
 // given: a model server that answers one ask and refuses another with a message quoting the key; the file functions that write or create files, stdout and stderr, and the three agent commands watched (a PATH of canaries that log a call); an empty folder of the test
 // input: POST /v1/ask for each, and GET until both have ended
 // expect: both ended as they should; no file function was called by the handler; nothing written to stdout or stderr holds the key; no agent command or other process was started; no answer of any read holds the key; the test's folder holds nothing

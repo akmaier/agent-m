@@ -35,7 +35,7 @@ function context(settings, product = null) {
 const pageOf = (subject) => subject.paramsFor({}).page;
 
 // TST-1127001 · level: unit · module: MOD-settings-pages
-// guards: UC-049 alternative 3c; A STORED SECRET IS HIDDEN UNTIL SHOWN
+// guards: UC-049; A STORED SECRET IS HIDDEN UNTIL SHOWN
 // given: a browser that stores the instance's GitHub token (github_pat_SECRET1), a model endpoint ep1 with the key k1-SECRET and a mailbox with the password mail-SECRET; no Bridge, no jump host
 // input: the route's subject for the instance, and the page its paramsFor gives
 // expect: the subject is of the kind converse, titled Settings; the page says of the GitHub token, of the endpoint's key and of the mailbox's password that it is stored, and of the Bridge that it is not set; no stored value is in it
@@ -61,7 +61,7 @@ test("TST-1127001 the subject of the Settings page names each setting and whethe
 });
 
 // TST-1127002 · level: unit · module: MOD-settings-pages
-// guards: UC-049 alternative 3c
+// guards: UC-049
 // given: a browser that stores nothing, then the same browser with a product's token stored for the product https://github.com/acme/product
 // input: the subject for the instance, and for the product
 // expect: with nothing stored the GitHub token is said to be not set and the endpoint key and the mailbox password are not said to be stored; the product's subject is another subject (another key) and names the product's token as stored
@@ -87,7 +87,7 @@ const IMAP = (password) => ({ address: "reports@example.org", route: "imap", fol
 const mailboxLines = (page) => page.split("\n").filter((line) => /^Mailbox/.test(line));
 
 // TST-1127003 · level: unit · module: MOD-settings-pages
-// guards: UC-049 alternative 3c; A STORED SECRET IS HIDDEN UNTIL SHOWN
+// guards: UC-049; A STORED SECRET IS HIDDEN UNTIL SHOWN
 // given: a mailbox of the route IMAP whose password is stored; then the same route with an empty password
 // input: the subject's page for each
 // expect: the mailbox's line names its password and says stored, then not set; the page names no sign-in for the mailbox, and carries no password
@@ -104,7 +104,7 @@ test("TST-1127003 the line of an IMAP mailbox names its password and whether it 
 });
 
 // TST-1127004 · level: unit · module: MOD-settings-pages
-// guards: UC-049 alternative 3c; A STORED SECRET IS HIDDEN UNTIL SHOWN
+// guards: UC-049; A STORED SECRET IS HIDDEN UNTIL SHOWN
 // given: a mailbox of the route Microsoft (graph) with its account recorded, which stores no password; then the same route with no account recorded
 // input: the subject's page for each
 // expect: the mailbox's line names its sign-in and says stored, then not set; the page does not speak of a password for the mailbox
@@ -119,7 +119,7 @@ test("TST-1127004 the line of a Microsoft mailbox names its sign-in and not a pa
 });
 
 // TST-1127005 · level: unit · module: MOD-settings-pages
-// guards: UC-049 alternative 3c
+// guards: UC-049
 // given: a browser with no mailbox
 // input: the subject's page
 // expect: one mailbox line, "Mailbox: not set", naming neither a password nor a sign-in

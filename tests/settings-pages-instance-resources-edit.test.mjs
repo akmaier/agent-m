@@ -40,7 +40,7 @@ const fixtureHost = () => ({
 });
 
 // TST-104204 · level: unit · module: MOD-settings-pages
-// guards: UC-042 (step 3); UC-040 (the instance's own list); EVERY SETTING IS REACHED FROM ONE PAGE
+// guards: UC-042; UC-040; EVERY SETTING IS REACHED FROM ONE PAGE
 // given: the frame started at the Settings page of a product the browser keeps, whose view holds the real Settings route and a recorder of the route resources
 // input: the person opens the tab Repositories and presses Edit on the instance's Resources line; the frame answers the new fragment
 // expect: known positive — the product's own Resources line, pressed the same way, makes the recorder see the product; Edit of the instance's line makes it see no product (null)

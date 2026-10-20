@@ -94,7 +94,7 @@ test("TST-288001: Settings discloses exported secrets and grants before one cano
 // TST-288002
 // level: unit
 // module: MOD-settings-pages
-// guards: UC-042 alternative 6a; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS
+// guards: UC-042; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS
 // given: a canonical plain export and a destination with one existing setting
 // input: the person chooses the constructed file in Settings
 // expect: existing bytes are kept, absent canonical settings are added, and Settings lists both sets

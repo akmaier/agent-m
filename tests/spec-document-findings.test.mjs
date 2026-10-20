@@ -79,7 +79,7 @@ const FIELDS = lines(
 );
 
 // TST-473047 · level: unit · module: MOD-spec-document
-// guards: A REQUIREMENT HAS FOUR FIELDS; UC-005 (step 6, a candidate without one of the four fields); UC-018 (step 3, a missing field is marked)
+// guards: A REQUIREMENT HAS FOUR FIELDS; UC-005; UC-018
 // given: FIELDS — a requirement whose head line names no source, one without a rule, one without a check, and one with all four fields, which parseSpec reads with the missing field null
 // input: requirementFindings(parseSpec(FIELDS))
 // expect: exactly one finding for each of the three, an error under A REQUIREMENT HAS FOUR FIELDS that names the requirement and the line of its head line — NO SOURCE on line 3, NO RULE on line 7, NO CHECK on line 10 — and says which field is missing, source, rule and check; none for ALL FOUR
@@ -186,7 +186,7 @@ const RULES = lines(
 );
 
 // TST-473049 · level: unit · module: MOD-spec-document
-// guards: ONE STATEMENT PER REQUIREMENT; UC-005 (step 6, a rule containing a conjunction); UC-018 (step 3, a conjunction in the rule is marked)
+// guards: ONE STATEMENT PER REQUIREMENT; UC-005; UC-018
 // given: RULES — four rules that contain "and" — in the middle of a line, at the start of the rule, and on its second line — or "additionally"; then three that contain none: "standard handling" — the letters inside other words —, a requirement named in a code span, whose name holds AND, and a requirement whose name and check hold "and" but whose rule does not
 // input: requirementFindings(parseSpec(RULES))
 // expect: exactly one finding for each of the four, a warning — not an error — under ONE STATEMENT PER REQUIREMENT that names the requirement and the line of its head line — AND IN THE RULE on line 3, ADDITIONALLY IN THE RULE on 7, AND AT THE START OF THE RULE on 11, AND ON THE SECOND LINE OF THE RULE on 15 —; none for NO CONJUNCTION, A NAME IN THE RULE and AND ONLY IN THE CHECK

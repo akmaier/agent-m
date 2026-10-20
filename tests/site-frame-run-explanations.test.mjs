@@ -33,7 +33,7 @@ function assertClaims(topic, claims) {
 }
 
 // TST-980001 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-043 (step 4)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-043
 // given: explanations.md, and the topics run, run-jobs-at-once, run-cost-limit and run-correction-rounds
 // input: explain(topic) for each
 // expect: each is the folded What is this? — a <details class="explain"> without the open attribute, holding <summary>What is this?</summary> and then the topic's Markdown rendered, in which no asterisk or backtick of the source is left standing
@@ -54,7 +54,7 @@ test("explain — each topic of a run and its limits is a folded What is this? w
 });
 
 // TST-980002 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-043 (the goal and steps 5 and 6)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-043
 // given: the topic run
 // input: explain("run")
 // expect: text saying a run carries out the product's process model over what the person selects, that the selection is the steps of the implementation plan or, in Scrum or Kanban, backlog items, that Start run is one click, that the CI configuration is generated if the product has none, that the tests are written and at the end the validation of what was built is shown, that the person is asked only where the model gives a gate to a person or when a limit is reached, and that implementation, tests and CI can each be started on their own (UC-024, UC-026, UC-027)
@@ -73,7 +73,7 @@ test("explain — run: what a run is and when it asks (UC-043)", () => {
 });
 
 // TST-980003 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; A RUN HAS LIMITS FIXED AT ITS START; UC-043 (step 4, jobs at once)
+// guards: EVERY STEP EXPLAINS ITSELF; A RUN HAS LIMITS FIXED AT ITS START; UC-043
 // given: the topic run-jobs-at-once
 // input: explain("run-jobs-at-once")
 // expect: text saying how many jobs the run may have running at the same time, that it is preset to the work-in-progress limit of the product's process model or to 3 where the model sets none, and that a job that waits for another job or for a gate does not start before it is done
@@ -86,7 +86,7 @@ test("explain — run-jobs-at-once: how many jobs run at the same time, preset t
 });
 
 // TST-980004 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; A RUN HAS LIMITS FIXED AT ITS START; NO COST IS GUESSED; UC-043 (step 4, the cost limit, and 6c)
+// guards: EVERY STEP EXPLAINS ITSELF; A RUN HAS LIMITS FIXED AT ITS START; NO COST IS GUESSED; UC-043
 // given: the topic run-cost-limit
 // input: explain("run-cost-limit")
 // expect: text saying the most the run may cost, that it is counted only from costs the runtimes report, that a job whose runtime reports none adds nothing to the count and shows its cost as unknown, that when the limit is reached the run starts no further job and lets the running ones finish, and that the person may raise the limit and press Continue, which starts the remaining jobs under the same run
@@ -101,7 +101,7 @@ test("explain — run-cost-limit: counted only from costs the runtimes report, a
 });
 
 // TST-980005 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; A RUN HAS LIMITS FIXED AT ITS START; THE CORRECTION LOOP HAS A FIXED LIMIT; UC-043 (step 4, the correction rounds, and 6c)
+// guards: EVERY STEP EXPLAINS ITSELF; A RUN HAS LIMITS FIXED AT ITS START; THE CORRECTION LOOP HAS A FIXED LIMIT; UC-043
 // given: the topic run-correction-rounds
 // input: explain("run-correction-rounds")
 // expect: text saying how many times a draft may go back to its participant to be corrected before it is shown with what is left, that it is preset to 5 per draft and applies to every job of the run that drafts, and that when the limit is reached the run starts no further job and lets the running ones finish
@@ -115,7 +115,7 @@ test("explain — run-correction-rounds: how often a draft is corrected, preset 
 });
 
 // TST-980006 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF (no existing topic changes)
+// guards: EVERY STEP EXPLAINS ITSELF
 // given: explanations.md, and the topics run-panel and correction-loop as they stood before ITM-980
 // input: the SHA-256 of each topic's Markdown
 // expect: each equals the digest of the text as it stood: the new topics change neither of the two they sit beside

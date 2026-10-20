@@ -36,7 +36,7 @@ async function productRepository(url) {
 
 // Module (as the case stated it): MOD-settings-pages → MOD-site-frame
 // TST-290131 · level: system · module: MOD-settings-pages
-// guards: UC-042 (step 3); UC-001; EVERY SETTING IS REACHED FROM ONE PAGE; A FORM OPENS WITH ITS FIRST FIELD FOCUSED
+// guards: UC-042; UC-001; EVERY SETTING IS REACHED FROM ONE PAGE; A FORM OPENS WITH ITS FIRST FIELD FOCUSED
 // given: Settings is open in a dashboard browser that keeps a product list and a product's own token.
 // input: the author opens Repositories, presses Add or remove products, types the product's address, presses Add product, then Switch to the new product.
 // expect: the page stays at #settings with Add a product open in it and its address field focused; after the add, Switch to the new product selects the new product.

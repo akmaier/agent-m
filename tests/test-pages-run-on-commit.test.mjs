@@ -139,7 +139,7 @@ const choose = async (form, name = "Reviewer Rae") => {
 };
 
 // TST-761001 · level: unit · module: MOD-test-pages
-// guards: UC-028 (5); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-028; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: a commit with outcomes at the levels unit and system and none at the level release; a token stored
 // input: the route runs/<commit> rendered; the person's click on Run on this commit
 // expect: drawing writes nothing and shows a button Run on this commit and no form; the click shows one checkbox per level, release the only one checked, and still writes nothing
@@ -156,7 +156,7 @@ test("run on this commit — the levels without a record are preset, and nothing
 });
 
 // TST-761002 · level: unit · module: MOD-test-pages
-// guards: UC-028 (5); A ROLE NAMES THE CAPABILITIES IT NEEDS
+// guards: UC-028; A ROLE NAMES THE CAPABILITIES IT NEEDS
 // given: a register with hosted-ci (declares run code and tests) and writer (does not)
 // input: Run on this commit pressed
 // expect: the participants offered are hosted-ci alone
@@ -166,7 +166,7 @@ test("run on this commit — only the participants that can run code and tests a
 });
 
 // TST-761003 · level: unit · module: MOD-test-pages
-// guards: UC-028 (5); THE PAGE NAMES WHERE IT SENDS
+// guards: UC-028; THE PAGE NAMES WHERE IT SENDS
 // given: hosted-ci chosen with a name, the level release checked; the resource list marks the endpoint oracle paid with the secret ORACLE_KEY
 // input: the participant chosen
 // expect: the run panel is drawn with the destination hosted-ci, a Run button, the route "ci hosted", the paid service oracle and the secret ORACLE_KEY by name; nothing is written
@@ -187,7 +187,7 @@ test("run on this commit — the run panel names where the run happens, the paid
 });
 
 // TST-761004 · level: unit · module: MOD-test-pages
-// guards: UC-028 (5, 6); ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-028; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the run panel for hosted-ci and the level release
 // input: a click a script makes on Run; the person's click on Run; a second click of the person
 // expect: the script's click writes nothing; the person's click commits exactly one start record under docs/jobs/ of kind run-tests, working on the commit, for hosted-ci, on the route ci hosted, started by the name entered, with the parameters commit, levels [release] and occasion on-demand; the second click adds none
@@ -213,7 +213,7 @@ test("run on this commit — one click on Run queues one job of the kind run-tes
 });
 
 // TST-761005 · level: unit · module: MOD-test-pages
-// guards: UC-028 (6, 7)
+// guards: UC-028
 // given: the queued job; the record as committed, untaken; a fake clock
 // input: Run pressed; the clock fired; then the job taken on a CI run the server lists as running, the clock fired; then the job ended with a result record on test-results, the clock fired
 // expect: no button to check progress exists; one timer of 5000 ms waits after Run; the first reading says the job is queued, the second that it is running; after the end the page is drawn again, so that the level release has an outcome, and no timer waits
@@ -243,7 +243,7 @@ test("run on this commit — the progress is read again at an interval and the p
 });
 
 // TST-761009 · level: unit · module: MOD-test-pages
-// guards: UC-028 (6)
+// guards: UC-028
 // given: the queued job, a timer waiting
 // input: the route is left (the page's target is emptied); the clock fired
 // expect: the job's record and the runtime are not read again, and no timer waits
@@ -263,7 +263,7 @@ test("run on this commit — the reading stops when the route is left", async ()
 });
 
 // TST-761010 · level: unit · module: MOD-test-pages
-// guards: UC-028 (6, 7)
+// guards: UC-028
 // given: the queued job, then ended
 // input: the clock fired for the ending reading and again twice
 // expect: after the ending reading no timer waits and the further firings read nothing
@@ -283,7 +283,7 @@ test("run on this commit — the reading stops when the job has ended", async ()
 });
 
 // TST-761006 · level: unit · module: MOD-test-pages
-// guards: UC-028 (5a); A ROLE NAMES THE CAPABILITIES IT NEEDS
+// guards: UC-028; A ROLE NAMES THE CAPABILITIES IT NEEDS
 // given: a register in which no participant declares run code and tests
 // input: Run on this commit pressed
 // expect: no participant is offered and no Run; the page names the capability "run code and tests" and links UC-017 (#use-case/id=UC-017); nothing is written
@@ -299,7 +299,7 @@ test("run on this commit — where no participant can run the levels the missing
 });
 
 // TST-761007 · level: unit · module: MOD-test-pages
-// guards: UC-028 (5b); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-028; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: no token stored for the product
 // input: Run on this commit pressed
 // expect: no participant list, no run panel and no job; the page names the commit and the preset levels and links the server's page of workflows (webLinks().actions)
@@ -316,7 +316,7 @@ test("run on this commit — without a token the server's workflow page is linke
 });
 
 // TST-761008 · level: unit · module: MOD-test-pages
-// guards: UC-028 (5, 6)
+// guards: UC-028
 // given: the view of MOD-test-pages
 // input: its strategies read
 // expect: they are MOD-result-records' resultStrategies and MOD-runtimes' routeStrategies, which the frame registers for the kind run-tests

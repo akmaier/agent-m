@@ -28,7 +28,7 @@ import { CONFLICT, CURRENT_RULE, INSTRUCTION, LOAN, SHELF, SPEC, all, assertProp
 // TST-418001
 // level: system
 // module: MOD-trace-pages; MOD-site-frame; MOD-prompt-bar
-// guards: UC-019 (steps 1 to 3); THE PAGE NAMES WHERE IT SENDS
+// guards: UC-019; THE PAGE NAMES WHERE IT SENDS
 // given: the specification browser of the product at its default branch, the register offering drafter (this machine, draft text) and observer (Anthropic, USA, read the repository only)
 // input: unfold Lending, open A LOAN HAS A DUE DATE without naming it in the bar, write the instruction in the bar and press Send with the participant drafter
 // expect: before Send the bar names drafter with its place, the only participant that can do the kind, and not observer, and nothing has been sent; after it the one request to the endpoint holds the instruction and names exactly A LOAN HAS A DUE DATE under "The requirements to change"
@@ -49,7 +49,7 @@ test("TST-418001: the prompt bar on the specification browser names where it sen
 // TST-418002
 // level: system
 // module: MOD-review-pages; MOD-site-frame; MOD-prompt-bar; MOD-job-runner; MOD-spec-changes; MOD-source-register
-// guards: UC-019 (steps 3 to 9)
+// guards: UC-019
 // given: the page of the requirement A LOAN HAS A DUE DATE, its author's source linked, and a fixture endpoint that drafts one changed requirement
 // input: the instruction in the bar, Send, Review the draft, edit the returned rule, Save
 // expect: one request to the endpoint; before Save nothing is written; after it one commit with the author's exact edit as one open proposal, SPEC.md unchanged, the commit message without the instruction, and no job record
@@ -70,7 +70,7 @@ test("TST-418002: one requirement traverses the bar, the route draft and Save", 
 // TST-418003
 // level: system
 // module: MOD-trace-pages; MOD-review-pages; MOD-prompt-bar; MOD-spec-changes
-// guards: UC-019 (steps 1, 3, 8, 9)
+// guards: UC-019
 // given: the group Lending of the specification browser, whose requirements display as A LOAN HAS A DUE DATE then A BOOK IS SHELVED, and two changed candidates
 // input: unfold the group, Send, press Review the draft (which keeps the draft in the tab), then the route draft at the subject the bar kept the draft for (TST-418007 is the address the bar writes), and Save
 // expect: the message was prepared for the requirements [A LOAN HAS A DUE DATE, A BOOK IS SHELVED] in that order (the alphabetical order is the reverse); the draft shows both candidates; one section is proposed with the loan before the shelf and SPEC.md unchanged
@@ -93,7 +93,7 @@ test("TST-418003: an ordered group reaches the participant in its order and its 
 // TST-418004
 // level: system
 // module: MOD-review-pages; MOD-prompt-bar; MOD-source-register
-// guards: UC-019 (4b); THE PERSON WHO PROMPTS IS A SOURCE
+// guards: UC-019; THE PERSON WHO PROMPTS IS A SOURCE
 // given: the author's source exists in the instance but the product does not link it
 // input: the page of the requirement A LOAN HAS A DUE DATE, an instruction in the bar and Send
 // expect: nothing is sent and nothing is written; the bar says "Nothing was sent." and names the two steps, registering the person (#library) and linking the source to the product (#sources); the bar offers no link, the steps are text
@@ -112,7 +112,7 @@ test("TST-418004: a missing personal source stops before a send and names the st
 // TST-418005
 // level: system
 // module: MOD-review-pages; MOD-prompt-bar; MOD-job-runner; MOD-spec-changes
-// guards: UC-019 (8a); A CONFLICT IS DECIDED BY A PERSON
+// guards: UC-019; A CONFLICT IS DECIDED BY A PERSON
 // given: a draft of a changed A LOAN HAS A DUE DATE and a candidate THE DUE DATE MAY BE HIDDEN that the participant classes as a conflict with it
 // input: Send, Review the draft, Save with the conflict undecided; in a second page the same draft with the class of the conflict set to new before Save
 // expect: undecided: the proposal holds the changed rule and not "Every loan may hide its due date.", and the conflict stays in the draft, undecided; decided: the proposal holds that rule under THE DUE DATE MAY BE HIDDEN; the endpoint was asked once in each
@@ -143,7 +143,7 @@ test("TST-418005: an unresolved conflict stays out of the proposal until its aut
 // TST-418006
 // level: system
 // module: MOD-review-pages; MOD-spec-changes
-// guards: UC-019 (9a); A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT
+// guards: UC-019; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT
 // given: an editable draft on the route draft, followed by a concurrent commit changing the section Lending of the SPEC
 // input: Save (UC-019 9a)
 // expect: no write; the author's edit is still in its field; the section as it stands now is beside it
@@ -164,7 +164,7 @@ test("TST-418006: a stale section refuses Save and retains the draft beside the 
 // TST-418007
 // level: system
 // module: MOD-trace-pages; MOD-prompt-bar; MOD-review-pages
-// guards: UC-019 (steps 1, 8)
+// guards: UC-019
 // given: A LOAN HAS A DUE DATE open in the specification browser, a draft returned for it
 // input: press Review the draft in the bar
 // expect: the route draft shows the candidates of that draft, as it does from the page of the requirement
@@ -179,7 +179,7 @@ test("TST-418007: Review the draft from the specification browser shows the draf
 // TST-418008
 // level: system
 // module: MOD-trace-pages; MOD-prompt-bar; MOD-source-register
-// guards: UC-019 (4b); THE PERSON WHO PROMPTS IS A SOURCE
+// guards: UC-019; THE PERSON WHO PROMPTS IS A SOURCE
 // given: the author's source is not linked by the product, and A LOAN HAS A DUE DATE is open in the specification browser
 // input: an instruction in the bar and Send
 // expect: nothing is sent, as from the page of the requirement (TST-418004)

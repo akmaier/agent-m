@@ -210,7 +210,7 @@ const looksExplained = (e) => (e.localName === "details" && e.className === "exp
 // ==================================================================================================================
 
 // TST-472730 · level: unit · module: MOD-settings-pages
-// guards: UC-001 (step 2, the placeholder before an address is valid)
+// guards: UC-001
 // given: a fresh page, no address typed
 // input: render, then type an address that is not a repository's address ("not a url")
 // expect: Steps A, B and C are shown, none calling explain() with a known topic; Step C names the address's own parse error and stays disabled
@@ -226,7 +226,7 @@ test("add-product — before a valid address, a placeholder with no known explan
 });
 
 // TST-478029 · level: unit · module: MOD-settings-pages
-// guards: UC-001 main flow (steps 1-5), THE REPOSITORY CHOICE IS SPELLED OUT, A PRODUCT'S TOKEN IS NAMED AFTER THE PRODUCT, THE PAGE NAMES WHERE IT SENDS, EVERY STEP EXPLAINS ITSELF, ONE CLICK PER DECISION, NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY, THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER
+// guards: UC-001; THE REPOSITORY CHOICE IS SPELLED OUT; A PRODUCT'S TOKEN IS NAMED AFTER THE PRODUCT; THE PAGE NAMES WHERE IT SENDS; EVERY STEP EXPLAINS ITSELF; ONE CLICK PER DECISION; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER
 // given: a fresh store, a GitHub address with nothing stored for it
 // input: type the address; Step A's prefilled link and repository-choice steps; store a token, which runs the check — a private, writable repository — without another click; Step C, one click
 // expect: the token page is prefilled with the product's own name/description/owner/days; the three choice steps name the repository; the key and the commit are each stated to go to GitHub alone; Step B shows the check's result without a second click, and Step A flips to "done"; Add product writes the missing layout in one commit and remembers the address, with no further, unscripted request
@@ -314,7 +314,7 @@ test("add-product — main flow: Step A prefilled and spelled out, Store and che
 });
 
 // TST-472731 · level: unit · module: MOD-settings-pages
-// guards: UC-001 2a (Check), counter to 4a
+// guards: UC-001
 // given: a fresh store, a GitHub address that does not exist (or is private to a key that cannot see it)
 // input: Check
 // expect: the repository is named as not found, with a link to GitHub's page for a new repository; Step A is not shown done
@@ -330,7 +330,7 @@ test("add-product — 2a: Check on a 404 names the repository and links a new on
 });
 
 // TST-472732 · level: unit · module: MOD-settings-pages
-// guards: UC-001 2a (Add product)
+// guards: UC-001
 // given: a product's own token already stored, a repository that does not exist (or is private to it)
 // input: Add product
 // expect: the repository is named as not found, with the link to a new one; nothing is written to the product list
@@ -347,7 +347,7 @@ test("add-product — 2a: Add product on a 404 names the repository, links a new
 });
 
 // TST-478030 · level: unit · module: MOD-settings-pages
-// guards: UC-001 3a (own key already reaches it, the instance's while the product has none), 4a, the gate of pull request #150 — a stored instance token alone is never Step A done, and never survives a later failed check
+// guards: UC-001
 // given: only the instance's GitHub token stored, no product-specific key
 // input: Step B's Check (3a) proves a private, writable repository — without pasting a new key; Check again, now refused (token revoked)
 // expect: before any check, Step A shows its instructions (not done) although the instance's token is already stored, and Step C is already enabled from that same stored key; after the first check, Step A is done; after the second, Step A is not done again — a "done" never survives a later failed check
@@ -373,7 +373,7 @@ test("add-product — 3a/4a: a stored instance token alone never marks Step A do
 });
 
 // TST-478031 · level: unit · module: MOD-settings-pages
-// guards: UC-001 step 4 (a public repository's read proves nothing; write access is confirmed only by the first write), 3a (a private repository only)
+// guards: UC-001
 // given: a product's own token stored, a public repository
 // input: Check
 // expect: the check succeeds, but Step A is never shown done for a public repository
@@ -390,7 +390,7 @@ test("add-product — step 4: a public repository's successful check never marks
 });
 
 // TST-478032 · level: unit · module: MOD-settings-pages
-// guards: UC-001 5a (a write refused after a successful read), the gate of pull request #150 — "so a failed check or a refused write leaves no way to store a key"
+// guards: UC-001
 // given: a product's own token stored and already proved by Check (Step A done); the write itself is then refused
 // input: Add product
 // expect: nothing is written to the product list; the refusal is named and keeps Step A's "done" from surviving — Step A is repainted with its instructions, so the author can store a key that actually reaches it
@@ -415,7 +415,7 @@ test("add-product — 5a: a write refused after a successful check un-marks Step
 });
 
 // TST-472733 · level: unit · module: MOD-settings-pages
-// guards: UC-001 5b (the product already has the complete layout)
+// guards: UC-001
 // given: a product's own token stored, a repository that already holds every part of the layout
 // input: Add product
 // expect: nothing is committed, and no request beyond the three reads is made; the address is still added to this browser's product list
@@ -431,7 +431,7 @@ test("add-product — 5b: a complete layout is left uncommitted, the address is 
 });
 
 // TST-276 · level: unit · module: MOD-settings-pages
-// guards: UC-001 step 5; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-001; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: a GitHub product's own stored key and a completed writable private-repository check
 // input: a synthetic (isTrusted false) click on the public Step C Add product control
 // expect: neither the repository layout commit boundary nor rememberProduct runs: no request is made and products stays empty
@@ -455,7 +455,7 @@ test("TST-276 add-product — a synthetic GitHub Step C click writes and remembe
 });
 
 // TST-277 · level: unit · module: MOD-settings-pages
-// guards: UC-001 step 5; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-001; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: a GitLab product's own stored key and a completed writable project check
 // input: a synthetic (isTrusted false) click on the public Step C Add product control
 // expect: neither the repository layout commit boundary nor rememberProduct runs: no request is made and products stays empty
@@ -479,7 +479,7 @@ test("TST-277 add-product — a synthetic GitLab Step C click writes and remembe
 });
 
 // TST-278 · level: unit · module: MOD-settings-pages
-// guards: UC-001 step 5; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-001; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: a GitLab product's own stored key and a completed writable project check
 // input: a trusted person click on the public Step C Add product control
 // expect: the missing review layout is committed once and the exact GitLab product address is remembered
@@ -502,7 +502,7 @@ test("TST-278 add-product — a trusted GitLab Step C click commits and remember
 });
 
 // TST-472734 · level: unit · module: MOD-settings-pages
-// guards: UC-001 3c (A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN), 3d, EVERY STEP EXPLAINS ITSELF
+// guards: UC-001; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; EVERY STEP EXPLAINS ITSELF
 // given: a fresh store, a GitLab project's address
 // input: type the address; store the project's token, which runs the check
 // expect: Step A only opens the project's Access tokens page and spells out role Maintainer/scope api, with the 3d fallback folded beneath it, and is never shown done; Step B is "Give the key to Agent M", sends the key only to that project's own API, and shows the check's result; Step C is enabled once the token is stored
@@ -558,7 +558,7 @@ test("add-product — 3c/3d: GitLab's Step A is instructions only, Step B stores
 });
 
 // TST-288 · level: unit · module: MOD-settings-pages
-// guards: UC-001 3d; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; EVERY STEP EXPLAINS ITSELF
+// guards: UC-001; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; EVERY STEP EXPLAINS ITSELF
 // given: a fresh add-product route for a GitLab project whose author reports that its Access tokens page offers no project access tokens
 // input: the author expands and selects the public "server offers no project access tokens" cause
 // expect: the selected cause is named, its expandable explanation states that a personal api token reaches every project the author can reach on that server before leaving the decision to them, and selection makes neither a server request nor a browser-store write
@@ -583,7 +583,7 @@ test("TST-288 add-product — GitLab's no-project-token cause is selected locall
 });
 
 // TST-289 · level: unit · module: MOD-settings-pages
-// guards: UC-001 3d; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; EVERY STEP EXPLAINS ITSELF
+// guards: UC-001; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; EVERY STEP EXPLAINS ITSELF
 // given: a fresh add-product route for a GitLab project whose author reports that they are not Maintainer
 // input: the author expands and selects the public "I am not Maintainer" cause
 // expect: the selected cause is named separately, its expandable explanation states the breadth of a personal api token before leaving the decision to the author, and the normal project-token route remains available
@@ -606,7 +606,7 @@ test("TST-289 add-product — GitLab's not-Maintainer cause is selected separate
 });
 
 // TST-472735 · level: unit · module: MOD-settings-pages
-// guards: UC-001 3a applied to a GitLab project — "its own" key already stored offers Check directly
+// guards: UC-001
 // given: a project's own token already stored in this browser
 // input: render
 // expect: Step B shows that a token is stored, with its own Check button, beside the paste form, which is still there for a new one
@@ -624,7 +624,7 @@ test("add-product — GitLab: a project's own token already stored offers Check 
 });
 
 // TST-478033 · level: unit · module: MOD-settings-pages
-// guards: EVERY STEP EXPLAINS ITSELF (ITM-255) — the field above the steps
+// guards: EVERY STEP EXPLAINS ITSELF
 // given: a fresh page
 // input: render the add-product page of a fresh store and read the explanation nearest the address field
 // expect: the repository-address field's own explanation is explain("repository")
@@ -636,7 +636,7 @@ test("add-product — the address field's folded explanation is the 'repository'
 });
 
 // TST-1021002 · level: unit · module: MOD-settings-pages
-// guards: UC-001 step 3; A GITHUB PRODUCT USES A TOKEN OF ITS OWN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
+// guards: UC-001; A GITHUB PRODUCT USES A TOKEN OF ITS OWN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
 // given: a fresh add-product route for a GitHub product, the instance's token stored, the notice acknowledged
 // input: the author pastes a GitLab token (glpat-…) in Step A and presses Store and check; then a GitHub token
 // expect: for the GitLab token nothing is stored, no request leaves the page, and Step A shows a line that names github-token:alice/thesis-tool and does not hold the token; known positive: the GitHub token is stored and checked
@@ -664,7 +664,7 @@ test("add-product — GitHub's Step A refuses a GitLab token before it stores an
 });
 
 // TST-1021003 · level: unit · module: MOD-settings-pages
-// guards: UC-001 3c; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
+// guards: UC-001; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
 // given: a fresh add-product route for a GitLab project, the notice acknowledged
 // input: the author pastes a GitHub token (github_pat_…) in Step B and presses Store and check; then a GitLab project token
 // expect: for the GitHub token nothing is stored, no request leaves the page, and Step B shows a line that names the project's token setting and does not hold the token; known positive: the project token is stored and checked

@@ -50,7 +50,7 @@ async function started() {
 }
 
 // TST-104205 · level: unit · module: MOD-site-frame
-// guards: UC-042 (step 3); EVERY SETTING IS REACHED FROM ONE PAGE
+// guards: UC-042; EVERY SETTING IS REACHED FROM ONE PAGE
 // given: the frame started on the page of a product the browser keeps; the route's go
 // input: go("resources", { product: "" })
 // expect: the fragment is "#resources", which names no product, so that the frame's routing reads back the instance itself
@@ -64,7 +64,7 @@ test("go with the empty product reaches a route of the instance itself while a p
 });
 
 // TST-104206 · level: unit · module: MOD-site-frame
-// guards: UC-042 (step 3)
+// guards: UC-042
 // given: the same page
 // input: go("resources", {}); go("resources", { code: "x" }); go("resources", { product: <another product the browser keeps> })
 // expect: counter-proof — a go that names no product keeps the chosen one in its fragment, with the other parameters; one that names another product writes that one, not the chosen one

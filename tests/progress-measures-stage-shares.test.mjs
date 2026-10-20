@@ -153,7 +153,7 @@ const known = (texts, resultCommits, over = {}) => ({ requirements: REQS, result
   tests: [decl("TST-1", "REQ A"), decl("TST-2", "REQ B"), decl("TST-3", "REQ A")], ...over });
 
 // TST-809001 · level: unit · module: MOD-progress-measures
-// guards: THE MAIN PAGE SHOWS EACH PRODUCT’S PROGRESS BY STAGE; UC-046
+// guards: THE MAIN PAGE SHOWS EACH PRODUCT'S PROGRESS BY STAGE; UC-046
 // given: three requirements, TST-1 and TST-3 guarding REQ A and TST-2 guarding REQ B, and resultCommits [C2, C1] (C2 newer). (a) C1 holds a record in which TST-1, TST-2 and TST-3 passed, C2 one in which TST-1 failed; (b) the same, and C2’s record also fails TST-3; (c) C2 holds a record in which TST-1 passed and C1 one in which it failed, and TST-1 is the only test; (d) the records stand at a commit OTHER that is not in resultCommits, and C1 holds none
 // input: stageShares(facts)
 // expect: (a) Tests 2/3, "2 of 3 requirements guarded by a passing test": TST-1 fails by C2’s record, the newest that ran it, but TST-3 (not named at C2) passes by C1’s and guards REQ A, and TST-2 passes by C1’s and guards REQ B; (b) 1/3: REQ B alone; (c) 1/3: TST-1 passes by C2’s record, the older failure is not looked at; (d) 0 of 3: a commit that is not one of resultCommits counts for nothing
@@ -167,7 +167,7 @@ test("stageShares — the tests stage is the share of the requirements a passing
 });
 
 // TST-809002 · level: unit · module: MOD-progress-measures
-// guards: THE MAIN PAGE SHOWS EACH PRODUCT’S PROGRESS BY STAGE; UC-046
+// guards: THE MAIN PAGE SHOWS EACH PRODUCT'S PROGRESS BY STAGE; UC-046
 // given: the requirements of TST-809001 and resultCommits [C1]; (a) C1 holds a record in which TST-1 both passed and failed (a deterministic test that flips on one commit is flaky); (b) TST-1 is declared and has no record at all; (c) C1’s record reports TST-1 as not run
 // input: stageShares(facts)
 // expect: Tests 0 of 3 in each case — only an outcome passed is a pass
@@ -179,7 +179,7 @@ test("stageShares — a flaky, an unrun and a not-run test does not pass", async
 });
 
 // TST-809003 · level: unit · module: MOD-progress-measures
-// guards: THE MAIN PAGE SHOWS EACH PRODUCT’S PROGRESS BY STAGE; UC-046
+// guards: THE MAIN PAGE SHOWS EACH PRODUCT'S PROGRESS BY STAGE; UC-046
 // given: the requirements and tests of TST-809001; (a) resultCommits [C2, C1], C2 holds a record in which all three tests passed, C1 one in which they failed; (b) no branch test-results (results null) and resultCommits []; (c) the requirements are []; (d) TST-1 guards REQ A and TST-2 guards REQ B and REQ C, with the records of (a)
 // input: stageShares(facts), counting the reads of the branch test-results
 // expect: (a) Tests 2 of 3 (REQ C has no test), and only C2’s record is read — it settles every test; (b) 0 of 3; (c) 0, "no requirement yet"; (d) 3 of 3, "3 of 3 requirements guarded by a passing test"
@@ -195,7 +195,7 @@ test("stageShares — it asks no older commit once every test is settled, and co
 });
 
 // TST-809004 · level: unit · module: MOD-progress-measures
-// guards: THE MAIN PAGE SHOWS EACH PRODUCT’S PROGRESS BY STAGE; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-046
+// guards: THE MAIN PAGE SHOWS EACH PRODUCT'S PROGRESS BY STAGE; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-046
 // given: a product that is fully known, with passing records at C1; then (a) resultCommits "unknown"; (b) results "unknown"; (c) requirements "unknown"; (d) tests "unknown"; (e) the facts of a product with nothing read
 // input: stageShares of each
 // expect: Tests has no share (null) in each, whose detail names the missing fact: (a) "the commits of the default branch are unknown"; (b) "the test results are unknown"; (c) "the requirements are unknown"; (d) "the tests are unknown"; (e) "the requirements are unknown"; with the fully known product Tests has a share
@@ -217,7 +217,7 @@ const shares = async (over) => (await stageShares(facts(over))).map(({ stage, sh
 const ALL_FULL = ["Requirements", "Use cases", "Architecture", "Implementation", "Tests", "Release"].map((stage) => [stage, 1]);
 
 // TST-809005 · level: unit · module: MOD-progress-measures
-// guards: WITHOUT A PRODUCT, THE MAIN PAGE SHOWS AGENT M’S OWN PROGRESS; UC-046
+// guards: WITHOUT A PRODUCT, THE MAIN PAGE SHOWS AGENT M'S OWN PROGRESS; UC-046
 // given: a repository that is the instance’s own (own true) with nothing accepted and no requirement; (a) its first release tagged; (b) no tag; (c) only a release candidate tagged (v2026.1.0-rc.1); (d) tags unknown; and, as the counter-proof, (e) a product (own false) with the same facts and its release tagged
 // input: stageShares of each
 // expect: (a) all six stages 1 — the bar is full once the first release is tagged; (b) the stages as for a product: Use cases 0 and Release 0; (c) the same, Release 0; (d) Release null, and no other stage is made full; (e) Release 1 and the other stages as the facts give them, Use cases 0
@@ -232,7 +232,7 @@ test("stageShares — for the instance’s own repository the bar is full once i
 });
 
 // TST-809006 · level: unit · module: MOD-progress-measures
-// guards: WITHOUT A PRODUCT, THE MAIN PAGE SHOWS AGENT M’S OWN PROGRESS; UC-046
+// guards: WITHOUT A PRODUCT, THE MAIN PAGE SHOWS AGENT M'S OWN PROGRESS; UC-046
 // given: the instance’s own repository with its first release tagged
 // input: currentStage of stageShares(facts); and of a product with the same tags
 // expect: null — every stage is full; the product’s current stage is Requirements, the first stage that is not full

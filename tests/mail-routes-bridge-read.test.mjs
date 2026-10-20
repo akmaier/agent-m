@@ -95,7 +95,7 @@ test("find — on the Bridge route: the mail of a known identifier", async () =>
 });
 
 // TST-483403 · level: unit · module: MOD-mail-routes
-// guards: A MAIL IS FOUND AGAIN BY ITS IDENTIFIER (null, never a guess); UC-038
+// guards: A MAIL IS FOUND AGAIN BY ITS IDENTIFIER; UC-038
 // given: a fake Bridge that answers find for an unknown identifier with its error not-found, whose message begins with that identifier
 // input: mailbox(connection of the Bridge route, bridge).find("MAIL-000099")
 // expect: null — nothing thrown, no other mail; one request, POST /v1/mail/find

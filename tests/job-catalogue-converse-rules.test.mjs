@@ -15,7 +15,7 @@ import assert from "node:assert/strict";
 import { kindOf } from "../src/job-catalogue/index.mjs";
 
 // TST-1126001 · level: unit · module: MOD-job-catalogue
-// guards: UC-049 main flow (3); A GENERATED ARTIFACT IS A PROPOSAL; A SPEC EDIT IS SAVED AS A PROPOSAL
+// guards: UC-049; A GENERATED ARTIFACT IS A PROPOSAL; A SPEC EDIT IS SAVED AS A PROPOSAL
 // given: the catalogue's definition of the kind converse
 // input: kindOf("converse")
 // expect: its prompt states, in one sentence, that everything the participant drafts — its answer and its edits — is a proposal that a person decides on, and, in another, that a change of the SPEC is saved as a queue entry, not written to the SPEC; the

@@ -41,7 +41,7 @@ const LIST = Object.freeze([
 ]);
 
 // TST-472595 · level: unit · module: MOD-resource-list
-// guards: COMMIT TESTS CALL NO PAID SERVICE; UC-040 (step 9); UC-026
+// guards: COMMIT TESTS CALL NO PAID SERVICE; UC-040; UC-026
 // given: a list of a repository, three endpoints, agents, data with a Paid mark of yes and of no, data without a mark, a model and two compute resources
 // input: paidServices of the list
 // expect: exactly the endpoints, the agents and the data with a mark, in the list's order, each as { name, kind, address, paid } — local-llm free, search-api paid, open-api free, coder paid, hosted-llm paid, worker free —; the repository, the model, the compute and the unmarked data are not listed; the list is as it was
@@ -69,7 +69,7 @@ test("paidServices lists a service without a Paid mark as paid", () => {
 });
 
 // TST-472597 · level: unit · module: MOD-resource-list
-// guards: A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE; A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER; UC-040 (step 9)
+// guards: A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE; A COMPUTE RESOURCE IS REACHED THROUGH THE BRIDGE OR A SELF-HOSTED RUNNER; UC-040
 // given: the list
 // input: reachableBy of the list
 // expect: in the list's order, the endpoint, compute and agent on a Bridge or a runner with their routes — local-llm bridge workstation, cluster runner:gpu, coder bridge lab-pc, gpu-box bridge lab-pc, worker runner:cpu —; the repository, the data, the model and the endpoint called at its own address are not listed
@@ -85,7 +85,7 @@ test("reachableBy gives a resource on a Bridge or a runner its route, and a reso
 });
 
 // TST-472598 · level: unit · module: MOD-resource-list
-// guards: A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE; UC-040 (step 9)
+// guards: A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE; UC-040
 // given: a compute resource on the Bridge lab-pc and one on the runner gpu, as reachableBy gives them; a participant on lab-pc and one on the runner gpu
 // input: routesFor of each participant, given the two participants, with the routes as its needs
 // expect: the participant on lab-pc is offered for the Bridge need and refused, naming the resource and its route, for the runner need; the participant on the runner the other way round — the routes are in the form routesFor reads

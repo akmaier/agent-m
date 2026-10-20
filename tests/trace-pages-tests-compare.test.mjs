@@ -91,7 +91,7 @@ async function choose(target, value) {
 }
 
 // TST-769001 · level: unit · module: MOD-trace-pages
-// guards: UC-029 (step 6); THE TRACEABILITY MATRIX IS DERIVED
+// guards: UC-029; THE TRACEABILITY MATRIX IS DERIVED
 // given: the two releases v2026.1.0 and v2026.2.0 of the fixture, the newer shown
 // input: the second release v2026.1.0 chosen in the control "compare with"
 // expect: added: TST-703; removed: TST-702; changed in what they guard or expect: TST-704 and TST-705; changed in outcome: TST-706 and TST-707; the unchanged TST-701 in none of the four
@@ -104,7 +104,7 @@ test("two releases are compared: one test of each class is listed in its class, 
 });
 
 // TST-769002 · level: unit · module: MOD-trace-pages
-// guards: UC-029 (step 6)
+// guards: UC-029
 // given: the same two releases, the older shown
 // input: the newer release chosen as the second
 // expect: the same four lists as with the newer shown, the added test being the one the newer release holds
@@ -115,7 +115,7 @@ test("the older release is the same whichever of the two is shown", async () => 
 });
 
 // TST-769003 · level: unit · module: MOD-trace-pages
-// guards: UC-029 (step 6)
+// guards: UC-029
 // given: the fixture with two tags; with one tag; and the current text of main
 // input: the route rendered at v2026.2.0 with both tags; with one tag; at main with both
 // expect: the control offers none, v2026.1.0 at the newer release (the shown tag is not offered against itself); no control with one tag; no control at main
@@ -126,7 +126,7 @@ test("the control to compare is offered at a release when another release exists
 });
 
 // TST-769004 · level: unit · module: MOD-trace-pages
-// guards: UC-029 (step 6)
+// guards: UC-029
 // given: the fixture
 // input: the route rendered with the param compare=v2026.1.0; then the control set to none
 // expect: the comparison is drawn with the page, the control holding v2026.1.0; once "none" is chosen it is gone and the tree of the tests is still there
@@ -141,7 +141,7 @@ test("the param compare draws the comparison with the page, and none takes it aw
 });
 
 // TST-769005 · level: unit · module: MOD-trace-pages
-// guards: UC-029 (step 6)
+// guards: UC-029
 // given: the fixture
 // input: v2026.1.0 chosen as the second release
 // expect: the changes are said: TST-704 "guards: ALPHA RULE → ALPHA RULE; BETA RULE"; TST-705 "expect: a result → another result"; TST-706 "passed → failed"; TST-707 "passed (3 of 5) → passed (4 of 5)"
@@ -154,7 +154,7 @@ test("a change says what it was and what it is", async () => {
 });
 
 // TST-769006 · level: unit · module: MOD-trace-pages
-// guards: UC-029 (step 6)
+// guards: UC-029
 // given: the fixture, in which the snapshot of v2026.1.0 cannot be read once the page is drawn
 // input: v2026.1.0 chosen as the second release
 // expect: a line "The comparison could not be read: unreachable" and no list of the four classes; the tests of the version shown stay on the page

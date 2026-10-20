@@ -154,7 +154,7 @@ const SHIPPED = ["waterfall", "v-model", "reuse-oriented", "scrum", "kanban"];
 const NO_TOKEN = "was not found — a private repository is found only with a token that reaches it.";
 
 // TST-778001 · level: unit · module: MOD-implementation-pages
-// guards: THE CATALOGUE IS DATA; UC-031 (step 1: the shipped catalogue and the instance's own definitions, each with its kind of work)
+// guards: THE CATALOGUE IS DATA; UC-031
 // given: the instance acme/agent-m, which holds the models scrum-wip (pulled) and broken-wip (pulled) under docs/process-models/, and the catalogue's five shipped models
 // input: the route `models` drawn
 // expect: the section of the shipped models holds waterfall (planned), v-model (planned), reuse-oriented (planned), scrum (pulled) and kanban (pulled), in the catalogue's order; the section of the
@@ -169,7 +169,7 @@ test("TST-778001 the shipped catalogue and the instance's own models are listed,
 });
 
 // TST-778002 · level: unit · module: MOD-implementation-pages
-// guards: UC-031 (step 1: for each model, the products that use it)
+// guards: UC-031
 // given: this browser manages acme/library, whose docs/process.md names the shipped scrum, acme/atlas, whose names the instance's scrum-wip, and acme/bare, which has no docs/process.md
 // input: the route `models` drawn
 // expect: scrum lists https://github.com/acme/library; scrum-wip lists https://github.com/acme/atlas; every other model lists no product; acme/bare is listed under no model
@@ -182,7 +182,7 @@ test("TST-778002 each model lists the products of this browser whose declaration
 });
 
 // TST-778003 · level: unit · module: MOD-implementation-pages
-// guards: UC-031 (step 1 and 2b: a shipped model is adapted, never edited in place; the page offers + New model)
+// guards: UC-031
 // given: the same page
 // input: the route `models` drawn
 // expect: every shipped model's links are exactly ["Adapt"], leading to "#models/name=<name>"; every model of the instance's own has exactly ["Edit"], leading to "#models/name=<name>"; the page
@@ -199,7 +199,7 @@ test("TST-778003 a shipped model offers Adapt only, an instance's model Edit, an
 });
 
 // TST-778004 · level: unit · module: MOD-implementation-pages
-// guards: UC-031 (step 1: the products that use a model); A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
+// guards: UC-031; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
 // given: this browser manages acme/missing, which no token reaches (a private repository answers 404), beside the products acme/library and acme/atlas it can read
 // input: the route `models` drawn
 // expect: the unreadable list holds exactly "https://github.com/acme/missing: <the host's reason>" — the product's address, a colon, and the not-found text of its host —; scrum still lists acme/library
@@ -212,7 +212,7 @@ test("TST-778004 a product that cannot be connected is shown with its reason and
 });
 
 // TST-778005 · level: unit · module: MOD-implementation-pages
-// guards: UC-031 (step 4: the errors of a definition named beside it)
+// guards: UC-031
 // given: the instance's broken-wip, whose last transition leads to a phase "Nowhere" that it does not define, and its valid scrum-wip
 // input: the route `models` drawn
 // expect: broken-wip has a findings list with at least one entry, and each entry names "Nowhere"; scrum-wip and every shipped model have no findings list
@@ -227,7 +227,7 @@ test("TST-778005 the findings of a model of the instance are listed with it", as
 });
 
 // TST-778006 · level: unit · module: MOD-implementation-pages
-// guards: EVERY STEP EXPLAINS ITSELF; UC-031 ("Every part carries a folded What is this?")
+// guards: EVERY STEP EXPLAINS ITSELF; UC-031
 // given: the page drawn, and src/site-frame/explanations.md
 // input: the folded explanations of the page: one in each of the two sections, and in each model one beside its kind and one beside its products, and one beside the findings of broken-wip
 // expect: each is a <details class="explain"> without the open attribute, holding <summary>What is this?</summary> and a body of text; the page holds exactly 2 + 2 × 7 + 1 of them
@@ -247,7 +247,7 @@ test("TST-778006 every part of the page carries a folded What is this?", async (
 });
 
 // TST-778007 · level: unit · module: MOD-implementation-pages
-// guards: UC-031 (step 2: the editor opens on the model chosen; 2a: + New model); MOD-site-frame `Route` (the parts after the route's name are key=value)
+// guards: UC-031
 // given: the page drawn, and the frame's routing (MOD-site-frame routeOf), which reads a fragment as a route name and its parameters
 // input: the href of every button of the page, read by routeOf
 // expect: Adapt of v-model gives route "models" with name "v-model"; Edit of scrum-wip gives "models" with name "scrum-wip"; every shipped and own model's button gives its own name; + New model gives

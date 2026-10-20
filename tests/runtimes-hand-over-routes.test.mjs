@@ -30,7 +30,7 @@ test.afterEach(restoreFetch);
 const NO_ENDPOINT = { endpoint: null, bridge: null };
 
 // TST-495010 · level: component · module: MOD-runtimes
-// guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; UC-049 4a
+// guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; UC-049
 // given: a product on GitHub whose default branch `trunk` holds its job workflow; a prepared job that fits and blocks nothing; a task in the participant's words; a model endpoint as the target
 // input: handOverJob(prepared, { kind: "ci", runner: "hosted" }, START, host, the head read, TASK, { endpoint: ENDPOINT, bridge: null }); then the same with `endpoint: null`
 // expect: one commit on `trunk`, on the head read, of the start record alone at docs/jobs/<id>.md with the message "Queue job JOB-20261016-0930-abcd: write-tests", whose text has the line `task: with the hand-over` and none of the task's words; after it exactly one startWorkflow, of the workflow by its file name alone, agent-m-jobs.yml (as GitHub's dispatch call names a workflow), on `trunk`, with the inputs { job: the id, task: TASK, endpoint: the JSON text of the endpoint } — and, without an endpoint, { job, task } alone; the result { path, commit } of the start record's commit
@@ -57,7 +57,7 @@ test("handOverJob — the CI route commits the record without the task, then sta
 });
 
 // TST-495011 · level: component · module: MOD-runtimes
-// guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; UC-049 4a
+// guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; UC-049
 // given: a product whose default branch `trunk` holds no job workflow (a Bridge needs none); the Bridge `lab-pc`; a prepared job that fits and blocks nothing; a task
 // input: handOverJob(prepared, { kind: "bridge", bridge: "lab-pc" }, START, host, the head read, TASK, { endpoint: null, bridge: the Bridge })
 // expect: one commit on `trunk`, on the head read, of the start record alone, with `task: with the hand-over` and none of the task's words; then exactly one request, POST /v1/jobs to http://127.0.0.1:4712 with the Bridge's token, made after that commit, with the body { product: "https://github.com/alice/product", record: the record's path, commit: the commit, task: TASK }; no workflow started; the result { path, commit }
@@ -82,7 +82,7 @@ test("handOverJob — the Bridge route commits the record without the task, then
 });
 
 // TST-495012 · level: component · module: MOD-runtimes
-// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; A REMOTE INTERFACE NAMES HOW IT FAILS; UC-049 4c, 4d
+// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; A REMOTE INTERFACE NAMES HOW IT FAILS; UC-049
 // given: a product whose server refuses to start the workflow (PermissionMissing, "The token may not start workflows"); known positive first — a server that starts it, whose record has no end
 // input: handOverJob on the CI route
 // expect: rejects with the server's own error, unchanged (the same object: name PermissionMissing, message "The token may not start workflows"); two commits — the queued record, then the record with an end: state failed, a reason "PermissionMissing: The token may not start workflows", message "Job JOB-20261016-0930-abcd: end" —, the record still holding none of the task's words; the commits and the start attempt in the order commit, start, commit
@@ -105,7 +105,7 @@ test("handOverJob — the CI route's refused start ends the record as failed wit
 });
 
 // TST-495013 · level: component · module: MOD-runtimes
-// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; A REMOTE INTERFACE NAMES HOW IT FAILS; UC-049 4a
+// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; A REMOTE INTERFACE NAMES HOW IT FAILS; UC-049
 // given: a Bridge that is paused ("Bridge is paused."); known positive first — a Bridge that accepts
 // input: handOverJob on the Bridge route
 // expect: rejects with the Bridge client's BridgeFailed with `error` "paused", carrying `queued` { path, commit } of the start record; two commits — the queued record, then the record with an end: state failed, a reason starting "BridgeFailed: " and holding "Bridge is paused.", message "Job JOB-20261016-0930-abcd: end"; the record holds none of the task's words
@@ -144,7 +144,7 @@ test("handOverJob — a record that cannot be ended does not hide the server's r
 });
 
 // TST-495015 · level: component · module: MOD-runtimes
-// guards: NO SECRET IN THE REPOSITORY; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; UC-049 4a
+// guards: NO SECRET IN THE REPOSITORY; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; UC-049
 // given: the endpoint of the target is a configuration that also holds the endpoint's key, "sk-PLANTED-KEY-91" (a configuration as the tab keeps it)
 // input: handOverJob on the CI route with that target
 // expect: one startWorkflow whose input `endpoint` is exactly the JSON text of the endpoint's kind, address and model; none of its inputs holds the key

@@ -157,7 +157,7 @@ const linesOf = (section) => byClass(section, "settings-repository-setting").map
   edit: descendants(line, (node) => node.localName === "button" && node.textContent === "Edit")[0] }));
 
 // TST-104201 · level: unit · module: MOD-settings-pages
-// guards: UC-042 (step 3); EVERY SETTING IS REACHED FROM ONE PAGE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY
+// guards: UC-042; EVERY SETTING IS REACHED FROM ONE PAGE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY
 // given: an instance repository holding two participants, three sources, two process models and three resources, and a product repository holding a declared process, two role
 //   assignments, a test schedule, two linked sources and one resource
 // input: the Settings page is rendered and its tab Repositories shown
@@ -177,7 +177,7 @@ test("the instance's four and the product's six repository settings are one line
 });
 
 // TST-104202 · level: unit · module: MOD-settings-pages
-// guards: UC-042 (step 3); EVERY SETTING IS REACHED FROM ONE PAGE
+// guards: UC-042; EVERY SETTING IS REACHED FROM ONE PAGE
 // given: the page of TST-104201
 // input: the person presses Edit on each of the ten lines
 // expect: the page is asked to open, in order, participants, library, models, resources with the product "" for the instance; process for the product's process model, roles, process for the
@@ -193,7 +193,7 @@ test("Edit opens the route of its setting: the product's process on process, its
 });
 
 // TST-104203 · level: unit · module: MOD-settings-pages
-// guards: UC-042 (step 1: not set); EVERY SETTING IS REACHED FROM ONE PAGE
+// guards: UC-042; EVERY SETTING IS REACHED FROM ONE PAGE
 // given: repositories that hold none of the files, and an instance whose resources register has a header and no row
 // input: the Settings page is rendered
 // expect: all ten lines are still there, each with the summary "not set" — a line is not left out for a missing file

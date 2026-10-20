@@ -44,7 +44,7 @@ async function prepared(place) {
 }
 
 // TST-1123003 · level: unit · module: MOD-prompt-bar
-// guards: UC-049 4e; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
+// guards: UC-049; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
 // given: the register above (SRC-open, SRC-restricted whose content repository is the product, SRC-unknown); the product holds the content of SRC-restricted and of SRC-open; a drafter at "Anthropic, USA"
 // input: prepareMessage; the job's tool read-file on docs/sources/SRC-restricted/handbook.md and on docs/sources/SRC-open/law.md
 // expect: the context names the restricted sources in places.sources (SRC-restricted and SRC-unknown, the unknown licence counting as restricted) and, in places.contents, the folder docs/sources/SRC-restricted alone, since only that source's content repository is the product (MOD-source-register's restrictedPlaces); the read of the restricted file is refused, names SRC-restricted and "Anthropic, USA", and does not hold its text; the read of the open file gives its text
@@ -62,7 +62,7 @@ test("prepareMessage — the job's context carries the restricted sources, so re
 });
 
 // TST-1123004 · level: unit · module: MOD-prompt-bar
-// guards: UC-049 4e; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
+// guards: UC-049; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
 // given: the same, but the drafter is at "this machine", the place the source allows
 // input: the read of the restricted file
 // expect: the text of the file is given (the counter-proof: a source whose licence allows the place is read)

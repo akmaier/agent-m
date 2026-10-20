@@ -63,7 +63,7 @@ const countsOf = (target) => Object.fromEntries(ROWS.map((row) => [row, Number(w
 const testFilesRead = (calls) => calls.filter((call) => call.fn === "read" && call.path.startsWith("tests/"));
 
 // TST-1119001 · level: unit · module: MOD-test-pages
-// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-027 (1)
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-027
 // given: a product of 130 test files whose facts stored for the commit hold their declarations
 // input: the route schedule drawn
 // expect: the counts of the six rows equal those counted from the files (the row paid 10, the other rows 26 each); no test file is read, and none is told to the snapshot; the facts file was asked for once, as overview-cache / <commit>.facts.json
@@ -77,7 +77,7 @@ test("schedule — with the test declarations stored for the commit it reads no 
 });
 
 // TST-1119002 · level: unit · module: MOD-test-pages
-// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-027 (1)
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-027
 // given: the same product with no facts stored (readOn gives nothing), with facts of another commit, with facts of another format's number, and a snapshot with no readOn
 // input: the route schedule drawn for each
 // expect: counter-proof: the counts are the same, taken from the files; all 130 test files are told to the snapshot in one readMany before the first of them is read, so that it fetches them in batches of a hundred; and every file is read

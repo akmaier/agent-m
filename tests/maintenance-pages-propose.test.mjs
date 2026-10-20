@@ -78,7 +78,7 @@ const propose = async (target) => {
 const nothingSent = (w) => [w.kept.endpoint.length, w.kept.ask.length, w.kept.github.filter((request) => request.method !== "GET").length];
 
 // TST-964001 · level: component · module: MOD-maintenance-pages
-// guards: THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT; UC-038 (4)
+// guards: THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT; UC-038
 // given: a register of five participants that draft text, four at this machine and one in the USA; a mailbox that allows this machine; then one that allows the USA too, recorded as outside the EU
 // input: the mail route drawn and the mailbox read
 // expect: the first page offers the four at this machine and not the one in the USA; the second offers all five, and marks the one in the USA as not compliant and no other
@@ -95,7 +95,7 @@ test("Only participants at a place the mailbox allows are offered, and a place o
 });
 
 // TST-964002 · level: component · module: MOD-maintenance-pages
-// guards: THE PAGE NAMES WHERE IT SENDS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-038 (4)
+// guards: THE PAGE NAMES WHERE IT SENDS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-038
 // given: two mails listed; the participant local-llm chosen and the name entered
 // input: nothing more
 // expect: the run panel names local-llm, where it processes data (this machine) and the parts it receives — each listed mail by its identifier, the products and their open issues —; the three checkers are listed with their places and the sentence that each
@@ -119,7 +119,7 @@ test("The run panel names the participant's place, what it receives, and the thr
 });
 
 // TST-964003 · level: component · module: MOD-maintenance-pages
-// guards: A MAIL BECOMES AN ISSUE ONLY BY A PERSON'S CLICK; A GENERATED ARTIFACT IS A PROPOSAL; ONE CLICK PER DECISION; UC-038 (4, 5, 7a)
+// guards: A MAIL BECOMES AN ISSUE ONLY BY A PERSON'S CLICK; A GENERATED ARTIFACT IS A PROPOSAL; ONE CLICK PER DECISION; UC-038
 // given: two listed mails; local-llm chosen; its answer: a proposal for each, the first a defect with one possible duplicate
 // input: a click a script makes on Run; then the person's click on Run
 // expect: the script's click sends nothing; the person's click sends one request that holds both mails; each proposal is shown in its mail's review — product, kind, title, text — and the duplicate #3 with its reason beside the first; nothing was created in any
@@ -148,7 +148,7 @@ test("One Propose sends all listed mails in one job, and each proposal is shown 
 });
 
 // TST-964004 · level: component · module: MOD-maintenance-pages
-// guards: A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE; THE PRODUCT ISSUE CARRIES NO PERSONAL DATA; UC-038 (6)
+// guards: A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE; THE PRODUCT ISSUE CARRIES NO PERSONAL DATA; UC-038
 // given: the proposal for the second mail names the reporter's address in its text, the first does not
 // input: Propose
 // expect: the second mail shows a hit of the address and its Create issue is disabled; the first shows no hit and its Create issue is enabled
@@ -163,7 +163,7 @@ test("A proposal whose text names a person of the mail is marked and cannot be c
 });
 
 // TST-964005 · level: component · module: MOD-maintenance-pages
-// guards: MAIL STAYS IN THE MAILBOX; THE PAGE NAMES WHERE IT SENDS; UC-038 (5a)
+// guards: MAIL STAYS IN THE MAILBOX; THE PAGE NAMES WHERE IT SENDS; UC-038
 // given: the first mail has an attachment log.txt with a text and one without a text
 // input: Propose without ticking; then Propose with log.txt ticked (in a fresh page)
 // expect: only the attachment with a text has a tick, and it is not ticked; the first job receives no word of the log; the second does, and its run panel names the part
@@ -186,7 +186,7 @@ test("An attachment reaches the participant only when ticked", async () => {
 });
 
 // TST-964006 · level: component · module: MOD-maintenance-pages
-// guards: A GENERATED ARTIFACT IS A PROPOSAL; A MAIL BECOMES AN ISSUE ONLY BY A PERSON'S CLICK; UC-038 (5, 5b)
+// guards: A GENERATED ARTIFACT IS A PROPOSAL; A MAIL BECOMES AN ISSUE ONLY BY A PERSON'S CLICK; UC-038
 // given: the proposal for the first mail is of the kind `no issue`; the one for the second names a product that is not managed
 // input: Propose; then the person picks the managed product for the second mail
 // expect: the first mail says no issue was found; the second says that no matching product was found and its Create issue is disabled although its title and text are filled; after the pick it is enabled
@@ -222,7 +222,7 @@ const rewriting = (request, { one: first, two }) => {
 };
 
 // TST-964007 · level: component · module: MOD-maintenance-pages
-// guards: REPORT DATA LEAVES THE MAILBOX ONLY REWRITTEN WITHOUT PERSONS; A REWRITTEN TEXT IS CHECKED BY THREE LLMS; UC-038 (5a, 6)
+// guards: REPORT DATA LEAVES THE MAILBOX ONLY REWRITTEN WITHOUT PERSONS; A REWRITTEN TEXT IS CHECKED BY THREE LLMS; UC-038
 // given: local-llm chosen; the checkers check-1 to check-3; the first rewrite names Ricky, which one checker finds; the rewrite that follows the finding does not
 // input: the person's click on Add to the issue for log.txt of the first mail, then on Run of its panel
 // expect: the panel names local-llm and the three checkers; the rewriter is asked twice and the second request carries the finding; each round is read by the three checkers; the text of the issue holds the corrected rewrite and neither Ricky nor the
@@ -247,7 +247,7 @@ test("With three checkers a finding goes back, and only the corrected rewrite is
 });
 
 // TST-964008 · level: component · module: MOD-maintenance-pages
-// guards: A REWRITTEN TEXT IS CHECKED BY THREE LLMS; THE PAGE NAMES WHERE IT SENDS; UC-038 (6c)
+// guards: A REWRITTEN TEXT IS CHECKED BY THREE LLMS; THE PAGE NAMES WHERE IT SENDS; UC-038
 // given: a register in which only one participant besides local-llm drafts text at this machine
 // input: local-llm chosen; the person's click on Add to the issue
 // expect: the page names that three checking participants are needed and how many were found, and links the participants and the mailbox's places; no run panel is drawn for Propose or for the report data; nothing is sent
@@ -265,7 +265,7 @@ test("With fewer than three checkers the missing ones are named and nothing is s
 });
 
 // TST-964009 · level: component · module: MOD-maintenance-pages
-// guards: PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF; UC-038 (6b)
+// guards: PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF; UC-038
 // given: the product's docs/settings.md switches pseudonymisation off
 // input: local-llm chosen; the person's click on Add to the issue for log.txt
 // expect: no rewriting job is offered or run; the report data stands unchanged in the text of the issue and in <pre class="mail-report-data">, with the notice that pseudonymisation is off above it; the notice is not shown where it is on
@@ -290,7 +290,7 @@ test("With pseudonymisation off the report data is shown unchanged with the noti
 });
 
 // TST-964010 · level: component · module: MOD-maintenance-pages
-// guards: THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; THE PAGE NAMES WHERE IT SENDS; UC-038 (4c, 4b)
+// guards: THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; THE PAGE NAMES WHERE IT SENDS; UC-038
 // given: a register whose participants all process data at places the mailbox does not allow
 // input: the mailbox read
 // expect: the page says that no participant works at a place the mailbox allows and links the mailbox's places; no participant is offered; nothing is sent; the mails can still be decided by hand (Create issue is there)
@@ -306,7 +306,7 @@ test("With no participant at an allowed place nothing is sent and the mailbox's 
 });
 
 // TST-964011 · level: component · module: MOD-maintenance-pages
-// guards: THE PAGE NAMES WHERE IT SENDS; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; UC-038 (4a)
+// guards: THE PAGE NAMES WHERE IT SENDS; THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; UC-038
 // given: the participant is a CLI agent that the Bridge lab-pc-4 runs, at this machine
 // input: the agent chosen; Propose
 // expect: the run panel names the agent and this machine; the Bridge receives one ask for the agent claude holding both mails; no model endpoint is called for the proposals; the proposals are shown

@@ -116,7 +116,7 @@ const withSchedule = (text, more = {}, hostOptions = {}) => page({ "docs/tests/s
 // ================================================================== the tests
 
 // TST-758001 · level: unit · module: MOD-test-pages
-// guards: THE DEFAULT SCHEDULE FOLLOWS THE BOOK; UC-027 (1)
+// guards: THE DEFAULT SCHEDULE FOLLOWS THE BOOK; UC-027
 // given: a product whose default branch holds no docs/tests/schedule.md
 // input: the route schedule rendered for the product
 // expect: the page says the table is the book's default, not yet saved; the table has the rows unit, component, system, paid, release and user and the columns every commit, pull request, nightly, release candidate and on demand, with the ticks of the book's default (unit, component and system in all five; paid, release and user only where the book ticks them); the nightly time field holds 02:00
@@ -134,7 +134,7 @@ test("schedule — without a schedule the page shows the book's default, marked 
 });
 
 // TST-758002 · level: unit · module: MOD-test-pages
-// guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT; UC-027 (1, 3)
+// guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT; UC-027
 // given: a product whose docs/tests/schedule.md ticks the row system only for nightly, release candidate and on demand, names the nightly time 03:30, the command `make test` and the report out/junit.xml
 // input: the route schedule rendered for the product
 // expect: no mark of the default; the table shows the saved ticks (system ticked on nightly, release candidate and on demand only; the other rows as in the file); the form's fields hold 03:30, `make test` and out/junit.xml
@@ -151,7 +151,7 @@ test("schedule — a saved schedule is shown as saved, with its nightly time and
 });
 
 // TST-758003 · level: unit · module: MOD-test-pages
-// guards: EVERY STEP EXPLAINS ITSELF; UC-027 (1)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-027
 // given: a product without a schedule
 // input: the route schedule rendered for the product
 // expect: the heading cell of each of the six rows and each of the five columns holds a folded explanation (a details element of the class explain, its summary "What is this?") whose text names a chapter of the book, "ch. 12" or "ch. 13"
@@ -168,7 +168,7 @@ test("schedule — each row and each column carries a folded What is this? namin
 });
 
 // TST-758004 · level: unit · module: MOD-test-pages
-// guards: A RELEASE RUNS EVERY TEST AT EVERY LEVEL; COMMIT TESTS CALL NO PAID SERVICE; UC-027 (2)
+// guards: A RELEASE RUNS EVERY TEST AT EVERY LEVEL; COMMIT TESTS CALL NO PAID SERVICE; UC-027
 // given: a product without a schedule
 // input: the route schedule rendered for the product
 // expect: exactly eight cells refuse (class refused): the release candidate cell of each of the six rows, each with a reason naming A RELEASE RUNS EVERY TEST AT EVERY LEVEL, and the every commit and pull request cells of the row paid, each with a reason naming COMMIT TESTS CALL NO PAID SERVICE and recorded responses; no other cell refuses
@@ -186,7 +186,7 @@ test("schedule — the release candidate column and the commit cells of paid ref
 });
 
 // TST-758005 · level: unit · module: MOD-test-pages
-// guards: A RELEASE RUNS EVERY TEST AT EVERY LEVEL; COMMIT TESTS CALL NO PAID SERVICE; THE TEST SCHEDULE IS DECLARED PER PRODUCT; UC-027 (2, 3)
+// guards: A RELEASE RUNS EVERY TEST AT EVERY LEVEL; COMMIT TESTS CALL NO PAID SERVICE; THE TEST SCHEDULE IS DECLARED PER PRODUCT; UC-027
 // given: a saved schedule whose row unit leaves out the release candidate, whose row paid runs on every commit, and whose row system runs on writer, a participant without "run code and tests"
 // input: the route schedule rendered; and scheduleFindings of the same schedule and the instance's participants
 // expect: the page lists each finding of scheduleFindings, three of them, with its text and the requirement it names; Save of the form is not offered; for the book's default the list is empty
@@ -207,7 +207,7 @@ test("schedule — the findings of scheduleFindings are listed, and Save is not 
 });
 
 // TST-758006 · level: unit · module: MOD-test-pages
-// guards: UC-027 (1)
+// guards: UC-027
 // given: a product whose test files hold three unit tests (one of them calls the paid service oracle), one component test, two system tests (one of them calls the paid service oracle) and one release test, and no user test
 // input: the route schedule rendered for the product
 // expect: the number of tests of the rows unit, component, system, paid, release and user is 3, 1, 2, 2, 1 and 0: a test that calls a paid service counts under paid and under its own level
@@ -223,7 +223,7 @@ test("schedule — each row names how many tests it holds", async () => {
 });
 
 // TST-758007 · level: unit · module: MOD-test-pages
-// guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT; UC-027 (3)
+// guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT; UC-027
 // given: the instance's participants lab-runner, hosted-ci and bridge-runner (each with "run code and tests") and writer (without it); a saved schedule whose row system runs on lab-runner
 // input: the route schedule rendered for the product
 // expect: each of the six rows has a runner choice that offers hosted, lab-runner, hosted-ci and bridge-runner, and not writer; the choice of the row system shows lab-runner, those of the other rows hosted
@@ -237,7 +237,7 @@ test("schedule — the runner of each row is chosen among the participants that 
 });
 
 // TST-758008 · level: unit · module: MOD-test-pages
-// guards: NO SECRET IN THE REPOSITORY; UC-027 (4)
+// guards: NO SECRET IN THE REPOSITORY; UC-027
 // given: a saved schedule that ticks the row paid, and a resource list with the endpoints oracle (Secret ci:ORACLE_KEY) and local-llm (Secret ci:LOCAL_KEY); the host's secrets page; and the same schedule with the row paid ticked nowhere
 // input: the route schedule rendered for the product, for each of the two schedules
 // expect: the secrets block names ORACLE_KEY for oracle and LOCAL_KEY for local-llm and nothing else, links the host's secrets page, holds a folded explanation, and holds no field to type into; for the second schedule it names no secret
@@ -254,7 +254,7 @@ test("schedule — the secrets needed are named, with the server's secrets page,
 });
 
 // TST-758009 · level: unit · module: MOD-test-pages
-// guards: NO SECRET IN THE REPOSITORY; UC-027 (4)
+// guards: NO SECRET IN THE REPOSITORY; UC-027
 // given: a resource list whose endpoint leaky has the written key sk-live-abc123def456 where a secret's name belongs, beside the endpoint oracle with ci:ORACLE_KEY; the book's default
 // input: the route schedule rendered for the product
 // expect: the page names ORACLE_KEY and shows the text sk-live-abc123def456 nowhere
@@ -276,7 +276,7 @@ const run = (id, state) => ({ id, workflow: "tests.yml", commit: "a".repeat(40),
 const registrationOf = (shown, row) => descendants(shown, (node) => (node.className ?? "").split(" ").includes("runner-registration") && node.getAttribute("data-row") === row)[0];
 
 // TST-850001 · level: unit · module: MOD-test-pages
-// guards: UC-027 (3b); EVERY STEP EXPLAINS ITSELF
+// guards: UC-027; EVERY STEP EXPLAINS ITSELF
 // given: a saved schedule whose row system runs on lab-runner (route ci runner:lab) and whose rows unit and release run on hosted-ci, bridge-runner and nobody; no run waits
 // input: the route schedule rendered
 // expect: exactly one registration block, for the row system: a link to the server's runner page (webLinks().runners), the label lab, a folded explanation, and the note that no run waits; none for the other rows
@@ -295,7 +295,7 @@ test("schedule — a row on a self-hosted runner shows the server's runner page,
 });
 
 // TST-850002 · level: unit · module: MOD-test-pages
-// guards: UC-027 (3b)
+// guards: UC-027
 // given: the same schedule; listCiRuns gives four runs in the state queued, one running and one success; the queued runs 1 and 3 ask for the label lab (3 also for self-hosted), run 5 for the label other, run 6 for none
 // input: the route schedule rendered
 // expect: the block lists the queued runs 1 and 3 as links to their urls and no other; listCiRuns was asked once, for the default branch main; ciRunLabels was asked of the four queued runs and of no other; no note that no run waits
@@ -311,7 +311,7 @@ test("schedule — the queued runs that wait for the row's label are shown as qu
 });
 
 // TST-1081006 · level: unit · module: MOD-test-pages
-// guards: UC-027 (3b)
+// guards: UC-027
 // given: the same schedule; two runs wait, but for the label other and for none
 // input: the route schedule rendered
 // expect: the block lists no queued run and says that no run waits for a runner
@@ -323,7 +323,7 @@ test("schedule — a queued run that waits for another label is not shown under 
 });
 
 // TST-1081007 · level: unit · module: MOD-test-pages
-// guards: UC-027 (3b)
+// guards: UC-027
 // given: the same schedule; a queued run whose labels the server cannot give (ciRunLabels fails)
 // input: the route schedule rendered
 // expect: the block still holds the runner page and the label, and says the runs cannot be read; the page does not fail
@@ -336,7 +336,7 @@ test("schedule — where the labels of a queued run cannot be read the registrat
 });
 
 // TST-850003 · level: unit · module: MOD-test-pages
-// guards: UC-027 (3b); EVERY STEP EXPLAINS ITSELF
+// guards: UC-027; EVERY STEP EXPLAINS ITSELF
 // given: the same schedule on a server whose pages are those of another address (a GitLab-shaped one)
 // input: the route schedule rendered
 // expect: the link of the block is that server's webLinks().runners, not an address the page builds
@@ -347,7 +347,7 @@ test("schedule — the runner page is the one webLinks gives", async () => {
 });
 
 // TST-850004 · level: unit · module: MOD-test-pages
-// guards: UC-027 (3b)
+// guards: UC-027
 // given: the book's default schedule (every row on hosted)
 // input: the route schedule rendered
 // expect: no registration block, and listCiRuns is not asked
@@ -359,7 +359,7 @@ test("schedule — without a self-hosted row there is no registration block and 
 });
 
 // TST-850005 · level: unit · module: MOD-test-pages
-// guards: UC-027 (3b)
+// guards: UC-027
 // given: the same schedule, listCiRuns failing
 // input: the route schedule rendered
 // expect: the block still holds the runner page and the label, and says the runs cannot be read; the page does not fail

@@ -39,7 +39,7 @@ function assertClaims(topic, claims) {
 }
 
 // TST-511101 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-042 (step 3, every line has its folded What is this?)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-042
 // given: explanations.md, and the topic recording-conversations
 // input: explain("recording-conversations")
 // expect: the folded What is this? — a <details class="explain"> without the open attribute, holding <summary>What is this?</summary> and then the topic's Markdown rendered, in which no asterisk or backtick of the source is left standing
@@ -59,7 +59,7 @@ test("explain — recording-conversations: a folded What is this? with the topic
 });
 
 // TST-511102 · level: unit · module: MOD-site-frame
-// guards: A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; UC-042 (step 3: off by default)
+// guards: A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; UC-042
 // given: the topic recording-conversations
 // input: explain("recording-conversations")
 // expect: text saying the switch decides whether the conversations of the prompt bar are written to git, and that it is off unless you switch it on
@@ -71,7 +71,7 @@ test("explain — recording-conversations: what the switch does, and that it is 
 });
 
 // TST-511103 · level: unit · module: MOD-site-frame
-// guards: A RECORDED CONVERSATION IS KEPT WHERE IT WAS HELD; UC-042 (step 3: where the messages are committed)
+// guards: A RECORDED CONVERSATION IS KEPT WHERE IT WAS HELD; UC-042
 // given: the topic recording-conversations
 // input: explain("recording-conversations")
 // expect: text saying every message of a conversation, yours and the participant's, is committed under docs/conversations/ of the repository of the page the conversation is held on
@@ -83,7 +83,7 @@ test("explain — recording-conversations: where the records go", () => {
 });
 
 // TST-511104 · level: unit · module: MOD-site-frame
-// guards: SWITCHING CONVERSATION RECORDING ON STATES WHAT FOLLOWS; UC-042 (step 3: for each public repository the conversations will be published)
+// guards: SWITCHING CONVERSATION RECORDING ON STATES WHAT FOLLOWS; UC-042
 // given: the topic recording-conversations
 // input: explain("recording-conversations")
 // expect: text saying a repository that its server reports as public publishes what is committed to it, and that the page names such repositories before the switch is saved
@@ -95,7 +95,7 @@ test("explain — recording-conversations: a public repository publishes the rec
 });
 
 // TST-511105 · level: unit · module: MOD-site-frame
-// guards: UC-042 (step 3b: records already written stay in the repositories' history)
+// guards: UC-042
 // given: the topic recording-conversations
 // input: explain("recording-conversations")
 // expect: text saying switching off is saved at once, and that records already written stay in the history of the repositories
@@ -107,7 +107,7 @@ test("explain — recording-conversations: switching off keeps what was written"
 });
 
 // TST-511106 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF (a topic the file does not hold shows nothing, and the page goes on)
+// guards: EVERY STEP EXPLAINS ITSELF
 // given: known positive — explain("recording-conversations") is a folded What is this? with a text —; a topic the file does not hold, recording-conversations-nothing
 // input: explain("recording-conversations-nothing")
 // expect: no exception; an element without any child, where explain("recording-conversations") has two

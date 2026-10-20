@@ -90,7 +90,7 @@ const optionsOf = (target, name) => find(control(target, name), (node) => node.l
 const main = () => treeHost({ trees: { main: FILES } });
 
 // TST-596001 · level: unit · module: MOD-trace-pages
-// guards: UC-020 (step 4)
+// guards: UC-020
 // given: the fixture on main; known positive: with nothing typed every requirement and the unknown member is on the page
 // input: "shelf" typed (it stands in BETA RULE's rule only); then "Gamma" (a name, in other case); then "RULE" (every name); then the text cleared
 // expect: the rows BETA RULE; GAMMA RULE; every requirement (the unknown member and the group of it hidden but for the requirements' own groups' rows); then the whole tree again. Lending rules keeps its count "2 requirements"
@@ -110,7 +110,7 @@ test("typing part of a name or of a rule narrows the tree to the requirements th
 });
 
 // TST-596002 · level: unit · module: MOD-trace-pages
-// guards: UC-020 (step 4)
+// guards: UC-020
 // given: the fixture on main: ALPHA RULE change proposed, BETA RULE removal proposed, EPSILON RULE proposed, GAMMA RULE and DELTA RULE in SPEC
 // input: the status chosen in turn: removal proposed; proposed; in SPEC; change proposed; all
 // expect: BETA RULE; EPSILON RULE; DELTA RULE and GAMMA RULE; ALPHA RULE; every requirement again. The choices offered are all, in SPEC, change proposed, removal proposed, proposed
@@ -125,7 +125,7 @@ test("the filter by status keeps the requirements of that status", async () => {
 });
 
 // TST-596003 · level: unit · module: MOD-trace-pages
-// guards: UC-020 (step 4)
+// guards: UC-020
 // given: the fixture on main: BETA RULE names Source A and Source B, ALPHA RULE Source A, GAMMA RULE Source B, DELTA RULE Source C; EPSILON RULE (added) names none
 // input: the source chosen in turn: Source B; Source C; Source A; all
 // expect: the choices offered are all, Source A, Source B, Source C; BETA RULE and GAMMA RULE; DELTA RULE; ALPHA RULE and BETA RULE; every requirement again
@@ -139,7 +139,7 @@ test("the filter by source keeps the requirements that name the source", async (
 });
 
 // TST-596004 · level: unit · module: MOD-trace-pages
-// guards: UC-020 (step 4)
+// guards: UC-020
 // given: the fixture on main: UC-001 realises ALPHA RULE and GAMMA RULE; no use case realises BETA RULE and DELTA RULE, nor EPSILON RULE, which an entry would add
 // input: realised chosen; not realised chosen; all chosen
 // expect: ALPHA RULE and GAMMA RULE; BETA RULE, DELTA RULE and EPSILON RULE; every requirement again. The choices offered are all, realised, not realised
@@ -152,7 +152,7 @@ test("the filter by realised keeps the requirements a use case realises, or thos
 });
 
 // TST-596005 · level: unit · module: MOD-trace-pages
-// guards: UC-020 (step 4)
+// guards: UC-020
 // given: the fixture on main
 // input: the source Source A and not realised together; then the text "book" added; then the text "loan" in place of it; then the text cleared
 // expect: BETA RULE alone (Source A, not realised; EPSILON RULE, added, names no source); BETA RULE ("book" stands in its rule); no row and no group, since "loan" stands in ALPHA RULE's rule, which is realised,
@@ -171,7 +171,7 @@ test("the text and the filters narrow together, and a tree with nothing left say
 });
 
 // TST-596006 · level: unit · module: MOD-trace-pages
-// guards: UC-020 (step 4)
+// guards: UC-020
 // given: the fixture on main
 // input: the route rendered with the params text "shelf"; with status "removal proposed"; with source "Source C" and realised "not realised"; with a status that is none of the four
 // expect: the tree drawn narrowed to BETA RULE; to BETA RULE; to DELTA RULE, each control holding the value of its param; the last tree is not narrowed
@@ -190,7 +190,7 @@ test("the params give the controls their first values and the tree is drawn narr
 });
 
 // TST-596007 · level: unit · module: MOD-trace-pages
-// guards: UC-020 (step 4)
+// guards: UC-020
 // given: the fixture on main, whose group Membership rules names GHOST RULE, which no requirement has
 // input: the status in SPEC chosen, then all
 // expect: GHOST RULE is among the rows with nothing narrowing, gone while the status narrows, and back once it is all again
@@ -202,7 +202,7 @@ test("a member that names no requirement is shown only while nothing narrows", a
 });
 
 // TST-596008 · level: unit · module: MOD-trace-pages
-// guards: UC-020 (step 4, 1a)
+// guards: UC-020
 // given: the fixture at the tag v2026.1.0, which holds the same files
 // input: at the tag, the source Source B chosen, then the text "card"
 // expect: the controls are there at the tag too; BETA RULE and GAMMA RULE (the tag shows no entry, so no EPSILON RULE); then GAMMA RULE
@@ -215,7 +215,7 @@ test("a released version narrows the same way", async () => {
 });
 
 // TST-596009 · level: unit · module: MOD-trace-pages
-// guards: UC-020 (step 4)
+// guards: UC-020
 // given: the fixture on main, in which every read of UC-001's file fails as an unreachable server does
 // input: realised chosen
 // expect: the tree is not narrowed by it (every row stays) and the page says "Whether a use case realises a requirement could not be read."
@@ -233,7 +233,7 @@ test("a trace graph that cannot be read leaves the tree as it is and names what 
 });
 
 // TST-596010 · level: unit · module: MOD-trace-pages
-// guards: UC-020 (step 4)
+// guards: UC-020
 // given: the fixture on main, whose groups start closed
 // input: "shelf" typed (BETA RULE, in Lending rules); then the text cleared; then Lending rules opened with its control and "shelf" typed and cleared
 // expect: Lending rules is open while BETA RULE matches, Membership rules stays closed; both closed again once the text is cleared; the group the person opened stays open

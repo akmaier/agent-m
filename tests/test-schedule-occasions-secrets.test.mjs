@@ -29,7 +29,7 @@ const resourcesOf = (...rows) => readDocument(resourceSchema(), "docs/resources.
   `# Resources of this product\n\n**REGISTER**\n\nThe resources.\n\n${RESOURCE_HEAD}\n${rows.join("\n")}\n`);
 
 // TST-743001 · level: unit · module: MOD-test-schedule
-// guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT; UC-028 (2)
+// guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT; UC-028
 // given: the book's default schedule
 // input: occasionsOf(row, defaultSchedule()) for each of the rows unit, component, system, paid, release and user
 // expect: for each row exactly the occasions its row ticks: unit, component and system on every commit, pull request, nightly, release candidate and on demand; paid on nightly, release candidate and on demand; release and user on release candidate and on demand
@@ -43,7 +43,7 @@ test("occasionsOf — the default gives each row exactly its ticked columns", ()
 });
 
 // TST-743002 · level: unit · module: MOD-test-schedule
-// guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT; UC-029 (4)
+// guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT; UC-029
 // given: a schedule whose unit row ticks only pull request, whose system row ticks nothing, and whose other rows are the default
 // input: occasionsOf("unit", schedule), occasionsOf("system", schedule) and occasionsOf("paid", schedule)
 // expect: ["pull request"] for unit, [] for system, and the default's three occasions for paid
@@ -57,7 +57,7 @@ test("occasionsOf — a declared schedule is followed, and a row ticked nowhere 
 });
 
 // TST-743003 · level: unit · module: MOD-test-schedule
-// guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT; NO SECRET IN THE REPOSITORY; UC-027 (4)
+// guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT; NO SECRET IN THE REPOSITORY; UC-027
 // given: the book's default schedule, which ticks the row paid; a resource list with a paid endpoint oracle whose Secret is ci:ORACLE_KEY, a free model endpoint local-llm whose Secret is ci:LOCAL_KEY, and a paid agent whose key is kept in a browser
 // input: secretsNeeded(defaultSchedule(), resources)
 // expect: exactly [{ name: "ORACLE_KEY", for: "oracle" }, { name: "LOCAL_KEY", for: "local-llm" }] — the row paid is the tests that call a paid service or a model, so a model endpoint counts as well; the agent whose key is in a browser gives none
@@ -67,7 +67,7 @@ test("secretsNeeded — names the secret of each endpoint the ticked row paid ca
 });
 
 // TST-743004 · level: unit · module: MOD-test-schedule
-// guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT; UC-027 (4)
+// guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT; UC-027
 // given: a schedule whose row paid is ticked on no occasion; the resource list with the paid endpoint oracle
 // input: secretsNeeded(schedule, resources)
 // expect: [] — no secret is needed for a row that is not ticked on any occasion
@@ -79,7 +79,7 @@ test("secretsNeeded — nothing for a row ticked on no occasion", () => {
 });
 
 // TST-743005 · level: unit · module: MOD-test-schedule
-// guards: NO SECRET IN THE REPOSITORY; UC-027 (4)
+// guards: NO SECRET IN THE REPOSITORY; UC-027
 // given: the default schedule; a resource list whose paid endpoint oracle names ci:ORACLE_KEY and whose paid endpoint leaky holds a value, sk-live-abc123def456, where a name belongs; a fixture store that holds ORACLE_KEY = sk-live-store-7788
 // input: secretsNeeded(defaultSchedule(), resources), serialised
 // expect: the names only — ORACLE_KEY for oracle; neither the value in the list nor the value in the store appears anywhere in the result

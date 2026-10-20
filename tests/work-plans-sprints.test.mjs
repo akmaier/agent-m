@@ -142,7 +142,7 @@ test("heldItems — an item stays held until a pull request with its change is m
 });
 
 // TST-473178 · level: unit · module: MOD-work-plans
-// guards: A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; UC-041 7b
+// guards: A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; UC-041
 // given: team1's sprint 01 with its own branch sprint/team1/01, selecting ITM-001 and ITM-003; ITM-001's pull request merged into that branch on 2026-10-13; and the increment's pull request from that branch into the default branch (a) open, (b) merged on 2026-10-12, before ITM-001's merge, (c) merged on 2026-10-14, after it
 // input: heldItems(that sprint, the items, the architecture, the pull requests of each case)
 // expect: (a) and (b) both held — ITM-001's change is in the sprint's branch, not yet in the default branch; (c) only ITM-003, whose change was never merged
@@ -192,7 +192,7 @@ test("heldItems — a lower-case item id in a pull-request branch names the back
 });
 
 // TST-473179 · level: unit · module: MOD-work-plans
-// guards: A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-032 6a; UC-041 step 6
+// guards: A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-032; UC-041
 // given: team1's sprint 01 selecting ITM-001 and ITM-003, then a new start decision (## Selection) selecting ITM-001, ITM-002 and ITM-003, then its close (## Unfinished items) sending ITM-002 back to the backlog and ITM-003 into the next sprint; team1's sprint 02 selecting ITM-003
 // input: heldItems(both sprints, the items, the architecture, [])
 // expect: ITM-001, held by sprint 01 — its last selection —; ITM-002 not held — it went back to the backlog —; ITM-003 held by sprint 02 only
@@ -220,7 +220,7 @@ test("heldItems — a sprint record outside a team's folder holds nothing", () =
 });
 
 // TST-473181 · level: unit · module: MOD-work-plans
-// guards: A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; UC-041 step 6
+// guards: A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; UC-041
 // given: team1's sprint 01, without a branch of its own, selecting ITM-001 and ITM-003, closed — its record holds ## Review, ## Unfinished items stating its decision in prose only, without fields, as older records do, and ## Retrospective —; ITM-001's pull request into the default branch open, ITM-003 without one
 // input: heldItems(that sprint, the items, the architecture, ITM-001's open pull request)
 // expect: nothing held — the close sent every item it did not finish back to the backlog or into the team's next sprint
@@ -308,7 +308,7 @@ const HELD = heldItems([sprint("team1", "01", { selection: ["ITM-003"] }), sprin
   ITEMS, ARCHITECTURE, []);
 
 // TST-473184 · level: unit · module: MOD-work-plans
-// guards: SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES; UC-032 step 5
+// guards: SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES; UC-032
 // given: what the sprints hold, HELD; team1 plans
 // input: conflicts(an item, "team1", HELD, the architecture) for: ITM-002 itself, held by team2; ITM-001, which changes MOD-store, a module ITM-002 uses; ITM-004 — held by team2 —; and ITM-003, held by team1's own sprint
 // expect: ITM-002: one entry, team2's sprint, ITM-002, MOD-pages; ITM-001: one entry naming team2/01, ITM-002 and MOD-store; ITM-004: one entry naming team2/01, ITM-004, MOD-feed; ITM-003: its own team's sprint holding it keeps nothing from the selection, but ITM-004 of team2 uses MOD-mail, which ITM-003 changes — one entry naming team2/01, ITM-004 and MOD-mail
@@ -359,7 +359,7 @@ const SPRINT_291 = [sprint("team1", "26", { selection: ["ITM-291"], branch: "spr
 const ITEMS_291 = [...ITEMS, item("ITM-291", ["MOD-store"])];
 
 // TST-516001 · level: unit · module: MOD-work-plans
-// guards: A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; UC-032 step 6
+// guards: A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH; UC-032
 // given: team1's sprint 26 selecting ITM-291; #279 (head 1111…) and #285 (head 2222…), both naming ITM-291, merged into sprint/19, which no pull request merged into main
 // input: heldItems(that sprint, the items, the architecture, #279 and #285, onDefault) for: no onDefault; an empty Set; a Set with 3333… only; a Set with #285's head 2222…; a Set with #279's head 1111…; and with the pull requests "unknown" and 1111… in onDefault
 // expect: ITM-291 held for the first three — its change is on the default branch in none of them —; not held for the next two, whichever of its pull requests' heads is in onDefault; held with the pull requests unknown

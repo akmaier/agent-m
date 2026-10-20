@@ -39,7 +39,7 @@ const linksIn = (node) => byTag(node, "a").map((anchor) => anchor.href);
 const button = (node, pattern) => byTag(node, "button").find((candidate) => pattern.test(candidate.textContent));
 
 // TST-587101 · level: release · module: MOD-settings-pages
-// guards: UC-014 step 1
+// guards: UC-014
 // given: a fresh browser on the original dashboard (no owner known); known positive — the page has all four steps
 // input: render the route `get-your-own`; read the field and the text around it
 // expect: UC-014 step 1 "A guided page opens; it asks for the person's GitHub name (or the organisation to fork into — one used for nothing else is recommended, with the reason folded underneath)":
@@ -62,7 +62,7 @@ test("release · UC-014 1: the guided page asks for the GitHub name or the organ
 });
 
 // TST-587102 · level: release · module: MOD-settings-pages
-// guards: UC-014 step 2
+// guards: UC-014
 // given: a fresh browser on the original dashboard
 // input: read Step 1 · Fork
 // expect: UC-014 step 2 "A button opens GitHub's fork page for akmaier/agent-m; the person presses Create fork": Step 1 holds a link to github.com/akmaier/agent-m/fork, available before any name is
@@ -77,7 +77,7 @@ test("release · UC-014 2: Step 1 · Fork opens GitHub's fork page for akmaier/a
 });
 
 // TST-587103 · level: release · module: MOD-settings-pages
-// guards: UC-014 step 3
+// guards: UC-014
 // given: a fresh browser on the original dashboard; the person types the name alice, then the organisation my-org
 // input: read Step 2 · Turn on the dashboard before any name, after alice and after my-org
 // expect: UC-014 step 3 "Now that the owner is known, a button opens exactly github.com/<owner>/agent-m/settings/pages": before a name the step holds no link; with alice exactly one link,
@@ -93,7 +93,7 @@ test("release · UC-014 3: Step 2 opens exactly the Pages settings of <owner>/ag
 });
 
 // TST-587104 · level: release · module: MOD-settings-pages
-// guards: UC-014 step 3
+// guards: UC-014
 // given: the page with the name alice entered
 // input: read the text of Step 2 · Turn on the dashboard outside its folded explanation
 // expect: UC-014 step 3 "the page says what to choose there — Deploy from a branch, main, / (root), Save. GitHub lets no one but the owner switch this on": the text contains "Deploy from a branch",
@@ -105,7 +105,7 @@ test("release · UC-014 3: Step 2 says what to choose on the Pages settings", as
 });
 
 // TST-587105 · level: release · module: MOD-settings-pages
-// guards: UC-014 step 4
+// guards: UC-014
 // given: the page with the name alice entered
 // input: read Step 3 · Turn on the workflows — optional now outside its folded explanation
 // expect: UC-014 step 4 "needed only to fetch EU legal texts (UC-004) and to write an accepted change of the instance's own SPEC without a token; the page says so and offers Later. When a feature first
@@ -127,7 +127,7 @@ test("release · UC-014 4: Step 3 says the workflows are optional now, offers La
 });
 
 // TST-587106 · level: release · module: MOD-settings-pages
-// guards: UC-014 step 4
+// guards: UC-014
 // given: the page with the name alice entered
 // input: press Later in Step 3
 // expect: UC-014 step 4 "offers Later": the person can go on without the workflows — Step 4 · Open your dashboard is still on the page with its link, nothing is stored and no request is sent
@@ -143,7 +143,7 @@ test("release · UC-014 4: pressing Later leaves Step 4 on the page and stores a
 });
 
 // TST-587107 · level: release · module: MOD-settings-pages
-// guards: UC-014 step 5; THE PAGES ROOT IS THE REPOSITORY ROOT
+// guards: UC-014; THE PAGES ROOT IS THE REPOSITORY ROOT
 // given: the page with the name alice entered, then my-org
 // input: read Step 4 · Open your dashboard
 // expect: UC-014 step 5 "A button opens https://<owner>.github.io/agent-m/": exactly one link, https://alice.github.io/agent-m/, then https://my-org.github.io/agent-m/; before any name the step holds no link;
@@ -165,7 +165,7 @@ test("release · UC-014 5: Step 4 opens https://<owner>.github.io/agent-m/ with 
 });
 
 // TST-587108 · level: release · module: MOD-settings-pages
-// guards: UC-014 alternative flow 3a
+// guards: UC-014
 // given: a fresh browser; a fake of fetch that would answer 404 to every address (Pages is not turned on)
 // input: render the route, enter the name alice, press Later
 // expect: UC-014 3a "The address answers 404; nothing else is affected": the page does not look at the dashboard's address — no request at all is sent; all four steps stay on the page with the links of

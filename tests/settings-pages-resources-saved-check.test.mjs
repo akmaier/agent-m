@@ -93,7 +93,7 @@ const saveRunner = async (page, name, address) => {
 };
 
 // TST-1124001 · level: unit · module: MOD-settings-pages
-// guards: UC-040 step 7b; A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE
+// guards: UC-040; A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE
 // given: the product page with the job workflow and a CI agent on the runner gpu; the person adds the compute resource gpu-box with the route runner:gpu and presses Save, and does not open the page again
 // input: press Check on gpu-box
 // expect: the run panel of the check job is shown for gpu-box, and no "ResourceNotFound" is said
@@ -108,7 +108,7 @@ test("TST-1124001 Check on a runner resource saved in the same visit prepares it
 });
 
 // TST-1124002 · level: unit · module: MOD-settings-pages
-// guards: UC-040 step 7b
+// guards: UC-040
 // given: the page of TST-1124001 after the first Save; the person then adds a second runner resource, gpu-two, and saves again
 // input: press Check on gpu-two, and on gpu-box
 // expect: both show the run panel of their own job and neither says ResourceNotFound (the list the page reads holds both after the second Save)
@@ -127,7 +127,7 @@ test("TST-1124002 after a second Save the page reads the list of both saves", as
 });
 
 // TST-1124003 · level: unit · module: MOD-settings-pages
-// guards: UC-040 step 7b; A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE
+// guards: UC-040; A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE
 // given: the saved page of TST-1124001, then the person removes gpu-box from the list and saves
 // input: read the entries of the page
 // expect: gpu-box has no entry and so no Check: a resource the saved list does not hold is not checked (the counter-proof of TST-1124001)

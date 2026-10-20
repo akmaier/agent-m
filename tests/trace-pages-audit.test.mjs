@@ -482,7 +482,7 @@ test("a row with no test links no run", async () => {
 });
 
 // TST-658002 · level: component · module: MOD-trace-pages
-// guards: UC-020 (2a); EVERY STEP EXPLAINS ITSELF
+// guards: UC-020; EVERY STEP EXPLAINS ITSELF
 // given: a product whose listTags fails with a plain error; and one whose listTags fails as a Host does when the repository is not found, in a context that says no token is stored
 // input: Route.render with the key "audit"
 // expect: the page says "The tags could not be read: This page could not be drawn: tags unavailable" and never that no release is tagged; for the Host's failure without a stored token it names the private or missing repository and offers "Store a token"; it draws no row

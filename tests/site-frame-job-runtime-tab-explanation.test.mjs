@@ -25,7 +25,7 @@ const topicText = (topic) => EXPLANATIONS.split(/^## /m).slice(1).find((part) =>
 const bodyText = (topic) => (explain(topic).children[1]?.textContent ?? "").replace(/\s+/g, " ");
 
 // TST-1078001 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; ONE DASHBOARD SHOWS EVERY JOB; UC-036 (1b)
+// guards: EVERY STEP EXPLAINS ITSELF; ONE DASHBOARD SHOWS EVERY JOB; UC-036
 // given: the topic job-runtime-tab of explanations.md
 // input: the topic unfolded
 // expect: it says that a tab job's record is kept in the product's repository, that its live state and log exist only in the tab that runs it, and that a long job is better started on CI or on a Bridge
@@ -38,7 +38,7 @@ test("job-runtime-tab says the record is kept, the live state and log are the ta
 });
 
 // TST-1078002 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-036 (1b)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-036
 // given: the topic job-runtime-tab
 // input: the topic unfolded
 // expect: it does not say that a tab job "leaves no record in the repository"

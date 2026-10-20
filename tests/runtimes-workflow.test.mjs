@@ -274,7 +274,7 @@ test("jobWorkflowFiles — every GitLab job sets the three input variables to th
 });
 
 // TST-532103 · level: unit · module: MOD-runtimes
-// guards: UC-010; UC-049 4a
+// guards: UC-010; UC-049
 // given: the GitLab job file for the runner gpu
 // input: the rules of each job
 // expect: in every job five rules, and exactly one that sets AGENT_M_ENTRY to onDispatch, whose condition is exactly `$CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api"`; no other rule's text holds "api"

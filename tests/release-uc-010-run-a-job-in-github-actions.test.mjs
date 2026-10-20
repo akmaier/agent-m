@@ -116,7 +116,7 @@ const REVIEW_ONLY = [];
 // TST-373101
 // level: release
 // module: MOD-workflow-entries; MOD-runtimes; MOD-job-ledger; MOD-settings-pages; MOD-repository-hosts; MOD-endpoint-calls
-// guards: UC-010; all in-scope realised requirements
+// guards: UC-010
 // given: UC-010's `realises` list, SPEC's Check lines, the ITM-373 scope exception and this release evidence map
 // input: compare the realised requirements with COVERED_BY_RELEASE, OUT_OF_SCOPE_BY_ITEM and REVIEW_ONLY
 // expect: every in-scope automatic UC-010 requirement has evidence, review-only requirements are listed separately, and the excluded requirement is justified by the item

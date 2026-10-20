@@ -72,7 +72,7 @@ const run = async (drafter, options) => {
 };
 
 // TST-472345 · level: unit · module: MOD-job-runner
-// guards: A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; UC-019 step 8
+// guards: A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; UC-019
 // given: a draft the person wants refined, and a drafter that answers a changed draft
 // input: runJob with `refine` — the draft — and the job's parameter `instruction` — the follow-up instruction —, nobody checking anything
 // expect: one exchange; its input carries the draft as `previous`, as the JSON the loop shows a draft in, and no finding; the result's draft is the drafter's changed draft, in one round, stopped because passed
@@ -89,7 +89,7 @@ test("runJob with refine — the first exchange carries the draft as previous an
 });
 
 // TST-472346 · level: unit · module: MOD-job-runner
-// guards: A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; UC-019 step 8
+// guards: A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT; UC-019
 // given: the same job; a draft that is a text
 // input: runJob with `refine` a text
 // expect: `previous` is that text as it stands
@@ -101,7 +101,7 @@ test("runJob with refine — a draft that is a text is carried as it is", async 
 });
 
 // TST-472347 · level: unit · module: MOD-job-runner
-// guards: UC-019 step 8
+// guards: UC-019
 // given: the same job, its parameter `instruction` the follow-up instruction
 // input: runJob with `refine`
 // expect: the first exchange's parts include the part of the recipe `instruction` holding exactly the instruction, and the prompt holds it in the recipe's named place, among the parts of the kind's other recipes

@@ -61,7 +61,7 @@ function world({ commits = null, pulls = [], runs = [], refuse = null } = {}) {
 const drawJob = (context) => draw(job, context, { id: ID });
 
 // TST-1022004 · level: unit · module: MOD-main-page
-// guards: ONE DASHBOARD SHOWS EVERY JOB; UC-036 (step 4)
+// guards: ONE DASHBOARD SHOWS EVERY JOB; UC-036
 // given: the running job, whose branch has two commits after its start and one before it, whose pull request #4 is open, and whose CI runs are one for each of its two commits and one for a commit that is not its own
 // input: the route job drawn
 // expect: two commit lines (the newer first) with the twelve digits of the commit and its first line; the pull request "#4 Work on <id> — open" with a link; two run lines, "tests.yml" with the state success and failure, each with a link, and not the run of the foreign commit

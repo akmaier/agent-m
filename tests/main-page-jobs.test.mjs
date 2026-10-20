@@ -201,7 +201,7 @@ const ALL_IDS = ["JOB-20261016-0800-bbbb", "JOB-20261016-1000-ffff", "JOB-202610
 const NO_BRIDGE = "no Bridge named lab-pc-3 is among the Bridges";
 
 // TST-509001 · level: unit · module: MOD-main-page
-// guards: ONE DASHBOARD SHOWS EVERY JOB; NO COST IS GUESSED; UC-036 (steps 1, 2); UC-046
+// guards: ONE DASHBOARD SHOWS EVERY JOB; NO COST IS GUESSED; UC-036; UC-046
 // given: the instance acme/agent-m (a job done on this tab at 0.41 EUR, a job waiting at a gate that no route took) and the products acme/library (private; a failed job and a running one on the Bridge lab-pc-3, which this browser does not keep) and acme/atlas (public; a cancelled job, and a running one on each of the Bridges lab-pc-4 and lab-pc-5), the clock at 2026-10-16 12:00 UTC
 // input: the route `jobs` drawn
 // expect: seven rows: the job waiting at a gate first, then by the start of the record, newest first — lab-pc-4's (10:00), lab-pc-5's (09:30), lab-pc-3's (09:00) running job, the done one of 15 October, the failed one of 14 October, the cancelled one of 13 October; each with its identifier, its product's address, what it works on, kind, participant, where it runs, state, elapsed time and cost: "0.41 EUR" where the record's end reports it, "unknown" in every other row
@@ -247,7 +247,7 @@ test("TST-509002 each repository is read with the token this browser keeps for i
 });
 
 // TST-509003 · level: unit · module: MOD-main-page
-// guards: ONE DASHBOARD SHOWS EVERY JOB; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-036 (1a)
+// guards: ONE DASHBOARD SHOWS EVERY JOB; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-036
 // given: the same browser
 // input: the route `jobs` drawn; the Bridges' requests counted
 // expect: each job whose record has no end is asked once — lab-pc-4's list of jobs and lab-pc-5's address once each, and none for a Bridge this browser does not keep (lab-pc-3) and none for a job that has ended; lab-pc-4's job is running with no reason, lab-pc-5's is running with the client's reason, lab-pc-3's with "no Bridge named lab-pc-3 is among the Bridges"; no state cell is an error and every row is still listed
@@ -268,7 +268,7 @@ test("TST-509003 the live state of a job that has not ended is asked once, and o
 });
 
 // TST-509004 · level: unit · module: MOD-main-page
-// guards: ONE DASHBOARD SHOWS EVERY JOB; UC-036 (1a); UC-046 (3b)
+// guards: ONE DASHBOARD SHOWS EVERY JOB; UC-036; UC-046
 // given: the same browser, whose products also hold https://github.com/acme/missing, a repository the server does not find
 // input: the route `jobs` drawn
 // expect: above the list one source is named, "https://github.com/acme/missing: https://github.com/acme/missing was not found — a private repository is found only with a token that reaches it.", with its address and the reason its host gives; the seven jobs of the other three sources are still listed; counter-proof: with the product left out, no source is named
@@ -288,7 +288,7 @@ test("TST-509004 a source that cannot be read is named above the list with its r
 });
 
 // TST-509005 · level: unit · module: MOD-main-page
-// guards: ONE DASHBOARD SHOWS EVERY JOB; UC-036 (2, 3)
+// guards: ONE DASHBOARD SHOWS EVERY JOB; UC-036
 // given: the same browser, the seven rows
 // input: the four filters read, then each chosen in turn, and two together
 // expect: product offers all, acme/agent-m, acme/atlas, acme/library; state all, cancelled, done, failed, running, waiting at a gate; participant all, claude-cli, dev-cli, drafter-a; where it runs all, lab-pc-3, lab-pc-4, lab-pc-5, not taken, tab —; the product acme/atlas leaves ffff, gggg and eeee; the state running leaves ffff, gggg and dddd; the participant claude-cli leaves dddd and cccc; where it runs "tab" leaves aaaa and eeee; product acme/atlas and state running together leave ffff and gggg; choosing all again brings back the seven
@@ -321,7 +321,7 @@ test("TST-509005 the four filters offer all and the values the rows hold, and ea
 });
 
 // TST-509006 · level: unit · module: MOD-main-page
-// guards: ONE DASHBOARD SHOWS EVERY JOB; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-049 (6c, step 7)
+// guards: ONE DASHBOARD SHOWS EVERY JOB; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-049
 // given: the same browser and the prompt bar on the page, with one participant drafter-a (the endpoint ep1, which never answers); the clock at 10:57:57 UTC when a message is sent
 // input: the route `jobs` drawn at 12:00:00 while the message runs; then Stop pressed and the route drawn again
 // expect: while the message runs the job of this tab is the second row, after the job waiting at a gate and before every other, its cells "this tab's" in place of an identifier, "—" for the product, "" for what it works on, "converse", "drafter-a", "this tab", "running", "1h 2m 3s", "unknown", with no data-id; the seven jobs of the records follow it; once it has ended the list holds the seven rows and no row of this tab
@@ -409,7 +409,7 @@ function groupsOf(target) {
 }
 
 // TST-970001 · level: unit · module: MOD-main-page
-// guards: ONE DASHBOARD SHOWS EVERY JOB; UC-036 (step 2)
+// guards: ONE DASHBOARD SHOWS EVERY JOB; UC-036
 // given: the fixture of TST-509001 with four more records of acme/atlas — a done job of 11:00 (hhhh), a failed job of 10:30 (iiii), a queued job of 11:30 (jjjj) and a job of lab-pc-4 from 06:00 that the Bridge does not list (kkkk); the clock at 2026-10-16 12:00 UTC
 // input: the route `jobs` drawn
 // expect: seven groups, each named above its rows, in this order — waiting at a gate [bbbb]; running [ffff 10:00, gggg 09:30, dddd 09:00]; queued [jjjj]; done [hhhh 11:00, aaaa of 15 October]; failed [iiii 10:30, cccc of 14 October]; cancelled [eeee]; ended without record [kkkk] —, each state named once; counter-proof: a list newest first with the waiting rows on top, as it stood, puts the done job of 11:00 and the queued job of 11:30 above the running jobs, which interleaves the states
@@ -430,7 +430,7 @@ test("TST-970001 the rows stand in one group per state, waiting at a gate first,
 });
 
 // TST-970002 · level: unit · module: MOD-main-page
-// guards: ONE DASHBOARD SHOWS EVERY JOB; UC-036 (steps 2, 3)
+// guards: ONE DASHBOARD SHOWS EVERY JOB; UC-036
 // given: the drawn list of TST-970001
 // input: the filter state chosen as running; then all again and the filter product chosen as acme/atlas; then the participant claude-cli
 // expect: running leaves one group, running [ffff, gggg, dddd], and no header of another state; acme/atlas leaves running [ffff, gggg], queued [jjjj], done [hhhh], failed [iiii], cancelled [eeee], ended without record [kkkk] in that order — acme/agent-m's waiting and done jobs and acme/library's are gone with their headers —; the participant claude-cli, with the product all again, leaves running [dddd], failed [iiii, cccc]; choosing all brings back the seven groups
@@ -460,7 +460,7 @@ test("TST-970002 the filters narrow every group, and a group with no row shown h
 });
 
 // TST-970003 · level: unit · module: MOD-main-page
-// guards: ONE DASHBOARD SHOWS EVERY JOB; UC-049 (6c, step 7)
+// guards: ONE DASHBOARD SHOWS EVERY JOB; UC-049
 // given: the fixture of TST-509001 and the prompt bar of TST-509006 with a message running since 10:57:57 UTC
 // input: the route `jobs` drawn at 12:00:00
 // expect: the groups are waiting at a gate [bbbb] and running [this tab's, ffff, gggg, dddd] — the job of this tab is the newest running job and stands first in its group —, then done [aaaa], failed [cccc], cancelled [eeee]

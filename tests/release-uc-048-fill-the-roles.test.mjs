@@ -61,7 +61,7 @@ const COVERED_BY_RELEASE = {
 const REVIEW_ONLY = ["ONE CLICK PER DECISION"];
 
 // TST-1063101 · level: release · module: MOD-implementation-pages
-// guards: UC-048; every requirement UC-048 realises; RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER
+// guards: UC-048; RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER
 // given: UC-048's `realises` list, SPEC's current Check lines, the UC-048 system test and the files that check the requirements
 // input: compare the realised requirements with COVERED_BY_RELEASE and REVIEW_ONLY; read the declarations of the system test
 // expect: every realised requirement is either checked automatically and covered by evidence that exists, the system test among it, or checked at review only; the files the SPEC names as a requirement's check are among its evidence; the system test declares the main flow and each of the alternative flows 2a, 2b, 3a, 3b, 3c, 3d, 4a and 4b

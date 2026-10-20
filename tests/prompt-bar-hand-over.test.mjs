@@ -295,7 +295,7 @@ async function after(ms) { mock.timers.tick(ms); await settle(); }
 // ---------------------------------------------------------------- what is shown
 
 // TST-505001 · level: component · module: MOD-prompt-bar
-// guards: UC-049 (4a); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: UC-049; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: a Scrum product of team1 where ITM-004 is ready and selected for team1's sprint, and dev-ci (a model endpoint with the CI secret KEY_A, place "Anthropic, USA") holds the role Developers; the product holds Agent M's job workflow; dev-ci's answer proposes { kind: "implement", works_on: ["ITM-004"], task: TASK }
 // input: Send
 // expect: the proposal shows "Kind: implement", "Works on: ITM-004", the task, "Participant: dev-ci — Anthropic, USA" and "Route: ci hosted", no reason, and one button "Hand over"; nothing was written (no commit attempt, no workflow start, no Bridge hand-over) and exactly one request was made, the message to the endpoint
@@ -313,7 +313,7 @@ test("a hand-over the participant proposes is shown with its kind, what it works
 });
 
 // TST-505002 · level: component · module: MOD-prompt-bar
-// guards: NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-049 (4a)
+// guards: NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-049
 // given: the Scrum product of TST-505001, where ITM-005 is ready and is in no sprint's selection; dev-ci's answer proposes a hand-over that works on ITM-005
 // input: Send
 // expect: the proposal shows a reason that no sprint is running for ITM-005 ("ITM-005 can start only once one selects it"), has no button "Hand over", and nothing was written
@@ -326,7 +326,7 @@ test("a hand-over of an item no sprint selects shows the reason and queues nothi
 });
 
 // TST-505003 · level: component · module: MOD-prompt-bar
-// guards: NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; UC-049 (4a)
+// guards: NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; UC-049
 // given: the Scrum product, where ITM-003 is selected and realises the open UC-002, and ITM-006 is selected and builds on ITM-004, which is not done; the answer proposes a hand-over of ITM-003, then of ITM-006
 // input: Send, each
 // expect: for ITM-003 a reason that it realises UC-002, which is not accepted; for ITM-006 a reason that it builds on ITM-004; neither has a button "Hand over"; nothing was written
@@ -344,7 +344,7 @@ test("a hand-over of an item whose use case is not accepted, or that builds on a
 });
 
 // TST-505004 · level: component · module: MOD-prompt-bar
-// guards: A JOB GOES ONLY TO A HOLDER OF ITS ROLE; UC-049 (4a)
+// guards: A JOB GOES ONLY TO A HOLDER OF ITS ROLE; UC-049
 // given: the Scrum product, whose Developers are dev-ci and dev-bridge; "outsider", a model endpoint with the same capabilities and the CI secret KEY_A, holds no role; known positive first: dev-ci's hand-over of the ready ITM-004 shows Hand over (TST-505001)
 // input: Send to outsider, whose answer proposes a hand-over of ITM-004
 // expect: a reason "No job can implement ITM-004" that names the role Developers and team1; no button "Hand over"; nothing was written
@@ -362,7 +362,7 @@ test("a hand-over proposed by a participant that holds no implementing role show
 });
 
 // TST-505005 · level: component · module: MOD-prompt-bar
-// guards: NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT; UC-049 (4a)
+// guards: NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT; UC-049
 // given: a Kanban product (work-in-progress limit 3, no sprints, one role assignment whose Developer is dev-ci) where ITM-001, ITM-002 and ITM-003 each have a queued job and ITM-004 is ready
 // input: Send, whose answer proposes a hand-over of ITM-004
 // expect: a reason that the work-in-progress limit of 3 is reached; no button "Hand over"; nothing was written
@@ -375,7 +375,7 @@ test("a hand-over above the product's work-in-progress limit shows the limit and
 });
 
 // TST-505006 · level: component · module: MOD-prompt-bar
-// guards: NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; UC-049 (4a)
+// guards: NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; UC-049
 // given: a V-model product whose plan has the step ITM-007 in the phase Implementation, behind the gate Design → Implementation, for which no gate record exists; dev-ci is its Developer
 // input: Send, whose answer proposes a hand-over of ITM-007
 // expect: a reason that names the gate "Design → Implementation"; no button "Hand over"; nothing was written
@@ -388,7 +388,7 @@ test("a hand-over of a step behind a gate that is not recorded shows the gate an
 });
 
 // TST-505007 · level: component · module: MOD-prompt-bar
-// guards: UC-049 (4a, 4c); A JOB GOES ONLY TO A HOLDER OF ITS ROLE
+// guards: UC-049; A JOB GOES ONLY TO A HOLDER OF ITS ROLE
 // given: the Scrum product; tab-only, a model endpoint without a CI secret, so that its only route is this tab; and a second product that lacks Agent M's job workflow, for dev-ci
 // input: Send to tab-only, and Send to dev-ci on the product without the workflow, each proposing a hand-over of ITM-004
 // expect: "Route: not available" with a reason — for tab-only that its route is this tab, for dev-ci that the product has no Agent M job workflow —; no button "Hand over"; nothing was written
@@ -410,7 +410,7 @@ test("a participant with no route a hand-over takes, and a product without the j
 // ---------------------------------------------------------------- queued on the click
 
 // TST-505008 · level: component · module: MOD-prompt-bar
-// guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-049 (4a)
+// guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-049
 // given: the allowed hand-over of TST-505001
 // input: a click a script makes on Hand over (isTrusted false); then a person's click (isTrusted true)
 // expect: after the script's click nothing was written; after the person's, exactly one commit on the head the page read, which adds docs/jobs/JOB-….md (kind implement, works_on ITM-004, participant dev-ci, route ci hosted, task "with the hand-over", started by alice) and whose message is "Queue job <id>: implement", and exactly one start of the workflow agent-m-jobs.yml on trunk with the inputs job (that id), task (the task, byte for byte) and endpoint (the JSON of kind, address and model, without the key); the page says the job is queued
@@ -456,7 +456,7 @@ test("the task's words reach no record, commit or request through the bar, excep
 });
 
 // TST-505010 · level: component · module: MOD-prompt-bar
-// guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A JOB GOES ONLY TO A HOLDER OF ITS ROLE; UC-049 (4a)
+// guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A JOB GOES ONLY TO A HOLDER OF ITS ROLE; UC-049
 // given: dev-bridge, a CLI agent on the Bridge lab-pc, a Developer of team1; its answer (through the Bridge) proposes a hand-over of ITM-004
 // input: Send to dev-bridge, then a person's click on Hand over
 // expect: the proposal shows "Participant: dev-bridge — this machine" and "Route: bridge lab-pc"; after the click exactly one commit queues the job with route "bridge lab-pc" and without the task, no workflow is started, and the Bridge is handed { product: the product's address, record: the record's path, commit: the commit made, task: the task } once
@@ -508,7 +508,7 @@ test("a hand-over of an open use case is refused by the job's own precondition w
 });
 
 // TST-1123005 · level: component · module: MOD-prompt-bar
-// guards: UC-049 (4e); RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
+// guards: UC-049; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
 // given: the allowed hand-over of TST-505001, and the instance's register holds the source SRC-restricted (restricted, its content may go to "this machine" only); the recipe implementation-inputs gives one part that carries the sources of
 //   `places.contents`, as the real recipe does
 // input: a hand-over to dev-ci (place "Anthropic, USA"), a person's click on Hand over; the same hand-over to dev-bridge (place "this machine")
@@ -533,7 +533,7 @@ test("a hand-over to a participant at a place a restricted source does not allow
 // ---------------------------------------------------------------- followed
 
 // TST-505013 · level: component · module: MOD-prompt-bar
-// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-049 (4a)
+// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-049
 // given: the allowed CI hand-over, clicked by a person; a fake clock; the job's record is queued, not yet taken by a run
 // input: the job's first poll at once; then the CI takes the job (the record's `## Taken` names the run at RUN_URL, which the server lists as running) and the clock moves 14 999 ms, then 1 ms; then the job ends done with the commit COMMIT and the clock moves 15 000 ms; then 60 000 ms
 // expect: at once "State: queued" and "waiting for GitHub Actions" without an address; after 14 999 ms no further read of the default branch, after 1 ms one, now "State: running", still "waiting for GitHub Actions", with the address RUN_URL; after the end "State: done", "Ended: done" and COMMIT listed, no longer waiting; after 60 000 ms no further read
@@ -565,7 +565,7 @@ test("a handed-over job is followed every 15 seconds: waiting for GitHub Actions
 });
 
 // TST-505014 · level: component · module: MOD-prompt-bar
-// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-049 (4a)
+// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-049
 // given: the allowed Bridge hand-over of dev-bridge; the Bridge lab-pc takes the job and its log holds "first line" and "second line", not ended
 // input: a person's click on Hand over; the Bridge takes the job (the record's `## Taken` names lab-pc; the Bridge lists the job as running); the clock moves 15 000 ms; then the Bridge's log gets "third line" and the clock moves 15 000 ms
 // expect: before it takes the job "waiting for the Bridge lab-pc"; after, the log shows "first line" and "second line" and later "third line", in that order; once the job ends, "Ended: done"
@@ -594,7 +594,7 @@ test("a job on a Bridge is waited for, then its log's lines are shown as they co
 });
 
 // TST-505015 · level: component · module: MOD-prompt-bar
-// guards: A CANCELLED JOB WRITES NOTHING MORE; UC-049 (5a)
+// guards: A CANCELLED JOB WRITES NOTHING MORE; UC-049
 // given: the allowed CI hand-over, taken by the run at RUN_URL, which the server lists as running; the person has handed it over; Stop is enabled while the job is followed
 // input: a click on Stop; then, in a second page, the same with a server that does not confirm the cancel within the time
 // expect: the CI is asked to cancel the run 7 once; the page shows "cancelled", the record has its end with the state cancelled, and the job is shown "State: cancelled" and not followed any more; with the server that does not confirm: the page shows "cancelling" and the record has no end
@@ -631,7 +631,7 @@ test("Stop cancels the followed job and shows cancelled or cancelling as the run
 });
 
 // TST-505016 · level: component · module: MOD-prompt-bar
-// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-049 (4a)
+// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-049
 // given: the allowed CI hand-over, handed over on one page of the tab; the job has not ended
 // input: the bar started again in the same tab (another page of the product)
 // expect: the new bar shows the same job — its identifier and "State: queued" — without queuing anything again (one commit in all); after the job ends and the clock moves 15 000 ms the tab no longer follows it: another bar started then shows no job
@@ -658,7 +658,7 @@ test("a job handed over on one page goes on being followed on the next page of t
 });
 
 // TST-505017 · level: component · module: MOD-prompt-bar
-// guards: A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; A RECORDED CONVERSATION IS KEPT WHERE IT WAS HELD; UC-049 (6c)
+// guards: A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; A RECORDED CONVERSATION IS KEPT WHERE IT WAS HELD; UC-049
 // given: recording is on at the instance; the person's message to dev-ci was recorded in the product's conversation record; the allowed hand-over
 // input: a person's click on Hand over
 // expect: the job's record names that conversation record (conversation: its path); the conversation record gains a section "handed over" with `job: <the job's id>`; the task's words are in neither the job's record nor the conversation record
@@ -685,7 +685,7 @@ const NOT_RUN = "onDispatch: not run — KEY_A is missing: the key of dev-ci is 
 const endsNotRun = (it, log) => { it.product.runs.push(ciRun("failed")); it.product.logs.set("7", log); };
 
 // TST-1037001 · level: component · module: MOD-prompt-bar
-// guards: UC-049 (4c); EVERY STEP EXPLAINS ITSELF
+// guards: UC-049; EVERY STEP EXPLAINS ITSELF
 // given: the Scrum product without Agent M's job workflow; dev-ci's answer proposes a hand-over of the ready ITM-004
 // input: Send; then a click on the link the proposal shows
 // expect: the proposal shows "Route: not available" with the reason that the product has no Agent M job workflow, and one link "Set up the job workflow"; the click calls go with the route "settings" and nothing else; nothing was written
@@ -702,7 +702,7 @@ test("a hand-over refused for a missing job workflow links the route settings, a
 });
 
 // TST-1037002 · level: component · module: MOD-prompt-bar
-// guards: UC-049 (4c)
+// guards: UC-049
 // given: known positive TST-1037001; a hand-over of ITM-005, which no sprint selects, on a product with the job workflow; tab-only, whose only route is this tab, on a product without it; the allowed hand-over
 // input: Send, each
 // expect: no link to settings in any of them
@@ -723,7 +723,7 @@ test("a refusal for another reason shows no link to settings", async () => {
 });
 
 // TST-1037003 · level: component · module: MOD-prompt-bar
-// guards: UC-049 (4c); A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
+// guards: UC-049; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
 // given: the allowed CI hand-over, clicked by a person; the server lists the started run as failed, and its log says `not run` for the missing secret KEY_A
 // input: the clock moves 15 000 ms
 // expect: the followed job names the secret KEY_A and shows one link whose address is the product's page of CI secrets (the host's webLinks().secrets)
@@ -741,7 +741,7 @@ test("a run that ended not run for a missing secret names the secret and links t
 });
 
 // TST-1037004 · level: component · module: MOD-prompt-bar
-// guards: UC-049 (4c)
+// guards: UC-049
 // given: known positive TST-1037003; the allowed CI hand-over whose run failed with a log that names no missing secret; and one whose run is still running while its log says `not run`
 // input: the clock moves 15 000 ms
 // expect: no link to the page of secrets in either
@@ -803,7 +803,7 @@ const jobRecordOf = (it) => it.product.attempts.flatMap((attempt) => attempt.fil
 const OWN_KIND = { kind: "converse", works_on: ["UC-001"], task: TASK };
 
 // TST-1129001 · level: component · module: MOD-prompt-bar
-// guards: THE PERSON WHO PROMPTS IS A SOURCE; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; UC-049 (4a)
+// guards: THE PERSON WHO PROMPTS IS A SOURCE; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; UC-049
 // given: a page whose subject is of the kind converse and whose paramsFor gives the source SRC-person-alice, and also the text of the page, a target and a draft that holds the participant's answer; the participant proposes a hand-over of the kind converse (the subject's own kind), and, in a second page, one of the kind implement
 // input: a person's click on Hand over, on each
 // expect: for the subject's own kind the queued job's record holds `"source": "SRC-person-alice"` among its parameters and no other parameter of the subject — no `page`, no `draft`, no text of the page and no text of the answer anywhere in the record —; for the other kind the record holds no source
@@ -823,7 +823,7 @@ test("a hand-over of the subject's own kind takes only the subject's source into
 });
 
 // TST-1129002 · level: component · module: MOD-prompt-bar
-// guards: THE PERSON WHO PROMPTS IS A SOURCE; UC-049 (4a); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// guards: THE PERSON WHO PROMPTS IS A SOURCE; UC-049; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: a page whose subject is of the kind converse; Send found the person's source, and when the person clicks Hand over the subject finds none (paramsFor throws NoPersonSource); the hand-over is of the subject's own kind
 // input: a person's click on Hand over
 // expect: the hand-over is refused by name — the page says "Nothing was queued." and NoPersonSource —, nothing is written (no commit attempt, no workflow start, nothing handed to the Bridge), and Hand over can be pressed again

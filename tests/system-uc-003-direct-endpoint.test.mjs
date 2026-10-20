@@ -106,7 +106,7 @@ test("TST-292002: the dashboard sends Anthropic's one short Messages request", a
 
 // Module (as the case stated it): MOD-settings-pages → MOD-endpoint-calls
 // TST-292003 · level: system · module: MOD-settings-pages
-// guards: UC-003 alternative 4a; AN UNSUPPORTED ENDPOINT SAYS SO
+// guards: UC-003; AN UNSUPPORTED ENDPOINT SAYS SO
 // given: an author has filled a direct endpoint in the dashboard's public form.
 // input: Save and test meets a browser-visible cross-origin refusal.
 // expect: the observed reason and both usable CI and Bridge alternatives are shown.
@@ -126,7 +126,7 @@ test("TST-292003: a browser refusal is actionable through CI and Bridge", async 
 
 // Module (as the case stated it): MOD-settings-pages → MOD-browser-store
 // TST-292004 · level: system · module: MOD-settings-pages
-// guards: UC-003 alternative 4b; UC-003 alternative 2b; CONFIGURATION LIVES IN THE BROWSER; A CLEAR IS A REAL CLEAR
+// guards: UC-003; CONFIGURATION LIVES IN THE BROWSER; A CLEAR IS A REAL CLEAR
 // given: an author can reach the dashboard's endpoint form from Settings.
 // input: a provider refuses the key, the page reloads, and the author presses Clear.
 // expect: the provider message is shown and the key survives reload; Clear removes the actual localStorage entry and empties the form.

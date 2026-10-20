@@ -171,7 +171,7 @@ const currentOf = (item) => {
 };
 
 // TST-577001 · level: unit · module: MOD-review-pages
-// guards: UC-005 (step 7); NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT
+// guards: UC-005; NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT
 // given: a product whose SPEC holds A LOAN HAS A DUE DATE (source SRC-policy, ch. 1, normative) and A BOOK IS SHELVED; the endpoint returns a change of the first and a duplicate of the second
 // input: the route spec-entry/draft, drafter-a, Run
 // expect: each candidate holds a section "current-requirement" with the name, rule, sources with their authority and check of the requirement it refers to, and no paragraph "refers-to" stands anywhere
@@ -187,7 +187,7 @@ test("spec-entry/draft - each candidate stands beside the current text of the re
 });
 
 // TST-577002 · level: unit · module: MOD-review-pages
-// guards: UC-005 (step 7; alternative flow 5b)
+// guards: UC-005
 // given: the endpoint returns a new candidate that constrains the process and a change that constrains the product
 // input: the route spec-entry/draft, drafter-a, Run
 // expect: the candidate that constrains the process holds exactly one paragraph "constrains-process" reading "Constrains the process."; the other candidate holds none; the panel holds one
@@ -200,7 +200,7 @@ test("spec-entry/draft - a candidate that constrains the process is marked", asy
 });
 
 // TST-577003 · level: unit · module: MOD-review-pages
-// guards: UC-005 (alternative flow 7b); A DUPLICATE ADDS A SOURCE, NOT A REQUIREMENT
+// guards: UC-005; A DUPLICATE ADDS A SOURCE, NOT A REQUIREMENT
 // given: the endpoint returns two duplicates, one of each requirement; and, in another run, a change and a duplicate
 // input: the route spec-entry/draft, drafter-a, Run; then the class of one duplicate is set to new and back to duplicate, each time with the select's change event
 // expect: the panel holds one paragraph "all-duplicates" reading "Every candidate is a duplicate: writing only adds sources to existing requirements."; the mixed run holds none; the message goes while one class is new and returns with the duplicate
@@ -221,7 +221,7 @@ test("spec-entry/draft - the panel says so when every candidate is a duplicate",
 });
 
 // TST-577004 · level: unit · module: MOD-review-pages
-// guards: UC-005 (step 7); NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT
+// guards: UC-005; NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT
 // given: the change of A LOAN HAS A DUE DATE in the panel
 // input: the "of" field is set to A BOOK IS SHELVED, then to a name the SPEC does not hold, each time with the field's input event
 // expect: the current text beside the candidate is that of A BOOK IS SHELVED; then the sentence "This candidate refers to no current requirement." and none of the two rules

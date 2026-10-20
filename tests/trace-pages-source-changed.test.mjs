@@ -63,7 +63,7 @@ async function marked(target, expected) {
 }
 
 // TST-065701 · level: component · module: MOD-trace-pages
-// guards: UC-016 (step 5: marked source changed); UC-020
+// guards: UC-016; UC-020
 // given: a product whose Law A moved from version 1 to 2 after ALPHA RULE and GAMMA RULE (both naming Law A) last changed, and whose Law B never moved
 // input: the specification view at main
 // expect: ALPHA RULE and GAMMA RULE carry the mark "source changed"; BETA RULE, whose source did not move (and whose own text changed after the start), does not
@@ -74,7 +74,7 @@ test("a requirement whose source the product moved to a newer version after its 
 });
 
 // TST-065702 · level: component · module: MOD-trace-pages
-// guards: UC-016 (step 5: until each is looked at again)
+// guards: UC-016
 // given: the same product, in which GAMMA RULE's text changes in a commit after Law A moved
 // input: the specification view at main, once for the history without that commit and once with it
 // expect: without it GAMMA RULE is marked (known positive); with it only ALPHA RULE is — the mark is gone once the section changes
@@ -84,7 +84,7 @@ test("once its section changes, the mark is gone", async () => {
 });
 
 // TST-065703 · level: component · module: MOD-trace-pages
-// guards: UC-016 (step 5: moved to a newer version)
+// guards: UC-016
 // given: a product whose links file named Law A at version 2 from the start and added Law B later; and one that links Law A at 2 in its only commit
 // input: the specification view at main
 // expect: counter-proof — a source added with its first version has not moved: nothing is marked in either
@@ -96,7 +96,7 @@ test("a source that was only added, or never changed, marks nothing", async () =
 });
 
 // TST-065704 · level: component · module: MOD-trace-pages
-// guards: UC-016 (step 5); the sprint 66 agreement on the token budget
+// guards: UC-016
 // given: the history of TST-065701 (a source moved, requirements named), the one of TST-065703 (no move), and a product without docs/sources.md
 // input: the specification view of each; the Host logs its history and file-batch calls
 // expect: with a move: the history of docs/sources.md is read once, as one page of at most 30 commits with changes false, and its files once in a batch; the history of SPEC.md the same; with no move

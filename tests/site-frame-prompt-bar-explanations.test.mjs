@@ -41,7 +41,7 @@ function assertClaims(topic, claims) {
 }
 
 // TST-530101 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-049 (step 1, the folded What is this? of the bar)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-049
 // given: explanations.md, and the topic prompt-bar
 // input: explain("prompt-bar")
 // expect: the folded What is this? — a <details class="explain"> without the open attribute, holding <summary>What is this?</summary> and then the topic's Markdown rendered, in which no asterisk or backtick of the source is left standing
@@ -61,7 +61,7 @@ test("explain — prompt-bar: a folded What is this? with the topic's text", () 
 });
 
 // TST-530102 · level: unit · module: MOD-site-frame
-// guards: UC-049 (goal and step 2: the author writes to a participant about what they see)
+// guards: UC-049
 // given: the topic prompt-bar
 // input: explain("prompt-bar")
 // expect: text saying the bar is where you talk to a participant about the page you are looking at
@@ -72,7 +72,7 @@ test("explain — prompt-bar: the bar lets a person talk with a participant abou
 });
 
 // TST-530103 · level: unit · module: MOD-site-frame
-// guards: THE PAGE NAMES WHERE IT SENDS; UC-049 (step 1, the selector is the statement of where the messages go)
+// guards: THE PAGE NAMES WHERE IT SENDS; UC-049
 // given: the topic prompt-bar
 // input: explain("prompt-bar")
 // expect: text saying a message goes only to the participant named above the input, and to the place where that participant processes data, which is named with it before you press Send
@@ -85,7 +85,7 @@ test("explain — prompt-bar: a message goes only to the participant named, at t
 });
 
 // TST-530104 · level: unit · module: MOD-site-frame
-// guards: A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; UC-049 (step 7 and 6c)
+// guards: A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; UC-049
 // given: the topic prompt-bar
 // input: explain("prompt-bar")
 // expect: text saying the conversation stays in this browser tab and is written to a repository only while recording conversations is switched on in the instance's settings
@@ -98,7 +98,7 @@ test("explain — prompt-bar: the conversation is written to a repository only w
 });
 
 // TST-530105 · level: unit · module: MOD-site-frame
-// guards: A GENERATED ARTIFACT IS A PROPOSAL; UC-049 (steps 5 and 6: an edit is held for the author and written only on Save)
+// guards: A GENERATED ARTIFACT IS A PROPOSAL; UC-049
 // given: the topic prompt-bar
 // input: explain("prompt-bar")
 // expect: text saying a draft or an edit the participant proposes changes nothing until you save it
@@ -109,7 +109,7 @@ test("explain — prompt-bar: a draft or an edit the participant proposes change
 });
 
 // TST-530106 · level: unit · module: MOD-site-frame
-// guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-049 (step 4a: the participant hands its task to GitHub Actions, the person decides)
+// guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-049
 // given: the topic prompt-bar
 // input: explain("prompt-bar")
 // expect: text saying work the tab cannot do is handed over only when you click Hand over
@@ -120,7 +120,7 @@ test("explain — prompt-bar: work the tab cannot do is handed over only on the 
 });
 
 // TST-530107 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF (a topic the file does not hold shows nothing, and the page goes on)
+// guards: EVERY STEP EXPLAINS ITSELF
 // given: known positive — explain("prompt-bar") is a folded What is this? with a text —; a topic the file does not hold, prompt-bar-nothing
 // input: explain("prompt-bar-nothing")
 // expect: no exception; an element without any child, where explain("prompt-bar") has two
@@ -134,7 +134,7 @@ test("explain — a topic of the bar that the file does not hold gives none", ()
 });
 
 // TST-530108 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-019 (step 1: the bar's folded What is this? gives examples)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-019
 // given: the topic prompt-bar
 // input: explain("prompt-bar")
 // expect: text giving the four examples UC-019 step 1 names: split a requirement; make a rule checkable; add an alternative flow to a use case; align a use case with a requirement that has changed
@@ -148,7 +148,7 @@ test("explain — prompt-bar: it gives UC-019's four examples of an instruction"
 });
 
 // TST-530109 · level: unit · module: MOD-site-frame
-// guards: EVERY STEP EXPLAINS ITSELF; UC-019 (step 1: the examples stand in one place only)
+// guards: EVERY STEP EXPLAINS ITSELF; UC-019
 // given: every topic of explanations.md; known positive — the same search finds an example in the topic prompt-bar
 // input: for each topic other than prompt-bar, whether its text holds any of the four examples "split a requirement", "make a rule checkable", "add an alternative flow", "align a use case"
 // expect: none does

@@ -67,7 +67,7 @@ const cell = (row, className) => byClass(row, "td", className)[0];
 const items = (node) => find(node, (each) => each.localName === "li").map((each) => each.textContent);
 
 // TST-072101 · level: component · module: MOD-trace-pages
-// guards: UC-025 (steps 3); MODULE GAPS ARE REPORTED, NOT FORBIDDEN
+// guards: UC-025; MODULE GAPS ARE REPORTED, NOT FORBIDDEN
 // given: the fixture product at main: MOD-page (follows ARC-001, realises ALPHA RULE and GONE RULE, which the SPEC does not hold, has two code files and one test, and its file is open) and MOD-review (follows ARC-001, realises BETA RULE, has one code file and no test)
 // input: Route.render with the key "modules" at main
 // expect: one row for each module, MOD-page first; MOD-page's subsystem ARC-001, its requirements "ALPHA RULE — in SPEC" and "GONE RULE — not in the SPEC", its file docs/architecture/MOD-page.md with the status open, its code
@@ -87,7 +87,7 @@ test("the modules view shows a table with a row for each module: subsystem, requ
 });
 
 // TST-072102 · level: component · module: MOD-trace-pages
-// guards: UC-025 (step 4, 4a); MODULE GAPS ARE REPORTED, NOT FORBIDDEN
+// guards: UC-025; MODULE GAPS ARE REPORTED, NOT FORBIDDEN
 // given: the fixture product, in which MOD-review has no test, the two modules import each other and MOD-review's file names no use of MOD-page, and a clean product with one module that has its code, its test and no gap
 // input: Route.render with the key "modules" at main, for each
 // expect: the first lists every gap with its artifact and what is missing, among them "module-without-test" for MOD-review and "import-not-in-uses" for src/review/index.mjs; the clean product says "There are no gaps at main." and lists none
@@ -105,7 +105,7 @@ test("the modules view lists every gap, and says so when there is none", async (
 });
 
 // TST-072103 · level: component · module: MOD-trace-pages
-// guards: UC-025 (step 6)
+// guards: UC-025
 // given: the fixture product, drawn at main
 // input: a click on MOD-page's name, then on it again
 // expect: before the click no row is opened; after it a row follows MOD-page's, holding the text of its file as it reads in the version ("Renders it."), "Folder: src/page/" and its code files; after the second click it is gone
@@ -155,7 +155,7 @@ test("the table of the modules stands in the site's scroll box, which a keyboard
 });
 
 // TST-072106 · level: component · module: MOD-trace-pages
-// guards: UC-025 (step 6)
+// guards: UC-025
 // given: the fixture product, drawn at main, whose rows are MOD-page's and MOD-review's
 // input: a click on MOD-page's name (the first row)
 // expect: the opened row is the row directly below MOD-page's, before MOD-review's

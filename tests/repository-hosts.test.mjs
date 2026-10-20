@@ -565,7 +565,7 @@ const LAYOUT = [{ path: "docs/use-cases/README.md", text: "# Use cases\n" }, { p
 // with 404 where it hides the repository, and both are named so. Counter-proof: once the token reaches the repository, the same
 // commit is written.
 // TST-476069 · level: unit · module: MOD-repository-hosts
-// guards: UC-001 5a; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
+// guards: UC-001; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
 // given: a public GitHub repository that the token does not reach yet, whose write is answered 403 or 404; once with a token that reaches it
 // input: repositoryInfo, readSnapshot and commitFiles of the layout
 // expect: the read succeeds; commitFiles fails with PermissionMissing naming the permission Contents, the page of the person's tokens and the repository; the branch stays where it was and no reference is moved; once the token reaches the repository the same commit is written
@@ -621,7 +621,7 @@ const sameFiles = (a, b) => Object.keys(a).length === Object.keys(b).length && O
 // Moved, naming the head the branch stands at, and sends no write at all; when it moves while the commit is made, GitHub
 // refuses to move the branch, commitFiles fails with Moved naming the newer head, and the branch keeps that head.
 // TST-476070 · level: unit · module: MOD-repository-hosts
-// guards: UC-001 5; ADDING A PRODUCT CREATES ITS LAYOUT
+// guards: UC-001; ADDING A PRODUCT CREATES ITS LAYOUT
 // given: a fake GitHub holding the repository; a change of a new file, a changed one, a removed one and one given as bytes; a snapshot read at the branch head; once the branch moved after the snapshot, once it moves while the commit is made
 // input: commitFiles of the change on the head that was read
 // expect: one commit whose parent is the snapshot's commit, with the message as given; the branch stands at it; commitFiles returns it with its GitHub address; every file the change does not name is kept; when the head moved, Moved naming the newer head, with no write sent in the first case and the branch keeping the newer head in the second
@@ -662,7 +662,7 @@ test("UC-001 5 — all files of a change in one commit on the head that was read
 // lands while the commit is made, GitLab refuses the commit, commitFiles fails with Moved naming the newer head, and the branch
 // keeps that head — what makes GitLab refuse it is the last commit of each changed file as it stood at the head that was read.
 // TST-476071 · level: unit · module: MOD-repository-hosts
-// guards: UC-001 5; GITLAB PRODUCTS ARE SUPPORTED
+// guards: UC-001; GITLAB PRODUCTS ARE SUPPORTED
 // given: a fake GitLab server holding the project; the same change of four files; a snapshot read at the branch head; once the branch moved after the snapshot, once a commit changing a file of the change lands while the commit is made
 // input: commitFiles of the change on the head that was read
 // expect: one commit whose parent is the snapshot's commit, with the message as given; the branch stands at it; commitFiles returns it with its address on the server; every file the change does not name is kept; when the head moved, Moved naming the newer head and no write sent, the branch keeping that head
@@ -702,7 +702,7 @@ test("UC-001 5 — all files of a change in one commit on the head that was read
 // newer head; no write is sent, and the branch keeps that head. GitLab itself would write the change on top of that commit, for
 // none of the change's files changed: only reading the head again just before the write finds it.
 // TST-476072 · level: unit · module: MOD-repository-hosts
-// guards: UC-001 5; GITLAB PRODUCTS ARE SUPPORTED
+// guards: UC-001; GITLAB PRODUCTS ARE SUPPORTED
 // given: a fake GitLab server; a commit touching none of the change's files lands on the branch after commitFiles checked the head and before it writes
 // input: commitFiles of the change, the snapshot read before
 // expect: commitFiles fails with Moved naming the newer head; no write is sent and the branch keeps that head
@@ -737,7 +737,7 @@ test("UC-001 5 — GitLab: a commit that lands while the change's files are read
 // GitLab server, `projectTokens`, `tokens` and newToken(…) are the project's Access tokens page, where the project access token
 // is created and renewed, and `newRepository` is the server's page for a new project. No page carries a token.
 // TST-476073 · level: unit · module: MOD-repository-hosts
-// guards: THE TOKEN LINK IS PREFILLED; ONE GITHUB TOKEN SERVES EVERY FEATURE; THE REPOSITORY CHOICE IS SPELLED OUT; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; UC-001 2a; UC-001 3; UC-001 3b; UC-001 3c
+// guards: THE TOKEN LINK IS PREFILLED; ONE GITHUB TOKEN SERVES EVERY FEATURE; THE REPOSITORY CHOICE IS SPELLED OUT; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; UC-001
 // given: a fetch that records every request; a host connected to the GitHub repository and one to the GitLab project
 // input: webLinks of each, newToken(name, description, days) of each
 // expect: GitHub: tokens is the list of fine-grained tokens, newToken is the prefilled new-token page (name, description, expiry, the repository's owner, permissions Contents, Issues, Pull requests, Actions and Workflows write and Metadata read, no repository), projectTokens is null, newRepository is https://github.com/new; GitLab: projectTokens, tokens and newToken are the project's Access tokens page and newRepository the server's new-project page; no page carries a token; no request is made
@@ -774,7 +774,7 @@ test("UC-001 — the token pages: GitHub's prefilled token page and the list of 
 // and returns that second commit. Counter-proofs: a 409 with another message (a repository GitHub is still creating) is a
 // failure, Unreachable; expectedHead null on a repository that has a commit is Moved, and nothing is written.
 // TST-476074 · level: unit · module: MOD-repository-hosts
-// guards: UC-001 5
+// guards: UC-001
 // given: a fake GitHub repository without a commit, whose Git database answers 409 Git Repository is empty.; counter-cases: a 409 with another message, and a repository that has a commit
 // input: readSnapshot; commitFiles with expectedHead null
 // expect: the snapshot is read without a commit and without a path; the first file is written through the contents API on the branch with the message and the other files in one commit on it, which is returned; another 409 fails as Unreachable; expectedHead null on a repository that has a commit is Moved and nothing is written
@@ -817,7 +817,7 @@ test("UC-001 5 — an empty repository: no commit and no path; its first commit 
 // Expected: a GitLab project is not given a first commit — commitFiles with expectedHead null is refused NotFound with the advice
 // to push a first commit to it, and no request is made (MOD-repository-hosts as drafted in 617d061).
 // TST-476075 · level: unit · module: MOD-repository-hosts
-// guards: UC-001 5
+// guards: UC-001
 // given: a fake GitLab project without a commit
 // input: commitFiles with expectedHead null
 // expect: commitFiles is refused with NotFound advising to push a first commit to the project, and no request is made
@@ -838,7 +838,7 @@ test("UC-001 5 — on a GitLab server, a first commit is refused with the advice
 // server a project token with role Maintainer may write; one with role Developer may not, for a protected default branch takes a
 // Maintainer; a project read without a token may not; an internal project is reported as internal.
 // TST-476076 · level: unit · module: MOD-repository-hosts
-// guards: UC-001 4; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN
+// guards: UC-001; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN
 // given: fake GitHub and GitLab servers: a private and a public repository, GitLab projects with a token of role Maintainer and of role Developer, an internal project, a project read without a token
 // input: repositoryInfo of each
 // expect: in one request each: the default branch, the visibility the server reports, whether the stored token may write, whether it is archived and the description (empty where none); a token reaching a private GitHub repository may write, a public one read without a token may not; Maintainer may write, Developer may not, without a token may not; an internal project is reported as internal
@@ -866,7 +866,7 @@ test("UC-001 4 — repositoryInfo: default branch, visibility, whether the token
 // the tree —, gives each file's blob SHA without a request, and reads each file's text once, exactly; a path the commit does not
 // hold is read as null, and its blob as null, without a request.
 // TST-476077 · level: unit · module: MOD-repository-hosts
-// guards: UC-001 4; UC-001 5; GITLAB PRODUCTS ARE SUPPORTED
+// guards: UC-001; GITLAB PRODUCTS ARE SUPPORTED
 // given: fake GitHub and GitLab servers holding the repository's files, GitLab with a paged tree
 // input: readSnapshot of the branch; reading files, blob() and a missing path
 // expect: the snapshot is the repository at one commit: the branch is resolved once and the tree and every file are read at that commit, never by the branch name; it lists every file, gives each blob SHA without a request, reads each file's text once, exactly; a missing path is read as null and its blob as null without a request
@@ -902,7 +902,7 @@ test("UC-001 4–5 — readSnapshot: the repository at one commit, its files rea
 // it does for a server that refuses the page's origin — fails every call with Unreachable, giving the browser's reason, on GitHub
 // and on a GitLab server alike.
 // TST-476078 · level: unit · module: MOD-repository-hosts
-// guards: UC-001 2a; UC-001 4a; A REMOTE INTERFACE NAMES HOW IT FAILS
+// guards: UC-001; A REMOTE INTERFACE NAMES HOW IT FAILS
 // given: fake GitHub and GitLab servers lacking the repository (or not showing it without a token) and lacking the branch; a fetch that fails with a TypeError, as for a server refusing the page's origin
 // input: repositoryInfo, readSnapshot and commitFiles of each
 // expect: a missing repository fails repositoryInfo and readSnapshot with NotFound naming the repository; a missing branch fails readSnapshot with NotFound naming the branch; an unreachable server fails every call with Unreachable giving the browser's reason, on GitHub and GitLab alike
