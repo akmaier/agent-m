@@ -665,12 +665,12 @@ test("the Gaps link encodes the ref it leads to", async () => {
 // guards: UC-020; THE BROWSER SHOWS ANY RELEASED VERSION
 // given: main is the default branch and holds OUTSIDE, FIRST and SECOND REQUIREMENT; the tag v2026.1.0 has a SPEC that cannot be read (its snapshot is unreachable)
 // input: the route rendered at main; v2026.1.0 chosen
-// expect: the page says "v2026.1.0 could not be read: unreachable" in place of the tree, and the one Gaps link, still beside the choice, has the href "#trace/key=gaps/ref=v2026.1.0"
+// expect: the page says "v2026.1.0 could not be read: This page could not be drawn: unreachable" in place of the tree, and the one Gaps link, still beside the choice, has the href "#trace/key=gaps/ref=v2026.1.0"
 test("a chosen version that cannot be read keeps the choice and its Gaps link at that version", async () => {
   const target = await render(tagged({ unreadable: ["v2026.1.0"] }), mainParams);
   choose(target, "v2026.1.0");
   await until(() => find(target, (node) => node.className === "version-problem").length === 1);
-  assert.deepEqual(find(target, (node) => node.className === "version-problem").map((node) => node.textContent), ["v2026.1.0 could not be read: unreachable"]);
+  assert.deepEqual(find(target, (node) => node.className === "version-problem").map((node) => node.textContent), ["v2026.1.0 could not be read: This page could not be drawn: unreachable"]);
   assert.deepEqual(gapsLinks(target).map((node) => node.getAttribute("href")), ["#trace/key=gaps/ref=v2026.1.0"]);
 });
 
