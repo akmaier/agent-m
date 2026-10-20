@@ -135,7 +135,7 @@ export function abortOnTab(id) {
  * ends the record as failed, with the failure's name and message as the reason, and is thrown again unchanged; a cancelled job is ended by cancelJob, not here.
  */
 export async function runOnTab(prepared, context, connections, hooks) {
-  const { host, record, refine, onOutput } = hooks;
+  const { host, record, refine, from, onOutput } = hooks;
   // The job's own abort: the caller's signal aborts it, and so does cancelJob. After it fires, nothing more is appended to the record (A CANCELLED JOB WRITES NOTHING MORE): the end is cancelJob's.
   const controller = new AbortController();
   const signal = controller.signal;
@@ -143,13 +143,13 @@ export async function runOnTab(prepared, context, connections, hooks) {
   else hooks.signal?.addEventListener("abort", () => controller.abort(), { once: true });
   if (record) held.set(record.id, controller);
   try {
-    return await runHeld(prepared, context, connections, { host, record, refine, onOutput, signal });
+    return await runHeld(prepared, context, connections, { host, record, refine, from, onOutput, signal });
   } finally {
     if (record && held.get(record.id) === controller) held.delete(record.id);
   }
 }
 
-async function runHeld(prepared, context, connections, { host, record, refine, onOutput, signal }) {
+async function runHeld(prepared, context, connections, { host, record, refine, from, onOutput, signal }) {
   const append = async (part) => {
     if (!record || signal.aborted) return; // a conversation of the prompt bar has no record: nothing is appended anywhere; a cancelled job appends nothing more
     const { defaultBranch } = await host.repositoryInfo();
@@ -167,7 +167,7 @@ async function runHeld(prepared, context, connections, { host, record, refine, o
   try {
     const drivers = { drafter: prepared.drafter ? driverOf(prepared.drafter, connections) : null,
       reviewers: prepared.reviewers.map((reviewer) => driverOf(reviewer, connections)) };
-    result = await runJob(prepared, drivers, { attended: !record?.run, context, refine, onOutput, onGate, signal });
+    result = await runJob(prepared, drivers, { attended: !record?.run, context, refine, from, onOutput, onGate, signal });
   } catch (error) {
     if (error.name === "Cancelled") throw error;
     // The job's own failure is what the caller must see: a record that cannot be appended to does not hide it.
