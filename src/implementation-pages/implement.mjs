@@ -81,12 +81,45 @@ function headOf(target, body, note = "Ready backlog items are handed to coding a
   target.querySelector("[data-route-explain]")?.append(frameExplain("implementation-route"));
 }
 
+// What starting a job needs, whichever the part of the page: the page's context and facts, the participants, and what the product allows of a route.
+const agentMOf = (snapshot) => ({ version: snapshot.commit ?? "unknown", commit: snapshot.commit ?? "unknown" });
+function jobContextOf(m, definition, params) {
+  return { kind: definition, params, product: { address: m.ctx.snapshot.repository?.web ?? m.context.product.address, snapshot: m.ctx.snapshot, host: m.context.product.host },
+    instance: { snapshot: m.instanceSnapshot, host: m.context.instance.host, checkout: null }, connect: async () => m.context.product.host, participants: m.participants, places: { sources: {}, mailbox: null }, gates: [],
+    person: personOf(m.context), now: new Date(), agentM: agentMOf(m.instanceSnapshot), jobId: null };
+}
+const prepareFor = (m, definition, params, participant) => prepareJob(definition.name, jobContextOf(m, definition, params), { drafter: participant, reviewers: [] });
+
+// One job: its start record written and queued on the participant's route with queueJob, handed to a Bridge at once where the route is one. A failure carries the job it was for (`failure.job`).
+async function startJob(m, { definition, worksOn, participant, params, limit = null }) {
+  const job = { kind: definition.name, participant: participant.name };
+  try {
+    const offer = routesFor(participant, m.participants, m.productInfo, []).find((each) => each.available);
+    if (!offer) throw new Error(`${participant.name} has no route a job can take`);
+    const bridge = offer.route.kind === "bridge" ? bridgesOf([participant], m.context.store)[offer.route.bridge] : undefined;
+    if (offer.route.kind === "bridge" && !bridge) throw new Error(`The Bridge ${offer.route.bridge} is not connected in this browser, so the job cannot be handed to it`);
+    const prepared = await prepareFor(m, definition, params, participant);
+    const id = newJobId(new Date(), m.taken);
+    m.taken.add(id);
+    job.id = id;
+    const record = { id, kind: definition.name, worksOn, participant: participant.name, model: participant.model, route: recordRoute(offer.route), run: null, retries: null, startedBy: personOf(m.context), start: new Date(),
+      agentM: agentMOf(m.instanceSnapshot), inputs: prepared.parts.map((part) => part.name), limit: limit ?? prepared.limit,
+      destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place, parts: each.parts })), params };
+    const defaultBranch = (await m.context.product.host.repositoryInfo()).defaultBranch;
+    const head = (await m.context.product.host.readSnapshot(defaultBranch)).commit;
+    const queued = await queueJob(m.context.product.host, record, offer.route, head, bridge);
+    return { id, path: queued.path, route: recordRoute(offer.route) };
+  } catch (failure) {
+    throw Object.assign(failure, { job });
+  }
+}
+
 // The phase each step is in, by the plan's order (a row of the order document names a step and its phase).
 const phasesOf = (order) => new Map((order?.sections ?? []).flatMap((section) => section.rows ?? []).map((row) => [text(row.cells?.Step), text(row.cells?.Phase)]));
 
 // For a model that plans its work (UC-024 steps 1 to 3): the steps of the plan in their order, each with its derived state and its phase; the ready, startable steps of the current phase ticked, the others
 // not selectable, with their reasons. The jobs' participants and *Start jobs* are not on this part of the page.
-async function drawPlan(target, context, facts, ctx, participants, workflow) {
+async function drawPlan(target, context, facts, ctx, participants, workflow, m) {
   if (facts.plan.items.length === 0) {
     headOf(target, `<p class="warn" data-missing>This product has no implementation plan yet, so there is nothing to start. <a href="#plan">Plan the implementation</a>; the process is declared on <a href="#process">How this product is developed</a>.</p>`,
       "A model that plans its work implements the steps of its implementation plan.");
@@ -101,21 +134,99 @@ async function drawPlan(target, context, facts, ctx, participants, workflow) {
   headOf(target, rows.length === 0 ? "" : `<table class="list"><thead><tr><th></th><th>Step</th><th>Phase</th><th>State</th><th>Why not</th></tr></thead><tbody>${rows.map((row) => `
     <tr data-step="${h(row.state.item)}" data-state="${h(row.state.state)}" data-phase="${h(row.phase)}"><td><input type="checkbox" data-select-step aria-label="Select ${h(row.state.item)}"${row.verdict.startable ? "" : " disabled"}${preselected(row) ? " checked" : ""}></td>
     <td>${h(row.state.item)}</td><td>${h(row.phase)}</td><td><span class="badge">${h(row.state.state)}</span></td>
-    <td>${row.verdict.startable ? "" : `<ul data-reasons>${row.verdict.reasons.map((reason) => `<li>${h(reason)}</li>`).join("")}</ul>`}</td></tr>`).join("")}</tbody></table>
-    <p data-selected></p>`, "A model that plans its work implements the steps of its implementation plan, in the plan's order.");
+    <td>${row.verdict.startable ? "" : `<ul data-reasons>${row.verdict.reasons.map((reason) => `<li>${h(reason)}</li>`).join("")}</ul>${row.verdict.reasons.some((reason) => /^No job can implement/.test(reason)) ? `<p data-none-of="${h(row.state.item)}">No participant can write and run tests. <a href="#participants">Declare a participant with the capabilities</a>; a model endpoint can draft a decision, not implement it.</p>` : ""}`}</td></tr>`).join("")}</tbody></table>
+    <p data-selected></p><div data-jobs></div><p><button type="button" data-start-jobs>Start jobs</button></p><div data-start-result></div>`, "A model that plans its work implements the steps of its implementation plan, in the plan's order.");
   // A box is ticked by its property; a document that does not keep the property is read by the attribute the page wrote.
-  const isTicked = (box) => box.getAttribute("disabled") === null && (box.checked === undefined ? box.getAttribute("checked") !== null : box.checked === true);
+  const isTickedBox = (box) => box.getAttribute("disabled") === null && (box.checked === undefined ? box.getAttribute("checked") !== null : box.checked === true);
   const count = () => {
-    const n = target.querySelectorAll("[data-select-step]").filter(isTicked).length;
+    const n = target.querySelectorAll("[data-select-step]").filter(isTickedBox).length;
     const out = target.querySelector("[data-selected]");
     if (out) out.textContent = `${n} step${n === 1 ? "" : "s"} selected`;
+    return drawJobs();
   };
-  count();
+
+  // UC-024 steps 5 and 6 for the selected steps: the holders of the implementing role that can write and run tests, with where each processes data; the attempt limit, who merges, refactoring; the target
+  // branch, the gates from the step's phase on, and what is sent where. Nothing is sent: *Start jobs* is the one click.
+  const definitions = { implement: await kindOf("implement"), refactor: await kindOf("refactor") };
+  const roles = implementingRoles(workflow);
+  const phaseNames = (workflow?.phases ?? []).map((phase) => phase.name);
+  const branchOf = (step, phase) => (workflow?.branches?.[phase] ?? "").replaceAll("<item>", step) || m.defaultBranch;
+  const gatesOf = (phase) => (workflow?.gates ?? []).filter((gate) => phaseNames.indexOf(gate.from) >= phaseNames.indexOf(phase)).map((gate) => `${h(gate.name)} (decided by ${h(gate.decider)})`);
+  const holdersFor = () => eligible(participants.filter((participant) => assignment && roles.some((role) => holdsRole(assignment, participant.name, role.name))), { capabilities: definitions.implement.needs }).eligible;
+  const jobBox = target.querySelector("[data-jobs]");
+  const choice = (step, attribute) => target.querySelector(`[data-${attribute}-of="${step}"]`);
+  async function drawJobs() {
+    if (!jobBox) return;
+    const boxes = target.querySelectorAll("[data-select-step]");
+    const steps = rows.filter((row, at) => row.verdict.startable && isTickedBox(boxes[at]));
+    const holders = holdersFor();
+    jobBox.innerHTML = steps.map((row) => {
+      const step = row.state.item;
+      return holders.length === 0
+        ? `<div data-job-of="${h(step)}"><h3>${h(step)}</h3><p class="warn" data-none-of="${h(step)}">No participant can write and run tests, so ${h(step)} cannot start. <a href="#participants">Declare a participant with the capabilities</a>; a model endpoint can draft a decision, not implement it.</p></div>`
+        : `<div data-job-of="${h(step)}"><h3>${h(step)}</h3>
+          <label>Participant <select data-participant-of="${h(step)}">${holders.map((participant) => `<option value="${h(participant.name)}">${h(participant.name)}</option>`).join("")}</select></label>
+          <p class="small" data-places-of="${h(step)}">${holders.map((participant) => `${h(participant.name)} processes data at ${h(participant.place ?? "no declared place")}`).join("; ")}</p>
+          <label>Attempt limit <input type="number" data-limit-of="${h(step)}" value="${h(definitions.implement.limit)}"></label>
+          <label>Merges <select data-merges-of="${h(step)}"><option value="agent">the coding agent</option><option value="person">a person</option></select></label>
+          <label><input type="checkbox" data-refactor-of="${h(step)}"> Refactoring: structure changes, behaviour does not</label>
+          <p class="small" data-branch-of="${h(step)}">Target branch: ${h(branchOf(step, row.phase))}</p>
+          <p class="small" data-gates-of="${h(step)}">${gatesOf(row.phase).length ? `Gates: ${gatesOf(row.phase).join(", ")}.` : "No gate stands after this phase."}</p>
+          <div data-sent-of="${h(step)}"></div></div>`;
+    }).join("");
+    for (const row of steps) {
+      const step = row.state.item;
+      const sent = target.querySelector(`[data-sent-of="${step}"]`);
+      const draw_ = async () => {
+        const participant = holders.find((each) => each.name === choice(step, "participant")?.value) ?? holders[0];
+        if (!participant || !sent) return;
+        const kind = choice(step, "refactor")?.checked === true ? "refactor" : "implement";
+        try {
+          const prepared = await prepareFor(m, definitions[kind], { steps: [step] }, participant);
+          sent.innerHTML = `<ul>${prepared.destinations.map((each) => `<li>${h(each.participant.name)} at ${h(each.place ?? "no declared place")}: ${each.parts.map(h).join(", ") || "nothing"}</li>`).join("")}</ul>${prepared.blocking.length ? `<p class="warn">${prepared.blocking.map((found) => h(found.what)).join("; ")}</p>` : ""}`;
+        } catch (failure) { sent.innerHTML = `<p class="warn">${h(failure?.message ?? failure)}</p>`; }
+      };
+      await draw_();
+      for (const attribute of ["participant", "refactor"]) choice(step, attribute)?.addEventListener("change", draw_);
+    }
+  }
+  await count();
   target.querySelectorAll("[data-select-step]").forEach((box) => box.addEventListener("change", count));
+  target.querySelector("[data-start-jobs]")?.addEventListener("click", async (event) => {
+    if (event?.isTrusted === false) return;
+    const out = target.querySelector("[data-start-result]");
+    const steps = rows.filter((row) => row.verdict.startable && target.querySelector(`[data-job-of="${row.state.item}"]`) && choice(row.state.item, "participant"));
+    if (steps.length === 0) { out.innerHTML = `<p class="warn">No selected step can start: nothing starts.</p>`; return; }
+    const holders = holdersFor();
+    const lines = [];
+    for (const row of steps) {
+      const step = row.state.item;
+      const kind = choice(step, "refactor")?.checked === true ? "refactor" : "implement";
+      const participant = holders.find((each) => each.name === choice(step, "participant")?.value) ?? holders[0];
+      try {
+        const started = await startJob(m, { definition: definitions[kind], worksOn: [step], participant, limit: Number(choice(step, "limit")?.value) || definitions.implement.limit,
+          params: { steps: [step], merges: choice(step, "merges")?.value ?? "agent", ...(kind === "refactor" ? { refactoring: true } : {}) } });
+        lines.push(`<li>${h(step)}: job ${h(started.id)} (<code>${h(started.path)}</code>) is queued on the route ${h(started.route)}.</li>`);
+      } catch (failure) {
+        if (failure?.name === "PermissionMissing") {
+          const actions = (typeof context.product.host.webLinks === "function" ? context.product.host.webLinks()?.actions : null) ?? `${context.product.address.replace(/\/$/, "")}/actions`;
+          lines.push(`<li class="warn">${h(step)}: the token may not start workflows. <a data-run-workflow href="${h(actions)}">Open the workflow's Run workflow page</a> and start it there with the inputs job ${h(failure.job?.id ?? "")}, kind ${h(failure.job?.kind ?? kind)}, participant ${h(participant.name)}.</li>`);
+        } else lines.push(`<li class="warn">${h(step)}: ${h(failure?.name === "WorkflowMissing" ? `the job workflow is missing (${(failure.files ?? []).join(", ")})` : failure?.message ?? failure)}; ${failure?.queued ? `its start record is committed and stays queued` : "nothing was started for it"}.</li>`);
+      }
+    }
+    out.innerHTML = `<ul>${lines.join("")}</ul>`;
+  });
 }
 
 // A box is ticked by its property; a document that does not keep the property is read by the attribute the page wrote.
 const isTicked = (box) => box !== null && box !== undefined && (box.checked === undefined ? box.getAttribute("checked") !== null : box.checked === true);
+
+// What starting jobs needs of the page: its context and facts, the participants, what the product allows of a route, and the job identifiers taken.
+async function machineryFor(context, ctx, instanceSnapshot, participants) {
+  const info = await context.product.host.repositoryInfo();
+  return { context, ctx, instanceSnapshot, participants, defaultBranch: info.defaultBranch, productInfo: { visibility: info.visibility, jobWorkflow: WORKFLOWS.some((path) => ctx.snapshot.paths.includes(path)) },
+    taken: new Set(ctx.snapshot.paths.map((path) => JOB_FILE.exec(path)?.[1]).filter(Boolean)) };
+}
 
 async function draw(target, context, params) {
   const { product, instance } = context;
@@ -128,7 +239,7 @@ async function draw(target, context, params) {
     return;
   }
   const ctx = await contextOf(context);
-  if (facts.model.kind !== "pulled") { await drawPlan(target, context, facts, ctx, participants, workflow); return; }
+  if (facts.model.kind !== "pulled") { await drawPlan(target, context, facts, ctx, participants, workflow, await machineryFor(context, ctx, instanceSnapshot, participants)); return; }
   const d = await derivedOf(context, ctx);
   const head = (body) => headOf(target, `<p data-backlog-link>This model works from a backlog: <a href="#backlog">open the backlog</a>.</p>${body}`);
   if (ctx.declaration === null || ctx.model === null) {
