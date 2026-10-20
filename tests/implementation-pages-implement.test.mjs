@@ -86,7 +86,7 @@ function productFiles({ selection = ["ITM-004", "ITM-005", "ITM-006"], withWorkf
 }
 const pr = ({ number, item, merged = null }) => ({ number, title: `${item}: the work of ${item}`, branch: `team/${item}`, base: "main", head: merged ? "f".repeat(40) : "b".repeat(40),
   state: merged ? "merged" : "open", draft: false, url: `${ADDRESS}/pull/${number}`, opened: "2026-09-15T12:00:00Z", merged, closed: merged });
-const OPEN_PRS = [pr({ number: 1, item: "ITM-001" }), pr({ number: 2, item: "ITM-002" })];
+const OPEN_PRS = [pr({ number: 1, item: "ITM-001" }), pr({ number: 2, item: "ITM-003" })];
 
 // The register of the instance: the head of this repository's own docs/participants.md and the one builder.
 const ROOT = new URL("../", import.meta.url);
@@ -156,11 +156,11 @@ test("an item with a requirement not accepted, or with an item it builds on not 
 
 // TST-789003 · level: unit · module: MOD-implementation-pages
 // guards: UC-034 (2); NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT
-// given: team1's sprint selects ITM-001, ITM-002 and ITM-005, ITM-001 and ITM-002 each having an open pull request, and the model's limit is 2
+// given: team1's sprint selects ITM-001, ITM-003 and ITM-005, ITM-001 and ITM-003 each having an open pull request, and the model's limit is 2
 // input: the route's render, then a click of a person on Start jobs
 // expect: ITM-005 is not startable and its reason names the work-in-progress limit; with no startable item the click says so and nothing is committed
 test("above the work-in-progress limit an item is not started, and with no startable item nothing starts", async () => {
-  const { target, commits } = await render(productFiles({ selection: ["ITM-001", "ITM-002", "ITM-005"] }), { pullRequests: OPEN_PRS });
+  const { target, commits } = await render(productFiles({ selection: ["ITM-001", "ITM-003", "ITM-005"] }), { pullRequests: OPEN_PRS });
   assert.equal(row(target, "ITM-005").getAttribute("data-startable"), "false");
   assert.match(reasons(target, "ITM-005"), /work-in-progress limit/);
   found(target, "[data-start-jobs]")[0].dispatchEvent(trusted());
