@@ -38,3 +38,5 @@ the other four.
 
 - On a fixture release, pressing each of the two numbers leaves exactly the rows it counts.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**The draft is on `main` as `3e4f84c0`** (MOD-release-evidence, by developer-sonnet-a). The item is built once it is accepted.
