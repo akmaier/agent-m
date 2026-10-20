@@ -30,7 +30,7 @@ export async function showEntryEdit(where, kind, id) {
     item = queue?.entries.find((each) => entryId(queue.folder, each.number) === id);
     if (item) {
       view = await entryView(queue.folder, item.number, snapshot);
-      graph = await traceGraph(snapshot);
+      graph = await traceGraph(snapshot, { commit: snapshot.commit });
     }
   } catch (failure) {
     target.append(readProblem(failure, Boolean(token)));

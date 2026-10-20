@@ -38,7 +38,7 @@ const NODE_KIND = { requirements: "requirement", "use-cases": "UC", architecture
 
 // The identifiers (a requirement's name for requirements) of the items of a kind in a snapshot, from the nodes of that kind in MOD-trace-graph's graph, sorted by identifier.
 async function itemsOf(kind, snapshot) {
-  return [...(await traceGraph(snapshot)).nodes.values()].filter((node) => node.kind === NODE_KIND[kind]).map((node) => node.id)
+  return [...(await traceGraph(snapshot, { commit: snapshot.commit })).nodes.values()].filter((node) => node.kind === NODE_KIND[kind]).map((node) => node.id)
     .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 }
 
