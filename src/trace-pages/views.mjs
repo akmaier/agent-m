@@ -19,6 +19,14 @@ export const gaps = {
   shape: "table",
 };
 
+export const tests = {
+  key: "tests",
+  entry: "tests",
+  title: "Tests",
+  versions: "branch-and-tags",
+  shape: "tree",
+};
+
 export const modules = {
   key: "modules",
   entry: "architecture",
@@ -27,6 +35,6 @@ export const modules = {
   shape: "table",
 };
 
-const descriptors = new Map([[specification.key, specification], [gaps.key, gaps], [modules.key, modules]]);
+const descriptors = new Map([[specification.key, specification], [gaps.key, gaps], [modules.key, modules], [tests.key, tests]]);
 
 export const descriptorFor = (key) => descriptors.get(key) ?? null;
