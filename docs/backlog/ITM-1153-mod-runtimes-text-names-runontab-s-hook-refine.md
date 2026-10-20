@@ -31,3 +31,6 @@ with what it is for. No code changes.
 ## Acceptance
 
 - Once the draft is accepted, `runOnTab`'s hooks in MOD-runtimes' text are those its code takes.
+
+**Read at sprint team1/98's start (po-opus): done.** akmaier accepted the draft `56c4078d` (`cfb0a5d7`). MOD-runtimes'
+text now names `refine` among `runOnTab`'s hooks, which its code takes (`src/runtimes/tab.mjs:138`). No code changes.
