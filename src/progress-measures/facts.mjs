@@ -17,6 +17,9 @@
 //   - The product keeps a plan where it holds docs/plan/order.md or a step under docs/plan/; its items are then the steps, with the
 //     order, and otherwise the items of docs/backlog/, with no order.
 //   - `gateStates` is [] and `gates` are the records as read where the workflow is null or "unknown": there is no gate to state.
+//   - `resultCommits` (the scope `all`) are the commits of the default branch's history (readHistory of the whole repository, `changes: false`) under which
+//     `results` holds a `runs/<commit>/` record, in the history's order; a history that fails with one of the host's own errors (HOST_FAILURES) is "unknown".
+//   - `own` is whether the product's address is the address of the instance's snapshot.
 //   - A declared model that the catalogue at the commit lacks is null (the commit was read); one whose commit instanceAt cannot read
 //     — an error named NotFound, TokenRefused, PermissionMissing or Unreachable — is "unknown", with modelUnread naming the commit
 //     and the error. Any other error is not hidden.
@@ -102,6 +105,27 @@ function checkedBlobs(records, snapshot) {
   return blobs;
 }
 
+// The failures of a host that leave a server fact unread; the history of the default branch that fails with one of them is "unknown".
+const HOST_FAILURES = new Set(["NotSupported", "NotFound", "TokenRefused", "PermissionMissing", "RateLimited", "Unreachable"]);
+const RUN_FOLDER = /^runs\/([^/]+)\//;
+
+// The commits of the default branch that `results` holds records of, newest first by the branch's history: [] while there is no branch
+// test-results, "unknown" where the branch is unknown or its history cannot be read.
+async function resultCommitsOf(host, branch, results) {
+  if (results === "unknown") return "unknown";
+  if (results === null) return [];
+  const recorded = new Set(results.paths.map((path) => RUN_FOLDER.exec(path)?.[1]).filter(Boolean));
+  try {
+    return (await host.readHistory(null, { ref: branch, changes: false })).map((entry) => entry.commit).filter((commit) => recorded.has(commit));
+  } catch (error) {
+    if (HOST_FAILURES.has(error?.name)) return "unknown";
+    throw error;
+  }
+}
+
+// Whether the product's repository is the instance's own: the address of its snapshot is the address of the instance's.
+const isOwn = (address, instance) => address !== "" && instance.repository?.web === address;
+
 // The branch `test-results`: its snapshot, null while the repository has none, "unknown" where the host does no server operations.
 async function resultsBranch(host) {
   try {
@@ -167,7 +191,7 @@ async function buildFacts(host, instance, instanceAt) {
     address, info: "unknown", snapshot: held ? held.serving(snapshot) : snapshot, graph: "unknown", requirements: "unknown", statuses: approvals, queues: changeQueues, declaration,
     workflow, model, modelUnread, modelSince: "unknown", participants: [], plan: { order, items, states },
     sprints: [], assignments: [], held: [], gates, gateStates: gateStatesOf, jobs, pullRequests, schedule: "unknown", ci: "unknown", tags: "unknown",
-    results: "unknown", tests: "unknown", resourceNeeds: "unknown",
+    results: "unknown", tests: "unknown", resourceNeeds: "unknown", resultCommits: "unknown", own: isOwn(address, instance),
   };
 }
 
@@ -244,6 +268,6 @@ export async function productFacts(host, instance, instanceAt, now, options = { 
     declaration, workflow, model, modelUnread, modelSince: "unknown", participants,
     plan: { order, items, states: planStates }, sprints, assignments, held: heldItems(sprints, items, modules, pullRequests, onDefault),
     gates, gateStates: states, jobs, pullRequests, schedule: "unknown", ci: "unknown", tags: more.tags, results: more.results,
-    tests: more.tests, resourceNeeds: "unknown",
+    tests: more.tests, resourceNeeds: "unknown", resultCommits: await resultCommitsOf(host, branch, more.results), own: isOwn(address, instance),
   };
 }
