@@ -1,7 +1,7 @@
 // The public trace Route for the specification, the gaps and the modules (the modules page draws the component diagram, UC-025 step 5). Above its page it offers the ref its caller hands (current, when that is the default
 // branch) and every tag of the product, newest first (UC-020 steps 1, 1a, 1c); choosing one draws the page again at it. The specification page
 // draws the tree of the group file docs/groups/requirements.md (UC-020 steps 2 and 3): every requirement once with its status, which the open entries of the change queues give it,
-// and each group with how many requirements it holds and how many of them no use case realises. Opening a requirement shows its four fields at once and, beside them, what traces to it (UC-020 step 5): the trace
+// and each group with how many requirements it holds and how many of them no use case realises. Above the tree the reader narrows it by typing part of a name or rule and by the filters of the descriptor: status, source and realised (UC-020 step 4). Opening a requirement shows its four fields at once and, beside them, what traces to it (UC-020 step 5): the trace
 // graph of the version drawn is built when the first requirement is opened, through the snapshot's readMany, and kept for every later
 // opening; the sources with version and part, the use cases with their review status, the decisions, modules and tests that name it,
 // and the unknown names they also name, each a link (step 6). The gaps page (step 7) draws, from the graph of the version drawn, the matrix of
@@ -21,7 +21,7 @@ import { artifactSchemas, readDocument } from "../documents/index.mjs";
 import { statuses } from "../approvals/index.mjs";
 import { entryView, queues } from "../spec-changes/index.mjs";
 import { affectedRequirements, linkedVersion, sourceSchemas } from "../source-register/index.mjs";
-import { coverageGaps, traceGraph, tracesTo } from "../trace-graph/index.mjs";
+import { coverageGaps, moduleRows, traceGraph, tracesTo } from "../trace-graph/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { componentDiagram } from "./diagram.mjs";
 import { descriptorFor } from "./views.mjs";
@@ -359,11 +359,16 @@ function membersTable(members, arranged, editable, shown) {
   const body = el("tbody");
   for (const { id } of members) {
     const requirement = arranged.spec.requirements.get(id);
-    if (requirement) body.append(...requirementRows(requirement, editable, shown, arranged.status.get(id) ?? "in SPEC"));
-    else if (arranged.added.has(id)) body.append(el("tr", "requirement-proposed", el("td", null, id), statusCell("proposed")));
-    else body.append(el("tr", "requirement-unknown", el("td", null, id), statusCell("unknown: no requirement of this name")));
+    let nodes;
+    if (requirement) nodes = requirementRows(requirement, editable, shown, arranged.status.get(id) ?? "in SPEC");
+    else if (arranged.added.has(id)) nodes = [el("tr", "requirement-proposed", el("td", null, id), statusCell("proposed"))];
+    else nodes = [el("tr", "requirement-unknown", el("td", null, id), statusCell("unknown: no requirement of this name"))];
+    arranged.rowNodes.push({ id, nodes, known: Boolean(requirement) || arranged.added.has(id) });
+    body.append(...nodes);
   }
-  return el("table", "list", el("thead", null, el("tr", null, el("th", null, "Requirement"), el("th", null, "Status"))), body);
+  const table = el("table", "list", el("thead", null, el("tr", null, el("th", null, "Requirement"), el("th", null, "Status"))), body);
+  arranged.tables.push({ table, ids: members.map(({ id }) => id) });
+  return table;
 }
 
 // Every member of a group and of the groups below it.
@@ -382,25 +387,124 @@ function groupNode(group, path, arranged, editable, shown) {
   const body = el("div", "spec-group-body");
   if (group.members.length) body.append(membersTable(group.members, arranged, editable, shown));
   for (const below of group.groups) body.append(groupNode(below, `${path}/${below.title}`, arranged, editable, shown));
-  body.setAttribute("hidden", "hidden");
+  // Opened by the person with the control, or by the narrowing while a requirement in the group matches (`forced`).
+  const state = { opened: false, forced: false };
+  const refresh = () => {
+    const open = state.opened || state.forced;
+    if (!open) body.setAttribute("hidden", "hidden");
+    else if (body.getAttribute("hidden")) body.removeAttribute("hidden");
+    toggle.setAttribute("aria-expanded", String(open));
+  };
+  refresh();
   const spoken = { heading: group.title, path, names: names.filter((id) => arranged.spec.requirements.has(id)) };
   toggle.addEventListener("click", () => {
-    const collapsed = body.getAttribute("hidden") !== null;
-    if (collapsed) body.removeAttribute("hidden");
-    else body.setAttribute("hidden", "hidden");
-    toggle.setAttribute("aria-expanded", String(collapsed));
-    opening(shown.groups, spoken, collapsed, (a, b) => a.path === b.path);
+    state.opened = !(state.opened || state.forced);
+    refresh();
+    opening(shown.groups, spoken, state.opened, (a, b) => a.path === b.path);
   });
-  return el("section", "spec-group", el("h3", null, toggle, " ", held, ", ", unrealised), body);
+  const section = el("section", "spec-group", el("h3", null, toggle, " ", held, ", ", unrealised), body);
+  arranged.groupNodes.push({ section, names, state, refresh });
+  return section;
 }
 
 // The tree of the group file (UC-020 steps 2 and 3): the groups nested, each requirement once in its one place and at the top level where no group names it.
-function overview(arranged, editable, shown) {
+function overview(arranged, editable, shown, descriptor, params) {
   const page = el("section", "current-requirements head", el("h2", null, "Current requirements"));
+  const narrowing = arranged.spec.requirements.size || arranged.added.size ? narrowBar(arranged, shown, descriptor, params) : null;
+  if (narrowing) page.append(narrowing.bar);
   if (arranged.tree.members.length) page.append(membersTable(arranged.tree.members, arranged, editable, shown));
   for (const group of arranged.tree.groups) page.append(groupNode(group, group.title, arranged, editable, shown));
+  if (narrowing) page.append(narrowing.none);
   if (!arranged.spec.requirements.size) page.append(el("p", "empty", "No current requirements are recorded in SPEC.md."));
+  narrowing?.apply();
   return page;
+}
+
+// ---------------------------------------------------------------- narrowing the tree (UC-020 step 4)
+
+// The row a filter judges: the requirement's name and rule, its status, the sources it names and whether a use case realises it. A requirement an open entry would
+// add has no text, no source and no use case yet.
+function rowOf(arranged, id, without) {
+  const requirement = arranged.spec.requirements.get(id);
+  return { name: id, rule: requirement?.rule ?? "", status: requirement ? arranged.status.get(id) ?? "in SPEC" : "proposed", sources: requirement?.sources ?? [],
+    realised: requirement !== undefined && !without.has(id) };
+}
+
+// The controls above the tree — the text, and one choice for each filter of the descriptor, "all" first — and the narrowing they make. A control gets its first value from
+// the param of its name (a value the control does not offer is none). The rows that do not match are hidden, and so is a group, a table and a member that names no requirement
+// when nothing in them matches; a group with a match is opened. A choice of realised reads the trace graph first; a graph that cannot be read is said, and that choice narrows nothing.
+function narrowBar(arranged, shown, descriptor, params) {
+  const rows = [...arranged.spec.requirements.keys(), ...arranged.added].map((id) => rowOf(arranged, id, new Set()));
+  const bar = el("div", "spec-narrow");
+  const text = el("input", "spec-narrow-text");
+  text.type = "search";
+  text.setAttribute("placeholder", "Narrow by name or rule");
+  text.value = typeof params.text === "string" ? params.text : "";
+  bar.append(text);
+  const choices = new Map();
+  for (const filter of descriptor.filters) {
+    const values = filter.values(rows);
+    const field = el("select", `spec-narrow-${filter.name}`);
+    for (const value of ["all", ...values]) {
+      const option = el("option", null, value);
+      option.setAttribute("value", value);
+      field.append(option);
+    }
+    field.value = values.includes(params[filter.name]) ? params[filter.name] : "all";
+    choices.set(filter.name, field);
+    bar.append(" ", el("label", null, `${filter.name} `, field));
+  }
+  const problem = el("p", "spec-narrow-problem");
+  problem.setAttribute("hidden", "hidden");
+  const none = el("p", "spec-narrow-none", "No requirement matches.");
+  none.setAttribute("hidden", "hidden");
+  bar.append(problem);
+  let latest = 0;
+  const unrealised = arranged.unrealised = kept(async () => new Set(coverageGaps(await factsOf(shown).graph()).requirementsWithoutUseCase));
+  // Hidden or shown, touching the node only when its state changes.
+  const set = (node, hidden) => {
+    if (hidden) node.setAttribute("hidden", "hidden");
+    else if (node.getAttribute("hidden")) node.removeAttribute("hidden");
+  };
+  async function apply() {
+    const mine = ++latest;
+    const wanted = new Map(descriptor.filters.map((filter) => [filter.name, choices.get(filter.name).value]));
+    let without = new Set();
+    let readable = true;
+    if (wanted.get("realised") !== "all") {
+      try {
+        without = await unrealised();
+      } catch {
+        readable = false;
+      }
+      if (mine !== latest) return;
+    }
+    set(problem, readable);
+    if (!readable) {
+      problem.textContent = "Whether a use case realises a requirement could not be read.";
+      wanted.set("realised", "all");
+    }
+    const typed = text.value.trim().toLowerCase();
+    const active = typed !== "" || [...wanted.values()].some((value) => value !== "all");
+    const matching = new Set();
+    for (const { id, known } of arranged.rowNodes) {
+      if (!known) continue;
+      const row = rowOf(arranged, id, without);
+      if ((typed === "" || `${row.name}\n${row.rule}`.toLowerCase().includes(typed))
+        && descriptor.filters.every((filter) => wanted.get(filter.name) === "all" || filter.keep(row, wanted.get(filter.name)))) matching.add(id);
+    }
+    for (const { id, nodes, known } of arranged.rowNodes) for (const node of nodes) set(node, active && !(known && matching.has(id)));
+    for (const { table, ids } of arranged.tables) set(table, active && !ids.some((id) => matching.has(id)));
+    for (const group of arranged.groupNodes) {
+      const has = group.names.some((id) => matching.has(id));
+      set(group.section, active && !has);
+      group.state.forced = active && has;
+      group.refresh();
+    }
+    set(none, !(active && matching.size === 0));
+  }
+  for (const [name, field] of [["text", text], ...choices]) field.addEventListener(name === "text" ? "input" : "change", apply);
+  return { bar, none, apply };
 }
 
 // *+ Requirement* once for each section of the SPEC, beside the tree and not within it, each opening `requirements/new` for its section (UC-018 3d).
@@ -433,7 +537,7 @@ async function arrangement(snapshot, spec, waiting) {
   }
   const items = [...spec.requirements.keys(), ...added];
   const { tree } = hierarchy(parseGroupFile(GROUP_PATH, (await snapshot.read(GROUP_PATH)) ?? ""), items);
-  return { spec, tree, status, added, counts: [] };
+  return { spec, tree, status, added, counts: [], rowNodes: [], tables: [], groupNodes: [], unrealised: null };
 }
 
 // Fills in, once the trace graph is read, how many requirements of each group no use case realises: the names coverageGaps lists, and those an entry would add,
@@ -442,7 +546,7 @@ async function countUnrealised(shown, arranged) {
   if (!arranged.counts.length) return;
   let without;
   try {
-    without = new Set(coverageGaps(await factsOf(shown).graph()).requirementsWithoutUseCase);
+    without = await arranged.unrealised();
   } catch {
     for (const [, node] of arranged.counts) node.textContent = "whether a use case realises them could not be read";
     return;
@@ -541,11 +645,10 @@ const OTHER = {
 // What each drawn route keeps for its subject, by the context it was drawn with: the frame asks the route for the subject with the same context.
 const drawn = new WeakMap();
 
-// The module files of a snapshot as componentDiagram takes them: the files docs/architecture/MOD-<slug>.md read in one batch and by their schema, nothing else of the
-// repository (the diagram needs no code and no test file, so the graph of the version is not built).
+// The module files of a snapshot as componentDiagram takes them: the files docs/architecture/MOD-<slug>.md by their schema. The graph of the version has told readMany every path it reads, these among them, so
+// they are not named again.
 async function moduleFilesOf(snapshot) {
   const paths = snapshot.paths.filter((path) => /^docs\/architecture\/MOD-[^/]+\.md$/.test(path));
-  if (paths.length) await snapshot.readMany?.(paths);
   const schema = artifactSchemas().module;
   const files = [];
   for (const path of paths) {
@@ -561,16 +664,69 @@ async function moduleFilesOf(snapshot) {
   return files;
 }
 
-// The modules page (UC-025 step 5): the component diagram of the modules of the version handed, from the module files of that version, drawn through renderMermaid. It offers no
+// The table of the modules (UC-025 step 3), one row for each module of moduleRows: its subsystem and that decision's review status, the requirements it realises each in the SPEC or not, its file with its review status,
+// its code and its tests; the name opens the row onto the module's file and folder (step 6). The table stands in the site's scroll box, so that on a phone it scrolls sideways in a box of its own and the page keeps its
+// margins; the box is reached by the keyboard and named, as it scrolls.
+function modulesTable(rows, graph, reviewOf, snapshot) {
+  const statusOf = (path) => REVIEW[reviewOf.get(path)?.status] ?? "open";
+  const list = (items) => el("ul", null, ...items.map((text) => el("li", null, text)));
+  const body = el("tbody");
+  for (const row of rows) {
+    const name = el("button", "module-name btn small", row.module);
+    name.type = "button";
+    const subsystem = row.subsystem === null ? "none" : `${row.subsystem} — ${statusOf(graph.nodes.get(row.subsystem)?.path)}`;
+    const realises = row.realises.map((each) => `${each} — ${graph.nodes.get(each)?.kind === "requirement" ? "in SPEC" : "not in the SPEC"}`);
+    const tr = el("tr", "module-row", el("td", "module-name-cell", name), el("td", "module-subsystem", subsystem), el("td", "module-realises", list(realises)),
+      el("td", "module-file", `${row.describedBy} — ${statusOf(row.describedBy)}`), el("td", "module-code", list(row.code)), el("td", "module-tests", list(row.tests)));
+    tr.setAttribute("data-module", row.module);
+    let opened = null;
+    name.addEventListener("click", async () => {
+      if (opened) { opened.parentNode?.removeChild(opened); opened = null; return; }
+      const here = el("tr", "module-opened");
+      const panel = el("td", "panel");
+      panel.setAttribute("colspan", "6");
+      here.append(panel);
+      opened = here;
+      body.insertBefore(here, tr.nextSibling);
+      try {
+        const file = renderArtifact((await snapshot.read(row.describedBy)) ?? "");
+        if (opened === here) panel.append(file, el("p", "module-folder", `Folder: ${graph.nodes.get(row.module)?.folder ?? ""}`), list(row.code));
+      } catch (failure) {
+        if (opened === here) panel.append(problemLine("The module's file", failure));
+      }
+    });
+    body.append(tr);
+  }
+  const head = el("tr", null, ...["Module", "Subsystem", "Realises", "File", "Code", "Tests"].map((title) => el("th", null, title)));
+  const box = el("div", "table-scroll", el("table", "list", el("thead", null, head), body));
+  box.setAttribute("tabindex", "0");
+  box.setAttribute("role", "region");
+  box.setAttribute("aria-label", "Modules");
+  return el("section", "modules-table", el("h3", null, "Modules"), box);
+}
+
+// Every gap of moduleRows with the artifact it concerns (UC-025 step 4), or the line that there is none (4a).
+function modulesGaps(gaps, ref) {
+  if (!gaps.length) return el("p", "no-gaps", `There are no gaps at ${ref}.`);
+  const list = el("ul", "trace-list", ...gaps.map((gap) => {
+    const item = el("li", "module-gap", `${gap.artifact} — ${gap.what}`);
+    item.setAttribute("data-kind", gap.kind);
+    return item;
+  }));
+  return el("section", "modules-gaps", el("h3", null, "Gaps"), list);
+}
+
+// The modules page (UC-025): the component diagram of the modules of the version handed, drawn through renderMermaid, the table of the modules and every gap, all from the one graph of that version. It offers no
 // version choice and reads no tag: the view's versions are "branch". Where the version holds no module it says so, and where the graph cannot be read it names that.
 async function drawModules(target, context, host, ref, descriptor) {
   const shown = { target, ref, onDefaultBranch: false, spec: null, source: null, requirements: [], groups: [], context, snapshot: null, facts: null };
   drawn.set(context, shown);
   const place = el("div", "modules-body", el("p", "traces-reading", "Reading the modules…"));
   target.replaceChildren(el("section", "modules head", el("h2", null, descriptor.title), place));
-  let files;
+  let files, graph;
   try {
     shown.snapshot = await host.readSnapshot(ref);
+    graph = await factsOf(shown).graph();
     files = await moduleFilesOf(shown.snapshot);
   } catch (failure) {
     place.replaceChildren(problemLine("The modules", failure));
@@ -580,7 +736,8 @@ async function drawModules(target, context, host, ref, descriptor) {
     place.replaceChildren(el("p", "gaps-missing", `No modules exist at ${ref}.`));
     return;
   }
-  place.replaceChildren(await renderMermaid(componentDiagram(files)), explain("component-diagram"));
+  const { rows, gaps } = moduleRows(graph);
+  place.replaceChildren(await renderMermaid(componentDiagram(files)), explain("component-diagram"), modulesTable(rows, graph, statuses(shown.snapshot), shown.snapshot), modulesGaps(gaps, ref));
 }
 
 export const route = {
@@ -638,8 +795,8 @@ export const route = {
           const arranged = await arrangement(snapshot, shown.spec, open);
           const adding = shown.onDefaultBranch ? addLinks(shown.spec) : null;
           body = shown.onDefaultBranch
-            ? el("div", "specification-page", ...(waiting ? [waiting] : []), overview(arranged, true, shown), ...(adding ? [adding] : []), specChangeLinks())
-            : overview(arranged, false, shown);
+            ? el("div", "specification-page", ...(waiting ? [waiting] : []), overview(arranged, true, shown, descriptor, params), ...(adding ? [adding] : []), specChangeLinks())
+            : overview(arranged, false, shown, descriptor, params);
           fill = () => Promise.all([markSourceChanged(shown), countUnrealised(shown, arranged)]);
         }
       } catch (error) {

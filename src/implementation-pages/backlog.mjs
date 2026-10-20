@@ -22,7 +22,8 @@ import { artifactSchemas, readDocument } from "../documents/index.mjs";
 import { renderArtifact, renderMermaid } from "../markdown-render/index.mjs";
 import { productFacts, progressIn, storedFacts } from "../progress-measures/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
-import { conflicts, heldItems, itemStates, startSprint } from "../work-plans/index.mjs";
+import { conflicts, endSprint, heldItems, itemStates, startSprint, startable } from "../work-plans/index.mjs";
+import { participantSchema, participantsOf } from "../participant-list/index.mjs";
 
 const DECLARATION = "docs/process.md";
 const ITEM_FILE = /^docs\/backlog\/(ITM-\d{3,})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
@@ -219,6 +220,8 @@ function teamPanel(context, ctx, d, team) {
       <td>${stateCell(stateOf(d, st.item))}</td><td class="small">${changes.map(h).join(", ") || "—"}</td>
       <td class="small">${(held?.uses ?? []).map(h).join(", ") || "—"}</td></tr>`;
   }).join("");
+  // Without a time box, and until its record holds `## Ended`, the Product Owner ends the sprint with one click (UC-032 6b).
+  const endable = !text(f.end) && !(record.appended ?? []).some((section) => section.heading === "## Ended");
   const chart = entry.burnDown.length ? chartBlock(team, newest.name, remainingOverTime(entry.items.map((st) => st.item), d.mergedAt, text(f.start)))
     : `<p class="muted">No burn-down yet: the sprint starts on ${h(text(f.start))}.</p>`;
   return `<section class="panel" data-team="${h(team)}"><h3>${h(team)} — sprint ${fileLink(context, ctx.ref, record.path, h(newest.name))}</h3>
@@ -228,7 +231,7 @@ function teamPanel(context, ctx, d, team) {
     ${wipLine(ctx, d, entry)}
     <div class="table-scroll"><table class="list"><thead><tr><th>Item</th><th>Title</th><th>State</th><th>Changes</th><th>Uses</th></tr></thead><tbody>${rows}</tbody></table></div>
     ${chart}
-    <p>${plan("Change the selection", false)}</p>${why}</section>`;
+    <p>${plan("Change the selection", false)}${endable ? ` <button class="btn" data-end-sprint="${h(team)}">End sprint</button>` : ""}</p>${why}</section>`;
 }
 
 // What keeps an item from a team other than the one whose sprint holds it, one line per team.
@@ -381,6 +384,18 @@ async function draw(target, context) {
     target.querySelectorAll(`[data-plan="${name}"]`).forEach((button) => button.addEventListener("click", () => { planning.set(target, name); again(); }));
   }
   target.querySelectorAll("[data-cancel-plan]").forEach((button) => button.addEventListener("click", () => { planning.delete(target); again(); }));
+  target.querySelectorAll("[data-end-sprint]").forEach((button) => button.addEventListener("click", async (event) => {
+    if (event?.isTrusted === false) return;
+    const name = button.dataset?.endSprint ?? button.getAttribute("data-end-sprint");
+    const sprint = ctx.newest.get(name)?.name;
+    try {
+      const result = await endSprint(context.product.host, sprint, { head: ctx.snapshot.commit, now: new Date(), trailers: [] });
+      await draw(target, context);
+      target.insertAdjacentHTML?.("afterbegin", `<section class="panel notice flash"><p>Sprint <code>${h(sprint)}</code> is ended — commit ${h(result.commit.slice(0, 7))}.</p></section>`);
+    } catch (failure) {
+      target.insertAdjacentHTML?.("afterbegin", `<section class="panel notice flash"><p class="warn">${h(failure?.message ?? failure)}</p></section>`);
+    }
+  }));
   target.querySelectorAll("[data-start-sprint]").forEach((button) => button.addEventListener("click", async (event) => {
     if (event?.isTrusted === false) return;
     const out = target.querySelector("[data-plan-result]");
@@ -423,5 +438,83 @@ export const route = {
 
   async render(target, context) {
     await draw(target, context);
+  },
+};
+
+// ---------------------------------------------------------------- the board (UC-032 steps 7 and 7a)
+
+const REGISTER = "docs/participants.md";
+
+/** participantsIn(context) -> the participants of the instance's register, read from its default branch. */
+export async function participantsIn(context) {
+  const { instance } = context;
+  const snapshot = await instance.host.readSnapshot((await instance.host.repositoryInfo()).defaultBranch);
+  const register = await snapshot.read(REGISTER);
+  return register === null ? [] : participantsOf(readDocument(participantSchema(), REGISTER, register));
+}
+
+// The role assignment of an item: its team's — the team whose newest running sprint selects it —, else the product's first.
+export function assignmentOf(ctx, d, id) {
+  for (const team of ctx.teams) {
+    const running = runningOf(ctx, d, team);
+    if (running && list(running.appended?.filter((section) => section.heading === "## Selection").at(-1)?.fields?.selection ?? running.fields.selection).includes(id)) {
+      return { assignment: ctx.assignments.find((each) => ASSIGNMENT_FILE.exec(each.path)?.[1] === team) ?? null, sprint: running, team };
+    }
+  }
+  const first = ctx.assignments[0] ?? null;
+  const team = first ? ASSIGNMENT_FILE.exec(first.path)?.[1] : null;
+  return { assignment: first, sprint: team ? runningOf(ctx, d, team) : null, team };
+}
+
+
+// The column of an item by its derived state: Done; in progress with a pull request open, Review; in progress otherwise, Doing; any other state, Backlog.
+const columnOf = (state) => (state.state === "done" ? "Done" : state.state === "in progress" ? (state.pullRequest ? "Review" : "Doing") : "Backlog");
+const COLUMNS = ["Backlog", "Doing", "Review", "Done"];
+
+// The board for a model with a work-in-progress limit: the columns with each item in the column of its derived state; the limit, per team in a model with sprints, naming the items in progress and those that
+// wait for review; Pull on a ready item — a link to the route implement with the item selected — only where `startable` lets it start, else disabled with the reasons it gives.
+async function drawBoard(target, context) {
+  const ctx = await contextOf(context);
+  const d = await derivedOf(context, ctx);
+  const head = (body) => { target.innerHTML = `<section class="head"><h2>Board</h2>${explain("<p>The board shows each item in the column of its derived state. A ready item is pulled only while fewer items are in progress than the work-in-progress limit allows; items in review count as in progress (book ch. 7 §4; UC-032 step 7).</p>")}${body}</section>`; };
+  const wip = ctx.model?.flow?.wip;
+  if (!ctx.declaration || !ctx.model) { head(`<p class="warn">This product declares no process model yet: <code>docs/process.md</code> names it (UC-002).</p>`); return; }
+  if (!wip) { head(`<p>This model has no work-in-progress limit, so there is no board: see <a href="#backlog">the backlog</a>.</p>`); return; }
+  const participants = await participantsIn(context);
+  const workflow = ctx.facts.workflow !== "unknown" ? ctx.facts.workflow : null;
+  const ids = ctx.items.map(idOf);
+  const verdicts = new Map(ids.map((id) => {
+    const { assignment, sprint } = assignmentOf(ctx, d, id);
+    return [id, startable(id, d.states, { workflow, assignment, sprint, held: d.held, wip, participants })];
+  }));
+  const stateOf_ = (id) => d.states.find((each) => each.item === id) ?? { item: id, state: "unknown" };
+  const item = (id) => {
+    const state = stateOf_(id), verdict = verdicts.get(id);
+    const pull = state.state !== "ready" ? "" : verdict.startable ? `<a data-pull="${h(id)}" href="#implement/item=${encodeURIComponent(id)}">Pull</a>`
+      : `<button type="button" data-pull="${h(id)}" disabled>Pull</button><ul data-reasons>${verdict.reasons.map((reason) => `<li>${h(reason)}</li>`).join("")}</ul>`;
+    return `<li data-item="${h(id)}">${h(id)} ${badge(state.state)} ${pull}</li>`;
+  };
+  const columns = COLUMNS.map((name) => `<section class="panel" data-column="${name}"><h3>${name}</h3><ul>${ids.filter((id) => columnOf(stateOf_(id)) === name).map(item).join("")}</ul></section>`).join("");
+  const teams = ctx.model.flow.sprints === true && ctx.teams.length ? ctx.teams : [null];
+  const panels = teams.map((team) => {
+    const under = team ? new Set(d.held.filter((entry) => entry.team === team).map((entry) => entry.item)) : null;
+    const busy = d.states.filter((each) => each.state === "in progress" && (!under || under.has(each.item)));
+    const reviewing = busy.filter((each) => each.pullRequest).map((each) => each.item);
+    return `<section class="panel" data-wip${team ? ` data-team="${h(team)}"` : ""}><p>${h(busy.length)} of ${h(wip)} items in progress${team ? ` under ${h(team)}` : ""}${busy.length ? `: ${busy.map((each) => h(each.item)).join(", ")}` : ""}.${reviewing.length ? ` Waiting for review: ${reviewing.map(h).join(", ")}.` : ""}${busy.length >= wip ? " No further item is pulled until one of them is merged." : ""}</p></section>`;
+  }).join("");
+  head(`${panels}${columns}`);
+}
+
+export const boardRoute = {
+  name: "board",
+  entry: "implementation",
+  title: "Board",
+
+  async render(target, context) {
+    try {
+      await drawBoard(target, context);
+    } catch (failure) {
+      target.innerHTML = `<section class="panel"><h2>Board</h2><p class="warn">${h(failure?.message ?? failure)}</p></section>`;
+    }
   },
 };
