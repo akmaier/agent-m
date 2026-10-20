@@ -16,7 +16,7 @@ export function facts(over = {}) {
     graph: "unknown", requirements: "unknown", statuses: new Map(), queues: [], declaration: null, workflow: null, model: null,
     modelUnread: null, modelSince: "unknown", participants: [], plan: { order: null, items: [], states: [] }, sprints: [],
     assignments: [], held: [], gates: [], gateStates: [], jobs: [], pullRequests: [], schedule: "unknown", ci: "unknown",
-    tags: [], results: "unknown", tests: [], resourceNeeds: "unknown", ...over,
+    tags: [], results: "unknown", tests: [], resourceNeeds: "unknown", resultCommits: "unknown", own: false, ...over,
   };
 }
 

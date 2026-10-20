@@ -129,9 +129,10 @@ const BASE_PULL_REQUESTS = [pr(1, "ITM-001", "main", "merged", H1, "2026-10-13T1
 
 // The host (calls recorded), the instance and instanceAt (the commits asked recorded).
 function fixture({ files = productFiles(), pullRequests = BASE_PULL_REQUESTS, serverOperations = true, contained = new Set(),
-  instanceFailure = null } = {}) {
+  instanceFailure = null, resultFiles = null, history = [], historyFailure = null, productWeb = "https://github.com/alice/product" } = {}) {
   const calls = [];
-  const product = snapshotOf(files);
+  const product = snapshotOf(files, productWeb);
+  const results = resultFiles === null ? null : snapshotOf(resultFiles);
   const instance = snapshotOf({ "SPEC.md": "# Instance spec\n", "docs/participants.md": REGISTER }, "https://github.com/alice/agent-m");
   const asked = [];
   const host = {
@@ -142,7 +143,10 @@ function fixture({ files = productFiles(), pullRequests = BASE_PULL_REQUESTS, se
     },
     async readSnapshot(ref) {
       calls.push(["readSnapshot", ref]);
-      if (ref === "test-results") throw named("NotFound", "no branch test-results");
+      if (ref === "test-results") {
+        if (results === null) throw named("NotFound", "no branch test-results");
+        return results;
+      }
       return product;
     },
     async listTags(...pattern) { calls.push(["listTags", ...pattern]); return [{ name: "v2026.1.0", commit: H1 }]; },
@@ -150,6 +154,11 @@ function fixture({ files = productFiles(), pullRequests = BASE_PULL_REQUESTS, se
       calls.push(["listPullRequests", ...filter]);
       if (!serverOperations) throw named("NotSupported");
       return pullRequests;
+    },
+    async readHistory(path, options) {
+      calls.push(["readHistory", path, options]);
+      if (historyFailure) throw historyFailure;
+      return history.map((commit) => ({ commit, parents: [], author: { account: null, name: "a" }, date: "2026-10-16T10:00:00Z", message: "m", changes: [] }));
     },
     async containsCommit(branch, commit) { calls.push(["containsCommit", branch, commit]); return contained.has(commit); },
   };
@@ -200,9 +209,9 @@ test("productFacts, scope work — reads the statuses, queues, declaration with 
 test("productFacts, scope work — every fact the scope does not name is \"unknown\"", async () => {
   const facts = await work(fixture());
   assert.deepEqual(Object.keys(facts).sort(), ["address", "assignments", "ci", "declaration", "gateStates", "gates", "graph", "held", "info",
-    "jobs", "model", "modelSince", "modelUnread", "participants", "plan", "pullRequests", "queues", "requirements", "resourceNeeds",
-    "results", "schedule", "snapshot", "sprints", "statuses", "tags", "tests", "workflow"]);
-  for (const field of ["info", "graph", "requirements", "modelSince", "schedule", "ci", "tags", "results", "tests", "resourceNeeds"]) {
+    "jobs", "model", "modelSince", "modelUnread", "own", "participants", "plan", "pullRequests", "queues", "requirements", "resourceNeeds",
+    "resultCommits", "results", "schedule", "snapshot", "sprints", "statuses", "tags", "tests", "workflow"]);
+  for (const field of ["info", "graph", "requirements", "modelSince", "schedule", "ci", "tags", "results", "resultCommits", "tests", "resourceNeeds"]) {
     assert.equal(facts[field], "unknown", field);
   }
 });
@@ -432,6 +441,97 @@ test("productFacts — the scope all adds the requirements, tests, results, tags
   const f = fixture();
   await assert.rejects(productFacts(f.host, f.instance, f.instanceAt, NOW, { scope: "everything" }), { name: "TypeError" });
   assert.deepEqual(f.calls, []);
+});
+
+// ---------------------------------------------------------------- resultCommits and own (ITM-809)
+//
+// MOD-progress-measures: "`resultCommits` the commits of the default branch that `results` holds records of (`runs/<commit>/`), newest first by
+// the default branch's history (`readHistory`, `changes: false`), empty while there is no `results`, and `"unknown"` when that history cannot be
+// read; `own` whether the product's repository is the instance's own, the repository of `instance`".
+// Readings these tests state: a history that cannot be read is one that fails with a host's own errors — NotSupported, NotFound, TokenRefused,
+// PermissionMissing, RateLimited or Unreachable; the scopes `work` and `build` read no `results`, so their resultCommits is "unknown"; the
+// repository is the instance's own where its address is the address of the instance's snapshot.
+
+const H3 = "a3".repeat(20);
+const RESULT_FILES = { [`runs/${H1}/20261016-1000-commit-aaaa.md`]: "x", [`runs/${H2}/20261016-1000-commit-aaaa.md`]: "x",
+  [`runs/${H2}/20261016-1100-pull-request-bbbb.md`]: "x", [`runs/${H9}/20261016-1000-commit-aaaa.md`]: "x", "README.md": "x" };
+const all = (f) => productFacts(f.host, f.instance, f.instanceAt, NOW, { scope: "all" });
+const historyCalls = (f) => f.calls.filter((call) => call[0] === "readHistory");
+
+// TST-809007 · level: unit · module: MOD-progress-measures
+// guards: THE MAIN PAGE SHOWS EACH PRODUCT'S PROGRESS BY STAGE; UC-046
+// given: the fixture product with a branch test-results that holds records of the commits H1 (one), H2 (two) and H9 and a file README.md, and a default branch whose history, newest first, is H3, H2, H1 (H9 is on no branch of it, H3 has no record)
+// input: productFacts(…, { scope: "all" }).resultCommits
+// expect: [H2, H1] — each commit once, in the order of the history, only those with records under runs/<commit>/; the host's history is read once, for the whole repository (path null) from the default branch, without the changes: ["readHistory", null, { ref: "main", changes: false }]
+test("productFacts, scope all — resultCommits are the commits of the default branch that the results hold records of, newest first", async () => {
+  const f = fixture({ resultFiles: RESULT_FILES, history: [H3, H2, H1] });
+  const facts = await all(f);
+  assert.deepEqual(facts.resultCommits, [H2, H1]);
+  assert.deepEqual(historyCalls(f), [["readHistory", null, { ref: "main", changes: false }]]);
+  assert.equal(facts.results.paths.length, 5);
+});
+
+// TST-809008 · level: unit · module: MOD-progress-measures
+// guards: THE MAIN PAGE SHOWS EACH PRODUCT'S PROGRESS BY STAGE; UC-046
+// given: the fixture product with no branch test-results (readSnapshot("test-results") fails with NotFound); (b) a branch test-results that holds no record of a commit
+// input: productFacts(…, { scope: "all" }).resultCommits
+// expect: (a) [] — and no history is read; (b) [] — the history holds commits, none of which has records
+test("productFacts, scope all — resultCommits are empty while there is no results, or no record of a commit of the default branch", async () => {
+  const a = fixture({ history: [H2] });
+  assert.deepEqual((await all(a)).resultCommits, []);
+  assert.deepEqual(historyCalls(a), []);
+  const b = fixture({ resultFiles: { "README.md": "x", [`runs/${H9}/20261016-1000-commit-aaaa.md`]: "x" }, history: [H2, H1] });
+  assert.deepEqual((await all(b)).resultCommits, []);
+});
+
+// TST-809009 · level: unit · module: MOD-progress-measures
+// guards: THE MAIN PAGE SHOWS EACH PRODUCT'S PROGRESS BY STAGE; UC-046; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// given: the fixture product with a branch test-results of records of H1, and (a) a history that fails with Unreachable; (b) with RateLimited; (c) with TokenRefused; (d) a host that does no server operations (the branch test-results is then "unknown" too); (e) a history that fails with a TypeError
+// input: productFacts(…, { scope: "all" })
+// expect: (a), (b), (c) resultCommits "unknown" and the other facts read as before (results the Snapshot of test-results); (d) resultCommits "unknown", results "unknown", and no history is asked; (e) productFacts rejects with the TypeError — an error that is no host's failure is not hidden
+test("productFacts, scope all — resultCommits are \"unknown\" where the default branch's history cannot be read", async () => {
+  const resultFiles = { [`runs/${H1}/20261016-1000-commit-aaaa.md`]: "x" };
+  for (const name of ["Unreachable", "RateLimited", "TokenRefused"]) {
+    const facts = await all(fixture({ resultFiles, historyFailure: named(name) }));
+    assert.equal(facts.resultCommits, "unknown", name);
+    assert.deepEqual(facts.results.paths, Object.keys(resultFiles), name);
+  }
+  const d = fixture({ resultFiles, history: [H1], serverOperations: false });
+  const facts = await all(d);
+  assert.equal(facts.resultCommits, "unknown");
+  assert.equal(facts.results, "unknown");
+  assert.deepEqual(historyCalls(d), []);
+  await assert.rejects(all(fixture({ resultFiles, historyFailure: new TypeError("a bug") })), { name: "TypeError" });
+});
+
+// TST-809010 · level: unit · module: MOD-progress-measures
+// guards: THE MAIN PAGE SHOWS EACH PRODUCT'S PROGRESS BY STAGE; UC-046
+// given: the fixture product with a branch test-results of records of H1 and a history H1
+// input: productFacts(…, { scope: "work" }) and productFacts(…, { scope: "build" })
+// expect: resultCommits "unknown" in both, the branch test-results is not asked for and no history is read
+test("productFacts, scopes work and build — resultCommits are \"unknown\" and no history is read", async () => {
+  for (const scope of ["work", "build"]) {
+    const f = fixture({ resultFiles: { [`runs/${H1}/20261016-1000-commit-aaaa.md`]: "x" }, history: [H1] });
+    const facts = await productFacts(f.host, f.instance, f.instanceAt, NOW, { scope });
+    assert.equal(facts.resultCommits, "unknown", scope);
+    assert.deepEqual(historyCalls(f), [], scope);
+    assert.deepEqual(f.calls.filter((call) => call[1] === "test-results"), [], scope);
+  }
+});
+
+// TST-809011 · level: unit · module: MOD-progress-measures
+// guards: WITHOUT A PRODUCT, THE MAIN PAGE SHOWS AGENT M'S OWN PROGRESS; UC-046
+// given: the instance's snapshot at https://github.com/alice/agent-m; (a) the product's snapshot at the same address; (b) at https://github.com/alice/product
+// input: productFacts(…).own, in each scope
+// expect: (a) true in the scopes all, work and build; (b) false in all three
+test("productFacts — own is whether the product's repository is the instance's own", async () => {
+  for (const scope of ["all", "work", "build"]) {
+    for (const [web, expected] of [["https://github.com/alice/agent-m", true], ["https://github.com/alice/product", false]]) {
+      const f = fixture({ productWeb: web });
+      const facts = await productFacts(f.host, f.instance, f.instanceAt, NOW, { scope });
+      assert.equal(facts.own, expected, `${scope} ${web}`);
+    }
+  }
 });
 
 // ---------------------------------------------------------------- the scope build, and the overview of a commit stored (ITM-940)
