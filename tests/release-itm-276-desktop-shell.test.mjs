@@ -245,7 +245,7 @@ test("TST-276901: actual forked Electron source keeps its renderer private and p
     await wait("the pairing window is shown", async () => await evaluate(app.page.webSocketDebuggerUrl, "document.body.innerText.includes('Agent M Bridge pairing')"));
     assert.equal(app.page.url, "agent-m://release-fork.github.io/paired-bridge/desktop-shell/window.html");
     assert.deepEqual(await evaluate(app.page.webSocketDebuggerUrl, "({ calls: Object.keys(window.bridge).sort(), node: [typeof window.process, typeof window.require], address: [...document.querySelectorAll('code')][0].textContent })"), {
-      calls: ["chooseFolder", "copy", "pairAnew", "pause", "quit", "resume", "retryPort", "state"], node: ["undefined", "undefined"], address: expectedAddress,
+      calls: ["chooseFolder", "copy", "onQuitRequested", "pairAnew", "pause", "quit", "resume", "retryPort", "state"], node: ["undefined", "undefined"], address: expectedAddress,
     }, "failure node: the only renderer privilege is the fixed preload API");
     const pair = (origin) => fetch(`${expectedAddress}/v1/pair`, { headers: { origin, "x-agent-m-bridge-token": pairingToken } });
     assert.equal((await pair(app.origin)).status, 200, "known positive: the configured page origin pairs with the real loopback server");
