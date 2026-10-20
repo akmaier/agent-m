@@ -31,3 +31,7 @@ not name, the item stops for a draft.
 - A register row with one cell more than its header names gives a finding at that row, naming the cell. Counter-proof:
   a row with exactly the header's cells gives none.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**Stopped at its first task (sprint team1/97, developer-sonnet-c):** MOD-documents' text says nothing of a cell beyond
+the last column (:168, :248, :275). The draft of MOD-documents.md, by developer-sonnet-c, adds it to the findings at
+:275 and goes to `main` for akmaier. The item waits for its acceptance.
