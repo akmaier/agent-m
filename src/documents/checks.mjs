@@ -20,7 +20,7 @@
 // with a title, and is missing from a document without one.
 
 import { finding } from "../text-tools/index.mjs";
-import { KIND_FORMS, PATH, REQUIREMENT_NAME, compiledOf, effective, holds, matchesPath, pathRule, sectionOf } from "./schema-language.mjs";
+import { KIND_FORMS, PATH, REQUIREMENT_NAME, compiledOf, effective, fences, holds, matchesPath, pathRule, sectionOf, textLines } from "./schema-language.mjs";
 
 const INTERFACE = /^MOD-[a-z0-9]+(?:-[a-z0-9]+)*\.[A-Za-z_][A-Za-z0-9_]*$/;
 const NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -200,6 +200,31 @@ const UNDER_TITLE = "the section under the title";
  * `schema` is not a loaded schema, and, through MOD-text-tools' finding, for a finding no part of the schema names a rule
  * for.
  */
+// The cells of a table's line, split at every | that is not escaped (read-write.mjs reads a section's table with it as well).
+export function cellsOf(line) {
+  let text = line.trim();
+  if (text.startsWith("|")) text = text.slice(1);
+  if (text.endsWith("|") && !text.endsWith("\\|")) text = text.slice(0, -1);
+  return text.split(/(?<!\\)\|/).map((cell) => cell.trim().replace(/\\\|/g, "|"));
+}
+
+// The first table of a section's lines when the section holds a table and none of its tables has a header row that names exactly the table's columns, in their order — the section's table is then found
+// nowhere and its rows are not read: { index, header } of that first table's header row; null where a table names the columns, or the section holds no table.
+function unreadTable(table, lines) {
+  const { inBlock } = fences(lines);
+  const isRow = (i) => !inBlock[i] && /^[ \t]*\|/.test(lines[i]);
+  const names = table.columns.map((column) => column.name);
+  let first = null, from = 0;
+  while (from < lines.length) {
+    if (!isRow(from)) { from += 1; continue; }
+    const header = cellsOf(lines[from]);
+    if (header.length === names.length && header.every((cell, i) => cell === names[i])) return null;
+    first ??= { index: from, header };
+    while (from < lines.length && isRow(from)) from += 1;
+  }
+  return first;
+}
+
 export function documentFindings(schema, document) {
   const compiled = compiledOf(schema);
   const artifact = document.id ?? document.path;
@@ -259,6 +284,15 @@ export function documentFindings(schema, document) {
       lastSection = named;
     }
     const table = named.spec.table;
+    const unread = table && table.header !== false ? unreadTable(table, textLines(section.text ?? "")) : null;
+    if (unread) {
+      const names = table.columns.map((column) => column.name);
+      const added = unread.header.filter((cell) => !names.includes(cell)), lacks = names.filter((name) => !unread.header.includes(name));
+      const says = [...(added.length ? [`adds ${added.join(", ")}`] : []), ...(lacks.length ? [`lacks ${lacks.join(", ")}`] : []),
+        ...(!added.length && !lacks.length ? ["puts the columns out of order"] : [])].join("; ");
+      add(section.line + 1 + unread.index, [named.spec.rule], `the header of the table under ${section.heading} names ${unread.header.join(", ")}, where the format ${schema.schema} names ${names.join(", ")} in that order: it ${says}, so no row of the table is read`,
+        `make the header row name exactly the columns ${names.join(", ")}, in that order`);
+    }
     for (const row of table ? section.rows ?? [] : []) {
       const names = table.columns.map((column) => column.name);
       const lookup = (name) => (names.includes(name) ? textOf(row.cells[name]) : frontLookup(name));

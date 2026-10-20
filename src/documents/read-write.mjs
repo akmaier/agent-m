@@ -22,7 +22,7 @@
 
 import { formatFrontMatter, parseFrontMatter } from "../text-tools/index.mjs";
 import { PATH, compiledOf, effective, fences, sectionOf, textLines } from "./schema-language.mjs";
-import { leftOut, textOf, valueProblem } from "./checks.mjs";
+import { cellsOf, leftOut, textOf, valueProblem } from "./checks.mjs";
 
 const HEADING = /^(#{1,6})[ \t]+\S/;
 const FIELD_LINE = /^([a-z][a-z0-9_-]*):[ \t]*(.*)$/;
@@ -103,13 +103,6 @@ const escapePipes = (text) => text.replace(/\|/g, "\\|");
 
 // ---------------------------------------------------------------- tables
 
-// The cells of a table's line, split at every | that is not escaped.
-function cellsOf(line) {
-  let text = line.trim();
-  if (text.startsWith("|")) text = text.slice(1);
-  if (text.endsWith("|") && !text.endsWith("\\|")) text = text.slice(0, -1);
-  return text.split(/(?<!\\)\|/).map((cell) => cell.trim().replace(/\\\|/g, "|"));
-}
 const isSeparator = (line) => cellsOf(line).every((cell) => /^:?-+:?$/.test(cell));
 
 // The section's table among a text's lines: { from, to }, to exclusive, or null — the first table whose header row names
