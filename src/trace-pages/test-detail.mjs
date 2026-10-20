@@ -15,8 +15,8 @@ import { resultSchema, testHistory } from "../result-records/index.mjs";
 const COUNTER_PROOFS = "docs/tests/counter-proofs/";
 const SCHEDULE_PATH = "docs/tests/schedule.md";
 const RESULTS_BRANCH = "test-results";
-// How many commits of a test file's history are looked at for the commit that removed a test: one page.
-const HISTORY_PAGE = 30;
+// How many commits of a test file's history are read first for the commit that removed a test; the reading doubles until the commit is found or the history ends.
+const FIRST_PAGE = 30;
 
 function el(name, className, ...children) {
   const node = document.createElement(name);
@@ -103,23 +103,26 @@ async function declaredAtARelease(host, id, declarationsOf) {
   return null;
 }
 
-// The commit that removed a test: the first, in the history of its file, whose version no longer declares it — the commits are newest first, so the oldest of those after which no version declares it.
+// The commit that removed a test: the first, in the history of its file, whose version no longer declares it. The commits are newest first; the history is read to a limit that doubles until a commit that
+// declares the test has an newer one that does not, or the history is read to its end.
 async function removedAt(host, shown, declaration) {
-  const commits = await host.readHistory(declaration.path, { ref: shown.ref, limit: HISTORY_PAGE, changes: false });
-  const texts = await host.readFileAt(declaration.path, commits.map(({ commit }) => commit));
   const declares = (text) => text != null && testDeclarations(declaration.path, text).some((each) => each.id === declaration.id);
-  let seen = false;
-  for (let at = commits.length - 1; at >= 0; at -= 1) {
-    if (declares(texts.get(commits[at].commit))) seen = true;
-    else if (seen) return commits[at];
+  for (let limit = FIRST_PAGE; ; limit *= 2) {
+    const commits = await host.readHistory(declaration.path, { ref: shown.ref, limit, changes: false });
+    const texts = await host.readFileAt(declaration.path, commits.map(({ commit }) => commit));
+    let seen = false;
+    for (let at = commits.length - 1; at >= 0; at -= 1) {
+      if (declares(texts.get(commits[at].commit))) seen = true;
+      else if (seen) return commits[at];
+    }
+    if (commits.length < limit) return null;
   }
-  return null;
 }
 
 async function removedPart(host, shown, declaration) {
   try {
     const commit = await removedAt(host, shown, declaration);
-    if (!commit) return el("p", "test-removed", "Removed (the commit is not among the latest commits of its file).");
+    if (!commit) return el("p", "test-removed", "Removed (no commit of its file's history is found that declares it and one after it that does not)");
     return el("p", "test-removed", `Removed at commit ${short(commit.commit)} (${String(commit.date).slice(0, 10)})`);
   } catch (failure) {
     return problemLine("The commit that removed the test", failure);
