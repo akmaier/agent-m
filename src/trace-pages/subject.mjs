@@ -6,7 +6,7 @@
 // - at a released version, the requirement as it read there, with the kind `converse` and no draft route, since a change is drafted only
 //   against the current text;
 // - every other view, and the specification with nothing open, the frame's default with the version shown among its page.
-// "The open requirement" is the one whose detail was opened last and is still open; "the open group" the section whose list was opened last
+// "The open requirement" is the one whose detail was opened last and is still open; "the open group" the group of the group file whose list was opened last
 // and is still open; an open requirement is the narrower subject and wins. The subject is read at each Send, so what is open is kept as
 // the person opens and closes it, and the person's source is read when the page is drawn: a subject reads nothing and sends nothing.
 //
@@ -77,7 +77,7 @@ const lines = (...parts) => parts.filter((part) => typeof part === "string" && p
 /**
  * subjectOf({ title, params, context, shown }) -> Subject — the subject of the route `trace` shown with these `params` and this `context`;
  * `shown` is what the route has kept while it was drawn: `target` (what it has drawn), `ref` (the version shown, which the version choice may have changed from `params.ref`), `onDefaultBranch`, `spec` (as parseSpec reads it),
- * `source` (the person's, or null), and `requirements` (names) and `groups` ({ heading, names }) in the order they were opened; null where
+ * `source` (the person's, or null), and `requirements` (names) and `groups` ({ heading, path, names }) in the order they were opened; null where
  * the route was not drawn with this context. `key` tells the view, the version, what is open and the product apart.
  */
 export function subjectOf({ title, params, context, shown }) {

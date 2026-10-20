@@ -55,14 +55,17 @@ const writes = (server) => server.requests.filter((request) => /^(write|other|ha
 // guards: UC-020; A REQUIREMENT HAS FOUR FIELDS
 // given: a fresh dashboard load after current SPEC bytes change, then fixtures with an empty and an absent SPEC
 // input: open #spec for each fixture
-// expect: only fresh current text appears; empty and absent SPECs name their empty state while queue history remains usable
+// expect: only fresh current text appears, as "in SPEC" or as what the open entry would do to it; the entry's proposed requirement appears by its name as "proposed" and its text does not;
+//         empty and absent SPECs name their empty state while queue history remains usable
 test("#spec reads fresh current SPEC bytes and keeps queue history for empty or absent SPEC", async () => {
   const changing = await repoServer({ files: files() });
   await openDashboard({ server: changing, hash: "#spec" });
   await changing.change("SPEC.md", CURRENT);
   const fresh = await openDashboard({ server: changing, hash: "#spec" });
   assert.match(fresh.main(), /FRESH REQUIREMENT/, "known positive: a fresh page reads the changed current SPEC");
-  assert.doesNotMatch(fresh.main(), /SECOND REQUIREMENT|PROPOSED ONLY REQUIREMENT/, "neither old bytes nor proposal text replace current SPEC");
+  assert.match(fresh.main(), /FRESH REQUIREMENT<\/button>[^]*?<td class="requirement-status">removal proposed<\/td>/, "the open entry would withdraw the fresh requirement it anchors");
+  assert.match(fresh.main(), /<td>PROPOSED ONLY REQUIREMENT<\/td><td class="requirement-status">proposed<\/td>/, "the requirement the entry would add is shown as proposed");
+  assert.doesNotMatch(fresh.main(), /SECOND REQUIREMENT|Proposal text only/, "neither old bytes nor proposal text replace current SPEC");
 
   for (const [label, spec] of [["empty", ""], ["absent", null]]) {
     const server = await repoServer({ files: files(spec) });

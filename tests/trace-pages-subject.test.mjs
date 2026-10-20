@@ -13,7 +13,7 @@
 // test's own; they keep to MOD-repository-hosts' interface (repositoryInfo, readSnapshot), have no write, and the tests run under a `fetch` spy.
 // Where the texts leave a reading open, the test states the one it takes, and the pull request names it:
 //   - A released version is any ref that is not the default branch the Host names; a Host that cannot name it is read as not the default branch.
-//   - "The open requirement" is the requirement whose detail was opened last and is still open; "the group" is the section whose list was opened last and
+//   - "The open requirement" is the requirement whose detail was opened last and is still open; "the group" is the group of the group file whose list was opened last and
 //     is still open. A requirement open beats a group open; with neither open, and on every key but `specification`, the subject is the frame's default
 //     (kind `converse`, the route's title, a page holding the title, the product, the version shown and the text the route has drawn).
 //   - The person is the owner of the instance repository: the account `<host of the instance's origin>/<owner>`, as the review pages' prompt route reads it.
@@ -51,6 +51,8 @@ Every book stands on one shelf.
 Every member holds a card.
 *Check:* \`tests/card.test.mjs\`
 `;
+// The group file of the library (ITM-595: the groups of the tree are the group file's): the group "1. Lending" holds A LOAN HAS A DUE DATE then A BOOK IS SHELVED, "2. Membership" A MEMBER HAS A CARD.
+const GROUPS = `- 1. Lending\n  - ${LOAN}\n  - ${SHELF}\n- 2. Membership\n  - ${CARD}\n`;
 const CURRENT_RULE = "Every loan states the date by which the book is returned.";
 const TAG_RULE = "Every loan is returned within fourteen days.";
 const SPEC_AT = { main: specText(CURRENT_RULE), "v1.0": specText(TAG_RULE) };
@@ -67,7 +69,7 @@ function productHost({ defaultBranch = "main", links = linksText(PERSON) } = {})
   const host = {
     async readSnapshot(ref) {
       calls.push(["product.readSnapshot", ref]);
-      const files = { "SPEC.md": SPEC_AT[ref] ?? SPEC_AT.main, "docs/sources.md": links };
+      const files = { "SPEC.md": SPEC_AT[ref] ?? SPEC_AT.main, "docs/groups/requirements.md": GROUPS, "docs/sources.md": links };
       return { ref, commit: ref, paths: Object.keys(files), read: async (path) => files[path] ?? null, blob: () => null };
     },
     async repositoryInfo() { calls.push(["product.repositoryInfo"]); return { defaultBranch, visibility: "public", canWrite: false, archived: false, description: "" }; },
@@ -97,7 +99,7 @@ const find = (root, match) => {
   return found;
 };
 const named = (target, name) => find(target, (node) => node.localName === "button" && node.className.includes("requirement-name") && node.textContent === name)[0];
-const toggled = (target, heading) => find(target, (node) => node.localName === "button" && node.className.includes("spec-section-toggle") && node.textContent === heading)[0];
+const toggled = (target, heading) => find(target, (node) => node.localName === "button" && node.className.includes("spec-group-toggle") && node.textContent === heading)[0];
 const click = (button) => button.dispatchEvent(new Event("click"));
 
 // Renders the route and returns what the frame holds while it is shown: the target, the params and context it was rendered with, and the subject at this moment.
@@ -131,8 +133,8 @@ test("TST-600150 on the default branch the open requirement is the subject, with
 
 // TST-600151 · level: unit · module: MOD-trace-pages
 // guards: UC-049; UC-019 (step 1); THE PERSON WHO PROMPTS IS A SOURCE
-// given: the same specification on main, whose group "## 1. Lending" holds A LOAN HAS A DUE DATE then A BOOK IS SHELVED and whose group "## 2. Membership" holds A MEMBER HAS A CARD
-// input: the group "## 1. Lending" opened through its spec-section-toggle control; then A BOOK IS SHELVED opened inside it; then that requirement closed; then the group closed
+// given: the same specification on main, whose group "1. Lending" holds A LOAN HAS A DUE DATE then A BOOK IS SHELVED and whose group "2. Membership" holds A MEMBER HAS A CARD
+// input: the group "1. Lending" opened through its spec-group-toggle control; then A BOOK IS SHELVED opened inside it; then that requirement closed; then the group closed
 // expect: group open: change-requirements with requirements [LOAN, SHELF] in group order, source "SRC-acme-person", draftRoute "draft";
 //         requirement open inside it: requirements [SHELF] (the narrower subject wins); requirement closed: the group again; group closed: the frame's default, kind "converse", draftRoute null;
 //         the group's draftRoute is "draft/subject=" followed by encodeURIComponent of its key (ITM-558)
