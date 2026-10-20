@@ -784,7 +784,7 @@ export const route = {
     // read is named in place of the tree; the handed one is the caller's.
     const draw = async (ref, chosen) => {
       const mine = ++latest;
-      const shown = { target, ref, onDefaultBranch: false, spec: null, source: null, requirements: [], groups: [], context, snapshot: null, facts: null };
+      const shown = { target, ref, onDefaultBranch: false, spec: null, source: null, requirements: [], groups: [], context, snapshot: null, facts: null, tags };
       drawn.set(context, shown);
       let body;
       let fill = null;
@@ -802,7 +802,7 @@ export const route = {
         } else if (descriptor.key === "tests") {
           const place = el("div", "tests-page", el("p", "traces-reading", "Reading the tests…"));
           body = el("section", "tests head", el("h2", null, descriptor.title), place);
-          fill = () => showTests(place, shown);
+          fill = () => showTests(place, shown, params);
         } else {
           if (shown.onDefaultBranch) shown.source = await personsSource(context, snapshot);
           const open = shown.onDefaultBranch ? await waitingEntries(snapshot) : [];
