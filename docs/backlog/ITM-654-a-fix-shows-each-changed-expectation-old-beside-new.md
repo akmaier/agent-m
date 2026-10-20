@@ -30,9 +30,10 @@ whether its path reads the repository per test, are read at its start (sprint 66
   fix only through ITM-583 (`fix-inputs`' pull request, `closeWithLinks`). Neither is built: `src/issue-handling` does not
   exist on `main` or on `sprint/team2/97`. So it builds on both.
 - It reads the fix's pull request, its changed files on both sides, and the declarations of the tests among them. Its
-  module's Uses name none of the four interfaces that give them. The draft `9d5ea17c` adds
-  `MOD-repository-hosts.listPullRequests`, `pullRequestFacts`, `MOD-test-document.isTestFile` and `testDeclarations`,
-  and waits for akmaier.
+  module's Uses name none of the interfaces that give them. The draft `9d5ea17c` added them, and its revision after review
+  finds the fix's pull request through the job: `MOD-job-ledger.recordsNewestFirst` gives the `fix-bug` job whose
+  `works_on` names the issue, and `MOD-runtimes.jobTrail` gives its branch's pull request. Then come
+  `MOD-repository-hosts.pullRequestFacts`, `MOD-test-document.isTestFile` and `testDeclarations`. It waits for akmaier.
 
 ## Acceptance
 
