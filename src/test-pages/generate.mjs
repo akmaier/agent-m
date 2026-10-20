@@ -88,7 +88,7 @@ async function loadProduct(host) {
   const info = await host.repositoryInfo();
   const snapshot = await host.readSnapshot(info.defaultBranch);
   const declarations = (await Promise.all(snapshot.paths.filter(isTestFile).map(async (path) => testDeclarations(path, (await snapshot.read(path)) ?? "")))).flat();
-  const graph = await traceGraph(snapshot);
+  const graph = await traceGraph(snapshot, { commit: snapshot.commit });
   const levelOf = new Map(declarations.map((declaration) => [declaration.id, declaration.level]));
   const names = [...graph.nodes.values()].filter((node) => FITTING[node.kind]).sort((a, b) => a.id.localeCompare(b.id))
     .map((node) => {

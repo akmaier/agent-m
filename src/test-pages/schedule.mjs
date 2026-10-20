@@ -20,6 +20,7 @@ import { readDocument } from "../documents/index.mjs";
 import { participantSchema, participantsOf, eligible } from "../participant-list/index.mjs";
 import { resourceSchema } from "../resource-list/index.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
+import { storedFacts } from "../progress-measures/index.mjs";
 
 const SCHEDULE_PATH = "docs/tests/schedule.md";
 const RESOURCES_PATH = "docs/resources.md";
@@ -71,8 +72,17 @@ function refusal(row, column) {
 // How many tests each row holds: the row of a level counts the declarations of that level, the row paid those that name a paid service, so a paid test counts under both.
 async function testCounts(snapshot) {
   const counts = Object.fromEntries(ROWS.map((row) => [row, 0]));
-  const files = await Promise.all(snapshot.paths.filter(isTestFile).map(async (path) => testDeclarations(path, (await snapshot.read(path)) ?? "")));
-  for (const declaration of files.flat()) {
+  // The declarations stored for the commit (MOD-progress-measures' storedFacts) are counted when there are any; otherwise the test files are told to the snapshot first, to be read in batches, and counted.
+  const stored = await storedFacts(snapshot);
+  let declared;
+  if (stored) {
+    declared = stored.tests;
+  } else {
+    const paths = snapshot.paths.filter(isTestFile);
+    await snapshot.readMany?.(paths);
+    declared = (await Promise.all(paths.map(async (path) => testDeclarations(path, (await snapshot.read(path)) ?? "")))).flat();
+  }
+  for (const declaration of declared) {
     if (declaration.level in counts) counts[declaration.level] += 1;
     if (declaration.paid) counts.paid += 1;
   }
