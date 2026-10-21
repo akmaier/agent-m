@@ -1,6 +1,6 @@
 ---
 id: ITM-1165
-title: The live app serves #add-product and #get-your-own with the settings view's routes
+title: The live app serves add-product and get-your-own and main-page navigation reaches review routes
 level: module
 realises:
   - THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE
@@ -10,29 +10,43 @@ modules:
 builds_on:
 tests:
   - unit
+  - component
 origin:
-  - ITM-684's stop at its first task (team 2's sprint 100, developer-sonnet-h) and the probe of docs/index.html recorded there
+  - ITM-684's main-page takeover and the human main-page repair priority
 ---
-# ITM-1165 The live app serves #add-product and #get-your-own with the settings view's routes
+# ITM-1165 Main-page navigation reaches the existing settings and review routes
 
 **REGISTER**
 
 ## Outcome
 
-The live review page, `docs/index.html`, runs `src/site-frame/dashboard-app.mjs`, "the live page's app" until it starts
-through `start.mjs` (MOD-site-frame.md:94).
-- It serves MOD-settings-pages' route `add-product` at the old address `#add`, and does not serve `get-your-own` at all.
-- Probed with `tests/app-harness.mjs`' `openDashboard`, `#add-product` and `#get-your-own` render the same use-case list as
-  an address no view answers. `#add`, `#settings`, `#use-case/id=…`, `#spec-entry/id=…` and `#process` are served.
+The live review app serves MOD-settings-pages' add-product and get-your-own routes, including step=, and keeps
+the existing add alias. From the main page, existing public ViewContext.go reaches review routes not loaded
+there, without loading their views on main. Loaded main routes home/jobs/job still use their own hash.
 
-The new main page (ITM-684) links "+ Add product" and *Get your own Agent M* to the routes MOD-settings-pages names. So
-the live app serves those two names with the settings view's routes, as it serves `#add`. This is an implementation
-change inside MOD-site-frame's own part, with no interface change, and needs no draft.
+Accepted MOD-site-frame's public go promises navigation and chosen-product propagation, not hash-only
+navigation. Use its existing private fragment/address-writing path for review destinations; selector Add
+uses that same navigation path. No public addressOf, duplicate serializer, embedRoute address exception,
+new caller API, helper or architecture change is required. ITM-1111 is not a prerequisite.
 
 ## Acceptance
 
-- `docs/index.html#add-product` draws MOD-settings-pages' `add-product`.
-- `docs/index.html#get-your-own` draws its `get-your-own`, with `step=` passed.
-- A test checks both, against an address no view answers, with a counter-proof.
-- `#add` keeps working.
-- The first commit holds only the tests, and CI is red on it. No stub is committed.
+- docs/index.html#add-product and #get-your-own draw the settings module's routes; step= is passed.
+  An address no view answers remains the negative control; #add keeps working.
+- Main-page go reaches use-case, spec-entry, process, settings and add-product in the review page, preserving
+  identifiers, parameters and chosen or explicitly supplied product, including the instance's empty product.
+  The main page loads none of these review views. Selector Add follows the same existing navigation path.
+- Loaded home/jobs/job and existing loaded review routes retain their navigation and product semantics.
+  Keep menu order, bridge behavior, tokens and notification address-writing behavior unchanged.
+- Scope is only Frame-owned production and its focused unit/component cases. Preserve existing expected
+  outcomes, including site-frame.test.mjs's loaded go("pair") hash assertion and site-frame-start-script.test.mjs's
+  review registration and empty-view fallback cases. No harness/stub/optional-call or legacy in-place repair.
+- The first commit is tests-only with unused TST identifiers and actual intended automatic server red before
+  explicit SM Source permission. Each new case has an actual owned-code fault/failure/exact restoration,
+  truthful attempts and records; no planted fixture replaces the production failure node.
+
+## Readiness
+
+The accepted Frame contract permits this implementation. Start after recorded publication on the integrated
+1173 sprint base; no parallel Frame writer. The completed1173 hold until default is not an active writer.
+KISS and One Thing at a Time keep navigation inside Frame; Nothing Twice reuses its private address writer.
