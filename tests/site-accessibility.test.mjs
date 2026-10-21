@@ -49,7 +49,14 @@ const TODAY = Object.fromEntries(ROUTES.map((route) => [route.address, (PER_ROUT
 // Each tick box of the page in <main>: the identifier of its row, and its name as a browser takes it for a checkbox — its aria-label, else the text of the label it stands in.
 const TICKS = `[...document.querySelectorAll("main input[type=checkbox]")].map((box) => ({ row: box.closest("tr")?.getAttribute("data-id") ?? "",
   name: (box.getAttribute("aria-label") ?? box.closest("label")?.textContent ?? "").trim() }))`;
-const found = new Map(); // "<address> <width name>" -> { violations: [{ id, impact, nodes, first }], text, ticks: [{ row, name }] }
+// The two standalone return controls are measured beside the existing axe result, in this test's own collector: their exact
+// public label, fragment and rendered presence make the focused target-size assertions non-vacuous.
+const RETURN_CONTROLS = `[...document.querySelectorAll("main a[href]")].map((anchor) => {
+  const box = anchor.getBoundingClientRect(), style = getComputedStyle(anchor);
+  return { href: anchor.getAttribute("href"), label: anchor.textContent.replace(/\\s+/g, " ").trim(),
+    visible: style.display !== "none" && style.visibility !== "hidden" && box.width > 0 && box.height > 0 };
+})`;
+const found = new Map(); // "<address> <width name>" -> { violations: [{ id, impact, nodes, first }], text, ticks, returnControls }
 const planted = {};
 let site = null, browser = null;
 const started = Date.now();
@@ -75,7 +82,8 @@ const setUp = async () => {
       await show(page, site, route.address);
       found.set(`${route.address} ${kind}`, { violations: await check(), text: await page.evaluate(`(document.querySelector("main")?.innerText ?? "").replace(/\\s+/g, " ")`),
         ticks: await page.evaluate(TICKS), diagrams: await page.evaluate(`(${unrenderedFindings})()`),
-        boxes: await page.evaluate(`[...document.querySelectorAll("main pre.diff")].map((box) => box.getAttribute("tabindex"))`) });
+        boxes: await page.evaluate(`[...document.querySelectorAll("main pre.diff")].map((box) => box.getAttribute("tabindex"))`),
+        returnControls: await page.evaluate(RETURN_CONTROLS) });
     }
     progress(`every route is checked at a ${kind}'s width`);
   }
@@ -135,6 +143,34 @@ for (const route of ROUTES) {
       }
     });
 }
+
+// TST-1173003 · level: system · module: MOD-review-pages
+// guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE; THE SITE SERVES A SCREEN READER
+// given: the live #use-case/id=draft route at the existing 390 px phone and 1280 px desktop widths
+// input: axe-core target-size violations and the rendered All use cases return control
+// expect: the literal href #use-case, label All use cases, visible true, and target-size [] at both widths
+test("TST-1173003 the use-case drafting page's All use cases return control is visible and has no axe target-size violation at both widths", () => {
+  for (const [kind] of WIDTHS) {
+    const result = found.get(`#use-case/id=draft ${kind}`);
+    const control = result.returnControls.find((entry) => entry.label === "All use cases");
+    assert.deepEqual(control, { href: "#use-case", label: "All use cases", visible: true }, `#use-case/id=draft at a ${kind}'s width renders its return control`);
+    assert.deepEqual(result.violations.filter((violation) => violation.id === "target-size"), [], `#use-case/id=draft at a ${kind}'s width violates target-size`);
+  }
+});
+
+// TST-1173004 · level: system · module: MOD-review-pages
+// guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE; THE SITE SERVES A SCREEN READER
+// given: the live #spec-entry/id=spec-2026-10-18_sample-01/edit=1 route at the existing 390 px phone and 1280 px desktop widths
+// input: axe-core target-size violations and the rendered Back to the entry return control
+// expect: the literal href #spec-entry/id=spec-2026-10-18_sample-01, label Back to the entry, visible true, and target-size [] at both widths
+test("TST-1173004 the specification-entry editor's Back to the entry control is visible and has no axe target-size violation at both widths", () => {
+  for (const [kind] of WIDTHS) {
+    const result = found.get(`#spec-entry/id=spec-2026-10-18_sample-01/edit=1 ${kind}`);
+    const control = result.returnControls.find((entry) => entry.label === "Back to the entry");
+    assert.deepEqual(control, { href: "#spec-entry/id=spec-2026-10-18_sample-01", label: "Back to the entry", visible: true }, `#spec-entry/id=spec-2026-10-18_sample-01/edit=1 at a ${kind}'s width renders its return control`);
+    assert.deepEqual(result.violations.filter((violation) => violation.id === "target-size"), [], `#spec-entry/id=spec-2026-10-18_sample-01/edit=1 at a ${kind}'s width violates target-size`);
+  }
+});
 
 // TST-922001 · level: system · module: MOD-site-frame
 // guards: THE SITE SERVES A SCREEN READER
