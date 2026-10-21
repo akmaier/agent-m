@@ -800,7 +800,7 @@ async function route() {
           if (route === "main") location.search = productHref(parseProductAddress(params.product)).slice(1);
         },
       }, {});
-    } else if (kind === "add") {
+    } else if (kind === "add" || kind === "add-product") {
       const addProduct = settingsPages.routes.find((r) => r.name === "add-product");
       await addProduct.render(main(), {
         instance: { repository: T.instance }, product: null, store: openStore(T.instance),
@@ -812,6 +812,16 @@ async function route() {
         input.dispatchEvent(new Event("input"));
       }
       return;
+    } else if (kind === "get-your-own") {
+      const getYourOwn = settingsPages.routes.find((r) => r.name === "get-your-own");
+      await getYourOwn.render(main(), {
+        instance: { repository: T.instance }, product: null, store: openStore(T.instance),
+        go(route) {
+          if (route === "settings") location.hash = "#settings";
+          if (route === "add-product") location.hash = "#add";
+          if (route === "main") location.hash = "#uc";
+        },
+      }, routeOf(location.hash).params);
     }
     else if (kind === "endpoints") {
       const endpoints = settingsPages.routes.find((r) => r.name === "endpoints");
@@ -915,7 +925,7 @@ async function start() {
   available = renderTabs();
   loadProducts();
   renderProductSelector();
-  const early = /^#(settings|add|setup)/.test(location.hash);
+  const early = /^#(settings|add(?:-product)?|setup|get-your-own)/.test(location.hash);
   if (early) {
     addEventListener("hashchange", route);
     route();

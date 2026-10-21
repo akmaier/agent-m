@@ -37,7 +37,7 @@ async function started() {
   // The frame's page checks (MOD-notifications) repeat by the clock; here they must not keep the process alive.
   globalThis.setInterval = (...given) => { const timer = priorInterval(...given); timer.unref?.(); return timer; };
   let go = null, chosen;
-  await startPage({ page: "main", menuViews: [], views: [{ strategies: [], routes: [{ name: "probe", entry: null, title: "Probe", async render(target, context) { go = context.go; chosen = context.product?.address ?? null; target.replaceChildren(); } }] }] });
+  await startPage({ page: "main", menuViews: [], views: [{ strategies: [], routes: ["probe", "resources"].map((name) => ({ name, entry: null, title: name, async render(target, context) { go = context.go; chosen = context.product?.address ?? null; target.replaceChildren(); } })) }] });
   await turn();
   const done = () => {
     document.body.replaceChildren();
