@@ -140,18 +140,40 @@ async function resultsBranch(host) {
 // The facts only the scope `all` reads: the requirements of the SPEC, the declarations of the test files (MOD-test-document's isTestFile
 // names them; they are told to the snapshot first, to be read in batches), the branch `test-results` and the tags. The trace graph is
 // not built: nothing reads Facts.graph, so `graph` is "unknown" in both scopes and no file only the graph would read is read.
-async function allFacts(host, snapshot, stored) {
+async function allFacts(host, snapshot, stored, requirements = null) {
   if (stored) {
     const [results, tags] = await Promise.all([resultsBranch(host), orUnknown(() => host.listTags())]);
     return { requirements: stored.requirements, tags, results, tests: stored.tests };
   }
-  const specText = await snapshot.read(SPEC);
-  const requirements = specText === null ? [] : [...parseSpec(specText).requirements.keys()];
+  const names = requirements ?? await requirementsOf(snapshot);
   const testFiles = snapshot.paths.filter(isTestFile);
   await snapshot.readMany?.(testFiles);
   const [results, tags, tests] = await Promise.all([resultsBranch(host), orUnknown(() => host.listTags()),
     Promise.all(testFiles.map(async (path) => testDeclarations(path, (await snapshot.read(path)) ?? "")))]);
-  return { requirements, tags, results, tests: tests.flat() };
+  return { requirements: names, tags, results, tests: tests.flat() };
+}
+
+const requirementsOf = async (snapshot) => {
+  await snapshot.readMany?.([SPEC]);
+  const specText = await snapshot.read(SPEC);
+  return specText === null ? [] : [...parseSpec(specText).requirements.keys()];
+};
+
+function realisedNames(items) {
+  return new Set(items.flatMap((item) => {
+    const value = item?.fields?.realises;
+    return Array.isArray(value) ? value : typeof value === "string" ? value.split(",").map((name) => name.trim()).filter(Boolean) : [];
+  }));
+}
+
+async function acceptanceStatuses(approvals, items, requirements, snapshot) {
+  const known = new Set([...approvals.values()].map((status) => status?.id).filter(Boolean));
+  const realised = realisedNames(items);
+  if ([...realised].every((name) => known.has(name))) return approvals;
+  const accepted = requirements ?? await requirementsOf(snapshot);
+  const context = new Map(approvals);
+  for (const name of accepted) context.set(name, { id: name, kind: "requirement", status: "accepted" });
+  return context;
 }
 
 // The facts the scope `build` reads: what buildInProgress takes and nothing else — the plan or the backlog, the job records and the pull requests —,
@@ -186,7 +208,8 @@ async function buildFacts(host, instance, instanceAt) {
   const jobs = await listJobs([{ address, snapshot: held ? held.jobsSnapshot : snapshot }], new Map());
   const known = workflow !== null && workflow !== "unknown" ? workflow : null;
   const gateStatesOf = known ? gateStates(known, gates, checkedBlobs(gates, snapshot)) : [];
-  const states = itemStates(items, order, { statuses: approvals, queues: changeQueues, jobs, pullRequests, gates: gateStatesOf, workflow: known });
+  const acceptance = await acceptanceStatuses(approvals, items, stored?.requirements ?? null, snapshot);
+  const states = itemStates(items, order, { statuses: acceptance, queues: changeQueues, jobs, pullRequests, gates: gateStatesOf, workflow: known });
   return {
     address, info: "unknown", snapshot: held ? held.serving(snapshot) : snapshot, graph: "unknown", requirements: "unknown", statuses: approvals, queues: changeQueues, declaration,
     workflow, model, modelUnread, modelSince: "unknown", participants: [], plan: { order, items, states },
@@ -252,7 +275,9 @@ export async function productFacts(host, instance, instanceAt, now, options = { 
   const jobs = await listJobs([{ address, snapshot: held ? held.jobsSnapshot : snapshot }], new Map());
   const known = workflow !== null && workflow !== "unknown" ? workflow : null;
   const states = known ? gateStates(known, gates, checkedBlobs(gates, snapshot)) : [];
-  const planStates = itemStates(items, order, { statuses: approvals, queues: changeQueues, jobs, pullRequests, gates: states, workflow: known });
+  const knownRequirements = stored?.requirements ?? (all ? await requirementsOf(snapshot) : null);
+  const acceptance = await acceptanceStatuses(approvals, items, knownRequirements, snapshot);
+  const planStates = itemStates(items, order, { statuses: acceptance, queues: changeQueues, jobs, pullRequests, gates: states, workflow: known });
 
   // held: the head commits undecidedHeads names are the only ones the default branch is asked about (containsCommit).
   const onDefault = new Set();
@@ -262,7 +287,7 @@ export async function productFacts(host, instance, instanceAt, now, options = { 
     }
   }
 
-  const more = all ? await allFacts(host, snapshot, stored) : { requirements: "unknown", tags: "unknown", results: "unknown", tests: "unknown" };
+  const more = all ? await allFacts(host, snapshot, stored, knownRequirements) : { requirements: "unknown", tags: "unknown", results: "unknown", tests: "unknown" };
   return {
     address, info: all ? info : "unknown", snapshot: held ? held.serving(snapshot) : snapshot, graph: "unknown", requirements: more.requirements, statuses: approvals, queues: changeQueues,
     declaration, workflow, model, modelUnread, modelSince: "unknown", participants,

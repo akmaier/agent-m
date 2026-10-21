@@ -100,7 +100,7 @@ test("productFacts, scope all — graph is \"unknown\", and the tests are the de
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the facts of the product of TST-873001 read with the scope all (so that graph is "unknown"); a token — the callers of productFacts' scope all read them: stageShares, currentStage, buildInProgress and waitingForAPerson
 // input: stageShares(facts), currentStage of that, buildInProgress(facts), waitingForAPerson(facts)
-// expect: graph is "unknown"; the six stages in their order — Requirements 1 "2 requirements, no change open", Use cases 0 "0 of 250 accepted", Architecture 0 "not designed yet", Implementation null "the process is configured when implementation starts", Tests 0 "0 of 2 requirements guarded by a passing test", Release 0 "no release yet"; the current stage is Use cases; the build is empty; what waits for a person is the 250 open use cases and nothing else
+// expect: graph is "unknown"; the six stages in their order — Requirements 1 "2 requirements, no change open", Use cases 0 "0 of 250 accepted", Architecture 0 "not designed yet", Implementation null "the process is configured when implementation starts", Tests 0 "0 of 2 requirements guarded by a passing test", Release 0 "no release yet"; the current stage is Use cases; the build has ITM-0001 queued; what waits for a person is the 250 open use cases and nothing else
 test("the callers of productFacts' scope all — stageShares, currentStage, buildInProgress and waitingForAPerson — run on facts whose graph is \"unknown\"", async () => {
   const { result } = await facts("all", true);
   assert.equal(result.graph, "unknown");
@@ -110,7 +110,7 @@ test("the callers of productFacts' scope all — stageShares, currentStage, buil
     ["Implementation", null, "the process is configured when implementation starts"], ["Tests", 0, "0 of 2 requirements guarded by a passing test"], ["Release", 0, "no release yet"],
   ]);
   assert.equal(currentStage(shares), "Use cases");
-  assert.deepEqual(buildInProgress(result), []);
+  assert.deepEqual(buildInProgress(result), [{ item: "ITM-0001", job: "JOB-20261014-0900-0001", participant: null, state: "queued", elapsed: 0, reachable: true }]);
   const waits = waitingForAPerson(result);
   assert.equal(waits.length, USE_CASES);
   assert.deepEqual([...new Set(waits.map((w) => w.kind))], ["use case"]);

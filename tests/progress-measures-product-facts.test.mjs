@@ -834,6 +834,57 @@ function withStored(files, text, { commit = COMMIT, instanceFailure = null } = {
 }
 const without = (facts) => { const { snapshot, ...rest } = facts; return rest; };
 
+// TST-1175001 · level: unit · module: MOD-progress-measures
+// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// given: the fixture product with the accepted SPEC requirement EVERY ARTIFACT HAS AN IDENTIFIER, whose reviewed statuses still name only UC-001; a merged ITM-1000 realising that requirement, the existing merged ITM-001 realising UC-001, and ITM-1001 realising the absent requirement A MISSING ACCEPTANCE RULE; both the files and a facts record stored from those same files
+// input: productFacts with scopes work, build and all over each of the raw and stored inputs
+// expect: in every scope and from both inputs, ITM-001 and ITM-1000 are done and ITM-1001 waits for acceptance with the literal reason "A MISSING ACCEPTANCE RULE is not accepted"; the public Facts.requirements remains "unknown" outside scope all, whose value is ["EVERY ARTIFACT HAS AN IDENTIFIER"]
+test("TST-1175001 productFacts gives itemStates the accepted SPEC requirements without changing public statuses", async () => {
+  const files = storedFiles();
+  files["SPEC.md"] = [
+    "# Spec",
+    "",
+    "**EVERY ARTIFACT HAS AN IDENTIFIER** *(Product Owner)*",
+    "Each artifact has an identifier.",
+    "*Check:* `tests/progress-measures-product-facts.test.mjs`",
+    "",
+  ].join("\n");
+  files["docs/backlog/ITM-1000-identifier.md"] = item("ITM-1000", { realises: ["EVERY ARTIFACT HAS AN IDENTIFIER"], modules: ["MOD-store"] });
+  files["docs/backlog/ITM-1001-missing.md"] = item("ITM-1001", { realises: ["A MISSING ACCEPTANCE RULE"], modules: ["MOD-store"] });
+  const pullRequests = [...BASE_PULL_REQUESTS, pr(3, "ITM-1000", "main", "merged", H9, "2026-10-14T10:00:00Z")];
+  const stored = await storedText(files);
+  for (const [kind, make] of [["raw", () => fixture({ files, pullRequests })], ["stored", () => withStored(files, stored)]]) {
+    for (const scope of ["work", "build", "all"]) {
+      const f = make();
+      if (kind === "stored") f.host.listPullRequests = async () => pullRequests;
+      const facts = await productFacts(f.host, f.instance, f.instanceAt, NOW, { scope });
+      assert.deepEqual(facts.plan.states.filter((state) => ["ITM-001", "ITM-1000", "ITM-1001"].includes(state.item)).map((state) => [state.item, state.state, state.reason]), [
+        ["ITM-001", "done", null],
+        ["ITM-1000", "done", null],
+        ["ITM-1001", "waiting for acceptance", "A MISSING ACCEPTANCE RULE is not accepted"],
+      ], `${kind} ${scope}`);
+      assert.equal(facts.requirements === "unknown" ? "unknown" : facts.requirements.join(","), scope === "all" ? "EVERY ARTIFACT HAS AN IDENTIFIER" : "unknown", `${kind} ${scope} requirements`);
+      assert.deepEqual([facts.statuses.has("EVERY ARTIFACT HAS AN IDENTIFIER"), facts.statuses.get(UC1)?.status], [false, "accepted"], `${kind} ${scope} public statuses`);
+    }
+  }
+  const withoutReviewedFiles = Object.fromEntries(Object.entries(files).filter(([path]) => !path.startsWith("docs/approvals/")));
+  const storedWithoutReviewedFiles = await storedText(withoutReviewedFiles);
+  for (const [kind, make] of [["raw", () => fixture({ files: withoutReviewedFiles, pullRequests })],
+    ["stored", () => withStored(withoutReviewedFiles, storedWithoutReviewedFiles)]]) {
+    for (const scope of ["work", "build", "all"]) {
+      const f = make();
+      if (kind === "stored") f.host.listPullRequests = async () => pullRequests;
+      const facts = await productFacts(f.host, f.instance, f.instanceAt, NOW, { scope });
+      assert.deepEqual(facts.plan.states.filter((state) => ["ITM-1000", "ITM-1001"].includes(state.item)).map((state) => [state.item, state.state, state.reason]), [
+        ["ITM-1000", "done", null],
+        ["ITM-1001", "waiting for acceptance", "A MISSING ACCEPTANCE RULE is not accepted"],
+      ], `${kind} ${scope} without reviewed files`);
+      assert.equal([...facts.statuses.values()].filter((status) => status.status === "accepted").length, 0,
+        `${kind} ${scope} preserves no accepted public statuses`);
+    }
+  }
+});
+
 // TST-1117001 · level: unit · module: MOD-progress-measures
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the fixture product with a SPEC rule, a test file and a job record that has not ended, read with the scope "all" at the commit ccc…c; a branch overview-cache that holds no file for it
