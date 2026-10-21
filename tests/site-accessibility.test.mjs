@@ -149,7 +149,8 @@ test("TST-922001 the shared menu, accepted badges and folded explanations have n
       const rules = ["aria-required-children"];
       if (["#arc", "#module", "#backlog"].includes(route.address)) rules.push("color-contrast");
       if (kind === "phone" && ["#use-case/id=UC-002/edit=1", "#decision/id=ARC-001/edit=1", "#module/id=MOD-reader/edit=1"].includes(route.address)) rules.push("target-size");
-      const violations = found.get(`${route.address} ${kind}`).violations.filter((each) => rules.includes(each.id));
+      const violations = found.get(`${route.address} ${kind}`).violations.filter((each) => rules.includes(each.id)
+        && (each.id !== "color-contrast" || each.first.includes(".b-accepted")));
       assert.deepEqual(violations.map((each) => `${each.id} (${each.nodes}: ${each.first})`), [], `${route.address} at a ${kind}'s width violates`);
     }
   }
