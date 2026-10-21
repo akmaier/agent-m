@@ -167,7 +167,7 @@ const fixture = (repository) => createServer(async (request, response) => {
 
 function measure() {
   const px = (value) => parseFloat(value);
-  const edges = (element) => { const r = element.getBoundingClientRect(); return { left: r.left, right: r.right }; };
+  const edges = (element) => { const r = element.getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom }; };
   const luminance = (colour) => {
     const [r, g, b] = colour.match(/[\d.]+/g).slice(0, 3).map((v) => Number(v) / 255)
       .map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
@@ -178,7 +178,7 @@ function measure() {
   const scale = svg.getBoundingClientRect().width / svg.viewBox.baseVal.width;
   const line = svg.querySelector(".line-plot-0 path"), background = getComputedStyle(svg.querySelector("rect")).fill;
   return {
-    document: { scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth },
+    document: { scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth, scrollTop: document.scrollingElement.scrollTop, innerHeight },
     heading: edges(document.querySelector("main .head h2")),
     tables: [...document.querySelectorAll("main table")].map((table) => ({
       part: table.closest("section")?.getAttribute("data-team") ?? table.closest("section")?.getAttribute("data-part")
@@ -187,13 +187,14 @@ function measure() {
         scrollWidth: table.parentElement.scrollWidth, clientWidth: table.parentElement.clientWidth, ...edges(table.parentElement) } })),
     panels: [...document.querySelectorAll("main > section")].map((section) => ({ name: section.className, ...edges(section) })),
     chart: {
+      svg: edges(svg),
       box: { overflowX: getComputedStyle(box).overflowX, holdsOnlyTheChart: box.children.length === 1, scrollWidth: box.scrollWidth,
         clientWidth: box.clientWidth, ...edges(box) },
       scale, body: px(getComputedStyle(document.body).fontSize),
       texts: [...svg.querySelectorAll("text")].map((text) => {
         const bounds = text.getBoundingClientRect(), svgBounds = svg.getBoundingClientRect();
         const style = getComputedStyle(text), matrix = text.getScreenCTM();
-        return { text: text.textContent, axis: text.matches(".left-axis .label text, .bottom-axis .label text"),
+        return { text: text.textContent, axis: text.matches(".left-axis .label text, .bottom-axis .label text"), bounds: edges(text),
           size: px(style.fontSize) * Math.hypot(matrix.a, matrix.b), display: style.display, opacity: Number(style.opacity),
           visible: style.display !== "none" && Number(style.opacity) > 0 && bounds.width > 0 && bounds.height > 0
             && bounds.left >= svgBounds.left && bounds.right <= svgBounds.right && bounds.top >= svgBounds.top && bounds.bottom <= svgBounds.bottom
@@ -255,7 +256,7 @@ test("TST-919001 #backlog in a browser — tables, panels and the chart keep the
     const visiblePositiveLabels = new Map();
     for (const width of [390, 1280]) {
       await session.call("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: width < 600 });
-      await wait(async () => await evaluate(session, `document.querySelector("[data-burn-down]")?.getAttribute("data-chart-width") === String(Math.min(700, innerWidth - 72))`), stopped);
+      await wait(async () => await evaluate(session, `document.querySelector("[data-burn-down] .mermaid")?.getAttribute("data-chart-width") === String(Math.min(700, innerWidth - 72))`), stopped);
       await evaluate(session, `document.querySelector("[data-burn-down]").scrollIntoView({ block: "center", inline: "nearest" }), true`);
       const result = await evaluate(session, `(${measure})()`);
       const actual = JSON.stringify(result);

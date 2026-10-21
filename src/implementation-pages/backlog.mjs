@@ -433,15 +433,16 @@ const chartDraws = new WeakMap();
 // space describe the viewport it is actually shown in.
 async function drawCharts(target) {
   chartDraws.get(target)?.abort();
-  const charts = [...target.querySelectorAll("[data-burn-down] pre > code.language-mermaid")].map((code) => ({ box: code.closest("[data-burn-down]"), source: code.textContent }));
+  const charts = [...target.querySelectorAll("pre > code.language-mermaid")].map((code) => ({ element: code.parentNode, source: code.textContent }));
   const redraw = async () => {
     const width = chartWidth(), phone = (globalThis.innerWidth ?? width) < 600;
     for (const entry of charts) {
       const source = entry.source.replace(/width:\s*\d+/, `width: ${width}`).replace("    width:", phone ? `    height: 250\n    width:` : "    width:");
       const chart = await renderMermaid(source);
       chart.setAttribute("tabindex", "0");
-      entry.box.replaceChildren(chart);
-      entry.box.setAttribute("data-chart-width", String(width));
+      chart.setAttribute("data-chart-width", String(width));
+      entry.element.replaceWith(chart);
+      entry.element = chart;
     }
   };
   await redraw();
