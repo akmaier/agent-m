@@ -193,7 +193,7 @@ function measure() {
       texts: [...svg.querySelectorAll("text")].map((text) => {
         const bounds = text.getBoundingClientRect(), svgBounds = svg.getBoundingClientRect();
         const style = getComputedStyle(text), matrix = text.getScreenCTM();
-        return { text: text.textContent, axis: text.matches(".x-axis text, .y-axis text, .axis text"),
+        return { text: text.textContent, axis: text.matches(".left-axis .label text, .bottom-axis .label text"),
           size: px(style.fontSize) * Math.hypot(matrix.a, matrix.b), display: style.display, opacity: Number(style.opacity),
           visible: style.display !== "none" && Number(style.opacity) > 0 && bounds.width > 0 && bounds.height > 0
             && bounds.left >= svgBounds.left && bounds.right <= svgBounds.right && bounds.top >= svgBounds.top && bounds.bottom <= svgBounds.bottom
