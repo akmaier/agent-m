@@ -161,12 +161,14 @@ async function openNativeMainPage({ server, entries = {}, keepOpen = false }) {
     globalThis.localStorage = priorLocalStorage;
     globalThis.fetch = priorFetch;
   };
+  let started = false;
   try {
     await startPage({ page: "main", views: [view] });
     await settle(server);
+    started = true;
     if (keepOpen) return { restore };
   } finally {
-    if (!keepOpen) restore();
+    if (!keepOpen || !started) restore();
   }
 }
 
@@ -179,8 +181,9 @@ test("the main page starts MOD-notifications' watchForAcceptance with MOD-browse
   const server = await repoServer({ files: {}, handlers: [emptyTags] });
   const browser = installBrowser();
   const stale = minutesAgo(6);
+  let page;
   try {
-    await openNativeMainPage({ server, entries: { [`${PREFIX}notifications`]: JSON.stringify({ checked: stale }) } });
+    page = await openNativeMainPage({ server, keepOpen: true, entries: { [`${PREFIX}notifications`]: JSON.stringify({ checked: stale }) } });
 
     assert.equal(browser.calls.setInterval.length, 1, "watchForAcceptance registered its one check interval");
     assert.equal(browser.calls.setInterval[0].ms, 60000);
@@ -188,7 +191,7 @@ test("the main page starts MOD-notifications' watchForAcceptance with MOD-browse
     const after = JSON.parse(globalThis.localStorage.getItem(`${PREFIX}notifications`));
     assert.notEqual(after.checked, stale,
       "a real check ran through MOD-browser-store's store of the instance, and recorded its own time");
-  } finally { browser.restore(); }
+  } finally { page?.restore(); browser.restore(); }
 });
 
 // ---------------------------------------------------------------- ITM-238 F1 and F2 fixed (UC-047)
