@@ -26,7 +26,7 @@ import { newJobId, listJobs } from "../job-ledger/index.mjs";
 import { participantSchema, participantsOf, eligible } from "../participant-list/index.mjs";
 import { queueJob, routesFor, liveState } from "../runtimes/index.mjs";
 import { resourceSchema } from "../resource-list/index.mjs";
-import { runPanel } from "../site-frame/index.mjs";
+import { runPanel, explain } from "../site-frame/index.mjs";
 
 const SCHEDULE_PATH = "docs/tests/schedule.md";
 const PARTICIPANTS_PATH = "docs/participants.md";
@@ -367,7 +367,7 @@ async function detail(target, context, commit) {
   const checklist = candidate ? [checklistOf(host, { declarations, levels, schedule, commit, again: () => detail(target, context, commit) })] : [];
   const levelsShown = [...levels].sort((a, b) => LEVELS.indexOf(a.level) - LEVELS.indexOf(b.level));
   const run = runOnCommit({ host, context, commit, levels: levelsShown, schedule, again: () => detail(target, context, commit) });
-  target.replaceChildren(head, ...sections, ...uncommitted, ...checklist, run);
+  target.replaceChildren(head, explain("test-runs"), ...sections, ...uncommitted, ...checklist, run);
 }
 
 async function render(target, context, params = {}) {

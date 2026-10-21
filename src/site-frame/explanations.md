@@ -1010,6 +1010,14 @@ The retrospective is where the team — people and agents — writes down what w
 
 A run carries out the product's process model over what you select. You select the steps of the implementation plan — or, in Scrum or Kanban, backlog items — set the limits and press *Start run*: one click. Agent M then generates the CI configuration if the product has none, implements the steps in the plan's order or the items after those they build on, writes the tests, and at the end shows the validation of what was built: what each module realises, its code and tests, and every gap. You are asked only where the model gives a gate to a person, or when a limit is reached. Implementation, tests and CI can also be started each on its own, for one critical step: [UC-024](#use-case/id=UC-024), [UC-026](#use-case/id=UC-026) and [UC-027](#use-case/id=UC-027).
 
+## test-runs
+
+This page shows what the tests said about the commit named above. Each level counts its passed, failed, flaky and not run tests; opening a level shows the individual tests, including what each guards. **Not run** means no result was recorded for that test on this commit. It does not mean passed.
+
+A **failed** test has a recorded result that did not meet its expectation. A **flaky** test has both a passing and a failing result on this same commit, so it is not treated as passed. A test that depends on a model shows its rate beside the rate from the previous release, so you can see whether it became worse.
+
+Choose *Run on this commit* to start the levels that still need a result. Before it starts, the page shows where the run will happen, any paid services it calls, and the secrets it uses by name.
+
 ## run-jobs-at-once
 
 How many jobs the run may have running at the same time. It is preset to the work-in-progress limit of the product's process model, or to 3 where the model sets none. A job that waits for another job or for a gate does not start before it is done, however high the number is; steps that do not depend on each other run side by side up to it.
