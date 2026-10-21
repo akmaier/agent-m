@@ -27,14 +27,16 @@ function el(name, className, ...children) {
   return node;
 }
 
-// What the rows alone tell of the four counts they can: a row with a test and only passed outcomes is passing; one with no test is no test; one with a failed or not
-// run outcome is not passed; one with a flaky outcome is flaky. A row that is not passing is a gap.
+// What the rows alone tell of the counts: a row with a test and only passed outcomes is passing; one with no test is no test; one with a failed or not
+// run outcome is not passed; one with a flaky outcome is flaky; worse and byImplementer are the flags their provider gives. A row that is not passing is a gap.
 const outcomes = (row) => row.tests.map((test) => test.outcome);
 const COUNTED = {
   passing: (row) => row.tests.length > 0 && outcomes(row).every((outcome) => outcome === "passed"),
   noTest: (row) => row.tests.length === 0,
   notPassed: (row) => outcomes(row).some((outcome) => outcome === "failed" || outcome === "not run"),
   flaky: (row) => outcomes(row).some((outcome) => outcome === "flaky"),
+  worse: (row) => row.tests.some((test) => test.worse),
+  byImplementer: (row) => row.tests.some((test) => test.byImplementer),
 };
 
 // The gate records of the release: those of docs/gates/ at the tag that the workflow the product declared then gives a requirement-added gate, as
