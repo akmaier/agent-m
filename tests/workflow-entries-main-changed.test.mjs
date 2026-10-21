@@ -199,6 +199,18 @@ test("the workflow file runs onMainChanged on a push to main, makes the branches
   assert.match(text, /timeout-minutes: 2\b/);
 });
 
+// TST-1175002 · level: component · module: MOD-workflow-entries
+// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// given: the main-changed workflow and a remote test-results branch that is absent from the checkout before its setup step
+// input: the branch list and fetch refspec the workflow gives its setup loop before it invokes onMainChanged
+// expect: the literal branch list is "trace-cache overview-cache test-results" and the loop fetches test-results into the checkout, so productFacts(scope all) can read existing result records from the default branch's ancestry; a genuinely absent remote branch is still handled by the same setup path, not represented as an empty result branch
+test("TST-1175002 main-changed fetches existing test-results before onMainChanged derives the overview", () => {
+  const text = readFileSync(join(ROOT, ".github", "workflows", "main-changed.yml"), "utf8");
+  const loop = /for (\w+) in (trace-cache overview-cache test-results); do/.exec(text);
+  assert.ok(loop, "the setup loop names test-results after the two record branches");
+  assert.match(text, new RegExp(`fetch origin \\+\\$${loop[1]}:\\$${loop[1]}`));
+});
+
 // The instance of the impact tests, in three commits of main: (1) a module MOD-doer that provides `doIt` and `gone`, which MOD-user uses, and a module MOD-steady;
 // (2) the approval records of MOD-doer and MOD-steady, each naming the text of (1); (3) MOD-doer changed (it no longer provides `gone`) and MOD-fresh, which was never accepted.
 const moduleText = (id, provides, uses = []) => ["---", `id: ${id}`, `title: ${id}`, `folder: src/${id.slice(4)}/`, "realises:", "  - A THING IS DONE",
