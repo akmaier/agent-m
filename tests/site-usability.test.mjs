@@ -203,15 +203,29 @@ for (const route of ROUTES) {
 
 // ---------------------------------------------------------------- the menu at a phone's width
 
-for (const [page, expected] of Object.entries(PHONE_MENU_EXPECTED)) {
-  const id = page === "main" ? "TST-920001" : "TST-920002";
-  test(`${id} the ${page} entry page shows all eight process-menu entries at 390 px without sideways scrolling`, () => {
-    const actual = phoneMenus[page];
-    assert.equal(actual.fits, true, `${page} menu is not wider than its visible box`);
-    assert.deepEqual(actual.entries, expected.map(([key, href, disabled]) => [key, href, disabled, true]),
-      `${page} menu order, destinations, disabled entry, and visible entry geometry at 390 px`);
-  });
-}
+// TST-920001 · level: system · module: MOD-site-frame
+// guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE
+// given: the live main entry page at a 390 px phone viewport
+// input: its eight process-menu entries' rendered boxes, destinations, and disabled state
+// expect: the literal eight-entry main-menu contract, with every entry visible and no sideways menu scrolling
+test("TST-920001 the main entry page shows all eight process-menu entries at 390 px without sideways scrolling", () => {
+  const page = "main", expected = PHONE_MENU_EXPECTED.main, actual = phoneMenus.main;
+  assert.equal(actual.fits, true, `${page} menu is not wider than its visible box`);
+  assert.deepEqual(actual.entries, expected.map(([key, href, disabled]) => [key, href, disabled, true]),
+    `${page} menu order, destinations, disabled entry, and visible entry geometry at 390 px`);
+});
+
+// TST-920002 · level: system · module: MOD-site-frame
+// guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE
+// given: the live review entry page at a 390 px phone viewport
+// input: its eight process-menu entries' rendered boxes, destinations, and disabled state
+// expect: the literal eight-entry review-menu contract, with every entry visible and no sideways menu scrolling
+test("TST-920002 the review entry page shows all eight process-menu entries at 390 px without sideways scrolling", () => {
+  const page = "review", expected = PHONE_MENU_EXPECTED.review, actual = phoneMenus.review;
+  assert.equal(actual.fits, true, `${page} menu is not wider than its visible box`);
+  assert.deepEqual(actual.entries, expected.map(([key, href, disabled]) => [key, href, disabled, true]),
+    `${page} menu order, destinations, disabled entry, and visible entry geometry at 390 px`);
+});
 
 // ---------------------------------------------------------------- the counter-proofs
 
