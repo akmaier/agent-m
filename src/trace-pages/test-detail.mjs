@@ -10,7 +10,7 @@ import { renderArtifact } from "../markdown-render/index.mjs";
 import { readDocument } from "../documents/index.mjs";
 import { testDeclarations } from "../test-document/index.mjs";
 import { defaultSchedule, occasionsOf, scheduleSchema } from "../test-schedule/index.mjs";
-import { resultSchema, testHistory } from "../result-records/index.mjs";
+import { resultSchema, resultsAt, testHistory } from "../result-records/index.mjs";
 
 const COUNTER_PROOFS = "docs/tests/counter-proofs/";
 const SCHEDULE_PATH = "docs/tests/schedule.md";
@@ -77,16 +77,42 @@ function codePart(host, shown, declaration) {
   return el("p", null, el("strong", null, "Code "), link);
 }
 
-// The history through testHistory: the commits that ran the test, the release tags, and the rate of a model-dependent test per release.
-async function historyPart(host, id) {
+// The id at the end of a record's run address, only where the host makes that exact address for it.
+function runIdOf(host, address) {
+  let id;
+  try { id = new URL(address).pathname.split("/").filter(Boolean).at(-1); }
+  catch { return null; }
+  return id && host.webLinks().run(id) === address ? id : null;
+}
+
+// The run-log link of one history mark, or none where none of its contributing records names a host run.
+async function historyLogLink(host, results, commit, declaration) {
+  const levels = await resultsAt(results, commit, [{ id: declaration.id, level: declaration.level }]);
+  const recordPaths = levels.flatMap((level) => level.tests).find((test) => test.id === declaration.id)?.records ?? [];
+  for (const path of recordPaths) {
+    const text = await results.read(path);
+    if (text == null) continue;
+    const address = readDocument(resultSchema.run, path, text).fields.run;
+    const id = runIdOf(host, address);
+    if (id == null) continue;
+    const link = el("a", "test-history-log", (await host.ciRunLog(id)) == null ? "no longer available" : "log");
+    link.setAttribute("href", address);
+    return link;
+  }
+  return null;
+}
+
+// The history through testHistory: the commits that ran the test, the release tags, their optional run logs, and the rate of a model-dependent test per release.
+async function historyPart(host, id, declaration) {
   try {
     const results = await host.readSnapshot(RESULTS_BRANCH);
     const tags = (await host.listTags()).map(({ name, commit }) => ({ tag: name, commit }));
     const { commits, releases } = await testHistory(results, id, tags);
     const rates = releases.filter((release) => release.runs);
+    const logs = new Map(await Promise.all(commits.map(async ({ commit }) => [commit, await historyLogLink(host, results, commit, declaration)])));
     return el("section", "test-history",
       el("h3", null, "History"),
-      el("ul", "test-history-commits", ...commits.map(({ commit, outcome }) => el("li", `test-history-commit${outcome === "flaky" ? " test-history-flaky" : ""}`, `${short(commit)} ${outcome}`))),
+      el("ul", "test-history-commits", ...commits.map(({ commit, outcome }) => el("li", `test-history-commit${outcome === "flaky" ? " test-history-flaky" : ""}`, `${short(commit)} ${outcome}`, ...(logs.get(commit) ? [" ", logs.get(commit)] : [])))),
       el("ul", "test-history-releases", ...releases.map(({ tag, outcome }) => el("li", "test-history-release", `${tag} ${outcome}`))),
       ...(rates.length ? [el("ul", "test-rate-line", ...rates.map(({ tag, runs }) => el("li", "test-rate-point", `${tag}: ${runs}`)))] : []));
   } catch (failure) {
@@ -150,6 +176,6 @@ export async function showTestDetail({ host, shown, id, declarations, declaratio
     removed = await removedPart(host, shown, declaration);
   }
   const parts = [declarationPart(declaration), ...(removed ? [removed] : []), await schedulePart(snapshot, declaration), await counterProofPart(snapshot, declaration), codePart(host, shown, declaration),
-    await historyPart(host, id)];
+    await historyPart(host, id, declaration)];
   return el("section", "test-detail", el("h2", null, `${id} ${declaration.title ?? ""}`.trim()), ...parts.filter(Boolean));
 }

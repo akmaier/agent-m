@@ -58,8 +58,8 @@ const SCHEDULE = ["---", "nightly: 02:00", "---", "## Levels", "",
 const MAIN_FILES = { "SPEC.md": SPEC, "tests/alpha.test.mjs": ALPHA, "tests/old.test.mjs": OLD_AT_MAIN, "docs/tests/counter-proofs/TST-801.md": COUNTER_PROOF, "docs/tests/schedule.md": SCHEDULE };
 const TAG_FILES = { "SPEC.md": SPEC, "tests/alpha.test.mjs": ALPHA, "tests/old.test.mjs": OLD_AT_TAG };
 
-function record(commit, rows) {
-  const front = ["---", `commit: ${commit}`, "levels:", "  - unit", "occasion: commit", "participant: ci", "date: 2026-10-07 10:00 UTC", "---"].join("\n");
+function record(commit, rows, run = null) {
+  const front = ["---", `commit: ${commit}`, "levels:", "  - unit", "occasion: commit", "participant: ci", "date: 2026-10-07 10:00 UTC", ...(run ? [`run: ${run}`] : []), "---"].join("\n");
   const table = ["| Test | Level | Outcome | Runs |", "|---|---|---|---|", ...rows.map((row) => `| ${row.join(" | ")} |`)].join("\n");
   return `${front}\n## Outcomes\n\n${table}\n`;
 }
@@ -76,7 +76,7 @@ const HISTORY = [
 ];
 
 const asked = [];
-function hostOf({ files = MAIN_FILES, results = RESULTS, failResults = false, history = HISTORY } = {}) {
+function hostOf({ files = MAIN_FILES, results = RESULTS, failResults = false, history = HISTORY, logs = {} } = {}) {
   const base = treeHost({ trees: { main: files, "v2026.1.0": TAG_FILES, "test-results": results }, tags: ["v2026.1.0"], history });
   return { ...base,
     async readSnapshot(ref) {
@@ -84,7 +84,8 @@ function hostOf({ files = MAIN_FILES, results = RESULTS, failResults = false, hi
       return { ...(await base.readSnapshot(ref)), commit: COMMITS[ref] ?? ref };
     },
     async listTags() { return [{ name: "v2026.1.0", commit: TAG }]; },
-    webLinks: () => ({ file: (path, ref) => { asked.push([path, ref]); return `https://example.test/blob/${ref}/${path}`; } }) };
+    async ciRunLog(id) { return logs[id] ?? null; },
+    webLinks: () => ({ file: (path, ref) => { asked.push([path, ref]); return `https://example.test/blob/${ref}/${path}`; }, run: (id) => `https://example.test/actions/runs/${id}` }) };
 }
 async function render(productHost, row, params = {}) {
   const target = document.createElement("div");
@@ -166,6 +167,29 @@ test("an opened test shows one mark per commit it ran on and one row per release
   assert.deepEqual(textsOf(flaky, "test-history-commit"), ["aaaaaaa flaky"]);
   assert.equal(withClass(flaky, "test-history-flaky").length, 1);
   assert.equal(withClass(given, "test-history-flaky").length, 0, "known positive: an ordinary commit is not marked flaky");
+});
+
+// TST-1168001 · level: unit · module: MOD-trace-pages
+// guards: UC-029; TEST RESULTS ARE KEPT IN THE REPOSITORY
+// given: TST-801 failed in an early result record whose run is https://example.test/actions/runs/701 and passed in the release record whose run is https://example.test/actions/runs/702; WebLinks' run URLs match both ids; ciRunLog gives null for 701 and a kept log for 702
+// input: TST-801 opened through the public trace route
+// expect: the early mark still reads "ccccccc failed", and only its log link reads "no longer available" at …/actions/runs/701; the release mark links its log at …/actions/runs/702 with the text "log"
+test("TST-1168001 trace detail keeps an outcome when its run log is unavailable and links a kept log", async () => {
+  const unavailable = "https://example.test/actions/runs/701";
+  const kept = "https://example.test/actions/runs/702";
+  const results = {
+    ...RESULTS,
+    [`runs/${EARLY}/20260901-1000-commit-aaaa.md`]: record(EARLY, [["TST-801", "unit", "failed", ""]], unavailable),
+    [`runs/${TAG}/20261001-1000-release-bbbb.md`]: record(TAG, [["TST-801", "unit", "passed", ""], ["TST-802", "release", "passed", "3 of 5"]], kept),
+  };
+  const marks = withClass(await render(hostOf({ results, logs: { 702: "the kept log" } }), "TST-801"), "test-history-commit");
+  assert.match(marks[0].textContent, /^ccccccc failed\b/, "the recorded outcome stays readable");
+  const unavailableLink = find(marks[0], (node) => node.localName === "a")[0];
+  assert.equal(unavailableLink.textContent, "no longer available");
+  assert.equal(unavailableLink.getAttribute("href"), unavailable);
+  const keptLink = find(marks[1], (node) => node.localName === "a")[0];
+  assert.equal(keptLink.textContent, "log");
+  assert.equal(keptLink.getAttribute("href"), kept);
 });
 
 // TST-767006 · level: unit · module: MOD-trace-pages
