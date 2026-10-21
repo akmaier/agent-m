@@ -187,14 +187,19 @@ function measure() {
         scrollWidth: table.parentElement.scrollWidth, clientWidth: table.parentElement.clientWidth, ...edges(table.parentElement) } })),
     panels: [...document.querySelectorAll("main > section")].map((section) => ({ name: section.className, ...edges(section) })),
     chart: {
-      svg: edges(svg),
+      svg: { ...edges(svg), viewBox: { x: svg.viewBox.baseVal.x, y: svg.viewBox.baseVal.y, width: svg.viewBox.baseVal.width, height: svg.viewBox.baseVal.height },
+        content: (() => { const bounds = svg.getBBox(); return { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }; })(),
+        overflow: getComputedStyle(svg).overflow, font: getComputedStyle(svg).font },
       box: { overflowX: getComputedStyle(box).overflowX, holdsOnlyTheChart: box.children.length === 1, scrollWidth: box.scrollWidth,
         clientWidth: box.clientWidth, ...edges(box) },
       scale, body: px(getComputedStyle(document.body).fontSize),
       texts: [...svg.querySelectorAll("text")].map((text) => {
         const bounds = text.getBoundingClientRect(), svgBounds = svg.getBoundingClientRect();
         const style = getComputedStyle(text), matrix = text.getScreenCTM();
+        const drawn = text.getBBox(), transform = text.getScreenCTM();
         return { text: text.textContent, axis: text.matches(".left-axis .label text, .bottom-axis .label text"), bounds: edges(text),
+          drawn: { x: drawn.x, y: drawn.y, width: drawn.width, height: drawn.height }, attributes: { x: text.getAttribute("x"), y: text.getAttribute("y"), transform: text.getAttribute("transform") },
+          ctm: { a: transform.a, b: transform.b, c: transform.c, d: transform.d, e: transform.e, f: transform.f }, font: style.font,
           size: px(style.fontSize) * Math.hypot(matrix.a, matrix.b), display: style.display, opacity: Number(style.opacity),
           visible: style.display !== "none" && Number(style.opacity) > 0 && bounds.width > 0 && bounds.height > 0
             && bounds.left >= svgBounds.left && bounds.right <= svgBounds.right && bounds.top >= svgBounds.top && bounds.bottom <= svgBounds.bottom
