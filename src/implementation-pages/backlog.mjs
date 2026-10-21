@@ -436,7 +436,7 @@ function fitChartViewport(chart) {
   const bounds = svg.getBBox(), viewport = svg.viewBox.baseVal;
   const left = Math.min(viewport.x, bounds.x), top = Math.min(viewport.y, bounds.y);
   const right = Math.max(viewport.x + viewport.width, bounds.x + bounds.width), bottom = Math.max(viewport.y + viewport.height, bounds.y + bounds.height);
-  svg.setAttribute("viewBox", `${left} ${top} ${right - left} ${bottom - top}`);
+  svg.setAttribute("viewBox", `${left} ${top} ${right - left + 1} ${bottom - top + 1}`);
 }
 
 function reducePhoneAxisLabels(chart) {
@@ -458,7 +458,6 @@ async function drawCharts(target) {
       chart.setAttribute("data-chart-width", String(width));
       entry.element.replaceWith(chart);
       fitChartViewport(chart);
-      if (phone) reducePhoneAxisLabels(chart);
       entry.element = chart;
     }
   };
