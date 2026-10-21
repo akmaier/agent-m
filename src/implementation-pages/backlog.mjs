@@ -439,6 +439,11 @@ function fitChartViewport(chart) {
   svg.setAttribute("viewBox", `${left} ${top} ${right - left + 1} ${bottom - top + 1}`);
 }
 
+function reducePhoneAxisLabels(chart) {
+  const labels = chart.querySelectorAll?.(".left-axis .label text") ?? [];
+  [...labels].forEach((label, index) => { if (index % 2) label.setAttribute("display", "none"); });
+}
+
 // Each block is redrawn through MOD-markdown-render when its viewport changes, so its requested width and available label
 // space describe the viewport it is actually shown in.
 async function drawCharts(target) {
@@ -453,6 +458,7 @@ async function drawCharts(target) {
       chart.setAttribute("data-chart-width", String(width));
       entry.element.replaceWith(chart);
       fitChartViewport(chart);
+      if (phone) reducePhoneAxisLabels(chart);
       entry.element = chart;
     }
   };
