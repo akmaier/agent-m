@@ -36,6 +36,7 @@ uses:
   - MOD-text-tools.finding
   - MOD-text-tools.formatFinding
   - MOD-text-tools.Finding
+  - MOD-identifiers.kindOfIdentifier
   - MOD-repository-hosts.Snapshot
   - MOD-repository-hosts.Host
   - MOD-repository-hosts.readSnapshot
@@ -79,7 +80,7 @@ unchanged in a browser and in Node.
 
 - `index.mjs` — the interface.
 - `registry.mjs` — the strategies registered by name, for the life of the program.
-- `prepare.mjs` — preconditions, recipes, sizes, places, destinations.
+- `prepare.mjs` — preconditions, recipes, sizes, counts, places, destinations.
 - `loop.mjs` — the correction loop.
 - `driver-prompt.mjs` — the prompt and transient correction context serialized at a driver's sending boundary.
 - `builtins.mjs` — the built-in strategies.
@@ -110,6 +111,17 @@ It keeps the registry of strategies of the program it runs in, in memory, filled
 | `requirement-form` | check | MOD-spec-document's `requirementFindings` on every drafted requirement, the candidates written as a SPEC section with the job's `source` as their source and read with `parseSpec` |
 | `group-rules` | check | the drafted moves — MOD-group-document's `GroupMove`s — applied with `applyMoves` to the group file of the kind the job's parameters name, read from the product's snapshot: each refused move, and the findings `hierarchy` reports for the result against the kind's items, read from the snapshot too |
 | `test-declarations` | check | MOD-test-document's `testFindings` on every declaration in the files the reported branch adds or changes, read with `testDeclarations`, and an error under `A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS` for a file the branch adds that `isTestFile` calls a test file and that declares none. A branch the host does not hold is a finding sent back, since the drafter reported a branch it has not pushed; any other failure of the host is thrown by name |
+
+**What a destination holds.** For `notFitting`, the requirements and use cases the parts of a destination hold are counted
+from the `artifacts` of its parts, and from nothing else, whatever recipe gave the part: an artifact whose identifier
+`kindOfIdentifier` gives as `requirement` is a requirement, as `UC` a use case, and any other kind is neither. An
+identifier counts once, at the first part that carries it: a requirement shown in two parts is one requirement.
+
+How many of them fit: the room is the participant's context less the kind's prompt, that is, the destination's `size`
+less the sizes of its parts. Taking the parts in the order the destination lists them, a part has its size and the
+artifacts of a part share it equally, each rounded up. An item fits when the sizes of everything before it, its own
+included, are within the room; the count stops at the first item that does not, so that the items after it are counted as
+not fitting. A repeated identifier takes its share of the room and counts nothing. With a `context` of `null` none fits.
 
 **The round record.** Every round of the correction loop is kept and recorded with the job (`THE ROUNDS ARE COUNTED AND
 SHOWN`). Its text form, which MOD-job-ledger writes into the end of a job's record and the pages show beside a draft:
@@ -227,11 +239,14 @@ ONLY WHEN RECORDING IS ON`).
   it receives, each estimated as a part's size is.
 - `Prepared` — `{ kind: KindDefinition, params: Record<string, unknown>, drafter: Participant | null, reviewers:
   Participant[], parts: Part[], destinations: Destination[], fits: boolean, notFitting: { participant: Participant, size:
-  number, context: number | null }[], leftOut: { part: string, reason: string }[], blocking: Finding[], limit: number }`:
+  number, context: number | null, holds: { requirements: number, useCases: number }, fitting: { requirements: number,
+  useCases: number } }[], leftOut: { part: string, reason: string }[], blocking: Finding[], limit: number }`:
   what a run panel or the prompt bar shows before the person's click (`THE PAGE NAMES WHERE IT SENDS`); `parts` holds the parts of
   the drafter's and the reviewers' recipes, each once; `leftOut` the parts a recipe whose part may be left out could not
-  give, each with the failure's words as its reason; `blocking` the findings of preconditions, of eligibility, and of a
-  check that needs what the context lacks — `test-declarations` without the product's host —, which keep the job from
+  give, each with the failure's words as its reason; a `notFitting` entry's `holds` counts the requirements and use cases
+  the destination's parts hold and `fitting` how many of them fit its context, as Data states, so that the difference is
+  what does not fit — the pages word the reason from these numbers (UC-019 4a); `blocking` the findings of preconditions,
+  of eligibility, and of a check that needs what the context lacks — `test-declarations` without the product's host —, which keep the job from
   starting.
 - `Round` — `{ number: number, findings: Finding[], answers: { finding: Finding, how: "fixed" | "justified" | "answered",
   text: string | null }[], changed: boolean }`.
@@ -256,7 +271,8 @@ ONLY WHEN RECORDING IS ON`).
   its recipes, estimates their sizes, and checks each destination with MOD-participant-list's `eligible`: the
   capabilities the kind needs, the places every part's sources and the mailbox allow, the context against the size, and
   for a reviewer or checker that it `differs` from the drafter and, for checkers, from each other. Nothing is truncated:
-  what does not fit is named in `notFitting` (`NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY`, `NOTHING IS LEFT OUT
+  what does not fit is named in `notFitting`, with how many requirements and use cases each destination holds and how many of
+  them fit (`NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY`, `NOTHING IS LEFT OUT
   OF AN ARCHITECTURE PROMPT SILENTLY`, `NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY`). The limit is fixed here, before
   the first round: the caller's, else the kind's (`THE CORRECTION LOOP HAS A FIXED LIMIT`). Throws `UnknownKind`,
   `UnknownStrategy { strategy }` for a strategy no module registered, and whatever a recipe throws by name — except a recipe
@@ -343,5 +359,7 @@ appends to the job's record.
 - `MOD-documents.loadSchema` — the round record's schema.
 - `MOD-text-tools.finding`, `MOD-text-tools.formatFinding`, `MOD-text-tools.Finding` — findings of its own, such as an
   answer that cannot be read, and their text in the round record.
+- `MOD-identifiers.kindOfIdentifier` — whether an artifact of a part is a requirement or a use case, for the counts of
+  `notFitting`.
 - `MOD-repository-hosts.Snapshot`, `MOD-repository-hosts.Host` — the types of the context.
 - `MOD-repository-hosts.readSnapshot` — the branch a coding participant reports, for `test-declarations`.
