@@ -451,8 +451,8 @@ async function drawCharts(target) {
       const chart = await renderMermaid(source);
       chart.setAttribute("tabindex", "0");
       chart.setAttribute("data-chart-width", String(width));
-      fitChartViewport(chart);
       entry.element.replaceWith(chart);
+      fitChartViewport(chart);
       entry.element = chart;
     }
   };
