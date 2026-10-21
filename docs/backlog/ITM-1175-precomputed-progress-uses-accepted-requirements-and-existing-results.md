@@ -62,6 +62,31 @@ test-result reader, WorkPlans state-machine or Host implementation changes. A fi
 only where it specifically encoded an accepted SPEC rule as missing; identify each such case and literal
 actual/expected in the tests-only submission. No blanket old expected-result rewrite.
 
+The precise request-count exception is tests/progress-measures-batches.test.mjs, TST-826002 and TST-826003 only.
+Its unchanged progress-measures-load.mjs fixture holds600 items realising FIRST RULE, which its product
+SPEC declares, although the reviewed-file approval map is empty. An empty approval map does not permit
+skipping accepted SPEC requirements. Where state evaluation needs the unstored SPEC, call the existing
+Snapshot.readMany([SPEC]) before reading it; reuse that text and do not read it twice.
+
+TST-826002's work/token expected total changes from16 to17, batch count from11 to12, and sorted batch
+sizes from10x100+1x1 to10x100+2x1. Its sole single-file request remains the missing facts-cache lookup;
+SPEC is batched, not another single. TST-826003's work/no-token expected total changes from1006 to1007,
+and file count and singles length from1002 to1003. Update only these cases' matching count descriptions
+and literals, not their fixture, IDs, unit levels, helper or other expectations. These corrections account
+for the missing accepted-rule input, not a general weakening of the request bound.
+
+Preserve TST-826001's all-scope20 and TST-826006's all-scope22, no duplicate file reads, no test-file reads
+in work scope, public Facts.statuses and scope-excluded unknown fields. Do not encode the omission as an
+approvals.size===0 shortcut, alter the fixture to supply a reviewed artifact, or change unrelated old counts.
+
+The third and only other old expected-result exception is TST-873004 in tests/main-page-progress-no-graph.test.mjs.
+Its same FIRST RULE fixture legitimately has a queued build once the false acceptance wait is removed.
+Replace only buildInProgress(result)'s empty-array expectation with the literal single row
+[{ item: "ITM-0001", job: "JOB-20261014-0900-0001", participant: null, state: "queued", elapsed: 0, reachable: true }]
+and update only the matching "build is empty" description. Preserve its graph unknown, all six stage/share/detail
+expectations, current stage Use cases, and250 waiting use cases. Preserve all other cases and all-scope counts;
+do not change the helper or manufacture reviewed approvals to hide this accepted-input correction.
+
 ## Readiness
 
 Accepted ProgressMeasures and WorkflowEntries already require facts derived from repository records and the
