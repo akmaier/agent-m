@@ -139,6 +139,15 @@ or production change. This is bounded old-release-case maintenance, not a new ca
 Develop Against Interfaces and KISS align this one expectation with the existing accepted Frame contract,
 without another routing rule or a Source rollback.
 
+In that same existing release case, HANDED may additionally name only get-your-own: Frame already dispatches
+#get-your-own to the accepted public SettingsPages route, as UC-014 requires, rather than its absent legacy file.
+Align only the matching handed-route prose. Preserve the built-view assertions that its rendered page differs
+from the Use-case-list fallback and is nonempty; do not skip the view or classify it as unknown. Keep every
+other HANDED entry, route input, unknown legacy fallback, canonical #tests not-built expectation, menu/order,
+file-recorder positive, no-missing-file check, case identity, release level and independent authorship unchanged.
+#step is not in VIEWS and is not added. No Source, helper, fixture, filter, new case or counterproof change is
+authorized. Develop Against Interfaces and KISS retain the existing public dispatch, not a second routing rule.
+
 Preserve all unrelated old expectations, IDs, levels, fixtures, route inputs, TODO findings, frozen TST922001,
 native stored-overview TST943001/002/003 and go-call outcomes. No jsrun/app-harness/browser-helper changes.
 
