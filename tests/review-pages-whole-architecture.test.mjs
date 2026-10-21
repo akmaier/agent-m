@@ -150,8 +150,13 @@ function fakeHost(options) {
   };
   return {
     head: () => head,
+    has: (path) => commits.get(head).tree.has(path),
     writes: () => calls.filter((call) => call.fn === "commitFiles"),
-    land(changed) { head = commitOf(new Map([...commits.get(head).tree, ...Object.entries(changed)]), head); },
+    land(changed, removed = []) {
+      const tree = new Map([...commits.get(head).tree, ...Object.entries(changed)]);
+      for (const path of removed) tree.delete(path);
+      head = commitOf(tree, head);
+    },
     host: {
       async repositoryInfo() { return { defaultBranch: "main", visibility: "public", canWrite: true, archived: false, description: "" }; },
       async readSnapshot(ref) {
@@ -227,6 +232,43 @@ test("MOD-review-pages decision/all — the files of the whole architecture in t
   assert.match(fileOf(target, "MOD-desk").textContent, /It lends a book\./, "a module file in full");
   assert.equal(byClass(target, "button", "accept-all")[0].textContent, "Accept all 4 shown");
   assert.equal(fake.writes().length, 0, "nothing written");
+});
+
+// TST-730001 · level: unit · module: MOD-review-pages
+// guards: UC-023; AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST; SEVERAL FILES ARE ACCEPTED IN ONE CLICK
+// given: the whole-architecture fixture, in which ARC-003 changed after its approval, MOD-desk is new, and accepted MOD-shelf was removed
+// input: the public decision route rendered with id all, then Accept all 5 shown pressed once
+// expect: ARC-003 keeps its difference and impact list, MOD-desk is shown in full, removed MOD-shelf has its impact list and empty text shown, and one commit records every shown file, including MOD-shelf's empty-text blob, without restoring its artifact
+test("MOD-review-pages decision/all — a restructuring shows changed, new and removed architecture files with impact, and accepts all shown in one commit", async () => {
+  const fake = fakeHost();
+  fake.land({}, [M("shelf")]);
+  const read = fake.head();
+  const target = await show(fake);
+
+  assert.deepEqual(filesOf(target), ["ARC-002", "ARC-003", "MOD-desk", "MOD-shelf", "ARC-004"]);
+  assert.equal(byClass(fileOf(target, "ARC-003"), "section", "accepted-diff").length, 1, "the changed decision keeps its difference");
+  assert.equal(byClass(fileOf(target, "ARC-003"), "section", "change-impact").length, 1, "the changed decision has its impact list");
+  assert.match(fileOf(target, "MOD-desk").textContent, /It lends a book\./, "the new module is shown in full");
+  const removed = fileOf(target, "MOD-shelf");
+  assert.equal(byClass(removed, "section", "change-impact").length, 1, "the removed module has its impact list");
+  assert.equal(byClass(removed, "section", "rendered").at(-1)?.textContent ?? "", "", "the removed module's shown text is empty");
+  const accept = byClass(target, "button", "accept-all")[0];
+  assert.equal(accept.textContent, "Accept all 5 shown");
+  click(accept);
+  await until(() => fake.writes().length === 1, "one acceptance commit");
+  const [{ change }] = fake.writes();
+  assert.equal(change.expectedHead, read);
+  assert.deepEqual(change.files.map((file) => file.path).sort(), [
+    recordOf("ARC-002", "architecture-decision", A(2, "desk"), ARC2)[0],
+    recordOf("ARC-003", "architecture-decision", A(3, "shelf"), ARC3)[0],
+    recordOf("ARC-004", "architecture-decision", A(4, "barcodes"), ARC4)[0],
+    recordOf("MOD-desk", "module", M("desk"), MOD_DESK)[0],
+    recordOf("MOD-shelf", "module", M("shelf"), "")[0],
+  ].sort());
+  const shelfRecord = change.files.find((file) => file.path.startsWith("docs/approvals/MOD-shelf-"));
+  assert.deepEqual(readDocument((await import("../src/approvals/index.mjs")).approvalSchema, shelfRecord.path, shelfRecord.text).fields,
+    { kind: "module", file: M("shelf"), blob: blobOf("") });
+  assert.equal(fake.has(M("shelf")), false, "the acceptance never restores the removed artifact");
 });
 
 // TST-472689 · level: unit · module: MOD-review-pages

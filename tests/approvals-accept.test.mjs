@@ -35,7 +35,7 @@ import { createHash } from "node:crypto";
 import * as approvalsModule from "../src/approvals/index.mjs";
 import { readDocument } from "../src/documents/index.mjs";
 
-const { acceptShown, acceptanceBlockers, fallbackAcceptLink, approvalSchema, statuses } = approvalsModule;
+const { acceptShown, acceptanceBlockers, fallbackAcceptLink, approvalSchema, statuses, removedFiles } = approvalsModule;
 
 // ---------------------------------------------------------------- the product
 
@@ -214,6 +214,27 @@ test("acceptShown — a file that changed after it was shown is left out and nam
     { path: UC3_PATH, reason: "changed since shown", names: [] }, { path: UC4_PATH, reason: "changed since shown", names: [] }] });
   assert.deepEqual(Object.keys(fake.files()).filter((path) => /^docs\/approvals\/UC-00[34]-/.test(path)), [UC3_EARLIER_RECORD],
     "UC-003 has no record of the text shown or of the text it has now, and UC-004 none");
+});
+
+// TST-730002 · level: unit · module: MOD-approvals
+// guards: UC-023; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; AN APPROVAL NAMES THE EXACT TEXT
+// given: an accepted module file whose artifact has since been removed from the default branch
+// input: removedFiles(snapshot), then acceptShown with its original path and the empty text's blob
+// expect: removedFiles names its id, kind, former path and last blob; one record names the empty-text blob, and no artifact is present after acceptance
+test("MOD-approvals removedFiles — an accepted removed module is discovered and its empty text is accepted without restoring it", async () => {
+  assert.equal(typeof removedFiles, "function", "the public removal-discovery interface exists");
+  const files = { ...PRODUCT, ...Object.fromEntries([recordOf("MOD-sample", "module", MOD_PATH, MODULE)]) };
+  const fake = fakeHost({ files });
+  fake.land({}, [MOD_PATH]);
+  const snapshot = await fake.host.readSnapshot("trunk");
+  assert.deepEqual(removedFiles(snapshot), [{ id: "MOD-sample", kind: "module", path: MOD_PATH, lastBlob: blobOf(MODULE) }]);
+
+  const result = await acceptShown(fake.host, [shownOf(MOD_PATH, "")], "bob");
+  assert.equal(fake.writes().length, 1, "one commit");
+  const [record] = fake.writes()[0].change.files;
+  assert.deepEqual(fieldsOf(record.path, record.text), { kind: "module", file: MOD_PATH, blob: blobOf("") });
+  assert.deepEqual(result.recorded, [MOD_PATH]);
+  assert.equal(Object.hasOwn(fake.files(), MOD_PATH), false, "no artifact is still present");
 });
 
 // TST-472003 · level: unit · module: MOD-approvals
