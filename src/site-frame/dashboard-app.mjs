@@ -761,7 +761,7 @@ function markTab(kind) {
 }
 async function renderTabs() {
   const el = document.getElementById("tabs");
-  if (el) el.innerHTML = menuHtml({ built: builtViews(builtFiles), tabs: true });
+  if (el) el.innerHTML = menuHtml({ built: builtViews(builtFiles), tabs: true }).replaceAll(' role="tab"', "");
   const [kind, a] = location.hash.replace(/^#/, "").split("/");
   markTab(kind === "review" ? a : kind);
 }
