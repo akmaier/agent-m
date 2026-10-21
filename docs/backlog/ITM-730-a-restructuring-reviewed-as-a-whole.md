@@ -37,31 +37,24 @@ impact list (`architectureImpact` with `after: null`). *Accept all N shown* is u
   changed and removed file with its impact list, the new file in full, and one commit with one record per file shown.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 
-## Settled at sprint team2/89's start, 2026-10-18 (po-opus-b): (b), a module text change, not drafted now
+## Readiness
 
-The question sprint 88 left for akmaier (`docs/backlog/sprints/team2/88.md:77-82`): what does the acceptance of a removal
-record? It needs no SPEC or use case change: UC-023:98-100 asks for "every removed decision with its impact list, and
-**Accept all N shown** for all of them in one commit", and SPEC.md:1034-1037 for "one approval record per file, each
-naming the text shown". What lacks is the form of that record and how a removed file is found, both MOD-approvals':
-- its statuses are those of files present (MOD-approvals.md:96-98);
-- `acceptShown` leaves a removed file out as "changed since shown", since the head holds no blob of it
-  (`src/approvals/accept.mjs:77`; sprint 88's call `kp88-730.mjs`).
+Not ready for implementation under the current accepted input contract. MOD-review-pages and MOD-approvals are
+accepted, at blobs `bbc12381f9904a9220daba458baa247e7041301e` and
+`09dfab85e7e1abd1a0607ec370eeeb40ceb33eda`; waiting for acceptance of those texts is not the blocker.
 
-**The draft to write**, in the form of the module files:
-- MOD-approvals, `blob`: for a removed decision or module file, the blob of the empty text, which is what the default
-  branch holds of it. So a record keeps one format, and a removal is no special case.
-- MOD-approvals, a new interface `removedFiles(snapshot)`: every decision or module file a record names whose identifier
-  the snapshot holds no file of, and whose removal no record accepts. It is computed in the same pass as `statuses`.
-- MOD-approvals, `acceptShown`: a shown file with the empty text's blob is a removal, recorded while the head holds no
-  file of its identifier.
-- MOD-review-pages, `<k>/all`: for the architecture, every file `removedFiles` names, with its impact list
-  (`architectureImpact` with `after: null`); its Uses gain `MOD-approvals.removedFiles`.
+MOD-approvals, Interfaces, requires `removedFiles(snapshot)` to return `path` and `lastBlob` from the most recent
+approval record of each removed identifier. MOD-repository-hosts, Snapshot, supplies the tree and asynchronous file
+reads, but no record history or commit order. Approval filenames contain only the blob's first twelve hex digits;
+reading a record's body supplies its full forty-digit blob and file path, but does not identify which record is most
+recent. Neither filename/hash order nor snapshot iteration order supplies that missing chronology.
 
-Principles: *no special first case* (one record form); *one responsibility* (the records' owner finds the removals);
-*nothing twice* (one pass over `docs/approvals/`).
+The existing path in `src/approvals/status.mjs:131` demonstrates the required information: `lastAcceptedText(id, host)`
+reads the default snapshot, calls `host.readHistory` for the records, selects the most recently committed record,
+then reads its `file` and full `blob`. The accepted `removedFiles(snapshot)` input cannot follow that history path.
+UC-023's whole-architecture outcome and the Acceptance above remain unchanged; a guessed record would not satisfy them.
 
-**Not drafted now.** MOD-review-pages is changed by team 1's sprint 87 (ITM-874 to ITM-879), so its file is not drafted
-while that sprint runs. The draft of both files is written once that sprint is merged, and the item builds on its
-acceptance.
-
-**The drafts are on `main`:** `5a614446` (MOD-approvals) and `29b4324c` (MOD-review-pages, resting on the first), by developer-sonnet-c. The item is built once both are accepted. One reading of the draft is its own: what `removedFiles` returns, `{ id, kind, path, lastBlob }`, the last two from the most recent record of the identifier.
+Before a new implementation assignment, the interface input gap needs a contract correction through the repository's
+formal approval path, accepted by the human akmaier. This REGISTER neither chooses a replacement interface nor changes
+or accepts architecture, SPEC, use cases, test expectations or approval records. One responsibility keeps removal
+discovery with Approvals; nothing twice and KISS rule out a second, guessed chronology in the review page.
