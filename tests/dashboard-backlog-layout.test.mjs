@@ -289,7 +289,7 @@ test("TST-919001 #backlog in a browser — tables, panels and the chart keep the
       assert.ok(within(result.chart.box), `${width}px: the chart's box lies within the heading's margins; actual=${actual}`);
       assert.ok(result.chart.texts.length > 0, `known positive: the chart has texts; actual=${actual}`);
       for (const text of result.chart.texts) {
-        if (text.visible) assert.ok(Math.abs(text.size - result.chart.body) <= 1, `${width}px: the chart's "${text.text}" is as large as the page's body text, within a pixel; actual=${actual}`);
+        assert.ok(Math.abs(text.size - result.chart.body) <= 1, `${width}px: the chart's "${text.text}" is as large as the page's body text, within a pixel; actual=${actual}`);
       }
       const positive = result.chart.texts.filter((text) => text.visible && text.axis && Number(text.text) > 0);
       assert.ok(positive.length > 0, `${width}px: known positive: a positive axis label is visible; actual=${actual}`);
