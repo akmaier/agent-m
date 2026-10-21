@@ -291,7 +291,7 @@ test("runs — where the records can be read, the links of the unreadable case a
 // given: a valid fixture commit whose detail page lists per-level and per-test results
 // input: the public route runs rendered for that commit
 // expect: the detail page carries one folded shared explanation: details.explain with summary "What is this?" and nonempty text that says a missing result is not run, distinguishes failed from flaky results, and says a flaky test is repaired or removed rather than retried until green
-test("runs — a commit detail explains its results through the shared folded frame", async () => {
+test("TST-1172001 — a commit detail explains its results through the shared folded frame", async () => {
   const shown = await page();
   const folds = byClass(shown, "explain");
   assert.equal(folds.length, 1, "one shared explanation on the commit detail");
