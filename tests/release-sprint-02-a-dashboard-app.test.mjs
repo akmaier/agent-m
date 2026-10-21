@@ -524,7 +524,8 @@ test("release · ITM-129 UC-024: a page load of every address asks for no file b
 
 // UC-024 · ITM-129 — Expected: the menu links each stage of the process to the first of its views whose file is on the disk, in
 // the order of the process (THE MENU FOLLOWS THE PROCESS), and no view whose file is not; each view of the table whose file is
-// there, opened at its address, is shown — its page is not the use-case list the shell falls back to —, while the address of an
+// there, opened at its address, is shown — its page is not the use-case list the shell falls back to —; the public handed
+// get-your-own route is likewise shown. The address of an
 // unbuilt view other than canonical #tests shows the use-case list and asks for no file of that view; canonical #tests truthfully
 // says "The Tests entry is not built yet."
 test("release · ITM-129 UC-024: every menu entry and view of today is shown; a view whose file is not built is not", async () => {
@@ -534,7 +535,7 @@ test("release · ITM-129 UC-024: every menu entry and view of today is shown; a 
   const fileOf = (view) => VIEWS.find((v) => v.view === view)?.file;
   // A view is built where its file is on the disk, or where the app hands its address to a route of MOD-review-pages or to the fold
   // of the topic `accepting`, so that its file is gone.
-  const HANDED = new Set(["uc", "arc", "review", "spec", "how", "release", "mail", "replies", "arrange", "process", "roles", "backlog"]);
+  const HANDED = new Set(["uc", "arc", "review", "spec", "how", "release", "mail", "replies", "arrange", "process", "roles", "backlog", "get-your-own"]);
   const builtView = (view) => HANDED.has(view) || builtOnDisk(fileOf(view));
   const expected = MENU.map((e) => e.views.find(builtView)).filter(Boolean);
   assert.deepEqual(tabs, expected, "the stages' views built, in the order of the process");
