@@ -207,11 +207,12 @@ test("the workflow file runs onMainChanged on a push to main, makes the branches
 // expect: the setup fetch makes the existing branch readable locally without creating it, onMainChanged stores a Tests share of 1 and literal detail "1 of 1 requirements guarded by a passing test"; an absent branch remains absent, while an ls-remote exit other than 2 exits the setup instead of treating access failure as absence
 test("TST-1175002 main-changed fetches an existing results branch for the overview and does not create or hide failures", async () => {
   const text = readFileSync(join(ROOT, ".github", "workflows", "main-changed.yml"), "utf8");
-  assert.match(text, /for \w+ in trace-cache overview-cache; do/, "only cache branches are created once");
-  assert.match(text, /if git ls-remote --exit-code --heads origin "test-results" > \/dev\/null; then\s+git fetch origin \+test-results:test-results\s+else\s+status=\$\?\s+if \[ "\$status" -ne 2 \]; then exit "\$status"; fi\s+fi/m,
-    "only an existing results branch is fetched; an access failure is not absent");
+  const block = /- name: Fetch the existing test-results branch\n\s+run: \|\n((?: {10}.*\n?)+)/.exec(text);
+  assert.ok(block, "the workflow has an existing-results setup block");
+  const setup = block[1].replace(/^ {10}/gm, "");
+  const runSetup = (f) => spawnSync("bash", ["-e", "-c", setup], { cwd: f.clone, encoding: "utf8" });
   await withInstance({ commits: [{ message: "the instance", files: { ...FILES,
-    "tests/accepted.test.mjs": "// TST-001 · level: unit · module: MOD-example\\n// guards: A THING IS DONE\\ntest(\\\"accepted\\\", () => {});\\n" } }] }, async (f) => {
+    "tests/accepted.test.mjs": ["// TST-001 · level: unit · module: MOD-example", "// guards: A THING IS DONE", "test(\"accepted\", () => {});", ""].join("\n") } }] }, async (f) => {
     git(f.seed, "checkout", "-q", "--orphan", "test-results");
     git(f.seed, "rm", "-rq", "--cached", ".");
     write(f.seed, { [`runs/${f.head}/20261021-1000-commit-aaaa.md`]: runRecord(f.head, [["TST-001", "unit", "passed"]]) });
@@ -219,14 +220,20 @@ test("TST-1175002 main-changed fetches an existing results branch for the overvi
     git(f.seed, "commit", "-q", "-m", "the result record");
     git(f.seed, "push", "-q", "origin", "HEAD:refs/heads/test-results");
     assert.equal(git(f.clone, "branch", "--list", "test-results"), "", "the checkout lacks the remote results branch before setup");
-    git(f.clone, "fetch", "-q", "origin", "+test-results:test-results");
+    assert.equal(runSetup(f).status, 0, "the existing remote branch is fetched by the workflow setup");
     assert.notEqual(git(f.clone, "branch", "--list", "test-results"), "", "the existing results branch is fetched into the checkout");
     assert.equal((await run(f)).outcome, "done");
     const overview = JSON.parse(git(f.origin, "show", `${overviewHead(f)}:${f.head}.json`));
     assert.deepEqual(overview.shares.find((share) => share.stage === "Tests"), { stage: "Tests", share: 1, detail: "1 of 1 requirements guarded by a passing test" });
   });
   await withInstance({}, async (f) => {
+    assert.equal(runSetup(f).status, 0, "an absent results branch is not an error");
     assert.equal(git(f.origin, "branch", "--list", "test-results"), "", "a genuinely absent results branch is not created");
+  });
+  await withInstance({}, async (f) => {
+    git(f.clone, "remote", "set-url", "origin", join(f.root, "missing.git"));
+    const failed = runSetup(f);
+    assert.notEqual(failed.status, 0, "an inaccessible origin is not treated as an absent results branch");
   });
 });
 

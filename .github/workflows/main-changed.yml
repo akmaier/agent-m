@@ -37,6 +37,14 @@ jobs:
             fi
             git fetch origin +$branch:$branch
           done
+      - name: Fetch the existing test-results branch
+        run: |
+          if git ls-remote --exit-code --heads origin "test-results" > /dev/null; then
+            git fetch origin +test-results:test-results
+          else
+            status=$?
+            if [ "$status" -ne 2 ]; then exit "$status"; fi
+          fi
       - name: Store the records of this commit
         run: node src/workflow-entries/main.mjs onMainChanged
         env:
