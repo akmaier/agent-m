@@ -128,6 +128,17 @@ file, with identical behavioral expectations. tests/test_no_backend.py's NoServe
 changes only its positive actual live-main Source path; retain all network findings, allowlists and negative
 controls. Synthetic old path examples in test_jsrun_names.py and elsewhere remain unchanged.
 
+In tests/release-sprint-02-a-dashboard-app.test.mjs, only the existing release case "release · ITM-129 UC-024:
+every menu entry and view of today is shown; a view whose file is not built is not" may replace its missing-view
+Use-case-list expectation for the canonical #tests entry with the literal "The Tests entry is not built yet",
+and align only the matching expected-result prose. Accepted Frame startPage and menuOf already require that
+truthful not-built result. All other unknown legacy-view fallback expectations remain unchanged. Preserve the
+case name and identifiers, release level and independent authorship, route inputs, menu order, built-view and
+file-recorder known positives, no-missing-file assertions and every other assertion; no helper, fixture, filter
+or production change. This is bounded old-release-case maintenance, not a new case or counterproof obligation.
+Develop Against Interfaces and KISS align this one expectation with the existing accepted Frame contract,
+without another routing rule or a Source rollback.
+
 Preserve all unrelated old expectations, IDs, levels, fixtures, route inputs, TODO findings, frozen TST922001,
 native stored-overview TST943001/002/003 and go-call outcomes. No jsrun/app-harness/browser-helper changes.
 
