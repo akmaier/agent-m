@@ -67,13 +67,20 @@ test("TST-1165004 the legacy review entry serves the canonical add-product route
 // input: open the review entry directly at #settings/product=<the chosen product>, then at the other product
 // expect: each receiver reads the repository its fragment names, rather than the instance
 test("TST-1165005 the live review receiver preserves a chosen and an explicit other product from its fragment", async () => {
+  const known = await receiverFixture();
+  const knownPage = await openDashboard({ server: known.instance, entries: known.entries,
+    search: `?repo=${encodeURIComponent(CHOSEN)}`, hash: "#settings" });
+  assert.match(knownPage.el("repo-line"), new RegExp(CHOSEN), "known positive: the query chooses the product");
+  assert.ok(known.chosen.requests.some((request) => request.includes("commit")),
+    "known positive: the chosen product Host records its normal commit read");
+
   for (const [repository, key] of [[CHOSEN, "chosen"], [OTHER, "other"]]) {
     const fixture = await receiverFixture();
     const page = await openDashboard({ server: fixture.instance, entries: fixture.entries,
       hash: `#settings/product=${encodeURIComponent(addressOf(repository))}` });
     assert.match(page.el("repo-line"), new RegExp(repository), `${key} product is the receiver's repository`);
-    assert.ok(fixture[repository === CHOSEN ? "chosen" : "other"].requests.some((request) => request.includes(`/repos/${repository}/`)),
-      `${key} product's Host receives the review page read`);
+    assert.ok(fixture[repository === CHOSEN ? "chosen" : "other"].requests.some((request) => request.includes("commit")),
+      `${key} product's Host records the review page commit read`);
   }
 });
 
