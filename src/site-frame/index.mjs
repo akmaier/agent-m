@@ -268,7 +268,8 @@ async function startSite({ page, views }) {
   const routes = views.flatMap((view) => view?.routes ?? []);
   const served = new Set(routes.map((route) => route.entry).filter(Boolean));
   const pageAddress = `${location.protocol ?? "https:"}//${location.host ?? location.hostname}${location.pathname}`;
-  const writeAddress = addressWriter(page, pageAddress, repository, readSetting(store, "products") ?? []);
+  const writeAddress = (route, params, forRepository) =>
+    addressWriter(page, pageAddress, repository, readSetting(store, "products") ?? [])(route, params, forRepository);
 
   const header = sharedHeader();
   const menu = document.createElement("nav");
