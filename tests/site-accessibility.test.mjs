@@ -138,6 +138,21 @@ for (const route of ROUTES) {
     });
 }
 
+// TST-922001 · level: system · module: MOD-site-frame
+// guards: THE SITE SERVES A SCREEN READER
+// given: the public Frame routes at phone and desktop widths in the existing Electron and axe check
+// input: the three remaining Frame rule IDs over their affected routes
+// expect: aria-required-children, color-contrast and target-size are absent
+test("TST-922001 the shared menu, accepted badges and folded explanations have no remaining Frame accessibility violation", () => {
+  const affected = new Set(["aria-required-children", "color-contrast", "target-size"]);
+  for (const route of ROUTES) {
+    for (const [kind] of WIDTHS) {
+      const violations = found.get(`${route.address} ${kind}`).violations.filter((each) => affected.has(each.id));
+      assert.deepEqual(violations.map((each) => `${each.id} (${each.nodes}: ${each.first})`), [], `${route.address} at a ${kind}'s width violates`);
+    }
+  }
+});
+
 // The page the counter-proofs plant in, as it is, has no violation of the two rules the plants break — the known positive.
 test(`${testId(905, CASES[905].plantedBefore)}: the page before the planting has no violation of button-name or image-alt`, () => {
   assert.equal(planted.before.some((each) => each.id === "button-name" || each.id === "image-alt"), false);
