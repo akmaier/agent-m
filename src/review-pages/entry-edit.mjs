@@ -36,7 +36,7 @@ export async function showEntryEdit(where, kind, id) {
     target.append(readProblem(failure, Boolean(token)));
     return;
   }
-  const back = link(`#${kind.route}/id=${encodeURIComponent(id)}`, null, "Back to the entry");
+  const back = link(`#${kind.route}/id=${encodeURIComponent(id)}`, "btn", "Back to the entry");
   if (!item) {
     target.append(el("p", "problem", `No ${kind.noun} ${id} on the default branch.`), link(`#${kind.route}`, null, `All ${kind.plural}`));
     return;

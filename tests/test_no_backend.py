@@ -433,7 +433,7 @@ class NoServer(unittest.TestCase):
 
     def test_the_site_has_code_to_check(self):
         # A scan that finds no file proves nothing: the page, the dashboard's modules and the vendored libraries are there.
-        for f in ("index.html", "src/home/home.mjs", "docs/index.html", "src/site-frame/dashboard-app.mjs", "docs/assets/git-host.mjs",
+        for f in ("index.html", "src/site-frame/start.mjs", "src/main-page/home.mjs", "docs/index.html", "src/site-frame/dashboard-app.mjs", "docs/assets/git-host.mjs",
                   "src/markdown-render/vendor/mermaid.min.js"):
             self.assertIn(f, self.files)
 

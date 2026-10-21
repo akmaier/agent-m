@@ -267,12 +267,16 @@ async function startSite({ page, views }) {
   const instance = { repository, host: instanceHostFollowingStore({ store, address: parseAddress(`https://github.com/${repository}`) }) };
   const routes = views.flatMap((view) => view?.routes ?? []);
   const served = new Set(routes.map((route) => route.entry).filter(Boolean));
+  const pageAddress = `${location.protocol ?? "https:"}//${location.host ?? location.hostname}${location.pathname}`;
+  const writeAddress = (route, params, forRepository) =>
+    addressWriter(page, pageAddress, repository, readSetting(store, "products") ?? [])(route, params, forRepository);
 
   const header = sharedHeader();
   const menu = document.createElement("nav");
   menu.className = "menu";
   const selector = document.createElement("select");
   selector.className = "product";
+  selector.setAttribute("aria-label", "Product");
   header.getElementsByTagName("div")[0].append(selector, menu);
   const notices = noticePlace();
   const target = document.createElement("main");
@@ -289,6 +293,7 @@ async function startSite({ page, views }) {
   const drawMenu = (active, product) => {
     menu.replaceChildren(...menuOf(page, [...served], product).map((entry) => {
       const item = document.createElement(entry.href === null ? "span" : "a");
+      item.setAttribute("data-entry", entry.key);
       item.setAttribute("title", entry.title);
       item.textContent = entry.label;
       if (entry.href === null) item.className = "soon";
@@ -311,7 +316,7 @@ async function startSite({ page, views }) {
     selector.value = product ?? "";
   };
   selector.addEventListener("change", () => {
-    if (selector.value === ADD_PRODUCT) { location.hash = fragmentOf("add-product"); return; }
+    if (selector.value === ADD_PRODUCT) { shown?.context.go("add-product", { product: "" }); return; }
     const current = routeOf(location.hash);
     const params = { ...current.params };
     delete params.product;
@@ -346,7 +351,9 @@ async function startSite({ page, views }) {
       // The chosen product goes into the fragment unless the caller names a product; the empty product names the instance itself, and the fragment then holds none.
       go: (name, given = {}) => {
         const { product: named, ...others } = given;
-        location.hash = fragmentOf(name, named === "" ? others : product && !("product" in given) ? { ...given, product: product.address } : given);
+        const params = named === "" ? others : product && !("product" in given) ? { ...given, product: product.address } : given;
+        if (page === "main" && !routes.some((candidate) => candidate.name === name)) location.href = writeAddress(name, params, product?.address ?? repository);
+        else location.hash = fragmentOf(name, params);
       } };
     if (!route) {
       shown = { route: { name: selected.name, entry: entryKey, title: entryKey ? labelOf(entryKey) : "Agent M" }, params: {}, context, fragment };
@@ -376,10 +383,9 @@ async function startSite({ page, views }) {
   });
   await show();
 
-  const pageAddress = `${location.protocol ?? "https:"}//${location.host ?? location.hostname}${location.pathname}`;
   watchForAcceptance({ store, instance, productHost: productHostFollowingStore({ store }),
     addressOf: (route, given, forRepository) =>
-      addressWriter(page, pageAddress, repository, readSetting(store, "products") ?? [])(route, given, forRepository) });
+      writeAddress(route, given, forRepository) });
   footTakesBarHeight(foot);
   startPromptBar(foot, { page, store, instance,
     product: () => shown.context.product && { address: shown.context.product.address, host: shown.context.product.host },

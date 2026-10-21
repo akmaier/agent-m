@@ -27,6 +27,7 @@ import { fileURLToPath } from "node:url";
 import { runEntry } from "../src/workflow-entries/main.mjs";
 import { graphFromText, storedImpacts } from "../src/trace-graph/index.mjs";
 import { blobSha } from "../src/text-tools/index.mjs";
+import { runRecord } from "./progress-measures-facts.mjs";
 
 process.env.GIT_CONFIG_GLOBAL = "/dev/null";
 process.env.GIT_CONFIG_SYSTEM = "/dev/null";
@@ -197,6 +198,43 @@ test("the workflow file runs onMainChanged on a push to main, makes the branches
   assert.match(text, new RegExp(`fetch origin \\+\\$${loop[1]}:\\$${loop[1]}`));
   assert.deepEqual([...text.matchAll(/node src\/workflow-entries\/main\.mjs (\w+)/g)].map((m) => m[1]), ["onMainChanged"]);
   assert.match(text, /timeout-minutes: 2\b/);
+});
+
+// TST-1175002 · level: component · module: MOD-workflow-entries
+// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// given: the native workflow fixture with a remote test-results branch containing a passing record for the pushed main commit, absent from its checkout; and another fixture whose origin has no test-results branch
+// input: the main-changed setup's existing-result fetch, then onMainChanged; the setup text for an absent branch and a non-absence ls-remote failure
+// expect: the setup fetch makes the existing branch readable locally without creating it, onMainChanged stores a Tests share of 1 and literal detail "1 of 1 requirements guarded by a passing test"; an absent branch remains absent, while an ls-remote exit other than 2 exits the setup instead of treating access failure as absence
+test("TST-1175002 main-changed fetches an existing results branch for the overview and does not create or hide failures", async () => {
+  const text = readFileSync(join(ROOT, ".github", "workflows", "main-changed.yml"), "utf8");
+  const block = /- name: Fetch the existing test-results branch\n\s+run: \|\n((?: {10}.*\n?)+)/.exec(text);
+  assert.ok(block, "the workflow has an existing-results setup block");
+  const setup = block[1].replace(/^ {10}/gm, "");
+  const runSetup = (f) => spawnSync("bash", ["-e", "-c", setup], { cwd: f.clone, encoding: "utf8" });
+  await withInstance({ commits: [{ message: "the instance", files: { ...FILES,
+    "tests/accepted.test.mjs": ["// TST-001 · level: unit · module: MOD-example", "// guards: A THING IS DONE", "test(\"accepted\", () => {});", ""].join("\n") } }] }, async (f) => {
+    git(f.seed, "checkout", "-q", "--orphan", "test-results");
+    git(f.seed, "rm", "-rq", "--cached", ".");
+    write(f.seed, { [`runs/${f.head}/20261021-1000-commit-aaaa.md`]: runRecord(f.head, [["TST-001", "unit", "passed"]]) });
+    git(f.seed, "add", "-A");
+    git(f.seed, "commit", "-q", "-m", "the result record");
+    git(f.seed, "push", "-q", "origin", "HEAD:refs/heads/test-results");
+    assert.equal(git(f.clone, "branch", "--list", "test-results"), "", "the checkout lacks the remote results branch before setup");
+    assert.equal(runSetup(f).status, 0, "the existing remote branch is fetched by the workflow setup");
+    assert.notEqual(git(f.clone, "branch", "--list", "test-results"), "", "the existing results branch is fetched into the checkout");
+    assert.equal((await run(f)).outcome, "done");
+    const overview = JSON.parse(git(f.origin, "show", `${overviewHead(f)}:${f.head}.json`));
+    assert.deepEqual(overview.shares.find((share) => share.stage === "Tests"), { stage: "Tests", share: 1, detail: "1 of 1 requirements guarded by a passing test" });
+  });
+  await withInstance({}, async (f) => {
+    assert.equal(runSetup(f).status, 0, "an absent results branch is not an error");
+    assert.equal(git(f.origin, "branch", "--list", "test-results"), "", "a genuinely absent results branch is not created");
+  });
+  await withInstance({}, async (f) => {
+    git(f.clone, "remote", "set-url", "origin", join(f.root, "missing.git"));
+    const failed = runSetup(f);
+    assert.notEqual(failed.status, 0, "an inaccessible origin is not treated as an absent results branch");
+  });
 });
 
 // The instance of the impact tests, in three commits of main: (1) a module MOD-doer that provides `doIt` and `gone`, which MOD-user uses, and a module MOD-steady;

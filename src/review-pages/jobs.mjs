@@ -97,7 +97,7 @@ export async function showDraft(where, kind) {
   if (kind.whole) return showArchitectureDraft(where, kind);
   if (kind.draft === "derive-requirements") return showRequirementsDraft(where, kind);
   const { target, snapshot, token, host, context } = where;
-  target.append(el("h2", null, `Draft ${kind.plural}`), explain(kind.explain.draft.requirements), link(`#${kind.route}`, null, `All ${kind.plural}`));
+  target.append(el("h2", null, `Draft ${kind.plural}`), explain(kind.explain.draft.requirements), link(`#${kind.route}`, "btn", `All ${kind.plural}`));
   let graph, loaded;
   try {
     graph = await traceGraph(snapshot, { commit: snapshot.commit });
