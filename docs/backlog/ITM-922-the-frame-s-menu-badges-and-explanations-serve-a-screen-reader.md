@@ -6,10 +6,12 @@ realises:
   - THE SITE SERVES A SCREEN READER
 modules:
   - MOD-site-frame
+  - MOD-test-pages
 builds_on:
   - ITM-905
 tests:
   - unit
+  - component
   - system
 origin:
   - ITM-905's findings (sprint team1/89), `tests/site-accessibility.test.mjs`
@@ -52,13 +54,24 @@ not shown, and its address shows the use cases" may change only its built-view p
 `/<a href="#uc" role="tab" id="tab-uc"/` becomes `/<a href="#uc" id="tab-uc"/`. Its href and id stay literal;
 the missing-view/menu-link exclusion, use-cases fallback, missing-settings-section exclusion, Settings content and
 request/non-request semantics remain unchanged. Both named tests keep their existing component level, fixtures and
-other assertions. No other old expected result is authorized by this Frame-only scope.
+other assertions.
 
-The role search also finds TST-289101's Release and Maintenance menu strings in
-`tests/dashboard-pending-release-report.test.mjs:77,82`, reached through the same live menu caller. That file and case
-name MOD-test-pages, not this item's MOD-site-frame. Their role expectations are not authorized to change here:
-settle that exact test-owner scope before this item's Source Start. This is a concrete REGISTER ownership issue,
-not a need for a new formal navigation contract. The real Settings tab/panel role assertions in
+MOD-test-pages is included only for the existing component case TST-289101, "public #release reopens the selected
+product's pending report without writes", in `tests/dashboard-pending-release-report.test.mjs`. Remove only
+`role="tab"` from its Release anchor literal at line 77 and its Maintenance anchor literal at line 82. The resulting
+strings are `<a href="#release" id="tab-release" data-entry="releases">Releases</a>` and
+`<a href="#mail" id="tab-mail" data-entry="maintenance" title="Issues and mail">Maintenance</a>`.
+Preserve the Tests disabled-span expectation, Release's presence and position between Tests and Maintenance,
+all identifiers, destinations, titles and labels, the selected-product fixture/host requests, candidate/report content,
+refresh control and both no-write assertions. TST-289102's no-pending-report/new-release behavior is unchanged.
+The file's MOD-test-pages ownership and both cases' component levels remain; no helper or TestPages production edit
+is authorized. Its accepted module blob `169826e2972ae3c6f7403e2cef26100767f9c1cd`, Parts and release interface,
+owns this public-route test and uses Frame's view; UC-013 step 1 and UC-047 step 3 require reaching the release panel,
+not a tab role on the shared process-menu links. Frame's accepted ordinary-navigation pattern changes that markup
+without changing any TestPages route, report or write behavior. The exact test-owner scope is therefore settled under
+existing accepted inputs, without a formal contract change.
+
+No other old expected result is authorized. The real Settings tab/panel role assertions in
 `tests/dashboard-public-settings-tabs.test.mjs` and `tests/settings-pages-tabs.test.mjs` stay unchanged.
 
 In `tests/site-accessibility.test.mjs`, remove only this item's menu/contrast/target TODO reasons once the corresponding
