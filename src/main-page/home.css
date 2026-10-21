@@ -1,7 +1,7 @@
 /* The main page (index.html at the root of the site): the greeting, the cards of the products — or of Agent M itself — with
    their bars of six stages and the build, and what waits for a person. The colours are the theme's (src/theme/lme.css). */
 
-.greeting { margin: 0 -16px 24px; padding: 40px max(16px, calc((100% - 1208px) / 2)) 44px; background: linear-gradient(120deg, var(--fau-blue) 0%, var(--fau-dark) 100%); color: #ffffff; }
+.greeting { margin: 0 -16px 24px; padding: 40px max(16px, calc((100% - 1208px) / 2)) 44px; background: var(--fau-blue); color: #ffffff; }
 .greeting h1 { margin: 0 0 .35rem; color: #ffffff; font-size: 2.5rem; letter-spacing: 0; }
 .greeting .lead { margin: 0 0 .9rem; max-width: 46rem; color: var(--metallic-25); font-size: 1.15rem; }
 .greeting .first { margin: 0 0 1.1rem; max-width: 46rem; color: var(--metallic-37); }
@@ -67,7 +67,7 @@ a.stage-link:hover { background: var(--metallic-25); }
 @media (max-width: 420px) { .stages { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 .build { margin-top: 16px; padding-top: 10px; border-top: 1px solid var(--line); }
-.build h3 { margin: 0 0 4px; color: var(--muted); font-size: .78rem; letter-spacing: .05em; text-transform: uppercase; }
+.build h3 { margin: 0 0 4px; color: var(--muted); font-size: .78rem; letter-spacing: 0; text-transform: uppercase; }
 .build ul { list-style: none; margin: 0; padding: 0; }
 .build-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; padding: 6px 0; border-bottom: 1px dashed var(--line); }
 .build-row:last-child { border-bottom: none; }

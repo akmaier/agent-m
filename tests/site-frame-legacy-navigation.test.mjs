@@ -128,3 +128,28 @@ test("TST-684006 the live review receiver maps the main menu's canonical archite
   assert.ok(canonicalChosen.requests.some((request) => request.includes("docs/architecture/ARC-001-sample.md")),
     "the canonical entry reads through the selected product Host");
 });
+
+// TST-684007 · level: component · module: MOD-site-frame
+// guards: THE MENU FOLLOWS THE PROCESS
+// given: the live review receiver, its existing #uc route, and the canonical Tests entry whose menu stage has no built legacy view
+// input: open #uc as the known positive, then open #tests
+// expect: #uc keeps drawing Use cases; #tests truthfully says that the Tests entry is not built, rather than silently drawing that fallback
+test("TST-684007 the live review receiver names an unbuilt canonical menu entry instead of falling through to use cases", async () => {
+  const server = await repoServer({ files: { "README.md": "# Instance\n" } });
+  const positive = await openDashboard({ server, hash: "#uc" });
+  assert.match(positive.main(), /Use cases/, "known positive: #uc is the legacy use-case route");
+
+  const page = await openDashboard({ server: await repoServer({ files: { "README.md": "# Instance\n" } }), hash: "#tests" });
+  assert.match(page.main(), /The Tests entry is not built yet\./);
+  assert.doesNotMatch(page.main(), /<h2>Use cases<\/h2>/, "the unbuilt canonical entry is not the use-case fallback");
+});
+
+// TST-684008 · level: component · module: MOD-site-frame
+// guards: THE MENU FOLLOWS THE PROCESS
+// given: the live review receiver and its existing loaded requirements route
+// input: open #requirements/section=Architecture
+// expect: the route stays the New requirement form, rather than being mistaken for the unloaded Requirements menu alias
+test("TST-684008 the live review receiver preserves a loaded requirements route parameter", async () => {
+  const page = await openDashboard({ server: await repoServer({ files: { "README.md": "# Instance\n" } }), hash: "#requirements/section=Architecture" });
+  assert.match(page.main(), /New requirement/, "the loaded requirements route receives section=Architecture");
+});

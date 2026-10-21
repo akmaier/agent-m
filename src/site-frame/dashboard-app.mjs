@@ -771,8 +771,11 @@ async function route() {
   routeSeq += 1;
   let [kind, a, b] = location.hash.replace(/^#/, "").split("/");
   const entry = MENU.find((candidate) => candidate.key === kind);
-  if (entry) {
-    kind = stageView(entry, builtViews(builtFiles)) ?? kind;
+  let unavailableEntry = null;
+  if (entry && (a === undefined || a.startsWith("product="))) {
+    const view = stageView(entry, builtViews(builtFiles));
+    if (view) kind = view;
+    else unavailableEntry = entry;
     a = undefined;
     b = undefined;
   }
@@ -781,6 +784,11 @@ async function route() {
   if (state.commit && ["", "uc", "arc", "spec", "review"].includes(kind || "")) main().innerHTML = `<p class="muted">Reading…</p>`;
   try {
     await available;
+    if (unavailableEntry) {
+      main().innerHTML = `<p class="muted">The ${h(unavailableEntry.label)} entry is not built yet.</p>`;
+      showBanner();
+      return;
+    }
     loadProducts();
     renderProductSelector();
     if (state.commit && !a && ["", "uc", "arc", "spec", "backlog", "use-case", "decision", "module"].includes(kind || "")) await readAhead(kind || "");

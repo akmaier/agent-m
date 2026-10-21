@@ -57,6 +57,13 @@ const UNREADABLE = new Set(["NotFound", "TokenRefused", "PermissionMissing", "Un
 
 const text = (value) => (typeof value === "string" ? value : "");
 
+// WorkPlans remains the sole owner of plan and dependency ordering. Before it derives
+// states, unordered product inputs have the stable numeric identifier order the facts contract names.
+const itemsByNumber = (items) => [...items].sort((left, right) => {
+  const numberOf = (item) => Number(/^ITM-(\d+)$/.exec(text(item?.id ?? item?.fields?.id))?.[1]);
+  return numberOf(left) - numberOf(right);
+});
+
 // The documents of the paths the snapshot holds, read with `schema`, in the order of the paths.
 const readAll = (snapshot, paths, schema) =>
   Promise.all(paths.map(async (path) => readDocument(schema, path, (await snapshot.read(path)) ?? "")));
@@ -209,7 +216,7 @@ async function buildFacts(host, instance, instanceAt) {
   const known = workflow !== null && workflow !== "unknown" ? workflow : null;
   const gateStatesOf = known ? gateStates(known, gates, checkedBlobs(gates, snapshot)) : [];
   const acceptance = await acceptanceStatuses(approvals, items, stored?.requirements ?? null, snapshot);
-  const states = itemStates(items, order, { statuses: acceptance, queues: changeQueues, jobs, pullRequests, gates: gateStatesOf, workflow: known });
+  const states = itemStates(itemsByNumber(items), order, { statuses: acceptance, queues: changeQueues, jobs, pullRequests, gates: gateStatesOf, workflow: known });
   return {
     address, info: "unknown", snapshot: held ? held.serving(snapshot) : snapshot, graph: "unknown", requirements: "unknown", statuses: approvals, queues: changeQueues, declaration,
     workflow, model, modelUnread, modelSince: "unknown", participants: [], plan: { order, items, states },
@@ -277,7 +284,7 @@ export async function productFacts(host, instance, instanceAt, now, options = { 
   const states = known ? gateStates(known, gates, checkedBlobs(gates, snapshot)) : [];
   const knownRequirements = stored?.requirements ?? (all ? await requirementsOf(snapshot) : null);
   const acceptance = await acceptanceStatuses(approvals, items, knownRequirements, snapshot);
-  const planStates = itemStates(items, order, { statuses: acceptance, queues: changeQueues, jobs, pullRequests, gates: states, workflow: known });
+  const planStates = itemStates(itemsByNumber(items), order, { statuses: acceptance, queues: changeQueues, jobs, pullRequests, gates: states, workflow: known });
 
   // held: the head commits undecidedHeads names are the only ones the default branch is asked about (containsCommit).
   const onDefault = new Set();
