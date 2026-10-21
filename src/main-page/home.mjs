@@ -69,9 +69,10 @@ async function factsOf(host, { store, instanceSnapshot, instanceAt }, scope) {
   return { ...facts, jobs: await listJobs([{ address: facts.address, snapshot: facts.snapshot }], lives) };
 }
 
-async function cardOf(source, reading, go) {
+async function cardOf(source, reading, go, knownSnapshot = null) {
   try {
-    const host = once(source.host);
+    const raw = knownSnapshot === null ? source.host : { ...source.host, readSnapshot: (ref) => ref === knownSnapshot.ref ? Promise.resolve(knownSnapshot) : source.host.readSnapshot(ref) };
+    const host = once(raw);
     const stored = await storedFor(host);
     const facts = await factsOf(host, reading, stored ? "build" : "all");
     const shares = stored ? stored.shares : await stageShares(facts);
@@ -113,7 +114,7 @@ async function render(target, context) {
   const waits = [], held = [];
   await Promise.all(sources.map(async (source, at) => {
     if (source.reason !== undefined) return;
-    const result = await cardOf(source, reading, context.go);
+    const result = await cardOf(source, reading, context.go, source.own === true ? reading.instanceSnapshot : null);
     nodes[at] = result.card;
     waits[at] = result.waits;
     held[at] = result.held;
