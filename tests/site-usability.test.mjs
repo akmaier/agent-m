@@ -43,6 +43,18 @@ import { DASHBOARD, builtViews } from "../src/site/views.mjs";
 
 const WIDTHS = [["phone", 390], ["desktop", 1280]];
 const MINIMUM = 24;
+const PHONE_MENU_EXPECTED = {
+  main: [
+    ["requirements", "docs/#spec", false], ["use-cases", "docs/#uc", false], ["architecture", "docs/#arc", false],
+    ["implementation", "docs/#backlog", false], ["tests", null, true], ["releases", "docs/#release", false],
+    ["maintenance", "docs/#mail", false], ["settings", "docs/#settings", false],
+  ],
+  review: [
+    ["requirements", "#spec", false], ["use-cases", "#uc", false], ["architecture", "#arc", false],
+    ["implementation", "#backlog", false], ["tests", null, true], ["releases", "#release", false],
+    ["maintenance", "#mail", false], ["settings", "#settings", false],
+  ],
+};
 const CLAUSES = [
   ["sheets", "uses the site's style sheets only"],
   ["targets", "offers no button or link below the minimum target size"],
@@ -71,8 +83,21 @@ const MEASURE = (width) => `(async () => {
     text: (document.querySelector("main")?.innerText ?? "").replace(/\\s+/g, " ") };
 })()`;
 
+// The phone's two live entry pages each expose the whole process menu. This reports the entry contract and whether every
+// entry's rendered box is visible without the menu scrolling sideways; CSS source text alone would not establish either.
+const PHONE_MENU = `(() => {
+  const menu = document.querySelector(".site-header .menu");
+  return { fits: menu.scrollWidth <= menu.clientWidth, entries: [...menu.children].map((entry) => {
+    const box = entry.getBoundingClientRect(), style = getComputedStyle(entry);
+    return [entry.dataset.entry, entry.getAttribute("href"), entry.getAttribute("aria-disabled") === "true",
+      style.display !== "none" && style.visibility !== "hidden" && box.width > 0 && box.height > 0
+        && box.left >= 0 && box.right <= innerWidth];
+  }) };
+})()`;
+
 const measured = new Map(); // "<address> <width name>" -> { sheets, targets, widths, text }
 const planted = {};
+const phoneMenus = {};
 let site = null, browser = null;
 
 const started = Date.now();
@@ -115,6 +140,10 @@ const setUp = async () => {
   // The counter-proofs: the same page at a phone's width, first as it is, then with a table 600 px wide, a button 10 px square and an
   // embedded style sheet planted in it.
   await configure(page, "Emulation.setDeviceMetricsOverride", { width: 390, height: 900, deviceScaleFactor: 1, mobile: true });
+  await show(page, site, "/");
+  phoneMenus.main = await page.evaluate(PHONE_MENU);
+  await show(page, site, "#uc");
+  phoneMenus.review = await page.evaluate(PHONE_MENU);
   await show(page, site, "#how");
   planted.before = await page.evaluate(MEASURE(390));
   await page.evaluate(`(() => { const main = document.querySelector("main");
@@ -170,6 +199,18 @@ for (const route of ROUTES) {
         }
       });
   }
+}
+
+// ---------------------------------------------------------------- the menu at a phone's width
+
+for (const [page, expected] of Object.entries(PHONE_MENU_EXPECTED)) {
+  const id = page === "main" ? "TST-920001" : "TST-920002";
+  test(`${id} the ${page} entry page shows all eight process-menu entries at 390 px without sideways scrolling`, () => {
+    const actual = phoneMenus[page];
+    assert.equal(actual.fits, true, `${page} menu is not wider than its visible box`);
+    assert.deepEqual(actual.entries, expected.map(([key, href, disabled]) => [key, href, disabled, true]),
+      `${page} menu order, destinations, disabled entry, and visible entry geometry at 390 px`);
+  });
 }
 
 // ---------------------------------------------------------------- the counter-proofs
