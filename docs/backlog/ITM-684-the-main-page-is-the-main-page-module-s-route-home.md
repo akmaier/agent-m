@@ -10,6 +10,7 @@ modules:
   - MOD-progress-measures
   - MOD-notifications
   - MOD-repository-hosts
+  - MOD-site-frame
 builds_on:
   - ITM-685
   - ITM-826
@@ -58,10 +59,21 @@ MainPage retains public go; ITM-1165 supplies cross-page navigation. No public a
   read through existing Snapshot/readMany batching. This is a code-derived risk to verify, not a claimed executed
   failure. Preserve job/live-only polling, no PR/stage/waits polling, hidden-page pause/resume and no-token no-poll.
   No new public API, cache format, custom staging or helper changes.
-- Source scope: MainPage entry and owned parts; ProgressMeasures only its declared legacy-file removal and
-  coverage migration after1175, not another statistics algorithm. Notifications is fixture-entry migration only;
+- Source scope: MainPage entry and owned parts; ProgressMeasures only its declared legacy-file removal,
+  coverage migration after1175 and the bounded internal item-input ordering below, not another statistics algorithm.
+  Notifications is fixture-entry migration only;
   RepositoryHosts is the existing no-backend known-positive live Source path only. No production behavior change
-  in Notifications or RepositoryHosts, and no Frame production change in this item.
+  in Notifications or RepositoryHosts. Frame owns the shared product selector's accessible name and process-menu
+  entry keys, not MainPage. Its actual root selector must have an accessible name; TST905033 retains its unfiltered
+  empty violation expectation at both widths, with no new TODO or checker filter. Each shared menu entry exposes
+  its existing menuOf key as data-entry; preserve labels, order, product semantics and destinations.
+- Canonical menu-entry receiving paths are a code-derived risk, not a claimed executed failure. Before repairing
+  one, demonstrate an actual focused public receiver failure against a working known-positive route. Only the
+  smallest Frame-owned repair of its existing entry-to-loaded-route fallback is in scope: preserve menuOf's
+  canonical links, selected product, loaded-route behavior and truthful not-built result. Reuse existing private
+  routing/address writing; no new public API, serializer, copied route mapping or embedRoute exception. MainPage
+  must not manipulate Frame's private DOM or compensate for its routing. Keep Frame writers serialized and the
+  independently assigned Notifications fixture files reserved to their writer.
 - The first commit is focused tests-only, with actual intended automatic server red before SM Source permission.
   New cases require real owned-code fault/failure/exact restoration and truthful permanent records.
   No all-UC claim or invented run/hash obligation.
@@ -74,11 +86,40 @@ The old ended-job "done" row keeps that meaning before merge; after merge, the a
 the row. Name the native build/state cases retaining this coverage; do not keep an obsolete merged row merely
 to preserve a legacy assertion.
 
+In tests/site-usability.test.mjs, only TST920001's PHONE_MENU_EXPECTED.main destination/disabled literals may
+migrate from the legacy docs/# routes and disabled Tests entry to the accepted main menu's eight linked entries:
+requirements, use-cases, architecture, implementation, tests, releases, maintenance, settings, in that order;
+each href is docs/index.html# followed by that key, and each disabled value is false. Retain the literal keys,
+all eight entries and system level. Preserve the existing PHONE_MENU collector and all visibility, rendered-box,
+390 px viewport and fits/no-sideways-scrolling assertions. PHONE_MENU_EXPECTED.review and TST920002 remain
+unchanged; so do frozen TST922001, all other old expectations, TODO metadata and browser helpers. This is only
+the accepted main-entry migration, not permission to alter geometry or waive a missing entry key.
+
 tests/progress-measures-home-item-digits.test.mjs migrates off the removed progress file to native productFacts:
 retain all three/four-digit ordering/counting outcomes and rejection of two-digit identifiers.
+For TST1088001/002, preserve the literal numeric order [ITM-100, ITM-999, ITM-1000], total3 and done3;
+ITM-99 remains excluded. TST1088003 retains the single ITM-1000 backlog/total1/done1 positive. ProgressMeasures
+may normalize its item inputs by numeric identifier before calling public WorkPlans.itemStates, consistently
+for all/work/build scopes and raw/stored facts. This is only the deterministic input order where no declared
+plan order or dependency dictates otherwise: explicit plan order and backlog dependency order still come from
+public WorkPlans, and the returned state order must not be re-sorted around them. No WorkPlans Source change,
+second ordering/state algorithm, public API, cache-format or statistics change. Keep every old expected value,
+ID, unit level, fixture, helper and other assertion intact; use the existing actual red and known positive,
+without imposing a new whole-CI-red cycle. One Responsibility keeps normalization in its existing facts owner;
+DRY and KISS retain public WorkPlans as the sole plan/dependency ordering and state derivation.
 tests/main-page-no-token-requests.test.mjs may remove only the ancillary removed-old-page baseline/comparisons:
 retain native TST842001/003 request1714 expectations, attributable701 reads, fixed13, 350-file delta coverage,
 and TST842004's31 requests/19 batches/no single-file fetches. No-token fallback coverage remains.
+
+In tests/main-page-home.test.mjs, TST847002 and TST847005 may change only the changed-job request-log kind
+from file to batch, with matching prose describing existing Snapshot.readMany prefetching. The third log entry
+remains exactly [batch, record]: docs/jobs/JOB-20261014-0900-0001.md for TST847002 and
+docs/jobs/JOB-20261016-1000-ffff.md for TST847005. Preserve the commit/tree entries, two requests for the unchanged
+poll and three for the changed poll, no reread of the other399 records, token routing and all initial-load counts.
+Keep all rows, stages and waits, no use-case/approval reads during polling, redraw counter-positive, clocks,
+Bridge request counts, IDs, unit levels, helpers and every other assertion unchanged. This permits no general
+request-bound relaxation or new public API: the existing current-snapshot docs/jobs/ prefix-prefetch then public
+listJobs pattern suffices without copying its private record matcher, parser or state derivation.
 
 tests/dashboard-notifications-wiring.test.mjs and dashboard-notifications.test.mjs may change only main-page
 fixture entry from removed home to actual Frame/MainPage; preserve component/release levels, authorship and
