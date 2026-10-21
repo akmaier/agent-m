@@ -20,23 +20,28 @@ origin:
 
 ## Outcome
 
-UC-030 step 3: "Each number opens the rows it counts." ITM-768's audit view shows six numbers. Four of them open their
-rows: passing, no test, not passed and flaky. Two of them cannot:
-- "Rate worse than the last release" (`summary.worse`);
-- "Release tests written by the implementer" (`summary.byImplementer`).
+UC-030 step 3: "Each number opens the rows it counts." The audit's `worse` and `byImplementer` numbers open their rows,
+as the other four numbers do. The accepted MOD-release-evidence `auditRows` gives each row test the boolean fields
+`worse` and `byImplementer`, alongside its unchanged `id`, `level`, `outcome` and `counterProof`.
 
-The reason is in the text. `auditRows`' rows (MOD-release-evidence.md:136-143) carry each test's `id`, `level`, `outcome`
-and `counterProof`. They carry nothing that tells which rows these two numbers count.
+`worse` compares that test's rate with the preceding release. `byImplementer` identifies a release test whose writer
+implemented the requirement, from the existing job-record provenance. The summary counts rows holding a worse test
+and distinct tests written by an implementer; the page filters the rows using those supplied flags. No count, writer
+rule or evidence format is invented by the view.
 
-## Not ready: it begins with a draft for akmaier
+## Existing test scope
 
-The draft is of MOD-release-evidence's `auditRows`: what each row carries, so that the rows counted by `worse` and by
-`byImplementer` can be told from the rows alone. MOD-trace-pages then makes both numbers open those rows, as it does for
-the other four.
+TST-756003 in `tests/release-evidence-audit.test.mjs` changes only its exact expected row-test shape to include the
+two newly accepted booleans. In its unchanged first-row fixture, TST-756101 has `worse: false, byImplementer: false`,
+TST-756102 has `worse: false, byImplementer: true`, and TST-756103 has `worse: false, byImplementer: false`.
+All existing identifiers, levels, outcomes, counter-proof values, source records and assertions of them remain.
+The fixture's TST-756105 rate is worse than its previous release and is not an implementer-written release test
+(`worse: true, byImplementer: false`); new cases can assert its flags and the two filters. Other old expected
+results, including the four existing filters and the audit export, do not change.
 
 ## Acceptance
 
 - On a fixture release, pressing each of the two numbers leaves exactly the rows it counts.
+- The provider's flags and the view agree with the accepted counting/provenance rules, without recomputing those rules
+  in the view. Existing evidence and old expected results remain unchanged except for the named additive row shape.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
-
-**The draft is on `main` as `3e4f84c0`** (MOD-release-evidence, by developer-sonnet-a). The item is built once it is accepted.
