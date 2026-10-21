@@ -78,6 +78,11 @@ const MEASURE = (width) => `(async () => {
   return { sheets: styleSheetFindings(), targets: targetFindings(${MINIMUM}), widths: widthFindings(${width}), diagrams: unrenderedFindings(),
     boxes: [...document.querySelectorAll("main pre.diff")].map((box) => box.getAttribute("tabindex")),
     controls: document.querySelectorAll("a[href], button").length,
+    links: [...document.querySelectorAll("main a[href]")].map((anchor) => {
+      const box = anchor.getBoundingClientRect(), style = getComputedStyle(anchor);
+      return { href: anchor.getAttribute("href"), text: anchor.textContent.replace(/\\s+/g, " ").trim(),
+        visible: style.display !== "none" && style.visibility !== "hidden" && box.width > 0 && box.height > 0 };
+    }),
     text: (document.querySelector("main")?.innerText ?? "").replace(/\\s+/g, " ") };
 })()`;
 
@@ -198,6 +203,34 @@ for (const route of ROUTES) {
       });
   }
 }
+
+// TST-1173001 · level: system · module: MOD-review-pages; MOD-site-frame
+// guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE; THE SITE SERVES A SCREEN READER
+// given: the live #use-case/id=draft route at the existing 390 px phone and 1280 px desktop widths
+// input: its rendered All use cases return link and the native target-size findings
+// expect: the literal href #use-case and visible true at both widths, with no target-size finding for All use cases
+test("TST-1173001 the use-case drafting page's All use cases return control is visible and meets target size at both widths", () => {
+  for (const [kind] of WIDTHS) {
+    const result = measured.get(`#use-case/id=draft ${kind}`);
+    const control = result.links.find((link) => link.text === "All use cases");
+    assert.deepEqual(control, { href: "#use-case", text: "All use cases", visible: true }, `#use-case/id=draft at a ${kind}'s width renders its return control`);
+    assert.equal(result.targets.some((finding) => finding.includes('"All use cases"')), false, `#use-case/id=draft at a ${kind}'s width: ${result.targets.join("; ")}`);
+  }
+});
+
+// TST-1173002 · level: system · module: MOD-review-pages; MOD-site-frame
+// guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE; THE SITE SERVES A SCREEN READER
+// given: the live #spec-entry/id=spec-2026-10-18_sample-01/edit=1 route at the existing 390 px phone and 1280 px desktop widths
+// input: its rendered Back to the entry return link and the native target-size findings
+// expect: the literal href #spec-entry/id=spec-2026-10-18_sample-01 and visible true at both widths, with no target-size finding for Back to the entry
+test("TST-1173002 the specification-entry editor's Back to the entry control is visible and meets target size at both widths", () => {
+  for (const [kind] of WIDTHS) {
+    const result = measured.get(`#spec-entry/id=spec-2026-10-18_sample-01/edit=1 ${kind}`);
+    const control = result.links.find((link) => link.text === "Back to the entry");
+    assert.deepEqual(control, { href: "#spec-entry/id=spec-2026-10-18_sample-01", text: "Back to the entry", visible: true }, `#spec-entry/id=spec-2026-10-18_sample-01/edit=1 at a ${kind}'s width renders its return control`);
+    assert.equal(result.targets.some((finding) => finding.includes('"Back to the entry"')), false, `#spec-entry/id=spec-2026-10-18_sample-01/edit=1 at a ${kind}'s width: ${result.targets.join("; ")}`);
+  }
+});
 
 // ---------------------------------------------------------------- the menu at a phone's width
 
