@@ -186,7 +186,9 @@ IN THE REPOSITORY`).
   explains the bar. On *Send* — the decision to send — it asks the subject for the kind and the parameters, adds the
   person's words as `instruction`, the conversation so far as `conversation`, the subject's `entry` as `entry` and its
   `refuses` as `refuses`, prepares the job with MOD-job-runner's `prepareJob` in a context from MOD-runtimes' `tabContext`, and sends nothing while the job does not fit
-  or a finding keeps it from starting, naming what (UC-049 3a, UC-019 4a, 4b). It names every destination before it sends
+  or a finding keeps it from starting, naming what (UC-049 3a, UC-019 4a, 4b): for a participant the job does not fit, it
+  names the participant, how many requirements and use cases the job holds for it and how many of them fit, from the
+  `holds` and `fitting` of that `notFitting` entry, and the tokens of its context against the job's size. It names every destination before it sends
   — the drafter and, for a kind with reviewers, each reviewer, with its processing place. With recording on — read from
   the instance at that moment —, it first appends the person's message to the conversation record of the page's
   repository, as a commit with the token of that repository on the head that was read, and again on a moved head; a
