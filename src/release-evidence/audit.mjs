@@ -131,22 +131,19 @@ export async function auditRows(at, results, head, release, gates, instanceSpec,
     limitations: predates ? [`${UNDERIVABLE}: outcomes (no result record of ${release.commit})`,
       `${UNDERIVABLE}: acceptance (no release test report ${reportPath})`] : [...report.limitations, ...missing] };
   const byImplementer = new Set();
-  for (const { traces } of traced) {
+  const rows = [];
+  for (const { req, constrains, traces } of traced) {
     const behaviour = new Set([...traces.items, ...traces.useCases]);
     const implementers = new Set(jobsOf("implement").filter((record) => record.worksOn.some((name) => behaviour.has(name)))
       .map((record) => record.participant).filter(Boolean));
-    for (const id of traces.tests.filter((each) => tests.get(each).level === "release")) {
-      const writers = jobsOf("write-tests").filter((record) => (record.end?.results ?? []).includes(tests.get(id).path)).map((record) => record.participant);
-      if (writers.some((writer) => implementers.has(writer))) byImplementer.add(id);
-    }
-  }
-  const rows = [];
-  for (const { req, constrains, traces } of traced) {
     const rowTests = [];
     for (const id of traces.tests) {
       const entry = entries.get(id);
+      const writers = jobsOf("write-tests").filter((record) => (record.end?.results ?? []).includes(tests.get(id).path)).map((record) => record.participant);
+      const writtenByImplementer = tests.get(id).level === "release" && writers.some((writer) => implementers.has(writer));
+      if (writtenByImplementer) byImplementer.add(id);
       rowTests.push({ id, level: tests.get(id).level, outcome: predates ? UNDERIVABLE : (entry.runs ?? entry.outcome),
-        counterProof: await counterProofOf(at, id), worse: worse.has(id), byImplementer: byImplementer.has(id) });
+        counterProof: await counterProofOf(at, id), worse: worse.has(id), byImplementer: writtenByImplementer });
     }
     const outcomes = traces.tests.map((id) => entries.get(id).outcome);
     const isWorse = traces.tests.some((id) => worse.has(id));
