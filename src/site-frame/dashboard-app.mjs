@@ -205,15 +205,16 @@ export function loadErrorHtml({ error: e, product, ref, hasToken, own = null, no
 // ---------------------------------------------------------------- instance, product, token
 
 // AN INSTANCE IS A FORK OF AGENT M: the instance is the repository of the Pages address this page is served from
-// (<owner>.github.io/<name>/), else Agent M itself (src/site/instance-repository.mjs). The product is chosen with ?repo=owner/name (GitHub) or ?product=<address>
-// (GitHub or GitLab). A GitLab product adds `product` (parseProductAddress) and `refGiven` (false: its default branch is read
+// (<owner>.github.io/<name>/), else Agent M itself (src/site/instance-repository.mjs). The product is chosen with ?repo=owner/name (GitHub), ?product=<address>
+// (GitHub or GitLab), or the review route's existing product fragment when the query names neither. A GitLab product adds `product` (parseProductAddress) and `refGiven` (false: its default branch is read
 // from GitLab). Moved here from docs/assets/review-core.mjs (ITM-130): it reads the page's own address.
-export function deriveTarget({ hostname, pathname, search }) {
+export function deriveTarget({ hostname, pathname, search, hash }) {
   const instance = instanceOf({ hostname, pathname });
   const q = new URLSearchParams(search || "");
   const refOk = q.get("ref") && /^[A-Za-z0-9._\/-]{1,200}$/.test(q.get("ref")) && !q.get("ref").includes("..");
   const ref = refOk ? q.get("ref") : "main";
-  const chosen = q.get("product") ? parseProductAddress(q.get("product")) : null;
+  const named = q.get("product") || (q.get("repo") ? null : routeOf(hash).params.product);
+  const chosen = named ? parseProductAddress(named) : null;
   if (chosen && !chosen.error && chosen.kind === "gitlab") return { instance, repo: chosen.repo, ref, product: chosen, refGiven: Boolean(refOk) };
   const wanted = chosen && !chosen.error ? chosen.repo : q.get("repo");
   const repo = wanted && REPO_RE.test(wanted) && !wanted.includes("..") ? wanted : instance;
@@ -800,7 +801,7 @@ async function route() {
           if (route === "main") location.search = productHref(parseProductAddress(params.product)).slice(1);
         },
       }, {});
-    } else if (kind === "add") {
+    } else if (kind === "add" || kind === "add-product") {
       const addProduct = settingsPages.routes.find((r) => r.name === "add-product");
       await addProduct.render(main(), {
         instance: { repository: T.instance }, product: null, store: openStore(T.instance),
@@ -812,6 +813,16 @@ async function route() {
         input.dispatchEvent(new Event("input"));
       }
       return;
+    } else if (kind === "get-your-own") {
+      const getYourOwn = settingsPages.routes.find((r) => r.name === "get-your-own");
+      await getYourOwn.render(main(), {
+        instance: { repository: T.instance }, product: null, store: openStore(T.instance),
+        go(route) {
+          if (route === "settings") location.hash = "#settings";
+          if (route === "add-product") location.hash = "#add";
+          if (route === "main") location.hash = "#uc";
+        },
+      }, routeOf(location.hash).params);
     }
     else if (kind === "endpoints") {
       const endpoints = settingsPages.routes.find((r) => r.name === "endpoints");
@@ -915,7 +926,7 @@ async function start() {
   available = renderTabs();
   loadProducts();
   renderProductSelector();
-  const early = /^#(settings|add|setup)/.test(location.hash);
+  const early = /^#(settings|add(?:-product)?|setup|get-your-own)/.test(location.hash);
   if (early) {
     addEventListener("hashchange", route);
     route();

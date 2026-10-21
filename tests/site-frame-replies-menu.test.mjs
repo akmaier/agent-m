@@ -99,7 +99,9 @@ test("TST-1105001 the live app hands the issue of #replies/issue=<n> to the rout
     const FIX = fileURLToPath(new URL("./fixtures/architecture/", import.meta.url));
     const files = {};
     (function walk(dir) { for (const name of readdirSync(dir)) { const path = join(dir, name); if (statSync(path).isDirectory()) walk(path); else files[relative(FIX, path).split("\\").join("/")] = readFileSync(path, "utf8"); } })(FIX);
-    const srv = await repoServer({ files, history: [], handlers: [] });
+    const product = await repoServer({ repo: "acme/product-alpha", files, history: [], handlers: [] });
+    const srv = await repoServer({ files, history: [], handlers: [(url, init) =>
+      url.origin === "https://api.github.com" && url.pathname.startsWith("/repos/acme/product-alpha/") ? product.fetch(url.href, init) : undefined] });
     const withIssue = await openDashboard({ server: srv, hash: "#replies/issue=12/product=https%3A%2F%2Fgithub.com%2Facme%2Fproduct-alpha" });
     assert.match(withIssue.main(), /recorded/);
     assert.deepEqual(seen, [{ issue: "12", product: "https://github.com/acme/product-alpha" }]);
