@@ -276,6 +276,7 @@ async function startSite({ page, views }) {
   menu.className = "menu";
   const selector = document.createElement("select");
   selector.className = "product";
+  selector.setAttribute("aria-label", "Product");
   header.getElementsByTagName("div")[0].append(selector, menu);
   const notices = noticePlace();
   const target = document.createElement("main");
@@ -292,6 +293,7 @@ async function startSite({ page, views }) {
   const drawMenu = (active, product) => {
     menu.replaceChildren(...menuOf(page, [...served], product).map((entry) => {
       const item = document.createElement(entry.href === null ? "span" : "a");
+      item.setAttribute("data-entry", entry.key);
       item.setAttribute("title", entry.title);
       item.textContent = entry.label;
       if (entry.href === null) item.className = "soon";

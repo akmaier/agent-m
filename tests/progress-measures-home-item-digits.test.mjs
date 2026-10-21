@@ -1,7 +1,5 @@
-// The progress bar of the main page counts the steps and items of four or more digits (ITM-1088): src/home/progress.mjs, which
-// MOD-progress-measures takes over (docs/architecture/MOD-progress-measures.md, Parts: "src/home/progress.mjs: removed once this module
-// gives stageShares, currentStage, buildInProgress and waitingForAPerson"), reads `ITM-<nnn>` as MOD-identifiers gives it: three or more
-// digits. productFacts reads the plan (docs/plan/) or else the backlog (docs/backlog/) by that form and orders it by number.
+// MOD-progress-measures' public productFacts counts the steps and items of four or more digits (ITM-1088): its item-path form is
+// `ITM-<nnn>`, so it reads the plan (docs/plan/) or else the backlog (docs/backlog/) and orders the identifiers by number.
 // Run: node --test tests/progress-measures-home-item-digits.test.mjs
 //
 // Module: MOD-progress-measures
@@ -13,18 +11,35 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { productFacts } from "../src/home/progress.mjs";
+import { productFacts } from "../src/progress-measures/index.mjs";
 
 const item = (id) => `---\nid: ${id}\ntitle: The work of ${id}\nlevel: module\nrealises:\n  - A RULE\nmodules:\n  - MOD-store\ntests:\n  - unit\norigin:\n  - UC-001\n---\n# ${id}\n\n## Outcome\n\no\n\n## Acceptance\n\na\n`;
 const merged = (number, id) => ({ number, title: `${id}: the work`, head: `job/${id}`, base: "main", state: "merged", openedAt: "2026-10-05T09:05:00.000Z",
   mergedAt: "2026-10-05T10:00:00.000Z", mergeCommit: null, participantLine: null, ci: null });
 
+const instance = { repository: { web: "https://github.com/fixture/instance" }, paths: [], read: async () => null, readMany: async () => [] };
+const snapshotOf = (files) => ({
+  repository: { web: "https://github.com/fixture/product" },
+  paths: Object.keys(files),
+  blob: (path) => (path in files ? "0".repeat(40) : null),
+  read: async (path) => files[path] ?? null,
+  readMany: async () => [],
+});
+
 // Facts of a product whose `folder` holds these items, each with a merged pull request.
 async function factsOf(folder, ids) {
-  const files = Object.fromEntries(ids.map((id) => [`docs/${folder}/${id}-work.md`, item(id)]));
-  const tree = Object.keys(files).map((path) => ({ path, sha: "0".repeat(40) }));
+  const files = { "SPEC.md": "# Product\n\n**A RULE** *(Product Owner)*\nThe rule holds.\n" };
+  for (const id of ids) files[`docs/${folder}/${id}-work.md`] = item(id);
   const real = ids.filter((id) => /^ITM-\d{3,}$/.test(id));
-  return productFacts({ tree, text: async (path) => files[path] ?? null, pullRequests: async () => real.map((id, n) => merged(n + 1, id)) });
+  const snapshot = snapshotOf(files);
+  const host = {
+    repositoryInfo: async () => ({ defaultBranch: "main" }),
+    readSnapshot: async () => snapshot,
+    listPullRequests: async () => real.map((id, n) => merged(n + 1, id)),
+    listTags: async () => [],
+    readHistory: async () => [],
+  };
+  return productFacts(host, instance, async () => instance, new Date("2026-10-05T10:30:00Z"), { scope: "all" });
 }
 
 // TST-1088001 · level: unit · module: MOD-progress-measures
@@ -35,10 +50,10 @@ async function factsOf(folder, ids) {
 // Planted fault: reading ITM-\d{3} leaves ITM-1000 out, and the count is two; reading \d+ counts ITM-99, and the count is four.
 test("the progress counts the backlog items of three and of four digits, in the order of their numbers, and not ITM-99", async () => {
   const f = await factsOf("backlog", ["ITM-1000", "ITM-100", "ITM-999", "ITM-99"]);
-  assert.equal(f.implementation.from, "backlog");
-  assert.equal(f.implementation.total, 3);
-  assert.equal(f.implementation.done, 3);
-  assert.deepEqual(f.implementation.rows.map((row) => row.id), ["ITM-100", "ITM-999", "ITM-1000"]);
+  assert.equal(f.plan.order, null);
+  assert.deepEqual(f.plan.items.map((row) => row.path.split("/").at(-2)), ["backlog", "backlog", "backlog"]);
+  assert.equal(f.plan.items.length, 3);
+  assert.deepEqual(f.plan.states.map((row) => [row.item, row.state]), [["ITM-100", "done"], ["ITM-999", "done"], ["ITM-1000", "done"]]);
 });
 
 // TST-1088002 · level: unit · module: MOD-progress-measures
@@ -49,10 +64,9 @@ test("the progress counts the backlog items of three and of four digits, in the 
 // Planted fault: reading ITM-\d{3} for the plan only leaves ITM-1000 out of it.
 test("the progress counts the plan's steps of three and of four digits, in the order of their numbers, and not ITM-99", async () => {
   const f = await factsOf("plan", ["ITM-1000", "ITM-100", "ITM-999", "ITM-99"]);
-  assert.equal(f.implementation.from, "plan");
-  assert.equal(f.implementation.total, 3);
-  assert.equal(f.implementation.done, 3);
-  assert.deepEqual(f.implementation.rows.map((row) => row.id), ["ITM-100", "ITM-999", "ITM-1000"]);
+  assert.deepEqual(f.plan.items.map((row) => row.path.split("/").at(-2)), ["plan", "plan", "plan"]);
+  assert.equal(f.plan.items.length, 3);
+  assert.deepEqual(f.plan.states.map((row) => [row.item, row.state]), [["ITM-100", "done"], ["ITM-999", "done"], ["ITM-1000", "done"]]);
 });
 
 // TST-1088003 · level: unit · module: MOD-progress-measures
@@ -63,5 +77,6 @@ test("the progress counts the plan's steps of three and of four digits, in the o
 // Planted fault: reading ITM-\d{3} finds no backlog file, and the facts say the implementation comes from nowhere.
 test("a product whose only item has four digits has a backlog", async () => {
   const f = await factsOf("backlog", ["ITM-1000"]);
-  assert.deepEqual([f.implementation.from, f.implementation.total, f.implementation.done], ["backlog", 1, 1]);
+  assert.deepEqual([f.plan.order, f.plan.items[0].path.split("/").at(-2), f.plan.items.length,
+    f.plan.states.filter((row) => row.state === "done").length], [null, "backlog", 1, 1]);
 });

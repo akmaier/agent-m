@@ -81,6 +81,18 @@ test("TST-531001 startPage on the review page draws the header, the eight entrie
   assert.deepEqual(page.select.children.map((option) => option.textContent), ["acme/instance", WIDGET, APP, "+ Add product"]);
 });
 
+// TST-684004 · level: unit · module: MOD-site-frame
+// guards: THE MENU FOLLOWS THE PROCESS; EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE
+// given: the main entry on the existing Frame fixture, with the same two kept products as the review page
+// input: startPage({ page: "main", views, products })
+// expect: the product selector has the accessible name "Product" and every rendered menu entry retains the existing menuOf key as its data-entry value, in process order
+test("TST-684004 the Frame names the product selector and exposes every main-menu entry key", async () => {
+  const page = await start({ page: "main", products: [WIDGET, APP] });
+  assert.equal(page.select.getAttribute("aria-label"), "Product");
+  assert.deepEqual(page.menu.children.map((entry) => entry.getAttribute("data-entry")),
+    ["requirements", "use-cases", "architecture", "implementation", "tests", "releases", "maintenance", "settings"]);
+});
+
 // TST-531002 · level: unit · module: MOD-site-frame
 // guards: THE MENU FOLLOWS THE PROCESS
 // given: the review page with one view whose routes are alpha (requirements), cases-list and cases-new (use-cases) and beta (tests)

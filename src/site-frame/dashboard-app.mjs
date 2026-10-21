@@ -32,7 +32,7 @@ import {
 } from "../../docs/assets/review-core.mjs";
 import { ARCHITECTURE_FILE } from "../../docs/assets/artifacts.mjs";
 import { DASHBOARD, builtViews } from "../site/views.mjs";
-import { menuHtml, entryOf } from "../site/menu.mjs";
+import { MENU, menuHtml, entryOf, stageView } from "../site/menu.mjs";
 import { UPSTREAM, instanceOf } from "../site/instance-repository.mjs";
 // The checks of what waits for acceptance, started on the review pages (UC-047; sprint 07's change between jobs: the
 // dashboard reaches MOD-notifications, as ITM-236's Outcome names it) — through each module's own interface.
@@ -769,12 +769,27 @@ async function renderTabs() {
 
 async function route() {
   routeSeq += 1;
-  const [kind, a, b] = location.hash.replace(/^#/, "").split("/");
+  let [kind, a, b] = location.hash.replace(/^#/, "").split("/");
+  const entry = MENU.find((candidate) => candidate.key === kind);
+  const params = routeOf(location.hash).params;
+  let unavailableEntry = null;
+  if (entry && (a === undefined || (b === undefined && Object.keys(params).length > 0 && Object.keys(params).every((key) => key === "product")))) {
+    const view = stageView(entry, builtViews(builtFiles));
+    if (view) kind = view;
+    else unavailableEntry = entry;
+    a = undefined;
+    b = undefined;
+  }
   markTab(kind === "review" ? a : kind);
   // The views of the repository read what they show first.
   if (state.commit && ["", "uc", "arc", "spec", "review"].includes(kind || "")) main().innerHTML = `<p class="muted">Reading…</p>`;
   try {
     await available;
+    if (unavailableEntry) {
+      main().innerHTML = `<p class="muted">The ${h(unavailableEntry.label)} entry is not built yet.</p>`;
+      showBanner();
+      return;
+    }
     loadProducts();
     renderProductSelector();
     if (state.commit && !a && ["", "uc", "arc", "spec", "backlog", "use-case", "decision", "module"].includes(kind || "")) await readAhead(kind || "");

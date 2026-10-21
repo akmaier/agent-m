@@ -38,12 +38,21 @@ const dueAfter = (failure, now) => {
 };
 
 // One card's jobs read again through the host it was read through: its rows, derived with the live states of the jobs that have not ended.
-async function jobsAgain({ source, facts }, store) {
+async function jobsAgain({ source, facts, jobState = null }, store) {
   const snapshot = await source.host.readSnapshot(facts.snapshot.ref);
-  const products = [{ address: facts.address, snapshot }];
+  const paths = snapshot.paths.filter((path) => path.startsWith("docs/jobs/"));
+  const prior = jobState ?? {
+    blobs: new Map(facts.jobs.map((row) => [row.record.path, facts.snapshot.blob(row.record.path)])),
+    texts: new Map(await Promise.all(facts.jobs.map(async (row) => [row.record.path, await facts.snapshot.read(row.record.path)]))),
+  };
+  const changed = paths.filter((path) => snapshot.blob(path) !== prior.blobs.get(path));
+  await snapshot.readMany(changed);
+  const texts = new Map(await Promise.all(paths.map(async (path) => [path, changed.includes(path) ? await snapshot.read(path) : prior.texts.get(path)])));
+  const serving = { ...snapshot, read: (path) => Promise.resolve(texts.get(path) ?? null) };
+  const products = [{ address: facts.address, snapshot: serving }];
   const first = await listJobs(products, new Map());
   const lives = await liveStatesOf(first, new Map([[facts.address, source.host]]), bridgesOf(first, store));
-  return listJobs(products, lives);
+  return { jobs: await listJobs(products, lives), jobState: { snapshot, blobs: new Map(paths.map((path) => [path, snapshot.blob(path)])), texts } };
 }
 
 /**
@@ -75,8 +84,10 @@ export function readAgain({ target, cards, nodes, held, store }) {
       card.busy = true;
       const { source, facts, shares, current, model } = card.entry;
       try {
-        const jobs = await jobsAgain(card.entry, store);
-        nodes[at] = productCard({ title: source.title, address: source.address, model, shares, current, build: buildInProgress({ ...facts, jobs }), own: source.own === true });
+        const next = await jobsAgain(card.entry, store);
+        card.entry.facts = { ...facts, jobs: next.jobs };
+        card.entry.jobState = next.jobState;
+        nodes[at] = productCard({ title: source.title, address: source.address, model, shares, current, build: buildInProgress(card.entry.facts), own: source.own === true });
         problems.delete(at);
         card.due = now + EVERY;
       } catch (failure) {

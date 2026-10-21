@@ -28,6 +28,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { repoServer, openDashboard, richDocument, press, settle, REPO } from "./app-harness.mjs";
+import { installPage } from "./site-frame-start.d/dom.mjs";
+import { startPage } from "../src/site-frame/index.mjs";
+import { view } from "../src/main-page/index.mjs";
 
 const PREFIX = `agent-m:${REPO}:`; // MOD-browser-store's own prefix of the instance (store.mjs prefixOf)
 const minutesAgo = (n) => new Date(Date.now() - n * 60 * 1000).toISOString();
@@ -128,50 +131,26 @@ function specChangeFiles(folder, nr) {
   };
 }
 
-// ---------------------------------------------------------------- the main page's own small environment (UC-047) —
-// ---------------------------------------------------------------- src/home/home.mjs has no test harness of its own,
-// ---------------------------------------------------------------- unlike docs/assets/dashboard-app.mjs's app-
-// ---------------------------------------------------------------- harness.mjs: the same shape tests/dashboard-
-// ---------------------------------------------------------------- notifications-wiring.test.mjs's own main-page tests
-// ---------------------------------------------------------------- bring, a local copy here (not a change to that file
-// ---------------------------------------------------------------- or to tests/app-harness.mjs). home.mjs only ever
-// ---------------------------------------------------------------- assigns .innerHTML, never queries a control back out
-// ---------------------------------------------------------------- of one, so a plain, settable element is enough.
-
-function fakeMainPageDom() {
-  const els = new Map();
-  return { getElementById: (id) => { if (!els.has(id)) els.set(id, { innerHTML: "" }); return els.get(id); } };
-}
-
-// Loads src/home/home.mjs fresh, with the small environment its start() needs (document, location, localStorage,
-// fetch) installed, lets it settle, then restores exactly what was there before — document, location, localStorage
-// and fetch only; installBrowser()'s own Notification/navigator/setInterval stand, since the caller still reads
-// browser.calls.requestPermission afterwards. entries: further settings in this browser, the same shape openDashboard's
-// own `entries` takes.
+// ---------------------------------------------------------------- the main page's native Frame entry (UC-047)
+//
+// This test-owned setup starts the native Frame with MOD-main-page's view. It changes no shared harness or
+// notification behavior.
 async function openMainPage({ server, entries = {} }) {
   const hadDocument = "document" in globalThis, priorDocument = globalThis.document;
   const hadLocation = "location" in globalThis, priorLocation = globalThis.location;
+  const hadWindow = "window" in globalThis, priorWindow = globalThis.window;
   const priorLocalStorage = globalThis.localStorage, priorFetch = globalThis.fetch;
-  Object.defineProperty(globalThis, "document", { value: fakeMainPageDom(), configurable: true, writable: true });
-  Object.defineProperty(globalThis, "location", {
-    value: { hostname: "akmaier.github.io", pathname: "/agent-m/", href: "https://akmaier.github.io/agent-m/" },
-    configurable: true, writable: true,
-  });
-  const mem = new Map(Object.entries(entries));
-  Object.defineProperty(globalThis, "localStorage", {
-    value: {
-      getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => { mem.set(k, String(v)); }, removeItem: (k) => { mem.delete(k); },
-      get length() { return mem.size; }, key: (i) => [...mem.keys()][i] ?? null,
-    },
-    configurable: true, writable: true,
-  });
+  const page = installPage({ hostname: "akmaier.github.io", pathname: "/agent-m/" });
+  page.document.baseURI = new URL("./page.html", import.meta.url).href;
+  for (const [key, value] of Object.entries(entries)) globalThis.localStorage.setItem(key, value);
   globalThis.fetch = server.fetch;
   try {
-    await import(new URL(`../src/home/home.mjs?load=${Date.now()}-${Math.random()}`, import.meta.url));
+    await startPage({ page: "main", views: [view] });
     await settle(server);
   } finally {
     if (hadDocument) globalThis.document = priorDocument; else delete globalThis.document;
     if (hadLocation) globalThis.location = priorLocation; else delete globalThis.location;
+    if (hadWindow) globalThis.window = priorWindow; else delete globalThis.window;
     globalThis.localStorage = priorLocalStorage;
     globalThis.fetch = priorFetch;
   }
@@ -263,8 +242,8 @@ test("A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE — notifications switche
 // TST-472138 · level: release · module: MOD-notifications
 // guards: A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; NOTIFICATIONS ARE SWITCHED ON BY THE PERSON
 // given: a fresh browser; the person on the main page before ever visiting the dashboard's own pages
-// input: loading the main page (src/home/home.mjs), then the review page (#uc), then #settings — no click yet; then pressing Switch on
-// expect: no page of the dashboard asks for the permission before the click — the main page, src/home/home.mjs, as well as the review pages, each of which starts MOD-notifications' checks (the item's Acceptance, corrected after docs/gates/20261007-1603-development-release-testing-9980.md) —; the click on Switch on asks it, once
+// input: loading the main page through its native Frame entry, then the review page (#uc), then #settings — no click yet; then pressing Switch on
+// expect: no page of the dashboard asks for the permission before the click — the main page, through Frame and MOD-main-page, as well as the review pages, each of which starts MOD-notifications' checks (the item's Acceptance, corrected after docs/gates/20261007-1603-development-release-testing-9980.md) —; the click on Switch on asks it, once
 test("NOTIFICATIONS ARE SWITCHED ON BY THE PERSON — no page, the main page among them, asks before the click; the click asks once", async () => {
   const server = await repoServer({ files: {}, handlers: [emptyTags] });
   const browser = installBrowser({ permission: "default" });

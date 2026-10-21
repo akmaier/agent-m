@@ -45,9 +45,9 @@ const WIDTHS = [["phone", 390], ["desktop", 1280]];
 const MINIMUM = 24;
 const PHONE_MENU_EXPECTED = {
   main: [
-    ["requirements", "docs/#spec", false], ["use-cases", "docs/#uc", false], ["architecture", "docs/#arc", false],
-    ["implementation", "docs/#backlog", false], ["tests", null, true], ["releases", "docs/#release", false],
-    ["maintenance", "docs/#mail", false], ["settings", "docs/#settings", false],
+    ["requirements", "docs/index.html#requirements", false], ["use-cases", "docs/index.html#use-cases", false], ["architecture", "docs/index.html#architecture", false],
+    ["implementation", "docs/index.html#implementation", false], ["tests", "docs/index.html#tests", false], ["releases", "docs/index.html#releases", false],
+    ["maintenance", "docs/index.html#maintenance", false], ["settings", "docs/index.html#settings", false],
   ],
   review: [
     ["requirements", "#spec", false], ["use-cases", "#uc", false], ["architecture", "#arc", false],
