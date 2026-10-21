@@ -142,7 +142,10 @@ never written. A decision or module file that a record names and the snapshot no
     use case as an artifact keyed by the key of its format;
   - recipe `accepted-use-cases` — every use case whose current text a record names, one part per file;
   - recipe `use-case-with-neighbours` — the use case named in the job's parameters, every requirement it realises with
-    its text from the SPEC, and every other use case (`A PROMPTED USE-CASE CHANGE SEES ITS NEIGHBOURS`);
+    its text from the SPEC, and every other use case (`A PROMPTED USE-CASE CHANGE SEES ITS NEIGHBOURS`); the part of
+    a use case carries it as an artifact as `use-cases` does, and the part of a requirement carries it as an artifact
+    with its name as the identifier and its name and its rule as the key, so that the job runner counts them (`NO USE
+    CASE IS LEFT OUT OF A PROMPT SILENTLY`);
   - recipe `whole-architecture` — every architecture decision and module file, one part per file, which carries its
     file as an artifact keyed by the key of its format;
   - precondition `rests-on-accepted` — an error finding naming every requirement or use case the job's selection names
