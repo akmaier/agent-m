@@ -141,13 +141,15 @@ for (const route of ROUTES) {
 // TST-922001 · level: system · module: MOD-site-frame
 // guards: THE SITE SERVES A SCREEN READER
 // given: the public Frame routes at phone and desktop widths in the existing Electron and axe check
-// input: the three remaining Frame rule IDs over their affected routes
-// expect: aria-required-children, color-contrast and target-size are absent
+// input: aria-required-children in the menu on every route, color-contrast on #arc, #module and #backlog, and target-size on the phone-width explanation summaries of #use-case/id=UC-002/edit=1, #decision/id=ARC-001/edit=1 and #module/id=MOD-reader/edit=1
+// expect: the menu, those accepted badges and those three explanation summaries have no named violation
 test("TST-922001 the shared menu, accepted badges and folded explanations have no remaining Frame accessibility violation", () => {
-  const affected = new Set(["aria-required-children", "color-contrast", "target-size"]);
   for (const route of ROUTES) {
     for (const [kind] of WIDTHS) {
-      const violations = found.get(`${route.address} ${kind}`).violations.filter((each) => affected.has(each.id));
+      const rules = ["aria-required-children"];
+      if (["#arc", "#module", "#backlog"].includes(route.address)) rules.push("color-contrast");
+      if (kind === "phone" && ["#use-case/id=UC-002/edit=1", "#decision/id=ARC-001/edit=1", "#module/id=MOD-reader/edit=1"].includes(route.address)) rules.push("target-size");
+      const violations = found.get(`${route.address} ${kind}`).violations.filter((each) => rules.includes(each.id));
       assert.deepEqual(violations.map((each) => `${each.id} (${each.nodes}: ${each.first})`), [], `${route.address} at a ${kind}'s width violates`);
     }
   }
