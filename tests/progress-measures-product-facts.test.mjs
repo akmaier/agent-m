@@ -864,6 +864,7 @@ test("TST-1175001 productFacts gives itemStates the accepted SPEC requirements w
         ["ITM-1001", "waiting for acceptance", "A MISSING ACCEPTANCE RULE is not accepted"],
       ], `${kind} ${scope}`);
       assert.equal(facts.requirements === "unknown" ? "unknown" : facts.requirements.join(","), scope === "all" ? "EVERY ARTIFACT HAS AN IDENTIFIER" : "unknown", `${kind} ${scope} requirements`);
+      assert.deepEqual([facts.statuses.has("EVERY ARTIFACT HAS AN IDENTIFIER"), facts.statuses.get(UC1)?.status], [false, "accepted"], `${kind} ${scope} public statuses`);
     }
   }
 });
