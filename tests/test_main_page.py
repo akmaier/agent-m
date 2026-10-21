@@ -38,14 +38,15 @@ JOB_ENDED = "native-ended-job"
 def pr(number, item, state="open", merged_at=None):
     """A pull request in the shape of the git host's pullRequests, naming `item` in its head branch."""
     return {"number": number, "title": f"{item}: the work", "branch": f"job/{item}", "head": f"job/{item}", "base": "main", "state": state,
-            "openedAt": "2026-10-05T09:05:00.000Z", "mergedAt": merged_at, "mergeCommit": None, "participantLine": None, "ci": None}
+            "opened": "2026-10-05T09:05:00.000Z", "openedAt": "2026-10-05T09:05:00.000Z", "mergedAt": merged_at, "mergeCommit": None, "participantLine": None, "ci": None}
 
 
-def facts(*, extra_paths=(), texts=None, prs=(), ci="passed", tags=(), own=False) -> str:
+def facts(*, extra_paths=(), texts=None, prs=(), ci="passed", tags=(), own=False, live=False) -> str:
     """A node expression that binds `f` to MOD-progress-measures' public productFacts. extra_paths: paths added to the
     snapshot (a record planted for the counter-proof); texts: { path: text } read instead of the fixture's file."""
     tree = TREE + [{"path": p, "sha": "0" * 40} for p in extra_paths]
     return ("const fs = await import('node:fs');"
+            "const RealDate = globalThis.Date; class FixtureDate extends RealDate { constructor(...given) { super(...(given.length ? given : ['2026-10-05T10:30:00Z'])); } static now() { return RealDate.parse('2026-10-05T10:30:00Z'); } }; globalThis.Date = FixtureDate;"
             f"const FIX = {json.dumps(str(FIX))}; const tree = {json.dumps(tree)}; const over = {json.dumps(texts or {})};"
             f"const outcome = {json.dumps('passed' if ci == 'passed' else 'failed')}; const commit = 'a'.repeat(40);"
             "const processText = '---\\nmodel: scrum\\nmodel_file: src/model-catalogue/models/scrum.md\\nmodel_version: 0000000000000000000000000000000000000000\\n---\\n# Process\\n\\n## Practices\\n\\n- none\\n\\n## Branches\\n\\n| Phase or time box | Branch |\\n|---|---|\\n| Sprint | sprint/<team>/<nn> |\\n';"
@@ -57,14 +58,18 @@ def facts(*, extra_paths=(), texts=None, prs=(), ci="passed", tags=(), own=False
             "const resultPath = `runs/${commit}/20261005-1030-commit-0001.md`;"
             "const resultText = `---\\ncommit: ${commit}\\nlevels:\\n  - unit\\noccasion: commit\\nparticipant: fixture\\ndate: 2026-10-05 10:30 UTC\\n---\\n## Outcomes\\n\\n| Test | Level | Outcome | Runs |\\n|---|---|---|---|\\n| TST-000001 | unit | ${outcome} | |\\n`;"
             "const results = { paths: [resultPath], read: async (p) => p === resultPath ? resultText : null };"
-            "const endedJob = () => jobLedger.appendToRecord(jobLedger.startRecord({ id: 'JOB-20261005-0900-a1b2', kind: 'implement-item', worksOn: ['ITM-201'], participant: 'coder-a', model: 'fixture-model', route: 'bridge fixture', run: null, retries: null, startedBy: 'fixture', start: new Date('2026-10-05T09:00:00Z'), agentM: { version: 'fixture', commit: '0'.repeat(40) }, inputs: [], limit: 1, task: 'fixture', conversation: null, destinations: [], params: {} }).text, { part: 'end', at: new Date('2026-10-05T10:00:00Z'), state: 'done', results: [], draft: null, rounds: [], usage: null, cost: { known: false, usage: null }, reason: null, log: null });"
+            "const jobStart = () => jobLedger.startRecord({ id: 'JOB-20261005-0900-a1b2', kind: 'implement-item', worksOn: ['ITM-201'], participant: 'coder-a', model: 'fixture-model', route: 'bridge fixture', run: null, retries: null, startedBy: 'fixture', start: new Date(Date.now() - 5400 * 1000), agentM: { version: 'fixture', commit: '0'.repeat(40) }, inputs: [], limit: 1, task: 'in parameters', conversation: null, destinations: [], params: {} }).text;"
+            "const runningJob = () => jobLedger.appendToRecord(jobStart(), { part: 'taken', at: new Date(Date.now() - 5400 * 1000), by: 'fixture' });"
+            "const endedJob = () => jobLedger.appendToRecord(runningJob(), { part: 'end', at: new Date(), state: 'done', results: [], draft: null, rounds: [], usage: null, cost: { known: false, usage: null }, reason: null, log: null });"
             "const instance = { repository: { web: 'https://github.com/fixture/agent-m' }, paths: ['SPEC.md', 'src/model-catalogue/models/scrum.md'],"
             " blob: (p) => p === 'src/model-catalogue/models/scrum.md' ? '1'.repeat(40) : null,"
             " read: async (p) => p === 'src/model-catalogue/models/scrum.md' ? fs.readFileSync(process.cwd() + '/' + p, 'utf8') : null, readMany: async () => [] };"
-            "const fixtureText = text; const textOf = async (p) => p in over && over[p] === 'native-ended-job' ? endedJob() : fixtureText(p);"
+            f"const fixtureText = text; const textOf = async (p) => p === {json.dumps(JOB)} ? (p in over && over[p] === 'native-ended-job' ? endedJob() : runningJob()) : fixtureText(p);"
             "snapshot.read = textOf;"
             f"const host = {{ repositoryInfo: async () => ({{ defaultBranch: 'main' }}), readSnapshot: async (ref) => ref === 'test-results' ? results : snapshot, pullRequests: async () => {json.dumps(list(prs))}, listPullRequests: async () => {json.dumps(list(prs))}, listTags: async () => {json.dumps([{'name': tag} for tag in tags])}, readHistory: async () => [{{ commit }}] }};"
-            "const f = await progressMeasures.productFacts(host, instance, async () => instance, new Date('2026-10-05T10:30:00Z'), { scope: 'all' });")
+            "const f = await progressMeasures.productFacts(host, instance, async () => instance, new Date('2026-10-05T10:30:00Z'), { scope: 'all' });"
+            + ("f.jobs = await jobLedger.listJobs([{ address, snapshot }], new Map([['JOB-20261005-0900-a1b2', { reachable: true, reason: null, known: true, running: true, cancelling: false, log: null, usage: null, writtenAfterCancel: [] }]]));" if live else "")
+            + "globalThis.Date = RealDate;")
 
 
 def stages(**kw) -> dict:
@@ -108,11 +113,11 @@ def rendered_review_menu() -> list:
               "return all(document.body, 'nav')[0].children.map((entry) => ({ name: entry.localName, label: entry.textContent, href: entry.getAttribute('href'), key: entry.getAttribute('data-entry') }));")
 
 
-def rendered_home() -> dict:
+def rendered_home(products=True) -> dict:
     """The root's actual Frame entry and MainPage view with the repository's existing test-owned browser and GitHub server."""
     return js("const { all } = await import(new URL('./tests/site-frame-start.d/dom.mjs', new URL('file://' + process.cwd() + '/')).href);"
-              "const { browser, cardsOf, waitsOf, network, smallProduct, instanceFiles, INSTANCE, PRODUCT, timers } = await import(new URL('./tests/main-page-home-harness.mjs', new URL('file://' + process.cwd() + '/')).href);"
-              "const { store } = browser(); const net = network({ [PRODUCT]: smallProduct(), [INSTANCE]: instanceFiles() }); net.install(); timers.install();"
+              "const { browser, cardsOf, waitsOf, network, smallProduct, instanceFiles, INSTANCE, PRODUCT, PRODUCT_URL, timers } = await import(new URL('./tests/main-page-home-harness.mjs', new URL('file://' + process.cwd() + '/')).href);"
+              f"const {{ store }} = browser({{ products: {json.dumps(['https://github.com/alice/product'] if products else [])} }}); const net = network({{ [PRODUCT]: smallProduct(), [INSTANCE]: instanceFiles() }}); net.install(); timers.install();"
               "globalThis.setInterval = () => 1; try { await siteFrame.startPage({ page: 'main', views: [mainPage.view] }); const target = all(document.body, 'main')[0];"
               "return { cards: cardsOf(target).map((card) => card.textContent), waits: waitsOf(target) }; } finally { timers.restore(); net.restore(); }")
 
@@ -186,10 +191,10 @@ class EachProductsProgressByStage(unittest.TestCase):
 
 class WithoutAProductTheMainPageShowsAgentMsOwnProgress(unittest.TestCase):
     def test_without_a_product_the_bar_shows_agent_m(self):
-        self.assertEqual(js(facts(own=True) + "return f.own;"), True)
+        self.assertIn("Agent M", rendered_home(products=False)["cards"][0])
 
     def test_counter_proof_with_one_product_the_bar_shows_the_product(self):
-        self.assertEqual(js(facts() + "return f.own;"), False)
+        self.assertIn("alice/product", rendered_home()["cards"][0])
 
     def test_agent_ms_bar_is_full_once_its_first_release_is_tagged(self):
         got = js(facts(tags=["v2026.1.0"], own=True) + "return (await progressMeasures.stageShares(f)).map((s) => s.share);")
@@ -203,11 +208,16 @@ class WithoutAProductTheMainPageShowsAgentMsOwnProgress(unittest.TestCase):
 
 class TheBuildIsShownAsItHappens(unittest.TestCase):
     def test_a_running_job_is_shown_beside_its_step(self):
-        rows = js(facts(prs=[pr(7, "ITM-201")]) + "return progressMeasures.buildInProgress(f);")
-        self.assertEqual([(r["item"], r["job"]) for r in rows], [("ITM-201", "JOB-20261005-0900-a1b2")])
-        self.assertRegex(card(prs=[pr(7, "ITM-201")])["text"], r"ITM-201 JOB-20261005-0900-a1b2 coder-a")
+        rows = js(facts(prs=[pr(7, "ITM-201")], live=True) + "return progressMeasures.buildInProgress(f);")
+        self.assertEqual(rows, [{"item": "ITM-201", "job": "JOB-20261005-0900-a1b2", "participant": "coder-a",
+                                 "state": "running", "elapsed": 5400, "reachable": True}])
+        self.assertRegex(card(prs=[pr(7, "ITM-201")], live=True)["text"], r"ITM-201 JOB-20261005-0900-a1b2 coder-a running 1h 30m 0s")
 
     def test_counter_proof_once_the_job_has_ended_the_step_shows_done(self):
+        ended = js(facts(texts={JOB: JOB_ENDED}) + "return progressMeasures.buildInProgress(f);")
+        self.assertEqual(ended, [{"item": "ITM-201", "job": "JOB-20261005-0900-a1b2", "participant": "coder-a",
+                                  "state": "done", "elapsed": 5400, "reachable": True}])
+        self.assertRegex(card(texts={JOB: JOB_ENDED})["text"], r"ITM-201 JOB-20261005-0900-a1b2 coder-a done")
         merged = [pr(7, "ITM-201", state="merged", merged_at="2026-10-05T10:05:00.000Z")]
         rows = js(facts(prs=merged, texts={JOB: JOB_ENDED}) + "return progressMeasures.buildInProgress(f);")
         self.assertEqual(rows, [])

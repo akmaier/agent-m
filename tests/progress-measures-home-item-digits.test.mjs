@@ -51,6 +51,7 @@ async function factsOf(folder, ids) {
 test("the progress counts the backlog items of three and of four digits, in the order of their numbers, and not ITM-99", async () => {
   const f = await factsOf("backlog", ["ITM-1000", "ITM-100", "ITM-999", "ITM-99"]);
   assert.equal(f.plan.order, null);
+  assert.deepEqual(f.plan.items.map((row) => row.path.split("/").at(-2)), ["backlog", "backlog", "backlog"]);
   assert.equal(f.plan.items.length, 3);
   assert.deepEqual(f.plan.states.map((row) => [row.item, row.state]), [["ITM-100", "done"], ["ITM-999", "done"], ["ITM-1000", "done"]]);
 });
@@ -76,5 +77,6 @@ test("the progress counts the plan's steps of three and of four digits, in the o
 // Planted fault: reading ITM-\d{3} finds no backlog file, and the facts say the implementation comes from nowhere.
 test("a product whose only item has four digits has a backlog", async () => {
   const f = await factsOf("backlog", ["ITM-1000"]);
-  assert.deepEqual([f.plan.order, f.plan.items.length, f.plan.states.filter((row) => row.state === "done").length], [null, 1, 1]);
+  assert.deepEqual([f.plan.order, f.plan.items[0].path.split("/").at(-2), f.plan.items.length,
+    f.plan.states.filter((row) => row.state === "done").length], [null, "backlog", 1, 1]);
 });
