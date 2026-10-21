@@ -47,6 +47,7 @@ uses:
   - MOD-product-process.doneCheck
   - MOD-product-process.processStrategies
   - MOD-work-plans.planSchemas
+  - MOD-work-plans.targetBranch
   - MOD-work-plans.itemStates
   - MOD-work-plans.startable
   - MOD-work-plans.giveUpIncrement
@@ -183,7 +184,8 @@ Its formats are those of the modules it uses.
     the participants that hold the implementing role in the item's role assignment and can write and run tests, the attempt limit, who merges, the
     target branch, the gates the jobs will meet and who decides them; *Start jobs*, which queues each job on its
     participant's route — handed to a Bridge at once where the route is one; for each pull request its CI runs and
-    whether the Definition of Done holds, and *Merge* once it does.
+    whether the Definition of Done holds, and *Merge* once it does; where `repositoryInfo` gives `greenToMerge` false,
+    that the server does not enforce "merge only on green", with the page `branchProtection` (UC-024 12a).
   - `run` — the selection with the order and what each waits for as a diagram, the limits — jobs at once, cost,
     correction rounds —, the plan from the model, *Start run*, which commits the run's record and starts the first
     actions `nextActions` returns, each on its route; while the page is open, the run's next actions of this page's route
@@ -216,7 +218,8 @@ product's `docs/sources.md`.
   diagrams of models, plans and progress, and differences of a drafted plan.
 - MOD-browser-store.readSetting — the endpoints' configurations and the Bridges' settings a job needs;
   MOD-bridge-client.bridgeAt — a handle for each Bridge, handed to the runtimes.
-- MOD-repository-hosts.readSnapshot, MOD-repository-hosts.repositoryInfo — the product and its visibility;
+- MOD-repository-hosts.readSnapshot, MOD-repository-hosts.repositoryInfo — the product, its visibility, and whether
+  its server enforces green CI before a merge;
   MOD-repository-hosts.listPullRequests,
   MOD-repository-hosts.pullRequestFacts, MOD-repository-hosts.openPullRequest, MOD-repository-hosts.mergePullRequest,
   MOD-repository-hosts.listCiRuns — pull requests, their CI and their merge; MOD-repository-hosts.webLinks — the
@@ -236,7 +239,8 @@ product's `docs/sources.md`.
 - MOD-work-plans.planSchemas, MOD-work-plans.itemStates, MOD-work-plans.startable, MOD-work-plans.giveUpIncrement,
   MOD-work-plans.planFindings,
   MOD-work-plans.backlogFindings, MOD-work-plans.sprintFacts, MOD-work-plans.heldItems, MOD-work-plans.conflicts —
-  plans, backlogs, sprints, their states, and what the teams' sprints hold;
+  plans, backlogs, sprints, their states, and what the teams' sprints hold; MOD-work-plans.targetBranch — the target
+  branch the route `implement` shows for each step or item;
   MOD-work-plans.savePlan, MOD-work-plans.saveItems, MOD-work-plans.startSprint,
   MOD-work-plans.endSprint, MOD-work-plans.closeSprint — every save of a plan, a backlog or a sprint.
 - MOD-run-planner.runOf, MOD-run-planner.nextActions, MOD-run-planner.raiseLimits, MOD-run-planner.finishRun — a run,

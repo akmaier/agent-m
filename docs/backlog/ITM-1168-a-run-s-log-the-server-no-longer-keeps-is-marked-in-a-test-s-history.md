@@ -37,3 +37,5 @@ The draft, of MOD-trace-pages, names `ciRunLog` among its uses, and says how a m
 - On fixtures, a mark whose run's log the server no longer keeps keeps its outcome, and its link reads *no longer
   available*. Counter-proof: a mark whose log is kept links to it.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**The draft is on `main` as `122034cd`** (MOD-trace-pages, by developer-sonnet-c). The item is built once it is accepted.

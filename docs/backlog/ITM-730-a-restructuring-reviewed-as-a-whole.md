@@ -63,3 +63,5 @@ Principles: *no special first case* (one record form); *one responsibility* (the
 **Not drafted now.** MOD-review-pages is changed by team 1's sprint 87 (ITM-874 to ITM-879), so its file is not drafted
 while that sprint runs. The draft of both files is written once that sprint is merged, and the item builds on its
 acceptance.
+
+**The drafts are on `main`:** `5a614446` (MOD-approvals) and `29b4324c` (MOD-review-pages, resting on the first), by developer-sonnet-c. The item is built once both are accepted. One reading of the draft is its own: what `removedFiles` returns, `{ id, kind, path, lastBlob }`, the last two from the most recent record of the identifier.

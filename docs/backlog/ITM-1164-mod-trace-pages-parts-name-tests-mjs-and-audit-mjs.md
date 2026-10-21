@@ -33,3 +33,5 @@ The draft adds both files to MOD-trace-pages' `## Parts`, each with what it hold
 ## Acceptance
 
 - MOD-trace-pages' `## Parts` names every file of `src/trace-pages/`, and akmaier has accepted the text.
+
+**The draft is on `main` as `ac10b26d`** (MOD-trace-pages, by developer-sonnet-c). It changes no code, so the item is done once akmaier accepts it.
