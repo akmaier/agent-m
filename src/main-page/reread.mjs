@@ -40,7 +40,11 @@ const dueAfter = (failure, now) => {
 // One card's jobs read again through the host it was read through: its rows, derived with the live states of the jobs that have not ended.
 async function jobsAgain({ source, facts }, store) {
   const snapshot = await source.host.readSnapshot(facts.snapshot.ref);
-  const products = [{ address: facts.address, snapshot }];
+  const paths = [...new Set(facts.jobs.map((row) => row.record.path))];
+  const changed = paths.filter((path) => snapshot.blob(path) !== facts.snapshot.blob(path));
+  await snapshot.readMany(changed);
+  const serving = { ...snapshot, read: (path) => (facts.snapshot.blob(path) === snapshot.blob(path) ? facts.snapshot.read(path) : snapshot.read(path)) };
+  const products = [{ address: facts.address, snapshot: serving }];
   const first = await listJobs(products, new Map());
   const lives = await liveStatesOf(first, new Map([[facts.address, source.host]]), bridgesOf(first, store));
   return listJobs(products, lives);
