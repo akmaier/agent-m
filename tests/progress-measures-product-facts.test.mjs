@@ -867,6 +867,22 @@ test("TST-1175001 productFacts gives itemStates the accepted SPEC requirements w
       assert.deepEqual([facts.statuses.has("EVERY ARTIFACT HAS AN IDENTIFIER"), facts.statuses.get(UC1)?.status], [false, "accepted"], `${kind} ${scope} public statuses`);
     }
   }
+  const withoutReviewedFiles = Object.fromEntries(Object.entries(files).filter(([path]) => !path.startsWith("docs/approvals/")));
+  const storedWithoutReviewedFiles = await storedText(withoutReviewedFiles);
+  for (const [kind, make] of [["raw", () => fixture({ files: withoutReviewedFiles, pullRequests })],
+    ["stored", () => withStored(withoutReviewedFiles, storedWithoutReviewedFiles)]]) {
+    for (const scope of ["work", "build", "all"]) {
+      const f = make();
+      if (kind === "stored") f.host.listPullRequests = async () => pullRequests;
+      const facts = await productFacts(f.host, f.instance, f.instanceAt, NOW, { scope });
+      assert.deepEqual(facts.plan.states.filter((state) => ["ITM-1000", "ITM-1001"].includes(state.item)).map((state) => [state.item, state.state, state.reason]), [
+        ["ITM-1000", "done", null],
+        ["ITM-1001", "waiting for acceptance", "A MISSING ACCEPTANCE RULE is not accepted"],
+      ], `${kind} ${scope} without reviewed files`);
+      assert.equal([...facts.statuses.values()].filter((status) => status.status === "accepted").length, 0,
+        `${kind} ${scope} preserves no accepted public statuses`);
+    }
+  }
 });
 
 // TST-1117001 · level: unit · module: MOD-progress-measures

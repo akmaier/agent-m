@@ -154,6 +154,7 @@ async function allFacts(host, snapshot, stored, requirements = null) {
 }
 
 const requirementsOf = async (snapshot) => {
+  await snapshot.readMany?.([SPEC]);
   const specText = await snapshot.read(SPEC);
   return specText === null ? [] : [...parseSpec(specText).requirements.keys()];
 };
@@ -166,7 +167,6 @@ function realisedNames(items) {
 }
 
 async function acceptanceStatuses(approvals, items, requirements, snapshot) {
-  if (approvals.size === 0) return approvals;
   const known = new Set([...approvals.values()].map((status) => status?.id).filter(Boolean));
   const realised = realisedNames(items);
   if ([...realised].every((name) => known.has(name))) return approvals;
