@@ -64,6 +64,16 @@ actual findings explicit. Do not rewrite the old component expectations in `test
 each table's own scrolling box, body font 17px, requested width 640px, chart counts and times remain valid controls.
 All other old expectations, fixtures and helpers remain unchanged. No whole-UC release coverage is claimed.
 
+The chart outcome is verified on the actual rendered SVG at both 390px and 1280px, not by CSS font-size or Mermaid
+configuration alone. Measure the screen-space size of its visible text with the effective SVG screen transform and
+compare it with rendered body text, retaining the existing within-1px check at both widths: a configured 16px font
+scaled smaller on screen does not pass. For the same plotted series with enough axis labels to exercise the narrow
+form, verify positive visible axis labels at both widths and fewer visible axis labels on the phone, without reducing
+their rendered text size. Count labels actually visible within the chart/window geometry, not merely text nodes;
+clipped or offscreen labels and hiding all labels do not establish that outcome. Preserve all plotted points and
+values. The existing Electron/CDP path can observe screen transforms, visibility and viewport geometry without helper
+changes. This is the accepted Frame Parts chart clause's outcome and verification method, not a new API or formal rule.
+
 ## Acceptance
 
 - At a phone's width, the module's `backlog` and `roles` routes hold no table or chart wider than the window. The todos for
