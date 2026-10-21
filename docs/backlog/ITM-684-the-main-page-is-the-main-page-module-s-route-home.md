@@ -100,6 +100,16 @@ tests/main-page-no-token-requests.test.mjs may remove only the ancillary removed
 retain native TST842001/003 request1714 expectations, attributable701 reads, fixed13, 350-file delta coverage,
 and TST842004's31 requests/19 batches/no single-file fetches. No-token fallback coverage remains.
 
+In tests/main-page-home.test.mjs, TST847002 and TST847005 may change only the changed-job request-log kind
+from file to batch, with matching prose describing existing Snapshot.readMany prefetching. The third log entry
+remains exactly [batch, record]: docs/jobs/JOB-20261014-0900-0001.md for TST847002 and
+docs/jobs/JOB-20261016-1000-ffff.md for TST847005. Preserve the commit/tree entries, two requests for the unchanged
+poll and three for the changed poll, no reread of the other399 records, token routing and all initial-load counts.
+Keep all rows, stages and waits, no use-case/approval reads during polling, redraw counter-positive, clocks,
+Bridge request counts, IDs, unit levels, helpers and every other assertion unchanged. This permits no general
+request-bound relaxation or new public API: the existing current-snapshot docs/jobs/ prefix-prefetch then public
+listJobs pattern suffices without copying its private record matcher, parser or state derivation.
+
 tests/dashboard-notifications-wiring.test.mjs and dashboard-notifications.test.mjs may change only main-page
 fixture entry from removed home to actual Frame/MainPage; preserve component/release levels, authorship and
 all existing notification expectations. The UC047 system file changes only if its actual entry imports a removed
