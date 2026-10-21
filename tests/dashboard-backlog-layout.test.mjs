@@ -1,6 +1,6 @@
 // The Backlog page in a real browser, at a phone's width and at a desktop's: no table, panel or chart reaches past the margins
-// of the page's heading and the page does not scroll sideways — a wide table, and the burn-down chart, scroll in a box of their
-// own —; the chart's text is as large as the page's body text at both widths, and its line is drawn at least as wide as its
+// of the page's heading and the page does not scroll sideways — each wide table, and the desktop burn-down chart, scroll in a
+// box of their own while the phone boxes fit; every chart text is as large as the page's body text at both widths, and its line is drawn at least as wide as its
 // axes, in a colour that stands out from the chart's background.
 // Run: node --test tests/dashboard-backlog-layout.test.mjs
 //
@@ -216,7 +216,7 @@ function measure() {
 // guards: UC-032; UC-035; EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE
 // given: the live backlog route, its four tables, and the same plotted burn-down series at 390 px and 1280 px
 // input: each rendered table and chart box, and each rendered SVG text's screen geometry
-// expect: 390 px boxes fit without horizontal overflow while 1280 px keeps scrolling; every chart text remains body-sized and visible, with positive axis labels at both widths and fewer on the phone
+// expect: 390 px boxes fit without horizontal overflow while 1280 px keeps scrolling; every chart text remains body-sized, and positive axis labels are visible at both widths and fewer on the phone
 test("TST-919001 #backlog in a browser — tables, panels and the chart keep the heading's margins; the chart reads as clearly as its axes", { timeout: 120000, concurrency: false }, async (t) => {
   await acquireNativeFixtureLock();
   let child = null, server = null, entryFolder = null, released = false;

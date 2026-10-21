@@ -4,7 +4,7 @@
 // the other teams' sprints hold, with its sprint and the modules it changes and uses; *Start sprint* commits the team's sprint through MOD-work-plans' startSprint as the person's own commit, on the person's click: the one
 // write of this route. Everything else is read from the product's repository and its pull requests and derived when shown; nothing is stored (PROGRESS AND JOB STATE ARE DERIVED, NOT STORED). Every part explains itself
 // (EVERY STEP EXPLAINS ITSELF). The layout is the one of the review pages: a head, panels, list tables, buttons and badges — no style of its own; each table stands in a box that scrolls sideways where the page is
-// narrower than the table, and the burn-down chart keeps the width at which its text is the size of the page's body text, scrolling sideways in its box where the page is narrower — widths and sizes as the site's
+// narrower than the table, and the burn-down chart keeps its text the size of the page's body text while it fits its narrow box with fewer visible axis labels — widths and sizes as the site's
 // src/theme/lme.css gives them.
 //
 // Module: MOD-implementation-pages
