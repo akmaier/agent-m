@@ -166,6 +166,7 @@ function realisedNames(items) {
 }
 
 async function acceptanceStatuses(approvals, items, requirements, snapshot) {
+  if (approvals.size === 0) return approvals;
   const known = new Set([...approvals.values()].map((status) => status?.id).filter(Boolean));
   const realised = realisedNames(items);
   if ([...realised].every((name) => known.has(name))) return approvals;
