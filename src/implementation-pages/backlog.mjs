@@ -176,7 +176,7 @@ const chartWidth = () => Math.min(burnDownWidth() ?? 700, Math.max(1, (globalThi
 // The Mermaid chart of a sprint's items left over time. Given `width`, it is drawn that wide; given `size`, its title and its axes' labels and titles are drawn at `size` px — both by Mermaid's own configuration of the chart.
 function burnDownChart(name, points, { width = null, size = null, height = null } = {}) {
   const most = Math.max(1, ...points.map((point) => point.remaining));
-  const xAxis = `{ labelFontSize: ${size}, titleFontSize: ${size}, labelPadding: 0 }`;
+  const xAxis = `{ labelFontSize: ${size}, titleFontSize: ${size}, labelPadding: 5, labelRotation: -60 }`;
   const yAxis = `{ labelFontSize: ${size}, titleFontSize: ${size} }`;
   const settings = [...(width ? [`    width: ${width}`] : []), ...(height ? [`    height: ${height}`] : []), ...(size ? [`    titleFontSize: ${size}`, `    xAxis: ${xAxis}`, `    yAxis: ${yAxis}`] : [])];
   const config = settings.length ? ["---", "config:", "  xyChart:", ...settings, "---"] : [];
