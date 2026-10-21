@@ -4,6 +4,6 @@
 
 | Role | Participants |
 |---|---|
-| Product Owner | po-opus |
-| Scrum Master | scrum-master-opus |
-| Developers | developer-sonnet-a, developer-sonnet-b, developer-sonnet-c, developer-sonnet-d, developer-sonnet-e |
+| Product Owner | po-sol |
+| Scrum Master | scrum-master-session |
+| Developers | developer-terra-a, developer-terra-b, developer-terra-c, developer-terra-d, developer-terra-e |
