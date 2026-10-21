@@ -59,8 +59,9 @@ MainPage retains public go; ITM-1165 supplies cross-page navigation. No public a
   read through existing Snapshot/readMany batching. This is a code-derived risk to verify, not a claimed executed
   failure. Preserve job/live-only polling, no PR/stage/waits polling, hidden-page pause/resume and no-token no-poll.
   No new public API, cache format, custom staging or helper changes.
-- Source scope: MainPage entry and owned parts; ProgressMeasures only its declared legacy-file removal and
-  coverage migration after1175, not another statistics algorithm. Notifications is fixture-entry migration only;
+- Source scope: MainPage entry and owned parts; ProgressMeasures only its declared legacy-file removal,
+  coverage migration after1175 and the bounded internal item-input ordering below, not another statistics algorithm.
+  Notifications is fixture-entry migration only;
   RepositoryHosts is the existing no-backend known-positive live Source path only. No production behavior change
   in Notifications or RepositoryHosts. Frame owns the shared product selector's accessible name and process-menu
   entry keys, not MainPage. Its actual root selector must have an accessible name; TST905033 retains its unfiltered
@@ -96,6 +97,16 @@ the accepted main-entry migration, not permission to alter geometry or waive a m
 
 tests/progress-measures-home-item-digits.test.mjs migrates off the removed progress file to native productFacts:
 retain all three/four-digit ordering/counting outcomes and rejection of two-digit identifiers.
+For TST1088001/002, preserve the literal numeric order [ITM-100, ITM-999, ITM-1000], total3 and done3;
+ITM-99 remains excluded. TST1088003 retains the single ITM-1000 backlog/total1/done1 positive. ProgressMeasures
+may normalize its item inputs by numeric identifier before calling public WorkPlans.itemStates, consistently
+for all/work/build scopes and raw/stored facts. This is only the deterministic input order where no declared
+plan order or dependency dictates otherwise: explicit plan order and backlog dependency order still come from
+public WorkPlans, and the returned state order must not be re-sorted around them. No WorkPlans Source change,
+second ordering/state algorithm, public API, cache-format or statistics change. Keep every old expected value,
+ID, unit level, fixture, helper and other assertion intact; use the existing actual red and known positive,
+without imposing a new whole-CI-red cycle. One Responsibility keeps normalization in its existing facts owner;
+DRY and KISS retain public WorkPlans as the sole plan/dependency ordering and state derivation.
 tests/main-page-no-token-requests.test.mjs may remove only the ancillary removed-old-page baseline/comparisons:
 retain native TST842001/003 request1714 expectations, attributable701 reads, fixed13, 350-file delta coverage,
 and TST842004's31 requests/19 batches/no single-file fetches. No-token fallback coverage remains.
