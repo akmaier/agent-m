@@ -6,11 +6,13 @@ realises:
   - EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE
 modules:
   - MOD-implementation-pages
+  - MOD-site-frame
 builds_on:
   - ITM-681
   - ITM-904
 tests:
   - unit
+  - system
 origin:
   - ITM-904's findings (sprint team1/89), `tests/site-usability.test.mjs`
 ---
@@ -20,32 +22,47 @@ origin:
 
 ## Outcome
 
-ITM-904's check finds, at a phone's width, that `#backlog`'s tables and both its charts and `#roles`' table are wider than
-the window. Both pages are still drawn by the old views `docs/assets/dashboard/backlog-view.mjs` and `roles-view.mjs`.
-MOD-implementation-pages.md:117-118 names these as taken over: "removed once this module's route `backlog` is built and the
-live app shows it", and the routes `process` and `roles` likewise. So the fix is in this module's routes, once they are
-live (ITM-681). The old views are changed only by the job that moves them (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO
-IT`).
+The live native routes in `src/implementation-pages/backlog.mjs` and `roles.mjs` still draw tables wider than a phone,
+and backlog draws both burn-down charts at 700px. `widthFindings` in `tests/site-usability.d/inspect.mjs` checks the
+actual table and SVG, not merely their scrolling containers. TST-904117 and TST-904126 retain the corresponding
+findings. The old legacy routes are not the implementation target.
 
-## Not ready: it begins with a draft for akmaier
+## Readiness and scope
 
-At its first task in sprint team1/102, developer-sonnet-b found that the texts do not give a table, or the burn-down
-chart, a form that fits a phone:
-- `widthFindings` (`tests/site-usability.d/inspect.mjs:86-99`) finds every element wider than the window, a table in a
-  `.table-scroll` box included.
-- The chart keeps `--burn-down-width: 700px` (`src/theme/lme.css:80-83`).
-- A table's columns reflow only through a style-sheet rule. The style sheets are MOD-site-frame's, and MOD-site-frame.md
-  names `look.css` (:87) and `lme.css`'s removal (:97), but no narrow form of a table and no width of the chart on a
-  phone.
+MOD-implementation-pages blob `b177dbe3c2bc208e38acdcb920dc1a04dd50096f` and MOD-site-frame blob
+`d38b1f2e6ef8946e0a995d2d28ae2d2b770d4bfa` are accepted. Frame's Parts already give the narrow table and burn-down
+forms; no draft acceptance or whole-page switch to `start.mjs` is pending for this item. Both live entry pages load
+`look.css` already. The prerequisites ITM-681 and ITM-904 are delivered.
 
-The draft, of MOD-site-frame, gives one rule that serves `#backlog`, `#roles`, `#arc` and `#module` (*nothing twice*):
-- a narrow form of a table in `look.css` below a phone's width, each row's cells one under another and labelled by
-  their column, saying where the labels come from;
-- the burn-down chart no wider than the window, saying what holds of its text size there.
+Implementation-pages owns the native tables' column-title `data-label` attributes and the chart's requested width and
+axis labels. Frame owns the single shared narrow-table rule in `look.css`: below 600px each row's cells stack and show
+their column labels, with no route-owned style. Its accepted chart contract keeps the requested desktop property
+width, fits the narrower window less page margins, and keeps body-sized text by drawing fewer axis labels, not by
+shrinking the SVG's text. Preserve the plotted data, merge times, counts, line and axis meaning. Change only the owned
+route files and the shared styles needed for this outcome; no unrelated route, wholesale migration, helper, custom
+staging or private legacy-file edit. Shared Frame writers are serialized.
 
-ITM-1159 starts on the same draft.
+## Tests and exact old-expectation boundary
 
-**The draft is `3ef0fce2`**, on `main`, waiting for akmaier.
+The real-browser usability and backlog-layout files are system tests. Existing component and unit cases keep their
+levels and expectations except for the exact system boundary below. New cases declare their module, level, guarded
+input and literal expected result before Source; browser titles begin with their declared TST identifier. Use the
+unchanged browser/site/route helpers, which serve actual worktree files; Electron staging caches only its binary.
+
+In `tests/dashboard-backlog-layout.test.mjs`, the existing case named
+`#backlog in a browser — tables, panels and the chart keep the heading's margins; the chart reads as clearly as its axes`
+currently requires the chart to scroll wider than its box at 390px. Only that phone-only scrolling policy and its
+matching header/expected-result prose may change to require the actual tables and chart to fit without horizontal
+overflow. The phone-only requirement for a scrolling overflow mode may likewise become the no-overflow outcome;
+keep the individual containers, four exact table parts, heading/panel margins and document-width check. Preserve
+the 1280px desktop checks, body-sized chart text within 1px, positive text/axis controls, line width relative to axes
+and contrast of at least 3. This is not permission to delete the case, shrink its text or weaken readability checks.
+
+In `tests/site-usability.test.mjs`, remove only the resolved `#backlog` and `#roles` width TODO reasons for
+TST-904117/126; their literal empty-findings expectations, route inputs and all other controls remain. Keep other
+actual findings explicit. Do not rewrite the old component expectations in `tests/dashboard-backlog-teams.test.mjs`:
+each table's own scrolling box, body font 17px, requested width 640px, chart counts and times remain valid controls.
+All other old expectations, fixtures and helpers remain unchanged. No whole-UC release coverage is claimed.
 
 ## Acceptance
 
