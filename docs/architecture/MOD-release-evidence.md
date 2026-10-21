@@ -138,7 +138,8 @@ Tags of a product's line: `v<YYYY.MINOR.PATCH>` for a release, `v<YYYY.MINOR.PAT
   string, date: string } | null) -> { summary: { passing: number, noTest: number, notPassed: number, flaky: number,
   worse: number, byImplementer: number, accepted: boolean, limitations: string[] }, rows: Array<{ requirement: string,
   constrains: "product" | "process", sources: Array<{ id: string, authority: string, version: string, hashes: string[] }>,
-  tests: Array<{ id: string, level: string, outcome: string, counterProof: string | null }>, gates: string[] }>,
+  tests: Array<{ id: string, level: string, outcome: string, counterProof: string | null, worse: boolean,
+  byImplementer: boolean }>, gates: string[] }>,
   evidence: { report: { path: string, blob: string } | null, records: Array<{ path: string, blob: string }>, acceptance:
   { person: string, date: string, blob: string } | null } }` — one
   row per requirement valid at the release, a requirement without a test or without a passing outcome included and
@@ -155,6 +156,10 @@ Tags of a product's line: `v<YYYY.MINOR.PATCH>` for a release, `v<YYYY.MINOR.PAT
   author and date, which the caller reads through MOD-repository-hosts' `readHistory` of the record's path with
   `changes: false`, as it reads `gates`, since this module reads no history. A release with no report or no such record
   on `head` gives `report: null` or `acceptance: null`, and `summary.limitations` names what is missing.
+  A test's `worse` says that its rate on the release commit is worse than on the last release's, and its `byImplementer`
+  that it is a release test whose writer is an implementer of the requirement (above), so that the rows a summary number
+  counts are told from the rows alone: `summary.worse` counts the rows holding a test with `worse`, and
+  `summary.byImplementer` the distinct tests with `byImplementer`, each in the rows that hold it.
 - `auditDocument(audit: { summary: object, rows: object[], evidence: object }, release: { tag: string, commit: string })
   -> string` — the
   self-contained Markdown document of the audit; the browser saves it, and a person with write access may commit it to

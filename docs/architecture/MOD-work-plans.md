@@ -68,6 +68,7 @@ provides:
   - backlogFindings
   - sprintFacts
   - sprintsToClose
+  - targetBranch
   - giveUpIncrement
   - savePlan
   - saveItems
@@ -194,6 +195,13 @@ assignment is the one of the team whose sprint holds it, and the product's one i
   which an item's `realises` come, and `tests` the tests of the product with the requirements each guards, so that an
   item's tests are those that guard a requirement it realises; `results` is the branch `test-results`; a cost
   only where a job's row has one (`NO COST IS GUESSED`).
+- `targetBranch(item: string, context: { sprints: Document[], order: Document | null, branches: Record<string,
+  string>, defaultBranch: string }) -> string` — the branch a plan step's or backlog item's work is merged into: the
+  `branch` of the sprint whose current selection names it and whose record holds neither `## Review` nor `## Increment
+  given up`, where that record names one; else the branch `branches` gives the step's phase in `order`; else
+  `defaultBranch` (`A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS OWN`, `WORK MERGES INTO THE DEFAULT BRANCH
+  UNLESS A BRANCH IS SET`). `branches` is the declaration's `## Branches` as MOD-product-process' `branchesOf` gives
+  it. It reads nothing.
 - `sprintsToClose(sprints: Document[], states: ItemState[], today: string) -> Array<{ sprint: string, closer: string,
   because: "time box ended" | "every selected item done" | "ended by the Product Owner" }>` — every sprint whose record
   holds no `## Review` and that has ended: its `end` date is before or on `today`; or, without a time box, every item of

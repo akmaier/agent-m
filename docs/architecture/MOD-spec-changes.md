@@ -208,7 +208,9 @@ earlier entry of the queue creates it.
     section and state (`DERIVATION SEES THE EXISTING REQUIREMENTS`); its part carries each of them as an artifact, keyed
     by its name and its rule, against which `candidate-classes` classifies a draft;
   - recipe `whole-spec` — the SPEC as it stands, as one part;
-  - recipe `named-requirements` — the requirements the job's parameters name, each with its whole section;
+  - recipe `named-requirements` — the requirements the job's parameters name, each with its whole section; each part
+    carries its requirement as an artifact, as `spec-with-queues` does — its name as the identifier, its name and its
+    rule as the key — so that the job runner counts it (`NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY`);
   - recipe `chosen-requirements` — the requirements the person chose; without a choice, every requirement of the SPEC
     that no use case realises;
   - writer `queue-entries` — writes the candidates by the result's classes, as the person left them, as a new queue of

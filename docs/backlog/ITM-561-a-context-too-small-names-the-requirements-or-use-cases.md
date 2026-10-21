@@ -8,6 +8,10 @@ realises:
   - NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY
 modules:
   - MOD-job-runner
+  - MOD-spec-changes
+  - MOD-approvals
+  - MOD-prompt-bar
+  - MOD-site-frame
 builds_on:
   - ITM-514
 tests:
@@ -38,3 +42,17 @@ recipes that give `named-requirements`, `spec-with-queues` and `use-case-with-ne
 
 - ITM-514's todo tests TST-377011 and TST-418121 pass, with counter-proofs.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**The drafts are on `main`**, by developer-sonnet-d, one per module. The item is built once all five are accepted.
+- `093bffd7` (MOD-job-runner): the runner counts every part's `artifacts` by `kindOfIdentifier`, and names no recipe.
+- `3449dc2c` (MOD-spec-changes): `named-requirements` carries each requirement as an artifact.
+- `9776c220` (MOD-approvals): `use-case-with-neighbours` carries each use case and requirement as an artifact.
+- `5b78c1b4` (MOD-prompt-bar): the bar's wording.
+- `701fc406` (MOD-site-frame): the run panel's wording, which rests on MOD-site-frame's draft `3ef0fce2`.
+
+**The artifacts and `candidate-classes`, read for the drafts.** Of the kinds that use `named-requirements` or
+`use-case-with-neighbours`, only `change-requirements` runs `candidate-classes` (MOD-job-catalogue.md, its kinds' table).
+Its `spec-with-queues` part already carries every requirement of the SPEC as an artifact, keyed by its name and its rule
+(MOD-spec-changes.md, `spec-with-queues`). So the artifacts `named-requirements` now carries add no key, and the classes
+do not change. `change-use-case` runs no `candidate-classes`.
+

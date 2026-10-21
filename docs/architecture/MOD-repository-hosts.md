@@ -143,8 +143,11 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
   opened: string, closed: string | null, comments: { author: string, body: string, date: string }[] }`: `opened` the
   date and time the issue was opened, `closed` the date and time the server reports it closed, `null` while it is open.
 - `RepositoryInfo` — `{ defaultBranch: string, visibility: "public" | "private" | "internal", canWrite: boolean,
-  archived: boolean, description: string }`: `description` is the repository's one-line description on its server, empty
-  where it has none.
+  archived: boolean, description: string, greenToMerge: boolean | null }`: `description` is the repository's one-line
+  description on its server, empty where it has none; `greenToMerge` whether the server refuses a merge into the default
+  branch until its required checks have passed — on GitHub a protection of that branch, or an active rule of a ruleset
+  that applies to it, that requires status checks; on GitLab the project's setting that pipelines must succeed —, `null`
+  where the stored token may not read it.
 - `Release` — `{ tag: string, name: string, published: string, notes: string, assets: { name: string, size: number | null,
   url: string, sha256: string | null }[] }`: a release with its files — each with its size, the address a person downloads
   it from, and the SHA-256 the server reports for it, or `null` where the server reports none.
@@ -154,10 +157,12 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
   projectTokens: string | null, secrets: string, newFile(path: string, record: string) -> string | null, editFile(path:
   string) -> string, actions: string, run(id: string) -> string, commitRuns(commit: string) -> string, branch(name:
   string) -> string, file(path: string, ref: string) -> string, runners: string, pipelineSchedules: string | null,
-  pagesSettings: string, fork: string | null, newRepository: string }`: the server's own pages; a page the server does not offer is `null`. `commitRuns` is the page
+  pagesSettings: string, fork: string | null, newRepository: string, branchProtection: string }`: the server's own
+  pages; a page the server does not offer is `null`. `commitRuns` is the page
   of the runs or pipelines of one commit, `branch` the page of a branch's files, `file` the page that shows one file as it
   stands at a branch, a tag or a commit, to read and not to edit, `runners` the page on which a self-hosted
-  runner is registered to the repository, which shows the command to run on its machine.
+  runner is registered to the repository, which shows the command to run on its machine, `branchProtection` the page on
+  which the rule behind `greenToMerge` is set.
 - `HostError` — the failures every function below names, each an error with its fields:
   `TokenRefused { tokenName, renewal }` — the server refused the token, which is named with the page where it is renewed
   with the same permissions and repositories (`AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED`);
@@ -201,7 +206,8 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
 - `listTags(pattern?: string) -> Promise<{ name: string, commit: string }[]>` — the tags, optionally only those matching
   a pattern such as `v*`. Crosses the network; fails as `readSnapshot`.
 - `repositoryInfo() -> Promise<RepositoryInfo>` — the default branch, the visibility the server reports, whether the
-  stored token may write. Crosses the network; fails as `readSnapshot`.
+  stored token may write, and whether the server enforces green CI before a merge into the default
+  branch. Crosses the network; fails as `readSnapshot`.
 - `createBranch(name: string, from: string) -> Promise<void>` — a branch at a commit. Crosses the network; fails with
   `TokenRefused`, `PermissionMissing`, `RateLimited`, `Unreachable`, or `NotSupported` without a token.
 - `commitFiles(change: { branch: string, expectedHead: string | null, files: FileWrite[], message: string }) -> Promise<{ commit:

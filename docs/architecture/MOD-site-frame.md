@@ -209,7 +209,8 @@ It keeps nothing but what is on the screen. It owns these formats:
 - `runPanel(prepared: Prepared, handlers: { onRun: () -> Promise<void>, onCancel?: () -> void }) -> Element` — the panel
   before a job runs (`THE PAGE NAMES WHERE IT SENDS`): every destination — the participant, its part as drafter,
   reviewer or checker, its model, where it processes data — and what goes there, part by part with its size against the
-  participant's context and the requirement sources whose content it carries; what does not fit, and why; a part left
+  participant's context and the requirement sources whose content it carries; what does not fit, and why, with how many requirements and use cases the destination holds and how many of them fit,
+  from the `holds` and `fitting` of its `notFitting` entry (UC-019 4a); a part left
   out, with its reason; the findings that keep the job from starting; the limit of correction rounds fixed for it. *Run*
   is offered only when nothing keeps the job from starting and everything fits; pressing it is the decision and calls
   `onRun`. What the panel of a use case names besides — the route, the gates the jobs will meet, a run's limits — the

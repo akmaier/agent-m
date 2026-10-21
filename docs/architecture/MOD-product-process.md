@@ -44,6 +44,7 @@ provides:
   - roleAssignmentSchema
   - roleAssignmentFindings
   - workflowOf
+  - branchesOf
   - productWorkflow
   - holdsRole
   - gateSchema
@@ -158,6 +159,8 @@ once (`THE GATE IS RECORDED`, `A RECORD IS EVIDENCE, NOT A PROPOSAL`):
     source's content is then never given to that holder (`RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS`).
   - The same participant in the role assignments of several teams is no finding (`A PARTICIPANT MAY SERVE SEVERAL
     TEAMS`).
+- `branchesOf(declaration: Document) -> Record<string, string>` — the declaration's `## Branches`, each phase or time
+  box with its branch; empty without the section. `workflowOf` gives it as `Workflow.branches`.
 - `workflowOf(declaration: Document, model: Model, practices: Document[], instanceSpec: string) -> Workflow` — the model's
   phases, transitions, pairs and gates, the practices' additions, and the gates and artifacts the process requirements
   add, as the declaration's `## Gates added by requirements` names them, each marked with its requirement and the source

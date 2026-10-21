@@ -45,6 +45,11 @@ uses:
   - MOD-repository-hosts.PullRequest
   - MOD-repository-hosts.CiRun
   - MOD-repository-hosts.repositoryInfo
+  - MOD-work-plans.targetBranch
+  - MOD-work-plans.planSchemas
+  - MOD-product-process.declarationSchema
+  - MOD-product-process.branchesOf
+  - MOD-documents.readDocument
   - MOD-bridge-client.Bridge
   - MOD-bridge-client.ask
   - MOD-bridge-client.handOver
@@ -266,8 +271,9 @@ a person's decision.
   commit ends the job's record as failed with the server's reason. A secret the run lacks ends it `not run`, naming the
   secret (MOD-workflow-entries), and the prompt bar shows that (UC-049 4c).
 - `routeStrategies` — `Partial<Strategies>` with the writer `branch-and-pull-request`.  reads the branch named after the job
-  and its commits. With a host of a server's API, it opens the pull request if the coding participant has not — into the default branch the host's
-  `repositoryInfo` names —, gives it
+  and its commits. With a host of a server's API, it opens the pull request if the coding participant has not — into
+  MOD-work-plans' `targetBranch` of the item or step the job works on, over the product's sprint records, plan order
+  and declared branches, with the default branch the host's `repositoryInfo` names —, gives it
   a description that names the job, the plan step or backlog item, its modules, the requirements its new tests guard —
   read with MOD-test-document's `testDeclarations` — and the provenance lines, and returns its address. With a local host
   — a Bridge's clone, which makes no server requests and throws `NotSupported` for them — it opens nothing and returns
@@ -301,7 +307,10 @@ through MOD-browser-store, it reads `browser`, and writes it where it is not set
   `MOD-repository-hosts.openPullRequest`, `MOD-repository-hosts.listPullRequests` — the CI route and the pull request;
   `MOD-repository-hosts.readHistory`, `MOD-repository-hosts.readFileAt` — a job's branch, the commits written after its
   cancel, and the texts a revert restores;
-  `MOD-repository-hosts.repositoryInfo` — the default branch a pull request the writer opens goes into;
+  `MOD-repository-hosts.repositoryInfo` — the default branch; `MOD-work-plans.targetBranch`,
+  `MOD-work-plans.planSchemas`, `MOD-product-process.declarationSchema`, `MOD-product-process.branchesOf`,
+  `MOD-documents.readDocument` — the branch a pull request the writer opens goes into, from the sprint records, the
+  plan's order and the declared branches;
   `MOD-repository-hosts.startWorkflow` — the start of a handed-over job, with its task.
 - `MOD-participant-list.reachedThrough` — a subagent's route through the participant that starts it.
 - `MOD-bridge-client.Bridge`, `MOD-bridge-client.ask`, `MOD-bridge-client.handOver`, `MOD-bridge-client.bridgeJobs`,
