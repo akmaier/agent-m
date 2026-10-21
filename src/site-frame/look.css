@@ -40,3 +40,7 @@
 .btn.primary:hover { background: var(--fau-dark); }
 /* A button, or a link drawn as one, and the text beside it on the same line stand apart by a visible gap, however the view wrote them. */
 button, .btn { margin-inline: .35em; }
+
+/* The review frame's accepted status and folded explanations meet the shared WCAG check. */
+body .b-accepted { color: #155724; background: #d4edda; }
+body details.explain > summary { display: inline-flex; align-items: center; min-height: 24px; }

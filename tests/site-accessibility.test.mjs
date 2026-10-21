@@ -34,17 +34,15 @@ const WIDTHS = [["phone", 390], ["desktop", 1280]];
 // What the pages violate today, as measured in the controlled Electron (the CI's run is the reference): the rules of axe-core, each with
 // what it found, and per route the rules it violates at one width or the other. Each is a todo until the module of its route fixes it.
 const RULE = {
-  menu: "aria-required-children: the menu (nav#tabs, role tablist) holds children that are no tabs (the header of docs/index.html, src/site/menu.mjs)",
-  contrast: "color-contrast: the text of a status badge (.b-accepted) is below the contrast AA asks (MOD-review-pages' lists, look)",
+  contrast: "color-contrast: the text of a superseded status badge (.b-superseded) is below the contrast AA asks",
   scroll: "scrollable-region-focusable: a box that scrolls cannot be reached with the keyboard",
-  target: "target-size: a summary is smaller than 24 px at a phone's width",
+  target: "target-size: a return link is smaller than 24 px",
 };
 const PER_ROUTE = {
   "/": [],
-  "#uc": ["menu", "contrast"], "#uc/UC-001": ["menu", "contrast"], "#use-case/id=UC-002/edit=1": ["menu", "target"],
-  "#arc": ["menu", "contrast"], "#arc/ARC-001": ["menu", "contrast"], "#arc/MOD-reader": ["menu", "contrast"],
-  "#decision/id=ARC-001/edit=1": ["menu", "target"], "#module": ["menu", "contrast"],
-  "#module/id=MOD-reader/edit=1": ["menu", "target"], "#backlog": ["menu", "contrast"],
+  "#use-case/id=draft": ["target"],
+  "#spec-entry/id=spec-2026-10-18_sample-01/edit=1": ["target"],
+  "#backlog": ["contrast"],
 };
 const TODAY = Object.fromEntries(ROUTES.map((route) => [route.address, (PER_ROUTE[route.address] ?? ["menu"]).map((rule) => RULE[rule]).join("; ")]));
 
@@ -137,6 +135,24 @@ for (const route of ROUTES) {
       }
     });
 }
+
+// TST-922001 · level: system · module: MOD-site-frame
+// guards: THE SITE SERVES A SCREEN READER
+// given: the public Frame routes at phone and desktop widths in the existing Electron and axe check
+// input: aria-required-children in the menu on every route, color-contrast on #arc, #module and #backlog, and target-size on the phone-width explanation summaries of #use-case/id=UC-002/edit=1, #decision/id=ARC-001/edit=1 and #module/id=MOD-reader/edit=1
+// expect: the menu, those accepted badges and those three explanation summaries have no named violation
+test("TST-922001 the shared menu, accepted badges and folded explanations have no remaining Frame accessibility violation", () => {
+  for (const route of ROUTES) {
+    for (const [kind] of WIDTHS) {
+      const rules = ["aria-required-children"];
+      if (["#arc", "#module", "#backlog"].includes(route.address)) rules.push("color-contrast");
+      if (kind === "phone" && ["#use-case/id=UC-002/edit=1", "#decision/id=ARC-001/edit=1", "#module/id=MOD-reader/edit=1"].includes(route.address)) rules.push("target-size");
+      const violations = found.get(`${route.address} ${kind}`).violations.filter((each) => rules.includes(each.id)
+        && (each.id !== "color-contrast" || each.first.includes(".b-accepted")));
+      assert.deepEqual(violations.map((each) => `${each.id} (${each.nodes}: ${each.first})`), [], `${route.address} at a ${kind}'s width violates`);
+    }
+  }
+});
 
 // The page the counter-proofs plant in, as it is, has no violation of the two rules the plants break — the known positive.
 test(`${testId(905, CASES[905].plantedBefore)}: the page before the planting has no violation of button-name or image-alt`, () => {

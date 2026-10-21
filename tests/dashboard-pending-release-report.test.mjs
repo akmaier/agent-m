@@ -74,12 +74,12 @@ test("TST-289101: public #release reopens the selected product's pending report 
   richDocument();
   await page.go("#release");
   const tabs = page.el("tabs").split("\n");
-  const release = '<a href="#release" role="tab" id="tab-release" data-entry="releases">Releases</a>';
+  const release = '<a href="#release" id="tab-release" data-entry="releases">Releases</a>';
   const releasePosition = tabs.indexOf(release);
   assert.ok(releasePosition > 0, "the process menu links the built Release view");
   assert.equal(tabs[releasePosition - 1], '<span class="soon" data-entry="tests" aria-disabled="true" title="Tests — not built yet">Tests</span>',
     "Release follows Tests in the process menu");
-  assert.equal(tabs[releasePosition + 1], '<a href="#mail" role="tab" id="tab-mail" data-entry="maintenance" title="Issues and mail">Maintenance</a>',
+  assert.equal(tabs[releasePosition + 1], '<a href="#mail" id="tab-mail" data-entry="maintenance" title="Issues and mail">Maintenance</a>',
     "Maintenance follows Release in the process menu");
   assert.match(page.main(), new RegExp(`Release candidate ${TAG}`));
   assert.match(page.main(), /TST-100.*A SAMPLE REQUIREMENT.*Recorded release entry/s);
