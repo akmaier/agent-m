@@ -16,7 +16,7 @@ import { openDashboard, repoServer } from "./app-harness.mjs";
 // input: open #add, then #get-your-own/step=actions, an unserved address, and #add again
 // expect: #add keeps drawing Add a product; get-your-own draws its Actions step; an address no view answers keeps the existing
 // review fallback; and the old #add alias still draws Add a product after that negative control
-test("TST-1165003 the legacy review entry serves add-product and get-your-own while keeping its add alias and unknown-route fallback", async () => {
+test("TST-1165003 the legacy review entry serves get-your-own while keeping its add alias and unknown-route fallback", async () => {
   const page = await openDashboard({ server: await repoServer({ files: { "README.md": "# Agent M\n" } }), hash: "#add" });
   assert.match(page.main(), /Add a product/, "#add is the existing positive alias");
 
@@ -28,4 +28,14 @@ test("TST-1165003 the legacy review entry serves add-product and get-your-own wh
 
   await page.go("#add");
   assert.match(page.main(), /Add a product/, "the legacy alias remains served");
+});
+
+// TST-1165004 · level: component · module: MOD-site-frame
+// guards: UC-014; THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE
+// given: the real legacy review entry with the views it normally loads
+// input: open the canonical #add-product address
+// expect: it draws the actual Add a product route, separately from the preserved #add alias
+test("TST-1165004 the legacy review entry serves the canonical add-product route", async () => {
+  const page = await openDashboard({ server: await repoServer({ files: { "README.md": "# Agent M\n" } }), hash: "#add-product" });
+  assert.match(page.main(), /Add a product/, "the canonical route does not fall back to the review list");
 });
