@@ -1014,7 +1014,7 @@ A run carries out the product's process model over what you select. You select t
 
 This page shows what the tests said about the commit named above. Each level counts its passed, failed, flaky and not run tests; opening a level shows the individual tests, including what each guards. **Not run** means no result was recorded for that test on this commit. It does not mean passed.
 
-A **failed** test has a recorded result that did not meet its expectation. A **flaky** test has both a passing and a failing result on this same commit, so it is not treated as passed. A test that depends on a model shows its rate beside the rate from the previous release, so you can see whether it became worse.
+A **failed** test has a recorded result that did not meet its expectation. A **flaky** test has both a passing and a failing result on this same commit, so it is not treated as passed. A flaky test is repaired or removed, not retried until green. A test that depends on a model shows its rate beside the rate from the previous release, so you can see whether it became worse.
 
 Choose *Run on this commit* to start the levels that still need a result. Before it starts, the page shows where the run will happen, any paid services it calls, and the secrets it uses by name.
 

@@ -290,7 +290,7 @@ test("runs — where the records can be read, the links of the unreadable case a
 // guards: UC-028; EVERY STEP EXPLAINS ITSELF
 // given: a valid fixture commit whose detail page lists per-level and per-test results
 // input: the public route runs rendered for that commit
-// expect: the detail page carries one folded shared explanation: details.explain with summary "What is this?" and nonempty text that says a missing result is not run and distinguishes failed from flaky results
+// expect: the detail page carries one folded shared explanation: details.explain with summary "What is this?" and nonempty text that says a missing result is not run, distinguishes failed from flaky results, and says a flaky test is repaired or removed rather than retried until green
 test("runs — a commit detail explains its results through the shared folded frame", async () => {
   const shown = await page();
   const folds = byClass(shown, "explain");
@@ -302,4 +302,5 @@ test("runs — a commit detail explains its results through the shared folded fr
   assert.ok(body.textContent.trim().length > 0, "the explanation has text");
   assert.match(textOf(body), /not run/i);
   assert.match(textOf(body), /failed.*flaky|flaky.*failed/i);
+  assert.match(textOf(body), /repaired or removed.*not retried until green/i);
 });

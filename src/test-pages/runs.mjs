@@ -8,7 +8,7 @@
 // what is still missing. Readings: a failed outcome is entered with what the person saw, which goes into the record's Failures row with the declaration's expected result and the log cell "entered by hand"; a
 // `|` or a line break in that text is written as `/` or a space, so that it stays one cell.
 //
-// Run on this commit is ITM-761. ITM-1172 adds the shared folded explanation for this commit-detail page; its topic stays in MOD-site-frame's explanations.md.
+// The commit-detail page draws its folded explanation through the frame; its topic stays in MOD-site-frame's explanations.md.
 //
 // Readings the texts leave open: the log of a failed test is asked of ciRunLog with the id that ends the record's `run` address, when webLinks().run(id) gives that address back; the last release
 // is the highest tag v<major>.<minor>.<patch>; a record is read with readDocument and resultSchema.run, since readRegister refuses a schema of two tables.
