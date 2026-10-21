@@ -265,6 +265,19 @@ test("TST-1163002 the worse and byImplementer numbers open exactly their provide
   }
 });
 
+// TST-1163004 · level: unit · module: MOD-trace-pages
+// guards: UC-030; THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE
+// given: a release test shared by the first and second requirement; its writer implemented only the first
+// input: the supplied byImplementer count is pressed
+// expect: only A FIRST RULE remains
+// Planted fault: deriving provenance in the view, or accepting a flag carried from the other row, fails.
+test("TST-1163004 the implementer count keeps only the shared test's qualifying requirement row", async () => {
+  const product = { ...productFiles(), "tests/release-a.test.mjs": declaration("TST-756102", "release", `${R1}; ${R2}`, "system") };
+  const target = await render(productHost({ product }));
+  await press(countOf(target, "byImplementer"));
+  assert.deepEqual(names(target), [R1]);
+});
+
 // TST-768005 · level: component · module: MOD-trace-pages
 // guards: UC-030; THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE; THE TRACEABILITY MATRIX IS DERIVED
 // given: the fixture; A FIRST RULE cites the book and IEC 62304 (normative), is guarded by 756101 (unit, a counter-proof) and 756102 and 756103 (release); A FOURTH RULE by 756104, flaky

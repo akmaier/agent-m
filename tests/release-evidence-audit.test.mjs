@@ -197,6 +197,19 @@ test("TST-1163001 auditRows returns worse and byImplementer on the row tests the
     [{ id: "TST-756102", worse: false, byImplementer: true }]);
 });
 
+// TST-1163003 · level: unit · module: MOD-release-evidence
+// guards: UC-030; THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE
+// given: TST-756102 guards both the first and second requirements; its writer implemented only the first
+// input: auditRows(...); the shared test in each requirement row and summary.byImplementer
+// expect: the first row says true, the second says false, and the distinct-test summary is one
+// Planted fault: carrying a test flag from one requirement row to another fails.
+test("TST-1163003 auditRows keeps shared release-test implementer provenance on its own requirement row", async () => {
+  const shared = declaration("TST-756102", "release", `${R1}; ${R2}`, "system");
+  const result = await audit({ product: { "tests/release-a.test.mjs": shared } });
+  assert.deepEqual([rowOf(result, R1), rowOf(result, R2)].map((row) => row.tests.find((test) => test.id === "TST-756102").byImplementer), [true, false]);
+  assert.equal(result.summary.byImplementer, 1);
+});
+
 // TST-756004 · level: unit · module: MOD-release-evidence
 // guards: THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE
 // given: the fixture; the process requirement's gate record is docs/gates/20261010-release-testing.md; a product requirement has none
