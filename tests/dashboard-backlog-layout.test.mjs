@@ -255,6 +255,7 @@ test("TST-919001 #backlog in a browser — tables, panels and the chart keep the
     const visiblePositiveLabels = new Map();
     for (const width of [390, 1280]) {
       await session.call("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: width < 600 });
+      await wait(async () => await evaluate(session, `document.querySelector("[data-burn-down]")?.getAttribute("data-chart-width") === String(Math.min(700, innerWidth - 72))`), stopped);
       await evaluate(session, `document.querySelector("[data-burn-down]").scrollIntoView({ block: "center", inline: "nearest" }), true`);
       const result = await evaluate(session, `(${measure})()`);
       const actual = JSON.stringify(result);

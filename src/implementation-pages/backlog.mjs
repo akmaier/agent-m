@@ -171,12 +171,13 @@ function remainingOverTime(items, mergedAt, start, end = "") {
 // The size of the page's body text, and the width the site keeps the burn-down chart at (src/theme/lme.css), in px, as the browser draws the page; null where nothing is drawn.
 const bodyTextSize = () => parseFloat(globalThis.getComputedStyle?.(globalThis.document?.body)?.fontSize) || null;
 const burnDownWidth = () => parseFloat(globalThis.getComputedStyle?.(globalThis.document?.documentElement)?.getPropertyValue?.("--burn-down-width")) || null;
+const chartWidth = () => Math.min(burnDownWidth() ?? 700, Math.max(1, (globalThis.innerWidth ?? 700) - 72));
 
 // The Mermaid chart of a sprint's items left over time. Given `width`, it is drawn that wide; given `size`, its title and its axes' labels and titles are drawn at `size` px — both by Mermaid's own configuration of the chart.
-function burnDownChart(name, points, { width = null, size = null } = {}) {
+function burnDownChart(name, points, { width = null, size = null, height = null } = {}) {
   const most = Math.max(1, ...points.map((point) => point.remaining));
   const axis = `{ labelFontSize: ${size}, titleFontSize: ${size} }`;
-  const settings = [...(width ? [`    width: ${width}`] : []), ...(size ? [`    titleFontSize: ${size}`, `    xAxis: ${axis}`, `    yAxis: ${axis}`] : [])];
+  const settings = [...(width ? [`    width: ${width}`] : []), ...(height ? [`    height: ${height}`] : []), ...(size ? [`    titleFontSize: ${size}`, `    xAxis: ${axis}`, `    yAxis: ${axis}`] : [])];
   const config = settings.length ? ["---", "config:", "  xyChart:", ...settings, "---"] : [];
   return [...config, "xychart-beta", `  title "${name} — items remaining, times in UTC"`, `  x-axis [${points.map((point) => `"${point.label}"`).join(", ")}]`,
     `  y-axis "Items remaining" 0 --> ${most}`, `  line [${points.map((point) => point.remaining).join(", ")}]`].join("\n");
@@ -216,9 +217,9 @@ function teamPanel(context, ctx, d, team) {
   const rows = entry.items.map((st) => {
     const doc = docOf(ctx, st.item), held = heldOf.get(st.item);
     const changes = held?.changes ?? list(doc?.fields?.modules);
-    return `<tr data-item="${h(st.item)}"><td>${doc ? fileLink(context, ctx.ref, doc.path, h(st.item)) : h(st.item)}</td><td>${h(doc?.fields?.title ?? "")}</td>
-      <td>${stateCell(stateOf(d, st.item))}</td><td class="small">${changes.map(h).join(", ") || "—"}</td>
-      <td class="small">${(held?.uses ?? []).map(h).join(", ") || "—"}</td></tr>`;
+    return `<tr data-item="${h(st.item)}"><td data-label="Item">${doc ? fileLink(context, ctx.ref, doc.path, h(st.item)) : h(st.item)}</td><td data-label="Title">${h(doc?.fields?.title ?? "")}</td>
+      <td data-label="State">${stateCell(stateOf(d, st.item))}</td><td class="small" data-label="Changes">${changes.map(h).join(", ") || "—"}</td>
+      <td class="small" data-label="Uses">${(held?.uses ?? []).map(h).join(", ") || "—"}</td></tr>`;
   }).join("");
   // Without a time box, and until its record holds `## Ended`, the Product Owner ends the sprint with one click (UC-032 6b).
   const endable = !text(f.end) && !(record.appended ?? []).some((section) => section.heading === "## Ended");
@@ -255,9 +256,9 @@ const orderOf = (d) => d.states.map((each) => each.item);
 function backlogPanel(context, ctx, d) {
   const rows = orderOf(d).map((id, at) => {
     const doc = docOf(ctx, id);
-    return `<tr data-item="${h(id)}"><td>${h(at + 1)}</td><td>${fileLink(context, ctx.ref, doc.path, h(id))}</td><td>${h(doc.fields.title ?? "")}</td>
-      <td class="small">${list(doc.fields.realises).map((name) => `<code>${h(name)}</code>`).join(" ")}</td>
-      <td>${stateCell(stateOf(d, id))}</td><td class="small">${marks(ctx, d, doc)}</td></tr>`;
+    return `<tr data-item="${h(id)}"><td data-label="#">${h(at + 1)}</td><td data-label="Item">${fileLink(context, ctx.ref, doc.path, h(id))}</td><td data-label="Title">${h(doc.fields.title ?? "")}</td>
+      <td class="small" data-label="Realises">${list(doc.fields.realises).map((name) => `<code>${h(name)}</code>`).join(" ")}</td>
+      <td data-label="State">${stateCell(stateOf(d, id))}</td><td class="small" data-label="Held or kept">${marks(ctx, d, doc)}</td></tr>`;
   }).join("");
   return `<section class="panel" data-part="backlog"><h3>The backlog</h3>
     <p class="muted">${h(d.states.length)} items, each after the items it builds on.</p>
@@ -303,8 +304,8 @@ function planPanel(context, ctx, d, team) {
     const kept = conflicts(doc, team, d.held, ctx.modules);
     const why = holding ? `held by ${holding.sprint}` : kept.length ? kept.map((k) => `${k.sprint} holds ${k.item}${k.module ? ` — ${k.module}` : ""}`).join("; ")
       : st.state === "waiting for acceptance" ? reasonOf(st) : "";
-    return `<tr data-item="${h(id)}"><td><input type="checkbox" data-select-item="${h(id)}"${chosen.has(id) ? " checked" : ""}${why ? " disabled" : ""}></td>
-      <td>${fileLink(context, ctx.ref, doc.path, h(id))}</td><td>${h(doc.fields.title ?? "")}</td><td>${stateCell(st)}</td><td class="small">${h(why) || "—"}</td></tr>`;
+    return `<tr data-item="${h(id)}"><td data-label="Select"><input type="checkbox" data-select-item="${h(id)}"${chosen.has(id) ? " checked" : ""}${why ? " disabled" : ""}></td>
+      <td data-label="Item">${fileLink(context, ctx.ref, doc.path, h(id))}</td><td data-label="Title">${h(doc.fields.title ?? "")}</td><td data-label="State">${stateCell(st)}</td><td class="small" data-label="Why it cannot be selected">${h(why) || "—"}</td></tr>`;
   }).join("");
   const token = context.product.tokenStored !== false;
   return `<section class="panel" data-plan-team="${h(team)}"><h3>${running ? `Change the selection of ${h(newest.name)}` : `Plan sprint for ${h(team)}`}</h3>
@@ -329,8 +330,8 @@ function heldPanel(context, ctx, d, team) {
   const others = d.held.filter((each) => each.team !== team);
   const rows = others.map((each) => {
     const doc = docOf(ctx, each.item);
-    return `<tr data-held="${h(each.item)}"><td>${doc ? fileLink(context, ctx.ref, doc.path, h(each.item)) : h(each.item)}</td><td>${h(doc?.fields?.title ?? "")}</td>
-      <td>${h(each.sprint)}</td><td class="small">${each.changes.map(h).join(", ") || "—"}</td><td class="small">${each.uses.map(h).join(", ") || "—"}</td></tr>`;
+    return `<tr data-held="${h(each.item)}"><td data-label="Item">${doc ? fileLink(context, ctx.ref, doc.path, h(each.item)) : h(each.item)}</td><td data-label="Title">${h(doc?.fields?.title ?? "")}</td>
+      <td data-label="Sprint">${h(each.sprint)}</td><td class="small" data-label="Changes">${each.changes.map(h).join(", ") || "—"}</td><td class="small" data-label="Uses">${each.uses.map(h).join(", ") || "—"}</td></tr>`;
   }).join("");
   return `<section class="panel" data-part="held"><h3>What the other teams' sprints hold</h3>
     ${others.length ? `<div class="table-scroll" tabindex="0"><table class="list"><thead><tr><th>Item</th><th>Title</th><th>Sprint</th><th>Changes</th><th>Uses</th></tr></thead>
@@ -426,13 +427,27 @@ async function draw(target, context) {
   }));
 }
 
-// Each block of Mermaid text the page holds is drawn by MOD-markdown-render; its box scrolls sideways where the page is narrower than the chart, so the keyboard reaches it (THE SITE SERVES A SCREEN READER).
+const chartDraws = new WeakMap();
+
+// Each block is redrawn through MOD-markdown-render when its viewport changes, so its requested width and available label
+// space describe the viewport it is actually shown in.
 async function drawCharts(target) {
-  for (const code of [...target.querySelectorAll("pre > code.language-mermaid")]) {
-    const chart = await renderMermaid(code.textContent);
-    chart.setAttribute("tabindex", "0");
-    code.parentNode.replaceWith(chart);
-  }
+  chartDraws.get(target)?.abort();
+  const charts = [...target.querySelectorAll("[data-burn-down] pre > code.language-mermaid")].map((code) => ({ box: code.closest("[data-burn-down]"), source: code.textContent }));
+  const redraw = async () => {
+    const width = chartWidth(), phone = (globalThis.innerWidth ?? width) < 600;
+    for (const entry of charts) {
+      const source = entry.source.replace(/width:\s*\d+/, `width: ${width}`).replace("    width:", phone ? `    height: 250\n    width:` : "    width:");
+      const chart = await renderMermaid(source);
+      chart.setAttribute("tabindex", "0");
+      entry.box.replaceChildren(chart);
+      entry.box.setAttribute("data-chart-width", String(width));
+    }
+  };
+  await redraw();
+  const controller = new AbortController();
+  chartDraws.set(target, controller);
+  globalThis.addEventListener?.("resize", () => { redraw().catch(() => undefined); }, { signal: controller.signal });
 }
 
 export const route = {
