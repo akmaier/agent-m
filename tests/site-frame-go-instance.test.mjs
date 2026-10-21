@@ -46,7 +46,7 @@ async function started() {
     window.addEventListener = priorAdd;
     globalThis.setInterval = priorInterval;
   };
-  return { go: (...given) => go(...given), location, chosen, product, done };
+  return { go: (...given) => go(...given), location, chosen, product, selector: document.getElementsByTagName("select")[0], done };
 }
 
 // TST-104205 · level: unit · module: MOD-site-frame
@@ -78,5 +78,41 @@ test("go that names no product keeps the chosen product, and one that names anot
     assert.equal(page.location.hash, `#resources/code=x/product=${written}`);
     page.go("resources", { product: "https://github.com/acme/other" });
     assert.equal(page.location.hash, `#resources/product=${other}`);
+  } finally { page.done(); }
+});
+
+// TST-1165001 · level: unit · module: MOD-site-frame
+// guards: THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE; A PRODUCT IS NAMED BY ITS ADDRESS
+// given: the main page on a kept product, with only its own probe route loaded
+// input: go to the loaded probe route, then to review routes use-case, spec-entry and settings with the chosen, an explicit and the empty product
+// expect: the loaded route keeps the main page's fragment; each unloaded review route navigates to the review page with its literal parameters and the chosen, explicit or absent product
+test("TST-1165001 main-page go keeps loaded routes in its hash and navigates unloaded review routes with their product", async () => {
+  const page = await started();
+  try {
+    const chosen = encodeURIComponent(page.product);
+    const other = encodeURIComponent("https://github.com/acme/other");
+    page.go("probe", { id: "here" });
+    assert.equal(page.location.hash, `#probe/id=here/product=${chosen}`);
+
+    page.go("use-case", { id: "UC-001" });
+    assert.equal(page.location.href, `https://fork-owner.github.io/fork-agent-m/docs/index.html#use-case/id=UC-001/product=${chosen}`);
+    page.go("spec-entry", { id: "2026-10-21-1", product: "https://github.com/acme/other" });
+    assert.equal(page.location.href, `https://fork-owner.github.io/fork-agent-m/docs/index.html#spec-entry/id=2026-10-21-1/product=${other}`);
+    page.go("settings", { product: "" });
+    assert.equal(page.location.href, "https://fork-owner.github.io/fork-agent-m/docs/index.html#settings");
+  } finally { page.done(); }
+});
+
+// TST-1165002 · level: unit · module: MOD-site-frame
+// guards: UC-014; THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE
+// given: the same main page, whose selector includes + Add product while only probe is loaded
+// input: the person selects + Add product
+// expect: it navigates to the review page's add-product route, rather than leaving an unloaded main-page hash
+test("TST-1165002 the main-page selector adds a product through the review-page navigation", async () => {
+  const page = await started();
+  try {
+    page.selector.value = "+add";
+    page.selector.dispatchEvent(new Event("change"));
+    assert.equal(page.location.href, "https://fork-owner.github.io/fork-agent-m/docs/index.html#add-product");
   } finally { page.done(); }
 });
