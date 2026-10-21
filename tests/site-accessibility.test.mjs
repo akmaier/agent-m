@@ -34,17 +34,15 @@ const WIDTHS = [["phone", 390], ["desktop", 1280]];
 // What the pages violate today, as measured in the controlled Electron (the CI's run is the reference): the rules of axe-core, each with
 // what it found, and per route the rules it violates at one width or the other. Each is a todo until the module of its route fixes it.
 const RULE = {
-  menu: "aria-required-children: the menu (nav#tabs, role tablist) holds children that are no tabs (the header of docs/index.html, src/site/menu.mjs)",
-  contrast: "color-contrast: the text of a status badge (.b-accepted) is below the contrast AA asks (MOD-review-pages' lists, look)",
+  contrast: "color-contrast: the text of a superseded status badge (.b-superseded) is below the contrast AA asks",
   scroll: "scrollable-region-focusable: a box that scrolls cannot be reached with the keyboard",
-  target: "target-size: a summary is smaller than 24 px at a phone's width",
+  target: "target-size: a return link is smaller than 24 px",
 };
 const PER_ROUTE = {
   "/": [],
-  "#uc": ["menu", "contrast"], "#uc/UC-001": ["menu", "contrast"], "#use-case/id=UC-002/edit=1": ["menu", "target"],
-  "#arc": ["menu", "contrast"], "#arc/ARC-001": ["menu", "contrast"], "#arc/MOD-reader": ["menu", "contrast"],
-  "#decision/id=ARC-001/edit=1": ["menu", "target"], "#module": ["menu", "contrast"],
-  "#module/id=MOD-reader/edit=1": ["menu", "target"], "#backlog": ["menu", "contrast"],
+  "#use-case/id=draft": ["target"],
+  "#spec-entry/id=spec-2026-10-18_sample-01/edit=1": ["target"],
+  "#backlog": ["contrast"],
 };
 const TODAY = Object.fromEntries(ROUTES.map((route) => [route.address, (PER_ROUTE[route.address] ?? ["menu"]).map((rule) => RULE[rule]).join("; ")]));
 
