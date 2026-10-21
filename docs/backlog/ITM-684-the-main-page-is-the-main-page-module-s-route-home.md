@@ -10,6 +10,7 @@ modules:
   - MOD-progress-measures
   - MOD-notifications
   - MOD-repository-hosts
+  - MOD-site-frame
 builds_on:
   - ITM-685
   - ITM-826
@@ -61,7 +62,17 @@ MainPage retains public go; ITM-1165 supplies cross-page navigation. No public a
 - Source scope: MainPage entry and owned parts; ProgressMeasures only its declared legacy-file removal and
   coverage migration after1175, not another statistics algorithm. Notifications is fixture-entry migration only;
   RepositoryHosts is the existing no-backend known-positive live Source path only. No production behavior change
-  in Notifications or RepositoryHosts, and no Frame production change in this item.
+  in Notifications or RepositoryHosts. Frame owns the shared product selector's accessible name and process-menu
+  entry keys, not MainPage. Its actual root selector must have an accessible name; TST905033 retains its unfiltered
+  empty violation expectation at both widths, with no new TODO or checker filter. Each shared menu entry exposes
+  its existing menuOf key as data-entry; preserve labels, order, product semantics and destinations.
+- Canonical menu-entry receiving paths are a code-derived risk, not a claimed executed failure. Before repairing
+  one, demonstrate an actual focused public receiver failure against a working known-positive route. Only the
+  smallest Frame-owned repair of its existing entry-to-loaded-route fallback is in scope: preserve menuOf's
+  canonical links, selected product, loaded-route behavior and truthful not-built result. Reuse existing private
+  routing/address writing; no new public API, serializer, copied route mapping or embedRoute exception. MainPage
+  must not manipulate Frame's private DOM or compensate for its routing. Keep Frame writers serialized and the
+  independently assigned Notifications fixture files reserved to their writer.
 - The first commit is focused tests-only, with actual intended automatic server red before SM Source permission.
   New cases require real owned-code fault/failure/exact restoration and truthful permanent records.
   No all-UC claim or invented run/hash obligation.
@@ -73,6 +84,15 @@ the actual native entry/runtime equivalents, preserving user outcomes, eight-sta
 The old ended-job "done" row keeps that meaning before merge; after merge, the accepted build policy removes
 the row. Name the native build/state cases retaining this coverage; do not keep an obsolete merged row merely
 to preserve a legacy assertion.
+
+In tests/site-usability.test.mjs, only TST920001's PHONE_MENU_EXPECTED.main destination/disabled literals may
+migrate from the legacy docs/# routes and disabled Tests entry to the accepted main menu's eight linked entries:
+requirements, use-cases, architecture, implementation, tests, releases, maintenance, settings, in that order;
+each href is docs/index.html# followed by that key, and each disabled value is false. Retain the literal keys,
+all eight entries and system level. Preserve the existing PHONE_MENU collector and all visibility, rendered-box,
+390 px viewport and fits/no-sideways-scrolling assertions. PHONE_MENU_EXPECTED.review and TST920002 remain
+unchanged; so do frozen TST922001, all other old expectations, TODO metadata and browser helpers. This is only
+the accepted main-entry migration, not permission to alter geometry or waive a missing entry key.
 
 tests/progress-measures-home-item-digits.test.mjs migrates off the removed progress file to native productFacts:
 retain all three/four-digit ordering/counting outcomes and rejection of two-digit identifiers.
