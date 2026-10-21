@@ -63,7 +63,7 @@ def facts(*, extra_paths=(), texts=None, prs=(), ci="passed", tags=(), own=False
             "const endedJob = () => jobLedger.appendToRecord(runningJob(), { part: 'end', at: new Date(), state: 'done', results: [], draft: null, rounds: [], usage: null, cost: { known: false, usage: null }, reason: null, log: null });"
             "const instance = { repository: { web: 'https://github.com/fixture/agent-m' }, paths: ['SPEC.md', 'src/model-catalogue/models/scrum.md'],"
             " blob: (p) => p === 'src/model-catalogue/models/scrum.md' ? '1'.repeat(40) : null,"
-            " read: async (p) => p === 'src/model-catalogue/models/scrum.md' ? fs.readFileSync(process.cwd() + '/' + p, 'utf8') : null, readMany: async () => [] };"
+            f" read: async (p) => p === 'src/model-catalogue/models/scrum.md' ? fs.readFileSync({json.dumps(str(ROOT))} + '/' + p, 'utf8') : null, readMany: async () => [] }};"
             f"const fixtureText = text; const textOf = async (p) => p === {json.dumps(JOB)} ? (p in over && over[p] === 'native-ended-job' ? endedJob() : runningJob()) : fixtureText(p);"
             "snapshot.read = textOf;"
             f"const host = {{ repositoryInfo: async () => ({{ defaultBranch: 'main' }}), readSnapshot: async (ref) => ref === 'test-results' ? results : snapshot, pullRequests: async () => {json.dumps(list(prs))}, listPullRequests: async () => {json.dumps(list(prs))}, listTags: async () => {json.dumps([{'name': tag} for tag in tags])}, readHistory: async () => [{{ commit }}] }};"
@@ -78,7 +78,7 @@ def stages(**kw) -> dict:
 
 def card(**kw) -> dict:
     """The product's card as the main page shows it."""
-    return js(facts(**kw) + "const { installPage } = await import(new URL('./tests/site-frame-start.d/dom.mjs', new URL('file://' + process.cwd() + '/')).href);"
+    return js(facts(**kw) + f"const {{ installPage }} = await import({json.dumps((TESTS / 'site-frame-start.d' / 'dom.mjs').as_uri())});"
                             "installPage({ hostname: 'fixture.github.io', pathname: '/' }); const shares = await progressMeasures.stageShares(f);"
                             "const card = mainPageCards.productCard({ title: 'fixture/product', address: 'https://github.com/fixture/product',"
                             "model: f.model?.name ?? null, shares, current: progressMeasures.currentStage(shares), build: progressMeasures.buildInProgress(f), own: false });"
@@ -96,8 +96,8 @@ def labels(html: str) -> list:
 
 def rendered_main_menu() -> list:
     """The actual Frame render of MOD-main-page's View, on the existing fixture DOM."""
-    return js("const { all, installPage, offline } = await import(new URL('./tests/site-frame-start.d/dom.mjs', new URL('file://' + process.cwd() + '/')).href);"
-              "const { openStore } = await import(new URL('./src/browser-store/index.mjs', new URL('file://' + process.cwd() + '/')).href);"
+    return js(f"const {{ all, installPage, offline }} = await import({json.dumps((TESTS / 'site-frame-start.d' / 'dom.mjs').as_uri())});"
+              f"const {{ openStore }} = await import({json.dumps((ROOT / 'src' / 'browser-store' / 'index.mjs').as_uri())});"
               "installPage({ hostname: 'fixture.github.io', pathname: '/agent-m/' }); offline(); openStore('fixture/agent-m');"
               "globalThis.setInterval = () => 1; await siteFrame.startPage({ page: 'main', views: [mainPage.view] });"
               "return all(document.body, 'nav')[0].children.map((entry) => ({ name: entry.localName, label: entry.textContent, href: entry.getAttribute('href'), key: entry.getAttribute('data-entry') }));")
@@ -105,8 +105,8 @@ def rendered_main_menu() -> list:
 
 def rendered_review_menu() -> list:
     """The Frame's rendered review menu keeps unbuilt entries as names, not links."""
-    return js("const { all, installPage, offline } = await import(new URL('./tests/site-frame-start.d/dom.mjs', new URL('file://' + process.cwd() + '/')).href);"
-              "const { openStore } = await import(new URL('./src/browser-store/index.mjs', new URL('file://' + process.cwd() + '/')).href);"
+    return js(f"const {{ all, installPage, offline }} = await import({json.dumps((TESTS / 'site-frame-start.d' / 'dom.mjs').as_uri())});"
+              f"const {{ openStore }} = await import({json.dumps((ROOT / 'src' / 'browser-store' / 'index.mjs').as_uri())});"
               "installPage({ hostname: 'fixture.github.io', pathname: '/agent-m/docs/index.html' }); offline(); openStore('fixture/agent-m');"
               "globalThis.setInterval = () => 1; const route = { name: 'use-cases', entry: 'use-cases', title: 'Use cases', render: async (target) => { target.textContent = 'Use cases'; } };"
               "await siteFrame.startPage({ page: 'review', views: [{ routes: [route], strategies: [] }] });"
@@ -115,8 +115,8 @@ def rendered_review_menu() -> list:
 
 def rendered_home(products=True) -> dict:
     """The root's actual Frame entry and MainPage view with the repository's existing test-owned browser and GitHub server."""
-    return js("const { all } = await import(new URL('./tests/site-frame-start.d/dom.mjs', new URL('file://' + process.cwd() + '/')).href);"
-              "const { browser, cardsOf, waitsOf, network, smallProduct, instanceFiles, INSTANCE, PRODUCT, PRODUCT_URL, timers } = await import(new URL('./tests/main-page-home-harness.mjs', new URL('file://' + process.cwd() + '/')).href);"
+    return js(f"const {{ all }} = await import({json.dumps((TESTS / 'site-frame-start.d' / 'dom.mjs').as_uri())});"
+              f"const {{ browser, cardsOf, waitsOf, network, smallProduct, instanceFiles, INSTANCE, PRODUCT, PRODUCT_URL, timers }} = await import({json.dumps((TESTS / 'main-page-home-harness.mjs').as_uri())});"
               f"const {{ store }} = browser({{ products: {json.dumps(['https://github.com/alice/product'] if products else [])} }}); const net = network({{ [PRODUCT]: smallProduct(), [INSTANCE]: instanceFiles() }}); net.install(); timers.install();"
               "globalThis.setInterval = () => 1; try { await siteFrame.startPage({ page: 'main', views: [mainPage.view] }); const target = all(document.body, 'main')[0];"
               "return { cards: cardsOf(target).map((card) => card.textContent), waits: waitsOf(target) }; } finally { timers.restore(); net.restore(); }")
