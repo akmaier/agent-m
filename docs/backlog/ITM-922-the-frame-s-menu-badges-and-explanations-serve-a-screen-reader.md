@@ -45,7 +45,21 @@ linked to its page" in `tests/dashboard-shell.test.mjs` may change only its lega
 `role="tab"` from the expected link strings in `MENU_OF_TODAY` and the matching release-entry filter when the live
 menu uses ordinary navigation. All hrefs, ids, data-entry values, labels, titles, order, disabled span and release-filter
 meaning remain unchanged. This aligns its markup assertion with MOD-site-frame's accepted menu contract and normal
-navigation caller while removing the invalid tablist structure; no other old expected result changes.
+navigation caller while removing the invalid tablist structure.
+
+In the same component-level file, the existing test named "a view or settings section whose file is not there yet is
+not shown, and its address shows the use cases" may change only its built-view positive assertion at line 104:
+`/<a href="#uc" role="tab" id="tab-uc"/` becomes `/<a href="#uc" id="tab-uc"/`. Its href and id stay literal;
+the missing-view/menu-link exclusion, use-cases fallback, missing-settings-section exclusion, Settings content and
+request/non-request semantics remain unchanged. Both named tests keep their existing component level, fixtures and
+other assertions. No other old expected result is authorized by this Frame-only scope.
+
+The role search also finds TST-289101's Release and Maintenance menu strings in
+`tests/dashboard-pending-release-report.test.mjs:77,82`, reached through the same live menu caller. That file and case
+name MOD-test-pages, not this item's MOD-site-frame. Their role expectations are not authorized to change here:
+settle that exact test-owner scope before this item's Source Start. This is a concrete REGISTER ownership issue,
+not a need for a new formal navigation contract. The real Settings tab/panel role assertions in
+`tests/dashboard-public-settings-tabs.test.mjs` and `tests/settings-pages-tabs.test.mjs` stay unchanged.
 
 In `tests/site-accessibility.test.mjs`, remove only this item's menu/contrast/target TODO reasons once the corresponding
 actual page checks pass. Keep any other remaining route finding, the empty-violations expectation, rule tags, engine,
