@@ -27,6 +27,11 @@
   :root:not([data-theme="light"]) { --step-bg: #1d3557; --step-fg: #f4f7fb; --pill-fg: #c3d0df; }
 }
 
+@media (max-width: 760px) {
+  .site-header .menu { flex-wrap: wrap; overflow-x: visible; }
+  .site-header .menu > :nth-child(7) { margin-left: auto; }
+}
+
 /* The buttons the pages draw, which the frame's pages share: a button, or a link drawn as one. */
 .btn { display: inline-block; padding: .5rem .95rem; border: 1px solid var(--line); border-radius: 4px; background: var(--panel);
   color: var(--fg); font: inherit; font-size: .95rem; font-weight: 600; text-decoration: none; cursor: pointer; }
