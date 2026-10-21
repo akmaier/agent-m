@@ -239,7 +239,7 @@ test("MOD-review-pages decision/all — the files of the whole architecture in t
 // given: the whole-architecture fixture, in which ARC-003 changed after its approval, MOD-desk is new, and accepted MOD-shelf was removed
 // input: the public decision route rendered with id all, then Accept all 5 shown pressed once
 // expect: ARC-003 keeps its difference and impact list, MOD-desk is shown in full, removed MOD-shelf has its impact list and empty text shown, and one commit records every shown file, including MOD-shelf's empty-text blob, without restoring its artifact
-test("MOD-review-pages decision/all — a restructuring shows changed, new and removed architecture files with impact, and accepts all shown in one commit", async () => {
+test("TST-730001 MOD-review-pages decision/all — a restructuring shows changed, new and removed architecture files with impact, and accepts all shown in one commit", async () => {
   const fake = fakeHost();
   fake.land({}, [M("shelf")]);
   const read = fake.head();

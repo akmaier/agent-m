@@ -221,7 +221,7 @@ test("acceptShown — a file that changed after it was shown is left out and nam
 // given: an accepted module file whose artifact has since been removed from the default branch
 // input: removedFiles(snapshot), then acceptShown with its original path and the empty text's blob
 // expect: removedFiles names its id, kind, former path and last blob; one record names the empty-text blob, and no artifact is present after acceptance
-test("MOD-approvals removedFiles — an accepted removed module is discovered and its empty text is accepted without restoring it", async () => {
+test("TST-730002 MOD-approvals removedFiles — an accepted removed module is discovered and its empty text is accepted without restoring it", async () => {
   assert.equal(typeof removedFiles, "function", "the public removal-discovery interface exists");
   const files = { ...PRODUCT, ...Object.fromEntries([recordOf("MOD-sample", "module", MOD_PATH, MODULE)]) };
   const fake = fakeHost({ files });
