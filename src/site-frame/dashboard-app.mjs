@@ -32,7 +32,7 @@ import {
 } from "../../docs/assets/review-core.mjs";
 import { ARCHITECTURE_FILE } from "../../docs/assets/artifacts.mjs";
 import { DASHBOARD, builtViews } from "../site/views.mjs";
-import { menuHtml, entryOf } from "../site/menu.mjs";
+import { MENU, menuHtml, entryOf, stageView } from "../site/menu.mjs";
 import { UPSTREAM, instanceOf } from "../site/instance-repository.mjs";
 // The checks of what waits for acceptance, started on the review pages (UC-047; sprint 07's change between jobs: the
 // dashboard reaches MOD-notifications, as ITM-236's Outcome names it) — through each module's own interface.
@@ -769,7 +769,13 @@ async function renderTabs() {
 
 async function route() {
   routeSeq += 1;
-  const [kind, a, b] = location.hash.replace(/^#/, "").split("/");
+  let [kind, a, b] = location.hash.replace(/^#/, "").split("/");
+  const entry = MENU.find((candidate) => candidate.key === kind);
+  if (entry) {
+    kind = stageView(entry, builtViews(builtFiles)) ?? kind;
+    a = undefined;
+    b = undefined;
+  }
   markTab(kind === "review" ? a : kind);
   // The views of the repository read what they show first.
   if (state.commit && ["", "uc", "arc", "spec", "review"].includes(kind || "")) main().innerHTML = `<p class="muted">Reading…</p>`;
