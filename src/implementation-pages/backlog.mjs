@@ -458,6 +458,7 @@ async function drawCharts(target) {
       chart.setAttribute("data-chart-width", String(width));
       entry.element.replaceWith(chart);
       fitChartViewport(chart);
+      if (phone) reducePhoneAxisLabels(chart);
       entry.element = chart;
     }
   };
