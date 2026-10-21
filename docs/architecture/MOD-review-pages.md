@@ -44,6 +44,7 @@ uses:
   - MOD-trace-graph.architectureImpact
   - MOD-trace-graph.storedImpacts
   - MOD-approvals.statuses
+  - MOD-approvals.removedFiles
   - MOD-approvals.statusOf
   - MOD-approvals.lastAcceptedText
   - MOD-approvals.acceptShown
@@ -202,7 +203,10 @@ ReviewKind = {
     shown, or that names a requirement or use case not yet accepted, is left out and named (`SEVERAL FILES ARE ACCEPTED IN
     ONE CLICK`, `ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS`). For the architecture, this is the review page of the whole
     architecture: the decision that states the system first, then the subsystems' decisions, the module files, the
-    further decisions with their due diligence, and the rounds of the job that drafted them.
+    further decisions with their due diligence, and the rounds of the job that drafted them. It also lists every decision or
+    module file that `removedFiles` names, each with its impact list (`architectureImpact` with `after: null`) and the empty
+    text as the text shown, so that *Accept all N shown* counts it and records its removal in the same commit
+    (`AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST`).
   - For a changed decision or module file, on `<k>/<id>` and in `<k>/all`, the page first reads the impact lists stored for
     the commit it shows (MOD-trace-graph's `storedImpacts`, one request). Where an entry's blob is the file's blob, the
     page takes the file's impact list from it. It reads the last accepted text at the entry's `before` commit with one
@@ -287,8 +291,8 @@ and `docs/participants.md` of the instance.
   impact lists stored for the commit, and the last accepted texts they name. A graph of a commit's own files is asked
   for with that commit, so that the graph `onMainChanged` stored for it is read where there is one
   (MOD-workflow-entries); a graph over an edited text is built from the files.
-- MOD-approvals.statuses, MOD-approvals.statusOf, MOD-approvals.lastAcceptedText, MOD-approvals.acceptShown,
-  MOD-approvals.acceptanceBlockers, MOD-approvals.fallbackAcceptLink — statuses and acceptance; MOD-approvals.approvalSchema —
+- MOD-approvals.statuses, MOD-approvals.removedFiles, MOD-approvals.statusOf, MOD-approvals.lastAcceptedText, MOD-approvals.acceptShown,
+  MOD-approvals.acceptanceBlockers, MOD-approvals.fallbackAcceptLink — statuses, the files removed since their acceptance, and acceptance; MOD-approvals.approvalSchema —
   the schema an approval record is read with, on `<k>/history` too.
 - MOD-spec-changes.queues, MOD-spec-changes.openQueueOf, MOD-spec-changes.proposeSection, MOD-spec-changes.saveEntry,
   MOD-spec-changes.entrySections, MOD-spec-changes.entryView, MOD-spec-changes.acceptEntries — SPEC edits, an open entry
