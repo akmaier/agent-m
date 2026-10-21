@@ -171,16 +171,43 @@ test("auditRows — a row's sources with authority, version and hashes", async (
 // guards: THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE; A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT
 // given: the fixture; the first requirement is guarded by one unit test and two release tests; the fifth by a model-dependent test run 6 of 10; the second by a failing test; the counter-proof record exists for TST-756101 only
 // input: auditRows(...); the tests of those rows
-// expect: the first row lists TST-756101 (unit, passed, counter-proof docs/tests/counter-proofs/TST-756101.md), TST-756102 and TST-756103 (release, passed, none); the fifth row's test has the outcome "6 of 10"; the second's is "failed"
+// expect: the first row lists TST-756101 (unit, passed, counter-proof docs/tests/counter-proofs/TST-756101.md, worse false, byImplementer false), TST-756102 (release, passed, none, worse false, byImplementer true) and TST-756103 (release, passed, none, worse false, byImplementer false); the fifth row's test has the outcome "6 of 10"; the second's is "failed"
 test("auditRows — a row's tests by level with outcome or rate and counter-proof", async () => {
   const result = await audit();
   assert.deepEqual(rowOf(result, R1).tests, [
-    { id: "TST-756101", level: "unit", outcome: "passed", counterProof: "docs/tests/counter-proofs/TST-756101.md" },
-    { id: "TST-756102", level: "release", outcome: "passed", counterProof: null },
-    { id: "TST-756103", level: "release", outcome: "passed", counterProof: null },
+    { id: "TST-756101", level: "unit", outcome: "passed", counterProof: "docs/tests/counter-proofs/TST-756101.md", worse: false, byImplementer: false },
+    { id: "TST-756102", level: "release", outcome: "passed", counterProof: null, worse: false, byImplementer: true },
+    { id: "TST-756103", level: "release", outcome: "passed", counterProof: null, worse: false, byImplementer: false },
   ]);
   assert.deepEqual(rowOf(result, R5).tests.map((t) => [t.id, t.outcome]), [["TST-756105", "6 of 10"]]);
   assert.deepEqual(rowOf(result, R2).tests.map((t) => [t.id, t.outcome]), [["TST-756106", "failed"]]);
+});
+
+// TST-1163001 · level: unit · module: MOD-release-evidence
+// guards: UC-030; THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE
+// given: the fixture; TST-756105 runs 6 of 10 after 8 of 10 at the preceding release, and TST-756102 is the release test written by the requirement's implementer
+// input: auditRows(...); the row tests for the fifth and first requirements
+// expect: TST-756105 is worse true and byImplementer false; TST-756102 is worse false and byImplementer true
+// Planted fault: omitting a provider flag, or assigning it from a different row or test, fails.
+test("TST-1163001 auditRows returns worse and byImplementer on the row tests they describe", async () => {
+  const result = await audit();
+  assert.deepEqual(rowOf(result, R5).tests.map(({ id, worse, byImplementer }) => ({ id, worse, byImplementer })),
+    [{ id: "TST-756105", worse: true, byImplementer: false }]);
+  assert.deepEqual(rowOf(result, R1).tests.filter(({ id }) => id === "TST-756102").map(({ id, worse, byImplementer }) => ({ id, worse, byImplementer })),
+    [{ id: "TST-756102", worse: false, byImplementer: true }]);
+});
+
+// TST-1163003 · level: unit · module: MOD-release-evidence
+// guards: UC-030; THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE
+// given: TST-756102 guards both the first and second requirements; its writer implemented only the first
+// input: auditRows(...); the shared test in each requirement row and summary.byImplementer
+// expect: the first row says true, the second says false, and the distinct-test summary is one
+// Planted fault: carrying a test flag from one requirement row to another fails.
+test("TST-1163003 auditRows keeps shared release-test implementer provenance on its own requirement row", async () => {
+  const shared = declaration("TST-756102", "release", `${R1}; ${R2}`, "system");
+  const result = await audit({ product: { "tests/release-a.test.mjs": shared } });
+  assert.deepEqual([rowOf(result, R1), rowOf(result, R2)].map((row) => row.tests.find((test) => test.id === "TST-756102").byImplementer), [true, false]);
+  assert.equal(result.summary.byImplementer, 1);
 });
 
 // TST-756004 · level: unit · module: MOD-release-evidence

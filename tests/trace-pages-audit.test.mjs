@@ -250,6 +250,34 @@ test("each number opens the rows it counts", async () => {
   }
 });
 
+// TST-1163002 · level: unit · module: MOD-trace-pages
+// guards: UC-030; THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE
+// given: the fixture; the provider marks TST-756105 worse and TST-756102 byImplementer
+// input: Route.render with the key "audit"; the worse number, then the byImplementer number, are pressed on fresh pages
+// expect: worse leaves A FIFTH RULE; byImplementer leaves A FIRST RULE
+// Planted fault: a count that stays plain text, or a filter that recomputes a different rule, fails.
+test("TST-1163002 the worse and byImplementer numbers open exactly their provider-marked rows", async () => {
+  const wanted = { worse: [R5], byImplementer: [R1] };
+  for (const [kind, expected] of Object.entries(wanted)) {
+    const target = await render();
+    await press(countOf(target, kind));
+    assert.deepEqual(names(target), expected, kind);
+  }
+});
+
+// TST-1163004 · level: unit · module: MOD-trace-pages
+// guards: UC-030; THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE
+// given: a release test shared by the first and second requirement; its writer implemented only the first
+// input: the supplied byImplementer count is pressed
+// expect: only A FIRST RULE remains
+// Planted fault: deriving provenance in the view, or accepting a flag carried from the other row, fails.
+test("TST-1163004 the implementer count keeps only the shared test's qualifying requirement row", async () => {
+  const product = { ...productFiles(), "tests/release-a.test.mjs": declaration("TST-756102", "release", `${R1}; ${R2}`, "system") };
+  const target = await render(productHost({ product }));
+  await press(countOf(target, "byImplementer"));
+  assert.deepEqual(names(target), [R1]);
+});
+
 // TST-768005 · level: component · module: MOD-trace-pages
 // guards: UC-030; THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE; THE TRACEABILITY MATRIX IS DERIVED
 // given: the fixture; A FIRST RULE cites the book and IEC 62304 (normative), is guarded by 756101 (unit, a counter-proof) and 756102 and 756103 (release); A FOURTH RULE by 756104, flaky

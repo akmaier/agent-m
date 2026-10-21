@@ -133,11 +133,17 @@ export async function auditRows(at, results, head, release, gates, instanceSpec,
   const byImplementer = new Set();
   const rows = [];
   for (const { req, constrains, traces } of traced) {
+    const behaviour = new Set([...traces.items, ...traces.useCases]);
+    const implementers = new Set(jobsOf("implement").filter((record) => record.worksOn.some((name) => behaviour.has(name)))
+      .map((record) => record.participant).filter(Boolean));
     const rowTests = [];
     for (const id of traces.tests) {
       const entry = entries.get(id);
+      const writers = jobsOf("write-tests").filter((record) => (record.end?.results ?? []).includes(tests.get(id).path)).map((record) => record.participant);
+      const writtenByImplementer = tests.get(id).level === "release" && writers.some((writer) => implementers.has(writer));
+      if (writtenByImplementer) byImplementer.add(id);
       rowTests.push({ id, level: tests.get(id).level, outcome: predates ? UNDERIVABLE : (entry.runs ?? entry.outcome),
-        counterProof: await counterProofOf(at, id) });
+        counterProof: await counterProofOf(at, id), worse: worse.has(id), byImplementer: writtenByImplementer });
     }
     const outcomes = traces.tests.map((id) => entries.get(id).outcome);
     const isWorse = traces.tests.some((id) => worse.has(id));
@@ -147,13 +153,6 @@ export async function auditRows(at, results, head, release, gates, instanceSpec,
     if (!predates && isWorse) summary.worse += 1;
     if (!predates && outcomes.length && outcomes.every((outcome) => outcome === "passed") && !isWorse) summary.passing += 1;
 
-    const behaviour = new Set([...traces.items, ...traces.useCases]);
-    const implementers = new Set(jobsOf("implement").filter((record) => record.worksOn.some((name) => behaviour.has(name)))
-      .map((record) => record.participant).filter(Boolean));
-    for (const id of traces.tests.filter((each) => tests.get(each).level === "release")) {
-      const writers = jobsOf("write-tests").filter((record) => (record.end?.results ?? []).includes(tests.get(id).path)).map((record) => record.participant);
-      if (writers.some((writer) => implementers.has(writer))) byImplementer.add(id);
-    }
     rows.push({ requirement: req.name, constrains, sources: sourcesOf(req, links, register), tests: rowTests,
       gates: gates.filter((gate) => gate.requirement === req.name).map((gate) => gate.record) });
   }
