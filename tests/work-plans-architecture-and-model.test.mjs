@@ -87,11 +87,9 @@ const ALL = [
 
 // TST-610001 · level: unit · module: MOD-work-plans
 // guards: UC-045
-// given: the fixture product, whose system decision is ARC-001 and whose one subsystem decision is ARC-002 (ARC-003 refines ARC-001 and designs no module), with three modules, docs/process.md, a plan of two steps and its
-// order, two backlog items, a SPEC, a use case, code and a test
+// given: the fixture product, whose system decision is ARC-001 and whose one subsystem decision is ARC-002 (ARC-003 refines ARC-001 and designs no module), with three modules, docs/process.md, a plan of two steps and its order, two backlog items, a SPEC, a use case, code and a test
 // input: the recipe architecture-and-model
-// expect: nine parts, by name, in this order: ARC-001's file, ARC-002's file; the module files MOD-loose, MOD-reader, MOD-writer; docs/process.md; the plan's files docs/plan/ITM-010-reader.md, ITM-011-writer.md, order.md;
-// and none of ARC-003, SPEC.md, the use case, the backlog items, the code or the test
+// expect: nine parts, by name, in this order: ARC-001's file, ARC-002's file; the module files MOD-loose, MOD-reader, MOD-writer; docs/process.md; the plan's files docs/plan/ITM-010-reader.md, ITM-011-writer.md, order.md; and none of ARC-003, SPEC.md, the use case, the backlog items, the code or the test
 test("the recipe gives the system's decision, the subsystems' decisions, every module file, the process model and the existing plan, in that order — MOD-work-plans", async () => {
   const parts = await recipe(FILES);
   assert.deepEqual(namesOf(parts), ALL);

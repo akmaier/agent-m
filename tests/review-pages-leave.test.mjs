@@ -98,8 +98,7 @@ test("TST-603022 a page of the route that opens no editor lets itself be left", 
 
 // TST-603023 · level: unit · module: MOD-review-pages
 // guards: UC-018; EDITS ARE PREPARED ON THE DASHBOARD
-// given: the edit page of the use case UC-007 with its editor's text changed to "changed text", and then the same route drawn again as the list page, in a target of its own, as the
-//   frame does after it was allowed to leave; a confirmation that would decline
+// given: the edit page of the use case UC-007 with its editor's text changed to "changed text", and then the same route drawn again as the list page, in a target of its own, as the frame does after it was allowed to leave; a confirmation that would decline
 // input: route.leave()
 // expect: it returns true and asks nothing, for the editor of the page drawn before is not the page's now
 test("TST-603023 the editor of a page drawn earlier is not asked once the route has drawn another page", async () => {

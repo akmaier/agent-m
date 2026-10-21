@@ -359,8 +359,7 @@ class PromptedChangeContext(unittest.TestCase):
     # TST-519008 · level: system · module: system
     # guards: A CI AGENT'S DRAFT ENTERS AS OPEN
     # given: the run of the CI agent's change-requirements job
-    # input: the approval-record detector over the paths after the run, for the queue's entry 01, and over the same paths with a
-    #        record planted whose name follows docs/approvals/spec-<queue>-01-<blob12>.md
+    # input: the approval-record detector over the paths after the run, for the queue's entry 01, and over the same paths with a record planted whose name follows docs/approvals/spec-<queue>-01-<blob12>.md
     # expect: the detector names no record for the entry after the run, and does name the planted one
     def test_counter_proof_no_approval_record_names_the_ci_agents_queue_entry(self):
         run = ci_requirement_change()

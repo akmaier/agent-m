@@ -53,11 +53,9 @@ const hrefs = (root) => byTag(root, "a").map((anchor) => anchor.href).filter((hr
 
 // TST-587018 · level: component · module: MOD-settings-pages, MOD-site-frame
 // guards: UC-014; AN INSTANCE IS A FORK OF AGENT M
-// given: the review page of the person's own instance acme/agent-m, served from https://acme.github.io/agent-m/docs/index.html; the settings-pages view as an entry page loads it; the address
-//   #get-your-own/step=actions, as the review pages link it
+// given: the review page of the person's own instance acme/agent-m, served from https://acme.github.io/agent-m/docs/index.html; the settings-pages view as an entry page loads it; the address #get-your-own/step=actions, as the review pages link it
 // input: startPage with the fragment #get-your-own/step=actions
-// expect: the page shows the four steps; the Actions step "Step 3 · Turn on the workflows — optional now" is the one current step; the links the page holds are the fork page of akmaier/agent-m and,
-//   for acme, https://github.com/acme/agent-m/settings/pages, https://github.com/acme/agent-m/actions and https://acme.github.io/agent-m/
+// expect: the page shows the four steps; the Actions step "Step 3 · Turn on the workflows — optional now" is the one current step; the links the page holds are the fork page of akmaier/agent-m and, for acme, https://github.com/acme/agent-m/settings/pages, https://github.com/acme/agent-m/actions and https://acme.github.io/agent-m/
 test("startPage serves #get-your-own/step=actions as the Actions step of the person's own instance", async () => {
   const { main } = await start({ hostname: "acme.github.io", pathname: "/agent-m/docs/index.html", hash: "#get-your-own/step=actions" });
   assert.deepEqual(stepTitles(main), STEPS);

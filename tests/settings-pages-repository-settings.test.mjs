@@ -158,12 +158,9 @@ const linesOf = (section) => byClass(section, "settings-repository-setting").map
 
 // TST-104201 · level: unit · module: MOD-settings-pages
 // guards: UC-042; EVERY SETTING IS REACHED FROM ONE PAGE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY
-// given: an instance repository holding two participants, three sources, two process models and three resources, and a product repository holding a declared process, two role
-//   assignments, a test schedule, two linked sources and one resource
+// given: an instance repository holding two participants, three sources, two process models and three resources, and a product repository holding a declared process, two role assignments, a test schedule, two linked sources and one resource
 // input: the Settings page is rendered and its tab Repositories shown
-// expect: the instance section has exactly four lines — Participants "2 participants", Source library "3 sources", Process models "2 models", Resources "3 resources" —; the product
-//   section exactly six — Process model "scrum-wip", Role assignments "team1, team2", Definition of Done "The job rules hold for every pull request; no condition is added.",
-//   Test schedule "set", Linked sources "2 linked sources", Resources "1 resource" —; each has an Edit
+// expect: the instance section has exactly four lines — Participants "2 participants", Source library "3 sources", Process models "2 models", Resources "3 resources" —; the product section exactly six — Process model "scrum-wip", Role assignments "team1, team2", Definition of Done "The job rules hold for every pull request; no condition is added.", Test schedule "set", Linked sources "2 linked sources", Resources "1 resource" —; each has an Edit
 test("the instance's four and the product's six repository settings are one line each, with a summary read from the file and Edit", async () => {
   const page = await open();
   assert.ok(page.instance && page.product, "both sections stand on the tab");

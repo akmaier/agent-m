@@ -91,8 +91,7 @@ test("graphFindings and moduleRows list the same imports", async () => {
 
 // TST-106805 · level: component · module: MOD-trace-graph
 // guards: A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES; DEVELOP AGAINST INTERFACES
-// given: the files this repository tracks (the fixture products under tests/fixtures/ left out), read as the pages read them; and, as a known positive, the same files with one code file, src/trace-graph/ghost.mjs, added that imports a
-//   module its module's uses do not name
+// given: the files this repository tracks (the fixture products under tests/fixtures/ left out), read as the pages read them; and, as a known positive, the same files with one code file, src/trace-graph/ghost.mjs, added that imports a module its module's uses do not name
 // input: graphFindings of each, under the rule
 // expect: the first lists none — a pull request that adds an import its module's uses do not name fails this test —; the known positive lists exactly the planted import
 test("TST-106805: no code file of this repository imports a module its module's uses do not name", async () => {

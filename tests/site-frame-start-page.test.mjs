@@ -102,10 +102,8 @@ test("TST-531002 the route the fragment names is rendered, the next on every cha
 // TST-531003 · level: unit · module: MOD-site-frame
 // guards: THE MENU FOLLOWS THE PROCESS
 // given: the review page with the same view
-// input: startPage with the empty fragment; then startPage with #architecture, an entry no loaded view serves; then with
-//   #nothing-like-this, which names neither a route nor an entry
-// expect: the first loaded route, `alpha {}`; then a paragraph "The Architecture entry is not built yet." and no route rendered;
-//   then the first loaded route again, `alpha {}`
+// input: startPage with the empty fragment; then startPage with #architecture, an entry no loaded view serves; then with #nothing-like-this, which names neither a route nor an entry
+// expect: the first loaded route, `alpha {}`; then a paragraph "The Architecture entry is not built yet." and no route rendered; then the first loaded route again, `alpha {}`
 test("TST-531003 an empty fragment shows the first loaded route, an entry no loaded view serves says it is not built yet", async () => {
   let page = await start();
   assert.equal(page.target.textContent, "alpha {}");
@@ -138,15 +136,9 @@ test("TST-531004 watchForAcceptance is started once on the review and the main p
 
 // TST-531005 · level: unit · module: MOD-site-frame
 // guards: A PRODUCT IS NAMED BY ITS ADDRESS; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
-// given: a browser that keeps the instance token github_pat_INSTANCE, the product https://github.com/acme/widget with its own
-//   token github_pat_WIDGET and the GitLab product https://gitlab.example.org/team/app; a fetch that records each request's url
-//   and Authorization header and fails
+// given: a browser that keeps the instance token github_pat_INSTANCE, the product https://github.com/acme/widget with its own token github_pat_WIDGET and the GitLab product https://gitlab.example.org/team/app; a fetch that records each request's url and Authorization header and fails
 // input: startPage with #alpha, then with #alpha/product=<the widget>, then with #alpha/product=<the app>
-// expect: the first route gets repository acme/instance, a host with repositoryInfo and no product; the second gets the product
-//   { address: the widget address, kind: "github" } and a host whose request carries Bearer github_pat_WIDGET and not the
-//   instance's token, while the instance's request carries Bearer github_pat_INSTANCE; the third { address: the app address,
-//   kind: "gitlab" }; the widget's product has tokenStored true (its own token is kept) and the app's has tokenStored false (the
-//   browser keeps no token of it)
+// expect: the first route gets repository acme/instance, a host with repositoryInfo and no product; the second gets the product { address: the widget address, kind: "github" } and a host whose request carries Bearer github_pat_WIDGET and not the instance's token, while the instance's request carries Bearer github_pat_INSTANCE; the third { address: the app address, kind: "gitlab" }; the widget's product has tokenStored true (its own token is kept) and the app's has tokenStored false (the browser keeps no token of it)
 test("TST-531005 the instance and the product the fragment names are connected, each with its own token", async () => {
   const requests = [];
   globalThis.fetch = async (url, init) => { requests.push({ url: String(url), authorization: init?.headers?.Authorization ?? null }); throw new TypeError("offline"); };
@@ -191,11 +183,8 @@ test("TST-531006 a fragment naming a product this browser does not keep shows th
 // TST-531007 · level: unit · module: MOD-site-frame
 // guards: A PRODUCT IS NAMED BY ITS ADDRESS
 // given: the review page showing #alpha/id=7 in a browser that keeps the widget product
-// input: the person chooses the widget in the selector; then calls go("beta", { x: "1" }) from the route; then chooses the
-//   instance; then chooses "+ Add product"
-// expect: the fragment becomes #alpha/id=7/product=https%3A%2F%2Fgithub.com%2Facme%2Fwidget and, once the page has shown it, the
-//   selector stands on the widget; go keeps the product: #beta/x=1/product=https%3A%2F%2Fgithub.com%2Facme%2Fwidget; the
-//   instance removes it: #alpha/id=7; "+ Add product" goes to #add-product
+// input: the person chooses the widget in the selector; then calls go("beta", { x: "1" }) from the route; then chooses the instance; then chooses "+ Add product"
+// expect: the fragment becomes #alpha/id=7/product=https%3A%2F%2Fgithub.com%2Facme%2Fwidget and, once the page has shown it, the selector stands on the widget; go keeps the product: #beta/x=1/product=https%3A%2F%2Fgithub.com%2Facme%2Fwidget; the instance removes it: #alpha/id=7; "+ Add product" goes to #add-product
 test("TST-531007 choosing in the selector sets the fragment's product, go keeps it, the instance removes it, + Add product goes to the add-product route", async () => {
   const page = await start({ products: [WIDGET], fragment: "#alpha/id=7" });
   page.select.value = WIDGET;
@@ -275,13 +264,9 @@ test("TST-531010 menuOf lists the eight entries in the order of the process and 
 
 // TST-531011 · level: unit · module: MOD-site-frame
 // guards: A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; A PRODUCT IS NAMED BY ITS ADDRESS
-// given: the instance acme/instance, whose review pages stand at https://acme.github.io/instance/docs/index.html and whose main
-//   page at https://acme.github.io/instance/index.html, and the products the widget and the app
-// input: the address writer for each page, called for the instance, for the widget (repository acme/widget) and for the app
-//   (repository team/app); routeOf and productOf read back what it wrote
-// expect: for the instance https://acme.github.io/instance/docs/index.html#use-case/id=UC-001 from either page; for the widget
-//   …#module/id=MOD-x/product=https%3A%2F%2Fgithub.com%2Facme%2Fwidget; for the app …#release/product=https%3A%2F%2Fgitlab.example.org%2Fteam%2Fapp;
-//   read back: name use-case with params { id: "UC-001" }, and the product address of the widget and of the app; none for the instance
+// given: the instance acme/instance, whose review pages stand at https://acme.github.io/instance/docs/index.html and whose main page at https://acme.github.io/instance/index.html, and the products the widget and the app
+// input: the address writer for each page, called for the instance, for the widget (repository acme/widget) and for the app (repository team/app); routeOf and productOf read back what it wrote
+// expect: for the instance https://acme.github.io/instance/docs/index.html#use-case/id=UC-001 from either page; for the widget …#module/id=MOD-x/product=https%3A%2F%2Fgithub.com%2Facme%2Fwidget; for the app …#release/product=https%3A%2F%2Fgitlab.example.org%2Fteam%2Fapp; read back: name use-case with params { id: "UC-001" }, and the product address of the widget and of the app; none for the instance
 test("TST-531011 the address writer writes the address of a review route for the instance or a product in the form routing reads back", async () => {
   const { addressWriter, routeOf, productOf } = await import("../src/site-frame/routing.mjs");
   const docs = "https://acme.github.io/instance/docs/index.html";
@@ -367,13 +352,9 @@ const LOADED = ["repository", "commit", "tree", "batch 3", "repository", "commit
 
 // TST-709001 · level: unit · module: MOD-site-frame
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
-// given: widget-3, a product this browser keeps with its own token, and a route that names the three use cases in `reads` and reads them in
-//   its render
+// given: widget-3, a product this browser keeps with its own token, and a route that names the three use cases in `reads` and reads them in its render
 // input: startPage on the review page at #reading/under=docs%2Fuse-cases%2F/product=<the widget>
-// expect: the frame asks the route for its reads before it renders it, once, with the parameters of the address without `product` —
-//   { under: "docs/use-cases/" } — and a snapshot of acme/widget that holds the five files; the requests of the load are, in this order,
-//   repository, commit, tree and one batch of the 3 use cases (the frame's), then repository, commit and tree (the route's own); no
-//   file by itself; and the route shows the three texts
+// expect: the frame asks the route for its reads before it renders it, once, with the parameters of the address without `product` — { under: "docs/use-cases/" } — and a snapshot of acme/widget that holds the five files; the requests of the load are, in this order, repository, commit, tree and one batch of the 3 use cases (the frame's), then repository, commit and tree (the route's own); no file by itself; and the route shows the three texts
 test("TST-709001 a route's reads are read in one batch before it is rendered, and its own reads send no request for a file", async () => {
   const route = reading("reading");
   const page = await loadWith({ files: widget3, routes: [route], fragment: fragmentOf("reading"), tokens: TOKEN_OF_WIDGET });
@@ -469,12 +450,9 @@ test("TST-709006 on the instance the frame reads the instance's snapshot, throug
 
 // TST-709007 · level: unit · module: MOD-site-frame
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
-// given: a repository whose commit the server refuses with 422 — GitHub's answer for a ref it does not hold, which the host tells as
-//   NotFound — and the route of TST-709001, which shows the failure it meets as `reading problem: <the failure's name>`
+// given: a repository whose commit the server refuses with 422 — GitHub's answer for a ref it does not hold, which the host tells as NotFound — and the route of TST-709001, which shows the failure it meets as `reading problem: <the failure's name>`
 // input: startPage at #reading/under=docs%2Fuse-cases%2F/product=<the widget>
-// expect: the frame's read fails and is left to the route: `reads` is not called, the route is rendered, meets the same failure in its
-//   own read and shows `reading problem: NotFound`; the requests are repository and the refused commit (the frame's), repository and
-//   the refused commit (the route's)
+// expect: the frame's read fails and is left to the route: `reads` is not called, the route is rendered, meets the same failure in its own read and shows `reading problem: NotFound`; the requests are repository and the refused commit (the frame's), repository and the refused commit (the route's)
 test("TST-709007 a failure of the host in the frame's read is left to the route, which meets it again and shows it", async () => {
   const route = reading("reading");
   const refused = (url) => (url.pathname.endsWith("/commits/main")
@@ -520,11 +498,9 @@ test("TST-709009 the Bridge's window reads a route's reads as the other pages do
 
 // TST-506008 · level: unit · module: MOD-site-frame
 // guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
-// given: the pages started by the tests above, each now with the prompt bar, which reads the instance acme/instance when it is drawn;
-//   every page of this file was given an offline fetch, and the fetch that stands for the network records what reaches it
+// given: the pages started by the tests above, each now with the prompt bar, which reads the instance acme/instance when it is drawn; every page of this file was given an offline fetch, and the fetch that stands for the network records what reaches it
 // input: the requests the pages made, as the offline fetch and as the network recorded them
-// expect: the pages did ask the instance's API (at least one request, every one of them to https://api.github.com/repos/acme/instance,
-//   so the check can find what it looks for), and no request reached the network: none left the fixture
+// expect: the pages did ask the instance's API (at least one request, every one of them to https://api.github.com/repos/acme/instance, so the check can find what it looks for), and no request reached the network: none left the fixture
 test("TST-506008 the pages of this file ask only the offline fetch, and no request leaves the fixture", () => {
   assert.ok(outside.seen.length > 0, "the bar did read the instance, so the offline fetch saw it");
   assert.deepEqual([...new Set(outside.seen)], ["https://api.github.com/repos/acme/instance"]);

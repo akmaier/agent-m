@@ -112,11 +112,9 @@ test("jobWorkflowFiles — a header with other inputs and an entry passing on on
 
 // TST-548006 · level: unit · module: MOD-runtimes
 // guards: UC-010; UC-027
-// given: a product's .gitlab-ci.yml with a header declaring no `inputs:` key but another key, and an include: list holding the entry for
-// .gitlab/agent-m-jobs.yml with no `inputs:` under it
+// given: a product's .gitlab-ci.yml with a header declaring no `inputs:` key but another key, and an include: list holding the entry for .gitlab/agent-m-jobs.yml with no `inputs:` under it
 // input: jobWorkflowFiles("gitlab", …, that text)
-// expect: the header gains `  inputs:` with the three inputs, each `default: ""`, after its own key and before the `---`; the entry gains
-// `    inputs:` with the three inputs it passes on, straight after its `local:` line; nothing else changes
+// expect: the header gains `  inputs:` with the three inputs, each `default: ""`, after its own key and before the `---`; the entry gains `    inputs:` with the three inputs it passes on, straight after its `local:` line; nothing else changes
 test("jobWorkflowFiles — a header without inputs: and an entry without inputs: gain them", () => {
   const own = 'spec:\n  description: mine\n---\ninclude:\n  - local: ".gitlab/agent-m-jobs.yml"\ntest:\n  script: make\n';
   assert.equal(merged(own),

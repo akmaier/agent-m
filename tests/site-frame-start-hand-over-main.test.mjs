@@ -23,13 +23,9 @@ const VIEW_SOURCE = "../tests/site-frame-start.d/view-source";
 
 // TST-572005 · level: unit · module: MOD-site-frame
 // guards: UC-049
-// given: a main page whose script tag has data-page="main" and data-views naming view-source (hands sourceStrategies), and an empty
-//   data-menu-views
+// given: a main page whose script tag has data-page="main" and data-views naming view-source (hands sourceStrategies), and an empty data-menu-views
 // input: start.mjs is loaded
-// expect: the load does not reject although the bar's handOverStrategies hold sourceStrategies too; the recipe chapters-for-implementation
-//   (sourceStrategies) is registered by view-source, the first that hands it; the recipes use-cases (approvalStrategies) and
-//   resource-check (resourceStrategies), the step due-diligence (reuseStrategies) and the writer queue-entries (specStrategies) by
-//   MOD-prompt-bar; no request left the fixture
+// expect: the load does not reject although the bar's handOverStrategies hold sourceStrategies too; the recipe chapters-for-implementation (sourceStrategies) is registered by view-source, the first that hands it; the recipes use-cases (approvalStrategies) and resource-check (resourceStrategies), the step due-diligence (reuseStrategies) and the writer queue-entries (specStrategies) by MOD-prompt-bar; no request left the fixture
 test("TST-572005 on the main page start.mjs registers its view's set once and the bar's other sets under MOD-prompt-bar", async () => {
   pageWithScript({ "data-page": "main", "data-views": VIEW_SOURCE, "data-menu-views": "" });
   await import("../src/site-frame/start.mjs?hand-over-main");
