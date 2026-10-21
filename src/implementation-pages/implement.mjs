@@ -8,12 +8,15 @@
 // Module: MOD-implementation-pages
 //
 // NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT; A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; A JOB GOES ONLY TO A HOLDER OF ITS ROLE; THE PAGE NAMES WHERE IT SENDS;
-// ONE CLICK PER DECISION. A render writes nothing and sends nothing: *Start jobs* is the one write. Readings the texts leave open, which this file takes:
+// ONE CLICK PER DECISION. A render writes nothing and sends nothing: *Start jobs* and *Merge* are the writes, each on a person's click. Readings the texts leave open, which this file takes:
 //   - The items and their states are those of the route `backlog` (its contextOf and derivedOf); the workflow is productFacts' with the scope `work`.
 //   - An item is listed in every state but done; the startable ones are ticked, the others carry their reasons and cannot be ticked.
 //   - The implementing roles are those of the phases that produce MOD; the item's role assignment is its team's — the team whose newest running sprint selects it —, else the product's first.
 //   - Who merges is the parameter `merges` (`agent` or `person`) of the job's `## Parameters`, chosen when the jobs are started; acting on it is the merge's.
 //   - What is sent where is drawn from prepareJob's destinations and parts, in the page's own list, with no second Run: *Start jobs* is the one click.
+//   - A pull request is of a job the page started when its description has the line `Job: <id>` (MOD-runtimes' writer writes it) and `<id>` is a record of kind implement or refactor under docs/jobs/. For it the page shows
+//     the CI runs of the first commit and of the head, and whether the Definition of Done holds: doneCheck over pullRequestFacts, given the modules of the items or steps the job works on. *Merge* is offered for an open pull
+//     request that is no draft and for which doneCheck finds nothing, and calls mergePullRequest on the head the page read. A merged pull request is shown as done.
 
 import { readSetting } from "../browser-store/index.mjs";
 import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
@@ -21,8 +24,8 @@ import { kindOf } from "../job-catalogue/index.mjs";
 import { newJobId } from "../job-ledger/index.mjs";
 import { prepareJob } from "../job-runner/index.mjs";
 import { eligible, participantSchema, participantsOf } from "../participant-list/index.mjs";
-import { readDocument } from "../documents/index.mjs";
-import { holdsRole } from "../product-process/index.mjs";
+import { artifactSchemas, readDocument } from "../documents/index.mjs";
+import { doneCheck, holdsRole } from "../product-process/index.mjs";
 import { productFacts } from "../progress-measures/index.mjs";
 import { queueJob, routesFor } from "../runtimes/index.mjs";
 import { explain as frameExplain } from "../site-frame/index.mjs";
@@ -262,6 +265,69 @@ async function machineryFor(context, ctx, instanceSnapshot, participants) {
     taken: new Set(ctx.snapshot.paths.map((path) => JOB_FILE.exec(path)?.[1]).filter(Boolean)) };
 }
 
+// The runs of one commit, each as a link to its page with its state; "no run listed" where the server lists none.
+async function runsOf(host, commit) {
+  const runs = commit ? await host.listCiRuns({ commit }) : [];
+  return runs.length ? runs.map((run) => `<a href="${h(run.url)}">run ${h(run.id)}</a> ${h(run.state)}`).join(", ") : "no run listed";
+}
+
+// The pull requests of the jobs this page started (UC-024 steps 11 to 13): each with its branch, the CI runs of its first (tests-only) commit and of its head, and, while it is open, whether the Definition of Done
+// holds, naming each condition that does not, and *Merge* once it does, on the head read. A pull request that cannot be read is named, not left out.
+async function drawPulls(target, context, facts) {
+  const host = context.product.host;
+  if (facts.pullRequests === "unknown" || !Array.isArray(facts.jobs)) return;
+  const jobs = new Map(facts.jobs.map((row) => row.record).filter((record) => record.kind === "implement" || record.kind === "refactor").map((record) => [record.id, record]));
+  const own = facts.pullRequests.map((pull) => ({ pull, job: jobs.get(/^Job: (\S+)/m.exec(pull.body ?? "")?.[1]) })).filter((each) => each.job);
+  if (own.length === 0) return;
+  const workflow = facts.workflow !== "unknown" ? facts.workflow : null;
+  const parts = [], mergeable = [];
+  for (const { pull, job } of own) {
+    try {
+      const read = await host.pullRequestFacts(pull.number);
+      const first = read.commits[0], last = read.commits.at(-1);
+      const ci = `<ul><li data-ci="first">${first === last ? "The only commit" : "The first commit, with the tests only,"} <code>${h(first?.sha.slice(0, 7) ?? "none")}</code>: ${await runsOf(host, first?.sha)}</li>
+        ${first === last ? "" : `<li data-ci="last">The head <code>${h(last?.sha.slice(0, 7) ?? "none")}</code>: ${await runsOf(host, last?.sha)}</li>`}</ul>`;
+      const shown = `<h4>#${h(pull.number)} ${h(pull.title)}</h4><p class="small">Job ${h(job.id)}; branch <code>${h(pull.branch)}</code> into <code>${h(pull.base)}</code>; head <code>${h(read.pullRequest.head.slice(0, 7))}</code>.</p>${ci}`;
+      if (pull.state !== "open") {
+        parts.push(`<div data-pull="${h(pull.number)}" data-state="${h(pull.state)}">${shown}<p>${pull.state === "merged" ? `Done: merged as <code>${h((pull.mergeCommit ?? "").slice(0, 7))}</code>.` : "Closed without a merge."}</p></div>`);
+        continue;
+      }
+      const names = job.worksOn.flatMap((name) => list(facts.plan.items.find((item) => idOf(item) === name)?.fields?.modules));
+      const modules = await Promise.all(names.map(async (name) => readDocument(artifactSchemas().module, `docs/architecture/${name}.md`, (await facts.snapshot.read(`docs/architecture/${name}.md`)) ?? "")));
+      const findings = workflow ? await doneCheck(read, workflow, modules, facts.gates, { kind: job.kind, modules: names }) : null;
+      const offered = findings !== null && findings.length === 0 && !pull.draft;
+      if (offered) mergeable.push({ number: pull.number, head: read.pullRequest.head });
+      parts.push(`<div data-pull="${h(pull.number)}" data-state="open">${shown}
+        ${findings === null ? `<p class="warn" data-done data-holds="false">The product's workflow cannot be read, so the Definition of Done cannot be checked.</p>`
+          : findings.length === 0 ? `<p data-done data-holds="true">The Definition of Done holds.</p>`
+          : `<p class="warn" data-done data-holds="false">The Definition of Done does not hold:</p><ul data-findings>${findings.map((each) => `<li>${h(each.what)}</li>`).join("")}</ul>`}
+        ${pull.draft ? `<p class="warn">The pull request is a draft.</p>` : ""}
+        ${offered ? `<p><button type="button" data-merge-pull="${h(pull.number)}">Merge</button></p>` : ""}<p data-merge-result></p></div>`);
+    } catch (failure) {
+      parts.push(`<div data-pull="${h(pull.number)}"><h4>#${h(pull.number)} ${h(pull.title)}</h4><p class="warn">${h(failure?.message ?? failure)}</p></div>`);
+    }
+  }
+  const section = document.createElement("section");
+  section.className = "panel";
+  section.setAttribute("data-pulls", "");
+  section.innerHTML = `<h3>Pull requests of the jobs</h3>${explain("<p>CI runs the tests on every push, and the Definition of Done is checked on the pull request. <em>Merge</em> is offered once both hold, and merges only while the head is the one shown (UC-024 steps 11 to 13).</p>")}${parts.join("")}`;
+  target.append(section);
+  for (const { number, head } of mergeable) {
+    const button = section.querySelector(`[data-merge-pull="${number}"]`);
+    button?.addEventListener("click", async (event) => {
+      if (event?.isTrusted === false) return;
+      const out = section.querySelector(`[data-pull="${number}"]`)?.querySelector("[data-merge-result]");
+      try {
+        const merged = await host.mergePullRequest(number, head);
+        out.textContent = `Merged as ${String(merged.commit).slice(0, 7)}.`;
+        button.setAttribute("disabled", "");
+      } catch (failure) {
+        out.textContent = `Not merged: ${failure?.reason ?? failure?.message ?? failure}`;
+      }
+    });
+  }
+}
+
 async function draw(target, context, params) {
   const { product, instance } = context;
   const instanceSnapshot = await instance.host.readSnapshot((await instance.host.repositoryInfo()).defaultBranch);
@@ -273,7 +339,7 @@ async function draw(target, context, params) {
     return;
   }
   const ctx = await contextOf(context);
-  if (facts.model.kind !== "pulled") { await drawPlan(target, context, facts, ctx, participants, workflow, await machineryFor(context, ctx, instanceSnapshot, participants)); return; }
+  if (facts.model.kind !== "pulled") { await drawPlan(target, context, facts, ctx, participants, workflow, await machineryFor(context, ctx, instanceSnapshot, participants)); await drawPulls(target, context, facts); return; }
   const d = await derivedOf(context, ctx);
   const head = (body) => headOf(target, `<p data-backlog-link>This model works from a backlog: <a href="#backlog">open the backlog</a>.</p>${body}`);
   if (ctx.declaration === null || ctx.model === null) {
@@ -366,6 +432,7 @@ async function draw(target, context, params) {
     }
     out.innerHTML = `<ul>${lines.join("")}</ul>`;
   });
+  await drawPulls(target, context, facts);
 }
 
 export const route = {
