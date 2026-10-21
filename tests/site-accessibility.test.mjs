@@ -40,8 +40,8 @@ const RULE = {
 };
 const PER_ROUTE = {
   "/": [],
-  "#use-case/id=draft": ["target"],
-  "#spec-entry/id=spec-2026-10-18_sample-01/edit=1": ["target"],
+  "#use-case/id=draft": [],
+  "#spec-entry/id=spec-2026-10-18_sample-01/edit=1": [],
   "#backlog": ["contrast"],
 };
 const TODAY = Object.fromEntries(ROUTES.map((route) => [route.address, (PER_ROUTE[route.address] ?? ["menu"]).map((rule) => RULE[rule]).join("; ")]));
