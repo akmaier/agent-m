@@ -135,14 +135,9 @@ const conversationOf = () => readTabValue(openStore("acme/instance"), "prompt-ba
 
 // TST-506001 · level: unit · module: MOD-site-frame
 // guards: UC-049
-// given: a browser that keeps the endpoint ep1 and a register offering the one participant drafter-a; one view with the routes
-//   alpha (requirements) and beta (tests)
+// given: a browser that keeps the endpoint ep1 and a register offering the one participant drafter-a; one view with the routes alpha (requirements) and beta (tests)
 // input: startPage on the main page, then on the review page, each followed by two changes of the fragment; then on the bridge page
-// expect: on the main and on the review page the children of the body are, in this order, header, section, main, the site footer (class
-//   site-footer) and the footer of the bar; the last has the class site-frame-prompt-bar and holds one section of class prompt-bar whose data-page is "main", then "review"; the
-//   register of the instance (docs/participants.md) was read once, and after the two changes of the fragment the footer holds
-//   that same section (the bar was not started again) and the register was still read once; on the
-//   bridge page the children of the body are header, section, main, there is no footer and the register was not read
+// expect: on the main and on the review page the children of the body are, in this order, header, section, main, the site footer (class site-footer) and the footer of the bar; the last has the class site-frame-prompt-bar and holds one section of class prompt-bar whose data-page is "main", then "review"; the register of the instance (docs/participants.md) was read once, and after the two changes of the fragment the footer holds that same section (the bar was not started again) and the register was still read once; on the bridge page the children of the body are header, section, main, there is no footer and the register was not read
 test("TST-506001 the bar is started once in a footer after the route's main on the main and the review pages, and not in the Bridge's window", async () => {
   const views = [route("alpha", "requirements"), route("beta", "tests")];
   for (const name of ["main", "review"]) {
@@ -170,15 +165,9 @@ test("TST-506001 the bar is started once in a footer after the route's main on t
 
 // TST-506002 · level: unit · module: MOD-site-frame
 // guards: UC-049
-// given: the review page with the route alpha (entry requirements) that gives a subject — key "requirement:<id>", the page text
-//   "alpha <id> for <participant> on <page>", refuses ["propose-edit"] and its own entry "settings" — and the route beta (entry
-//   tests) that gives none
+// given: the review page with the route alpha (entry requirements) that gives a subject — key "requirement:<id>", the page text "alpha <id> for <participant> on <page>", refuses ["propose-edit"] and its own entry "settings" — and the route beta (entry tests) that gives none
 // input: Send "first" on #alpha/id=7; the fragment changes to #alpha/id=8 and Send "second"; it changes to #beta and Send "third"
-// expect: the kind's strategy is given, for the first message, page "alpha 7 for drafter-a on review", entry "requirements" (the
-//   route's, not the subject's "settings"), refuses ["propose-edit"] and instruction "first"; for the second, page "alpha 8 for
-//   drafter-a on review"; for the third entry "tests", refuses [], and a page that does not begin with "alpha"; the subjects kept
-//   with the tab's messages are "requirement:7" twice (the person's and the participant's), "requirement:8" twice, then
-//   "beta" twice
+// expect: the kind's strategy is given, for the first message, page "alpha 7 for drafter-a on review", entry "requirements" (the route's, not the subject's "settings"), refuses ["propose-edit"] and instruction "first"; for the second, page "alpha 8 for drafter-a on review"; for the third entry "tests", refuses [], and a page that does not begin with "alpha"; the subjects kept with the tab's messages are "requirement:7" twice (the person's and the participant's), "requirement:8" twice, then "beta" twice
 test("TST-506002 the subject is the shown route's own, read at each Send, and its entry is the route's", async () => {
   const alpha = route("alpha", "requirements", { subject: (params, context) => ({
     key: `requirement:${params.id}`, title: `Requirement ${params.id}`, kind: "converse", entry: "settings",
@@ -204,14 +193,9 @@ test("TST-506002 the subject is the shown route's own, read at each Send, and it
 
 // TST-506003 · level: unit · module: MOD-site-frame
 // guards: UC-049
-// given: the review page with the route alpha (entry requirements, title "Title of alpha") and the route beta (entry tests, title
-//   "Title of beta"), neither giving a subject, in a browser that keeps the product https://github.com/acme/widget
+// given: the review page with the route alpha (entry requirements, title "Title of alpha") and the route beta (entry tests, title "Title of beta"), neither giving a subject, in a browser that keeps the product https://github.com/acme/widget
 // input: Send "hello" on #alpha/id=7; Send on #beta/q=a%20b/z=1; Send on #alpha/id=7/product=<the widget>
-// expect: the first message is given the page "Title of alpha\nRequirements\nhttps://github.com/acme/instance\nalpha {"id":"7"}",
-//   entry "requirements" and refuses []; the second the page "Title of beta\nTests\nhttps://github.com/acme/instance\nbeta
-//   {"q":"a b","z":"1"}" and entry "tests"; the third the page "Title of alpha\nRequirements\nhttps://github.com/acme/widget\nalpha
-//   {"id":"7"}"; the subjects kept with the tab's messages are "alpha/id=7" twice, "beta/q=a%20b/z=1" twice and
-//   "alpha/id=7/product=https%3A%2F%2Fgithub.com%2Facme%2Fwidget" twice
+// expect: the first message is given the page "Title of alpha\nRequirements\nhttps://github.com/acme/instance\nalpha {"id":"7"}", entry "requirements" and refuses []; the second the page "Title of beta\nTests\nhttps://github.com/acme/instance\nbeta {"q":"a b","z":"1"}" and entry "tests"; the third the page "Title of alpha\nRequirements\nhttps://github.com/acme/widget\nalpha {"id":"7"}"; the subjects kept with the tab's messages are "alpha/id=7" twice, "beta/q=a%20b/z=1" twice and "alpha/id=7/product=https%3A%2F%2Fgithub.com%2Facme%2Fwidget" twice
 test("TST-506003 a route that gives no subject has the default: its key, its title, the menu entry, the product or the instance, and the text the route drew", async () => {
   const views = [route("alpha", "requirements"), route("beta", "tests")];
   const page = await start({ fragment: "#alpha/id=7", views });
@@ -258,12 +242,9 @@ test("TST-555002 a route whose subject gives null for these parameters has the f
 
 // TST-506007 · level: unit · module: MOD-site-frame
 // guards: UC-049
-// given: a browser that keeps the products https://github.com/acme/widget and https://github.com/acme/gadget; the route alpha (entry
-//   requirements) that gives no subject
+// given: a browser that keeps the products https://github.com/acme/widget and https://github.com/acme/gadget; the route alpha (entry requirements) that gives no subject
 // input: Send on #alpha/id=7 (the instance); Send on #alpha/id=7/product=<the widget>; Send on #alpha/id=7/product=<the gadget>
-// expect: the subjects kept with the tab's messages are "alpha/id=7" twice (the instance), "alpha/id=7/product=https%3A%2F%2Fgithub.com%2Facme%2Fwidget"
-//   twice and "alpha/id=7/product=https%3A%2F%2Fgithub.com%2Facme%2Fgadget" twice: the same route on two products gives two keys, and
-//   on the instance a third
+// expect: the subjects kept with the tab's messages are "alpha/id=7" twice (the instance), "alpha/id=7/product=https%3A%2F%2Fgithub.com%2Facme%2Fwidget" twice and "alpha/id=7/product=https%3A%2F%2Fgithub.com%2Facme%2Fgadget" twice: the same route on two products gives two keys, and on the instance a third
 test("TST-506007 the same route on two products and on the instance is three subjects, so a draft is shown only on the page it was drafted on", async () => {
   const page = await start({ fragment: "#alpha/id=7", views: [route("alpha", "requirements")] });
   await drawn(page);
@@ -282,12 +263,9 @@ test("TST-506007 the same route on two products and on the instance is three sub
 
 // TST-506004 · level: unit · module: MOD-site-frame
 // guards: A STORED SECRET IS HIDDEN UNTIL SHOWN
-// given: the review page with the route tokens (entry settings), which draws the paragraph "Token for the instance" and a
-//   password field holding the stored secret github_pat_SECRET_VALUE; the route gives no subject
+// given: the review page with the route tokens (entry settings), which draws the paragraph "Token for the instance" and a password field holding the stored secret github_pat_SECRET_VALUE; the route gives no subject
 // input: Send "what is stored?"
-// expect: the field does hold github_pat_SECRET_VALUE (so the check below can find it); the page the message is given is
-//   "Title of tokens\nSettings\nhttps://github.com/acme/instance\nToken for the instance", which does not contain
-//   github_pat_SECRET_VALUE
+// expect: the field does hold github_pat_SECRET_VALUE (so the check below can find it); the page the message is given is "Title of tokens\nSettings\nhttps://github.com/acme/instance\nToken for the instance", which does not contain github_pat_SECRET_VALUE
 test("TST-506004 the default page holds the text the route drew and no value of an input, so no stored secret", async () => {
   const SECRET = "github_pat_SECRET_VALUE";
   let field = null;
@@ -309,11 +287,9 @@ test("TST-506004 the default page holds the text the route drew and no value of 
 
 // TST-506005 · level: unit · module: MOD-site-frame
 // guards: UC-049
-// given: the review page with the route orphan (entry null) that gives no subject, and the route own (entry null) that gives a
-//   subject with its entry "tests"
+// given: the review page with the route orphan (entry null) that gives no subject, and the route own (entry null) that gives a subject with its entry "tests"
 // input: Send "a" on #orphan; Send "b" on #own
-// expect: the first message is given entry null and the page "Title of orphan\nhttps://github.com/acme/instance\norphan {}" (no
-//   line for a menu entry); the second entry null
+// expect: the first message is given entry null and the page "Title of orphan\nhttps://github.com/acme/instance\norphan {}" (no line for a menu entry); the second entry null
 test("TST-506005 a route out of the menu gives the bar the entry null, whichever gives its subject", async () => {
   const own = route("own", null, { subject: () => ({ key: "own", title: "Own", kind: "converse", entry: "tests",
     paramsFor: () => ({ page: "own page" }), draftRoute: null, withhold: null, refuses: [] }) });
@@ -330,14 +306,9 @@ test("TST-506005 a route out of the menu gives the bar the entry null, whichever
 
 // TST-506006 · level: unit · module: MOD-site-frame
 // guards: UC-049; EVERY STEP EXPLAINS ITSELF
-// given: a browser that keeps the product https://github.com/acme/widget; the route alpha (entry requirements) whose subject names
-//   the draft route beta; an endpoint that answers {"answer":"ok"}
-// input: the review page at #alpha/product=<the widget>: Send "draft it", press "Review the draft"; then the review page at #alpha
-//   (the instance): Send "again", press "Review the draft"
-// expect: the bar holds a folded explanation (a details of class explain with the summary "What is this?"); the register was read
-//   with the instance's token (Authorization "Bearer github_pat_INSTANCE") and, on the product's page, the product acme/widget was
-//   read with its own token ("Bearer github_pat_WIDGET") after Send; the draft kept in the tab is for the subject "alpha"; the
-//   fragment becomes #beta/product=<the widget>; on the instance's page no request goes to acme/widget and the fragment becomes #beta
+// given: a browser that keeps the product https://github.com/acme/widget; the route alpha (entry requirements) whose subject names the draft route beta; an endpoint that answers {"answer":"ok"}
+// input: the review page at #alpha/product=<the widget>: Send "draft it", press "Review the draft"; then the review page at #alpha (the instance): Send "again", press "Review the draft"
+// expect: the bar holds a folded explanation (a details of class explain with the summary "What is this?"); the register was read with the instance's token (Authorization "Bearer github_pat_INSTANCE") and, on the product's page, the product acme/widget was read with its own token ("Bearer github_pat_WIDGET") after Send; the draft kept in the tab is for the subject "alpha"; the fragment becomes #beta/product=<the widget>; on the instance's page no request goes to acme/widget and the fragment becomes #beta
 test("TST-506006 the bar is handed the instance as connected, the chosen product, explain and the navigation that keeps the product", async () => {
   const alpha = route("alpha", "requirements", { subject: () => ({ key: "alpha", title: "Alpha", kind: "converse", entry: null,
     paramsFor: () => ({ page: "alpha page" }), draftRoute: "beta", withhold: null, refuses: [] }) });

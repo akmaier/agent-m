@@ -172,11 +172,8 @@ test("use-case/<id> — the same route on the instance and on a product are two 
 // TST-507008 · level: unit · module: MOD-review-pages · MOD-site-frame
 // guards: UC-049
 // given: a product page of the route `use-case`
-// input: the route's own subject for the list (no part), for Review all (id=all), for the drafting page (id=draft) and for an identifier the product does not hold (UC-999); then the
-//   subject the frame gives for each, its `subjectOf` called with the route, the same parameters and context, and the text the route has drawn
-// expect: the route's own subject is null for each; the frame's is its default — kind converse, title "Use cases", no draft route, no withhold, refuses [], entry use-cases — with the key the
-//   route's fragment ("use-case", "use-case/id=all", …, each with "/product=<address>" after it), and as its page the lines "Use cases", "Use cases" (the menu entry's label), the product's
-//   address and what the route has drawn — for the list the rows "UC-007" and "UC-008"
+// input: the route's own subject for the list (no part), for Review all (id=all), for the drafting page (id=draft) and for an identifier the product does not hold (UC-999); then the subject the frame gives for each, its `subjectOf` called with the route, the same parameters and context, and the text the route has drawn
+// expect: the route's own subject is null for each; the frame's is its default — kind converse, title "Use cases", no draft route, no withhold, refuses [], entry use-cases — with the key the route's fragment ("use-case", "use-case/id=all", …, each with "/product=<address>" after it), and as its page the lines "Use cases", "Use cases" (the menu entry's label), the product's address and what the route has drawn — for the list the rows "UC-007" and "UC-008"
 test("the other routes of a kind give null, and the frame's default subject stands", async () => {
   const fake = fakeProduct();
   const cases = [[{}, "use-case"], [{ id: "all" }, "use-case/id=all"], [{ id: "draft" }, "use-case/id=draft"], [{ id: "UC-999" }, "use-case/id=UC-999"]];
@@ -207,11 +204,8 @@ test("the other routes of a kind give null, and the frame's default subject stan
 // TST-507009 · level: unit · module: MOD-review-pages
 // guards: UC-049; UC-019
 // given: the view the module offers, a product with the use case UC-007 and the requirement A LOAN HAS A DUE DATE
-// input: the former routes of changing by prompt, drawn: `use-case/id=UC-007/prompt=1`, `requirement/name=A LOAN HAS A DUE DATE/prompt=1` and `requirements/requirements=["A LOAN HAS A DUE DATE"]/prompt=1`;
-//   known positives: the same routes without `prompt`
-// expect: none draws a prompt page — no heading "Change UC-007 by prompt" or "Change requirements by prompt", nor any heading containing "by prompt", no field "What should change" (textarea.instruction), no participant list —;
-//   the use case's route draws the page of UC-007 (heading "UC-007 Derive use cases"), the requirement's route the editor of the requirement (heading "Edit A LOAN HAS A DUE DATE", a field
-//   Why), as the same routes draw them without the part prompt
+// input: the former routes of changing by prompt, drawn: `use-case/id=UC-007/prompt=1`, `requirement/name=A LOAN HAS A DUE DATE/prompt=1` and `requirements/requirements=["A LOAN HAS A DUE DATE"]/prompt=1`; known positives: the same routes without `prompt`
+// expect: none draws a prompt page — no heading "Change UC-007 by prompt" or "Change requirements by prompt", nor any heading containing "by prompt", no field "What should change" (textarea.instruction), no participant list —; the use case's route draws the page of UC-007 (heading "UC-007 Derive use cases"), the requirement's route the editor of the requirement (heading "Edit A LOAN HAS A DUE DATE", a field Why), as the same routes draw them without the part prompt
 test("the old prompt routes are gone", async () => {
   const fake = fakeProduct();
   const headings = (page) => find(page.target, (node) => node.localName === "h2" || node.localName === "h3").map((node) => node.textContent);
@@ -286,11 +280,9 @@ test("draft — the subject is the draft's: its key, kind and title, its own dra
 
 // TST-507039 · level: unit · module: MOD-review-pages
 // guards: UC-019; THE PERSON WHO PROMPTS IS A SOURCE
-// given: the conversation's draft for each of: the page of ARC-001 (change-architecture, prepared with target ARC-001 and its blob); the requirement A LOAN HAS A DUE DATE (change-requirements, prepared with
-//   requirements [LOAN], source SRC-alice and the blob of its section); a group of two requirements (change-requirements, requirements [LOAN, A BOOK IS SHELVED]); a document edit (converse, prepared with a page)
+// given: the conversation's draft for each of: the page of ARC-001 (change-architecture, prepared with target ARC-001 and its blob); the requirement A LOAN HAS A DUE DATE (change-requirements, prepared with requirements [LOAN], source SRC-alice and the blob of its section); a group of two requirements (change-requirements, requirements [LOAN, A BOOK IS SHELVED]); a document edit (converse, prepared with a page)
 // input: the subject of the route draft for each key
-// expect: the draft's own kind, key and draftRoute "draft/subject=<key, encoded>" for each; titles "ARC-001", "A LOAN HAS A DUE DATE", "A LOAN HAS A DUE DATE, A BOOK IS SHELVED" and, the draft naming nothing it changes,
-//   "The draft of the conversation"; its parameters the draft's own plus draft - the person's own source stays among those of the requirements
+// expect: the draft's own kind, key and draftRoute "draft/subject=<key, encoded>" for each; titles "ARC-001", "A LOAN HAS A DUE DATE", "A LOAN HAS A DUE DATE, A BOOK IS SHELVED" and, the draft naming nothing it changes, "The draft of the conversation"; its parameters the draft's own plus draft - the person's own source stays among those of the requirements
 test("draft — the subject of an architecture, a requirements and a conversation draft keeps its kind, its target and its source", async () => {
   const fake = fakeProduct();
   const cases = [

@@ -152,11 +152,9 @@ test("TST-558002 the draft route of an open group is draft/subject=<its key, enc
 
 // TST-558003 · level: unit · module: MOD-trace-pages
 // guards: UC-019; THE PERSON WHO PROMPTS IS A SOURCE
-// given: a requirement open on main; the known positive: the product links the person's source SRC-acme-person; then (a) the links file holds no row for the person, (b) the register holds only a person of another account,
-//   (c) the context has no instance, (d) the instance's Host fails
+// given: a requirement open on main; the known positive: the product links the person's source SRC-acme-person; then (a) the links file holds no row for the person, (b) the register holds only a person of another account, (c) the context has no instance, (d) the instance's Host fails
 // input: route.subject, then subject.paramsFor(participant), under a fetch spy
-// expect: known positive: { requirements: [LOAN], source: "SRC-acme-person" }; (a) to (d): the subject is still given (kind "change-requirements") and paramsFor throws an error named NoPersonSource whose message is exactly
-//   "The author has no personal source linked to this product. Register the person as a source (#library) and link that source to the product (#sources), then ask again."; no fetch is made
+// expect: known positive: { requirements: [LOAN], source: "SRC-acme-person" }; (a) to (d): the subject is still given (kind "change-requirements") and paramsFor throws an error named NoPersonSource whose message is exactly "The author has no personal source linked to this product. Register the person as a source (#library) and link that source to the product (#sources), then ask again."; no fetch is made
 test("TST-558003 without the person's source linked by the product, paramsFor refuses with NoPersonSource naming the two steps", async () => {
   const before = globalThis.fetch;
   const requests = [];

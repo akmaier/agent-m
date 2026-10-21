@@ -3,7 +3,8 @@
 // that gives. At the top stand the limitations, then the summary, each number that the rows alone can tell opening the rows it counts; under it the filters
 // (normative sources, one source, one level, only gaps) and one row per requirement valid at the tag, with its sources, its tests with outcome, level and
 // counter-proof, its gates and the acceptance of the report, and a detail that links the run on the server and the approval commit. Where the report is not
-// accepted every row says so and the page links to MOD-test-pages' route `release`, where Accept stands. It reads and writes nothing else.
+// accepted every row says so and the page links to MOD-test-pages' route `release`, where Accept stands. Export saves the audit document in the browser and, for a person with write access, Commit export commits it to docs/audits/<tag>.md, on the
+// person's click (export.mjs). It writes nothing else.
 //
 // Module: MOD-trace-pages
 
@@ -11,6 +12,7 @@ import { readDocument } from "../documents/index.mjs";
 import { auditRows } from "../release-evidence/index.mjs";
 import { declarationSchema, gateSchema, gateStates, productWorkflow } from "../product-process/index.mjs";
 import { sourceSchemas } from "../source-register/index.mjs";
+import { exportControls } from "./export.mjs";
 import { instanceSnapshot } from "./subject.mjs";
 
 const RESULTS_BRANCH = "test-results";
@@ -81,12 +83,13 @@ async function load(host, context, tag) {
   const release = { tag, commit: (await host.listTags()).find((each) => each.name === tag)?.commit ?? tag };
   const at = await host.readSnapshot(tag);
   const results = await host.readSnapshot(RESULTS_BRANCH);
-  const head = await host.readSnapshot((await host.repositoryInfo()).defaultBranch);
+  const info = await host.repositoryInfo();
+  const head = await host.readSnapshot(info.defaultBranch);
   const { instanceSpec, register } = await instanceOf(context);
   const acceptance = await acceptanceOf(host, head, tag);
   const gates = await gatesOf(at, context, instanceSpec);
   const audit = await auditRows(at, results, head, release, gates, instanceSpec, register, acceptance?.accepted ?? null);
-  return { release, audit, acceptance };
+  return { release, audit, acceptance, head, canWrite: info.canWrite === true };
 }
 
 function select(className, label, values, change) {
@@ -137,8 +140,8 @@ function rowOf(row, { release, audit, acceptance }, links) {
   return tr;
 }
 
-function page(loaded, links) {
-  const { audit } = loaded;
+function page(loaded, links, host) {
+  const { audit, release, head: defaultBranch, canWrite } = loaded;
   const state = { count: null, normative: "all", source: "all", level: "all", gaps: false };
   const tbody = el("tbody");
   const keep = (row) => (state.count === null || COUNTED[state.count](row))
@@ -183,6 +186,7 @@ function page(loaded, links) {
   return [
     ...(audit.summary.accepted ? [] : [el("p", "audit-not-accepted", "The release test report has not been accepted: evidence not accepted. ", accept)]),
     ...(audit.summary.limitations.length ? [el("ul", "audit-limitations", ...audit.summary.limitations.map((text) => el("li", null, text)))] : []),
+    exportControls(el, { audit, release, host, head: defaultBranch, canWrite }),
     summary, filters, el("table", "audit-table", el("thead", null, head), tbody)];
 }
 
@@ -213,7 +217,7 @@ export async function drawAudit(target, context, host, ref, descriptor, tags, ta
     place.replaceChildren(el("p", "traces-reading", "Reading the audit…"));
     let nodes;
     try {
-      nodes = page(await load(host, context, tag), host.webLinks?.() ?? null);
+      nodes = page(await load(host, context, tag), host.webLinks?.() ?? null, host);
     } catch (failure) {
       nodes = [el("p", "traces-problem", `The audit of ${tag} could not be read: ${failure?.message ?? failure}`)];
     }

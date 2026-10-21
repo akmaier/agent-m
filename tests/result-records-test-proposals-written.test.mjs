@@ -110,8 +110,7 @@ test("test-proposals (write-tests) — a test of level user takes no counter-pro
 
 // TST-754106 · level: unit · module: MOD-result-records
 // guards: A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT; A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS; UC-026
-// given: reviewed cases TST-754001 (unit, guards A RULE, expected round) to TST-754004, and a branch with their tests with valid counter-proofs: TST-754001 written at level component, TST-754002 guarding ANOTHER RULE,
-//   TST-754003 expecting square, TST-754004 with ROUND in other case and spacing (equal), and TST-754005, which no case has
+// given: reviewed cases TST-754001 (unit, guards A RULE, expected round) to TST-754004, and a branch with their tests with valid counter-proofs: TST-754001 written at level component, TST-754002 guarding ANOTHER RULE, TST-754003 expecting square, TST-754004 with ROUND in other case and spacing (equal), and TST-754005, which no case has
 // input: the check test-proposals on the report, with the cases in the job's parameters
 // expect: four error findings: level for TST-754001 and guards for TST-754002 under A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT, expected result for TST-754003 under A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS, identifier for TST-754005 under A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT; none for TST-754004
 test("test-proposals (write-tests) — a written test that differs from its reviewed case in level, guards, expected result or identifier is an error", async () => {

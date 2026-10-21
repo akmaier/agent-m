@@ -8,7 +8,7 @@
 // what is still missing. Readings: a failed outcome is entered with what the person saw, which goes into the record's Failures row with the declaration's expected result and the log cell "entered by hand"; a
 // `|` or a line break in that text is written as `/` or a space, so that it stays one cell.
 //
-// Not part of this item: Run on this commit (ITM-761). The page builds no folded explanation: explanations.md holds no topic of runs and the frame's file is not this module's.
+// The commit-detail page draws its folded explanation through the frame; its topic stays in MOD-site-frame's explanations.md.
 //
 // Readings the texts leave open: the log of a failed test is asked of ciRunLog with the id that ends the record's `run` address, when webLinks().run(id) gives that address back; the last release
 // is the highest tag v<major>.<minor>.<patch>; a record is read with readDocument and resultSchema.run, since readRegister refuses a schema of two tables.
@@ -26,7 +26,7 @@ import { newJobId, listJobs } from "../job-ledger/index.mjs";
 import { participantSchema, participantsOf, eligible } from "../participant-list/index.mjs";
 import { queueJob, routesFor, liveState } from "../runtimes/index.mjs";
 import { resourceSchema } from "../resource-list/index.mjs";
-import { runPanel } from "../site-frame/index.mjs";
+import { runPanel, explain } from "../site-frame/index.mjs";
 
 const SCHEDULE_PATH = "docs/tests/schedule.md";
 const PARTICIPANTS_PATH = "docs/participants.md";
@@ -367,7 +367,7 @@ async function detail(target, context, commit) {
   const checklist = candidate ? [checklistOf(host, { declarations, levels, schedule, commit, again: () => detail(target, context, commit) })] : [];
   const levelsShown = [...levels].sort((a, b) => LEVELS.indexOf(a.level) - LEVELS.indexOf(b.level));
   const run = runOnCommit({ host, context, commit, levels: levelsShown, schedule, again: () => detail(target, context, commit) });
-  target.replaceChildren(head, ...sections, ...uncommitted, ...checklist, run);
+  target.replaceChildren(head, explain("test-runs"), ...sections, ...uncommitted, ...checklist, run);
 }
 
 async function render(target, context, params = {}) {

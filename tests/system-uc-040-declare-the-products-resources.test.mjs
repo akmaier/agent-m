@@ -391,13 +391,9 @@ async function openEdit(page) {
 
 // TST-1041009 · level: system · module: MOD-settings-pages; MOD-resource-list
 // guards: UC-040; A PINNED RESOURCE MOVES ONLY WHEN A PERSON MOVES IT; ONE CLICK PER DECISION; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
-// given: the product's list pins dlls to the commit of 40 "b" and a second repository, other, to the commit of 40 "b" as well; the repository alice/dlls stands at its head (the SHA-1 of "alice/dlls#0"); the product holds the job record
-//   docs/jobs/JOB-20261005-1432-7f3a.md whose inputs pin dlls and the test tests/dlls.test.mjs that names it
+// given: the product's list pins dlls to the commit of 40 "b" and a second repository, other, to the commit of 40 "b" as well; the repository alice/dlls stands at its head (the SHA-1 of "alice/dlls#0"); the product holds the job record docs/jobs/JOB-20261005-1432-7f3a.md whose inputs pin dlls and the test tests/dlls.test.mjs that names it
 // input: add the entry "tools" (alice/dlls2) and save; press Check on dlls; a click a script makes on Move; the person's click on Move; press Check on dlls again
-// expect: a Save of another entry leaves the pin of dlls as it was (byte for byte); 9a "A newer state exists upstream — a newer commit. The dashboard shows it beside the pin with the jobs that use the resource; (flow: UC-040 alternative 9a)
-//   the pin changes only when the author presses Move — one click — which commits the new pin to docs/resources.md": Check writes nothing and shows the head beside the pin "bbbb…" with the job record and the
-//   test that name dlls and a button Move; the script's click writes nothing; the person's click writes one commit holding only docs/resources.md in which only the pin of dlls is the head (the other rows,
-//   other among them, byte for byte), made with the product's token; the entry then reads Pin: <the head>, and a second Check says it stands at its pin and offers no Move
+// expect: a Save of another entry leaves the pin of dlls as it was (byte for byte); 9a "A newer state exists upstream — a newer commit. The dashboard shows it beside the pin with the jobs that use the resource; (flow: UC-040 alternative 9a) the pin changes only when the author presses Move — one click — which commits the new pin to docs/resources.md": Check writes nothing and shows the head beside the pin "bbbb…" with the job record and the test that name dlls and a button Move; the script's click writes nothing; the person's click writes one commit holding only docs/resources.md in which only the pin of dlls is the head (the other rows, other among them, byte for byte), made with the product's token; the entry then reads Pin: <the head>, and a second Check says it stands at its pin and offers no Move
 test("UC-040 alternative 9a — through the frame, a newer state upstream is shown beside the pin and the pin moves by the person's click alone", async (t) => {
   const other = DLLS.replace("| dlls | repository | https://github.com/alice/dlls |", "| other | repository | https://github.com/alice/other |");
   const files = { "docs/resources.md": list("thesis-tool", DLLS, other, CLUSTER), ...WORKFLOW, "docs/jobs/JOB-20261005-1432-7f3a.md": `---\nid: JOB-20261005-1432-7f3a\nkind: implement\ninputs:\n  - dlls@${OLD}\nlimit: 5\n---\n`,
@@ -596,12 +592,9 @@ test("UC-040 step 5 — through the frame, a secret is named in the list and a k
 
 // TST-1041015 · level: system · module: MOD-resource-list; MOD-runtimes
 // guards: UC-040; A JOB RUNS ONLY WHERE ITS RESOURCES ARE REACHABLE
-// given: a list of four resources: dlls read on its host, cluster on the runner gpu, hpc on the Bridge hpc, and the endpoint local-llm called at its own address; the instance's register holds the CI agents ci-gpu on `ci runner:gpu secret K`
-//   and ci-hosted on `ci hosted secret K`, both in a private product that holds the job workflow
+// given: a list of four resources: dlls read on its host, cluster on the runner gpu, hpc on the Bridge hpc, and the endpoint local-llm called at its own address; the instance's register holds the CI agents ci-gpu on `ci runner:gpu secret K` and ci-hosted on `ci hosted secret K`, both in a private product that holds the job workflow
 // input: reachableBy over the list; routesFor for each CI agent with the needs it gives
-// expect: 9 "Agent M offers only the runtimes and participants that reach it by its route": the needs are cluster (runner:gpu) and hpc (bridge hpc) and not dlls or local-llm; for the need cluster alone ci-gpu is (flow: UC-040 steps 9 and 9b)
-//   offered and ci-hosted is not; for the needs cluster and hpc neither is offered; 9b "No runtime reaches the resource. The job is not offered; Agent M names the resource and the missing route": the reason of a
-//   refused offer names the resource and its route (cluster and runner:gpu; hpc and bridge hpc). This walks the chain of the two modules without a page: the pages that start a job hand routesFor no needs
+// expect: 9 "Agent M offers only the runtimes and participants that reach it by its route": the needs are cluster (runner:gpu) and hpc (bridge hpc) and not dlls or local-llm; for the need cluster alone ci-gpu is (flow: UC-040 steps 9 and 9b) offered and ci-hosted is not; for the needs cluster and hpc neither is offered; 9b "No runtime reaches the resource. The job is not offered; Agent M names the resource and the missing route": the reason of a refused offer names the resource and its route (cluster and runner:gpu; hpc and bridge hpc). This walks the chain of the two modules without a page: the pages that start a job hand routesFor no needs
 test("UC-040 steps 9, 9b — the routes of a job's participants reach only the resources the list says they reach, and a refusal names the resource and the route", async () => {
   const { reachableBy } = await import("../src/resource-list/index.mjs");
   const { routesFor } = await import("../src/runtimes/index.mjs");

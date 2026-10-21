@@ -331,8 +331,7 @@ class TestBridgeRelease(unittest.TestCase):
 
     # TST-1056003 · level: release · module: MOD-bridge-build
     # guards: THE BRIDGE IS SIGNED BY ITS PUBLISHER
-    # given: three platform builds with one fault each: a file whose bytes changed after the build; a file whose detached signature is another key's; a macOS build that records no publisher (its signature or
-    #   notarisation was not verified by the platform's verifier); a Windows build whose publisher is blank
+    # given: three platform builds with one fault each: a file whose bytes changed after the build; a file whose detached signature is another key's; a macOS build that records no publisher (its signature or notarisation was not verified by the platform's verifier); a Windows build whose publisher is blank
     # input: publishRelease over the folders
     # expect: the release is refused with SignatureInvalid naming the file, or BuildMissing naming the platform, and nothing is published
     def test_the_release_refuses_to_publish_a_file_whose_signature_cannot_be_verified(self):
@@ -363,11 +362,9 @@ class TestBridgeRelease(unittest.TestCase):
 
     # TST-1056006 · level: release · module: MOD-desktop-shell
     # guards: THE BRIDGE IS UPDATED ONLY BY THE PERSON'S CHOICE
-    # given: the packaged app started over a constructed Electron (build.json of 2026.10.0, the publisher's public key), a newer release 2026.11.0 in the feed, and in turn: everything signed by the publisher; the
-    #   feed signed by another key; the file signed by another key
+    # given: the packaged app started over a constructed Electron (build.json of 2026.10.0, the publisher's public key), a newer release 2026.11.0 in the feed, and in turn: everything signed by the publisher; the feed signed by another key; the file signed by another key
     # input: the window's requests: the state of the updates, Download, Install and restart without the decision, Install and restart with it
-    # expect: the signed newer release is offered with its notes and nothing is downloaded until Download; the update installs only after the person's decision and once (the counter-proof); a feed with an invalid
-    #   signature offers nothing; a file with an invalid signature is deleted, is never installable, and the app is never asked to install
+    # expect: the signed newer release is offered with its notes and nothing is downloaded until Download; the update installs only after the person's decision and once (the counter-proof); a feed with an invalid signature offers nothing; a file with an invalid signature is deleted, is never installable, and the app is never asked to install
     def test_an_update_is_offered_and_installed_only_on_the_persons_click_and_only_with_a_valid_signature(self):
         for loaded in of_kind("updating"):
             with self.subTest(case=loaded["name"]):

@@ -285,3 +285,22 @@ test("runs — where the records can be read, the links of the unreadable case a
   assert.deepEqual(byTag(shown, "a").map((link) => link.getAttribute("href")).filter((href) => /test-results|\/checks$/.test(href)), []);
   assert.deepEqual(asked.filter(([what]) => ["branch", "commitRuns"].includes(what)), []);
 });
+
+// TST-1172001 · level: unit · module: MOD-test-pages
+// guards: UC-028; EVERY STEP EXPLAINS ITSELF
+// given: a valid fixture commit whose detail page lists per-level and per-test results
+// input: the public route runs rendered for that commit
+// expect: the detail page carries one folded shared explanation: details.explain with summary "What is this?" and nonempty text that says a missing result is not run, distinguishes failed from flaky results, and says a flaky test is repaired or removed rather than retried until green
+test("TST-1172001 — a commit detail explains its results through the shared folded frame", async () => {
+  const shown = await page();
+  const folds = byClass(shown, "explain");
+  assert.equal(folds.length, 1, "one shared explanation on the commit detail");
+  const [summary, body] = folds[0].children;
+  assert.equal(folds[0].localName, "details");
+  assert.equal(summary.localName, "summary");
+  assert.equal(summary.textContent, "What is this?");
+  assert.ok(body.textContent.trim().length > 0, "the explanation has text");
+  assert.match(textOf(body), /not run/i);
+  assert.match(textOf(body), /failed.*flaky|flaky.*failed/i);
+  assert.match(textOf(body), /repaired or removed.*not retried until green/i);
+});

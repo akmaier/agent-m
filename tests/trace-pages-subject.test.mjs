@@ -232,8 +232,7 @@ test("TST-600154 every other view, and the specification with nothing open, give
 
 // TST-600155 · level: unit · module: MOD-trace-pages
 // guards: UC-049; UC-019; THE PERSON WHO PROMPTS IS A SOURCE
-// given: the subject of an open requirement on main (known positive: source "SRC-acme-person"); then the same page where (a) the product's links file holds no row for the person, (b) the register holds only a person of another account,
-//        (c) the context has no instance at all, as in the tests of ITM-360, (d) the instance's Host fails
+// given: the subject of an open requirement on main (known positive: source "SRC-acme-person"); then the same page where (a) the product's links file holds no row for the person, (b) the register holds only a person of another account, (c) the context has no instance at all, as in the tests of ITM-360, (d) the instance's Host fails
 // input: A LOAN HAS A DUE DATE opened and route.subject for each
 // expect: the known positive gives source "SRC-acme-person"; for (a) to (d) the requirement is still listed and opens, the subject is still given with the kind "change-requirements", and its paramsFor throws an error named NoPersonSource (ITM-558)
 test("TST-600155 a person whose source is not found, or cannot be read, refuses at paramsFor with NoPersonSource and the page still opens", async () => {

@@ -32,7 +32,7 @@ import { nextVersion, startReleaseCandidate, releaseReport, acceptAndRelease, re
   from "../release-evidence/index.mjs";
 import { recordsNewestFirst } from "../job-ledger/index.mjs";
 import { blobSha } from "../text-tools/index.mjs";
-import { explain } from "../site-frame/index.mjs";
+import { explain, embedRoute } from "../site-frame/index.mjs";
 import { renderArtifact } from "../markdown-render/index.mjs";
 
 // ---------------------------------------------------------------- small helpers (the module runs in a browser; every
@@ -108,6 +108,18 @@ function paintAccept(container, host, context, candidate, report) {
 // ---------------------------------------------------------------- the candidate's run: its levels, rates and report
 // once it has ended (UC-013 step 3), with Accept and release once it is complete.
 
+// The audit of the candidate (UC-030), drawn by the trace pages' route through the frame, which this module does not use. Where the route is not on the page the
+// frame has put its link in the section, and that stays.
+async function paintAudit(container, candidate) {
+  const section = el("section", "candidate-audit");
+  container.append(section);
+  try {
+    await embedRoute("trace", section, { key: "audit", ref: candidate.tag, commit: candidate.commit });
+  } catch (failure) {
+    if (failure?.name !== "RouteNotLoaded") section.replaceChildren(el("p", "result", `The audit could not be drawn: ${messageFor(failure)}`));
+  }
+}
+
 async function paintCandidate(container, context, candidate) {
   const host = context.product.host;
   container.replaceChildren(
@@ -126,6 +138,7 @@ async function paintCandidate(container, context, candidate) {
       reportArea.append(el("p", "muted", "The run has not finished at every level yet."));
       return;
     }
+    await paintAudit(reportArea, candidate);
     paintAccept(reportArea, host, context, candidate, report);
   }
   refreshBtn.addEventListener("click", load);

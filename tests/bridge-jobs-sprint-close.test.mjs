@@ -199,11 +199,9 @@ test("a sprint whose time box ended and whose closer is an agent of this Bridge 
 
 // TST-1033002 · level: unit · module: MOD-bridge-jobs
 // guards: A SPRINT CLOSED BY AN AGENT STARTS BY ITSELF; CLOSING A SPRINT CAN BE ASSIGNED TO A PARTICIPANT
-// given: sprints that ended on 2026-10-12 and are closed by other-drafter (a Bridge named other-pc), ci-drafter (a CI route), codex-drafter (this Bridge, an agent it does not offer) and by a closer that is no participant; a sprint closed by drafter
-//        whose time box ends in 2099; a sprint closed by drafter that ended and holds its `## Review`; and, to show the watcher reads, team1/07, ended, closed by drafter
+// given: sprints that ended on 2026-10-12 and are closed by other-drafter (a Bridge named other-pc), ci-drafter (a CI route), codex-drafter (this Bridge, an agent it does not offer) and by a closer that is no participant; a sprint closed by drafter whose time box ends in 2099; a sprint closed by drafter that ended and holds its `## Review`; and, to show the watcher reads, team1/07, ended, closed by drafter
 // input: startWatching; wait for team1/07's close to end, then three more intervals
-// expect: only team1/07 is closed: one close record, for team1/07; the sprints of other closers, the one not ended and the one closed already have none; the agent was started once
-// Planted fault: not testing the closer's route, or not testing the sprint's end, queues a close for one of the others.
+// expect: only team1/07 is closed: one close record, for team1/07; the sprints of other closers, the one not ended and the one closed already have none; the agent was started once Planted fault: not testing the closer's route, or not testing the sprint's end, queues a close for one of the others.
 test("a sprint closed by another participant, not yet ended or closed already is left alone", async () => {
   await world(async (w) => {
     watch(w, [{ name: "opencode", folder: w.folder("agent-work") }]);

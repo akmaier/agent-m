@@ -31,14 +31,9 @@ const reviewPage = () => pageWithScript({ "data-page": "review", "data-views": `
 
 // TST-572001 · level: unit · module: MOD-site-frame
 // guards: UC-049
-// given: a review page whose script tag has data-page="review" and data-views naming view-approvals-a (hands approvalStrategies and the
-//   check itm572OwnA) and view-approvals-b (hands approvalStrategies, sourceStrategies and the check itm572OwnB); the fragment #alpha
+// given: a review page whose script tag has data-page="review" and data-views naming view-approvals-a (hands approvalStrategies and the check itm572OwnA) and view-approvals-b (hands approvalStrategies, sourceStrategies and the check itm572OwnB); the fragment #alpha
 // input: start.mjs is loaded
-// expect: the load does not reject although two views hand approvalStrategies; approvalStrategies' recipe use-cases is registered by
-//   view-approvals-a, the first view that hands it; sourceStrategies' recipe chapters-for-implementation by view-approvals-b; the checks
-//   itm572OwnA and itm572OwnB by their own views; and what no view hands but MOD-prompt-bar's handOverStrategies do — the recipe
-//   resource-check (resourceStrategies), the recipe implementation-inputs (runStrategies), the step due-diligence (reuseStrategies),
-//   the writer queue-entries (specStrategies) and the writer open-files (editStrategies) — by MOD-prompt-bar; no request left the fixture
+// expect: the load does not reject although two views hand approvalStrategies; approvalStrategies' recipe use-cases is registered by view-approvals-a, the first view that hands it; sourceStrategies' recipe chapters-for-implementation by view-approvals-b; the checks itm572OwnA and itm572OwnB by their own views; and what no view hands but MOD-prompt-bar's handOverStrategies do — the recipe resource-check (resourceStrategies), the recipe implementation-inputs (runStrategies), the step due-diligence (reuseStrategies), the writer queue-entries (specStrategies) and the writer open-files (editStrategies) — by MOD-prompt-bar; no request left the fixture
 test("TST-572001 start.mjs registers each set once however many views hand it, and the bar's sets under MOD-prompt-bar", async () => {
   reviewPage();
   await import("../src/site-frame/start.mjs?hand-over-review");
@@ -88,11 +83,9 @@ test("TST-572003 a second evaluation of start.mjs counts the strategies its own 
 
 // TST-572004 · level: unit · module: MOD-site-frame
 // guards: UC-049
-// given: the check itm572Taken registered by the owner someone-else, and a review page whose data-views names view-taken, which hands a
-//   set holding a check of that name
+// given: the check itm572Taken registered by the owner someone-else, and a review page whose data-views names view-taken, which hands a set holding a check of that name
 // input: start.mjs is loaded
-// expect: the load rejects with a DuplicateStrategy whose owners are ["someone-else", the slug of view-taken]: a duplicate whose first
-//   owner is not the owner now registering is not counted as already registered
+// expect: the load rejects with a DuplicateStrategy whose owners are ["someone-else", the slug of view-taken]: a duplicate whose first owner is not the owner now registering is not counted as already registered
 test("TST-572004 a strategy another owner registered still throws DuplicateStrategy", async () => {
   registerStrategies("someone-else", { checks: { itm572Taken: () => [] } });
   pageWithScript({ "data-page": "review", "data-views": VIEW_TAKEN, "data-menu-views": "" });
