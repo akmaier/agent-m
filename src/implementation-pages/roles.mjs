@@ -139,8 +139,8 @@ export const route = {
       <table class="list"><thead><tr><th>Role</th><th>Filled by</th><th>How many</th><th>Needs</th><th>Who may hold it</th></tr></thead><tbody>
       ${workflow.roles.map((role) => {
         const may = mayHold(role);
-        return `<tr data-role="${h(role.name)}"><td>${h(role.name)}</td><td>${h(role.filledBy)}</td><td>${h(role.howMany)}</td>
-          <td class="small">${role.capabilities.map(h).join(", ")}</td><td>${may.length ? may.map(whoText).join("<br>") : missingText(role)}</td></tr>`;
+        return `<tr data-role="${h(role.name)}"><td data-label="Role">${h(role.name)}</td><td data-label="Filled by">${h(role.filledBy)}</td><td data-label="How many">${h(role.howMany)}</td>
+          <td class="small" data-label="Needs">${role.capabilities.map(h).join(", ")}</td><td data-label="Who may hold it">${may.length ? may.map(whoText).join("<br>") : missingText(role)}</td></tr>`;
       }).join("")}</tbody></table>
       ${folded("roles-and-participants")}</section>`;
 
@@ -148,7 +148,7 @@ export const route = {
       const name = nameOf(assignment.path);
       return `<section class="panel" data-assignment="${h(name)}"><h3>${h(name)}</h3>
         <table class="list"><thead><tr><th>Role</th><th>Participants</th></tr></thead><tbody>
-        ${workflow.roles.map((role) => `<tr data-role="${h(role.name)}"><td>${h(role.name)}</td><td>${holdersIn(assignment, role.name).map(h).join(", ")
+        ${workflow.roles.map((role) => `<tr data-role="${h(role.name)}"><td data-label="Role">${h(role.name)}</td><td data-label="Participants">${holdersIn(assignment, role.name).map(h).join(", ")
           || "<span class=\"warn\">none</span>"}</td></tr>`).join("")}</tbody></table>
         ${findingsList(findings.filter((f) => f.artifact === assignment.path))}
         <p><button class="btn" data-edit="${h(name)}">Change</button>${sprints ? ` <button class="btn" data-remove="${h(name)}">Remove team</button>` : ""}</p>
@@ -165,7 +165,7 @@ export const route = {
         ticked.set(role.name, offered.filter((p) => held.includes(p.name)).map((p) => p.name));
         const ticks = offered.map((p) => `<label><input type="checkbox" data-hold="${h(role.name)}|${h(p.name)}"${held.includes(p.name) ? " checked" : ""}>
           ${whoText(p)}</label>`).join("<br>");
-        return `<tr data-role="${h(role.name)}"><td>${h(role.name)}</td><td>${h(role.howMany)}</td><td>${ticks || missingText(role)}</td></tr>`;
+        return `<tr data-role="${h(role.name)}"><td data-label="Role">${h(role.name)}</td><td data-label="How many">${h(role.howMany)}</td><td data-label="Participants">${ticks || missingText(role)}</td></tr>`;
       }).join("");
       const found = findingsOf(editing.name ?? "", ticked);
       return `<section class="panel" data-edit-assignment="${h(editing.name ?? "new")}">
