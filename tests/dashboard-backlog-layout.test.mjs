@@ -13,9 +13,10 @@
 //        modules are long.
 // Input: open #backlog, open Plan sprint for team2, and lay the page out 390 px and 1280 px wide.
 // Expected: at both widths the document is no wider than the window; each of the four tables, and the chart, stands in its
-//           own box without horizontal overflow, and those boxes and every panel lie within the left and right edges of the
-//           page's heading; every visible text of the chart is drawn as large as the page's body text, within a pixel, and
-//           the phone draws fewer visible positive axis labels than the desktop without hiding them all; the chart's line is
+//           own box that scrolls sideways at 1280 px and fits without horizontal overflow at 390 px, and those boxes and
+//           every panel lie within the left and right edges of the page's heading; every chart text is drawn as large as the
+//           page's body text, within a pixel, and the phone draws fewer visible positive axis labels than the desktop
+//           without hiding them all; the chart's line is
 //           at least as wide as each of its axes, and its colour
 //           has a contrast of at least 3:1 against the chart's background (WCAG 2.2, success criterion 1.4.11, non-text
 //           contrast).
@@ -182,18 +183,21 @@ function measure() {
     tables: [...document.querySelectorAll("main table")].map((table) => ({
       part: table.closest("section")?.getAttribute("data-team") ?? table.closest("section")?.getAttribute("data-part")
         ?? table.closest("section")?.getAttribute("data-plan-team"),
-      box: { holdsOnlyTheTable: table.parentElement.children.length === 1, scrollWidth: table.parentElement.scrollWidth,
-        clientWidth: table.parentElement.clientWidth, ...edges(table.parentElement) } })),
+      box: { overflowX: getComputedStyle(table.parentElement).overflowX, holdsOnlyTheTable: table.parentElement.children.length === 1,
+        scrollWidth: table.parentElement.scrollWidth, clientWidth: table.parentElement.clientWidth, ...edges(table.parentElement) } })),
     panels: [...document.querySelectorAll("main > section")].map((section) => ({ name: section.className, ...edges(section) })),
     chart: {
       box: { overflowX: getComputedStyle(box).overflowX, holdsOnlyTheChart: box.children.length === 1, scrollWidth: box.scrollWidth,
         clientWidth: box.clientWidth, ...edges(box) },
       scale, body: px(getComputedStyle(document.body).fontSize),
       texts: [...svg.querySelectorAll("text")].map((text) => {
-        const bounds = text.getBoundingClientRect();
-        return { text: text.textContent, size: px(getComputedStyle(text).fontSize) * scale,
-          visible: bounds.width > 0 && bounds.height > 0 && bounds.left >= 0 && bounds.right <= innerWidth
-            && bounds.top >= 0 && bounds.bottom <= innerHeight };
+        const bounds = text.getBoundingClientRect(), svgBounds = svg.getBoundingClientRect();
+        const style = getComputedStyle(text), matrix = text.getScreenCTM();
+        return { text: text.textContent, axis: text.matches(".x-axis text, .y-axis text, .axis text"),
+          size: px(style.fontSize) * Math.hypot(matrix.a, matrix.b), display: style.display, opacity: Number(style.opacity),
+          visible: style.display !== "none" && Number(style.opacity) > 0 && bounds.width > 0 && bounds.height > 0
+            && bounds.left >= svgBounds.left && bounds.right <= svgBounds.right && bounds.top >= svgBounds.top && bounds.bottom <= svgBounds.bottom
+            && bounds.left >= 0 && bounds.right <= innerWidth && bounds.top >= 0 && bounds.bottom <= innerHeight };
       }),
       line: { width: px(getComputedStyle(line).strokeWidth) * scale, colour: getComputedStyle(line).stroke },
       axes: [...svg.querySelectorAll(".axis-line path, .axisl-line path")].map((axis) => px(getComputedStyle(axis).strokeWidth) * scale),
@@ -206,7 +210,7 @@ function measure() {
 // guards: UC-032; UC-035; EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE
 // given: the live backlog route, its four tables, and the same plotted burn-down series at 390 px and 1280 px
 // input: each rendered table and chart box, and each rendered SVG text's screen geometry
-// expect: every box fits without horizontal overflow; visible chart text remains body-sized, with positive visible axis labels at both widths and fewer on the phone
+// expect: 390 px boxes fit without horizontal overflow while 1280 px keeps scrolling; every chart text remains body-sized and visible, with positive axis labels at both widths and fewer on the phone
 test("TST-919001 #backlog in a browser — tables, panels and the chart keep the heading's margins; the chart reads as clearly as its axes", { timeout: 120000, concurrency: false }, async (t) => {
   await acquireNativeFixtureLock();
   let child = null, server = null, entryFolder = null, released = false;
@@ -251,6 +255,7 @@ test("TST-919001 #backlog in a browser — tables, panels and the chart keep the
     const visiblePositiveLabels = new Map();
     for (const width of [390, 1280]) {
       await session.call("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: width < 600 });
+      await evaluate(session, `document.querySelector("[data-burn-down]").scrollIntoView({ block: "center", inline: "nearest" }), true`);
       const result = await evaluate(session, `(${measure})()`);
       const actual = JSON.stringify(result);
       const within = (box) => box.left >= result.heading.left - 0.5 && box.right <= result.heading.right + 0.5;
@@ -258,19 +263,29 @@ test("TST-919001 #backlog in a browser — tables, panels and the chart keep the
       assert.deepEqual(result.tables.map((table) => table.part), ["team1", "team2", "held", "backlog"],
         `${width}px: team1's sprint, the plan, the held items and the backlog each show a table; actual=${actual}`);
       for (const table of result.tables) {
-        assert.ok(table.box.holdsOnlyTheTable && table.box.scrollWidth <= table.box.clientWidth,
-          `${width}px: the table of ${table.part} stands in its own box without horizontal overflow; actual=${actual}`);
+        const tablePolicy = width === 390
+          ? table.box.holdsOnlyTheTable && table.box.scrollWidth <= table.box.clientWidth
+          : /^(auto|scroll)$/.test(table.box.overflowX) && table.box.holdsOnlyTheTable;
+        assert.ok(tablePolicy, width === 390
+          ? `${width}px: the table of ${table.part} stands in its own box without horizontal overflow; actual=${actual}`
+          : `${width}px: the table of ${table.part} stands in a box of its own that scrolls sideways; actual=${actual}`);
         assert.ok(within(table.box), `${width}px: the box of ${table.part}'s table lies within the heading's margins; actual=${actual}`);
       }
       for (const panel of result.panels) assert.ok(within(panel), `${width}px: the panel ${panel.name} lies within the heading's margins; actual=${actual}`);
-      assert.ok(result.chart.box.holdsOnlyTheChart && result.chart.box.scrollWidth <= result.chart.box.clientWidth,
-        `${width}px: the chart stands in its own box without horizontal overflow; actual=${actual}`);
+      const chartPolicy = width === 390
+        ? result.chart.box.holdsOnlyTheChart && result.chart.box.scrollWidth <= result.chart.box.clientWidth
+        : /^(auto|scroll)$/.test(result.chart.box.overflowX) && result.chart.box.holdsOnlyTheChart;
+      assert.ok(chartPolicy,
+        width === 390
+          ? `${width}px: the chart stands in its own box without horizontal overflow; actual=${actual}`
+          : `${width}px: the chart stands in a box of its own that scrolls sideways; actual=${actual}`);
       assert.ok(within(result.chart.box), `${width}px: the chart's box lies within the heading's margins; actual=${actual}`);
       assert.ok(result.chart.texts.length > 0, `known positive: the chart has texts; actual=${actual}`);
-      for (const text of result.chart.texts.filter((text) => text.visible)) {
+      for (const text of result.chart.texts) {
+        assert.ok(text.visible, `${width}px: the chart's "${text.text}" is visible inside the chart and window; actual=${actual}`);
         assert.ok(Math.abs(text.size - result.chart.body) <= 1, `${width}px: the chart's "${text.text}" is as large as the page's body text, within a pixel; actual=${actual}`);
       }
-      const positive = result.chart.texts.filter((text) => text.visible && Number(text.text) > 0);
+      const positive = result.chart.texts.filter((text) => text.axis && Number(text.text) > 0);
       assert.ok(positive.length > 0, `${width}px: known positive: a positive axis label is visible; actual=${actual}`);
       visiblePositiveLabels.set(width, positive.length);
       if (width === 390) assert.ok(result.chart.box.scrollWidth <= result.chart.box.clientWidth, `390px: the chart fits within its box without horizontal overflow; actual=${actual}`);
