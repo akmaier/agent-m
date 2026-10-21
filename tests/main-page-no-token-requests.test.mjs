@@ -2,8 +2,8 @@
 // stored for the head (`storedFacts`), that reading costs one request per test file of the default branch (MOD-progress-measures' `stageShares`); that cost is accepted." This test pins that
 // cost as a formula over the files of the fixture: requests = backlog items + job records + test files + a fixed part, and names each request of the fixed part. GitHub's raw host takes no
 // batch, so without a token every file is a request of its own (`A PAGE LOAD READS THE REPOSITORY IN BATCHES` holds with a token); with one the files go in batches of at most a hundred.
-// The route `home` and the old main page (src/home/home.mjs `read`) are run over the same counting fake of GitHub (tests/progress-measures-load.mjs, through tests/main-page-home-harness.mjs),
-// and every request is attributed to what it reads, so that the difference between the two is accounted for request by request. The counts are taken, not copied from a document.
+// The native route runs over the counting fake of GitHub (tests/progress-measures-load.mjs, through tests/main-page-home-harness.mjs), and every request is attributed to what it reads.
+// The counts are taken, not copied from a document.
 // Run: node --test tests/main-page-no-token-requests.test.mjs
 //
 // Module: MOD-main-page
@@ -15,10 +15,6 @@
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { view } from "../src/main-page/index.mjs";
-import { connect, parseAddress } from "../src/repository-hosts/index.mjs";
-import { productFacts as oldFacts } from "../src/home/progress.mjs";
-import { parseProductAddress, releaseTags } from "../docs/assets/git-host.mjs";
-import { pullRequests, commitCi } from "../docs/assets/git-host/pull-requests.mjs";
 import { INSTANCE, PRODUCT, PRODUCT_TOKEN, PRODUCT_URL, browser, byClass, cardsOf, draw, instanceFiles, network, productFiles, timers } from "./main-page-home-harness.mjs";
 
 const home = view.routes.find((candidate) => candidate.name === "home");
@@ -76,25 +72,6 @@ const total = (counts) => Object.values(counts).reduce((sum, count) => sum + cou
 const beyond = (after, before) => Object.fromEntries([...new Set([...Object.keys(after), ...Object.keys(before)])].sort()
   .map((label) => [label, (after[label] ?? 0) - (before[label] ?? 0)]).filter(([, difference]) => difference !== 0));
 
-/**
- * The requests the old main page makes for the product on a fresh fake: src/home/home.mjs `read` (lines 48-57), with the product's token or without, as { counts, requests }. The tags and the CI state of the
- * head are asked through the old page's own functions (releaseTags, commitCi); the fake serves neither endpoint, so a failure of the two is taken as the page takes none — the request is made and counted first.
- */
-async function oldPage(testFiles, token) {
-  net = network({ [PRODUCT]: files(testFiles), [INSTANCE]: instanceFiles() });
-  net.install();
-  const product = parseProductAddress(PRODUCT_URL);
-  const host = connect(parseAddress(product.address), token ? { token } : {});
-  const snapshot = await host.readSnapshot("main");
-  const facts = await oldFacts({ tree: snapshot.paths.map((path) => ({ path, sha: snapshot.blob(path) })), text: (path) => snapshot.read(path),
-    pullRequests: () => pullRequests({ product, token }).list(), ci: () => commitCi({ product, commit: snapshot.commit, token }).catch(() => null),
-    tags: () => releaseTags({ product, token }).catch(() => []) });
-  assert.equal(facts.implementation.total, ITEMS);
-  const requests = net.requests.slice();
-  net.restore();
-  return { counts: tally(requests), requests };
-}
-
 /** The requests the route `home` makes for the same product on a fresh fake, with the product's token or without any (and none for the instance), as { counts, requests, batches }: `batches` the files of each GraphQL batch. */
 async function newPage(testFiles, token) {
   net = network({ [PRODUCT]: files(testFiles), [INSTANCE]: instanceFiles() });
@@ -131,50 +108,38 @@ test("TST-842001 without a token and without stored facts, the route home makes 
 // TST-842002 · level: unit · module: MOD-main-page
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-046
 // given: the product of TST-842001, and the same product with 350 test files fewer; no token, nothing stored
-// input: the route home drawn on each, and the old main page's read of each
-// expect: the route home makes 350 requests fewer on the smaller one (one for each test file), the old page makes 1,006 on both (it reads no test file)
-test("TST-842002 the route home's cost grows by one request per test file, the old main page's does not grow", async () => {
+// input: the route home drawn on each
+// expect: the route home makes 350 requests fewer on the smaller one (one for each test file)
+test("TST-842002 the route home's cost grows by one request per test file", async () => {
   const many = await newPage(TEST_FILES, null);
   const fewer = await newPage(TEST_FILES - FEWER_TEST_FILES, null);
   assert.equal(total(many.counts) - total(fewer.counts), FEWER_TEST_FILES);
   assert.deepEqual(beyond(many.counts, fewer.counts), { "product: test file": FEWER_TEST_FILES });
-  const oldMany = await oldPage(TEST_FILES, null);
-  const oldFewer = await oldPage(TEST_FILES - FEWER_TEST_FILES, null);
-  assert.equal(total(oldMany.counts), 1006);
-  assert.equal(total(oldFewer.counts), 1006);
-  assert.equal(oldMany.counts["product: test file"], undefined);
 });
 
 // TST-842003 · level: unit · module: MOD-main-page
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-046
 // given: the product of TST-842001; no token, nothing stored
-// input: the old main page's read (src/home/home.mjs `read`: commit, tree, files, pull requests, tags and the CI state of the head) and the route home drawn, each on a fresh fake
-// expect: the old page makes 1,006 requests, the route home 1,714; the route has 701 test files beyond it and the instance's 4 reads, the product's repository, branch test-results, stored overview and stored facts
-//   (4) — 8 in all —, and the old page has the CI call of the head (1) that the route does not make; 1,006 + 701 + 8 - 1 = 1,714
-test("TST-842003 the route home's 1,714 requests are the old page's 1,006, the 701 test files, 8 reads only the route makes, less the CI call only the old page makes", async () => {
-  const before = await oldPage(TEST_FILES, null);
+// input: the route home drawn on a fresh fake
+// expect: it makes 1,714 requests: the 701 test files and the instance's 4 reads, the product's repository, branch test-results, stored overview and stored facts (4), beside its product reads
+test("TST-842003 the route home's 1,714 requests include its test files and fixed instance and stored-facts reads", async () => {
   const now = await newPage(TEST_FILES, null);
-  assert.equal(total(before.counts), 1006);
   assert.equal(total(now.counts), 1714);
-  assert.deepEqual(beyond(now.counts, before.counts), { ...ONLY_THE_ROUTE, "product: test file": TEST_FILES + 1, "product: CI runs of the head": -1 });
-  assert.equal(total(now.counts) - total(before.counts), (TEST_FILES + 1) + total(ONLY_THE_ROUTE) - 1);
-  // the reads the two share are the same reads: the product's commit, tree, pull requests, SPEC.md and tags, its backlog items and its job records
+  assert.deepEqual(Object.fromEntries(Object.entries(now.counts).filter(([label]) => label in ONLY_THE_ROUTE || label === "product: test file")),
+    { ...ONLY_THE_ROUTE, "product: test file": TEST_FILES + 1 });
   for (const [label, count] of Object.entries({ ...SHARED, "product: backlog item": ITEMS, "product: job record": JOBS })) {
     assert.equal(now.counts[label], count, label);
-    assert.equal(before.counts[label], count, label);
   }
 });
 
 // TST-842004 · level: unit · module: MOD-main-page
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-046
 // given: the product of TST-842001 with a token stored for it
-// input: the route home drawn, and the old main page's read
+// input: the route home drawn
 // expect: the route home makes 31 requests — 19 GraphQL batches of at most a hundred files, which hold the 600 items, 400 job records, 701 test files and SPEC.md, and 12 more: the 8 reads only the route makes, the product's commit, tree, pull requests and tags —,
-//   no backlog item, job record or test file by itself; the old page makes 1,006
-test("TST-842004 with a token, the route home reads the files in batches of at most a hundred and makes 31 requests where the old page makes 1,006", async () => {
+//   with no backlog item, job record or test file by itself
+test("TST-842004 with a token, the route home reads the files in batches of at most a hundred and makes 31 requests", async () => {
   const now = await newPage(TEST_FILES, PRODUCT_TOKEN);
-  const before = await oldPage(TEST_FILES, PRODUCT_TOKEN);
-  assert.equal(total(before.counts), 1006);
   assert.equal(total(now.counts), 31);
   assert.equal(now.counts["GraphQL batch of files"], 19);
   assert.equal(now.batches.length, 19);

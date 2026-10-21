@@ -96,3 +96,60 @@ test("TST-1165006 the live review receiver keeps an empty product fragment on th
   assert.deepEqual(fixture.chosen.requests, [], "the chosen product is not read");
   assert.deepEqual(fixture.other.requests, [], "the other product is not read");
 });
+
+// TST-684006 · level: component · module: MOD-site-frame
+// guards: THE MENU FOLLOWS THE PROCESS; A PRODUCT IS NAMED BY ITS ADDRESS
+// given: the live review receiver, a selected product that holds one architecture decision, and the existing legacy architecture address #arc
+// input: open #arc as the known positive, then the main menu's canonical #architecture address with the same selected product
+// expect: both render the Architecture review for acme/chosen, rather than the receiver's use-case fallback; the product Host records the architecture read
+test("TST-684006 the live review receiver maps the main menu's canonical architecture entry to its legacy route for the selected product", async () => {
+  const files = {
+    "README.md": "# Chosen product\n",
+    "docs/architecture/ARC-001-sample.md": "---\nid: ARC-001\ntitle: Sample architecture\nforced_by: []\n---\n# ARC-001 Sample architecture\n\n## Decision\n\nA decision.\n",
+  };
+  const chosen = await repoServer({ repo: CHOSEN, files });
+  const productServer = (url, init) => url.origin === "https://api.github.com" &&
+    (url.pathname === `/repos/${CHOSEN}` || url.pathname.startsWith(`/repos/${CHOSEN}/`)) ? chosen.fetch(url.href, init) : undefined;
+  const legacy = await repoServer({ files: { "README.md": "# Instance\n" }, handlers: [productServer] });
+  const positive = await openDashboard({ server: legacy,
+    search: `?repo=${encodeURIComponent(CHOSEN)}`, hash: "#arc" });
+  assert.match(positive.main(), /Architecture/, "known positive: #arc reaches the architecture receiver");
+  assert.ok(chosen.requests.some((request) => request.includes("docs/architecture/ARC-001-sample.md")),
+    "known positive: #arc reads through the selected product Host");
+
+  const canonicalChosen = await repoServer({ repo: CHOSEN, files });
+  const canonicalServer = (url, init) => url.origin === "https://api.github.com" &&
+    (url.pathname === `/repos/${CHOSEN}` || url.pathname.startsWith(`/repos/${CHOSEN}/`)) ? canonicalChosen.fetch(url.href, init) : undefined;
+  const canonical = await repoServer({ files: { "README.md": "# Instance\n" }, handlers: [canonicalServer] });
+  const page = await openDashboard({ server: canonical,
+    hash: `#architecture/product=${encodeURIComponent(addressOf(CHOSEN))}` });
+  assert.match(page.main(), /Architecture/, "the canonical main-menu entry reaches architecture, not the fallback");
+  assert.doesNotMatch(page.main(), /Use cases/, "the canonical entry does not fall through to use cases");
+  assert.ok(canonicalChosen.requests.some((request) => request.includes("docs/architecture/ARC-001-sample.md")),
+    "the canonical entry reads through the selected product Host");
+});
+
+// TST-684007 · level: component · module: MOD-site-frame
+// guards: THE MENU FOLLOWS THE PROCESS
+// given: the live review receiver, its existing #uc route, and the canonical Tests entry whose menu stage has no built legacy view
+// input: open #uc as the known positive, then open #tests
+// expect: #uc keeps drawing Use cases; #tests truthfully says that the Tests entry is not built, rather than silently drawing that fallback
+test("TST-684007 the live review receiver names an unbuilt canonical menu entry instead of falling through to use cases", async () => {
+  const server = await repoServer({ files: { "README.md": "# Instance\n" } });
+  const positive = await openDashboard({ server, hash: "#uc" });
+  assert.match(positive.main(), /Use cases/, "known positive: #uc is the legacy use-case route");
+
+  const page = await openDashboard({ server: await repoServer({ files: { "README.md": "# Instance\n" } }), hash: "#tests" });
+  assert.match(page.main(), /The Tests entry is not built yet\./);
+  assert.doesNotMatch(page.main(), /<h2>Use cases<\/h2>/, "the unbuilt canonical entry is not the use-case fallback");
+});
+
+// TST-684008 · level: component · module: MOD-site-frame
+// guards: THE MENU FOLLOWS THE PROCESS
+// given: the live review receiver and its existing loaded requirements route
+// input: open #requirements/section=Architecture
+// expect: the route stays the New requirement form, rather than being mistaken for the unloaded Requirements menu alias
+test("TST-684008 the live review receiver preserves a loaded requirements route parameter", async () => {
+  const page = await openDashboard({ server: await repoServer({ files: { "README.md": "# Instance\n" } }), hash: "#requirements/section=Architecture" });
+  assert.match(page.main(), /New requirement/, "the loaded requirements route receives section=Architecture");
+});

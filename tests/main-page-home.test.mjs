@@ -344,7 +344,7 @@ test("TST-847001 the page reads the jobs' states again once a minute, and sets n
 // given: this browser keeps the product alice/product of 600 backlog items and 400 job records, none of them taken or ended, with a token for it and one for the instance (the page of TST-827006 read it in 23 requests)
 // input: the route home drawn; the timer fired at 12:01 UTC, the requests since the draw counted; then one job record, JOB-20261014-0900-0001, given its end on the server and the timer fired at 12:02
 // expect: the first reading sends exactly 2 requests, both to alice/product and both with the product's token — the commit of main and the tree of that commit —, and not one file, batch, pull request, tag or repository
-// request, and none to alice/agent-m; counter-proof: the reading after the record changed sends 3 — the commit, the tree and the changed record by a request of its own, docs/jobs/JOB-20261014-0900-0001.md —,
+// request, and none to alice/agent-m; counter-proof: the reading after the record changed sends 3 — the commit, the tree and one batch holding the changed record, docs/jobs/JOB-20261014-0900-0001.md —,
 // and the 399 records that did not change are not read again
 test("TST-847002 with a token, a reading of the jobs' states is the product's commit and tree, 2 requests, and a record that changed costs 1 more", async () => {
   net = network({ [PRODUCT]: productFiles({ items: 600, jobs: 400 }), [INSTANCE]: instanceFiles() });
@@ -364,7 +364,7 @@ test("TST-847002 with a token, a reading of the jobs' states is the product's co
   const again = net.requests.length, loggedAgain = net.server.log.length;
   await timers.fire(at("12:02"));
   assert.equal(net.requests.length - again, 3);
-  assert.deepEqual(net.server.log.slice(loggedAgain).map((entry) => [entry.kind, ...entry.files]), [["commit"], ["tree"], ["file", record]]);
+  assert.deepEqual(net.server.log.slice(loggedAgain).map((entry) => [entry.kind, ...entry.files]), [["commit"], ["tree"], ["batch", record]]);
 });
 
 // TST-847003 · level: unit · module: MOD-main-page
@@ -421,7 +421,7 @@ test("TST-847004 the build's row moves with the job's record and its runtime: ru
 // given: the product of TST-847004 drawn at 12:00 UTC (Use cases 50 % "1 of 2 accepted", "use case: UC-002" waiting); then, on the server, UC-002 accepted and the job ended as done
 // input: the timer fired at 12:01; and, for the counter-proof, the route drawn anew
 // expect: the build's row reads "done"; the six stages are exactly what they were (Use cases still 50 % "1 of 2 accepted") and what waits is still "use case: UC-002"; the reading sent 3 requests — the commit, the
-// tree and the job's record, docs/jobs/JOB-20261016-1000-ffff.md — and read no use case and no approval record; counter-proof: the route drawn anew reads Use cases 100 % "2 of 2 accepted" and nothing waits,
+// tree and one batch holding the job's record, docs/jobs/JOB-20261016-1000-ffff.md — and read no use case and no approval record; counter-proof: the route drawn anew reads Use cases 100 % "2 of 2 accepted" and nothing waits,
 // so that the change was on the server and only the reading left it alone
 test("TST-847005 a reading moves the build's rows and nothing else: the stages and what waits stay as drawn", async () => {
   net = network({ [PRODUCT]: SMALL(), [INSTANCE]: instanceFiles() }, { bridgeLists: JOB });
@@ -437,7 +437,7 @@ test("TST-847005 a reading moves the build's rows and nothing else: the stages a
   assert.deepEqual(buildOf(cardsOf(target)[0]), [["ITM-0900", JOB, "dev-cli", "done", "1h 0m 0s"]]);
   assert.deepEqual(stagesOf(cardsOf(target)[0]), stages);
   assert.deepEqual(waitsOf(target), ["use case: UC-002"]);
-  assert.deepEqual(net.server.log.slice(logged).map((entry) => [entry.kind, ...entry.files]), [["commit"], ["tree"], ["file", `docs/jobs/${JOB}.md`]]);
+  assert.deepEqual(net.server.log.slice(logged).map((entry) => [entry.kind, ...entry.files]), [["commit"], ["tree"], ["batch", `docs/jobs/${JOB}.md`]]);
 
   const anew = await draw(home, browser());
   assert.deepEqual(stagesOf(cardsOf(anew)[0])[1], ["Use cases", "100 %", "2 of 2 accepted"]);
