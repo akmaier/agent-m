@@ -10,6 +10,27 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { openDashboard, repoServer } from "./app-harness.mjs";
 
+const INSTANCE = "akmaier/agent-m";
+const CHOSEN = "acme/chosen";
+const OTHER = "acme/other";
+const addressOf = (repository) => `https://github.com/${repository}`;
+
+// The live review entry receives all repository reads through the instance server. Its handler forwards the chosen
+// product's public Host requests to the matching repoServer, as the existing dashboard product cases do.
+async function receiverFixture() {
+  const chosen = await repoServer({ repo: CHOSEN, files: { "README.md": "# Chosen product\n" } });
+  const other = await repoServer({ repo: OTHER, files: { "README.md": "# Other product\n" } });
+  const productServer = (url, init) => {
+    if (url.origin !== "https://api.github.com") return undefined;
+    if (url.pathname.startsWith(`/repos/${CHOSEN}/`)) return chosen.fetch(url.href, init);
+    if (url.pathname.startsWith(`/repos/${OTHER}/`)) return other.fetch(url.href, init);
+    return undefined;
+  };
+  const instance = await repoServer({ files: { "README.md": "# Instance\n" }, handlers: [productServer] });
+  return { instance, chosen, other,
+    entries: { "agent-m:akmaier/agent-m:products": JSON.stringify([addressOf(CHOSEN), addressOf(OTHER)]) } };
+}
+
 // TST-1165003 · level: component · module: MOD-site-frame
 // guards: UC-014; THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE
 // given: the real legacy review entry with the views it normally loads
@@ -38,4 +59,33 @@ test("TST-1165003 the legacy review entry serves get-your-own while keeping its 
 test("TST-1165004 the legacy review entry serves the canonical add-product route", async () => {
   const page = await openDashboard({ server: await repoServer({ files: { "README.md": "# Agent M\n" } }), hash: "#add-product" });
   assert.match(page.main(), /Add a product/, "the canonical route does not fall back to the review list");
+});
+
+// TST-1165005 · level: component · module: MOD-site-frame
+// guards: THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE; A PRODUCT IS NAMED BY ITS ADDRESS
+// given: the actual review entry, an instance, and two products that this browser keeps
+// input: open the review entry directly at #settings/product=<the chosen product>, then at the other product
+// expect: each receiver reads the repository its fragment names, rather than the instance
+test("TST-1165005 the live review receiver preserves a chosen and an explicit other product from its fragment", async () => {
+  for (const [repository, key] of [[CHOSEN, "chosen"], [OTHER, "other"]]) {
+    const fixture = await receiverFixture();
+    const page = await openDashboard({ server: fixture.instance, entries: fixture.entries,
+      hash: `#settings/product=${encodeURIComponent(addressOf(repository))}` });
+    assert.match(page.el("repo-line"), new RegExp(repository), `${key} product is the receiver's repository`);
+    assert.ok(fixture[repository === CHOSEN ? "chosen" : "other"].requests.some((request) => request.includes(`/repos/${repository}/`)),
+      `${key} product's Host receives the review page read`);
+  }
+});
+
+// TST-1165006 · level: component · module: MOD-site-frame
+// guards: THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE; A PRODUCT IS NAMED BY ITS ADDRESS
+// given: the actual review entry, an instance, and products that this browser keeps
+// input: open #settings without a product parameter
+// expect: the receiver continues to read the instance, not either stored product
+test("TST-1165006 the live review receiver keeps an empty product fragment on the instance", async () => {
+  const fixture = await receiverFixture();
+  const page = await openDashboard({ server: fixture.instance, entries: fixture.entries, hash: "#settings" });
+  assert.match(page.el("repo-line"), new RegExp(INSTANCE), "the empty product names the instance");
+  assert.deepEqual(fixture.chosen.requests, [], "the chosen product is not read");
+  assert.deepEqual(fixture.other.requests, [], "the other product is not read");
 });
