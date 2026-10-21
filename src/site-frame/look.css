@@ -44,3 +44,13 @@ button, .btn { margin-inline: .35em; }
 /* The review frame's accepted status and folded explanations meet the shared WCAG check. */
 body .b-accepted { color: #155724; background: #d4edda; }
 body details.explain > summary { display: inline-flex; align-items: center; min-height: 24px; }
+
+@media (max-width: 599px) {
+  .table-scroll { overflow-x: visible; }
+  table.list, table.list tbody, table.list tr, table.list td { box-sizing: border-box; max-width: 100%; }
+  table.list, table.list tbody, table.list tr, table.list td { display: block; width: 100%; }
+  table.list thead { display: none; }
+  table.list tr { border-bottom: 1px solid var(--line); padding-block: .45rem; }
+  table.list td { border: 0; padding: .2rem .5rem; overflow-wrap: anywhere; }
+  table.list td[data-label]::before { content: attr(data-label); display: block; color: var(--muted); font-size: .85em; font-weight: 600; }
+}
