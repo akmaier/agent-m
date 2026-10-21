@@ -65,11 +65,14 @@ test("TST-684002 the native cached home keeps its initial job facts and polls un
   net.install();
   try {
     const context = await cachedContext(net);
-    const prepared = net.requests.length;
+    const preparedRequests = net.requests.length;
+    const preparedLog = net.server.log.length;
     const target = await draw(home, context);
     assert.equal(cardsOf(target).length, 1);
-    assert.equal(overviewReads(net).length, 1);
-    const initial = net.server.log.slice(prepared);
+    const initialRequests = net.requests.slice(preparedRequests);
+    assert.equal(initialRequests.filter((request) => request.url.includes("ref=overview-cache")).length, 2, "the overview and facts cache files are both read after the producer prepared them");
+    assert.equal(overviewReads({ requests: initialRequests }).length, 1);
+    const initial = net.server.log.slice(preparedLog);
     assert.equal(initial.some((entry) => entry.kind === "file" && entry.files.includes(ended.path)), false, "stored facts supply the initial job text");
     const before = net.requests.length;
     await timers.fire(NOW + 60000);
@@ -82,6 +85,37 @@ test("TST-684002 the native cached home keeps its initial job facts and polls un
     await timers.fire(NOW + 120000);
     assert.deepEqual(requestPaths(net, after), ["/repos/alice/product/commits/main", "/repos/alice/product/git/trees/<commit>", "/graphql"]);
     assert.deepEqual(net.server.log.slice(beforeLog).filter((entry) => entry.kind === "batch").map((entry) => entry.files), [[ended.path]]);
+  } finally {
+    timers.restore();
+    net.restore();
+  }
+});
+
+// TST-684005 · level: component · module: MOD-main-page
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; THE BUILD IS SHOWN AS IT HAPPENS; UC-046
+// given: the cached native home of TST-684002, then a newer main snapshot that adds one ended job record and then one that removes it
+// input: the next two one-minute polls
+// expect: the added record is read in one existing GraphQL batch and appears in the card's refreshed jobs; its removal reads no record text and leaves it out
+test("TST-684005 the native cached home batches an added job record and drops a removed one", async () => {
+  const ended = endedJob({ id: JOB, by: "lab-pc-4", state: "done" });
+  const added = endedJob({ id: "JOB-20261016-1001-ffff", by: "lab-pc-4", state: "done" });
+  const files = smallProduct({ jobs: [ended] });
+  const net = network({ [PRODUCT]: files, [INSTANCE]: instanceFiles() });
+  net.install();
+  try {
+    const context = await cachedContext(net);
+    await draw(home, context);
+    net.change(PRODUCT, { ...files, [added.path]: added.text });
+    const beforeAdded = net.requests.length;
+    await timers.fire(NOW + 60000);
+    assert.deepEqual(requestPaths(net, beforeAdded), ["/repos/alice/product/commits/main", "/repos/alice/product/git/trees/<commit>", "/graphql"]);
+    assert.deepEqual(net.server.log.filter((entry) => entry.kind === "batch" && entry.files.includes(added.path)).map((entry) => entry.files), [[added.path]]);
+    const withoutAdded = { ...files };
+    delete withoutAdded[added.path];
+    net.change(PRODUCT, withoutAdded);
+    const beforeRemoved = net.requests.length;
+    await timers.fire(NOW + 120000);
+    assert.deepEqual(requestPaths(net, beforeRemoved), ["/repos/alice/product/commits/main", "/repos/alice/product/git/trees/<commit>"]);
   } finally {
     timers.restore();
     net.restore();

@@ -40,14 +40,14 @@ const dueAfter = (failure, now) => {
 // One card's jobs read again through the host it was read through: its rows, derived with the live states of the jobs that have not ended.
 async function jobsAgain({ source, facts }, store) {
   const snapshot = await source.host.readSnapshot(facts.snapshot.ref);
-  const paths = [...new Set(facts.jobs.map((row) => row.record.path))];
+  const paths = snapshot.paths.filter((path) => path.startsWith("docs/jobs/"));
   const changed = paths.filter((path) => snapshot.blob(path) !== facts.snapshot.blob(path));
   await snapshot.readMany(changed);
   const serving = { ...snapshot, read: (path) => (facts.snapshot.blob(path) === snapshot.blob(path) ? facts.snapshot.read(path) : snapshot.read(path)) };
   const products = [{ address: facts.address, snapshot: serving }];
   const first = await listJobs(products, new Map());
   const lives = await liveStatesOf(first, new Map([[facts.address, source.host]]), bridgesOf(first, store));
-  return listJobs(products, lives);
+  return { jobs: await listJobs(products, lives), snapshot: serving };
 }
 
 /**
@@ -79,8 +79,9 @@ export function readAgain({ target, cards, nodes, held, store }) {
       card.busy = true;
       const { source, facts, shares, current, model } = card.entry;
       try {
-        const jobs = await jobsAgain(card.entry, store);
-        nodes[at] = productCard({ title: source.title, address: source.address, model, shares, current, build: buildInProgress({ ...facts, jobs }), own: source.own === true });
+        const next = await jobsAgain(card.entry, store);
+        card.entry.facts = { ...facts, snapshot: next.snapshot, jobs: next.jobs };
+        nodes[at] = productCard({ title: source.title, address: source.address, model, shares, current, build: buildInProgress(card.entry.facts), own: source.own === true });
         problems.delete(at);
         card.due = now + EVERY;
       } catch (failure) {
