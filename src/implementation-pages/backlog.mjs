@@ -176,7 +176,7 @@ const chartWidth = () => Math.min(burnDownWidth() ?? 700, Math.max(1, (globalThi
 // The Mermaid chart of a sprint's items left over time. Given `width`, it is drawn that wide; given `size`, its title and its axes' labels and titles are drawn at `size` px — both by Mermaid's own configuration of the chart.
 function burnDownChart(name, points, { width = null, size = null, height = null } = {}) {
   const most = Math.max(1, ...points.map((point) => point.remaining));
-  const xAxis = `{ labelFontSize: ${size}, titleFontSize: ${size}, labelPadding: 5, labelRotation: -60 }`;
+  const xAxis = `{ labelFontSize: ${size}, titleFontSize: ${size} }`;
   const yAxis = `{ labelFontSize: ${size}, titleFontSize: ${size} }`;
   const settings = [...(width ? [`    width: ${width}`] : []), ...(height ? [`    height: ${height}`] : []), ...(size ? [`    titleFontSize: ${size}`, `    xAxis: ${xAxis}`, `    yAxis: ${yAxis}`] : [])];
   const config = settings.length ? ["---", "config:", "  xyChart:", ...settings, "---"] : [];
@@ -430,6 +430,15 @@ async function draw(target, context) {
 
 const chartDraws = new WeakMap();
 
+function fitChartViewport(chart) {
+  const svg = chart.querySelector?.("svg");
+  if (!svg?.getBBox || !svg.viewBox?.baseVal) return;
+  const bounds = svg.getBBox(), viewport = svg.viewBox.baseVal;
+  const left = Math.min(viewport.x, bounds.x), top = Math.min(viewport.y, bounds.y);
+  const right = Math.max(viewport.x + viewport.width, bounds.x + bounds.width), bottom = Math.max(viewport.y + viewport.height, bounds.y + bounds.height);
+  svg.setAttribute("viewBox", `${left} ${top} ${right - left} ${bottom - top}`);
+}
+
 // Each block is redrawn through MOD-markdown-render when its viewport changes, so its requested width and available label
 // space describe the viewport it is actually shown in.
 async function drawCharts(target) {
@@ -442,6 +451,7 @@ async function drawCharts(target) {
       const chart = await renderMermaid(source);
       chart.setAttribute("tabindex", "0");
       chart.setAttribute("data-chart-width", String(width));
+      fitChartViewport(chart);
       entry.element.replaceWith(chart);
       entry.element = chart;
     }
