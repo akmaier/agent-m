@@ -73,7 +73,7 @@ test("TST-684002 the native cached home keeps its initial job facts and polls un
     assert.equal(initialRequests.filter((request) => request.url.includes("ref=overview-cache")).length, 2, "the overview and facts cache files are both read after the producer prepared them");
     assert.equal(overviewReads({ requests: initialRequests }).length, 1);
     const initial = net.server.log.slice(preparedLog);
-    assert.equal(initial.some((entry) => entry.kind === "file" && entry.files.includes(ended.path)), false, "stored facts supply the initial job text");
+    assert.equal(initial.some((entry) => (entry.kind === "file" || entry.kind === "batch") && entry.files.includes(ended.path)), false, "stored facts supply the initial job text");
     const before = net.requests.length;
     await timers.fire(NOW + 60000);
     assert.deepEqual(requestPaths(net, before), ["/repos/alice/product/commits/main", "/repos/alice/product/git/trees/<commit>"]);

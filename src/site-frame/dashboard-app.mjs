@@ -771,8 +771,9 @@ async function route() {
   routeSeq += 1;
   let [kind, a, b] = location.hash.replace(/^#/, "").split("/");
   const entry = MENU.find((candidate) => candidate.key === kind);
+  const params = routeOf(location.hash).params;
   let unavailableEntry = null;
-  if (entry && (a === undefined || a.startsWith("product="))) {
+  if (entry && (a === undefined || (b === undefined && Object.keys(params).length > 0 && Object.keys(params).every((key) => key === "product")))) {
     const view = stageView(entry, builtViews(builtFiles));
     if (view) kind = view;
     else unavailableEntry = entry;

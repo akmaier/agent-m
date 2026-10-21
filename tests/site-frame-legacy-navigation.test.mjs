@@ -8,7 +8,8 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { openDashboard, repoServer } from "./app-harness.mjs";
+import { openDashboard, repoServer, TOKEN } from "./app-harness.mjs";
+import { fragmentOf } from "../src/site-frame/routing.mjs";
 
 const INSTANCE = "akmaier/agent-m";
 const CHOSEN = "acme/chosen";
@@ -22,8 +23,8 @@ async function receiverFixture() {
   const other = await repoServer({ repo: OTHER, files: { "README.md": "# Other product\n" } });
   const productServer = (url, init) => {
     if (url.origin !== "https://api.github.com") return undefined;
-    if (url.pathname.startsWith(`/repos/${CHOSEN}/`)) return chosen.fetch(url.href, init);
-    if (url.pathname.startsWith(`/repos/${OTHER}/`)) return other.fetch(url.href, init);
+    if (url.pathname === `/repos/${CHOSEN}` || url.pathname.startsWith(`/repos/${CHOSEN}/`)) return chosen.fetch(url.href, init);
+    if (url.pathname === `/repos/${OTHER}` || url.pathname.startsWith(`/repos/${OTHER}/`)) return other.fetch(url.href, init);
     return undefined;
   };
   const instance = await repoServer({ files: { "README.md": "# Instance\n" }, handlers: [productServer] });
@@ -147,9 +148,12 @@ test("TST-684007 the live review receiver names an unbuilt canonical menu entry 
 // TST-684008 · level: component · module: MOD-site-frame
 // guards: THE MENU FOLLOWS THE PROCESS
 // given: the live review receiver and its existing loaded requirements route
-// input: open #requirements/section=Architecture
-// expect: the route stays the New requirement form, rather than being mistaken for the unloaded Requirements menu alias
+// input: open the same loaded requirements route with section before product, then with product before section
+// expect: both forms stay the New requirement form, rather than either being mistaken for the unloaded Requirements menu alias
 test("TST-684008 the live review receiver preserves a loaded requirements route parameter", async () => {
-  const page = await openDashboard({ server: await repoServer({ files: { "README.md": "# Instance\n" } }), hash: "#requirements/section=Architecture" });
-  assert.match(page.main(), /New requirement/, "the loaded requirements route receives section=Architecture");
+  for (const [order, params] of [["section first", { section: "Architecture", product: addressOf(CHOSEN) }], ["product first", { product: addressOf(CHOSEN), section: "Architecture" }]]) {
+    const fixture = await receiverFixture();
+    const page = await openDashboard({ server: fixture.instance, entries: { ...fixture.entries, "github-token:acme/chosen": TOKEN }, hash: fragmentOf("requirements", params) });
+    assert.match(page.main(), /New requirement/, "the loaded requirements route receives section=Architecture when " + order);
+  }
 });
