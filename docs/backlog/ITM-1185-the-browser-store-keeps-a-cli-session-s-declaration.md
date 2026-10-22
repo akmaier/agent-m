@@ -1,0 +1,38 @@
+---
+id: ITM-1185
+title: The browser store keeps a CLI session's declaration and an endpoint's place, context and CI secret
+level: module
+realises:
+  - UC-049
+  - THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE
+modules:
+  - MOD-browser-store
+builds_on:
+tests:
+  - unit
+origin:
+  - akmaier's request, accepted in MOD-browser-store at blob aee64fc9 (f35b9903) and UC-049 at blob 0c086a47 (9559c14f), 2026-10-22
+---
+# ITM-1185 The browser store keeps a CLI session's declaration and an endpoint's place, context and CI secret
+
+**REGISTER**
+
+## Outcome
+
+The accepted catalogue (`docs/architecture/MOD-browser-store.md:70-71`) adds:
+- the key family `session:<bridge>:<agent>`, holding `{ place, context, model, capabilities }`, not secret;
+- to `endpoint:<name>`, the fields `place`, `context` and `secret?`.
+
+The code does not keep the new family yet. `src/browser-store/catalogue.mjs:12` names no `session:` family, so
+`writeSetting` refuses the key, and `listSettings` and the export do not carry it.
+
+## Acceptance
+
+- `writeSetting` keeps a `session:<bridge>:<agent>` value, and `listSettings` lists it with what it grants, as not
+  secret.
+- The export and import carry it like every other non-secret setting.
+- An `endpoint:<name>` value with `place`, `context` and `secret` is kept and read back whole, and only its `key` counts
+  as secret.
+- Counter-proof: a key outside the catalogue is still refused.
+- Nothing beyond MOD-browser-store.md's catalogue is added.
+- The first commit holds only the tests, and CI is red on it.
