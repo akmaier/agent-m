@@ -83,6 +83,7 @@ const setUp = async () => {
       found.set(`${route.address} ${kind}`, { violations: await check(), text: await page.evaluate(`(document.querySelector("main")?.innerText ?? "").replace(/\\s+/g, " ")`),
         ticks: await page.evaluate(TICKS), diagrams: await page.evaluate(`(${unrenderedFindings})()`),
         boxes: await page.evaluate(`[...document.querySelectorAll("main pre.diff")].map((box) => box.getAttribute("tabindex"))`),
+        supersededBadges: await page.evaluate(`[...document.querySelectorAll("main .b-superseded")].map((badge) => badge.textContent.replace(/\\s+/g, " ").trim())`),
         returnControls: await page.evaluate(RETURN_CONTROLS) });
     }
     progress(`every route is checked at a ${kind}'s width`);
@@ -132,6 +133,19 @@ for (const route of ROUTES) {
     }
   });
 }
+
+// TST-1174001 · level: system · module: MOD-site-frame
+// guards: THE SITE SERVES A SCREEN READER
+// given: the live #backlog route at the existing 390 px phone and 1280 px desktop widths
+// input: axe-core color-contrast violations and the rendered .b-superseded status badge
+// expect: the badge is present and color-contrast is [] at both widths
+test("TST-1174001 the backlog's waiting-state badge is present and has no axe color-contrast violation at both widths", () => {
+  for (const [kind] of WIDTHS) {
+    const result = found.get(`#backlog ${kind}`);
+    assert.ok(result.supersededBadges.length > 0, `#backlog at a ${kind}'s width renders a .b-superseded waiting-state badge`);
+    assert.deepEqual(result.violations.filter((violation) => violation.id === "color-contrast"), [], `#backlog at a ${kind}'s width violates color-contrast`);
+  }
+});
 
 for (const route of ROUTES) {
   const today = TODAY[route.address];
