@@ -42,11 +42,11 @@ const bySize = (sizes) => [...sizes].sort((a, b) => b - a);
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: a product of 600 backlog items, 400 job records, SPEC.md and one test file, an instance holding its participant list; a token
 // input: productFacts(…, { scope: "all" })
-// expect: 19 requests in all — the repository 1, the commits of main and of test-results 2, the tree of main 1, the pull requests 1, the tags 1, and 13 batch requests; the batches hold 100 files ten times and 1 file three times (the 1,001 files productFacts itself reads — the 600 items, the 400 job records and SPEC.md — are 10 full batches and a batch of 1; the trace graph's batch is the one test file; the instance's batch is its participant list); not one file is read by a request of its own
-test("productFacts, scope all, with a token — 600 items and 400 job records are read in 13 batches of at most a hundred, 20 requests in all", async () => {
+// expect: 21 requests in all — the repository 1, the commits of main and of test-results 2, the tree of main 1, the pull requests 1, the tags 1, the CI runs of the head 1, the stored facts' file 1, and 13 batch requests; the batches hold 100 files ten times and 1 file three times (the 1,001 files productFacts itself reads — the 600 items, the 400 job records and SPEC.md — are 10 full batches and a batch of 1; the trace graph's batch is the one test file; the instance's batch is its participant list); the one file read by a request of its own is the stored facts'
+test("productFacts, scope all, with a token — 600 items and 400 job records are read in 13 batches of at most a hundred, 21 requests in all", async () => {
   const { seen } = await facts("all", true);
-  assert.equal(seen.total, 20);
-  assert.deepEqual(seen.kinds, { repository: 1, commit: 2, tree: 1, "pull requests": 1, tags: 1, batch: 13, file: 1 });
+  assert.equal(seen.total, 21);
+  assert.deepEqual(seen.kinds, { repository: 1, commit: 2, tree: 1, "pull requests": 1, tags: 1, "ci runs": 1, batch: 13, file: 1 });
   assert.deepEqual(bySize(seen.batches), [...hundreds(10), 1, 1, 1]);
   assert.deepEqual(seen.singles.map((path) => path.replace(/^[0-9a-f]{40}/, "<commit>")), ["<commit>.facts.json"], "the one file read by its own request is the stored facts' (none is stored here)");
 });
@@ -94,8 +94,8 @@ test("productFacts — a file the page has read is not read again, in either sco
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the product and instance of TST-826001; a token
 // input: productFacts(…, { scope: "all" })
-// expect: the facts — the 600 items (plan.items), 400 jobs, requirements ["FIRST RULE", "SECOND RULE"], tests of one declaration TST-001 at tests/unit.test.mjs, tags [] (the product has none), results null (the product has no branch test-results), graph "unknown" (the scope builds none); info with the default branch main; and "unknown" in modelSince, schedule, ci and resourceNeeds
-test("productFacts, scope all — the six facts the scope adds are read, and the facts it leaves are \"unknown\"", async () => {
+// expect: the facts — the 600 items (plan.items), 400 jobs, requirements ["FIRST RULE", "SECOND RULE"], tests of one declaration TST-001 at tests/unit.test.mjs, tags [] (the product has none), results null (the product has no branch test-results), graph "unknown" (the scope builds none); info with the default branch main; modelSince null (the product declares no model); schedule the book's default (marked default); ci with no run, the configuration not present, the job workflow not present and, as drift, the one generated file missing; resourceNeeds [] (the product has no docs/resources.md)
+test("productFacts, scope all — the facts the scope adds are read, including modelSince, schedule, ci and resourceNeeds", async () => {
   const { result } = await facts("all", true);
   assert.equal(result.plan.items.length, 600);
   assert.equal(result.jobs.length, 400);
@@ -105,14 +105,18 @@ test("productFacts, scope all — the six facts the scope adds are read, and the
   assert.equal(result.results, null);
   assert.equal(result.graph, "unknown");
   assert.equal(result.info.defaultBranch, "main");
-  for (const field of ["modelSince", "schedule", "ci", "resourceNeeds"]) assert.equal(result[field], "unknown", field);
+  assert.equal(result.modelSince, null);
+  assert.equal(result.schedule.default, true);
+  assert.deepEqual(result.ci, { runs: [], configured: false, jobWorkflow: false,
+    drift: [{ path: ".github/workflows/agent-m-tests.yml", difference: "the file is missing; the schedule generates it" }] });
+  assert.deepEqual(result.resourceNeeds, []);
 });
 
 // TST-826006 · level: unit · module: MOD-progress-measures
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the product and instance of TST-826001, and the product has a branch test-results of two files (runs/aaaa/r1.md, runs/aaaa/r2.md); a token
 // input: productFacts(…, { scope: "all" })
-// expect: results is the Snapshot of that branch — its ref "test-results", its two paths, a commit other than main's — and not null; 22 requests in all: the commits are 2, the trees 2, the batches 13 and the file 1 as before, and one more, the default branch's history that resultCommits are told from (readHistory, one request for a page of commits); no file of the branch is read
+// expect: results is the Snapshot of that branch — its ref "test-results", its two paths, a commit other than main's — and not null; 23 requests in all: the commits are 2, the trees 2, the batches 13 and the file 1 as before, the CI runs of the head 1, and one more, the default branch's history that resultCommits are told from (readHistory, one request for a page of commits); no file of the branch is read
 test("productFacts, scope all — a branch test-results is read as a Snapshot, by its commit and its tree, and no file of it", async () => {
   server.restore();
   const results = { "runs/aaaa/r1.md": "run one\n", "runs/aaaa/r2.md": "run two\n" };
@@ -122,7 +126,7 @@ test("productFacts, scope all — a branch test-results is read as a Snapshot, b
   assert.equal(result.results.ref, "test-results");
   assert.deepEqual([...result.results.paths], ["runs/aaaa/r1.md", "runs/aaaa/r2.md"]);
   assert.notEqual(result.results.commit, result.snapshot.commit);
-  assert.equal(seen.total, 22);
-  assert.deepEqual(seen.kinds, { repository: 1, commit: 2, tree: 2, "pull requests": 1, tags: 1, batch: 13, file: 1, other: 1 });
+  assert.equal(seen.total, 23);
+  assert.deepEqual(seen.kinds, { repository: 1, commit: 2, tree: 2, "pull requests": 1, tags: 1, "ci runs": 1, batch: 13, file: 1, other: 1 });
   assert.ok(!seen.allFiles.some((path) => path.startsWith("runs/")), "no file of the branch is read");
 });

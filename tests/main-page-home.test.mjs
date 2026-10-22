@@ -164,8 +164,8 @@ test("TST-827005 while this browser keeps no product, the one card is Agent M's 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-046
 // given: this browser keeps the product alice/product of 600 backlog items, 400 job records, SPEC.md and one test file, with a token for it and one for the instance, whose repository holds its participant list
 // input: the route home drawn; the fake's requests counted
-// expect: 23 requests in all — the repository 2 (the instance's and the product's), the commits 3 (the instance's main, the product's main and test-results), the trees 2, the pull requests 1, the tags 1, the overview of the product's head 1 (it holds none) and 13 batch requests of at most a hundred files; not one file is read by a request of its own; every request carries an Authorization header
-test("TST-827006 with a token, the route home reads 600 items and 400 job records in 13 batches, 23 requests in all", async () => {
+// expect: 25 requests in all — the repository 2 (the instance's and the product's), the commits 3 (the instance's main, the product's main and test-results), the trees 2, the pull requests 1, the tags 1, the CI runs of the product's head 1, the overview and the stored facts of the product's head 1 each (it holds neither) and 13 batch requests of at most a hundred files; not one file is read by a request of its own; every request carries an Authorization header
+test("TST-827006 with a token, the route home reads 600 items and 400 job records in 13 batches, 25 requests in all", async () => {
   net = network({ [PRODUCT]: productFiles({ items: 600, jobs: 400 }), [INSTANCE]: instanceFiles() });
   net.install();
   const target = await draw(home, browser());
@@ -173,8 +173,8 @@ test("TST-827006 with a token, the route home reads 600 items and 400 job record
   for (const { kind } of net.server.log) kinds[kind] = (kinds[kind] ?? 0) + 1;
   assert.equal(cardsOf(target).length, 1);
   assert.equal(byClass(target, "is-error").length, 0);
-  assert.equal(net.requests.length, 24);
-  assert.deepEqual(kinds, { repository: 2, commit: 3, tree: 2, "pull requests": 1, tags: 1, batch: 13 });
+  assert.equal(net.requests.length, 25);
+  assert.deepEqual(kinds, { repository: 2, commit: 3, tree: 2, "pull requests": 1, tags: 1, "ci runs": 1, batch: 13 });
   assert.deepEqual(net.server.log.filter((entry) => entry.kind === "file"), []);
   assert.deepEqual(net.requests.filter((request) => request.authorization === null), []);
 });
@@ -183,16 +183,16 @@ test("TST-827006 with a token, the route home reads 600 items and 400 job record
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-046
 // given: the product, the instance and the browser of TST-827006, with no token stored for the instance or the product, so that the host has no batch request and every file is read by a request of its own
 // input: the route home drawn; the fake's requests counted
-// expect: 1,013 requests in all — the repository 2, the commits 3, the trees 2, the pull requests 1, the tags 1, the overview of the product's head 1 (it holds none; from the raw host, the 1,004th file read) and 1,003 files each by a request of its own (the 600 items, the 400 job records, SPEC.md, the test file and the instance's participant list); no batch request; no request carries an Authorization header
-test("TST-827007 without a token, the route home reads every file by a request of its own, 1,013 requests in all", async () => {
+// expect: 1,015 requests in all — the repository 2, the commits 3, the trees 2, the pull requests 1, the tags 1, the CI runs of the product's head 1, the overview and the stored facts of the product's head 1 each (it holds neither; from the raw host, the 1,004th and 1,005th file read) and 1,003 files each by a request of its own (the 600 items, the 400 job records, SPEC.md, the test file and the instance's participant list); no batch request; no request carries an Authorization header
+test("TST-827007 without a token, the route home reads every file by a request of its own, 1,015 requests in all", async () => {
   net = network({ [PRODUCT]: productFiles({ items: 600, jobs: 400 }), [INSTANCE]: instanceFiles() });
   net.install();
   const target = await draw(home, browser({ tokens: {}, instanceToken: null }));
   const kinds = {};
   for (const { kind } of net.server.log) kinds[kind] = (kinds[kind] ?? 0) + 1;
   assert.equal(byClass(target, "is-error").length, 0);
-  assert.equal(net.requests.length, 1014);
-  assert.deepEqual(kinds, { repository: 2, commit: 3, tree: 2, "pull requests": 1, tags: 1, file: 1005 });
+  assert.equal(net.requests.length, 1015);
+  assert.deepEqual(kinds, { repository: 2, commit: 3, tree: 2, "pull requests": 1, tags: 1, "ci runs": 1, file: 1005 });
   assert.deepEqual(net.requests.filter((request) => request.authorization !== null), []);
 });
 
@@ -341,7 +341,7 @@ test("TST-847001 the page reads the jobs' states again once a minute, and sets n
 
 // TST-847002 · level: unit · module: MOD-main-page
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-046
-// given: this browser keeps the product alice/product of 600 backlog items and 400 job records, none of them taken or ended, with a token for it and one for the instance (the page of TST-827006 read it in 23 requests)
+// given: this browser keeps the product alice/product of 600 backlog items and 400 job records, none of them taken or ended, with a token for it and one for the instance (the page of TST-827006 read it in 25 requests)
 // input: the route home drawn; the timer fired at 12:01 UTC, the requests since the draw counted; then one job record, JOB-20261014-0900-0001, given its end on the server and the timer fired at 12:02
 // expect: the first reading sends exactly 2 requests, both to alice/product and both with the product's token — the commit of main and the tree of that commit —, and not one file, batch, pull request, tag or repository
 // request, and none to alice/agent-m; counter-proof: the reading after the record changed sends 3 — the commit, the tree and one batch holding the changed record, docs/jobs/JOB-20261014-0900-0001.md —,
@@ -350,7 +350,7 @@ test("TST-847002 with a token, a reading of the jobs' states is the product's co
   net = network({ [PRODUCT]: productFiles({ items: 600, jobs: 400 }), [INSTANCE]: instanceFiles() });
   net.install();
   await draw(home, browser());
-  assert.equal(net.requests.length, 24);
+  assert.equal(net.requests.length, 25);
   const sent = net.requests.length, logged = net.server.log.length;
   await timers.fire(at("12:01"));
   assert.deepEqual(net.requests.slice(sent).map(addressOf), ["/repos/alice/product/commits/main", "/repos/alice/product/git/trees/<commit>"]);
@@ -369,14 +369,14 @@ test("TST-847002 with a token, a reading of the jobs' states is the product's co
 
 // TST-847003 · level: unit · module: MOD-main-page
 // guards: THE BUILD IS SHOWN AS IT HAPPENS; UC-046
-// given: the product, the instance and the browser of TST-847002, with no token stored for the instance or the product (the page of TST-827007 read it in 1,013 requests); and, for the counter-proof, the same where the product's token is stored and the instance's is not
+// given: the product, the instance and the browser of TST-847002, with no token stored for the instance or the product (the page of TST-827007 read it in 1,015 requests); and, for the counter-proof, the same where the product's token is stored and the instance's is not
 // input: the route home drawn
-// expect: 1,013 requests for the draw and no timer waiting, so that no reading is made — GitHub's limit without a token is 60 requests an hour for the network, which a reading each minute would use up in half an hour; counter-proof: with the product's token stored, one timer of 60000 milliseconds waits
+// expect: 1,015 requests for the draw and no timer waiting, so that no reading is made — GitHub's limit without a token is 60 requests an hour for the network, which a reading each minute would use up in half an hour; counter-proof: with the product's token stored, one timer of 60000 milliseconds waits
 test("TST-847003 a card whose repository this browser keeps no token for is not read again", async () => {
   net = network({ [PRODUCT]: productFiles({ items: 600, jobs: 400 }), [INSTANCE]: instanceFiles() });
   net.install();
   await draw(home, browser({ tokens: {}, instanceToken: null }));
-  assert.equal(net.requests.length, 1014);
+  assert.equal(net.requests.length, 1015);
   assert.deepEqual(waitingDelays(), []);
 
   net.restore();

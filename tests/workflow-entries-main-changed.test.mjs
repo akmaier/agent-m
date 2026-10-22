@@ -94,6 +94,7 @@ function fakeGitHub(f) {
       return json(git(f.root, ...args).split("\n").filter(Boolean).map((sha) => ({ sha, parents: [], author: { login: "alice" },
         commit: { message: "", author: { name: "Alice" }, committer: { date: git(f.root, "--git-dir", f.origin, "log", "-1", "--format=%cI", sha) } } })));
     }
+    if (path === "/actions/runs") return json({ workflow_runs: [] });
     return json([]);
   };
   return () => { globalThis.fetch = saved; };
