@@ -58,7 +58,7 @@ const workflow = (server, runners, secrets) => files(server, runners, secrets)[0
 const MAIN = "node src/workflow-entries/main.mjs";
 
 // The `spec:` header both GitLab files start with, then the `---` that ends it: the three inputs of a pipeline started through the API, each with an empty default.
-const SPEC_HEADER = 'spec:\n  inputs:\n    job:\n      default: ""\n    task:\n      default: ""\n    endpoint:\n      default: ""\n---\n';
+const SPEC_HEADER = 'spec:\n  inputs:\n    job:\n      default: ""\n    task:\n      default: ""\n    endpoint:\n      default: ""\n    secret:\n      default: ""\n---\n';
 
 // The entries the five events start (MOD-runtimes, Data).
 const ENTRIES = ["onRecordsChanged", "onPullRequestClosed", "onCheckCompleted", "onSchedule", "onDispatch"];
@@ -91,8 +91,8 @@ test("jobWorkflowFiles — the file of GitHub, and the file of GitLab with the s
   assert.deepEqual(github.map((file) => file.path), [".github/workflows/agent-m-jobs.yml"]);
   assert.deepEqual(gitlab.map((file) => file.path), [".gitlab/agent-m-jobs.yml", ".gitlab-ci.yml"]);
   for (const file of [...github, ...gitlab]) assert.match(file.text, /\S/, file.path);
-  assert.equal(gitlab[1].text, 'spec:\n  inputs:\n    job:\n      default: ""\n    task:\n      default: ""\n    endpoint:\n      default: ""\n---\n'
-    + 'include:\n  - local: ".gitlab/agent-m-jobs.yml"\n    inputs:\n      job: $[[ inputs.job ]]\n      task: $[[ inputs.task ]]\n      endpoint: $[[ inputs.endpoint ]]\n');
+  assert.equal(gitlab[1].text, 'spec:\n  inputs:\n    job:\n      default: ""\n    task:\n      default: ""\n    endpoint:\n      default: ""\n    secret:\n      default: ""\n---\n'
+    + 'include:\n  - local: ".gitlab/agent-m-jobs.yml"\n    inputs:\n      job: $[[ inputs.job ]]\n      task: $[[ inputs.task ]]\n      endpoint: $[[ inputs.endpoint ]]\n      secret: $[[ inputs.secret ]]\n');
 });
 
 // ---------------------------------------------------------------- the events
@@ -259,17 +259,18 @@ test("jobWorkflowFiles — the GitLab job file declares job, task and endpoint w
 // guards: UC-049
 // given: the runner labels (1) none, (2) gpu, (3) gpu and cpu
 // input: jobWorkflowFiles("gitlab", …) for each; the lines of every job that begin AGENT_M_INPUT_, and every line of the file, comments apart, that holds `$[[`
-// expect: in every job, in this order, AGENT_M_INPUT_JOB set to `$[[ inputs.job ]]`, AGENT_M_INPUT_TASK to `$[[ inputs.task ]]` and AGENT_M_INPUT_ENDPOINT to `$[[ inputs.endpoint ]]`, each the whole value — no quote, no other text — and no other AGENT_M_INPUT_ variable; the only lines of the file that hold `$[[` are those three lines of each job
+// expect: in every job, in this order, AGENT_M_INPUT_JOB set to `$[[ inputs.job ]]`, AGENT_M_INPUT_TASK to `$[[ inputs.task ]]`, AGENT_M_INPUT_ENDPOINT to `$[[ inputs.endpoint ]]` and AGENT_M_INPUT_SECRET to `$[[ inputs.secret ]]`, each the whole value — no quote, no other text — and no other AGENT_M_INPUT_ variable; the only lines of the file that hold `$[[` are those four lines of each job
 test("jobWorkflowFiles — every GitLab job sets the three input variables to the whole value of the input, and nothing else", () => {
   for (const runners of [[], ["gpu"], ["gpu", "cpu"]]) {
     const text = workflow("gitlab", runners), jobs = gitlabJobs(text);
     assert.equal(jobs.length, 1 + runners.length);
     for (const job of jobs) {
       assert.deepEqual(inputVariables(job), [["AGENT_M_INPUT_JOB", "$[[ inputs.job ]]"], ["AGENT_M_INPUT_TASK", "$[[ inputs.task ]]"],
-        ["AGENT_M_INPUT_ENDPOINT", "$[[ inputs.endpoint ]]"]], `${job.id} with ${runners}`);
+        ["AGENT_M_INPUT_ENDPOINT", "$[[ inputs.endpoint ]]"], ["AGENT_M_INPUT_SECRET", "$[[ inputs.secret ]]"]], `${job.id} with ${runners}`);
     }
     assert.deepEqual(codeLines(text).filter((line) => line.includes("$[[")), jobs.flatMap(() => ["    AGENT_M_INPUT_JOB: $[[ inputs.job ]]",
-      "    AGENT_M_INPUT_TASK: $[[ inputs.task ]]", "    AGENT_M_INPUT_ENDPOINT: $[[ inputs.endpoint ]]"]), `the lines with $[[ with ${runners}`);
+      "    AGENT_M_INPUT_TASK: $[[ inputs.task ]]", "    AGENT_M_INPUT_ENDPOINT: $[[ inputs.endpoint ]]",
+      "    AGENT_M_INPUT_SECRET: $[[ inputs.secret ]]"]), `the lines with $[[ with ${runners}`);
   }
 });
 
@@ -295,17 +296,18 @@ test("jobWorkflowFiles — the entry onDispatch runs for a pipeline started from
 // guards: UC-049; A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
 // given: the GitLab job file; a GitLab job's environment built from what the file sets and nothing else — each variable it sets, to the value of the input it names, as GitLab interpolates a whole value —, GITLAB_CI `true`, CI_PIPELINE_SOURCE `api`, and one more variable AGENT_M_INPUT_PLANTED
 // input: the names of the variables the file sets for the inputs; ciEnvironment("onDispatch", that environment, a date)
-// expect: the names are exactly AGENT_M_INPUT_JOB, AGENT_M_INPUT_TASK and AGENT_M_INPUT_ENDPOINT, set to the inputs job, task and endpoint; the event is named "api" and its payload is exactly { inputs: { job, task, endpoint } } with the three values given, the planted variable absent
-test("jobWorkflowFiles — the three variables the GitLab file sets are exactly the names an entry reads from a GitLab job", () => {
+// expect: the names are exactly AGENT_M_INPUT_JOB, AGENT_M_INPUT_TASK, AGENT_M_INPUT_ENDPOINT and AGENT_M_INPUT_SECRET, set to the inputs job, task, endpoint and secret; the event is named "api" and its payload holds the inputs job, task and endpoint as given, the planted variable absent (the input secret is read by ITM-1189's entry, tests/workflow-entries-hand-over.test.mjs)
+test("jobWorkflowFiles — the four variables the GitLab file sets are exactly the names an entry reads from a GitLab job", () => {
   const [job] = gitlabJobs(workflow("gitlab"));
-  assert.deepEqual(inputVariables(job).map(([name]) => name), ["AGENT_M_INPUT_JOB", "AGENT_M_INPUT_TASK", "AGENT_M_INPUT_ENDPOINT"]);
-  const given = { job: JOB_ID, task: TASK, endpoint: ENDPOINT };
+  assert.deepEqual(inputVariables(job).map(([name]) => name), ["AGENT_M_INPUT_JOB", "AGENT_M_INPUT_TASK", "AGENT_M_INPUT_ENDPOINT", "AGENT_M_INPUT_SECRET"]);
+  const given = { job: JOB_ID, task: TASK, endpoint: ENDPOINT, secret: "FIXTURE_KEY" };
   const set = Object.fromEntries(inputVariables(job).map(([name, value]) => [name, given[/^\$\[\[ inputs\.([a-z]+) \]\]$/.exec(value)?.[1]]]));
-  assert.deepEqual(set, { AGENT_M_INPUT_JOB: JOB_ID, AGENT_M_INPUT_TASK: TASK, AGENT_M_INPUT_ENDPOINT: ENDPOINT });
+  assert.deepEqual(set, { AGENT_M_INPUT_JOB: JOB_ID, AGENT_M_INPUT_TASK: TASK, AGENT_M_INPUT_ENDPOINT: ENDPOINT, AGENT_M_INPUT_SECRET: "FIXTURE_KEY" });
 
   const env = ciEnvironment("onDispatch", { GITLAB_CI: "true", CI_PIPELINE_SOURCE: "api", ...set, AGENT_M_INPUT_PLANTED: "planted" }, WHEN);
   assert.equal(env.event.name, "api");
-  assert.deepEqual(env.event.payload, { inputs: { job: JOB_ID, task: TASK, endpoint: ENDPOINT } });
+  assert.deepEqual({ job: env.event.payload.inputs.job, task: env.event.payload.inputs.task, endpoint: env.event.payload.inputs.endpoint }, { job: JOB_ID, task: TASK, endpoint: ENDPOINT });
+  assert.ok(!JSON.stringify(env.event.payload).includes("AGENT_M_INPUT_PLANTED") && !JSON.stringify(env.event.payload).includes("planted"), "the planted variable is absent");
 });
 
 // TST-532105 · level: unit · module: MOD-runtimes

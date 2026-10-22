@@ -206,10 +206,10 @@ function dispatchInputs(text) {
 // guards: A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET; UC-049
 // given: jobWorkflowFiles for GitHub, for an instance alice/agent-m at a commit, with a token secret and a key secret
 // input: the inputs the file declares under workflow_dispatch
-// expect: three inputs in this order: job (required true), task (required false), endpoint (required false)
-test("jobWorkflowFiles — the GitHub template's start by hand takes the job first, then the task and the endpoint, both not required", () => {
+// expect: four inputs in this order: job (required true), task (required false), endpoint (required false), secret (required false)
+test("jobWorkflowFiles — the GitHub template's start by hand takes the job first, then the task, the endpoint and the secret's name, the last three not required", () => {
   const [file] = runtimes.jobWorkflowFiles("github", { repository: "alice/agent-m", commit: "0123456789abcdef0123456789abcdef01234567" },
     { token: "AGENT_M_TOKEN", keys: ["CLAUDE_KEY"] }, []);
   assert.equal(file.path, GITHUB_WORKFLOW);
-  assert.deepEqual(dispatchInputs(file.text), [{ name: "job", required: "true" }, { name: "task", required: "false" }, { name: "endpoint", required: "false" }]);
+  assert.deepEqual(dispatchInputs(file.text), [{ name: "job", required: "true" }, { name: "task", required: "false" }, { name: "endpoint", required: "false" }, { name: "secret", required: "false" }]);
 });

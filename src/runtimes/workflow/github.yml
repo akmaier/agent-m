@@ -25,6 +25,9 @@ on:
       endpoint:
         description: "The kind, address and model of a model endpoint, as JSON text"
         required: false
+      secret:
+        description: "The name of the CI secret that holds the key of that endpoint, a name this file reads below; never the key"
+        required: false
 
 permissions:
   contents: read
