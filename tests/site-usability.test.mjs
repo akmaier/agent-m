@@ -64,8 +64,6 @@ const CLAUSES = [
 // What the pages do today that the check names: route -> clause -> the finding, as measured in the controlled Electron at a phone's width
 // (at a desktop's width every route passes). Each is a todo until the module of its route fixes it; each fix is an item of that module.
 const TODAY = {
-  "#uc/UC-001": { widths: "its diagram is drawn; what remains is the Markdown table and the run of code of the use case, wider than a phone's window, and the page scrolls sideways; MOD-review-pages shows the file as MOD-markdown-render renders it" },
-  "#review/uc": { widths: "Review all draws the changed use case UC-001 rendered, with its Markdown table and run of code wider than a phone's window, and the page scrolls sideways; MOD-review-pages shows the file as MOD-markdown-render renders it" },
   "#arc": { widths: "the table of the modules is wider than a phone's window (src/trace-pages/flow.mjs, MOD-trace-pages); ITM-1159, The architecture and modules views fit a phone" },
   "#module": { widths: "the table of the modules is wider than a phone's window (src/trace-pages/flow.mjs, MOD-trace-pages); ITM-1159, The architecture and modules views fit a phone" },
 };
@@ -198,6 +196,23 @@ for (const route of ROUTES) {
       });
   }
 }
+
+// TST-917002 · level: system · module: MOD-site-frame
+// guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE
+// given: the live fixture use case UC-001, whose rendered Markdown holds the Request / Path read / Batch table and its long code run
+// input: #uc/UC-001 and #review/uc, each drawn through the unchanged Electron geometry caller at 390 px and 1280 px
+// expect: no width finding at either width, while each route still shows the literal table headings, readFile cell and code address
+test("TST-917002 the live use-case and review pages reflow their Markdown table and code at phone and desktop widths", () => {
+  for (const address of ["#uc/UC-001", "#review/uc"]) {
+    for (const [kind] of WIDTHS) {
+      const result = measured.get(`${address} ${kind}`);
+      assert.deepEqual(result.widths, [], `${address} at a ${kind}'s width: ${result.widths.join("; ")}`);
+      for (const literal of ["Request", "Path read", "Batch", "readFile", "/repos/akmaier/agent-m/git/trees/"]) {
+        assert.equal(result.text.includes(literal), true, `${address} at a ${kind}'s width retains ${literal}`);
+      }
+    }
+  }
+});
 
 // ---------------------------------------------------------------- the menu at a phone's width
 

@@ -57,6 +57,14 @@ export function renderArtifact(text, { frontMatter = "table" } = {}) {
     }).join("");
     const table = frontMatter === "hidden" || !parsed.order.length ? "" : `<table class="frontmatter"><tbody>${rows}</tbody></table>`;
     rendered.innerHTML = table + DOMPurify.sanitize(markdown.parse(parsed.body), SANITISE);
+    for (const table of rendered.getElementsByTagName("table")) {
+      const header = table.getElementsByTagName("thead")[0];
+      if (!header) continue;
+      const labels = [...header.getElementsByTagName("th")].map((cell) => cell.textContent);
+      for (const row of table.getElementsByTagName("tbody")[0]?.getElementsByTagName("tr") ?? []) {
+        [...row.getElementsByTagName("td")].forEach((cell, index) => cell.setAttribute("data-label", labels[index] ?? ""));
+      }
+    }
     for (const code of rendered.getElementsByTagName("code")) {
       if (!/language-mermaid/.test(code.className)) continue;
       const parent = code.parentNode;
