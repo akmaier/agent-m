@@ -83,7 +83,7 @@ jobs:
           sudo apt-get $apt_options update
           # azure.archive.ubuntu.com sometimes sends one file so slowly that apt neither fails nor tries the next mirror: the first download is
           # bounded, and when it fails archive.ubuntu.com becomes the mirror.
-          if ! sudo timeout 45 apt-get $apt_options install --download-only --yes --no-install-recommends xvfb openbox; then
+          if ! sudo timeout 1 apt-get $apt_options install --download-only --yes --no-install-recommends xvfb openbox; then
             echo "http://archive.ubuntu.com/ubuntu/" | sudo tee /etc/apt/apt-mirrors.txt
             sudo apt-get $apt_options install --download-only --yes --no-install-recommends xvfb openbox
           fi
