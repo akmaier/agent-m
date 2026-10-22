@@ -431,7 +431,7 @@ test("Hand over queues the job only on a person's click, on the head the page re
   assert.equal(commit.message, `Queue job ${id}: implement`);
   for (const line of ["kind: implement", "participant: dev-ci", "route: ci hosted", "task: with the hand-over", "started_by: alice", "  - ITM-004"]) assert.ok(commit.files[0].text.includes(line), line);
   assert.deepEqual(it.product.starts, [{ workflow: "agent-m-jobs.yml", ref: "trunk", inputs: { job: id, task: TASK,
-    endpoint: '{"kind":"openai-compatible","baseUrl":"https://models.example/v1","model":"model-ci"}' } }]);
+    endpoint: '{"kind":"openai-compatible","baseUrl":"https://models.example/v1","model":"model-ci"}', secret: "KEY_A" } }]);
   assert.match(textOf(one(it.target, "queued")), new RegExp(`Queued as ${id}`));
   assert.equal(it.instance.attempts.length, 0);
 });
