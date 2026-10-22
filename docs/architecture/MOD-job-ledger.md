@@ -69,6 +69,7 @@ Its start: the front matter, the destinations and the parameters.
 | `kind` | the kind's name from MOD-job-catalogue, or `run` |
 | `works_on` | the identifiers it works on — requirements, use cases, decisions, modules, items, sources —, an issue's address or a commit |
 | `participant`, `model` | the participant's name and model, `—` for a kind without one |
+| `declares` | for a model endpoint the instance's list does not hold, which a hand-over of the prompt bar names (`THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE`), its `context` in tokens and its `capabilities`, as its configuration declares them; its place stands in `## Destinations`; absent otherwise |
 | `route` | `tab`, `ci hosted`, `ci runner:<label>` or `bridge <name>` |
 | `run` | the run it belongs to, if any |
 | `retries` | the job it retries, if any |
@@ -141,7 +142,8 @@ by: tab <identifier>
 - `JobStart` — `{ id: string, kind: string, worksOn: string[], participant: string | null, model: string | null, route:
   string, run: string | null, retries: string | null, startedBy: string, start: Date, agentM: { version: string, commit:
   string }, inputs: string[], limit: number, task: "in parameters" | "with the hand-over", conversation: string | null,
-  destinations: { participant: string, place: string, parts: string[] }[], params: Record<string, unknown> }`.
+  declares: { context: number, capabilities: string[] } | null, destinations: { participant: string, place: string,
+  parts: string[] }[], params: Record<string, unknown> }`.
 - `RecordPart` — `{ part: "taken", at: Date, by: string } | { part: "gate reached", at: Date, gate: string, decider:
   string } | { part: "question", at: Date, question: string } | { part: "resumed", at: Date, gateRecord: string } | {
   part: "job started", at: Date, job: string, kind: string, worksOn: string[] } | { part: "limits raised", at: Date, by:

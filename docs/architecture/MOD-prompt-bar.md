@@ -224,21 +224,23 @@ IN THE REPOSITORY`).
   the work-in-progress limit, a gate not recorded — and MOD-product-process' `holdsRole` finds that participant in the
   implementing role of the item's role assignment; otherwise the reasons are shown and nothing is queued (`NOTHING IS
   IMPLEMENTED BEFORE IT IS ACCEPTED`, `A JOB GOES ONLY TO A HOLDER OF ITS ROLE`). It queues and starts the job with
-  MOD-runtimes' `handOverJob`, then follows it by its record and `liveState` until it has ended — *waiting for GitHub
-  Actions* with the run's address, or for the Bridge —, and shows its log's answer and the commits its end record names;
-  *Stop* then cancels it with `cancelJob`. It says above the selector when the conversation is recorded (UC-049 6c).
-  Crosses the network: to the participant through its route, and to the repository servers to read the subject, the
-  participants, the facts and the switch, to append the record, and to queue and start a hand-over. A failure of the
-  participant's route is shown in the conversation by name. A hand-over the product cannot take yet says what is missing
-  and links where it is set up (UC-049 4c): while the product has no job workflow — the CI route unavailable,
-  `routesFor` naming its files — the route `settings` through `go`, whose product section installs it; for a run ended
-  `not run` for a missing secret, the server's page of the repository's secrets (MOD-repository-hosts' `webLinks`,
-  `secrets`), naming the secret. Such a run writes neither `## Taken` nor `## End` (MOD-workflow-entries), so
-  `liveState` and `jobLog` cannot report it; while a followed hand-over stays queued and untaken on the CI route, each
-  poll lists the runs of the job workflow with `listCiRuns`, and when a failed run no older than the job's start turns
-  up it reads that run's log once with `ciRunLog` and takes the secret from the entry's line `not run — <SECRET> is
-  missing`. The cost is one `listCiRuns` call per 15-second poll while the job stays queued and untaken, and one
-  `ciRunLog` call when a failed run turns up.
+  MOD-runtimes' `handOverJob` — for a job that is the endpoint's own, with a start whose `participant` and `model` name
+  the endpoint, whose destinations name its place, and whose `declares` holds its context and capabilities
+  (MOD-job-ledger) —, then follows it by its record and
+  `liveState` until it has ended — *waiting for GitHub Actions* with the run's address, or for the Bridge —, and shows
+  its log's answer and the commits its end record names; *Stop* then cancels it with `cancelJob`. It says above the
+  selector when the conversation is recorded (UC-049 6c). Crosses the network: to the participant through its route, and
+  to the repository servers to read the subject, the participants, the facts and the switch, to append the record, and
+  to queue and start a hand-over. A failure of the participant's route is shown in the conversation by name. A hand-over
+  the product cannot take yet says what is missing and links where it is set up (UC-049 4c): while the product has no
+  job workflow — the CI route unavailable, `routesFor` naming its files — the route `settings` through `go`, whose
+  product section installs it; for a run ended `not run` for a missing secret, the server's page of the repository's
+  secrets (MOD-repository-hosts' `webLinks`, `secrets`), naming the secret. Such a run writes neither `## Taken` nor
+  `## End` (MOD-workflow-entries), so `liveState` and `jobLog` cannot report it; while a followed hand-over stays queued
+  and untaken on the CI route, each poll lists the runs of the job workflow with `listCiRuns`, and when a failed run no
+  older than the job's start turns up it reads that run's log once with `ciRunLog` and takes the secret from the entry's
+  line `not run — <SECRET> is missing`. The cost is one `listCiRuns` call per 15-second poll while the job stays queued
+  and untaken, and one `ciRunLog` call when a failed run turns up.
 - `latestDraft(store: Store, subject: string) -> ConversationDraft | null` — the conversation's latest draft, if it was
   drafted on that subject; for the review pages' route that shows it.
 - `dropDraft(store: Store, subject: string) -> void` — drops the conversation's latest draft, if it was drafted on that
