@@ -54,7 +54,8 @@ to the pages where its work is reviewed and done.
 2. The menu leads through the process in its order — **Requirements**, **Use cases**, **Architecture**, **Implementation**,
    **Tests**, **Releases** —, followed by **Maintenance** — issues and mail — and **Settings**. Every page of the site
    carries the same menu; each entry opens the page under `docs/` where that stage's work is reviewed and done, for the
-   product chosen.
+   product chosen. On a screen up to 760 px wide, the menu is one button: a click unfolds the eight entries, and a
+   second click folds them again. On a wider screen the entries stand in a row.
 3. Below the greeting, one card per product this browser manages (UC-001): its name, its process model, and its progress
    as one bar of the six stages of the table above, each filled by its share; the stage the product is in is marked, and a
    click on a stage opens that stage's page for the product. Every share is derived when the page is shown, from the
