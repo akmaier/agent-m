@@ -81,7 +81,12 @@ jobs:
           mkdir -p /home/runner/apt-archives/partial
           apt_options="-o Acquire::Retries=1 -o Acquire::http::Timeout=10 -o DPkg::Lock::Timeout=50 -o Dir::Cache::archives=/home/runner/apt-archives"
           sudo apt-get $apt_options update
-          sudo apt-get $apt_options install --download-only --yes --no-install-recommends xvfb openbox
+          # azure.archive.ubuntu.com sometimes sends one file so slowly that apt neither fails nor tries the next mirror: the first download is
+          # bounded, and when it fails archive.ubuntu.com becomes the mirror.
+          if ! sudo timeout 45 apt-get $apt_options install --download-only --yes --no-install-recommends xvfb openbox; then
+            echo "http://archive.ubuntu.com/ubuntu/" | sudo tee /etc/apt/apt-mirrors.txt
+            sudo apt-get $apt_options install --download-only --yes --no-install-recommends xvfb openbox
+          fi
           sudo chmod -R a+rX /home/runner/apt-archives
   node:
     needs: apt-archives
