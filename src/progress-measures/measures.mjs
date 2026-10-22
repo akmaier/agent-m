@@ -1,14 +1,23 @@
 // Progress in the declared model's measure (docs/architecture/MOD-progress-measures.md, Interfaces: progressIn; PROGRESS IS
 // SHOWN IN THE MODEL'S OWN MEASURE, PROGRESS AND JOB STATE ARE DERIVED, NOT STORED). Of progressIn, this builds the grid, the
-// timeline and the steps of a planned model, and the burn-down of each team's sprint, for a model that works in sprints — with a
-// time box of a fixed length, or without one, until the sprint ends —; the board's flow is not built yet, and is null. Pure: the
-// facts and the day are handed in; nothing is read, written or kept.
+// timeline and the steps of a planned model, the burn-down of each team's sprint, for a model that works in sprints — with a
+// time box of a fixed length, or without one, until the sprint ends —, and the board of a model with a work-in-progress limit with its
+// items per state per day. Pure: the facts and the day are handed in; nothing is read, written or kept.
 //
 // Module: MOD-progress-measures
 //
 // A team's sprint is the record docs/backlog/sprints/<team>/<nn>.md, read with MOD-work-plans' planSchemas.sprint; a team's
 // newest sprint is its running one while it is neither closed — its record holds ## Review — nor past its end, else its last.
 // An item is done on the day a pull request naming it — in its head branch or its title — is merged.
+//
+// The board (MOD-progress-measures, Interfaces: progressIn, "for a model with a work-in-progress limit"). Where the module file leaves a
+// reading open, this file takes the one it names:
+//   - the columns are the states of MOD-work-plans' ItemState, in the order of that type, each item of the plan in the column of its state;
+//   - `wip` is the model's limit; counting it per team is how `startable` and `blocked` apply it, and the board holds every item;
+//   - the days run from `since`, else from the first day an item is dated, to today, with a number in `counts` for every column;
+//   - an item is in progress from the earlier of the day a pull request naming it opened and the day a job record working on it started, and
+//     done from the day it is done (as above); before its start it was ready, since a job starts only for a ready item; an item whose state
+//     is another, or that nothing dates, is in its state on every day; on today every item is in its state, so that the last day is the board.
 //
 // Where the module file leaves a reading of a planned model's progress open, this file takes the one it names:
 //   - A cell of the grid belongs to the steps of the implementation plan that realise its requirement and that the plan's order (docs/plan/order.md)
@@ -40,6 +49,11 @@ class ProgressError extends Error {
 const text = (value) => (typeof value === "string" ? value : value === null || value === undefined ? "" : String(value));
 const list = (value) => (Array.isArray(value) ? value.map(text) : text(value).split(",").map((part) => part.trim()).filter(Boolean));
 const nextDay = (day) => new Date(Date.parse(`${day}T00:00:00Z`) + DAY).toISOString().slice(0, 10);
+const STATES = ["waiting for acceptance", "waiting for an item it builds on", "waiting", "ready", "in progress", "blocked", "done", "unknown"];
+// The states that records and pull requests date; an item in another state is in it on every day.
+const DATED = ["in progress", "blocked", "done"];
+const dayOf = (value) => { const at = Date.parse(value instanceof Date ? value.toISOString() : text(value)); return Number.isFinite(at) ? new Date(at).toISOString().slice(0, 10) : null; };
+const earliest = (days) => days.filter(Boolean).sort()[0] ?? null;
 const sectionsOf = (record, heading) => (record?.appended ?? []).filter((section) => section?.heading === heading);
 
 // The items a sprint holds on a day: those of the last ## Selection appended on or before it, else those of its front matter.
@@ -50,10 +64,49 @@ function selectionOn(record, day) {
 
 // The day an item is done: the earliest day a merged pull request names it; null while none is merged.
 function doneOn(item, pullRequests) {
+  return earliest(pullRequestsOf(item, pullRequests).filter((pr) => pr?.state === "merged").map((pr) => text(pr.merged).slice(0, 10)));
+}
+
+// The pull requests that name an item in their head branch or their title.
+function pullRequestsOf(item, pullRequests) {
   const naming = new RegExp(`(?<![A-Za-z0-9])${item}(?![0-9])`);
-  const days = pullRequests.filter((pr) => pr?.state === "merged" && (naming.test(text(pr.branch)) || naming.test(text(pr.title))))
-    .map((pr) => text(pr.merged).slice(0, 10)).filter(Boolean).sort();
-  return days[0] ?? null;
+  return pullRequests.filter((pr) => naming.test(text(pr?.branch)) || naming.test(text(pr?.title)));
+}
+
+// The day an item starts: the earlier of the opening of a pull request naming it and the start of a job record working on it.
+function startedOn(item, pullRequests, jobs) {
+  return earliest([...pullRequestsOf(item, pullRequests).map((pr) => dayOf(pr.opened)),
+    ...jobs.filter((row) => list(row?.record?.worksOn).includes(item)).map((row) => dayOf(row.record.start))]);
+}
+
+// An item's column on a day, from its state now and the days that date it.
+function columnOn(day, today, current, started, done) {
+  if (day === today || !DATED.includes(current)) return current;
+  if (current === "done") return done === null ? current : day >= done ? "done" : started !== null && day >= started ? "in progress" : "ready";
+  return started === null ? current : day >= started ? "in progress" : "ready";
+}
+
+// The board of a model with a work-in-progress limit, and its items per state per day; null for a model without one.
+function flowOf(model, since, facts, today) {
+  if (typeof model.flow?.wip !== "number") return null;
+  const items = (facts.plan?.states ?? []).map((each) => ({ item: each.item, column: STATES.includes(each.state) ? each.state : "unknown" }));
+  const columns = STATES.map((name) => ({ name, items: items.filter((each) => each.column === name).map((each) => each.item) }));
+  const cumulative = [];
+  if (facts.pullRequests !== "unknown") {
+    const pullRequests = facts.pullRequests ?? [];
+    const jobs = facts.jobs ?? [];
+    const dated = items.map(({ item, column }) => {
+      const done = column === "done" ? doneOn(item, pullRequests) : null;
+      return { column, done, started: !DATED.includes(column) ? null : earliest([startedOn(item, pullRequests, jobs), done]) };
+    });
+    const first = since ?? earliest(dated.flatMap((each) => [each.started, each.done]));
+    for (let day = first; day && day <= today; day = nextDay(day)) {
+      const counts = Object.fromEntries(STATES.map((name) => [name, 0]));
+      for (const each of dated) counts[columnOn(day, today, each.column, each.started, each.done)] += 1;
+      cumulative.push({ day, counts });
+    }
+  }
+  return { columns, wip: model.flow.wip, cumulative };
 }
 
 // A team's sprint: its items with their states, the remaining items per day from its start to its end — to today while it
@@ -162,8 +215,9 @@ function plannedProgress(facts, model) {
  * other team with a sprint —, its newest sprint's items with their states and the remaining items per day of that sprint,
  * `final` once the sprint is closed or past its end; a team without a sprint has no entry. For a planned model `planned` holds the grid of
  * every accepted requirement in every phase, each cell open, in progress or done, the phases on a timeline with their gates, and the steps of
- * the implementation plan with their states; for any other model it is null. `flow` is not built yet and is null; `since` is the change of
- * model, as the facts give it. Throws NoModel when the product declares none.
+ * the implementation plan with their states; for any other model it is null. `flow` is the board of a model with a work-in-progress limit,
+ * null for any other; `since` is the change of model, as the facts give it, and where the chart of `flow` starts. Throws NoModel when the
+ * product declares none.
  * @param {object} facts @param {Date} now
  */
 export function progressIn(facts, now) {
@@ -173,10 +227,11 @@ export function progressIn(facts, now) {
   if (model !== "unknown" && model.kind === "planned") {
     return { measure: model.measure, planned: plannedProgress(facts, model), sprints: [], flow: null, since };
   }
-  if (model === "unknown" || !model.flow?.sprints) {
-    return { measure: model === "unknown" ? null : model.measure, planned: null, sprints: [], flow: null, since };
-  }
   const today = now.toISOString().slice(0, 10);
+  const flow = model === "unknown" ? null : flowOf(model, dayOf(since), facts, today);
+  if (model === "unknown" || !model.flow?.sprints) {
+    return { measure: model === "unknown" ? null : model.measure, planned: null, sprints: [], flow, since };
+  }
   const states = facts.plan?.states ?? [];
   const pullRequests = facts.pullRequests === "unknown" ? "unknown" : (facts.pullRequests ?? []);
   const newest = new Map();
@@ -189,5 +244,5 @@ export function progressIn(facts, now) {
   const named = (facts.assignments ?? []).map((assignment) => ASSIGNMENT_PATH.exec(text(assignment?.path))?.[1]).filter(Boolean);
   const teams = [...new Set([...named, ...newest.keys()])].filter((team) => newest.has(team));
   return { measure: model.measure, planned: null,
-    sprints: teams.map((team) => teamSprint(team, newest.get(team).record, states, pullRequests, today)), flow: null, since };
+    sprints: teams.map((team) => teamSprint(team, newest.get(team).record, states, pullRequests, today)), flow, since };
 }
