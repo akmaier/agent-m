@@ -70,6 +70,7 @@ wildcard, copied production value or removal of the assertion. Every other liter
 | `tests/endpoint-calls.test.mjs` | TST-472213 (legacy TST-260-001), MOD-endpoint-calls, unit | Add `stream: false` to the expected probe body only. |
 | `tests/endpoint-driver.test.mjs` | TST-472223 (legacy TST-316-001), MOD-endpoint-calls, unit | Add `stream: false` to the expected ordinary-driver body only. |
 | `tests/endpoint-exchange.test.mjs` | TST-487003 and TST-487005, MOD-endpoint-calls, unit | Add `stream: false` to the OpenAI fixture-backed history body and the literal no-tool body only. |
+| `tests/endpoint-tool-loop.test.mjs` | TST-488001, TST-488012 and TST-488014, MOD-endpoint-calls, unit | Add `stream: false` to both inline expected bodies of TST-488001 and the inline no-tools body passed to `withoutToolsCase` by each of TST-488012/014 only, with matching expected-body prose. |
 | `tests/bridge-jobs-endpoint-ask.test.mjs` | TST-472084, MOD-bridge-jobs, unit | Add `stream: false` to the expected controlled model body only. |
 | `tests/desktop-shell-endpoint-composition.test.mjs` | TST-268001, MOD-desktop-shell, unit | Add `stream: false` to the expected controlled model body only. |
 | `tests/system-uc-003-direct-endpoint.test.mjs` | TST-292001, MOD-settings-pages, system | Add `stream: false` to the intercepted expected provider body only. |
@@ -83,6 +84,12 @@ wildcard, copied production value or removal of the assertion. Every other liter
 The sole existing JSON-fixture change is the literal property `stream: false` in `openai.request` of
 `tests/fixtures/endpoint-calls/tool-exchanges.json`, used by TST-487003. Its exchange input, all response/answer data
 and the entire Anthropic branch remain unchanged. The fixture is data, not a production-derived oracle.
+
+TST-488001/012/014 do not read that JSON fixture: they state their own complete inline body objects.
+Their expected tool definitions, user/assistant/tool message history, call order, request counts, text and usage
+remain unchanged; TST-488012/014 still assert that the body has no `tools` key. The shared `withoutToolsCase` and
+all other helpers remain unchanged. The Anthropic TST-488002/013 bodies and every other tool-loop assertion are
+outside this maintenance boundary. The complete old-body scope is thirteen test files and the one JSON fixture.
 
 TST-294001's case declaration names MOD-settings-pages; its file header lists the integration participants.
 Neither is relabelled. All named test IDs, levels, guards, authorship, fixtures, route inputs, helpers and staging
@@ -105,8 +112,10 @@ request-body negotiation. No existing item or result record is rewritten.
 The accepted EndpointCalls contract returns an answer, tool calls and usage through the existing JSON-based public
 path. Requesting the provider's non-streaming form makes that outcome possible without changing the contract.
 No SPEC, use-case or architecture change is needed, and the separate open Settings-first bar proposals are not inputs
-to this repair. This item is backlog input for a later recorded selection, not selected for109 or an authorization
-to start110. Current sprint holds, module conflicts, ordering and WIP are checked by that later planning decision.
+to this repair. This refinement selects no item and starts no work. A fresh authorized planning decision may add the
+item to still-open109 through public `startSprint` with `context.running` naming109, or select it for a later sprint,
+subject to the actual native prerequisite, hold, conflict, ordering and WIP guards. Starting110 is not a prerequisite
+for this repair; any amendment preserves the published109 Selection history and serializes overlapping writers.
 
 ## Acceptance
 
