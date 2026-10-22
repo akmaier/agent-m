@@ -90,7 +90,7 @@ test("TST-1174101 the backlog waiting-for-prerequisite badge has no axe color-co
   }
 });
 
-// TST-917101 · level: release · module: MOD-site-frame; MOD-markdown-render
+// TST-917101 · level: release · module: MOD-markdown-render
 // guards: UC-001; EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE
 // given: UC-001's live fixture Markdown table and literal long code at the existing 390 px phone and 1280 px desktop widths
 // input: #uc/UC-001 and #review/uc in the unchanged Electron geometry caller, including every unfiltered width finding
