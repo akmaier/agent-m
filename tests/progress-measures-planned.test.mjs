@@ -89,9 +89,9 @@ test("progressIn — the grid of a planned model gives every requirement in ever
 
 // TST-795002 · level: unit · module: MOD-progress-measures
 // guards: UC-035 (phases on a timeline with their gates as milestones); STATUS IS DERIVED FROM THE RECORDS
-// given: the product above, whose model was declared on 2026-10-01; the record of Requirements → Design dated 2026-10-05 09:00 UTC and that of Design → Implementation dated 2026-10-10 14:30 UTC; Testing → Operation pending; and, as a second case, Design → Implementation passed on an earlier text
-// input: progressIn(facts, now).planned.timeline; the same with the second state
-// expect: five entries in the model's order — Requirements from 2026-10-01 to 2026-10-05 with its gate passed 2026-10-05; Design from 2026-10-05 to 2026-10-10 with its gate passed 2026-10-10; Implementation from 2026-10-10 to nothing yet, no gate of its own; Testing from nothing yet, with its gate Testing → Operation not passed; Operation with neither date. With the gate passed on an earlier text, it counts as not passed: Design has no end and no passed date, Implementation no start
+// given: the product above, whose model was declared on 2026-10-01; the record of Requirements → Design dated 2026-10-05 09:00 UTC and that of Design → Implementation dated 2026-10-10 14:30 UTC; Testing → Operation pending; as a second case, Design → Implementation passed on an earlier text; as a third, Testing → Operation passed on 2026-10-20
+// input: progressIn(facts, now).planned.timeline; the same with the second and the third state
+// expect: five entries in the model's order — Requirements from 2026-10-01 to 2026-10-05 with its gate passed 2026-10-05; Design from 2026-10-05 to 2026-10-10 with its gate passed 2026-10-10; Implementation from 2026-10-10 to nothing yet, no gate of its own; Testing from nothing yet, with its gate Testing → Operation not passed; Operation with neither date. With the gate passed on an earlier text, it counts as not passed: Design has no end and no passed date, Implementation no start. With Testing → Operation passed, Implementation, which has no gate of its own, ends with it on 2026-10-20, and Testing and Operation start that day
 test("progressIn — the timeline gives each phase its dates and its gate as a milestone, passed only on the current text", () => {
   const timeline = progressIn(FACTS(), NOW).planned.timeline;
   assert.deepEqual(timeline, [
@@ -106,6 +106,17 @@ test("progressIn — the timeline gives each phase its dates and its gate as a m
   assert.deepEqual(progressIn(FACTS({ gateStates: earlier }), NOW).planned.timeline.slice(1, 3), [
     { phase: "Design", from: "2026-10-05", to: null, gate: "Design → Implementation", passed: null },
     { phase: "Implementation", from: null, to: null, gate: null, passed: null },
+  ]);
+  const all = FACTS();
+  const released = progressIn(FACTS({
+    gates: [...all.gates, gateRecord("Testing → Operation", "docs/gates/20261020-1000-testing-operation.md", "2026-10-20 10:00 UTC")],
+    gateStates: all.gateStates.map((entry) => (entry.gate === "Testing → Operation"
+      ? { ...entry, state: "passed", record: "docs/gates/20261020-1000-testing-operation.md", needs: null } : entry)),
+  }), NOW).planned.timeline;
+  assert.deepEqual(released.slice(2), [
+    { phase: "Implementation", from: "2026-10-10", to: "2026-10-20", gate: null, passed: null },
+    { phase: "Testing", from: "2026-10-20", to: "2026-10-20", gate: "Testing → Operation", passed: "2026-10-20" },
+    { phase: "Operation", from: "2026-10-20", to: null, gate: null, passed: null },
   ]);
 });
 
@@ -172,6 +183,18 @@ test("progressIn — a phase that produces files is done when they are all accep
   assert.equal(design({ statuses: statusMap(accepted().filter(([, id]) => id !== "MOD-queue" && id !== "ARC-002")) }), "open");
   const without = FACTS().plan.items.filter(({ id }) => id !== "ITM-0003");
   assert.equal(design({ plan: { order: FACTS().plan.order, items: without, states: STATES } }), "open");
+});
+
+// TST-795009 · level: unit · module: MOD-progress-measures
+// guards: UC-035 ("or, for implementation and tests, merged and passing")
+// given: the product above with a third requirement whose one step, ITM-0004, is in Testing and names MOD-store, which is accepted with ARC-001; the plan puts steps of other requirements in Implementation
+// input: the third requirement's cells
+// expect: Design done, the files of its trace being accepted; Implementation open, not done — a phase that has steps is built by them, and an accepted module file is no merged code —; Testing open, ITM-0004 being ready
+test("progressIn — an accepted module file does not make a phase with steps done", () => {
+  const plan = { order: rows(["ITM-0001", "Implementation"], ["ITM-0002", "Testing"], ["ITM-0003", "Implementation"], ["ITM-0004", "Testing"]),
+    items: [...FACTS().plan.items, step("ITM-0004", [THIRD], ["MOD-store"])], states: [...STATES, itemState("ITM-0004", "ready")] };
+  assert.deepEqual(states(progressIn(FACTS({ requirements: [FIRST, SECOND, THIRD], plan }), NOW).planned, THIRD),
+    ["done", "done", "open", "open", "open"]);
 });
 
 // TST-795008 · level: unit · module: MOD-progress-measures
