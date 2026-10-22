@@ -206,11 +206,11 @@ test("productFacts, scope work — reads the statuses, queues, declaration with 
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-049
 // given: the fixture product
 // input: productFacts(…, { scope: "work" })
-// expect: exactly the fields address, info, snapshot, graph, requirements, statuses, queues, declaration, workflow, model, modelUnread, modelSince, participants, plan, sprints, assignments, held, gates, gateStates, jobs, pullRequests, schedule, ci, tags, results, tests, resourceNeeds; and "unknown" in info, graph, requirements, modelSince, schedule, ci, tags, results, tests and resourceNeeds
+// expect: exactly the fields address, info, snapshot, graph, requirements, statuses, queues, declaration, workflow, model, modelUnread, modelSince, participants, plan, sprints, assignments, held, modules, gates, gateStates, jobs, pullRequests, schedule, ci, tags, results, tests, resourceNeeds; and "unknown" in info, graph, requirements, modelSince, schedule, ci, tags, results, tests and resourceNeeds
 test("productFacts, scope work — every fact the scope does not name is \"unknown\"", async () => {
   const facts = await work(fixture());
   assert.deepEqual(Object.keys(facts).sort(), ["address", "assignments", "ci", "declaration", "gateStates", "gates", "graph", "held", "info",
-    "jobs", "model", "modelSince", "modelUnread", "own", "participants", "plan", "pullRequests", "queues", "requirements", "resourceNeeds",
+    "jobs", "model", "modelSince", "modelUnread", "modules", "own", "participants", "plan", "pullRequests", "queues", "requirements", "resourceNeeds",
     "resultCommits", "results", "schedule", "snapshot", "sprints", "statuses", "tags", "tests", "workflow"]);
   for (const field of ["info", "graph", "requirements", "modelSince", "schedule", "ci", "tags", "results", "resultCommits", "tests", "resourceNeeds"]) {
     assert.equal(facts[field], "unknown", field);
@@ -274,6 +274,29 @@ test("productFacts, scope work — held is the items the teams' sprints hold, wi
     { item: "ITM-004", sprint: "team1/01", team: "team1", changes: ["MOD-store"], uses: [] },
   ]);
   assert.deepEqual(f.calls.filter((c) => c[0] === "containsCommit"), []);
+});
+
+// TST-1161005 · level: unit · module: MOD-progress-measures
+// guards: SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// given: the fixture product, whose architecture holds the module files MOD-store (uses nothing) and MOD-pages (uses MOD-store.read and MOD-store.write); a host that does server operations, and one that does none
+// input: productFacts(…, { scope: "work" }) and productFacts(…, { scope: "all" }), for each of the two hosts; and productFacts(…, { scope: "build" }), which reads no sprint and computes no held
+// expect: with the scope work and all, modules is the two module files as documents, in the order of their paths — docs/architecture/MOD-pages.md (id MOD-pages, uses MOD-store.read and MOD-store.write) and docs/architecture/MOD-store.md (id MOD-store, no uses) —, and no module file is read more than once; with the scope build, modules is empty, as held is, and no module file is read
+test("productFacts — modules is the architecture's module files that held is computed with", async () => {
+  for (const serverOperations of [true, false]) {
+    for (const scope of ["work", "all"]) {
+      const f = fixture({ serverOperations });
+      const facts = await productFacts(f.host, f.instance, f.instanceAt, NOW, { scope });
+      assert.deepEqual(facts.modules.map((file) => [file.path, file.id, file.fields.uses ?? []]), [
+        ["docs/architecture/MOD-pages.md", "MOD-pages", ["MOD-store.read", "MOD-store.write"]],
+        ["docs/architecture/MOD-store.md", "MOD-store", []],
+      ], `${scope}, server operations ${serverOperations}`);
+      assert.deepEqual([...f.product.reads].filter(([path, count]) => path.startsWith("docs/architecture/") && count > 1), [], scope);
+    }
+  }
+  const f = fixture();
+  const facts = await productFacts(f.host, f.instance, f.instanceAt, NOW, { scope: "build" });
+  assert.deepEqual([facts.modules, facts.held], [[], []], "build: no module file is read, and no item is held");
+  assert.deepEqual([...f.product.reads.keys()].filter((path) => path.startsWith("docs/architecture/")), [], "build");
 });
 
 // The pull requests of the held test below: ITM-001 merged into a sprint branch that reaches no main (head H1: undecided), ITM-002
