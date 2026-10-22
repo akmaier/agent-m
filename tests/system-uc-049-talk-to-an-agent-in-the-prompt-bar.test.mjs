@@ -250,7 +250,8 @@ test("alternative 4a: the participant proposes a hand-over, the person's click q
   for (const part of ["participant: handy", "model: handy-model", "route: ci hosted", `- ${LOAN}`, "kind: converse", "task: with the hand-over"]) assert.ok(record.includes(part), `${part} in the record`);
   for (const secret of ["Please run the tests of this page.", "I will hand this on.", HAND_OVER.task, "CI_KEY=", "fixture-model-key"]) assert.ok(!record.includes(secret), `the record holds nothing of ${secret}`);
   assert.equal(w.dispatches.length, 1);
-  assert.deepEqual(Object.keys(w.dispatches[0].inputs).sort(), ["endpoint", "job", "task"]);
+  assert.deepEqual(Object.keys(w.dispatches[0].inputs).sort(), ["endpoint", "job", "secret", "task"]);
+  assert.equal(w.dispatches[0].inputs.secret, "CI_KEY", "the input secret is the name of the endpoint's CI secret, never its value");
   assert.equal(w.dispatches[0].inputs.task, HAND_OVER.task);
   assert.ok(followingOf(s).includes("waiting for GitHub Actions") && followingOf(s).includes("State: queued"), followingOf(s));
   // The runner takes the job (the run is listed), and the next poll shows its address.
