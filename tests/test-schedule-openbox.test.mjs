@@ -30,6 +30,13 @@ function stepsOf(text, jobName) {
   return starts.map((start, i) => job.slice(start.index, starts[i + 1]?.index ?? job.length));
 }
 const indexOfStep = (steps, pattern) => steps.findIndex((step) => pattern.test(step));
+// The paths a cache step names: one after `path:`, or the lines of a block under `path: |`.
+const pathsOf = (step) => {
+  const block = /^\s+path:\s*\|\s*\n((?:\s+\/\S+\n?)+)/m.exec(step);
+  if (block) return block[1].split("\n").map((line) => line.trim()).filter(Boolean);
+  const one = /^\s+path:\s*(\S+)\s*$/m.exec(step)?.[1];
+  return one ? [one] : [];
+};
 const INSTALL = /apt-get[^\n]*install[^\n]*\bxvfb\b[^\n]*\bopenbox\b|apt-get[^\n]*install[^\n]*\bopenbox\b[^\n]*\bxvfb\b/;
 
 // TST-1179001 · level: unit · module: MOD-test-schedule
@@ -59,11 +66,11 @@ test("tests.yml: the packages come from an actions/cache of the downloaded archi
   const install = indexOfStep(steps, INSTALL);
   const cache = indexOfStep(steps, /uses:\s*actions\/cache@/);
   assert.ok(cache >= 0 && cache < install, "an actions/cache step stands before the install step");
-  const archives = /Dir::Cache::archives=(\S+)/.exec(steps[install])?.[1];
+  const archives = /Dir::Cache::archives=([^\s"']+)/.exec(steps[install])?.[1];
+  const lists = /Dir::State::lists=([^\s"']+)/.exec(steps[install])?.[1];
   assert.ok(archives, "the install step names the directory of apt's archives");
-  const path = /^\s+path:\s*(\S+)\s*$/m.exec(steps[cache])?.[1];
-  assert.ok(path, "the cache step names a path");
-  assert.equal(archives.replace(/["']/g, ""), path.replace(/["']/g, ""), "the cached path is apt's archive directory");
+  assert.ok(lists, "the install step names the directory of apt's package lists");
+  assert.deepEqual(pathsOf(steps[cache]).sort(), [archives, lists].sort(), "the cached paths are apt's archive and list directories");
 });
 
 // TST-1179003 · level: unit · module: MOD-test-schedule
@@ -116,7 +123,8 @@ test("tests.yml: one job downloads the archives into the cache, and the node sha
   const cache = indexOfStep(steps, /uses:\s*actions\/cache@/);
   assert.ok(cache >= 0 && cache < download, "an actions/cache step stands before the download");
   const archives = /Dir::Cache::archives=([^\s"']+)/.exec(steps[download])?.[1];
-  assert.equal(/^\s+path:\s*(\S+)\s*$/m.exec(steps[cache])?.[1], archives, "the cached path is apt's archive directory");
+  const lists = /Dir::State::lists=([^\s"']+)/.exec(steps[download])?.[1];
+  assert.deepEqual(pathsOf(steps[cache]).sort(), [archives, lists].sort(), "the cached paths are apt's archive and list directories");
   const node = text.slice(text.indexOf("\n  node:\n"));
   assert.match(node, /^ {4}needs:\s*(apt-archives|\[\s*apt-archives\s*\])\s*$/m);
 });
@@ -137,4 +145,23 @@ test("the download of xvfb and openbox is bounded, and a stalled mirror gives wa
     assert.match(download, /archive\.ubuntu\.com\/ubuntu\/?[^\n]*\/etc\/apt\/apt-mirrors\.txt/, `${file}: the next mirror is written to apt-mirrors.txt after a failure`);
     assert.ok(Number(/Acquire::Retries=(\d+)/.exec(download)?.[1]) <= 1, `${file}: Acquire::Retries is at most 1`);
   }
+});
+
+// TST-1184003 · level: unit · module: MOD-test-schedule
+// guards: A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES
+// given: .github/workflows/tests.yml
+// input: the install step of the job `node`
+// expect: it installs from the cached archives and package lists with `--no-download`, with no `apt-get update` before that install; an `update` may stand only after it, for the case that the cache is gone. The job `apt-archives` runs the one `update`, into the listed directory
+// Planted fault: an `apt-get update` before the first install in the node job, or the install without `--no-download`, fails; so does an `apt-archives` job that runs no update.
+test("tests.yml: a node shard installs from the cache without an apt-get update", () => {
+  const text = read("tests.yml");
+  const node = stepsOf(text, "node");
+  const install = node.find((step) => INSTALL.test(step));
+  assert.ok(install, "the node job installs xvfb and openbox");
+  const first = install.search(/apt-get[^\n]*install/);
+  assert.match(install.slice(first).split("\n")[0], /--no-download/, "the first install fetches nothing");
+  const update = install.search(/apt-get[^\n]*\bupdate\b/);
+  assert.ok(update < 0 || update > first, "no apt-get update stands before the first install");
+  const seed = stepsOf(text, "apt-archives").find((step) => /--download-only/.test(step));
+  assert.match(seed, /apt-get[^\n]*\bupdate\b/, "the job apt-archives runs the update");
 });
