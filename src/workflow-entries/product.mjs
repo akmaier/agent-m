@@ -128,7 +128,8 @@ async function runJobOf(env, composed, participants, row, handOver = null) {
   const participant = participants.find((each) => each.name === record.participant);
   const taking = await takeJob(product.host, path, job.runUrl ?? `ci ${job.runner}`, (await product.host.readSnapshot("HEAD")).commit);
   if (!taking.taken) return { id: record.id, state: "skipped", summary: `${record.id} was taken by ${taking.by}` };
-  const secretName = (handOver ? SECRET_OF : CI_ROUTE).exec(participant.route ?? "")?.[1];
+  // A hand-over with an endpoint reads its key from the secret the input `secret` names, and no other; every other job from the secret its participant's route names.
+  const secretName = handOver?.endpoint ? (handOver.secret ?? undefined) : (handOver ? SECRET_OF : CI_ROUTE).exec(participant.route ?? "")?.[1];
   const hidden = (value) => {
     let said = String(value);
     if (handOver) said = said.split(handOver.task.trim()).join("[the task]");
@@ -344,9 +345,16 @@ async function runHandOver(env, composed, participants, row, inputs) {
     await endRecord(composed.product.host, path, part, provenanceLines({ agentM: record.agentM, jobId: record.id, kind: record.kind, participant, rounds: 0 }));
     return failedStatus(`${record.id} failed: ${NO_TASK}`);
   }
-  const secret = SECRET_OF.exec(participant.route ?? "")?.[1];
-  if (secret && !env.job.keys[secret]) return notRun(`${secret} is missing: the key of ${participant.name} is a secret of this repository, passed to the job as ${secret}. Nothing was written.`);
-  return runRows(env, composed, participants, [row], { task, endpoint: inputs.endpoint ?? null });
+  // The key: for a model endpoint, the secret the input `secret` names, which the job workflow must name among its keys (`AGENT_M_KEY_NAMES`, by own property, so that no other
+  // variable is read); for any other hand-over, the secret the participant's route names.
+  const secret = inputs.endpoint ? (typeof inputs.secret === "string" && inputs.secret ? inputs.secret : null) : SECRET_OF.exec(participant.route ?? "")?.[1];
+  if (secret && !(Object.hasOwn(env.job.keys, secret) && env.job.keys[secret])) {
+    const unnamed = !Object.hasOwn(env.job.keys, secret);
+    return notRun(unnamed
+      ? `${secret} is missing: the job workflow names no such key, so no secret of that name reaches the run; the job workflow is installed again from Settings, which names the keys of the participants' routes and of this browser's endpoints. Nothing was written.`
+      : `${secret} is missing: the key of ${participant.name} is a secret of this repository, passed to the job as ${secret}. Nothing was written.`);
+  }
+  return runRows(env, composed, participants, [row], { task, endpoint: inputs.endpoint ?? null, secret });
 }
 
 // The items a sprint selects, as its record lists them in its front matter: what its close works on (a job's `works_on` names items, not a sprint).

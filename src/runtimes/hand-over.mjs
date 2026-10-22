@@ -37,13 +37,16 @@ async function endAsFailed(host, id, path, refusal) {
   await host.commitFiles({ branch: defaultBranch, expectedHead: snapshot.commit, files: [{ path, text }], message: `Job ${id}: end` });
 }
 
+// The CI secret of an endpoint's key, as the route of the participant `prepared` was prepared for names it — `endpoint <name> secret <NAME>` —, or null for a route that names none.
+const secretOf = (prepared) => /^endpoint\s+\S+\s+secret\s+(\S+)$/.exec(String(prepared.drafter?.route ?? "").trim())?.[1] ?? null;
+
 /**
  * handOverJob(prepared, route, start, host, head, task, target) -> Promise<{ path, commit }> — queues the work a conversation of the prompt bar handed over, on the person's click
  * (MOD-runtimes, Interfaces). Refused before anything is written with NotStartable { findings } — the findings of `prepared.blocking`, one for each entry of `prepared.notFitting`, and
  * one for a kind with the gate point before-write —, and with TypeError for a route that is neither CI nor a Bridge, an empty task, and a Bridge route without the Bridge's handle,
  * since the task could not travel. Then commits `start` with `task: "with the hand-over"` as the person's commit on the head that was read, with the message `Queue job <id>: <kind>`;
  * on the CI route it starts the product's job workflow with `startWorkflow` on the default branch and the inputs `job`, `task` and, for a model endpoint, `endpoint`, the JSON text
- * of the endpoint's kind, address and model; on a Bridge it hands the job over with the task. WorkflowMissing as queueJob raises it, with nothing written. A start the server
+ * of the endpoint's kind, address and model, and `secret`, the name of the CI secret that its participant's route names (never its value), where it names one; on a Bridge it hands the job over with the task. WorkflowMissing as queueJob raises it, with nothing written. A start the server
  * refuses after the commit ends the job's record as failed, with the refusal's name and message as the reason, and is thrown again unchanged.
  */
 export async function handOverJob(prepared, route, start, host, head, task, target) {
@@ -62,7 +65,7 @@ export async function handOverJob(prepared, route, start, host, head, task, targ
     const { path, commit, defaultBranch, workflow } = await commitStart(host, queuedStart, head);
     queued = { path, commit };
     const { kind, baseUrl, model } = target.endpoint ?? {};
-    await host.startWorkflow(workflow, defaultBranch, { job: start.id, task, ...(target.endpoint ? { endpoint: JSON.stringify({ kind, baseUrl, model }) } : {}) });
+    await host.startWorkflow(workflow, defaultBranch, { job: start.id, task, ...(target.endpoint ? { endpoint: JSON.stringify({ kind, baseUrl, model }), ...(secretOf(prepared) ? { secret: secretOf(prepared) } : {}) } : {}) });
     return queued;
   } catch (refusal) {
     // A start the server refused after the commit: the Bridge client's error carries what was queued, a CI start's is what commitStart returned.

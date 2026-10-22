@@ -79,7 +79,7 @@ test("TST-655002 Get your own Agent M leads to the same address with Agent M's o
 // guards: UC-014; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; NO SERVER
 // given: this browser keeps the product alice/product; the instance's token is stored
 // input: the route home drawn, and the link "Get your own Agent M" looked at without being pressed
-// expect: the link is an anchor with an address (a click on it is the browser's navigation): the page called no go() for it, and the greeting drew it without any request of its own — the requests of the page are those of a page without the link (the repository reads the cards and the waits take), none to github.com/akmaier/agent-m/fork or to any Pages settings address
+// expect: the link is an anchor with an address (a click on it is the browser's navigation): the page called no go() for it, and the greeting drew it without any request of its own — the requests of the page are those of a page without the link (the repository reads the cards and the waits take), none to github.com/akmaier/agent-m/fork or to any Pages settings address, and none to Actions beyond the card's list of the runs of its head (the repository read of the scope `all`)
 test("TST-655003 the offer is a plain link: it calls no go() and sends no request of its own", async () => {
   net = network({ [PRODUCT]: smallProduct(), [INSTANCE]: instanceFiles() });
   net.install();
@@ -89,5 +89,5 @@ test("TST-655003 the offer is a plain link: it calls no go() and sends no reques
   assert.ok(offered, "the link is drawn");
   assert.deepEqual(context.went, [], "drawing the page navigated nowhere");
   const urls = net.requests.map((request) => request.url);
-  assert.equal(urls.some((url) => /\/fork\b|\/settings\/pages|\/actions\b/.test(url)), false);
+  assert.equal(urls.some((url) => /\/fork\b|\/settings\/pages|\/actions\/(?!runs(?:\?|$))/.test(url)), false);
 });

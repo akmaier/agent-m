@@ -71,10 +71,10 @@ function releaseOf(env) {
 }
 
 // A GitLab job (src/runtimes/workflow/gitlab.yml): the service is `gitlab` where GITLAB_CI is `true`; the event is CI_PIPELINE_SOURCE, its payload the inputs the template sets as
-// AGENT_M_INPUT_JOB, AGENT_M_INPUT_TASK and AGENT_M_INPUT_ENDPOINT, each held only where it is not empty; the instance is cloned to `../instance` next to the project's checkout.
+// AGENT_M_INPUT_JOB, AGENT_M_INPUT_TASK, AGENT_M_INPUT_ENDPOINT and AGENT_M_INPUT_SECRET, each held only where it is not empty; the instance is cloned to `../instance` next to the project's checkout.
 // GitLab has no step summary, and no instance workflow runs on GitLab: there is no summary file and no workflow token.
 function gitlabEnvironment(entry, env, now) {
-  const inputs = Object.fromEntries([["job", env.AGENT_M_INPUT_JOB], ["task", env.AGENT_M_INPUT_TASK], ["endpoint", env.AGENT_M_INPUT_ENDPOINT]].filter(([, value]) => value));
+  const inputs = Object.fromEntries([["job", env.AGENT_M_INPUT_JOB], ["task", env.AGENT_M_INPUT_TASK], ["endpoint", env.AGENT_M_INPUT_ENDPOINT], ["secret", env.AGENT_M_INPUT_SECRET]].filter(([, value]) => value));
   return {
     entry, service: "gitlab", event: { name: env.CI_PIPELINE_SOURCE ?? null, payload: { inputs } },
     checkout: env.CI_PROJECT_DIR ?? "", repository: env.CI_PROJECT_URL ?? "", branch: env.CI_COMMIT_REF_NAME || null, agentM: { commit: env.CI_COMMIT_SHA ?? null }, token: null, now,

@@ -101,9 +101,9 @@ async function renderLine(product) {
 }
 
 const OWN = 'stages:\n  - build\n\ninclude:\n  - local: ".gitlab/agent-m-tests.yml"\n\nbuild:\n  stage: build\n  script:\n    - make\n';
-const MERGED = 'spec:\n  inputs:\n    job:\n      default: ""\n    task:\n      default: ""\n    endpoint:\n      default: ""\n---\n'
+const MERGED = 'spec:\n  inputs:\n    job:\n      default: ""\n    task:\n      default: ""\n    endpoint:\n      default: ""\n    secret:\n      default: ""\n---\n'
   + 'stages:\n  - build\n\ninclude:\n  - local: ".gitlab/agent-m-tests.yml"\n'
-  + '  - local: ".gitlab/agent-m-jobs.yml"\n    inputs:\n      job: $[[ inputs.job ]]\n      task: $[[ inputs.task ]]\n      endpoint: $[[ inputs.endpoint ]]\n'
+  + '  - local: ".gitlab/agent-m-jobs.yml"\n    inputs:\n      job: $[[ inputs.job ]]\n      task: $[[ inputs.task ]]\n      endpoint: $[[ inputs.endpoint ]]\n      secret: $[[ inputs.secret ]]\n'
   + '\nbuild:\n  stage: build\n  script:\n    - make\n';
 
 // TST-548101 · level: unit · module: MOD-settings-pages

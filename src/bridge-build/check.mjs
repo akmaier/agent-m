@@ -127,11 +127,19 @@ function fetchOnce(port) {
 // (direct-tcpip) from a small web server of its own. Returns { port, answerPort, close }.
 async function testSshServer(ssh2) {
   const { Server, utils } = ssh2;
+  const failed = (reason) => new ReleaseError("TunnelCheckFailed", { reason }, `the tunnel check failed: ${reason}`);
+  // ssh2 cannot parse about one in 230 of the ed25519 keys it generates; the host key is generated again until it parses (as MOD-tunnels does for its own key).
+  let hostKey;
+  for (let attempt = 0; attempt < 64 && !hostKey; attempt += 1) {
+    const { private: candidate } = utils.generateKeyPairSync("ed25519");
+    if (!(utils.parseKey(candidate) instanceof Error)) hostKey = candidate;
+  }
+  if (!hostKey) throw failed("ssh2 generated no host key that it can parse");
   const sockets = new Set();
   const answer = http.createServer((_request, response) => response.end("ok"));
   const answerPort = await new Promise((resolve) => answer.listen(0, "127.0.0.1", () => resolve(answer.address().port)));
   const listeners = [];
-  const server = new Server({ hostKeys: [utils.generateKeyPairSync("ed25519").private] }, (client) => {
+  const onClient = (client) => {
     client.on("error", () => {});
     client.on("authentication", (context) => context.accept());
     client.on("request", (accept, reject, name, info) => {
@@ -157,7 +165,14 @@ async function testSshServer(ssh2) {
       });
       upstream.once("error", () => reject());
     });
-  });
+  };
+  let server;
+  try {
+    server = new Server({ hostKeys: [hostKey] }, onClient);
+  } catch (error) {
+    answer.close();
+    throw failed(String(error?.message ?? error));
+  }
   const port = await new Promise((resolve) => server.listen(0, "127.0.0.1", () => resolve(server.address().port)));
   return {
     port,

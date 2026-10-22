@@ -1,8 +1,8 @@
 // facts.mjs — productFacts: one product's facts, read once from its default branch through its host
 // (docs/architecture/MOD-progress-measures.md, Interfaces: Facts, productFacts; STATUS IS DERIVED FROM THE RECORDS, PROGRESS AND
 // JOB STATE ARE DERIVED, NOT STORED). The scope `build` reads what buildFacts lists; the scope `work` reads what is listed below; the scope `all` adds the requirements, the tests,
-// the branch `test-results`, the tags and `info`; `graph` stays "unknown" in both. Every other fact is "unknown". The files are read ahead through
-// Snapshot.readMany, in batches of a hundred where the host can.
+// the branch `test-results`, the tags, `info`, the history of the declaration (`modelSince`), the schedule, the CI runs and configuration (`ci`) and the resource list (`resourceNeeds`); `graph` stays
+// "unknown" in both, and so does every fact the scope does not read. No job's live state is asked. The files are read ahead through Snapshot.readMany, in batches of a hundred where the host can.
 //
 // Module: MOD-progress-measures
 //
@@ -20,6 +20,9 @@
 //   - `resultCommits` (the scope `all`) are the commits of the default branch's history (readHistory of the whole repository, `changes: false`) under which
 //     `results` holds a `runs/<commit>/` record, in the history's order; a history that fails with one of the host's own errors (HOST_FAILURES) is "unknown".
 //   - `own` is whether the product's address is the address of the instance's snapshot.
+//   - (the scope `all`) `modelSince` is the date of the oldest commit, in the unbroken run from the newest, whose docs/process.md names the `model` the current one names; `ci.runs` are the runs of the default
+//     branch at its head; `ci.configured` and `ci.jobWorkflow` are whether the generated file and the job workflow are in the branch; `ci` is "unknown" where the schedule has an error finding or the
+//     target of the drift is not known; a product without docs/resources.md has the resourceNeeds [], one without a saved schedule the book's default.
 //   - A declared model that the catalogue at the commit lacks is null (the commit was read); one whose commit instanceAt cannot read
 //     — an error named NotFound, TokenRefused, PermissionMissing or Unreachable — is "unknown", with modelUnread naming the commit
 //     and the error. Any other error is not hidden.
@@ -33,6 +36,8 @@ import { listJobs } from "../job-ledger/index.mjs";
 import { heldItems, itemStates, planSchemas, undecidedHeads } from "../work-plans/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
+import { configurationDrift, defaultSchedule, scheduleSchema } from "../test-schedule/index.mjs";
+import { reachableBy, resourceSchema } from "../resource-list/index.mjs";
 import { MODULE_FILE, storedFactsWithJobs } from "./stored.mjs";
 
 const DECLARATION = "docs/process.md";
@@ -41,6 +46,14 @@ const INSTANCE_SPEC = "SPEC.md";
 const SPEC = "SPEC.md";
 const JOB_RECORDS = "docs/jobs/";
 const RESULTS_BRANCH = "test-results";
+const SCHEDULE = "docs/tests/schedule.md";
+const RESOURCES = "docs/resources.md";
+// The file MOD-test-schedule generates (its Data: agent-m-tests.yml on GitHub, .gitlab/agent-m-tests.yml on GitLab) and the job workflow's (MOD-runtimes' Data). MOD-runtimes'
+// jobWorkflowFiles names the latter but throws in a browser, where this file runs too; so the paths stand here, as the pages that ask for them have them (test-pages/generate.mjs).
+const TESTS_WORKFLOW = { github: ".github/workflows/agent-m-tests.yml", gitlab: ".gitlab/agent-m-tests.yml" };
+const JOBS_WORKFLOW = { github: ".github/workflows/agent-m-jobs.yml", gitlab: ".gitlab/agent-m-jobs.yml" };
+// The committed configuration configurationDrift compares: on GitHub every workflow file (it names those Agent M did not generate), on GitLab the product's .gitlab-ci.yml and the generated file.
+const CI_FILE = { github: /^\.github\/workflows\/[^/]+\.ya?ml$/, gitlab: /^\.gitlab-ci\.yml$|^\.gitlab\/agent-m-tests\.yml$/ };
 const ORDER = "docs/plan/order.md";
 const PLAN_STEP = /^docs\/plan\/ITM-\d{3,}-[^/]+\.md$/;
 const BACKLOG_ITEM = /^docs\/backlog\/ITM-\d{3,}-[^/]+\.md$/;
@@ -160,6 +173,66 @@ async function allFacts(host, snapshot, stored, requirements = null) {
   return { requirements: names, tags, results, tests: tests.flat() };
 }
 
+// The files of the schedule, the resources and the CI configuration that the snapshot holds, told to it before the first read (a test file's batch).
+const schedulingPaths = (snapshot) => {
+  const server = snapshot.repository?.server;
+  return [SCHEDULE, RESOURCES, ...(Object.hasOwn(CI_FILE, server) ? snapshot.paths.filter((path) => CI_FILE[server].test(path)) : [])]
+    .filter((path) => snapshot.paths.includes(path));
+};
+
+// The date the declared model was declared: the date of the oldest commit of the declaration's history in the unbroken run, newest first, of commits whose declaration names the model
+// the current one names (`model`). null where the product declares none; "unknown" where the host cannot give the history. The texts are read a hundred commits at a time, only as far as the run goes.
+async function modelSinceOf(host, branch, declaration) {
+  if (declaration === null) return null;
+  const model = text(declaration.fields.model);
+  try {
+    const history = await host.readHistory(DECLARATION, { ref: branch, changes: false });
+    let since = null;
+    for (let at = 0; at < history.length; at += 100) {
+      const chunk = history.slice(at, at + 100);
+      const texts = await host.readFileAt(DECLARATION, chunk.map((entry) => entry.commit));
+      for (const entry of chunk) {
+        const held = texts.get(entry.commit);
+        if (typeof held !== "string" || text(readDocument(declarationSchema, DECLARATION, held).fields.model) !== model) return since;
+        since = entry.date;
+      }
+    }
+    return since;
+  } catch (error) {
+    if (HOST_FAILURES.has(error?.name)) return "unknown";
+    throw error;
+  }
+}
+
+// `ci`: the runs of the default branch's head, whether the configuration generated from the schedule is present, how the committed configuration differs from it (MOD-test-schedule's
+// configurationDrift, given the committed files, the schedule, the instance as the target, the resources and the participants), and whether the job workflow is present. It is "unknown" where
+// the drift cannot be told: the product's server or the instance's address or commit is not known, or the schedule has an error finding (`InvalidSchedule`), which generates no configuration.
+async function ciFacts(host, branch, snapshot, instance, schedule, resources, register) {
+  const server = snapshot.repository?.server, at = instance.repository;
+  if (!Object.hasOwn(CI_FILE, server) || typeof at?.path !== "string" || typeof at?.web !== "string" || typeof instance.commit !== "string") return "unknown";
+  const files = {};
+  for (const path of snapshot.paths.filter((each) => CI_FILE[server].test(each))) files[path] = (await snapshot.read(path)) ?? "";
+  let drift;
+  try {
+    drift = configurationDrift(files, schedule, { server, instance: server === "github" ? at.path : at.web, instanceCommit: instance.commit }, resources, register);
+  } catch (error) {
+    if (error?.name === "InvalidSchedule") return "unknown";
+    throw error;
+  }
+  const runs = await orUnknown(() => host.listCiRuns({ branch, commit: snapshot.commit }));
+  return { runs, configured: snapshot.paths.includes(TESTS_WORKFLOW[server]), drift, jobWorkflow: snapshot.paths.includes(JOBS_WORKFLOW[server]) };
+}
+
+// The facts the scope `all` reads of the schedule and the resources: the product's schedule, or the book's default where none is saved; the routes that reach its resources
+// (`reachableBy` over docs/resources.md, none where the product has no such file); and `ci`.
+async function schedulingFacts(host, branch, snapshot, instance, register) {
+  const saved = await snapshot.read(SCHEDULE);
+  const schedule = typeof saved === "string" ? readDocument(scheduleSchema, SCHEDULE, saved) : defaultSchedule();
+  const resources = readRegister(resourceSchema(), RESOURCES, (await snapshot.read(RESOURCES)) ?? "");
+  return { schedule, resourceNeeds: reachableBy(resources.rows.map((row) => ({ name: row.cells.Name, route: row.cells.Route }))),
+    ci: await ciFacts(host, branch, snapshot, instance, schedule, resources.document, register) };
+}
+
 const requirementsOf = async (snapshot) => {
   await snapshot.readMany?.([SPEC]);
   const specText = await snapshot.read(SPEC);
@@ -230,7 +303,8 @@ async function buildFacts(host, instance, instanceAt) {
  * and nothing else (buildFacts above); with the scope `work`, what
  * MOD-progress-measures' file lists for it, read once from the product's default branch through `host`; every other field is
  * "unknown". With the scope `all`, the default, it adds the requirements of SPEC.md, the declarations of the test files, the
- * branch `test-results`, the tags and the repository's information; graph, modelSince, schedule, ci and resourceNeeds stay "unknown".
+ * branch `test-results`, the tags, the repository's information, the date the declared model was declared (modelSince), the schedule, the CI runs and configuration (ci)
+ * and the routes that reach the resources (resourceNeeds); graph stays "unknown".
  * @param {object} host MOD-repository-hosts' Host of the product
  * @param {object} instance the instance's Snapshot, for its participants and SPEC
  * @param {(commit: string) => Promise<object>} instanceAt the instance's Snapshot at a commit, for the commit a declaration names
@@ -258,9 +332,11 @@ export async function productFacts(host, instance, instanceAt, now, options = { 
   // Both scopes tell the snapshot every file they read themselves — and the job records listJobs reads — before the first read, so
   // that the snapshot fetches them in batches of a hundred where the host can (Snapshot.readMany); the instance's two files likewise.
   if (stored === null) {
-    await snapshot.readMany?.([DECLARATION, ORDER, ...(all ? [SPEC] : []), ...itemPaths, ...pathsOf(SPRINT), ...pathsOf(ASSIGNMENT),
+    await snapshot.readMany?.([DECLARATION, ORDER, ...(all ? [SPEC, ...schedulingPaths(snapshot)] : []), ...itemPaths, ...pathsOf(SPRINT), ...pathsOf(ASSIGNMENT),
       ...pathsOf(GATE_RECORD), ...pathsOf(MODULE_FILE), ...snapshot.paths.filter((path) => path.startsWith(JOB_RECORDS))]
       .filter((path) => snapshot.paths.includes(path)));
+  } else if (all && schedulingPaths(snapshot).length > 0) {
+    await snapshot.readMany?.(schedulingPaths(snapshot));
   }
   await instance.readMany?.([PARTICIPANTS, ...(snapshot.paths.includes(DECLARATION) ? [INSTANCE_SPEC] : [])].filter((path) => instance.paths?.includes(path)));
   const [declaration, order, items, sprints, assignments, gates, modules] = stored
@@ -277,7 +353,8 @@ export async function productFacts(host, instance, instanceAt, now, options = { 
   const changeQueues = stored ? stored.queues : await queues(snapshot);
   const { model, workflow, modelUnread } = await declaredWorkflow(declaration, instance, instanceAt, stored?.model);
   const registerText = await instance.read(PARTICIPANTS);
-  const participants = registerText === null ? [] : participantsOf(readRegister(participantSchema(), PARTICIPANTS, registerText).document);
+  const register = readDocument(participantSchema(), PARTICIPANTS, registerText ?? "");
+  const participants = registerText === null ? [] : participantsOf(register);
 
   const jobs = await listJobs([{ address, snapshot: held ? held.jobsSnapshot : snapshot }], new Map());
   const known = workflow !== null && workflow !== "unknown" ? workflow : null;
@@ -295,11 +372,12 @@ export async function productFacts(host, instance, instanceAt, now, options = { 
   }
 
   const more = all ? await allFacts(host, snapshot, stored, knownRequirements) : { requirements: "unknown", tags: "unknown", results: "unknown", tests: "unknown" };
+  const scheduling = all ? await schedulingFacts(host, branch, snapshot, instance, register) : { schedule: "unknown", ci: "unknown", resourceNeeds: "unknown" };
   return {
     address, info: all ? info : "unknown", snapshot: held ? held.serving(snapshot) : snapshot, graph: "unknown", requirements: more.requirements, statuses: approvals, queues: changeQueues,
-    declaration, workflow, model, modelUnread, modelSince: "unknown", participants,
+    declaration, workflow, model, modelUnread, modelSince: all ? await modelSinceOf(host, branch, declaration) : "unknown", participants,
     plan: { order, items, states: planStates }, sprints, assignments, held: heldItems(sprints, items, modules, pullRequests, onDefault), modules,
-    gates, gateStates: states, jobs, pullRequests, schedule: "unknown", ci: "unknown", tags: more.tags, results: more.results,
-    tests: more.tests, resourceNeeds: "unknown", resultCommits: await resultCommitsOf(host, branch, more.results), own: isOwn(address, instance),
+    gates, gateStates: states, jobs, pullRequests, schedule: scheduling.schedule, ci: scheduling.ci, tags: more.tags, results: more.results,
+    tests: more.tests, resourceNeeds: scheduling.resourceNeeds, resultCommits: await resultCommitsOf(host, branch, more.results), own: isOwn(address, instance),
   };
 }

@@ -31,9 +31,9 @@ const SECRETS = { token: "AGENT_M_TOKEN", keys: ["CLAUDE_KEY"] };
 const merged = (gitlabCi) => jobWorkflowFiles("gitlab", INSTANCE, SECRETS, [], gitlabCi).find((file) => file.path === ".gitlab-ci.yml").text;
 
 // The header Agent M puts before a file that has none, and its three inputs.
-const HEADER = 'spec:\n  inputs:\n    job:\n      default: ""\n    task:\n      default: ""\n    endpoint:\n      default: ""\n---\n';
+const HEADER = 'spec:\n  inputs:\n    job:\n      default: ""\n    task:\n      default: ""\n    endpoint:\n      default: ""\n    secret:\n      default: ""\n---\n';
 // The entry Agent M adds to an include list whose items stand two spaces in, and the key with it for a file that has none.
-const ENTRY = '  - local: ".gitlab/agent-m-jobs.yml"\n    inputs:\n      job: $[[ inputs.job ]]\n      task: $[[ inputs.task ]]\n      endpoint: $[[ inputs.endpoint ]]\n';
+const ENTRY = '  - local: ".gitlab/agent-m-jobs.yml"\n    inputs:\n      job: $[[ inputs.job ]]\n      task: $[[ inputs.task ]]\n      endpoint: $[[ inputs.endpoint ]]\n      secret: $[[ inputs.secret ]]\n';
 const ENTRY_LINES = ENTRY.split("\n").slice(0, -1);
 
 // TST-548001 · level: unit · module: MOD-runtimes
@@ -91,7 +91,7 @@ test("jobWorkflowFiles — a file without include: gets the key and the entry at
 test("jobWorkflowFiles — a list written at the margin gets the entry at the margin", () => {
   assert.equal(merged('include:\n- local: "a.yml"\n\nbuild:\n  script: make\n'), HEADER
     + 'include:\n- local: "a.yml"\n'
-    + '- local: ".gitlab/agent-m-jobs.yml"\n  inputs:\n    job: $[[ inputs.job ]]\n    task: $[[ inputs.task ]]\n    endpoint: $[[ inputs.endpoint ]]\n'
+    + '- local: ".gitlab/agent-m-jobs.yml"\n  inputs:\n    job: $[[ inputs.job ]]\n    task: $[[ inputs.task ]]\n    endpoint: $[[ inputs.endpoint ]]\n    secret: $[[ inputs.secret ]]\n'
     + '\nbuild:\n  script: make\n');
 });
 
@@ -105,8 +105,8 @@ test("jobWorkflowFiles — a list written at the margin gets the entry at the ma
 test("jobWorkflowFiles — a header with other inputs and an entry passing on one input gain only what is missing", () => {
   const own = 'spec:\n  inputs:\n    stage:\n      default: test\n    job:\n      default: "x"\n---\ninclude:\n  - local: ".gitlab/agent-m-jobs.yml"\n    inputs:\n      job: $[[ inputs.job ]]\ntest:\n  script: make\n';
   assert.equal(merged(own),
-    'spec:\n  inputs:\n    stage:\n      default: test\n    job:\n      default: "x"\n    task:\n      default: ""\n    endpoint:\n      default: ""\n---\n'
-    + 'include:\n  - local: ".gitlab/agent-m-jobs.yml"\n    inputs:\n      job: $[[ inputs.job ]]\n      task: $[[ inputs.task ]]\n      endpoint: $[[ inputs.endpoint ]]\n'
+    'spec:\n  inputs:\n    stage:\n      default: test\n    job:\n      default: "x"\n    task:\n      default: ""\n    endpoint:\n      default: ""\n    secret:\n      default: ""\n---\n'
+    + 'include:\n  - local: ".gitlab/agent-m-jobs.yml"\n    inputs:\n      job: $[[ inputs.job ]]\n      task: $[[ inputs.task ]]\n      endpoint: $[[ inputs.endpoint ]]\n      secret: $[[ inputs.secret ]]\n'
     + 'test:\n  script: make\n');
 });
 
@@ -118,8 +118,8 @@ test("jobWorkflowFiles — a header with other inputs and an entry passing on on
 test("jobWorkflowFiles — a header without inputs: and an entry without inputs: gain them", () => {
   const own = 'spec:\n  description: mine\n---\ninclude:\n  - local: ".gitlab/agent-m-jobs.yml"\ntest:\n  script: make\n';
   assert.equal(merged(own),
-    'spec:\n  description: mine\n  inputs:\n    job:\n      default: ""\n    task:\n      default: ""\n    endpoint:\n      default: ""\n---\n'
-    + 'include:\n  - local: ".gitlab/agent-m-jobs.yml"\n    inputs:\n      job: $[[ inputs.job ]]\n      task: $[[ inputs.task ]]\n      endpoint: $[[ inputs.endpoint ]]\n'
+    'spec:\n  description: mine\n  inputs:\n    job:\n      default: ""\n    task:\n      default: ""\n    endpoint:\n      default: ""\n    secret:\n      default: ""\n---\n'
+    + 'include:\n  - local: ".gitlab/agent-m-jobs.yml"\n    inputs:\n      job: $[[ inputs.job ]]\n      task: $[[ inputs.task ]]\n      endpoint: $[[ inputs.endpoint ]]\n      secret: $[[ inputs.secret ]]\n'
     + 'test:\n  script: make\n');
 });
 

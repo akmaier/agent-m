@@ -1,7 +1,8 @@
 // A counting fake of GitHub for the tests of MOD-progress-measures' productFacts — a helper, no test of its own. It serves one product
 // repository (and an instance repository) from files held in memory through the real MOD-repository-hosts host: the repository, the
 // commit and the tree of a branch, a file by itself (with a token from the API, without one from the raw host), many files in one
-// batch request (POST /graphql, with a token), the pull requests and the tags (none), and no branch test-results. Every request is
+// batch request (POST /graphql, with a token), the pull requests and the tags (none), the Actions runs (the `runs` it is given; none otherwise), the history of the files it is given
+// (`history`) and no branch test-results. Every request is
 // recorded by what it reads. Nothing reaches the network; nothing sleeps.
 //
 // Module: MOD-progress-measures
@@ -57,8 +58,12 @@ export const instanceFiles = () => ({ "SPEC.md": "# Instance — Specification\n
  * `results` ({ path: text }) gives the product a branch test-results. `log` one entry per request { kind, files }, where kind is "repository", "commit", "tree", "file", "batch", "pull requests", "tags",
  * "other"; `files` the paths the request reads (one for a file, many for a batch). install() puts it in place of fetch; restore() back.
  */
-export function githubServer(repos, { results = null } = {}) {
+export function githubServer(repos, { results = null, runs = [], history = {} } = {}) {
   const log = [];
+  // `runs` are the Actions runs of the product as GitHub names them ({ id, path, head_sha, head_branch, event, status, conclusion, html_url }), served by "List workflow runs for a repository", which
+  // filters them by the `branch` and `head_sha` of the query. `history` ({ path: [{ commit, date, text }] }, newest first) is the product's history of those files: "List commits" with a `path` lists
+  // them, and the text of each commit is served by its commit, to a batch request and to a raw read.
+  const versions = new Map(Object.entries(history).flatMap(([path, entries]) => entries.map(({ commit, text }) => [`${commit}:${path}`, text])));
   const state = Object.fromEntries(Object.entries(repos).map(([repo, files]) => [repo, {
     files, head: headOf(repo), shas: new Map(Object.entries(files).map(([path, text]) => [path, blobOf(text)])),
   }]));
@@ -75,6 +80,7 @@ export function githubServer(repos, { results = null } = {}) {
       const path = rest.map(decodeURIComponent).join("/"), held = state[`${owner}/${name}`];
       entry.kind = "file";
       entry.files = [path];
+      if (`${owner}/${name}` === PRODUCT && versions.has(`${commit}:${path}`)) return new Response(versions.get(`${commit}:${path}`), { status: 200 });
       return held && commit === held.head && path in held.files ? new Response(held.files[path], { status: 200 }) : new Response("404", { status: 404 });
     }
     if (url.origin !== "https://api.github.com") return new Response("{}", { status: 500 });
@@ -85,7 +91,8 @@ export function githubServer(repos, { results = null } = {}) {
       for (const [alias, expression] of asks) {
         const at = expression.indexOf(":"), held = state[byHead.get(expression.slice(0, at))], path = expression.slice(at + 1);
         entry.files.push(path);
-        repository[alias] = held && path in held.files ? { text: held.files[path], isTruncated: false } : null;
+        repository[alias] = versions.has(expression) ? { text: versions.get(expression), isTruncated: false }
+          : held && path in held.files ? { text: held.files[path], isTruncated: false } : null;
       }
       return json({ data: { repository } });
     }
@@ -106,6 +113,15 @@ export function githubServer(repos, { results = null } = {}) {
       entry.kind = "file";
       entry.files = [path];
       return path in held.files ? new Response(held.files[path], { status: 200 }) : new Response('{"message":"Not Found"}', { status: 404 });
+    }
+    if (rest === "/actions/runs") {
+      entry.kind = "ci runs";
+      return json({ workflow_runs: (repo[1] === PRODUCT ? runs : []).filter((run) => (!url.searchParams.has("head_sha") || run.head_sha === url.searchParams.get("head_sha"))
+        && (!url.searchParams.has("branch") || run.head_branch === url.searchParams.get("branch"))) });
+    }
+    if (rest === "/commits" && repo[1] === PRODUCT && history[url.searchParams.get("path")]) {
+      entry.kind = "history";
+      return json(history[url.searchParams.get("path")].map(({ commit, date }) => ({ sha: commit, parents: [], author: null, commit: { author: { name: "a" }, committer: { date }, message: "m" } })));
     }
     if (rest === "/pulls") { entry.kind = "pull requests"; return json([]); }
     if (rest === "/tags") { entry.kind = "tags"; return json([]); }

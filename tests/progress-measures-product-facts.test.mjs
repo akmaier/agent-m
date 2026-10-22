@@ -129,7 +129,7 @@ const BASE_PULL_REQUESTS = [pr(1, "ITM-001", "main", "merged", H1, "2026-10-13T1
 
 // The host (calls recorded), the instance and instanceAt (the commits asked recorded).
 function fixture({ files = productFiles(), pullRequests = BASE_PULL_REQUESTS, serverOperations = true, contained = new Set(),
-  instanceFailure = null, resultFiles = null, history = [], historyFailure = null, productWeb = "https://github.com/alice/product" } = {}) {
+  instanceFailure = null, resultFiles = null, history = [], historyFailure = null, ciRuns = [], productWeb = "https://github.com/alice/product" } = {}) {
   const calls = [];
   const product = snapshotOf(files, productWeb);
   const results = resultFiles === null ? null : snapshotOf(resultFiles);
@@ -161,6 +161,12 @@ function fixture({ files = productFiles(), pullRequests = BASE_PULL_REQUESTS, se
       if (historyFailure) throw historyFailure;
       return history.map((commit) => ({ commit, parents: [], author: { account: null, name: "a" }, date: "2026-10-16T10:00:00Z", message: "m", changes: [] }));
     },
+    async listCiRuns(...filter) {
+      calls.push(["listCiRuns", ...filter]);
+      if (!serverOperations) throw named("NotSupported");
+      return ciRuns;
+    },
+    async readFileAt(path, commits) { calls.push(["readFileAt", path, commits]); return new Map(commits.map((commit) => [commit, Object.hasOwn(files, path) ? files[path] : null])); },
     async containsCommit(branch, commit) { calls.push(["containsCommit", branch, commit]); return contained.has(commit); },
   };
   const instanceAt = async (commit) => { asked.push(commit); if (instanceFailure) throw instanceFailure; return instance; };
@@ -447,8 +453,8 @@ test("productFacts, scope work — a product with a plan has its steps and order
 // guards: UC-049
 // given: the fixture product, whose SPEC.md holds no requirement and which has no branch test-results (readSnapshot("test-results") fails with NotFound) and one tag v2026.1.0; known positive first — the scope work resolves
 // input: productFacts(…) with the scope "all", and with no options (the default, "all"); and with the scope "everything"
-// expect: both of the first resolve; requirements [] (SPEC.md holds none); tags [v2026.1.0 on the commit H1]; results null; graph "unknown" (the scope builds no trace graph); tests []; info.defaultBranch "main"; modelSince, schedule, ci and resourceNeeds "unknown"; the host is asked once for the repository's information, for the snapshot of "main", for the pull requests, for the snapshot of "test-results" and for the tags; the scope "everything" rejects with a TypeError before the host is called
-test("productFacts — the scope all adds the requirements, tests, results, tags and information; another scope is refused", async () => {
+// expect: both of the first resolve; requirements [] (SPEC.md holds none); tags [v2026.1.0 on the commit H1]; results null; graph "unknown" (the scope builds no trace graph); tests []; info.defaultBranch "main"; modelSince null (the history of docs/process.md is empty); schedule the book's default; ci with no run; resourceNeeds []; the host is asked once for the repository's information, for the snapshot of "main", for the pull requests, for the snapshot of "test-results", for the tags, for the CI runs of the head (the branch main and the commit of the snapshot) and for the history of docs/process.md from main without the changes; the scope "everything" rejects with a TypeError before the host is called
+test("productFacts — the scope all adds the requirements, tests, results, tags, information, schedule, CI runs and resources; another scope is refused", async () => {
   assert.ok(await work(fixture()));
   for (const options of [{ scope: "all" }, undefined]) {
     const f = fixture();
@@ -459,8 +465,12 @@ test("productFacts — the scope all adds the requirements, tests, results, tags
     assert.equal(facts.graph, "unknown");
     assert.deepEqual(facts.tests, []);
     assert.equal(facts.info.defaultBranch, "main");
-    for (const field of ["modelSince", "schedule", "ci", "resourceNeeds"]) assert.equal(facts[field], "unknown", field);
-    assert.deepEqual(f.calls, [["repositoryInfo"], ["readSnapshot", "main"], ["listPullRequests"], ["readSnapshot", "test-results"], ["listTags"]]);
+    assert.equal(facts.modelSince, null);
+    assert.equal(facts.schedule.default, true);
+    assert.deepEqual(facts.ci.runs, []);
+    assert.deepEqual(facts.resourceNeeds, []);
+    assert.deepEqual(f.calls, [["repositoryInfo"], ["readSnapshot", "main"], ["listPullRequests"], ["readSnapshot", "test-results"], ["listTags"],
+      ["listCiRuns", { branch: "main", commit: "c".repeat(40) }], ["readHistory", "docs/process.md", { ref: "main", changes: false }]]);
   }
   const f = fixture();
   await assert.rejects(productFacts(f.host, f.instance, f.instanceAt, NOW, { scope: "everything" }), { name: "TypeError" });
@@ -480,7 +490,8 @@ const H3 = "a3".repeat(20);
 const RESULT_FILES = { [`runs/${H1}/20261016-1000-commit-aaaa.md`]: "x", [`runs/${H2}/20261016-1000-commit-aaaa.md`]: "x",
   [`runs/${H2}/20261016-1100-pull-request-bbbb.md`]: "x", [`runs/${H9}/20261016-1000-commit-aaaa.md`]: "x", "README.md": "x" };
 const all = (f) => productFacts(f.host, f.instance, f.instanceAt, NOW, { scope: "all" });
-const historyCalls = (f) => f.calls.filter((call) => call[0] === "readHistory");
+// The history of the whole repository (path null) that resultCommits are told from; the history of the declaration (modelSince) is another call.
+const historyCalls = (f) => f.calls.filter((call) => call[0] === "readHistory" && call[1] === null);
 
 // TST-809007 · level: unit · module: MOD-progress-measures
 // guards: THE MAIN PAGE SHOWS EACH PRODUCT'S PROGRESS BY STAGE; UC-046
@@ -1076,4 +1087,42 @@ test("TST-1117008 the stored model spares the instance's catalogue, and a model 
   const facts = await productFacts(again.host, again.instance, again.instanceAt, NOW, { scope: "work" });
   assert.deepEqual(again.asked, [MODEL_VERSION]);
   assert.deepEqual([facts.model, facts.modelUnread.error], ["unknown", "NotFound"]);
+});
+
+// TST-843011 · level: unit · module: MOD-progress-measures
+// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-046
+// given: the facts stored for the head (TST-1117001), and a product that saves docs/tests/schedule.md with the nightly time 03:30 and lists a compute resource on the route `bridge lab-pc` in docs/resources.md
+// input: productFacts with the scope "all" from the stored facts and from the files
+// expect: from both, schedule is the saved one (nightly "03:30"), resourceNeeds [{ resource: "gpu-box", route: "bridge lab-pc" }] and ci.runs []; from the store, the two files are read from the snapshot — the store holds neither — and docs/process.md, which it holds, is not
+test("TST-843011 the schedule and the resources are read from their files also where the facts are stored", async () => {
+  const resources = ["# Resources of this product", "", "**REGISTER**", "", "The resources.", "",
+    "| Name | Kind | Address | Pin | Licence | Maintainer | Route | Processing place | Paid | Secret |", "|---|---|---|---|---|---|---|---|---|---|",
+    "| gpu-box | compute | gpu01.example.org | — | — | — | bridge lab-pc | this machine | — | — |", ""].join("\n");
+  const schedule = ["---", "nightly: 03:30", "---", "## Levels", "", "| Row | every commit | pull request | nightly | release candidate | on demand | runs on |", "|---|---|---|---|---|---|---|",
+    "| unit | ✓ | ✓ | ✓ | ✓ | ✓ | |", "| component | ✓ | ✓ | ✓ | ✓ | ✓ | |", "| system | ✓ | ✓ | ✓ | ✓ | ✓ | |", "| paid | | | ✓ | ✓ | ✓ | |",
+    "| release | | | | ✓ | ✓ | |", "| user | | | | ✓ | ✓ | |", ""].join("\n");
+  const files = { ...storedFiles(), "docs/tests/schedule.md": schedule, "docs/resources.md": resources };
+  const stored = withStored(files, await storedText(files));
+  const raw = withStored(files, undefined);
+  for (const f of [stored, raw]) {
+    const facts = await productFacts(f.host, f.instance, f.instanceAt, NOW, { scope: "all" });
+    assert.equal(facts.schedule.fields.nightly, "03:30");
+    assert.deepEqual(facts.resourceNeeds, [{ resource: "gpu-box", route: "bridge lab-pc" }]);
+    assert.deepEqual(facts.ci.runs, []);
+  }
+  assert.equal(stored.product.reads.has("docs/tests/schedule.md") && stored.product.reads.has("docs/resources.md"), true);
+  assert.equal(stored.product.reads.has("docs/process.md"), false);
+  assert.equal(raw.product.reads.has("docs/process.md"), true);
+});
+
+// TST-843012 · level: unit · module: MOD-progress-measures
+// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-046
+// given: the fixture product on a host that does no server operations (a Bridge's local clone): the CI runs refuse with NotSupported
+// input: productFacts(…, { scope: "all" })
+// expect: ci.runs is "unknown" and the rest of ci is read from the files (configured false, one difference: the generated file is missing); schedule, resourceNeeds and modelSince are read as before
+test("TST-843012 a host that does no server operations leaves ci.runs unknown, and the rest of ci is read", async () => {
+  const facts = await all(fixture({ serverOperations: false }));
+  assert.equal(facts.ci.runs, "unknown");
+  assert.deepEqual([facts.ci.configured, facts.ci.drift.map((each) => each.path)], [false, [".github/workflows/agent-m-tests.yml"]]);
+  assert.deepEqual([facts.schedule.default, facts.resourceNeeds, facts.modelSince], [true, [], null]);
 });

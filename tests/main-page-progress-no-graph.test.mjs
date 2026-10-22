@@ -57,12 +57,12 @@ const bySize = (sizes) => [...sizes].sort((a, b) => b - a);
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: a product of 600 backlog items, 400 job records, SPEC.md, one test file and 250 use cases; an instance holding its participant list; a token
 // input: productFacts(…, { scope: "all" })
-// expect: 19 requests in all, as for the product without use cases (TST-826001) — the repository 1, the commits 2, the tree 1, the pull requests 1, the tags 1, 13 batch requests: 100 files ten times and 1 file three times; none of the 250 use cases is read
-test("productFacts, scope all, with a token — 250 use cases nothing but the trace graph read are not read: 19 requests in all, as without them", async () => {
+// expect: 21 requests in all, as for the product without use cases (TST-826001) — the repository 1, the commits 2, the tree 1, the pull requests 1, the tags 1, the CI runs 1, the stored facts 1, 13 batch requests: 100 files ten times and 1 file three times; none of the 250 use cases is read
+test("productFacts, scope all, with a token — 250 use cases nothing but the trace graph read are not read: 21 requests in all, as without them", async () => {
   const { seen } = await facts("all", true);
   assert.deepEqual(seen.allFiles.filter((path) => path.startsWith("docs/use-cases/")), []);
-  assert.equal(seen.total, 20);
-  assert.deepEqual(seen.kinds, { repository: 1, commit: 2, tree: 1, "pull requests": 1, tags: 1, batch: 13, file: 1 });
+  assert.equal(seen.total, 21);
+  assert.deepEqual(seen.kinds, { repository: 1, commit: 2, tree: 1, "pull requests": 1, tags: 1, "ci runs": 1, batch: 13, file: 1 });
   assert.deepEqual(bySize(seen.batches), [...hundreds(10), 1, 1, 1]);
   assert.deepEqual(seen.singles.map((path) => path.replace(/^[0-9a-f]{40}/, "<commit>")), ["<commit>.facts.json"], "the one file read by its own request is the stored facts' (none is stored here)");
 });
@@ -71,12 +71,12 @@ test("productFacts, scope all, with a token — 250 use cases nothing but the tr
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the product and instance of TST-873001; no token, so that every file is read by a request of its own
 // input: productFacts(…, { scope: "all" })
-// expect: 1,009 requests in all — the repository 1, the commit 2 (main and test-results), the tree 1, the pull requests 1, the tags 1, and 1,003 files each by a request of its own (the 600 items, the 400 job records, SPEC.md, the test file and the instance's participant list); no use case is read
-test("productFacts, scope all, without a token — the 250 use cases are not read, 1,009 requests in all", async () => {
+// expect: 1,011 requests in all — the repository 1, the commit 2 (main and test-results), the tree 1, the pull requests 1, the tags 1, the CI runs 1, and 1,004 files each by a request of its own (the stored facts' among them) (the 600 items, the 400 job records, SPEC.md, the test file and the instance's participant list); no use case is read
+test("productFacts, scope all, without a token — the 250 use cases are not read, 1,011 requests in all", async () => {
   const { seen } = await facts("all", false);
   assert.equal(seen.singles.filter((path) => path.startsWith("docs/use-cases/")).length, 0);
-  assert.equal(seen.total, 1010);
-  assert.deepEqual(seen.kinds, { repository: 1, commit: 2, tree: 1, "pull requests": 1, tags: 1, file: 1004 });
+  assert.equal(seen.total, 1011);
+  assert.deepEqual(seen.kinds, { repository: 1, commit: 2, tree: 1, "pull requests": 1, tags: 1, "ci runs": 1, file: 1004 });
 });
 
 // TST-873003 · level: unit · module: MOD-progress-measures
