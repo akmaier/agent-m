@@ -34,8 +34,11 @@ jobs:
         run: |
           # Once, here, so that no test installs them: the tests that start Electron find openbox and install nothing (their own install stays the local fallback).
           mkdir -p /home/runner/apt-archives/partial
-          sudo apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=10 -o DPkg::Lock::Timeout=50 update
-          sudo apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=10 -o DPkg::Lock::Timeout=50 -o Dir::Cache::archives=/home/runner/apt-archives install --yes --no-install-recommends xvfb openbox
+          apt_options="-o Acquire::Retries=5 -o Acquire::http::Timeout=10 -o DPkg::Lock::Timeout=50 -o Dir::Cache::archives=/home/runner/apt-archives"
+          sudo apt-get $apt_options update
+          # The mirror sometimes trickles one file for minutes: a download that has not finished in 30 s is stopped and resumed on a new connection.
+          for attempt in 1 2 3; do sudo timeout 30 apt-get $apt_options install --download-only --yes --no-install-recommends xvfb openbox && break; done
+          sudo apt-get $apt_options install --yes --no-install-recommends xvfb openbox
           sudo chmod -R a+rX /home/runner/apt-archives
           openbox --version
       - name: Install Bridge app packages
