@@ -157,7 +157,7 @@ const requirements = (width) => `(() => {
 
 // TST-1178101 · level: release · module: MOD-site-frame
 // guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE
-// given: the fixed complete requirements-repair SPEC/group Markdown input, with 17 groups and 414 unique members, on the actual #trace/key=specification route
+// given: the fixed complete requirements-repair SPEC/group Markdown input, with 17 groups and 414 unique members, on the live dashboard's #requirements route
 // input: 390 px phone and 1280 px desktop; open group 13, narrow to the literal architecture-job name, open its rule, clear the search and close the group
 // expect: groups 0 and 16 show 5 and 4 requirements; shared-font boxed enabled controls and visible labels/counts; exactly the literal filtered member and group remain visible; its complete literal rule and text boxes fit; clearing restores 17 groups/414 members; unfiltered width and 24 px target findings are []
 test("TST-1178101 the full Requirements tree shares controls and keeps filtered long content readable at both widths", async () => {
@@ -181,7 +181,7 @@ test("TST-1178101 the full Requirements tree shares controls and keeps filtered 
       await configure(page, "Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: kind === "phone" });
       // A new origin carries the complete input without changing either old case's fixture or setup.
       await show(page, fullSite, "/");
-      await show(page, fullSite, "#trace/key=specification");
+      await show(page, fullSite, "#requirements");
       const initial = await measure(width);
       assert.equal(initial.heading, "Current requirements");
       assert.equal(initial.headingVisible, true);
