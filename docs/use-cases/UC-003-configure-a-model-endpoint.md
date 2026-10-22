@@ -32,12 +32,15 @@ directly, or through the Bridge that reaches it.
 ## Main flow
 
 1. The author opens the configuration screen.
-2. The author enters endpoint URL, model name and API key.
+2. The author enters endpoint URL, model name and API key, the place where the endpoint processes data — the provider
+   and its country, or *this machine* —, the model's context in tokens, and, for work handed to CI, the name of the CI
+   secret that holds the key.
 3. Agent M stores them in the browser's `localStorage` of the Agent M site; it sets no cookie.
 4. Agent M sends one short test request to the endpoint, which offers the model one tool and asks it to call it.
 5. The endpoint answers; Agent M shows the configuration as working, and whether the model called the tool — *can use
-   tools* or *text only*. A participant on this endpoint is preset accordingly (UC-017, step 4), and a model that can use
-   tools works in the prompt bar's loop (UC-049, step 4).
+   tools* or *text only*. The endpoint is offered in the prompt bar with its place (UC-049, step 1), and a model that
+   can use tools works in its loop (UC-049, step 4). A participant on this endpoint is preset accordingly (UC-017, step
+   4).
 
 ```mermaid
 sequenceDiagram

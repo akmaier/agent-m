@@ -410,6 +410,16 @@ sandboxed agent — names the model it uses.
 *Check:* `tests/test_participants.py` — a CLI-agent entry without a model is rejected; counter-proof: the
 same entry naming its model is accepted, and a person needs none.
 
+**THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE** *(PO A. Maier)*
+A model endpoint or a CLI session that the prompt bar offers from the browser's configuration declares its capabilities,
+the place where it processes data and its model, and counts as a participant for every rule of this specification,
+except that it is not listed in the instance's participant list and holds no role.
+*Check:* `tests/prompt-bar.test.mjs` — an endpoint or CLI session without a place or a model is not offered, the page
+names each with its place before a message is sent, a page of mail gives a CLI session the mail's `MAIL-` identifier
+only, and a restricted source's content is refused to an endpoint whose place its entry does not permit; counter-proof:
+the same endpoint at a permitted place receives it, and with recording off a conversation with an endpoint writes
+nothing to a repository.
+
 **RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS** *(PO A. Maier)*
 Content of a source whose licence is restricted is given only to participants whose processing place
 the source's register entry permits.
