@@ -6,12 +6,14 @@ spec:
       default: ""
     endpoint:
       default: ""
+    secret:
+      default: ""
 ---
 # Agent M's job workflow for this product, written by Agent M (docs/architecture/MOD-runtimes.md); the product's .gitlab-ci.yml
 # includes it. It runs an entry of Agent M's workflow entries for each event below, from a clone of the instance at the commit
-# named in each job. The secrets are named here and never valued; they are CI/CD variables of the project. The inputs job, task and
-# endpoint of a pipeline started through the API (UC-049 4a) are declared above, as the product's .gitlab-ci.yml declares them, and each
-# job holds them in the variables AGENT_M_INPUT_JOB, AGENT_M_INPUT_TASK and AGENT_M_INPUT_ENDPOINT, each the whole value of its input.
+# named in each job. The secrets are named here and never valued; they are CI/CD variables of the project. The inputs job, task, endpoint and
+# secret of a pipeline started through the API (UC-049 4a) are declared above, as the product's .gitlab-ci.yml declares them, and each
+# job holds them in the variables AGENT_M_INPUT_JOB, AGENT_M_INPUT_TASK, AGENT_M_INPUT_ENDPOINT and AGENT_M_INPUT_SECRET, each the whole value of its input.
 # --- one job for each route of the product's CI agents: the lines below are written once for each ---
 @@id@@:
   stage: test
@@ -25,6 +27,7 @@ spec:
     AGENT_M_INPUT_JOB: $[[ inputs.job ]]
     AGENT_M_INPUT_TASK: $[[ inputs.task ]]
     AGENT_M_INPUT_ENDPOINT: $[[ inputs.endpoint ]]
+    AGENT_M_INPUT_SECRET: $[[ inputs.secret ]]
   rules:
     - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
       changes:
