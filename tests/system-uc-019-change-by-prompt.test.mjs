@@ -13,7 +13,7 @@
 // Precondition: ITM-504, ITM-506, ITM-507 and ITM-508 are merged.
 // Expected result: every flow below is covered by executable evidence that asserts nothing the accepted UC-019 replaced, or is a finding
 // - a todo test below, or in the release file named - that fails now and names what the code does instead. The findings:
-// the participants offered (UC019-S9) and the count of requirements and use cases when a context is too small (UC019-S10).
+// the participants offered (UC019-S9), the offer read from this browser's configuration (UC019-S14), the link to the configuration of endpoints (UC019-S15) and the count of requirements and use cases when a context is too small (UC019-S10).
 //
 // The page, the servers and the person's actions are the harness of tests/uc-019-prompt-bar-harness.mjs: the real
 // MOD-site-frame, MOD-prompt-bar and MOD-review-pages over GitHub and a drafting endpoint served in memory; no request leaves the process.
@@ -64,7 +64,7 @@ const FLOW_EVIDENCE = {
     evidence: [[SELF, "TST-377005"]],
   },
   "main-6-endpoint-participant-returns-draft": {
-    uc: "The participant returns the changed text",
+    uc: "The drafter returns the changed text",
     evidence: [[DRAFT, "TST-507020"], [SELF, "TST-377004"]],
   },
   "main-7-correction-loop": {
@@ -79,20 +79,16 @@ const FLOW_EVIDENCE = {
     uc: "never the instruction",
     evidence: [[DRAFT, "TST-507022"], [SELF, "TST-377009"]],
   },
-  "3a-no-participant": {
-    uc: "No participant can draft text",
-    evidence: [[SELF, "TST-377014"]],
-  },
   "4a-context-too-small": {
-    uc: "The context does not fit into the chosen participant",
+    uc: "The context does not fit into the chosen drafter",
     evidence: [[SELF, "TST-377006"]],
   },
   "6a-bridge-agent-returns-draft": {
-    uc: "The participant is a CLI or sandboxed agent",
+    uc: "The drafter is a CLI session",
     evidence: [["tests/runtimes-bridge.test.mjs", "TST-472698"]],
   },
   "6c-unusable-answer": {
-    uc: "The participant returns nothing usable",
+    uc: "The drafter returns nothing usable",
     evidence: [[SELF, "TST-377015"]],
   },
   "7a-findings-left-identifier-restored": {
@@ -104,7 +100,7 @@ const FLOW_EVIDENCE = {
     evidence: [[RELEASE_REQUIREMENTS, "TST-418126"]],
   },
   "7b-dropped-realises-name-shown-as-diff": {
-    uc: "The participant dropped a name from `realises`",
+    uc: "The drafter dropped a name from `realises`",
     evidence: [[SELF, "TST-377003"], ["tests/markdown-render-release-20.test.mjs", "TST-342009"]],
   },
   "8-follow-up-instruction-in-the-prompt-bar": {
@@ -124,7 +120,7 @@ const FLOW_EVIDENCE = {
     evidence: [[DRAFT, "TST-507026"]],
   },
   "9a-target-changed": {
-    uc: "The target changed while the participant was drafting",
+    uc: "The target changed while the drafter was drafting",
     evidence: [[DRAFT, "TST-507023"], [DRAFT, "TST-507024"]],
   },
   "7-limit-named-before-the-first-round": {
@@ -136,17 +132,16 @@ const FLOW_EVIDENCE = {
     evidence: [[SELF, "TST-377008"], [SELF, "TST-377013"]],
   },
   "main-2-offers-only-participants-that-can-draft": {
-    uc: "Agent M offers there only participants that can draft text",
-    evidence: [[SELF, "TST-377010"]],
-  },
-  "3a-links-uc-017": {
-    uc: "Agent M says so and links to UC-017",
+    uc: "Agent M offers there only those that can draft text",
     evidence: [[SELF, "TST-377010"]],
   },
 };
 
 // The parts of a flow the code does otherwise, each a todo test that fails now and names what the code does instead.
 const FLOW_FINDINGS = {
+  "precondition-configured-in-this-browser": { uc: "is configured in this browser (UC-049)", finding: "UC019-S14", file: SELF, test: "TST-377016" },
+  "3a-nothing-configured-can-draft": { uc: "Nothing configured can draft text.", finding: "UC019-S14", file: SELF, test: "TST-377016" },
+  "3a-links-uc-003": { uc: "links to the configuration of endpoints (UC-003)", finding: "UC019-S15", file: SELF, test: "TST-377017" },
   "4a-counts-of-requirements-and-use-cases": { uc: "Agent M says how many requirements or use cases there are", finding: "UC019-S10", file: SELF, test: "TST-377011" },
   "4a-counts-in-the-bar": { uc: "Agent M says how many requirements or use cases there are", finding: "UC019-S10", file: RELEASE_REQUIREMENTS, test: "TST-418121" },
 };
@@ -415,6 +410,39 @@ test("TST-377010: UC-019 2 and 3a the bar offers only participants that can draf
   assert.doesNotMatch(said, /observer/);
   await press(none, namedButton(barOf(none), "Set up participants"));
   assert.match(none.location.hash, /^#participants/);
+});
+
+// TST-377016
+// level: system
+// module: MOD-prompt-bar; MOD-browser-store
+// guards: UC-019
+// given: the page of UC-007, a browser whose configuration holds a model endpoint and no participant is in the instance's list
+// input: read what the bar offers
+// expect: the bar offers the browser's configured endpoint, named with its place; with nothing configured that can draft text it says so
+test("TST-377016: UC-019 precondition and 3a the bar offers what is configured in this browser", { todo: "FINDING UC019-S14 - the bar offers the participants of the instance's register (docs/participants.md, read by MOD-prompt-bar), not the endpoints and CLI sessions of this browser's configuration (MOD-browser-store); with none able to draft it says \"No participant of this instance can do change-use-case: it needs draft text.\"" }, async () => {
+  const s = await scenario({ extraFiles: useCases, instanceFiles: { "docs/participants.md": "" } });
+  await onUseCase(s);
+  assert.equal(all(barOf(s), "span", "participant").length + all(barOf(s), "select", "participant").length, 1, "the configured endpoint is offered");
+});
+
+// TST-377017
+// level: system
+// module: MOD-prompt-bar
+// guards: UC-019
+// given: the page of UC-007 in an instance whose only participant cannot draft text
+// input: read the bar's message and press its link
+// expect: the link opens the configuration of endpoints (UC-003)
+test("TST-377017: UC-019 3a the link opens the configuration of endpoints", { todo: "FINDING UC019-S15 - the bar's link reads \"Set up participants\" and opens the route participants (#participants, UC-017's page), as TST-377010 asserts; it does not open the configuration of endpoints (UC-003)" }, async () => {
+  const rows = read("docs/participants.md").split("\n");
+  const onlyObserver = `${rows.slice(0, rows.findIndex((line) => line.startsWith("|---")) + 1).join("\n")}\n`
+    + "| observer | model endpoint | observer-model | 200000 | - | read repository | Anthropic, USA | endpoint fixture |\n";
+  const none = await scenario({ extraFiles: useCases, instanceFiles: { "docs/participants.md": onlyObserver } });
+  await onUseCase(none);
+  one(barOf(none), "textarea", "instruction").dispatchEvent(new Event("focus"));
+  await rest(none);
+  await rest(none);
+  await press(none, namedButton(barOf(none), "Set up participants"));
+  assert.match(none.location.hash, /^#settings/);
 });
 
 // TST-377011
