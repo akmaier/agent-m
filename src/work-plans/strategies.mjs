@@ -1,5 +1,5 @@
 // strategies.mjs — the recipes, checks and writers of `workStrategies` (MOD-work-plans, Parts: strategies.mjs; Interfaces: workStrategies). Of it, this file has the recipes
-// `architecture-and-model` (UC-045 step 2) and `sprint-facts` (UC-041 step 2), the check `sprint-record-checks` (UC-041 1a) and the writer `sprint-record` (UC-041 6); the other recipes, checks and writers are not built yet.
+// `architecture-and-model` (UC-045 step 2) and `sprint-facts` (UC-041 step 2), the checks `plan-checks` (UC-045), `backlog-checks` (UC-032 step 3) and `sprint-record-checks` (UC-041 1a) and the writer `sprint-record` (UC-041 6); the other recipes, checks and writers are not built yet.
 //
 // Module: MOD-work-plans
 //
@@ -16,7 +16,7 @@ import { queues } from "../spec-changes/index.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
 import { systemDecisions, traceGraph } from "../trace-graph/index.mjs";
 import { finding } from "../text-tools/index.mjs";
-import { planFindings } from "./checks.mjs";
+import { backlogFindings, planFindings } from "./checks.mjs";
 import { closeSprint } from "./saves.mjs";
 import { sprintFacts } from "./facts.mjs";
 import { selectionOf as selectionOfRecord } from "./sprints.mjs";
@@ -223,6 +223,33 @@ async function planChecks(draft, context) {
     .map((each) => finding({ artifact: named(each.artifact), line: each.line, kind: each.kind, rule: each.rule, what: named(each.what), fix: named(each.fix) }));
 }
 
+const MODULE_FILE = /^docs\/architecture\/MOD-[^/]+\.md$/;
+
+/**
+ * The check backlog-checks(draft, context) -> Promise<Finding[]> — backlogFindings on the drafted items of a job of the kind `propose-items` (UC-032 step 3). The draft is the answer of the kind,
+ * `{ items: [{ title, realises, modules, buildsOn, ... }] }`; each entry becomes an item with an identifier after the product's highest, in the drafted sequence. An entry of `buildsOn` names an existing
+ * item by its identifier or its title, or a drafted entry by its title; a title is replaced by that item's identifier, any other entry stays as it is. backlogFindings runs on the existing items of
+ * docs/backlog/ and the drafted ones, with the module files of docs/architecture/ of the job's snapshot; the check gives the findings of the drafted items, each naming its item by its title. A draft
+ * without items has none.
+ */
+async function backlogChecks(draft, context) {
+  const { snapshot } = context.product;
+  const schemas = artifactSchemas();
+  const documents = (pattern, schema) => Promise.all(snapshot.paths.filter((each) => pattern.test(each)).sort()
+    .map(async (each) => readDocument(schema, each, (await snapshot.read(each)) ?? "")));
+  const existing = await documents(BACKLOG_ITEM, schemas.item);
+  const architecture = await documents(MODULE_FILE, schemas.module);
+  const highest = Math.max(0, ...snapshot.paths.map((each) => Number(ITEM_ID.exec(each)?.[1].slice(4) ?? 0)));
+  const drafted = asList(draft?.items).map((each, index) => ({ ...each, id: `ITM-${String(highest + index + 1).padStart(3, "0")}` }));
+  const idOfTitle = new Map([...drafted.map((each) => [each.title, each.id]), ...existing.map((each) => [each.fields.title, each.id])]);
+  const items = drafted.map((each) => ({ kind: "item", path: `docs/backlog/${each.id}-${slugOf(each.title)}.md`, id: each.id, title: each.title, sections: [], appended: [], body: "",
+    fields: { id: each.id, title: each.title, realises: asList(each.realises), modules: asList(each.modules), builds_on: asList(each.buildsOn).map((name) => idOfTitle.get(name) ?? name) } }));
+  const titleOf = new Map(drafted.map((each) => [each.id, each.title]));
+  const named = (value) => String(value).replace(/ITM-\d{3,}/g, (id) => (titleOf.has(id) ? `the item "${titleOf.get(id)}"` : id));
+  return backlogFindings([...existing, ...items], architecture).filter((each) => titleOf.has(each.artifact))
+    .map((each) => finding({ artifact: named(each.artifact), line: each.line, kind: each.kind, rule: each.rule, what: named(each.what), fix: named(each.fix) }));
+}
+
 const REVIEW_RULE = "AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM";
 const RETRO_RULE = "A SPRINT ENDS WITH A RETROSPECTIVE";
 const PROCESS_RULE = "AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF";
@@ -296,5 +323,5 @@ async function sprintRecord(result, context) {
   return { commits: [commit], files: written, pullRequest: null, shown: null, notes: [] };
 }
 
-/** workStrategies: MOD-job-runner's Partial<Strategies> with the recipes architecture-and-model and sprint-facts and the checks plan-checks and sprint-record-checks, the four built so far. */
-export const workStrategies = { recipes: { "architecture-and-model": architectureAndModel, "sprint-facts": sprintFactsRecipe }, checks: { "plan-checks": planChecks, "sprint-record-checks": sprintRecordChecks }, writers: { "sprint-record": sprintRecord } };
+/** workStrategies: MOD-job-runner's Partial<Strategies> with the recipes architecture-and-model and sprint-facts, the checks plan-checks, backlog-checks and sprint-record-checks and the writer sprint-record, the five built so far. */
+export const workStrategies = { recipes: { "architecture-and-model": architectureAndModel, "sprint-facts": sprintFactsRecipe }, checks: { "plan-checks": planChecks, "backlog-checks": backlogChecks, "sprint-record-checks": sprintRecordChecks }, writers: { "sprint-record": sprintRecord } };
