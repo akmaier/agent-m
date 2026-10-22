@@ -62,7 +62,7 @@ jobs:
           files=$(node "$RUNNER_TEMP/level.mjs" "$mode" "${{ matrix.shard }}" 7 tests/test*.py)
           cd tests && python3 -m unittest -v $(echo "$files" | sed 's|^tests/||; s|\.py$||')
   apt-archives:
-    # The sixteen node shards would each fetch the packages of xvfb and openbox from the same mirror at once, which it serves too slowly for two
+    # The twenty node shards would each fetch the packages of xvfb and openbox from the same mirror at once, which it serves too slowly for two
     # minutes. This job fetches them once into the cache the shards restore; the tests that start Electron find openbox installed and install nothing.
     runs-on: ubuntu-latest
     timeout-minutes: 2
@@ -70,16 +70,18 @@ jobs:
       - name: Name the week of the apt cache
         id: week
         run: echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
-      - name: Restore the downloaded archives of xvfb and openbox
+      - name: Restore the downloaded archives and package lists of xvfb and openbox
         uses: actions/cache@v4
         with:
-          path: /home/runner/apt-archives
-          key: apt-xvfb-openbox-${{ runner.os }}-${{ steps.week.outputs.week }}
-          restore-keys: apt-xvfb-openbox-${{ runner.os }}-
+          path: |
+            /home/runner/apt-archives
+            /home/runner/apt-lists
+          key: apt-xvfb-openbox-lists-${{ runner.os }}-${{ steps.week.outputs.week }}
+          restore-keys: apt-xvfb-openbox-lists-${{ runner.os }}-
       - name: Download xvfb and openbox
         run: |
-          mkdir -p /home/runner/apt-archives/partial
-          apt_options="-o Acquire::Retries=1 -o Acquire::http::Timeout=10 -o DPkg::Lock::Timeout=50 -o Dir::Cache::archives=/home/runner/apt-archives"
+          mkdir -p /home/runner/apt-archives/partial /home/runner/apt-lists/partial
+          apt_options="-o Acquire::Retries=1 -o Acquire::http::Timeout=10 -o DPkg::Lock::Timeout=50 -o Dir::Cache::archives=/home/runner/apt-archives -o Dir::State::lists=/home/runner/apt-lists"
           sudo apt-get $apt_options update
           # azure.archive.ubuntu.com sometimes sends one file so slowly that apt neither fails nor tries the next mirror: the first download is
           # bounded, and when it fails archive.ubuntu.com becomes the mirror.
@@ -87,7 +89,7 @@ jobs:
             echo "http://archive.ubuntu.com/ubuntu/" | sudo tee /etc/apt/apt-mirrors.txt
             sudo apt-get $apt_options install --download-only --yes --no-install-recommends xvfb openbox
           fi
-          sudo chmod -R a+rX /home/runner/apt-archives
+          sudo chmod -R a+rX /home/runner/apt-archives /home/runner/apt-lists
   node:
     needs: apt-archives
     runs-on: ubuntu-latest
@@ -104,19 +106,24 @@ jobs:
       - name: Name the week of the apt cache
         id: week
         run: echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
-      - name: Restore the downloaded archives of xvfb and openbox
+      - name: Restore the downloaded archives and package lists of xvfb and openbox
         uses: actions/cache@v4
         with:
-          path: /home/runner/apt-archives
-          key: apt-xvfb-openbox-${{ runner.os }}-${{ steps.week.outputs.week }}
-          restore-keys: apt-xvfb-openbox-${{ runner.os }}-
+          path: |
+            /home/runner/apt-archives
+            /home/runner/apt-lists
+          key: apt-xvfb-openbox-lists-${{ runner.os }}-${{ steps.week.outputs.week }}
+          restore-keys: apt-xvfb-openbox-lists-${{ runner.os }}-
       - name: Install xvfb and openbox
         run: |
-          # From the archives of the job apt-archives: nothing is fetched, and the tests that start Electron find openbox and install nothing (their own install stays the local fallback).
-          mkdir -p /home/runner/apt-archives/partial
-          apt_options="-o Acquire::Retries=1 -o Acquire::http::Timeout=10 -o DPkg::Lock::Timeout=50 -o Dir::Cache::archives=/home/runner/apt-archives"
-          sudo apt-get $apt_options update
-          sudo apt-get $apt_options install --yes --no-install-recommends xvfb openbox
+          # From the archives and package lists of the job apt-archives: nothing is fetched, no index is read from a mirror, and the tests that start Electron find openbox and install nothing (their own install stays the local fallback).
+          mkdir -p /home/runner/apt-archives/partial /home/runner/apt-lists/partial
+          apt_options="-o Acquire::Retries=1 -o Acquire::http::Timeout=10 -o DPkg::Lock::Timeout=50 -o Dir::Cache::archives=/home/runner/apt-archives -o Dir::State::lists=/home/runner/apt-lists"
+          if ! sudo apt-get $apt_options install --yes --no-install-recommends --no-download xvfb openbox; then
+            # The cache is gone: the old way, from the mirror.
+            sudo apt-get $apt_options update
+            sudo apt-get $apt_options install --yes --no-install-recommends xvfb openbox
+          fi
           openbox --version
       - name: Install Bridge app packages
         run: npm install --prefix src/bridge-build --omit=dev --ignore-scripts
