@@ -199,6 +199,23 @@ for (const route of ROUTES) {
   }
 }
 
+// TST-917002 · level: system · module: MOD-site-frame
+// guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE
+// given: the live fixture use case UC-001, whose rendered Markdown holds the Request / Path read / Batch table and its long code run
+// input: #uc/UC-001 and #review/uc, each drawn through the unchanged Electron geometry caller at 390 px and 1280 px
+// expect: no width finding at either width, while each route still shows the literal table headings, readFile cell and code address
+test("TST-917002 the live use-case and review pages reflow their Markdown table and code at phone and desktop widths", () => {
+  for (const address of ["#uc/UC-001", "#review/uc"]) {
+    for (const [kind] of WIDTHS) {
+      const result = measured.get(`${address} ${kind}`);
+      assert.deepEqual(result.widths, [], `${address} at a ${kind}'s width: ${result.widths.join("; ")}`);
+      for (const literal of ["Request", "Path read", "Batch", "readFile", "/repos/akmaier/agent-m/git/trees/"]) {
+        assert.equal(result.text.includes(literal), true, `${address} at a ${kind}'s width retains ${literal}`);
+      }
+    }
+  }
+});
+
 // ---------------------------------------------------------------- the menu at a phone's width
 
 // TST-920001 · level: system · module: MOD-site-frame

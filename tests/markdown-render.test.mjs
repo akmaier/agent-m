@@ -96,6 +96,24 @@ test("renderArtifact — headings, lists, emphasis, links, tables and code are r
   for (const [what, pattern] of Object.entries(expected)) assert.match(html, pattern, what);
 });
 
+// TST-917001 · level: unit · module: MOD-markdown-render
+// guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE
+// given: a Markdown table with the column headings Request, Path read and Batch, and one row whose cell text is distinct
+// input: renderArtifact of that Markdown
+// expect: the table keeps its heading and cell text, and each body cell carries the literal data-label of its own column heading
+test("TST-917001 renderArtifact labels each Markdown table cell with its column heading", () => {
+  const text = ["| Request | Path read | Batch |", "|---|---|---|", "| readFile | docs/use-cases/UC-001.md | one hundred |", ""].join("\n");
+  const table = byTag(renderArtifact(text), "table")[0];
+  const cells = byTag(table, "td");
+  assert.equal(table.textContent.includes("Request"), true, "the Request heading remains readable");
+  assert.equal(table.textContent.includes("docs/use-cases/UC-001.md"), true, "the path cell remains readable");
+  assert.deepEqual(cells.map((cell) => [cell.getAttribute("data-label"), cell.textContent]), [
+    ["Request", "readFile"],
+    ["Path read", "docs/use-cases/UC-001.md"],
+    ["Batch", "one hundred"],
+  ]);
+});
+
 const HOSTILE = [
   "Before the parts that must not run.",
   "",
