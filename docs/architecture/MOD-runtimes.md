@@ -261,7 +261,8 @@ a person's decision.
   (`THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK`): commits `start` as the person's commit on the head that was read —
   the record naming the participant, the page and the commit it read, the conversation record where the instance records
   conversations, and that its task travels with the hand-over, without the task's words —, then, on the CI route, starts
-  the product's job workflow with `startWorkflow` and the inputs `job`, `task` and, for a model endpoint, `endpoint`, or,
+  the product's job workflow with `startWorkflow` and the inputs `job`, `task` and, for a model endpoint, `endpoint` and
+  `secret`, the CI secret its route names, or,
   on a Bridge, hands it over with `handOver` and the task. `prepared` is the job of the kind the participant named, with
   the task as its instruction, prepared by the caller with MOD-job-runner's `prepareJob`; a job it reports as blocking or
   not fitting is refused with its findings. A kind with the gate point `before-write` is refused, since such a job would

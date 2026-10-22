@@ -125,6 +125,6 @@ sequenceDiagram
 
 - The instance lists the participant with type, capabilities and processing place; no key is in the
   repository.
-- A model endpoint, CLI agent or sandboxed agent that this browser reaches directly is offered in the prompt bar
-  (UC-049); a subagent is not.
+- The participant does the jobs of the product's workflow its roles give it. The prompt bar offers the model endpoints
+  and CLI sessions this browser configures, not the participants of this list (UC-049).
 - A product's role assignment can give it roles that need no more than its capabilities (UC-048).
