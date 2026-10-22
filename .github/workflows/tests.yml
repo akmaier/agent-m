@@ -1,4 +1,4 @@
-# ITM-1193 measurement V3
+# ITM-1193 measurement V4
 # Transitional CI until MOD-test-schedule generates Agent M's declared schedule:
 # "The workflow change merged with #492 stays in place until Agent M's declared schedule replaces it."
 # (docs/spec-freigaben/2026-10-13c_agent-m-declares-its-own-test-schedule/01-architecture-and-implementation.begruendung.md)
@@ -119,9 +119,8 @@ jobs:
         run: |
           # From the archives and package lists of the job apt-archives: nothing is fetched, no index is read from a mirror, and the tests that start Electron find openbox and install nothing (their own install stays the local fallback).
           mkdir -p /home/runner/apt-archives/partial /home/runner/apt-lists/partial
-          sudo chmod -x /usr/sbin/dpkg-preconfigure
           apt_options="-o Acquire::Retries=1 -o Acquire::http::Timeout=10 -o DPkg::Lock::Timeout=50 -o Dir::Cache::archives=/home/runner/apt-archives -o Dir::State::lists=/home/runner/apt-lists"
-          if ! sudo apt-get $apt_options install --yes --no-install-recommends --no-download xvfb openbox; then
+          if ! sudo env NEEDRESTART_SUSPEND=1 apt-get $apt_options install --yes --no-install-recommends --no-download xvfb openbox; then
             # The cache is gone: from the mirror. azure.archive.ubuntu.com sometimes sends one file so slowly that apt neither fails nor tries
             # the next mirror: the first download is bounded, and when it fails archive.ubuntu.com becomes the mirror. The install is not
             # bounded: a kill while dpkg unpacks would leave dpkg interrupted.
