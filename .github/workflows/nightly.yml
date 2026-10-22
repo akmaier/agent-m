@@ -21,6 +21,26 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Name the week of the apt cache
+        id: week
+        run: echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+      - name: Restore the downloaded archives of xvfb and openbox
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/apt-archives
+          key: apt-xvfb-openbox-${{ runner.os }}-${{ steps.week.outputs.week }}
+          restore-keys: apt-xvfb-openbox-${{ runner.os }}-
+      - name: Install xvfb and openbox
+        run: |
+          # Once, here, so that no test installs them: the tests that start Electron find openbox and install nothing (their own install stays the local fallback).
+          mkdir -p /home/runner/apt-archives/partial
+          apt_options="-o Acquire::Retries=5 -o Acquire::http::Timeout=10 -o DPkg::Lock::Timeout=50 -o Dir::Cache::archives=/home/runner/apt-archives"
+          sudo apt-get $apt_options update
+          # The mirror sometimes trickles one file for minutes: a download that has not finished in 30 s is stopped and resumed on a new connection.
+          for attempt in 1 2 3; do sudo timeout 30 apt-get $apt_options install --download-only --yes --no-install-recommends xvfb openbox && break; done
+          sudo apt-get $apt_options install --yes --no-install-recommends xvfb openbox
+          sudo chmod -R a+rX /home/runner/apt-archives
+          openbox --version
       - name: Install Bridge app packages
         run: npm install --prefix src/bridge-build --omit=dev --ignore-scripts
       - name: No test opens Agent M's own SPEC
