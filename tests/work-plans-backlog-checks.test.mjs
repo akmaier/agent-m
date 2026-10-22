@@ -181,13 +181,13 @@ test("backlog-checks — a draft without items has no finding, and a product wit
 // guards: UC-032
 // given: the module's workStrategies
 // input: its recipes, checks and writers
-// expect: the check backlog-checks stands beside plan-checks and sprint-record-checks, and the recipes (architecture-and-model, backlog-inputs, sprint-facts) and writers (sprint-record) are those built before: nothing already registered changes
+// expect: the check backlog-checks stands beside plan-checks and sprint-record-checks, and the recipes (architecture-and-model, backlog-inputs, sprint-facts) and writers (backlog-items, ITM-617, and sprint-record) are those built before: nothing already registered changes
 // Planted fault: replacing the checks object instead of adding to it removes plan-checks and sprint-record-checks.
 test("workStrategies — adds the check backlog-checks and changes no registration", () => {
   assert.equal(typeof workStrategies.checks?.["backlog-checks"], "function");
   assert.deepEqual(Object.keys(workStrategies.checks).sort(), ["backlog-checks", "plan-checks", "sprint-record-checks"]);
   assert.deepEqual(Object.keys(workStrategies.recipes), ["architecture-and-model", "backlog-inputs", "sprint-facts"]);
-  assert.deepEqual(Object.keys(workStrategies.writers), ["sprint-record"]);
+  assert.deepEqual(Object.keys(workStrategies.writers), ["backlog-items", "sprint-record"]);
 });
 
 // TST-616011 · level: unit · module: MOD-work-plans
