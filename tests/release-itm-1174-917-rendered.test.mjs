@@ -52,10 +52,12 @@ before(async () => {
       await page.evaluate(`typeof axe === "undefined" ? (0, eval)(${JSON.stringify(axe)}) : 0`);
       found.set(`#backlog ${kind}`, { badges: await page.evaluate(`[...document.querySelectorAll("main .b-superseded")].map((badge) => {
         const style = getComputedStyle(badge);
+        const rect = badge.getBoundingClientRect();
         const foreground = new axe.commons.color.Color(), background = new axe.commons.color.Color();
         foreground.parseString(style.color);
         background.parseString(style.backgroundColor);
         return { text: badge.textContent.replace(/\\s+/g, " ").trim(), color: style.color, background: style.backgroundColor,
+          visible: style.display !== "none" && style.visibility === "visible" && rect.width > 0 && rect.height > 0,
           contrast: axe.commons.color.getContrast(background, foreground) };
       })`),
         contrast: (await page.evaluate(RUN_AXE)).filter((violation) => violation.id === "color-contrast") });
@@ -78,12 +80,14 @@ after(async () => {
 // guards: THE SITE SERVES A SCREEN READER
 // given: the live fixture #backlog route at the existing 390 px phone and 1280 px desktop widths
 // input: its literal waiting for an item it builds on badge and axe-core color-contrast violations
-// expect: waiting for an item it builds on is visibly present in .b-superseded, its computed text/background contrast is at least 4.5, and color-contrast is [] at both widths
+// expect: waiting for an item it builds on is visibly rendered in .b-superseded, its computed text/background contrast is at least 4.5, and color-contrast is [] at both widths
 test("TST-1174101 the backlog waiting-for-prerequisite badge has no axe color-contrast violation", () => {
   for (const [kind] of WIDTHS) {
     const result = found.get(`#backlog ${kind}`);
     assert.ok(result.badges.some((badge) => badge.text === "waiting for an item it builds on"),
       `#backlog at a ${kind}'s width renders its waiting-for-prerequisite badge; actual=${JSON.stringify(result.badges)}`);
+    assert.ok(result.badges.some((badge) => badge.text === "waiting for an item it builds on" && badge.visible),
+      `#backlog at a ${kind}'s width visibly renders its waiting-for-prerequisite badge; actual=${JSON.stringify(result.badges)}`);
     assert.ok(result.badges.every((badge) => badge.contrast >= MIN_BADGE_CONTRAST),
       `#backlog at a ${kind}'s width gives every waiting badge at least ${MIN_BADGE_CONTRAST}:1 computed contrast; actual=${JSON.stringify(result.badges)}`);
     assert.deepEqual(result.contrast, [], `#backlog at a ${kind}'s width has a color-contrast violation`);
