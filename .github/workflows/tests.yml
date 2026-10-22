@@ -1,3 +1,4 @@
+# ITM-1193 measurement V0: baseline, the workflow unchanged
 # Transitional CI until MOD-test-schedule generates Agent M's declared schedule:
 # "The workflow change merged with #492 stays in place until Agent M's declared schedule replaces it."
 # (docs/spec-freigaben/2026-10-13c_agent-m-declares-its-own-test-schedule/01-architecture-and-implementation.begruendung.md)
