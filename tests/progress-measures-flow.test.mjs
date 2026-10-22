@@ -35,7 +35,7 @@ const COLUMNS = ["waiting for acceptance", "waiting for an item it builds on", "
 const KANBAN = { name: "kanban", kind: "pulled", measure: "items per state over time", flow: { wip: 3, timeBox: null, sprints: false } };
 const SCRUM_WIP = { name: "scrum-wip", kind: "pulled", measure: "items per state over time", flow: { wip: 4, timeBox: null, sprints: true } };
 const SCRUM = { name: "scrum", kind: "pulled", measure: "remaining items per time box", flow: { wip: null, timeBox: "1 week", sprints: true } };
-const V_MODEL = { name: "v-model", kind: "planned", measure: "plan entries per phase", flow: null };
+const V_MODEL = { name: "v-model", kind: "planned", measure: "plan entries per phase", flow: null, phases: [], transitions: [], gates: [] };
 
 const state = (item, value) => ({ item, state: value, reason: null, job: null, pullRequest: null });
 const pullRequest = (number, item, { opened, merged = null, closed = null }) => ({ number, title: `${item}: the work`, branch: `work/${item}`,
