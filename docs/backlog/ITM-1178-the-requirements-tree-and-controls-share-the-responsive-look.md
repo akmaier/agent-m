@@ -61,8 +61,10 @@ Keep the SPEC, all grouped artifacts, approval records and grouping file unchang
   frozen TST-922001, the old menu contracts and all unrelated TODO reasons. Helpers, shared fixtures,
   routes, trace/group parsing, Source outside Frame, and CI configuration do not change. Only a
   reason actually resolved by this correction may be removed after its actual check passes.
-- The first commit is tests only and its automatic CI demonstrates the intended failure before SM
-  permits Source. Each new case has an effective owned-code fault/failing result and exact restoration
+- The first commit is tests only and its automatic CI is red. Before SM permits Source, an actual
+  recorded run on that same tests-only head and unchanged Source demonstrates the intended product
+  failure; this run may be local. A CI setup failure remains recorded as setup failure, not an
+  executed product assertion. Each new case has an effective owned-code fault/failing result and exact restoration
   with truthful immutable result records, as the existing job rules require.
 
 ## Readiness
