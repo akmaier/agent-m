@@ -175,8 +175,7 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
   - `add-product` — the address recognised as GitHub or GitLab; the token's step for that server with the names filled
     in, or the GitLab project access token; *Check*; *Add product*, which writes the missing review layout and adds the
     address to this browser's list; each step with its explanation.
-  - `endpoints` — address, model and key of a model endpoint, the place where it processes data, the model's context in
-    tokens and the name of the CI secret that holds its key, and, for one the browser cannot call, the Bridge that
+  - `endpoints` — address, model and key of a model endpoint, and, for one the browser cannot call, the Bridge that
     reaches it, chosen among the Bridges this browser keeps; the test request, directly or through that Bridge, with
     whether the model called the tool it was offered — *can use tools* or *text only* (UC-003 step 5, 5a) —, and the
     reason and the routes that would work when a browser may not call it; *Clear*.
@@ -212,20 +211,17 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     among this browser's Bridges, and, for one reached through the jump host, the notice that the jump host can read the
     password and the mails, before saving; the folders; the processing places the mail may go to, a place outside the EU
     stated as not compliant before saving; *Store and test*; *Disconnect*.
-  - `bridge` — the release's file for this computer's system with its size and the SHA-256 the server reports for it,
-    or, where the server reports none, a link to the release's checksum file, and beside the file the publisher to look
-    for, the name of the line `Publisher (<system>): <name>` that the release's notes hold for this system
-    (MOD-bridge-build), which the folded *Why this warning?* repeats; where the notes hold no such line (Linux, or a
-    release written without it), the page says that the release names no publisher for this system and writes none; the
-    Bridges this browser keeps, each under its name: pairing one on this computer or at a forwarded address with the
-    token its window shows, kept under the name it reports; *+ Bridge through the jump host*, named by the person, with
-    its port from the range and the two tunnel commands for a computer without a Bridge; the jump host and its port
-    range, HTTPS address and web-server login; the jump host's web-server configuration for every Bridge reached through
-    it; *Test* of a Bridge at its address — for one reached through the jump host its HTTPS address —, a certificate the
-    browser does not trust named as a possible cause; for each CLI session a Bridge offers (MOD-bridge-client's
-    `testBridge`), the place where it processes data, its context in tokens, its model and its capabilities, prefilled
-    as for a CLI agent (UC-017), kept under `session:<bridge>:<agent>`, and one lacking a place, a context or a model
-    named as not offered in the prompt bar (UC-049 1b).
+  - `bridge` — the release's file for this computer's system with its size and the SHA-256 the server reports for it, or,
+    where the server reports none, a link to the release's checksum file, and beside the file the publisher to look for,
+    the name of the line `Publisher (<system>): <name>` that the release's notes hold for this system (MOD-bridge-build),
+    which the folded *Why this warning?* repeats; where the notes hold no such line (Linux, or a release written without
+    it), the page says that the release names no publisher for this system and writes none; the Bridges this browser keeps, each under its
+    name: pairing one on this computer or at a forwarded address with the token its window shows, kept under the name it
+    reports; *+ Bridge through the jump host*, named by the person, with its port from the range and the two tunnel
+    commands for a computer without a Bridge; the jump host and its port range, HTTPS address and web-server login; the
+    jump host's web-server configuration for every Bridge reached through it; *Test* of a Bridge at its address — for one
+    reached through the jump host its HTTPS address —, a certificate the browser does not trust named as a possible
+    cause.
   - **A pasted token** — in *Store and check* of `setup` and of `add-product`, and in *Change* of `settings` — is connected
     with MOD-repository-hosts' `connect` to the repository it is for before it is stored: the instance for the key
     `github-token`, the product for its own key, and for *Change* the repository its setting's key names. A refusal of

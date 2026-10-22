@@ -113,8 +113,7 @@ sequenceDiagram
   refused from then on; the person pastes the new one once.
 - **4d. A Bridge on another computer.** The person installs the Bridge there too (steps 1–3) and pairs it from this
   browser through an SSH forward to that computer's loopback (UC-011, 1a) or through the jump host (6a). This browser
-  keeps it as one more Bridge under its name; the agents it offers are offered as participants of that Bridge, and, once
-  their place, context, model and capabilities are declared in this browser, as CLI sessions in the prompt bar (UC-049).
+  keeps it as one more Bridge under its name; the agents it offers are offered as participants of that Bridge.
 - **4c. The browser cannot reach the bridge on this computer** — Safari blocks a call from an HTTPS page to
   `http://127.0.0.1`; Chrome, Edge and Firefox allow it after one local-network prompt, which the dashboard
   explains before it appears. The dashboard names the reason and offers the route over HTTPS through the
@@ -148,7 +147,7 @@ sequenceDiagram
 
 - The bridge runs as an app on this computer, paired with the person's dashboard; nothing was typed in a
   terminal.
-- The agents it offers are available as participants, and as CLI sessions in the prompt bar once declared, each
-  working in its own folder with its own login; no key passed through Agent M.
+- The agents it offers are available as participants, each working in its own folder with its own login; no key
+  passed through Agent M.
 - If configured, its tunnel to the jump host is open and ends on the jump host's loopback; its private SSH key
   never left this computer.

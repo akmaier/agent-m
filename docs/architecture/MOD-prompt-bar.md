@@ -8,7 +8,6 @@ follows:
 uses:
   - MOD-browser-store.Store
   - MOD-browser-store.readSetting
-  - MOD-browser-store.listSettings
   - MOD-browser-store.readTabValue
   - MOD-browser-store.writeTabValue
   - MOD-repository-hosts.Host
@@ -27,6 +26,7 @@ uses:
   - MOD-participant-list.Participant
   - MOD-participant-list.participantSchema
   - MOD-participant-list.participantsOf
+  - MOD-participant-list.reachedThrough
   - MOD-participant-list.eligible
   - MOD-job-catalogue.kindOf
   - MOD-job-runner.prepareJob
@@ -67,7 +67,6 @@ uses:
   - MOD-bridge-client.Bridge
   - MOD-bridge-client.settingsOf
   - MOD-bridge-client.bridgeAt
-  - MOD-bridge-client.testBridge
   - MOD-markdown-render.renderArtifact
   - MOD-text-tools.Finding
 provides:
@@ -87,15 +86,14 @@ provides:
 ## Responsibility
 
 It belongs to the Site (ARC-038). Its one responsibility is the conversation of UC-049: the prompt bar attached to the
-bottom of every main and review page, the only place where a person writes to an endpoint or a CLI session. It offers
-what this browser's configuration reaches — its model endpoints, and the CLI sessions its Bridges offer —, each named
-with the place where it processes data (`THE PAGE NAMES WHERE IT SENDS`); it holds the conversation in the browser tab;
-it sends each message as a job of the kind the page's subject names, with the page as its context, run in this tab
-without a job record; it shows the answer, and leads a draft to the review page that shows it; it shows a hand-over the
-participant proposes, queues it only on the person's click and only where Process's start rules let it start, and
-follows it until it has ended; and, where the instance switches recording on, it appends every message to a conversation
-record (`A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON`, `A RECORDED CONVERSATION IS KEPT WHERE IT
-WAS HELD`).
+bottom of every main and review page, the only place where a person writes to a participant. It offers the participants
+this browser reaches directly, each named with the place where it processes data (`THE PAGE NAMES WHERE IT SENDS`); it
+holds the conversation in the browser tab; it sends each message as a job of the kind the page's subject names, with the
+page as its context, run in this tab without a job record; it shows the answer, and leads a draft to the review page
+that shows it; it shows a hand-over the participant proposes, queues it only on the person's click and only where
+Process's start rules let it start, and follows it until it has ended; and, where the instance switches recording on, it appends every
+message to a conversation record (`A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON`, `A RECORDED
+CONVERSATION IS KEPT WHERE IT WAS HELD`).
 
 It is no view: the frame starts it on the main and the review pages, never in the Bridge's window, and hands it what it
 needs from the frame — the subject of the route shown, the folded explanations, and the frame's navigation — so that it
@@ -105,8 +103,7 @@ uses neither the frame nor a view (`MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE
 
 - `index.mjs` — the interface.
 - `bar.mjs` — the bar: the selector, the input, *Send* and *Stop*, the conversation, the waiting for a handed-over job.
-- `offer.mjs` — the endpoints and CLI sessions offered, read from this browser's configuration, and the place each is
-  named with.
+- `offer.mjs` — the participants offered and the place each is named with.
 - `send.mjs` — preparing and running a message as a job in this tab.
 - `hand-over.mjs` — a proposed hand-over assessed against the start rules, and queued on the person's click.
 - `follow.mjs` — a handed-over job followed by its record and its live state, its log, and *Stop*.
@@ -177,68 +174,56 @@ IN THE REPOSITORY`).
 - `startPromptBar(target: Element, setup: { page: "main" | "review", store: Store, instance: { repository: string, host:
   Host }, product: () -> { address: string, host: Host } | null, subject: () -> Subject, explain: (topic: string) ->
   Element, go: (route: string, params?: Record<string, string>) -> void }) -> { stop: () -> void }` — draws the bar into
-  `target`, fixed to the bottom of the window, and keeps it for the life of the page. It first reads this browser's
-  configuration, and reads no participant list for the offer (UC-049 1). It offers each model endpoint the store keeps
-  under `endpoint:<name>`, called by the tab or through the Bridge its setting names, and each CLI session — a coding
-  agent that a Bridge the store keeps under `bridge:<name>` offers, as MOD-bridge-client's `testBridge` lists it ready
-  —, whose configuration declares a place, a context and a model; one that lacks any of them is not offered (UC-049 1b),
-  and with none offered it draws nothing and says nothing (UC-049 1a). It hands each to the job runner as a
-  `Participant` of MOD-participant-list's shape, built from its configuration:
-  - for an endpoint, the type *model endpoint*, its model, the capabilities *draft text* and *read the repository*, and
-    *use tools* where its last test found that the model calls tools (`last-test:endpoint:<name>`), its context and
-    place, and the route `endpoint <name>`, with ` secret <NAME>` where its configuration names the CI secret of its
-    key;
-  - for a CLI session, the type *CLI agent*, and its model, capabilities, context and place as
-    `session:<bridge>:<agent>` declares them, and the route `bridge <bridge> agent <agent>`.
-
-  Of those offered it offers, for the page shown, only each that can do the subject's kind: `eligible` judges them
-  against the `needs` of `kindOf`'s definition of that kind, so that the offer follows the subject (UC-019 2). Where
-  some are offered and none can do the kind, it says so, names the capabilities the kind needs, and links the route
-  `endpoints` through `go` (UC-019 3a). With one offered, it names it; with several, a small selector above the input
-  chooses, each named with its processing place. A folded *What is this?* explains the bar. On *Send* — the decision to
-  send — it asks the subject for the kind and the parameters, adds the person's words as `instruction`, the conversation
-  so far as `conversation`, the subject's `entry` as `entry` and its `refuses` as `refuses`, prepares the job with
-  MOD-job-runner's `prepareJob` in a context from MOD-runtimes' `tabContext`, and sends nothing while the job does not
-  fit or a finding keeps it from starting, naming what (UC-049 3a, UC-019 4a, 4b): for a participant the job does not
-  fit, it names the participant, how many requirements and use cases the job holds for it and how many of them fit, from
-  the `holds` and `fitting` of that `notFitting` entry, and the tokens of its context against the job's size. It names
-  every destination before it sends — the drafter and, for a kind with reviewers, each reviewer, with its processing
-  place. With recording on — read from the instance at that moment —, it first appends the person's message to the
-  conversation record of the page's repository, as a commit with the token of that repository on the head that was read,
-  and again on a moved head; a message the subject withholds, or whose commit the host refuses for a stored secret, is
-  appended as withheld and sent; a message whose record cannot be appended for any other reason is not sent, and the bar
-  says why (`A RECORDED CONVERSATION IS KEPT WHERE IT WAS HELD`). It runs the job with `runOnTab` and no job record,
-  attended, and shows the answer: the text, the rounds and the findings the loop left, and, for a draft, *Review the
-  draft*, which keeps the `ConversationDraft` and goes to the subject's `draftRoute`; with recording on, the
-  participant's answer is appended as the result of the same *Send*. *Stop* aborts the job in the tab (UC-049 5a). A
-  hand-over the participant proposed (UC-049 4a) is shown with its kind, what it works on, its task, the participant
-  with its processing place and the route it would take, which `routesFor` gives; *Hand over* is the decision. For the
-  subject's own kind, the hand-over's job takes, beside what the hand-over works on, only the `source` that the
-  subject's `paramsFor` gives for the participant — no other parameter, so that no message and no page text enters the
-  job's record (`A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON`); where the subject finds no own
-  source of the person, `paramsFor` refuses by name, `NoPersonSource`, and so does the hand-over, with nothing queued
-  (`THE PERSON WHO PROMPTS IS A SOURCE`). For a kind of the product's workflow, it is queued only for a participant of
-  the instance's list that the hand-over names, never for the endpoint or CLI session itself, and only when
-  MOD-work-plans' `startable`, on the item states `itemStates` derives from the facts MOD-progress-measures'
-  `productFacts` reads, finds no reason — not selected for its team's sprint, a requirement or use case not accepted,
-  the work-in-progress limit, a gate not recorded — and MOD-product-process' `holdsRole` finds that participant in the
-  implementing role of the item's role assignment; otherwise the reasons are shown and nothing is queued (`NOTHING IS
-  IMPLEMENTED BEFORE IT IS ACCEPTED`, `A JOB GOES ONLY TO A HOLDER OF ITS ROLE`). It queues and starts the job with
-  MOD-runtimes' `handOverJob`, then follows it by its record and `liveState` until it has ended — *waiting for GitHub
-  Actions* with the run's address, or for the Bridge —, and shows its log's answer and the commits its end record names;
-  *Stop* then cancels it with `cancelJob`. It says above the selector when the conversation is recorded (UC-049 6c).
-  Crosses the network: to the participant through its route, and to the repository servers to read the subject, the
-  participants, the facts and the switch, to append the record, and to queue and start a hand-over. A failure of the
-  participant's route is shown in the conversation by name. A hand-over the product cannot take yet says what is missing
-  and links where it is set up (UC-049 4c): while the product has no job workflow — the CI route unavailable,
-  `routesFor` naming its files — the route `settings` through `go`, whose product section installs it; for a run ended
-  `not run` for a missing secret, the server's page of the repository's secrets (MOD-repository-hosts' `webLinks`,
-  `secrets`), naming the secret. Such a run writes neither `## Taken` nor `## End` (MOD-workflow-entries), so
+  `target`, fixed to the bottom of the window, and keeps it for the life of the page. It offers each participant of the
+  instance's list whose type is a model endpoint, a CLI agent or a sandboxed agent, that `reachedThrough` names no other
+  participant for, and whose route this browser reaches — an endpoint its store keeps, an agent on a Bridge its store
+  keeps (UC-049 precondition); with none reached, it draws nothing and says nothing (UC-049 1a). Of those reached it
+  offers, for the page shown, only each that can do the subject's kind: `eligible` judges them against the `needs` of
+  `kindOf`'s definition of that kind, so that the offer follows the subject (UC-019 2). Where some are reached and none can
+  do the kind, it says so, names the capabilities the kind needs, and links the route `participants` through `go`
+  (UC-019 3a). With one offered, it names it; with several, a small selector above the input chooses, each named with its
+  processing place. A folded *What is this?*
+  explains the bar. On *Send* — the decision to send — it asks the subject for the kind and the parameters, adds the
+  person's words as `instruction`, the conversation so far as `conversation`, the subject's `entry` as `entry` and its
+  `refuses` as `refuses`, prepares the job with MOD-job-runner's `prepareJob` in a context from MOD-runtimes' `tabContext`, and sends nothing while the job does not fit
+  or a finding keeps it from starting, naming what (UC-049 3a, UC-019 4a, 4b): for a participant the job does not fit, it
+  names the participant, how many requirements and use cases the job holds for it and how many of them fit, from the
+  `holds` and `fitting` of that `notFitting` entry, and the tokens of its context against the job's size. It names every destination before it sends
+  — the drafter and, for a kind with reviewers, each reviewer, with its processing place. With recording on — read from
+  the instance at that moment —, it first appends the person's message to the conversation record of the page's
+  repository, as a commit with the token of that repository on the head that was read, and again on a moved head; a
+  message the subject withholds, or whose commit the host refuses for a stored secret, is appended as withheld and
+  sent; a message whose record cannot be appended for any other reason is not sent, and the bar says why (`A RECORDED
+  CONVERSATION IS KEPT WHERE IT WAS HELD`). It runs the job with `runOnTab` and no job record, attended, and shows the
+  answer: the text, the rounds and the findings the loop left, and, for a draft, *Review the draft*, which keeps the
+  `ConversationDraft` and goes to the subject's `draftRoute`; with recording on, the participant's answer is appended as
+  the result of the same *Send*. *Stop* aborts the job in the tab (UC-049 5a). A hand-over the participant proposed
+  (UC-049 4a) is shown with its kind, what it works on, its task, the participant with its processing place and the
+  route it would take, which `routesFor` gives; *Hand over* is the decision. For the subject's own kind, the hand-over's job
+  takes, beside what the hand-over works on, only the `source` that the subject's `paramsFor` gives for the participant — no other
+  parameter, so that no message and no page text enters the job's record (`A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN
+  RECORDING IS ON`); where the subject finds no own source of the person, `paramsFor` refuses by name, `NoPersonSource`, and so
+  does the hand-over, with nothing queued (`THE PERSON WHO PROMPTS IS A SOURCE`). For a kind of the product's workflow, it is
+  queued only when MOD-work-plans' `startable`, on the item states `itemStates` derives from the facts
+  MOD-progress-measures' `productFacts` reads, finds no reason — not selected for its team's sprint, a requirement or use
+  case not accepted, the work-in-progress limit, a gate not recorded — and MOD-product-process' `holdsRole` finds the
+  participant in the implementing role of the item's role assignment; otherwise the reasons are shown and nothing is
+  queued (`NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED`, `A JOB GOES ONLY TO A HOLDER OF ITS ROLE`). It queues and starts
+  the job with MOD-runtimes' `handOverJob`, then follows it by its record and `liveState` until it has ended — *waiting
+  for GitHub Actions* with the run's address, or for the Bridge —, and shows its log's answer and the commits its end
+  record names; *Stop* then cancels it with `cancelJob`. It says above the selector when the conversation is recorded
+  (UC-049 6c). Crosses the network: to the participant through its route, and to the repository servers to read the
+  subject, the participants, the facts and the switch, to append the record, and to queue and start a hand-over. A
+  failure of the participant's route is shown in the conversation by name. A hand-over the product cannot take yet says
+  what is missing and links where it is set up (UC-049 4c): while the product has no job workflow — the CI route
+  unavailable, `routesFor` naming its files — the route `settings` through `go`, whose product section installs it; for a
+  run ended `not run` for a missing secret, the server's page of the repository's secrets (MOD-repository-hosts'
+  `webLinks`, `secrets`), naming the secret. Such a run writes neither `## Taken` nor `## End` (MOD-workflow-entries), so
   `liveState` and `jobLog` cannot report it; while a followed hand-over stays queued and untaken on the CI route, each
-  poll lists the runs of the job workflow with `listCiRuns`, and when a failed run no older than the job's start turns
-  up it reads that run's log once with `ciRunLog` and takes the secret from the entry's line `not run — <SECRET> is
-  missing`. The cost is one `listCiRuns` call per 15-second poll while the job stays queued and untaken, and one
-  `ciRunLog` call when a failed run turns up.
+  poll lists the runs of the job workflow with `listCiRuns`, and when a failed run no older than the job's start turns up it
+  reads that run's log once with `ciRunLog` and takes the secret from the entry's line `not run — <SECRET> is missing`.
+  The cost is one `listCiRuns` call per 15-second poll while the job stays queued and untaken, and one `ciRunLog` call when
+  a failed run turns up.
 - `latestDraft(store: Store, subject: string) -> ConversationDraft | null` — the conversation's latest draft, if it was
   drafted on that subject; for the review pages' route that shows it.
 - `dropDraft(store: Store, subject: string) -> void` — drops the conversation's latest draft, if it was drafted on that
@@ -265,9 +250,8 @@ records under `docs/conversations/`. It keeps the conversation in the tab's valu
 
 ## Uses
 
-- MOD-browser-store.Store, MOD-browser-store.readSetting, MOD-browser-store.listSettings — the endpoints, the Bridges
-  and the CLI sessions' declarations this browser keeps; MOD-bridge-client.testBridge — the CLI sessions a Bridge
-  offers; MOD-browser-store.readTabValue, MOD-browser-store.writeTabValue — the conversation, held in the tab.
+- MOD-browser-store.Store, MOD-browser-store.readSetting — the endpoints and the Bridges this browser keeps;
+  MOD-browser-store.readTabValue, MOD-browser-store.writeTabValue — the conversation, held in the tab.
 - MOD-repository-hosts.Host, MOD-repository-hosts.readSnapshot, MOD-repository-hosts.repositoryInfo — the participants,
   the switch, the head the record is appended on; MOD-repository-hosts.commitFiles — appending to the record;
   MOD-repository-hosts.webLinks — the server's page of the repository's secrets, linked when a secret is missing;
@@ -275,10 +259,9 @@ records under `docs/conversations/`. It keeps the conversation in the tab's valu
   learn that a hand-over's run ended `not run` and which secret it named.
 - MOD-documents.loadSchema, MOD-documents.readDocument, MOD-documents.writeDocument, MOD-documents.readRegister — its two
   files and the participant list.
-- MOD-participant-list.Participant — the shape an endpoint or a CLI session is handed to the job runner in;
-  MOD-participant-list.participantSchema, MOD-participant-list.participantsOf — the participants a hand-over of a kind
-  of the product's workflow is checked against; MOD-participant-list.eligible, MOD-job-catalogue.kindOf — which of the
-  offered can do the subject's kind.
+- MOD-participant-list.Participant, MOD-participant-list.participantSchema, MOD-participant-list.participantsOf,
+  MOD-participant-list.reachedThrough — the participants, and those reached only through another;
+  MOD-participant-list.eligible, MOD-job-catalogue.kindOf — which of them can do the subject's kind.
 - MOD-job-runner.prepareJob, MOD-job-runner.Prepared, MOD-job-runner.JobResult — a message prepared and checked to fit,
   and its result; MOD-job-runner.Strategies — the type of `handOverStrategies`.
 - MOD-approvals.approvalStrategies, MOD-spec-changes.specStrategies, MOD-artifact-edits.editStrategies,

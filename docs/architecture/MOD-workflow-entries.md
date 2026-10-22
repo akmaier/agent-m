@@ -170,13 +170,12 @@ for *Fetch again* (UC-004 7a), `onReleaseTagged` on a release tag, `onMainChange
   inputs the dashboard named (UC-024): writes the job's start record, those inputs its parameters, and runs it as
   `onRecordsChanged` runs a job. On a run a hand-over started (UC-049 4a), whose input `job` names a queued record whose
   task travels with the hand-over: takes that job and runs it with the input `task` as its instruction — for a model
-  endpoint, with opencode working with the endpoint the input `endpoint` names and the key from the CI secret the input
-  `secret` names (MOD-agent-processes) —; it writes the task to no file, and a branch whose commit messages or pull
-  request text hold the task's words is refused by name, the job then ending failed with nothing merged; it appends the
-  job's end with its commits, files and pull request, and leaves the answer in the run's summary and log, where the
-  prompt bar reads it. An endpoint the run cannot reach ends it `failed`, its summary naming the reason that
-  MOD-endpoint-calls' `diagnoseEndpoint` gives and the routes that would work — a self-hosted runner, or a Bridge
-  (UC-049 4d).
+  endpoint, with opencode working with the endpoint the input `endpoint` names and the key from the participant's secret
+  (MOD-agent-processes) —; it writes the task to no file, and a branch whose commit messages or pull request text hold the
+  task's words is refused by name, the job then ending failed with nothing merged; it appends the job's end with its
+  commits, files and pull request, and leaves the participant's answer in the run's summary and log, where the prompt bar
+  reads it. An endpoint the run cannot reach ends it `failed`, its summary naming the reason that MOD-endpoint-calls'
+  `diagnoseEndpoint` gives and the routes that would work — a self-hosted runner, or a Bridge (UC-049 4d).
 - `onTestsFinished(env: CiEnvironment) -> Promise<EntryStatus>` — in a product, the step after the tests of every run of
   MOD-test-schedule's configuration: the run's result record — the commit, the levels run, the occasion, who ran it, the
   date, the run's address, `uncommitted` when the working tree held changes not in the commit, and each test's outcome
