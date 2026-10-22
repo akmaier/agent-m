@@ -90,7 +90,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -134,16 +134,18 @@ jobs:
             return levels.size === 1 ? [...levels][0] : null;
           };
           // A file that starts Electron takes the lock of the one Electron fixture the node tests share, or stages the Electron through
-          // tests/site-usability.d/browser.mjs; two of them in one shard wait on that lock past the job's two minutes. Those files take the
-          // shards one after another in their sorted order, so that no two share one however many files sort before them; every other file
-          // stays at its place in the sorted list, modulo the shard count.
+          // tests/site-usability.d/browser.mjs; two of them in one shard wait on that lock past the job's two minutes, and one of them is
+          // slow enough that no other file may add to it and to the install of xvfb and openbox. Those files take the first shards, one
+          // each, in their sorted order, however many files sort before them; every other file is shared round-robin, in the sorted order,
+          // among the shards that are left.
           const startsElectron = (f) => /stageElectron|native-fixture-lock/.test(readFileSync(f, "utf8"));
-          // With more of them than shards two would share a lock, so the job fails and names them.
           const sorted = files.filter((f) => mode === "all" || (level(f) === "release") === (mode === "release")).sort();
           const electronFiles = sorted.filter(startsElectron);
-          if (electronFiles.length > Number(count)) { console.error(electronFiles.length + " test files start Electron for " + count + " shards: " + electronFiles.join(" ")); process.exit(1); }
-          let electron = 0;
-          const chosen = sorted.filter((f, index) => (startsElectron(f) ? electron++ : index) % Number(count) === Number(shard));
+          // With as many of them as shards no shard is left for the other files, so the job fails and names them.
+          if (electronFiles.length >= Number(count)) { console.error(electronFiles.length + " test files start Electron for " + count + " shards: " + electronFiles.join(" ")); process.exit(1); }
+          const others = sorted.filter((f) => !startsElectron(f));
+          const left = Number(count) - electronFiles.length;
+          const chosen = Number(shard) < electronFiles.length ? [electronFiles[Number(shard)]] : others.filter((_, index) => index % left === Number(shard) - electronFiles.length);
           if (!chosen.length) { console.error("no " + mode + " test file among " + files.length); process.exit(1); }
           console.log(chosen.join("\n"));
           JS
@@ -151,5 +153,5 @@ jobs:
         run: |
           mode=all
           if [[ "$GITHUB_BASE_REF" == sprint/* ]]; then mode=rest; fi
-          files=$(node "$RUNNER_TEMP/level.mjs" "$mode" "${{ matrix.shard }}" 16 tests/*.test.mjs)
+          files=$(node "$RUNNER_TEMP/level.mjs" "$mode" "${{ matrix.shard }}" 20 tests/*.test.mjs)
           node --test $files
