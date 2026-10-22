@@ -165,3 +165,17 @@ test("tests.yml: a node shard installs from the cache without an apt-get update"
   const seed = stepsOf(text, "apt-archives").find((step) => /--download-only/.test(step));
   assert.match(seed, /apt-get[^\n]*\bupdate\b/, "the job apt-archives runs the update");
 });
+
+// TST-1183011 · level: unit · module: MOD-test-schedule
+// guards: A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES
+// given: .github/workflows/tests.yml (the jobs `apt-archives` and `node`) and nightly.yml (the job `nightly`)
+// input: the `timeout` that bounds the first `apt-get install --download-only` of xvfb and openbox in each of the three
+// expect: every one is `timeout 15`, the same value in all three places, so that a stalled first mirror costs at most 15 s of a job's two minutes
+// Planted fault: 45 (or any other value) in one of the three places fails.
+test("the first download of xvfb and openbox is bounded by 15 seconds in the three places", () => {
+  for (const [file, job] of [["tests.yml", "apt-archives"], ["tests.yml", "node"], ["nightly.yml", "nightly"]]) {
+    const steps = stepsOf(read(file), job);
+    const bounded = steps.map((step) => /\btimeout\s+(\d+)\s+apt-get[^\n]*--download-only/.exec(step)?.[1]).filter(Boolean);
+    assert.deepEqual(bounded, ["15"], `${file} ${job}: one bounded first download, of 15 seconds`);
+  }
+});
