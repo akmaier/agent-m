@@ -41,7 +41,12 @@ line 753, `Cache saved with key: apt-xvfb-openbox-Linux-2026-43`). The repositor
 to measure #1305's cold run 39844719741, created at 19:58:12. Whether that deletion caused this miss is not shown. Either
 way, a shard must not depend on the cache being there.
 
-The remedy until this item is built: rerun the whole workflow, not one shard.
+**What #1306 (ITM-1184) already does.** `tests.yml`'s node shard creates `apt-archives/partial` and
+`apt-lists/partial`, and on a miss it runs `apt-get update` and installs from the mirror (`cfafeb06`). Still missing:
+a test that pins this, and a single-shard rerun after a cache miss shown green on CI
+(`docs/gates/20261022-2102-development-release-testing-30d9.md`, "Open").
+
+The remedy until this item is done: rerun the whole workflow, not one shard.
 
 ## Acceptance
 
