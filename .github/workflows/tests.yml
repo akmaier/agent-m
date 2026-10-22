@@ -121,12 +121,14 @@ jobs:
           apt_options="-o Acquire::Retries=1 -o Acquire::http::Timeout=10 -o DPkg::Lock::Timeout=50 -o Dir::Cache::archives=/home/runner/apt-archives -o Dir::State::lists=/home/runner/apt-lists"
           if ! sudo apt-get $apt_options install --yes --no-install-recommends --no-download xvfb openbox; then
             # The cache is gone: from the mirror. azure.archive.ubuntu.com sometimes sends one file so slowly that apt neither fails nor tries
-            # the next mirror: the first install is bounded, and when it fails archive.ubuntu.com becomes the mirror.
+            # the next mirror: the first download is bounded, and when it fails archive.ubuntu.com becomes the mirror. The install is not
+            # bounded: a kill while dpkg unpacks would leave dpkg interrupted.
             sudo apt-get $apt_options update
-            if ! sudo timeout 45 apt-get $apt_options install --yes --no-install-recommends xvfb openbox; then
+            if ! sudo timeout 45 apt-get $apt_options install --download-only --yes --no-install-recommends xvfb openbox; then
               echo "http://archive.ubuntu.com/ubuntu/" | sudo tee /etc/apt/apt-mirrors.txt
-              sudo apt-get $apt_options install --yes --no-install-recommends xvfb openbox
+              sudo apt-get $apt_options install --download-only --yes --no-install-recommends xvfb openbox
             fi
+            sudo apt-get $apt_options install --yes --no-install-recommends xvfb openbox
           fi
           openbox --version
       - name: Install Bridge app packages
