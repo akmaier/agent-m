@@ -81,7 +81,6 @@ jobs:
           mkdir -p /home/runner/apt-archives/partial
           apt_options="-o Acquire::Retries=1 -o Acquire::http::Timeout=10 -o DPkg::Lock::Timeout=50 -o Dir::Cache::archives=/home/runner/apt-archives"
           sudo apt-get $apt_options update
-          echo "10.255.255.1 azure.archive.ubuntu.com" | sudo tee -a /etc/hosts
           sudo apt-get $apt_options install --download-only --yes --no-install-recommends xvfb openbox
           sudo chmod -R a+rX /home/runner/apt-archives
   node:
