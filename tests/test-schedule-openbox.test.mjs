@@ -95,3 +95,28 @@ test("tests.yml: the install step counts against the two minutes of the node job
   assert.match(body, /^ {4}timeout-minutes:\s*2\s*$/m);
   assert.ok(INSTALL.test(body), "the install step is in the node job");
 });
+
+// TST-1179005 · level: unit · module: MOD-test-schedule
+// guards: A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES
+// given: .github/workflows/tests.yml
+// input: the job `apt-archives` and the job `node`
+// expect: `apt-archives` carries `timeout-minutes: 2`, has an actions/cache step whose path is apt's archive directory before a step that runs `apt-get install --download-only` of xvfb and openbox with `Acquire::Retries`, and the job `node` lists it under `needs`, so that the sixteen shards do not each download the packages from the mirror
+// Planted fault: dropping the job, its limit, `--download-only`, the cache step, or the `needs` line fails one assertion.
+test("tests.yml: one job downloads the archives into the cache, and the node shards wait for it", () => {
+  const text = read("tests.yml");
+  assert.ok(text.includes("\n  apt-archives:\n"), "a job apt-archives exists");
+  const body = text.slice(text.indexOf("\n  apt-archives:\n"));
+  const end = body.indexOf("\n  node:\n");
+  const job = end > 0 ? body.slice(0, end) : body;
+  assert.match(job, /^ {4}timeout-minutes:\s*2\s*$/m);
+  const steps = stepsOf(text, "apt-archives");
+  const download = steps.findIndex((step) => /apt-get[^\n]*install[^\n]*--download-only[^\n]*\bxvfb\b[^\n]*\bopenbox\b/.test(step));
+  assert.ok(download >= 0, "a step downloads xvfb and openbox without installing them");
+  assert.match(steps[download], /Acquire::Retries=\d+/);
+  const cache = indexOfStep(steps, /uses:\s*actions\/cache@/);
+  assert.ok(cache >= 0 && cache < download, "an actions/cache step stands before the download");
+  const archives = /Dir::Cache::archives=([^\s"']+)/.exec(steps[download])?.[1];
+  assert.equal(/^\s+path:\s*(\S+)\s*$/m.exec(steps[cache])?.[1], archives, "the cached path is apt's archive directory");
+  const node = text.slice(text.indexOf("\n  node:\n"));
+  assert.match(node, /^ {4}needs:\s*(apt-archives|\[\s*apt-archives\s*\])\s*$/m);
+});
