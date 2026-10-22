@@ -17,7 +17,7 @@
 //     product's one in a model without sprints, as src/prompt-bar/hand-over.mjs takes them. Facts carry no source register, so the places a restricted source permits are left to the job's
 //     preparation, which refuses content to a place the source does not permit.
 //   - The route of an action is the text a job's record writes: `tab`, `ci hosted`, `ci runner:<label>`, `bridge <name>`.
-//   - A job of the run counts against `jobs at once` while it is queued, running or cancelling, not while it waits at a gate; a job resumed counts. The resumptions come before the starts.
+//   - Every job of the run that has not ended counts against `jobs at once`, one that waits at a gate too (as the work-in-progress limit counts an item waiting for review); a resumption starts no further job.
 //     `startable` is asked with the items chosen earlier in the call as in progress, so that the work-in-progress limit holds across one call.
 //   - A job is resumed when it is a job of the run, waits at a named gate that has no resumption, and `facts.gateStates` gives that gate `passed`.
 //   - A run that is stopped or finished has no next actions. A cycle in the modules' uses gives the one refusal, the finding of the cycle, and nothing else.
@@ -35,7 +35,7 @@ import { startable } from "../work-plans/index.mjs";
  */
 
 const RULE = "A RUN FOLLOWS THE MODULES' INTERFACES";
-const RUNNING = new Set(["queued", "running", "cancelling"]);
+const ENDED = new Set(["done", "failed", "cancelled", "ended without record"]);
 
 const action = (fields) => ({ do: "start", kind: null, worksOn: null, route: null, participant: null, job: null, reason: null, ...fields });
 const known = (fact) => (fact === "unknown" ? null : fact ?? null);
@@ -114,9 +114,9 @@ export function nextActions(run, facts) {
   if (order?.cycle) return [refusal(graph, order.cycle)];
 
   const rows = new Map((facts.jobs ?? []).map((row) => [row.record.id, row]));
-  const running = run.jobs.filter(({ job }) => RUNNING.has(rows.get(job)?.state)).length;
-  const resumed = resumptions(run, facts, rows).slice(0, Math.max(0, run.limits.jobsAtOnce - running));
-  let free = Math.max(0, run.limits.jobsAtOnce - running - resumed.length);
+  const running = run.jobs.filter(({ job }) => rows.has(job) && !ENDED.has(rows.get(job).state)).length;
+  const resumed = resumptions(run, facts, rows);
+  let free = Math.max(0, run.limits.jobsAtOnce - running);
   if (known(facts.ci) === null) return resumed;
   if (!facts.ci.configured) return [...resumed, ...(free > 0 && !run.jobs.some(({ kind }) => kind === "set-up-ci") ? [action({ kind: "set-up-ci" })] : [])];
   if (order === null || known(facts.resourceNeeds) === null) return resumed;
