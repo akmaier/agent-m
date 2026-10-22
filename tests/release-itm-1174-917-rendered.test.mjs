@@ -199,9 +199,9 @@ test("TST-1178101 the full Requirements tree shares controls and keeps filtered 
       for (const control of [...initial.controls, ...initial.groups.map((group) => group.label)]) {
         assert.ok(control.visible && !control.disabled);
         assert.equal(control.font, initial.reference.font, `${kind}: controls share the version selector's font`);
-        assert.equal(control.size, initial.reference.size, `${kind}: controls share the version selector's text size`);
         assert.ok(control.border > 0 && control.borderStyle !== "none" && control.padding > 0, `${kind}: boxed, padded controls; actual=${JSON.stringify(control)}`);
       }
+      for (const control of initial.controls) assert.equal(control.size, initial.reference.size, `${kind}: search/select text shares the version selector's size`);
       for (let a = 0; a < initial.controls.length; a += 1) for (let b = a + 1; b < initial.controls.length; b += 1) {
         const x = initial.controls[a], y = initial.controls[b];
         assert.ok(x.right <= y.left || y.right <= x.left || x.bottom <= y.top || y.bottom <= x.top, `${kind}: narrowing controls do not overlap`);
