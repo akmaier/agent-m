@@ -19,7 +19,7 @@ origin:
 
 ## Outcome
 
-The check `backlog-checks` — `backlogFindings` on drafted items — and `backlogFindings` itself, as MOD-work-plans' file states them. `backlogFindings` is not built.
+The check `backlog-checks` — `backlogFindings` on drafted items —, as MOD-work-plans' file states it (:270). `backlogFindings` itself is built (ITM-688, `ab62a267`, `src/work-plans/checks.mjs`).
 It adds its strategy to `workStrategies`, which ITM-610 builds and registers, and changes no registration. With it, `propose-items` comes closer to being prepared without `UnknownStrategy`.
 
 **Not ready for a sprint yet.** Its readings are settled before it is selected: the functions it calls are read against MOD-work-plans' Uses; the tests of every input and output form it changes are grepped; every path it builds is checked to be reachable through the real host.
