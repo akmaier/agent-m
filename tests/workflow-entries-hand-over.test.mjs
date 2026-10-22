@@ -2,7 +2,7 @@
 // of docs/architecture/MOD-workflow-entries.md states them: "onRecordsChanged … takes each queued job whose route is this CI service, except one whose task
 // travels with its hand-over, which `onDispatch` takes"; "onDispatch … On a run a hand-over started (UC-049 4a), whose input `job` names a queued record
 // whose task travels with the hand-over: takes that job and runs it with the input `task` as its instruction — for a model endpoint, with opencode working
-// with the endpoint the input `endpoint` names and the key from the participant's secret (MOD-agent-processes) —; it writes the task to no file, and a branch
+// with the endpoint the input `endpoint` names and the key from the CI secret the input `secret` names (MOD-agent-processes) —; it writes the task to no file, and a branch
 // whose commit messages or pull request text hold the task's words is refused by name, the job then ending failed with nothing merged; it appends the job's
 // end with its commits, files and pull request, and leaves the participant's answer in the run's summary and log … An endpoint the run cannot reach ends it
 // `failed`, its summary naming the reason that MOD-endpoint-calls' `diagnoseEndpoint` gives and the routes that would work — a self-hosted runner, or a
@@ -20,8 +20,8 @@
 // `gate-record` this file registers: the recipe puts the job's instruction into the prompt, the writer commits the gate's record, and where the case asks for it
 // pushes a branch of its own with the commit message the case plants. Where the module file leaves a reading open, the test states the one it takes, and the
 // pull request names it:
-//   - The inputs are those of the job workflow's template: `job`, `task` and `endpoint` (the JSON text of { kind, baseUrl, model }), read from the event's payload.
-//   - The key is the value of the variable the participant's route names after ` secret `; AGENT_M_KEY_NAMES passes it.
+//   - The inputs are those of the job workflow's template: `job`, `task`, `endpoint` (the JSON text of { kind, baseUrl, model }) and `secret` (a secret's name), read from the event's payload.
+//   - The key of a hand-over with an endpoint is the value of the variable the input `secret` names, and no other; AGENT_M_KEY_NAMES passes it (ITM-1188: the workflow file names its keys when it is generated). A name AGENT_M_KEY_NAMES lacks is not run, naming the secret and saying that the job workflow is installed again from Settings.
 //   - The answer is the draft's `answer` where it is a text, else the draft as JSON; it goes to the file GITHUB_STEP_SUMMARY names and to the log.
 //   - A pull request is read by the number in the address the writer returned; its text is the title and the branch it carries, its commit messages those the
 //     server lists for it.
@@ -268,7 +268,7 @@ const refuse = () => { throw new TypeError("fetch failed: connect ECONNREFUSED 1
 // An answer of the spy: the status and JSON body of a model endpoint, recorded with the request.
 const answer = (status, body) => (request) => { request.answered = JSON.stringify(body); return new Response(request.answered, { status, headers: { "content-type": "application/json" } }); };
 const HAND_OVER = { id: JOB };
-const INPUTS = { job: JOB, task: TASK, endpoint: JSON.stringify(ENDPOINT) };
+const INPUTS = { job: JOB, task: TASK, endpoint: JSON.stringify(ENDPOINT), secret: "FIXTURE_KEY" };
 const holdsTask = (haystack) => haystack.includes("zebra-498");
 
 // ---------------------------------------------------------------- a hand-over run with its task
@@ -722,5 +722,90 @@ test("TST-944001: the branch check reads the history without the changes of any 
     const entries = await host.readHistory(null, { ref: pushed.commit });
     assert.equal(perCommit(), entries.length, "known positive: reading the changes costs one request per commit");
     assert.ok(entries.length >= 2);
+  });
+});
+
+// ---------------------------------------------------------------- the key comes from the secret the input names (ITM-1189)
+
+const INPUT_KEY_VALUE = "sk-INPUT-KEY-9f8e7d6c5b4a";
+const BOTH = { AGENT_M_KEY_NAMES: "FIXTURE_KEY INPUT_KEY", INPUT_KEY: INPUT_KEY_VALUE };
+const ASKS_FOR_INPUT_KEY = { ...INPUTS, secret: "INPUT_KEY" };
+
+// TST-1189001 · level: component · module: MOD-workflow-entries
+// guards: UC-049; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
+// given: as TST-498001, whose participant's route names FIXTURE_KEY, but the workflow file names two keys, FIXTURE_KEY and INPUT_KEY, each with a value of its own, and the dispatch's input secret is INPUT_KEY; and a second run whose agent fails while the endpoint answers 401
+// input: onDispatch with the task, the endpoint and the secret INPUT_KEY; and, for the second run, the same
+// expect: outcome `done`, opencode started once, its configuration names the key by {env:INPUT_KEY} and by no other variable, and holds neither value; no commit, file or output of the product holds the task or either value; in the second run the one request that reached the endpoint carries INPUT_KEY's value and not FIXTURE_KEY's
+test("TST-1189001: the agent's key is the one the input secret names, not the participant's", async () => {
+  await world({ records: [HAND_OVER] }, async (w) => {
+    const status = await w.dispatch(ASKS_FOR_INPUT_KEY, BOTH);
+    assert.equal(status.outcome, "done", status.summary);
+    assert.equal(w.starts().length, 1);
+    const config = JSON.parse(/^CONFIG (.*)$/m.exec(w.calls())[1]);
+    assert.equal(config.provider["agent-m"].options.apiKey, "{env:INPUT_KEY}");
+    assert.ok(!w.calls().includes("{env:FIXTURE_KEY}") && !w.calls().includes(KEY) && !w.calls().includes(INPUT_KEY_VALUE), "the configuration names the variable and holds no value");
+    assert.equal(holdsTask(w.everything()) || w.everything().includes(INPUT_KEY_VALUE) || w.everything().includes(KEY), false, "no commit or file holds the task or a key");
+  });
+  await world({ records: [HAND_OVER], agent: "failed", probe: answer(401, { error: { message: "Invalid API key." } }) }, async (w) => {
+    const status = await w.dispatch(ASKS_FOR_INPUT_KEY, BOTH);
+    assert.equal(status.outcome, "failed");
+    assert.equal(w.probes.length, 1);
+    const sent = JSON.stringify(w.probes[0].headers);
+    assert.ok(sent.includes(INPUT_KEY_VALUE), "the request carries the key of the named secret");
+    assert.equal(sent.includes(KEY), false, "and not the participant's");
+  });
+});
+
+// TST-1189002 · level: component · module: MOD-workflow-entries
+// guards: UC-049; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
+// given: as TST-1189001, but the workflow file names INPUT_KEY and the repository holds no value for it (the variable is empty); and, as the known positive, the same with the value
+// input: onDispatch with the secret INPUT_KEY
+// expect: outcome `not run`; the summary names INPUT_KEY in the form `<SECRET> is missing`, so that "not run — " + the summary matches /not run — (\S+) is missing/ with INPUT_KEY; main is as it was, the job is not taken, opencode is never started; the summary does not say that the workflow names no such key; with the value outcome `done`
+test("TST-1189002: a named secret the repository lacks ends the run not run, naming it", async () => {
+  await world({ records: [HAND_OVER] }, async (w) => {
+    const status = await w.dispatch(ASKS_FOR_INPUT_KEY, { ...BOTH, INPUT_KEY: "" });
+    assert.equal(status.outcome, "not run");
+    assert.equal(/not run — (\S+) is missing/.exec(`not run — ${status.summary}`)?.[1], "INPUT_KEY");
+    assert.doesNotMatch(status.summary, /names no such key/);
+    assert.equal(w.mainHead(), w.head, "main is as it was");
+    assert.equal(w.starts().length, 0);
+    assert.equal((await w.dispatch(ASKS_FOR_INPUT_KEY, BOTH)).outcome, "done", "known positive: with the value the job is run");
+  });
+});
+
+// TST-1189003 · level: component · module: MOD-workflow-entries
+// guards: UC-049; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
+// given: as TST-1189001, but the workflow file names only FIXTURE_KEY (AGENT_M_KEY_NAMES), although a variable INPUT_KEY with a value is in the environment
+// input: onDispatch with the secret INPUT_KEY
+// expect: outcome `not run`; the summary names INPUT_KEY as missing in the form `<SECRET> is missing`, says that the job workflow names no such key and that it is installed again from Settings; main is as it was, opencode is never started, and the value of INPUT_KEY is in no output
+test("TST-1189003: a name the workflow file does not name ends the run not run, and says to install the job workflow again from Settings", async () => {
+  await world({ records: [HAND_OVER] }, async (w) => {
+    const status = await w.dispatch(ASKS_FOR_INPUT_KEY, { INPUT_KEY: INPUT_KEY_VALUE });
+    assert.equal(status.outcome, "not run");
+    assert.equal(/not run — (\S+) is missing/.exec(`not run — ${status.summary}`)?.[1], "INPUT_KEY");
+    assert.match(status.summary, /job workflow names no such key/);
+    assert.match(status.summary, /installed again from Settings/);
+    assert.equal(w.mainHead(), w.head, "main is as it was");
+    assert.equal(w.starts().length, 0);
+    assert.equal((status.summary + w.lines()).includes(INPUT_KEY_VALUE), false);
+  });
+});
+
+// TST-1189004 · level: component · module: MOD-workflow-entries
+// guards: UC-049; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
+// given: as TST-1189001, with the person's token AGENT_M_TOKEN and the participant's FIXTURE_KEY in the environment; and, as the known positive, the same with the secret INPUT_KEY
+// input: onDispatch with the secret AGENT_M_TOKEN; with the secret `constructor`; with the secret INPUT_KEY
+// expect: for the first two outcome `not run`, naming that name as missing, opencode never started, main as it was, and neither the token's value nor any other key's in the summary or output; for INPUT_KEY outcome `done`
+test("TST-1189004: no other secret is read: the person's token and a name that is no key are not run", async () => {
+  await world({ records: [HAND_OVER] }, async (w) => {
+    for (const name of ["AGENT_M_TOKEN", "constructor"]) {
+      const status = await w.dispatch({ ...INPUTS, secret: name }, BOTH);
+      assert.equal(status.outcome, "not run", name);
+      assert.equal(/not run — (\S+) is missing/.exec(`not run — ${status.summary}`)?.[1], name);
+      assert.equal(w.starts().length, 0, name);
+      assert.equal(w.mainHead(), w.head, name);
+      assert.equal((status.summary + w.lines()).includes(TOKEN) || (status.summary + w.lines()).includes(KEY), false, name);
+    }
+    assert.equal((await w.dispatch(ASKS_FOR_INPUT_KEY, BOTH)).outcome, "done", "known positive");
   });
 });
