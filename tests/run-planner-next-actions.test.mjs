@@ -23,7 +23,7 @@
 //     A module the item changes itself does not have to be done for it.
 //   - The holder is the first participant of the register, in its order, for whom `startable` admits the item (it is a holder of the implementing role in the item's role assignment, with what
 //     the role needs) and whose route (MOD-runtimes' routesFor, given the product's job workflow and visibility and its resource needs) has an offer that can be taken.
-//   - A job counts against `jobs at once` while it is queued, running or cancelling, not while it waits at a gate; a job resumed counts too. A start is asked of `startable` with the items
+//   - Every job of the run that has not ended counts against `jobs at once`, one that waits at a gate too; a resumption starts no further job. A start is asked of `startable` with the items
 //     chosen before it in the same call as in progress, so that the work-in-progress limit holds across one call.
 //   - A job is resumed when it is a job of the run, waits at a gate that has no resumption, and the gate states give that gate `passed`; the action names the job's own kind, route and participant.
 //   - A run that is stopped or finished has no next actions. A cycle gives the one `refuse` and nothing else, also before the CI is set up.
@@ -181,8 +181,8 @@ test("nextActions starts the steps of a phase only once the gate before it is re
 // TST-977004 · level: unit · module: MOD-run-planner
 // guards: A JOB STOPS AT EVERY GATE; A RUN CONTINUES WITHOUT A CLICK BETWEEN ITS JOBS; UC-043
 // given: the run's job J1 on ITM-003 and its job J2 on ITM-004 wait at the gate "Merge review" of the Product Owner (bridge lab, dev-a); a job J9 of another run waits at it too; the gate is (a) pending, (b) passed
-// input: nextActions(the run, the facts) of each, with jobs at once 3; and with jobs at once 1; and with the gate pending, ITM-007 ready and jobs at once 1
-// expect: (a) none; (b) with jobs at once 3 the resumption of J1 and of J2, each { do: "resume", kind: "implement", worksOn, route: "bridge lab", participant: "dev-a", job, reason: null }, not of J9; with jobs at once 1 the resumption of J1 only, the one place; with the gate pending and ITM-007 ready, ITM-007 starts although the two jobs wait: a job at a gate fills no place
+// input: nextActions(the run, the facts) of each, with jobs at once 3; and with jobs at once 1; and with the gate pending, ITM-007 ready and jobs at once 1, 2 and 3
+// expect: (a) none; (b) the resumption of J1 and of J2 with jobs at once 3 and with 1, each { do: "resume", kind: "implement", worksOn, route: "bridge lab", participant: "dev-a", job, reason: null }, not of J9: a resumption starts no further job; with the gate pending and ITM-007 ready, ITM-007 starts only with jobs at once 3: a job waiting at a gate has not ended and fills its place
 test("nextActions resumes a job of the run whose gate has been decided, and lets the others go on while a job waits at a gate", async () => {
   const gates = [{ at: new Date("2026-10-23T09:10:00Z"), gate: "Merge review", decider: "Product Owner", resumedBy: null }];
   const jobs = [row({ id: "JOB-20261023-0901-aaaa", worksOn: "ITM-003", state: "waiting at a gate", gates }), row({ id: "JOB-20261023-0902-bbbb", worksOn: "ITM-004", state: "waiting at a gate", gates }),
@@ -194,9 +194,11 @@ test("nextActions resumes a job of the run whose gate has been decided, and lets
   assert.deepEqual(next(runOf({ selection: ["ITM-003", "ITM-004"], jobs: named }), await factsOf({ items, jobs, gateStates: gateState("pending") })), []);
   const decided = await factsOf({ items, jobs, gateStates: gateState("passed") });
   assert.deepEqual(next(runOf({ selection: ["ITM-003", "ITM-004"], jobs: named }), decided), [resumed("JOB-20261023-0901-aaaa", "ITM-003"), resumed("JOB-20261023-0902-bbbb", "ITM-004")]);
-  assert.deepEqual(next(runOf({ selection: ["ITM-003", "ITM-004"], jobs: named, jobsAtOnce: 1 }), decided), [resumed("JOB-20261023-0901-aaaa", "ITM-003")]);
+  assert.deepEqual(next(runOf({ selection: ["ITM-003", "ITM-004"], jobs: named, jobsAtOnce: 1 }), decided), [resumed("JOB-20261023-0901-aaaa", "ITM-003"), resumed("JOB-20261023-0902-bbbb", "ITM-004")]);
   const withEcho = await factsOf({ items: only("ITM-003", "ITM-004", "ITM-007"), jobs, gateStates: gateState("pending") });
-  assert.deepEqual(next(runOf({ selection: ["ITM-003", "ITM-004", "ITM-007"], jobs: named, jobsAtOnce: 1 }), withEcho), [startOf("ITM-007")]);
+  const all = ["ITM-003", "ITM-004", "ITM-007"];
+  for (const jobsAtOnce of [1, 2]) assert.deepEqual(next(runOf({ selection: all, jobs: named, jobsAtOnce }), withEcho), [], `jobs at once ${jobsAtOnce}: both places are held by the jobs at the gate`);
+  assert.deepEqual(next(runOf({ selection: all, jobs: named, jobsAtOnce: 3 }), withEcho), [startOf("ITM-007")]);
 });
 
 // ---------------------------------------------------------------- a failed job, a stopped run
