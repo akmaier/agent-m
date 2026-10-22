@@ -207,7 +207,7 @@ test("a part carries the sources of the paths its text comes from — MOD-work-p
 // guards: UC-032
 // given: the fixture product without its backlog (no file under docs/backlog/), and the fixture product without its SPEC.md
 // input: the recipe backlog-inputs
-// expect: without a backlog the parts are those of TST-615001 but the part "existing items", and the part "not yet realised by an item" holds ALPHA RULE, BETA RULE, UC-001 and UC-002, since no item realises any; without a SPEC.md no requirement is given and nothing fails: the use cases, the part "not yet realised by an item" (UC-001, UC-002), the architecture and the items
+// expect: without a backlog the parts are those of TST-615001 but the part "existing items", and the part "not yet realised by an item" holds ALPHA RULE, BETA RULE, UC-001 and UC-002, since no item realises any; without a SPEC.md no requirement is given and nothing fails: the use cases, the part "not yet realised by an item" holding UC-002 alone (ITM-001 still realises UC-001), the architecture and the items
 test("a part with nothing to give is not given, and a product without a SPEC gives no requirement — MOD-work-plans", async () => {
   assert.equal((await recipe(FILES)).length, 9, "known positive: the items' part is there when the product has items");
   const noBacklog = await recipe(without(FILES, "docs/backlog/"));
@@ -215,7 +215,7 @@ test("a part with nothing to give is not given, and a product without a SPEC giv
   assert.deepEqual(noBacklog.find((part) => part.name === UNREALISED).text.split("\n").map((line) => line.replace(/^- /, "")), ["ALPHA RULE", "BETA RULE", "UC-001", "UC-002"]);
   const noSpec = await recipe(without(FILES, "SPEC.md"));
   assert.deepEqual(namesOf(noSpec), ALL.filter((name) => !["ALPHA RULE", "BETA RULE"].includes(name)));
-  assert.deepEqual(noSpec.find((part) => part.name === UNREALISED).text.split("\n").map((line) => line.replace(/^- /, "")), ["UC-001", "UC-002"]);
+  assert.deepEqual(noSpec.find((part) => part.name === UNREALISED).text.split("\n").map((line) => line.replace(/^- /, "")), ["UC-002"]);
 });
 
 // TST-615008 · level: unit · module: MOD-work-plans
