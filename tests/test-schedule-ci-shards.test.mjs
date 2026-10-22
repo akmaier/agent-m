@@ -1,7 +1,7 @@
-// The node shards of the pull-request CI keep the test files that need the controlled Electron apart (ITM-945): the partition that
-// .github/workflows/tests.yml writes as level.mjs in its node job and runs once per shard puts no two of those files into one shard,
-// however many files sort before them, leaves every other file in the shard its place in the sorted list gives it, and fails the job,
-// naming the files and the shard count, when there are more of them than shards. The files that need the Electron are found here by the
+// The node shards of the pull-request CI keep the test files that need the controlled Electron apart (ITM-945, ITM-1184): the partition that
+// .github/workflows/tests.yml writes as level.mjs in its node job and runs once per shard puts each of those files into a shard of its own,
+// however many files sort before them, shares every other file round-robin, in the sorted list's order, among the shards that hold none of
+// them, and fails the job, naming the files and the shard count, when there are as many of them as shards or more. The files that need the Electron are found here by the
 // partition's own rule (ITM-947), read from the workflow's script, and no list of them is kept.
 // Run: node --test tests/test-schedule-ci-shards.test.mjs
 //
@@ -16,7 +16,7 @@
 // Readings, each adding no word to the sentence it reads (ITM-945's Acceptance, "No two test files that start Electron share a node shard,
 // in every mode"; ITM-947's, "builds exactly as many such files as shards, whatever the real count is"):
 //   - "every mode" is the two modes the workflow runs, `all` (a pull request into the default branch) and `rest` (a pull request into a
-//     sprint's branch, which leaves out the files of level release); the shard count is the node job's eight.
+//     sprint's branch, which leaves out the files of level release); the shard count is the node job's.
 //   - "a list with files added before them" is the repository's files with files added whose paths sort before every path of tests/.
 //   - "as many such files as shards" is the repository's files that match the rule plus copies of one of them, under other names and added
 //     before them, up to eight; "one more than shards" is nine. "A smaller copy" is the repository's other files with seven copies only.
@@ -164,16 +164,37 @@ test("TST-945003 · a file added before them that needs the Electron stands apar
 // level: unit
 // module: MOD-test-schedule
 // guards: A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES
-// given: the repository's test files in mode `all`, alone and with two small test files added before them
-// input: the partition run for each shard 0..7
-// expect: every file the rule does not find stands in shard (its place in the sorted list) % 8, as it does with plain `index % 8`
-test("TST-945004 · every other file keeps the shard its place in the sorted list gives it", () => {
+// given: the repository's test files in mode `all`, alone and with two small test files added before them; E is the number of files the rule finds among them
+// input: the partition run for each shard 0..19
+// expect: the other files, in the sorted list's order, stand round-robin in the shards E to 19: the n-th other file (n from 0) in shard E + n % (20 - E)
+test("TST-945004 · every other file stands round-robin in the shards that hold no file needing the Electron", () => {
   for (const count of [0, 2]) {
     const where = shards("all", [...added(count), ...repositoryFiles()], `all-${count}`);
     const sorted = [...where.keys()].sort();
     assert.equal(sorted.length, count + repositoryFiles().length, "every file stands in a shard");
-    const moved = sorted.map((file, index) => [file, index % SHARDS]).filter(([file, shard]) => !starts(file) && where.get(file) !== shard).map(([file]) => file);
-    assert.deepEqual(moved, [], `${count} files added: files that left the shard their place gives them`);
+    const electron = sorted.filter((file) => starts(file)).length;
+    const others = sorted.filter((file) => !starts(file));
+    const moved = others.map((file, index) => [file, electron + (index % (SHARDS - electron))]).filter(([file, shard]) => where.get(file) !== shard).map(([file]) => file);
+    assert.deepEqual(moved, [], `${count} files added: files that left the shard the round-robin gives them`);
+  }
+});
+
+// TST-1184001
+// level: unit
+// module: MOD-test-schedule
+// guards: A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES
+// given: the repository's test files, in each of the two modes
+// input: the partition run for each shard 0..19
+// expect: every shard that holds a file needing the Electron holds that one file and no other, so that the other files' tests do not add to a slow Electron file and to the install of xvfb and openbox
+test("TST-1184001 · a file that needs the Electron stands alone in its shard", () => {
+  for (const mode of ["all", "rest"]) {
+    const where = shards(mode, repositoryFiles(), `${mode}-0`);
+    const names = needing([...where.keys()]);
+    assert.notDeepEqual(names, [], `${mode}: the rule finds files`);
+    for (const name of names) {
+      const company = [...where].filter(([, shard]) => shard === where.get(name)).map(([file]) => file);
+      assert.deepEqual(company, [name], `${mode}: ${name} shares its shard`);
+    }
   }
 });
 
@@ -312,15 +333,35 @@ test("TST-945006 · more files that need the Electron than shards: the partition
 // level: unit
 // module: MOD-test-schedule
 // guards: A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES
-// given: the repository's test files in mode `all` with as many copies of tests/site-usability.test.mjs added before them as make exactly eight files that need the Electron for eight shards, whatever the repository holds of them
-// input: the partition run for each shard 0..7
-// expect: every run succeeds and the eight files stand in eight different shards (the limit is more files than shards, not as many)
-test("TST-945007 · as many files that need the Electron as shards: the partition succeeds and each has a shard of its own", () => {
-  const { copies, files } = listWith(SHARDS);
-  const where = shards("all", [...copies, ...files], "all-eight");
+// given: the repository's test files in mode `all` with as many copies of tests/site-usability.test.mjs added before them as make exactly one file fewer that needs the Electron than there are shards, whatever the repository holds of them
+// input: the partition run for each shard 0..19
+// expect: every run succeeds and the files stand in different shards (the limit is as many files as shards: the other files need a shard)
+test("TST-945007 · one file fewer that needs the Electron than shards: the partition succeeds and each has a shard of its own", () => {
+  const { copies, files } = listWith(SHARDS - 1);
+  const where = shards("all", [...copies, ...files], "all-fewer");
   const names = needing([...where.keys()]);
-  assert.equal(names.length, SHARDS);
+  assert.equal(names.length, SHARDS - 1);
   assert.deepEqual(shared(where, names), []);
+});
+
+// TST-1184002
+// level: unit
+// module: MOD-test-schedule
+// guards: A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES
+// given: the repository's test files in mode `all` with as many copies of tests/site-usability.test.mjs added before them as make exactly as many files that need the Electron as there are shards
+// input: the partition run for the shards 0 and 19
+// expect: each run ends with a non-zero status and no file list, and its error text names all the files and "<shard count> shards": no shard is left for the other files
+test("TST-1184002 · as many files that need the Electron as shards: the partition fails, since no shard is left for the other files", () => {
+  const { copies, files } = listWith(SHARDS);
+  const names = needing([...copies, ...files]);
+  assert.equal(names.length, SHARDS);
+  for (const shard of [0, SHARDS - 1]) {
+    const run = spawnSync(process.execPath, [script, "all", String(shard), String(SHARDS), ...copies, ...files], { cwd: root, encoding: "utf8" });
+    assert.notEqual(run.status, 0, `shard ${shard} ends with a failure`);
+    assert.equal(run.stdout.trim(), "", `shard ${shard} hands out no files`);
+    for (const name of names) assert.equal(run.stderr.includes(name), true, `shard ${shard}: the error names ${name}`);
+    assert.equal(run.stderr.includes(`${SHARDS} shards`), true, `shard ${shard}: the error names the number of shards`);
+  }
 });
 
 // TST-945008
@@ -343,11 +384,11 @@ test("TST-945008 · over a smaller copy with seven files that need the Electron,
 // guards: A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES
 // given: the node job of .github/workflows/tests.yml
 // input: the shard numbers its matrix lists, and the shard count its script is run with
-// expect: the matrix lists the shards 0 to 15, one job each, and the script is run with the count 16: the 741 tests of the heaviest shard of a run of all levels (8 shards, 2 m 11 s) are spread over 16 shards so that no job nears the two-minute limit; the matrix and the count agree, so that every file runs once
-test("TST-948001 · the node job runs the sixteen shards its matrix lists, with the count sixteen", () => {
+// expect: the matrix lists the shards 0 to 19, one job each, and the script is run with the count 20: the files that need the Electron have a shard each (ten at most), and the other files are spread over the rest so that no job, with the install of xvfb and openbox before its tests, nears the two-minute limit; the matrix and the count agree, so that every file runs once
+test("TST-948001 · the node job runs the twenty shards its matrix lists, with the count twenty", () => {
   const stated = nodeJobShards(workflowText);
-  assert.deepEqual(stated.matrix, Array.from({ length: 16 }, (_, number) => number));
-  assert.equal(stated.count, 16);
+  assert.deepEqual(stated.matrix, Array.from({ length: 20 }, (_, number) => number));
+  assert.equal(stated.count, 20);
   assert.equal(agree(stated), true);
 });
 
@@ -355,16 +396,16 @@ test("TST-948001 · the node job runs the sixteen shards its matrix lists, with 
 // level: unit
 // module: MOD-test-schedule
 // guards: A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES
-// given: node jobs as text: a matrix of sixteen shards run with the count eight, a matrix of eight run with the count sixteen, a matrix of sixteen run with sixteen, and a text without a matrix
+// given: node jobs as text: a matrix of twenty shards run with the count eight, a matrix of eight run with the count twenty, a matrix of twenty run with twenty, and a text without a matrix
 // input: the agreement check of the matrix and the count
-// expect: only the matrix of sixteen with the count sixteen agrees; the others are named as disagreeing (counter-proof of TST-948001: shards that run no file, or files that run in no shard)
+// expect: only the matrix of twenty with the count twenty agrees; the others are named as disagreeing (counter-proof of TST-948001: shards that run no file, or files that run in no shard)
 test("TST-948002 · counter-proof: a matrix and a count that disagree are found", () => {
   const job = (matrix, count) => `\n  node:\n    strategy:\n      matrix:\n        shard: [${matrix}]\n    steps:\n      - run: |\n          files=$(node "$RUNNER_TEMP/level.mjs" "$mode" "\${{ matrix.shard }}" ${count} tests/*.test.mjs)\n`;
-  const sixteen = Array.from({ length: 16 }, (_, number) => number).join(", ");
+  const sixteen = Array.from({ length: 20 }, (_, number) => number).join(", ");
   const eight = Array.from({ length: 8 }, (_, number) => number).join(", ");
-  assert.equal(agree(nodeJobShards(job(sixteen, 16))), true);
+  assert.equal(agree(nodeJobShards(job(sixteen, 20))), true);
   assert.equal(agree(nodeJobShards(job(sixteen, 8))), false);
-  assert.equal(agree(nodeJobShards(job(eight, 16))), false);
+  assert.equal(agree(nodeJobShards(job(eight, 20))), false);
   assert.equal(agree(nodeJobShards("\n  node:\n    steps: []\n")), false);
 });
 
@@ -372,14 +413,14 @@ test("TST-948002 · counter-proof: a matrix and a count that disagree are found"
 // level: unit
 // module: MOD-test-schedule
 // guards: A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES
-// given: the text of .github/workflows/tests.yml as it stands, and a copy of it with the node job's count planted at 8 while its matrix lists 16 shards
+// given: the text of .github/workflows/tests.yml as it stands, and a copy of it with the node job's count planted at 8 while its matrix lists 20 shards
 // input: the agreement check of the matrix and the count, on each text
 // expect: the real text agrees (the matrix lists the shards 0 to count - 1); the planted copy is found to disagree
 test("TST-948003 · the real workflow's node matrix and count agree, and a copy with the count at 8 and the matrix at 16 is found to disagree", () => {
   assert.equal(agree(nodeJobShards(workflowText)), true);
   const planted = workflowText.replace(/(\{\{ matrix\.shard \}\}" )\d+( tests\/\*\.test\.mjs)/, (whole, before, after) => `${before}8${after}`);
   assert.notEqual(planted, workflowText, "the count was planted");
-  assert.equal(nodeJobShards(planted).matrix.length, 16);
+  assert.equal(nodeJobShards(planted).matrix.length, 20);
   assert.equal(nodeJobShards(planted).count, 8);
   assert.equal(agree(nodeJobShards(planted)), false);
 });

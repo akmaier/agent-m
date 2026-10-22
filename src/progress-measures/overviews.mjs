@@ -13,6 +13,8 @@
 //   - A job is current while it has not ended: queued, running, cancelling or waiting at a gate. Its identifier is the record's `id`.
 //   - A source of jobs is the route its record names; a record that could not be read names none, so its path stands for the source. A source is listed once.
 
+import { conflicts } from "../work-plans/index.mjs";
+
 /** The record of a gate, among the records the facts hold, by the path gateStates names. */
 function decidedBy(facts, path) {
   const record = path === null ? undefined : facts.gates.find((candidate) => candidate.path === path);
@@ -75,29 +77,16 @@ export function whoWorksOnWhat(facts) {
 //   - An entry is an item or step of facts.plan.states with the first reason that applies, in the order of the plan; its `detail` is the sentence
 //     the item's state gives (the gate and its decider are in it), or, for the two reasons only the facts can give, the sentence built here.
 //   - A state `blocked` is a failed job or a job waiting at a gate by the state of the row of its job in facts.jobs; without that row it is not listed.
-//   - A `ready` item is held by another team's sprint for each module it changes (facts.plan.items) that a held item of another team changes or uses;
-//     the modules an item uses are not in the facts, so they are not compared.
+//   - A `ready` item is held by another team's sprint for each entry MOD-work-plans' `conflicts` gives for it over facts.held and facts.modules: a module it
+//     changes that a held item of another team changes or uses, or a module it uses that such an item changes; a hold of the item itself has no module.
 //   - A `ready` item meets the work-in-progress limit (facts.model.flow.wip) when the items in progress under its team number at least the limit: in a
 //     model with sprints those held by the same team's sprint, and none for an item no sprint holds; otherwise all of them.
 
 const listed = (names) => (names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`);
-const modulesOf = (document) => {
-  const value = document?.fields?.modules;
-  return Array.isArray(value) ? value : String(value ?? "").split(",").map((part) => part.trim()).filter(Boolean);
-};
 
-// The modules `item` changes that a held item of another team changes or uses, one sentence for each, in the order of the held items and of the modules.
-function heldBy(item, team, facts) {
-  const changes = modulesOf(facts.plan.items.find((candidate) => candidate.id === item));
-  const sentences = [];
-  for (const other of facts.held) {
-    if (other.team === team) continue;
-    for (const module of [...new Set([...other.changes, ...other.uses])].sort()) {
-      if (changes.includes(module)) sentences.push(`${module} is held by ${other.item} in ${other.sprint} of ${other.team}`);
-    }
-  }
-  return sentences;
-}
+// The sentence of each hold `conflicts` names, in its order: the module, the held item, its sprint and its team.
+const heldBy = (item, team, facts) => conflicts(facts.plan.items.find((candidate) => candidate.id === item), team, facts.held, facts.modules)
+  .map((hold) => (hold.module === "" ? `${hold.item} is held in ${hold.sprint} of ${hold.team}` : `${hold.module} is held by ${hold.item} in ${hold.sprint} of ${hold.team}`));
 
 // The sentence of the work-in-progress limit when it keeps `item` from moving, else null.
 function limitOf(item, team, facts) {
