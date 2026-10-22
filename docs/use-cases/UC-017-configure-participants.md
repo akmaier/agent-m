@@ -71,7 +71,7 @@ them to roles (UC-048).
      the **model** the agent is configured to use, for example `claude-opus-5-5`. Several participants may name the
      same Bridge and agent: each job starts its own process there (UC-011, 1d). A **subagent** — an agent that another
      CLI agent starts, such as a Claude Code subagent — names, instead of a Bridge, the participant that starts it: it is
-     reached only through that participant, and the prompt bar does not offer it (UC-049, 1b).
+     reached only through that participant.
 
    Every participant that works with a language model names its model; Agent M compares these names when
    it picks three checkers that differ from the rewriting participant (UC-038, step 6). A person names none.

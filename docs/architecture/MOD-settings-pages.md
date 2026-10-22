@@ -179,17 +179,16 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     tokens and the name of the CI secret that holds its key, and, for one the browser cannot call, the Bridge that
     reaches it, chosen among the Bridges this browser keeps; the test request, directly or through that Bridge, with
     whether the model called the tool it was offered — *can use tools* or *text only* (UC-003 step 5, 5a) —, and the
-    reason and the routes that would work when a browser may not call it; *Clear*.
+    reason and the routes that would work when a browser may not call it; a folded explanation that the prompt bar
+    appears once an endpoint is configured or a Bridge offers a CLI session (UC-049 1a); *Clear*.
   - `participants` — the instance's participants in a form from the participant schema, a new one prefilled with the
-    parameters `type` and `address` where the route is opened with them: type, model, context and price,
-    capabilities, processing place, route; for a CLI or sandboxed agent, the Bridge it runs on, chosen among this
-    browser's Bridges, the agents that Bridge offers, and *Test* through it — or, for a subagent, the CLI agent that
-    starts it, which it is reached through and which the prompt bar talks to instead (UC-017 step 3); for a model
-    endpoint, *use tools* preset from its endpoint's last test, and the CI secret of its key where work in the prompt bar
-    may be handed to GitHub Actions; a folded explanation that the prompt bar appears once a model endpoint, CLI agent or
-    sandboxed agent this browser reaches is listed (UC-049 1a); for a self-hosted runner, the explanation
-    that it serves private repositories only and is refused when a public product's job would run on it (`routesFor`); a
-    change to a participant that products use, with those products and roles named.
+    parameters `type` and `address` where the route is opened with them: type, model, context and price, capabilities,
+    processing place, route; for a CLI or sandboxed agent, the Bridge it runs on, chosen among this browser's Bridges,
+    the agents that Bridge offers, and *Test* through it — or, for a subagent, the CLI agent that starts it, which it is
+    reached through (UC-017 step 3); for a model endpoint, *use tools* preset from its endpoint's last test, and the CI
+    secret of its key where its jobs may run on the server's runners; for a self-hosted runner, the explanation that it
+    serves private repositories only and is refused when a public product's job would run on it (`routesFor`); a change
+    to a participant that products use, with those products and roles named.
   - `library`, `library/<source>`, `sources` — the instance's register of sources and a source's versions; *+ Register
     source* by route — EU legal text, standard, documents, repository — with the files hashed in the browser and what
     becomes public stated before *Save*, which commits the entry and its content where its licence allows — the instance,
