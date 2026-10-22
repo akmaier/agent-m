@@ -69,9 +69,9 @@ It runs in a browser, loaded by `index.html` through MOD-site-frame.
 - `index.mjs` — the interface: `view`.
 - `greeting.mjs` — the greeting: Agent M's name, one sentence on what Agent M is, what to do first, and the folded
   explanation of the page.
-- `home.mjs` — the route `home`: it draws the cards and what waits for a person, and starts the readings again.
+- `home.mjs` — the route `home`: it draws the cards and the link *Jobs*, and starts the readings again.
 - `cards.mjs` — a card per product or Agent M's own card, its stage bar, whose stages are links, and its build.
-- `waits.mjs` — what waits for a person.
+- `waits.mjs` — what waits for a person, drawn on the route `jobs`.
 - `reread.mjs` — the readings again: the jobs' states of the cards drawn, and nothing else.
 - `jobs.mjs` — the list of every job and a job's detail. It also gives the parts of reading jobs that the cards share
   with it: `bridgesOf`, a handle for each Bridge the records of jobs not ended name, and `liveStatesOf`, the live state
@@ -107,15 +107,18 @@ once, when the page is drawn, and never again (UC-046 4b). It stores nothing bet
     leads to the nth entry. Without a product, Agent M's own card from the instance repository takes their place, with
     *+ Add product*; its stages call `menuOf` without a product. A card whose repository cannot be read says which and
     links the token's setting;
-    below the cards, what waits for a person across the instance, each item linked to the page where it is decided.
+    below the cards, the link *Jobs* to the route `jobs`.
     A card first reads the overview stored for its default branch's head (MOD-progress-measures' `storedOverview`, one
-    request). Where there is one, its stage bar and what waits come from it, and only the build is read, with
+    request). Where there is one, its stage bar comes from it, and only the build is read, with
     `productFacts`' scope `build`. Where there is none, the card reads the scope `all` as before. Without a token and
     without facts stored for the head (`storedFacts`), that reading costs one request per test file of the default
     branch (MOD-progress-measures' `stageShares`); that cost is accepted. The stored overview is a record of the
     repository, derived from that commit alone by `onMainChanged` (MOD-workflow-entries), never kept in the
     browser. The rows of the build are the same whether the stage bar comes from a stored overview or from the scope `all`.
-  - `jobs` — every job of every product and of the instance in one list — the job of this tab's conversation in the
+  - `jobs` — first, what waits for a person across the instance, each item linked to the page where it is decided
+    (MOD-progress-measures' `waitingForAPerson`, from the instance's own stored overview where there is one); then every
+    job of
+    every product and of the instance in one list — the job of this tab's conversation in the
     prompt bar among them, which has no record and is shown as this tab's (`currentJob`) —, waiting at a gate first, filtered by product,
     state, participant or runtime; each row with identifier, product, what it works on, kind, participant, where it
     runs, state, elapsed time and cost where known; a source that cannot be reached is named with its reason.
