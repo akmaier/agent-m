@@ -19,6 +19,8 @@
 //     `install --no-download` stops when the archive folder holds no package; a fetch from a mirror whose name is not archive.ubuntu.com
 //     (the mirror azure.archive.ubuntu.com, which sends one file so slowly that apt moves on to no other) never ends, which is exit code 124
 //     where the call is bounded by `timeout` and a hang past the job's two minutes (recorded as `stalled-unbounded`) where it is not.
+//   - an `install` (not `--download-only`, not `--no-download`) that `timeout` bounds is killed while dpkg unpacks: exit code 124, recorded as
+//     `install-bounded` (dpkg is then left interrupted, and no later install succeeds).
 //   - `timeout <seconds>` marks the call as bounded, and refuses more than 60 seconds.
 // A cache hit is the state a first run leaves: the same folders, with the packages and the lists in them. The counter-proof of every case is
 // the case "without the folder" below: the same script with its `mkdir` line removed fails on the model (exit code 100). The run is recorded
@@ -83,6 +85,9 @@ if [ "$nodownload" = 1 ]; then
   [ -f "$archives/xvfb.deb" ] && [ -f "$archives/openbox.deb" ] || { echo "E: Can't download packages with --no-download" >&2; exit 100; }
   echo install-from-cache >> "$FAKE_EVENTS"; exit 0
 fi
+if [ "$downloadonly" != 1 ] && [ -n "$FAKE_BOUNDED" ]; then
+  echo install-bounded >> "$FAKE_EVENTS"; exit 124
+fi
 if [ ! -f "$archives/xvfb.deb" ] || [ ! -f "$archives/openbox.deb" ]; then
   if [ -n "$FAKE_STALL" ] && ! grep -q 'archive.ubuntu.com' "$FAKE_MIRRORS" 2>/dev/null; then
     if [ -n "$FAKE_BOUNDED" ]; then echo stall-bounded >> "$FAKE_EVENTS"; exit 124; fi
@@ -144,6 +149,7 @@ function onMiss(file, job) {
   const host = machine();
   const result = run(script, host);
   assert.equal(result.status, 0, `${file}: the step finishes where no cache was restored\n${result.stderr}`);
+  assert.ok(!result.events.includes("install-bounded"), `${file}: only a download is bounded, never the install`);
   assert.ok(result.events.includes("install") || result.events.includes("install-from-cache"), `${file}: xvfb and openbox are installed`);
   assert.ok(existsSync(join(host.home, "apt-archives", "partial")), `${file}: the step made apt's archive folder`);
   assert.ok(existsSync(join(host.home, "apt-lists", "partial")), `${file}: the step made apt's list folder`);
@@ -164,9 +170,20 @@ function onStalledMiss(file, job) {
   const result = run(script, host, { stall: true });
   assert.equal(result.status, 0, `${file}: the step finishes where the first mirror stalls; apt did: ${result.events.join(", ")}`);
   assert.ok(!result.events.includes("stalled-unbounded"), `${file}: no fetch from a stalled mirror runs unbounded`);
+  assert.ok(!result.events.includes("install-bounded"), `${file}: only a download is bounded, never the install`);
   assert.ok(!result.events.includes("timeout-too-long"), `${file}: the bound is at most 60 seconds`);
   assert.ok(existsSync(host.mirrors) && /archive\.ubuntu\.com/.test(readFileSync(host.mirrors, "utf8")), `${file}: archive.ubuntu.com became the mirror`);
   assert.ok(result.events.includes("install"), `${file}: xvfb and openbox are installed`);
+}
+// The same script with a bound around the full install (the last line that installs without --download-only): the model kills it.
+function withBoundedInstall(file, job) {
+  const lines = installScript(file, job).split("\n");
+  const last = lines.map((line, i) => (/sudo apt-get \$apt_options install --yes --no-install-recommends xvfb openbox/.test(line) ? i : -1)).filter((i) => i >= 0).pop();
+  assert.ok(last !== undefined, `${file}: the script has an install of its own (known positive of the line bounded below)`);
+  lines[last] = lines[last].replace("sudo apt-get", "sudo timeout 45 apt-get");
+  const result = run(lines.join("\n"), machine());
+  assert.equal(result.status, 124, `${file}: a bound around the full install kills it\n${result.stderr}`);
+  assert.ok(result.events.includes("install-bounded"), `${file}: the model records the install as killed`);
 }
 // A hit: the state a first run leaves, run again.
 function onHit(file, job) {
@@ -241,3 +258,19 @@ test("nightly.yml: the nightly job whose cache is gone gives up a stalled mirror
 // expect: exit code 0; apt's calls are exactly one install from the cache — no update, no fetch from any mirror
 // Planted fault: an `apt-get update` or an install without `--no-download` before the install from the cache fails.
 test("nightly.yml: the nightly job with the cache restored fetches nothing", () => onHit(...CASES[1]));
+
+// TST-1183009 · level: system · module: MOD-test-schedule
+// guards: A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES
+// given: .github/workflows/tests.yml, a machine with no restored cache
+// input: the script of the step in the job `node` with `timeout 45` put before its last full `apt-get ... install`, run under `bash -e` against the model of apt
+// expect: exit code 124 and the event `install-bounded`: a bound around the full install kills apt while dpkg works, which the other cases refuse
+// Planted fault: the shard's fallback that bounds its full install instead of the download fails TST-1183001 and 003.
+test("tests.yml: a bound around the full install is refused, as dpkg would be left interrupted", () => withBoundedInstall(...CASES[0]));
+
+// TST-1183010 · level: system · module: MOD-test-schedule
+// guards: A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES
+// given: .github/workflows/nightly.yml, a machine with no restored cache
+// input: the script of the step in the job `nightly` with `timeout 45` put before its last full `apt-get ... install`, run under `bash -e` against the model of apt
+// expect: exit code 124 and the event `install-bounded`
+// Planted fault: a nightly step that bounds its full install fails TST-1183005 and 007.
+test("nightly.yml: a bound around the full install is refused, as dpkg would be left interrupted", () => withBoundedInstall(...CASES[1]));
