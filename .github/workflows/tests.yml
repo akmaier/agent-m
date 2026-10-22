@@ -61,7 +61,31 @@ jobs:
           if [[ "$GITHUB_BASE_REF" == sprint/* ]]; then mode=rest; fi
           files=$(node "$RUNNER_TEMP/level.mjs" "$mode" "${{ matrix.shard }}" 7 tests/test*.py)
           cd tests && python3 -m unittest -v $(echo "$files" | sed 's|^tests/||; s|\.py$||')
+  apt-archives:
+    # The sixteen node shards would each fetch the packages of xvfb and openbox from the same mirror at once, which it serves too slowly for two
+    # minutes. This job fetches them once into the cache the shards restore; the tests that start Electron find openbox installed and install nothing.
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Name the week of the apt cache
+        id: week
+        run: echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+      - name: Restore the downloaded archives of xvfb and openbox
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/apt-archives
+          key: apt-xvfb-openbox-${{ runner.os }}-${{ steps.week.outputs.week }}
+          restore-keys: apt-xvfb-openbox-${{ runner.os }}-
+      - name: Download xvfb and openbox
+        run: |
+          mkdir -p /home/runner/apt-archives/partial
+          apt_options="-o Acquire::Retries=5 -o Acquire::http::Timeout=10 -o DPkg::Lock::Timeout=50 -o Dir::Cache::archives=/home/runner/apt-archives"
+          sudo apt-get $apt_options update
+          for attempt in 1 2 3; do sudo timeout 30 apt-get $apt_options install --download-only --yes --no-install-recommends xvfb openbox && break; done
+          sudo apt-get $apt_options install --download-only --yes --no-install-recommends xvfb openbox
+          sudo chmod -R a+rX /home/runner/apt-archives
   node:
+    needs: apt-archives
     runs-on: ubuntu-latest
     timeout-minutes: 2
     strategy:
@@ -84,14 +108,10 @@ jobs:
           restore-keys: apt-xvfb-openbox-${{ runner.os }}-
       - name: Install xvfb and openbox
         run: |
-          # Once, here, so that no test installs them: the tests that start Electron find openbox and install nothing (their own install stays the local fallback).
-          mkdir -p /home/runner/apt-archives/partial
+          # From the archives of the job apt-archives: nothing is fetched, and the tests that start Electron find openbox and install nothing (their own install stays the local fallback).
           apt_options="-o Acquire::Retries=5 -o Acquire::http::Timeout=10 -o DPkg::Lock::Timeout=50 -o Dir::Cache::archives=/home/runner/apt-archives"
           sudo apt-get $apt_options update
-          # The mirror sometimes trickles one file for minutes: a download that has not finished in 30 s is stopped and resumed on a new connection.
-          for attempt in 1 2 3; do sudo timeout 30 apt-get $apt_options install --download-only --yes --no-install-recommends xvfb openbox && break; done
           sudo apt-get $apt_options install --yes --no-install-recommends xvfb openbox
-          sudo chmod -R a+rX /home/runner/apt-archives
           openbox --version
       - name: Install Bridge app packages
         run: npm install --prefix src/bridge-build --omit=dev --ignore-scripts
