@@ -43,6 +43,7 @@ button, .btn { margin-inline: .35em; }
 
 /* The review frame's accepted status and folded explanations meet the shared WCAG check. */
 body .b-accepted { color: #155724; background: #d4edda; }
+body .b-superseded { color: #5c4300; background: #fff3cd; }
 body details.explain > summary { display: inline-flex; align-items: center; min-height: 24px; }
 
 @media (max-width: 599px) {
