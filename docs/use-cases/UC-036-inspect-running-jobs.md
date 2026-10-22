@@ -74,8 +74,9 @@ agents run on their own, and a person watches the whole and can step in.
      token of that product's server only;
    - the job list of each configured bridge, with its bridge token;
    - the jobs of this browser tab.
-2. Agent M shows one list across products, newest first, grouped by state. *Waiting at a gate*
-   comes first. Each row shows:
+2. Above the list, Agent M shows what waits for a person across the instance: open use cases, open SPEC changes, gates
+   waiting for a decision, and failed jobs, each linked to the page where it is decided. Then it shows one list across
+   products, newest first, grouped by state. *Waiting at a gate* comes first. Each row shows:
    - the job's identifier, for example `JOB-20260924-1432-7f3a`;
    - the product and what the job works on, for example `ITM-014` or *derive requirements from
      SRC-007*;

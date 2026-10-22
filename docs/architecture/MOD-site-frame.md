@@ -74,7 +74,8 @@ It runs in a browser — the instance's pages, and the Bridge's window, which is
 - `start.mjs` — the script both entry pages load: it reads the page's setup from its own script tag, loads the named
   view modules from their folders, registers their strategies and MOD-prompt-bar's `handOverStrategies`, each set once,
   and calls `startPage`. This is where the entry pages register strategies (ARC-038).
-- `menu.mjs` — the eight entries of the menu and the links they lead to.
+- `menu.mjs` — the eight entries of the menu and the links they lead to, and the button that folds them on a narrow
+  screen.
 - `footer.mjs` — the footer of the main and the review pages: the book *Vibe Coding* (Springer,
   `https://link.springer.com/book/9783032399069`) and the Pattern Recognition Lab of FAU Erlangen-Nürnberg
   (`https://lme.tf.fau.de/`), each a link; that no server is operated and that a page writes only when the person
@@ -92,6 +93,8 @@ It runs in a browser — the instance's pages, and the Bridge's window, which is
     label is the cell's attribute `data-label`, which the route that draws the table sets to the column's title, and the
     stylesheet shows it before the cell's content; a cell without the attribute stands unlabelled. A route that draws a table
     sets `data-label` on each cell and no style of its own, so `#backlog`, `#roles`, `#arc` and `#module` take the same rule.
+  - **The menu** on a screen up to 760 px wide is the button `menu.mjs` draws: its click unfolds the eight entries one
+    under another, and a second click folds them. Wider, the button is not shown and the entries stand in a row.
   - **The burn-down chart** is drawn at the width the property `--burn-down-width` (700 px) gives it, and, in a window
     narrower than that, no wider than the window less the page's margins; the property holds the width the route asks
     Mermaid for. Its text is the page's body text in size at every width, so a narrower chart is drawn with fewer labels

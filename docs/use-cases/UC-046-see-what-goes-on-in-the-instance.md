@@ -54,7 +54,8 @@ to the pages where its work is reviewed and done.
 2. The menu leads through the process in its order — **Requirements**, **Use cases**, **Architecture**, **Implementation**,
    **Tests**, **Releases** —, followed by **Maintenance** — issues and mail — and **Settings**. Every page of the site
    carries the same menu; each entry opens the page under `docs/` where that stage's work is reviewed and done, for the
-   product chosen.
+   product chosen. On a screen up to 760 px wide, the menu is one button: a click unfolds the eight entries, and a
+   second click folds them again. On a wider screen the entries stand in a row.
 3. Below the greeting, one card per product this browser manages (UC-001): its name, its process model, and its progress
    as one bar of the six stages of the table above, each filled by its share; the stage the product is in is marked, and a
    click on a stage opens that stage's page for the product. Every share is derived when the page is shown, from the
@@ -62,8 +63,8 @@ to the pages where its work is reviewed and done.
 4. **The build.** For a product in implementation, the card shows the steps of its implementation plan or its backlog items
    in progress, each with the job working on it — its participant, its state and its elapsed time (UC-036) —, and keeps
    them current while the page is shown; a step or an item moves on to *done* when its pull request is merged.
-5. Below the products, Agent M lists what waits for a person across the instance: open use cases, open SPEC changes, gates
-   waiting for a decision, and failed jobs, each linked to the page where it is decided.
+5. Below the products, a link **Jobs** opens the page of every job and of what waits for a person (UC-036). The main
+   page itself does not list what waits.
 
 ```mermaid
 sequenceDiagram
@@ -73,7 +74,7 @@ sequenceDiagram
     V->>P: open the instance's address
     P->>G: read each product's tree, records and jobs
     G-->>P: files, approval records, plan or backlog, pull requests, tags
-    P-->>V: greeting, menu, one stage bar per product, the build, what waits
+    P-->>V: greeting, menu, one stage bar per product, the build, the link Jobs
     V->>P: click a stage
     P-->>V: that stage's page under docs/, for the product
 ```
@@ -96,5 +97,5 @@ sequenceDiagram
 ## Postcondition
 
 - Nothing was written; everything shown was derived at the moment it was shown.
-- The visitor has seen each product's progress by stage — or Agent M's own —, the build in progress, and what waits for a
-  person.
+- The visitor has seen each product's progress by stage — or Agent M's own — and the build in progress, and can open
+  **Jobs**, where what waits for a person is listed.
