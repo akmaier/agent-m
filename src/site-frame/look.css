@@ -48,10 +48,13 @@ body details.explain > summary { display: inline-flex; align-items: center; min-
 
 @media (max-width: 599px) {
   .table-scroll { overflow-x: visible; }
-  table.list, table.list tbody, table.list tr, table.list td { box-sizing: border-box; max-width: 100%; }
-  table.list, table.list tbody, table.list tr, table.list td { display: block; width: 100%; }
-  table.list thead { display: none; }
-  table.list tr { border-bottom: 1px solid var(--line); padding-block: .45rem; }
-  table.list td { border: 0; padding: .2rem .5rem; overflow-wrap: anywhere; }
-  table.list td[data-label]::before { content: attr(data-label); display: block; color: var(--muted); font-size: .85em; font-weight: 600; }
+  table.list, table.list tbody, table.list tr, table.list td, .md table, .md table tbody, .md table tr, .md table td { box-sizing: border-box; max-width: 100%; }
+  table.list, table.list tbody, table.list tr, table.list td, .md table, .md table tbody, .md table tr, .md table td { display: block; width: 100%; }
+  table.list thead, .md table thead { display: none; }
+  table.list tr, .md table tr { border-bottom: 1px solid var(--line); padding-block: .45rem; }
+  table.list td, .md table td { border: 0; padding: .2rem .5rem; overflow-wrap: anywhere; }
+  table.list td[data-label]::before, .md table td[data-label]::before { content: attr(data-label); display: block; color: var(--muted); font-size: .85em; font-weight: 600; }
+  .md pre, .md pre code { box-sizing: border-box; width: 100%; max-width: 100%; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-all; }
+  .md pre code { display: block; }
+  .md code { overflow-wrap: anywhere; word-break: break-all; }
 }
