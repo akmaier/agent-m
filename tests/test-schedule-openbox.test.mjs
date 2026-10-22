@@ -120,3 +120,19 @@ test("tests.yml: one job downloads the archives into the cache, and the node sha
   const node = text.slice(text.indexOf("\n  node:\n"));
   assert.match(node, /^ {4}needs:\s*(apt-archives|\[\s*apt-archives\s*\])\s*$/m);
 });
+
+// TST-1179006 · level: unit · module: MOD-test-schedule
+// guards: A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES
+// given: .github/workflows/tests.yml and nightly.yml
+// input: the step that downloads xvfb and openbox in the job `apt-archives` and in the job `nightly`
+// expect: apt is not wrapped in `timeout` (a killed download never reaches the next mirror of apt's mirror list, which a pull request's first run, with a cache that no other pull request's ref can hold, depends on when the first mirror fails), and its `Acquire::Retries` is at most 1, so that a failing mirror gives way to the next within seconds
+// Planted fault: a `timeout 30 apt-get` loop around the download, or `Acquire::Retries=5`, fails.
+test("the download of xvfb and openbox is not cut short and gives up a failing mirror after one retry", () => {
+  for (const [file, job] of [["tests.yml", "apt-archives"], ["nightly.yml", "nightly"]]) {
+    const steps = stepsOf(read(file), job);
+    const download = steps.find((step) => /apt-get[^\n]*install[^\n]*--download-only|apt-get[^\n]*install[^\n]*\bxvfb\b/.test(step));
+    assert.ok(download, `${file}: a step downloads xvfb and openbox`);
+    assert.doesNotMatch(download, /\btimeout\s+\d+\s+(sudo\s+)?apt-get|sudo\s+timeout/, `${file}: apt is not killed by timeout`);
+    assert.ok(Number(/Acquire::Retries=(\d+)/.exec(download)?.[1]) <= 1, `${file}: Acquire::Retries is at most 1`);
+  }
+});
