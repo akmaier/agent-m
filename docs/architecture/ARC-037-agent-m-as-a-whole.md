@@ -317,7 +317,7 @@ classDiagram
 | Job, Run | one execution of a kind, with a record — but a conversation's, held in a browser tab; a job that names its jobs | MOD-job-ledger, MOD-run-planner |
 | Participant | a person or an agent from the instance's list, reached through a driver | MOD-participant-list |
 | Mail, Issue | a mail named only by its pseudonymous identifier; an issue that lists those identifiers | MOD-mail-records |
-| Conversation | a person's messages to one participant in the prompt bar and its answers, held in the browser tab; each message a job without a record, with the page as its context | MOD-prompt-bar |
+| Conversation | a person's messages to one model endpoint or CLI session in the prompt bar and its answers, held in the browser tab; each message a job without a record, with the page as its context | MOD-prompt-bar |
 | Conversation record | the messages of a conversation, appended in the repository of its page where the instance switches recording on; evidence, never a proposal | MOD-prompt-bar |
 
 ### Process view
