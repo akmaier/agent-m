@@ -220,7 +220,7 @@ async function buildFacts(host, instance, instanceAt) {
   return {
     address, info: "unknown", snapshot: held ? held.serving(snapshot) : snapshot, graph: "unknown", requirements: "unknown", statuses: approvals, queues: changeQueues, declaration,
     workflow, model, modelUnread, modelSince: "unknown", participants: [], plan: { order, items, states },
-    sprints: [], assignments: [], held: [], gates, gateStates: gateStatesOf, jobs, pullRequests, schedule: "unknown", ci: "unknown", tags: "unknown",
+    sprints: [], assignments: [], held: [], modules: [], gates, gateStates: gateStatesOf, jobs, pullRequests, schedule: "unknown", ci: "unknown", tags: "unknown",
     results: "unknown", tests: "unknown", resourceNeeds: "unknown", resultCommits: "unknown", own: isOwn(address, instance),
   };
 }
@@ -298,7 +298,7 @@ export async function productFacts(host, instance, instanceAt, now, options = { 
   return {
     address, info: all ? info : "unknown", snapshot: held ? held.serving(snapshot) : snapshot, graph: "unknown", requirements: more.requirements, statuses: approvals, queues: changeQueues,
     declaration, workflow, model, modelUnread, modelSince: "unknown", participants,
-    plan: { order, items, states: planStates }, sprints, assignments, held: heldItems(sprints, items, modules, pullRequests, onDefault),
+    plan: { order, items, states: planStates }, sprints, assignments, held: heldItems(sprints, items, modules, pullRequests, onDefault), modules,
     gates, gateStates: states, jobs, pullRequests, schedule: "unknown", ci: "unknown", tags: more.tags, results: more.results,
     tests: more.tests, resourceNeeds: "unknown", resultCommits: await resultCommitsOf(host, branch, more.results), own: isOwn(address, instance),
   };
