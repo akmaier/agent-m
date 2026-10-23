@@ -99,6 +99,11 @@ jobs:
       matrix:
         shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
     steps:
+      - name: Read dpkg's file lists ahead
+        run: |
+          # Before it installs anything dpkg reads the file list of every installed package, one small file each; on a runner whose disk is cold that read is the
+          # slow part of the install. It starts here, in the background, and runs while the job checks out and restores the cache.
+          (ls /var/lib/dpkg/info/*.list | xargs -P 8 -n 150 cat > /dev/null 2>&1 &)
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -118,6 +123,12 @@ jobs:
         run: |
           # From the archives and package lists of the job apt-archives: nothing is fetched, no index is read from a mirror, and the tests that start Electron find openbox and install nothing (their own install stays the local fallback).
           mkdir -p /home/runner/apt-archives/partial /home/runner/apt-lists/partial
+          # The runner is thrown away after the job. Before dpkg, apt runs debconf's hook `dpkg-preconfigure --apt`, which extracts the templates of every package to be
+          # installed; an install without questions needs none. Without the program the hook finds nothing to run, as on an image without apt-utils. Where it cannot be
+          # taken away (or on a machine that is no runner of GitHub Actions) the install is only slower, and the machine is left as it is.
+          if [ -n "$GITHUB_ACTIONS" ] && [ -x /usr/sbin/dpkg-preconfigure ]; then
+            sudo chmod -x /usr/sbin/dpkg-preconfigure || true
+          fi
           apt_options="-o Acquire::Retries=1 -o Acquire::http::Timeout=10 -o DPkg::Lock::Timeout=50 -o Dir::Cache::archives=/home/runner/apt-archives -o Dir::State::lists=/home/runner/apt-lists"
           if ! sudo apt-get $apt_options install --yes --no-install-recommends --no-download xvfb openbox; then
             # The cache is gone: from the mirror. azure.archive.ubuntu.com sometimes sends one file so slowly that apt neither fails nor tries
