@@ -123,11 +123,15 @@ jobs:
         run: |
           # From the archives and package lists of the job apt-archives: nothing is fetched, no index is read from a mirror, and the tests that start Electron find openbox and install nothing (their own install stays the local fallback).
           mkdir -p /home/runner/apt-archives/partial /home/runner/apt-lists/partial
-          # The runner is thrown away after the job. Before dpkg, apt runs debconf's hook `dpkg-preconfigure --apt`, which extracts the templates of every package to be
-          # installed; an install without questions needs none. With the program taken away the hook finds nothing to run, and the log shows one line, "dpkg-preconfigure:
-          # Permission denied". Where it cannot be taken away, or on a machine that is no runner of GitHub Actions, the install is only slower and the machine stays as it is.
-          if [ -n "$GITHUB_ACTIONS" ] && [ -x /usr/sbin/dpkg-preconfigure ]; then
-            sudo chmod -x /usr/sbin/dpkg-preconfigure || true
+          # The runner is thrown away after the job, and four programs that apt and dpkg run around an install are of no use to it: debconf's hook
+          # `dpkg-preconfigure --apt` before dpkg, which extracts the templates of every package to be installed; update-notifier's check of the available updates
+          # after dpkg, which loads the whole package cache; and needrestart's two hooks, which look for services to restart. A hook runs only if its program can be
+          # executed; debconf's leaves the one line "/usr/sbin/dpkg-preconfigure: Permission denied" in the log. Where a program cannot be taken away, or on a machine
+          # that is no runner of GitHub Actions, the install is only slower and the machine stays as it is.
+          if [ -n "$GITHUB_ACTIONS" ]; then
+            for hook in /usr/sbin/dpkg-preconfigure /usr/lib/update-notifier/update-motd-updates-available /usr/lib/needrestart/apt-pinvoke /usr/lib/needrestart/dpkg-status; do
+              if [ -x "$hook" ]; then sudo chmod -x "$hook" || true; fi
+            done
           fi
           apt_options="-o Acquire::Retries=1 -o Acquire::http::Timeout=10 -o DPkg::Lock::Timeout=50 -o Dir::Cache::archives=/home/runner/apt-archives -o Dir::State::lists=/home/runner/apt-lists"
           if ! sudo apt-get $apt_options install --yes --no-install-recommends --no-download xvfb openbox; then
