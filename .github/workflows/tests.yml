@@ -1,4 +1,4 @@
-# ITM-1193 measurement A/B 3: node shard % 4 = 0 the final workflow, 1 without update-notifier's check after dpkg, 2 without needrestart, 3 without both
+# ITM-1193 measurement A/B 4: node shard % 4 = 0 lists read ahead + four hooks taken away, 1 the hooks only, 2 the lists + debconf's hook, 3 nothing
 # Transitional CI until MOD-test-schedule generates Agent M's declared schedule:
 # "The workflow change merged with #492 stays in place until Agent M's declared schedule replaces it."
 # (docs/spec-freigaben/2026-10-13c_agent-m-declares-its-own-test-schedule/01-architecture-and-implementation.begruendung.md)
@@ -102,9 +102,8 @@ jobs:
     steps:
       - name: Read dpkg's file lists ahead
         run: |
-          # Before it installs anything dpkg reads the file list of every installed package, one small file each; on a runner whose disk is cold that read is the
-          # slow part of the install. It starts here, in the background, and runs while the job checks out and restores the cache.
-          (ls /var/lib/dpkg/info/*.list | xargs -P 8 -n 150 cat > /dev/null 2>&1 &)
+          v=$(( ${{ matrix.shard }} % 4 ))
+          if [ $v = 0 ] || [ $v = 2 ]; then (ls /var/lib/dpkg/info/*.list | xargs -P 8 -n 150 cat > /dev/null 2>&1 &) ; fi
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -124,15 +123,11 @@ jobs:
         run: |
           # From the archives and package lists of the job apt-archives: nothing is fetched, no index is read from a mirror, and the tests that start Electron find openbox and install nothing (their own install stays the local fallback).
           mkdir -p /home/runner/apt-archives/partial /home/runner/apt-lists/partial
-          # The runner is thrown away after the job. Before dpkg, apt runs debconf's hook `dpkg-preconfigure --apt`, which extracts the templates of every package to be
-          # installed; an install without questions needs none. With the program taken away the hook finds nothing to run, and the log shows one line, "dpkg-preconfigure:
-          # Permission denied". Where it cannot be taken away, or on a machine that is no runner of GitHub Actions, the install is only slower and the machine stays as it is.
-          if [ -n "$GITHUB_ACTIONS" ] && [ -x /usr/sbin/dpkg-preconfigure ]; then
-            sudo chmod -x /usr/sbin/dpkg-preconfigure || true
-          fi
           v=$(( ${{ matrix.shard }} % 4 )); echo "VARIANT $v"
-          if [ $v = 1 ] || [ $v = 3 ]; then sudo chmod -x /usr/lib/update-notifier/update-motd-updates-available; fi
-          if [ $v = 2 ] || [ $v = 3 ]; then sudo chmod -x /usr/lib/needrestart/apt-pinvoke /usr/lib/needrestart/dpkg-status; fi
+          hooks=""
+          if [ $v = 0 ] || [ $v = 1 ]; then hooks="/usr/sbin/dpkg-preconfigure /usr/lib/update-notifier/update-motd-updates-available /usr/lib/needrestart/apt-pinvoke /usr/lib/needrestart/dpkg-status"; fi
+          if [ $v = 2 ]; then hooks="/usr/sbin/dpkg-preconfigure"; fi
+          for hook in $hooks; do if [ -x $hook ]; then sudo chmod -x $hook || true; fi; done
           apt_options="-o Acquire::Retries=1 -o Acquire::http::Timeout=10 -o DPkg::Lock::Timeout=50 -o Dir::Cache::archives=/home/runner/apt-archives -o Dir::State::lists=/home/runner/apt-lists"
           if ! sudo apt-get $apt_options install --yes --no-install-recommends --no-download xvfb openbox; then
             # The cache is gone: from the mirror. azure.archive.ubuntu.com sometimes sends one file so slowly that apt neither fails nor tries
