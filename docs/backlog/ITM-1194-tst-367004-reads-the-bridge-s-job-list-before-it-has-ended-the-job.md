@@ -48,3 +48,6 @@ which this is:
 - A case shows the order: a fake that delays the Bridge's state after the push fails today's test, or today's Bridge,
   whichever the cause names.
 - The first commit holds only the tests, and CI is red on it.
+
+**A second flip (2026-10-23):** #1322's first run at `b3d30c24`, job 120418977366, node (1). It was the same assertion at
+`tests/desktop-shell-bridge-jobs.test.mjs:160`, `'running'` for `'done'`, and it passed on the rerun.
