@@ -48,6 +48,6 @@ the repository, run code and tests, use tools, reach the web.
 | developer-sonnet-g | CLI agent | claude-sonnet-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools, reach the web | Anthropic, a provider in the USA | Claude Code on the Mac of `akmaier`, in a git worktree of its own; reached without the Agent M Bridge until it exists (ITM-102) |
 | developer-sonnet-h | CLI agent | claude-sonnet-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools, reach the web | Anthropic, a provider in the USA | Claude Code on the Mac of `akmaier`, in a git worktree of its own; reached without the Agent M Bridge until it exists (ITM-102) |
 | developer-sonnet-i | CLI agent | claude-sonnet-5-5 | — | — | draft text, read the repository, write to the repository, run code and tests, use tools, reach the web | Anthropic, a provider in the USA | Claude Code on the Mac of `akmaier`, in a git worktree of its own; reached without the Agent M Bridge until it exists (ITM-102) |
-| qwen-local | model endpoint | qwen3.5:9b-128k | 131072 | — | draft text, use tools | this machine | endpoint test-local |
+| qwen-local | model endpoint | qwen3.5:9b-128k | 131072 | — | draft text, read the repository, use tools | this machine | endpoint test-local |
 
 `akmaier` accepts SPEC changes, use cases and architecture decisions under that account. Products assign these participants through `docs/role-assignments/`.
