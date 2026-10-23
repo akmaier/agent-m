@@ -1,4 +1,4 @@
-# ITM-1193 measurement V7: process sampler around the install step of the final workflow (diagnosis)
+# ITM-1193 measurement A/B 3: node shard % 4 = 0 the final workflow, 1 without update-notifier's check after dpkg, 2 without needrestart, 3 without both
 # Transitional CI until MOD-test-schedule generates Agent M's declared schedule:
 # "The workflow change merged with #492 stays in place until Agent M's declared schedule replaces it."
 # (docs/spec-freigaben/2026-10-13c_agent-m-declares-its-own-test-schedule/01-architecture-and-implementation.begruendung.md)
@@ -130,7 +130,9 @@ jobs:
           if [ -n "$GITHUB_ACTIONS" ] && [ -x /usr/sbin/dpkg-preconfigure ]; then
             sudo chmod -x /usr/sbin/dpkg-preconfigure || true
           fi
-          ( while :; do echo "SAMPLE $(date +%T.%N)"; ps -eo etimes,pid,ppid,stat,args --sort=-start_time | grep -v -e " ps -eo" -e "sleep 1" -e grep | head -n 12 | cut -c1-150; sleep 1; done > "$RUNNER_TEMP/samples.txt" 2>&1 & echo $! > "$RUNNER_TEMP/sampler.pid" )
+          v=$(( ${{ matrix.shard }} % 4 )); echo "VARIANT $v"
+          if [ $v = 1 ] || [ $v = 3 ]; then sudo chmod -x /usr/lib/update-notifier/update-motd-updates-available; fi
+          if [ $v = 2 ] || [ $v = 3 ]; then sudo chmod -x /usr/lib/needrestart/apt-pinvoke /usr/lib/needrestart/dpkg-status; fi
           apt_options="-o Acquire::Retries=1 -o Acquire::http::Timeout=10 -o DPkg::Lock::Timeout=50 -o Dir::Cache::archives=/home/runner/apt-archives -o Dir::State::lists=/home/runner/apt-lists"
           if ! sudo apt-get $apt_options install --yes --no-install-recommends --no-download xvfb openbox; then
             # The cache is gone: from the mirror. azure.archive.ubuntu.com sometimes sends one file so slowly that apt neither fails nor tries
@@ -143,9 +145,7 @@ jobs:
             fi
             sudo apt-get $apt_options install --yes --no-install-recommends xvfb openbox
           fi
-          echo "APT RETURNED $(date +%T.%N)"
           openbox --version
-          echo "OPENBOX RETURNED $(date +%T.%N)"; kill $(cat "$RUNNER_TEMP/sampler.pid"); echo "SAMPLES BEGIN"; cat "$RUNNER_TEMP/samples.txt"; echo "SAMPLES END"
       - name: Install Bridge app packages
         run: npm install --prefix src/bridge-build --omit=dev --ignore-scripts
       - name: Read the level of each test file
