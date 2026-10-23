@@ -124,8 +124,8 @@ jobs:
           # From the archives and package lists of the job apt-archives: nothing is fetched, no index is read from a mirror, and the tests that start Electron find openbox and install nothing (their own install stays the local fallback).
           mkdir -p /home/runner/apt-archives/partial /home/runner/apt-lists/partial
           # The runner is thrown away after the job. Before dpkg, apt runs debconf's hook `dpkg-preconfigure --apt`, which extracts the templates of every package to be
-          # installed; an install without questions needs none. Without the program the hook finds nothing to run, as on an image without apt-utils. Where it cannot be
-          # taken away (or on a machine that is no runner of GitHub Actions) the install is only slower, and the machine is left as it is.
+          # installed; an install without questions needs none. With the program taken away the hook finds nothing to run, and the log shows one line, "dpkg-preconfigure:
+          # Permission denied". Where it cannot be taken away, or on a machine that is no runner of GitHub Actions, the install is only slower and the machine stays as it is.
           if [ -n "$GITHUB_ACTIONS" ] && [ -x /usr/sbin/dpkg-preconfigure ]; then
             sudo chmod -x /usr/sbin/dpkg-preconfigure || true
           fi
