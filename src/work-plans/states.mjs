@@ -158,14 +158,28 @@ function openedAfter(pullRequest, job) {
   return new Date(pullRequest?.opened) > new Date(job?.record?.start);
 }
 
+// The merged pull request that makes the item done: any merged one naming it; after a job that ended as done, one opened after
+// that job's start. Null while the pull requests are unknown.
+function mergedPullRequest(item, job, facts) {
+  if (facts.pullRequests === "unknown") return null;
+  if (job?.state !== "done") return pullRequestFor(item, facts.pullRequests, "merged");
+  const id = idOf(item);
+  return (facts.pullRequests ?? []).find((pullRequest) => pullRequest?.state === "merged" && namesPullRequest(pullRequest, id)
+    && openedAfter(pullRequest, job)) ?? null;
+}
+
 function derivedState(item, phase, states, facts) {
   const id = idOf(item);
   const job = jobFor(item, facts.jobs);
   const named = job ? jobId(job) : null;
-  const acceptance = acceptanceReasons(item, facts);
+
+  // An item whose pull request is merged is asked neither for the acceptance of what it realises nor for the items it builds on:
+  // a text that changed since, or an item that is not done, leave it done.
+  const merged = mergedPullRequest(item, job, facts);
+  const acceptance = merged ? [] : acceptanceReasons(item, facts);
   if (acceptance.length) return { item: id, state: "waiting for acceptance", reason: acceptance.join("; "), job: named, pullRequest: null };
 
-  const prerequisites = unfinishedPrerequisites(item, states);
+  const prerequisites = merged ? [] : unfinishedPrerequisites(item, states);
   if (prerequisites.length) return { item: id, state: "waiting for an item it builds on",
     reason: `${listed(prerequisites)} ${prerequisites.length === 1 ? "is" : "are"} not done`, job: named, pullRequest: null };
 
@@ -187,20 +201,17 @@ function derivedState(item, phase, states, facts) {
   if (open) return { item: id, state: "in progress", reason: `pull request ${pullRequestRef(open)} is open for review`,
     job: named, pullRequest: pullRequestRef(open) };
 
+  if (merged) return { item: id, state: "done", reason: null, job: named, pullRequest: pullRequestRef(merged) };
+
   // A job that ended as done keeps the item in progress until a pull request opened after its start is merged or closed.
   if (job?.state === "done") {
     const ofJob = (facts.pullRequests ?? []).filter((pullRequest) => namesPullRequest(pullRequest, id) && openedAfter(pullRequest, job));
-    const mergedOfJob = ofJob.find((pullRequest) => pullRequest?.state === "merged");
-    if (mergedOfJob) return { item: id, state: "done", reason: null, job: named, pullRequest: pullRequestRef(mergedOfJob) };
     if (!ofJob.some((pullRequest) => pullRequest?.state === "closed")) {
       return { item: id, state: "in progress", reason: `job ${named} is done, and no pull request of it is merged yet`,
         job: named, pullRequest: null };
     }
     return { item: id, state: "ready", reason: null, job: named, pullRequest: null };
   }
-
-  const merged = pullRequestFor(item, facts.pullRequests, "merged");
-  if (merged) return { item: id, state: "done", reason: null, job: named, pullRequest: pullRequestRef(merged) };
 
   return { item: id, state: "ready", reason: null, job: named, pullRequest: null };
 }

@@ -170,3 +170,58 @@ test("TST-295003: itemStates derives phase-gate waits that startable consumes", 
   assert.match(refused.reasons.join("\n"), /Planning -> Development/);
   assert.match(refused.reasons.join("\n"), /Product Owner/);
 });
+
+// TST-1196001 · level: unit · module: MOD-work-plans
+// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-032
+// given: two items that realise a use case changed since its approval, one with a merged pull request naming it and one without
+// input: itemStates(items, null, facts) with the use case's status "changed"
+// expect: the item with the merged pull request is done and names that pull request; the item without waits for acceptance and names the use case
+test("TST-1196001: an item whose pull request is merged stays done when a use case it realises is changed", () => {
+  const items = [item("ITM-1196-merged", { realises: ["UC-CHANGED"] }), item("ITM-1196-open", { realises: ["UC-CHANGED"] })];
+  const states = itemStates(items, null, facts({
+    statuses: statusMap([["UC-CHANGED", "changed", "use-case"]]),
+    pullRequests: [pull("ITM-1196-merged", "merged", 31)],
+  }));
+  assert.equal(stateOf(states, "ITM-1196-open").state, "waiting for acceptance", "known positive: without a merged pull request the changed use case holds the item");
+  assert.match(stateOf(states, "ITM-1196-open").reason, /UC-CHANGED/);
+  assert.equal(stateOf(states, "ITM-1196-merged").state, "done");
+  assert.equal(stateOf(states, "ITM-1196-merged").pullRequest, "31");
+});
+
+// TST-1196002 · level: unit · module: MOD-work-plans
+// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-032
+// given: a chain of three items, the first with an open pull request, the second with a merged one, the third with none
+// input: itemStates(items, null, facts) for the chain, and for the same chain without the second item's merged pull request
+// expect: the second item is done though the item it builds on is open, and the third is ready; without the merged pull request the second waits for the first, and the third waits for the second
+test("TST-1196002: an item whose pull request is merged stays done when an item it builds on is not done", () => {
+  const items = [item("ITM-1196-top", { builds_on: ["ITM-1196-middle"] }), item("ITM-1196-middle", { builds_on: ["ITM-1196-base"] }),
+    item("ITM-1196-base")];
+  let states = itemStates(items, null, facts({ pullRequests: [pull("ITM-1196-base", "open", 40), pull("ITM-1196-middle", "merged", 41)] }));
+  assert.equal(stateOf(states, "ITM-1196-base").state, "in progress");
+  assert.equal(stateOf(states, "ITM-1196-middle").state, "done");
+  assert.equal(stateOf(states, "ITM-1196-top").state, "ready", "the item above builds on a done item");
+
+  states = itemStates(items, null, facts({ pullRequests: [pull("ITM-1196-base", "open", 40)] }));
+  assert.equal(stateOf(states, "ITM-1196-middle").state, "waiting for an item it builds on", "known positive: no merged pull request, the open prerequisite holds it");
+  assert.match(stateOf(states, "ITM-1196-middle").reason, /ITM-1196-base/);
+  assert.equal(stateOf(states, "ITM-1196-top").state, "waiting for an item it builds on");
+});
+
+// TST-1196003 · level: unit · module: MOD-work-plans
+// guards: NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; UC-032
+// given: items with no merged pull request: one realising an open requirement, one building on an item that is not done, one with only a closed pull request
+// input: itemStates(items, null, facts)
+// expect: the first waits for acceptance, the second waits for the item it builds on, and the third, which realises an accepted use case, is ready
+test("TST-1196003: an item without a merged pull request still waits for acceptance and for the items it builds on", () => {
+  const items = [item("ITM-1196-unaccepted", { realises: ["REQ-OPEN"] }), item("ITM-1196-prereq"),
+    item("ITM-1196-dependent", { builds_on: ["ITM-1196-prereq"] }), item("ITM-1196-closed")];
+  const states = itemStates(items, null, facts({
+    statuses: statusMap([["UC-READY", "accepted", "use-case"], ["REQ-OPEN", "open"]]),
+    pullRequests: [pull("ITM-1196-prereq", "open", 50), pull("ITM-1196-closed", "closed", 51)],
+  }));
+  assert.equal(stateOf(states, "ITM-1196-unaccepted").state, "waiting for acceptance");
+  assert.match(stateOf(states, "ITM-1196-unaccepted").reason, /REQ-OPEN/);
+  assert.equal(stateOf(states, "ITM-1196-dependent").state, "waiting for an item it builds on");
+  assert.match(stateOf(states, "ITM-1196-dependent").reason, /ITM-1196-prereq/);
+  assert.equal(stateOf(states, "ITM-1196-closed").state, "ready", "known positive: a closed pull request is no merged one");
+});
