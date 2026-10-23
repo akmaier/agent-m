@@ -126,7 +126,8 @@ An item's state, `ItemState`, is derived from the approval records, the queues, 
 `waiting for acceptance`, `waiting for an item it builds on`, `ready`, `in progress` (a job runs, or its pull request is
 open; and once its newest job has ended as done, until a pull request of it opened after that job's `start` is merged or
 closed without merge), `blocked` (a job failed, or waits for a person), `done` (its pull request is merged). A merged
-pull request decides first: an item whose pull request is merged is `done` whatever else holds, and stays `done`. A
+pull request decides first: an item whose pull request is merged is `done` whatever else holds, including a job of
+it started, or a pull request of it opened, after the merge, and stays `done`. A
 requirement or use case it realises that is withdrawn, changed or not accepted, or an item it builds on that is not done,
 marks a `done` item: its `reason` names that. A plan step that waits for the gate before its phase is `waiting` with
 that gate named.
@@ -157,11 +158,11 @@ assignment is the one of the team whose sprint holds it, and the product's one i
   `unknown`, never guessed; a `done` item is marked as the states above say.
 - `startable(item: string, states: ItemState[], context: { workflow: Workflow, assignment: Document, sprint: Document |
   null, held: Held[], wip: number | null, participants: Participant[] }) -> { startable: true } | { startable: false,
-  reasons: string[] }` — every reason a job for this step or item cannot start: not selected for the current sprint of its
-  team, `sprint`; a requirement or use case it names not accepted, named; an item it builds on not done, named; the
-  work-in-progress limit reached by the items in progress under `assignment`, the item's role assignment, naming them and
-  those waiting for review; the gate before its phase not recorded, naming it and its decider; no holder of the
-  implementing role in `assignment` with what the role needs.
+  reasons: string[] }` — every reason a job for this step or item cannot start: the item is `done`, a change to it being
+  a new item; not selected for the current sprint of its team, `sprint`; a requirement or use case it names not
+  accepted, named; an item it builds on not done, named; the work-in-progress limit reached by the items in progress
+  under `assignment`, the item's role assignment, naming them and those waiting for review; the gate before its phase
+  not recorded, naming it and its decider; no holder of the implementing role in `assignment` with what the role needs.
 - `heldItems(sprints: Document[], items: Document[], architecture: Document[], pullRequests: PullRequest[] | "unknown",
   onDefault?: Set<string>) -> Held[]` — every item a team's sprint holds, from the sprint records and the pull requests,
   with the modules it changes and the modules whose interfaces they use (`A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE
