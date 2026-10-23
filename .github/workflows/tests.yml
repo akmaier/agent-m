@@ -1,4 +1,4 @@
-# ITM-1193 measurement A/B 2: node shard % 4 = 0 baseline, 1 dpkg lists read in advance, 2 the same + no dpkg-preconfigure, 3 the lists and the debconf, perl and apt files read in advance
+# ITM-1193 measurement V7: process sampler around the install step (diagnosis)
 # Transitional CI until MOD-test-schedule generates Agent M's declared schedule:
 # "The workflow change merged with #492 stays in place until Agent M's declared schedule replaces it."
 # (docs/spec-freigaben/2026-10-13c_agent-m-declares-its-own-test-schedule/01-architecture-and-implementation.begruendung.md)
@@ -100,11 +100,6 @@ jobs:
       matrix:
         shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
     steps:
-      - name: Warm up the dpkg database
-        run: |
-          v=$(( ${{ matrix.shard }} % 4 ))
-          if [ $v -ge 1 ]; then (ls /var/lib/dpkg/info/*.list | xargs -P 8 -n 150 cat > /dev/null 2>&1 &) ; fi
-          if [ $v = 3 ]; then ( { cat /var/lib/dpkg/status /var/lib/dpkg/triggers/* /var/cache/debconf/* /var/cache/apt/*.bin; find /usr/share/perl5/Debconf /usr/lib/x86_64-linux-gnu/perl* /usr/share/perl* -type f | xargs -P 8 -n 100 cat; } > /dev/null 2>&1 & ) ; fi
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -124,12 +119,9 @@ jobs:
         run: |
           # From the archives and package lists of the job apt-archives: nothing is fetched, no index is read from a mirror, and the tests that start Electron find openbox and install nothing (their own install stays the local fallback).
           mkdir -p /home/runner/apt-archives/partial /home/runner/apt-lists/partial
+          ( while :; do echo "SAMPLE $(date +%T.%N)"; ps -eo etimes,pid,ppid,stat,args --sort=-start_time | grep -v -e " ps -eo" -e "sleep 1" -e grep | head -n 12 | cut -c1-150; sleep 1; done > "$RUNNER_TEMP/samples.txt" 2>&1 & echo $! > "$RUNNER_TEMP/sampler.pid" )
           apt_options="-o Acquire::Retries=1 -o Acquire::http::Timeout=10 -o DPkg::Lock::Timeout=50 -o Dir::Cache::archives=/home/runner/apt-archives -o Dir::State::lists=/home/runner/apt-lists"
-          v=$(( ${{ matrix.shard }} % 4 )); echo "VARIANT $v"
-          env_vars="X=1"
-          if [ $v = 2 ]; then sudo chmod -x /usr/sbin/dpkg-preconfigure; fi
-          :
-          if ! sudo env $env_vars apt-get $apt_options install --yes --no-install-recommends --no-download xvfb openbox; then
+          if ! sudo apt-get $apt_options install --yes --no-install-recommends --no-download xvfb openbox; then
             # The cache is gone: from the mirror. azure.archive.ubuntu.com sometimes sends one file so slowly that apt neither fails nor tries
             # the next mirror: the first download is bounded, and when it fails archive.ubuntu.com becomes the mirror. The install is not
             # bounded: a kill while dpkg unpacks would leave dpkg interrupted.
@@ -140,7 +132,9 @@ jobs:
             fi
             sudo apt-get $apt_options install --yes --no-install-recommends xvfb openbox
           fi
+          echo "APT RETURNED $(date +%T.%N)"
           openbox --version
+          echo "OPENBOX RETURNED $(date +%T.%N)"; kill $(cat "$RUNNER_TEMP/sampler.pid"); echo "SAMPLES BEGIN"; cat "$RUNNER_TEMP/samples.txt"; echo "SAMPLES END"
       - name: Install Bridge app packages
         run: npm install --prefix src/bridge-build --omit=dev --ignore-scripts
       - name: Read the level of each test file
