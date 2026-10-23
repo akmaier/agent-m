@@ -89,12 +89,9 @@ const ITM_1401 = "docs/backlog/ITM-1401-write-the-store.md", ITM_1402 = "docs/ba
 
 // TST-617001 · level: unit · module: MOD-work-plans
 // guards: UC-032; A BACKLOG ITEM NAMES WHAT IT REALISES
-// given: the fixture product, whose backlog holds ITM-001 "Read the store" and ITM-003, and a draft of two entries: "Write the store" (module store, builds on the existing item by its title, acceptance names unit tests) and "Integrate pages"
-//        (modules store and pages, builds on the first entry by its title, acceptance names component tests)
+// given: the fixture product, whose backlog holds ITM-001 "Read the store" and ITM-003, and a draft of two entries: "Write the store" (module store, builds on the existing item by its title, acceptance names unit tests) and "Integrate pages" (modules store and pages, builds on the first entry by its title, acceptance names component tests)
 // input: the writer backlog-items
-// expect: one commit on the default branch at the snapshot's head, of two new files only, docs/backlog/ITM-1401-write-the-store.md and docs/backlog/ITM-1402-integrate-pages.md; the outcome names the commit and the two files, no pull request, nothing
-//         shown; the first file is the canonical text of the item (level module, tests unit, builds_on ITM-001, origin its realised names, the sections Outcome as written and Acceptance one bullet each); the second has level subsystem, tests
-//         component, integrates ARC-001 and builds_on ITM-1401
+// expect: one commit on the default branch at the snapshot's head, of two new files only, docs/backlog/ITM-1401-write-the-store.md and docs/backlog/ITM-1402-integrate-pages.md; the outcome names the commit and the two files, no pull request, nothing shown; the first file is the canonical text of the item (level module, tests unit, builds_on ITM-001, origin its realised names, the sections Outcome as written and Acceptance one bullet each); the second has level subsystem, tests component, integrates ARC-001 and builds_on ITM-1401
 // Planted fault: committing on another head or branch, a second file, or leaving the title unresolved changes the request.
 test("the writer saves the drafted items in one commit, as canonical item files", async () => {
   const job = jobOf([WRITE, INTEGRATE]);
@@ -114,8 +111,7 @@ test("the writer saves the drafted items in one commit, as canonical item files"
 // guards: THE NAME IS THE ID AND IT SURVIVES; UC-032
 // given: the fixture product, whose files hold ITM-001 and ITM-003 and whose history holds a withdrawn ITM-1400 (a commit that added its file) and a renamed ITM-002; the same product with an empty history
 // input: the writer on a draft of one entry
-// expect: the history was asked once for the repository with its changes (path null, ref main, `changes` not switched off); the new item is ITM-1401, one after the withdrawn ITM-1400 that no file holds; with an empty history it is ITM-004,
-//        one after the highest file
+// expect: the history was asked once for the repository with its changes (path null, ref main, `changes` not switched off); the new item is ITM-1401, one after the withdrawn ITM-1400 that no file holds; with an empty history it is ITM-004, one after the highest file
 // Planted fault: taking the identifier from the head's paths alone gives ITM-004 for the first product.
 test("a new item gets an identifier that no history holds, a withdrawn one included", async () => {
   const job = jobOf([WRITE]);
@@ -135,8 +131,7 @@ test("a new item gets an identifier that no history holds, a withdrawn one inclu
 // guards: EVERY ARTIFACT NAMES ITS ORIGIN; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
 // given: the job JOB-20261023-0900-ab12 of the kind propose-items, drafted by the participant item-bot of model-x after one round, from Agent M's commit aaaa…, and a draft of one entry that realises ALPHA RULE and UC-002
 // input: the writer
-// expect: the item's origin is exactly ["ALPHA RULE", "UC-002"], and its text names neither the job, the participant nor the model; the commit's message begins "Add to the backlog" and ends with the provenance lines of provenanceLines for
-//        this job (version and commit, job, kind propose-items, participant item-bot, model model-x, 1 round)
+// expect: the item's origin is exactly ["ALPHA RULE", "UC-002"], and its text names neither the job, the participant nor the model; the commit's message begins "Add to the backlog" and ends with the provenance lines of provenanceLines for this job (version and commit, job, kind propose-items, participant item-bot, model model-x, 1 round)
 // Planted fault: an origin naming the job or the participant, or a message without the trailers, changes the item or the message.
 test("origin is what the item realises, and the commit carries the job's provenance lines", async () => {
   const job = jobOf([WRITE]);
@@ -169,11 +164,9 @@ test("an entry classed duplicate is saved like the others, and the warning that 
 
 // TST-617005 · level: unit · module: MOD-work-plans
 // guards: UC-032; A BACKLOG ITEM NAMES THE MODULES IT CHANGES
-// given: the fixture product, and drafts whose acceptance names the tests of each level: a system entry naming system and release tests (modules store and pages), a unit entry, an entry naming no level of test, an entry of component tests
-//        over modules that follow different decisions (store, other), and an entry naming a module the architecture does not describe
+// given: the fixture product, and drafts whose acceptance names the tests of each level: a system entry naming system and release tests (modules store and pages), a unit entry, an entry naming no level of test, an entry of component tests over modules that follow different decisions (store, other), and an entry naming a module the architecture does not describe
 // input: the writer on each
-// expect: system and release tests give level system, tests ["system", "release"], and no `integrates`; the unit entry gives level module and ["unit"]; the entry naming no level is refused with ItemsRefused, an error finding for it;
-//        the component entry over two decisions is refused likewise; the entry naming an undescribed module is refused with ItemsRefused whose finding is backlogFindings' (the module); for each refusal nothing is committed
+// expect: system and release tests give level system, tests ["system", "release"], and no `integrates`; the unit entry gives level module and ["unit"]; the entry naming no level is refused with ItemsRefused, an error finding for it; the component entry over two decisions is refused likewise; the entry naming an undescribed module is refused with ItemsRefused whose finding is backlogFindings' (the module); for each refusal nothing is committed
 // Planted fault: defaulting the level to module for an entry that names none, or guessing a decision, writes a commit for a refusal.
 test("the level and tests of an item are the levels its acceptance names, and an entry that names none is refused with nothing written", async () => {
   const system = jobOf([entry("Whole system", { modules: ["MOD-store", "MOD-pages"], acceptance: ["System tests of the whole.", "Release tests by another participant."] })]);
@@ -204,11 +197,9 @@ test("one entry with an error finding keeps the whole draft from being written",
 
 // TST-617007 · level: unit · module: MOD-work-plans
 // guards: UC-032; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
-// given: the fixture product, and saveItems called as the page calls it for a person's own input: one new item with no identifier, one existing item ITM-001 rewritten under its identifier with a new outcome, ITM-003 removed, and
-//        removing an item the backlog does not hold (ITM-777)
+// given: the fixture product, and saveItems called as the page calls it for a person's own input: one new item with no identifier, one existing item ITM-001 rewritten under its identifier with a new outcome, ITM-003 removed, and removing an item the backlog does not hold (ITM-777)
 // input: saveItems(host, { items, removed }, { architecture, head, trailers: [] })
-// expect: one commit of three file writes: the new item under ITM-1401, ITM-001's file at its own path with the new text, and ITM-003's file deleted (`delete: true`); the result names the commit, the written paths and no warnings; the call that removes
-//        ITM-777 throws NotFound naming it and commits nothing; no sprint record is among the files
+// expect: one commit of three file writes: the new item under ITM-1401, ITM-001's file at its own path with the new text, and ITM-003's file deleted (`delete: true`); the result names the commit, the written paths and no warnings; the call that removes ITM-777 throws NotFound naming it and commits nothing; no sprint record is among the files
 // Planted fault: a rewrite under a new path, or a deletion left out, changes the files.
 test("saveItems adds, rewrites and removes items in one commit, and refuses to remove an item the backlog lacks", async () => {
   const setup = hostOf();
