@@ -272,16 +272,15 @@ test("tests.yml: the read of dpkg's file lists starts the node job and the insta
 
 // TST-1193009 · level: system · module: MOD-test-schedule
 // guards: A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES
-// given: a machine of GitHub Actions on which needrestart is not installed (its two files are missing) and the other two programs are executable
+// given: a machine of GitHub Actions on which update-notifier's program is not installed (its file is missing) and the other three programs are executable
 // input: the script of the step "Install xvfb and openbox" in the job `node`, run under `bash -e` against the model of apt
-// expect: exit code 0; dpkg-preconfigure and update-motd-updates-available are not executable when apt is called (`hook-skipped:` for them), and apt installs from the cache: a program that is not there does not stop the removal of the others
-// Planted fault: a step that stops at the first missing program fails; one that does not look whether a program is there fails with exit code 1 on the missing chmod.
+// expect: exit code 0; dpkg-preconfigure, apt-pinvoke and dpkg-status are not executable when apt is called (`hook-skipped:` for each) and apt installs from the cache: a program that is not there, in the middle of the list, does not stop the removal of the others
+// Planted fault: a step that stops at the first missing program leaves apt-pinvoke and dpkg-status executable and fails.
 test("tests.yml: a hook that is not installed does not stop the removal of the others", () => {
   const host = machine();
-  rmSync(host.hooks[2]);
-  rmSync(host.hooks[3]);
-  const result = run(scriptOf(INSTALL), host, { env: { GITHUB_ACTIONS: "true", FAKE_HOOKS: host.hooks.join(" ") } });
+  rmSync(host.hooks[1]);
+  const result = run(scriptOf(INSTALL), host, { env: { GITHUB_ACTIONS: "true" } });
   assert.equal(result.status, 0, result.stderr);
-  assert.deepEqual(result.events.filter((event) => event.endsWith("dpkg-preconfigure") || event.endsWith("update-motd-updates-available") || event === "install-from-cache"), ["hook-skipped:dpkg-preconfigure", "hook-skipped:update-motd-updates-available", "install-from-cache"]);
-  assert.deepEqual(host.hooks.slice(0, 2).map(executable), [false, false]);
+  assert.deepEqual(result.events.filter((event) => !event.endsWith("update-motd-updates-available")), ["hook-skipped:dpkg-preconfigure", "hook-skipped:apt-pinvoke", "hook-skipped:dpkg-status", "install-from-cache"]);
+  assert.deepEqual([host.hooks[0], host.hooks[2], host.hooks[3]].map(executable), [false, false, false]);
 });
