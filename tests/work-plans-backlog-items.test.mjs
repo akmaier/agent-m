@@ -213,7 +213,7 @@ test("one entry with an error finding keeps the whole draft from being written",
 test("saveItems adds, rewrites and removes items in one commit, and refuses to remove an item the backlog lacks", async () => {
   const setup = hostOf();
   const architecture = [...Object.entries(FILES)].filter(([path]) => path.includes("/MOD-")).map(([path, text]) => readDocument(artifactSchemas().module, path, text));
-  const rewritten = { fields: { id: "ITM-001", title: "Read the store", level: "module", realises: ["ALPHA RULE"], modules: ["MOD-store"], tests: ["unit"], origin: ["ALPHA RULE"] },
+  const rewritten = { fields: { id: "ITM-001", title: "Read the store, rewritten", level: "module", realises: ["ALPHA RULE"], modules: ["MOD-store"], tests: ["unit"], origin: ["ALPHA RULE"] },
     sections: [{ heading: "## Outcome", text: "\nNEW OUTCOME\n\n" }, { heading: "## Acceptance", text: "\n- a\n" }] };
   const fresh = { fields: { title: "Brand new", level: "module", realises: ["ALPHA RULE"], modules: ["MOD-pages"], tests: ["unit"], origin: ["ALPHA RULE"] },
     sections: [{ heading: "## Outcome", text: "\nfresh\n\n" }, { heading: "## Acceptance", text: "\n- a\n" }] };
