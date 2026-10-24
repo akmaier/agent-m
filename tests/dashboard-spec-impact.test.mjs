@@ -162,8 +162,13 @@ test("UC-006 3b: an entry whose heading another entry of its queue creates names
 
 // ---------------------------------------------------------------- the requests a load of an entry makes
 
+// The impact list is derived from the trace graph the workflow "main changed" stored for the commit, which a page reads and never builds (MOD-trace-graph:
+// "A page never builds the graph: it reads the stored one through `storedGraph`"): the load reads no use case, decision, module, test or code file, and the
+// stored graph by one request. The repository stands at a commit of its own, since storedGraph keeps a commit's graph for the length of this file, and so
+// across the two loads: the second load takes the graph the first read.
+const IMPACT_HEAD = "0006b3".padEnd(40, "0");
 test("UC-006 3b: the requests one load of an entry makes, with an empty and with a kept file cache", async (t) => {
-  const srv = await repoServer({ files: FILES });
+  const srv = await repoServer({ files: FILES, head: IMPACT_HEAD });
   const caches = fakeCaches();
   const count = async (nn) => {
     const cold = (await openDashboard({ server: srv, hash: `#spec/${QNAME}/${nn}`, caches })).requests;
@@ -172,11 +177,14 @@ test("UC-006 3b: the requests one load of an entry makes, with an empty and with
     return { cold, warm };
   };
   const one = await count("01");
-  // A new dashboard load has a fresh in-memory file cache, so it reads the same requests again.
-  assert.deepEqual(one.warm, one.cold);
-  // The list reads the use cases, the architecture files and the tests of the commit, in one batch, each once — and the code files, which the trace graph reads for their imports.
-  const batch = srv.batches.at(-1);
-  for (const p of [UC1, UC2, UC3, ARC1, MODR, T1, T3]) assert.ok(srv.batches.flat().includes(p), p);
-  assert.ok(srv.batches.flat().includes("src/reader.mjs"), "a code file is a code node of the trace graph and is read for its imports");
-  assert.ok(batch.length > 0);
+  const GRAPH = `stored graph ${IMPACT_HEAD}`;
+  // A new dashboard load has a fresh in-memory file cache, so it reads the same requests again — but for the stored graph, which the first load read.
+  assert.equal(one.cold.filter((r) => r === GRAPH).length, 1, "the stored graph, by one request");
+  assert.deepEqual(one.warm, one.cold.filter((r) => r !== GRAPH));
+  // The list reads none of the use cases, the architecture files, the tests and the code files of the commit: the graph is the stored one.
+  for (const p of [UC1, UC2, UC3, ARC1, MODR, T1, T3, "src/reader.mjs"]) {
+    assert.ok(!srv.batches.flat().includes(p), `${p} in no batch`);
+    assert.ok(!fileReads([...one.cold, ...one.warm]).includes(`file ${p}`), `${p} read by no request of its own`);
+  }
+  assert.ok(srv.batches.flat().includes("SPEC.md"), "known positive: the batches name the files the page shows");
 });

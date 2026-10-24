@@ -23,13 +23,15 @@ export const TOKEN = "github_pat_HARNESS0123456789abcdefghij";
 // `handler <METHOD> <url>`. So a view's tests bring the servers that view talks to.
 // empty: the repository has no commit yet — GitHub's Git database answers 409 "Git Repository is empty." until a file is created
 // through the contents API (PUT …/contents/<path>), which makes the first commit.
-export async function repoServer({ files: given, history = [], dates = {}, repo = REPO, handlers = [], empty = false }) {
+// head: the commit the default branch stands at, c0ffee… unless a test names its own — MOD-trace-graph's storedGraph keeps a commit's graph for the length
+// of a test file, so two servers of different files in one file name different heads where both are read for a graph.
+export async function repoServer({ files: given, history = [], dates = {}, repo = REPO, handlers = [], empty = false, head: first = HEAD }) {
   const files = { ...given };
   const shas = Object.fromEntries(await Promise.all(Object.entries(files).map(async ([p, t]) => [p, await gitBlobSha(t)])));
   const bySha = Object.fromEntries(await Promise.all(history.map(async (t) => [await gitBlobSha(t), t])));
   for (const [p, s] of Object.entries(shas)) bySha[s] = files[p];
   const requests = [], writes = [], batches = [];
-  let pending = 0, head = empty ? null : HEAD, seq = 0;
+  let pending = 0, head = empty ? null : first, seq = 0;
   // The commit that added an approval record: the head, or, for a record that names a text its file no longer holds, an earlier commit
   // whose tree is the head's with that text at the file's path — the history that readHistory lists and the reads at that commit find
   // (A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT). eras: sha -> { files, date }; added: record path -> its commit, null for the head.
