@@ -212,7 +212,8 @@ the writing machine.
 - `writeResult(env: CiEnvironment) -> Promise<EntryStatus>` — on GitHub's writing machine, which runs no agent, with the
   person's token: the result downloaded, read and checked. It is refused where a commit changes a workflow file of the
   repository (`.github/workflows/`, `.gitlab-ci.yml`, `.gitlab/`), where a key of the run or the token stands in a commit's
-  message, a file a commit changes, a branch's name or what was kept, and, for a hand-over, where the task's words stand
+  message, a file a commit changes, a branch's name or what was kept, where what was kept names as an end's file another
+  than a job's record or as a pull request's branch one the result does not hold, and, for a hand-over, where the task's words stand
   in a commit's message or a kept pull request. A result that passes is written: the default branch's commits pushed as
   they are, or, where the branch moved meanwhile, each picked onto it in its order; every other branch pushed as it is,
   never forced; each kept pull request opened, or the open or merged one of its branch taken; each job's end appended,

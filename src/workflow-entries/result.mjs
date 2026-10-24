@@ -140,6 +140,11 @@ export function checkResult(read, secrets, task) {
     const changed = paths.find((each) => WORKFLOW_FILE.test(each));
     if (changed) return `the commit ${short(commit)} changes the workflow file ${changed}, which a job's result may not change`;
   }
+  // What was kept for later names only a job's record as the file of an end, and only a branch of the result as the branch of a pull request.
+  const odd = read.result.ends.find((each) => !/^docs\/jobs\/[^/]+\.md$/.test(each.path));
+  if (odd) return `an end kept for later names ${odd.path}, which is no job's record`;
+  const strange = read.result.pullRequests.find((each) => !read.result.refs.some(({ ref }) => ref === `refs/heads/${each.branch}`));
+  if (strange) return `a pull request kept for later names the branch ${strange.branch}, which the result does not hold`;
   const kept = JSON.stringify({ pullRequests: read.result.pullRequests, ends: read.result.ends });
   for (const secret of secrets.filter((each) => typeof each === "string" && each.length > 0)) {
     for (const { commit, message, paths, texts } of read.commits) {

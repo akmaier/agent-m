@@ -117,13 +117,28 @@ test("checkResult — a result that holds a key of the run anywhere is refused, 
 test("checkResult — a hand-over's result that holds the task in a pull request or a commit message is refused", () => {
   assert.ok(checkResult, `result.mjs: ${loaded.error?.message}`);
   const commits = (message) => [{ commit: "e".repeat(40), message, paths: ["src/a.mjs"], texts: [Buffer.from("x")] }];
-  const inRequest = { result: { refs: [], pullRequests: [{ branch: "job-1", base: "main", title: "JOB-1", body: `Asked: ${TASK}` }], ends: [] }, commits: commits("work") };
+  const inRequest = { result: { refs: [{ ref: "refs/heads/job-1", commit: "e".repeat(40) }], pullRequests: [{ branch: "job-1", base: "main", title: "JOB-1", body: `Asked: ${TASK}` }], ends: [] },
+    commits: commits("work") };
   const inMessage = { result: { refs: [], pullRequests: [], ends: [] }, commits: commits(`${TASK}\n`) };
   for (const read of [inRequest, inMessage]) {
     const reason = checkResult(read, [], TASK);
     assert.ok(reason && !reason.includes(TASK), reason);
     assert.equal(checkResult(read, [], null), null);
   }
+});
+
+// TST-0124008 · level: unit · module: MOD-workflow-entries
+// guards: A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
+// given: a result whose kept end names .github/workflows/x.yml as its record, one whose kept pull request names the branch main-2, which the result does not hold, and — the known positive — one whose end names docs/jobs/JOB-1.md and whose pull request names its own branch job-1
+// input: checkResult(each, [], null)
+// expect: the first two are refused, naming the file and the branch; the third is not
+test("checkResult — what was kept for later may name only a job's record and a branch of the result", () => {
+  assert.ok(checkResult, `result.mjs: ${loaded.error?.message}`);
+  const of = (path, branch) => ({ result: { refs: [{ ref: "refs/heads/job-1", commit: "f".repeat(40) }], pullRequests: [{ branch, base: "main", title: "JOB-1", body: "" }],
+    ends: [{ path, part: { part: { state: "done" }, branch: "main" }, trailers: [] }] }, commits: [] });
+  assert.match(checkResult(of(".github/workflows/x.yml", "job-1"), [], null), /\.github\/workflows\/x\.yml/);
+  assert.match(checkResult(of("docs/jobs/JOB-1.md", "main-2"), [], null), /main-2/);
+  assert.equal(checkResult(of("docs/jobs/JOB-1.md", "job-1"), [], null), null);
 });
 
 // TST-0124004 · level: unit · module: MOD-workflow-entries
