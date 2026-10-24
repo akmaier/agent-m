@@ -16,6 +16,8 @@ import { misfit } from "./loop.mjs";
 import { strategyOf } from "./registry.mjs";
 
 const refusal = (why) => `refused: ${why}`;
+// The most files one search-files call reads.
+const SEARCH_LIMIT = 200;
 
 /**
  * offerTools(kind, drafter, context) -> Promise<{ use: ToolUse, held } | null> — the ToolUse of one exchange with the drafter, and what the
@@ -112,10 +114,17 @@ export const tools = {
   },
   // Each line of the product's files that holds the text, as <path>:<line number>: <line>; the files of a restricted source the drafter's
   // place is not allowed are not read, and each is named in a refusal at the end.
-  "search-files": async ({ text }, context) => {
+  // Searches the files below `path` — a file, or a folder ending in "/" — or every file; it refuses to read more than SEARCH_LIMIT files, naming how many there are,
+  // so that a search reads in a page what the page can hold and the participant narrows it with `path`.
+  "search-files": async ({ text, path = "" }, context) => {
     const { snapshot } = context.product;
-    const refused = snapshot.paths.map((path) => [path, barred(path, context)]).filter(([, why]) => why);
-    const open = snapshot.paths.filter((path) => !refused.some(([barredPath]) => barredPath === path));
+    const scope = String(path).replace(/^\.?\/+/, "");
+    const paths = scope ? snapshot.paths.filter((each) => each === scope || each.startsWith(scope.endsWith("/") ? scope : `${scope}/`)) : snapshot.paths;
+    if (paths.length > SEARCH_LIMIT) {
+      return refusal(`${scope ? `${scope} holds` : "the repository holds"} ${paths.length} files, more than the ${SEARCH_LIMIT} one search reads; name a file or a folder as path — SPEC.md, docs/use-cases/, docs/architecture/`);
+    }
+    const refused = paths.map((each) => [each, barred(each, context)]).filter(([, why]) => why);
+    const open = paths.filter((each) => !refused.some(([barredPath]) => barredPath === each));
     await snapshot.readMany?.(open);
     const found = [];
     for (const path of open) {
