@@ -101,7 +101,7 @@ test("jobWorkflowFiles — the file of GitHub, and the file of GitLab with the s
 // guards: UC-010
 // given: the two files for the instance, the secrets and the runner above
 // input: the triggers and the steps of the GitHub file; the rules of each job of the GitLab file
-// expect: GitHub — a push that changes docs/jobs/ or docs/gates/, a pull request closed, a check run completed, a schedule once a day, and a start by hand with the job's identifier as its input; in every job a step for each of the five events that runs `node src/workflow-entries/main.mjs <entry>` with the entry of that event — push onRecordsChanged, pull request onPullRequestClosed, check onCheckCompleted, schedule onSchedule, dispatch onDispatch —, the push step only on the default branch. GitLab — in every job a rule for each of the five pipeline sources that sets AGENT_M_ENTRY to that entry, the push rule only on the default branch and for a change of docs/jobs/ or docs/gates/, and a script that runs the entry
+// expect: GitHub — a push that changes docs/jobs/ or docs/gates/, a pull request closed, a check run completed, a schedule once a day, and a start by hand with the job's identifier as its input; the entries that run an agent — push onRecordsChanged, dispatch onDispatch — in each agent's job, each once, after the plan, which runs only on a dispatch or a push to the default branch; the entries that run none — pull request onPullRequestClosed, check onCheckCompleted, schedule onSchedule — and writeResult, on a dispatch or a push to the default branch, in the job that writes, each once; every step that runs an entry runs `node src/workflow-entries/main.mjs <entry>` on its event. GitLab — in every job a rule for each of the five pipeline sources that sets AGENT_M_ENTRY to that entry, the push rule only on the default branch and for a change of docs/jobs/ or docs/gates/, and a script that runs the entry
 test("jobWorkflowFiles — each event starts its entry, on GitHub and on GitLab", () => {
   const github = workflow("github");
   assert.match(github, /\n  push:\n(?:.*\n)*?    paths:\n(?:.*\n)*?      - ["']?docs\/jobs\/\*\*["']?\n(?:.*\n)*?      - ["']?docs\/gates\/\*\*["']?\n/);
@@ -109,14 +109,18 @@ test("jobWorkflowFiles — each event starts its entry, on GitHub and on GitLab"
   assert.match(github, /\n  check_run:\n    types: \[completed\]\n/);
   assert.match(github, /\n  schedule:\n    - cron: ["'][^"']+["']\n/);
   assert.match(github, /\n  workflow_dispatch:\n    inputs:\n      job:\n/);
+  const DEFAULT_PUSH = "github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)";
   for (const job of githubJobs(github)) {
-    for (const entry of ENTRIES) {
-      const steps = stepsOf(job).filter((step) => step.includes(`${MAIN} ${entry}`));
-      assert.equal(steps.length, 1, `${job.id}: one step for ${entry}`);
-      assert.ok(steps[0].includes(`github.event_name == '${GITHUB_EVENTS[entry]}'`), `${job.id}: ${entry} on ${GITHUB_EVENTS[entry]}: ${steps[0]}`);
+    const kind = job.id.endsWith("-plan") ? "plan" : /-agent-\d+$/.test(job.id) ? "agent" : "write";
+    const entries = { plan: ["chooseAgentKey"], agent: ["onRecordsChanged", "onDispatch", "leaveResult"], write: ["writeResult", "onPullRequestClosed", "onCheckCompleted", "onSchedule"] }[kind];
+    assert.deepEqual(stepsOf(job).filter((step) => step.includes(MAIN)).map((step) => /main\.mjs (\w+)/.exec(step)[1]), entries, job.id);
+    for (const entry of entries.filter((each) => Object.hasOwn(GITHUB_EVENTS, each))) {
+      const [step] = stepsOf(job).filter((each) => each.includes(`${MAIN} ${entry}`));
+      assert.ok(step.includes(`github.event_name == '${GITHUB_EVENTS[entry]}'`), `${job.id}: ${entry} on ${GITHUB_EVENTS[entry]}: ${step}`);
     }
-    const push = stepsOf(job).find((step) => step.includes(`${MAIN} onRecordsChanged`));
-    assert.match(push, /default_branch/, `${job.id}: the push step only on the default branch`);
+    if (kind === "plan") assert.ok(job.text.includes(`if: github.event_name == 'workflow_dispatch' || (${DEFAULT_PUSH})`), `${job.id}: only a dispatch or a push to the default branch`);
+    if (kind === "agent") assert.match(job.text, /\n    needs: \S+-plan\n/, job.id);
+    if (kind === "write") assert.ok(stepsOf(job).find((step) => step.includes(`${MAIN} writeResult`)).includes(DEFAULT_PUSH), `${job.id}: the result written on a push only to the default branch`);
   }
 
   const gitlab = gitlabJobs(workflow("gitlab"));
@@ -141,20 +145,24 @@ test("jobWorkflowFiles — each event starts its entry, on GitHub and on GitLab"
 // guards: A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE REPOSITORY; AGENT M WORKS WITHOUT A LOCAL INSTALLATION; UC-011
 // given: the runner labels (1) gpu, (2) none, (3) gpu and cpu
 // input: jobWorkflowFiles for each, on GitHub and on GitLab
-// expect: one job for each route — the server's runners and each runner by its label, in that order: (1) two, (2) one, (3) three —; GitHub: the hosted job runs on ubuntu-latest and a runner's on [self-hosted, "<label>"]; GitLab: the hosted job has no tag and a runner's has the tag of its label; every job takes the product's jobs of its own route, AGENT_M_RUNNER being `hosted` or the label
+// expect: for each route — the server's runners and each runner by its label, in that order: (1) two, (2) one, (3) three —, on GitHub the plan, an agent's job for no key and for each of the two keys, and the job that writes, on GitLab one job; GitHub: the agent's jobs of the hosted route run on ubuntu-latest and a runner's on [self-hosted, "<label>"], the plan and the job that writes on ubuntu-latest for every route; GitLab: the hosted job has no tag and a runner's has the tag of its label; every job takes the product's jobs of its own route, AGENT_M_RUNNER being `hosted` or the label
 test("jobWorkflowFiles — one job for each route of the product's CI agents", () => {
   for (const [runners, labels] of [[["gpu"], ["gpu"]], [[], []], [["gpu", "cpu"], ["gpu", "cpu"]]]) {
     const github = githubJobs(workflow("github", runners)), gitlab = gitlabJobs(workflow("gitlab", runners));
 
-    assert.deepEqual(github.map((job) => job.id), ["hosted", ...labels.map((label) => `runner-${label}`)], `GitHub with ${runners}`);
+    const routeJobs = (id) => [`${id}-plan`, `${id}-agent-0`, `${id}-agent-1`, `${id}-agent-2`, id];
+    assert.deepEqual(github.map((job) => job.id), ["hosted", ...labels.map((label) => `runner-${label}`)].flatMap(routeJobs), `GitHub with ${runners}`);
     assert.deepEqual(gitlab.map((job) => job.id), ["agent-m-hosted", ...labels.map((label) => `agent-m-runner-${label}`)], `GitLab with ${runners}`);
-    assert.match(github[0].text, /\n    runs-on: ubuntu-latest\n/);
-    assert.match(github[0].text, /AGENT_M_RUNNER: "hosted"\n/);
+    for (const job of github.filter((each) => !/-agent-\d+$/.test(each.id))) assert.match(job.text, /\n    runs-on: ubuntu-latest\n/, job.id);
+    for (const job of github.slice(0, 5)) {
+      assert.match(job.text, /\n    runs-on: ubuntu-latest\n/, job.id);
+      assert.match(job.text, /AGENT_M_RUNNER: "hosted"\n/, job.id);
+    }
     assert.ok(!/\n {2,4}tags:/.test(gitlab[0].text), "the hosted job has no tag");
     assert.match(gitlab[0].text, /AGENT_M_RUNNER: "hosted"\n/);
     labels.forEach((label, at) => {
-      assert.match(github[at + 1].text, new RegExp(`\\n    runs-on: \\[self-hosted, "${label}"\\]\\n`));
-      assert.match(github[at + 1].text, new RegExp(`AGENT_M_RUNNER: "${label}"\\n`));
+      for (const job of github.slice(5 * (at + 1), 5 * (at + 2))) assert.match(job.text, new RegExp(`AGENT_M_RUNNER: "${label}"\\n`), job.id);
+      for (const job of github.slice(5 * (at + 1) + 1, 5 * (at + 1) + 4)) assert.match(job.text, new RegExp(`\\n    runs-on: \\[self-hosted, "${label}"\\]\\n`), job.id);
       assert.match(gitlab[at + 1].text, new RegExp(`\\n  tags: \\["${label}"\\]\\n`));
       assert.match(gitlab[at + 1].text, new RegExp(`AGENT_M_RUNNER: "${label}"\\n`));
     });
@@ -167,13 +175,15 @@ test("jobWorkflowFiles — one job for each route of the product's CI agents", (
 // guards: UC-010; A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
 // given: the instance alice/agent-m at the commit 0123…4567
 // input: jobWorkflowFiles on each server
-// expect: GitHub — in every job the product checked out with the person's token, then alice/agent-m checked out at that commit — and at no other ref —, the entries run from the instance's checkout; GitLab — the instance cloned and set to that commit before the entry runs, the product's directory handed over as AGENT_M_PRODUCT_DIR; on both the commit stands in the file once for each job, and nothing runs on a branch name of the instance
+// expect: GitHub — in every job the product checked out, then alice/agent-m checked out at that commit — and at no other ref —, the entries run from the instance's checkout; in the job that writes both checkouts take the person's token, in the plan and the agent's jobs neither takes a token; GitLab — the instance cloned and set to that commit before the entry runs, the product's directory handed over as AGENT_M_PRODUCT_DIR; on both the commit stands in the file once for each job, and nothing runs on a branch name of the instance
 test("jobWorkflowFiles — the product is checked out with the person's token and the instance at the commit the file names", () => {
   for (const job of githubJobs(workflow("github"))) {
     const checkouts = stepsOf(job).filter((step) => step.includes("actions/checkout"));
     assert.equal(checkouts.length, 2, job.id);
     assert.match(checkouts[0], /path: product(\n|$)/);
-    assert.match(checkouts[0], /token: \$\{\{ secrets\.AGENT_M_TOKEN \}\}/);
+    const writes = !/-(plan|agent-\d+)$/.test(job.id);
+    for (const checkout of checkouts) assert.equal(/token: \$\{\{ secrets\.AGENT_M_TOKEN \}\}/.test(checkout), writes, `${job.id}: ${checkout}`);
+    assert.equal(checkouts.filter((checkout) => checkout.includes("token:")).length, writes ? 2 : 0, job.id);
     assert.match(checkouts[1], /repository: alice\/agent-m\n/);
     assert.ok(checkouts[1].includes(`ref: ${COMMIT}\n`), checkouts[1]);
     assert.match(checkouts[1], /path: instance(\n|$)/);

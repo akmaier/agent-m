@@ -18,16 +18,23 @@ const INSTANCE = { repository: "akmaier/agent-m", commit: "c0ffee000000000000000
 // guards: UC-049; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; NO SECRET IN THE REPOSITORY
 // given: the GitHub job workflow for the keys NVIDIA_API_KEY and HOSTED_KEY
 // input: jobWorkflowFiles("github", INSTANCE, { token: "AGENT_M_TOKEN", keys: ["NVIDIA_API_KEY", "HOSTED_KEY"] }, [])
-// expect: one step, `if: github.event_name == 'workflow_dispatch' && inputs.endpoint != ''`, runs `npm install --global opencode-ai@1.19.0`, after setup-node and before the step of onDispatch; the key is read only as `NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}` and listed in AGENT_M_KEY_NAMES; no other line names it
+// expect: in each agent's job — and in no other job — one step, `if: github.event_name == 'workflow_dispatch' && inputs.endpoint != ''`, runs `npm install --global opencode-ai@1.19.0`, after setup-node and before the step of onDispatch; NVIDIA_API_KEY is read only as `NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}`, in the agent's job of that key and in the job that writes, and listed in AGENT_M_KEY_NAMES; no other line names it
 test("the GitHub job workflow installs opencode, at a pinned version, only for a dispatch that names an endpoint, and reads NVIDIA_API_KEY only from its secret", () => {
   const [file] = jobWorkflowFiles("github", INSTANCE, { token: "AGENT_M_TOKEN", keys: ["NVIDIA_API_KEY", "HOSTED_KEY"] }, []);
-  const lines = file.text.split("\n");
-  const install = lines.findIndex((line) => line.trim() === "run: npm install --global opencode-ai@1.19.0");
-  assert.ok(install > 0, "the install step");
-  assert.equal(lines[install - 1].trim(), "- if: github.event_name == 'workflow_dispatch' && inputs.endpoint != ''");
-  assert.ok(lines.findIndex((line) => line.includes("actions/setup-node")) < install);
-  assert.ok(lines.findIndex((line) => line.includes("main.mjs onDispatch")) > install);
-  assert.equal(lines.filter((line) => line.includes("opencode")).length, 1, "one line installs it, and nothing else names it");
-  const naming = lines.filter((line) => line.includes("NVIDIA_API_KEY")).map((line) => line.trim());
-  assert.deepEqual(naming, ['AGENT_M_KEY_NAMES: "NVIDIA_API_KEY HOSTED_KEY"', "NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}"]);
+  const jobs = file.text.slice(file.text.indexOf("\njobs:\n") + 7).split(/\n(?=  [A-Za-z0-9_-]+:\n)/);
+  for (const job of jobs) {
+    const id = /^\s*([A-Za-z0-9_-]+):/.exec(job)[1];
+    const lines = job.split("\n");
+    const installs = lines.filter((line) => line.includes("opencode"));
+    if (!/-agent-\d+$/.test(id)) { assert.deepEqual(installs, [], id); continue; }
+    const install = lines.findIndex((line) => line.trim() === "run: npm install --global opencode-ai@1.19.0");
+    assert.ok(install > 0, `${id}: the install step`);
+    assert.equal(installs.length, 1, `${id}: one line installs it, and nothing else names it`);
+    assert.equal(lines[install - 1].trim(), "- if: github.event_name == 'workflow_dispatch' && inputs.endpoint != ''");
+    assert.ok(lines.findIndex((line) => line.includes("actions/setup-node")) < install);
+    assert.ok(lines.findIndex((line) => line.includes("main.mjs onDispatch")) > install);
+  }
+  const naming = file.text.split("\n").filter((line) => line.includes("NVIDIA_API_KEY")).map((line) => line.trim());
+  assert.deepEqual([...new Set(naming)], ['AGENT_M_KEY_NAMES: "NVIDIA_API_KEY HOSTED_KEY"', "NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}"]);
+  assert.equal(naming.filter((line) => line.startsWith("NVIDIA_API_KEY:")).length, 2);
 });

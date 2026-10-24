@@ -70,12 +70,12 @@ function dynamicReads(text) {
 // guards: A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; UC-049
 // given: jobWorkflowFiles for GitHub and GitLab with the token secret AGENT_M_TOKEN and the key secrets CLAUDE_KEY and EP1_KEY, and the runner gpu
 // input: the GitHub file's workflow_dispatch inputs and its lines that hold `secrets`; the GitLab job file's spec header, its input variables, and the include the .gitlab-ci.yml passes
-// expect: GitHub declares an input `secret` not required, and each key has one line `NAME: ${{ secrets.NAME }}` in each of its two jobs, with AGENT_M_KEY_NAMES listing both names; GitLab declares `secret` with an empty default, sets AGENT_M_INPUT_SECRET to `$[[ inputs.secret ]]` in each job, and passes `secret: $[[ inputs.secret ]]` in the include
+// expect: GitHub declares an input `secret` not required, and for each of its two routes each key has one line `NAME: ${{ secrets.NAME }}` in the job that writes and one in the agent's job of that key — four in all —, with AGENT_M_KEY_NAMES listing both names in each route's plan, its three agent's jobs and its job that writes; GitLab declares `secret` with an empty default, sets AGENT_M_INPUT_SECRET to `$[[ inputs.secret ]]` in each job, and passes `secret: $[[ inputs.secret ]]` in the include
 test("jobWorkflowFiles — both files declare the input secret and keep one static line for each key they read", () => {
   const [github] = generated("github");
   assert.match(github.text, /\n      secret:\n        description: "[^\n]*"\n        required: false\n/);
-  for (const key of SECRETS.keys) assert.equal(codeLines(github.text).filter((line) => line.trim() === `${key}: \${{ secrets.${key} }}`).length, 2, key);
-  assert.equal(codeLines(github.text).filter((line) => line.includes("AGENT_M_KEY_NAMES: \"CLAUDE_KEY EP1_KEY\"")).length, 2);
+  for (const key of SECRETS.keys) assert.equal(codeLines(github.text).filter((line) => line.trim() === `${key}: \${{ secrets.${key} }}`).length, 4, key);
+  assert.equal(codeLines(github.text).filter((line) => line.includes("AGENT_M_KEY_NAMES: \"CLAUDE_KEY EP1_KEY\"")).length, 10);
 
   const [job, ci] = generated("gitlab");
   assert.ok(job.text.startsWith('spec:\n  inputs:\n    job:\n      default: ""\n    task:\n      default: ""\n    endpoint:\n      default: ""\n    secret:\n      default: ""\n---\n'));

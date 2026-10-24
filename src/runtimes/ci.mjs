@@ -81,6 +81,8 @@ const templateAt = (name) => disk?.readFileSync(new URL(`./workflow/${name}`, im
 // A template is the head of the file, a line that begins `# --- one job`, and the lines of one job, written once for each route.
 const TEMPLATES = { github: templateAt("github.yml"), gitlab: templateAt("gitlab.yml") };
 const JOB_MARKER = /^# --- one job.*\n/m;
+// GitHub's template then has, after its route's jobs, a line that begins `# --- the agent's job` and the lines of one agent's job, written once for each key and once for none.
+const AGENT_MARKER = /^# --- the agent's job.*\n/m;
 
 const SECRET_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/, LABEL = /^[A-Za-z0-9_.:-]+$/, COMMIT = /^[0-9a-f]{40}$/;
 const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
@@ -192,8 +194,10 @@ function mergeGitlabCi(text, names) {
  * read, `null` where it has none: the second file is then the whole file the template gives — the `spec:inputs` header that declares the inputs `job`,
  * `task` and `endpoint` of a pipeline the API starts, each with an empty default, and the include of the job file that passes them on —, and otherwise
  * `gitlabCi` with those three things added, each only where it is missing, and every other line as it was. Throws RuntimeError GitlabCiNotList, naming
- * the file, where its `include:` holds a single string or a map. One job for each route of the product's CI agents: the server's runners, `hosted`, and each
- * self-hosted runner by its label in `runners`. `instance.repository` is `owner/name` on github.com and `instance.commit` a
+ * the file, where its `include:` holds a single string or a map. For each route of the product's CI agents — the server's runners, `hosted`, and each
+ * self-hosted runner by its label in `runners` —, on GitLab one job; on GitHub the plan `<route>-plan`, which reads no secret, the agent's jobs `<route>-agent-<n>`,
+ * the n-th reading the n-th key's secret and no other, the 0th none, each started only where the plan's output `agent` is its n, and the job `<route>` that
+ * writes, which reads the token and every key and runs no agent. `instance.repository` is `owner/name` on github.com and `instance.commit` a
  * 40-digit commit, at which each job checks out the instance. `secrets.token` is the name of the secret that holds the person's
  * Agent M token, `secrets.keys` the names of those that hold the agents' keys: the files name them and hold no value. Pure.
  * The templates are read from the disk, in Node: in a browser it throws an Error that says so. Throws TypeError for a server that is neither, a repository or commit of another form, or a name of a secret or a runner label
@@ -215,14 +219,24 @@ export function jobWorkflowFiles(server, instance, secrets, runners, gitlabCi = 
   for (const label of runners) if (!LABEL.test(label)) throw new TypeError(`a runner is named by a plain label: ${JSON.stringify(label)}`);
 
   if (TEMPLATES[server] === null) throw new Error("MOD-runtimes: the job workflow's templates are read in Node; a browser cannot read them yet");
-  const [head, job] = TEMPLATES[server].split(JOB_MARKER);
+  const [head, routeJobs] = TEMPLATES[server].split(JOB_MARKER);
   const github = server === "github";
   const common = { repository: instance.repository, commit: instance.commit, token: secrets.token, "key-names": secrets.keys.join(" ") };
   const routes = [{ runner: "hosted", id: "hosted", "runs-on": "ubuntu-latest", tags: "" },
     ...runners.map((label) => ({ runner: label, id: `runner-${label}`, "runs-on": `[self-hosted, ${JSON.stringify(label)}]`,
       tags: `  tags: [${JSON.stringify(label)}]\n` }))];
-  const jobs = routes.map((route) => fill(job, { ...common, ...route, runner: JSON.stringify(route.runner), route: route.runner,
-    id: github ? route.id : `agent-m-${route.id}`, "key-env": secrets.keys.map((name) => `      ${name}: \${{ secrets.${name} }}\n`).join("") }));
+  const keyEnv = (names) => names.map((name) => `      ${name}: \${{ secrets.${name} }}\n`).join("");
+  // On GitHub, a route is three kinds of job (MOD-runtimes, Data): the plan, one agent's job for each key — the n-th reading the n-th key's secret and no other —
+  // and one, 0, reading none, and the job that writes, which reads the token and every key. GitLab's route is one job.
+  const [job, agentJob] = github ? routeJobs.split(AGENT_MARKER) : [routeJobs, ""];
+  const jobs = routes.map((route) => {
+    const values = { ...common, ...route, runner: JSON.stringify(route.runner), route: route.runner, id: github ? route.id : `agent-m-${route.id}`, "key-env": keyEnv(secrets.keys) };
+    if (!github) return fill(job, values);
+    const agents = [null, ...secrets.keys].map((name, at) => ({ id: `${route.id}-agent-${at}`, text: fill(agentJob, { ...values, agent: String(at),
+      "agent-id": `${route.id}-agent-${at}`, "agent-key-env": name === null ? "" : keyEnv([name]) }) }));
+    return fill(job, { ...values, "agent-jobs": agents.map((agent) => agent.text).join("").replace(/\n$/, ""), "agent-ids": agents.map((agent) => agent.id).join(", "),
+      "artifact-ids": agents.map((agent) => `\${{ needs.${agent.id}.outputs.artifact }}`).join(" ") });
+  });
   const files = [{ path: WORKFLOW_PATH[server], text: `${fill(head, common)}${jobs.join("\n")}` }];
   if (!github) {
     // The inputs of a pipeline started through the API: GitLab takes them only from the `spec:inputs` header of the main .gitlab-ci.yml (docs.gitlab.com, "CI/CD
