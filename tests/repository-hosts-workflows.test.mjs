@@ -82,6 +82,19 @@ test("startWorkflow on GitHub — a server that names no run gives null", async 
   assert.deepEqual(requests[0].body, { ref: "main", inputs: {} });
 });
 
+// TST-1204001 · level: unit · module: MOD-repository-hosts
+// guards: UC-004; A TOKEN IS SCOPED TO WHAT IT WRITES
+// given: a GitHub server that refuses the dispatch as a fine-grained token without Actions write is refused — 403 "Resource not accessible by personal access token"
+// input: startWorkflow("agent-m-jobs.yml", "main", {})
+// expect: PermissionMissing naming Actions — the permission a dispatch needs —, never Contents
+test("startWorkflow on GitHub — a refused dispatch names the permission Actions", async () => {
+  const { result } = await serving(() => json(403, { message: "Resource not accessible by personal access token" }),
+    () => failure(connect(GITHUB, { token: GH_TOKEN }).startWorkflow("agent-m-jobs.yml", "main", {})));
+  assert.equal(result?.name, "PermissionMissing");
+  assert.equal(result.permission, "Actions");
+  assert.match(result.message, /lacks Actions/);
+});
+
 // ---------------------------------------------------------------- GitLab
 
 // TST-472568 · level: unit · module: MOD-repository-hosts
