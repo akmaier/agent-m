@@ -34,12 +34,14 @@ export async function placesOf(instanceSnapshot, address) {
 }
 
 /**
- * personOf(store: Store, snapshot: Snapshot, ofProduct: boolean) -> string | null — the name of the token this browser stores for the page's repository, or null
- * without one: a product's own, never the instance's; the instance's for the page of the instance.
+ * personOf(store: Store, snapshot: Snapshot, ofProduct: boolean, instanceSnapshot?: Snapshot) -> string | null — the name of the token this browser stores for the page's
+ * repository, or null without one: a product's own, never the instance's; the instance's for the page of the instance, and for a product whose repository is the
+ * instance's own, whose own token the instance's is.
  */
-export function personOf(store, snapshot, ofProduct) {
+export function personOf(store, snapshot, ofProduct, instanceSnapshot = null) {
   const { server, origin, path } = snapshot.repository;
-  const keys = !ofProduct ? ["github-token"] : server === "gitlab" ? [`gitlab-token:${new URL(origin).host}/${path}`] : [`github-token:${path}`];
+  const instanceItself = instanceSnapshot !== null && instanceSnapshot.repository.server === server && instanceSnapshot.repository.path === path;
+  const keys = !ofProduct || instanceItself ? ["github-token"] : server === "gitlab" ? [`gitlab-token:${new URL(origin).host}/${path}`] : [`github-token:${path}`];
   for (const key of keys) {
     const token = readSetting(store, key);
     if (token) return token.name ?? "a reviewer";
@@ -80,7 +82,7 @@ export async function prepareMessage({ subject, participant, instruction, conver
     ? { address: product.address, host: product.host, snapshot: await defaultSnapshot(product.host) }
     : { address: instanceSnapshot.repository.web, host: instance.host, snapshot: instanceSnapshot };
   const participants = await readParticipants(instanceSnapshot);
-  const person = personOf(store, page.snapshot, product !== null);
+  const person = personOf(store, page.snapshot, product !== null, instanceSnapshot);
   const commit = instanceSnapshot.commit ?? "unknown";
   const inputs = {
     params: { ...subject.paramsFor(participant), instruction, conversation, entry: subject.entry, refuses: subject.refuses },

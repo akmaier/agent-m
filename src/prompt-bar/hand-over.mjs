@@ -109,7 +109,7 @@ function paramsOf(worksOn, snapshot) {
  */
 export async function queue({ handOver, participant, assessment, store, instance, page, ofProduct, conversation, source }) {
   const { facts, route, instanceSnapshot, participants } = assessment;
-  const person = personOf(store, facts.snapshot, ofProduct);
+  const person = personOf(store, facts.snapshot, ofProduct, instanceSnapshot);
   if (person === null) throw Object.assign(new Error("no token that writes to this repository is stored in this browser"), { name: "NoToken" });
   const now = new Date();
   const id = newJobId(now, new Set(facts.jobs.map((row) => row.record.id)));
