@@ -124,8 +124,9 @@ export function startPromptBar(target, setup) {
     recorded.hidden = !on;
   };
   const chosen = () => offered.find((each) => each.name === (selector.value ?? offered[0].name)) ?? offered[0];
+  // A participant's answer stands once, in the conversation: its text is the bar's `answer`.
   const line = (message) => {
-    const text = el("div", "text");
+    const text = el("div", message.from === "participant" ? "text answer" : "text");
     if (message.from === "participant") text.append(renderArtifact(message.text, { frontMatter: "hidden" }));
     else text.append(message.text);
     return el("li", `message ${message.from}`, el("span", "who", message.who), " ", text);
@@ -172,9 +173,8 @@ export function startPromptBar(target, setup) {
     const ended = view.end === null ? [] : [el("p", "ended", `Ended: ${view.end.state}`),
       ...(view.end.reason ? [el("p", "reason", `Reason: ${view.end.reason}`)] : []),
       ...(view.end.results.length ? [el("ul", "commits", ...view.end.results.map((each) => el("li", "commit", each)))] : [])];
-    const answer = view.answer ? [el("div", "answer", renderArtifact(view.answer, { frontMatter: "hidden" }))] : [];
     followed.replaceChildren(el("h3", null, `Handed over: ${view.id}`), el("p", "state", `State: ${view.state ?? "reading…"}`), ...waiting, ...secret, ...run,
-      ...(view.lines.length ? [el("pre", "log", view.lines.join("\n"))] : []), ...ended, ...answer, ...(view.cancel ? [el("p", "cancel", view.cancel)] : []),
+      ...(view.lines.length ? [el("pre", "log", view.lines.join("\n"))] : []), ...ended, ...(view.cancel ? [el("p", "cancel", view.cancel)] : []),
       ...(view.problem ? [problem(view.problem)] : []));
     // The run's answer joins the conversation once (UC-049 4a.4).
     if (view.answer && state.answered !== view.id) {
@@ -256,8 +256,7 @@ export function startPromptBar(target, setup) {
     const text = typeof draft.answer === "string" ? draft.answer
       : subject.draftRoute !== null ? `A draft of ${subject.title} is ready to review.` : "";
     const left = [...result.remaining, ...result.forPerson];
-    const parts = [el("div", "answer", renderArtifact(text, { frontMatter: "hidden" })),
-      el("p", "rounds", `Rounds: ${result.rounds.length}`)];
+    const parts = [el("p", "rounds", `Rounds: ${result.rounds.length}`)];
     if (left.length) parts.push(el("ul", "left", ...left.map((each) => el("li", "finding", shown(each)))));
     if (draft.handOver) {
       const { kind, task } = draft.handOver;
