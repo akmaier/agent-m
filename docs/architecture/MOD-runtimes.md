@@ -138,15 +138,42 @@ read as this browser's.
 | a start from the server's own page, with a job's identifier (UC-010, UC-024), or from a hand-over, with the identifier of the job it queued and the task (UC-049 4a) | `onDispatch` |
 
 Its start from a page or a hand-over takes the inputs `job`, the job's identifier, and, for a hand-over, `task`, the
-task in the participant's words, and `endpoint`, the address and model of a model endpoint; the task is given to the job
-and written to no file, and the run's answer is left in the run's own log and summary, never in the job's record. It has
-one job for each route of the product's CI agents — the server's own runners, and each self-hosted runner by its
-label — and each checks out the product with the person's Agent M token, checks out the instance repository at the
-commit the file names, and runs the entry with Node; on GitHub, a start that names an `endpoint` first installs opencode at a
-pinned version, the agent that works with that endpoint (MOD-agent-processes), since the server's runners hold none. It reads the person's token from the CI secret `AGENT_M_TOKEN` and
-an agent's key from the secret the participant's route names; the dashboard names both and opens the server's page for
-secrets, and never asks for a value (`A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET`, `A HOSTED JOB WRITES WITH
-THE PERSON'S TOKEN FROM A CI SECRET`). It is not the product's test configuration, which starts no run for job records
+task in the participant's words, `endpoint`, the address and model of a model endpoint, and `secret`, the name of the CI
+secret of that endpoint's key; the task is given to the job and written to no file, and the run's answer is left in the
+run's own log and summary, never in the job's record. It reads the person's token from the CI secret `AGENT_M_TOKEN` and
+an agent's key from the secret the participant's route names; the file names each secret it reads by its literal name,
+never by a name computed while it runs; the dashboard names them and opens the server's page for secrets, and never asks
+for a value. Each job checks out the instance repository at the commit the file names and runs an entry of
+MOD-workflow-entries with Node.
+
+On GitHub, a run has two machines (`A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET`, `A HOSTED JOB WRITES WITH THE
+PERSON'S TOKEN FROM A CI SECRET`). For each route of the product's CI agents — the server's own runners, and each
+self-hosted runner by its label — the file has three kinds of job:
+
+| Job | Runs on | Secrets it reads | What it does |
+|---|---|---|---|
+| `<route>-plan` | the server's runners | none | on a start or a push to the default branch: `chooseAgentKey` names the key of the run's job |
+| `<route>-agent-<n>` | the route's runner | the n-th key the file reads; none for 0 | only where the plan named its n: the job's entry, then `leaveResult` |
+| `<route>` | the server's runners | the person's token and every key | `writeResult`, or the entry of an event that runs no agent; then deletes the result |
+
+The agent's machine is the agent's job: GitHub sends a job's runner only the secrets it names, so that machine receives
+the one key of the participant the run names, never the person's token. It checks out the product and the instance with
+the workflow's own read access; a start that names an `endpoint` first installs opencode at a pinned version, the agent
+that works with that endpoint (MOD-agent-processes), since the server's runners hold none. It writes nothing to the
+product: what the job commits lands in the run's result, which it uploads as an artifact of the run, kept one day. The
+writing machine is the job that writes: it runs no agent and calls no model, downloads the result, refuses it where it
+changes the repository's workflow files or holds a key of the run, and otherwise writes it with the person's token
+(MOD-workflow-entries, `writeResult`); then, written or refused, it deletes the result's artifact through the server's
+API with the person's token, since anyone who may read the repository's runs may download it while it is kept. The
+writing machine runs on the server's runners for every route, so that the token never reaches a self-hosted runner an
+agent has worked on.
+
+The instance is read on the agent's machine with the workflow's own read access, which reaches the product itself and any
+public repository. A private instance that is not the product is not reachable there: the agent's job then fails at the
+instance's checkout, naming it, and such a product's jobs run in the tab or on a Bridge.
+
+On GitLab, the file has one job for each route, which reads the person's token and the keys and runs the entry; the two
+machines are not yet built there. It is not the product's test configuration, which starts no run for job records
 (`A JOB RECORD STARTS NO CI RUN`), and it does not check the Definition of Done: the test configuration MOD-test-schedule
 generates does, through `onDoneCheck`. Moving a product to a newer commit of the instance is writing the file again, on
 a person's decision. A job queued on the CI route records, as the Agent M commit it runs at, the commit the product's file
@@ -250,7 +277,9 @@ pins — the commit the run's checkout of the instance is at —, not the commit
   person writes the task anew. Fails with `TaskNotInRecord` for such a job.
 - `jobWorkflowFiles(server: "github" | "gitlab", instance: { repository: string, commit: string }, secrets: { token: string,
   keys: string[] }, runners: string[], gitlabCi?: string | null) -> { path: string, text: string }[]` — the files of the job
-  workflow described under Data, for the caller to commit on a person's click. On GitLab, `gitlabCi` is the product's
+  workflow described under Data, for the caller to commit on a person's click: on GitHub, for each route, the plan, an
+  agent's job for no key and one for each of `secrets.keys` in their order, each naming the secret of its own key alone,
+  and the job that writes, naming `secrets.token` and every key. On GitLab, `gitlabCi` is the product's
   `.gitlab-ci.yml` at the head the caller read, `null` where it has none. The returned `.gitlab-ci.yml` is that text with
   three additions, each made only where it is missing:
   - the inputs `job`, `task` and `endpoint` under its `spec:` header, with the header where the file has none;
