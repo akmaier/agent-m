@@ -404,18 +404,7 @@ async function startSite({ page, views }) {
  */
 export function attachPromptBar(foot, setup) {
   footTakesBarHeight(foot);
-  startPromptBar(foot, { ...setup, footnote: footnoteOf(globalThis.document?.querySelector?.("footer.site-footer")) });
-}
-
-// The page footer's sentences, small, for the bar's footnote below its message field: while a bar is drawn the footer itself is not shown (look.css), so that what it
-// says stands in one place at the bottom of the window. Null for a page without one.
-function footnoteOf(footer) {
-  const lines = footer ? [...footer.querySelectorAll("p")] : [];
-  if (!lines.length) return null;
-  const note = document.createElement("div");
-  note.className = "bar-footnote";
-  note.append(...lines.map((line) => line.cloneNode(true)));
-  return note;
+  startPromptBar(foot, setup);
 }
 
 function footTakesBarHeight(foot) {
