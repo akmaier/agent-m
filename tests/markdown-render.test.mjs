@@ -78,7 +78,7 @@ const EXPLANATION = [
 // guards: UC-002; EVERY STEP EXPLAINS ITSELF
 // given: EXPLANATION — two headings, emphasis and strong emphasis, a link, a list and a numbered list, a table, a code span and a fenced code block
 // input: renderArtifact(EXPLANATION)
-// expect: an element whose HTML holds each of them rendered: <h1> and <h2>, <em> and <strong>, <a href>, <ul> and <ol> with their <li>, a <table> with its <th> and <td>, <code>, and <pre><code class="language-yaml">
+// expect: an element whose HTML holds each of them rendered: <h1> and <h2>, <em> and <strong>, <a href>, <ul> and <ol> with their <li>, a <table> with its <th> and labelled <td>, <code>, and <pre><code class="language-yaml">
 test("renderArtifact — headings, lists, emphasis, links, tables and code are rendered", () => {
   const rendered = renderArtifact(EXPLANATION);
   assert.equal(rendered.nodeType, 1, "an element");
@@ -89,11 +89,29 @@ test("renderArtifact — headings, lists, emphasis, links, tables and code are r
     link: /<a href="https:\/\/example\.org\/book">the book<\/a>/,
     list: /<ul>\s*<li>Product Owner<\/li>\s*<li>Developers<\/li>\s*<\/ul>/,
     "numbered list": /<ol>\s*<li>Select a model\.<\/li>\s*<li>Assign the roles\.<\/li>\s*<\/ol>/,
-    table: /<table>\s*<thead>\s*<tr>\s*<th>Role<\/th>\s*<th>Who may hold it<\/th>\s*<\/tr>\s*<\/thead>\s*<tbody>\s*<tr>\s*<td>Scrum Master<\/td>\s*<td>a person or an agent<\/td>\s*<\/tr>\s*<\/tbody>\s*<\/table>/,
+    table: /<table>\s*<thead>\s*<tr>\s*<th>Role<\/th>\s*<th>Who may hold it<\/th>\s*<\/tr>\s*<\/thead>\s*<tbody>\s*<tr>\s*<td data-label="Role">Scrum Master<\/td>\s*<td data-label="Who may hold it">a person or an agent<\/td>\s*<\/tr>\s*<\/tbody>\s*<\/table>/,
     "code span": /<code>docs\/process\.md<\/code>/,
     "code block": /<pre><code class="language-yaml">model: scrum\n<\/code><\/pre>/,
   };
   for (const [what, pattern] of Object.entries(expected)) assert.match(html, pattern, what);
+});
+
+// TST-917001 · level: unit · module: MOD-markdown-render
+// guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE
+// given: a Markdown table with the column headings Request, Path read and Batch, and one row whose cell text is distinct
+// input: renderArtifact of that Markdown
+// expect: the table keeps its heading and cell text, and each body cell carries the literal data-label of its own column heading
+test("TST-917001 renderArtifact labels each Markdown table cell with its column heading", () => {
+  const text = ["| Request | Path read | Batch |", "|---|---|---|", "| readFile | docs/use-cases/UC-001.md | one hundred |", ""].join("\n");
+  const table = byTag(renderArtifact(text), "table")[0];
+  const cells = byTag(table, "td");
+  assert.equal(table.textContent.includes("Request"), true, "the Request heading remains readable");
+  assert.equal(table.textContent.includes("docs/use-cases/UC-001.md"), true, "the path cell remains readable");
+  assert.deepEqual(cells.map((cell) => [cell.getAttribute("data-label"), cell.textContent]), [
+    ["Request", "readFile"],
+    ["Path read", "docs/use-cases/UC-001.md"],
+    ["Batch", "one hundred"],
+  ]);
 });
 
 const HOSTILE = [
