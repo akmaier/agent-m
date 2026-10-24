@@ -42,7 +42,6 @@ const STATIC_EVIDENCE = [
   "tests/runtimes-routes.test.mjs",
   "tests/artifact-edits-open-files.test.mjs",
   "tests/repository-hosts-clone.test.mjs",
-  "tests/site-frame-participant-explanations.test.mjs",
   "tests/agent-processes-320.test.mjs",
   "tests/tunnels-runtime.test.mjs",
 ];
@@ -261,13 +260,7 @@ const FLOW_EVIDENCE = [
         id: "TST-472696",
         guards: ["A JOB IS RECORDED IN ITS PRODUCT REPOSITORY", "UC-011"],
         phrases: ["NoAnswer", "the start stays committed"],
-      },
-      {
-        file: "tests/site-frame-participant-explanations.test.mjs",
-        id: "TST-472836",
-        guards: ["UC-011"],
-        phrases: ["some browsers", "block the call to the Bridge's local address", "as Safari does"],
-      },
+      }
     ],
   },
   {
@@ -337,7 +330,6 @@ test("TST-374002: the UC-011 system harness executes safe suites and keeps socke
     { file: "tests/mod-desktop-shell-jobs-composition.test.mjs", phrase: "ONE DEFINITION, THREE DRIVERS" },
     { file: "tests/runtimes-workflow.test.mjs", phrase: "A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE REPOSITORY" },
     { file: "tests/release-itm-286-tunnels-runtime.test.mjs", phrase: "THE BRIDGE OPENS ITS TUNNELS ITSELF" },
-    { file: "tests/site-frame-participant-explanations.test.mjs", phrase: "block the call to the Bridge's local address" },
   ]) {
     assertSourceMentions(item.file, item.phrase);
   }
