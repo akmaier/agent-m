@@ -7,6 +7,10 @@ name: main changed
 on:
   push:
     branches: [main]
+  # The pages never build a graph: a push whose run failed is caught up here, for the head of main; a head already stored is `nothing to do`.
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -18,7 +22,7 @@ concurrency:
 jobs:
   main-changed:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - name: Make the branches trace-cache and overview-cache, once, and fetch them
@@ -29,7 +33,7 @@ jobs:
             if ! git ls-remote --exit-code --heads origin "$branch" > /dev/null; then
               git checkout --orphan "$branch-first"
               git rm -rf --quiet .
-              echo "The files of the commits of main, one each: <commit>.json." > README.md
+              echo "The files of the commits of main, one each: <commit>.json.gz." > README.md
               git add README.md
               git commit --quiet -m "$branch: the branch of the stored files"
               git push origin "$branch-first:refs/heads/$branch"
@@ -46,6 +50,12 @@ jobs:
             if [ "$status" -ne 2 ]; then exit "$status"; fi
           fi
       - name: Store the records of this commit
-        run: node src/workflow-entries/main.mjs onMainChanged
+        # A failure that passes — a network blip, the branch moved meanwhile — is tried again; the entry leaves what is stored already as it is.
+        run: |
+          for attempt in 1 2 3; do
+            node src/workflow-entries/main.mjs onMainChanged && exit 0
+            sleep $((attempt * 20))
+          done
+          exit 1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
