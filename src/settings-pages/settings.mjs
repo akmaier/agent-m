@@ -11,12 +11,12 @@ import { sourceSchemas } from "../source-register/index.mjs";
 import { resourceSchema } from "../resource-list/index.mjs";
 import { settingsSchemas, pseudonymisationOf, namedPersonFindings } from "../personal-data/index.mjs";
 import { saveFile } from "../artifact-edits/index.mjs";
-import { recordingOf, recordingSchema } from "../prompt-bar/index.mjs";
+import { endpointLacks, recordingOf, recordingSchema } from "../prompt-bar/index.mjs";
 import { jobWorkflowFiles } from "../runtimes/index.mjs";
 import { checkProduct, credentialsFor, tokenKeyAddress, tokenRefusal, tokenSettingKey, route as addProductRoute } from "./products.mjs";
 import { connect, HostError, parseAddress } from "../repository-hosts/index.mjs";
 import { bridgeAt, pair, probe, settingsOf, testBridge } from "../bridge-client/index.mjs";
-import { actionsOffer, bridgeFailureText, bridgeSettings as endpointBridgeSettings, CHOOSE_BRIDGE_DISCLOSURE, CHOOSE_BRIDGE_TEXT, namesNoBridge, recordTest, refusedText, route as endpointsRoute, runsOnActions, testThroughActions } from "./endpoints.mjs";
+import { actionsOffer, bridgeFailureText, contextFromTest, bridgeSettings as endpointBridgeSettings, CHOOSE_BRIDGE_DISCLOSURE, CHOOSE_BRIDGE_TEXT, namesNoBridge, recordTest, refusedText, route as endpointsRoute, runsOnActions, testThroughActions } from "./endpoints.mjs";
 import { route as bridgeRoute } from "./bridge.mjs";
 import { mailboxSetting } from "./mailbox.mjs";
 import { settingsSubject } from "./subject.mjs";
@@ -89,6 +89,9 @@ function endpointLine(target, context, info) {
   const result = el("p", "settings-endpoint-result");
   const status = el("p", "settings-endpoint-status", endpointStateText(setting, readSetting(context.store, `last-test:${info.key}`) ?? info.lastTest));
   const offerSlot = el("div", "settings-endpoint-actions-slot");
+  // What it lacks for the prompt bar to offer it, named where it is configured (UC-049 1b).
+  const lacks = endpointLacks(setting);
+  const notOffered = lacks.length ? el("p", "notice settings-endpoint-lacks", `The prompt bar does not offer it: it lacks ${lacks.join(" and ")}. Press Change to enter ${lacks.length === 1 ? "it" : "them"}.`) : null;
   key.type = "password";
   key.value = setting.key ?? "";
   key.autocomplete = "off";
@@ -133,8 +136,9 @@ function endpointLine(target, context, info) {
     result.textContent = "Testing the endpoint…";
     const checked = await testEndpoint(endpointConfig(name, setting));
     const lastTest = recordTest(context.store, info.key, checked);
-    result.textContent = resultText(checked, setting.url);
+    result.textContent = resultText(checked, setting.url) + await contextFromTest(context.store, info.key, endpointConfig(name, setting), checked);
     status.textContent = endpointStateText(setting, lastTest);
+    if (notOffered && endpointLacks(readSetting(context.store, info.key)).length === 0) { notOffered.hidden = true; notOffered.replaceChildren(); }
     const offer = !checked.works && checked.diagnosis?.routes?.includes("ci") ? actionsOffer(context, name, result) : null;
     offerSlot.replaceChildren(...(offer ? [offer] : []));
   });
@@ -149,10 +153,11 @@ function endpointLine(target, context, info) {
     el("h3", null, info.label),
     el("p", null, `Model: ${setting.model}`),
     status,
+    ...(notOffered ? [notOffered] : []),
     el("p", null, el("label", null, "API key ", key, " ", show)),
     el("p", "settings-endpoint-disclosure", namesNoBridge(setting) ? CHOOSE_BRIDGE_DISCLOSURE : setting.bridge
       ? `Agent M sends one short test request to Bridge ${setting.bridge}. Its optional endpoint key is inside that Bridge request; Bridge and jump-host credentials are sent only as authorisation headers, never in a URL or repository.`
-      : `Agent M sends one short test request to ${setting.url}. Its optional key is sent only in that request's authorisation header, never in a URL or repository.`),
+      : `Agent M sends one short test request to ${setting.url}. Its optional key is sent only in that request's authorisation header, never in a URL or repository.${Number(setting.context) > 0 ? "" : " Where no context is entered, it then reads the model's context from the endpoint's list of models, with the same key."}`),
     el("p", null, test, " ", change, " ", clear),
     el("div", "settings-endpoint-explanation", explain("endpoint-test")),
     result,

@@ -426,7 +426,8 @@ export function githubAdapter(address, { token, tokenName }, links) {
     // answers 200 with the run it started — workflow_run_id, run_url, html_url —, or 204 with no body where it names none: null. The run's
     // commit is not in that answer: it is "", for listCiRuns to fill. Every refusal is the host's own failure; the page documents no 422 for this call.
     async startWorkflow(workflow, ref, inputs) {
-      const answer = await call("POST", `${repo}/actions/workflows/${encodeURIComponent(workflow)}/dispatches`, { body: { ref, inputs } });
+      const answer = await call("POST", `${repo}/actions/workflows/${encodeURIComponent(workflow)}/dispatches`, { body: { ref, inputs }, permission: "Actions",
+        what: `the workflows of ${address.web}` });
       if (answer.status === 204) return null;
       const run = await json(answer, API);
       if (run?.workflow_run_id === undefined) return null;

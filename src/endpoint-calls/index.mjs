@@ -236,6 +236,37 @@ export async function listModels(config) {
   }
 }
 
+// The fields in which a model listing states a model's context in tokens: OpenRouter's context_length, vLLM's max_model_len, LiteLLM's and
+// Anthropic's max_input_tokens, and the names other providers use for it.
+const CONTEXT_FIELDS = ["context_length", "max_model_len", "max_input_tokens", "context_window", "max_context_length"];
+const contextOf = (entry) => {
+  for (const value of [...CONTEXT_FIELDS.map((field) => entry?.[field]), entry?.top_provider?.context_length]) {
+    if (Number.isInteger(value) && value > 0) return value;
+  }
+  return null;
+};
+
+// modelContext(config) -> number | null — the context in tokens of config.model as the endpoint states it: its entry in GET <baseUrl>/models, else,
+// for an OpenAI-compatible gateway, its entry in LiteLLM's GET <baseUrl>/model/info (model_info). With the key where the configuration has one; null
+// where the endpoint states none, or a request fails. Nothing is stored.
+export async function modelContext(config) {
+  const where = typeof window === "undefined" ? "node" : "browser";
+  const headers = config.kind === "anthropic"
+    ? { "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true", ...(config.key === null ? {} : { "x-api-key": config.key }) }
+    : (config.key === null ? {} : { Authorization: `Bearer ${config.key}` });
+  const listed = async (path) => {
+    try {
+      const response = await endpointResponse(config, { url: endpointUrl(config.baseUrl, path), init: { method: "GET", headers } }, where);
+      return response.ok ? (await response.json())?.data ?? [] : [];
+    } catch { return []; }
+  };
+  const model = (await listed("/models")).find((entry) => entry?.id === config.model);
+  if (contextOf(model)) return contextOf(model);
+  if (config.kind === "anthropic") return null;
+  const info = (await listed("/model/info")).find((entry) => entry?.model_name === config.model);
+  return contextOf(info?.model_info) ?? (Number.isInteger(info?.model_info?.max_tokens) && info.model_info.max_tokens > 0 ? info.model_info.max_tokens : null);
+}
+
 async function endpointResponse(config, { url, init }, where) {
   try {
     return await fetch(url, init);

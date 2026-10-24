@@ -40,10 +40,10 @@ import { openStore, secretValues } from "../browser-store/index.mjs";
 import { parseAddress, connect } from "../repository-hosts/index.mjs";
 import { watchForAcceptance } from "../notifications/index.mjs";
 import { storedOverview } from "../progress-measures/index.mjs";
-import { registerStrategies } from "../job-runner/index.mjs";
 import { explain } from "./index.mjs";
 import { foldMenu } from "./menu.mjs";
 import { fragmentOf, loadView, routeOf, productHostFollowingStore } from "./routing.mjs";
+import { registerViews } from "./register.mjs";
 import { noticePlace, showTokenNotices } from "./notices.mjs";
 
 export { DASHBOARD, UPSTREAM };
@@ -66,6 +66,9 @@ for (const slug of (ownTag?.getAttribute("data-views") ?? "").split(/\s+/).filte
     throw new Error(`dashboard-app.mjs: the view module ${slug} named in data-views could not be loaded: ${failure.message}`);
   }
 }
+// Every view's strategies and the prompt bar's, registered at load (register.mjs), so that a job any route prepares — a review page's, or the test job of an endpoint on the
+// Settings page — finds every recipe of the page's views.
+if (inPage) registerViews([...loaded]);
 const NO_VIEW = { routes: [], strategies: [] };
 const viewOf = (slug) => {
   if (loaded.has(slug)) return loaded.get(slug);
@@ -651,26 +654,8 @@ function pagesHost() {
   return host;
 }
 
-// The strategies of the review pages' kinds, registered with the job runner once under the owner of each set; a set the owner registered on an
-// earlier load of the page counts as registered, as start.mjs counts it.
-function registerReviewStrategies() {
-  for (const [at, strategies] of reviewPages.strategies.entries()) {
-    const owner = `MOD-review-pages#${at}`;
-    try {
-      registerStrategies(owner, strategies);
-    } catch (e) {
-      if (e.name !== "DuplicateStrategy" || e.owners[0] !== owner) throw e;
-    }
-  }
-}
-
-let strategiesRegistered = false;
 // The ViewContext of the review pages for the product shown: the product is the instance itself when the address names the instance.
 function reviewContext() {
-  if (!strategiesRegistered) {
-    registerReviewStrategies();
-    strategiesRegistered = true;
-  }
   const address = parseAddress(T.product.address);
   const shown = pagesHost();
   const isInstance = address.server === "github" && address.path === T.instance;

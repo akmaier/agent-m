@@ -71,7 +71,8 @@ function settingsRoute() {
 // guards: UC-003; CONFIGURATION LIVES IN THE BROWSER
 // given: an empty browser store and a constructed successful endpoint answer
 // input: the author fills the public endpoints Route and presses Test
-// expect: the Route stores endpoint:<name> before exactly one short request, then shows the configured model working
+// expect: the Route stores endpoint:<name> before exactly one short test request, then shows the configured model working; as the endpoint declares no context,
+// the test is followed only by GET /models and GET /model/info, which state none here, and the page says so
 test("TST-265001: direct endpoint saves before its one short test", async () => {
   const store = freshStore(), calls = [], oldFetch = globalThis.fetch;
   globalThis.fetch = async (url, init = {}) => {
@@ -85,9 +86,11 @@ test("TST-265001: direct endpoint saves before its one short test", async () => 
     type(byClass(target, "endpoint-model")[0], ENDPOINT.model); type(byClass(target, "endpoint-key")[0], ENDPOINT.key);
     await click(byClass(target, "endpoint-test")[0]);
     assert.deepEqual(readSetting(store, "endpoint:campus"), ENDPOINT, "save precedes the request");
-    assert.equal(calls.length, 1); assert.equal(calls[0].url, `${ENDPOINT.url}/chat/completions`);
+    assert.equal(calls[0].url, `${ENDPOINT.url}/chat/completions`);
     assert.equal(calls[0].init.headers.Authorization, `Bearer ${ENDPOINT.key}`);
+    assert.deepEqual(calls.slice(1).map((call) => [call.init.method, call.url]), [["GET", `${ENDPOINT.url}/models`], ["GET", `${ENDPOINT.url}/model/info`]]);
     assert.match(target.textContent, /working|tiny-model/i);
+    assert.match(target.textContent, /does not state its model's context in tokens/);
   } finally { globalThis.fetch = oldFetch; }
 });
 
@@ -232,7 +235,8 @@ test("TST-265010: Settings lists its stored endpoint with a hidden key and Show"
 // guards: A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: a stored direct endpoint and a constructed successful endpoint answer
 // input: the person presses Test, then Change on the public settings Route
-// expect: Test makes one mapped direct request without changing the stored record, and Change opens that named endpoint's form in place
+// expect: Test makes one mapped direct test request without changing the stored record — followed, as no context is declared, only by GET /models and
+// GET /model/info —, and Change opens that named endpoint's form in place
 test("TST-265011: Settings tests a stored direct endpoint and changes its named route", async () => {
   const store = freshStore(), calls = [], navigations = [], oldFetch = globalThis.fetch;
   writeSetting(store, "endpoint:campus", ENDPOINT);
@@ -240,8 +244,8 @@ test("TST-265011: Settings tests a stored direct endpoint and changes its named 
   try {
     const target = await renderSettings(store, { navigations });
     await click(byClass(target, "settings-endpoint-test")[0]);
-    assert.equal(calls.length, 1);
     assert.equal(calls[0].url, `${ENDPOINT.url}/chat/completions`);
+    assert.deepEqual(calls.slice(1).map((call) => [call.init.method, call.url]), [["GET", `${ENDPOINT.url}/models`], ["GET", `${ENDPOINT.url}/model/info`]]);
     assert.equal(calls[0].init.headers.Authorization, `Bearer ${ENDPOINT.key}`);
     assert.match(target.textContent, /working|tiny-model/i);
     await click(byClass(target, "settings-endpoint-change")[0]);
@@ -650,4 +654,29 @@ test("TST-998001: the last test of an endpoint keeps whether the model called th
   const refused = readSetting(await storeAfterTest({ status: 401, body: { error: { message: "Invalid API key." } } }), "last-test:endpoint:campus");
   assert.equal(refused.outcome, "refused");
   assert.equal(Object.hasOwn(refused, "tools"), false);
+});
+
+// TST-1202002 · level: unit · module: MOD-settings-pages
+// guards: UC-003; UC-049
+// given: a stored direct endpoint with a place and no context, which the prompt bar does not offer, and a LiteLLM gateway: the test answers, GET /models states
+// no context, GET /model/info states max_input_tokens 131072 for tiny-model
+// input: the person presses Test on the Settings page
+// expect: endpoint:campus keeps everything it had and gains context 131072; the result says so; the line no longer says the prompt bar does not offer it
+test("TST-1202002: a working test keeps the context the endpoint states, and the endpoint is then offered", async () => {
+  const store = freshStore(), calls = [], oldFetch = globalThis.fetch;
+  writeSetting(store, "endpoint:campus", { ...ENDPOINT, place: "Campus, Germany" });
+  globalThis.fetch = scripted([
+    { status: 200, body: { choices: [{ message: { content: "ok" } }] } },
+    { status: 200, body: { data: [{ id: "tiny-model", object: "model" }] } },
+    { status: 200, body: { data: [{ model_name: "tiny-model", model_info: { max_input_tokens: 131072 } }] } },
+  ], calls);
+  try {
+    const target = await renderSettings(store);
+    assert.match(target.textContent, /The prompt bar does not offer it: it lacks its context in tokens/);
+    await click(byClass(target, "settings-endpoint-test")[0]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.deepEqual(readSetting(store, "endpoint:campus"), { ...ENDPOINT, place: "Campus, Germany", context: 131072 });
+    assert.match(target.textContent, /Context: 131072 tokens, as the endpoint states it\./);
+    assert.doesNotMatch(target.textContent, /The prompt bar does not offer it/);
+  } finally { globalThis.fetch = oldFetch; }
 });

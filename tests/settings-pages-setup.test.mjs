@@ -75,7 +75,7 @@ test("setup — Step A links GitHub's prefilled token page and spells out Only s
     name: "Agent M · akmaier/agent-m",
     description: "Agent M dashboard of akmaier/agent-m: commits, issues, pull requests and runs of the work you start.",
     target_name: "akmaier", expires_in: "90",
-    contents: "write", issues: "write", pull_requests: "write", actions: "write", workflows: "write", metadata: "read",
+    contents: "write", issues: "write", pull_requests: "write", actions: "write", workflows: "write", secrets: "write", metadata: "read",
   });
   assert.equal(link.target, "_blank");
   assert.equal(link.rel, "noopener");

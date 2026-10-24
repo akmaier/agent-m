@@ -46,6 +46,7 @@ uses:
   - MOD-bridge-client.proxyConfiguration
   - MOD-endpoint-calls.testEndpoint
   - MOD-endpoint-calls.diagnoseEndpoint
+  - MOD-endpoint-calls.modelContext
   - MOD-mail-routes.routeFor
   - MOD-mail-routes.signIn
   - MOD-mail-routes.mailbox
@@ -99,6 +100,7 @@ uses:
   - MOD-prompt-bar.recordingSchema
   - MOD-prompt-bar.recordingOf
   - MOD-prompt-bar.Subject
+  - MOD-prompt-bar.endpointLacks
   - MOD-prompt-bar.endpointsOffered
   - MOD-prompt-bar.spawnEndpointJob
   - MOD-prompt-bar.followJob
@@ -183,16 +185,18 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
   - `endpoints` — address, model and key of a model endpoint, the place where it processes data, the model's context in
     tokens and the name of the CI secret that holds its key, and, for one the browser cannot call, the Bridge that
     reaches it, chosen among the Bridges this browser keeps; the test request, directly or through that Bridge, with
-    whether the model called the tool it was offered — *can use tools* or *text only* (UC-003 step 5, 5a) —, and the
+    whether the model called the tool it was offered — *can use tools* or *text only* (UC-003 step 5, 5a) —; after a direct
+    test that works, for an endpoint that declares no context, the context its endpoint states (MOD-endpoint-calls'
+    `modelContext`), kept with it, or that it states none; and the
     reason and the routes that would work when a browser may not call it — said plainly, by the endpoint's host: `<host>
     does not accept calls from a web page; run it through GitHub Actions (CI secret) or a Bridge.`, the browser's own
     words only after it, in parentheses, on the form and on the endpoint's line of the Settings page. For such an endpoint whose key this browser
     keeps, it says what one click does and offers it: the key stored as the GitHub Actions secret the endpoint names —
     else its name in capitals followed by `_API_KEY` — of the chosen product's repository, else the instance's, with
-    MOD-repository-hosts' `setCiSecret`; the secret's name kept with the endpoint and the key removed from this browser;
+    MOD-repository-hosts' `setCiSecret`; the secret's name kept with the endpoint, and the key kept in this browser;
     and one test job of the endpoint spawned there with MOD-prompt-bar's `spawnEndpointJob` (the kind `converse`, a
     one-line task) and followed with `followJob`, whose end and answer are the endpoint's test, recorded as its last
-    test. An endpoint that names a CI secret and keeps neither a key nor a Bridge in this browser runs through GitHub
+    test. An endpoint that names a CI secret and no Bridge runs through GitHub
     Actions: it is not called from the page, and its *Test* is that test job; a folded explanation that the prompt bar
     appears once an endpoint is configured or a Bridge offers a CLI session (UC-049 1a); *Clear*.
   - `participants` — the instance's participants in a form from the participant schema, a new one prefilled with the
@@ -285,6 +289,7 @@ reaches.
   reached through the jump host, and the jump host.
 - MOD-endpoint-calls.testEndpoint, MOD-endpoint-calls.diagnoseEndpoint — an endpoint's test and why a browser may not
   call it.
+- MOD-endpoint-calls.modelContext — the context an endpoint states for its model, kept after a working test.
 - MOD-mail-routes.routeFor, MOD-mail-routes.signIn, MOD-mail-routes.mailbox, MOD-mail-routes.providerLinks — the
   mailbox's route, sign-in and test, and Microsoft's pages for the app registration and for withdrawing its access.
 - MOD-documents.readDocument, MOD-documents.readRegister, MOD-documents.writeDocument — registers of the common shape and
@@ -315,6 +320,7 @@ reaches.
 - MOD-prompt-bar.recordingSchema, MOD-prompt-bar.recordingOf — the instance's switch of recording conversations;
   MOD-prompt-bar.Subject — the subject its routes give the prompt bar; MOD-prompt-bar.endpointsOffered,
   MOD-prompt-bar.spawnEndpointJob, MOD-prompt-bar.followJob — the test job of an endpoint that runs through GitHub Actions.
+- MOD-prompt-bar.endpointLacks — what an endpoint lacks for the prompt bar to offer it, named on its line and on its own page (UC-049 1b).
 - MOD-repository-hosts.setCiSecret — an endpoint's key stored as a GitHub Actions secret, on the person's click.
 - MOD-notifications.NotificationState, MOD-notifications.notificationState, MOD-notifications.switchOn,
   MOD-notifications.testNotification, MOD-notifications.switchOff — the line *Notifications*: its state, *Switch on* in

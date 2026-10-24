@@ -18,7 +18,7 @@ import { openStore, readTabValue, writeSetting, writeTabValue } from "../src/bro
 import * as promptBar from "../src/prompt-bar/index.mjs";
 import { currentJob, latestDraft } from "../src/prompt-bar/index.mjs";
 import { offeredAmong, placeOf, readParticipants } from "../src/prompt-bar/offer.mjs";
-import { whyNot } from "../src/prompt-bar/send.mjs";
+import { personOf, whyNot } from "../src/prompt-bar/send.mjs";
 
 class Storage {
   constructor() { this.values = new Map(); }
@@ -148,4 +148,35 @@ test("dropDraft — drops the draft where it was drafted on that subject, and le
 // expect: null
 test("currentJob — null while no message runs", () => {
   assert.equal(currentJob(), null);
+});
+
+// TST-1201001 · level: unit · module: MOD-prompt-bar
+// guards: UC-049
+// given: an endpoint as an older Settings page stored it — address, kind, model and key, with no place and no context —, the same with a place and a context, and one with only a place
+// input: endpointLacks for each, and endpointsOffered over a store holding the first and the second
+// expect: the first lacks the place and the context, the second nothing, the third its context in tokens and its model; endpointsOffered offers only the second
+test("endpointLacks — names what keeps an endpoint out of the bar, and endpointsOffered offers only one that lacks nothing", () => {
+  const old = { url: "https://example.invalid/v1", kind: "openai-compatible", model: "model-x", key: "k" };
+  assert.deepEqual(promptBar.endpointLacks(old), ["the place where it processes data", "its context in tokens"]);
+  assert.deepEqual(promptBar.endpointLacks({ ...old, place: "Example, USA", context: 128000 }), []);
+  assert.deepEqual(promptBar.endpointLacks({ place: "Example, USA" }), ["its context in tokens", "its model"]);
+  const store = freshStore();
+  writeSetting(store, "endpoint:old", old);
+  writeSetting(store, "endpoint:complete", { ...old, place: "Example, USA", context: 128000 });
+  assert.deepEqual(promptBar.endpointsOffered(store).map((each) => each.name), ["complete"]);
+});
+
+// TST-1203001 · level: unit · module: MOD-prompt-bar
+// guards: A GITHUB PRODUCT USES A TOKEN OF ITS OWN; ONE GITHUB TOKEN SERVES EVERY FEATURE
+// given: a store holding only the instance's GitHub token "Agent M · alice/agent-m"; the instance's snapshot of alice/agent-m
+// input: personOf for (a) the instance's page, (b) the product alice/agent-m, the instance's own repository, with the instance's snapshot, (c) the product alice/other
+// expect: (a) and (b) name the instance's token — it is the product's own token where the product is the instance —; (c) null: another product never borrows it
+test("personOf — a product whose repository is the instance's uses the instance's token; another product never does", () => {
+  const store = freshStore();
+  writeSetting(store, "github-token", { value: "t", name: "Agent M · alice/agent-m" });
+  const snapshotOf = (path) => ({ repository: { server: "github", origin: "https://github.com", path, web: `https://github.com/${path}` } });
+  const instance = snapshotOf("alice/agent-m");
+  assert.equal(personOf(store, instance, false), "Agent M · alice/agent-m");
+  assert.equal(personOf(store, snapshotOf("alice/agent-m"), true, instance), "Agent M · alice/agent-m");
+  assert.equal(personOf(store, snapshotOf("alice/other"), true, instance), null);
 });

@@ -29,11 +29,15 @@
 // The engine is the controlled Electron of tests/dashboard-backlog-layout.test.mjs, in tests/site-usability.d/browser.mjs; the fixture
 // product is in tests/site-usability.d/product.mjs. A route's finding is a todo: the test of its clause asserts that there is none, fails
 // today, and names the finding. Each fix is an item of the route's module.
+// The requirements-repair Markdown files are intentional, fixed snapshots of SPEC.md and docs/groups/requirements.md
+// at 46a1cbad7ca3ac77055ebbb54695f2d9da6a567b (blobs ec0ef312994e5dbbe9e8996471f39d4d3878151b and
+// 36facb5cb0e700bedb9fff823696597f43a717af; the SPEC copy adds a terminal newline). The 17 groups and 414 members below
+// describe only that input, not a future live product.
 
 import { before, after, test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { stageElectron, openWindow, configure, withStderr } from "./site-usability.d/browser.mjs";
+import { stageElectron, openWindow, configure, withStderr, until } from "./site-usability.d/browser.mjs";
 import { ROUTES, CASES, OBSERVE, show, testId } from "./site-usability.d/routes.mjs";
 import { serveSite, REPO } from "./site-usability.d/site.mjs";
 import { files, history, pullsHandler, tagsHandler } from "./site-usability.d/product.mjs";
@@ -64,8 +68,6 @@ const CLAUSES = [
 // What the pages do today that the check names: route -> clause -> the finding, as measured in the controlled Electron at a phone's width
 // (at a desktop's width every route passes). Each is a todo until the module of its route fixes it; each fix is an item of that module.
 const TODAY = {
-  "#uc/UC-001": { widths: "its diagram is drawn; what remains is the Markdown table and the run of code of the use case, wider than a phone's window, and the page scrolls sideways; MOD-review-pages shows the file as MOD-markdown-render renders it" },
-  "#review/uc": { widths: "Review all draws the changed use case UC-001 rendered, with its Markdown table and run of code wider than a phone's window, and the page scrolls sideways; MOD-review-pages shows the file as MOD-markdown-render renders it" },
   "#arc": { widths: "the table of the modules is wider than a phone's window (src/trace-pages/flow.mjs, MOD-trace-pages); ITM-1159, The architecture and modules views fit a phone" },
   "#module": { widths: "the table of the modules is wider than a phone's window (src/trace-pages/flow.mjs, MOD-trace-pages); ITM-1159, The architecture and modules views fit a phone" },
 };
@@ -218,6 +220,23 @@ for (const route of ROUTES) {
   }
 }
 
+// TST-917002 · level: system · module: MOD-site-frame
+// guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE
+// given: the live fixture use case UC-001, whose rendered Markdown holds the Request / Path read / Batch table and its long code run
+// input: #uc/UC-001 and #review/uc, each drawn through the unchanged Electron geometry caller at 390 px and 1280 px
+// expect: no width finding at either width, while each route still shows the literal table headings, readFile cell and code address
+test("TST-917002 the live use-case and review pages reflow their Markdown table and code at phone and desktop widths", () => {
+  for (const address of ["#uc/UC-001", "#review/uc"]) {
+    for (const [kind] of WIDTHS) {
+      const result = measured.get(`${address} ${kind}`);
+      assert.deepEqual(result.widths, [], `${address} at a ${kind}'s width: ${result.widths.join("; ")}`);
+      for (const literal of ["Request", "Path read", "Batch", "readFile", "/repos/akmaier/agent-m/git/trees/"]) {
+        assert.equal(result.text.includes(literal), true, `${address} at a ${kind}'s width retains ${literal}`);
+      }
+    }
+  }
+});
+
 // ---------------------------------------------------------------- the menu at a phone's width
 
 // The fold of the menu at a phone's width: a button named Menu, shown and of the minimum target size, that controls the menu and says it is folded;
@@ -267,6 +286,98 @@ test("TST-1191002 at 1280 px neither entry page shows the menu button, and the e
 });
 
 // ---------------------------------------------------------------- the counter-proofs
+
+// TST-1178001 · level: system · module: MOD-site-frame
+// guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE; UC-020
+// given: the fixed 46a1cbad SPEC and requirements group file, with 17 groups and 414 unique members, through the unchanged native site and Electron callers
+// input: #spec at 390 px and 1280 px; open and close 0. Hard product rules, open NO SERVER, then narrow and open A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL
+// expect: Current requirements, 17 groups from 0. Hard product rules to 16. Usability, 414 unique requirement buttons; inherited shared-control typography, solid token borders, padding and boxes at least 24 px high; hidden closed content, visible opened fields and traces, exactly one narrowed member; unfiltered width and target findings [] throughout
+test("TST-1178001 the fixed complete requirements tree and its controls share the responsive Frame look", async () => {
+  const ownFiles = Object.fromEntries(Object.entries(await files()).filter(([path]) => !path.startsWith("docs/spec-freigaben/")));
+  ownFiles["SPEC.md"] = readFileSync(new URL("./fixtures/requirements-repair/SPEC.md", import.meta.url), "utf8");
+  ownFiles["docs/groups/requirements.md"] = readFileSync(new URL("./fixtures/requirements-repair/requirements.md", import.meta.url), "utf8");
+  const ownSite = await serveSite({ files: ownFiles, history: await history(), handlers: [pullsHandler(REPO), tagsHandler(REPO)] });
+  let window_;
+  try {
+    window_ = await openWindow(await stageElectron(), `${ownSite.address}/__blank`);
+    const page = window_.page;
+    await configure(page, "Page.addScriptToEvaluateOnNewDocument", { source: OBSERVE });
+    for (const [kind, width] of WIDTHS) {
+      await configure(page, "Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: kind === "phone" });
+      await show(page, ownSite, "#uc");
+      await show(page, ownSite, "#spec");
+      const tree = await page.evaluate(`(() => {
+        const visible = (node) => node.getBoundingClientRect().width > 0 && node.getBoundingClientRect().height > 0;
+        const styleOf = (node) => { const s = getComputedStyle(node), b = node.getBoundingClientRect();
+          return { font: s.fontFamily, size: parseFloat(s.fontSize), border: s.borderTopStyle, borderWidth: s.borderTopWidth,
+            borderColor: s.borderTopColor, padding: [s.paddingTop, s.paddingRight, s.paddingBottom, s.paddingLeft].map(parseFloat),
+            height: b.height, left: b.left, right: b.right, visible: visible(node) }; };
+        const groups = [...document.querySelectorAll(".spec-group")];
+        const controls = [...document.querySelectorAll(".spec-narrow input, .spec-narrow select, .version-choice")];
+        return { heading: document.querySelector(".current-requirements h2")?.textContent,
+          names: [...document.querySelectorAll(".requirement-name")].map((node) => node.textContent),
+          groups: groups.map((group) => ({ title: group.querySelector(".spec-group-toggle").textContent,
+            held: group.querySelector(".spec-group-held").textContent, closed: !visible(group.querySelector(".spec-group-body")) })),
+          controls: controls.map(styleOf), positive: styleOf(document.querySelector(".spec-group-toggle")),
+          widths: (${widthFindings})(${width}), targets: (${targetFindings})(24) };
+      })()`);
+      assert.equal(tree.heading, "Current requirements", kind);
+      assert.equal(tree.groups.length, 17, kind);
+      assert.equal(tree.groups[0].title, "0. Hard product rules", kind);
+      assert.equal(tree.groups.at(-1).title, "16. Usability", kind);
+      assert.equal(tree.names.length, 414, kind);
+      assert.equal(new Set(tree.names).size, 414, kind);
+      assert.equal(tree.groups.every((group) => group.closed && /[1-9][0-9]* requirements?/.test(group.held)), true, kind);
+      assert.equal(tree.controls.length, 5, "one search, three filters and the version choice");
+      assert.equal(tree.positive.visible, true, "the existing shared group button is the rendered positive control");
+      assert.equal(tree.positive.border, "solid", "the positive control uses the shared boxed-control border");
+      assert.deepEqual(tree.widths, [], `${kind} closed tree widths`);
+      assert.deepEqual(tree.targets, [], `${kind} closed tree targets`);
+
+      await page.evaluate(`document.querySelector(".spec-group-toggle").click()`);
+      assert.equal(await page.evaluate(`document.querySelector(".spec-group-body").getBoundingClientRect().height > 0`), true, `${kind} group opens`);
+      await page.evaluate(`[...document.querySelectorAll(".requirement-name")].find((node) => node.textContent === "NO SERVER").click()`);
+      await until(`${kind} requirement traces are read`, () => page.evaluate(`!document.querySelector(".requirement-traces .traces-reading")`));
+      const opened = await page.evaluate(`({ name: document.querySelector(".requirement-detail h3")?.textContent,
+        fields: [...document.querySelectorAll(".requirement-detail h4")].map((node) => node.textContent),
+        traces: document.querySelector(".requirement-traces")?.innerText, widths: (${widthFindings})(${width}), targets: (${targetFindings})(24) })`);
+      assert.equal(opened.name, "NO SERVER", `${kind} opened requirement name`);
+      assert.deepEqual(opened.fields, ["Source", "Rule", "Check"], `${kind} opened requirement fields`);
+      assert.equal(Boolean(opened.traces?.trim()), true, `${kind} actual trace content is present`);
+      assert.deepEqual(opened.widths, [], `${kind} opened requirement widths`);
+      assert.deepEqual(opened.targets, [], `${kind} opened requirement targets`);
+      await page.evaluate(`document.querySelector(".spec-group-toggle").click()`);
+      assert.equal(await page.evaluate(`document.querySelector(".spec-group-body").getBoundingClientRect().height`), 0, `${kind} group closes`);
+
+      const longName = "A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL";
+      await page.evaluate(`(() => { const input = document.querySelector(".spec-narrow-text"); input.value = ${JSON.stringify(longName)}; input.dispatchEvent(new Event("input", { bubbles: true })); })()`);
+      const narrowed = await page.evaluate(`[...document.querySelectorAll(".requirement-name")].filter((node) => node.getBoundingClientRect().height > 0).map((node) => node.textContent)`);
+      assert.deepEqual(narrowed, [longName], `${kind} narrowing shows exactly the matching member`);
+      await page.evaluate(`[...document.querySelectorAll(".requirement-name")].find((node) => node.textContent === ${JSON.stringify(longName)}).click()`);
+      const narrow = await page.evaluate(`({ text: document.querySelector(".current-requirements").innerText,
+        widths: (${widthFindings})(${width}), targets: (${targetFindings})(24) })`);
+      assert.equal(narrow.text.includes(longName), true, `${kind} opened long name remains visible`);
+      assert.deepEqual(narrow.widths, [], `${kind} narrowed long content widths`);
+      assert.deepEqual(narrow.targets, [], `${kind} narrowed long content targets`);
+      for (const [index, control] of tree.controls.entries()) {
+        const label = `${kind} requirements control ${index}: ${JSON.stringify(control)}`;
+        assert.equal(control.visible, true, label);
+        assert.equal(control.font, tree.positive.font, `${label} inherits the shared Frame font`);
+        assert.ok(control.size >= 14, `${label} has shared-control readable typography`);
+        assert.equal(control.border, "solid", label);
+        assert.equal(control.borderWidth, tree.positive.borderWidth, label);
+        assert.equal(control.borderColor, tree.positive.borderColor, label);
+        assert.ok(control.padding.every((padding) => padding >= 4), `${label} has boxed-control padding`);
+        assert.ok(control.height >= 24 && control.left >= 0 && control.right <= width, `${label} is a visible phone-fitting target`);
+      }
+    }
+  } catch (failure) {
+    throw window_ ? withStderr(failure, window_.stderr()) : failure;
+  } finally {
+    window_?.close();
+    await ownSite.close();
+  }
+});
 
 // The page the counter-proofs plant in, as it is, has none of the planted faults — the known positive of the three that follow.
 test(`${testId(904, CASES[904].plantedBefore)}: the page before the planting has no table, button or embedded style sheet that the checks name`, () => {

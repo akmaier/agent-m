@@ -40,9 +40,9 @@ jobs:
       AGENT_M_RUNNER: "hosted"
       AGENT_M_PRODUCT_DIR: ${{ github.workspace }}/product
       AGENT_M_TOKEN_NAME: "AGENT_M_TOKEN"
-      AGENT_M_KEY_NAMES: "NVIDIA_API_KEY"
+      AGENT_M_KEY_NAMES: "NVIDIA_NEMOTRON_3_ULTRA_550B_A55B_API_KEY"
       AGENT_M_TOKEN: ${{ secrets.AGENT_M_TOKEN }}
-      NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+      NVIDIA_NEMOTRON_3_ULTRA_550B_A55B_API_KEY: ${{ secrets.NVIDIA_NEMOTRON_3_ULTRA_550B_A55B_API_KEY }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -51,7 +51,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: akmaier/agent-m
-          ref: 35f3485dac0f1ebfa3c4093918bf34f965ba3e7d
+          ref: a1bca58940b0f9a211c0d8ee0b75b6d02fbd27ae
           token: ${{ secrets.AGENT_M_TOKEN }}
           path: instance
       - uses: actions/setup-node@v4

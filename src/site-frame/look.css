@@ -52,16 +52,39 @@
 /* A button, or a link drawn as one, and the text beside it on the same line stand apart by a visible gap, however the view wrote them. */
 button, .btn { margin-inline: .35em; }
 
+/* The requirements tree shares the frame's boxed controls, with room for labels and long requirement text. */
+.spec-narrow, .version-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-block: .75rem; }
+.spec-narrow input, .spec-narrow select, .version-choice { box-sizing: border-box; min-width: 0; max-width: 100%; min-height: 24px;
+  font: inherit; font-size: .95rem; padding: .45rem .6rem; border: 1px solid var(--line); border-radius: 4px;
+  color: var(--fg); background: var(--panel); }
+.spec-narrow-text { flex: 1 1 16rem; }
+.spec-narrow label { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; min-width: 0; max-width: 100%; }
+.spec-narrow select { flex: 1 1 auto; }
+.spec-narrow-problem { flex-basis: 100%; }
+.spec-group { min-width: 0; margin-block: 1rem; }
+.spec-group > h3 { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .5rem; margin: .6rem 0; }
+.spec-group-held, .spec-group-unrealised { color: var(--muted); font-size: .85rem; font-weight: 400; }
+.spec-group-body { padding-inline-start: .75rem; border-inline-start: 2px solid var(--line); }
+.current-requirements .btn { box-sizing: border-box; max-width: calc(100% - .7em); white-space: normal; overflow-wrap: anywhere; text-align: left; }
+.current-requirements .requirement-detail, .current-requirements .requirement-traces { min-width: 0; overflow-wrap: anywhere; }
+.current-requirements .requirement-field { margin-block: .75rem; }
+/* Narrowing and collapsed groups stay hidden even when the phone's table rows become blocks. */
+.current-requirements [hidden] { display: none; }
+
 /* The review frame's accepted status and folded explanations meet the shared WCAG check. */
 body .b-accepted { color: #155724; background: #d4edda; }
+body .b-superseded { color: #5c4300; background: #fff3cd; }
 body details.explain > summary { display: inline-flex; align-items: center; min-height: 24px; }
 
 @media (max-width: 599px) {
   .table-scroll { overflow-x: visible; }
-  table.list, table.list tbody, table.list tr, table.list td { box-sizing: border-box; max-width: 100%; }
-  table.list, table.list tbody, table.list tr, table.list td { display: block; width: 100%; }
-  table.list thead { display: none; }
-  table.list tr { border-bottom: 1px solid var(--line); padding-block: .45rem; }
-  table.list td { border: 0; padding: .2rem .5rem; overflow-wrap: anywhere; }
-  table.list td[data-label]::before { content: attr(data-label); display: block; color: var(--muted); font-size: .85em; font-weight: 600; }
+  table.list, table.list tbody, table.list tr, table.list td, .md table, .md table tbody, .md table tr, .md table td { box-sizing: border-box; max-width: 100%; }
+  table.list, table.list tbody, table.list tr, table.list td, .md table, .md table tbody, .md table tr, .md table td { display: block; width: 100%; }
+  table.list thead, .md table thead { display: none; }
+  table.list tr, .md table tr { border-bottom: 1px solid var(--line); padding-block: .45rem; }
+  table.list td, .md table td { border: 0; padding: .2rem .5rem; overflow-wrap: anywhere; }
+  table.list td[data-label]::before, .md table td[data-label]::before { content: attr(data-label); display: block; color: var(--muted); font-size: .85em; font-weight: 600; }
+  .md pre, .md pre code { box-sizing: border-box; width: 100%; max-width: 100%; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-all; }
+  .md pre code { display: block; }
+  .md code { overflow-wrap: anywhere; word-break: break-all; }
 }

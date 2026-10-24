@@ -760,7 +760,7 @@ test("release · UC-014 4a: an approval committed on GitHub's page and not yet a
 //
 // Steps 1–5 (the guided fork) are ITM-073: no release test for them.
 
-const PERMISSIONS = { contents: "write", issues: "write", pull_requests: "write", actions: "write", workflows: "write", metadata: "read" };
+const PERMISSIONS = { contents: "write", issues: "write", pull_requests: "write", actions: "write", workflows: "write", secrets: "write", metadata: "read" };
 
 // UC-014 step 6 — no token is stored on the person's own dashboard. Expected: the start page shows "Finish setting up your
 // instance" at the top, with "Set up now" leading to the setup, and Import settings beside it (7a).

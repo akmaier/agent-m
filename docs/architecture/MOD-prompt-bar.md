@@ -81,6 +81,7 @@ provides:
   - recordingSchema
   - recordingOf
   - handOverStrategies
+  - endpointLacks
   - endpointsOffered
   - spawnEndpointJob
   - followJob
@@ -201,7 +202,7 @@ IN THE REPOSITORY`).
   the instance's list that this browser reaches, other than an endpoint offered already, until the offer of CLI sessions
   is built. With one offered, it names it; with several, a small selector above the input
   chooses, each named with its processing place. A folded *What is this?* explains the bar. An endpoint that names the
-  CI secret of its key and keeps neither a key nor a Bridge in this browser runs through GitHub Actions: while it is
+  CI secret of its key and no Bridge runs through GitHub Actions, whether or not this browser keeps its key: while it is
   chosen, the button reads *Spawn job* instead of *Send*, and that click — the person's — makes the message the task of
   a job that is the endpoint's own (UC-049 4a.1), of the subject's kind, spawned with `spawnEndpointJob` and followed as
   a hand-over is; nothing is sent from the tab. For every other one it reads *Send*. On *Send* — the decision to
@@ -250,6 +251,9 @@ IN THE REPOSITORY`).
   older than the job's start turns up it reads that run's log once with `ciRunLog` and takes the secret from the entry's
   line `not run — <SECRET> is missing`. The cost is one `listCiRuns` call per 15-second poll while the job stays queued
   and untaken, and one `ciRunLog` call when a failed run turns up.
+- `endpointLacks(setting: object) -> string[]` — what an endpoint's configuration lacks for the bar to offer it (UC-049 1b): the
+  place where it processes data, its context in tokens, its model; empty when it lacks nothing. `endpointsOffered` offers only
+  one that lacks nothing; the settings page names the rest where the endpoint is configured.
 - `endpointsOffered(store: Store) -> Participant[]` — this browser's endpoints the bar offers, as `startPromptBar` builds
   them; for the settings page's test job of an endpoint.
 - `spawnEndpointJob({ kind, task, participant, store, instance, page, ofProduct, conversation, source }) -> Promise<{ id,

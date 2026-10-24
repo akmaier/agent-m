@@ -68,10 +68,10 @@ export function endpointsOffered(store) {
     const name = key.slice("endpoint:".length);
     const setting = readSetting(store, key);
     if (!setting || typeof setting !== "object") continue;
-    const place = typeof setting.place === "string" ? setting.place.trim() : "";
+    if (endpointLacks(setting).length) continue;
+    const place = setting.place.trim();
     const context = Number(setting.context);
-    const model = typeof setting.model === "string" ? setting.model.trim() : "";
-    if (!place || !model || !Number.isInteger(context) || context <= 0) continue;
+    const model = setting.model.trim();
     if (setting.bridge && readSetting(store, `bridge:${setting.bridge}`) === null) continue;
     const tools = readSetting(store, `last-test:${key}`)?.tools === true;
     const secret = typeof setting.secret === "string" && /^[A-Za-z_][A-Za-z0-9_]*$/.test(setting.secret) ? setting.secret : null;
@@ -83,13 +83,24 @@ export function endpointsOffered(store) {
 }
 
 /**
+ * endpointLacks(setting: object) -> string[] — what an endpoint's configuration lacks for the bar to offer it (UC-049 1b), each as the settings page
+ * names it: the place where it processes data, its context in tokens, its model; empty when it lacks nothing.
+ */
+export function endpointLacks(setting) {
+  const text = (value) => (typeof value === "string" ? value.trim() : "");
+  const context = Number(setting?.context);
+  return [!text(setting?.place) && "the place where it processes data", !(Number.isInteger(context) && context > 0) && "its context in tokens",
+    !text(setting?.model) && "its model"].filter(Boolean);
+}
+
+/**
  * throughActions(participant: Participant, store: Store) -> boolean — whether a message to the participant runs through GitHub Actions: a model endpoint of
- * this browser whose configuration names the CI secret of its key and that keeps neither a key nor a Bridge in this browser, so that the tab cannot call it and its work is
+ * this browser whose configuration names the CI secret of its key and no Bridge, so that the tab does not call it and its work is
  * spawned as a job (UC-049 4a); the bar's button then reads *Spawn job*.
  */
 export function throughActions(participant, store) {
   const name = /^endpoint\s+(\S+)\s+secret\s+\S+$/.exec(String(participant?.route ?? "").trim())?.[1];
   if (name === undefined) return false;
   const setting = readSetting(store, `endpoint:${name}`);
-  return Boolean(setting?.secret) && !setting.key && !setting.bridge;
+  return Boolean(setting?.secret) && !setting.bridge;
 }
