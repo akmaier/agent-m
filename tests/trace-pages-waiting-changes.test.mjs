@@ -53,7 +53,7 @@ const text = (node) => node.textContent.replace(/\s+/g, " ");
 // guards: OPEN PROPOSALS ARE SHOWN IN THE BROWSER; UC-006
 // given: the default branch, whose queues hold an open entry (2026-10-09_open, entry 01) and a decided one (2026-10-08_done, entry 01)
 // input: the specification view drawn at main
-// expect: a section "SPEC changes waiting for acceptance" stands before the section "Current requirements"; it links #spec-entry/id=spec-2026-10-09_open-01 and
+// expect: a section "SPEC changes waiting for acceptance" is the first child of the page, before the version choice and the section "Current requirements"; it links #spec-entry/id=spec-2026-10-09_open-01 and
 //         names its status open; the decided entry is not in it (the counter-proof: no link to spec-2026-10-08_done-01 anywhere on the page)
 test("TST-878001 the open entry is linked first, above the SPEC, and the decided entry is not listed", async () => {
   const { target } = await render(withOpen);
@@ -65,6 +65,7 @@ test("TST-878001 the open entry is linked first, above the SPEC, and the decided
   assert.ok(overview, "known positive: the SPEC is drawn");
   const order = find(target, (node) => node === waiting || node === overview);
   assert.deepEqual(order, [waiting, overview], "the waiting entries stand above the SPEC");
+  assert.equal(target.firstChild, waiting, "the waiting entries are the first thing on the page, above the version choice and the narrowing");
   assert.equal(hrefs(target).some((href) => href.includes(`spec-${DONE}-01`)), false, "the decided entry is not listed");
 });
 
