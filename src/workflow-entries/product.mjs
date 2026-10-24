@@ -32,6 +32,8 @@ const CI_ROUTE = /^ci (?:hosted|runner:\S+) secret (\S+)$/;
 const SECRET_OF = / secret (\S+)$/;
 const WITH_HAND_OVER = "with the hand-over";
 const NO_TASK = "the task travels with its hand-over, and this run was started without it";
+// A run a page or a hand-over started: GitHub's workflow_dispatch; on GitLab a pipeline whose source is `web` or `api`, as the job workflow's rules start onDispatch.
+const dispatched = (env) => (env.service === "gitlab" ? ["web", "api"].includes(env.event?.name) : env.event?.name === "workflow_dispatch");
 const failedStatus = (summary) => ({ outcome: "failed", summary, findings: [] });
 const notRun = (summary) => ({ outcome: "not run", summary, findings: [] });
 
@@ -431,11 +433,12 @@ export async function onSchedule(env) {
   return { outcome: "done", summary: [...queued, ...skipped].join("; "), findings: [] };
 }
 
-// ---------------------------------------------------------------- the machines of GitHub's job workflow
+// ---------------------------------------------------------------- the machines of the job workflow
 
 /**
- * chooseAgentKey(env: CiEnvironment) -> Promise<EntryStatus> — on GitHub, before the agent's machine starts: which of the job workflow's agent jobs runs, given to the
- * workflow as the step's output `agent` — the place, from 1, of the key the run's job reads among AGENT_M_KEY_NAMES, or 0 for none. The key is the one the input
+ * chooseAgentKey(env: CiEnvironment) -> Promise<EntryStatus> — before the agent's machine starts: which of the job workflow's agent jobs runs, given to the
+ * workflow — on GitHub as the step's output `agent`, on GitLab as the line `AGENT_M_AGENT=<n>` of the dotenv file the job's output names — the place, from 1, of
+ * the key the run's job reads among AGENT_M_KEY_NAMES, or 0 for none. The key is the one the input
  * `secret` names for a hand-over to a model endpoint; for any other dispatch the one the route of the job's participant names; on a push the one of the oldest queued
  * job of this route. A key the file does not read is none: the agent's machine then reports it missing, as it reports a missing key. Holds no secret; writes nothing.
  */
@@ -443,7 +446,7 @@ export async function chooseAgentKey(env) {
   const composed = composeProduct(env);
   const participants = await participantsOfInstance(await composed.instance.host.readSnapshot("HEAD"));
   const snapshot = await composed.product.host.readSnapshot("HEAD");
-  const inputs = env.event?.name === "workflow_dispatch" ? env.event.payload?.inputs ?? {} : null;
+  const inputs = dispatched(env) ? env.event.payload?.inputs ?? {} : null;
   let key = null;
   if (inputs?.endpoint) key = typeof inputs.secret === "string" && inputs.secret ? inputs.secret : null;
   else if (inputs) {
@@ -455,7 +458,7 @@ export async function chooseAgentKey(env) {
     key = first ? keyOfRow(participants, first) : null;
   }
   const at = key !== null && Object.hasOwn(env.job.keys, key) ? Object.keys(env.job.keys).indexOf(key) + 1 : 0;
-  if (env.job.outputFile) fs.appendFileSync(env.job.outputFile, `agent=${at}\n`);
+  if (env.job.outputFile) fs.appendFileSync(env.job.outputFile, env.service === "gitlab" ? `AGENT_M_AGENT=${at}\n` : `agent=${at}\n`);
   return { outcome: "done", findings: [], summary: at > 0 ? `The agent's machine receives the key ${key}.`
     : key ? `${key} is not a key this job workflow reads: the agent's machine receives none.` : "The agent's machine receives no key." };
 }
@@ -485,7 +488,7 @@ export async function writeResult(env) {
   const resultFile = out ? path.join(out, "result.json") : null;
   if (!resultFile || !fs.existsSync(resultFile)) return { outcome: "nothing to do", summary: "The agent's machine left no result.", findings: [] };
   const composed = composeProduct(env);
-  const task = env.event?.name === "workflow_dispatch" && typeof env.event.payload?.inputs?.task === "string" ? env.event.payload.inputs.task : null;
+  const task = dispatched(env) && typeof env.event.payload?.inputs?.task === "string" ? env.event.payload.inputs.task : null;
   let result = JSON.parse(fs.readFileSync(resultFile, "utf8")), refused = null, notApplied = null, renamed = new Map();
   const pulls = new Map();
   try {

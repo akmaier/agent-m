@@ -76,7 +76,8 @@ function releaseOf(env) {
 
 // A GitLab job (src/runtimes/workflow/gitlab.yml): the service is `gitlab` where GITLAB_CI is `true`; the event is CI_PIPELINE_SOURCE, its payload the inputs the template sets as
 // AGENT_M_INPUT_JOB, AGENT_M_INPUT_TASK, AGENT_M_INPUT_ENDPOINT and AGENT_M_INPUT_SECRET, each held only where it is not empty; the instance is cloned to `../instance` next to the project's checkout.
-// GitLab has no step summary, and no instance workflow runs on GitLab: there is no summary file and no workflow token.
+// GitLab has no step summary, and no instance workflow runs on GitLab: there is no summary file and no workflow token. The machine, its result's folder and its key
+// are read as on GitHub (partOf); the plan's output is the dotenv file AGENT_M_OUTPUT names.
 function gitlabEnvironment(entry, env, now) {
   const inputs = Object.fromEntries([["job", env.AGENT_M_INPUT_JOB], ["task", env.AGENT_M_INPUT_TASK], ["endpoint", env.AGENT_M_INPUT_ENDPOINT], ["secret", env.AGENT_M_INPUT_SECRET]].filter(([, value]) => value));
   return {
@@ -87,12 +88,12 @@ function gitlabEnvironment(entry, env, now) {
       instanceDir: env.CI_PROJECT_DIR ? path.join(env.CI_PROJECT_DIR, "..", "instance") : null, actor: env.GITLAB_USER_LOGIN || null, runUrl: env.CI_PIPELINE_URL || null,
       tokenName: env.AGENT_M_TOKEN_NAME || "AGENT_M_TOKEN", personToken: env.AGENT_M_TOKEN || null,
       keys: keysOf(env),
-      summaryFile: null, part: null, resultDir: null, agentKey: null, outputFile: null,
+      summaryFile: null, ...partOf(env), outputFile: env.AGENT_M_OUTPUT || null,
     },
   };
 }
 
-// The machine a GitHub job workflow's job is (src/runtimes/workflow/github.yml): AGENT_M_PART `agent` or `write`, else null, where one job does all — GitLab's —; the
+// The machine a job workflow's job is (src/runtimes/workflow/github.yml, gitlab.yml): AGENT_M_PART `agent` or `write`, else null, where it is neither — the plan —; the
 // result's folder, AGENT_M_RESULT_DIR; and, on the agent's machine, the key it was given, AGENT_M_KEY, by its place among AGENT_M_KEY_NAMES from 1, 0 for none.
 function partOf(env) {
   const part = ["agent", "write"].includes(env.AGENT_M_PART) ? env.AGENT_M_PART : null;

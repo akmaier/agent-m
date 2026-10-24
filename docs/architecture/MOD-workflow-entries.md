@@ -113,8 +113,8 @@ It runs in Node, in GitHub Actions or GitLab CI, on hosted or self-hosted runner
     access the job workflow checked the instance out with. No further token is used, and the generated files are
     unchanged.
 - `product.mjs` — the entries of a product's job workflow.
-- `result.mjs` — the run's result between the agent's machine and the writing machine of a product's job workflow on
-  GitHub: the repository the agent's checkout pushes into, what is kept for later, the result packed, read, checked and
+- `result.mjs` — the run's result between the agent's machine and the writing machine of a product's job workflow: the
+  repository the agent's checkout pushes into, what is kept for later, the result packed, read, checked and
   written.
 - `instance.mjs` — the entries of the instance's workflows.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
@@ -128,15 +128,15 @@ It keeps nothing. It owns the contract between the workflow files and the entrie
 runs an entry runs `node src/workflow-entries/main.mjs <entry>` from a checkout of the instance repository at the commit
 the file names, in a checkout of the repository the event concerns. In a product, MOD-runtimes' job workflow —
 `.github/workflows/agent-m-jobs.yml` on GitHub, `.gitlab/agent-m-jobs.yml` on GitLab — runs `onRecordsChanged`,
-`onPullRequestClosed`, `onCheckCompleted`, `onSchedule` and `onDispatch`; on GitHub, where a run has two machines
-(MOD-runtimes, Data), `onRecordsChanged` and `onDispatch` run on the agent's machine, after `chooseAgentKey` and followed
+`onPullRequestClosed`, `onCheckCompleted`, `onSchedule` and `onDispatch`; since a run has two machines (MOD-runtimes,
+Data), `onRecordsChanged` and `onDispatch` run on the agent's machine, after `chooseAgentKey` and followed
 by `leaveResult`, and `writeResult` and the other entries on the writing machine. MOD-test-schedule's test configuration runs
 `onDoneCheck` in its Definition-of-Done job and `onTestsFinished` after each run's tests; on GitLab each file is included
 from the product's `.gitlab-ci.yml`. In the instance, one file under `.github/workflows/` runs each of its entries —
 `onApprovalsCommitted` on a push to `docs/approvals/`, `onSourcesCommitted` on a push to `docs/sources/` and on dispatch
 for *Fetch again* (UC-004 7a), `onReleaseTagged` on a release tag, `onMainChanged` on every push to the default branch — and does nothing but run it.
 
-On GitHub's agent's machine, `onRecordsChanged` and `onDispatch` run only the jobs whose key is the one the machine was
+On the agent's machine, `onRecordsChanged` and `onDispatch` run only the jobs whose key is the one the machine was
 given, or none the file reads; a job of another of the file's keys stays queued for the run its own key's machine makes,
 which the push of this run's result starts. They read no token. What they commit — the taking, a resumption, a start
 record, the writer's commits, and the branch the agent pushes — lands in the result's own repository, the checkout's push
@@ -151,9 +151,11 @@ the writing machine.
   that runs (named in every commit a job makes, `AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT`); and, by the names the
   dashboard showed when the secrets were set up and never by value in a file: in a product, the person's Agent M token
   (`A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET`) and each CI participant's key
-  (`A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET`) — on GitHub's agent's machine no token and the one key whose
+  (`A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET`) — on the agent's machine no token and the one key whose
   place among the key names the machine is given, on the writing machine the token and every key —, the machine, `agent`
-  or `write`, the folder of the result between them, and the file of a step's outputs; in the instance, the workflow's own token for the instance
+  or `write`, the folder of the result between them, and the file of a step's outputs — GitHub's `GITHUB_OUTPUT`, on
+  GitLab the dotenv file `AGENT_M_OUTPUT` names; a GitLab pipeline started from the page or the API (`web`, `api`) is read
+  as a start as GitHub's `workflow_dispatch` is; in the instance, the workflow's own token for the instance
   repository and the signing secrets of a release; for `onTestsFinished`, the path of the run's JUnit XML report. A
   secret that is missing ends the entry at once with a status that names it, before anything is written (UC-010).
 - `onRecordsChanged(env: CiEnvironment) -> Promise<EntryStatus>` — on a push to `docs/jobs/` or `docs/gates/` of a
@@ -194,22 +196,23 @@ the writing machine.
   `## Destinations`, its context and capabilities from `declares`, the type *model endpoint* and no price —, any other
   with the participant of the instance's list that it names; it writes the task to no file, and a branch whose commit
   messages or pull request text hold the task's words is refused by name, the job then ending failed with nothing
-  merged — on GitHub's agent's machine, where the branch is not on the server yet, `writeResult` refuses it; it appends the job's end with its commits, files and pull request, and leaves the answer in the run's summary
+  merged — on the agent's machine, where the branch is not on the server yet, `writeResult` refuses it; it appends the job's end with its commits, files and pull request, and leaves the answer in the run's summary
   and log — in the log between the lines `--- answer of <id> ---` and `--- end of the answer of <id> ---` —, where the
   prompt bar reads it. An endpoint the run cannot reach ends it `failed`, its summary naming the
   reason that MOD-endpoint-calls' `diagnoseEndpoint` gives and the routes that would work — a self-hosted runner, or a
   Bridge (UC-049 4d).
-- `chooseAgentKey(env: CiEnvironment) -> Promise<EntryStatus>` — on GitHub, before the agent's machine starts, on a
-  machine that holds no secret: which agent's job of the route runs, given as the step's output `agent` — the place, from
+- `chooseAgentKey(env: CiEnvironment) -> Promise<EntryStatus>` — before the agent's machine starts, on a machine that
+  holds no secret: which agent's job of the route runs, given on GitHub as the step's output `agent`, on GitLab as the line
+  `AGENT_M_AGENT=<n>` of the job's dotenv report — the place, from
   1, of the key the run's job reads among the key names, 0 for none. The key is the one the input `secret` names for a
   hand-over to a model endpoint, for any other start the one the route of the job's participant names, and on a push the
   one of the oldest queued job of the route; a name the file does not read is none, and the agent's machine then ends
   `not run`, naming it. Writes nothing.
-- `leaveResult(env: CiEnvironment) -> Promise<EntryStatus>` — on GitHub's agent's machine, after its entry, whether that
+- `leaveResult(env: CiEnvironment) -> Promise<EntryStatus>` — on the agent's machine, after its entry, whether that
   ended well or not: the result packed for the writing machine — the default branch and the base, each branch that is new
   or moved as a bundle that keeps every commit's identifier, the pull requests and ends kept for later. `nothing to do`
   where the entry made none.
-- `writeResult(env: CiEnvironment) -> Promise<EntryStatus>` — on GitHub's writing machine, which runs no agent, with the
+- `writeResult(env: CiEnvironment) -> Promise<EntryStatus>` — on the writing machine, which runs no agent, with the
   person's token: the result downloaded, read and checked. It is refused where a commit changes a workflow file of the
   repository (`.github/workflows/`, `.gitlab-ci.yml`, `.gitlab/`), where a key of the run or the token stands in a commit's
   message, a file a commit changes, a branch's name or what was kept, where what was kept names as an end's file another
@@ -270,7 +273,7 @@ entry with `failed` and the server's or participant's message, and a job it had 
 In a product: reads the snapshot of the checkout — `docs/participants.md` and `SPEC.md`, whose requirements are the
 process requirements, through the instance's checkout, the product's
 `docs/process.md`, its plan or backlog, `docs/jobs/` and `docs/gates/` —, writes job and gate records and the results of
-jobs through Access's local clone — on GitHub's agent's machine into the result's own repository, which the writing
+jobs through Access's local clone — on the agent's machine into the result's own repository, which the writing
 machine pushes —; reads pull requests and closes issues through the server's API, since the local clone
 does no server operation; appends result records to the branch `test-results`; on GitLab, sets the project's pipeline
 schedule. It also reads the instance's process models at the commit the product's declaration names, through the
