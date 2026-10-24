@@ -19,7 +19,9 @@ workflow's own token (GITHUB_TOKEN, github.token, CI_JOB_TOKEN) or a push token 
 and of the machine that reads the token read the generated file job by job: a job "runs the agent" where it runs the entry onDispatch or
 onRecordsChanged or installs an agent; the agent's part reads no secret but the key of the participant it is the job for, never the token;
 a job that reads the token runs no agent and, on GitHub, runs on the server's runners - a self-hosted runner is a machine the route's agent's
-jobs work on - and the workflow grants its own token no write. The counter-proofs plant what the SPEC describes into the generated text - the
+jobs work on - and the workflow grants its own token no write. On GitLab a job receives the CI/CD variables scoped to its
+environment: each agent's job is in agent-m-key-<its key> (none for the 0th), the plan in none, the job that writes alone in
+agent-m-write, to which the token is scoped, and no job inherits the product's default: or variables:. The counter-proofs plant what the SPEC describes into the generated text - the
 key written into it, the built-in token used, the token or another participant's key handed to the agent's job, the writing job moved onto the
 agent's runner - and the same checks must then find it.
 
@@ -52,7 +54,9 @@ function keyFindings(text, keys) {
     if (!line.includes(key)) continue;
     const reads = line.trim() === key + ": ${{ secrets." + key + " }}";
     const names = /AGENT_M_KEY_NAMES/.test(line);
-    if (!reads && !names) found.push("key " + key + " is not read from the secret of that name: " + line.trim());
+    // On GitLab a key is a CI/CD variable scoped to the environment of its agent's job, which is named after it.
+    const scope = line.trim() === "name: agent-m-key-" + key;
+    if (!reads && !names && !scope) found.push("key " + key + " is not read from the secret of that name: " + line.trim());
   }
   for (const line of codeLines(text)) if (/\bsk-[A-Za-z0-9-]{8,}/.test(line)) found.push("a key value is written into the workflow: " + line.trim());
   return found;
@@ -69,7 +73,8 @@ function tokenFindings(text, server, token) {
   } else {
     if (!lines.some((line) => line.includes('printenv "$AGENT_M_TOKEN_NAME"'))) found.push("the token is not read from the variable the job names");
     if (!lines.some((line) => line.includes("AGENT_M_TOKEN_NAME") && line.includes('"' + token + '"'))) found.push("the job does not name the token variable");
-    if (!lines.some((line) => line.includes("Bearer $AGENT_M_TOKEN"))) found.push("the clone does not authenticate with the token");
+    // The product's checkout pushes with the token through a credential helper of that checkout.
+    if (!lines.some((line) => line.includes("credential.helper") && line.includes("password=$AGENT_M_TOKEN"))) found.push("the product's checkout does not push with the token");
   }
   return found;
 }
@@ -99,19 +104,26 @@ if (input.plant === "key-literal") {
   text = input.server === "github" ? text.replace("      " + key + ": ${{ secrets." + key + " }}", "      " + key + ": sk-ant-LITERAL-0123456789") : text.replace("  variables:\n", "  variables:\n    " + key + ": sk-ant-LITERAL-0123456789\n");
 }
 if (input.plant === "builtin-token") {
-  text = input.server === "github" ? text.replace("token: ${{ secrets." + input.token + " }}", "token: ${{ secrets.GITHUB_TOKEN }}") : text.replace("Bearer $AGENT_M_TOKEN", "Bearer $CI_JOB_TOKEN");
+  text = input.server === "github" ? text.replace("token: ${{ secrets." + input.token + " }}", "token: ${{ secrets.GITHUB_TOKEN }}") : text.replace("password=$AGENT_M_TOKEN", "password=$CI_JOB_TOKEN");
 }
 if (input.plant === "token-in-agent") {
-  text = text.replace('      AGENT_M_KEY: "1"\n', '      AGENT_M_KEY: "1"\n      ' + input.token + ": ${{ secrets." + input.token + " }}\n");
+  // On GitLab, the agent's job for the first key placed in the environment the token is scoped to.
+  if (input.server === "gitlab") text = text.replace("    name: agent-m-key-" + input.keys[0] + "\n", "    name: agent-m-write\n");
+  else text = text.replace('      AGENT_M_KEY: "1"\n', '      AGENT_M_KEY: "1"\n      ' + input.token + ": ${{ secrets." + input.token + " }}\n");
 }
 if (input.plant === "other-key-in-agent") {
   const [first, second] = input.keys;
-  text = text.replace('      AGENT_M_KEY: "1"\n      ' + first + ": ${{ secrets." + first + " }}\n",
+  // On GitLab, the agent's job for the first key placed in the environment of the second.
+  if (input.server === "gitlab") text = text.replace("    name: agent-m-key-" + first + "\n", "    name: agent-m-key-" + second + "\n");
+  else text = text.replace('      AGENT_M_KEY: "1"\n      ' + first + ": ${{ secrets." + first + " }}\n",
     '      AGENT_M_KEY: "1"\n      ' + first + ": ${{ secrets." + first + " }}\n      " + second + ": ${{ secrets." + second + " }}\n");
 }
 if (input.plant === "writer-on-runner") {
   const label = input.runners.find((runner) => runner !== "hosted");
   text = text.replace(new RegExp("(\\n  runner-" + label + ":\\n(?:    .*\\n)*?    runs-on: )ubuntu-latest"), '$1[self-hosted, "' + label + '"]');
+}
+if (input.plant === "inherited-variables") {
+  text = text.replace("  inherit:\n    default: false\n    variables: false\n", "  inherit:\n    default: false\n    variables: true\n");
 }
 if (input.plant === "write-permission") {
   text = text.replace("permissions:\n  contents: read", "permissions:\n  contents: write");
@@ -137,15 +149,21 @@ function jobsOf(text, server) {
     if (server === "github" && /^\S/.test(line) && !line.startsWith("#")) current = null;
     if (current) current.lines.push(line);
   }
-  return jobs.map((job) => {
+  // On GitLab the text ends with the product's .gitlab-ci.yml, whose keys spec: and include: are no jobs.
+  return jobs.filter((job) => server === "github" || !["spec", "include"].includes(job.id)).map((job) => {
     const body = codeLines(job.lines.join("\n")).join("\n");
+    const environment = /^\s*environment:\s*\n\s*name:\s*(\S+)/m.exec(body)?.[1] ?? null;
+    const scoped = server === "github" ? [] : environment === "agent-m-write" ? [input.token] : environment?.startsWith("agent-m-key-") ? [environment.slice("agent-m-key-".length)] : [];
     return {
       id: job.id,
-      secrets: [...new Set([...body.matchAll(/secrets\.([A-Za-z_][A-Za-z0-9_]*)/g)].map((match) => match[1]))],
+      secrets: [...new Set([...scoped, ...[...body.matchAll(/secrets\.([A-Za-z_][A-Za-z0-9_]*)/g)].map((match) => match[1])])],
+      // On GitLab what a job receives is the variables scoped to its environment (each key to agent-m-key-<its name>, the token to agent-m-write).
       runsAgent: /main\.mjs (onDispatch|onRecordsChanged)\b|AGENT_M_ENTRY: (onDispatch|onRecordsChanged)\b|opencode/.test(body),
       usesToken: /\$AGENT_M_TOKEN\b|printenv "\$AGENT_M_TOKEN_NAME"/.test(body),
       runsOn: /^\s*runs-on:\s*(.+)$/m.exec(body)?.[1].trim() ?? null,
       key: /AGENT_M_KEY: "(\d+)"/.exec(body)?.[1] ?? null,
+      environment: /^\s*environment:\s*\n\s*name:\s*(\S+)/m.exec(body)?.[1] ?? null,
+      inheritsNothing: /^\s*inherit:\s*\n\s*default: false\s*\n\s*variables: false\s*$/m.test(body),
     };
   });
 }
@@ -158,10 +176,16 @@ function agentPartFindings(text, server, token, keys) {
   if (agents.length === 0) found.push("no job of the workflow runs the agent");
   for (const job of agents) {
     if (job.secrets.includes(token) || job.usesToken) found.push("the agent's part " + job.id + " reads the person's token " + token);
-    if (server !== "github") continue;
     if (job.key === null) { found.push("the agent's part " + job.id + " names no key it is the job for"); continue; }
     const own = Number(job.key) === 0 ? [] : [keys[Number(job.key) - 1]];
     for (const secret of job.secrets) if (secret !== token && !own.includes(secret)) found.push("the agent's part " + job.id + " reads another secret: " + secret);
+  }
+  if (server === "gitlab") {
+    // GitLab gives a job the product's global variables: and default: unless it says not to inherit them, and the plan, which reads no secret, has no environment.
+    for (const job of jobsOf(text, server)) {
+      if (!job.inheritsNothing) found.push("the job " + job.id + " inherits the product's default: or variables:");
+      if (/-plan$/.test(job.id) && job.environment !== null) found.push("the plan " + job.id + " has the environment " + job.environment);
+    }
   }
   return found;
 }
@@ -175,6 +199,7 @@ function tokenMachineFindings(text, server, token) {
   if (writers.length === 0) found.push("no job of the workflow reads the person's token");
   for (const job of writers) {
     if (job.runsAgent) found.push("the job " + job.id + " reads the person's token and runs the agent");
+    if (server === "gitlab" && job.environment !== "agent-m-write") found.push("the job " + job.id + " reads the person's token outside the environment agent-m-write");
     if (server === "github" && job.runsOn !== "ubuntu-latest") found.push("the job " + job.id + " reads the person's token on the runner " + job.runsOn);
   }
   if (server === "github") for (const line of codeLines(text)) if (/:\s*write(-all)?\s*$|permissions:\s*write-all/.test(line)) found.push("the workflow's own token may write: " + line.trim());

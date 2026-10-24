@@ -257,7 +257,7 @@ The cases of `tests/test_runtime_levels.py`, for the three requirements whose Ch
 }
 ```
 
-### GitLab: the generated job workflow uses the named variable and not the job token
+### GitLab: the generated job workflow pushes with the named variable and not the job token
 
 ```json
 {
@@ -310,11 +310,11 @@ The cases of `tests/test_runtime_levels.py`, for the three requirements whose Ch
 }
 ```
 
-### Counter-proof: a GitLab workflow that uses the job token fails
+### Counter-proof: a GitLab workflow that pushes with the job token fails
 
 ```json
 {
-  "given": "The generated GitLab workflow in which the clone authenticates with CI_JOB_TOKEN.",
+  "given": "The generated GitLab workflow in which the credential helper of the product's checkout gives CI_JOB_TOKEN.",
   "input": {
     "check": "workflow",
     "server": "gitlab",
@@ -367,7 +367,7 @@ The cases of `tests/test_runtime_levels.py`, for the three requirements whose Ch
 
 ```json
 {
-  "given": "The files for GitLab with the same keys and token: the job that runs onDispatch or onRecordsChanged.",
+  "given": "The files for GitLab with the same keys and token: each agent's job is in the environment agent-m-key-<its key>, the plan in none, and no job inherits the product's default: or variables:.",
   "input": {
     "check": "workflow",
     "server": "gitlab",
@@ -440,6 +440,80 @@ The cases of `tests/test_runtime_levels.py`, for the three requirements whose Ch
 }
 ```
 
+### Counter-proof: a GitLab workflow whose agent part is in the environment of the token fails
+
+```json
+{
+  "given": "The generated GitLab workflow in which the agent's job for KEY_A is in the environment agent-m-write, to which the token is scoped.",
+  "input": {
+    "check": "workflow",
+    "server": "gitlab",
+    "token": "AGENT_M_TOKEN",
+    "keys": [
+      "KEY_A",
+      "KEY_B"
+    ],
+    "runners": [
+      "hosted",
+      "gpu"
+    ],
+    "plant": "token-in-agent"
+  },
+  "expected": {
+    "flagged": true
+  }
+}
+```
+
+### Counter-proof: a GitLab workflow whose agent part is in another participant's key's environment fails
+
+```json
+{
+  "given": "The generated GitLab workflow in which the agent's job for KEY_A is in the environment agent-m-key-KEY_B.",
+  "input": {
+    "check": "workflow",
+    "server": "gitlab",
+    "token": "AGENT_M_TOKEN",
+    "keys": [
+      "KEY_A",
+      "KEY_B"
+    ],
+    "runners": [
+      "hosted",
+      "gpu"
+    ],
+    "plant": "other-key-in-agent"
+  },
+  "expected": {
+    "flagged": true
+  }
+}
+```
+
+### Counter-proof: a GitLab workflow whose job inherits the product's variables fails
+
+```json
+{
+  "given": "The generated GitLab workflow in which a job inherits the product's global variables:.",
+  "input": {
+    "check": "workflow",
+    "server": "gitlab",
+    "token": "AGENT_M_TOKEN",
+    "keys": [
+      "KEY_A",
+      "KEY_B"
+    ],
+    "runners": [
+      "hosted",
+      "gpu"
+    ],
+    "plant": "inherited-variables"
+  },
+  "expected": {
+    "flagged": true
+  }
+}
+```
 
 ## A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET: the machine that reads the token
 
@@ -471,7 +545,7 @@ The cases of `tests/test_runtime_levels.py`, for the three requirements whose Ch
 
 ```json
 {
-  "given": "The files for GitLab with the token variable AGENT_M_TOKEN: every job that reads the token.",
+  "given": "The files for GitLab with the token variable AGENT_M_TOKEN: the job that reads the token is the one in the environment agent-m-write, to which the token is scoped.",
   "input": {
     "check": "workflow",
     "server": "gitlab",
@@ -568,3 +642,29 @@ The cases of `tests/test_runtime_levels.py`, for the three requirements whose Ch
   }
 }
 ```
+
+### Counter-proof: a GitLab workflow that hands the token to the machine the agent works on fails
+
+```json
+{
+  "given": "The generated GitLab workflow in which the agent's job for KEY_A is in the environment agent-m-write, to which the token is scoped.",
+  "input": {
+    "check": "workflow",
+    "server": "gitlab",
+    "token": "AGENT_M_TOKEN",
+    "keys": [
+      "KEY_A",
+      "KEY_B"
+    ],
+    "runners": [
+      "hosted",
+      "gpu"
+    ],
+    "plant": "token-in-agent"
+  },
+  "expected": {
+    "flagged": true
+  }
+}
+```
+
