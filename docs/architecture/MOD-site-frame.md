@@ -75,6 +75,14 @@ It runs in a browser — the instance's pages, and the Bridge's window, which is
 - `start.mjs` — the script both entry pages load: it reads the page's setup from its own script tag, loads the named
   view modules from their folders, registers their strategies and MOD-prompt-bar's `handOverStrategies`, each set once,
   and calls `startPage`. This is where the entry pages register strategies (ARC-038).
+- `preloads.mjs` — the block of preloads in the `<head>` of each entry page, `index.html` and `docs/index.html`, so that a
+  browser asks for every file the page loads as it starts at once, not level by level as it finds the imports: a
+  `<link rel="modulepreload">` for each module of the static import closure of the page's module script and of the views its
+  `data-views` names (a JSON module with `as="json"`), and a `<link rel="preload" as="fetch" crossorigin>` for each file those
+  modules fetch as they are evaluated, found by evaluating them in a separate Node process as a browser runs them. A module a
+  route imports only when it is shown is not preloaded, so the main page preloads none of the review pages' views. Run in
+  Node: `node src/site-frame/preloads.mjs` writes the blocks; `tests/site-frame-preloads.test.mjs` fails while a page's block
+  differs from what it computes. No build stands between the repository and the page: the block is part of the page's text.
 - `menu.mjs` — the eight entries of the menu and the links they lead to, and the button that folds them on a narrow
   screen.
 - `footer.mjs` — the footer of the main and the review pages: the book *Vibe Coding* (Springer,

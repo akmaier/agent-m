@@ -123,8 +123,10 @@ export function productHostFollowingStore({ store }) {
   };
 }
 
-// viewAddress(slug) -> the address of a view module: `../<slug>/index.mjs`, relative to the folder of the frame.
+// viewAddress(slug) -> the address of a view module: `../<slug>/index.mjs`, relative to the folder of the frame; preloads.mjs
+// names the same address in an entry page's block.
 const viewAddress = (slug) => new URL(`../${slug}/index.mjs`, import.meta.url).href;
+export { viewAddress };
 
 // loadView(slug) -> Promise<View> — the `view` a view module provides. Rejects with the loader's error for a module that is not served.
 export async function loadView(slug) {
