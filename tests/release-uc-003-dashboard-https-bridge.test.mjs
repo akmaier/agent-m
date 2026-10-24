@@ -1,8 +1,8 @@
 // UC-003 public-dashboard release coverage for alternative 2a through its configured UC-044 HTTPS route (ITM-266).
 // Module: MOD-settings-pages -> MOD-browser-store -> MOD-bridge-client -> MOD-bridge-http -> MOD-bridge-jobs -> MOD-desktop-shell
 // Level: release
-// Guards: UC-003; CONFIGURATION LIVES IN THE BROWSER; CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE;
-//         A CREDENTIAL IS NEVER PLACED IN A URL; NO SECRET IN THE REPOSITORY
+// Guards: UC-003; CONFIGURATION LIVES IN THE BROWSER; CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE
+// Guards: A CREDENTIAL IS NEVER PLACED IN A URL; NO SECRET IN THE REPOSITORY
 //
 // The browser-facing HTTPS address and forwarding proxy are controlled fixture boundaries: no certificate is provisioned
 // and no browser reachability claim is made. The proxy's forwarding, Basic jump-host login, Bridge-token boundary,

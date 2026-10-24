@@ -6,8 +6,8 @@
 // Run: node --test tests/source-register-version-fetch.test.mjs
 //
 // Module: MOD-source-register
-// Guards: UC-004; UC-016; AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY; A SOURCE VERSION IS FIXED BY
-// IDENTIFIER AND HASH; A SOURCE VERSION IS NEVER OVERWRITTEN; A LIVING SOURCE IS PINNED
+// Guards: UC-004; UC-016; AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH
+// Guards: A SOURCE VERSION IS NEVER OVERWRITTEN; A LIVING SOURCE IS PINNED
 // Level: unit
 //
 // The publication repository is replaced by a local fixture server. Each test states its input and expected result before

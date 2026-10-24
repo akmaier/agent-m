@@ -28,14 +28,15 @@ import {
 // the table "Repository permissions" of
 // https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#pre-filling-fine-grained-personal-access-token-details-using-url-parameters
 // — contents (read, write), issues (read, write), pull_requests (read, write), actions (read, write), workflows (write only),
-// metadata (read only); "write always includes read".
-const GITHUB_PERMISSIONS = { contents: "write", issues: "write", pull_requests: "write", actions: "write", workflows: "write", metadata: "read" };
+// secrets (read, write), metadata (read only); "write always includes read". SPEC ONE GITHUB TOKEN SERVES EVERY FEATURE: "*Contents*,
+// *Issues* and *Pull requests* read and write, *Actions*, *Workflows* and *Secrets* read and write, *Metadata* read".
+const GITHUB_PERMISSIONS = { contents: "write", issues: "write", pull_requests: "write", actions: "write", workflows: "write", secrets: "write", metadata: "read" };
 
-test("ONE GITHUB TOKEN SERVES EVERY FEATURE — requiredPermissions on GitHub: Contents, Issues, Pull requests, Actions, Workflows write, Metadata read, each with why", () => {
+test("ONE GITHUB TOKEN SERVES EVERY FEATURE — requiredPermissions on GitHub: Contents, Issues, Pull requests, Actions, Workflows, Secrets write, Metadata read, each with why", () => {
   for (const host of ["github.com", parseProductAddress("https://github.com/alice/thesis")]) {
     const r = gitHost.requiredPermissions(host);
     assert.deepEqual(Object.keys(r), ["github"]);
-    assert.deepEqual(r.github.map((p) => p.permission), ["Contents", "Issues", "Pull requests", "Actions", "Workflows", "Metadata"]);
+    assert.deepEqual(r.github.map((p) => p.permission), ["Contents", "Issues", "Pull requests", "Actions", "Workflows", "Secrets", "Metadata"]);
     assert.deepEqual(Object.fromEntries(r.github.map((p) => [p.param, p.access])), GITHUB_PERMISSIONS,
       "exactly these parameters and levels, no more, no less");
     for (const p of r.github) assert.ok(typeof p.why === "string" && p.why.length > 20, `${p.permission} says why it is needed`);

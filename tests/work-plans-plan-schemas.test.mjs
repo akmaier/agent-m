@@ -3,8 +3,8 @@
 // Run: node --test tests/work-plans-plan-schemas.test.mjs
 //
 // Module: MOD-work-plans
-// Guards: UC-002; UC-032; UC-045; THE IMPLEMENTATION PLAN LIVES IN THE PRODUCT REPOSITORY; THE BACKLOG LIVES IN THE PRODUCT
-//         REPOSITORY; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// Guards: UC-002; UC-032; UC-045; THE IMPLEMENTATION PLAN LIVES IN THE PRODUCT REPOSITORY; THE BACKLOG LIVES IN THE PRODUCT REPOSITORY
+// Guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // Level: unit
 //
 // The module owns schemas only. These cases read and write through MOD-documents and do not introduce a caller, saved state,

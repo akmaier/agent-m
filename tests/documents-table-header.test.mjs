@@ -5,7 +5,7 @@
 // Run: node --test tests/documents-table-header.test.mjs
 //
 // Module: MOD-documents
-// Guards: A RESOURCE IS USED, A PARTICIPANT DEVELOPS; A DOCUMENT IS READ BY ITS SCHEMA
+// Guards: A RESOURCE IS USED, A PARTICIPANT DEVELOPS; PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE; A PRODUCT DECLARES ITS RESOURCES
 // Level: unit
 //
 // The documents are small texts of the tests' own, read with the schemas of MOD-participant-list and MOD-resource-list; nothing is read from a repository except, in the last test, the documents of this repository. Each test states its input and its
@@ -31,7 +31,7 @@ const findingsOf = (schema, path, body) => documentFindings(schema, readDocument
 const header = (found) => found.filter((each) => /header/.test(each.what));
 
 // TST-1143001 · level: unit · module: MOD-documents
-// guards: A DOCUMENT IS READ BY ITS SCHEMA
+// guards: PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE
 // given: the participants register with its eight columns, and the same with a ninth column "Notes"
 // input: documentFindings for each
 // expect: none for the first (known positive: it reads its row); for the second one finding, an error at the header row's line, that names the section's table and the column Notes as added
@@ -49,7 +49,7 @@ test("TST-1143001 an extra column is named, and the register that has the column
 });
 
 // TST-1143002 · level: unit · module: MOD-documents
-// guards: A DOCUMENT IS READ BY ITS SCHEMA
+// guards: PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE
 // given: the register with the column Route left out, and the register with Type and Model changed places
 // input: documentFindings for each
 // expect: one finding each: the first says the header lacks Route, the second that Type and Model stand out of order
@@ -66,7 +66,7 @@ test("TST-1143002 a column left out, and columns out of order, are named", () =>
 });
 
 // TST-1143003 · level: unit · module: MOD-documents
-// guards: A DOCUMENT IS READ BY ITS SCHEMA
+// guards: PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE
 // given: a register with no table at all, and one with an unrelated table before the table that names exactly the columns
 // input: documentFindings for each
 // expect: no finding of this kind for either (the section holds no table; the section's table is the second one)
@@ -97,7 +97,7 @@ test("TST-1143004 a resource list that adds columns the schema does not name is 
 });
 
 // TST-1143005 · level: unit · module: MOD-documents
-// guards: A DOCUMENT IS READ BY ITS SCHEMA
+// guards: PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE; A PRODUCT DECLARES ITS RESOURCES
 // given: every document of this repository that a schema reads: the files under docs/ that artifactSchemaOf names a schema for, docs/participants.md, and docs/resources.md where there is one
 // input: readDocument and documentFindings for each, and the findings of this kind among them
 // expect: none (the finding fires on no document that stands; the known positive: at least a hundred documents were read)
@@ -118,7 +118,7 @@ test("TST-1143005 the finding fires on no document of the repository", () => {
 });
 
 // TST-1143006 · level: unit · module: MOD-documents
-// guards: A DOCUMENT IS READ BY ITS SCHEMA
+// guards: PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE
 // given: a register with two tables, neither naming the columns: a first of two columns and a second with the column Notes added
 // input: documentFindings
 // expect: one finding, at the header row of the first table (named "at its first table's header"), and not at the second's

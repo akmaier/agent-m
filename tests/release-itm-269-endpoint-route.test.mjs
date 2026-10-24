@@ -2,8 +2,8 @@
 // Run: node --test tests/release-itm-269-endpoint-route.test.mjs
 // Module: MOD-settings-pages · MOD-browser-store · MOD-bridge-client · MOD-desktop-shell
 // Level: release
-// Guards: UC-003; UC-044; CONFIGURATION LIVES IN THE BROWSER; A STORED SECRET IS HIDDEN UNTIL SHOWN;
-// A CLEAR IS A REAL CLEAR; A CREDENTIAL IS NEVER PLACED IN A URL; AN UNSUPPORTED ENDPOINT SAYS SO.
+// Guards: UC-003; UC-044; CONFIGURATION LIVES IN THE BROWSER; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR
+// Guards: A CREDENTIAL IS NEVER PLACED IN A URL; AN UNSUPPORTED ENDPOINT SAYS SO
 // Scope boundary: this exercises the public MOD-settings-pages Route with supplied context, not dashboard-app dispatch.
 // Scope within UC-003: alternative 2a. Real local path: Route -> bridge-client -> compose -> bridge-http -> jobHandlers -> controlled own-model HTTP server.
 // HTTPS is controlled at fetch because this test neither provisions a tunnel nor a browser-trusted certificate;

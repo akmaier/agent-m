@@ -10,8 +10,7 @@
 // Run: node --test tests/site-frame.test.mjs
 //
 // Module: MOD-site-frame
-// Guards: UC-002; UC-001; UC-013; EVERY STEP EXPLAINS ITSELF; A FORM OPENS WITH ITS FIRST FIELD FOCUSED; ONE CLICK PER
-//   DECISION
+// Guards: UC-002; UC-001; UC-013; EVERY STEP EXPLAINS ITSELF; A FORM OPENS WITH ITS FIRST FIELD FOCUSED; ONE CLICK PER DECISION
 // Level: unit
 //
 // Not part of ITM-221, and not tested here: PageSetup, startPage, menuOf, instanceOf, chosenProduct, runPanel,

@@ -5,8 +5,7 @@
 // Run: node --test tests/workflow-entries-sources.test.mjs
 //
 // Module: MOD-workflow-entries
-// Guards: UC-004; AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY; PROGRESS AND JOB STATE ARE DERIVED, NOT
-// STORED; WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS
+// Guards: UC-004; AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // Level: unit
 //
 // Deterministic, no network: the instance is a temporary git repository and global fetch is replaced by a fixture answer.

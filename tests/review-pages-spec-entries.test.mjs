@@ -466,7 +466,7 @@ test("spec-entry/<id> — the other open proposals on the same section", async (
 // ---------------------------------------------------------------- through the one review flow
 
 // TST-472675 · level: unit · module: MOD-review-pages
-// guards: THE ENTRIES TAKE PART IN THE ONE REVIEW FLOW THROUGH THEIR DESCRIPTOR; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
 // given: the instance's entry 07, no token — the page of any other kind, an accepted-by-record use case's, offers the record with a Copy button for its path and for its text
 // input: the page of entry 07
 // expect: the flow's fallback block: the explanation, the link, the path with a Copy button and the record with a Copy button
@@ -480,7 +480,7 @@ test("spec-entry/<id> — the flow's fallback block: the record's path and text 
 });
 
 // TST-472676 · level: unit · module: MOD-review-pages
-// guards: THE ENTRIES TAKE PART IN THE ONE REVIEW FLOW THROUGH THEIR DESCRIPTOR; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
 // given: the instance with the entry 07 open and a token whose host refuses the write for lack of permission (PermissionMissing)
 // input: a click on Accept
 // expect: as the flow does for every kind: the refusal shown in the result, Accept enabled again, and GitHub's page with the record offered; nothing written

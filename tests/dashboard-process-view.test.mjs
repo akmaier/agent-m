@@ -12,7 +12,6 @@
 //
 // Module: MOD-implementation-pages
 // Guards: UC-002
-// Guards: WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS
 // Level: component
 
 import test from "node:test";

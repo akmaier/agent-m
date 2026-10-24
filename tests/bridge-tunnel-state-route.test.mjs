@@ -2,8 +2,8 @@
 // Run: node --test tests/bridge-tunnel-state-route.test.mjs
 //
 // Module: MOD-bridge-http
-// Guards: UC-044; THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY; THE LOCAL BRIDGE REQUIRES A TOKEN;
-//         THE BRIDGE IS PAIRED ONCE; A REMOTE INTERFACE NAMES HOW IT FAILS
+// Guards: UC-044; THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY; THE LOCAL BRIDGE REQUIRES A TOKEN; THE BRIDGE IS PAIRED ONCE
+// Guards: A REMOTE INTERFACE NAMES HOW IT FAILS
 // Level: unit
 //
 // Every case uses the actual controlled loopback server and supplies only constructed tunnel-state handlers.

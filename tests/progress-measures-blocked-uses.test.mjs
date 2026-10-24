@@ -41,7 +41,7 @@ const NO_LIMIT = { flow: { wip: null, timeBox: null, sprints: true } };
 const ready = (...ids) => ids.map((id) => itemState(id, "ready"));
 
 // TST-1161001 · level: unit · module: MOD-progress-measures
-// guards: SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES; UC-035 step 4
+// guards: SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES; UC-035
 // given: ITM-031 ready in team1's sprint, changing MOD-view, whose module file uses MOD-store.read and MOD-store.write; ITM-040, held by team2's sprint, changing MOD-store and nothing else; ITM-032 ready in team1's sprint, changing MOD-other, whose module file uses nothing
 // input: blocked(facts), with facts.modules the module files MOD-view, MOD-store and MOD-other
 // expect: exactly one entry — ITM-031 "held by another team's sprint", naming MOD-store, ITM-040 and team2's sprint, a module ITM-031 uses and ITM-040 changes; ITM-032 is not blocked
@@ -55,7 +55,7 @@ test("blocked — a ready item is held by another team's sprint for a module it 
 });
 
 // TST-1161002 · level: unit · module: MOD-progress-measures
-// guards: SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES; UC-035 step 4
+// guards: SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES; UC-035
 // given: the product of TST-1161001, three times with one thing different: (a) the module file MOD-view uses nothing; (b) ITM-040 is held by team1's own sprint; (c) facts.modules is empty
 // input: blocked(facts) of each
 // expect: counter-proofs: none lists an entry — in (a) ITM-031 uses no module ITM-040 changes, in (b) a module held by its own team's sprint keeps nothing from the team, in (c) no module file says what ITM-031's module uses, and a use is not guessed
@@ -74,7 +74,7 @@ test("blocked — an item is not held through a module it does not use, nor thro
 });
 
 // TST-1161003 · level: unit · module: MOD-progress-measures
-// guards: SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES; UC-035 step 4
+// guards: SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES; UC-035
 // given: ITM-031 ready in team1's sprint, changing MOD-view and MOD-lib, MOD-view's file using MOD-store.read; ITM-040 held by team2's sprint, changing MOD-store and using MOD-lib; ITM-041 held by team3's sprint, changing MOD-lib
 // input: blocked(facts), with facts.modules the module files MOD-view, MOD-lib and MOD-store
 // expect: one entry for ITM-031, whose detail lists, in the order of the held items and, within an item, of the modules: MOD-lib with ITM-040 (a module ITM-031 changes that ITM-040 uses), MOD-store with ITM-040 (a module ITM-031 uses that ITM-040 changes), MOD-lib with ITM-041 (a module both change) — each with its sprint and team, joined by "; "
@@ -92,7 +92,7 @@ test("blocked — an item held by several sprints names each held item and modul
 });
 
 // TST-1161004 · level: unit · module: MOD-progress-measures
-// guards: SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES; UC-035 step 4
+// guards: SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES; UC-035
 // given: ITM-031 ready, changing MOD-view, held by team1's sprint and also by team2's sprint, which holds it changing MOD-zzz — a hold by another team that shares no module with it
 // input: blocked(facts)
 // expect: one entry for ITM-031 "held by another team's sprint", whose detail names the item and team2's sprint and no module: "ITM-031 is held in <team2's sprint> of team2" — the hold of the item itself, which MOD-work-plans' conflicts gives with an empty module
