@@ -1,5 +1,5 @@
 // strategies.mjs — the recipes, checks and writers of `workStrategies` (MOD-work-plans, Parts: strategies.mjs; Interfaces: workStrategies). Of it, this file has the recipes
-// `architecture-and-model` (UC-045 step 2) and `sprint-facts` (UC-041 step 2), the check `sprint-record-checks` (UC-041 1a) and the writer `sprint-record` (UC-041 6); the other recipes, checks and writers are not built yet.
+// `architecture-and-model` (UC-045 step 2), `backlog-inputs` (UC-032 step 2) and `sprint-facts` (UC-041 step 2), the checks `plan-checks` (UC-045), `backlog-checks` (UC-032 step 3) and `sprint-record-checks` (UC-041 1a) and the writer `sprint-record` (UC-041 6); the other recipes, checks and writers are not built yet.
 //
 // Module: MOD-work-plans
 //
@@ -12,11 +12,12 @@ import { artifactSchemas, readDocument } from "../documents/index.mjs";
 import { listJobs } from "../job-ledger/index.mjs";
 import { provenanceLines } from "../job-runner/index.mjs";
 import { declarationSchema, gateSchema, gateStates, productWorkflow } from "../product-process/index.mjs";
+import { parseSpec } from "../spec-document/index.mjs";
 import { queues } from "../spec-changes/index.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
 import { systemDecisions, traceGraph } from "../trace-graph/index.mjs";
 import { finding } from "../text-tools/index.mjs";
-import { planFindings } from "./checks.mjs";
+import { backlogFindings, planFindings } from "./checks.mjs";
 import { closeSprint } from "./saves.mjs";
 import { sprintFacts } from "./facts.mjs";
 import { selectionOf as selectionOfRecord } from "./sprints.mjs";
@@ -32,6 +33,8 @@ const failure = (name, message, fields) => Object.assign(new Error(message), { n
 const within = (path, place) => path === place.replace(/^\/+|\/+$/g, "") || path.startsWith(`${place.replace(/^\/+|\/+$/g, "")}/`);
 const unique = (values) => [...new Set(values)];
 const byId = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+// The sources of every `context.places.contents` entry that names `path` or a folder above it.
+const sourcesFor = (context, path) => unique((context.places.contents ?? []).filter(({ paths }) => paths.some((place) => within(path, place))).map(({ source }) => source));
 
 /**
  * The recipe architecture-and-model(context, params) -> Part[] — what UC-045 step 2 sends to the drafting participant, one part per file, in this order:
@@ -57,8 +60,7 @@ async function architectureAndModel(context) {
     if (parts.has(path)) return;
     const text = await snapshot.read(path);
     if (text === null) throw failure("UnknownWork", `${path} is not in the product's files`, { id: path });
-    const sources = unique((context.places.contents ?? []).filter(({ paths }) => paths.some((place) => within(path, place))).map(({ source }) => source));
-    parts.set(path, { name: path, text, size: 0, sources, required: true });
+    parts.set(path, { name: path, text, size: 0, sources: sourcesFor(context, path), required: true });
   };
   for (const node of [...system, ...subsystems, ...modules]) await give(node.path);
   await give(PROCESS);
@@ -223,6 +225,75 @@ async function planChecks(draft, context) {
     .map((each) => finding({ artifact: named(each.artifact), line: each.line, kind: each.kind, rule: each.rule, what: named(each.what), fix: named(each.fix) }));
 }
 
+const MODULE_FILE = /^docs\/architecture\/MOD-[^/]+\.md$/;
+
+/**
+ * The check backlog-checks(draft, context) -> Promise<Finding[]> — backlogFindings on the drafted items of a job of the kind `propose-items` (UC-032 step 3). The draft is the answer of the kind,
+ * `{ items: [{ title, realises, modules, buildsOn, ... }] }`; each entry becomes an item with an identifier after the product's highest, in the drafted sequence. An entry of `buildsOn` names an existing
+ * item by its identifier or its title, or a drafted entry by its title; a title is replaced by that item's identifier, any other entry stays as it is. backlogFindings runs on the existing items of
+ * docs/backlog/ and the drafted ones, with the module files of docs/architecture/ of the job's snapshot; the check gives the findings of the drafted items, each naming its item by its title. A draft
+ * without items has none.
+ */
+async function backlogChecks(draft, context) {
+  const { snapshot } = context.product;
+  const schemas = artifactSchemas();
+  const documents = (pattern, schema) => Promise.all(snapshot.paths.filter((each) => pattern.test(each)).sort()
+    .map(async (each) => readDocument(schema, each, (await snapshot.read(each)) ?? "")));
+  const existing = await documents(BACKLOG_ITEM, schemas.item);
+  const architecture = await documents(MODULE_FILE, schemas.module);
+  const highest = Math.max(0, ...snapshot.paths.map((each) => Number(ITEM_ID.exec(each)?.[1].slice(4) ?? 0)));
+  const drafted = asList(draft?.items).map((each, index) => ({ ...each, id: `ITM-${String(highest + index + 1).padStart(3, "0")}` }));
+  const idOfTitle = new Map([...drafted.map((each) => [each.title, each.id]), ...existing.map((each) => [each.fields.title, each.id])]);
+  const items = drafted.map((each) => ({ kind: "item", path: `docs/backlog/${each.id}-${slugOf(each.title)}.md`, id: each.id, title: each.title, sections: [], appended: [], body: "",
+    fields: { id: each.id, title: each.title, realises: asList(each.realises), modules: asList(each.modules), builds_on: asList(each.buildsOn).map((name) => idOfTitle.get(name) ?? name) } }));
+  const titleOf = new Map(drafted.map((each) => [each.id, each.title]));
+  const named = (value) => String(value).replace(/ITM-\d{3,}/g, (id) => (titleOf.has(id) ? `the item "${titleOf.get(id)}"` : id));
+  return backlogFindings([...existing, ...items], architecture).filter((each) => titleOf.has(each.artifact))
+    .map((each) => finding({ artifact: named(each.artifact), line: each.line, kind: each.kind, rule: each.rule, what: named(each.what), fix: named(each.fix) }));
+}
+
+const SPEC_PATH = "SPEC.md";
+const NOT_REALISED = "not yet realised by an item";
+const EXISTING_ITEMS = "existing items";
+
+// A requirement as the SPEC states it: its name and source, its rule, its check; a field it lacks is left out.
+const stated = ({ name, source, rule, check }) => [`**${name}**${source === null ? "" : ` *(${source})*`}`, rule, check === null ? null : `*Check:* ${check}`].filter((line) => line !== null).join("\n");
+
+/**
+ * The recipe backlog-inputs(context, params) -> Part[] — what UC-032 step 2 sends to the drafting participant, in this order:
+ * - the accepted requirements, one part each, named by the requirement and holding it as the SPEC states it, in the order the SPEC lists them; a requirement is accepted when the SPEC holds it, so that
+ *   one that stands only in an open entry of a change queue is not given;
+ * - the accepted use cases, one part each, named by the file's path and holding the file whole, by path; a use case is accepted when `statuses` gives it accepted;
+ * - one part "not yet realised by an item": the accepted requirements and then the accepted use cases that no existing item names under `realises`, one to a line; not given where there are none;
+ * - the architecture, every decision and module file of docs/architecture/, one part each, named by the path and holding the file whole, by path;
+ * - one part "existing items": the files of the items of docs/backlog/ whole, by path, which carries each item as an artifact, its identifier and the key of the item format, its title; not given
+ *   where the product has no item.
+ * Only the part of the items carries artifacts. A part carries the sources of every `context.places.contents` entry that names a path its text comes from or a folder above it. A product without
+ * a SPEC.md gives no requirement. The recipe makes no request of its own.
+ */
+async function backlogInputs(context) {
+  const { snapshot } = context.product;
+  const schemas = artifactSchemas();
+  const part = (name, text, paths, artifacts) => ({ name, text, size: 0, sources: unique(paths.flatMap((path) => sourcesFor(context, path))), required: true, ...(artifacts ? { artifacts } : {}) });
+  const filesOf = async (pattern) => Promise.all(snapshot.paths.filter((each) => pattern.test(each)).sort().map(async (path) => ({ path, text: (await snapshot.read(path)) ?? "" })));
+
+  const requirements = [...parseSpec((await snapshot.read(SPEC_PATH)) ?? "").requirements.values()];
+  const useCases = await Promise.all([...statuses(snapshot)].filter(([, { kind, status }]) => kind === "use-case" && status === "accepted").sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(async ([path, { id }]) => ({ id, path, text: (await snapshot.read(path)) ?? "" })));
+  const items = (await filesOf(BACKLOG_ITEM)).map((file) => ({ ...file, document: readDocument(schemas.item, file.path, file.text) }));
+  const realised = new Set(items.flatMap(({ document }) => asList(document.fields.realises)));
+  const unrealised = [...requirements.map(({ name }) => name), ...useCases.map(({ id }) => id)].filter((name) => !realised.has(name));
+
+  return [
+    ...requirements.map((requirement) => part(requirement.name, stated(requirement), [SPEC_PATH])),
+    ...useCases.map(({ path, text }) => part(path, text, [path])),
+    ...(unrealised.length ? [part(NOT_REALISED, unrealised.map((name) => `- ${name}`).join("\n"), [])] : []),
+    ...(await filesOf(ARCHITECTURE_FILE)).map(({ path, text }) => part(path, text, [path])),
+    ...(items.length ? [part(EXISTING_ITEMS, items.map(({ text }) => text).join("\n"), items.map(({ path }) => path),
+      items.map(({ document }) => ({ id: document.id, keys: schemas.item.key.map((field) => String(document.fields[field] ?? "")) })))] : []),
+  ];
+}
+
 const REVIEW_RULE = "AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM";
 const RETRO_RULE = "A SPRINT ENDS WITH A RETROSPECTIVE";
 const PROCESS_RULE = "AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF";
@@ -296,5 +367,5 @@ async function sprintRecord(result, context) {
   return { commits: [commit], files: written, pullRequest: null, shown: null, notes: [] };
 }
 
-/** workStrategies: MOD-job-runner's Partial<Strategies> with the recipes architecture-and-model and sprint-facts and the checks plan-checks and sprint-record-checks, the four built so far. */
-export const workStrategies = { recipes: { "architecture-and-model": architectureAndModel, "sprint-facts": sprintFactsRecipe }, checks: { "plan-checks": planChecks, "sprint-record-checks": sprintRecordChecks }, writers: { "sprint-record": sprintRecord } };
+/** workStrategies: MOD-job-runner's Partial<Strategies> with the recipes architecture-and-model, backlog-inputs and sprint-facts, the checks plan-checks, backlog-checks and sprint-record-checks and the writer sprint-record, the six built so far. */
+export const workStrategies = { recipes: { "architecture-and-model": architectureAndModel, "backlog-inputs": backlogInputs, "sprint-facts": sprintFactsRecipe }, checks: { "plan-checks": planChecks, "backlog-checks": backlogChecks, "sprint-record-checks": sprintRecordChecks }, writers: { "sprint-record": sprintRecord } };
