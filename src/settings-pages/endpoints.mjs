@@ -140,14 +140,16 @@ export function actionsOffer(context, name, result) {
   if (!setting?.key || setting.bridge || !repository?.host?.setCiSecret) return null;
   const secret = setting.secret || secretNameFor(name);
   const where = repository.ofProduct ? repository.address : repository.label;
+  const lacking = endpointLacks(setting);
   const go = el("button", "endpoint-actions btn primary", "Store the key as a GitHub secret and test on GitHub Actions");
   const said = el("p", "endpoint-actions-consent",
     `One click: Agent M stores this endpoint's API key as the GitHub Actions secret ${secret} of ${where}, sealed with the repository's public key and sent only to GitHub's API with the token stored for that repository. `
-    + `It then keeps the secret's name with the endpoint — the key stays in this browser — and spawns one test job of ${setting.model} on GitHub Actions; each message to this endpoint then becomes a job there.`);
+    + `It then keeps the secret's name with the endpoint — the key stays in this browser — and spawns one test job of ${setting.model} on GitHub Actions; each message to this endpoint then becomes a job there.`
+    + (lacking.length ? ` The test job is a job of this endpoint: first enter ${lacking.join(" and ")} with Change and save.` : ""));
   go.addEventListener("click", async (event) => {
     if (event?.isTrusted !== true || go.disabled) return;
     go.disabled = true;
-    const missing = [!setting.place && "the place where it processes data", !(Number(setting.context) > 0) && "its context in tokens"].filter(Boolean);
+    const missing = endpointLacks(readSetting(context.store, key));
     if (missing.length) {
       result.textContent = `Enter ${missing.join(" and ")} first and save: the test job is a job of this endpoint, which declares them.`;
       go.disabled = false;
