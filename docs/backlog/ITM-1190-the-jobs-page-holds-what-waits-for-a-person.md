@@ -28,6 +28,14 @@ The accepted text, `docs/architecture/MOD-main-page.md`:
   one. Then comes every job (`waits.mjs`).
 - UC-036 step 2 names what waits: open use cases, open SPEC changes, gates waiting for a decision, and failed jobs.
 
+**Today** (`dcf0badd`, `fb1b7c69`): `home` draws what waits from the overview stored for the head, or, while that is not
+stored, from the overview `latest.json` names (MOD-progress-measures' `latestOverview`), and derives it only where the
+branch `overview-cache` holds neither (MOD-main-page, the route `home`). Moving the list to `jobs` keeps that reading.
+
+**An open reading.** MOD-main-page's `jobs` names "the instance's own stored overview where there is one" and does not name
+`latestOverview`. Whether `jobs` takes the overview stored last while the head's is not stored, as the card does, is read
+at the start; where the text does not give it, the item stops for a draft to akmaier.
+
 ## Acceptance
 
 - `home` draws the link *Jobs*, and no list of what waits.

@@ -24,9 +24,9 @@ origin:
 ## Outcome
 
 `docs/assets/git-host.mjs` and `git-host/pull-requests.mjs` repeat MOD-repository-hosts. Once the views and the main
-page are the modules', no file imports them, and they go. Among their tests, `tests/test_destination_disclosure.py` is
-the Check of a requirement: the queue `2026-10-16_the-destination-check-names-the-tests-that-check-it` names the module
-tests in its place (ITM-528).
+page are the modules', no file imports them, and they go. Their test `tests/test_destination_disclosure.py` was
+removed by `a6c56a46`, whose message states that every requirement a removed file guarded stays guarded by a kept test;
+the queue `2026-10-16_the-destination-check-names-the-tests-that-check-it` names the module tests in its place (ITM-528).
 
 It waits for akmaier's acceptance of the module-file draft committed with the plan, which names these files as taken over in the module's Parts.
 

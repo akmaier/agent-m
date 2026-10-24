@@ -36,6 +36,11 @@ Then a job of the kinds `set-up-ci`, `propose-tests`, `write-tests` or `run-test
 Bridge and in a hand-over. Without this, a CI agent's `propose-tests` job (MOD-test-pages' `generate`) fails with
 `UnknownStrategy`.
 
+**On a page, since `ac9378ef`,** `registerViews` (`src/site-frame/register.mjs`) registers every view's strategy sets at
+load, each set once — MOD-test-pages' view with `scheduleStrategies` and `resultStrategies` among them
+(`src/test-pages/index.mjs:19`) —, and the prompt bar's `handOverStrategies` beside them. A set already registered on the
+load is skipped, so adding the two sets to `handOverStrategies` adds no `DuplicateStrategy` on the page.
+
 ## Acceptance
 
 - In each of the three places, `prepareJob` of each of the four kinds finds every strategy it names, and each set is

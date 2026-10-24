@@ -23,8 +23,11 @@ The accepted catalogue (`docs/architecture/MOD-browser-store.md:70-71`) adds:
 - the key family `session:<bridge>:<agent>`, holding `{ place, context, model, capabilities }`, not secret;
 - to `endpoint:<name>`, the fields `place`, `context` and `secret?`.
 
-The code does not keep the new family yet. `src/browser-store/catalogue.mjs:12` names no `session:` family, so
-`writeSetting` refuses the key, and `listSettings` and the export do not carry it.
+The endpoint's fields are kept: `endpoint:<name>` is a family of the catalogue whose value is kept whole, and since
+`35f3485d` the settings page writes `place`, `context` and `secret` into it and the prompt bar reads them
+(`src/prompt-bar/offer.mjs`, `endpointsOffered`, `endpointLacks`). The code does not keep the session family yet.
+`src/browser-store/catalogue.mjs:12` names no `session:` family, so `writeSetting` refuses the key, and `listSettings` and
+the export do not carry it.
 
 ## Acceptance
 

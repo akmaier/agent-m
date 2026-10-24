@@ -23,12 +23,14 @@ origin:
 
 akmaier: "Review all — the whole architecture actually works, but it loads slow." The route is `decision/id=all`
 (`kind.whole`, `src/review-pages/flow.mjs:202-213`). Since ITM-710 (`aba1a0d4`) Review all reads the files it shows in
-one batch. Since `b3e8d5f1` (ITM-729) the impact list of each changed accepted file stands on Review all too, and the
-list needs MOD-trace-graph's graph of the whole repository.
+one batch. Since `b3e8d5f1` (ITM-729) the impact list of each changed accepted file stands on Review all too. Since `c2e6e5c1`
+(`bbf92700`) that list comes from the graph stored for the commit, `<commit>.json.gz` on the branch `trace-cache`, read
+once per commit through MOD-trace-graph's `storedGraph`; the page builds no graph (`4f5613df`: the architecture's review
+page reads the stored graph, not a batch of the graph's files).
 
 **What the page reads is not yet counted.** The item's first task counts the requests of one load of
 `#decision/id=all` with a token, on a recorded fixture and on this repository. The count is split by what each request
-serves: the commit and tree, the batch of shown files, the last accepted texts, and the graph for the impact lists. The
+serves: the commit and tree, the batch of shown files, the last accepted texts, and the one read of the stored graph. The
 same count is made for `#review/arc` at `caad73d3^` and at `aba1a0d4`. The count names which reads exceed
 `A PAGE LOAD READS THE REPOSITORY IN BATCHES` (SPEC.md:672): "a file whose blob the page has read already is not read
 again". If nothing exceeds it, the item stops and reports the measured times, since then it is not a regression of the

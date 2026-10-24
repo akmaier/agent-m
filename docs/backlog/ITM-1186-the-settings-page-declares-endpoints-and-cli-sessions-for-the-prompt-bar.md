@@ -29,10 +29,18 @@ The accepted text, `docs/architecture/MOD-settings-pages.md`:
   `session:<bridge>:<agent>`. A session lacking a place, a context or a model is named as not offered in the prompt bar
   (UC-049 1b).
 
+**Built on `main` since `35f3485d`** (with `fd01d2ee`, `d8242efa`, `6a787486`, `5db55fa7` and `ed547bd3`):
+- the endpoint form keeps `place`, `context` and the name of the CI secret in `endpoint:<name>`, and an endpoint lacking a
+  place, a context or a model is named on its line and its page (`endpointLacks`);
+- the job workflow's *Install* (`jobWorkflowInput`, `src/settings-pages/settings.mjs:907-911`) names among its `keys`,
+  beside the CI secrets of the participants' routes, the CI secret each of this browser's endpoints names.
+
+What is left is the `bridge` section's CLI sessions.
+
 ## Acceptance
 
-- The endpoint form keeps `place`, `context` and `secret` in `endpoint:<name>`. The CI secret is a name, and its value is
-  never asked.
+- The endpoint form and *Install*'s keys stand as built (`35f3485d`); their tests stay green, and neither is built
+  again.
 - The `bridge` section lists the CLI sessions of a tested Bridge and keeps each declaration under
   `session:<bridge>:<agent>`. Each lacking place, context or model is named where it is configured.
 - Counter-proof: a session declared with all three is not named as lacking.
@@ -40,10 +48,6 @@ The accepted text, `docs/architecture/MOD-settings-pages.md`:
   agent or sandboxed agent "is listed". The accepted UC-049 1a says it appears once an endpoint is configured or a Bridge
   offers a CLI session. The draft `668a3ce1` waits for akmaier. Until it is accepted, that sentence is not built; build
   everything else.
-- **The job workflow's *Install*** (`jobWorkflowInput`, `src/settings-pages/settings.mjs:881-895`) names among its
-  `keys`, beside the CI secrets of the participants' routes, the CI secret each of this browser's endpoints names.
-  That is ITM-1188's decision, from MOD-runtimes.md:145-147 and the SPEC's THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS
-  ARE BOUND AS PARTICIPANTS ARE. Counter-proof: an endpoint without a secret adds none.
 - `tests/settings-pages-prompt-bar-note.test.mjs` follows the draft `668a3ce1` once it is accepted. The explanation then
   stands on the endpoints page only.
 - The first commit holds only the tests, and CI is red on it.
