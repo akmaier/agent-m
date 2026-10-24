@@ -209,8 +209,9 @@ for *Fetch again* (UC-004 7a), `onReleaseTagged` on a release tag, `onMainChange
   - It adds the commit's overview of the main page and the facts its files alone give (MOD-progress-measures'
     `publishOverview`).
   - A file the branches already hold for that commit is left as it is: `nothing to do`. A failure of one leaves the other
-    written and ends the entry `failed`, naming it. The pages then derive what is missing as before, so nothing is
-    wrong, only slower.
+    written and ends the entry `failed`, naming it. The pages never derive the graph themselves (MOD-trace-graph's
+    `storedGraph`), so the workflow tries a failed entry again, and runs on a schedule as well, every 15 minutes, for the
+    head of the default branch, which stores what a push's run missed.
 - `onReleaseTagged(env: CiEnvironment) -> Promise<EntryStatus>` — in the instance, on a release tag: on each platform's
   runner, the Bridge's file of that platform, signed; then the files, checksums, signatures and update feed published as
   the release of the tag (`THE BRIDGE IS SIGNED BY ITS PUBLISHER`); nothing is published when a signature cannot be

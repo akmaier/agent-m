@@ -28,7 +28,7 @@ uses:
   - MOD-group-document.parseGroupFile
   - MOD-group-document.hierarchy
   - MOD-test-document.testDeclarations
-  - MOD-trace-graph.traceGraph
+  - MOD-trace-graph.storedGraph
   - MOD-trace-graph.tracesTo
   - MOD-trace-graph.coverageGaps
   - MOD-trace-graph.compareGraphs
@@ -161,7 +161,7 @@ log, the link reads *no longer available*, and the mark keeps its outcome (UC-02
   run's log (UC-029 5b).
 - MOD-documents.artifactSchemas, MOD-documents.readDocument, MOD-spec-document.parseSpec, MOD-group-document.parseGroupFile,
   MOD-group-document.hierarchy, MOD-test-document.testDeclarations — the artifacts of the version.
-- MOD-trace-graph.traceGraph, MOD-trace-graph.tracesTo, MOD-trace-graph.coverageGaps, MOD-trace-graph.compareGraphs,
+- MOD-trace-graph.storedGraph, MOD-trace-graph.tracesTo, MOD-trace-graph.coverageGaps, MOD-trace-graph.compareGraphs,
   MOD-trace-graph.moduleRows, MOD-trace-graph.graphFindings — the rows, gaps, unknown names and comparisons.
 - MOD-approvals.statuses — the review status of use cases and architecture files.
 - MOD-spec-changes.queues, MOD-spec-changes.entryView, MOD-spec-changes.requirementHistory — open proposals, what each

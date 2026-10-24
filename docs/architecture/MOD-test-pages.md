@@ -30,7 +30,7 @@ uses:
   - MOD-repository-hosts.webLinks
   - MOD-documents.readRegister
   - MOD-test-document.testDeclarations
-  - MOD-trace-graph.traceGraph
+  - MOD-trace-graph.storedGraph
   - MOD-trace-graph.tracesTo
   - MOD-progress-measures.storedFacts
   - MOD-test-schedule.scheduleSchema
@@ -172,7 +172,7 @@ the result records on the branch `test-results`, the product's resources and the
   resources and the instance's participants, which the schedule's runners and paid services come from;
   MOD-resource-list.reachableBy — the routes that reach the product's resources, for the routes of `write-tests` and
   `run-tests`.
-- MOD-test-document.testDeclarations, MOD-trace-graph.traceGraph, MOD-trace-graph.tracesTo — which levels guard what. A
+- MOD-test-document.testDeclarations, MOD-trace-graph.storedGraph, MOD-trace-graph.tracesTo — which levels guard what. A
   graph of a commit's own files is asked for with that commit, so that the graph `onMainChanged` stored for it is read
   where there is one (MOD-workflow-entries).
 - MOD-progress-measures.storedFacts — the test declarations stored for a commit, which the schedule counts.
