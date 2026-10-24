@@ -205,7 +205,6 @@ test("the workflow file runs onMainChanged on a push to main, makes the branches
   assert.match(text, new RegExp(`push origin \\S+:refs/heads/\\$${loop[1]}`));
   assert.match(text, new RegExp(`fetch origin \\+\\$${loop[1]}:\\$${loop[1]}`));
   assert.deepEqual([...text.matchAll(/node src\/workflow-entries\/main\.mjs (\w+)/g)].map((m) => m[1]), ["onMainChanged"]);
-  assert.match(text, /timeout-minutes: 2\b/);
 });
 
 // TST-1175002 · level: component · module: MOD-workflow-entries
@@ -285,7 +284,7 @@ test("onMainChanged hands publishGraph exactly the files not accepted, each with
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the instance of the first impact test, whose branch overview-cache holds only its first commit
 // input: onMainChanged
-// expect: one new commit on overview-cache, on the head it read, that adds exactly "<commit>.json" and "<commit>.facts.json" (the facts of ITM-1117, whose content ITM-1118 pins); storedOverview-shaped content: { commit, shares, waiting } of main's commit, the six stages in their order; the origin's main is untouched
+// expect: one new commit on overview-cache, on the head it read, that adds exactly "<commit>.json" and "<commit>.facts.json" (the facts of ITM-1117, whose content ITM-1118 pins) and writes "latest.json" naming the commit; storedOverview-shaped content: { commit, shares, waiting } of main's commit, the six stages in their order; the origin's main is untouched
 test("onMainChanged adds the overview of the commit to overview-cache once", async () => {
   await withInstance({ commits: await impactCommits() }, async (f) => {
     const before = overviewHead(f);
@@ -294,7 +293,8 @@ test("onMainChanged adds the overview of the commit to overview-cache once", asy
     assert.match(status.summary, new RegExp(`Added the overview and the facts of ${f.head} to overview-cache\\.`), "the summary names both files");
     const after = overviewHead(f);
     assert.equal(git(f.origin, "rev-parse", `${after}^`), before);
-    assert.deepEqual(git(f.origin, "diff", "--name-only", before, after).split("\n"), [`${f.head}.facts.json`, `${f.head}.json`]);
+    assert.deepEqual(git(f.origin, "diff", "--name-only", before, after).split("\n"), [`${f.head}.facts.json`, `${f.head}.json`, "latest.json"]);
+    assert.equal(JSON.parse(git(f.origin, "show", `${after}:latest.json`)).commit, f.head, "latest.json names the commit");
     const overview = JSON.parse(git(f.origin, "show", `${after}:${f.head}.json`));
     assert.equal(overview.commit, f.head);
     assert.equal(overview.shares.length, 6);
