@@ -86,7 +86,8 @@ It runs in a browser, loaded by `index.html` through MOD-site-frame.
 
 It keeps nothing but the screen. It builds a handle for each Bridge this browser keeps from its settings, so that the
 live states, logs and cancels of jobs on Bridges reach them. While the page is open it reads the jobs' states again at
-an interval the repository servers' rate limits allow, so the build stays current, except while its tab is hidden
+an interval the repository servers' rate limits allow, so the build stays current — the records of the jobs the cards
+were drawn with, and nothing else —, except while its tab is hidden
 (`document.visibilityState` is `hidden`): then it starts no reading, and when `visibilitychange` shows the tab again it
 reads at once each card whose reading fell due meanwhile. A card whose repository this browser keeps no token for is read
 once, when the page is drawn, and never again (UC-046 4b). It stores nothing between readings.
@@ -109,8 +110,11 @@ once, when the page is drawn, and never again (UC-046 4b). It stores nothing bet
     links the token's setting;
     below the cards, the link *Jobs* to the route `jobs`.
     A card first reads the overview stored for its default branch's head (MOD-progress-measures' `storedOverview`, one
-    request). Where there is one, its stage bar comes from it, and only the build is read, with
-    `productFacts`' scope `build`. Where there is none, the card reads the scope `all` as before. Without a token and
+    request). Where there is one, the card is drawn from it alone: its stage bar, its model, what waits for a person,
+    and its build — the states of the steps or items in progress and the records of the jobs working on them, from which
+    `listJobs` derives the rows with the live states of those jobs whose record has no end, asked at once. It lists no
+    pull request and reads no other file: what derives from the repository was computed when the commit was pushed.
+    Where there is none, the card reads the scope `all` as before. Without a token and
     without facts stored for the head (`storedFacts`), that reading costs one request per test file of the default
     branch (MOD-progress-measures' `stageShares`); that cost is accepted. The stored overview is a record of the
     repository, derived from that commit alone by `onMainChanged` (MOD-workflow-entries), never kept in the

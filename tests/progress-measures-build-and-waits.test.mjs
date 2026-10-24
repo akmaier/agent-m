@@ -17,9 +17,9 @@
 
 import test, { afterEach, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { buildInProgress, currentStage, waitingForAPerson } from "../src/progress-measures/index.mjs";
+import { buildInProgress, currentStage, publishOverview, storedOverview, waitingForAPerson } from "../src/progress-measures/index.mjs";
 import { itemStates } from "../src/work-plans/index.mjs";
-import { facts, itemState, jobRow, queueOf, statusMap } from "./progress-measures-facts.mjs";
+import { COMMIT, facts, itemState, jobRow, queueOf, statusMap } from "./progress-measures-facts.mjs";
 
 let fetched = [];
 const realFetch = globalThis.fetch;
@@ -171,4 +171,44 @@ test("waitingForAPerson — without a workflow no gate waits; with nothing waiti
   assert.deepEqual(ids(facts({ ...WAIT, workflow: "unknown" })), expected);
   assert.deepEqual(ids(facts({ ...WAIT, workflow: null })), expected);
   assert.deepEqual(waitingForAPerson(facts()), []);
+});
+
+// ---------------------------------------------------------------- the overview stored for a commit: what the pages read in place of the files
+
+// TST-943101 · level: unit · module: MOD-progress-measures
+// guards: THE BUILD IS SHOWN AS IT HAPPENS; A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-046
+// given: the six items of the build above with their job rows, the records of JOB-a and JOB-b as the commit's files, the model "scrum", and three change queues — one whose entries are all in the SPEC,
+// one with an open entry, one with a stale entry; a branch overview-cache that holds nothing yet, whose commitFiles is recorded; then a snapshot of the commit whose readOn answers the text committed
+// input: publishOverview(host, snapshot, facts); then storedOverview(snapshot) twice
+// expect: one commit of `<commit>.json` and `<commit>.facts.json`; the overview holds the model "scrum", the build's states of ITM-002 and ITM-003 alone (in progress with a job; not ITM-004, in progress
+// without one), the records of JOB-a and JOB-b with the commit's texts, and the two queues with an entry not in the SPEC; storedOverview gives the same model, build and queues — and buildInProgress over
+// the stored states and the job rows gives the rows it gives over the facts —, read with one readOn for both calls; counter-proof: an overview text without the build is none (null)
+test("publishOverview stores the model, the build with its jobs' records and the undecided queues, and storedOverview reads them back once", async () => {
+  const RECORDS = { "docs/jobs/JOB-a.md": "record of JOB-a\n", "docs/jobs/JOB-b.md": "record of JOB-b\n" };
+  const queues = [queueOf("docs/spec-freigaben/2026-10-01_done", [[1, "in SPEC"]]), queueOf("docs/spec-freigaben/2026-10-02_open", [[1, "in SPEC"], [2, "open"]]),
+    queueOf("docs/spec-freigaben/2026-10-03_stale", [[1, "stale"]])];
+  const given = facts({ plan: { order: null, items: [], states: BUILD_STATES }, jobs: BUILD_JOBS, queues, model: { name: "scrum" } });
+  const snapshot = { commit: COMMIT, paths: Object.keys(RECORDS), blob: () => null, read: async (path) => RECORDS[path] ?? null };
+  const commits = [];
+  const host = { readSnapshot: async () => ({ commit: "0".repeat(40), paths: [] }), commitFiles: async (change) => { commits.push(change); } };
+  await publishOverview(host, snapshot, given);
+  assert.equal(commits.length, 1);
+  assert.deepEqual(commits[0].files.map((file) => file.path).sort(), [`${COMMIT}.facts.json`, `${COMMIT}.json`]);
+  const text = commits[0].files.find((file) => file.path === `${COMMIT}.json`).text;
+  const held = JSON.parse(text);
+  assert.equal(held.model, "scrum");
+  assert.deepEqual(held.build.states.map((state) => state.item), ["ITM-002", "ITM-003"]);
+  assert.deepEqual(held.build.records, [{ path: "docs/jobs/JOB-a.md", text: "record of JOB-a\n" }, { path: "docs/jobs/JOB-b.md", text: "record of JOB-b\n" }]);
+  assert.deepEqual(held.queues.map((queue) => queue.folder), ["docs/spec-freigaben/2026-10-02_open", "docs/spec-freigaben/2026-10-03_stale"]);
+
+  const reads = [];
+  const at = { commit: COMMIT, readOn: async (branch, path) => { reads.push([branch, path]); return text; } };
+  const [first, second] = [await storedOverview(at), await storedOverview(at)];
+  assert.equal(first, second);
+  assert.deepEqual(reads, [["overview-cache", `${COMMIT}.json`]]);
+  assert.deepEqual([first.model, first.build, first.queues], [held.model, held.build, held.queues]);
+  assert.deepEqual(buildInProgress(facts({ plan: { order: null, items: [], states: first.build.states }, jobs: BUILD_JOBS })),
+    buildInProgress(given));
+  const before = { commit: COMMIT, readOn: async () => JSON.stringify({ commit: COMMIT, shares: held.shares, waiting: held.waiting }) };
+  assert.equal(await storedOverview(before), null);
 });

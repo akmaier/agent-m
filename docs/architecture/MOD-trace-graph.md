@@ -185,7 +185,9 @@ identifier, and which register entry an item names is MOD-source-register's to s
   are not repeated here. Rejects only when `source.read` itself rejects, with that error. It runs where a commit's graph is
   built: in the workflows and jobs, never on a page.
 - `storedGraph(source: TextSource, commit: string) -> Promise<Graph>` — the graph stored for `commit` on the branch
-  `trace-cache`, its `<commit>.json.gz` read once with the source's `readOn` and unzipped. It never builds the graph and
+  `trace-cache`, its `<commit>.json.gz` read once with the source's `readOn` and unzipped — once for each commit in a page,
+  however many views and functions ask for it, since a commit's graph never changes; a graph not stored, or a read that
+  failed, is read again at the next call. It never builds the graph and
   reads no other file; it rejects with `GraphNotStored`, naming the commit and the workflow that stores it, where the
   source has no `readOn`, `commit` is none, or the branch holds no graph of it. Every page reads a graph only through it.
 - `graphFindings(graph: Graph) -> Finding[]` — the checks across artifacts, each decided from the graph alone and each an

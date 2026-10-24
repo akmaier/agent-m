@@ -4,9 +4,10 @@
 // Module: MOD-main-page
 //
 // THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT. The page computes no share, no stage and no
-// state: MOD-progress-measures derives them from the facts it gathers once for each product (productFacts, the scope `all`, or — where the repository stores an overview of its
-// head — that overview and the scope `build`), and MOD-job-ledger's listJobs derives the jobs' rows again with the
-// live states their runtimes report, asked once for each job whose record has no end (MOD-runtimes, as the route `jobs` asks them). It stores nothing. Each product is connected, through jobs.mjs's sourcesOf, by
+// state: where the repository stores an overview of its head (MOD-progress-measures' storedOverview, computed by the workflow `main changed`), the card is drawn from that overview
+// alone — its stages, its model, what waits, and the build's states with the records of the jobs working on them —, and no pull request, record or other file is read; elsewhere
+// MOD-progress-measures derives them from the facts it gathers once for each product (productFacts, the scope `all`). MOD-job-ledger's listJobs derives the jobs' rows again with the
+// live states their runtimes report, asked once for each of those jobs whose record has no end (MOD-runtimes, as the route `jobs` asks them). It stores nothing. Each product is connected, through jobs.mjs's sourcesOf, by
 // MOD-site-frame's chosenProduct with the token this browser keeps for it, and the instance with the frame's own host; a token reaches no other server. Once the cards are drawn, reread.mjs reads the
 // jobs' states of the cards again at an interval, while the route is shown, and nothing else.
 //
@@ -48,35 +49,52 @@ function once(host) {
     readSnapshot: (ref) => { if (!branches.has(ref)) branches.set(ref, host.readSnapshot(ref)); return branches.get(ref); } };
 }
 
-// The overview stored for the head of the host's default branch (MOD-progress-measures' storedOverview), or null where there is none. A failure of the host here is left to the
+// The head of the host's default branch and the overview stored for it (MOD-progress-measures' storedOverview), null where there is none. A failure of the host here is left to the
 // scope `all`, which meets it again and gives the card its reason; any other error is a fault of the page.
 const HOST_FAILURES = new Set(["NotFound", "NotSupported", "TokenRefused", "PermissionMissing", "RateLimited", "Unreachable"]);
 async function storedFor(host) {
   try {
     const { defaultBranch } = await host.repositoryInfo();
-    return await storedOverview(await host.readSnapshot(defaultBranch));
+    const snapshot = await host.readSnapshot(defaultBranch);
+    return { snapshot, stored: await storedOverview(snapshot) };
   } catch (failure) {
-    if (HOST_FAILURES.has(failure?.name)) return null;
+    if (HOST_FAILURES.has(failure?.name)) return { snapshot: null, stored: null };
     throw failure;
   }
 }
 
-// One source's facts — only what the build takes (the scope `build`) where an overview is stored, else everything (the scope `all`) —, with the jobs' rows derived again with the
-// live states of the jobs that have not ended.
-async function factsOf(host, { store, instanceSnapshot, instanceAt }, scope) {
-  const facts = await productFacts(host, instanceSnapshot, instanceAt, new Date(), { scope });
-  const lives = await liveStatesOf(facts.jobs, new Map([[facts.address, host]]), bridgesOf(facts.jobs, store));
-  return { ...facts, jobs: await listJobs([{ address: facts.address, snapshot: facts.snapshot }], lives) };
+// The jobs' rows of a source, derived again with the live states of the jobs among them that have not ended.
+async function withLiveStates(host, store, address, snapshot, rows) {
+  const lives = await liveStatesOf(rows, new Map([[address, host]]), bridgesOf(rows, store));
+  return listJobs([{ address, snapshot }], lives);
 }
 
-async function cardOf(source, reading, go, knownSnapshot = null) {
+// One source's facts where no overview is stored: everything (the scope `all`), with the jobs' rows derived again with the live states.
+async function factsOf(host, { store, instanceSnapshot, instanceAt }) {
+  const facts = await productFacts(host, instanceSnapshot, instanceAt, new Date(), { scope: "all" });
+  return { ...facts, jobs: await withLiveStates(host, store, facts.address, facts.snapshot, facts.jobs) };
+}
+
+// The facts of the build an overview holds: the states of its steps or items in progress, and the rows of the jobs working on them, which MOD-job-ledger's listJobs derives from the
+// records the overview holds, with the live states of those that have not ended. The records are served from the overview: no record file, no pull request and no other file is read.
+// The snapshot is the head's, its paths narrowed to those records, so that the readings again compare their blobs (reread.mjs).
+async function buildOf(host, store, snapshot, stored) {
+  const texts = new Map(stored.build.records.map(({ path, text }) => [path, text]));
+  const records = { ...snapshot, paths: [...texts.keys()], read: (path) => Promise.resolve(texts.get(path) ?? null) };
+  const address = snapshot.repository?.web ?? "";
+  const rows = await listJobs([{ address, snapshot: records }], new Map());
+  return { address, snapshot: records, plan: { states: stored.build.states }, jobs: await withLiveStates(host, store, address, records, rows) };
+}
+
+async function cardOf(source, reading, go, known = null) {
   try {
-    const raw = knownSnapshot === null ? source.host : { ...source.host, readSnapshot: (ref) => ref === knownSnapshot.ref ? Promise.resolve(knownSnapshot) : source.host.readSnapshot(ref) };
+    const raw = known === null ? source.host : { ...source.host, repositoryInfo: () => Promise.resolve(known.info),
+      readSnapshot: (ref) => (ref === known.snapshot.ref ? Promise.resolve(known.snapshot) : source.host.readSnapshot(ref)) };
     const host = once(raw);
-    const stored = await storedFor(host);
-    const facts = await factsOf(host, reading, stored ? "build" : "all");
+    const { snapshot, stored } = await storedFor(host);
+    const facts = stored ? await buildOf(host, reading.store, snapshot, stored) : await factsOf(host, reading);
     const shares = stored ? stored.shares : await stageShares(facts);
-    const model = facts.model?.name ?? null, current = currentStage(shares);
+    const model = stored ? stored.model : facts.model?.name ?? null, current = currentStage(shares);
     return { card: productCard({ title: source.title, address: source.address, model, shares, current, build: buildInProgress(facts), own: source.own === true }),
       held: { source, facts, shares, current, model },
       waits: (stored ? stored.waiting : waitingForAPerson(facts)).map((item) => ({ ...item, product: source.title, address: source.address, own: source.own === true })) };
@@ -101,10 +119,10 @@ async function render(target, context) {
   const waiting = el("section", "waits", el("h2", null, "What waits for a person"), el("p", "muted", "Reading…"));
   target.replaceChildren(greet, cards, ...adding, waiting);
 
-  let reading;
+  let reading, info;
   try {
-    const { defaultBranch } = await instance.host.repositoryInfo();
-    reading = { store: context.store, instanceSnapshot: await instance.host.readSnapshot(defaultBranch), instanceAt: (commit) => instance.host.readSnapshot(commit) };
+    info = await instance.host.repositoryInfo();
+    reading = { store: context.store, instanceSnapshot: await instance.host.readSnapshot(info.defaultBranch), instanceAt: (commit) => instance.host.readSnapshot(commit) };
   } catch (failure) {
     const reason = `Agent M's own repository could not be read: ${reasonOf(failure)}`;
     cards.replaceChildren(...sources.map((source) => errorCard({ ...source, reason, go: context.go })));
@@ -114,7 +132,7 @@ async function render(target, context) {
   const waits = [], held = [];
   await Promise.all(sources.map(async (source, at) => {
     if (source.reason !== undefined) return;
-    const result = await cardOf(source, reading, context.go, source.own === true ? reading.instanceSnapshot : null);
+    const result = await cardOf(source, reading, context.go, source.own === true ? { info, snapshot: reading.instanceSnapshot } : null);
     nodes[at] = result.card;
     waits[at] = result.waits;
     held[at] = result.held;

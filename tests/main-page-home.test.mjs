@@ -734,14 +734,22 @@ test("TST-858006 once the route is no longer shown a tab shown again reads nothi
 // ---------------------------------------------------------------- the card reads the overview stored for its head, and then only the build (ITM-943)
 //
 // MOD-main-page, Interfaces `home`: "A card first reads the overview stored for its default branch's head (MOD-progress-measures' `storedOverview`, one request).
-// Where there is one, its stage bar and what waits come from it, and only the build is read, with `productFacts`' scope `build`. Where there is none, the card reads
-// the scope `all` as before. … The rows of the build are the same whether the stage bar comes from a stored overview or from the scope `all`."
-// The fake GitHub holds the branch `overview-cache` of a repository as `net.overviews[repository][commit]`; its head is `headOf(repository)`.
+// Where there is one, the card is drawn from it alone: its stage bar, its model, what waits for a person, and its build — the states of the steps or items in progress
+// and the records of the jobs working on them, from which `listJobs` derives the rows with the live states of those jobs whose record has no end, asked at once. It lists
+// no pull request and reads no other file … Where there is none, the card reads the scope `all` as before. … The rows of the build are the same whether the stage bar
+// comes from a stored overview or from the scope `all`."
+// The fake GitHub holds the branch `overview-cache` of a repository as `net.overviews[repository][commit]`; its head is `headOf(repository)`. The overview stored is
+// the format MOD-progress-measures' Data names: { commit, shares, waiting, model, build: { states, records }, queues } — here ITM-0900 in progress with the running job
+// and that job's record as the commit holds it.
 
 const STORED = (commit) => JSON.stringify({ commit, waiting: [{ kind: "use case", id: "UC-077", path: "docs/use-cases/UC-077-stored.md" }], shares: [
   { stage: "Requirements", share: 1, detail: "stored requirements" }, { stage: "Use cases", share: 0.25, detail: "stored use cases" },
   { stage: "Architecture", share: 0, detail: "stored architecture" }, { stage: "Implementation", share: 0.5, detail: "stored implementation" },
-  { stage: "Tests", share: null, detail: "stored tests" }, { stage: "Release", share: 0, detail: "stored release" }] });
+  { stage: "Tests", share: null, detail: "stored tests" }, { stage: "Release", share: 0, detail: "stored release" }], model: null,
+  build: { states: [{ item: "ITM-0900", state: "in progress", reason: `job ${JOB} is running`, job: JOB, pullRequest: null }], records: [{ path: RUNNING.path, text: RUNNING.text }] },
+  queues: [] });
+// The overview of the format before the model, the build and the queues were stored: a reader takes it for none.
+const STORED_BEFORE = (commit) => JSON.stringify({ commit, waiting: [], shares: JSON.parse(STORED(commit)).shares });
 const STORED_STAGES = [["Requirements", "100 %", "stored requirements"], ["Use cases", "25 %", "stored use cases"], ["Architecture", "0 %", "stored architecture"],
   ["Implementation", "50 %", "stored implementation"], ["Tests", "?", "stored tests"], ["Release", "0 %", "stored release"]];
 const REVIEWED = /^(docs\/use-cases\/|docs\/architecture\/|tests\/)/;
@@ -753,8 +761,8 @@ const overviewReads = () => net.requests.filter((request) => request.url.include
 // given: this browser keeps alice/product, whose branch overview-cache holds the overview of its head (six stored stages, UC-077 waiting) and whose backlog holds ITM-0900 with a job running on the Bridge lab-pc-4
 // input: the route home drawn
 // expect: the card's six stages are the stored ones — "Requirements 100 % stored requirements" … "Tests ? stored tests" — and the stage it is in is "Use cases"; what waits reads "use case: UC-077", the stored entry, and not UC-002 that the files hold open;
-// the build row is ["ITM-0900", the job, "dev-cli", "running", "2h 0m 0s"]; the overview was asked for once, as one request for <head>.json on overview-cache
-test("TST-943001 a card with a stored overview shows its stages and what waits from it, and the build from the scope build", async () => {
+// the build row is ["ITM-0900", the job, "dev-cli", "running", "2h 0m 0s"] — the stored record with the live state the Bridge reports; the overview was asked for once, as one request for <head>.json on overview-cache
+test("TST-943001 a card with a stored overview shows its stages, what waits and its build from it", async () => {
   const head = headOf(PRODUCT);
   net = network({ [PRODUCT]: SMALL(), [INSTANCE]: instanceFiles() }, { bridgeLists: JOB });
   net.overviews[PRODUCT] = { [head]: STORED(head) };
@@ -773,23 +781,22 @@ test("TST-943001 a card with a stored overview shows its stages and what waits f
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the product of TST-943001 (a use case, an architecture-less tree and a test file among its files); once with the overview of its head stored, once with none
 // input: the route home drawn; the files the fake GitHub served counted
-// expect: with the overview, no file under docs/use-cases/, docs/architecture/ or tests/ is read, and nor is SPEC.md — the files read are the backlog item and the job record; without one, the card reads the scope all: tests/unit.test.mjs is read (known positive) and
-// the stages are those the files give ("Use cases 50 % 1 of 2 accepted")
-test("TST-943002 with a stored overview no use case, decision or test file is read, and without one the card reads the scope all", async () => {
+// expect: with the overview, no file of the product is read at all — not the backlog, not the job record, no use case, decision or test file and not SPEC.md; without one, the card reads the scope all: tests/unit.test.mjs
+// and the backlog are read (known positive: the count sees the files read) and the stages are those the files give ("Use cases 50 % 1 of 2 accepted")
+test("TST-943002 with a stored overview no file of the product is read, and without one the card reads the scope all", async () => {
   const head = headOf(PRODUCT);
   net = network({ [PRODUCT]: SMALL(), [INSTANCE]: instanceFiles() }, { bridgeLists: JOB });
   net.overviews[PRODUCT] = { [head]: STORED(head) };
   net.install();
   await draw(home, browser());
-  const stored = filesRead();
-  assert.deepEqual(stored.filter((path) => REVIEWED.test(path) || path === "SPEC.md"), []);
-  assert.equal(stored.includes("docs/backlog/ITM-0900-work.md"), true, "known positive: the backlog is read");
+  assert.deepEqual(filesRead(), []);
 
   net.restore();
   net = network({ [PRODUCT]: SMALL(), [INSTANCE]: instanceFiles() }, { bridgeLists: JOB });
   net.install();
   const target = await draw(home, browser());
   assert.equal(filesRead().includes("tests/unit.test.mjs"), true, "without a stored overview the scope all reads the test file");
+  assert.equal(filesRead().includes("docs/backlog/ITM-0900-work.md"), true, "known positive: the count sees the backlog read");
   assert.deepEqual(stagesOf(cardsOf(target)[0])[1], ["Use cases", "50 %", "1 of 2 accepted"]);
 });
 
@@ -829,6 +836,50 @@ test("TST-943004 each card reads its own head's overview, and an overview stored
   assert.deepEqual(stagesOf(second)[1], ["Use cases", "50 %", "1 of 2 accepted"]);
   assert.equal(overviewReads().filter((request) => request.url.includes("/repos/alice/product/")).length, 1);
   assert.equal(overviewReads().filter((request) => request.url.includes("/repos/bob/other/")).length, 1);
+});
+
+// TST-943005 · level: unit · module: MOD-main-page
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; THE BUILD IS SHOWN AS IT HAPPENS; UC-046
+// given: this browser keeps alice/product, whose branch overview-cache holds the overview of its head (ITM-0900 in progress, its running job's record), the job running on the Bridge lab-pc-4; and, for the
+// counter-proof, the same product without an overview
+// input: the route home drawn; every request counted
+// expect: with the overview, no request lists the pull requests (no …/pulls), none is a batch (POST /graphql) and none reads a file of the product other than the overview: the requests to alice/product are
+// exactly its repository, its head's commit, its tree and the overview — 4 —, those to the instance its repository, commit and tree — 3 —, and the Bridge is asked once for the live state of the one job
+// in progress; counter-proof: without the overview the card lists the pull requests (known positive: the count sees …/pulls)
+test("TST-943005 with a stored overview the route home lists no pull request and reads no file: four requests for the card, the live state asked once", async () => {
+  const head = headOf(PRODUCT);
+  const pulls = () => net.requests.filter((request) => /\/pulls(\?|$)/.test(new URL(request.url).pathname + new URL(request.url).search));
+  net = network({ [PRODUCT]: SMALL(), [INSTANCE]: instanceFiles() }, { bridgeLists: JOB });
+  net.overviews[PRODUCT] = { [head]: STORED(head) };
+  net.install();
+  await draw(home, browser());
+  const of = (repository) => net.requests.filter((request) => new URL(request.url).pathname.startsWith(`/repos/${repository}`)).map((request) => new URL(request.url).pathname.replace(`/repos/${repository}`, ""));
+  assert.deepEqual(pulls(), []);
+  assert.deepEqual(net.requests.filter((request) => request.url.endsWith("/graphql")), []);
+  assert.deepEqual(of(PRODUCT), ["", "/commits/main", `/git/trees/${head}`, `/contents/${head}.json`]);
+  assert.deepEqual(of(INSTANCE), ["", "/commits/main", `/git/trees/${headOf(INSTANCE)}`]);
+  assert.equal(net.bridgeAsked(), 1);
+
+  net.restore();
+  net = network({ [PRODUCT]: SMALL(), [INSTANCE]: instanceFiles() }, { bridgeLists: JOB });
+  net.install();
+  await draw(home, browser());
+  assert.equal(pulls().length > 0, true, "known positive: without an overview the pull requests are listed, and the count sees it");
+});
+
+// TST-943006 · level: unit · module: MOD-main-page
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// given: alice/product, whose branch overview-cache holds for its head an overview of the format before the model, the build and the queues were stored ({ commit, shares, waiting } alone)
+// input: the route home drawn
+// expect: the overview is taken for none — the stages are those the files give ("Use cases 50 % 1 of 2 accepted"), not the stored ones —, and the build row is the one the files give: ["ITM-0900", the job, "dev-cli", "running", "2h 0m 0s"]
+test("TST-943006 an overview of the format before the build was stored is none: the card reads the scope all", async () => {
+  const head = headOf(PRODUCT);
+  net = network({ [PRODUCT]: SMALL(), [INSTANCE]: instanceFiles() }, { bridgeLists: JOB });
+  net.overviews[PRODUCT] = { [head]: STORED_BEFORE(head) };
+  net.install();
+  const [card] = cardsOf(await draw(home, browser()));
+  assert.deepEqual(stagesOf(card)[1], ["Use cases", "50 %", "1 of 2 accepted"]);
+  assert.deepEqual(buildOf(card), [["ITM-0900", JOB, "dev-cli", "running", "2h 0m 0s"]]);
 });
 
 // ---------------------------------------------------------------- whether a token is stored is the frame's to say (ITM-856)

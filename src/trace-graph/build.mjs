@@ -191,14 +191,25 @@ async function storedFor(source, commit) {
   } catch { return null; }
 }
 
+// The graphs read in this page, by commit: a commit's graph never changes, so each is read once however many views and functions ask for it. The promise is kept, so that
+// callers asking at once share the one request; a graph that is not stored, or a read that failed, is not kept, and the next call reads again.
+const STORED = new Map();
+
 // storedGraph(source: TextSource, commit: string) -> Promise<Graph> — the graph the workflow `main changed` stored for `commit` on the branch
-// trace-cache, read once through the source's readOn. It never builds the graph: a page reads the graph, the workflow builds it. Rejects with
+// trace-cache, read once for each commit through the source's readOn. It never builds the graph: a page reads the graph, the workflow builds it. Rejects with
 // GraphNotStored where the commit has no stored graph — the source has no readOn, the commit is none, or the branch holds no graph of it.
-export async function storedGraph(source, commit) {
-  const stored = await storedFor(source, commit);
-  if (stored) return stored;
-  throw Object.assign(new Error(`the trace graph of ${commit ? commit.slice(0, 12) : "this version"} is not stored yet — the workflow "main changed" ` +
-    "builds it on every push to the default branch; reload once its run has finished"), { name: "GraphNotStored" });
+export function storedGraph(source, commit) {
+  if (typeof commit === "string" && commit !== "" && STORED.has(commit)) return STORED.get(commit);
+  const reading = storedFor(source, commit).then((stored) => {
+    if (stored) return stored;
+    throw Object.assign(new Error(`the trace graph of ${commit ? commit.slice(0, 12) : "this version"} is not stored yet — the workflow "main changed" ` +
+      "builds it on every push to the default branch; reload once its run has finished"), { name: "GraphNotStored" });
+  });
+  if (typeof commit === "string" && commit !== "" && typeof source?.readOn === "function") {
+    STORED.set(commit, reading);
+    reading.catch(() => { if (STORED.get(commit) === reading) STORED.delete(commit); });
+  }
+  return reading;
 }
 
 // traceGraph(source: TextSource, options?: { commit?: string }) -> Promise<Graph> — reads, in the order source.paths lists
