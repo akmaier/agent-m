@@ -37,6 +37,15 @@ MOD-work-plans.md:233-237:
 >   (UC-041 7b). Errors: `NotFound { path }`, `NotClosed` for a sprint without `## Review`, `Merged` for a sprint whose
 >   branch's pull request is merged, and the host's.
 
+## An open reading
+
+Since `4b8aea1c` every merged pull request naming an item makes it `done`, into any branch (MOD-work-plans, `ItemState`: "A
+merged pull request decides first"; the backlog page filters no base, ITM-1197). An item merged into the branch of a sprint
+whose increment is given up therefore stays `done`, and `startable` refuses a job on it ("a change to it is a new item").
+UC-041 7b says its done items "go back to the backlog". This item builds only `heldItems`, as its Acceptance says. Which
+state such an item has once it is back in the backlog no text states; that is a question to akmaier, since neither UC-041
+nor MOD-work-plans can be read to give it.
+
 ## Acceptance
 
 - Unit tests that name MOD-work-plans: after the increment is given up, `heldItems` holds none of the sprint's done items.

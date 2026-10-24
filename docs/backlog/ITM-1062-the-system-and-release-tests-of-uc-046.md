@@ -30,7 +30,10 @@ stages each filled by its share, the stage it is in marked, a click on a stage l
 for the product, and its build").
 
 The system test walks the main flow and every alternative flow UC-046 names on the live main page, as `index.html` serves
-it after ITM-684, each test stating its expected result. The existing `tests/test_main_page.py`, `tests/test_progress_derived.py`
+it after ITM-684, each test stating its expected result. Since `dcf0badd` and `fb1b7c69` a card is drawn from the overview
+stored for the head on the branch `overview-cache`, or from the one `latest.json` names while the head's is not stored,
+and is derived from the repository only where neither is stored (MOD-main-page, the route `home`); the test's fixture
+serves that branch as the home harness does. The existing `tests/test_main_page.py`, `tests/test_progress_derived.py`
 and `tests/test_job_dashboard.py` stay; a release test is added for each requirement UC-046 realises without one, except
 those whose check is "at review". They are written from UC-046 and the requirements it realises by a participant who
 implements none of the items it tests (`RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER`).

@@ -22,7 +22,11 @@ origin:
 
 ## Outcome
 
-Today the bar offers the participants of the instance's list (`offer.mjs`). The accepted text,
+Since `35f3485d` and `fd01d2ee` the bar offers first this browser's endpoints that declare a place, a context and a model
+(`endpointsOffered`, `endpointLacks`), and an endpoint that names a CI secret and no Bridge spawns its own job (*Spawn
+job*). Beside them it still reads the instance's participant list and offers the participants this browser reaches
+(`src/prompt-bar/bar.mjs:448-451`), as MOD-prompt-bar.md says, "until the offer of CLI sessions is built". It offers no
+CLI session, and where none can do the kind its link goes to `participants` (`bar.mjs:415-416`). The accepted text,
 `docs/architecture/MOD-prompt-bar.md:180-196` and :219-224, says instead:
 - It first reads this browser's configuration, and reads no participant list for the offer (UC-049 1).
 - It offers each `endpoint:<name>` and each CLI session a stored Bridge offers (`testBridge`) whose configuration
@@ -49,5 +53,6 @@ Today the bar offers the participants of the instance's list (`offer.mjs`). The 
   - TST-513202 loses its `todo`.
 - The offer is unit-tested with a store holding an endpoint, a Bridge offering a CLI session, and one of each lacking a
   model. Counter-proof: the instance's participant list is not read for the offer.
+- The endpoint offer and *Spawn job* stand as built (`35f3485d`) and are not built again.
 - Nothing beyond the accepted text. No new route, setting or driver.
 - The first commit holds only the tests, and CI is red on it.

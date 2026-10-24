@@ -29,7 +29,8 @@ origin:
 
 The final switch. `docs/index.html` loads `start.mjs` with the views of the modules, and the live app moved in by
 ITM-574 goes, with `built.json`, `src/site/`, `src/theme/lme.css`, `src/brand/` and what of `docs/assets/style.css` no
-route needs. `stepHtml` and `tests/test_step_explanations.py` go with the app (queue `2026-10-17b`). The live addresses
+route needs. `stepHtml` goes with the app (queue `2026-10-17b`); its test `tests/test_step_explanations.py` was removed by
+`a6c56a46`. The live addresses
 of the old app lead, through the frame's routing, to the routes that took them over.
 
 It waits for akmaier's acceptance of the module-file draft committed with the plan, which names these files as taken over in the module's Parts.
