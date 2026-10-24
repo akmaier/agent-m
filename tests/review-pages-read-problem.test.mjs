@@ -11,7 +11,8 @@
 // The fixtures are tests/review-pages-draft-world.mjs' (a product behind a Host of the tests' own, the instance with its register, the browser harness and a spy on `fetch`
 // that refuses). Each test draws one route of the real review pages, with the real MOD-site-frame, MOD-trace-graph, MOD-approvals and MOD-job-runner, over a Host whose
 // reads fail where the test says, and states its input and its expected result before it runs (given / input / expect). Every failed read the module names is reached by
-// its own route: the table SITES lists the route, its parameters, the read that fails and the number of requests the page makes. Where the module file leaves a reading
+// its own route: the table SITES lists the route, its parameters, the read that fails and the number of requests the page makes; the table GRAPH_SITES lists the routes
+// whose own failed read is the stored graph's (a page reads no file for a graph any more), for which readProblem names a fault of the page. Where the module file leaves a reading
 // open, the test states the one it takes:
 //   - A failed read is drawn as <p class="problem"> with <a class="token-step" href="#add-product"> in it while no token is stored; the page holds that one paragraph of
 //     the class problem, and no other.
@@ -26,7 +27,7 @@
 import { emptyStorage } from "./review-pages-harness.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ENTRY_ID, LOAN, PRODUCT, UC7_PATH, byClass, click, contextOf, draw, failure, fakeInstance, fakeProduct, fetched, keepDraft, pages, resultOf, until, writeSetting }
+import { ENTRY_ID, LOAN, PRODUCT, byClass, click, contextOf, draw, failure, fakeInstance, fakeProduct, fetched, keepDraft, pages, resultOf, until, writeSetting }
   from "./review-pages-draft-world.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
 
@@ -38,14 +39,13 @@ const common = await import("../src/review-pages/common.mjs");
 const PRIVATE = "This repository is private or does not exist, and this browser stores no token that reaches it. Store the product's token, then reload.";
 const REGISTER_PATH = "docs/participants.md";
 const UC7_KEY = `use-case/id=UC-007/product=${PRODUCT}`;
-const NOT_FOUND = `${UC7_PATH} was not found`;
 const NO_REGISTER = `${REGISTER_PATH} was not found`;
 
 test.afterEach(() => { assert.deepEqual(fetched.splice(0), [], "no request left the fixtures"); });
 
 // A Host over `host`, every call recorded in `requests`. Its snapshots fail to read the files in `paths` with a NotFound naming the file; with `snapshotFails`, readSnapshot
-// itself fails with a NotFound naming the ref.
-function recording(host, requests, { paths = [], snapshotFails = false } = {}) {
+// itself fails with a NotFound naming the ref; with `graphMissing`, the branch trace-cache holds no graph of the commit (its readOn answers null for `<commit>.json.gz`).
+function recording(host, requests, { paths = [], snapshotFails = false, graphMissing = false } = {}) {
   return { ...host,
     async repositoryInfo() { requests.push("repositoryInfo"); return host.repositoryInfo(); },
     async readSnapshot(ref) {
@@ -56,6 +56,9 @@ function recording(host, requests, { paths = [], snapshotFails = false } = {}) {
         requests.push(`read ${path}`);
         if (paths.includes(path)) throw failure("NotFound", `${path} was not found`);
         return snapshot.read(path);
+      }, readOn: async function readOn(branch, path, options) {
+        if (graphMissing && branch === "trace-cache" && path.endsWith(".json.gz")) return null;
+        return snapshot.readOn.call(this, branch, path, options);
       } };
     } };
 }
@@ -64,13 +67,21 @@ function recording(host, requests, { paths = [], snapshotFails = false } = {}) {
 // number of requests the page makes. `draft` keeps the conversation's draft of a use case for the route `draft`.
 const SITES = [
   { site: "common.mjs readPlace", route: "use-case", params: {}, product: { snapshotFails: true }, message: "main was not found", requests: 2 },
-  { site: "flow.mjs", route: "spec-entry", params: { id: ENTRY_ID }, product: { paths: [UC7_PATH] }, message: NOT_FOUND, requests: 15 },
-  { site: "edit.mjs", route: "requirement", params: { name: LOAN }, product: { paths: [UC7_PATH] }, message: NOT_FOUND, requests: 12 },
-  { site: "entry-edit.mjs", route: "spec-entry", params: { id: ENTRY_ID, edit: "1" }, product: { paths: [UC7_PATH] }, message: NOT_FOUND, requests: 24 },
   { site: "conversation-draft.mjs", route: "draft", params: { subject: UC7_KEY }, draft: true, instance: { paths: [REGISTER_PATH] }, message: NO_REGISTER, requests: 5 },
-  { site: "jobs.mjs showDraft", route: "use-case", params: { id: "draft" }, product: { paths: [UC7_PATH] }, message: NOT_FOUND, requests: 6 },
   { site: "jobs.mjs showRequirementsDraft", route: "spec-entry", params: { id: "draft" }, instance: { paths: [REGISTER_PATH] }, message: NO_REGISTER, requests: 5 },
-  { site: "jobs.mjs showArchitectureDraft", route: "decision", params: { id: "draft" }, product: { paths: [UC7_PATH] }, message: NOT_FOUND, requests: 6 },
+];
+
+// The routes whose own failed read is the stored graph's: the page reads the graph the workflow "main changed" stored for its commit and builds none (MOD-review-pages: "The graph is
+// the one `onMainChanged` stored for the commit shown (MOD-workflow-entries), read through `storedGraph`; no page builds a graph"), so the file a graph reads is read by no page, and
+// the read that fails is the graph's: storedGraph rejects with GraphNotStored, naming the commit (MOD-trace-graph). `message` gives the host's message for the commit shown.
+const GRAPH_NOT_STORED = (commit) => `the trace graph of ${commit.slice(0, 12)} is not stored yet — the workflow "main changed" builds it on every push to the default branch; ` +
+  "reload once its run has finished";
+const GRAPH_SITES = [
+  { site: "flow.mjs", route: "spec-entry", params: { id: ENTRY_ID }, product: { graphMissing: true }, requests: 11 },
+  { site: "edit.mjs", route: "requirement", params: { name: LOAN }, product: { graphMissing: true }, requests: 8 },
+  { site: "entry-edit.mjs", route: "spec-entry", params: { id: ENTRY_ID, edit: "1" }, product: { graphMissing: true }, requests: 20 },
+  { site: "jobs.mjs showDraft", route: "use-case", params: { id: "draft" }, product: { graphMissing: true }, requests: 2 },
+  { site: "jobs.mjs showArchitectureDraft", route: "decision", params: { id: "draft" }, product: { graphMissing: true }, requests: 2 },
 ];
 
 async function drawSite(site, token) {
@@ -83,7 +94,7 @@ async function drawSite(site, token) {
   if (site.draft) keepDraft(context, { subject: UC7_KEY, kind: "change-use-case", params: { useCase: "UC-007" }, result: resultOf({ files: [] }) });
   const { target } = await draw(fake, site.route, site.params, { context });
   const problems = byClass(target, "p", "problem");
-  return { problems, requests, links: problems.flatMap((paragraph) => byClass(paragraph, "a", "token-step")) };
+  return { problems, requests, links: problems.flatMap((paragraph) => byClass(paragraph, "a", "token-step")), commit: fake.head() };
 }
 
 // The paragraph as a string: its class and its markup.
@@ -126,6 +137,40 @@ for (const site of SITES) {
   // input: the same route and parameters, counting the calls on the product's Host and on the instance's
   // expect: the page makes exactly the number of requests the table names, with a token and without; naming the failed read adds none
   test(`${site.site} — naming the failed read makes no request of its own`, async () => {
+    const without = await drawSite(site, false);
+    const withToken = await drawSite(site, true);
+    assert.ok(without.requests.length > 0, "known positive: the page makes requests");
+    assert.equal(without.requests.length, site.requests, "requests without a token");
+    assert.equal(withToken.requests.length, site.requests, "requests with a token");
+  });
+}
+
+for (const site of GRAPH_SITES) {
+  // TST-601015 · level: unit · module: MOD-review-pages
+  // guards: UC-008; UC-020
+  // given: the review pages over a product whose branch trace-cache holds no graph of the commit shown, with no token stored, and with the product's token stored
+  // input: the route and parameters of the table
+  // expect: the page holds one <p class="problem"> whose text is exactly "This page could not be drawn: " and the message of GraphNotStored, "the trace graph of <commit12> is not
+  //   stored yet — …"; no link to store a token, with a token or without; the paragraph is the one readProblem gives for that error. MOD-site-frame's readProblem: "for an error
+  //   that is no host's failure, a fault of the page itself: that this page could not be drawn, with the error's message, and no link to a token" — GraphNotStored is
+  //   MOD-trace-graph's error, not a host's failure.
+  test(`${site.site} — a graph that is not stored is named by readProblem: this page could not be drawn, with the message and no link`, async () => {
+    for (const token of [false, true]) {
+      const { problems, links, commit } = await drawSite(site, token);
+      const message = GRAPH_NOT_STORED(commit);
+      assert.equal(problems.length, 1, `one problem paragraph (token: ${token})`);
+      assert.equal(problems[0].textContent, `This page could not be drawn: ${message}`);
+      assert.equal(links.length, 0, "no link to store a token");
+      assert.equal(shown(problems[0]), shown(frame.readProblem(Object.assign(new Error(message), { name: "GraphNotStored" }), token)));
+    }
+  });
+
+  // TST-601017 · level: unit · module: MOD-review-pages
+  // guards: UC-008; UC-020
+  // given: the same product, with a token stored and with none
+  // input: the same route and parameters, counting the calls on the product's Host and on the instance's (repositoryInfo, readSnapshot and each read of a file of the default branch)
+  // expect: the page makes exactly the number of requests the table names, with a token and without; naming the missing graph adds none
+  test(`${site.site} — naming the missing graph makes no request of its own`, async () => {
     const without = await drawSite(site, false);
     const withToken = await drawSite(site, true);
     assert.ok(without.requests.length > 0, "known positive: the page makes requests");
