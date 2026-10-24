@@ -180,8 +180,10 @@ IN THE REPOSITORY`).
   draft replaces it.
 - `startPromptBar(target: Element, setup: { page: "main" | "review", store: Store, instance: { repository: string, host:
   Host }, product: () -> { address: string, host: Host } | null, subject: () -> Subject, explain: (topic: string) ->
-  Element, go: (route: string, params?: Record<string, string>) -> void }) -> { stop: () -> void }` — draws the bar into
-  `target`, fixed to the bottom of the window, and keeps it for the life of the page. It first reads this browser's
+  Element, go: (route: string, params?: Record<string, string>) -> void, instanceSnapshot?: () -> Snapshot | null }) -> { stop: () -> void }` — draws the bar into
+  `target`, fixed to the bottom of the window, and keeps it for the life of the page. Where the page hands `instanceSnapshot`
+  and it gives the instance's default branch as the page's own load read it, the bar reads through it and asks the host for no
+  commit and no tree again (`A PAGE LOAD READS THE REPOSITORY IN BATCHES`); else it reads the default branch itself. It first reads this browser's
   configuration, and reads no participant list for the offer (UC-049 1). It offers each model endpoint the store keeps
   under `endpoint:<name>`, called by the tab or through the Bridge its setting names, and each CLI session — a coding
   agent that a Bridge the store keeps under `bridge:<name>` offers, as MOD-bridge-client's `testBridge` lists it ready

@@ -248,7 +248,8 @@ test("#backlog sends its commit and tree once, one batch of the files it shows, 
   const page = await openDashboard({ server: srv, hash: "#backlog" });
   assert.match(page.main(), /ITM-001/);
   assert.deepEqual(withoutInfo(page.requests).filter((r) => !r.startsWith("handler ")), ["commit", "tree", "batch 7", `file ${"c0ffee".padEnd(40, "0")}.facts.json`, "batch 3", "batch 3", "commit", "tree", "batch 1"]);
-  assert.equal(count(page.requests, "repository"), 1);
+  // The page needs no repository information, and the prompt bar reads through what the load read (instanceSnapshot), asking for none either.
+  assert.equal(count(page.requests, "repository"), 0);
   const wave1 = sorted(["docs/process.md", "SPEC.md", "docs/role-assignments/team1.md", "docs/backlog/sprints/team1/01.md",
     "docs/backlog/ITM-001-item-1.md", "docs/backlog/ITM-002-item-2.md", ...recordOf(repo, "UC-002")]);
   assert.deepEqual(srv.batches.map(sorted).slice(0, 1), [wave1]);

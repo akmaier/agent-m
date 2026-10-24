@@ -443,7 +443,8 @@ export function startPromptBar(target, setup) {
   }
 
   async function draw() {
-    const snapshot = await defaultSnapshot(instance.host);
+    // The instance's default branch as the page's own load read it, where the page hands it (setup.instanceSnapshot), else read here.
+    const snapshot = (await setup.instanceSnapshot?.()) ?? await defaultSnapshot(instance.host);
     instanceWeb = snapshot.repository.web;
     // This browser's endpoints first (UC-049 1); then the participants of the instance's list this browser reaches, other than an endpoint offered already.
     const own = endpointsOffered(store);

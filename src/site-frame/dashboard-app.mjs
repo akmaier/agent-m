@@ -980,6 +980,9 @@ function startBar() {
     instance: { repository: T.instance, host: isInstance() ? pagesHost() : instanceHostFollowingStore({ store: barStore, address: parseAddress(`https://github.com/${T.instance}`) }) },
     product: () => (isInstance() ? null : { address: T.product.address, host: pagesHost() }),
     subject: barSubject,
+    // The snapshot this load read, where the product shown is the instance and no other branch than its default is named (?ref=): the bar reads no commit and no tree
+    // again (A PAGE LOAD READS THE REPOSITORY IN BATCHES).
+    instanceSnapshot: () => (isInstance() && !new URLSearchParams(location.search).get("ref") && snapshot && snapshotHost === currentHost() ? snapshot : null),
     explain,
     go: (name, given = {}) => { location.hash = fragmentOf(name, given); } });
 }
