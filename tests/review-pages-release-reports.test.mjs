@@ -23,6 +23,7 @@ import "./review-pages-harness.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { storedGraphReadOn } from "./stored-graph-fake.mjs";
 
 const { openStore, writeSetting } = await import("../src/browser-store/index.mjs");
 const { releaseReport } = await import("../src/release-evidence/index.mjs");
@@ -52,8 +53,10 @@ const job = ["---", "id: JOB-910", "kind: run-tests", "works_on:", `  - ${CANDID
   "agent_m: fixture, commit fixture", "limit: 1", "---", "## Destinations", "", "## Parameters", "", "```json",
   JSON.stringify({ candidate: { version: "2026.4.0", tag: TAG, commit: CANDIDATE }, changelog: "Ten of ten model runs pass." }), "```", ""].join("\n");
 
+// The candidate's snapshot reads the graph the workflow "main changed" stored for its commit on trace-cache (tests/stored-graph-fake.mjs); a page never builds it.
 const snapshot = (files, commit) => ({ repository: { path: ON_GITHUB.path, ...ON_GITHUB }, ref: commit, commit, paths: Object.keys(files).sort(), read: async (path) => files[path] ?? null,
-  blob: (path) => (files[path] === undefined ? null : blobOf(files[path])) });
+  blob: (path) => (files[path] === undefined ? null : blobOf(files[path])),
+  ...(commit === CANDIDATE ? { readOn: storedGraphReadOn({ paths: Object.keys(candidateFiles), read: async (path) => candidateFiles[path] ?? null, commit: CANDIDATE }) } : {}) });
 const recordOf = (id, path, body) => [`docs/approvals/${id}-${blobOf(body).slice(0, 12)}.md`, ["kind: release-report", `file: ${path}`, `blob: ${blobOf(body)}`].join("\n") + "\n"];
 
 // The release candidate of 2026.4.0 is tagged and its run has ended: its report is what MOD-release-evidence composes from the candidate's tree and the results.

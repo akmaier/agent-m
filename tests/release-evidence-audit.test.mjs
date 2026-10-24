@@ -29,6 +29,7 @@ import { writeDocument } from "../src/documents/index.mjs";
 import { approvalSchema } from "../src/approvals/index.mjs";
 import { readDocument } from "../src/documents/index.mjs";
 import { sourceSchemas } from "../src/source-register/index.mjs";
+import { storedGraphReadOn } from "./stored-graph-fake.mjs";
 
 const hex = (text) => createHash("sha256").update(text, "utf8").digest("hex");
 const versionHash = (files) => hex([...files].sort(([a], [b]) => (a < b ? -1 : 1)).map(([name, text]) => `${hex(text)}  ${name}\n`).join(""));
@@ -137,9 +138,17 @@ function audit({ product = {}, head = {}, results = resultFiles(), gates = GATES
   for (const [path, text] of Object.entries(files)) if (text === null) delete files[path];
   const headSide = { ...headFiles(), ...head };
   for (const [path, text] of Object.entries(headSide)) if (text === null) delete headSide[path];
-  return auditRows(snapshotOf(files, COMMIT), snapshotOf(results, "test-results"), snapshotOf(headSide, HEAD), { tag: TAG, commit: COMMIT },
+  // The release's commit: COMMIT, written as a commit of this call's own wherever the fixture names it. MOD-trace-graph's storedGraph keeps a commit's
+  // graph for the page, and the cases differ in their files, so no two calls share a commit. The branch trace-cache holds the graph of the release's
+  // files as that commit's, as the workflow "main changed" stores it (tests/stored-graph-fake.mjs).
+  const commit = createHash("sha1").update(`audit ${++audits}`).digest("hex");
+  const own = (side) => Object.fromEntries(Object.entries(side).map(([path, text]) => [path.replaceAll(COMMIT, commit), text.replaceAll(COMMIT, commit)]));
+  const [atFiles, resultSide, headOwn] = [own(files), own(results), own(headSide)];
+  const at = { ...snapshotOf(atFiles, commit), readOn: storedGraphReadOn({ paths: Object.keys(atFiles), read: async (path) => atFiles[path] ?? null, commit }) };
+  return auditRows(at, snapshotOf(resultSide, "test-results"), snapshotOf(headOwn, HEAD), { tag: TAG, commit },
     gates, instanceSpec, register, accepted);
 }
+let audits = 0;
 const rowOf = (result, requirement) => result.rows.find((row) => row.requirement === requirement);
 
 // TST-756001 · level: unit · module: MOD-release-evidence
