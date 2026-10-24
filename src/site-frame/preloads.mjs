@@ -88,9 +88,10 @@ function moduleScript(page, html) {
 // The files of the repository, other than modules, that the given modules fetch as they are evaluated in a browser. A separate
 // Node process imports them as a browser runs them: Node's built-in modules are hidden from them, so that each module's
 // own-file helper takes its browser branch and fetches the file from the module's own address, and `fetch` answers such an
-// address from the disk and records it.
+// address from the disk and records it. The recorder is preloaded with --import; the modules are imported statically after it,
+// in their order, and the addresses fetched are written when the process exits.
 const RECORDER = `
-import { readFileSync } from "node:fs";
+import { readFileSync, writeSync } from "node:fs";
 const seen = new Set();
 globalThis.fetch = async (address) => {
   const url = new URL(String(address instanceof Request ? address.url : address));
@@ -99,11 +100,12 @@ globalThis.fetch = async (address) => {
   return new Response(readFileSync(url));
 };
 process.getBuiltinModule = () => undefined;
-for (const module of JSON.parse(process.argv[1])) await import(module);
-process.stdout.write(JSON.stringify([...seen]));
+process.on("exit", (code) => { if (code === 0) writeSync(1, JSON.stringify([...seen])); });
 `;
 function filesRead(modules) {
-  const seen = JSON.parse(execFileSync(process.execPath, ["--input-type=module", "-e", RECORDER, JSON.stringify(modules)],
+  const importing = modules.map((href) => `import ${JSON.stringify(href)};`).join("\n");
+  const seen = JSON.parse(execFileSync(process.execPath,
+    ["--import", `data:text/javascript,${encodeURIComponent(RECORDER)}`, "--input-type=module", "-e", importing],
     { cwd: fileURLToPath(ROOT), encoding: "utf8", maxBuffer: 1 << 26 }));
   return seen.filter((href) => href.startsWith(ROOT.href) && !isModule(new URL(href)) && !modules.includes(href));
 }
