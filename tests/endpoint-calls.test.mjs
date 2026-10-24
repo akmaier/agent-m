@@ -10,7 +10,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { diagnoseEndpoint, listModels, testEndpoint } from "../src/endpoint-calls/index.mjs";
+import { diagnoseEndpoint, listModels, modelContext, testEndpoint } from "../src/endpoint-calls/index.mjs";
 
 const OPENAI = { name: "example", kind: "openai-compatible", baseUrl: "https://models.example.test/v1", model: "tiny-model", key: "secret-key" };
 const ANTHROPIC = { name: "claude", kind: "anthropic", baseUrl: "https://claude.example.test/v1", model: "claude-test", key: "anthropic-key" };
@@ -207,4 +207,26 @@ test("TST-960003: a failed listing is a diagnosis, as testEndpoint gives it", as
   const down = await listModels(OPENAI);
   assert.equal(down.diagnosis.reason, "not reachable");
   assert.match(down.diagnosis.message, /ECONNREFUSED/);
+});
+
+// TST-1202001 · level: unit · module: MOD-endpoint-calls
+// guards: UC-003; A CREDENTIAL IS NEVER PLACED IN A URL
+// given: (a) an endpoint whose /models entry for tiny-model states context_length 32768; (b) a LiteLLM gateway whose /models entry states nothing and whose
+// /model/info entry for tiny-model has model_info.max_input_tokens 131072; (c) an endpoint that states nothing in either, as NVIDIA's listing does
+// input: modelContext(config) for each
+// expect: (a) 32768 after one GET /models; (b) 131072 after GET /models and GET /model/info, each with the key as Authorization only; (c) null
+test("TST-1202001: modelContext reads the model's context from the listing, else from LiteLLM's model info, and null where neither states it", async (t) => {
+  const calls = [];
+  let answers = {};
+  withFetch(t, async (url, init) => { calls.push({ url, init }); return reply(200, answers[url.replace(OPENAI.baseUrl, "")] ?? { data: [] }); });
+  answers = { "/models": { data: [{ id: "other", context_length: 8 }, { id: "tiny-model", context_length: 32768 }] } };
+  assert.equal(await modelContext(OPENAI), 32768);
+  assert.deepEqual(calls.map((call) => call.url), ["https://models.example.test/v1/models"]);
+  calls.length = 0;
+  answers = { "/models": { data: [{ id: "tiny-model", object: "model" }] }, "/model/info": { data: [{ model_name: "tiny-model", model_info: { max_input_tokens: 131072, max_tokens: 131072 } }] } };
+  assert.equal(await modelContext(OPENAI), 131072);
+  assert.deepEqual(calls.map((call) => call.url), ["https://models.example.test/v1/models", "https://models.example.test/v1/model/info"]);
+  assert.ok(calls.every((call) => call.init.headers.Authorization === "Bearer secret-key" && !call.url.includes("secret-key")));
+  answers = { "/models": { data: [{ id: "tiny-model", object: "model", owned_by: "nvidia" }] } };
+  assert.equal(await modelContext(OPENAI), null);
 });

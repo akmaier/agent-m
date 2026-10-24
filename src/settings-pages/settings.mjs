@@ -16,7 +16,7 @@ import { jobWorkflowFiles } from "../runtimes/index.mjs";
 import { checkProduct, credentialsFor, tokenKeyAddress, tokenRefusal, tokenSettingKey, route as addProductRoute } from "./products.mjs";
 import { connect, HostError, parseAddress } from "../repository-hosts/index.mjs";
 import { bridgeAt, pair, probe, settingsOf, testBridge } from "../bridge-client/index.mjs";
-import { actionsOffer, bridgeFailureText, bridgeSettings as endpointBridgeSettings, CHOOSE_BRIDGE_DISCLOSURE, CHOOSE_BRIDGE_TEXT, namesNoBridge, recordTest, refusedText, route as endpointsRoute, runsOnActions, testThroughActions } from "./endpoints.mjs";
+import { actionsOffer, bridgeFailureText, contextFromTest, bridgeSettings as endpointBridgeSettings, CHOOSE_BRIDGE_DISCLOSURE, CHOOSE_BRIDGE_TEXT, namesNoBridge, recordTest, refusedText, route as endpointsRoute, runsOnActions, testThroughActions } from "./endpoints.mjs";
 import { route as bridgeRoute } from "./bridge.mjs";
 import { mailboxSetting } from "./mailbox.mjs";
 import { settingsSubject } from "./subject.mjs";
@@ -136,8 +136,9 @@ function endpointLine(target, context, info) {
     result.textContent = "Testing the endpoint…";
     const checked = await testEndpoint(endpointConfig(name, setting));
     const lastTest = recordTest(context.store, info.key, checked);
-    result.textContent = resultText(checked, setting.url);
+    result.textContent = resultText(checked, setting.url) + await contextFromTest(context.store, info.key, endpointConfig(name, setting), checked);
     status.textContent = endpointStateText(setting, lastTest);
+    if (notOffered && endpointLacks(readSetting(context.store, info.key)).length === 0) { notOffered.hidden = true; notOffered.replaceChildren(); }
     const offer = !checked.works && checked.diagnosis?.routes?.includes("ci") ? actionsOffer(context, name, result) : null;
     offerSlot.replaceChildren(...(offer ? [offer] : []));
   });
@@ -156,7 +157,7 @@ function endpointLine(target, context, info) {
     el("p", null, el("label", null, "API key ", key, " ", show)),
     el("p", "settings-endpoint-disclosure", namesNoBridge(setting) ? CHOOSE_BRIDGE_DISCLOSURE : setting.bridge
       ? `Agent M sends one short test request to Bridge ${setting.bridge}. Its optional endpoint key is inside that Bridge request; Bridge and jump-host credentials are sent only as authorisation headers, never in a URL or repository.`
-      : `Agent M sends one short test request to ${setting.url}. Its optional key is sent only in that request's authorisation header, never in a URL or repository.`),
+      : `Agent M sends one short test request to ${setting.url}. Its optional key is sent only in that request's authorisation header, never in a URL or repository.${Number(setting.context) > 0 ? "" : " Where no context is entered, it then reads the model's context from the endpoint's list of models, with the same key."}`),
     el("p", null, test, " ", change, " ", clear),
     el("div", "settings-endpoint-explanation", explain("endpoint-test")),
     result,

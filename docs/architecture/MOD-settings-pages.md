@@ -46,6 +46,7 @@ uses:
   - MOD-bridge-client.proxyConfiguration
   - MOD-endpoint-calls.testEndpoint
   - MOD-endpoint-calls.diagnoseEndpoint
+  - MOD-endpoint-calls.modelContext
   - MOD-mail-routes.routeFor
   - MOD-mail-routes.signIn
   - MOD-mail-routes.mailbox
@@ -184,7 +185,9 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
   - `endpoints` — address, model and key of a model endpoint, the place where it processes data, the model's context in
     tokens and the name of the CI secret that holds its key, and, for one the browser cannot call, the Bridge that
     reaches it, chosen among the Bridges this browser keeps; the test request, directly or through that Bridge, with
-    whether the model called the tool it was offered — *can use tools* or *text only* (UC-003 step 5, 5a) —, and the
+    whether the model called the tool it was offered — *can use tools* or *text only* (UC-003 step 5, 5a) —; after a direct
+    test that works, for an endpoint that declares no context, the context its endpoint states (MOD-endpoint-calls'
+    `modelContext`), kept with it, or that it states none; and the
     reason and the routes that would work when a browser may not call it — said plainly, by the endpoint's host: `<host>
     does not accept calls from a web page; run it through GitHub Actions (CI secret) or a Bridge.`, the browser's own
     words only after it, in parentheses, on the form and on the endpoint's line of the Settings page. For such an endpoint whose key this browser
@@ -286,6 +289,7 @@ reaches.
   reached through the jump host, and the jump host.
 - MOD-endpoint-calls.testEndpoint, MOD-endpoint-calls.diagnoseEndpoint — an endpoint's test and why a browser may not
   call it.
+- MOD-endpoint-calls.modelContext — the context an endpoint states for its model, kept after a working test.
 - MOD-mail-routes.routeFor, MOD-mail-routes.signIn, MOD-mail-routes.mailbox, MOD-mail-routes.providerLinks — the
   mailbox's route, sign-in and test, and Microsoft's pages for the app registration and for withdrawing its access.
 - MOD-documents.readDocument, MOD-documents.readRegister, MOD-documents.writeDocument — registers of the common shape and

@@ -19,6 +19,7 @@ provides:
   - endpointExchange
   - testEndpoint
   - listModels
+  - modelContext
   - diagnoseEndpoint
 ---
 # MOD-endpoint-calls The driver of model endpoints
@@ -102,6 +103,11 @@ address and is never written anywhere (`A CREDENTIAL IS NEVER PLACED IN A URL`, 
   models the endpoint serves, by its kind's own listing request (`GET <baseUrl>/models` for both kinds), with the key where
   the configuration has one; `config.model` is not read. It changes nothing stored. A failure is its `Diagnosis`, as
   `testEndpoint` gives it (UC-040, an endpoint's *Check*).
+- `modelContext(config: EndpointConfig) -> Promise<number | null>` — the context in tokens of `config.model` as the endpoint
+  states it: its entry in `GET <baseUrl>/models` (`context_length`, `max_model_len`, `max_input_tokens`, `context_window`,
+  `max_context_length`, `top_provider.context_length`), else, for an OpenAI-compatible gateway, its entry in LiteLLM's
+  `GET <baseUrl>/model/info`; with the key as `listModels` sends it. Null where the endpoint states none or a request
+  fails. It changes nothing stored.
 - `diagnoseEndpoint(error: unknown, config: EndpointConfig, where: "browser" | "node") -> Diagnosis` — names the reason of a
   failed call: a call a browser refused for want of a cross-origin permission or of the opt-in header a provider requires
   for calls from a browser, with the routes that would work instead; a refused key; an unknown model; a used-up rate

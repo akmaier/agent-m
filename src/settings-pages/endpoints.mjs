@@ -2,7 +2,7 @@
 // diagnosis remain MOD-endpoint-calls' responsibility; this route owns only the browser form and
 // the conversion between the browser-store record and EndpointConfig.
 
-import { testEndpoint } from "../endpoint-calls/index.mjs";
+import { modelContext, testEndpoint } from "../endpoint-calls/index.mjs";
 import { bridgeAt, probe, settingsOf } from "../bridge-client/index.mjs";
 import { clearSetting, listSettings, readSetting, writeSetting } from "../browser-store/index.mjs";
 import { explain } from "../site-frame/index.mjs";
@@ -35,6 +35,17 @@ function endpointKey(name) {
 // endpoint answered and, where the test reached the model, whether the model called the tool it was offered (`tools`, which the
 // participants route presets *use tools* from; left out where the test did not reach the model). The form's Save and test and the
 // line's Test record it alike.
+// contextFromTest(store, key, config, checked) -> Promise<string> — after a working test of an endpoint that declares no context, its model's context in tokens
+// as the endpoint states it (MOD-endpoint-calls' modelContext), kept with the endpoint; the sentence the page adds to the test's outcome, or "".
+export async function contextFromTest(store, key, config, checked) {
+  const setting = readSetting(store, key);
+  if (!checked.works || !setting || Number(setting.context) > 0) return "";
+  const tokens = await modelContext(config);
+  if (!tokens) return " The endpoint does not state its model's context in tokens: enter it with Change.";
+  writeSetting(store, key, { ...readSetting(store, key), context: tokens });
+  return ` Context: ${tokens} tokens, as the endpoint states it.`;
+}
+
 export function recordTest(store, key, checked) {
   // `browser` marks a refusal of the browser itself — the endpoint does not accept calls from a web page —, which the Settings page says plainly (UC-003 4a).
   const browser = !checked.works && Boolean(checked.diagnosis?.routes?.includes("ci") && checked.diagnosis?.routes?.includes("bridge"));
@@ -292,7 +303,7 @@ export const route = {
       try { configuredBridge = bridgeSettings(context.store, bridge.value); } catch { configuredBridge = null; }
       disclosure.textContent = bridge.value
         ? `Agent M sends one short test request to the Bridge ${bridge.value} at ${configuredBridge?.address ?? "the Bridge you set up"}. The endpoint key is inside that Bridge request, and its pairing token and any jump-host login are authorisation headers, never URLs or repository data.`
-        : "Agent M sends one short test request to this endpoint. Its optional key is sent only in that request's authorisation header, never in a URL or repository.";
+        : "Agent M sends one short test request to this endpoint. Its optional key is sent only in that request's authorisation header, never in a URL or repository. Where no context is entered, it then reads the model's context from the endpoint's list of models, with the same key.";
     };
 
     name.placeholder = "Endpoint name";
@@ -368,6 +379,11 @@ export const route = {
         const checked = await testEndpoint(endpointConfig(chosenName, stored));
         recordTest(context.store, storeKey, checked);
         showResult(result, checked, stored.url);
+        const stated = await contextFromTest(context.store, storeKey, endpointConfig(chosenName, stored), checked);
+        if (stated) {
+          result.append(stated);
+          contextSize.value = String(readSetting(context.store, storeKey)?.context ?? "");
+        }
         if (!checked.works && checked.diagnosis?.routes?.includes("ci")) {
           const offer = actionsOffer(context, chosenName, result);
           offerSlot.replaceChildren(...(offer ? [offer] : []));
