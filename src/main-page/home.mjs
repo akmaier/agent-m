@@ -94,7 +94,7 @@ async function render(target, context) {
   // The route get-your-own is served by the review pages, under the entry Settings: the address of that entry with the route's name in its place.
   const getYourOwnHref = entries.find((entry) => entry.key === "settings").href.replace(/settings$/, "get-your-own");
   const greet = greeting({ useCasesHref: entries.find((entry) => entry.key === "use-cases").href, getYourOwnHref });
-  const add = el("button", "add-product", "+ Add product");
+  const add = el("button", "add-product btn", "+ Add product");
   add.setAttribute("type", "button");
   add.addEventListener("click", () => context.go("add-product"));
   const adding = sources[0]?.own === true ? [add] : [];

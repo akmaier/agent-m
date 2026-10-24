@@ -41,6 +41,7 @@ import { parseAddress, connect } from "../repository-hosts/index.mjs";
 import { watchForAcceptance } from "../notifications/index.mjs";
 import { registerStrategies } from "../job-runner/index.mjs";
 import { explain } from "./index.mjs";
+import { foldMenu } from "./menu.mjs";
 import { fragmentOf, loadView, routeOf, productHostFollowingStore } from "./routing.mjs";
 import { noticePlace, showTokenNotices } from "./notices.mjs";
 
@@ -938,6 +939,10 @@ async function start() {
   await retireFileTexts();
   startNotifications(); // UC-047: the review pages start the checks, with MOD-browser-store's store of the instance
   app = context();
+  // The menu of docs/index.html's header folds behind its button on a narrow screen, as the main page's does (foldMenu); a page whose menu
+  // stands in no header has none to fold.
+  const tabs = document.getElementById("tabs");
+  if (tabs?.parentNode) tabs.parentNode.insertBefore(foldMenu(tabs), tabs);
   available = renderTabs();
   loadProducts();
   renderProductSelector();

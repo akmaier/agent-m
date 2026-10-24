@@ -119,7 +119,7 @@ function drawList(rows, go) {
     if (!row.tab) line.setAttribute("data-id", row.id);
     const state = el("td", "state", row.state);
     if (row.reason) state.append(" ", el("span", "reason", row.reason));
-    const open = el("button", "job-link", row.id);
+    const open = el("button", "job-link btn small", row.id);
     open.setAttribute("type", "button");
     open.addEventListener("click", () => go("job", { id: row.id, product: row.product }));
     line.append(el("td", "id", ...(row.tab ? ["this tab's"] : [open])), el("td", "product", row.product || "—"), el("td", "works-on", row.works), el("td", "kind", row.kind),

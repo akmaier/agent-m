@@ -33,7 +33,7 @@ export function waitsList(items, { several, go }) {
   for (const item of items) {
     const { kind, id, path, product, address, own } = item;
     const [route, params] = placeOf(item);
-    const open = el("button", "wait-link", "Open");
+    const open = el("button", "wait-link btn small", "Open");
     open.setAttribute("type", "button");
     open.addEventListener("click", () => go(route, own ? params : { ...params, product: address }));
     const line = el("li", "wait", el("span", "wait-kind", kind), ": ", el("strong", null, id));

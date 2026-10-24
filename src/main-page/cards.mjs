@@ -87,7 +87,7 @@ export function readingCard({ title, address }) {
 
 /** errorCard({ title, address, reason, go }) -> Element — a card whose repository could not be read, with the reason its host gives and a button to the token's setting, which calls `go("settings")`. */
 export function errorCard({ title, address, reason, go }) {
-  const setting = el("button", "token-setting", "Open the token's setting");
+  const setting = el("button", "token-setting btn", "Open the token's setting");
   setting.setAttribute("type", "button");
   setting.addEventListener("click", () => go("settings"));
   const card = el("article", "card is-error", head(title, address), el("p", "warn", reason), setting);

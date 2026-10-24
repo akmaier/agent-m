@@ -17,7 +17,7 @@ import { parseAddress, connect, HostError } from "../repository-hosts/index.mjs"
 import { instanceOfPagesAddress } from "../identifiers/index.mjs";
 import { watchForAcceptance } from "../notifications/index.mjs";
 import { startPromptBar } from "../prompt-bar/index.mjs";
-import { menuOf, labelOf, linkOf } from "./menu.mjs";
+import { menuOf, labelOf, linkOf, foldMenu } from "./menu.mjs";
 import { siteFooter } from "./footer.mjs";
 import { routeOf, fragmentOf, productOf, chosenProduct, addressWriter, instanceHostFollowingStore, productHostFollowingStore } from "./routing.mjs";
 import { subjectOf } from "./subject.mjs";
@@ -277,7 +277,7 @@ async function startSite({ page, views }) {
   const selector = document.createElement("select");
   selector.className = "product";
   selector.setAttribute("aria-label", "Product");
-  header.getElementsByTagName("div")[0].append(selector, menu);
+  header.getElementsByTagName("div")[0].append(selector, foldMenu(menu), menu);
   const notices = noticePlace();
   const target = document.createElement("main");
   target.className = "site-frame-route";

@@ -321,9 +321,10 @@ async function showGaps(box, shown) {
     ...(spec.requirements.size ? [el("h3", null, "Matrix"), matrixOf(graph, spec)] : []));
 }
 
-// An anchor to a route of the review pages, in the address form the frame reads: the route, then its parts as key=value, each encoded.
+// An anchor to a route of the review pages, in the address form the frame reads: the route, then its parts as key=value, each encoded. It is a
+// plain link, as the review pages draw a link to another page; a button is what acts on the page shown.
 function reviewLink(className, text, route, params) {
-  const anchor = el("a", `${className} btn small`, text);
+  const anchor = el("a", className, text);
   const parts = Object.entries(params).map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
   anchor.setAttribute("href", parts.length ? `#${route}/${parts.join("/")}` : `#${route}`);
   return anchor;
@@ -629,7 +630,7 @@ function versionChoice({ shown, handed, current, tags, tagsFailure, choose, othe
   select.addEventListener("change", () => choose(select.value));
   const choice = el("div", "version-bar", el("label", null, "Version ", select));
   if (other) {
-    const across = el("a", `${other.className} btn`, other.text);
+    const across = el("a", other.className, other.text);
     across.setAttribute("href", fragment("trace", { key: other.key, ref: shown.ref }));
     choice.append(across);
   }

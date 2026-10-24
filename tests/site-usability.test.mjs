@@ -81,21 +81,34 @@ const MEASURE = (width) => `(async () => {
     text: (document.querySelector("main")?.innerText ?? "").replace(/\\s+/g, " ") };
 })()`;
 
-// The phone's two live entry pages each expose the whole process menu. This reports the entry contract and whether every
-// entry's rendered box is visible without the menu scrolling sideways; CSS source text alone would not establish either.
-const PHONE_MENU = `(() => {
-  const menu = document.querySelector(".site-header .menu");
-  return { fits: menu.scrollWidth <= menu.clientWidth, entries: [...menu.children].map((entry) => {
-    const box = entry.getBoundingClientRect(), style = getComputedStyle(entry);
-    return [entry.dataset.entry, entry.getAttribute("href"), entry.getAttribute("aria-disabled") === "true",
-      style.display !== "none" && style.visibility !== "hidden" && box.width > 0 && box.height > 0
-        && box.left >= 0 && box.right <= innerWidth];
-  }) };
+// The menu of the two live entry pages, as drawn at the width set: the button that folds it — its name (the text a screen reader reads, without
+// the hidden glyph), its aria-expanded, whether it controls the menu, whether it is shown and whether it meets the minimum target size — and
+// whether the menu is shown; then, where a button is shown, the same after a click and after a second click. `entries` is read with the menu
+// unfolded: the eight entries' destinations, disabled state and whether each entry's rendered box is visible within the window; `fits` says that
+// the menu does not scroll sideways, and `row` that every entry stands on one line. CSS source text alone would establish none of these.
+const MENU_STATE = `(() => {
+  const menu = document.querySelector(".site-header .menu"), button = document.querySelector(".site-header .menu-button");
+  const visible = (node) => { const box = node.getBoundingClientRect(), style = getComputedStyle(node);
+    return style.display !== "none" && style.visibility !== "hidden" && box.width > 0 && box.height > 0 && box.left >= 0 && box.right <= innerWidth; };
+  const buttonState = () => button === null ? null : {
+    name: [...button.childNodes].filter((node) => !(node.nodeType === 1 && node.getAttribute("aria-hidden") === "true")).map((node) => node.textContent).join("").trim(),
+    expanded: button.getAttribute("aria-expanded"), controls: button.getAttribute("aria-controls") === menu.id, shown: visible(button),
+    target: button.getBoundingClientRect().width >= ${MINIMUM} && button.getBoundingClientRect().height >= ${MINIMUM} };
+  const state = () => ({ button: buttonState(), menu: visible(menu) });
+  const folded = state();
+  if (folded.button?.shown) button.click();
+  const unfolded = state();
+  const entries = [...menu.children].map((entry) => [entry.dataset.entry, entry.getAttribute("href"), entry.getAttribute("aria-disabled") === "true", visible(entry)]);
+  const tops = new Set([...menu.children].map((entry) => Math.round(entry.getBoundingClientRect().top)));
+  const fits = menu.scrollWidth <= menu.clientWidth;
+  if (folded.button?.shown) button.click();
+  return { folded, unfolded, refolded: state(), entries, fits, row: tops.size === 1 };
 })()`;
 
 const measured = new Map(); // "<address> <width name>" -> { sheets, targets, widths, text }
 const planted = {};
 const phoneMenus = {};
+const desktopMenus = {};
 let site = null, browser = null;
 
 const started = Date.now();
@@ -139,9 +152,15 @@ const setUp = async () => {
   // embedded style sheet planted in it.
   await configure(page, "Emulation.setDeviceMetricsOverride", { width: 390, height: 900, deviceScaleFactor: 1, mobile: true });
   await show(page, site, "/");
-  phoneMenus.main = await page.evaluate(PHONE_MENU);
+  phoneMenus.main = await page.evaluate(MENU_STATE);
   await show(page, site, "#uc");
-  phoneMenus.review = await page.evaluate(PHONE_MENU);
+  phoneMenus.review = await page.evaluate(MENU_STATE);
+  await configure(page, "Emulation.setDeviceMetricsOverride", { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
+  await show(page, site, "/");
+  desktopMenus.main = await page.evaluate(MENU_STATE);
+  await show(page, site, "#uc");
+  desktopMenus.review = await page.evaluate(MENU_STATE);
+  await configure(page, "Emulation.setDeviceMetricsOverride", { width: 390, height: 900, deviceScaleFactor: 1, mobile: true });
   await show(page, site, "#how");
   planted.before = await page.evaluate(MEASURE(390));
   await page.evaluate(`(() => { const main = document.querySelector("main");
@@ -201,28 +220,50 @@ for (const route of ROUTES) {
 
 // ---------------------------------------------------------------- the menu at a phone's width
 
-// TST-920001 · level: system · module: MOD-site-frame
-// guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE
-// given: the live main entry page at a 390 px phone viewport
-// input: its eight process-menu entries' rendered boxes, destinations, and disabled state
-// expect: the literal eight-entry main-menu contract, with every entry visible and no sideways menu scrolling
-test("TST-920001 the main entry page shows all eight process-menu entries at 390 px without sideways scrolling", () => {
-  const page = "main", expected = PHONE_MENU_EXPECTED.main, actual = phoneMenus.main;
+// The fold of the menu at a phone's width: a button named Menu, shown and of the minimum target size, that controls the menu and says it is folded;
+// the menu hidden. A click unfolds it: the button says so, and the eight entries stand visible, none scrolled sideways. A second click folds it again.
+const FOLDED = { name: "Menu", expanded: "false", controls: true, shown: true, target: true };
+const assertFolds = (page, actual, expected) => {
+  assert.deepEqual(actual.folded, { button: FOLDED, menu: false }, `${page}: at 390 px the menu is one button, folded`);
+  assert.deepEqual(actual.unfolded, { button: { ...FOLDED, expanded: "true" }, menu: true }, `${page}: a click unfolds the menu`);
   assert.equal(actual.fits, true, `${page} menu is not wider than its visible box`);
   assert.deepEqual(actual.entries, expected.map(([key, href, disabled]) => [key, href, disabled, true]),
-    `${page} menu order, destinations, disabled entry, and visible entry geometry at 390 px`);
+    `${page} menu order, destinations, disabled entry, and visible entry geometry at 390 px, unfolded`);
+  assert.deepEqual(actual.refolded, { button: FOLDED, menu: false }, `${page}: a second click folds the menu again`);
+};
+
+// TST-920001 · level: system · module: MOD-site-frame
+// guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE; UC-046
+// given: the live main entry page at a 390 px phone viewport
+// input: the menu's button clicked once, then again
+// expect: one button named Menu (aria-expanded false, at least 24 x 24 px, controlling the menu) and the menu hidden; after the click aria-expanded
+//   true and the literal eight-entry main-menu contract, every entry visible and no sideways menu scrolling; after the second click folded again
+test("TST-920001 the main entry page folds its eight process-menu entries behind one Menu button at 390 px", () => {
+  assertFolds("main", phoneMenus.main, PHONE_MENU_EXPECTED.main);
 });
 
 // TST-920002 · level: system · module: MOD-site-frame
-// guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE
+// guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE; UC-046
 // given: the live review entry page at a 390 px phone viewport
-// input: its eight process-menu entries' rendered boxes, destinations, and disabled state
-// expect: the literal eight-entry review-menu contract, with every entry visible and no sideways menu scrolling
-test("TST-920002 the review entry page shows all eight process-menu entries at 390 px without sideways scrolling", () => {
-  const page = "review", expected = PHONE_MENU_EXPECTED.review, actual = phoneMenus.review;
-  assert.equal(actual.fits, true, `${page} menu is not wider than its visible box`);
-  assert.deepEqual(actual.entries, expected.map(([key, href, disabled]) => [key, href, disabled, true]),
-    `${page} menu order, destinations, disabled entry, and visible entry geometry at 390 px`);
+// input: the menu's button clicked once, then again
+// expect: as TST-920001, with the literal eight-entry review-menu contract
+test("TST-920002 the review entry page folds its eight process-menu entries behind one Menu button at 390 px", () => {
+  assertFolds("review", phoneMenus.review, PHONE_MENU_EXPECTED.review);
+});
+
+// TST-1191002 · level: system · module: MOD-site-frame
+// guards: UC-046
+// given: the live main and review entry pages at a 1280 px desktop viewport
+// input: the menu as drawn
+// expect: no menu button is shown; the eight entries are visible and stand in one row
+test("TST-1191002 at 1280 px neither entry page shows the menu button, and the eight entries stand in a row", () => {
+  for (const [page, expected] of Object.entries(PHONE_MENU_EXPECTED)) {
+    const actual = desktopMenus[page];
+    assert.equal(actual.folded.button.shown, false, `${page}: no menu button at 1280 px`);
+    assert.equal(actual.folded.menu, true, `${page}: the menu is shown at 1280 px`);
+    assert.deepEqual(actual.entries, expected.map(([key, href, disabled]) => [key, href, disabled, true]), `${page}: the eight entries at 1280 px`);
+    assert.equal(actual.row, true, `${page}: the entries stand in one row at 1280 px`);
+  }
 });
 
 // ---------------------------------------------------------------- the counter-proofs

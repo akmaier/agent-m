@@ -27,17 +27,28 @@
   :root:not([data-theme="light"]) { --step-bg: #1d3557; --step-fg: #f4f7fb; --pill-fg: #c3d0df; }
 }
 
+/* The menu on a screen up to 760 px wide is the button menu.mjs draws (foldMenu), beside the lab's logo: while it says folded
+   (aria-expanded="false") the entries are hidden; unfolded, they stand one under another. Wider, the button is not shown. */
+.site-header .menu-button { display: none; }
 @media (max-width: 760px) {
-  .site-header .menu { flex-wrap: wrap; overflow-x: visible; }
-  .site-header .menu > :nth-child(7) { margin-left: auto; }
+  .site-header .inner { padding-bottom: 10px; }
+  .site-header .brand { order: -2; }
+  .site-header .menu-button { display: inline-flex; align-items: center; gap: .4em; order: -1; margin-inline: 0; }
+  .site-header .menu-button[aria-expanded="false"] + .menu { display: none; }
+  .site-header .menu { flex-direction: column; flex-wrap: nowrap; overflow-x: visible; }
+  .site-header .menu > :nth-child(7) { margin-left: 0; }
 }
 
-/* The buttons the pages draw, which the frame's pages share: a button, or a link drawn as one. */
-.btn { display: inline-block; padding: .5rem .95rem; border: 1px solid var(--line); border-radius: 4px; background: var(--panel);
-  color: var(--fg); font: inherit; font-size: .95rem; font-weight: 600; text-decoration: none; cursor: pointer; }
+/* The buttons the pages draw, which every page shares: a button, or a link drawn as one; .primary the one action a page leads
+   with, .small an action beside a line of text. */
+.btn { font: inherit; font-size: .9rem; cursor: pointer; border: 1px solid var(--line); background: var(--panel);
+  color: var(--fg); padding: .45rem .8rem; border-radius: 6px; text-decoration: none; display: inline-block; }
 .btn:hover { border-color: var(--accent); }
-.btn.primary { background: var(--fau-blue); border-color: var(--fau-blue); color: #ffffff; }
-.btn.primary:hover { background: var(--fau-dark); }
+.btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
+.btn.small { font-size: .78rem; padding: .2rem .5rem; }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+/* The fields the pages share: the product selector in the header, the main page's job filters and retry choices, and the fields above the Requirements page's tree. */
+.product select, select.product, select.filter, .job-retry select, .spec-narrow input, .spec-narrow select, .version-bar select { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: .3rem .4rem; max-width: 22rem; }
 /* A button, or a link drawn as one, and the text beside it on the same line stand apart by a visible gap, however the view wrote them. */
 button, .btn { margin-inline: .35em; }
 
