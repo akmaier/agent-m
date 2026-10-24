@@ -1,5 +1,5 @@
 // Stored — the graph of one commit as a text and back (MOD-trace-graph, Interfaces: graphText, graphFromText), the file
-// `<commit>.json` of the branch `trace-cache`. graphText gives the same text for the same graph, and names the commit the graph was
+// `<commit>.json.gz` of the branch `trace-cache`: the text, gzipped by the workflow, so that a page transfers a tenth of it. graphText gives the same text for the same graph, and names the commit the graph was
 // built for; graphFromText restores the graph from such a text for that commit, or gives null for a text that is no graphText or names
 // another commit. Neither reads nor writes anything.
 //
@@ -44,7 +44,12 @@ export function graphFromText(text, commit) {
 
 // The branch the graphs are stored on, and the files of a commit on it.
 const BRANCH = "trace-cache";
-const fileOf = (commit) => `${commit}.json`;
+export const fileOf = (commit) => `${commit}.json.gz`;
+
+// A text gzipped, and gzipped bytes as their text: the platform's CompressionStream, the same in a browser and in Node.
+const through = (bytes, stream) => new Response(new Blob([bytes]).stream().pipeThrough(stream));
+export const gzipped = async (text) => new Uint8Array(await through(new TextEncoder().encode(text), new CompressionStream("gzip")).arrayBuffer());
+export const gunzipped = (bytes) => through(bytes, new DecompressionStream("gzip")).text();
 const impactsOf = (commit) => `${commit}.impacts.json`;
 const IMPACTS_FORMAT = "agent-m-trace-impacts";
 
@@ -98,7 +103,7 @@ export async function publishGraph(host, snapshot, changed) {
   if (branch.paths.includes(fileOf(commit))) return { commit, written: false };
   // The graph is built from the files: a source without readOn never uses a stored graph.
   const graph = await traceGraph({ paths: snapshot.paths, read: (path) => snapshot.read(path), readMany: (paths) => snapshot.readMany?.(paths) }, { commit });
-  const files = [{ path: fileOf(commit), text: graphText(graph) }];
+  const files = [{ path: fileOf(commit), bytes: await gzipped(graphText(graph)) }];
   if (changed) files.push({ path: impactsOf(commit), text: await impactsText(graph, snapshot, commit, changed) });
   await host.commitFiles({ branch: BRANCH, expectedHead: branch.commit, files, message: `trace-cache: the graph of ${commit}\n` });
   return { commit, written: true };

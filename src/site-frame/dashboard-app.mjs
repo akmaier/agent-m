@@ -39,8 +39,10 @@ import { UPSTREAM, instanceOf } from "../site/instance-repository.mjs";
 import { openStore, secretValues } from "../browser-store/index.mjs";
 import { parseAddress, connect } from "../repository-hosts/index.mjs";
 import { watchForAcceptance } from "../notifications/index.mjs";
+import { storedOverview } from "../progress-measures/index.mjs";
 import { registerStrategies } from "../job-runner/index.mjs";
 import { explain } from "./index.mjs";
+import { foldMenu } from "./menu.mjs";
 import { fragmentOf, loadView, routeOf, productHostFollowingStore } from "./routing.mjs";
 import { noticePlace, showTokenNotices } from "./notices.mjs";
 
@@ -337,9 +339,20 @@ async function readAhead(kind) {
   } else if (kind === "module") {
     await readWave(pathsOf(MODULE_PATH));
   } else if (kind === "spec") {
-    // The links file and the register's entries (MOD-source-register's registerPaths) are read with the SPEC, in the first wave.
-    await readWave(["SPEC.md", "docs/sources.md", ...registerPaths(state.tree.map((e) => e.path)), ...pathsOf(QUEUE_HEAD_PATH)]);
-    await readWave(await openProposals());
+    // The links file and the register's entries (MOD-source-register's registerPaths) are read with the SPEC, in the first wave, beside the overview stored for the commit
+    // (MOD-progress-measures' storedOverview). The change queues it holds — those with an entry not in the SPEC yet — are what the specification lists as waiting: their files are
+    // read in a second wave, and no other queue is read. Where no overview is stored, every queue's index and decisions are read, then the proposals of the queues still open.
+    // A tree without a queue asks for no overview.
+    const queued = pathsOf(QUEUE_INDEX_PATH).length > 0;
+    const [, stored] = await Promise.all([readWave(["SPEC.md", "docs/sources.md", ...registerPaths(state.tree.map((e) => e.path))]),
+      queued ? pinned().then((snap) => storedOverview(snap)).catch(() => null) : null]);
+    if (stored) {
+      await readWave(stored.queues.flatMap((queue) => [`${queue.folder}/index.md`, `${queue.folder}/entscheidungen.md`,
+        ...queue.entries.filter((entry) => entry.state !== "in SPEC").flatMap((entry) => [entry.proposal?.path, entry.rationale, entry.file, entry.record])]).filter(Boolean));
+    } else {
+      await readWave(pathsOf(QUEUE_HEAD_PATH));
+      await readWave(await openProposals());
+    }
   } else if (kind === "backlog") {
     // The module files are read for a product with more than one team (the route backlog of MOD-implementation-pages reads them).
     const teams = new Set([...pathsOf(ASSIGNMENT_PATH).map((p) => ASSIGNMENT_PATH.exec(p)[1]), ...pathsOf(SPRINT_PATH).map((p) => SPRINT_PATH.exec(p)[1])]);
@@ -938,6 +951,10 @@ async function start() {
   await retireFileTexts();
   startNotifications(); // UC-047: the review pages start the checks, with MOD-browser-store's store of the instance
   app = context();
+  // The menu of docs/index.html's header folds behind its button on a narrow screen, as the main page's does (foldMenu); a page whose menu
+  // stands in no header has none to fold.
+  const tabs = document.getElementById("tabs");
+  if (tabs?.parentNode) tabs.parentNode.insertBefore(foldMenu(tabs), tabs);
   available = renderTabs();
   loadProducts();
   renderProductSelector();

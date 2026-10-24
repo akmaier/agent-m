@@ -29,6 +29,7 @@ uses:
   - MOD-spec-document.requirementNamesIn
   - MOD-spec-document.renamedRequirements
   - MOD-trace-graph.traceGraph
+  - MOD-trace-graph.storedGraph
   - MOD-trace-graph.requirementImpact
   - MOD-trace-graph.coverageGaps
   - MOD-source-register.sourceSchemas
@@ -245,7 +246,8 @@ earlier entry of the queue creates it.
   `entrySections` composes a section.
 - MOD-spec-document.parseSpec, sectionText, replaceSection, requirementNamesIn, renamedRequirements — the requirements,
   a section's exact bytes and its replacement, the names an edit touches.
-- MOD-trace-graph.traceGraph, requirementImpact, coverageGaps — impact lists, and the requirements no use case realises.
+- MOD-trace-graph.traceGraph, requirementImpact, coverageGaps — impact lists, and the requirements no use case realises, in a job;
+  MOD-trace-graph.storedGraph — the impact list of an entry on a page (entryView, proposeSection, saveEntry), from the graph stored for the commit.
 - MOD-source-register.sourceSchemas, sourceFindings, linkedVersion — the instance's links and register as the workflow
   reads them, the requirements that name no linked source, and a candidate's source that the product does not link.
 - MOD-text-tools.Finding, finding, blobSha, lineDiff — findings, blob SHAs and the difference shown.

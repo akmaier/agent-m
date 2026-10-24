@@ -65,7 +65,7 @@ const PARTICIPANTS = text("# Participants of this instance", "",
   "| ci-bot | CI agent | fixture-llm | 100000 | — | read the repository, write to the repository | GitHub's hosted runners | ci hosted secret FIXTURE_KEY |");
 
 // The job's record names the commit of Agent M that runs — the instance's checkout is at it —, so the records are made once the instance exists.
-const jobStart = (id, { agentM, participant = "hand-bot", task = "with the hand-over", params = {} }) => ({ id, kind: "decide-gate", worksOn: ["A LOAN HAS A DUE DATE"], participant,
+const jobStart = (id, { agentM, participant = "hand-bot", task = "with the hand-over", params = {}, declares }) => ({ id, ...(declares ? { declares } : {}), kind: "decide-gate", worksOn: ["A LOAN HAS A DUE DATE"], participant,
   model: "fixture-llm", route: "ci hosted", run: null, retries: null, startedBy: "alice", start: new Date("2026-10-16T08:00:00Z"), agentM, inputs: [], limit: 2, task,
   destinations: [{ participant, place: "GitHub's hosted runners", parts: ["gate-inputs"] }], params });
 
@@ -807,5 +807,44 @@ test("TST-1189004: no other secret is read: the person's token and a name that i
       assert.equal((status.summary + w.lines()).includes(TOKEN) || (status.summary + w.lines()).includes(KEY), false, name);
     }
     assert.equal((await w.dispatch(ASKS_FOR_INPUT_KEY, BOTH)).outcome, "done", "known positive");
+  });
+});
+
+// ---------------------------------------------------------------- an endpoint the instance does not list (ITM-1192)
+
+const DECLARED = { context: 100000, capabilities: ["draft text", "read the repository"] };
+
+// TST-1192001 · level: component · module: MOD-workflow-entries
+// guards: UC-049; THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
+// given: as TST-498001, but the queued job's participant is "nvidia", whom the instance's participants do not list, and its record declares the context 100000 and the capabilities draft text and read the repository (`declares`), its place in ## Destinations
+// input: onDispatch with the task, the endpoint and the secret FIXTURE_KEY
+// expect: outcome `done`; opencode is started once with the endpoint's address and model and the key named by {env:FIXTURE_KEY}; the log holds the answer between the lines `--- answer of <job> ---` and `--- end of the answer of <job> ---`
+test("TST-1192001: a hand-over of an endpoint the instance does not list runs as the participant its record declares", async () => {
+  await world({ records: [{ ...HAND_OVER, participant: "nvidia", declares: DECLARED }] }, async (w) => {
+    const status = await w.dispatch(INPUTS);
+    assert.equal(status.outcome, "done", status.summary);
+    assert.equal(w.starts().length, 1, "the agent was started once");
+    const config = JSON.parse(/^CONFIG (.*)$/m.exec(w.calls())[1]);
+    assert.equal(config.provider["agent-m"].options.baseURL, "https://llm.example.test/v1");
+    assert.equal(config.provider["agent-m"].options.apiKey, "{env:FIXTURE_KEY}");
+    const log = w.lines();
+    const from = log.indexOf(`--- answer of ${JOB} ---`), to = log.indexOf(`--- end of the answer of ${JOB} ---`);
+    assert.ok(from !== -1 && to > from, "the answer stands between its two lines");
+    assert.ok(log.slice(from, to).includes(ANSWER));
+  });
+});
+
+// TST-1192002 · level: component · module: MOD-workflow-entries
+// guards: UC-049; A JOB GOES ONLY TO A HOLDER OF ITS ROLE
+// given: as TST-1192001, but the record of the unlisted "nvidia" declares nothing — the form of a job handed to a participant of the instance's list —; and, as the known positive, TST-1192001's record
+// input: onDispatch with the task, the endpoint and the secret FIXTURE_KEY
+// expect: outcome `failed`, the summary says the instance does not list nvidia; opencode is never started and main is as it was
+test("TST-1192002: a hand-over to an unlisted participant whose record declares nothing still fails", async () => {
+  await world({ records: [{ ...HAND_OVER, participant: "nvidia" }] }, async (w) => {
+    const status = await w.dispatch(INPUTS);
+    assert.equal(status.outcome, "failed");
+    assert.match(status.summary, /names the participant nvidia, whom the instance does not list/);
+    assert.equal(w.starts().length, 0);
+    assert.equal(w.mainHead(), w.head, "main is as it was");
   });
 });

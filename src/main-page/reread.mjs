@@ -5,8 +5,8 @@
 // Module: MOD-main-page
 //
 // PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; THE BUILD IS SHOWN AS IT HAPPENS; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN. A reading asks, for each card that was drawn, its host for the default
-// branch's snapshot again (the commit and its tree: two requests, the branch named by that card's own snapshot), has MOD-job-ledger's listJobs derive the rows from it — the host holds every record it
-// has read, so only a record that changed since is fetched —, asks MOD-runtimes' liveState once for each job whose record has no end, as the route `jobs` does (jobs.mjs), and derives the rows again. It
+// branch's snapshot again (the commit and its tree: two requests, the branch named by that card's own snapshot), has MOD-job-ledger's listJobs derive the rows of the jobs the card was drawn with from it
+// — the host holds every record it has read, so only a record that changed since is fetched —, asks MOD-runtimes' liveState once for each job whose record has no end, as the route `jobs` does (jobs.mjs), and derives the rows again. It
 // reads nothing else: the stages, the shares, the plan, the pull requests and what waits for a person stay as they were drawn, and only the build's rows move. It stores nothing but the rows of the last
 // reading, for the cards to be drawn again.
 //
@@ -40,7 +40,9 @@ const dueAfter = (failure, now) => {
 // One card's jobs read again through the host it was read through: its rows, derived with the live states of the jobs that have not ended.
 async function jobsAgain({ source, facts, jobState = null }, store) {
   const snapshot = await source.host.readSnapshot(facts.snapshot.ref);
-  const paths = snapshot.paths.filter((path) => path.startsWith("docs/jobs/"));
+  // Only the records of the jobs the card was drawn with: the plan stays as drawn, so no other job can enter its build.
+  const drawn = new Set(facts.jobs.map((row) => row.record.path));
+  const paths = snapshot.paths.filter((path) => drawn.has(path));
   const prior = jobState ?? {
     blobs: new Map(facts.jobs.map((row) => [row.record.path, facts.snapshot.blob(row.record.path)])),
     texts: new Map(await Promise.all(facts.jobs.map(async (row) => [row.record.path, await facts.snapshot.read(row.record.path)]))),
@@ -48,7 +50,7 @@ async function jobsAgain({ source, facts, jobState = null }, store) {
   const changed = paths.filter((path) => snapshot.blob(path) !== prior.blobs.get(path));
   await snapshot.readMany(changed);
   const texts = new Map(await Promise.all(paths.map(async (path) => [path, changed.includes(path) ? await snapshot.read(path) : prior.texts.get(path)])));
-  const serving = { ...snapshot, read: (path) => Promise.resolve(texts.get(path) ?? null) };
+  const serving = { ...snapshot, paths, read: (path) => Promise.resolve(texts.get(path) ?? null) };
   const products = [{ address: facts.address, snapshot: serving }];
   const first = await listJobs(products, new Map());
   const lives = await liveStatesOf(first, new Map([[facts.address, source.host]]), bridgesOf(first, store));
@@ -87,7 +89,7 @@ export function readAgain({ target, cards, nodes, held, store }) {
         const next = await jobsAgain(card.entry, store);
         card.entry.facts = { ...facts, jobs: next.jobs };
         card.entry.jobState = next.jobState;
-        nodes[at] = productCard({ title: source.title, address: source.address, model, shares, current, build: buildInProgress(card.entry.facts), own: source.own === true });
+        nodes[at] = productCard({ title: source.title, address: source.address, model, shares, current, build: buildInProgress(card.entry.facts), own: source.own === true, asOf: card.entry.asOf ?? null });
         problems.delete(at);
         card.due = now + EVERY;
       } catch (failure) {

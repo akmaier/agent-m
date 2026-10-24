@@ -57,6 +57,7 @@ export { jobCost } from "./cost.mjs";
  *   route: string, run: string | null, retries: string | null, startedBy: string, start: Date,
  *   agentM: { version: string, commit: string }, inputs: string[], limit: number,
  *   task?: "in parameters" | "with the hand-over", conversation?: string | null,
+ *   declares?: { context: number | null, capabilities: string[] } | null,
  *   destinations: Array<{ participant: string, place: string, parts: string[] }>, params: Record<string, unknown> }}
  *   JobStart
  */
@@ -254,6 +255,8 @@ export function startRecord(job) {
       limit: job.limit,
       task: job.task ?? "in parameters",
       conversation: job.conversation ?? "",
+      // For a model endpoint the instance's list does not hold, which a hand-over of the prompt bar names: its context and capabilities, as one line of JSON.
+      ...(job.declares ? { declares: JSON.stringify({ context: job.declares.context ?? null, capabilities: job.declares.capabilities ?? [] }) } : {}),
     },
     sections: [
       { heading: "## Destinations", text: renderDestinations(job.destinations ?? []) },
@@ -338,6 +341,7 @@ function recordFromDocument(doc) {
     limit: f.limit,
     task: f.task || "in parameters",
     conversation: f.conversation || null,
+    declares: decodeJsonField(f.declares),
     destinations: parseDestinations(destinations?.text),
     params: parseFencedJson(parameters?.text, {}),
     path: doc.path,

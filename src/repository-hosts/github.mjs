@@ -5,9 +5,10 @@
 //
 // Private to the module: index.mjs builds the host from what this returns — repositoryInfo(), snapshot(ref),
 // readFile(commit, path), history(path, { ref, limit, changes }), listTags(), issueCounts(), commitFiles(change), createTag(name, commit),
-// createBranch(name, from), startWorkflow(workflow, ref, inputs), listCiRuns(filter), cancelCiRun(id), jobLogs(id), jobLabels(id), listPullRequests(filter), openPullRequest(request), pullRequestFacts(number) — and adds what both adapters share.
+// createBranch(name, from), startWorkflow(workflow, ref, inputs), setCiSecret(name, value), listCiRuns(filter), cancelCiRun(id), jobLogs(id), jobLabels(id), listPullRequests(filter), openPullRequest(request), pullRequestFacts(number) — and adds what both adapters share.
 
 import { HostError, send, json, refusal } from "./failures.mjs";
+import { sealToBase64 } from "./sealed-box.mjs";
 
 const UPLOADS = "https://uploads.github.com";
 const API = "https://api.github.com", GRAPHQL = `${API}/graphql`, RAW = "https://raw.githubusercontent.com";
@@ -331,11 +332,12 @@ export function githubAdapter(address, { token, tokenName }, links) {
     },
 
     // One file's text at a commit, or null where the commit does not hold it: with a token through the API — the only place
-    // the token may go, which is also what reads a private repository —, without one from GitHub's raw host.
-    async readFile(commit, path) {
+    // the token may go, which is also what reads a private repository —, without one from GitHub's raw host. With `bytes` its bytes.
+    async readFile(commit, path, { bytes = false } = {}) {
       const url = token ? `${repo}/contents/${encPath(path)}?ref=${commit}` : `${RAW}/${address.path}/${commit}/${encPath(path)}`;
       const answer = await call("GET", url, { accept: RAW_ACCEPT, what: `${path} at ${commit}`, on: { 404: () => null } });
-      return answer === null ? null : answer.text();
+      if (answer === null) return null;
+      return bytes ? new Uint8Array(await answer.arrayBuffer()) : answer.text();
     },
 
     // Many files' texts at a commit in one request of GitHub's GraphQL API ("repository.object(expression: "<commit>:<path>")" on a
@@ -429,6 +431,18 @@ export function githubAdapter(address, { token, tokenName }, links) {
       const run = await json(answer, API);
       if (run?.workflow_run_id === undefined) return null;
       return { id: String(run.workflow_run_id), workflow, commit: "", event: "workflow_dispatch", state: "queued", url: run.html_url, started: null, ended: null };
+    },
+
+    // Stores a CI secret ("Get a repository public key", then "Create or update a repository secret": PUT …/actions/secrets/{name}
+    // with the value sealed to that key, sealed-box.mjs, and the key's key_id). The value goes only, sealed, into the body of that
+    // request to this repository's API; it is never in an address. GitHub answers 201 for a new secret and 204 for a changed one.
+    // A token without the permission Secrets (read and write) is PermissionMissing, naming it.
+    async setCiSecret(name, value) {
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(String(name)) || /^GITHUB_/i.test(name)) throw new TypeError(`a CI secret is named by a plain name that does not begin with GITHUB_: ${JSON.stringify(name)}`);
+      if (typeof value !== "string" || value === "") throw new TypeError("a CI secret is given a value");
+      const options = { permission: "Secrets", what: `the Actions secrets of ${address.web}` };
+      const key = await read(`${repo}/actions/secrets/public-key`, options);
+      await call("PUT", `${repo}/actions/secrets/${encodeURIComponent(name)}`, { ...options, body: { encrypted_value: sealToBase64(value, key.key), key_id: key.key_id } });
     },
 
     // The runs ("List workflow runs for a workflow" where a workflow is given, else "List workflow runs for a repository"; branch and head_sha from the filter's branch and commit; the

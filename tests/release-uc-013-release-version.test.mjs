@@ -55,7 +55,7 @@ const COVERED_BY_RELEASE = {
   "A RELEASE IS TAGGED AND LOGGED": [SYSTEM, EVIDENCE, "tests/repository-hosts-tags.test.mjs"],
   "A VERSION IS NOT REWRITTEN": [SYSTEM, ROUTE, EVIDENCE, "tests/repository-hosts-tags.test.mjs"],
   "A PERSON'S OWN INPUT IS COMMITTED DIRECTLY": [SYSTEM, ROUTE, "tests/artifact-edits-save.test.mjs", "tests/release-sprint-06-uc-002-implementation-pages.test.mjs"],
-  "EVERY STEP EXPLAINS ITSELF": [SYSTEM, ROUTE, "tests/test_step_explanations.py", "tests/site-frame.test.mjs"],
+  "EVERY STEP EXPLAINS ITSELF": [SYSTEM, ROUTE, "tests/site-frame.test.mjs"],
   "A GATE NAMES WHAT IT CHECKS": [SYSTEM, "tests/model-catalogue.test.mjs", "tests/test_gate_definition.py"],
   "THE GATE IS RECORDED": [SYSTEM, "tests/product-process-gates.test.mjs", "tests/spec-changes-retired-row.test.mjs"],
   "A RELEASE RUNS EVERY TEST AT EVERY LEVEL": [SYSTEM, EVIDENCE, "tests/test-schedule.test.mjs", "tests/result-records-outcomes.test.mjs"],

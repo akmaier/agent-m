@@ -222,7 +222,7 @@ test("#roles — every step explains itself: what a role is, why only Scrum has 
 // guards: EVERY STEP EXPLAINS ITSELF
 // given: the fixture product, team1's assignment open for a change
 // input: open #roles, Change team1
-// expect: the title in a section.head, every button a btn and every folded explanation a details.explain; no style attribute, and no class docs/assets/style.css — the stylesheet of #uc and #arc — does not define, outside the folded explanations, whose inside is MOD-site-frame's and its Markdown renderer's (in this harness, which cannot sanitise HTML, the renderer shows each as its source); every panel explains itself
+// expect: the title in a section.head, every button a btn and every folded explanation a details.explain; no style attribute, and no class the style sheets of #uc and #arc — src/theme/lme.css, src/site-frame/look.css, docs/assets/style.css — do not define, outside the folded explanations, whose inside is MOD-site-frame's and its Markdown renderer's (in this harness, which cannot sanitise HTML, the renderer shows each as its source); every panel explains itself
 test("#roles — the page is laid out as #uc and #arc are: panels with their explanations, list tables, buttons, no style of its own", async () => {
   const { page } = await rolesPage();
   await page.click('[data-edit="team1"]');
@@ -237,13 +237,14 @@ test("#roles — the page is laid out as #uc and #arc are: panels with their exp
   assert.deepEqual(tags("button").filter((tag) => !classesOf(tag).includes("btn")), [], "every button is a btn");
   assert.deepEqual(tags("details").filter((tag) => !classesOf(tag).includes("explain")), [], "every details is an explain");
   assert.doesNotMatch(html, /\sstyle="/);
-  const style = read("docs/assets/style.css");
+  // The style sheets docs/index.html links, which #uc and #arc are drawn with: the site's theme, the frame's look (its buttons and fields) and the review pages' own.
+  const style = ["src/theme/lme.css", "src/site-frame/look.css", "docs/assets/style.css"].map(read).join("\n");
   const defined = (name) => new RegExp(`\\.${name}(?![\\w-])`).test(style);
   assert.ok(defined("panel") && !defined("result"), "known positive and negative of the search");
   const own = html.replace(/(<details class="explain">)[^]*?(<\/details>)/g, "$1$2");
   const classes = new Set([...own.matchAll(/\sclass="([^"]*)"/g)].flatMap((m) => m[1].split(/\s+/).filter(Boolean)));
   assert.ok(classes.has("panel") && classes.has("explain"), "known positive: the page's classes are read");
-  for (const name of classes) assert.ok(defined(name), `${name} is a class of docs/assets/style.css`);
+  for (const name of classes) assert.ok(defined(name), `${name} is a class of the review pages' style sheets`);
   const panels = html.split('<section class="panel"').slice(1);
   assert.ok(panels.length >= 4, "the roles, two teams, the change");
   for (const panel of panels) assert.match(panel, /<details class="explain"><summary>What is this\?<\/summary>/);

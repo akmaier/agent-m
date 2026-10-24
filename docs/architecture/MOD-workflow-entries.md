@@ -177,7 +177,8 @@ for *Fetch again* (UC-004 7a), `onReleaseTagged` on a release tag, `onMainChange
   with the participant of the instance's list that it names; it writes the task to no file, and a branch whose commit
   messages or pull request text hold the task's words is refused by name, the job then ending failed with nothing
   merged; it appends the job's end with its commits, files and pull request, and leaves the answer in the run's summary
-  and log, where the prompt bar reads it. An endpoint the run cannot reach ends it `failed`, its summary naming the
+  and log — in the log between the lines `--- answer of <id> ---` and `--- end of the answer of <id> ---` —, where the
+  prompt bar reads it. An endpoint the run cannot reach ends it `failed`, its summary naming the
   reason that MOD-endpoint-calls' `diagnoseEndpoint` gives and the routes that would work — a self-hosted runner, or a
   Bridge (UC-049 4d).
 - `onTestsFinished(env: CiEnvironment) -> Promise<EntryStatus>` — in a product, the step after the tests of every run of
@@ -206,11 +207,14 @@ for *Fetch again* (UC-004 7a), `onReleaseTagged` on a release tag, `onMainChange
   - It adds the commit's graph and the impact lists of its decision and module files that are not accepted
     (MOD-trace-graph's `publishGraph`). Each such file comes with the text it was last accepted at and that text's commit:
     MOD-approvals' `statuses` names the files, and `lastAcceptedText` gives each one's text, read once per file here.
-  - It adds the commit's overview of the main page and the facts its files alone give (MOD-progress-measures'
-    `publishOverview`).
+  - It adds the commit's overview and the facts its files alone give (MOD-progress-measures' `publishOverview`): what
+    the main page's cards and the specification's waiting entries need — the stage shares, what waits, the model, the
+    build with every pull request taken into account and the records of its jobs, the change queues not yet in the SPEC
+    —, so that no page lists the pull requests or reads every queue when it is opened.
   - A file the branches already hold for that commit is left as it is: `nothing to do`. A failure of one leaves the other
-    written and ends the entry `failed`, naming it. The pages then derive what is missing as before, so nothing is
-    wrong, only slower.
+    written and ends the entry `failed`, naming it. The pages never derive the graph themselves (MOD-trace-graph's
+    `storedGraph`), so the workflow tries a failed entry again, and runs on a schedule as well, every 15 minutes, for the
+    head of the default branch, which stores what a push's run missed.
 - `onReleaseTagged(env: CiEnvironment) -> Promise<EntryStatus>` — in the instance, on a release tag: on each platform's
   runner, the Bridge's file of that platform, signed; then the files, checksums, signatures and update feed published as
   the release of the tag (`THE BRIDGE IS SIGNED BY ITS PUBLISHER`); nothing is published when a signature cannot be

@@ -187,7 +187,7 @@ test("TST-265008: endpoint storage is preceded by its Pages-origin notice and fo
   assert.match(disclosure.textContent, /fixture\.github\.io/);
   assert.ok(ordered.indexOf(disclosure) >= 0 && ordered.indexOf(disclosure) < ordered.indexOf(action), "the shared-origin notice precedes storage");
   const details = byTag(target, "details");
-  assert.equal(details.length, 7, "every endpoint field and action has its registered folded explanation");
+  assert.equal(details.length, 8, "every endpoint field and action has its registered folded explanation — the place, context and CI secret one together");
   assert.ok(details.every((folded) => byTag(folded, "summary").some((summary) => summary.textContent === "What is this?")));
 });
 

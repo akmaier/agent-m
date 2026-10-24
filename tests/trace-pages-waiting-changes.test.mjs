@@ -53,7 +53,7 @@ const text = (node) => node.textContent.replace(/\s+/g, " ");
 // guards: OPEN PROPOSALS ARE SHOWN IN THE BROWSER; UC-006
 // given: the default branch, whose queues hold an open entry (2026-10-09_open, entry 01) and a decided one (2026-10-08_done, entry 01)
 // input: the specification view drawn at main
-// expect: a section "SPEC changes waiting for acceptance" stands before the section "Current requirements"; it links #spec-entry/id=spec-2026-10-09_open-01 and
+// expect: a section "SPEC changes waiting for acceptance" is the first child of the page, before the version choice and the section "Current requirements"; it links #spec-entry/id=spec-2026-10-09_open-01 and
 //         names its status open; the decided entry is not in it (the counter-proof: no link to spec-2026-10-08_done-01 anywhere on the page)
 test("TST-878001 the open entry is linked first, above the SPEC, and the decided entry is not listed", async () => {
   const { target } = await render(withOpen);
@@ -65,6 +65,7 @@ test("TST-878001 the open entry is linked first, above the SPEC, and the decided
   assert.ok(overview, "known positive: the SPEC is drawn");
   const order = find(target, (node) => node === waiting || node === overview);
   assert.deepEqual(order, [waiting, overview], "the waiting entries stand above the SPEC");
+  assert.equal(target.firstChild, waiting, "the waiting entries are the first thing on the page, above the version choice and the narrowing");
   assert.equal(hrefs(target).some((href) => href.includes(`spec-${DONE}-01`)), false, "the decided entry is not listed");
 });
 
@@ -106,4 +107,33 @@ test("TST-878004 a repository without a change queue costs the page no queue rea
   const { productHost } = await render({ "SPEC.md": SPEC });
   assert.deepEqual(productHost.log.manys, []);
   assert.deepEqual(productHost.log.reads, ["SPEC.md", "docs/groups/requirements.md"]);
+});
+
+// TST-878005 · level: unit · module: MOD-trace-pages
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; OPEN PROPOSALS ARE SHOWN IN THE BROWSER; UC-006
+// given: the default branch of TST-878001 (an open queue and a decided one), whose snapshot has `readOn` and whose branch overview-cache holds the overview of its commit in the format MOD-progress-measures' Data names — its queues the open queue alone, as MOD-spec-changes' queues gives it, the queues with an entry not in the SPEC yet
+// input: the specification view drawn at main
+// expect: the open entry is linked as in TST-878001 (#spec-entry/id=spec-2026-10-09_open-01), the overview was read once, and no file of the decided queue's folder is read or named to readMany — counter-proof: without the overview the page reads the decided queue's index (known positive that the log sees such a read)
+test("TST-878005 with an overview stored for the commit, the page lists the waiting entries from it and reads no queue that holds none", async () => {
+  const { queues } = await import("../src/spec-changes/index.mjs");
+  const decided = `docs/spec-freigaben/${DONE}/`;
+  const plain = treeHost({ trees: { main: withOpen } });
+  const open = (await queues(await plain.readSnapshot("main"))).filter((each) => each.folder.endsWith(OPEN));
+  assert.equal(open.length, 1, "known positive: the open queue is read from the files");
+  const overview = JSON.stringify({ commit: "main", shares: [], waiting: [], model: null, build: { states: [], records: [] }, queues: open });
+  const asked = [];
+  const host = treeHost({ trees: { main: withOpen } });
+  const productHost = { ...host, async readSnapshot(ref) {
+    return { ...(await host.readSnapshot(ref)), readOn: async (branch, path) => { asked.push([branch, path]); return branch === "overview-cache" && path === "main.json" ? overview : null; } };
+  } };
+  const target = document.createElement("div");
+  document.body.append(target);
+  await route.render(target, { product: { host: productHost } }, { key: "specification", ref: "main" });
+  assert.deepEqual(hrefs(waitingSection(target)), [`#spec-entry/id=spec-${OPEN}-01`]);
+  assert.deepEqual(asked.filter(([branch]) => branch === "overview-cache"), [["overview-cache", "main.json"]]);
+  assert.deepEqual([...host.log.reads, ...host.log.manys.flat()].filter((path) => path.startsWith(decided)), []);
+
+  const without = await render(withOpen);
+  assert.equal([...without.productHost.log.reads, ...without.productHost.log.manys.flat()].some((path) => path.startsWith(decided)), true,
+    "counter-proof: without an overview the decided queue is read");
 });

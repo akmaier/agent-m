@@ -32,6 +32,7 @@ uses:
   - MOD-repository-hosts.repositoryInfo
   - MOD-repository-hosts.commitFiles
   - MOD-repository-hosts.startWorkflow
+  - MOD-repository-hosts.setCiSecret
   - MOD-repository-hosts.listReleaseAssets
   - MOD-repository-hosts.webLinks
   - MOD-identifiers.pagesAddress
@@ -98,6 +99,9 @@ uses:
   - MOD-prompt-bar.recordingSchema
   - MOD-prompt-bar.recordingOf
   - MOD-prompt-bar.Subject
+  - MOD-prompt-bar.endpointsOffered
+  - MOD-prompt-bar.spawnEndpointJob
+  - MOD-prompt-bar.followJob
 provides:
   - view
 ---
@@ -151,7 +155,8 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     repository setting has a summary and *Edit*, opening its form here or the page where it is kept — the product's
     process on the implementation pages, its schedule on the test pages. A product's section holds its pseudonymisation —
     switching it off states first what follows —, its collaborators who agreed to be named, and whether Agent M's job
-    workflow is installed, with *Install*. The instance's section holds *Recording conversations* (UC-042 step 3),
+    workflow is installed, with *Install*, which names among the job workflow's keys, beside the CI secrets of the
+    participants' routes, the CI secret each of this browser's endpoints names. The instance's section holds *Recording conversations* (UC-042 step 3),
     *off* unless switched on: switching it on states first that every message of a conversation in the prompt bar, the
     person's and the participant's, will be committed under `docs/conversations/` of the repository of the page it is
     held on and stay in its history, and names each of the instance's and the products' repositories that its server
@@ -179,7 +184,16 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     tokens and the name of the CI secret that holds its key, and, for one the browser cannot call, the Bridge that
     reaches it, chosen among the Bridges this browser keeps; the test request, directly or through that Bridge, with
     whether the model called the tool it was offered — *can use tools* or *text only* (UC-003 step 5, 5a) —, and the
-    reason and the routes that would work when a browser may not call it; a folded explanation that the prompt bar
+    reason and the routes that would work when a browser may not call it — said plainly, by the endpoint's host: `<host>
+    does not accept calls from a web page; run it through GitHub Actions (CI secret) or a Bridge.`, the browser's own
+    words only after it, in parentheses, on the form and on the endpoint's line of the Settings page. For such an endpoint whose key this browser
+    keeps, it says what one click does and offers it: the key stored as the GitHub Actions secret the endpoint names —
+    else its name in capitals followed by `_API_KEY` — of the chosen product's repository, else the instance's, with
+    MOD-repository-hosts' `setCiSecret`; the secret's name kept with the endpoint and the key removed from this browser;
+    and one test job of the endpoint spawned there with MOD-prompt-bar's `spawnEndpointJob` (the kind `converse`, a
+    one-line task) and followed with `followJob`, whose end and answer are the endpoint's test, recorded as its last
+    test. An endpoint that names a CI secret and keeps neither a key nor a Bridge in this browser runs through GitHub
+    Actions: it is not called from the page, and its *Test* is that test job; a folded explanation that the prompt bar
     appears once an endpoint is configured or a Bridge offers a CLI session (UC-049 1a); *Clear*.
   - `participants` — the instance's participants in a form from the participant schema, a new one prefilled with the
     parameters `type` and `address` where the route is opened with them: type, model, context and price, capabilities,
@@ -299,7 +313,9 @@ reaches.
 - MOD-job-runner.prepareJob, MOD-job-ledger.newJobId, MOD-runtimes.routesFor, MOD-runtimes.queueJob — a resource's check
   job on its runner; MOD-runtimes.jobWorkflowFiles — the job workflow a product needs.
 - MOD-prompt-bar.recordingSchema, MOD-prompt-bar.recordingOf — the instance's switch of recording conversations;
-  MOD-prompt-bar.Subject — the subject its routes give the prompt bar.
+  MOD-prompt-bar.Subject — the subject its routes give the prompt bar; MOD-prompt-bar.endpointsOffered,
+  MOD-prompt-bar.spawnEndpointJob, MOD-prompt-bar.followJob — the test job of an endpoint that runs through GitHub Actions.
+- MOD-repository-hosts.setCiSecret — an endpoint's key stored as a GitHub Actions secret, on the person's click.
 - MOD-notifications.NotificationState, MOD-notifications.notificationState, MOD-notifications.switchOn,
   MOD-notifications.testNotification, MOD-notifications.switchOff — the line *Notifications*: its state, *Switch on* in
   the person's click, *Test* and *Switch off*.

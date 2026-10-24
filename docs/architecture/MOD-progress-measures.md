@@ -68,6 +68,7 @@ provides:
   - productFacts
   - publishOverview
   - storedOverview
+  - latestOverview
   - storedFacts
   - progressIn
   - stageShares
@@ -105,15 +106,24 @@ notifications (`A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE`). It runs in t
 
 ## Data
 
-It keeps nothing and owns the structure `Facts`, which MOD-run-planner and the pages read. It owns two kinds of file on
-the branch `overview-cache` of a repository, which `publishOverview` adds and no one changes or deletes:
-- `<commit>.json`, the main page's overview of that commit: `{ commit, shares, waiting }`, as `stageShares` and
-  `waitingForAPerson` give them for the facts of that commit;
+It keeps nothing and owns the structure `Facts`, which MOD-run-planner and the pages read. It owns three kinds of file on
+the branch `overview-cache` of a repository, which `publishOverview` writes; the first two it adds and no one changes or
+deletes:
+- `<commit>.json`, the overview of that commit that the pages read in place of the files: `{ commit, shares, waiting,
+  model, build, queues }` — the stage shares and what waits for a person, as `stageShares` and `waitingForAPerson` give
+  them for the facts of that commit; the name of the declared model, or `null`; the build, `{ states, records }`: the
+  states of the steps or items in progress that a job works on, as `buildInProgress` takes them — derived with every
+  pull request of the repository —, and the records of those jobs as the commit holds them, each `{ path, text }`; and
+  the change queues with an entry that is not in the SPEC yet, as MOD-spec-changes' `queues` gives them. It is small, so
+  that a page reads it in one short request;
 - `<commit>.facts.json`, the facts of that commit that its files alone give, as `productFacts` reads them with the scope
   `all`, with the format's number and the commit they were read at: the declaration, the plan's order and its steps or
   items, the sprints, the role assignments, the gate records, the module files, the change queues, the requirements, the
   test declarations, the job records, and the declared model as read at the commit the declaration names. A model that
-  could not be read is left out, so that a reader reads it again.
+  could not be read is left out, so that a reader reads it again;
+- `latest.json`, `{ commit }`: the commit of the overview stored last, which `publishOverview` writes again with every
+  commit that adds a file of the two above, and which a page reads (`latestOverview`) while the overview of its head is
+  not stored yet.
 
 The six stages of the main page, each a share between 0 and 1:
 
@@ -256,14 +266,22 @@ The six stages of the main page, each a share between 0 and 1:
   it is decided.
 - `publishOverview(host: Host, snapshot: Snapshot, facts: Facts) -> Promise<{ commit: string, written: boolean }>` —
   adds `<commit>.json` and `<commit>.facts.json` to the branch `overview-cache` in one commit by `commitFiles`, on the
-  head it read: the stage shares and what waits for a person, and the facts listed under Data, from `facts` read with
-  the scope `all` at the snapshot's commit. A file the branch holds already is left as it is; `written` is `false` when
-  it holds both. Crosses the network; fails as `commitFiles` fails, with `NotFound` naming the branch when the
+  head it read: the overview and the facts listed under Data, from `facts` read with the scope `all` at the snapshot's
+  commit. A file the branch holds already is left as it is; `written` is `false` when
+  it holds both. A commit that adds either also writes `latest.json` naming the snapshot's commit; where it adds
+  neither, `latest.json` is left as it is. Crosses the network; fails as `commitFiles` fails, with `NotFound` naming the branch when the
   repository has none.
 - `storedOverview(snapshot: Snapshot) -> Promise<{ shares: Array<{ stage: string, share: number | null, detail: string }>,
-  waiting: Array<{ kind: string, id: string, path: string }> } | null>` — the overview stored for the snapshot's commit,
-  read with the snapshot's `readOn` in one request; `null` when the branch or the file is missing or holds another
-  format.
+  waiting: Array<{ kind: string, id: string, path: string }>, model: string | null, build: { states: ItemState[],
+  records: Array<{ path: string, text: string }> }, queues: Queue[] } | null>` — the overview stored for the snapshot's
+  commit, as listed under Data, read with the snapshot's `readOn` in one request, once for each snapshot however many
+  callers ask; `null` without `readOn`, or when the branch or the file is missing or holds another format — an overview
+  without the model, the build and the queues among them.
+- `latestOverview(snapshot: Snapshot) -> Promise<{ commit: string, shares, waiting, model, build, queues } | null>` — the
+  overview stored last on the branch, whichever commit it is of: the commit `latest.json` names and that commit's
+  overview, as `storedOverview` gives it, read with the snapshot's `readOn` in two requests. What a page shows while
+  the overview of its head is not stored yet, never deriving one itself; `null` without `readOn`, or when the branch,
+  `latest.json` or the overview it names is missing or holds another format.
 - `storedFacts(snapshot: Snapshot) -> Promise<{ declaration: Document | null, order: Document | null, items: Document[],
   sprints: Document[], assignments: Document[], gates: Document[], modules: Document[], queues: Queue[], requirements:
   string[], tests: TestDeclaration[], jobs: JobRecord[], model: Model | null | undefined } | null>` — the facts stored
@@ -303,10 +321,10 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
 - Reads, for `waitingForAcceptance`, through the snapshot it is given: `docs/approvals/`, `docs/spec-freigaben/`,
   `docs/use-cases/` and `docs/architecture/`; and, through MOD-release-evidence, the tags, `docs/tests/releases/` and,
   only while a release candidate is pending, `docs/jobs/` back to the first run of a candidate.
-- Reads, for `storedFacts` and `storedOverview`, `<commit>.facts.json` and `<commit>.json` on the branch
-  `overview-cache`.
+- Reads, for `storedFacts`, `storedOverview` and `latestOverview`, `<commit>.facts.json`, `<commit>.json` and
+  `latest.json` on the branch `overview-cache`.
 - Writes, for `publishOverview`, `<commit>.json` and `<commit>.facts.json` on the branch `overview-cache`, only by
-  adding.
+  adding, and `latest.json` there, in the same commit.
 
 ## Uses
 
@@ -337,4 +355,4 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
 - MOD-repository-hosts.Host, Snapshot, RepositoryInfo, PullRequest, CiRun, readSnapshot, readHistory, repositoryInfo,
   listPullRequests, listCiRuns, listTags — the repository's state and the history that dates it; the snapshots
   `instanceAt` gives of the instance at the commit a declaration names; `commitFiles` — `publishOverview`'s one commit
-  to the branch `overview-cache`; `Snapshot.readOn` — the stored facts and overview of a commit.
+  to the branch `overview-cache`; `Snapshot.readOn` — the stored facts and overview of a commit, and `latest.json`.

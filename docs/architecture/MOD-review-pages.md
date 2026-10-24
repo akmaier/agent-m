@@ -37,7 +37,7 @@ uses:
   - MOD-group-document.groupFileText
   - MOD-group-document.applyMoves
   - MOD-group-document.hierarchy
-  - MOD-trace-graph.traceGraph
+  - MOD-trace-graph.storedGraph
   - MOD-trace-graph.graphFindings
   - MOD-trace-graph.coverageGaps
   - MOD-trace-graph.requirementImpact
@@ -285,12 +285,13 @@ and `docs/participants.md` of the instance.
   MOD-test-document.testDeclarations — the tests to arrange.
 - MOD-group-document.parseGroupFile, MOD-group-document.groupFileText, MOD-group-document.applyMoves,
   MOD-group-document.hierarchy — arranging.
-- MOD-trace-graph.traceGraph, MOD-trace-graph.graphFindings, MOD-trace-graph.coverageGaps,
+- MOD-trace-graph.storedGraph, MOD-trace-graph.graphFindings, MOD-trace-graph.coverageGaps,
   MOD-trace-graph.requirementImpact, MOD-trace-graph.architectureImpact — the marks across artifacts, the requirements
   no use case realises, and the impact lists; MOD-trace-graph.storedImpacts and MOD-repository-hosts.readFileAt — the
-  impact lists stored for the commit, and the last accepted texts they name. A graph of a commit's own files is asked
-  for with that commit, so that the graph `onMainChanged` stored for it is read where there is one
-  (MOD-workflow-entries); a graph over an edited text is built from the files.
+  impact lists stored for the commit, and the last accepted texts they name. The graph is the one `onMainChanged`
+  stored for the commit shown (MOD-workflow-entries), read through `storedGraph`; no page builds a graph, also not over
+  an edited text: the editor shows the stored graph's findings of the file, and the edit is checked across artifacts
+  once it is committed.
 - MOD-approvals.statuses, MOD-approvals.removedFiles, MOD-approvals.statusOf, MOD-approvals.lastAcceptedText, MOD-approvals.acceptShown,
   MOD-approvals.acceptanceBlockers, MOD-approvals.fallbackAcceptLink — statuses, the files removed since their acceptance, and acceptance; MOD-approvals.approvalSchema —
   the schema an approval record is read with, on `<k>/history` too.

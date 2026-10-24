@@ -29,7 +29,7 @@ uses:
   - MOD-documents.writeDocument
   - MOD-spec-document.parseSpec
   - MOD-test-document.testDeclarations
-  - MOD-trace-graph.traceGraph
+  - MOD-trace-graph.storedGraph
   - MOD-trace-graph.tracesTo
   - MOD-source-register.sourceSchemas
   - MOD-source-register.linkedVersion
@@ -194,6 +194,6 @@ tagged commit by `acceptAndRelease`; `register` is the instance's source registe
 - MOD-spec-document.parseSpec — the product's requirements valid at the release, and the process requirements of the
   instance's SPEC.
 - MOD-test-document.testDeclarations — the tests at the release.
-- MOD-trace-graph.traceGraph, tracesTo — the tests and sources of each requirement.
+- MOD-trace-graph.storedGraph, tracesTo — the tests and sources of each requirement.
 - MOD-source-register.sourceSchemas, linkedVersion — each source's authority, version and hashes.
 - MOD-text-tools.blobSha — the blob SHAs the audit names.

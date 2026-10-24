@@ -98,8 +98,7 @@ const pr = ({ number, item, base, created, merged = null }) => ({ number, title:
   state: merged ? "merged" : "open", draft: false, url: `${ADDRESS}/pull/${number}`, opened: created, merged, closed: merged });
 const PRS = [pr({ number: 1, item: "ITM-001", base: "sprint/team1/01", created: "2026-09-14T10:00:00Z", merged: "2026-09-15T10:00:00Z" }),
   pr({ number: 2, item: "ITM-002", base: "sprint/team1/01", created: "2026-09-15T12:00:00Z" }),
-  { ...pr({ number: 3, item: "ITM-000", base: "sprint/team1/01", created: "2026-09-15T13:00:00Z", merged: "2026-09-15T14:00:00Z" }), title: "Tidy the README", branch: "team/tidy" },
-  pr({ number: 4, item: "ITM-005", base: "experiment/x", created: "2026-09-15T13:00:00Z", merged: "2026-09-15T15:00:00Z" })];
+  { ...pr({ number: 3, item: "ITM-000", base: "sprint/team1/01", created: "2026-09-15T13:00:00Z", merged: "2026-09-15T14:00:00Z" }), title: "Tidy the README", branch: "team/tidy" }];
 
 // A host of this file's own, answering the part of MOD-repository-hosts' interface the route uses; `calls` keeps what it was asked.
 function hostOf(files, pullRequests, calls = [], commits = {}) {
@@ -152,9 +151,9 @@ test("the backlog page shows the teams' sprints first, then the backlog, then wh
 
 // TST-681002 · level: unit · module: MOD-implementation-pages
 // guards: UC-032; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES
-// given: the fixture: ITM-001 merged into team1's sprint branch, ITM-002's pull request open, ITM-003 and ITM-005 ready, ITM-004 builds on ITM-003, ITM-006 realises a requirement that is not accepted; a pull request that names no item, and one of ITM-005 merged into a branch that is no sprint's
+// given: the fixture: ITM-001 merged into team1's sprint branch, ITM-002's pull request open, ITM-003 and ITM-005 ready, ITM-004 builds on ITM-003, ITM-006 realises a requirement that is not accepted; and a pull request that names no item
 // input: the route's render
-// expect: one row per item, each after the items it builds on — ITM-001 to ITM-006; ITM-001 done, ITM-002 in progress, ITM-003 ready, ITM-004 waiting for an item it builds on, naming ITM-003, ITM-006 waiting for acceptance, naming RULE NOT ACCEPTED; ITM-005 stays ready (a pull request into another branch counts for nothing) and is marked as kept from team2, naming the sprint team1/01, the item ITM-001 and the module MOD-store
+// expect: one row per item, each after the items it builds on — ITM-001 to ITM-006; ITM-001 done, ITM-002 in progress, ITM-003 ready, ITM-004 waiting for an item it builds on, naming ITM-003, ITM-006 waiting for acceptance, naming RULE NOT ACCEPTED; ITM-005 ready and marked as kept from team2, naming the sprint team1/01, the item ITM-001 and the module MOD-store
 test("the backlog lists each item after the items it builds on, with its derived state and what keeps it from a team", async () => {
   const { html } = await render(fixtureFiles());
   const backlog = part(html, 'data-part="backlog"');

@@ -1,6 +1,6 @@
 /* Module: MOD-dashboard-app */
-/* The colours, the font, the header with the menu and the footer are the site's: src/theme/lme.css, linked before this file.
-   What follows are the review pages' own parts. */
+/* The colours, the font, the header with the menu and the footer are the site's: src/theme/lme.css, linked before this file;
+   the buttons and the fields are src/site-frame/look.css's. What follows are the review pages' own parts. */
 code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .88em; }
 code { background: var(--code); padding: .1em .35em; border-radius: 4px; }
 pre { background: var(--code); padding: .8em 1em; border-radius: 6px; overflow-x: auto; }
@@ -47,12 +47,6 @@ aside .panel:first-child { margin-top: 0; }
 .mermaid { background: var(--panel); text-align: center; margin: 1rem 0; overflow-x: auto; }
 .mermaid svg { max-width: 100%; height: auto; }
 
-.btn { font: inherit; font-size: .9rem; cursor: pointer; border: 1px solid var(--line); background: var(--panel);
-  color: var(--fg); padding: .45rem .8rem; border-radius: 6px; text-decoration: none; display: inline-block; }
-.btn:hover { border-color: var(--accent); }
-.btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
-.btn.small { font-size: .78rem; padding: .2rem .5rem; }
-.btn:disabled { opacity: .55; cursor: not-allowed; }
 .record { font-size: .8rem; white-space: pre-wrap; word-break: break-all; }
 
 .editor { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
@@ -68,7 +62,15 @@ aside .panel:first-child { margin-top: 0; }
 .accepted-diff .diff { max-height: 420px; overflow: auto; }
 
 .product { display: flex; align-items: center; gap: .4rem; font-size: .85rem; color: var(--muted); align-self: center; }
-.product select { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: .3rem .4rem; max-width: 22rem; }
+/* The Requirements page's version choice and the narrowing above its tree: one line that wraps, each field at most its panel wide; the group toggles at the size of their heading. */
+.version-bar, .spec-narrow { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; margin: .5rem 0 1rem; }
+.version-bar > :is(p, details) { flex-basis: 100%; margin: 0; }
+.spec-narrow label { display: inline-flex; align-items: center; gap: .4rem; max-width: 100%; }
+.spec-narrow .spec-narrow-text { flex: 1 1 16rem; max-width: 28rem; }
+.spec-narrow .spec-narrow-problem { flex-basis: 100%; margin: 0; }
+.spec-narrow select, .spec-narrow input { min-width: 0; max-width: 100%; }
+.spec-narrow-source { width: 16rem; }
+.spec-group-toggle { font-size: inherit; font-weight: 600; margin-inline: 0 .35em; }
 .notice { border-color: var(--warn); background: var(--warn-bg); }
 .guidance { white-space: pre-wrap; font-size: .8rem; }
 #token-input { width: 100%; max-width: 32rem; font-family: ui-monospace, Menlo, monospace; padding: .45rem .6rem;

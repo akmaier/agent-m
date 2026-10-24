@@ -37,6 +37,7 @@ provides:
   - ModuleGap
   - Comparison
   - traceGraph
+  - storedGraph
   - graphFindings
   - tracesTo
   - coverageGaps
@@ -63,8 +64,10 @@ artifacts at once: the checks across artifacts, the traces of a requirement, the
 change, the order of the modules by their uses, the module rows of UC-025, the comparison of two versions, and
 references to what exists only inside Agent M. The matrix is derived from the files of one commit alone and edited by no one (`THE TRACEABILITY
 MATRIX IS DERIVED`): `traceGraph` builds it, and where the repository holds the graph of that very commit on its branch
-`trace-cache`, `traceGraph` returns that graph and reads no file. It runs in a browser and in Node; it reads only through the
-source it is given and writes only through `publishGraph`, which adds the graph of one commit to that branch.
+`trace-cache`, `traceGraph` returns that graph and reads no file. A page never builds the graph: it reads the stored one through
+`storedGraph`, and the workflow that runs on every push to the default branch builds and stores it (MOD-workflow-entries'
+`onMainChanged`). It runs in a browser and in Node; it reads only through the source it is given and writes only through
+`publishGraph`, which adds the graph of one commit to that branch.
 
 ## Parts
 
@@ -82,7 +85,7 @@ source it is given and writes only through `publishGraph`, which adds the graph 
 ## Data
 
 It keeps nothing between calls. A graph lives as long as its caller holds it, or on the branch `trace-cache` of the repository,
-which only grows: the file `<commit>.json` is the text `graphText` gives for the graph of the commit it is named by, the
+which only grows: the file `<commit>.json.gz` is the text `graphText` gives for the graph of the commit it is named by, gzipped, the
 file `<commit>.impacts.json` holds the impact lists of that commit's decision and module files that are not accepted, and no
 file of it is changed or deleted.
 
@@ -179,7 +182,14 @@ identifier, and which register entry an item names is MOD-source-register's to s
   code files as listed under Data and builds the graph, keeping the facts listed there. A file that cannot be read, or not
   read as its format, is listed
   in `unread` with the reason, never left out silently; the findings of a single document's format are MOD-documents' and
-  are not repeated here. Rejects only when `source.read` itself rejects, with that error.
+  are not repeated here. Rejects only when `source.read` itself rejects, with that error. It runs where a commit's graph is
+  built: in the workflows and jobs, never on a page.
+- `storedGraph(source: TextSource, commit: string) -> Promise<Graph>` — the graph stored for `commit` on the branch
+  `trace-cache`, its `<commit>.json.gz` read once with the source's `readOn` and unzipped — once for each commit in a page,
+  however many views and functions ask for it, since a commit's graph never changes; a graph not stored, or a read that
+  failed, is read again at the next call. It never builds the graph and
+  reads no other file; it rejects with `GraphNotStored`, naming the commit and the workflow that stores it, where the
+  source has no `readOn`, `commit` is none, or the branch holds no graph of it. Every page reads a graph only through it.
 - `graphFindings(graph: Graph) -> Finding[]` — the checks across artifacts, each decided from the graph alone and each an
   error naming the artifact and line:
   a name in `realises`, `forced_by`, an item's `realises` or a test's `guards` that matches no requirement or use case
@@ -215,7 +225,7 @@ identifier, and which register entry an item names is MOD-source-register's to s
   no `graphText` or names a commit other than `commit`. Reads nothing.
 - `publishGraph(host: Host, snapshot: Snapshot, changed?: Array<{ path: string, before: { commit: string, text: string }
   | null }>) -> Promise<{ commit: string, written: boolean }>` — builds the graph of the snapshot's commit from its files
-  and adds `<commit>.json` to the branch `trace-cache` by `commitFiles`, on the head it read; `written` is `false` when
+  and adds `<commit>.json.gz`, the graph's text gzipped, to the branch `trace-cache` by `commitFiles`, on the head it read; `written` is `false` when
   the branch holds the file already, which it then leaves as it is. With `changed`, the decision and module files of the
   commit that are not accepted, each with the text it was last accepted at and that text's commit (`null` for a file never
   accepted), as the caller reads them, it adds `<commit>.impacts.json` in the same commit: for each file, its path, its
@@ -247,7 +257,7 @@ identifier, and which register entry an item names is MOD-source-register's to s
 
 ## Files
 
-It reads, through the `TextSource` it is given, the files listed under Data, and the files `<commit>.json` and
+It reads, through the `TextSource` it is given, the files listed under Data, and the files `<commit>.json.gz` and
 `<commit>.impacts.json` of the branch `trace-cache`. It writes both on that branch, only by adding, and only in
 `publishGraph`.
 

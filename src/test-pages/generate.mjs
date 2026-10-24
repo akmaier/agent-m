@@ -28,7 +28,7 @@
 
 import { readDocument } from "../documents/index.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
-import { traceGraph, tracesTo } from "../trace-graph/index.mjs";
+import { storedGraph, tracesTo } from "../trace-graph/index.mjs";
 import { eligible, participantSchema, participantsOf } from "../participant-list/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
 import { prepareJob } from "../job-runner/index.mjs";
@@ -88,7 +88,7 @@ async function loadProduct(host) {
   const info = await host.repositoryInfo();
   const snapshot = await host.readSnapshot(info.defaultBranch);
   const declarations = (await Promise.all(snapshot.paths.filter(isTestFile).map(async (path) => testDeclarations(path, (await snapshot.read(path)) ?? "")))).flat();
-  const graph = await traceGraph(snapshot, { commit: snapshot.commit });
+  const graph = await storedGraph(snapshot, snapshot.commit);
   const levelOf = new Map(declarations.map((declaration) => [declaration.id, declaration.level]));
   const names = [...graph.nodes.values()].filter((node) => FITTING[node.kind]).sort((a, b) => a.id.localeCompare(b.id))
     .map((node) => {

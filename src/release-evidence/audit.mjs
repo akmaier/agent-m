@@ -29,7 +29,7 @@
 import { readDocument } from "../documents/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
 import { testDeclarations } from "../test-document/index.mjs";
-import { traceGraph, tracesTo } from "../trace-graph/index.mjs";
+import { storedGraph, tracesTo } from "../trace-graph/index.mjs";
 import { resultsAt, flakyTests, rateComparison, resultSchema } from "../result-records/index.mjs";
 import { approvalSchema, statusOf } from "../approvals/index.mjs";
 import { listJobs } from "../job-ledger/index.mjs";
@@ -92,7 +92,7 @@ export async function auditRows(at, results, head, release, gates, instanceSpec,
   const gated = new Set(gates.map((gate) => gate.requirement));
   const process = [...parseSpec(instanceSpec).requirements.values()].filter((req) => gated.has(req.name))
     .map((req) => ({ req, constrains: "process" }));
-  const graph = await traceGraph(at, { commit: release.commit });
+  const graph = await storedGraph(at, release.commit);
   const traced = [...product, ...process].map((each) => ({ ...each, traces: tracesTo(graph, each.req.name) }));
 
   // A test's level is its declaration's, read from the file the graph says it stands in.

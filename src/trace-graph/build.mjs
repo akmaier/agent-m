@@ -17,7 +17,7 @@ import { identifiersIn, kindOfIdentifier, positionalReferences } from "../identi
 import { parseSpec } from "../spec-document/index.mjs";
 import { blobSha } from "../text-tools/index.mjs";
 import { importEdges, importsOf, isCodePath, readsImports } from "./code.mjs";
-import { graphFromText } from "./stored.mjs";
+import { fileOf, graphFromText, gunzipped } from "./stored.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
 
 const SPEC_PATH = "SPEC.md";
@@ -181,14 +181,35 @@ function readerOf(path) {
   return isCodePath(path) && readsImports(path) ? (_path, text) => ({ nodes: [codeNode(path)], edges: [], imports: importsOf(path, text) }) : null;
 }
 
-// The graph stored for `commit` on the branch trace-cache, read once through the source's readOn: null without a commit or a readOn, for a
-// missing branch or file, for a text of another format or of another commit, and when readOn fails — none of these is a failure; the graph is then built.
+// The graph stored for `commit` on the branch trace-cache, its gzipped text read once through the source's readOn: null without a commit or a
+// readOn, for a missing branch or file, for bytes that are no gzip of a text of the format or of the commit, and when readOn fails.
 async function storedFor(source, commit) {
   if (!commit || typeof source.readOn !== "function") return null;
   try {
-    const text = await source.readOn("trace-cache", `${commit}.json`);
-    return typeof text === "string" ? graphFromText(text, commit) : null;
+    const bytes = await source.readOn("trace-cache", fileOf(commit), { bytes: true });
+    return bytes instanceof Uint8Array ? graphFromText(await gunzipped(bytes), commit) : null;
   } catch { return null; }
+}
+
+// The graphs read in this page, by commit: a commit's graph never changes, so each is read once however many views and functions ask for it. The promise is kept, so that
+// callers asking at once share the one request; a graph that is not stored, or a read that failed, is not kept, and the next call reads again.
+const STORED = new Map();
+
+// storedGraph(source: TextSource, commit: string) -> Promise<Graph> — the graph the workflow `main changed` stored for `commit` on the branch
+// trace-cache, read once for each commit through the source's readOn. It never builds the graph: a page reads the graph, the workflow builds it. Rejects with
+// GraphNotStored where the commit has no stored graph — the source has no readOn, the commit is none, or the branch holds no graph of it.
+export function storedGraph(source, commit) {
+  if (typeof commit === "string" && commit !== "" && STORED.has(commit)) return STORED.get(commit);
+  const reading = storedFor(source, commit).then((stored) => {
+    if (stored) return stored;
+    throw Object.assign(new Error(`the trace graph of ${commit ? commit.slice(0, 12) : "this version"} is not stored yet — the workflow "main changed" ` +
+      "builds it on every push to the default branch; reload once its run has finished"), { name: "GraphNotStored" });
+  });
+  if (typeof commit === "string" && commit !== "" && typeof source?.readOn === "function") {
+    STORED.set(commit, reading);
+    reading.catch(() => { if (STORED.get(commit) === reading) STORED.delete(commit); });
+  }
+  return reading;
 }
 
 // traceGraph(source: TextSource, options?: { commit?: string }) -> Promise<Graph> — reads, in the order source.paths lists

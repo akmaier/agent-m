@@ -28,7 +28,7 @@ uses:
   - MOD-group-document.parseGroupFile
   - MOD-group-document.hierarchy
   - MOD-test-document.testDeclarations
-  - MOD-trace-graph.traceGraph
+  - MOD-trace-graph.storedGraph
   - MOD-trace-graph.tracesTo
   - MOD-trace-graph.coverageGaps
   - MOD-trace-graph.compareGraphs
@@ -38,6 +38,7 @@ uses:
   - MOD-spec-changes.queues
   - MOD-spec-changes.entryView
   - MOD-spec-changes.requirementHistory
+  - MOD-progress-measures.storedOverview
   - MOD-source-register.sourceSchemas
   - MOD-source-register.linkedVersion
   - MOD-source-register.affectedRequirements
@@ -134,7 +135,10 @@ TraceView = {
 It writes one file, and only on a person's click: the audit document under `docs/audits/<tag>.md` (*Commit export*).
 It reads the product's snapshot at the chosen version through its host — the SPEC, the group files, use cases,
 architecture files, code files, tests, approval records, the product's links to sources —, the history of the SPEC and
-the result records on the branch `test-results`. For the audit it reads the product's `docs/process.md` and `docs/gates/`
+the result records on the branch `test-results`. The specification asks at once what does not wait for another read —
+the snapshot, the default branch and the tags; then the SPEC, the person's source, the entries waiting, the group file,
+the stored graph and the history of the links —, and reads the change queues from the overview stored for the commit
+where there is one. For the audit it reads the product's `docs/process.md` and `docs/gates/`
 at the release's commit, and the instance's `SPEC.md`, whose requirements are the process requirements. Through the
 instance's host that the frame gives every route, it also reads the instance's process models at the commit that this
 `docs/process.md` names (`model_version`), for the model the product had declared at the release (UC-031 6a).
@@ -161,11 +165,14 @@ log, the link reads *no longer available*, and the mark keeps its outcome (UC-02
   run's log (UC-029 5b).
 - MOD-documents.artifactSchemas, MOD-documents.readDocument, MOD-spec-document.parseSpec, MOD-group-document.parseGroupFile,
   MOD-group-document.hierarchy, MOD-test-document.testDeclarations — the artifacts of the version.
-- MOD-trace-graph.traceGraph, MOD-trace-graph.tracesTo, MOD-trace-graph.coverageGaps, MOD-trace-graph.compareGraphs,
+- MOD-trace-graph.storedGraph, MOD-trace-graph.tracesTo, MOD-trace-graph.coverageGaps, MOD-trace-graph.compareGraphs,
   MOD-trace-graph.moduleRows, MOD-trace-graph.graphFindings — the rows, gaps, unknown names and comparisons.
 - MOD-approvals.statuses — the review status of use cases and architecture files.
 - MOD-spec-changes.queues, MOD-spec-changes.entryView, MOD-spec-changes.requirementHistory — open proposals, what each
   open entry changes, withdraws or adds (its `impact`), and a requirement's history.
+- MOD-progress-measures.storedOverview — the change queues with an entry not in the SPEC yet, as the workflow stored them
+  for the version's commit, of which the specification lists those waiting for acceptance without reading every queue;
+  where no overview is stored, `queues` reads them all.
 - MOD-source-register.sourceSchemas, MOD-source-register.linkedVersion — a requirement's sources with version and part;
   MOD-source-register.affectedRequirements — the requirements marked *source changed*;
   MOD-source-register.personSource, MOD-source-register.personAccount — the person's own source, which the subject of a

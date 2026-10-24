@@ -21,7 +21,8 @@ import { artifactSchemas, readDocument } from "../documents/index.mjs";
 import { statuses } from "../approvals/index.mjs";
 import { entryView, queues } from "../spec-changes/index.mjs";
 import { affectedRequirements, linkedVersion, sourceSchemas } from "../source-register/index.mjs";
-import { coverageGaps, moduleRows, traceGraph, tracesTo } from "../trace-graph/index.mjs";
+import { coverageGaps, moduleRows, storedGraph, tracesTo } from "../trace-graph/index.mjs";
+import { storedOverview } from "../progress-measures/index.mjs";
 import { explain, readProblem } from "../site-frame/index.mjs";
 import { componentDiagram } from "./diagram.mjs";
 import { descriptorFor } from "./views.mjs";
@@ -109,7 +110,7 @@ const listOf = (items) => el("ul", "trace-list", ...items.map((item) => el("li",
 const graphsOf = new WeakMap();
 function graphKept(shown) {
   const { snapshot, context } = shown;
-  const make = () => traceGraph(snapshot, { commit: snapshot.commit ?? null });
+  const make = () => storedGraph(snapshot, snapshot.commit ?? null);
   if (typeof snapshot.commit !== "string") return kept(make);
   const holder = context.store ?? context.product.host;
   const graphs = graphsOf.get(holder) ?? graphsOf.set(holder, new Map()).get(holder);
@@ -236,11 +237,11 @@ async function sourceChanged(shown) {
   return new Set([...movedAt].filter(([name, date]) => Date.parse(date) > Date.parse(changed.get(name))).map(([name]) => name));
 }
 
-// Marks the rows of the requirements `sourceChanged` names, once the page is drawn; a history that cannot be read is said in a line, and marks nothing.
-async function markSourceChanged(shown) {
+// Marks the rows of the requirements `sourceChanged` names — asked already where `asked` is given —, once the page is drawn; a history that cannot be read is said in a line, and marks nothing.
+async function markSourceChanged(shown, asked = null) {
   let names;
   try {
-    names = await sourceChanged(shown);
+    names = await (asked ?? sourceChanged(shown));
   } catch (failure) {
     shown.target.querySelector?.(".current-requirements, .specification-page")?.append(failedRead("traces-problem", "Whether a source moved on", failure, shown.context));
     return;
@@ -321,9 +322,10 @@ async function showGaps(box, shown) {
     ...(spec.requirements.size ? [el("h3", null, "Matrix"), matrixOf(graph, spec)] : []));
 }
 
-// An anchor to a route of the review pages, in the address form the frame reads: the route, then its parts as key=value, each encoded.
+// An anchor to a route of the review pages, in the address form the frame reads: the route, then its parts as key=value, each encoded. It is a
+// plain link, as the review pages draw a link to another page; a button is what acts on the page shown.
 function reviewLink(className, text, route, params) {
-  const anchor = el("a", `${className} btn small`, text);
+  const anchor = el("a", className, text);
   const parts = Object.entries(params).map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
   anchor.setAttribute("href", parts.length ? `#${route}/${parts.join("/")}` : `#${route}`);
   return anchor;
@@ -517,29 +519,26 @@ function addLinks(spec) {
   return items.length ? el("ul", "spec-add-requirements", ...items) : null;
 }
 
-// The group file at the version drawn, set against the items it arranges: the requirements of the SPEC and those an open entry would add. `status` names what an
+// The group file at the version drawn (its text, `groupText`, read beside the SPEC), set against the items it arranges: the requirements of the SPEC and those an open entry would add. `status` names what an
 // open entry would do to a requirement of the SPEC (the first entry that names it); `added` the names an entry would add.
-async function arrangement(snapshot, spec, waiting) {
+async function arrangement(snapshot, spec, waiting, groupText) {
   const status = new Map();
   const added = new Set();
   // The rationales the impact lists read are named to Snapshot.readMany first, in one batch; a host that cannot batch reads nothing ahead.
   const rationales = waiting.map(({ entry }) => entry.rationale).filter(Boolean);
   if (rationales.length) await snapshot.readMany?.(rationales);
-  for (const { queue, entry } of waiting) {
-    let impact;
-    try {
-      impact = (await entryView(queue.folder, entry.number, snapshot)).impact;
-    } catch {
-      continue;
-    }
-    for (const { name, change } of impact) {
+  // The entries' views are read at once; their impacts are then taken in the order of the entries, so that the first entry naming a requirement gives its status.
+  const views = await Promise.all(waiting.map(({ queue, entry }) => entryView(queue.folder, entry.number, snapshot).catch(() => null)));
+  for (const view of views) {
+    if (view === null) continue;
+    for (const { name, change } of view.impact) {
       if (change === "added") {
         if (!spec.requirements.has(name)) added.add(name);
       } else if (spec.requirements.has(name) && !status.has(name)) status.set(name, change === "withdrawn" ? "removal proposed" : "change proposed");
     }
   }
   const items = [...spec.requirements.keys(), ...added];
-  const { tree } = hierarchy(parseGroupFile(GROUP_PATH, (await snapshot.read(GROUP_PATH)) ?? ""), items);
+  const { tree } = hierarchy(parseGroupFile(GROUP_PATH, groupText ?? ""), items);
   return { spec, tree, status, added, counts: [], rowNodes: [], tables: [], groupNodes: [], unrealised: null };
 }
 
@@ -560,12 +559,14 @@ async function countUnrealised(shown, arranged) {
 }
 
 // The entries of the change queues that wait for acceptance — open, stale, or waiting for the anchor another entry creates — each as a link to its page
-// in the review pages, by the identifier `spec-<queue folder>-<NN>` MOD-review-pages addresses an entry by. A queue that cannot be read gives none.
+// in the review pages, by the identifier `spec-<queue folder>-<NN>` MOD-review-pages addresses an entry by. The queues are those the overview stored for the
+// commit holds (MOD-progress-measures' storedOverview: every queue with an entry not in the SPEC yet), so that no queue file is read; where none is stored,
+// every queue of the snapshot is read (MOD-spec-changes' queues). A queue that cannot be read gives none.
 async function waitingEntries(snapshot) {
   if (!snapshot.paths.some((path) => path.startsWith("docs/spec-freigaben/"))) return [];
   let all;
   try {
-    all = await queues(snapshot);
+    all = (await storedOverview(snapshot).catch(() => null))?.queues ?? await queues(snapshot);
   } catch {
     return [];
   }
@@ -629,7 +630,7 @@ function versionChoice({ shown, handed, current, tags, tagsFailure, choose, othe
   select.addEventListener("change", () => choose(select.value));
   const choice = el("div", "version-bar", el("label", null, "Version ", select));
   if (other) {
-    const across = el("a", `${other.className} btn small`, other.text);
+    const across = el("a", other.className, other.text);
     across.setAttribute("href", fragment("trace", { key: other.key, ref: shown.ref }));
     choice.append(across);
   }
@@ -785,25 +786,43 @@ export const route = {
       return;
     }
     const handed = params.ref;
-    const { names: tags, failure: tagsFailure } = await tagsOf(host);
+    // The tags are asked once, beside the first version's snapshot and the default branch: none of the three waits for another.
+    const tagsRead = tagsOf(host);
     let current = false;
     let latest = 0;
 
     // Draws the SPEC at `ref` under the choice; of two choices made in a row, the later one is what stays. A ref chosen later that cannot be
-    // read is named in place of the tree; the handed one is the caller's.
+    // read is named in place of the tree; the handed one is the caller's. What the page reads that does not wait for another read is asked at once:
+    // the snapshot, the default branch and the tags; then the SPEC, the person's source, the entries waiting, the group file and the stored graph.
     const draw = async (ref, chosen) => {
       const mine = ++latest;
-      const shown = { target, ref, onDefaultBranch: false, spec: null, source: null, requirements: [], groups: [], context, snapshot: null, facts: null, tags };
+      const shown = { target, ref, onDefaultBranch: false, spec: null, source: null, requirements: [], groups: [], context, snapshot: null, facts: null, tags: [] };
       drawn.set(context, shown);
       let body;
+      let waiting = null;
       let fill = null;
+      let tags = [], tagsFailure = null;
       try {
+        const defaultRead = onDefaultBranch(host, ref);
         const snapshot = await host.readSnapshot(ref);
         shown.snapshot = snapshot;
-        const text = await snapshot.read(SPEC_PATH);
-        shown.onDefaultBranch = await onDefaultBranch(host, ref);
+        const specification = descriptor.key !== "gaps" && descriptor.key !== "tests";
+        // The graph of the version counts the requirements no use case realises in each group: it is asked now, and its one read is shared with the impact lists.
+        if (specification && snapshot.paths.includes(GROUP_PATH)) factsOf(shown).graph().catch(() => {});
+        const specRead = snapshot.read(SPEC_PATH);
+        const groupRead = specification ? snapshot.read(GROUP_PATH) : null;
+        groupRead?.catch(() => {});
+        const [text, isDefault, told] = await Promise.all([specRead, defaultRead, tagsRead]);
+        ({ names: tags, failure: tagsFailure } = told);
+        shown.tags = tags;
+        shown.onDefaultBranch = isDefault;
         shown.spec = parseSpec(text ?? "");
         shown.specText = text ?? "";
+        const editable = specification && isDefault;
+        // Whether a source moved on is asked now, beside the entries and the arrangement; its rows are marked once the page is drawn.
+        const moved = specification ? sourceChanged(shown) : null;
+        moved?.catch(() => {});
+        const [source, open, groupText] = await Promise.all([editable ? personsSource(context, snapshot) : null, editable ? waitingEntries(snapshot) : [], groupRead]);
         if (descriptor.key === "gaps") {
           const place = el("div", "gaps-body", el("p", "traces-reading", "Reading the gaps…"));
           body = el("section", "gaps head", el("h2", null, descriptor.title), place);
@@ -813,23 +832,24 @@ export const route = {
           body = el("section", "tests head", el("h2", null, descriptor.title), place);
           fill = () => showTests(place, shown, params);
         } else {
-          if (shown.onDefaultBranch) shown.source = await personsSource(context, snapshot);
-          const open = shown.onDefaultBranch ? await waitingEntries(snapshot) : [];
-          const waiting = waitingSection(open);
-          const arranged = await arrangement(snapshot, shown.spec, open);
+          if (editable) shown.source = source;
+          waiting = waitingSection(open);
+          const arranged = await arrangement(snapshot, shown.spec, open, groupText);
           const adding = shown.onDefaultBranch ? addLinks(shown.spec) : null;
           body = shown.onDefaultBranch
-            ? el("div", "specification-page", ...(waiting ? [waiting] : []), overview(arranged, true, shown, descriptor, params), ...(adding ? [adding] : []), specChangeLinks())
+            ? el("div", "specification-page", overview(arranged, true, shown, descriptor, params), ...(adding ? [adding] : []), specChangeLinks())
             : overview(arranged, false, shown, descriptor, params);
-          fill = () => Promise.all([markSourceChanged(shown), countUnrealised(shown, arranged)]);
+          fill = () => Promise.all([markSourceChanged(shown, moved), countUnrealised(shown, arranged)]);
         }
       } catch (error) {
         if (!chosen) throw error;
+        ({ names: tags, failure: tagsFailure } = await tagsRead);
         body = failedRead("version-problem", ref, error, context);
       }
       if (mine !== latest) return;
       if (!chosen) current = shown.onDefaultBranch;
-      target.replaceChildren(versionChoice({ shown, handed, current, tags, tagsFailure, choose: (next) => draw(next, true), other: OTHER[descriptor.key] }), body);
+      // The SPEC changes waiting for acceptance stand first, above the version choice, the narrowing and the tree.
+      target.replaceChildren(...(waiting ? [waiting] : []), versionChoice({ shown, handed, current, tags, tagsFailure, choose: (next) => draw(next, true), other: OTHER[descriptor.key] }), body);
       if (fill) await fill();
     };
     await draw(handed, false);

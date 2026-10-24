@@ -1,0 +1,76 @@
+# Agent M's job workflow for this product, written by Agent M (docs/architecture/MOD-runtimes.md). It runs an entry of Agent M's
+# workflow entries for each event below, from a checkout of the instance at the commit named in each job. The secrets are named
+# here and never valued; they are set on the repository's secrets page.
+name: agent-m-jobs
+
+on:
+  push:
+    paths:
+      - "docs/jobs/**"
+      - "docs/gates/**"
+  pull_request:
+    types: [closed]
+  check_run:
+    types: [completed]
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+    inputs:
+      job:
+        description: "The identifier of the job to start"
+        required: true
+      task:
+        description: "The task a conversation handed over, in the participant's words; given to the job and written to no file"
+        required: false
+      endpoint:
+        description: "The kind, address and model of a model endpoint, as JSON text"
+        required: false
+      secret:
+        description: "The name of the CI secret that holds the key of that endpoint, a name this file reads below; never the key"
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  hosted:
+    name: Agent M jobs on hosted
+    runs-on: ubuntu-latest
+    env:
+      AGENT_M_RUNNER: "hosted"
+      AGENT_M_PRODUCT_DIR: ${{ github.workspace }}/product
+      AGENT_M_TOKEN_NAME: "AGENT_M_TOKEN"
+      AGENT_M_KEY_NAMES: "NVIDIA_API_KEY"
+      AGENT_M_TOKEN: ${{ secrets.AGENT_M_TOKEN }}
+      NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.AGENT_M_TOKEN }}
+          path: product
+      - uses: actions/checkout@v4
+        with:
+          repository: akmaier/agent-m
+          ref: 35f3485dac0f1ebfa3c4093918bf34f965ba3e7d
+          token: ${{ secrets.AGENT_M_TOKEN }}
+          path: instance
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - if: github.event_name == 'workflow_dispatch' && inputs.endpoint != ''
+        run: npm install --global opencode-ai@1.19.0
+      - if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        working-directory: instance
+        run: node src/workflow-entries/main.mjs onRecordsChanged
+      - if: github.event_name == 'pull_request'
+        working-directory: instance
+        run: node src/workflow-entries/main.mjs onPullRequestClosed
+      - if: github.event_name == 'check_run'
+        working-directory: instance
+        run: node src/workflow-entries/main.mjs onCheckCompleted
+      - if: github.event_name == 'schedule'
+        working-directory: instance
+        run: node src/workflow-entries/main.mjs onSchedule
+      - if: github.event_name == 'workflow_dispatch'
+        working-directory: instance
+        run: node src/workflow-entries/main.mjs onDispatch

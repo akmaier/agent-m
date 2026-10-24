@@ -12,7 +12,7 @@ import { renderArtifact } from "../markdown-render/index.mjs";
 import { parseSpec, renamedRequirements, requirementFindings, sectionText } from "../spec-document/index.mjs";
 import { proposeSection, queues } from "../spec-changes/index.mjs";
 import { blobSha } from "../text-tools/index.mjs";
-import { requirementImpact, traceGraph } from "../trace-graph/index.mjs";
+import { requirementImpact, storedGraph } from "../trace-graph/index.mjs";
 import { explain, readProblem } from "../site-frame/index.mjs";
 import { el, link, openEditor, parseServer, tokenStep } from "./common.mjs";
 import { fallbackPages } from "./file-edit.mjs";
@@ -53,7 +53,7 @@ export async function showEdit(where, kind, params) {
   }
   let graph, all;
   try {
-    graph = await traceGraph(snapshot, { commit: snapshot.commit });
+    graph = await storedGraph(snapshot, snapshot.commit);
     all = await queues(snapshot);
   } catch (failure) {
     target.append(readProblem(failure, Boolean(token)));

@@ -164,6 +164,9 @@ export function currentStage(shares) {
 
 // ---------------------------------------------------------------- the build
 
+// The states of the plan's steps or items in progress that a job of `rows` (the job rows by identifier) works on, in the plan's order.
+const buildStates = (facts, rows) => facts.plan.states.filter((state) => state.state === "in progress" && rows.has(state.job));
+
 /**
  * buildInProgress(facts) -> Array<{ item, job, participant, state, elapsed, reachable }> — the steps or items in progress that a job
  * works on, in the plan's order: the job's participant, its state as its record and the live state give it, its elapsed time in
@@ -172,7 +175,7 @@ export function currentStage(shares) {
  */
 export function buildInProgress(facts) {
   const rows = new Map(facts.jobs.map((row) => [row.record.id, row]));
-  return facts.plan.states.filter((state) => state.state === "in progress" && rows.has(state.job)).map((state) => {
+  return buildStates(facts, rows).map((state) => {
     const row = rows.get(state.job);
     return { item: state.item, job: state.job, participant: row.record.participant, state: row.state, elapsed: row.elapsed,
       reachable: row.source.reachable };
@@ -243,10 +246,27 @@ export async function waitingForAcceptance(host, snapshot) {
 // The branch that holds the overviews, one `<commit>.json` for each commit of the default branch (MOD-progress-measures, Data).
 const OVERVIEW_BRANCH = "overview-cache";
 
+// The name of the declared model a card names, or null where none was read.
+const modelName = (facts) => (typeof facts.model?.name === "string" ? facts.model.name : null);
+
+// The build as the overview holds it: the states of the steps or items in progress that a job works on — as buildInProgress takes them, derived at the commit with every pull
+// request — and the records of those jobs as the commit holds them, { path, text }. The main page derives the build's rows from them with the live states of those jobs alone.
+async function storedBuild(snapshot, facts) {
+  const rows = new Map(facts.jobs.map((row) => [row.record.id, row]));
+  const states = buildStates(facts, rows);
+  const paths = [...new Set(states.map((state) => rows.get(state.job).record.path))];
+  return { states, records: await Promise.all(paths.map(async (path) => ({ path, text: (await snapshot.read(path)) ?? "" }))) };
+}
+
+// The change queues the overview holds: those with an entry that is not in the SPEC yet, as MOD-spec-changes' queues gives them — what the specification page lists as waiting and
+// reads ahead, without reading every queue of the repository.
+const undecidedQueues = (facts) => (Array.isArray(facts.queues) ? facts.queues : []).filter((queue) => queue.entries.some((entry) => entry.state !== "in SPEC"));
+
 /**
  * publishOverview(host, snapshot, facts) -> Promise<{ commit: string, written: boolean }> — adds `<commit>.json` and `<commit>.facts.json` to the branch `overview-cache` by commitFiles, in one commit on the head
- * it read: the stage shares and what waits for a person from `facts`, and the facts the commit's files alone give (stored.mjs), `facts` being read with the scope `all` at the snapshot's commit. A file the branch holds
- * already is left as it is, and the other is added; `written` is false when the branch holds both. Crosses the network; fails as commitFiles fails, and with the host's NotFound where the repository has no such branch.
+ * it read: the stage shares, what waits for a person, the declared model's name, the build (storedBuild) and the change queues with an entry not in the SPEC yet from `facts`, and the facts the commit's files
+ * alone give (stored.mjs), `facts` being read with the scope `all` at the snapshot's commit. A file the branch holds already is left as it is, and the other is added; `written` is false when the branch holds
+ * both. Crosses the network; fails as commitFiles fails, and with the host's NotFound where the repository has no such branch.
  * @param {object} host MOD-repository-hosts' Host @param {object} snapshot the product's snapshot @param {object} facts
  */
 export async function publishOverview(host, snapshot, facts) {
@@ -255,22 +275,61 @@ export async function publishOverview(host, snapshot, facts) {
   const branch = await host.readSnapshot(OVERVIEW_BRANCH);
   const files = [];
   if (!branch.paths.includes(`${commit}.json`)) {
-    const overview = { commit, shares: await stageShares(facts), waiting: waitingForAPerson(facts) };
+    const overview = { commit, shares: await stageShares(facts), waiting: waitingForAPerson(facts), model: modelName(facts), build: await storedBuild(snapshot, facts),
+      queues: undecidedQueues(facts) };
     files.push({ path: `${commit}.json`, text: `${JSON.stringify(overview)}
 ` });
   }
   if (!branch.paths.includes(factsPath(commit))) files.push({ path: factsPath(commit), text: await factsText(snapshot, facts) });
+  // latest.json names the commit of the overview stored last, which a page shows while its head's own is not stored yet (latestOverview).
+  if (files.length > 0) files.push({ path: LATEST, text: `${JSON.stringify({ commit })}\n` });
   if (files.length === 0) return { commit, written: false };
   await host.commitFiles({ branch: OVERVIEW_BRANCH, expectedHead: branch.commit ?? null, message: `Overview of ${commit}`, files });
   return { commit, written: true };
 }
 
+// The overviews read in this page, by the snapshot they were read for: a commit's overview does not change once it is stored, so the overview of one snapshot is read once
+// however many views ask for it. One that is missing or failed is not kept, and is read again at the next call.
+const OVERVIEWS = new WeakMap();
+
+const isFile = (value) => value !== null && typeof value === "object" && typeof value.path === "string" && typeof value.text === "string";
+
 /**
- * storedOverview(snapshot) -> Promise<{ shares, waiting } | null> — the overview stored for the snapshot's commit, read with the snapshot's
- * readOn in one request; null where the branch or the file is missing or holds another format (not JSON, another shape, another commit).
+ * storedOverview(snapshot) -> Promise<{ shares, waiting, model, build: { states, records }, queues } | null> — the overview stored for the snapshot's commit, read with the
+ * snapshot's readOn in one request, once for each snapshot; null where the branch or the file is missing or holds another format (not JSON, another shape, another commit, or an
+ * overview without the model, the build and the queues).
  * @param {object} snapshot
  */
-export async function storedOverview(snapshot) {
+export function storedOverview(snapshot) {
+  if (snapshot === null || typeof snapshot !== "object") return Promise.resolve(null);
+  if (!OVERVIEWS.has(snapshot)) {
+    const reading = readOverview(snapshot);
+    OVERVIEWS.set(snapshot, reading);
+    reading.then((held) => { if (held === null) OVERVIEWS.delete(snapshot); }, () => OVERVIEWS.delete(snapshot));
+  }
+  return OVERVIEWS.get(snapshot);
+}
+
+const LATEST = "latest.json";
+
+/**
+ * latestOverview(snapshot) -> Promise<{ commit, shares, waiting, model, build, queues } | null> — the overview stored last on the branch, whichever commit it is of, as the file
+ * latest.json names it: what a page shows while the overview of its head is not stored yet, never deriving one itself. Null where the branch, `latest` or that overview is missing.
+ * @param {object} snapshot
+ */
+export async function latestOverview(snapshot) {
+  if (typeof snapshot?.readOn !== "function") return null;
+  let named;
+  try { named = await snapshot.readOn(OVERVIEW_BRANCH, LATEST); } catch (error) { if (error?.name === "NotFound") return null; throw error; }
+  let commit = "";
+  try { commit = typeof named === "string" ? String(JSON.parse(named)?.commit ?? "") : ""; } catch { return null; }
+  if (!/^[0-9a-f]{40}$/.test(commit)) return null;
+  const held = await readOverview({ readOn: snapshot.readOn, commit });
+  return held && { commit, ...held };
+}
+
+async function readOverview(snapshot) {
+  if (typeof snapshot.readOn !== "function" || typeof snapshot.commit !== "string") return null;
   let text;
   try {
     text = await snapshot.readOn(OVERVIEW_BRANCH, `${snapshot.commit}.json`);
@@ -282,5 +341,8 @@ export async function storedOverview(snapshot) {
   let held;
   try { held = JSON.parse(text); } catch { return null; }
   if (held === null || typeof held !== "object" || held.commit !== snapshot.commit || !Array.isArray(held.shares) || !Array.isArray(held.waiting)) return null;
-  return { shares: held.shares, waiting: held.waiting };
+  const { build } = held;
+  if (!(held.model === null || typeof held.model === "string") || !Array.isArray(build?.states) || !Array.isArray(build?.records) || !build.records.every(isFile)
+    || !Array.isArray(held.queues)) return null;
+  return { shares: held.shares, waiting: held.waiting, model: held.model, build: { states: build.states, records: build.records }, queues: held.queues };
 }

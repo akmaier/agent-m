@@ -18,6 +18,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import * as stored from "../src/trace-graph/index.mjs";
 import { traceGraph } from "../src/trace-graph/index.mjs";
+import { gzipSync } from "node:zlib";
 
 const COMMIT = "abcdef00abcdef00abcdef00abcdef00abcdef00";
 const OTHER = "99999999999999999999999999999999999999ff";
@@ -96,4 +97,26 @@ test("without a usable stored graph, traceGraph builds the graph from the files 
   assert.equal(calls.readOn.length, 0);
   assert.equal(withoutCommit.commit, null);
   assert.equal(withoutCommit.nodes.size, graph.nodes.size);
+});
+
+// TST-907104 · level: unit · module: MOD-trace-graph
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: the graph built from the small repository, stored gzipped as `<commit>.json.gz` on trace-cache for a commit no other test of this file names; two sources of that commit, as two views of one page hold them, whose readOn answer those bytes; and, for the counter-proof, a source of a third commit whose readOn answers null at first and the bytes from its second call on
+// input: storedGraph(first source, commit) and storedGraph(second source, commit) asked at once, then storedGraph(first source, commit) once more; storedGraph(third source, its commit) twice in a row
+// expect: the three calls of the commit give the stored graph (deeply equal to the built one, known positive that it was read) and the two sources' readOn are called once in all, with ("trace-cache", "<commit>.json.gz"); the third commit's first call rejects with GraphNotStored and its second reads again (readOn called twice) and gives the graph — a graph not stored is not kept
+test("storedGraph reads the graph of a commit once however many callers ask, and reads again a graph that was not stored", async () => {
+  const graph = await built();
+  const once = "0123456789abcdef0123456789abcdef01234567", later = "fedcba9876543210fedcba9876543210fedcba98";
+  const bytesOf = (commit) => new Uint8Array(gzipSync(stored.graphText({ ...graph, commit })));
+  const first = source({ readOn: () => bytesOf(once) }), second = source({ readOn: () => bytesOf(once) });
+  const [a, b] = await Promise.all([stored.storedGraph(first.source, once), stored.storedGraph(second.source, once)]);
+  const c = await stored.storedGraph(first.source, once);
+  for (const each of [a, b, c]) assert.deepEqual(each, { ...graph, commit: once });
+  assert.deepEqual([...first.calls.readOn, ...second.calls.readOn], [["trace-cache", `${once}.json.gz`]]);
+
+  let asked = 0;
+  const third = source({ readOn: () => (++asked === 1 ? null : bytesOf(later)) });
+  await assert.rejects(stored.storedGraph(third.source, later), { name: "GraphNotStored" });
+  assert.deepEqual(await stored.storedGraph(third.source, later), { ...graph, commit: later });
+  assert.equal(third.calls.readOn.length, 2);
 });

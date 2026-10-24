@@ -23,7 +23,7 @@
 import { loadSchema, readDocument, writeDocument } from "../documents/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
 import { testDeclarations } from "../test-document/index.mjs";
-import { traceGraph, tracesTo } from "../trace-graph/index.mjs";
+import { storedGraph, tracesTo } from "../trace-graph/index.mjs";
 import { resultsAt, rateComparison } from "../result-records/index.mjs";
 import { approvalSchema } from "../approvals/index.mjs";
 import { listJobs, recordsNewestFirst } from "../job-ledger/index.mjs";
@@ -91,7 +91,7 @@ const candidateDocumentSchema = loadSchema(CANDIDATE_DOCUMENT_SCHEMA_TEXT, OWNER
 
 // A test file, by MOD-trace-graph's own selection (src/trace-graph/build.mjs): under a folder named test, tests or
 // __tests__, or named as tests are in their language. Duplicated here, minimally, since build.mjs is private to
-// MOD-trace-graph and only traceGraph and tracesTo are its interface.
+// MOD-trace-graph and only storedGraph and tracesTo are its interface.
 const TEST_FOLDERS = new Set(["test", "tests", "__tests__"]);
 const TEST_NAME = /^test_[^/]+$|_test\.[A-Za-z0-9]+$|\.(?:test|spec)\.[A-Za-z0-9]+$/;
 function isTestPath(path) {
@@ -185,7 +185,7 @@ export async function lastReleaseCommit(at, currentVersion) {
 async function requirementsRows(at, candidateCommit, declarations, testEntries) {
   const specText = await at.read("SPEC.md");
   const spec = parseSpec(specText ?? "");
-  const graph = await traceGraph(at, { commit: candidateCommit });
+  const graph = await storedGraph(at, candidateCommit);
   const rows = [];
   for (const name of spec.requirements.keys()) {
     const traces = tracesTo(graph, name);

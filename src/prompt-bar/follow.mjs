@@ -14,6 +14,17 @@ import { listJobs } from "../job-ledger/index.mjs";
 import { cancelJob, jobLog, liveState } from "../runtimes/index.mjs";
 import { defaultSnapshot } from "./send.mjs";
 
+/**
+ * answerIn(log: string | null, id: string) -> string | null — the answer a run on CI left in its log for the job `id` (MOD-workflow-entries: between the lines
+ * `--- answer of <id> ---` and `--- end of the answer of <id> ---`), each line without the time stamp the server puts before it; null where the log holds none.
+ */
+export function answerIn(log, id) {
+  const lines = String(log ?? "").split("\n").map((line) => line.replace(/^\d{4}-\d\d-\d\dT[\d:.]+Z /, "").replace(/\r$/, ""));
+  const from = lines.indexOf(`--- answer of ${id} ---`);
+  const to = lines.indexOf(`--- end of the answer of ${id} ---`, from + 1);
+  return from === -1 || to === -1 ? null : lines.slice(from + 1, to).join("\n");
+}
+
 /** EVERY — the time between two polls of a followed job, in milliseconds. */
 export const EVERY = 15000;
 
@@ -35,13 +46,13 @@ function bridgesOf(record, store) {
  * followJob({ id, address, host, store, show }) -> { stop: () => void, cancel: () => Promise<void> } — polls the job `id` of the repository at `address` through `host`, once at once and then
  * every 15 seconds until its record has its end, and hands `show` the view after each poll and each line of a Bridge's log: { id, state, route, address, lines, end, cancel, problem } —
  * `state` the job's state as listJobs derives it; `route` the record's route; `address` the CI run's address once jobLog gives it; `lines` the Bridge's log so far; `end` the record's end
- * (state, results, reason) or null; `cancel` `cancelled` or `cancelling` after cancel; `problem` what could not be read, by name. A failure of a poll is shown, never thrown, and polling goes on.
+ * (state, results, reason) or null; `answer` the answer a hand-over's run on CI left in its log (answerIn), read once when its end is read, else null; `cancel` `cancelled` or `cancelling` after cancel; `problem` what could not be read, by name. A failure of a poll is shown, never thrown, and polling goes on.
  * `cancel` cancels the job at its runtime with cancelJob and polls again at once. `stop` ends the polling.
  */
 export function followJob({ id, address, host, store, show }) {
   const path = `docs/jobs/${id}.md`;
-  const view = { id, state: null, route: null, address: null, missingSecret: null, lines: [], end: null, cancel: null, problem: null };
-  let record = null, timer = null, stopped = false, busy = false, streaming = false;
+  const view = { id, state: null, route: null, address: null, missingSecret: null, lines: [], end: null, answer: null, cancel: null, problem: null };
+  let record = null, timer = null, stopped = false, busy = false, streaming = false, answerRead = false;
 
   const emit = () => { if (!stopped) show({ ...view, lines: [...view.lines] }); };
 
@@ -76,6 +87,13 @@ export function followJob({ id, address, host, store, show }) {
     return /: not run — (\S+) is missing/.exec(log ?? "")?.[1] ?? null;
   }
 
+  // The answer of a job ended on CI, read once from the log of the run its end names: the run among the job workflow's runs whose address that is.
+  async function answerOf() {
+    answerRead = true;
+    const run = (await host.listCiRuns({ workflow: "agent-m-jobs.yml" })).find((each) => each.url === record.end.log);
+    return run ? answerIn(await host.ciRunLog(run.id), id) : null;
+  }
+
   async function poll() {
     if (busy || stopped) return;
     busy = true;
@@ -102,6 +120,9 @@ export function followJob({ id, address, host, store, show }) {
       view.problem = live && !live.reachable ? `The runtime is not reachable: ${live.reason}` : !row.source.reachable ? `The record could not be read: ${row.source.reason}` : null;
       if (record.end && view.address === null && typeof record.end.log === "string") view.address = record.end.log;
       if (!record.end && !record.taken && record.route.startsWith("ci ")) view.missingSecret = await secretOf().catch(() => null);
+      if (record.end && !answerRead && record.task === "with the hand-over" && record.route.startsWith("ci ") && typeof record.end.log === "string") {
+        view.answer = await answerOf().catch((failure) => { view.problem = `The answer could not be read from the run's log. ${said(failure)}`; return null; });
+      }
       if (!live || live.reachable) await logOf(bridges); // a runtime that has just not answered is not asked again for the log
     } catch (failure) {
       view.problem = `The job could not be followed. ${said(failure)}`;

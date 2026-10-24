@@ -16,16 +16,19 @@ import { readTabValue, writeTabValue } from "../browser-store/index.mjs";
 import { renderArtifact } from "../markdown-render/index.mjs";
 import { eligible } from "../participant-list/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
-import { offeredAmong, placeOf, readParticipants } from "./offer.mjs";
+import { endpointsOffered, offeredAmong, placeOf, readParticipants, throughActions } from "./offer.mjs";
 import { followJob } from "./follow.mjs";
-import { assess, queue, worksOnOf } from "./hand-over.mjs";
+import { assess, queue, spawnEndpointJob, worksOnOf } from "./hand-over.mjs";
 import { appendToConversation, conversationPath, recordingOf } from "./record.mjs";
-import { defaultSnapshot, prepareMessage, runMessage, shown, whyNot } from "./send.mjs";
+import { defaultSnapshot, personOf, prepareMessage, runMessage, shown, whyNot } from "./send.mjs";
 
 const CONVERSATION = "prompt-bar:conversation";
 const DRAFT = "prompt-bar:draft";
 const RECORDS = "prompt-bar:records";
 const JOB = "prompt-bar:job";
+
+// The label of the button that sends: *Spawn job* where the message runs through GitHub Actions (offer.mjs throughActions), *Send* otherwise.
+export const SEND = "Send", SPAWN = "Spawn job";
 
 const el = (name, className, ...children) => {
   const node = document.createElement(name);
@@ -107,7 +110,7 @@ export function startPromptBar(target, setup) {
   const conversation = el("ul", "conversation");
   const recorded = el("p", "recording", "This conversation is recorded in the repository of the page it is held on.");
   const input = el("textarea", "instruction");
-  const send = button("send", "Send");
+  const send = button("send", SEND);
   const stop = button("stop", "Stop");
   stop.disabled = true;
   let selector = null;
@@ -168,9 +171,15 @@ export function startPromptBar(target, setup) {
     const ended = view.end === null ? [] : [el("p", "ended", `Ended: ${view.end.state}`),
       ...(view.end.reason ? [el("p", "reason", `Reason: ${view.end.reason}`)] : []),
       ...(view.end.results.length ? [el("ul", "commits", ...view.end.results.map((each) => el("li", "commit", each)))] : [])];
+    const answer = view.answer ? [el("div", "answer", renderArtifact(view.answer, { frontMatter: "hidden" }))] : [];
     followed.replaceChildren(el("h3", null, `Handed over: ${view.id}`), el("p", "state", `State: ${view.state ?? "reading…"}`), ...waiting, ...secret, ...run,
-      ...(view.lines.length ? [el("pre", "log", view.lines.join("\n"))] : []), ...ended, ...(view.cancel ? [el("p", "cancel", view.cancel)] : []),
+      ...(view.lines.length ? [el("pre", "log", view.lines.join("\n"))] : []), ...ended, ...answer, ...(view.cancel ? [el("p", "cancel", view.cancel)] : []),
       ...(view.problem ? [problem(view.problem)] : []));
+    // The run's answer joins the conversation once (UC-049 4a.4).
+    if (view.answer && state.answered !== view.id) {
+      state.answered = view.id;
+      keep([...conversationOf(store), { at: new Date(), from: "participant", who: state.spawnedBy ?? view.id, text: view.answer, subject: setup.subject().key }]);
+    }
   }
 
   function follow(job) {
@@ -275,6 +284,7 @@ export function startPromptBar(target, setup) {
     if (instruction === "") { show(problem("Write a message first.")); return; }
     const participant = await rejudged();
     if (participant === null) { show(problem("Nothing was sent. No participant can do this kind of message.")); return; }
+    if (throughActions(participant, store)) { await onSpawn(participant, instruction); return; }
     const controller = new AbortController();
     state.controller = controller;
     send.disabled = true;
@@ -338,6 +348,59 @@ export function startPromptBar(target, setup) {
     }
   }
 
+  // *Spawn job*: the message is the task of a job that is the endpoint's own, spawned on GitHub Actions (UC-049 4a) — one click, the person's. The task travels in the
+  // workflow's inputs and is written to no file; with recording on, the message is recorded first, as a sent message is. The bar then follows the job until it has
+  // ended and shows the answer its run left (follow.mjs).
+  async function onSpawn(participant, instruction) {
+    if (state.spawning || state.stopped) return;
+    state.spawning = true;
+    send.disabled = true;
+    show(el("p", "spawning", `Spawning a job for ${participant.name} — ${placeOf(participant)} on GitHub Actions…`));
+    try {
+      const subject = setup.subject();
+      const page = pageOf();
+      const instanceSnapshot = await defaultSnapshot(instance.host);
+      const recordingOn = await recordingOf(instanceSnapshot);
+      showRecording(recordingOn);
+      let source;
+      try { source = subject.paramsFor(participant).source; } catch (failure) { show(problem(`Nothing was spawned. ${said(failure)}`)); return; }
+      const who = personOf(store, instanceSnapshot, false) ?? "person";
+      if (recordingOn) await record(page, who, { at: new Date(), who, page: subject.title, text: instruction, withheld: subject.withhold?.(instruction) ?? undefined });
+      const conversationPath = recordingOn ? (readTabValue(store, RECORDS) ?? {})[page.address]?.path ?? null : null;
+      const spawned = await spawnEndpointJob({ kind: subject.kind, task: instruction, participant, store, instance, page, ofProduct: setup.product() !== null,
+        conversation: conversationPath, source });
+      if (spawned.refused) {
+        const parts = [problem(`Nothing was spawned: ${spawned.refused}.`)];
+        if (spawned.needsWorkflow) {
+          const set = button("settings-link", "Set up the job workflow");
+          set.addEventListener("click", () => setup.go("settings"));
+          parts.push(set);
+        }
+        show(...parts);
+        return;
+      }
+      keep([...conversationOf(store), { at: new Date(), from: "person", who, text: instruction, subject: subject.key }]);
+      input.value = "";
+      state.spawnedBy = participant.name;
+      show(el("p", "queued", `Spawned as ${spawned.id} on GitHub Actions.`));
+      keepJob({ id: spawned.id, address: page.address });
+      follow({ id: spawned.id, address: page.address });
+    } catch (failure) {
+      const findings = failure?.name === "NotStartable" && Array.isArray(failure.findings) ? failure.findings : [];
+      show(problem(findings.length > 0 ? "Nothing was spawned." : `Nothing was spawned. ${said(failure)}`),
+        ...(findings.length > 0 ? [el("ul", "reasons", ...findings.map((each) => el("li", "reason", shown(each))))] : []));
+    } finally {
+      state.spawning = false;
+      send.disabled = false;
+    }
+  }
+
+  // The label of the button for the one chosen now: *Spawn job* where it runs through GitHub Actions.
+  const relabel = () => {
+    const label = offered.length > 0 && throughActions(chosen(), store) ? SPAWN : SEND;
+    if (send.textContent !== label) send.replaceChildren(label);
+  };
+
   // The participants reached that can do the kind of the subject now (UC-019 2): `eligible` judges them against the `needs` of the kind's
   // definition. The subject is a getter, so the offer is drawn from it whenever the bar is used: when the bar is drawn, when its input or its
   // selector takes focus, and on *Send*. Where some are reached and none can, the bar says so, names what the kind needs and links the route
@@ -366,8 +429,10 @@ export function startPromptBar(target, setup) {
       }
       selector.value = offered.some((each) => each.name === kept) ? kept : offered[0].name;
       selector.addEventListener("focus", () => judge().catch(() => {}));
+      selector.addEventListener("change", relabel);
     }
     chooser.replaceChildren(selector);
+    relabel();
   }
 
   // The participant a message goes to: the offer is judged again for the subject now, then the chosen one is taken; null where none can.
@@ -379,7 +444,11 @@ export function startPromptBar(target, setup) {
   async function draw() {
     const snapshot = await defaultSnapshot(instance.host);
     instanceWeb = snapshot.repository.web;
-    reached = offeredAmong(await readParticipants(snapshot), store);
+    // This browser's endpoints first (UC-049 1); then the participants of the instance's list this browser reaches, other than an endpoint offered already.
+    const own = endpointsOffered(store);
+    const ownNames = new Set(own.map((each) => each.name));
+    reached = [...own, ...offeredAmong(await readParticipants(snapshot), store)
+      .filter((each) => !ownNames.has(each.name) && !ownNames.has(/^endpoint\s+(\S+)/.exec(each.route ?? "")?.[1]))];
     if (reached.length === 0 || state.stopped) return;
     await judge();
     if (state.stopped) return;
