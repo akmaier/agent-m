@@ -5,16 +5,12 @@
 // and calls startPage. This is where the entry pages register strategies (ARC-038).
 //
 // Module: MOD-site-frame
-// It uses MOD-job-runner (registerStrategies) and MOD-prompt-bar (handOverStrategies) through their index.mjs. A set is registered
-// once per load, however many views or the bar hand it: a set object already registered on this load is skipped. A tab runs this file
-// once; a second evaluation in one process finds its sets registered, and a DuplicateStrategy whose first owner is the owner now
-// registering counts as a set already registered and is skipped. Throws, so that the page shows no frame, when no script tag of the
-// page loads this file, when a view module is not served, and for any other DuplicateStrategy.
+// It registers through register.mjs, each set once per load. Throws, so that the page shows no frame, when no script tag of the
+// page loads this file, when a view module is not served, and for any DuplicateStrategy register.mjs throws.
 
-import { registerStrategies } from "../job-runner/index.mjs";
-import { handOverStrategies } from "../prompt-bar/index.mjs";
 import { startPage } from "./index.mjs";
 import { loadView } from "./routing.mjs";
+import { registerViews } from "./register.mjs";
 
 const withoutQuery = (address) => String(address).split(/[?#]/)[0];
 
@@ -32,24 +28,12 @@ function ownScriptTag() {
 const tag = ownScriptTag();
 const slugsOf = (attribute) => (tag.getAttribute(attribute) ?? "").split(/\s+/).filter(Boolean);
 
-// The sets registered on this load: one set object is registered once, however many hand it.
-const handled = new Set();
-function registerOnce(owner, strategies) {
-  if (handled.has(strategies)) return;
-  try {
-    registerStrategies(owner, strategies);
-  } catch (error) {
-    if (error.name !== "DuplicateStrategy" || error.owners[0] !== owner) throw error;
-  }
-  handled.add(strategies);
-}
-
-const views = [];
+const views = [], slugs = [];
 for (const slug of slugsOf("data-views")) {
   const view = await loadView(slug);
-  for (const strategies of view.strategies ?? []) registerOnce(slug, strategies);
   views.push(view);
+  slugs.push(slug);
 }
-for (const strategies of handOverStrategies) registerOnce("MOD-prompt-bar", strategies);
+registerViews(views.map((view, at) => [slugs[at], view]));
 
 await startPage({ page: tag.getAttribute("data-page"), views });

@@ -73,8 +73,12 @@ It runs in a browser — the instance's pages, and the Bridge's window, which is
 
 - `index.mjs` — the interface.
 - `start.mjs` — the script both entry pages load: it reads the page's setup from its own script tag, loads the named
-  view modules from their folders, registers their strategies and MOD-prompt-bar's `handOverStrategies`, each set once,
-  and calls `startPage`. This is where the entry pages register strategies (ARC-038).
+  view modules from their folders, registers their strategies and MOD-prompt-bar's `handOverStrategies` with
+  `register.mjs`, and calls `startPage`. This is where the entry pages register strategies (ARC-038).
+- `register.mjs` — `registerViews`: every strategy set of a page's views, under its view's slug, and then
+  MOD-prompt-bar's `handOverStrategies` under `MOD-prompt-bar`, each set once per load, at load — so that a job any
+  route prepares, the test job of an endpoint on the Settings page among them, finds every recipe of the page's views.
+  `start.mjs` and the live page's app (`dashboard-app.mjs`) both register with it.
 - `preloads.mjs` — the block of preloads in the `<head>` of each entry page, `index.html` and `docs/index.html`, so that a
   browser asks for every file the page loads as it starts at once, not level by level as it finds the imports: a
   `<link rel="modulepreload">` for each module of the static import closure of the page's module script and of the views its
