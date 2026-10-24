@@ -149,7 +149,8 @@ secrets, and never asks for a value (`A HOSTED JOB AUTHENTICATES ITS AGENT WITH 
 THE PERSON'S TOKEN FROM A CI SECRET`). It is not the product's test configuration, which starts no run for job records
 (`A JOB RECORD STARTS NO CI RUN`), and it does not check the Definition of Done: the test configuration MOD-test-schedule
 generates does, through `onDoneCheck`. Moving a product to a newer commit of the instance is writing the file again, on
-a person's decision.
+a person's decision. A job queued on the CI route records, as the Agent M commit it runs at, the commit the product's file
+pins — the commit the run's checkout of the instance is at —, not the commit the page that queued it was served from.
 
 ## Interfaces
 

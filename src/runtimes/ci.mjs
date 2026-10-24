@@ -43,13 +43,23 @@ export async function commitStart(host, start, head) {
     throw new RuntimeError("WorkflowMissing", { files: [workflow] },
       `${snapshot.repository.path} has no Agent M job workflow yet — add ${workflow}.`);
   }
-  const { path, text } = startRecord(start);
+  // The job runs the instance at the commit the product's job workflow pins (moving it is writing the file again, on a person's decision); the record names
+  // that commit, which the run's checkout of the instance is then at — not the commit the page that queued the job was served from.
+  const pinned = pinnedInstance(await snapshot.read(workflow));
+  const { path, text } = startRecord(pinned ? { ...start, agentM: { ...start.agentM, version: pinned, commit: pinned } } : start);
   const { commit } = await host.commitFiles({
     branch: defaultBranch, expectedHead: head, files: [{ path, text }],
     message: `Queue job ${start.id}: ${start.kind}`,
   });
   // GitHub's dispatch call names a workflow by its file name alone (repository-hosts' github adapter encodes the name into the URL path); GitLab's is left as the path.
   return { path, commit, defaultBranch, workflow: snapshot.repository.server === "github" ? workflow.split("/").pop() : workflow };
+}
+
+// pinnedInstance(text) -> string | null — the instance commit a job workflow file pins: GitHub's checkout of the instance (`ref:` after its `repository:`),
+// GitLab's AGENT_M_COMMIT; null where the file names none.
+function pinnedInstance(text) {
+  const found = /repository:\s*\S+\s*\n\s*ref:\s*([0-9a-f]{40})\b/.exec(text ?? "") ?? /AGENT_M_COMMIT:\s*"?([0-9a-f]{40})\b/.exec(text ?? "");
+  return found ? found[1] : null;
 }
 
 // queueOnCi(host, start, head) -> Promise<{ path, commit }> — MOD-runtimes' queueJob (Interfaces), for the CI route:
