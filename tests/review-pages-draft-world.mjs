@@ -14,6 +14,7 @@ import "./review-pages-harness.mjs";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { withStoredGraph } from "./stored-graph-fake.mjs";
 
 export const { openStore, writeSetting, writeTabValue, readTabValue } = await import("../src/browser-store/index.mjs");
 export const { finding } = await import("../src/text-tools/index.mjs");
@@ -83,19 +84,22 @@ export const PRODUCT_FILES = { "README.md": "# Thesis tool\n", "SPEC.md": SPEC, 
 
 // ---------------------------------------------------------------- the hosts
 
+// Each product's commits are its own: MOD-trace-graph's storedGraph keeps a commit's graph for the page, so two products never share a commit. Every snapshot's
+// readOn serves the graph the push job stores for its commit (tests/stored-graph-fake.mjs), which a page reads and never builds.
+let products = 0;
 export function fakeProduct(files = PRODUCT_FILES, { canWrite = true } = {}) {
-  const calls = [], commits = new Map();
+  const calls = [], commits = new Map(), product = ++products;
   let made = 0, head = null;
   const commitOf = (tree, parent) => {
-    const sha = createHash("sha1").update(`commit ${++made}`).digest("hex");
+    const sha = createHash("sha1").update(`product ${product} commit ${++made}`).digest("hex");
     commits.set(sha, { tree, parent });
     return sha;
   };
   head = commitOf(new Map(Object.entries(files)), null);
   const snapshotAt = (sha, ref) => {
     const { tree } = commits.get(sha);
-    return { repository: GITHUB, ref, commit: sha, paths: [...tree.keys()].sort(), read: async (path) => (tree.has(path) ? tree.get(path) : null),
-      blob: (path) => (tree.has(path) ? blobOf(tree.get(path)) : null) };
+    return withStoredGraph({ repository: GITHUB, ref, commit: sha, paths: [...tree.keys()].sort(), read: async (path) => (tree.has(path) ? tree.get(path) : null),
+      blob: (path) => (tree.has(path) ? blobOf(tree.get(path)) : null) });
   };
   return {
     files: () => Object.fromEntries(commits.get(head).tree), head: () => head,
