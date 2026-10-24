@@ -108,8 +108,7 @@ test("queueJob — the CI route commits the job's start record at its path, on t
 
 // TST-1205001 · level: unit · module: MOD-runtimes
 // guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-049
-// given: a product whose job workflow pins the instance at commit P on GitHub (the checkout's `repository:` and `ref:`), and one on GitLab (AGENT_M_COMMIT);
-// a job's start whose agentM names the commit abc1234 the page was served from
+// given: a product whose job workflow pins the instance at commit P on GitHub (the checkout's `repository:` and `ref:`), and one on GitLab (AGENT_M_COMMIT); a job's start whose agentM names the commit abc1234 the page was served from
 // input: queueJob(host, START, { kind: "ci", runner: "hosted" }, the head read)
 // expect: the start record committed names P as agentM's commit and version — the commit the run's checkout of the instance is at —, everything else as startRecord(START)
 test("queueJob — the CI route's record names the instance commit the product's job workflow pins", async () => {
