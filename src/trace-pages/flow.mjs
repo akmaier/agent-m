@@ -629,7 +629,7 @@ function versionChoice({ shown, handed, current, tags, tagsFailure, choose, othe
   select.addEventListener("change", () => choose(select.value));
   const choice = el("div", "version-bar", el("label", null, "Version ", select));
   if (other) {
-    const across = el("a", `${other.className} btn small`, other.text);
+    const across = el("a", `${other.className} btn`, other.text);
     across.setAttribute("href", fragment("trace", { key: other.key, ref: shown.ref }));
     choice.append(across);
   }
@@ -796,6 +796,7 @@ export const route = {
       const shown = { target, ref, onDefaultBranch: false, spec: null, source: null, requirements: [], groups: [], context, snapshot: null, facts: null, tags };
       drawn.set(context, shown);
       let body;
+      let waiting = null;
       let fill = null;
       try {
         const snapshot = await host.readSnapshot(ref);
@@ -815,11 +816,11 @@ export const route = {
         } else {
           if (shown.onDefaultBranch) shown.source = await personsSource(context, snapshot);
           const open = shown.onDefaultBranch ? await waitingEntries(snapshot) : [];
-          const waiting = waitingSection(open);
+          waiting = waitingSection(open);
           const arranged = await arrangement(snapshot, shown.spec, open);
           const adding = shown.onDefaultBranch ? addLinks(shown.spec) : null;
           body = shown.onDefaultBranch
-            ? el("div", "specification-page", ...(waiting ? [waiting] : []), overview(arranged, true, shown, descriptor, params), ...(adding ? [adding] : []), specChangeLinks())
+            ? el("div", "specification-page", overview(arranged, true, shown, descriptor, params), ...(adding ? [adding] : []), specChangeLinks())
             : overview(arranged, false, shown, descriptor, params);
           fill = () => Promise.all([markSourceChanged(shown), countUnrealised(shown, arranged)]);
         }
@@ -829,7 +830,8 @@ export const route = {
       }
       if (mine !== latest) return;
       if (!chosen) current = shown.onDefaultBranch;
-      target.replaceChildren(versionChoice({ shown, handed, current, tags, tagsFailure, choose: (next) => draw(next, true), other: OTHER[descriptor.key] }), body);
+      // The SPEC changes waiting for acceptance stand first, above the version choice, the narrowing and the tree.
+      target.replaceChildren(...(waiting ? [waiting] : []), versionChoice({ shown, handed, current, tags, tagsFailure, choose: (next) => draw(next, true), other: OTHER[descriptor.key] }), body);
       if (fill) await fill();
     };
     await draw(handed, false);
