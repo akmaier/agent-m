@@ -1,5 +1,6 @@
 // MOD-prompt-bar, offer.mjs — the participants offered and the place each is named with (docs/architecture/MOD-prompt-bar.md: Parts,
-// Interfaces: startPromptBar). The participants are the rows of the instance's docs/participants.md; one is offered when it is a
+// Interfaces: startPromptBar). First this browser's own endpoints that declare a place, a context and a model (endpointsOffered), and whether
+// one runs through GitHub Actions (throughActions); then the rows of the instance's docs/participants.md, of which one is offered when it is a
 // model endpoint, a CLI agent or a sandboxed agent that is reached through no other participant and whose route this browser reaches:
 // an endpoint `endpoint <name>` whose setting `endpoint:<name>` the store keeps — and, where that setting names a Bridge, whose
 // `bridge:<bridge>` the store keeps —, or an agent `bridge <bridge> agent <agent>` whose `bridge:<bridge>` the store keeps (UC-049,
@@ -9,7 +10,7 @@
 //
 // It reads settings of the store and the register of the instance; it writes and sends nothing.
 
-import { readSetting } from "../browser-store/index.mjs";
+import { listSettings, readSetting } from "../browser-store/index.mjs";
 import { readRegister } from "../documents/index.mjs";
 import { participantSchema, participantsOf, reachedThrough } from "../participant-list/index.mjs";
 
@@ -52,3 +53,43 @@ export function offeredAmong(participants, store) {
  * declares none is named as having none, never left unnamed (THE PAGE NAMES WHERE IT SENDS).
  */
 export const placeOf = (participant) => participant.place ?? "no processing place declared";
+
+/**
+ * endpointsOffered(store: Store) -> Participant[] — this browser's model endpoints (`endpoint:<name>`, in the store's order) whose configuration
+ * declares a place, a context and a model, each in MOD-participant-list's Participant shape (MOD-prompt-bar, Interfaces: startPromptBar): the type
+ * *model endpoint*, its model, the capabilities *draft text* and *read the repository*, and *use tools* where its last test found that the model calls
+ * tools, its context and place, and the route `endpoint <name>`, with ` secret <NAME>` where it names the CI secret of its key. One that lacks a place,
+ * a context or a model is not offered (UC-049 1b), nor one named through a Bridge this browser does not keep.
+ */
+export function endpointsOffered(store) {
+  const offered = [];
+  for (const { key } of listSettings(store)) {
+    if (!key.startsWith("endpoint:")) continue;
+    const name = key.slice("endpoint:".length);
+    const setting = readSetting(store, key);
+    if (!setting || typeof setting !== "object") continue;
+    const place = typeof setting.place === "string" ? setting.place.trim() : "";
+    const context = Number(setting.context);
+    const model = typeof setting.model === "string" ? setting.model.trim() : "";
+    if (!place || !model || !Number.isInteger(context) || context <= 0) continue;
+    if (setting.bridge && readSetting(store, `bridge:${setting.bridge}`) === null) continue;
+    const tools = readSetting(store, `last-test:${key}`)?.tools === true;
+    const secret = typeof setting.secret === "string" && /^[A-Za-z_][A-Za-z0-9_]*$/.test(setting.secret) ? setting.secret : null;
+    offered.push({ name, type: "model endpoint", model, context, price: null, place,
+      capabilities: ["draft text", "read the repository", ...(tools ? ["use tools"] : [])],
+      route: `endpoint ${name}${secret ? ` secret ${secret}` : ""}` });
+  }
+  return offered;
+}
+
+/**
+ * throughActions(participant: Participant, store: Store) -> boolean — whether a message to the participant runs through GitHub Actions: a model endpoint of
+ * this browser whose configuration names the CI secret of its key and that keeps neither a key nor a Bridge in this browser, so that the tab cannot call it and its work is
+ * spawned as a job (UC-049 4a); the bar's button then reads *Spawn job*.
+ */
+export function throughActions(participant, store) {
+  const name = /^endpoint\s+(\S+)\s+secret\s+\S+$/.exec(String(participant?.route ?? "").trim())?.[1];
+  if (name === undefined) return false;
+  const setting = readSetting(store, `endpoint:${name}`);
+  return Boolean(setting?.secret) && !setting.key && !setting.bridge;
+}

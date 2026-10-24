@@ -50,7 +50,7 @@ from pathlib import Path
 from test_artifact_format import outside_code
 
 ROOT = Path(__file__).resolve().parents[1]
-VENDOR = ("src/markdown-render/vendor/", "src/mail-routes/vendor/",
+VENDOR = ("src/markdown-render/vendor/", "src/mail-routes/vendor/", "src/repository-hosts/vendor/",
           "src/result-records/vendor/")
 CODE = (".html", ".css", ".mjs", ".js")
 

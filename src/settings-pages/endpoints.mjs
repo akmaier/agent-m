@@ -6,6 +6,7 @@ import { testEndpoint } from "../endpoint-calls/index.mjs";
 import { bridgeAt, probe, settingsOf } from "../bridge-client/index.mjs";
 import { clearSetting, listSettings, readSetting, writeSetting } from "../browser-store/index.mjs";
 import { explain } from "../site-frame/index.mjs";
+import { endpointsOffered, followJob, spawnEndpointJob } from "../prompt-bar/index.mjs";
 
 function el(name, className, ...children) {
   const node = document.createElement(name);
@@ -35,7 +36,9 @@ function endpointKey(name) {
 // participants route presets *use tools* from; left out where the test did not reach the model). The form's Save and test and the
 // line's Test record it alike.
 export function recordTest(store, key, checked) {
-  const lastTest = { at: new Date().toISOString(), outcome: checked.works ? "working" : "refused", ...(checked.works ? { tools: checked.tools === true } : {}) };
+  // `browser` marks a refusal of the browser itself — the endpoint does not accept calls from a web page —, which the Settings page says plainly (UC-003 4a).
+  const browser = !checked.works && Boolean(checked.diagnosis?.routes?.includes("ci") && checked.diagnosis?.routes?.includes("bridge"));
+  const lastTest = { at: new Date().toISOString(), outcome: checked.works ? "working" : "refused", ...(checked.works ? { tools: checked.tools === true } : {}), ...(browser ? { browser: true } : {}) };
   writeSetting(store, `last-test:${key}`, lastTest);
   return lastTest;
 }
@@ -55,6 +58,13 @@ function settingFrom(fields) {
   if (key) value.key = key;
   const bridge = fields.bridge.value.trim();
   if (bridge) value.bridge = bridge;
+  // The place where it processes data, its model's context in tokens and the name of the CI secret that holds its key (UC-003 step 2): the secret by name only.
+  const place = fields.place.value.trim();
+  if (place) value.place = place;
+  const contextSize = Number(fields.context.value.trim());
+  if (Number.isInteger(contextSize) && contextSize > 0) value.context = contextSize;
+  const secret = fields.secret.value.trim();
+  if (secret) value.secret = secret;
   return value;
 }
 
@@ -70,8 +80,8 @@ function endpointConfig(name, setting) {
 
 // showResult(result, checked) — the outcome of a test in the result paragraph: a working endpoint with whether the model called the tool it was
 // offered (UC-003 step 5, 5a) — *can use tools* or *text only*, the endpoint's message, if it gave one, folded beside *text only* —, or the failure.
-function showResult(result, checked) {
-  if (!checked.works) { result.textContent = resultText(checked); return; }
+function showResult(result, checked, baseUrl) {
+  if (!checked.works) { result.textContent = resultText(checked, baseUrl); return; }
   const nodes = [`✓ ${checked.model} is working, ${checked.tools ? "can use tools" : "text only"}.`];
   if (!checked.tools && checked.toolMessage) {
     nodes.push(" ", el("details", "endpoint-tool-message", el("summary", null, "The endpoint's message"), checked.toolMessage));
@@ -79,10 +89,126 @@ function showResult(result, checked) {
   result.replaceChildren(...nodes);
 }
 
-function resultText(result) {
-  const { diagnosis } = result;
+function resultText(result, baseUrl) {
+  return refusedText(result.diagnosis, baseUrl);
+}
+
+/**
+ * refusedText(diagnosis: Diagnosis, baseUrl: string) -> string — a failed test as this page says it (UC-003 4a). An endpoint the browser may not call — a
+ * diagnosis whose routes are GitHub Actions and a Bridge — is said plainly, by its host: `<host> does not accept calls from a web page; run it through GitHub
+ * Actions (CI secret) or a Bridge.`, with the browser's own words, such as "Failed to fetch", only after it in parentheses; any other failure is the endpoint's message, with the routes that would work.
+ */
+export function refusedText(diagnosis, baseUrl) {
+  if (diagnosis.routes.includes("ci") && diagnosis.routes.includes("bridge")) {
+    let host = baseUrl;
+    try { host = new URL(baseUrl).host; } catch { /* the address as it was written */ }
+    return `✗ ${host} does not accept calls from a web page; run it through GitHub Actions (CI secret) or a Bridge.${diagnosis.message ? ` (The browser said: ${diagnosis.message})` : ""}`;
+  }
   const alternatives = diagnosis.routes.length ? ` Try this job through ${diagnosis.routes.map((route) => route === "ci" ? "CI" : "the Bridge").join(" or ")}.` : "";
   return `✗ ${diagnosis.message}${alternatives}`;
+}
+
+/** secretNameFor(name: string) -> string — the CI secret a key is stored as when the endpoint names none: its name in capitals, then `_API_KEY`. */
+export const secretNameFor = (name) => `${String(name).toUpperCase().replace(/[^A-Z0-9_]/g, "_").replace(/^(?=[0-9])/, "_")}_API_KEY`;
+
+/** ACTIONS_TEST_TASK — the task of the test job an endpoint is tested with on GitHub Actions. */
+export const ACTIONS_TEST_TASK = "This is a test of the endpoint. Answer with the one word: ok.";
+
+/**
+ * actionsOffer(context, name, result) -> Element | null — for an endpoint the browser may not call (its last test refused it with GitHub Actions among the routes),
+ * whose key this browser keeps: what one click does, said before it, and the button that does it (UC-003 4a). The click stores the key as the GitHub Actions secret
+ * of the repository the job workflow runs in — the chosen product's, else the instance's — sealed for GitHub and sent only to GitHub's API with the token stored for
+ * that repository (MOD-repository-hosts' setCiSecret); it then keeps the secret's name with the endpoint and removes the key from this browser, so that the endpoint
+ * runs through GitHub Actions; and it spawns one test job of the endpoint there (MOD-prompt-bar's spawnEndpointJob, the kind `converse`, ACTIONS_TEST_TASK),
+ * follows it, and shows its outcome in `result` as the endpoint's test, recorded as `last-test:endpoint:<name>`. Null where nothing of this applies.
+ */
+export function actionsOffer(context, name, result) {
+  const key = `endpoint:${name}`;
+  const setting = readSetting(context.store, key);
+  const repository = jobRepository(context);
+  if (!setting?.key || setting.bridge || !repository?.host?.setCiSecret) return null;
+  const secret = setting.secret || secretNameFor(name);
+  const where = repository.ofProduct ? repository.address : repository.label;
+  const go = el("button", "endpoint-actions btn primary", "Store the key as a GitHub secret and test on GitHub Actions");
+  const said = el("p", "endpoint-actions-consent",
+    `One click: Agent M stores this endpoint's API key as the GitHub Actions secret ${secret} of ${where}, sealed with the repository's public key and sent only to GitHub's API with the token stored for that repository. `
+    + `It then removes the key from this browser, keeps the secret's name with the endpoint, and spawns one test job of ${setting.model} on GitHub Actions; each message to this endpoint then becomes a job there.`);
+  go.addEventListener("click", async (event) => {
+    if (event?.isTrusted !== true || go.disabled) return;
+    go.disabled = true;
+    const missing = [!setting.place && "the place where it processes data", !(Number(setting.context) > 0) && "its context in tokens"].filter(Boolean);
+    if (missing.length) {
+      result.textContent = `Enter ${missing.join(" and ")} first and save: the test job is a job of this endpoint, which declares them.`;
+      go.disabled = false;
+      return;
+    }
+    try {
+      result.textContent = `Storing the secret ${secret} in ${where}…`;
+      await repository.host.setCiSecret(secret, setting.key);
+    } catch (error) {
+      result.textContent = `✗ The secret was not stored: ${error?.message ?? error}`;
+      go.disabled = false;
+      return;
+    }
+    const { key: _dropped, ...kept } = setting;
+    writeSetting(context.store, key, { ...kept, secret });
+    clearSetting(context.store, `last-test:${key}`);
+    await context.endpointsChanged?.();
+    await testOnActions(context, name, repository, result);
+  });
+  return el("div", "endpoint-actions-offer", said, el("p", null, go));
+}
+
+// The repository a job of this page runs in: the chosen product's, else the instance's.
+function jobRepository(context) {
+  return context.product ? { address: context.product.address, host: context.product.host, ofProduct: true }
+    : context.instance?.host ? { address: null, host: context.instance.host, ofProduct: false, label: context.instance.repository } : null;
+}
+
+/** runsOnActions(setting) -> boolean — whether an endpoint's setting runs through GitHub Actions: it names a CI secret and keeps neither a key nor a Bridge here. */
+export const runsOnActions = (setting) => Boolean(setting?.secret) && !setting.key && !setting.bridge;
+
+/**
+ * testThroughActions(context, name, result) -> Promise<void> — an endpoint that runs through GitHub Actions, tested there: one test job spawned on a person's click,
+ * followed, its outcome shown in `result` and recorded as the endpoint's test.
+ */
+export async function testThroughActions(context, name, result) {
+  const repository = jobRepository(context);
+  if (!repository) { result.textContent = "No repository is connected to spawn the test job in."; return; }
+  await testOnActions(context, name, repository, result, "");
+}
+
+// The test job of an endpoint on GitHub Actions, spawned and followed; its outcome is the endpoint's test. `stored` is said before each line: that the secret was stored, or nothing.
+async function testOnActions(context, name, repository, result, stored = "The secret is stored. ") {
+  const key = `endpoint:${name}`;
+  const participant = endpointsOffered(context.store).find((each) => each.name === name);
+  if (!participant) { result.textContent = `${stored}The endpoint lacks a place, a context or a model, so no test job was spawned.`; return; }
+  try {
+    const host = repository.host;
+    const address = repository.address ?? (await host.readSnapshot((await host.repositoryInfo()).defaultBranch)).repository.web;
+    result.textContent = `${stored}Spawning the test job on GitHub Actions…`;
+    const spawned = await spawnEndpointJob({ kind: "converse", task: ACTIONS_TEST_TASK, participant, store: context.store, instance: context.instance,
+      page: { address, host }, ofProduct: repository.ofProduct, conversation: null });
+    if (spawned.refused) {
+      result.textContent = `${stored}No test job was spawned: ${spawned.refused}.${spawned.needsWorkflow ? " Install Agent M's job workflow in the product section of Settings, then test again." : ""}`;
+      return;
+    }
+    const follower = followJob({ id: spawned.id, address, host, store: context.store, show: (view) => {
+      if (view.end === null) {
+        result.textContent = `${stored}Test job ${spawned.id}: ${view.state ?? "queued"} on GitHub Actions${view.address ? ` — ${view.address}` : ""}.`
+          + (view.missingSecret ? ` Not run: the secret ${view.missingSecret} is missing from the job workflow; install it again from Settings.` : "");
+        return;
+      }
+      follower?.stop();
+      const works = view.end.state === "done" && Boolean(view.answer);
+      recordTest(context.store, key, { works, tools: false });
+      result.textContent = works ? `✓ ${participant.model} answered through GitHub Actions (${spawned.id}): ${view.answer.trim()}`
+        : `✗ The test job ${spawned.id} ended ${view.end.state}${view.end.reason ? `: ${view.end.reason}` : ""}${view.address ? ` — ${view.address}` : ""}`;
+      context.endpointsChanged?.();
+    } });
+  } catch (error) {
+    result.textContent = `${stored}The test job could not be spawned: ${error?.message ?? error}`;
+  }
 }
 
 export function bridgeFailureText(error) {
@@ -109,6 +235,9 @@ export function bridgeSettings(store, name) {
 }
 
 function applySetting(fields, name, setting) {
+  fields.place.value = setting?.place ?? "";
+  fields.context.value = setting?.context ? String(setting.context) : "";
+  fields.secret.value = setting?.secret ?? "";
   fields.name.value = name;
   fields.url.value = setting?.url ?? "";
   fields.kind.value = setting?.kind ?? "openai-compatible";
@@ -140,6 +269,9 @@ export const route = {
       el("option", null, "anthropic"));
     const model = el("input", "endpoint-model");
     const key = el("input", "endpoint-key");
+    const place = el("input", "endpoint-place");
+    const contextSize = el("input", "endpoint-context");
+    const secret = el("input", "endpoint-secret");
     const bridge = el("select", "endpoint-bridge",
       ...(awaitingChoice ? [option("", "Choose a Bridge")] : []),
       option("", "Direct browser request"),
@@ -149,7 +281,8 @@ export const route = {
     const test = el("button", "endpoint-test btn primary", "Save and test");
     const clear = el("button", "endpoint-clear btn", "Clear");
     const result = el("p", "endpoint-result");
-    const fields = { name, url, kind, model, key, bridge };
+    const offerSlot = el("div", "endpoint-actions-slot");
+    const fields = { name, url, kind, model, key, bridge, place, context: contextSize, secret };
 
     const discloseDestination = () => {
       if (awaitingChoice) {
@@ -168,7 +301,11 @@ export const route = {
     model.placeholder = "Model name";
     key.type = "password";
     key.placeholder = "Optional API key";
-    for (const input of [name, url, model, key]) { input.autocomplete = "off"; input.spellcheck = false; }
+    place.placeholder = "Provider and country, or this machine";
+    contextSize.placeholder = "Context in tokens";
+    contextSize.inputMode = "numeric";
+    secret.placeholder = "Name of the CI secret, e.g. NVIDIA_API_KEY";
+    for (const input of [name, url, model, key, place, contextSize, secret]) { input.autocomplete = "off"; input.spellcheck = false; }
 
     show.addEventListener("click", () => {
       const hidden = key.type === "password";
@@ -194,6 +331,7 @@ export const route = {
       }
       const stored = settingFrom(fields);
       const storeKey = endpointKey(chosenName);
+      offerSlot.replaceChildren();
       writeSetting(context.store, storeKey, stored);
       // A value just stored starts untested; an earlier test of the name never sticks to it.
       clearSetting(context.store, `last-test:${storeKey}`);
@@ -217,16 +355,24 @@ export const route = {
           try {
             const checked = await probe(bridgeAt(settings), "endpoint-test", endpointConfig(chosenName, stored));
             recordTest(context.store, storeKey, checked);
-            showResult(result, checked);
+            showResult(result, checked, stored.url);
           } catch (error) {
             result.textContent = bridgeFailureText(error);
           }
           return;
         }
+        if (stored.secret && !stored.key) {
+          result.textContent = `Stored. ${chosenName} keeps no key in this browser and names the CI secret ${stored.secret}: it runs through GitHub Actions, and the prompt bar spawns a job for each message.`;
+          return;
+        }
         result.textContent = "Testing the endpoint…";
         const checked = await testEndpoint(endpointConfig(chosenName, stored));
         recordTest(context.store, storeKey, checked);
-        showResult(result, checked);
+        showResult(result, checked, stored.url);
+        if (!checked.works && checked.diagnosis?.routes?.includes("ci")) {
+          const offer = actionsOffer(context, chosenName, result);
+          offerSlot.replaceChildren(...(offer ? [offer] : []));
+        }
       } finally {
         await context.endpointsChanged?.();
       }
@@ -259,12 +405,17 @@ export const route = {
       explain("endpoint-key"),
       el("p", null, el("label", null, "Bridge ", bridge)),
       explain("endpoint-route"),
+      el("p", null, el("label", null, "Processing place ", place)),
+      el("p", null, el("label", null, "Context (tokens) ", contextSize)),
+      el("p", null, el("label", null, "CI secret of the key ", secret)),
+      explain("endpoint-declaration"),
       el("p", "notice endpoint-shared-origin", sharedPagesNotice(context)),
       disclosure,
       el("p", null, test, " ", clear),
       explain("endpoint-test"),
       explain("endpoint-clear"),
       result,
+      offerSlot,
     );
     name.focus();
   },

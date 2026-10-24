@@ -37,6 +37,7 @@ provides:
   - mergePullRequest
   - listCiRuns
   - startWorkflow
+  - setCiSecret
   - cancelCiRun
   - ciRunLog
   - ciRunLabels
@@ -74,6 +75,9 @@ computer, with its own git login. Every function that reaches a server or a clon
 - `local-git.mjs` — the adapter for a local clone, through the `git` command; Node only.
 - `failures.mjs` — the failures, told apart from the server's answers.
 - `web-links.mjs` — the addresses of the server's own pages.
+- `sealed-box.mjs` — a value sealed to a public key as libsodium's `crypto_box_seal` seals it, for GitHub's Actions secrets.
+- `vendor/` — tweetnacl and blakejs, bundled once into one module, each with its licence, named with their versions in
+  `vendor/README.md`.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
   - `docs/assets/git-host.mjs`, `docs/assets/git-host/pull-requests.mjs`: removed once no file imports them: `connect`, `commitFiles` and `listPullRequests` give the same.
   - `tests/test_destination_disclosure.py`, `tests/test_no_credential_in_url.py`, `tests/release-sprint-01-git-host.test.mjs`, `tests/release-sprint-02-a-git-host.test.mjs`, `tests/release-sprint-02-c-git-host.test.mjs`, `tests/review-core.d/git-host.test.mjs`, `tests/review-core.d/git-host-pulls.test.mjs`, `tests/review-core.d/rate-limit.test.mjs`: rewritten on this module's interface, or removed with the old host, each with the requirement it guards kept by a test of this module.
@@ -243,6 +247,13 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
   workflow or a pipeline with its inputs; the inputs must hold no credential. Returns the run where the server names it at
   once, otherwise `null`, and the caller finds it with `listCiRuns`. Crosses the network; fails with `PermissionMissing`,
   `TokenRefused`, `RateLimited`, `Unreachable`, `NotSupported`.
+- `setCiSecret(name: string, value: string) -> Promise<void>` — on GitHub, stores `value` as the Actions secret `name` of
+  the repository, on a person's click: it reads the repository's public key and sends the value only sealed to that key
+  (`sealed-box.mjs`), in the body of the one request that stores it, to the API of the server that issued the token,
+  never in an address (`A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT`, `A CREDENTIAL IS NEVER PLACED IN A URL`). A name
+  that is no plain name, or begins with `GITHUB_`, is a `TypeError`. Crosses the network; fails with `PermissionMissing`
+  naming the permission *Secrets*, `TokenRefused`, `RateLimited`, `Unreachable`, and `NotSupported` on a GitLab server
+  and without a token, before any request.
 - `cancelCiRun(id: string) -> Promise<void>` — asks the server to cancel a run; the run's state shows when it has.
   Crosses the network; fails as `startWorkflow`.
 - `ciRunLog(id: string) -> Promise<string | null>` — the run's log, or `null` when the server no longer keeps it. Crosses
@@ -295,4 +306,5 @@ whose folder it is given, by the `git` command. It writes no other file.
 
 ## Uses
 
-It uses no other module. It uses the platform's `fetch`, and in Node the `git` command.
+It uses no other module. It uses the platform's `fetch` and `crypto.getRandomValues`, its vendored tweetnacl and blakejs,
+and in Node the `git` command.
