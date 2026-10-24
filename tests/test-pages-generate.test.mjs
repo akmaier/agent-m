@@ -30,6 +30,8 @@ import { startRecord, appendToRecord } from "../src/job-ledger/index.mjs";
 import { finding } from "../src/text-tools/index.mjs";
 import { approvalSchema } from "../src/approvals/index.mjs";
 import { writeDocument } from "../src/documents/index.mjs";
+import { storedGraphReadOn } from "./stored-graph-fake.mjs";
+import { gzipped } from "../src/trace-graph/stored.mjs";
 
 const { view } = await import("../src/test-pages/index.mjs");
 const { registerStrategies } = await import("../src/job-runner/index.mjs");
@@ -64,11 +66,14 @@ const withImplementer = { ...FILES, [`docs/jobs/${IMPLEMENTED.id}.md`]: startRec
 const UC_2 = "docs/use-cases/UC-002-two.md";
 const accepted = { ...FILES, [`docs/approvals/UC-002-${blobOf(FILES[UC_2]).slice(0, 12)}.md`]: writeDocument(approvalSchema, { fields: { kind: "use-case", file: UC_2, blob: blobOf(FILES[UC_2]) } }) };
 
+// `readOn`: the snapshot's own; without one, the branch trace-cache holds the graph of every commit, as the workflow "main changed" stores it (tests/stored-graph-fake.mjs).
 function fakeProduct(files = FILES, { readOn = null } = {}) {
   const calls = [];
   let head = "a".repeat(40), tree = new Map(Object.entries(files)), made = 0;
-  const snapshot = () => ({ repository: ON_GITHUB, ref: "trunk", commit: head, paths: [...tree.keys()].sort(), read: async (path) => (tree.has(path) ? tree.get(path) : null),
-    blob: (path) => (tree.has(path) ? blobOf(tree.get(path)) : null), ...(readOn ? { readOn } : {}) });
+  const read = async (path) => (tree.has(path) ? tree.get(path) : null);
+  const stored = readOn ?? storedGraphReadOn({ get commit() { return head; }, get paths() { return [...tree.keys()].sort(); }, read });
+  const snapshot = () => ({ repository: ON_GITHUB, ref: "trunk", commit: head, paths: [...tree.keys()].sort(), read,
+    blob: (path) => (tree.has(path) ? blobOf(tree.get(path)) : null), readOn: stored });
   return {
     writes: () => calls,
     host: {
@@ -468,7 +473,7 @@ test("view — hands the frame the writer the kind write-tests uses", () => {
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-026
 // given: the product of the first test, whose snapshot offers readOn, and the branch trace-cache holding the graph of its commit with one module more than the files hold (MOD-stored)
 // input: the route generate, drawn
-// expect: the page lists MOD-stored beside the modules of the files, which it could only know from the stored graph; readOn was asked for trace-cache / <commit>.json
+// expect: the page lists MOD-stored beside the modules of the files, which it could only know from the stored graph; readOn was asked for trace-cache / <commit>.json.gz, once
 test("generate — the graph is asked for with its commit, so that the graph stored for it is read", async () => {
   const { traceGraph, graphText } = await import("../src/trace-graph/index.mjs");
   const probe = fakeProduct();
@@ -476,23 +481,26 @@ test("generate — the graph is asked for with its commit, so that the graph sto
   const graph = await traceGraph({ paths: shot.paths, read: shot.read }, { commit: shot.commit });
   graph.nodes.set("MOD-stored", { ...graph.nodes.get("MOD-b"), id: "MOD-stored", title: "MOD-stored", path: "docs/architecture/MOD-stored.md" });
   const asked = [];
-  const fake = fakeProduct(FILES, { readOn: async (branch, path) => { asked.push([branch, path]); return branch === "trace-cache" && path === `${shot.commit}.json` ? graphText(graph) : null; } });
+  const bytes = await gzipped(graphText(graph));
+  const fake = fakeProduct(FILES, { readOn: async (branch, path, options) => { asked.push([branch, path]); return branch === "trace-cache" && path === `${shot.commit}.json.gz` && options?.bytes ? bytes : null; } });
   const target = await show(fake);
   const listed = byClass(target, "li", "uncovered").concat(byClass(target, "li", "covered")).map((item) => item.getAttribute("data-name")).sort();
   assert.deepEqual(listed, ["MOD-a", "MOD-b", "MOD-stored", "RULE ONE", "RULE TWO", "UC-001", "UC-002"]);
-  assert.deepEqual(asked, [["trace-cache", `${shot.commit}.json`]]);
+  assert.deepEqual(asked, [["trace-cache", `${shot.commit}.json.gz`]]);
 });
 
 // TST-1119004 · level: unit · module: MOD-test-pages
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-026
 // given: the same product, the branch trace-cache holding no graph of the commit
 // input: the route generate, drawn
-// expect: counter-proof: the graph is built from the files — MOD-stored is not listed, the test file is read —, and readOn was asked once
-test("generate — where no graph is stored for the commit, it is built from the files", async () => {
+// expect: counter-proof: no graph is built from the files — the page lists no name and shows, in its place, "This page could not be drawn: the trace graph of <commit> is not stored yet …" —, and
+//         readOn was asked once, for trace-cache / <commit>.json.gz
+test("generate — where no graph is stored for the commit, none is built and the page says so", async () => {
   const asked = [];
   const fake = fakeProduct(FILES, { readOn: async (branch, path) => { asked.push([branch, path]); return null; } });
+  const shot = await fake.host.readSnapshot();
   const target = await show(fake);
-  const listed = byClass(target, "li", "uncovered").concat(byClass(target, "li", "covered")).map((item) => item.getAttribute("data-name")).sort();
-  assert.deepEqual(listed, ["MOD-a", "MOD-b", "RULE ONE", "RULE TWO", "UC-001", "UC-002"]);
-  assert.equal(asked.length, 1);
+  assert.deepEqual(byClass(target, "li", "uncovered").concat(byClass(target, "li", "covered")), []);
+  assert.match(target.textContent, new RegExp(`This page could not be drawn: the trace graph of ${shot.commit.slice(0, 12)} is not stored yet`));
+  assert.deepEqual(asked, [["trace-cache", `${shot.commit}.json.gz`]]);
 });

@@ -128,13 +128,16 @@ test("a click on a module opens its file and its folder in a row below it, and a
 // guards: UC-025; A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: one Host for main, whose snapshots count every readMany
 // input: the modules view rendered at main
-// expect: the graph is read once: readMany is told the paths of the graph (the module files, the code files and the test files among them) in one batch, and not again for the table, the gaps or the diagram
-test("the modules view reads the graph in one batch for its diagram, its table and its gaps", async () => {
+// expect: the graph is read once, the stored one — one readOn of ("trace-cache", "main.json.gz") — for the table, the gaps and the diagram, and is not built: no code or test file is read or named to readMany;
+//         the diagram's module files are named to readMany in one batch before they are read
+test("the modules view reads the stored graph once for its diagram, its table and its gaps, and its module files in one batch", async () => {
   const productHost = hostOf();
-  await render(productHost);
-  assert.equal(productHost.log.manys.length, 1);
-  const told = new Set(productHost.log.manys[0]);
-  for (const path of ["docs/architecture/MOD-page.md", "src/page/index.mjs", "tests/page.test.mjs"]) assert.ok(told.has(path), `${path} is read in the batch`);
+  const drawn = await render(productHost);
+  assert.deepEqual(productHost.log.readOns, [["trace-cache", "main.json.gz"]]);
+  const modules = ["docs/architecture/MOD-page.md", "docs/architecture/MOD-review.md"];
+  assert.deepEqual(productHost.log.manys, [modules]);
+  assert.deepEqual(productHost.log.reads, modules);
+  assert.equal(byClass(drawn, "tr", "module-row").length, 2, "known positive: the table is drawn from the graph");
 });
 
 // TST-072105 · level: component · module: MOD-trace-pages

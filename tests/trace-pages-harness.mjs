@@ -7,6 +7,7 @@
 // Level: unit
 
 import { createHash } from "node:crypto";
+import { storedGraphReadOn } from "./stored-graph-fake.mjs";
 
 // A small browser DOM, adapted from the working MOD-test-pages route test.  renderArtifact needs the DOMPurify surface
 // of a browser; this harness provides it without a browser or a request.
@@ -114,10 +115,19 @@ export function doc(id, title, keys = {}, body = "") {
 }
 
 // A Host whose snapshots hold the files of `trees` by ref; `log` records every snapshot asked for, every read and every readMany. `failing(path, nth)` makes the nth
-// read of a path (from 1) fail as an unreachable server does. It has no write method and no repositoryInfo beyond the default branch.
-export function treeHost({ trees, tags = [], failing = () => false, history = [] }) {
-  const log = { snapshots: [], reads: [], manys: [], histories: [], fileAts: [] };
+// read of a path (from 1) fail as an unreachable server does. It has no write method and no repositoryInfo beyond the default branch. Each snapshot's readOn
+// serves the graph of its tree stored on trace-cache for the snapshot's commit (the ref, or the commit a wrapper of the snapshot names), as the workflow "main changed"
+// stores it (tests/stored-graph-fake.mjs); `stored(ref, nth)` false (from 1) leaves the nth readOn of a ref without it, as before the workflow ran. `log.readOns` records
+// each readOn. Building that graph is the push job's work and reads nothing the log records.
+export function treeHost({ trees, tags = [], failing = () => false, history = [], stored = () => true }) {
+  const log = { snapshots: [], reads: [], manys: [], histories: [], fileAts: [], readOns: [] };
   const counts = new Map();
+  const storedOf = new Map(), readOnCounts = new Map();
+  const readOnOf = (ref, commit, files) => {
+    const key = `${ref}\0${commit}`;
+    if (!storedOf.has(key)) storedOf.set(key, storedGraphReadOn({ commit, paths: Object.keys(files), read: async (path) => (Object.hasOwn(files, path) ? files[path] : null) }));
+    return storedOf.get(key);
+  };
   return {
     log,
     async readSnapshot(ref) {
@@ -133,6 +143,11 @@ export function treeHost({ trees, tags = [], failing = () => false, history = []
           return Object.hasOwn(files, path) ? files[path] : null;
         },
         async readMany(paths) { log.manys.push([...paths]); },
+        async readOn(branch, path, options) {
+          log.readOns.push([branch, path]);
+          readOnCounts.set(ref, (readOnCounts.get(ref) ?? 0) + 1);
+          return stored(ref, readOnCounts.get(ref)) ? readOnOf(ref, this?.commit ?? ref, files)(branch, path, options) : null;
+        },
         blob: (path) => (Object.hasOwn(files, path) ? blobOf(files[path]) : null),
       };
     },

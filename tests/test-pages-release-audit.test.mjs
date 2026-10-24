@@ -18,6 +18,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { all, installPage, offline, outside } from "./site-frame-start.d/dom.mjs";
 import { until } from "./prompt-bar.d/until.mjs";
+import { withStoredGraph } from "./stored-graph-fake.mjs";
 
 const { route } = await import("../src/test-pages/release.mjs");
 const { startPage } = await import("../src/site-frame/index.mjs");
@@ -57,8 +58,9 @@ function fakeHost() {
       const sha = branches.get(ref) ?? tags.get(ref) ?? (commits.has(ref) ? ref : null);
       if (!sha) throw missing(ref);
       const tree = commits.get(sha);
-      return { repository: { server: "github", origin: "https://github.com", path: "org/product", web: "https://github.com/org/product" }, ref, commit: sha, paths: [...tree.keys()],
-        read: async (path) => (tree.has(path) ? tree.get(path) : null), blob: (path) => (tree.has(path) ? blobSha(tree.get(path)) : null) };
+      // The graph of every commit is stored on trace-cache, as the workflow "main changed" stores it (tests/stored-graph-fake.mjs).
+      return withStoredGraph({ repository: { server: "github", origin: "https://github.com", path: "org/product", web: "https://github.com/org/product" }, ref, commit: sha, paths: [...tree.keys()],
+        read: async (path) => (tree.has(path) ? tree.get(path) : null), blob: (path) => (tree.has(path) ? blobSha(tree.get(path)) : null) });
     },
     async listTags() { return [...tags].map(([name, sha]) => ({ name, commit: sha })); },
     async createTag(name, sha) { tags.set(name, sha); },

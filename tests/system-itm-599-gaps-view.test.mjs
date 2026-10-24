@@ -9,8 +9,8 @@
 // Level: system
 //
 // Each case states its input and its expected values in its own text; none reads an expected value from a document. The product is https://github.com/alice/thesis-tool: a SPEC of
-// ALPHA RULE and DELTA RULE, UC-001 and MOD-direct, which realise ALPHA RULE, and the test TST-501, which guards it — so DELTA RULE is the one gap of each kind, and the graph is
-// built from four files. A request of the page to the product's repository is of one of three kinds: `api` (a REST call: the repository's information, its tags, the commit of a ref,
+// ALPHA RULE and DELTA RULE, UC-001 and MOD-direct, which realise ALPHA RULE, and the test TST-501, which guards it — so DELTA RULE is the one gap of each kind, and the graph, built
+// from four files by the workflow "main changed", is stored as `<commit>.json.gz` on the branch trace-cache, which the page reads and never builds. A request of the page to the product's repository is of one of three kinds: `api` (a REST call: the repository's information, its tags, the commit of a ref,
 // that commit's tree and, with a token, a file through the contents API), `graphql` (a batch of files, with a token) and `raw` (a file from the raw host, without a token).
 
 import test from "node:test";
@@ -69,13 +69,16 @@ async function visit(t, fragment, { token, instanceToken = false, repositories =
 // guards: UC-020; THE TRACEABILITY MATRIX IS DERIVED; UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN
 // given: this browser keeps the product https://github.com/alice/thesis-tool without a token; its default branch main holds the four files above
 // input: the address #trace/key=gaps/ref=main/product=<the product> is opened
-// expect: the frame shows the page headed "Gaps" with DELTA RULE under each of the three lists of requirements and the matrix rows ALPHA RULE (UC-001, none, MOD-direct, TST-501) and DELTA RULE (none in all four); the product is asked for 4 REST calls (its information, its tags, main's commit and that commit's tree), 4 files from the raw host — SPEC.md once and the three files of the graph — and for no GraphQL batch; no request carries an authorisation; no request goes anywhere but to the repository's API and raw host (ITM-907: and one request more, for the graph stored on the branch trace-cache, which the product does not hold: raw-host or contents request that finds none.)
-test("without a token, the gaps page is drawn from the raw files of the version: four REST calls and one request for each file of the graph", async (t) => {
+// expect: the frame shows the page headed "Gaps" with DELTA RULE under each of the three lists of requirements and the matrix rows ALPHA RULE (UC-001, none, MOD-direct, TST-501) and DELTA RULE (none in all four); the product is asked for 4 REST calls (its information, its tags, main's commit and that commit's tree), 2 files from the raw host — SPEC.md and the graph stored on the branch trace-cache, <commit>.json.gz — and for no GraphQL batch: no file of the graph is read; no request carries an authorisation; no request goes anywhere but to the repository's API and raw host
+test("without a token, the gaps page is drawn from SPEC.md and the stored graph from the raw host: four REST calls and two files", async (t) => {
   const page = await visit(t, GAPS, { token: false });
   assert.match(mainText(), /Gaps/);
   assert.deepEqual(lists().map(linesOf), [["DELTA RULE"], ["DELTA RULE"], ["DELTA RULE"], [], []]);
   assert.match(mainText(), /ALPHA RULEUC-001noneMOD-directTST-501DELTA RULEnonenonenonenone/);
-  assert.deepEqual(counted(page.product()), { api: 4, graphql: 0, raw: 5 });
+  assert.deepEqual(counted(page.product()), { api: 4, graphql: 0, raw: 2 });
+  const raw = page.product().filter((request) => request.kind === "raw");
+  assert.equal(raw[0].file, "SPEC.md");
+  assert.match(raw[1].path, /^\/alice\/thesis-tool\/trace-cache\/[0-9a-f]{40}\.json\.gz$/, "the stored graph, read from trace-cache");
   assert.deepEqual(page.product().filter((request) => request.authorization !== null), []);
   assert.deepEqual(page.world.requests.filter((request) => request.kind === "other"), []);
 });
@@ -85,13 +88,15 @@ test("without a token, the gaps page is drawn from the raw files of the version:
 // guards: UC-020; THE TRACEABILITY MATRIX IS DERIVED
 // given: the same product, kept in this browser with its own token
 // input: the address #trace/key=gaps/ref=main/product=<the product> is opened
-// expect: the page shows the same lists and rows as without a token; the product is asked for 5 REST calls (the 4 above and SPEC.md through the contents API) and 1 GraphQL batch that names the three files of the graph — MOD-direct's file, UC-001's and the test's, not SPEC.md, which is read already —, and for no file from the raw host; every request carries the product's token (ITM-907: and one request more, for the graph stored on the branch trace-cache, which the product does not hold: raw-host or contents request that finds none.)
-test("with a token, the gaps page is drawn from one GraphQL batch for the files of the graph: five REST calls and one batch", async (t) => {
+// expect: the page shows the same lists and rows as without a token; the product is asked for 6 REST calls (the 4 above, SPEC.md through the contents API and the graph stored on trace-cache through the contents API,
+//         contents/<commit>.json.gz?ref=trace-cache) and for no GraphQL batch — none of the files of the graph (MOD-direct's file, UC-001's, the test's) is asked for — and for no file from the raw host; every request carries the product's token
+test("with a token, the gaps page is drawn from SPEC.md and the stored graph through the contents API: six REST calls and no batch", async (t) => {
   const page = await visit(t, GAPS, { token: true });
   assert.deepEqual(lists().map(linesOf), [["DELTA RULE"], ["DELTA RULE"], ["DELTA RULE"], [], []]);
   assert.match(mainText(), /ALPHA RULEUC-001noneMOD-directTST-501DELTA RULEnonenonenonenone/);
-  assert.deepEqual(counted(page.product()), { api: 6, graphql: 1, raw: 0 });
-  assert.deepEqual(page.product().find((request) => request.kind === "graphql").files.sort(), GRAPH_FILES);
+  assert.deepEqual(counted(page.product()), { api: 6, graphql: 0, raw: 0 });
+  assert.equal(page.product().filter((request) => /\/contents\/[0-9a-f]{40}\.json\.gz\?ref=trace-cache$/.test(request.path)).length, 1, "the stored graph, read from trace-cache");
+  assert.deepEqual(page.product().filter((request) => GRAPH_FILES.some((file) => request.path.includes(encodeURIComponent(file)) || request.path.includes(file))), [], "no file of the graph is read");
   assert.deepEqual(page.product().filter((request) => request.authorization !== `Bearer ${TOKEN}`), []);
 });
 
@@ -151,13 +156,14 @@ async function clickAlpha(t, { tokens, link = RELEASE_LINK, repositories = { [RE
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: this browser keeps the product and the instance, each with its own token; the address of the specification at the tag v1.0.0 is opened
 // input: the requirement ALPHA RULE is opened
-// expect: the instance is asked for 3 REST calls (its information, the commit of main, that commit's tree) and 1 GraphQL batch that names the two register entries, and for no file from the raw host; the product is asked for 1 REST call (docs/sources.md through the contents API) and 1 GraphQL batch (UC-001's file, the file of the graph); every request carries the token of its repository (ITM-907: and one request more, for the graph stored on the branch trace-cache, which the product does not hold: raw-host or contents request that finds none.)
+// expect: the instance is asked for 3 REST calls (its information, the commit of main, that commit's tree) and 1 GraphQL batch that names the two register entries, and for no file from the raw host; the product is asked for 2 REST calls
+//         (docs/sources.md through the contents API, and the graph stored on trace-cache, contents/<commit>.json.gz?ref=trace-cache) and for no GraphQL batch: UC-001's file, a file of the graph, is not read; every request carries the token of its repository
 test("with tokens, an opened requirement at a released version reads the register entries in one GraphQL batch", async (t) => {
   const asked = await clickAlpha(t, { tokens: true });
   assert.deepEqual(counted(asked.instance), { api: 3, graphql: 1, raw: 0 });
   assert.deepEqual(asked.instance.find((request) => request.kind === "graphql").files.sort(), REGISTER_FILES);
-  assert.deepEqual(counted(asked.product), { api: 2, graphql: 1, raw: 0 });
-  assert.deepEqual(asked.product.find((request) => request.kind === "graphql").files, ["docs/use-cases/UC-001-first.md"]);
+  assert.deepEqual(counted(asked.product), { api: 2, graphql: 0, raw: 0 });
+  assert.equal(asked.product.filter((request) => /\/contents\/[0-9a-f]{40}\.json\.gz\?ref=trace-cache$/.test(request.path)).length, 1, "the stored graph, read from trace-cache");
   assert.deepEqual(asked.instance.filter((request) => request.authorization !== `Bearer ${INSTANCE_TOKEN}`), []);
   assert.deepEqual(asked.product.filter((request) => request.authorization !== `Bearer ${TOKEN}`), []);
 });
@@ -167,16 +173,17 @@ test("with tokens, an opened requirement at a released version reads the registe
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the same, with no token stored
 // input: the requirement ALPHA RULE is opened
-// expect: GitHub's batch query needs a token, so none is sent: the instance is asked for 3 REST calls and the 2 register entries from the raw host, one request each; the product for the 2 files UC-001 and docs/sources.md from the raw host and for no REST call (ITM-907: and one request more, for the graph stored on the branch trace-cache, which the product does not hold: raw-host or contents request that finds none.)
+// expect: GitHub's batch query needs a token, so none is sent: the instance is asked for 3 REST calls and the 2 register entries from the raw host, one request each; the product for 2 files from the raw host — docs/sources.md and
+//         the graph stored on the branch trace-cache, <commit>.json.gz — and for no REST call: UC-001's file, a file of the graph, is not read
 test("without a token, an opened requirement reads each register entry by its own request", async (t) => {
   const asked = await clickAlpha(t, { tokens: false });
   assert.deepEqual(counted(asked.instance), { api: 3, graphql: 0, raw: 2 });
   assert.deepEqual(asked.instance.filter((request) => request.kind === "raw").map((request) => request.file).sort(), REGISTER_FILES);
-  assert.deepEqual(counted(asked.product), { api: 0, graphql: 0, raw: 3 });
+  assert.deepEqual(counted(asked.product), { api: 0, graphql: 0, raw: 2 });
   const productFiles = asked.product.filter((request) => request.kind === "raw").map((request) => request.file).sort();
-  const stored = (file) => /^[0-9a-f]{40}\.json$/.test(file);
-  assert.equal(productFiles.filter(stored).length, 1, "one request for the graph stored on trace-cache, which finds none");
-  assert.deepEqual(productFiles.filter((file) => !stored(file)), ["docs/sources.md", "docs/use-cases/UC-001-first.md"]);
+  const stored = (file) => /^[0-9a-f]{40}\.json\.gz$/.test(file);
+  assert.equal(productFiles.filter(stored).length, 1, "one request for the graph stored on trace-cache");
+  assert.deepEqual(productFiles.filter((file) => !stored(file)), ["docs/sources.md"]);
 });
 
 // An opened requirement on the default branch (ITM-867): the product's main holds the released text above (ALPHA RULE naming SRC-acme-person, docs/sources.md, UC-001), and the instance's main the

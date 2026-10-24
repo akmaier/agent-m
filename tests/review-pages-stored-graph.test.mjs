@@ -1,6 +1,6 @@
 // MOD-review-pages asks for the graph of a commit's own files with that commit (ITM-1121), as the accepted text of docs/architecture/MOD-review-pages.md states it: "A graph of a commit's own
-// files is asked for with that commit, so that the graph `onMainChanged` stored for it is read where there is one (MOD-workflow-entries)"; a graph over an edited text is built from the files;
-// and `A PAGE LOAD READS THE REPOSITORY IN BATCHES`.
+// files is asked for with that commit, so that the graph `onMainChanged` stored for it is read where there is one (MOD-workflow-entries)", with the rule that a page reads the stored graph and never
+// builds one — not where none is stored, which the page then says, and not over an edited text, whose findings across artifacts are the stored graph's; and `A PAGE LOAD READS THE REPOSITORY IN BATCHES`.
 // Run: node --test tests/review-pages-stored-graph.test.mjs
 //
 // Module: MOD-review-pages
@@ -8,12 +8,12 @@
 // Level: unit
 //
 // The product is a Host of this file's own over one repository in memory with a history (the product of tests/review-pages-stored-impacts.test.mjs, MOD-reader accepted and changed since), keeping to
-// MOD-repository-hosts' interface; its snapshots offer `readOn`, and the branch `trace-cache` holds the graph `<head>.json` of MOD-trace-graph's graphText where the case says so, and no stored impact
+// MOD-repository-hosts' interface; its snapshots offer `readOn`, and the branch `trace-cache` holds the graph `<head>.json.gz` (tests/stored-graph-fake.mjs) where the case says so, and no stored impact
 // list. Every call is recorded. The real MOD-approvals, MOD-trace-graph and MOD-documents run. Nothing reaches the network. Where the module file leaves a reading open, the test states the one it takes,
 // and the pull request names it:
-//   - A "graph read" is a read of `<head>.json` on the branch `trace-cache`; a graph is "built" when a file only the graph reads (the fixture's code file and test file) is read.
+//   - A "graph read" is a read of `<head>.json.gz` on the branch `trace-cache`; a graph is "built" when a file only the graph reads (the fixture's code file and test file) is read.
 //   - The call sites that ask for a graph of the snapshot read at the head of the default branch ask with the snapshot's commit: Review all (graphOnce), the draft pages, the arrangement, the SPEC entry
-//     pages. The graph over the edited text of the editor is built from the files.
+//     pages, the editor.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
 import assert from "node:assert/strict";
@@ -21,7 +21,7 @@ import test from "node:test";
 import { createHash } from "node:crypto";
 import { blobOf, byClass, draw, failure, find, GITHUB, text, until, fetched } from "./review-pages-draft-world.mjs";
 
-const { traceGraph, graphText } = await import("../src/trace-graph/index.mjs");
+import { storedGraphReadOn } from "./stored-graph-fake.mjs";
 
 test.afterEach(() => { assert.deepEqual(fetched.splice(0), [], "no request left the fixtures"); });
 
@@ -53,12 +53,12 @@ function fakeProduct({ storedGraph }) {
   }
   const snapshotAt = (sha, ref) => {
     const { tree } = commits.get(sha);
+    const stored = storedGraphReadOn({ commit: sha, paths: [...tree.keys()], read: async (each) => tree.get(each) ?? null });
     return { repository: GITHUB, ref, commit: sha, paths: [...tree.keys()].sort(), read: async (path) => { calls.push({ fn: "read", path }); return tree.has(path) ? tree.get(path) : null; },
       readMany: async (paths) => { calls.push({ fn: "readMany", sha, paths }); },
-      readOn: async (branch, path) => {
+      readOn: async (branch, path, options) => {
         calls.push({ fn: "readOn", branch, path });
-        if (branch !== "trace-cache" || path !== `${head}.json` || !storedGraph) return null;
-        return graphText(await traceGraph({ paths: [...tree.keys()], read: async (each) => tree.get(each) ?? null }, { commit: head }));
+        return storedGraph && sha === head ? stored(branch, path, options) : null;
       },
       blob: (path) => (tree.has(path) ? blobOf(tree.get(path)) : null) };
   };
@@ -92,7 +92,7 @@ function fakeProduct({ storedGraph }) {
 
 const GRAPH_ONLY = ["src/reader/read.mjs", "tests/reader.test.mjs"];
 const counted = (fake) => ({
-  graphReads: fake.calls.filter((call) => call.fn === "readOn" && call.path === `${fake.head()}.json`).length,
+  graphReads: fake.calls.filter((call) => call.fn === "readOn" && call.path === `${fake.head()}.json.gz`).length,
   built: fake.calls.filter((call) => call.fn === "read" && GRAPH_ONLY.includes(call.path)).length,
 });
 const impactOf = (target) => byClass(target, "section", "change-impact")[0];
@@ -116,28 +116,34 @@ test("module/all — Review all of the architecture reads the graph stored for t
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-023
 // given: the same repository without a stored graph
 // input: the route module with the id all
-// expect: the same impact list; the graph is asked for once from trace-cache and, there being none, built from the files (a file only the graph reads is read) — the counter-proof of TST-1121001
-test("module/all — without a stored graph the graph is built from the files", async () => {
+// expect: no impact list: in its place "The impact list could not be derived: the trace graph of <the head's first 12 characters> is not stored yet …"; the graph is asked for once from trace-cache and, there being
+//         none, is not built (no file only the graph reads is read) — the counter-proof of TST-1121001
+test("module/all — without a stored graph the page says so and builds none", async () => {
   const fake = fakeProduct({ storedGraph: false });
   const { target } = await draw(fake, "module", { id: "all" });
-  assert.match(impactOf(target).textContent, /MOD-reader/);
+  assert.equal(impactOf(target), undefined, "no impact list without the stored graph");
+  const problems = find(target, (node) => node.localName === "p" && node.className === "problem").map((node) => node.textContent);
+  assert.deepEqual(problems.filter((line) => line.startsWith("The impact list could not be derived: ")).length, 1, problems.join(" | "));
+  assert.ok(problems.some((line) => line.includes(`the trace graph of ${fake.head().slice(0, 12)} is not stored yet`)), problems.join(" | "));
   const counts = counted(fake);
   assert.equal(counts.graphReads, 1, "the stored graph is asked for once");
-  assert.ok(counts.built >= 1, "the graph is built from the files");
+  assert.equal(counts.built, 0, "no graph is built from the files");
 });
 
 // TST-1121003 · level: unit · module: MOD-review-pages
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; EDITS ARE PREPARED ON THE DASHBOARD
 // given: the repository with the stored graph; MOD-reader opened in the editor and its text edited
 // input: the route module/MOD-reader/edit, then a change of the text
-// expect: the findings across artifacts are drawn from a graph built over the edited text: files only the graph reads are read, and the stored graph is never read for it
-test("module/<id>/edit — a graph over an edited text is built from the files and never read from trace-cache", async () => {
+// expect: the findings across artifacts are the stored graph's: it is read once from trace-cache when the editor opens, and the change of the text reads it no more and builds no graph over the edited
+//         text — no file only the graph reads is read
+test("module/<id>/edit — the findings across artifacts come from the stored graph; an edited text builds no graph", async () => {
   const fake = fakeProduct({ storedGraph: true });
   const { target } = await draw(fake, "module", { id: "MOD-reader", edit: "1" });
-  const before = counted(fake);
+  await until(() => counted(fake).graphReads === 1, "the stored graph read for the editor");
   const area = find(target, (node) => node.localName === "textarea")[0];
+  assert.ok(area, "known positive: the editor is open");
   area.value = READER_AFTER.replace("does it well.", "does it very well.");
   area.dispatchEvent(new Event("input"));
-  await until(() => counted(fake).built > before.built, "the graph over the edited text");
-  assert.equal(counted(fake).graphReads, before.graphReads, "the stored graph is not read for an edited text");
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.deepEqual(counted(fake), { graphReads: 1, built: 0 }, "an edited text reads no graph and builds none");
 });

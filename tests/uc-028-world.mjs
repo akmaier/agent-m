@@ -8,6 +8,7 @@
 
 import { createHash } from "node:crypto";
 import "./site-frame-dom.mjs";
+import { storedGraphReadOn } from "./stored-graph-fake.mjs";
 
 const { registerStrategies } = await import("../src/job-runner/index.mjs");
 const { resourceStrategies } = await import("../src/resource-list/index.mjs");
@@ -49,12 +50,16 @@ export function product({ files = {}, web = PRODUCT, logs = {}, pulls = [], runs
   };
   branches.set("main", make(null, treeAfter(null, files), "The first commit"));
   const shaOf = (ref) => branches.get(ref) ?? tags.get(ref) ?? (commits.has(ref) ? ref : null);
+  // Every commit's graph is stored on trace-cache, as the workflow "main changed" stores it (tests/stored-graph-fake.mjs), built once for the commit.
+  const storedOf = new Map();
   const snapshot = (ref) => {
     const sha = shaOf(ref);
     if (!sha) throw failure("NotFound", { what: ref });
     const tree = commits.get(sha).tree;
+    const read = async (path) => (tree.has(path) ? tree.get(path) : null);
+    if (!storedOf.has(sha)) storedOf.set(sha, storedGraphReadOn({ commit: sha, paths: [...tree.keys()], read }));
     return { repository: { server: "github", origin: "https://github.com", path: "org/product", web }, ref, commit: sha, paths: [...tree.keys()],
-      read: async (path) => (tree.has(path) ? tree.get(path) : null), blob: (path) => (tree.has(path) ? blobSha(tree.get(path)) : null) };
+      read, readOn: storedOf.get(sha), blob: (path) => (tree.has(path) ? blobSha(tree.get(path)) : null) };
   };
   const entry = (sha) => ({ commit: sha, parents: commits.get(sha).parent ? [commits.get(sha).parent] : [], author: { account: null, name: "x" }, date: commits.get(sha).date,
     message: commits.get(sha).message, changes: [] });

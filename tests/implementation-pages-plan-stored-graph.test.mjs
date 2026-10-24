@@ -1,6 +1,7 @@
 // MOD-implementation-pages' route `plan` reads the graph stored for its commit (ITM-1120), as the accepted text of docs/architecture/MOD-implementation-pages.md states it:
 // "MOD-trace-graph.traceGraph, MOD-trace-graph.moduleRows — … the architecture's subsystems and modules beside the plan, from the graph of the commit shown. Each graph is asked for with its
-// commit, so that the graph `onMainChanged` stored for it is read where there is one (MOD-workflow-entries)", and `A PAGE LOAD READS THE REPOSITORY IN BATCHES`.
+// commit, so that the graph `onMainChanged` stored for it is read where there is one (MOD-workflow-entries)", with the rule that a page reads the stored graph and never builds one, and
+// `A PAGE LOAD READS THE REPOSITORY IN BATCHES`.
 // Run: node --test tests/implementation-pages-plan-stored-graph.test.mjs
 //
 // Module: MOD-implementation-pages
@@ -8,11 +9,11 @@
 // Level: unit
 //
 // The product is the small V-model fixture of tests/implementation-pages-plan.test.mjs, held in memory behind a host of this file's own. Its snapshot offers `readOn`, and the branch
-// `trace-cache` holds the graph of the commit (MOD-trace-graph's graphText) where the test says so. Every call of `read` and `readOn` is kept. Nothing reaches the network. Where the module
+// `trace-cache` holds the graph of the commit (MOD-trace-graph's graphText, gzipped as `<commit>.json.gz`) where the test says so. Every call of `read` and `readOn` is kept. Nothing reaches the network. Where the module
 // file leaves a reading open, the test states the one it takes, and the pull request names it:
 //   - That the stored graph is the one the page draws is seen in an architecture node the stored graph holds and the files do not (MOD-stored): the page lists it only if it read the stored graph.
-//   - productFacts first asks `readOn` for the commit's stored facts, `overview-cache` / `<commit>.facts.json`; then the page asks once for the commit's graph, `trace-cache` / `<commit>.json`, whether or not the branch holds it.
-//   - "No file only the graph reads is read" is: tests/sample.test.mjs is read by no one while the page is drawn from a stored graph. The page's marks come from MOD-work-plans' planFindings, to which the page
+//   - productFacts first asks `readOn` for the commit's stored facts, `overview-cache` / `<commit>.facts.json`; then the page asks once for the commit's graph, `trace-cache` / `<commit>.json.gz`, whether or not the branch holds it.
+//   - "No file only the graph reads is read" is: tests/sample.test.mjs is read by no one, whether or not a graph is stored. The page's marks come from MOD-work-plans' planFindings, to which the page
 //     hands the graph it holds (ITM-1156), so that it builds none.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
@@ -23,6 +24,7 @@ import { createHash } from "node:crypto";
 import "./site-frame-dom.mjs";
 const { view } = await import("../src/implementation-pages/index.mjs");
 const { traceGraph, graphText } = await import("../src/trace-graph/index.mjs");
+const { gzipped } = await import("../src/trace-graph/stored.mjs");
 const route = view.routes.find((candidate) => candidate.name === "plan");
 
 const lines = (...rows) => `${rows.join("\n")}\n`;
@@ -57,12 +59,15 @@ function productFiles() {
   return files;
 }
 
-// The product's snapshot, keeping every call; `stored` is the text of the graph on trace-cache, or null for a branch that holds none.
+// The product's snapshot, keeping every call; `stored` is the gzipped text of the graph on trace-cache, or null for a branch that holds none.
 function snapshotOf(files, calls, stored) {
   return { repository: { server: "github", path: "acme/product", web: ADDRESS }, ref: "main", commit: COMMIT, paths: Object.keys(files),
     blob: (path) => (Object.hasOwn(files, path) ? blobOf(files[path]) : null),
     read: async (path) => { calls.push({ fn: "read", path }); return Object.hasOwn(files, path) ? files[path] : null; },
-    readOn: async (branch, path) => { calls.push({ fn: "readOn", branch, path }); return branch === "trace-cache" && path === `${COMMIT}.json` ? stored : null; } };
+    readOn: async (branch, path, options) => {
+      calls.push({ fn: "readOn", branch, path });
+      return branch === "trace-cache" && path === `${COMMIT}.json.gz` && options?.bytes ? stored : null;
+    } };
 }
 const INSTANCE = "# Participants\n\n**REGISTER**\n\nThe people and agents of the fixture instance.\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n";
 function contextOf(snapshot) {
@@ -76,8 +81,9 @@ async function render(stored) {
   const files = productFiles(), calls = [];
   const target = document.createElement("div");
   document.body.append(target);
-  try { await route.render(target, contextOf(snapshotOf(files, calls, stored(files))), {}); } finally { delete globalThis.mermaid; }
-  return { target, calls };
+  let failure = null;
+  try { await route.render(target, contextOf(snapshotOf(files, calls, stored(files))), {}); } catch (error) { failure = error; } finally { delete globalThis.mermaid; }
+  return { target, calls, failure };
 }
 const elements = (root, match) => {
   const found = [];
@@ -90,31 +96,35 @@ const graphOf = async (files) => {
   const graph = await traceGraph({ paths: Object.keys(files), read: async (path) => files[path] ?? null }, { commit: COMMIT });
   const reader = graph.nodes.get("MOD-reader");
   graph.nodes.set("MOD-stored", { ...reader, id: "MOD-stored", title: "MOD-stored", path: "docs/architecture/MOD-stored.md" });
-  return graphText(graph);
+  return gzipped(graphText(graph));
 };
 
 // TST-1120001 · level: unit · module: MOD-implementation-pages
 // guards: UC-045; A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the plan of a V-model product whose accepted architecture has the system ARC-001, the subsystem ARC-002 and MOD-reader, and `trace-cache` holding the graph of the commit
 // input: the route plan's render
-// expect: the page shows the architecture of the stored graph, MOD-stored among it, and reads no file only the graph reads; `readOn` is asked for overview-cache / <commit>.facts.json and, once, for trace-cache / <commit>.json
+// expect: the page shows the architecture of the stored graph, MOD-stored among it, and reads no file only the graph reads; `readOn` is asked for overview-cache / <commit>.facts.json and, once, for trace-cache / <commit>.json.gz
 test("the plan page reads the graph stored for its commit and builds none", async () => {
   const probe = await graphOf(productFiles());
-  const { target: shown, calls: asked } = await render(() => probe);
+  const { target: shown, calls: asked, failure } = await render(() => probe);
+  assert.equal(failure, null);
   assert.ok(architecture(shown).includes("MOD-stored"), "the architecture is the stored graph's");
   assert.deepEqual(architecture(shown).filter((id) => id !== "MOD-stored"), ["ARC-001", "ARC-002", "MOD-reader"]);
   assert.equal(asked.filter((call) => call.path === ONLY_THE_GRAPH).length, 0, "no file only the graph reads is read");
-  assert.deepEqual(asked.filter((call) => call.fn === "readOn"), [{ fn: "readOn", branch: "overview-cache", path: `${COMMIT}.facts.json` }, { fn: "readOn", branch: "trace-cache", path: `${COMMIT}.json` }]);
+  assert.deepEqual(asked.filter((call) => call.fn === "readOn"), [{ fn: "readOn", branch: "overview-cache", path: `${COMMIT}.facts.json` }, { fn: "readOn", branch: "trace-cache", path: `${COMMIT}.json.gz` }]);
 });
 
 // TST-1120002 · level: unit · module: MOD-implementation-pages
 // guards: UC-045; A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the same product, `trace-cache` holding no graph of the commit
 // input: the route plan's render
-// expect: the graph is built from the files: tests/sample.test.mjs is read and MOD-stored is not listed; `readOn` was asked as in TST-1120001 (the counter-proof of TST-1120001)
-test("the plan page builds the graph where none is stored", async () => {
-  const { target, calls } = await render(() => null);
-  assert.deepEqual(architecture(target), ["ARC-001", "ARC-002", "MOD-reader"]);
-  assert.deepEqual(calls.filter((call) => call.fn === "readOn"), [{ fn: "readOn", branch: "overview-cache", path: `${COMMIT}.facts.json` }, { fn: "readOn", branch: "trace-cache", path: `${COMMIT}.json` }]);
-  assert.ok(calls.filter((call) => call.path === ONLY_THE_GRAPH).length >= 1, "the graph is built from the files");
+// expect: no graph is built: tests/sample.test.mjs is read by no one and no architecture is listed; the render fails with GraphNotStored, whose message — "the trace graph of <commit> is not stored yet" — the
+//         frame shows in the page's place (MOD-site-frame's readProblem); `readOn` was asked as in TST-1120001 (the counter-proof of TST-1120001)
+test("the plan page builds no graph where none is stored, and fails with GraphNotStored", async () => {
+  const { target, calls, failure } = await render(() => null);
+  assert.deepEqual(architecture(target), []);
+  assert.equal(failure?.name, "GraphNotStored");
+  assert.match(failure.message, new RegExp(`the trace graph of ${COMMIT.slice(0, 12)} is not stored yet`));
+  assert.deepEqual(calls.filter((call) => call.fn === "readOn"), [{ fn: "readOn", branch: "overview-cache", path: `${COMMIT}.facts.json` }, { fn: "readOn", branch: "trace-cache", path: `${COMMIT}.json.gz` }]);
+  assert.equal(calls.filter((call) => call.path === ONLY_THE_GRAPH).length, 0, "no graph is built from the files");
 });

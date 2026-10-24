@@ -25,6 +25,7 @@ import "./review-pages-harness.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { storedGraphReadOn } from "./stored-graph-fake.mjs";
 
 const { openStore } = await import("../src/browser-store/index.mjs");
 const pages = await import("../src/review-pages/index.mjs").catch((error) => ({ error }));
@@ -54,8 +55,11 @@ const WHY = "Because it is clearer.";
 function fakeHost(files = FILES) {
   const calls = [], tree = new Map(Object.entries(files)), head = createHash("sha1").update("commit 1").digest("hex");
   const state = { armed: false, moves: false, readings: 0, at: null, began: { lacking: [], extra: [] } };
-  // `moves`, once armed, puts the default branch on another commit than the page opened on.
-  const snapshot = (ref) => ({ repository: GITHUB, ref, commit: state.armed && state.moves ? "m".repeat(40) : head, read: async (path) => (tree.has(path) ? tree.get(path) : null), blob: (path) => (tree.has(path) ? blobOf(tree.get(path)) : null),
+  // `moves`, once armed, puts the default branch on another commit than the page opened on. The graph of the default branch's commit is stored on trace-cache, as the workflow
+  // "main changed" stores it (tests/stored-graph-fake.mjs); building it reads the tree, not the snapshot's counted paths.
+  const read = async (path) => (tree.has(path) ? tree.get(path) : null);
+  const stored = storedGraphReadOn({ commit: head, get paths() { return [...tree.keys()].sort(); }, read });
+  const snapshot = (ref) => ({ repository: GITHUB, ref, commit: state.armed && state.moves ? "m".repeat(40) : head, read, readOn: stored, blob: (path) => (tree.has(path) ? blobOf(tree.get(path)) : null),
     get paths() {
       const held = [...tree.keys()].sort();
       if (!state.armed) return held;

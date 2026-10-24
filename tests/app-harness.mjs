@@ -11,6 +11,7 @@
 // Module: MOD-site-frame
 
 import { gitBlobSha } from "../docs/assets/review-core.mjs";
+import { storedGraphBytes } from "./stored-graph-fake.mjs";
 
 const HEAD = "c0ffee".padEnd(40, "0");
 export const REPO = "akmaier/agent-m";
@@ -42,7 +43,7 @@ export async function repoServer({ files: given, history = [], dates = {}, repo 
     added.set(path, sha);
   }
   const eraOf = (sha) => (sha === null ? { files, date: "2026-10-01T10:00:00Z" } : eras.get(sha));
-  const trees = new Map(), commits = new Map();
+  const trees = new Map(), commits = new Map(), graphs = new Map();
   const next = (c) => `${c}${String(++seq).padStart(6, "0")}`.padEnd(40, "0");
   const put = async (path, text) => { files[path] = text; shas[path] = await gitBlobSha(text); bySha[shas[path]] = text; };
   const api = `/repos/${repo}`;
@@ -57,6 +58,17 @@ export async function repoServer({ files: given, history = [], dates = {}, repo 
       for (const handle of handlers) {
         const answer = await handle(url, { ...init, method });
         if (answer) { what = `handler ${method} ${url.origin}${p}${url.search}`; return answer; }
+      }
+      // The branch trace-cache holds `<commit>.json.gz` for the head and each earlier commit, as the workflow "main changed" stores it
+      // (tests/stored-graph-fake.mjs): read through the contents API with a token, from the raw host without. Counted as `stored graph <commit>`.
+      const storedFile = method === "GET" && ((url.origin === "https://api.github.com" && url.searchParams.get("ref") === "trace-cache" && new RegExp(`^${api}/contents/([0-9a-f]{40})\\.json\\.gz$`).exec(p))
+        || (url.origin === "https://raw.githubusercontent.com" && new RegExp(`^/${repo}/trace-cache/([0-9a-f]{40})\\.json\\.gz$`).exec(p)));
+      if (storedFile) {
+        const sha = storedFile[1], at = sha === head ? files : eras.get(sha)?.files;
+        what = `stored graph ${sha}`;
+        if (!at) return new Response('{"message":"Not Found"}', { status: 404 });
+        if (!graphs.has(sha)) graphs.set(sha, storedGraphBytes({ commit: sha, paths: Object.keys(at), read: async (path) => at[path] ?? null }));
+        return new Response(await graphs.get(sha), { status: 200 });
       }
       // Without a token a public repository's files come from GitHub's raw host, at the commit the page pinned.
       const rawFile = url.origin === "https://raw.githubusercontent.com" && method === "GET"

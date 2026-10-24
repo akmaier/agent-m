@@ -39,6 +39,7 @@ import * as specChanges from "../src/spec-changes/index.mjs";
 import * as artifactEdits from "../src/artifact-edits/index.mjs";
 import { sourceSchemas } from "../src/source-register/index.mjs";
 import { readDocument } from "../src/documents/index.mjs";
+import { withStoredGraph } from "./stored-graph-fake.mjs";
 
 const { statuses, lastAcceptedText, acceptShown, approvalSchema } = approvals;
 const { queues, entryView, proposeSection, acceptEntries, applyApproved } = specChanges;
@@ -88,7 +89,7 @@ const recordOfUseCase = (id, path, body) => [`docs/approvals/${id}-${gitBlob(bod
 const failure = (name, fields = {}) => Object.assign(new Error(`${name} ${JSON.stringify(fields)}`), { name }, fields);
 
 // The fake host over a commit log. The first commit holds `files`; `land(changed, who)` is another writer's commit; a commit made through
-// commitFiles is by `alice`, whose token the host stands for.
+// commitFiles is by `alice`, whose token the host stands for. The graph of every commit is stored on trace-cache, as the workflow "main changed" stores it (tests/stored-graph-fake.mjs).
 function repository(files = PRODUCT) {
   const log = [];
   const add = (tree, who, message) => {
@@ -115,8 +116,8 @@ function repository(files = PRODUCT) {
       async repositoryInfo() { return { defaultBranch: "trunk", visibility: "private", canWrite: true, archived: false, description: "" }; },
       async readSnapshot(ref) {
         const { commit, tree } = log[at(ref)];
-        return { repository: ON_GITHUB, ref, commit, paths: [...tree.keys()].sort(),
-          read: async (path) => (tree.has(path) ? tree.get(path) : null), blob: (path) => (tree.has(path) ? gitBlob(tree.get(path)) : null) };
+        return withStoredGraph({ repository: ON_GITHUB, ref, commit, paths: [...tree.keys()].sort(),
+          read: async (path) => (tree.has(path) ? tree.get(path) : null), blob: (path) => (tree.has(path) ? gitBlob(tree.get(path)) : null) });
       },
       async readHistory(path, { ref = "trunk", limit } = {}) {
         const touched = (entry) => path === null || entry.changes.some((change) => change.path === path);

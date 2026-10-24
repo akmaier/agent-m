@@ -158,18 +158,21 @@ test("a graph that cannot be read is named in place of the diagram", async () =>
 // shares the graph of a version with the gaps view)
 // TST-720005 · level: component · module: MOD-trace-pages
 // guards: UC-025; A PAGE LOAD READS THE REPOSITORY IN BATCHES
-// given: one Host for main, whose snapshots count every readMany
+// given: one Host for main, whose snapshots count every readMany and readOn, with the graph of main stored on trace-cache
 // input: the modules view rendered at main; then the gaps view at main with the same Host
-// expect: after the modules view readMany has been told the paths of the graph once — the four module files among them, and the code and test files its table and gaps need (ITM-721) —; the gaps view of the same version then reads no more: the graph of a commit is built once and kept (ITM-598), so it tells readMany nothing again
-test("the modules view reads the graph in one batch; the gaps view of the same version shares it", async () => {
+// expect: after the modules view readMany has been told the four module files once, in one batch, for the diagram, and the stored graph has been read once — one readOn of ("trace-cache", "main.json.gz") — for
+//         the table and the gaps (ITM-721); the gaps view of the same version then reads no more: the graph of a commit is read once and kept (ITM-598), so neither readMany nor readOn is called again
+test("the modules view reads its module files in one batch and the stored graph once; the gaps view of the same version shares it", async () => {
   const productHost = hostOf();
   await render(productHost);
   assert.equal(productHost.log.manys.length, 1);
   const told = new Set(productHost.log.manys[0]);
   for (const path of Object.keys(FILES).filter((path) => path.startsWith("docs/architecture/MOD-"))) assert.ok(told.has(path), `${path} is read in the batch`);
+  assert.deepEqual(productHost.log.readOns, [["trace-cache", "main.json.gz"]]);
   const { target } = await render(productHost, { key: "gaps", ref: "main" });
   assert.ok(find(target, (node) => node.className === "gaps-body").length === 1, "known positive: the gaps were drawn");
-  assert.equal(productHost.log.manys.length, 1, "the graph of the commit is shared");
+  assert.equal(productHost.log.manys.length, 1, "the gaps name nothing to readMany");
+  assert.deepEqual(productHost.log.readOns, [["trace-cache", "main.json.gz"]], "the graph of the commit is shared");
 });
 
 // CASE ITM-720-06

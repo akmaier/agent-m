@@ -2,7 +2,7 @@
 // branch) and every tag of the product, newest first (UC-020 steps 1, 1a, 1c); choosing one draws the page again at it. The specification page
 // draws the tree of the group file docs/groups/requirements.md (UC-020 steps 2 and 3): every requirement once with its status, which the open entries of the change queues give it,
 // and each group with how many requirements it holds and how many of them no use case realises. Above the tree the reader narrows it by typing part of a name or rule and by the filters of the descriptor: status, source and realised (UC-020 step 4). Opening a requirement shows its four fields at once and, beside them, what traces to it (UC-020 step 5): the trace
-// graph of the version drawn is built when the first requirement is opened, through the snapshot's readMany, and kept for every later
+// graph of the version drawn, the one stored for its commit on trace-cache, is read when the first requirement is opened, and kept for every later
 // opening; the sources with version and part, the use cases with their review status, the decisions, modules and tests that name it,
 // and the unknown names they also name, each a link (step 6). The gaps page (step 7) draws, from the graph of the version drawn, the matrix of
 // every requirement against the use cases, decisions, modules and tests that name it, and the gaps as MOD-trace-graph's coverageGaps finds them;
@@ -665,10 +665,11 @@ const OTHER = {
 // What each drawn route keeps for its subject, by the context it was drawn with: the frame asks the route for the subject with the same context.
 const drawn = new WeakMap();
 
-// The module files of a snapshot as componentDiagram takes them: the files docs/architecture/MOD-<slug>.md by their schema. The graph of the version has told readMany every path it reads, these among them, so
-// they are not named again.
+// The module files of a snapshot as componentDiagram takes them: the files docs/architecture/MOD-<slug>.md by their schema, named to Snapshot.readMany in one batch before
+// they are read: the graph is the stored one and reads no file of the version.
 async function moduleFilesOf(snapshot) {
   const paths = snapshot.paths.filter((path) => /^docs\/architecture\/MOD-[^/]+\.md$/.test(path));
+  if (paths.length) await snapshot.readMany?.(paths);
   const schema = artifactSchemas().module;
   const files = [];
   for (const path of paths) {
