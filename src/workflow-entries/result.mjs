@@ -1,4 +1,4 @@
-// result.mjs — the run's result between the two machines of a product's job workflow on GitHub (MOD-workflow-entries, Parts): on the agent's machine, the
+// result.mjs — the run's result between the two machines of a product's job workflow, on GitHub and on GitLab (MOD-workflow-entries, Parts): on the agent's machine, the
 // repository the checkout's pushes land in, the writes that need the server kept for later, and the result packed; on the writing machine, the result read,
 // checked and written.
 //

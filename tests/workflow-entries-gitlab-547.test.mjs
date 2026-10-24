@@ -27,7 +27,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { startRecord } from "../src/job-ledger/index.mjs";
@@ -291,6 +291,42 @@ test("onDispatch — on GitLab a job without a record is reported, with nothing 
     const status = await runEntry("onDispatch", gitlab({ CI_PROJECT_DIR: c.productDir, AGENT_M_PRODUCT_DIR: c.productDir, AGENT_M_INPUT_JOB: "JOB-20261016-0801-c3d4", AGENT_M_INPUT_TASK: "", AGENT_M_INPUT_ENDPOINT: "" }), { now: NOW });
     assert.equal(status.outcome, "failed");
     assert.match(status.summary, /There is no record JOB-20261016-0801-c3d4/);
+    assert.equal(git(c.origin, "rev-parse", "main"), c.head, "nothing was written");
+  });
+});
+
+// ---------------------------------------------------------------- the machines of the GitLab job workflow
+
+// TST-547008 · level: unit · module: MOD-workflow-entries
+// guards: A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
+// given: the environment of the GitLab agent's job of the second key — AGENT_M_PART `agent`, AGENT_M_KEY `2`, AGENT_M_RESULT_DIR, AGENT_M_KEY_NAMES `FIXTURE_KEY OTHER_KEY` with OTHER_KEY's value alone, no AGENT_M_TOKEN —; that of the job that writes — AGENT_M_PART `write` —; and that of the plan — AGENT_M_OUTPUT naming its dotenv file, no AGENT_M_PART
+// input: ciEnvironment for each
+// expect: the agent's job is the machine `agent` with the result's folder and the key OTHER_KEY, no person's token, and the keys { FIXTURE_KEY null, OTHER_KEY its value }; the job that writes is the machine `write` with no key of its own; the plan is no machine, with no result's folder, and its output file is the dotenv file
+test("ciEnvironment — a GitLab job of the job workflow names its machine, its result's folder, its key and its output file as GitHub's does", () => {
+  assert.ok(ciEnvironment, `ciEnvironment: ${composed.error?.message}`);
+  const agent = gitlab({ AGENT_M_PART: "agent", AGENT_M_KEY: "2", AGENT_M_RESULT_DIR: "/builds/alice/agent-m-result", FIXTURE_KEY: undefined, OTHER_KEY: "sk-OTHER-0123456789", AGENT_M_TOKEN: undefined });
+  const read = ciEnvironment("onDispatch", agent, NOW).job;
+  assert.deepEqual({ part: read.part, resultDir: read.resultDir, agentKey: read.agentKey, personToken: read.personToken, keys: read.keys },
+    { part: "agent", resultDir: "/builds/alice/agent-m-result", agentKey: "OTHER_KEY", personToken: null, keys: { FIXTURE_KEY: null, OTHER_KEY: "sk-OTHER-0123456789" } });
+  const write = ciEnvironment("writeResult", gitlab({ AGENT_M_PART: "write", AGENT_M_RESULT_DIR: "/builds/alice/thesis-tool/agent-m-result" }), NOW).job;
+  assert.deepEqual({ part: write.part, resultDir: write.resultDir, agentKey: write.agentKey }, { part: "write", resultDir: "/builds/alice/thesis-tool/agent-m-result", agentKey: null });
+  const plan = ciEnvironment("chooseAgentKey", gitlab({ AGENT_M_OUTPUT: "/builds/alice/thesis-tool/agent-m-plan.env" }), NOW).job;
+  assert.deepEqual({ part: plan.part, resultDir: plan.resultDir, outputFile: plan.outputFile }, { part: null, resultDir: null, outputFile: "/builds/alice/thesis-tool/agent-m-plan.env" });
+});
+
+// TST-547009 · level: unit · module: MOD-workflow-entries
+// guards: A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
+// given: the product checkout with a queued job whose participant's route names FIXTURE_KEY, the instance's clone next to it, and the GitLab plan's environment of a pipeline the API started for a hand-over to a model endpoint — CI_PIPELINE_SOURCE `api`, the inputs endpoint and secret `OTHER_KEY`, AGENT_M_KEY_NAMES `FIXTURE_KEY OTHER_KEY`, no key's value and no token, AGENT_M_OUTPUT naming a file
+// input: runEntry("chooseAgentKey", that environment)
+// expect: `done`, and the file holds exactly the dotenv line `AGENT_M_AGENT=2` — the place of the key the input secret names, read for a start by the API as for GitHub's workflow_dispatch, not the key of the queued job's participant; the origin's main is as it was
+test("chooseAgentKey — on GitLab a pipeline the API started takes the key its input secret names and leaves it as the dotenv line AGENT_M_AGENT", async () => {
+  assert.ok(runEntry, `runEntry: ${entries.error?.message}`);
+  await withCheckouts(async (c) => {
+    const output = join(c.root, "agent-m-plan.env");
+    const status = await runEntry("chooseAgentKey", gitlab({ CI_PROJECT_DIR: c.productDir, AGENT_M_PRODUCT_DIR: c.productDir, AGENT_M_INPUT_SECRET: "OTHER_KEY", AGENT_M_INPUT_TASK: "",
+      AGENT_M_INPUT_ENDPOINT: JSON.stringify(ENDPOINT), FIXTURE_KEY: undefined, AGENT_M_TOKEN: undefined, AGENT_M_OUTPUT: output }), { now: NOW });
+    assert.equal(status.outcome, "done", status.summary);
+    assert.equal(readFileSync(output, "utf8"), "AGENT_M_AGENT=2\n");
     assert.equal(git(c.origin, "rev-parse", "main"), c.head, "nothing was written");
   });
 });

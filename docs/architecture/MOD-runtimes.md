@@ -80,6 +80,7 @@ provides:
   - jobTrail
   - revertAfterCancel
   - jobWorkflowFiles
+  - gitlabVariableScopes
   - routeStrategies
 ---
 # MOD-runtimes The three routes a job takes
@@ -146,34 +147,55 @@ never by a name computed while it runs; the dashboard names them and opens the s
 for a value. Each job checks out the instance repository at the commit the file names and runs an entry of
 MOD-workflow-entries with Node.
 
-On GitHub, a run has two machines (`A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET`, `A HOSTED JOB WRITES WITH THE
-PERSON'S TOKEN FROM A CI SECRET`). For each route of the product's CI agents — the server's own runners, and each
-self-hosted runner by its label — the file has three kinds of job:
+A run has two machines (`A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET`, `A HOSTED JOB WRITES WITH THE PERSON'S
+TOKEN FROM A CI SECRET`). For each route of the product's CI agents — the server's own runners, and each self-hosted
+runner by its label — the file has three kinds of job, on GitHub and on GitLab alike:
 
-| Job | Runs on | Secrets it reads | What it does |
+| Job | Runs on | Secrets it receives | What it does |
 |---|---|---|---|
 | `<route>-plan` | the server's runners | none | on a start or a push to the default branch: `chooseAgentKey` names the key of the run's job |
 | `<route>-agent-<n>` | the route's runner | the n-th key the file reads; none for 0 | only where the plan named its n: the job's entry, then `leaveResult` |
 | `<route>` | the server's runners | the person's token and every key | `writeResult`, or the entry of an event that runs no agent; then deletes the result |
 
-The agent's machine is the agent's job: GitHub sends a job's runner only the secrets it names, so that machine receives
-the one key of the participant the run names, never the person's token. It checks out the product and the instance with
-the workflow's own read access; a start that names an `endpoint` first installs opencode at a pinned version, the agent
-that works with that endpoint (MOD-agent-processes), since the server's runners hold none. It writes nothing to the
-product: what the job commits lands in the run's result, which it uploads as an artifact of the run, kept one day. The
+On GitLab each job's name begins with `agent-m-`. How a job comes to receive only its secrets is the server's:
+
+- **GitHub** sends a job's runner only the secrets the job names, by their literal names. The agent's job of the n-th key
+  names that key's secret alone, the job that writes the token's and every key's, the plan none. The plan gives the
+  number as its output `agent`; only the agent's job of that number starts.
+- **GitLab** gives a job every CI/CD variable of the project unless the variable is scoped to an environment, which only
+  the jobs of that environment receive; a dynamic choice of a variable is not possible. So each job's environment decides
+  what it receives: the plan and the agent's job 0 are of no environment, the agent's job of a key of the environment
+  `agent-m-key-<the key's name>`, the job that writes of `agent-m-write`, each with the action `verify`, which makes no
+  deployment. The person scopes the token to `agent-m-write` alone and each key once to its `agent-m-key-<name>` and once
+  to `agent-m-write`, as `gitlabVariableScopes` names them; the Settings page names those scopes and checks them
+  (MOD-settings-pages). A rule cannot read what an earlier job of the pipeline gives, so every agent's job of a run
+  starts, and its first line ends it, before anything runs, unless the plan's dotenv report `AGENT_M_AGENT` names its
+  number. No job takes the product's `default:` or global `variables:`, so that nothing of the product's own pipeline runs
+  beside the token or a key. The job that writes runs untagged; a self-hosted runner of a route takes no untagged job.
+
+The agent's machine is the agent's job: it receives the one key of the participant the run names, never the person's
+token. It reads the product with the workflow's own read access — GitHub's checkout, GitLab's clone of the project — and
+clones the instance without a token; a start that names an `endpoint` first installs opencode at a pinned version, the
+agent that works with that endpoint (MOD-agent-processes), since the server's runners hold none. It writes nothing to the
+product: what the job commits lands in the run's result, which it leaves as an artifact of the job — on GitHub kept one
+day, on GitLab kept one hour and downloadable by no one, only the jobs of the pipeline that need it taking it. The
 writing machine is the job that writes: it runs no agent and calls no model, downloads the result, refuses it where it
 changes the repository's workflow files or holds a key of the run, and otherwise writes it with the person's token
-(MOD-workflow-entries, `writeResult`); then, written or refused, it deletes the result's artifact through the server's
-API with the person's token, since anyone who may read the repository's runs may download it while it is kept. The
-writing machine runs on the server's runners for every route, so that the token never reaches a self-hosted runner an
-agent has worked on.
+(MOD-workflow-entries, `writeResult`) — on GitLab pushing through a credential helper of the product's clone alone, which
+gives the token to the project's own server only. Then, written or refused, it deletes the result's artifact through the
+server's API with the person's token: on GitHub each agent's job's artifact by the identifier the job gives as its
+output; on GitLab each artifact of an agent's job of its route, found among the jobs of the pipeline the server lists
+(`GET /projects/:id/pipelines/:pipeline_id/jobs`, `DELETE /projects/:id/jobs/:job_id/artifacts`), since GitLab keeps the
+newest pipeline's artifacts past their expiry. While the result is kept, anyone who may read the repository's runs may
+download it on GitHub. The writing machine runs on the server's runners for every route, so that the token never
+reaches a self-hosted runner an agent has worked on.
 
 The instance is read on the agent's machine with the workflow's own read access, which reaches the product itself and any
 public repository. A private instance that is not the product is not reachable there: the agent's job then fails at the
-instance's checkout, naming it, and such a product's jobs run in the tab or on a Bridge.
+instance's checkout, naming it, and such a product's jobs run in the tab or on a Bridge. On GitLab the instance, which
+stands on github.com, is cloned without a token on every machine, since the person's token is the GitLab server's.
 
-On GitLab, the file has one job for each route, which reads the person's token and the keys and runs the entry; the two
-machines are not yet built there. It is not the product's test configuration, which starts no run for job records
+The file is not the product's test configuration, which starts no run for job records
 (`A JOB RECORD STARTS NO CI RUN`), and it does not check the Definition of Done: the test configuration MOD-test-schedule
 generates does, through `onDoneCheck`. Moving a product to a newer commit of the instance is writing the file again, on
 a person's decision. A job queued on the CI route records, as the Agent M commit it runs at, the commit the product's file
@@ -277,15 +299,21 @@ pins — the commit the run's checkout of the instance is at —, not the commit
   person writes the task anew. Fails with `TaskNotInRecord` for such a job.
 - `jobWorkflowFiles(server: "github" | "gitlab", instance: { repository: string, commit: string }, secrets: { token: string,
   keys: string[] }, runners: string[], gitlabCi?: string | null) -> { path: string, text: string }[]` — the files of the job
-  workflow described under Data, for the caller to commit on a person's click: on GitHub, for each route, the plan, an
-  agent's job for no key and one for each of `secrets.keys` in their order, each naming the secret of its own key alone,
-  and the job that writes, naming `secrets.token` and every key. On GitLab, `gitlabCi` is the product's
+  workflow described under Data, for the caller to commit on a person's click: for each route, the plan, an agent's job
+  for no key and one for each of `secrets.keys` in their order, and the job that writes — on GitHub the agent's job of a
+  key naming the secret of that key alone and the job that writes naming `secrets.token` and every key; on GitLab the
+  agent's job of a key of the environment `agent-m-key-<its name>`, the job that writes of `agent-m-write`, reading the
+  token by the name `secrets.token`, and the plan and the agent's job 0 of none. On GitLab, `gitlabCi` is the product's
   `.gitlab-ci.yml` at the head the caller read, `null` where it has none. The returned `.gitlab-ci.yml` is that text with
   three additions, each made only where it is missing:
   - the inputs `job`, `task` and `endpoint` under its `spec:` header, with the header where the file has none;
   - the entry `- local: .gitlab/agent-m-jobs.yml` under its `include:`, with the key where the file has none;
   - the inputs that entry passes on.
   Every other line stays as it is. Where the product has no `.gitlab-ci.yml`, the returned one is the whole file.
+- `gitlabVariableScopes(secrets: { token: string, keys: string[] }) -> { name: string, scopes: string[] }[]` — on GitLab,
+  the environment scopes each CI/CD variable the job workflow reads must have, and no other: the token `agent-m-write`
+  alone, each key `agent-m-key-<its name>` and `agent-m-write`, one variable for each scope; the token first, then the
+  keys in their order. Pure.
 - `handOverJob(prepared: Prepared, route: Route, start: JobStart, host: Host, head: string, task: string, target: {
   endpoint: { kind: string, baseUrl: string, model: string } | null, bridge: Bridge | null }) -> Promise<{ path: string,
   commit: string }>` — queues the work a conversation of the prompt bar handed over, on the person's click *Hand over*

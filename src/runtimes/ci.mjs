@@ -87,6 +87,19 @@ const AGENT_MARKER = /^# --- the agent's job.*\n/m;
 const SECRET_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/, LABEL = /^[A-Za-z0-9_.:-]+$/, COMMIT = /^[0-9a-f]{40}$/;
 const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 
+// GitLab's environments of the job workflow: the agent's job of a key is of agent-m-key-<the key's name>, the job that writes of agent-m-write.
+const WRITE_ENVIRONMENT = "agent-m-write";
+const agentEnvironment = (key) => `agent-m-key-${key}`;
+
+/**
+ * gitlabVariableScopes(secrets: { token: string, keys: string[] }) -> { name: string, scopes: string[] }[] — on GitLab, the environment scopes each CI/CD
+ * variable the job workflow reads must have, and no other (MOD-runtimes, Data): the person's token `agent-m-write` alone, each key `agent-m-key-<its name>`
+ * and `agent-m-write`; the token first, then the keys in their order. Pure.
+ */
+export function gitlabVariableScopes(secrets) {
+  return [{ name: secrets.token, scopes: [WRITE_ENVIRONMENT] }, ...secrets.keys.map((key) => ({ name: key, scopes: [agentEnvironment(key), WRITE_ENVIRONMENT] }))];
+}
+
 // A text with each @@name@@ of the template replaced by the value given.
 const fill = (template, values) => template.replace(/@@([a-z-]+)@@/g, (_, name) => values[name]);
 
@@ -195,9 +208,9 @@ function mergeGitlabCi(text, names) {
  * `task` and `endpoint` of a pipeline the API starts, each with an empty default, and the include of the job file that passes them on —, and otherwise
  * `gitlabCi` with those three things added, each only where it is missing, and every other line as it was. Throws RuntimeError GitlabCiNotList, naming
  * the file, where its `include:` holds a single string or a map. For each route of the product's CI agents — the server's runners, `hosted`, and each
- * self-hosted runner by its label in `runners` —, on GitLab one job; on GitHub the plan `<route>-plan`, which reads no secret, the agent's jobs `<route>-agent-<n>`,
- * the n-th reading the n-th key's secret and no other, the 0th none, each started only where the plan's output `agent` is its n, and the job `<route>` that
- * writes, which reads the token and every key and runs no agent. `instance.repository` is `owner/name` on github.com and `instance.commit` a
+ * self-hosted runner by its label in `runners` —, the plan `<route>-plan`, which receives no secret, the agent's jobs `<route>-agent-<n>`, the n-th receiving the
+ * n-th key and no other, the 0th none, each working only where the plan names its n, and the job `<route>` that writes, which receives the token and every key and
+ * runs no agent; on GitLab each id begins `agent-m-`, and what a job receives is decided by its environment (gitlabVariableScopes). `instance.repository` is `owner/name` on github.com and `instance.commit` a
  * 40-digit commit, at which each job checks out the instance. `secrets.token` is the name of the secret that holds the person's
  * Agent M token, `secrets.keys` the names of those that hold the agents' keys: the files name them and hold no value. Pure.
  * The templates are read from the disk, in Node: in a browser it throws an Error that says so. Throws TypeError for a server that is neither, a repository or commit of another form, or a name of a secret or a runner label
@@ -226,15 +239,19 @@ export function jobWorkflowFiles(server, instance, secrets, runners, gitlabCi = 
     ...runners.map((label) => ({ runner: label, id: `runner-${label}`, "runs-on": `[self-hosted, ${JSON.stringify(label)}]`,
       tags: `  tags: [${JSON.stringify(label)}]\n` }))];
   const keyEnv = (names) => names.map((name) => `      ${name}: \${{ secrets.${name} }}\n`).join("");
-  // On GitHub, a route is three kinds of job (MOD-runtimes, Data): the plan, one agent's job for each key — the n-th reading the n-th key's secret and no other —
-  // and one, 0, reading none, and the job that writes, which reads the token and every key. GitLab's route is one job.
-  const [job, agentJob] = github ? routeJobs.split(AGENT_MARKER) : [routeJobs, ""];
+  // A route is three kinds of job (MOD-runtimes, Data): the plan, one agent's job for each key and one, 0, for none, and the job that writes. On GitHub the n-th
+  // agent's job reads the n-th key's secret and no other, and the job that writes reads the token and every key. On GitLab, which gives a job every variable not
+  // scoped to an environment, the agent's job of a key is of the environment agent-m-key-<its name>, the 0th of none, the job that writes of agent-m-write, and
+  // the plan of none: the person scopes the variables to them (gitlabVariableScopes).
+  const [job, agentJob] = routeJobs.split(AGENT_MARKER);
   const jobs = routes.map((route) => {
-    const values = { ...common, ...route, runner: JSON.stringify(route.runner), route: route.runner, id: github ? route.id : `agent-m-${route.id}`, "key-env": keyEnv(secrets.keys) };
-    if (!github) return fill(job, values);
-    const agents = [null, ...secrets.keys].map((name, at) => ({ id: `${route.id}-agent-${at}`, text: fill(agentJob, { ...values, agent: String(at),
-      "agent-id": `${route.id}-agent-${at}`, "agent-key-env": name === null ? "" : keyEnv([name]) }) }));
+    const id = github ? route.id : `agent-m-${route.id}`;
+    const values = { ...common, ...route, runner: JSON.stringify(route.runner), route: route.runner, id, "key-env": keyEnv(secrets.keys) };
+    const agents = [null, ...secrets.keys].map((name, at) => ({ id: `${id}-agent-${at}`, text: fill(agentJob, { ...values, agent: String(at),
+      "agent-id": `${id}-agent-${at}`, "agent-key-env": name === null ? "" : keyEnv([name]),
+      "agent-environment": name === null ? "" : `  environment:\n    name: ${agentEnvironment(name)}\n    action: verify\n` }) }));
     return fill(job, { ...values, "agent-jobs": agents.map((agent) => agent.text).join("").replace(/\n$/, ""), "agent-ids": agents.map((agent) => agent.id).join(", "),
+      "agent-needs": agents.map((agent) => `    - job: ${agent.id}\n      optional: true\n`).join(""),
       "artifact-ids": agents.map((agent) => `\${{ needs.${agent.id}.outputs.artifact }}`).join(" ") });
   });
   const files = [{ path: WORKFLOW_PATH[server], text: `${fill(head, common)}${jobs.join("\n")}` }];
