@@ -203,12 +203,17 @@ test("a version that predates the artifacts shows what it holds and says what is
 // CASE ITM-599-05
 // TST-599005 · level: component · module: MOD-trace-pages
 // guards: UC-020; THE TRACEABILITY MATRIX IS DERIVED
-// given: the fixture, in which the first read of UC-001's file fails as an unreachable server does
+// given: the fixture, whose branch trace-cache holds no graph of main at the first readOn of main (the workflow "main changed" has not run yet), and holds it later
 // input: the route rendered at main; then v2026.1.0 chosen and main chosen again
-// expect: the first page says "The gaps could not be read: unreachable", keeps the version choice with main selected and draws no list and no matrix; the choice of main after the tag draws the five lists and the matrix, since the graph that failed is read again
-test("a graph that cannot be read is named in place of the gaps, the choice stays, and the next drawing reads it again", async () => {
-  const target = await render(hostOf({ failing: (path, nth) => path === "docs/use-cases/UC-001-first.md" && nth === 1 }));
-  assert.deepEqual(find(target, (node) => node.className === "traces-problem").map((node) => node.textContent), ["The gaps could not be read: unreachable"]);
+// expect: the first page says "The gaps could not be read: the trace graph of <main's commit> is not stored yet …", keeps the version choice with main selected, draws no list and no matrix and reads no file for a
+//         graph (UC-001's file is not read); the choice of main after the tag draws the five lists and the matrix, since the graph that was missing is read again
+test("a graph that is not stored is named in place of the gaps, the choice stays, and the next drawing reads it again", async () => {
+  const productHost = hostOf({ stored: (ref, nth) => !(ref === "main" && nth === 1) });
+  const target = await render(productHost);
+  const problems = find(target, (node) => node.className === "traces-problem").map((node) => node.textContent);
+  assert.equal(problems.length, 1);
+  assert.match(problems[0], new RegExp(`^The gaps could not be read: the trace graph of ${productHost.commitOf("main").slice(0, 12)} is not stored yet — the workflow "main changed" builds it`));
+  assert.equal(productHost.log.reads.includes("docs/use-cases/UC-001-first.md"), false, "the page builds no graph");
   assert.equal(selectOf(target).value, "main");
   assert.deepEqual(titles(target), []);
   assert.equal(matrix(target).length, 0);
@@ -223,26 +228,27 @@ test("a graph that cannot be read is named in place of the gaps, the choice stay
 // CASE ITM-599-06
 // TST-599006 · level: component · module: MOD-trace-pages
 // guards: UC-020; THE TRACEABILITY MATRIX IS DERIVED
-// given: one Host, whose snapshots count every readMany, for main and for the tag v2026.1.0; the frame hands each opening of the route a context of its own
+// given: one Host, whose snapshots count every readOn, read and readMany, for main and for the tag v2026.1.0, each with its graph stored on trace-cache; the frame hands each opening of the route a context of its own
 // input: the route rendered at main; rendered at main again; v2026.1.0 chosen; main chosen
-// expect: readMany has been told the paths of the graph once after the first rendering and once after the second (one in all, and UC-001's file read once); twice once the tag is chosen, and twice once main is chosen again — one graph for each version
-test("the graph of a version is built once, however often the gaps are opened at it", async () => {
+// expect: the stored graph has been read once after the first rendering — ("trace-cache", "<main's commit>.json.gz") — and still once after the second; <v2026.1.0's commit>.json.gz is read once the tag is chosen, and nothing more once
+//         main is chosen again — one graph for each version; no file is read for a graph: UC-001's file is never read and readMany is never told it
+test("the graph of a version is read from trace-cache once, however often the gaps are opened at it, and never built", async () => {
   const productHost = hostOf();
   const uc = "docs/use-cases/UC-001-first.md";
-  const manys = () => productHost.log.manys.length;
+  const graphReads = () => productHost.log.readOns.filter(([branch]) => branch === "trace-cache").map(([, path]) => path);
   await render(productHost);
-  assert.equal(manys(), 1);
-  assert.ok(productHost.log.manys[0].includes(uc), "known positive: readMany was told UC-001's file");
+  assert.deepEqual(graphReads(), [`${productHost.commitOf("main")}.json.gz`]);
   const again = await render(productHost);
-  assert.equal(manys(), 1, "the second opening at main reads no graph");
-  assert.equal(productHost.log.reads.filter((path) => path === uc).length, 1, "UC-001's file was read once");
+  assert.deepEqual(graphReads(), [`${productHost.commitOf("main")}.json.gz`], "the second opening at main reads no graph");
   assert.deepEqual(titles(again).length, 5, "known positive: the second opening drew the lists");
   choose(again, "v2026.1.0");
   await until(() => asOf(again).length === 1 && reading(again) === 0);
-  assert.equal(manys(), 2);
+  assert.deepEqual(graphReads(), [`${productHost.commitOf("main")}.json.gz`, `${productHost.commitOf("v2026.1.0")}.json.gz`]);
   choose(again, "main");
   await until(() => titles(again).length === 5);
-  assert.equal(manys(), 2);
+  assert.deepEqual(graphReads(), [`${productHost.commitOf("main")}.json.gz`, `${productHost.commitOf("v2026.1.0")}.json.gz`]);
+  assert.equal(productHost.log.reads.includes(uc), false, "the page builds no graph");
+  assert.equal(productHost.log.manys.some((paths) => paths.includes(uc)), false, "the page names no file of a graph to readMany");
 });
 
 // CASE ITM-599-07
@@ -250,10 +256,10 @@ test("the graph of a version is built once, however often the gaps are opened at
 // guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT; THE BROWSER SHOWS ANY RELEASED VERSION
 // given: one Host for main and the tag v2026.1.0; the specification view drawn at main and ALPHA RULE opened
 // input: v2026.1.0 chosen and ALPHA RULE opened; main chosen and ALPHA RULE opened again; then the gaps drawn at main with the same Host
-// expect: of the calls readMany has received, those that name UC-001's file — the files of the graph — are one after the first opening, two after the tag's, and still two after the second opening at main and after the gaps — the graph of a version is the same for the two pages; the calls that name docs/sources.md are the register's batch, one for each of the three drawings an opening was made in, and are not the graph's, so the graph's count leaves them out
+// expect: the reads of the stored graph — readOn on trace-cache — are one after the first opening, two after the tag's, and still two after the second opening at main and after the gaps — the graph of a version is the same for the two pages; the calls of readMany that name docs/sources.md are the register's batch, one for each of the three drawings an opening was made in
 test("the specification and the gaps share the graph of a version", async () => {
   const productHost = hostOf();
-  const graphManys = () => productHost.log.manys.filter((paths) => paths.includes("docs/use-cases/UC-001-first.md")).length;
+  const graphReads = () => productHost.log.readOns.filter(([branch]) => branch === "trace-cache").length;
   const registerManys = () => productHost.log.manys.filter((paths) => paths.includes("docs/sources.md")).length;
   const target = await render(productHost, { key: "specification", ref: "main" });
   const open = async (name) => {
@@ -264,19 +270,19 @@ test("the specification and the gaps share the graph of a version", async () => 
     return row;
   };
   await open("ALPHA RULE");
-  assert.equal(graphManys(), 1);
+  assert.equal(graphReads(), 1);
   choose(target, "v2026.1.0");
   await until(() => asOf(target).length === 1);
   await open("ALPHA RULE");
-  assert.equal(graphManys(), 2);
+  assert.equal(graphReads(), 2);
   choose(target, "main");
   await until(() => find(target, (node) => node.localName === "button" && node.textContent === "GAMMA RULE").length === 1);
   await open("ALPHA RULE");
-  assert.equal(graphManys(), 2, "the graph of main was kept");
+  assert.equal(graphReads(), 2, "the graph of main was kept");
   assert.equal(registerManys(), 3, "known positive: each of the three drawings named the register to readMany once, in its first opening");
   const gaps = await render(productHost);
   assert.equal(titles(gaps).length, 5, "known positive: the gaps were drawn");
-  assert.equal(graphManys(), 2, "the gaps use the graph the specification built");
+  assert.equal(graphReads(), 2, "the gaps use the graph the specification read");
 });
 
 // CASE ITM-599-08
@@ -334,8 +340,10 @@ test("the gaps view leads back to the specification at the version it shows", as
 // guards: UC-020; THE TRACEABILITY MATRIX IS DERIVED
 // given: a Host whose main holds a SPEC of one requirement ALPHA RULE and the use case UC-001 realising it, and counts every snapshot, read and readMany
 // input: the specification rendered at main; then the address of its Gaps link followed, as the frame does: the route "trace" rendered with the key and the ref the link names, with the same Host
-// expect: after the specification: snapshots [main], reads [SPEC.md, the group file docs/groups/requirements.md], no readMany (the file holds no group, so no count asks for the graph). After following the link: snapshots [main, main], reads [SPEC.md, the group file, SPEC.md, SPEC.md, UC-001's file] and one readMany of [SPEC.md, UC-001's file] — the gaps alone read SPEC.md twice, UC-001's file once and make that one readMany, so the specification and the link added the specification's own snapshot and read and nothing else
-test("showing the link reads nothing, and following it adds only the graph the gaps view builds itself", async () => {
+// expect: after the specification: snapshots [main], reads [SPEC.md, the group file docs/groups/requirements.md], no readMany and no readOn (the file holds no group, so no count asks for the graph). After following the link:
+//         snapshots [main, main], reads [SPEC.md, the group file, SPEC.md], no readMany and one readOn of ("trace-cache", "<main's commit>.json.gz") — the gaps alone read SPEC.md once and the stored graph once, and build no graph, so the
+//         specification and the link added the specification's own snapshot and read and nothing else
+test("showing the link reads nothing, and following it adds only the stored graph the gaps view reads itself", async () => {
   const UC_FILE = "docs/use-cases/UC-001-first.md";
   const files = {
     "SPEC.md": ["# F", "", "## S", "", "**ALPHA RULE** *(Vibe Coding)*", "Alpha rule.", "*Check:* at review.", ""].join("\n"),
@@ -344,13 +352,13 @@ test("showing the link reads nothing, and following it adds only the graph the g
   const productHost = treeHost({ trees: { main: files } });
   const context = { product: { address: ADDRESS, host: productHost } };
   const target = await render(productHost, { key: "specification", ref: "main" }, context);
-  assert.deepEqual([productHost.log.snapshots, productHost.log.reads, productHost.log.manys], [["main"], ["SPEC.md", "docs/groups/requirements.md"], []]);
+  assert.deepEqual([productHost.log.snapshots, productHost.log.reads, productHost.log.manys, productHost.log.readOns], [["main"], ["SPEC.md", "docs/groups/requirements.md"], [], []]);
   const link = linksOf(target, "trace-gaps-link");
   assert.equal(link.length, 1, "known positive: the Gaps link is there");
   const { route: name, params } = addressParts(link[0].getAttribute("href"));
   assert.equal(name, "trace");
   const followed = await render(productHost, params, context);
   assert.deepEqual(titles(followed), ["Requirements realised by no use case", "Use cases that realise no requirement", "Unknown names"], "known positive: the gaps were drawn, without the lists of the kinds this version lacks");
-  assert.deepEqual([productHost.log.snapshots, productHost.log.reads, productHost.log.manys],
-    [["main", "main"], ["SPEC.md", "docs/groups/requirements.md", "SPEC.md", "SPEC.md", UC_FILE], [["SPEC.md", UC_FILE]]]);
+  assert.deepEqual([productHost.log.snapshots, productHost.log.reads, productHost.log.manys, productHost.log.readOns],
+    [["main", "main"], ["SPEC.md", "docs/groups/requirements.md", "SPEC.md"], [], [["trace-cache", `${productHost.commitOf("main")}.json.gz`]]]);
 });

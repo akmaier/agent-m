@@ -23,13 +23,15 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import * as specChanges from "../src/spec-changes/index.mjs";
+import { withStoredGraph } from "./stored-graph-fake.mjs";
 
 const { queues, entryView } = specChanges;
 
 const gitBlob = (body) => { const bytes = Buffer.from(body, "utf8"); return createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex"); };
 const text = (...lines) => `${lines.join("\n")}\n`;
 const pad2 = (n) => String(n).padStart(2, "0");
-const snapshotOf = (files) => ({ paths: Object.keys(files), blob: (path) => (Object.hasOwn(files, path) ? gitBlob(files[path]) : null), read: async (path) => (Object.hasOwn(files, path) ? files[path] : null) });
+// A snapshot of the files at one commit, whose graph is stored on trace-cache as the workflow "main changed" stores it (tests/stored-graph-fake.mjs).
+const snapshotOf = (files) => withStoredGraph({ commit: "e".repeat(40), paths: Object.keys(files), blob: (path) => (Object.hasOwn(files, path) ? gitBlob(files[path]) : null), read: async (path) => (Object.hasOwn(files, path) ? files[path] : null) });
 
 const FOLDER = "2026-03-01_retired";
 const BASE = `docs/spec-freigaben/${FOLDER}`;

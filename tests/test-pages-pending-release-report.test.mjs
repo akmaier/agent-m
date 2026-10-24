@@ -6,6 +6,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { storedGraphReadOn } from "./stored-graph-fake.mjs";
 
 class Element {
   constructor(name) { this.name = name; this.children = []; this.className = ""; this.listeners = new Map(); this.data = {}; }
@@ -54,9 +55,10 @@ function resultRecord(outcome = "failed") {
     "|---|---|---|---|", `| TST-100 | unit | ${outcome} | |`, ""].join("\n");
 }
 
-function snapshot(files, ref) {
+// `readOn`: the snapshot's readOn of other branches, where the test gives one.
+function snapshot(files, ref, readOn) {
   return { repository: { path: "org/product" }, ref, commit: COMMIT, paths: Object.keys(files),
-    read: async (path) => files[path] ?? null, blob: () => "b".repeat(40) };
+    read: async (path) => files[path] ?? null, blob: () => "b".repeat(40), ...(readOn ? { readOn } : {}) };
 }
 
 function pendingHost({ pending = true, complete = true } = {}) {
@@ -64,12 +66,14 @@ function pendingHost({ pending = true, complete = true } = {}) {
   const results = complete ? { [`runs/${COMMIT}/20261009-0200-release-candidate.md`]: resultRecord() } : {};
   const writes = [];
   const tags = pending ? [{ name: TAG, commit: COMMIT }] : [];
+  // The graph of COMMIT, the candidate's, is stored on trace-cache as the workflow "main changed" stores it (tests/stored-graph-fake.mjs), whichever snapshot reads it.
+  const readOn = storedGraphReadOn({ commit: COMMIT, paths: Object.keys(branch), read: async (path) => branch[path] ?? null });
   return { writes, tags,
     async repositoryInfo() { return { defaultBranch: "main" }; },
     async listTags() { return tags; },
     async readSnapshot(ref) {
-      if (ref === "test-results") return snapshot(results, ref);
-      return snapshot(branch, ref);
+      if (ref === "test-results") return snapshot(results, ref, readOn);
+      return snapshot(branch, ref, readOn);
     },
     async commitFiles(change) { writes.push(change); return { commit: COMMIT }; },
     async createTag(name, commit) { writes.push({ name, commit }); },

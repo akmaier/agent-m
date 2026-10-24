@@ -14,6 +14,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { acceptAndRelease, releaseReport } from "../src/release-evidence/index.mjs";
+import { storedGraphReadOn } from "./stored-graph-fake.mjs";
 
 const VERSION = "2026.4.0", TAG = `v${VERSION}-rc.1`, PATH = `docs/tests/releases/v${VERSION}.md`;
 const OLD = "e".repeat(40), CANDIDATE = "c".repeat(40), Z = 1.959963984540054;
@@ -23,8 +24,9 @@ const FAULTS = {
 };
 
 const blob = (text) => createHash("sha1").update(`blob ${Buffer.byteLength(text)}\0`).update(text).digest("hex");
-const snapshot = (files, commit) => ({ repository: { path: "fixture/release" }, commit, paths: Object.keys(files),
-  read: async (path) => files[path] ?? null, blob: (path) => files[path] === undefined ? null : blob(files[path]) });
+// `readOn`: the snapshot's readOn of other branches, where the fixture gives one.
+const snapshot = (files, commit, readOn) => ({ repository: { path: "fixture/release" }, commit, paths: Object.keys(files),
+  read: async (path) => files[path] ?? null, blob: (path) => files[path] === undefined ? null : blob(files[path]), ...(readOn ? { readOn } : {}) });
 const outcome = (commit, id, runs) => ["---", `commit: ${commit}`, "levels:", "  - release", "occasion: release-candidate", "participant: ci", "date: 2026-10-11 22:00 UTC", "---", "## Outcomes", "", "| Test | Level | Outcome | Runs |", "|---|---|---|---|", `| ${id} | release | passed | ${runs} |`, ""].join("\n");
 const prior = (id) => ["---", "version: 2026.3.0", "candidate: v2026.3.0-rc.1", `commit: ${OLD}`, "date: 2026-10-01", "---", "## Limitations", "", "## Levels", "", "| Level | Passed | Failed | Flaky | Not run |", "|---|---|---|---|---|", "| release | 1 | 0 | 0 | 0 |", "", "## Tests", "", "| Test | Level | Outcome | Guards |", "|---|---|---|---|", `| ${id} | release | 8 of 10 | A MODEL-DEPENDENT TEST IS MEASURED AS A RATE |`, "", "## Requirements", "", "| Requirement | Level | Tests | Outcome |", "|---|---|---|---|", `| A MODEL-DEPENDENT TEST IS MEASURED AS A RATE | release | ${id} | passed |`, "", "## Changelog entry", "", "Earlier.", ""].join("\n");
 const spec = ["# Fixture", "", "**A MODEL-DEPENDENT TEST IS MEASURED AS A RATE** *(Product Owner)*", "A model-dependent test reports a rate.", "*Check:* `tests/rate.test.mjs`", ""].join("\n");
@@ -38,14 +40,16 @@ function fixture(id) {
   const commits = new Map([["main", main], [CANDIDATE, candidateFiles], ["test-results", results]]);
   const tags = new Map([[TAG, CANDIDATE]]); let serial = 0;
   const calls = [];
+  // The candidate's graph is stored on trace-cache as the workflow "main changed" stores it (tests/stored-graph-fake.mjs), whichever snapshot reads it.
+  const readOn = storedGraphReadOn({ commit: CANDIDATE, paths: Object.keys(candidateFiles), read: async (path) => candidateFiles[path] ?? null });
   const host = {
     async repositoryInfo() { return { defaultBranch: "main" }; },
-    async readSnapshot(ref) { const key = tags.get(ref) ?? ref; return snapshot(commits.get(key), key); },
+    async readSnapshot(ref) { const key = tags.get(ref) ?? ref; return snapshot(commits.get(key), key, readOn); },
     async listTags(pattern = "*") { const rx = new RegExp(`^${pattern.replaceAll("*", ".*")}$`); return [...tags].filter(([name]) => rx.test(name)).map(([name, commit]) => ({ name, commit })); },
     async commitFiles(change) { calls.push({ fn: "commitFiles", change: structuredClone(change) }); assert.equal(change.expectedHead, "main"); const next = { ...commits.get("main") }; for (const file of change.files) next[file.path] = file.text; const commit = `write-${++serial}`; commits.set(commit, next); commits.set("main", next); return { commit }; },
     async createTag(name, commit) { calls.push({ fn: "createTag", name, commit }); if (tags.has(name)) { const error = new Error("exists"); error.name = "TagExists"; throw error; } tags.set(name, commit); },
   };
-  return { host, calls, at: snapshot(candidateFiles, CANDIDATE), results: snapshot(results, "test-results"), main };
+  return { host, calls, at: snapshot(candidateFiles, CANDIDATE, readOn), results: snapshot(results, "test-results", readOn), main };
 }
 
 function scoreInterval(successes, total) {

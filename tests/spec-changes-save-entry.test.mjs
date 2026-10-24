@@ -27,6 +27,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import * as specChanges from "../src/spec-changes/index.mjs";
 import { documentFindings, loadSchema, readDocument } from "../src/documents/index.mjs";
+import { withStoredGraph } from "./stored-graph-fake.mjs";
 
 const { openQueueOf, proposeSection, queues, entryView } = specChanges;
 
@@ -68,8 +69,9 @@ function repository({ files = {}, history = {}, canWrite = true, server = "githu
   const all = { "SPEC.md": SPEC, "docs/use-cases/UC-001-read-a-file.md": useCase, ...files };
   const commits = [];
   const web = server === "github" ? "https://github.com/alice/product" : "https://gitlab.example.test/alice/product";
-  const snapshot = { repository: { server, origin: server === "github" ? "https://github.com" : "https://gitlab.example.test", path: "alice/product", web }, ref: "main", commit: "h".repeat(40),
-    paths: Object.keys(all), blob: (path) => (Object.hasOwn(all, path) ? gitBlob(all[path]) : null), read: async (path) => (Object.hasOwn(all, path) ? all[path] : null) };
+  // The snapshot of the default branch, whose graph is stored on trace-cache as the workflow "main changed" stores it (tests/stored-graph-fake.mjs).
+  const snapshot = withStoredGraph({ repository: { server, origin: server === "github" ? "https://github.com" : "https://gitlab.example.test", path: "alice/product", web }, ref: "main", commit: "h".repeat(40),
+    paths: Object.keys(all), blob: (path) => (Object.hasOwn(all, path) ? gitBlob(all[path]) : null), read: async (path) => (Object.hasOwn(all, path) ? all[path] : null) });
   const reads = [];
   const began = { ...snapshot, ref: OPENED, commit: OPENED, paths: [...Object.keys(all).filter((path) => !(opened.lacking ?? []).includes(path)), ...(opened.extra ?? [])] };
   const host = { commits, reads,

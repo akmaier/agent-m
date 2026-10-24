@@ -10,6 +10,7 @@
 // Level: unit
 
 import { createHash } from "node:crypto";
+import { storedGraphBytes } from "./stored-graph-fake.mjs";
 
 // The page of an instance at https://akmaier.github.io/agent-m/docs/index.html opened at `fragment`, with a fresh local storage and a window that announces a
 // change of the fragment: -> { location, storage, go(fragment) } — `go` sets the fragment and announces it, as when a person follows a link.
@@ -36,12 +37,25 @@ const blobSha = (text) => sha1(`blob ${Buffer.byteLength(text)}\0${text}`);
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
 // githubWorld({ "owner/name": { main: { path: text }, "<tag>": { path: text } } }) -> { fetch, requests, forRepository(name) }. The first key of a repository's refs is
-// its default branch `main`; every other key is a tag, which the repository's tag list names. A ref's commit is a hash of the repository and the ref.
+// its default branch `main`; every other key is a tag, which the repository's tag list names. A ref's commit is a hash of the world, the repository and the ref:
+// each world's commits are its own, since MOD-trace-graph's storedGraph keeps a commit's graph for the page (the module).
+let worlds = 0;
 export function githubWorld(repositories) {
+  const world = ++worlds;
   const requests = [];
-  const commitOf = (name, ref) => sha1(`${name}@${ref}`);
+  const commitOf = (name, ref) => sha1(`world ${world} ${name}@${ref}`);
   const refOf = (name, commit) => Object.keys(repositories[name]).find((ref) => commitOf(name, ref) === commit);
   const asked = (name) => requests.filter((request) => request.repository === name);
+  // The branch trace-cache of a repository holds `<commit>.json.gz` for the commit of each of its refs, as the workflow "main changed" stores it
+  // (tests/stored-graph-fake.mjs): the gzipped graph of that ref's files, built once; null for a file it does not hold.
+  const graphs = new Map();
+  function storedFile(name, file) {
+    const ref = Object.keys(repositories[name] ?? {}).find((each) => file === `${commitOf(name, each)}.json.gz`);
+    if (ref === undefined) return null;
+    const files = repositories[name][ref], key = `${name}@${ref}`;
+    if (!graphs.has(key)) graphs.set(key, storedGraphBytes({ commit: commitOf(name, ref), paths: Object.keys(files), read: async (path) => files[path] ?? null }));
+    return graphs.get(key);
+  }
 
   async function fetch(input, init = {}) {
     const url = new URL(typeof input === "object" && !(input instanceof URL) ? input.url : String(input));
@@ -53,6 +67,10 @@ export function githubWorld(repositories) {
       const [owner, name, commit, ...path] = url.pathname.split("/").filter(Boolean);
       const file = decodeURIComponent(path.join("/"));
       note(`${owner}/${name}`, "raw", { file });
+      if (commit === "trace-cache") {
+        const bytes = await storedFile(`${owner}/${name}`, file);
+        return bytes ? new Response(bytes, { status: 200 }) : json({ message: "Not Found" }, 404);
+      }
       const files = repositories[`${owner}/${name}`]?.[refOf(`${owner}/${name}`, commit)];
       return files && Object.hasOwn(files, file) ? new Response(files[file], { status: 200 }) : json({ message: "Not Found" }, 404);
     }
@@ -85,6 +103,10 @@ export function githubWorld(repositories) {
     if (method === "GET" && tail.startsWith("git/trees/")) {
       const files = refs[refOf(repository, tail.slice("git/trees/".length))];
       return json({ sha: "tree", truncated: false, tree: Object.entries(files ?? {}).map(([path, text]) => ({ path, type: "blob", sha: blobSha(text) })) });
+    }
+    if (method === "GET" && tail.startsWith("contents/") && url.searchParams.get("ref") === "trace-cache") {
+      const bytes = await storedFile(repository, decodeURIComponent(tail.slice("contents/".length)));
+      return bytes ? new Response(bytes, { status: 200 }) : json({ message: "Not Found" }, 404);
     }
     if (method === "GET" && tail.startsWith("contents/")) {
       const files = refs[refOf(repository, url.searchParams.get("ref"))];
