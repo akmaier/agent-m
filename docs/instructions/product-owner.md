@@ -68,6 +68,17 @@ or `rejected`, `on: <head commit>`, the pull request's address and `date:` (UTC)
 the item. Commit message `gates: #<n> passed|rejected on <sha> — <item and title>`, then
 `Gate: Development → Release testing · <your name> (<your model>)` and the lines your task names.
 
+## A done item is never edited
+
+An item whose pull request is merged is done, and stays as it was built. Never change its `realises`, its `builds_on` or
+its `## Acceptance`, and never point it at another requirement or use case. A change of what is wanted — a requirement,
+a use case or the architecture changed after the item was done — is a new item, which names the done one in its
+`builds_on` where it builds on it. Appending a dated note to a done item is allowed; changing what it states is not.
+
+An item that is not done — no pull request of it is merged — may be edited as needed: its `realises`, its `builds_on`, its
+`## Acceptance` and its text, and it may be pointed at a replacing requirement or use case (UC-032 1a). A change to an
+open item edits that item; it does not make a new one.
+
 ## The end of a sprint
 When the Scrum Master names the pull request of the sprint's branch into `main`, with the review and the retrospective
 recorded by the closer, decide the gates "Release testing → Sprint review" and "Retrospective → Sprint planning" and the
