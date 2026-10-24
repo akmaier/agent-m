@@ -81,8 +81,9 @@ export function localAdapter(address, folder) {
       return typeof (await git(["merge-base", "--is-ancestor", commit, branch], { tolerate: true })) === "string";
     },
 
-    async readFile(commit, path) {
-      return new TextDecoder().decode(await git(["cat-file", "blob", `${commit}:${path}`], { buffer: true }));
+    async readFile(commit, path, { bytes = false } = {}) {
+      const read = await git(["cat-file", "blob", `${commit}:${path}`], { buffer: true });
+      return bytes ? new Uint8Array(read) : new TextDecoder().decode(read);
     },
 
     // One commit of all the files on the head the caller names, made in a temporary index, then pushed to the branch of the

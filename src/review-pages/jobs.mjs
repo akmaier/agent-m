@@ -21,7 +21,7 @@ import { linkedVersion, restrictedPlaces } from "../source-register/index.mjs";
 import { queueJob, routesFor, runOnTab } from "../runtimes/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
 import { runPanel, explain, readProblem } from "../site-frame/index.mjs";
-import { coverageGaps, traceGraph } from "../trace-graph/index.mjs";
+import { coverageGaps, storedGraph } from "../trace-graph/index.mjs";
 import { editedResult, flagged, showCurrent, splitCandidate, splitProblem } from "./candidates.mjs";
 import { defaultSnapshot, el, button, link, readJobRecords, refusalText, tokenStep } from "./common.mjs";
 import { dueDiligenceSection, roundsSection, splitDueDiligence } from "./sections.mjs";
@@ -100,7 +100,7 @@ export async function showDraft(where, kind) {
   target.append(el("h2", null, `Draft ${kind.plural}`), explain(kind.explain.draft.requirements), link(`#${kind.route}`, "btn", `All ${kind.plural}`));
   let graph, loaded;
   try {
-    graph = await traceGraph(snapshot, { commit: snapshot.commit });
+    graph = await storedGraph(snapshot, snapshot.commit);
     loaded = await loadStage(where, kind.draft);
   } catch (failure) {
     target.append(readProblem(failure, Boolean(token)));
@@ -494,7 +494,7 @@ async function showArchitectureDraft(where, kind) {
   target.append(el("h2", null, "Draft the architecture"), explain(kind.explain.draft.whole), link(`#${kind.route}`, null, `All ${kind.plural}`));
   let graph, loaded, places, offeredPlaces, found, reviewing;
   try {
-    graph = await traceGraph(snapshot, { commit: snapshot.commit });
+    graph = await storedGraph(snapshot, snapshot.commit);
     loaded = await loadStage(where, kind.draft);
     ({ context: places, offered: offeredPlaces } = await placesOf({ ...where, instanceSnapshot: loaded.instanceSnapshot }));
     found = await approvalStrategies.preconditions["architecture-ready"]({ product: { snapshot, address: snapshot.repository?.web ?? "" } });

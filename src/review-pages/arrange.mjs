@@ -16,7 +16,7 @@
 import { fallbackEditLinks, saveGroupFile } from "../artifact-edits/index.mjs";
 import { applyMoves, groupFileText, hierarchy, parseGroupFile } from "../group-document/index.mjs";
 import { explain, readProblem } from "../site-frame/index.mjs";
-import { traceGraph } from "../trace-graph/index.mjs";
+import { storedGraph } from "../trace-graph/index.mjs";
 import { button, el, link, openGithubEditor, parseServer, readPlace, tokenStep } from "./common.mjs";
 import { fallbackPages } from "./file-edit.mjs";
 import { byClassChecked, loadStage, panelOf, participantList } from "./jobs.mjs";
@@ -38,7 +38,7 @@ const NODE_KIND = { requirements: "requirement", "use-cases": "UC", architecture
 
 // The identifiers (a requirement's name for requirements) of the items of a kind in a snapshot, from the nodes of that kind in MOD-trace-graph's graph, sorted by identifier.
 async function itemsOf(kind, snapshot) {
-  return [...(await traceGraph(snapshot, { commit: snapshot.commit })).nodes.values()].filter((node) => node.kind === NODE_KIND[kind]).map((node) => node.id)
+  return [...(await storedGraph(snapshot, snapshot.commit)).nodes.values()].filter((node) => node.kind === NODE_KIND[kind]).map((node) => node.id)
     .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 }
 

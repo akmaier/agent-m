@@ -40,7 +40,7 @@
 
 import { parseSpec, renamedRequirements, sectionText } from "../spec-document/index.mjs";
 import { blobSha, lineDiff } from "../text-tools/index.mjs";
-import { requirementImpact, traceGraph } from "../trace-graph/index.mjs";
+import { requirementImpact, storedGraph, traceGraph } from "../trace-graph/index.mjs";
 import { readDocument, writeDocument } from "../documents/index.mjs";
 import { approvalSchema } from "../approvals/index.mjs";
 import { sourceFindings, sourceSchemas } from "../source-register/index.mjs";
@@ -62,7 +62,8 @@ export function graphOf(snapshot) {
 }
 
 // The impact list of a proposal against the section that holds now (both texts, "" for none): every name withdrawn, added or
-// changed, with the identifiers of the artifacts that name it. The graph of the snapshot is built only when a name is touched.
+// changed, with the identifiers of the artifacts that name it. The graph is the one stored for the snapshot's commit, read only when a name is
+// touched; a page never builds it.
 // `elsewhere` (the requirements the whole target holds, by name) is given where the section that holds now is none — the entry's anchor is not in the target: a name the target already holds is then no addition,
 // it is changed when its source, rule or check differs from the target's, and not named otherwise.
 export async function impactOf(snapshot, before, after, elsewhere = null) {
@@ -77,7 +78,7 @@ export async function impactOf(snapshot, before, after, elsewhere = null) {
     }),
   ];
   if (named.length === 0) return [];
-  const graph = await graphOf(snapshot);
+  const graph = await storedGraph(snapshot, snapshot.commit);
   return named.map(({ name, change }) => ({
     name, change, referencedBy: [...new Set(requirementImpact(graph, name).map((place) => place.id))],
   }));

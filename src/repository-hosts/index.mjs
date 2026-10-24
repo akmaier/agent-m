@@ -176,7 +176,7 @@ function throughClone(repository, folder, rest) {
     pullRequestFacts: rest ? (...a) => rest.pullRequestFacts(...a) : without("the facts of a pull request"),
     containsCommit: (...a) => clone.containsCommit(...a),
     snapshot: (ref) => clone.snapshot(ref),
-    readFile: (commit, path) => clone.readFile(commit, path),
+    readFile: (commit, path, options) => clone.readFile(commit, path, options),
     // Each commit read in the clone: a commit whose tree holds no such file is null.
     async readFileAt(path, commits) {
       const texts = new Map();
@@ -259,11 +259,11 @@ export function connect(address, credentials = {}) {
           }
         },
         // readOn(branch, path) -> the text of a file on another branch of the same repository, in one request (the API's contents with a
-        // token, the raw host without), or null when the branch or the file does not exist. Not kept: the branch moves on.
-        async readOn(branch, path) {
+        // token, the raw host without), or null when the branch or the file does not exist; with `{ bytes: true }` its bytes. Not kept: the branch moves on.
+        async readOn(branch, path, options) {
           if (typeof branch !== "string" || !branch.trim() || typeof path !== "string" || !path) throw new TypeError("readOn names a branch and a path");
           try {
-            return await adapter.readFile(branch, path);
+            return await adapter.readFile(branch, path, options);
           } catch (e) {
             if (clone && !(e instanceof HostError)) return null; // a clone holds no such branch or file
             throw e;

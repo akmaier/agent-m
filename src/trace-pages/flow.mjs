@@ -21,7 +21,7 @@ import { artifactSchemas, readDocument } from "../documents/index.mjs";
 import { statuses } from "../approvals/index.mjs";
 import { entryView, queues } from "../spec-changes/index.mjs";
 import { affectedRequirements, linkedVersion, sourceSchemas } from "../source-register/index.mjs";
-import { coverageGaps, moduleRows, traceGraph, tracesTo } from "../trace-graph/index.mjs";
+import { coverageGaps, moduleRows, storedGraph, tracesTo } from "../trace-graph/index.mjs";
 import { explain, readProblem } from "../site-frame/index.mjs";
 import { componentDiagram } from "./diagram.mjs";
 import { descriptorFor } from "./views.mjs";
@@ -109,7 +109,7 @@ const listOf = (items) => el("ul", "trace-list", ...items.map((item) => el("li",
 const graphsOf = new WeakMap();
 function graphKept(shown) {
   const { snapshot, context } = shown;
-  const make = () => traceGraph(snapshot, { commit: snapshot.commit ?? null });
+  const make = () => storedGraph(snapshot, snapshot.commit ?? null);
   if (typeof snapshot.commit !== "string") return kept(make);
   const holder = context.store ?? context.product.host;
   const graphs = graphsOf.get(holder) ?? graphsOf.set(holder, new Map()).get(holder);

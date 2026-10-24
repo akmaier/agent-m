@@ -10,13 +10,13 @@
 //
 // The steps and their states are those MOD-progress-measures' productFacts gives with the scope `work`: it reads the plan (docs/plan/,
 // in the order of docs/plan/order.md), the approval statuses, the job records and the pull requests and derives each state with
-// MOD-work-plans' itemStates; no state is stored. The architecture comes from MOD-trace-graph's traceGraph: the system is the
+// MOD-work-plans' itemStates; no state is stored. The architecture comes from MOD-trace-graph's storedGraph: the system is the
 // decision that refines no other, a subsystem one that refines it and designs a module, a module a module file; a module no subsystem
 // designs stands under the system. An architecture file is open when MOD-approvals' status of it, in the facts, is not accepted.
 
 import { renderMermaid } from "../markdown-render/index.mjs";
 import { productFacts } from "../progress-measures/index.mjs";
-import { traceGraph } from "../trace-graph/index.mjs";
+import { storedGraph } from "../trace-graph/index.mjs";
 import { artifactSchemas, readDocument } from "../documents/index.mjs";
 import { planFindings } from "../work-plans/index.mjs";
 import { explain } from "../site-frame/index.mjs";
@@ -121,7 +121,7 @@ export const route = {
       return;
     }
 
-    const graph = await traceGraph(facts.snapshot, { commit: facts.snapshot.commit });
+    const graph = await storedGraph(facts.snapshot, facts.snapshot.commit);
     const architecture = architectureOf(graph);
     const marked = await marksOf(facts, graph, product.host);
     const marksFor = (id) => marked.filter((each) => each.artifact === id);

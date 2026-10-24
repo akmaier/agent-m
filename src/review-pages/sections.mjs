@@ -8,7 +8,7 @@
 
 import { renderArtifact, showDifference } from "../markdown-render/index.mjs";
 import { explain } from "../site-frame/index.mjs";
-import { traceGraph, architectureImpact } from "../trace-graph/index.mjs";
+import { storedGraph, architectureImpact } from "../trace-graph/index.mjs";
 
 function el(name, className, ...children) {
   const node = document.createElement(name);
@@ -159,4 +159,4 @@ export async function changeImpact(file, last, body, graphOf) {
     return { problem: el("p", "problem", `The impact list could not be derived: ${failure.message} — without it, this change cannot be accepted.`) };
   }
 }
-export const graphOnce = (snapshot) => { let graph = null; return () => (graph ??= traceGraph(snapshot, { commit: snapshot.commit })); };
+export const graphOnce = (snapshot) => { let graph = null; return () => (graph ??= storedGraph(snapshot, snapshot.commit)); };

@@ -331,11 +331,12 @@ export function githubAdapter(address, { token, tokenName }, links) {
     },
 
     // One file's text at a commit, or null where the commit does not hold it: with a token through the API — the only place
-    // the token may go, which is also what reads a private repository —, without one from GitHub's raw host.
-    async readFile(commit, path) {
+    // the token may go, which is also what reads a private repository —, without one from GitHub's raw host. With `bytes` its bytes.
+    async readFile(commit, path, { bytes = false } = {}) {
       const url = token ? `${repo}/contents/${encPath(path)}?ref=${commit}` : `${RAW}/${address.path}/${commit}/${encPath(path)}`;
       const answer = await call("GET", url, { accept: RAW_ACCEPT, what: `${path} at ${commit}`, on: { 404: () => null } });
-      return answer === null ? null : answer.text();
+      if (answer === null) return null;
+      return bytes ? new Uint8Array(await answer.arrayBuffer()) : answer.text();
     },
 
     // Many files' texts at a commit in one request of GitHub's GraphQL API ("repository.object(expression: "<commit>:<path>")" on a

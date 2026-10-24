@@ -19,7 +19,7 @@ import { resultSchema, resultsAt, flakyTests, rateComparison, appendResult } fro
 import { scheduleSchema, defaultSchedule, occasionsOf, secretsNeeded } from "../test-schedule/index.mjs";
 import { readDocument } from "../documents/index.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
-import { traceGraph } from "../trace-graph/index.mjs";
+import { storedGraph } from "../trace-graph/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
 import { prepareJob } from "../job-runner/index.mjs";
 import { newJobId, listJobs } from "../job-ledger/index.mjs";
@@ -340,7 +340,7 @@ async function detail(target, context, commit) {
   }
   const snapshot = await host.readSnapshot(commit);
   const declarations = (await Promise.all(snapshot.paths.filter(isTestFile).map(async (path) => testDeclarations(path, (await snapshot.read(path)) ?? "")))).flat();
-  const [graph, saved, tags] = await Promise.all([traceGraph(snapshot, { commit }), snapshot.read(SCHEDULE_PATH), host.listTags()]);
+  const [graph, saved, tags] = await Promise.all([storedGraph(snapshot, commit), snapshot.read(SCHEDULE_PATH), host.listTags()]);
   const schedule = saved == null ? defaultSchedule() : readDocument(scheduleSchema, SCHEDULE_PATH, saved);
   const tests = declarations.map(({ id, level }) => ({ id, level }));
   const [levels, flaky, rates] = await Promise.all([resultsAt(results, commit, tests), flakyTests(results, commit), rateComparison(results, commit, lastReleaseOf(tags))]);

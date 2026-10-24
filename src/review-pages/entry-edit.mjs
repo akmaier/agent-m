@@ -11,7 +11,7 @@ import { renderArtifact } from "../markdown-render/index.mjs";
 import { entryView, queues, saveEntry } from "../spec-changes/index.mjs";
 import { parseSpec, requirementFindings } from "../spec-document/index.mjs";
 import { explain, readProblem } from "../site-frame/index.mjs";
-import { traceGraph } from "../trace-graph/index.mjs";
+import { storedGraph } from "../trace-graph/index.mjs";
 import { impactOf } from "./edit.mjs";
 import { fallbackPages } from "./file-edit.mjs";
 import { el, link, openEditor, openGithubEditor, parseServer, tokenStep } from "./common.mjs";
@@ -30,7 +30,7 @@ export async function showEntryEdit(where, kind, id) {
     item = queue?.entries.find((each) => entryId(queue.folder, each.number) === id);
     if (item) {
       view = await entryView(queue.folder, item.number, snapshot);
-      graph = await traceGraph(snapshot, { commit: snapshot.commit });
+      graph = await storedGraph(snapshot, snapshot.commit);
     }
   } catch (failure) {
     target.append(readProblem(failure, Boolean(token)));

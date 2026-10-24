@@ -242,11 +242,12 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
       return entries;
     },
 
-    // One file's text at a commit, or null where the commit does not hold it.
-    async readFile(commit, path) {
+    // One file's text at a commit, or null where the commit does not hold it. With `bytes` its bytes.
+    async readFile(commit, path, { bytes = false } = {}) {
       const answer = await call("GET", `${api}/repository/files/${encodeURIComponent(path)}/raw?ref=${commit}`,
         { what: `${path} at ${commit}`, on: { 404: () => null } });
-      return answer === null ? null : answer.text();
+      if (answer === null) return null;
+      return bytes ? new Uint8Array(await answer.arrayBuffer()) : answer.text();
     },
 
     // One file's text at each of many commits -> Map(commit -> text | null), in the order given: GitLab has no batch query, so one read of the raw file for each commit.
