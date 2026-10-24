@@ -20,6 +20,7 @@
 import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
+import { storedGraphReadOn } from "./stored-graph-fake.mjs";
 
 const { view } = await import("../src/test-pages/index.mjs");
 
@@ -78,7 +79,9 @@ function productHost({ results = RECORDS, logs = { 777: "the full log of run 777
     listTags: async () => [{ name: "v1.0.0", commit: RELEASE }, { name: "v1.1.0-rc.1", commit: HEAD }],
     readSnapshot: async (ref) => {
       if (ref === "test-results") { if (results instanceof Error) throw results; return snapshotOf("r".repeat(40), results); }
-      return snapshotOf(ref, files);
+      // The branch trace-cache holds the graph of the product's SPEC and tests as each commit's, as the workflow "main changed" stores it
+      // (tests/stored-graph-fake.mjs); the page reads it and never builds one. The schedule is read by the page itself, so the graph is the same for every case.
+      return { ...snapshotOf(ref, files), readOn: storedGraphReadOn({ paths: ["SPEC.md", "tests/sample.test.mjs"], read: async (path) => ({ "SPEC.md": SPEC, "tests/sample.test.mjs": TESTS })[path] ?? null, commit: ref }) };
     },
     ciRunLog: async (id) => { asked.push(["log", id]); return logs[id] ?? null; },
     // ITM-889's entries: commitRuns and branch give a page from the commit's or the branch's name alone; `web` is the server's address of the repository.

@@ -27,6 +27,7 @@
 import "./site-frame-dom.mjs";
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
+import { storedGraphReadOn } from "./stored-graph-fake.mjs";
 
 const { view } = await import("../src/test-pages/index.mjs");
 const { registerStrategies } = await import("../src/job-runner/index.mjs");
@@ -96,6 +97,10 @@ const SCHEDULE = "---\nnightly: 02:00\n---\n## Levels\n\n| Row | every commit | 
 const snapshotOf = (commit, files, extra = {}) => ({ commit, paths: Object.keys(files), blob: () => "b".repeat(40), read: async (path) => files[path] ?? null,
   repository: { server: "github", origin: "https://github.com", path: "org/product", web: PRODUCT }, ...extra });
 
+// The branch trace-cache holds the graph of the product's SPEC and tests as the commit's, as the workflow "main changed" stores it (tests/stored-graph-fake.mjs);
+// the page reads it and never builds one. Every other file the page needs it reads itself, so the graph is the same for every case.
+const graphOn = (commit) => storedGraphReadOn({ paths: ["SPEC.md", "tests/sample.test.mjs"], read: async (path) => ({ "SPEC.md": SPEC, "tests/sample.test.mjs": TESTS })[path] ?? null, commit });
+
 /** The product's host: `written` keeps every commitFiles call; the files it commits stand on the default branch afterwards; `runs` is what listCiRuns gives. */
 function productHost(options = {}) {
   const { web = PRODUCT, written = [] } = options;
@@ -108,7 +113,7 @@ function productHost(options = {}) {
     readHistory: async () => [entry],
     listPullRequests: async () => [],
     listTags: async () => [],
-    readSnapshot: async (ref) => { if (ref === "test-results") return snapshotOf("r".repeat(40), options.results ?? RESULTS); if (queued()) options.reads = (options.reads ?? 0) + 1; return snapshotOf(ref === "main" ? HEAD : ref, { ...files, ...committed() }); },
+    readSnapshot: async (ref) => { if (ref === "test-results") return snapshotOf("r".repeat(40), options.results ?? RESULTS); if (queued()) options.reads = (options.reads ?? 0) + 1; return snapshotOf(ref === "main" ? HEAD : ref, { ...files, ...committed() }, { readOn: graphOn(ref === "main" ? HEAD : ref) }); },
     commitFiles: async (call) => { written.push(call); return { commit: "f".repeat(40) }; },
     listCiRuns: async () => options.runs ?? [],
     ciRunLog: async () => null,

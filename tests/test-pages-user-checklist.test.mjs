@@ -20,6 +20,7 @@ import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { until } from "./prompt-bar.d/until.mjs";
+import { storedGraphReadOn } from "./stored-graph-fake.mjs";
 
 const { view } = await import("../src/test-pages/index.mjs");
 const { readDocument } = await import("../src/documents/index.mjs");
@@ -63,7 +64,10 @@ function productHost({ schedule = null, branch = new Map([[EARLIER_PATH, EARLIER
     readHistory: async (path, options) => [{ commit: options.ref, parents: [], author: { account: null, name: "x" }, date: "2026-10-17T09:00:00Z", message: "A commit", changes: [] }],
     listPullRequests: async () => [],
     listTags: async () => [{ name: "v1.0.0", commit: PLAIN }, { name: "v1.1.0-rc.1", commit: CANDIDATE }],
-    readSnapshot: async (ref) => (ref === "test-results" ? { ...snapshotOf(head, branch), repository: { path: "org/product" } } : snapshotOf(ref, new Map(Object.entries(files)))),
+    // The branch trace-cache holds the graph of the product's SPEC and tests as each commit's, as the workflow "main changed" stores it (tests/stored-graph-fake.mjs);
+    // the page reads it and never builds one. The schedule is read by the page itself, so the graph is the same for every case.
+    readSnapshot: async (ref) => (ref === "test-results" ? { ...snapshotOf(head, branch), repository: { path: "org/product" } }
+      : { ...snapshotOf(ref, new Map(Object.entries(files))), readOn: storedGraphReadOn({ paths: ["SPEC.md", "tests/manual.md"], read: async (path) => ({ "SPEC.md": "# Fixture\n", "tests/manual.md": MANUAL })[path] ?? null, commit: ref }) }),
     commitFiles: async (change) => {
       writes.push(structuredClone(change));
       if (change.expectedHead !== head) throw Object.assign(new Error("moved"), { name: "Moved" });
