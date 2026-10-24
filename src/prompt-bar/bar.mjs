@@ -457,7 +457,9 @@ export function startPromptBar(target, setup) {
     send.addEventListener("click", onSend);
     stop.addEventListener("click", () => (state.controller ? state.controller.abort() : state.follower?.cancel()));
     conversation.replaceChildren(...conversationOf(store).map(line));
-    const bar = el("section", "prompt-bar", setup.explain("prompt-bar"), recorded, chooser, conversation, input, el("div", "buttons", send, stop), status, followed);
+    // Below the message field: on the left the folded explanation and the page's footnote where the page gives one (setup.footnote), on the right the buttons.
+    const notes = el("div", "bar-notes", setup.explain("prompt-bar"), ...(setup.footnote ? [setup.footnote] : []));
+    const bar = el("section", "prompt-bar", recorded, chooser, conversation, input, el("div", "bar-foot", notes, el("div", "buttons", send, stop)), status, followed);
     bar.setAttribute("data-page", setup.page);
     // "fixed to the bottom of the window" (Interfaces: startPromptBar): the bar's own root element carries the style, as Parts name no style sheet.
     bar.setAttribute("style", "position: fixed; bottom: 0; left: 0; right: 0;");

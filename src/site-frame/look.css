@@ -98,6 +98,11 @@ body details.explain > summary { display: inline-flex; align-items: center; min-
 .prompt-bar select.participant, .prompt-bar textarea.instruction { box-sizing: border-box; font: inherit; color: var(--fg); background: var(--panel);
   border: 1px solid var(--line); border-radius: 6px; padding: .45rem .6rem; max-width: 100%; }
 .prompt-bar textarea.instruction { width: 100%; min-height: 3rem; resize: vertical; }
-.prompt-bar .buttons { display: flex; gap: .5rem; justify-content: flex-end; }
+.prompt-bar .bar-foot { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: .5rem 1rem; }
+.prompt-bar .bar-notes { flex: 1 1 20rem; min-width: 0; color: var(--muted); font-size: .8rem; }
+.prompt-bar .bar-footnote p { margin: .2rem 0 0; }
+.prompt-bar .buttons { display: flex; gap: .5rem; justify-content: flex-end; margin-left: auto; }
+/* While the prompt bar is drawn, the page footer's sentences stand in its footnote, below the message field. */
+body:has(.prompt-bar) .site-footer { display: none; }
 .prompt-bar .conversation { list-style: none; padding: 0; display: grid; gap: .35rem; }
 .prompt-bar .conversation:empty, .prompt-bar .status:empty { display: none; }
