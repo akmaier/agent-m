@@ -373,8 +373,12 @@ export const route = {
           }
           return;
         }
+        // One that runs through GitHub Actions is tested there: Save and test spawns its test job, as Test on its line of the Settings page does.
         if (runsOnActions(stored)) {
-          result.textContent = `Stored. ${chosenName} names the CI secret ${stored.secret}: it runs through GitHub Actions, and the prompt bar spawns a job for each message.`;
+          const said = `Stored. ${chosenName} names the CI secret ${stored.secret}: it runs through GitHub Actions, and the prompt bar spawns a job for each message. `;
+          result.textContent = said;
+          const repository = jobRepository(context);
+          if (repository) await testOnActions(context, chosenName, repository, result, said);
           return;
         }
         result.textContent = "Testing the endpoint…";
