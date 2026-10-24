@@ -386,8 +386,7 @@ async function startSite({ page, views }) {
   watchForAcceptance({ store, instance, productHost: productHostFollowingStore({ store }),
     addressOf: (route, given, forRepository) =>
       writeAddress(route, given, forRepository) });
-  footTakesBarHeight(foot);
-  startPromptBar(foot, { page, store, instance,
+  attachPromptBar(foot, { page, store, instance,
     product: () => shown.context.product && { address: shown.context.product.address, host: shown.context.product.host },
     subject: () => subjectOf({ ...shown, drawn: () => target.textContent }),
     explain,
@@ -399,6 +398,15 @@ async function startSite({ page, views }) {
 // has read the participants; a MutationObserver on the footer notices that, and a ResizeObserver, where the browser has one, notices that
 // the bar changes (a selector, a conversation, a draft). Where it has none, the height is set once, when the bar is drawn. The height is
 // the footer's `style` attribute, as the bar's own position is its root's.
+/**
+ * attachPromptBar(foot: Element, setup) -> void — MOD-prompt-bar's bar started in `foot`, the footer fixed to the bottom of the window, which then takes the bar's height; `setup`
+ * as startPromptBar takes it. Both entry pages attach it: startPage, and the live page's app (dashboard-app.mjs) for the review pages.
+ */
+export function attachPromptBar(foot, setup) {
+  footTakesBarHeight(foot);
+  startPromptBar(foot, setup);
+}
+
 function footTakesBarHeight(foot) {
   const fit = () => {
     const bar = foot.children[0];

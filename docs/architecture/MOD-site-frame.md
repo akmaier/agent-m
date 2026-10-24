@@ -79,6 +79,9 @@ It runs in a browser — the instance's pages, and the Bridge's window, which is
   MOD-prompt-bar's `handOverStrategies` under `MOD-prompt-bar`, each set once per load, at load — so that a job any
   route prepares, the test job of an endpoint on the Settings page among them, finds every recipe of the page's views.
   `start.mjs` and the live page's app (`dashboard-app.mjs`) both register with it.
+- `attachPromptBar` (index.mjs) — MOD-prompt-bar's bar started in a footer fixed to the bottom of the window, which takes the
+  bar's height: `startPage` attaches it on the main page, and `dashboard-app.mjs` on every review page once its load has read
+  the instance, with the subject of what the page shows (`subjectOf`) (UC-049 step 1).
 - `preloads.mjs` — the block of preloads in the `<head>` of each entry page, `index.html` and `docs/index.html`, so that a
   browser asks for every file the page loads as it starts at once, not level by level as it finds the imports: a
   `<link rel="modulepreload">` for each module of the static import closure of the page's module script and of the views its
