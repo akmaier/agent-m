@@ -99,7 +99,9 @@ test("typing part of a name or of a rule narrows the tree to the requirements th
   assert.deepEqual(seen(target), EVERY, "known positive");
   assert.deepEqual(await narrowTo(target, { text: "shelf" }, ["BETA RULE"]), ["BETA RULE"]);
   assert.deepEqual(groupsSeen(target), ["Lending rules"], "the group of no matching requirement is hidden");
-  const tables = () => find(target, (node) => node.localName === "table" && hasClass(node, "list")).filter((table) => !hiddenWithin(table, target)).length;
+  // The tables of the tree: the list of the SPEC changes waiting for acceptance above it (section.spec-waiting) is a table.list too, and is not narrowed.
+  const waiting = find(target, (node) => node.localName === "section" && hasClass(node, "spec-waiting")).flatMap((section) => find(section, (node) => node.localName === "table"));
+  const tables = () => find(target, (node) => node.localName === "table" && hasClass(node, "list")).filter((table) => !waiting.includes(table) && !hiddenWithin(table, target)).length;
   assert.equal(tables(), 1, "so are the tables in which nothing matches: only that of Lending rules is left");
   assert.equal(find(find(target, (node) => node.localName === "section" && hasClass(node, "spec-group"))[0], (node) => hasClass(node, "spec-group-held"))[0].textContent, "2 requirements");
   assert.deepEqual(await narrowTo(target, { text: "Gamma" }, ["GAMMA RULE"]), ["GAMMA RULE"]);
