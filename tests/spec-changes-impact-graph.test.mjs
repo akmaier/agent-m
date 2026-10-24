@@ -12,7 +12,7 @@
 // mutations and recorded in the pull request.
 //
 // Where the texts leave a reading open, the tests state the one they take, and the pull request names it:
-//   - entryView's signature is unchanged: the graph is not passed in. The graph read for a snapshot is kept for as long as the snapshot object lives and is not shared with another snapshot object, even one with the same files.
+//   - entryView's signature is unchanged: the graph is not passed in. The graph read for a commit is kept for the page (MOD-trace-graph's storedGraph) and shared by every snapshot object of that commit; another commit reads its own.
 //   - A graph that could not be read is not kept: the next call reads it again.
 
 import test from "node:test";
@@ -51,9 +51,11 @@ function files() {
 }
 
 /** A snapshot that keeps no blob: every read fetches the text again and is counted by path; every readOn is counted. With `notStoredFirst` the first readOn finds no stored graph. */
-function snapshotOf(tree, { notStoredFirst = false } = {}) {
+// Each snapshot is of a commit of its own unless `commit` names one: MOD-trace-graph's storedGraph keeps a commit's graph for the page (the module), so a test that asks for a
+// commit no other test asks for sees its own reads.
+let commits = 0;
+function snapshotOf(tree, { notStoredFirst = false, commit = (++commits).toString(16).padStart(40, "c") } = {}) {
   const reads = new Map(), readOns = [];
-  const commit = "c".repeat(40);
   const stored = storedGraphReadOn({ commit, paths: Object.keys(tree).sort(), read: async (path) => tree[path] ?? null });
   return { reads, readOns, repository: ON_GITHUB, ref: "trunk", commit, paths: Object.keys(tree).sort(),
     async read(path) {
@@ -66,7 +68,7 @@ function snapshotOf(tree, { notStoredFirst = false } = {}) {
     },
     blob: (path) => (Object.hasOwn(tree, path) ? gitBlob(tree[path]) : null) };
 }
-const GRAPH_FILE = ["trace-cache", `${"c".repeat(40)}.json.gz`];
+const graphFile = (snapshot) => ["trace-cache", `${snapshot.commit}.json.gz`];
 
 // TST-674001 · level: unit · module: MOD-spec-changes
 // guards: OPEN PROPOSALS ARE SHOWN IN THE BROWSER; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST
@@ -80,24 +82,28 @@ test("TST-674001 the open entries of one snapshot read one stored graph, and bui
     const view = await entryView(QUEUE, n, snapshot);
     assert.deepEqual(view.impact.map(({ name, change, referencedBy }) => [name, change, referencedBy]), [[NAMES[n - 1], "changed", ["UC-001"]]]);
   }
-  assert.deepEqual(snapshot.readOns, [GRAPH_FILE], "the stored graph was read once for three entries");
+  assert.deepEqual(snapshot.readOns, [graphFile(snapshot)], "the stored graph was read once for three entries");
   assert.equal(snapshot.reads.get(USE_CASE_PATH), undefined, "no graph is built");
   const together = snapshotOf(files());
   await Promise.all([1, 2, 3].map((n) => entryView(QUEUE, n, together)));
-  assert.deepEqual(together.readOns, [GRAPH_FILE], "asked at once, the stored graph is still read once");
+  assert.deepEqual(together.readOns, [graphFile(together)], "asked at once, the stored graph is still read once");
 });
 
 // TST-674002 · level: unit · module: MOD-spec-changes
 // guards: OPEN PROPOSALS ARE SHOWN IN THE BROWSER
-// given: two snapshot objects of the same files, each keeping no blob
+// given: two snapshot objects of the same files at two commits, and a third snapshot object of the first one's commit, each keeping no blob
 // input: entryView of entry 01 on each
-// expect: each reads the stored graph once: a graph is kept for its snapshot and is not shared with another snapshot (the counter-proof of TST-674001: a graph kept for every call to come would read the second snapshot's never)
-test("TST-674002 another snapshot reads its own stored graph", async () => {
-  const first = snapshotOf(files()), second = snapshotOf(files());
+// expect: the snapshots of the two commits each read their commit's stored graph once (the counter-proof of TST-674001: a graph kept for every commit to come would read the second commit's never); the third
+//         snapshot object reads none: the graph of a commit is read once for the page, whichever snapshot object asks
+test("TST-674002 another commit reads its own stored graph, another snapshot of the same commit none", async () => {
+  const first = snapshotOf(files()), second = snapshotOf(files()), again = snapshotOf(files(), { commit: first.commit });
   await entryView(QUEUE, 1, first);
   await entryView(QUEUE, 1, second);
-  assert.deepEqual(first.readOns, [GRAPH_FILE]);
-  assert.deepEqual(second.readOns, [GRAPH_FILE]);
+  const view = await entryView(QUEUE, 1, again);
+  assert.deepEqual(first.readOns, [graphFile(first)]);
+  assert.deepEqual(second.readOns, [graphFile(second)]);
+  assert.deepEqual(again.readOns, []);
+  assert.deepEqual(view.impact.map(({ name, referencedBy }) => [name, referencedBy]), [[NAMES[0], ["UC-001"]]], "known positive: the kept graph gives the impact");
 });
 
 // TST-674003 · level: unit · module: MOD-spec-changes
@@ -111,5 +117,5 @@ test("TST-674003 a graph that is not stored is not kept, and none is built", asy
   assert.equal(snapshot.reads.get(USE_CASE_PATH), undefined, "no graph is built");
   const view = await entryView(QUEUE, 1, snapshot);
   assert.deepEqual(view.impact.map(({ name, referencedBy }) => [name, referencedBy]), [[NAMES[0], ["UC-001"]]]);
-  assert.deepEqual(snapshot.readOns, [GRAPH_FILE, GRAPH_FILE]);
+  assert.deepEqual(snapshot.readOns, [graphFile(snapshot), graphFile(snapshot)]);
 });

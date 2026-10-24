@@ -37,10 +37,13 @@ const blobSha = (text) => sha1(`blob ${Buffer.byteLength(text)}\0${text}`);
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
 // githubWorld({ "owner/name": { main: { path: text }, "<tag>": { path: text } } }) -> { fetch, requests, forRepository(name) }. The first key of a repository's refs is
-// its default branch `main`; every other key is a tag, which the repository's tag list names. A ref's commit is a hash of the repository and the ref.
+// its default branch `main`; every other key is a tag, which the repository's tag list names. A ref's commit is a hash of the world, the repository and the ref:
+// each world's commits are its own, since MOD-trace-graph's storedGraph keeps a commit's graph for the page (the module).
+let worlds = 0;
 export function githubWorld(repositories) {
+  const world = ++worlds;
   const requests = [];
-  const commitOf = (name, ref) => sha1(`${name}@${ref}`);
+  const commitOf = (name, ref) => sha1(`world ${world} ${name}@${ref}`);
   const refOf = (name, commit) => Object.keys(repositories[name]).find((ref) => commitOf(name, ref) === commit);
   const asked = (name) => requests.filter((request) => request.repository === name);
   // The branch trace-cache of a repository holds `<commit>.json.gz` for the commit of each of its refs, as the workflow "main changed" stores it

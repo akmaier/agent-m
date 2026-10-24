@@ -30,7 +30,8 @@ const route = view.routes.find((candidate) => candidate.name === "plan");
 const lines = (...rows) => `${rows.join("\n")}\n`;
 const blobOf = (text) => createHash("sha1").update(text).digest("hex");
 const ADDRESS = "https://github.com/acme/product";
-const COMMIT = "c".repeat(40);
+// The commit of the product: each test asks for a commit of its own, since MOD-trace-graph's storedGraph keeps a commit's graph for the page (the module).
+let COMMIT = "c".repeat(40);
 const MODEL_VERSION = "5".repeat(40);
 const ONLY_THE_GRAPH = "tests/sample.test.mjs";
 
@@ -121,6 +122,7 @@ test("the plan page reads the graph stored for its commit and builds none", asyn
 // expect: no graph is built: tests/sample.test.mjs is read by no one and no architecture is listed; the render fails with GraphNotStored, whose message — "the trace graph of <commit> is not stored yet" — the
 //         frame shows in the page's place (MOD-site-frame's readProblem); `readOn` was asked as in TST-1120001 (the counter-proof of TST-1120001)
 test("the plan page builds no graph where none is stored, and fails with GraphNotStored", async () => {
+  COMMIT = "d".repeat(40);
   const { target, calls, failure } = await render(() => null);
   assert.deepEqual(architecture(target), []);
   assert.equal(failure?.name, "GraphNotStored");

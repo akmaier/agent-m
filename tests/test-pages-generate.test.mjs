@@ -67,9 +67,11 @@ const UC_2 = "docs/use-cases/UC-002-two.md";
 const accepted = { ...FILES, [`docs/approvals/UC-002-${blobOf(FILES[UC_2]).slice(0, 12)}.md`]: writeDocument(approvalSchema, { fields: { kind: "use-case", file: UC_2, blob: blobOf(FILES[UC_2]) } }) };
 
 // `readOn`: the snapshot's own; without one, the branch trace-cache holds the graph of every commit, as the workflow "main changed" stores it (tests/stored-graph-fake.mjs).
+// Each product's commits are its own: MOD-trace-graph's storedGraph keeps a commit's graph for the page (the module), so two tests never share a commit.
+let products = 0;
 function fakeProduct(files = FILES, { readOn = null } = {}) {
-  const calls = [];
-  let head = "a".repeat(40), tree = new Map(Object.entries(files)), made = 0;
+  const calls = [], product = ++products;
+  let head = createHash("sha1").update(`product ${product}`).digest("hex"), tree = new Map(Object.entries(files)), made = 0;
   const read = async (path) => (tree.has(path) ? tree.get(path) : null);
   const stored = readOn ?? storedGraphReadOn({ get commit() { return head; }, get paths() { return [...tree.keys()].sort(); }, read });
   const snapshot = () => ({ repository: ON_GITHUB, ref: "trunk", commit: head, paths: [...tree.keys()].sort(), read,
@@ -83,7 +85,7 @@ function fakeProduct(files = FILES, { readOn = null } = {}) {
         calls.push(structuredClone(change));
         if (change.branch !== "trunk" || change.expectedHead !== head) throw failure("Moved", "the branch moved", { head });
         tree = new Map([...tree, ...change.files.map((file) => [file.path, file.text])]);
-        head = createHash("sha1").update(`commit ${++made}`).digest("hex");
+        head = createHash("sha1").update(`product ${product} commit ${++made}`).digest("hex");
         return { commit: head, url: `${PRODUCT}/commit/${head}` };
       },
     },
@@ -476,13 +478,13 @@ test("view — hands the frame the writer the kind write-tests uses", () => {
 // expect: the page lists MOD-stored beside the modules of the files, which it could only know from the stored graph; readOn was asked for trace-cache / <commit>.json.gz, once
 test("generate — the graph is asked for with its commit, so that the graph stored for it is read", async () => {
   const { traceGraph, graphText } = await import("../src/trace-graph/index.mjs");
-  const probe = fakeProduct();
-  const shot = await probe.host.readSnapshot();
+  const asked = [];
+  let bytes = null;
+  const fake = fakeProduct(FILES, { readOn: async (branch, path, options) => { asked.push([branch, path]); return branch === "trace-cache" && path === `${shot.commit}.json.gz` && options?.bytes ? bytes : null; } });
+  const shot = await fake.host.readSnapshot();
   const graph = await traceGraph({ paths: shot.paths, read: shot.read }, { commit: shot.commit });
   graph.nodes.set("MOD-stored", { ...graph.nodes.get("MOD-b"), id: "MOD-stored", title: "MOD-stored", path: "docs/architecture/MOD-stored.md" });
-  const asked = [];
-  const bytes = await gzipped(graphText(graph));
-  const fake = fakeProduct(FILES, { readOn: async (branch, path, options) => { asked.push([branch, path]); return branch === "trace-cache" && path === `${shot.commit}.json.gz` && options?.bytes ? bytes : null; } });
+  bytes = await gzipped(graphText(graph));
   const target = await show(fake);
   const listed = byClass(target, "li", "uncovered").concat(byClass(target, "li", "covered")).map((item) => item.getAttribute("data-name")).sort();
   assert.deepEqual(listed, ["MOD-a", "MOD-b", "MOD-stored", "RULE ONE", "RULE TWO", "UC-001", "UC-002"]);

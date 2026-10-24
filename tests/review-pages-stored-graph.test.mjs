@@ -42,12 +42,14 @@ const recordOf = (id, kind, path, body) => [`docs/approvals/${id}-${blobOf(body)
 const STEPS = [BASE, Object.fromEntries([recordOf("UC-001", "use-case", "docs/use-cases/UC-001-read-a-book.md", UC1), recordOf("ARC-001", "architecture-decision", ARC1_PATH, ARC1),
   recordOf("MOD-reader", "module", READER_PATH, READER_BEFORE)]), { [READER_PATH]: READER_AFTER }];
 
-// A Host of this file's own. `storedGraph`: whether the branch trace-cache holds the graph of the head commit.
+// A Host of this file's own. `storedGraph`: whether the branch trace-cache holds the graph of the head commit. Each Host's commits are its own: MOD-trace-graph's storedGraph
+// keeps a commit's graph for the page (the module), so two tests never share a commit.
+let products = 0;
 function fakeProduct({ storedGraph }) {
-  const commits = new Map(), calls = [];
+  const commits = new Map(), calls = [], product = ++products;
   let made = 0, head = null;
   for (const files of STEPS) {
-    const sha = createHash("sha1").update(`commit ${++made}`).digest("hex");
+    const sha = createHash("sha1").update(`product ${product} commit ${++made}`).digest("hex");
     commits.set(sha, { tree: new Map([...(head ? commits.get(head).tree : []), ...Object.entries(files)]), parent: head, date: `2026-10-0${made}T10:00:00Z` });
     head = sha;
   }

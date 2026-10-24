@@ -128,12 +128,12 @@ test("a click on a module opens its file and its folder in a row below it, and a
 // guards: UC-025; A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: one Host for main, whose snapshots count every readMany
 // input: the modules view rendered at main
-// expect: the graph is read once, the stored one — one readOn of ("trace-cache", "main.json.gz") — for the table, the gaps and the diagram, and is not built: no code or test file is read or named to readMany;
+// expect: the graph is read once, the stored one — one readOn of ("trace-cache", "<main's commit>.json.gz") — for the table, the gaps and the diagram, and is not built: no code or test file is read or named to readMany;
 //         the diagram's module files are named to readMany in one batch before they are read
 test("the modules view reads the stored graph once for its diagram, its table and its gaps, and its module files in one batch", async () => {
   const productHost = hostOf();
   const drawn = await render(productHost);
-  assert.deepEqual(productHost.log.readOns, [["trace-cache", "main.json.gz"]]);
+  assert.deepEqual(productHost.log.readOns, [["trace-cache", `${productHost.commitOf("main")}.json.gz`]]);
   const modules = ["docs/architecture/MOD-page.md", "docs/architecture/MOD-review.md"];
   assert.deepEqual(productHost.log.manys, [modules]);
   assert.deepEqual(productHost.log.reads, modules);

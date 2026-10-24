@@ -205,14 +205,14 @@ test("a version that predates the artifacts shows what it holds and says what is
 // guards: UC-020; THE TRACEABILITY MATRIX IS DERIVED
 // given: the fixture, whose branch trace-cache holds no graph of main at the first readOn of main (the workflow "main changed" has not run yet), and holds it later
 // input: the route rendered at main; then v2026.1.0 chosen and main chosen again
-// expect: the first page says "The gaps could not be read: the trace graph of main is not stored yet …", keeps the version choice with main selected, draws no list and no matrix and reads no file for a
+// expect: the first page says "The gaps could not be read: the trace graph of <main's commit> is not stored yet …", keeps the version choice with main selected, draws no list and no matrix and reads no file for a
 //         graph (UC-001's file is not read); the choice of main after the tag draws the five lists and the matrix, since the graph that was missing is read again
 test("a graph that is not stored is named in place of the gaps, the choice stays, and the next drawing reads it again", async () => {
   const productHost = hostOf({ stored: (ref, nth) => !(ref === "main" && nth === 1) });
   const target = await render(productHost);
   const problems = find(target, (node) => node.className === "traces-problem").map((node) => node.textContent);
   assert.equal(problems.length, 1);
-  assert.match(problems[0], /^The gaps could not be read: the trace graph of main is not stored yet — the workflow "main changed" builds it/);
+  assert.match(problems[0], new RegExp(`^The gaps could not be read: the trace graph of ${productHost.commitOf("main").slice(0, 12)} is not stored yet — the workflow "main changed" builds it`));
   assert.equal(productHost.log.reads.includes("docs/use-cases/UC-001-first.md"), false, "the page builds no graph");
   assert.equal(selectOf(target).value, "main");
   assert.deepEqual(titles(target), []);
@@ -230,23 +230,23 @@ test("a graph that is not stored is named in place of the gaps, the choice stays
 // guards: UC-020; THE TRACEABILITY MATRIX IS DERIVED
 // given: one Host, whose snapshots count every readOn, read and readMany, for main and for the tag v2026.1.0, each with its graph stored on trace-cache; the frame hands each opening of the route a context of its own
 // input: the route rendered at main; rendered at main again; v2026.1.0 chosen; main chosen
-// expect: the stored graph has been read once after the first rendering — ("trace-cache", "main.json.gz") — and still once after the second; v2026.1.0.json.gz is read once the tag is chosen, and nothing more once
+// expect: the stored graph has been read once after the first rendering — ("trace-cache", "<main's commit>.json.gz") — and still once after the second; <v2026.1.0's commit>.json.gz is read once the tag is chosen, and nothing more once
 //         main is chosen again — one graph for each version; no file is read for a graph: UC-001's file is never read and readMany is never told it
 test("the graph of a version is read from trace-cache once, however often the gaps are opened at it, and never built", async () => {
   const productHost = hostOf();
   const uc = "docs/use-cases/UC-001-first.md";
   const graphReads = () => productHost.log.readOns.filter(([branch]) => branch === "trace-cache").map(([, path]) => path);
   await render(productHost);
-  assert.deepEqual(graphReads(), ["main.json.gz"]);
+  assert.deepEqual(graphReads(), [`${productHost.commitOf("main")}.json.gz`]);
   const again = await render(productHost);
-  assert.deepEqual(graphReads(), ["main.json.gz"], "the second opening at main reads no graph");
+  assert.deepEqual(graphReads(), [`${productHost.commitOf("main")}.json.gz`], "the second opening at main reads no graph");
   assert.deepEqual(titles(again).length, 5, "known positive: the second opening drew the lists");
   choose(again, "v2026.1.0");
   await until(() => asOf(again).length === 1 && reading(again) === 0);
-  assert.deepEqual(graphReads(), ["main.json.gz", "v2026.1.0.json.gz"]);
+  assert.deepEqual(graphReads(), [`${productHost.commitOf("main")}.json.gz`, `${productHost.commitOf("v2026.1.0")}.json.gz`]);
   choose(again, "main");
   await until(() => titles(again).length === 5);
-  assert.deepEqual(graphReads(), ["main.json.gz", "v2026.1.0.json.gz"]);
+  assert.deepEqual(graphReads(), [`${productHost.commitOf("main")}.json.gz`, `${productHost.commitOf("v2026.1.0")}.json.gz`]);
   assert.equal(productHost.log.reads.includes(uc), false, "the page builds no graph");
   assert.equal(productHost.log.manys.some((paths) => paths.includes(uc)), false, "the page names no file of a graph to readMany");
 });
@@ -341,7 +341,7 @@ test("the gaps view leads back to the specification at the version it shows", as
 // given: a Host whose main holds a SPEC of one requirement ALPHA RULE and the use case UC-001 realising it, and counts every snapshot, read and readMany
 // input: the specification rendered at main; then the address of its Gaps link followed, as the frame does: the route "trace" rendered with the key and the ref the link names, with the same Host
 // expect: after the specification: snapshots [main], reads [SPEC.md, the group file docs/groups/requirements.md], no readMany and no readOn (the file holds no group, so no count asks for the graph). After following the link:
-//         snapshots [main, main], reads [SPEC.md, the group file, SPEC.md], no readMany and one readOn of ("trace-cache", "main.json.gz") — the gaps alone read SPEC.md once and the stored graph once, and build no graph, so the
+//         snapshots [main, main], reads [SPEC.md, the group file, SPEC.md], no readMany and one readOn of ("trace-cache", "<main's commit>.json.gz") — the gaps alone read SPEC.md once and the stored graph once, and build no graph, so the
 //         specification and the link added the specification's own snapshot and read and nothing else
 test("showing the link reads nothing, and following it adds only the stored graph the gaps view reads itself", async () => {
   const UC_FILE = "docs/use-cases/UC-001-first.md";
@@ -360,5 +360,5 @@ test("showing the link reads nothing, and following it adds only the stored grap
   const followed = await render(productHost, params, context);
   assert.deepEqual(titles(followed), ["Requirements realised by no use case", "Use cases that realise no requirement", "Unknown names"], "known positive: the gaps were drawn, without the lists of the kinds this version lacks");
   assert.deepEqual([productHost.log.snapshots, productHost.log.reads, productHost.log.manys, productHost.log.readOns],
-    [["main", "main"], ["SPEC.md", "docs/groups/requirements.md", "SPEC.md"], [], [["trace-cache", "main.json.gz"]]]);
+    [["main", "main"], ["SPEC.md", "docs/groups/requirements.md", "SPEC.md"], [], [["trace-cache", `${productHost.commitOf("main")}.json.gz`]]]);
 });

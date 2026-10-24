@@ -116,11 +116,15 @@ export function doc(id, title, keys = {}, body = "") {
 
 // A Host whose snapshots hold the files of `trees` by ref; `log` records every snapshot asked for, every read and every readMany. `failing(path, nth)` makes the nth
 // read of a path (from 1) fail as an unreachable server does. It has no write method and no repositoryInfo beyond the default branch. Each snapshot's readOn
-// serves the graph of its tree stored on trace-cache for the snapshot's commit (the ref, or the commit a wrapper of the snapshot names), as the workflow "main changed"
+// serves the graph of its tree stored on trace-cache for the snapshot's commit (`commitOf(ref)`, or the commit a wrapper of the snapshot names), as the workflow "main changed"
 // stores it (tests/stored-graph-fake.mjs); `stored(ref, nth)` false (from 1) leaves the nth readOn of a ref without it, as before the workflow ran. `log.readOns` records
-// each readOn. Building that graph is the push job's work and reads nothing the log records.
+// each readOn. Building that graph is the push job's work and reads nothing the log records. The commit of a ref is a SHA of its own for each Host: MOD-trace-graph's
+// storedGraph keeps a commit's graph for the page (the module), so two Hosts of one test file never share a commit.
+let hostsMade = 0;
 export function treeHost({ trees, tags = [], failing = () => false, history = [], stored = () => true }) {
   const log = { snapshots: [], reads: [], manys: [], histories: [], fileAts: [], readOns: [] };
+  const made = ++hostsMade;
+  const commitOf = (ref) => createHash("sha1").update(`tree host ${made} ${ref}`).digest("hex");
   const counts = new Map();
   const storedOf = new Map(), readOnCounts = new Map();
   const readOnOf = (ref, commit, files) => {
@@ -129,13 +133,13 @@ export function treeHost({ trees, tags = [], failing = () => false, history = []
     return storedOf.get(key);
   };
   return {
-    log,
+    log, commitOf,
     async readSnapshot(ref) {
       log.snapshots.push(ref);
       const files = trees[ref];
       if (!files) throw Object.assign(new Error("unreachable"), { name: "Unreachable" });
       return {
-        ref, commit: ref, paths: Object.keys(files),
+        ref, commit: commitOf(ref), paths: Object.keys(files),
         async read(path) {
           log.reads.push(path);
           counts.set(path, (counts.get(path) ?? 0) + 1);
@@ -146,7 +150,7 @@ export function treeHost({ trees, tags = [], failing = () => false, history = []
         async readOn(branch, path, options) {
           log.readOns.push([branch, path]);
           readOnCounts.set(ref, (readOnCounts.get(ref) ?? 0) + 1);
-          return stored(ref, readOnCounts.get(ref)) ? readOnOf(ref, this?.commit ?? ref, files)(branch, path, options) : null;
+          return stored(ref, readOnCounts.get(ref)) ? readOnOf(ref, this?.commit ?? commitOf(ref), files)(branch, path, options) : null;
         },
         blob: (path) => (Object.hasOwn(files, path) ? blobOf(files[path]) : null),
       };

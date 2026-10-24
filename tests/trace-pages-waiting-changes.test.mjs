@@ -123,8 +123,9 @@ test("TST-878005 with an overview stored for the commit, the page lists the wait
   const overview = JSON.stringify({ commit: "main", shares: [], waiting: [], model: null, build: { states: [], records: [] }, queues: open });
   const asked = [];
   const host = treeHost({ trees: { main: withOpen } });
+  // The fixture's commit is named by its ref, "main", as the overview stored for it names it.
   const productHost = { ...host, async readSnapshot(ref) {
-    return { ...(await host.readSnapshot(ref)), readOn: async (branch, path) => { asked.push([branch, path]); return branch === "overview-cache" && path === "main.json" ? overview : null; } };
+    return { ...(await host.readSnapshot(ref)), commit: ref, readOn: async (branch, path) => { asked.push([branch, path]); return branch === "overview-cache" && path === "main.json" ? overview : null; } };
   } };
   const target = document.createElement("div");
   document.body.append(target);

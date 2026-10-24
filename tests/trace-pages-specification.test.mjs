@@ -528,9 +528,9 @@ test("the names that match no requirement and that the listed artifacts also nam
 // given: the fixture on the default branch, which holds no group file and two open entries of change queues
 // input: the route drawn; ALPHA RULE opened; BETA RULE opened; ALPHA RULE closed and opened again
 // expect: no file is read for a graph — UC-001's file is never named to readMany nor read; drawing reads the stored graph once, MOD-spec-changes' entryView's, for the impact lists that give the
-//         statuses (UC-020 step 3): one readOn of ("trace-cache", "main.json.gz"); no group asks for the counts, so the view's own graph is not read until ALPHA RULE is opened: then two such readOns;
-//         after BETA RULE and the second opening still two, and ALPHA RULE lists UC-001 (the graph is read: a known positive)
-test("the view's trace graph is read from trace-cache when a requirement is opened, or for the counts of a group, and kept for every later opening; no file is read for it", async () => {
+//         statuses (UC-020 step 3): one readOn of ("trace-cache", "<main's commit>.json.gz"); the graph of a commit is read once for the page (MOD-trace-graph's storedGraph), so opening ALPHA RULE,
+//         BETA RULE and ALPHA RULE again reads it no more — still one readOn —, and ALPHA RULE lists UC-001 (the graph is there: a known positive)
+test("the view's trace graph is the stored graph of the commit, read once for the page and kept for every opening; no file is read for it", async () => {
   const productHost = mainOnly();
   const target = await render(productHost, mainParams);
   const queueFile = (path) => path.startsWith("docs/spec-freigaben/");
@@ -538,16 +538,16 @@ test("the view's trace graph is read from trace-cache when a requirement is open
   assert.equal(productHost.log.reads.filter(queueFile).length > 0, true, "known positive: the queue files of the default branch are read");
   const uc = "docs/use-cases/UC-001-first.md";
   const counts = () => [productHost.log.manys.filter((paths) => paths.includes(uc)).length, productHost.log.reads.filter((path) => path === uc).length,
-    productHost.log.readOns.filter(([branch, path]) => branch === "trace-cache" && path === "main.json.gz").length];
+    productHost.log.readOns.filter(([branch, path]) => branch === "trace-cache" && path === `${productHost.commitOf("main")}.json.gz`).length];
   assert.deepEqual(counts(), [0, 0, 1], "drawing reads the stored graph of the impact lists alone");
   const opened = await openRequirement(target, "ALPHA RULE");
-  assert.deepEqual(counts(), [0, 0, 2]);
+  assert.deepEqual(counts(), [0, 0, 1]);
   assert.deepEqual(listed(opened, "Use cases")[0], "UC-001 First use case — accepted");
   await openRequirement(target, "BETA RULE");
   const alpha = find(target, (node) => node.localName === "button" && node.textContent === "ALPHA RULE")[0];
   alpha.dispatchEvent(new Event("click"));
   await openRequirement(target, "ALPHA RULE");
-  assert.deepEqual(counts(), [0, 0, 2]);
+  assert.deepEqual(counts(), [0, 0, 1]);
 });
 
 // CASE ITM-597-10
@@ -555,7 +555,7 @@ test("the view's trace graph is read from trace-cache when a requirement is open
 // guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
 // given: the fixture, whose branch trace-cache holds no graph of main until the test lets the workflow have stored it
 // input: ALPHA RULE opened, closed, the graph stored, ALPHA RULE opened again
-// expect: the first opening keeps the four fields and says "What traces to this requirement could not be read: This page could not be drawn: the trace graph of main is not stored yet" with no list,
+// expect: the first opening keeps the four fields and says "What traces to this requirement could not be read: This page could not be drawn: the trace graph of <main's commit> is not stored yet" with no list,
 //         and no file is read for a graph (UC-001's file is not read); the second opening reads again and lists UC-001 as "accepted"
 test("a graph that is not stored is named in place of the traces, the four fields stay, and the next opening reads it again", async () => {
   let notStored = true;
@@ -563,7 +563,7 @@ test("a graph that is not stored is named in place of the traces, the four field
   const target = await render(productHost, mainParams);
   const row = await openRequirement(target, "ALPHA RULE");
   assert.match(row.textContent, /Alpha rule\./);
-  assert.match(row.textContent, /What traces to this requirement could not be read: This page could not be drawn: the trace graph of main is not stored yet/);
+  assert.match(row.textContent, new RegExp(`What traces to this requirement could not be read: This page could not be drawn: the trace graph of ${productHost.commitOf("main").slice(0, 12)} is not stored yet`));
   assert.equal(traceSection(row, "Use cases") === undefined, true, "no lists beside the problem");
   assert.equal(productHost.log.reads.includes("docs/use-cases/UC-001-first.md"), false, "the page builds no graph");
   find(target, (node) => node.localName === "button" && node.textContent === "ALPHA RULE")[0].dispatchEvent(new Event("click"));
