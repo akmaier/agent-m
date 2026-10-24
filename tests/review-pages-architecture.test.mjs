@@ -292,9 +292,7 @@ test("MOD-review-pages decision/<id> and module/<id> — a change to an accepted
 
 // TST-680102 · level: unit · module: MOD-review-pages
 // guards: AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST
-// given: MOD-lister changed since acceptance, and a host whose branch trace-cache holds no graph of the commit shown — the page derives the impact list from the
-//   stored graph only (MOD-review-pages: "The graph is the one `onMainChanged` stored for the commit shown (MOD-workflow-entries), read through `storedGraph`;
-//   no page builds a graph")
+// given: MOD-lister changed since acceptance, and a host whose branch trace-cache holds no graph of the commit shown — the page derives the impact list from the stored graph only (MOD-review-pages: "The graph is the one `onMainChanged` stored for the commit shown (MOD-workflow-entries), read through `storedGraph`; no page builds a graph")
 // input: the route module rendered for MOD-lister
 // expect: the page says that the impact list could not be derived, naming the graph not stored, and that the change cannot be accepted without it; no Accept;
 //   counter-proof: the same page on a host that holds the graph offers Accept

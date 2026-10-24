@@ -16,8 +16,7 @@ import { productFiles, fakeGitHub, openPage, byClass, ENTRY_ID, TOKEN } from "./
 
 // TST-479201 · level: release · module: MOD-review-pages; MOD-trace-graph; MOD-repository-hosts
 // guards: UC-006; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST
-// given: the product of 1,332 files in which UC-002, the only artifact that names "A WRITE RULE", is the last file of the tree; the branch trace-cache holds the graph the
-//        workflow "main changed" stored for the commit (a page reads that graph and never builds one — MOD-trace-graph)
+// given: the product of 1,332 files in which UC-002, the only artifact that names "A WRITE RULE", is the last file of the tree; the branch trace-cache holds the graph the workflow "main changed" stored for the commit (a page reads that graph and never builds one — MOD-trace-graph)
 // input: open the SPEC-entry page of entry 07, which changes "A WRITE RULE"
 // expect: the impact list reads "A WRITE RULE — changed, named by UC-002", though the page reads no use case: UC-002 stands in no query and is read on its own by no request; the
 //         graph is read by one request; at most 3 queries (the queue's and the entry's files) and at most 7 requests in all, against the 1,336 of one request for each file
