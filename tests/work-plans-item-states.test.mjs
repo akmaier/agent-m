@@ -4,8 +4,7 @@
 // Run: node --test tests/work-plans-item-states.test.mjs
 //
 // Module: MOD-work-plans
-// Guards: STATUS IS DERIVED FROM THE RECORDS; NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; PROGRESS AND JOB STATE ARE
-//         DERIVED, NOT STORED
+// Guards: STATUS IS DERIVED FROM THE RECORDS; NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // Level: unit
 
 import test from "node:test";

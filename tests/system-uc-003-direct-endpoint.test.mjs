@@ -3,9 +3,8 @@
 //
 // Module: MOD-settings-pages · MOD-browser-store · MOD-endpoint-calls · MOD-site-frame
 // Level: system
-// Guards: UC-003; CONFIGURATION LIVES IN THE BROWSER; CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE;
-//         A CREDENTIAL IS NEVER PLACED IN A URL; AN UNSUPPORTED ENDPOINT SAYS SO; A CLEAR IS A REAL CLEAR;
-//         NO SECRET IN THE REPOSITORY
+// Guards: UC-003; CONFIGURATION LIVES IN THE BROWSER; CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE
+// Guards: A CREDENTIAL IS NEVER PLACED IN A URL; AN UNSUPPORTED ENDPOINT SAYS SO; A CLEAR IS A REAL CLEAR; NO SECRET IN THE REPOSITORY
 //
 // The endpoint servers below are controlled in-process handlers of the existing dashboard harness. No provider is called.
 // Counter-proofs: each TST's named source fault was planted, its case failed at the stated assertion, and the byte was restored.

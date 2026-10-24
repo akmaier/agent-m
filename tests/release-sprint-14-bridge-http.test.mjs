@@ -1,8 +1,8 @@
 // The selected Bridge endpoint-test slice through its public entry (ITM-261).
 //
 // Module: MOD-bridge-http
-// Guards: UC-003; THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY; THE LOCAL BRIDGE REQUIRES A TOKEN;
-//         THE BRIDGE IS PAIRED ONCE; A CREDENTIAL IS NEVER PLACED IN A URL
+// Guards: UC-003; THE LOCAL BRIDGE BINDS TO LOOPBACK ONLY; THE LOCAL BRIDGE REQUIRES A TOKEN; THE BRIDGE IS PAIRED ONCE
+// Guards: A CREDENTIAL IS NEVER PLACED IN A URL
 // Level: release
 
 import assert from "node:assert/strict";

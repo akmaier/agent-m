@@ -10,8 +10,8 @@
 // Run: node --test tests/job-ledger.test.mjs
 //
 // Module: MOD-job-ledger
-// Guards: UC-013; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; A JOB IDENTIFIER IS NEVER REUSED; PROGRESS AND JOB STATE
-//         ARE DERIVED, NOT STORED
+// Guards: UC-013; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; A JOB IDENTIFIER IS NEVER REUSED
+// Guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // Level: unit
 //
 // Each test states its input and its expected result before it runs (given / input / expect). listJobs is given fixture

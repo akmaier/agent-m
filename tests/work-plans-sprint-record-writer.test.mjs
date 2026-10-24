@@ -134,7 +134,7 @@ test("the facts are the recipe's: the review lists its increment, and Undecided 
 });
 
 // TST-620003 · level: unit · module: MOD-work-plans
-// guards: UC-041; THE COMMIT CARRIES THE JOB'S PROVENANCE
+// guards: UC-041; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
 // given: the job JOB-20261019-0900-ab12 of the kind close-sprint, drafted by the participant closer-bot of model-x after two rounds, run from Agent M's commit aaaa…
 // input: the writer
 // expect: the commit's message names the sprint and ends with the provenance lines of provenanceLines for this job — the Agent M version and commit, the job, the kind close-sprint, the participant closer-bot, its model and 2 rounds —

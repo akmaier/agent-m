@@ -192,12 +192,13 @@ test("UC-001 — a server whose answer reports neither a visibility nor a defaul
 // "Repository permissions": pull_requests read/write, workflows write only, metadata read only),
 // https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#pre-filling-fine-grained-personal-access-token-details-using-url-parameters
 const TOKEN_FIELDS = ["name", "description", "expires_in", "target_name"];
-const ONE_TOKEN = { contents: "write", issues: "write", pull_requests: "write", actions: "write", workflows: "write", metadata: "read" };
+// SPEC: "*Contents*, *Issues* and *Pull requests* read and write, *Actions*, *Workflows* and *Secrets* read and write, *Metadata* read".
+const ONE_TOKEN = { contents: "write", issues: "write", pull_requests: "write", actions: "write", workflows: "write", secrets: "write", metadata: "read" };
 // The permissions as the person reads them, in GitHub's display names.
 const NAMED = ["Contents: read and write", "Issues: read and write", "Pull requests: read and write", "Actions: read and write",
-  "Workflows: read and write", "Metadata: read"];
+  "Workflows: read and write", "Secrets: read and write", "Metadata: read"];
 
-test("THE TOKEN LINK IS PREFILLED · ONE GITHUB TOKEN SERVES EVERY FEATURE — exactly Contents, Issues, Pull requests, Actions, Workflows write, Metadata read", () => {
+test("THE TOKEN LINK IS PREFILLED · ONE GITHUB TOKEN SERVES EVERY FEATURE — exactly Contents, Issues, Pull requests, Actions, Workflows, Secrets write, Metadata read", () => {
   const u = new URL(tokenLinkUrl("reader/agent-m"));
   assert.equal(u.origin + u.pathname, "https://github.com/settings/personal-access-tokens/new");
   assert.equal(u.searchParams.get("name"), "Agent M · reader/agent-m");

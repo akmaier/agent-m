@@ -174,7 +174,7 @@ class TestNoHistory(unittest.TestCase):
     # guards: A DOCUMENT HOLDS NO HISTORY
     # given: the tracked use cases, architecture decisions, module files, backlog items and settings files
     # input: each included file read through its product document interface and checked for marks from MOD-text-tools
-    # expect: the repository findings equal the named current disagreements in the Markdown data
+    # expect: no finding: none of these files carries a withdrawal note, an edit stamp or the date of a change (the Markdown data states the empty list)
     def test_current_repository_history_findings_are_named(self):
         paths = repository_paths()
         self.assertNotIn("SPEC.md", paths)

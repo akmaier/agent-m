@@ -6,8 +6,8 @@
 // Run: node --test tests/work-plans-startable.test.mjs
 //
 // Module: MOD-work-plans
-// Guards: UC-032; UC-034; A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT;
-//         NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; A JOB GOES ONLY TO A HOLDER OF ITS ROLE
+// Guards: UC-032; UC-034; A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT
+// Guards: NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; A JOB GOES ONLY TO A HOLDER OF ITS ROLE
 // Level: unit
 //
 // The fixture product works in sprints with a work-in-progress limit of 2, and has two teams. Its process has the phase

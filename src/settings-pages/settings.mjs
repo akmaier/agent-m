@@ -12,7 +12,7 @@ import { resourceSchema } from "../resource-list/index.mjs";
 import { settingsSchemas, pseudonymisationOf, namedPersonFindings } from "../personal-data/index.mjs";
 import { saveFile } from "../artifact-edits/index.mjs";
 import { endpointLacks, recordingOf, recordingSchema } from "../prompt-bar/index.mjs";
-import { jobWorkflowFiles } from "../runtimes/index.mjs";
+import { gitlabVariableScopes, jobWorkflowFiles } from "../runtimes/index.mjs";
 import { checkProduct, credentialsFor, tokenKeyAddress, tokenRefusal, tokenSettingKey, route as addProductRoute } from "./products.mjs";
 import { connect, HostError, parseAddress } from "../repository-hosts/index.mjs";
 import { bridgeAt, pair, probe, settingsOf, testBridge } from "../bridge-client/index.mjs";
@@ -917,6 +917,32 @@ async function jobWorkflowInput(context) {
   };
 }
 
+// On GitLab, which gives a job every CI/CD variable not scoped to an environment, the scope each variable the job workflow reads needs (MOD-runtimes'
+// gitlabVariableScopes), and the state of the project's variables as its server lists them — names and scopes, never a value. The setup is called safe only
+// where every variable stands with exactly the scopes it needs; a variable missing a scope, one with another scope, and a list the server refuses are named.
+async function gitlabScopes(host, secrets) {
+  const needed = gitlabVariableScopes(secrets);
+  const list = el("ul", "settings-job-workflow-scopes",
+    ...needed.map(({ name, scopes }) => el("li", null, `${name}: environment scope ${scopes.join(" and ")}${scopes.length > 1 ? ", one variable for each" : ""}`)));
+  const state = el("p", "settings-job-workflow-scope-state");
+  let listed;
+  try { listed = await host.ciVariableScopes(); }
+  catch (error) {
+    state.textContent = `The scopes cannot be checked here (${error.message}). Until each variable stands with exactly the scopes above, the job workflow is not safe: `
+      + "an unscoped variable reaches every job, the agent's among them.";
+    return [list, state];
+  }
+  const findings = [];
+  for (const { name, scopes } of needed) {
+    const has = listed.filter((variable) => variable.name === name).map((variable) => variable.scope);
+    for (const scope of scopes.filter((each) => !has.includes(each))) findings.push(`${name} has no variable of the scope ${scope}`);
+    for (const scope of has.filter((each) => !scopes.includes(each))) findings.push(`${name} has the scope ${scope}, which reaches ${scope === "*" ? "every job" : "jobs it should not"}`);
+  }
+  state.textContent = findings.length === 0 ? "Every variable stands with exactly the scopes above: the job workflow is safe."
+    : `Not safe: ${findings.join("; ")}.`;
+  return [list, state];
+}
+
 async function jobWorkflowLine(context, { address, defaultBranch, snapshot, canWrite }) {
   const status = el("p", "settings-job-workflow-status");
   const result = el("p", "settings-job-workflow-result");
@@ -924,7 +950,7 @@ async function jobWorkflowLine(context, { address, defaultBranch, snapshot, canW
   const secretsPage = el("a", "settings-job-workflow-secrets-link", "Open the repository's secrets page");
   secretsPage.href = connect(address, {}).webLinks().secrets;
   const install = el("button", "settings-job-workflow-install btn primary", "Install");
-  let offerInstall = false;
+  let offerInstall = false, scopes = null;
   let files = [], expectedHead = snapshot.commit;
   try {
     const input = await jobWorkflowInput(context);
@@ -939,6 +965,7 @@ async function jobWorkflowLine(context, { address, defaultBranch, snapshot, canW
       : missing.length === files.length ? "Not installed."
         : `Workflow files are different from this instance commit: ${[...missing, ...different].join(", ")}.`;
     secretList.textContent = `Secrets named: ${[input.secrets.token, ...input.secrets.keys].join(", ") || input.secrets.token}. `;
+    if (address.server === "gitlab") scopes = await gitlabScopes(context.product.host, input.secrets);
     offerInstall = !installed && canWrite;
   } catch (error) {
     status.textContent = `The workflow state cannot be read: ${error.message}`;
@@ -965,6 +992,7 @@ async function jobWorkflowLine(context, { address, defaultBranch, snapshot, canW
     el("h4", null, "Agent M's job workflow"),
     status,
     secretList,
+    ...(scopes ?? []),
     el("p", null, secretsPage),
     explain("settings-job-workflow"),
     ...(offerInstall ? [el("p", null, install)] : []),

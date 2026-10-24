@@ -395,7 +395,7 @@ async function followed(w, href) {
 }
 
 // TST-1166001 · level: component · module: MOD-maintenance-pages
-// guards: UC-038; MOD-site-frame.md:133 (the parts of the fragment after the first are the route's parameters)
+// guards: UC-038
 // given: the mailbox holds a reply in the thread of issue #4 of alice/product, which GitHub lists as "Export fails"
 // input: the link under the reply (the issue of its thread) followed as the frame follows an address: routeOf, chosenProduct, the route drawn with what they give
 // expect: the link is the address the frame writes (fragmentOf: `#issue/number=4/product=<address>`); followed, it draws the page of issue #4 of alice/product ("Issue #4: Export fails"); counter-proof: the old form `#issue/4`, followed the same way, draws no such page
@@ -414,7 +414,7 @@ test("the link to the issue of a mail's thread is the address the frame writes, 
 });
 
 // TST-1166002 · level: component · module: MOD-maintenance-pages
-// guards: UC-038 (10: Propose SPEC change); MOD-site-frame.md:133 (the parts of the fragment after the first are the route's parameters)
+// guards: UC-038
 // given: one new mail; GitHub creates the issue as #100
 // input: a change issue created with the person's click; the link Propose SPEC change followed as the frame follows an address
 // expect: the link is the address the frame writes (fragmentOf: `#issue/number=100/product=<address>`); followed, it draws the page of issue #100 of alice/product with the title the person typed; counter-proof: the old form `#issue/100` draws no such page

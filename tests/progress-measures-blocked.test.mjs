@@ -79,7 +79,7 @@ test("blocked — a product with one case of each reason lists each with its rea
 });
 
 // TST-798002 · level: unit · module: MOD-progress-measures
-// guards: UC-035 step 4 (the WIP limit — of its team, in a model with sprints)
+// guards: UC-035
 // given: a ready item ITM-006 selected for team1's sprint; ITM-007 and ITM-008 of team2's sprint in progress; ITM-009 of team1's sprint in progress; a limit of 2
 // input: blocked(facts) with model Scrum (sprints) and limit 2; the same with the limit 1; with a model without sprints (Kanban) and limit 2; with limit null; with a model that is "unknown"
 // expect: with limit 2 in sprints, not blocked — only ITM-009 is in progress under team1, the two of team2 do not count; with limit 1 in sprints, blocked naming ITM-009; without sprints and limit 2, blocked — all three in progress count, and the detail has no team; with no limit or an unknown model, never blocked for the limit
@@ -95,7 +95,7 @@ test("blocked — the work-in-progress limit counts the items in progress of the
 });
 
 // TST-798003 · level: unit · module: MOD-progress-measures
-// guards: SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES; UC-035 step 4
+// guards: SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES; UC-035
 // given: ready items: ITM-001 (team1) changing MOD-a and MOD-b; ITM-002 (team1) changing MOD-c; ITM-003 (team1) changing MOD-d; ITM-004, selected for no sprint, changing MOD-e; held items: ITM-021 of team2 changing MOD-a and using MOD-c; ITM-022 of team2 changing MOD-b; ITM-023 of team1 changing MOD-d; ITM-024 of team2 changing nothing the others change or use
 // input: blocked(facts) with no limit
 // expect: ITM-001 held by team2's sprint, naming MOD-a with ITM-021 and MOD-b with ITM-022, in that order, in one entry; ITM-002 held, naming MOD-c, which ITM-021 uses and ITM-002 changes; ITM-003 not blocked — the one other item that holds MOD-d is of its own team; ITM-004 not blocked — no sprint holds MOD-e
@@ -116,7 +116,7 @@ test("blocked — an item is held by another team's sprint for each module it ch
 });
 
 // TST-798004 · level: unit · module: MOD-progress-measures
-// guards: UC-035 step 4 (a failed job; a job waiting at a gate)
+// guards: UC-035
 // given: ITM-001 and ITM-002 in the state blocked, whose jobs the rows give as failed and as waiting at a gate; ITM-003 blocked by a job that has no row among the jobs; a product with no plan
 // input: blocked(facts); blocked of facts with an empty plan
 // expect: ITM-001 "failed job" and ITM-002 "waiting at a gate", each with the sentence of its state; ITM-003 is not listed — a reason is not guessed where the job's row is missing; an empty plan lists nothing

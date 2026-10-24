@@ -147,6 +147,19 @@ class TestValidation(unittest.TestCase):
         for f in files:
             self.assertEqual(errors(read(f)), [], f.relative_to(DOCS).as_posix())
 
+    # A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED, Check: "Each book model in the shipped catalogue must pass." The shipped
+    # catalogue is src/model-catalogue/models/, validated by the catalogue's own modelFindings (MOD-model-catalogue).
+    # Expected: the five book models are there, and none has an error finding.
+    def test_every_book_model_of_the_shipped_catalogue_passes_validation(self):
+        root = DOCS.parent
+        files = sorted((root / "src" / "model-catalogue" / "models").glob("*.md"))
+        self.assertEqual(sorted(f.stem for f in files), ["kanban", "reuse-oriented", "scrum", "v-model", "waterfall"])
+        for f in files:
+            rel = f.relative_to(root).as_posix()
+            found = js(f"const doc = documents.readDocument(modelCatalogue.modelSchema.model, {json.dumps(rel)}, {json.dumps(read(f))});"
+                       "return modelCatalogue.modelFindings(doc).filter((f) => f.kind === 'error').map((f) => f.line + ': ' + f.what);")
+            self.assertEqual(found, [], rel)
+
     def test_the_model_agent_m_declares_gives_its_flow_control(self):
         declared, _ = front_matter(read(DOCS / "process.md"))
         m = parse(read(DOCS.parent / declared["model_file"]))

@@ -3,9 +3,9 @@
 //
 // Module: MOD-agent-processes
 // Level: release
-// Guards: THE BRIDGE FINDS THE INSTALLED AGENTS; A LOCAL AGENT USES THE PERSON'S OWN LOGIN;
-//         A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; A CANCELLED JOB WRITES NOTHING MORE;
-//         ONE DEFINITION, THREE DRIVERS; A REMOTE INTERFACE NAMES HOW IT FAILS; UC-010; UC-011
+// Guards: THE BRIDGE FINDS THE INSTALLED AGENTS; A LOCAL AGENT USES THE PERSON'S OWN LOGIN
+// Guards: A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; A CANCELLED JOB WRITES NOTHING MORE; ONE DEFINITION, THREE DRIVERS
+// Guards: A REMOTE INTERFACE NAMES HOW IT FAILS; UC-010; UC-011
 //
 // Every executable is a temporary controlled fixture. The file never calls an installed vendor agent,
 // a provider, or a Bridge. Its CI-only counter-proofs run a copied checkout so each planted fault and

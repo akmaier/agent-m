@@ -347,6 +347,13 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
       return (await everyPage(`${api}/pipelines${query.size ? `?${query}` : ""}`, {}, (p) => p.id)).map((p) => ciRunOf(p, workflow ?? ""));
     },
 
+    // Each CI/CD variable of the project by its key and environment scope ("List project variables": GET …/variables, every page, which needs the role Maintainer; a key
+    // may stand once for each scope). The answer holds each value too: it is dropped here, as the answer is read, and never returned.
+    async ciVariableScopes() {
+      const listed = await everyPage(`${api}/variables`, { what: `the CI/CD variables of ${address.web}` }, (v) => `${v.key}\u0000${v.environment_scope}`);
+      return listed.map((v) => ({ name: v.key, scope: v.environment_scope ?? "*" }));
+    },
+
     // Cancels a pipeline's jobs ("Cancel a pipeline's jobs": POST …/pipelines/:pipeline_id/cancel, which answers the pipeline, one that has finished already included).
     async cancelCiRun(id) {
       await call("POST", `${api}/pipelines/${encodeURIComponent(id)}/cancel`, { what: `pipeline ${id} of ${address.web}` });

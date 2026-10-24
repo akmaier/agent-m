@@ -33,6 +33,7 @@ uses:
   - MOD-repository-hosts.commitFiles
   - MOD-repository-hosts.startWorkflow
   - MOD-repository-hosts.setCiSecret
+  - MOD-repository-hosts.ciVariableScopes
   - MOD-repository-hosts.listReleaseAssets
   - MOD-repository-hosts.webLinks
   - MOD-identifiers.pagesAddress
@@ -92,6 +93,7 @@ uses:
   - MOD-runtimes.routesFor
   - MOD-runtimes.queueJob
   - MOD-runtimes.jobWorkflowFiles
+  - MOD-runtimes.gitlabVariableScopes
   - MOD-notifications.NotificationState
   - MOD-notifications.notificationState
   - MOD-notifications.switchOn
@@ -158,7 +160,12 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     process on the implementation pages, its schedule on the test pages. A product's section holds its pseudonymisation —
     switching it off states first what follows —, its collaborators who agreed to be named, and whether Agent M's job
     workflow is installed, with *Install*, which names among the job workflow's keys, beside the CI secrets of the
-    participants' routes, the CI secret each of this browser's endpoints names. The instance's section holds *Recording conversations* (UC-042 step 3),
+    participants' routes, the CI secret each of this browser's endpoints names. For a GitLab product the line names each
+    CI/CD variable of the job workflow with the environment scopes it needs (MOD-runtimes' `gitlabVariableScopes`), checks
+    them against the project's variables as its server lists them — names and scopes, never a value
+    (MOD-repository-hosts' `ciVariableScopes`) —, and calls the job workflow safe only where every variable stands with
+    exactly those scopes; it names each variable that lacks a scope or has another, and where the server does not list the
+    variables, it says why and that the job workflow is not safe until the scopes are as named. The instance's section holds *Recording conversations* (UC-042 step 3),
     *off* unless switched on: switching it on states first that every message of a conversation in the prompt bar, the
     person's and the participant's, will be committed under `docs/conversations/` of the repository of the page it is
     held on and stay in its history, and names each of the instance's and the products' repositories that its server
@@ -316,12 +323,15 @@ reaches.
 - MOD-personal-data.settingsSchemas, MOD-personal-data.pseudonymisationOf, MOD-personal-data.namedPersonFindings — a
   product's pseudonymisation and collaborators, and the files that still name a collaborator who withdrew.
 - MOD-job-runner.prepareJob, MOD-job-ledger.newJobId, MOD-runtimes.routesFor, MOD-runtimes.queueJob — a resource's check
-  job on its runner; MOD-runtimes.jobWorkflowFiles — the job workflow a product needs.
+  job on its runner; MOD-runtimes.jobWorkflowFiles — the job workflow a product needs; MOD-runtimes.gitlabVariableScopes
+  — on GitLab, the environment scopes its variables need.
 - MOD-prompt-bar.recordingSchema, MOD-prompt-bar.recordingOf — the instance's switch of recording conversations;
   MOD-prompt-bar.Subject — the subject its routes give the prompt bar; MOD-prompt-bar.endpointsOffered,
   MOD-prompt-bar.spawnEndpointJob, MOD-prompt-bar.followJob — the test job of an endpoint that runs through GitHub Actions.
 - MOD-prompt-bar.endpointLacks — what an endpoint lacks for the prompt bar to offer it, named on its line and on its own page (UC-049 1b).
 - MOD-repository-hosts.setCiSecret — an endpoint's key stored as a GitHub Actions secret, on the person's click.
+- MOD-repository-hosts.ciVariableScopes — a GitLab product's CI/CD variables by name and scope, checked against the scopes
+  the job workflow needs.
 - MOD-notifications.NotificationState, MOD-notifications.notificationState, MOD-notifications.switchOn,
   MOD-notifications.testNotification, MOD-notifications.switchOff — the line *Notifications*: its state, *Switch on* in
   the person's click, *Test* and *Switch off*.

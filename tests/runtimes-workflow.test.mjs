@@ -60,12 +60,9 @@ const MAIN = "node src/workflow-entries/main.mjs";
 // The `spec:` header both GitLab files start with, then the `---` that ends it: the three inputs of a pipeline started through the API, each with an empty default.
 const SPEC_HEADER = 'spec:\n  inputs:\n    job:\n      default: ""\n    task:\n      default: ""\n    endpoint:\n      default: ""\n    secret:\n      default: ""\n---\n';
 
-// The entries the five events start (MOD-runtimes, Data).
-const ENTRIES = ["onRecordsChanged", "onPullRequestClosed", "onCheckCompleted", "onSchedule", "onDispatch"];
+// The GitHub events of the five entries they start (MOD-runtimes, Data).
 const GITHUB_EVENTS = { onRecordsChanged: "push", onPullRequestClosed: "pull_request", onCheckCompleted: "check_run",
   onSchedule: "schedule", onDispatch: "workflow_dispatch" };
-const GITLAB_SOURCES = { onRecordsChanged: "push", onPullRequestClosed: "merge_request_event", onCheckCompleted: "pipeline",
-  onSchedule: "schedule", onDispatch: "web" };
 
 // The jobs of a GitHub file: { id, text } for each `  <id>:` under `jobs:`; the steps of a job: the text from each `      - `.
 function githubJobs(text) {
@@ -101,7 +98,7 @@ test("jobWorkflowFiles — the file of GitHub, and the file of GitLab with the s
 // guards: UC-010
 // given: the two files for the instance, the secrets and the runner above
 // input: the triggers and the steps of the GitHub file; the rules of each job of the GitLab file
-// expect: GitHub — a push that changes docs/jobs/ or docs/gates/, a pull request closed, a check run completed, a schedule once a day, and a start by hand with the job's identifier as its input; the entries that run an agent — push onRecordsChanged, dispatch onDispatch — in each agent's job, each once, after the plan, which runs only on a dispatch or a push to the default branch; the entries that run none — pull request onPullRequestClosed, check onCheckCompleted, schedule onSchedule — and writeResult, on a dispatch or a push to the default branch, in the job that writes, each once; every step that runs an entry runs `node src/workflow-entries/main.mjs <entry>` on its event. GitLab — in every job a rule for each of the five pipeline sources that sets AGENT_M_ENTRY to that entry, the push rule only on the default branch and for a change of docs/jobs/ or docs/gates/, and a script that runs the entry
+// expect: GitHub — a push that changes docs/jobs/ or docs/gates/, a pull request closed, a check run completed, a schedule once a day, and a start by hand with the job's identifier as its input; the entries that run an agent — push onRecordsChanged, dispatch onDispatch — in each agent's job, each once, after the plan, which runs only on a dispatch or a push to the default branch; the entries that run none — pull request onPullRequestClosed, check onCheckCompleted, schedule onSchedule — and writeResult, on a dispatch or a push to the default branch, in the job that writes, each once; every step that runs an entry runs `node src/workflow-entries/main.mjs <entry>` on its event. GitLab — the plan and each agent's job have a rule for a push to the default branch that changes docs/jobs/ or docs/gates/ and one for a start from the page or the API, the agent's jobs setting AGENT_M_ENTRY to onRecordsChanged and onDispatch; the job that writes has the push rule, then merge_request_event, pipeline and schedule, then the start, setting writeResult, onPullRequestClosed, onCheckCompleted, onSchedule and writeResult; the plan's script runs chooseAgentKey, every other job's the entry its rule sets
 test("jobWorkflowFiles — each event starts its entry, on GitHub and on GitLab", () => {
   const github = workflow("github");
   assert.match(github, /\n  push:\n(?:.*\n)*?    paths:\n(?:.*\n)*?      - ["']?docs\/jobs\/\*\*["']?\n(?:.*\n)*?      - ["']?docs\/gates\/\*\*["']?\n/);
@@ -125,17 +122,16 @@ test("jobWorkflowFiles — each event starts its entry, on GitHub and on GitLab"
 
   const gitlab = gitlabJobs(workflow("gitlab"));
   assert.ok(gitlab.length > 0);
+  const PUSH = '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH', STARTED = '$CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api"';
   for (const job of gitlab) {
-    assert.equal(rulesOf(job).length, ENTRIES.length, `${job.id}: a rule for each event`);
-    for (const entry of ENTRIES) {
-      const rules = rulesOf(job).filter((rule) => rule.includes(`AGENT_M_ENTRY: ${entry}`));
-      assert.equal(rules.length, 1, `${job.id}: one rule for ${entry}`);
-      assert.ok(rules[0].includes(`$CI_PIPELINE_SOURCE == "${GITLAB_SOURCES[entry]}"`), `${job.id}: ${entry} on ${GITLAB_SOURCES[entry]}: ${rules[0]}`);
-    }
-    const push = rulesOf(job).find((rule) => rule.includes("AGENT_M_ENTRY: onRecordsChanged"));
-    assert.ok(push.includes("$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"), `${job.id}: the push rule on the default branch`);
-    assert.match(push, /changes:\n\s+- docs\/jobs\/\*\*\/\*\n\s+- docs\/gates\/\*\*\/\*/);
-    assert.ok(job.text.includes(`${MAIN} "$AGENT_M_ENTRY"`), `${job.id}: the script runs the entry`);
+    const kind = job.id.endsWith("-plan") ? "plan" : /-agent-\d+$/.test(job.id) ? "agent" : "write";
+    const sources = { plan: [PUSH, STARTED], agent: [PUSH, STARTED],
+      write: [PUSH, '$CI_PIPELINE_SOURCE == "merge_request_event"', '$CI_PIPELINE_SOURCE == "pipeline"', '$CI_PIPELINE_SOURCE == "schedule"', STARTED] }[kind];
+    const entries = { plan: [], agent: ["onRecordsChanged", "onDispatch"], write: ["writeResult", "onPullRequestClosed", "onCheckCompleted", "onSchedule", "writeResult"] }[kind];
+    assert.deepEqual(rulesOf(job).map((rule) => /^    - if: '(.*)'\n/.exec(rule)[1]), sources, `${job.id}: a rule for each event it runs on`);
+    assert.deepEqual(rulesOf(job).flatMap((rule) => [...rule.matchAll(/AGENT_M_ENTRY: (\w+)/g)].map((m) => m[1])), entries, `${job.id}: the entry of each rule`);
+    assert.match(rulesOf(job)[0], /changes:\n\s+- docs\/jobs\/\*\*\/\*\n\s+- docs\/gates\/\*\*\/\*/, `${job.id}: the push rule for a change of the records`);
+    assert.ok(job.text.includes(kind === "plan" ? `${MAIN} chooseAgentKey` : `${MAIN} "$AGENT_M_ENTRY"`), `${job.id}: the script runs the entry`);
   }
 });
 
@@ -145,26 +141,30 @@ test("jobWorkflowFiles — each event starts its entry, on GitHub and on GitLab"
 // guards: A SELF-HOSTED RUNNER SERVES AGENT M ONLY FROM A PRIVATE REPOSITORY; AGENT M WORKS WITHOUT A LOCAL INSTALLATION; UC-011
 // given: the runner labels (1) gpu, (2) none, (3) gpu and cpu
 // input: jobWorkflowFiles for each, on GitHub and on GitLab
-// expect: for each route — the server's runners and each runner by its label, in that order: (1) two, (2) one, (3) three —, on GitHub the plan, an agent's job for no key and for each of the two keys, and the job that writes, on GitLab one job; GitHub: the agent's jobs of the hosted route run on ubuntu-latest and a runner's on [self-hosted, "<label>"], the plan and the job that writes on ubuntu-latest for every route; GitLab: the hosted job has no tag and a runner's has the tag of its label; every job takes the product's jobs of its own route, AGENT_M_RUNNER being `hosted` or the label
+// expect: for each route — the server's runners and each runner by its label, in that order: (1) two, (2) one, (3) three —, on each server the plan, an agent's job for no key and for each of the two keys, and the job that writes; GitHub: the agent's jobs of the hosted route run on ubuntu-latest and a runner's on [self-hosted, "<label>"], the plan and the job that writes on ubuntu-latest for every route; GitLab: the hosted route's jobs have no tag, a runner's agent's jobs have the tag of its label and its plan and job that writes none; every job takes the product's jobs of its own route, AGENT_M_RUNNER being `hosted` or the label
 test("jobWorkflowFiles — one job for each route of the product's CI agents", () => {
   for (const [runners, labels] of [[["gpu"], ["gpu"]], [[], []], [["gpu", "cpu"], ["gpu", "cpu"]]]) {
     const github = githubJobs(workflow("github", runners)), gitlab = gitlabJobs(workflow("gitlab", runners));
 
     const routeJobs = (id) => [`${id}-plan`, `${id}-agent-0`, `${id}-agent-1`, `${id}-agent-2`, id];
     assert.deepEqual(github.map((job) => job.id), ["hosted", ...labels.map((label) => `runner-${label}`)].flatMap(routeJobs), `GitHub with ${runners}`);
-    assert.deepEqual(gitlab.map((job) => job.id), ["agent-m-hosted", ...labels.map((label) => `agent-m-runner-${label}`)], `GitLab with ${runners}`);
+    assert.deepEqual(gitlab.map((job) => job.id), ["agent-m-hosted", ...labels.map((label) => `agent-m-runner-${label}`)].flatMap(routeJobs), `GitLab with ${runners}`);
     for (const job of github.filter((each) => !/-agent-\d+$/.test(each.id))) assert.match(job.text, /\n    runs-on: ubuntu-latest\n/, job.id);
     for (const job of github.slice(0, 5)) {
       assert.match(job.text, /\n    runs-on: ubuntu-latest\n/, job.id);
       assert.match(job.text, /AGENT_M_RUNNER: "hosted"\n/, job.id);
     }
-    assert.ok(!/\n {2,4}tags:/.test(gitlab[0].text), "the hosted job has no tag");
-    assert.match(gitlab[0].text, /AGENT_M_RUNNER: "hosted"\n/);
+    for (const job of gitlab.slice(0, 5)) {
+      assert.ok(!/\n {2,4}tags:/.test(job.text), `${job.id}: the hosted route's jobs have no tag`);
+      assert.match(job.text, /AGENT_M_RUNNER: "hosted"\n/, job.id);
+    }
     labels.forEach((label, at) => {
       for (const job of github.slice(5 * (at + 1), 5 * (at + 2))) assert.match(job.text, new RegExp(`AGENT_M_RUNNER: "${label}"\\n`), job.id);
       for (const job of github.slice(5 * (at + 1) + 1, 5 * (at + 1) + 4)) assert.match(job.text, new RegExp(`\\n    runs-on: \\[self-hosted, "${label}"\\]\\n`), job.id);
-      assert.match(gitlab[at + 1].text, new RegExp(`\\n  tags: \\["${label}"\\]\\n`));
-      assert.match(gitlab[at + 1].text, new RegExp(`AGENT_M_RUNNER: "${label}"\\n`));
+      const route = gitlab.slice(5 * (at + 1), 5 * (at + 2));
+      for (const job of route) assert.match(job.text, new RegExp(`AGENT_M_RUNNER: "${label}"\\n`), job.id);
+      for (const job of route.slice(1, 4)) assert.match(job.text, new RegExp(`\\n  tags: \\["${label}"\\]\\n`), job.id);
+      for (const job of [route[0], route[4]]) assert.ok(!/\n {2,4}tags:/.test(job.text), `${job.id}: the plan and the job that writes have no tag`);
     });
   }
 });
@@ -175,7 +175,7 @@ test("jobWorkflowFiles — one job for each route of the product's CI agents", (
 // guards: UC-010; A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
 // given: the instance alice/agent-m at the commit 0123…4567
 // input: jobWorkflowFiles on each server
-// expect: GitHub — in every job the product checked out, then alice/agent-m checked out at that commit — and at no other ref —, the entries run from the instance's checkout; in the job that writes both checkouts take the person's token, in the plan and the agent's jobs neither takes a token; GitLab — the instance cloned and set to that commit before the entry runs, the product's directory handed over as AGENT_M_PRODUCT_DIR; on both the commit stands in the file once for each job, and nothing runs on a branch name of the instance
+// expect: GitHub — in every job the product checked out, then alice/agent-m checked out at that commit — and at no other ref —, the entries run from the instance's checkout; in the job that writes both checkouts take the person's token, in the plan and the agent's jobs neither takes a token; GitLab — in every job the instance cloned from github.com without a token — the person's token is the GitLab server's — and set to that commit before the entry runs, the product's directory handed over as AGENT_M_PRODUCT_DIR; on both the commit stands in the file once for each job, and nothing runs on a branch name of the instance
 test("jobWorkflowFiles — the product is checked out with the person's token and the instance at the commit the file names", () => {
   for (const job of githubJobs(workflow("github"))) {
     const checkouts = stepsOf(job).filter((step) => step.includes("actions/checkout"));
@@ -194,7 +194,7 @@ test("jobWorkflowFiles — the product is checked out with the person's token an
   for (const job of gitlabJobs(workflow("gitlab"))) {
     assert.ok(job.text.includes(`AGENT_M_COMMIT: "${COMMIT}"\n`), job.id);
     assert.ok(job.text.includes('AGENT_M_INSTANCE: "alice/agent-m"\n'), job.id);
-    assert.match(job.text, /clone "https:\/\/github\.com\/\$AGENT_M_INSTANCE\.git"/);
+    assert.ok(job.text.includes('\n    - git clone "https://github.com/$AGENT_M_INSTANCE.git" ../instance\n'), `${job.id}: the instance cloned without a token, which is the product's server's`);
     assert.match(job.text, /checkout "\$AGENT_M_COMMIT"/);
     assert.match(job.text, /AGENT_M_PRODUCT_DIR="\$CI_PROJECT_DIR"/);
     assert.equal(job.text.split(COMMIT).length - 1, 1, `${job.id}: the commit once`);
@@ -207,7 +207,7 @@ test("jobWorkflowFiles — the product is checked out with the person's token an
 // guards: A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET; NO SECRET IN THE REPOSITORY
 // given: the secrets AGENT_M_TOKEN, CLAUDE_KEY and OPENAI_KEY, and a second call with the token secret PERSON_TOKEN; and names that are no names of a secret
 // input: jobWorkflowFiles on each server; and with a name that holds a space, `${{ secrets.X }}`, a quote or a newline, a commit that is no 40-digit hex, a server that is neither, a repository that is no owner/name, and a runner label with a space
-// expect: GitHub — every secret the file reads is one of the three, as `${{ secrets.<name> }}`, each of the three read, and the workflow's own token (GITHUB_TOKEN) not at all; GitLab — every variable it reads is one of the three, a predefined CI_ variable or one of Agent M's own AGENT_M_…, the names listed in AGENT_M_TOKEN_NAME and AGENT_M_KEY_NAMES; no file holds anything of the form of a token (ghp_, github_pat_, glpat-); the second call reads PERSON_TOKEN and no AGENT_M_TOKEN secret; each bad argument throws a TypeError and no file is made
+// expect: GitHub — every secret the file reads is one of the three, as `${{ secrets.<name> }}`, each of the three read, and the workflow's own token (GITHUB_TOKEN) not at all; GitLab — every variable it reads is one of the three, a predefined CI_ variable, GITLAB_USER_NAME and GITLAB_USER_EMAIL for the committer, or one of Agent M's own AGENT_M_…, the names listed in AGENT_M_TOKEN_NAME and AGENT_M_KEY_NAMES; no file holds anything of the form of a token (ghp_, github_pat_, glpat-); the second call reads PERSON_TOKEN and no AGENT_M_TOKEN secret; each bad argument throws a TypeError and no file is made
 test("jobWorkflowFiles — the secrets are named and never valued, the token is the person's and not the workflow's", () => {
   const github = workflow("github"), gitlab = workflow("gitlab");
 
@@ -219,7 +219,7 @@ test("jobWorkflowFiles — the secrets are named and never valued, the token is 
   assert.ok(github.includes('AGENT_M_TOKEN_NAME: "AGENT_M_TOKEN"') && github.includes('AGENT_M_KEY_NAMES: "CLAUDE_KEY OPENAI_KEY"'));
 
   const variables = [...gitlab.matchAll(/\$\{?([A-Za-z_][A-Za-z0-9_]*)/g)].map((m) => m[1])
-    .filter((name) => !/^(CI_|AGENT_M_)/.test(name));
+    .filter((name) => !/^(CI_|GITLAB_USER_(NAME|EMAIL)$|AGENT_M_)/.test(name));
   assert.deepEqual(variables, [], "every variable the GitLab file reads is predefined or Agent M's own");
   assert.ok(gitlab.includes('AGENT_M_TOKEN_NAME: "AGENT_M_TOKEN"') && gitlab.includes('AGENT_M_KEY_NAMES: "CLAUDE_KEY OPENAI_KEY"'));
   for (const text of [github, gitlab]) assert.ok(!/ghp_|github_pat_|glpat-/.test(text), "nothing of the form of a token");
@@ -273,7 +273,7 @@ test("jobWorkflowFiles — the GitLab job file declares job, task and endpoint w
 test("jobWorkflowFiles — every GitLab job sets the three input variables to the whole value of the input, and nothing else", () => {
   for (const runners of [[], ["gpu"], ["gpu", "cpu"]]) {
     const text = workflow("gitlab", runners), jobs = gitlabJobs(text);
-    assert.equal(jobs.length, 1 + runners.length);
+    assert.equal(jobs.length, 5 * (1 + runners.length), "the plan, three agent's jobs and the job that writes for each route");
     for (const job of jobs) {
       assert.deepEqual(inputVariables(job), [["AGENT_M_INPUT_JOB", "$[[ inputs.job ]]"], ["AGENT_M_INPUT_TASK", "$[[ inputs.task ]]"],
         ["AGENT_M_INPUT_ENDPOINT", "$[[ inputs.endpoint ]]"], ["AGENT_M_INPUT_SECRET", "$[[ inputs.secret ]]"]], `${job.id} with ${runners}`);
@@ -288,17 +288,18 @@ test("jobWorkflowFiles — every GitLab job sets the three input variables to th
 // guards: UC-010; UC-049
 // given: the GitLab job file for the runner gpu
 // input: the rules of each job
-// expect: in every job five rules, and exactly one that sets AGENT_M_ENTRY to onDispatch, whose condition is exactly `$CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api"`; no other rule's text holds "api"
+// expect: in every job exactly one rule whose condition holds "api", which is exactly `$CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api"`; in every agent's job it sets AGENT_M_ENTRY to onDispatch, in the job that writes to writeResult, in the plan nothing; no other rule of any job sets onDispatch
 test("jobWorkflowFiles — the entry onDispatch runs for a pipeline started from the server's page and for one the API started, with one rule", () => {
   const jobs = gitlabJobs(workflow("gitlab"));
   assert.ok(jobs.length > 0);
   for (const job of jobs) {
     const rules = rulesOf(job);
-    assert.equal(rules.length, 5, `${job.id}: five rules`);
-    const dispatch = rules.filter((rule) => rule.includes("AGENT_M_ENTRY: onDispatch"));
-    assert.equal(dispatch.length, 1, `${job.id}: one rule for onDispatch`);
-    assert.ok(dispatch[0].startsWith(`    - if: '$CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api"'\n`), `${job.id}: ${dispatch[0]}`);
-    for (const rule of rules.filter((each) => each !== dispatch[0])) assert.ok(!rule.includes('"api"'), `${job.id}: ${rule}`);
+    const started = rules.filter((rule) => rule.includes('"api"'));
+    assert.equal(started.length, 1, `${job.id}: one rule for a start from the page or the API`);
+    assert.ok(started[0].startsWith(`    - if: '$CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api"'`), `${job.id}: ${started[0]}`);
+    const wanted = /-agent-\d+$/.test(job.id) ? "onDispatch" : job.id.endsWith("-plan") ? null : "writeResult";
+    assert.equal(/AGENT_M_ENTRY: (\w+)/.exec(started[0])?.[1] ?? null, wanted, job.id);
+    for (const rule of rules.filter((each) => each !== started[0])) assert.ok(!rule.includes("onDispatch"), `${job.id}: ${rule}`);
   }
 });
 
@@ -324,11 +325,11 @@ test("jobWorkflowFiles — the four variables the GitLab file sets are exactly t
 // guards: UC-049; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
 // given: a task with double quotes, single quotes, a backslash, a dollar sign, braces and two line breaks, as the input `task`; the two GitLab files for the instance and the runner gpu
 // input: every line of the two files, comments apart, that holds `inputs.task`; the script of every job; the task's words searched in both files; the task carried by ciEnvironment as AGENT_M_INPUT_TASK
-// expect: `inputs.task` stands in exactly three lines, `AGENT_M_INPUT_TASK: $[[ inputs.task ]]` of the hosted job's variables and of the gpu job's, then `task: $[[ inputs.task ]]` of the .gitlab-ci.yml include; no job's script holds AGENT_M_INPUT_TASK or `inputs.`; no file holds a word of the task; ciEnvironment gives the task unchanged as one string with its two line breaks
+// expect: `inputs.task` stands in exactly eleven lines: `AGENT_M_INPUT_TASK: $[[ inputs.task ]]` of the variables of each of the ten jobs — the plan, three agent's jobs and the job that writes of the hosted route and of the gpu route —, then `task: $[[ inputs.task ]]` of the .gitlab-ci.yml include; no job's script holds AGENT_M_INPUT_TASK or `inputs.`; no file holds a word of the task; ciEnvironment gives the task unchanged as one string with its two line breaks
 test("jobWorkflowFiles — a task with quotes and line breaks is one value, held by a variable of the job and written to no file", () => {
   const [jobFile, ciFile] = files("gitlab", ["gpu"]);
   const lines = [...codeLines(jobFile.text), ...codeLines(ciFile.text)].filter((line) => line.includes("inputs.task"));
-  assert.deepEqual(lines, ["    AGENT_M_INPUT_TASK: $[[ inputs.task ]]", "    AGENT_M_INPUT_TASK: $[[ inputs.task ]]", "      task: $[[ inputs.task ]]"]);
+  assert.deepEqual(lines, [...Array(10).fill("    AGENT_M_INPUT_TASK: $[[ inputs.task ]]"), "      task: $[[ inputs.task ]]"]);
   for (const job of gitlabJobs(jobFile.text)) {
     const script = job.text.slice(job.text.indexOf("  script:\n"));
     assert.ok(script.startsWith("  script:\n") && !script.includes("AGENT_M_INPUT_TASK") && !script.includes("inputs."), `${job.id}: no script line holds the task`);

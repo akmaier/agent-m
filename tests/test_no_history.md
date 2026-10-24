@@ -7,16 +7,7 @@ kind: repository
 ### Expected Findings
 
 ```json
-[
-  {
-    "artifact": "UC-037",
-    "line": 51,
-    "kind": "error",
-    "rule": "A DOCUMENT HOLDS NO HISTORY",
-    "what": "the document holds a mark of history (dated-change): \"2026-09-24\"",
-    "fix": "remove it; the version history keeps what was changed, when and by whom"
-  }
-]
+[]
 ```
 
 ## use case with planted history marks

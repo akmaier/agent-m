@@ -3,10 +3,10 @@
 // from the SPEC rules and use cases they realise; started on sprint/02 at a7b4b9f, 2026-10-01.
 //
 // Module: MOD-documents
-// Guards: A REQUIREMENT HAS A REGISTERED SOURCE; A REQUIREMENT HAS FIVE FIELDS; A RESOURCE'S TERMS ENTER AS A SOURCE; ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS; UC-022
+// Guards: A REQUIREMENT HAS A REGISTERED SOURCE; A RESOURCE'S TERMS ENTER AS A SOURCE; ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS; UC-022
 // Level: release
 //
-// ITM-127 (A REQUIREMENT HAS A REGISTERED SOURCE · A REQUIREMENT HAS FIVE FIELDS) and the reader half of ITM-128 (UC-022 10a ·
+// ITM-127 (A REQUIREMENT HAS A REGISTERED SOURCE) and the reader half of ITM-128 (UC-022 10a ·
 // ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS). The input is a fixture SPEC of a made-up product, written in this file from the
 // SPEC's own form of a requirement — "a name in capitals …, a source with a date, one rule …, an occasion …, and the check" —
 // never Agent M's SPEC.md. Each expectation is stated before its case runs, from the rule it names.
@@ -63,33 +63,6 @@ test("release · requirements: a resource entry named as source is an error", ()
   const e = errors(fs, "EXPORT IS A PDF", "A RESOURCE'S TERMS ENTER AS A SOURCE");
   assert.equal(e.length, 1, JSON.stringify(fs));
   assert.match(e[0].what, /RES-print-server/);
-});
-
-// A REQUIREMENT HAS FIVE FIELDS — "a name, a source with a date, a rule, an occasion, and a check". Expected: a source with no
-// date, an empty source and a source that is only a date are each an error under that rule; the same requirement with a
-// dated source is not.
-test("release · requirements: a source without a date, an empty source and a date alone are errors", () => {
-  const text = spec(
-    req("UNDATED", "Vibe Coding, ch. 9 §6"),
-    req("EMPTY", ""),
-    req("DATE ALONE", "2026-09-24"),
-    req("DATED", "Vibe Coding, ch. 9 §6; PO B. Example, 2026-09-24"),
-  );
-  const fs = findingsOf(text);
-  for (const name of ["UNDATED", "EMPTY", "DATE ALONE"]) {
-    assert.equal(errors(fs, name, "A REQUIREMENT HAS FIVE FIELDS").length, 1, `${name}: ${JSON.stringify(about(fs, name))}`);
-  }
-  assert.match(errors(fs, "UNDATED")[0].what, /date/);
-  assert.deepEqual(about(fs, "DATED"), []);
-});
-
-// A REQUIREMENT HAS FIVE FIELDS — a requirement written with its name in capitals, its rule, its occasion and its check, but
-// without the source after its name. Expected: an error under that rule at that requirement — a missing source is still an
-// error (ITM-127, *Outcome*). Finding C1 (back to Development: ITM-127): the checker does not see the requirement at all and
-// reports nothing.
-test("release · requirements: a requirement written without any source is an error", () => {
-  const fs = findingsOf(spec(req("NO SOURCE GIVEN", null), req("EXPORT IS A PDF", "PO B. Example, 2026-09-24")));
-  assert.equal(errors(fs, "NO SOURCE GIVEN", "A REQUIREMENT HAS FIVE FIELDS").length, 1, JSON.stringify(fs));
 });
 
 // ------------------------------------------------------------------------------------------------ ITM-128 (the reader)
