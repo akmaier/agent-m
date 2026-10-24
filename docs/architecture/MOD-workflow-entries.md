@@ -177,7 +177,8 @@ for *Fetch again* (UC-004 7a), `onReleaseTagged` on a release tag, `onMainChange
   with the participant of the instance's list that it names; it writes the task to no file, and a branch whose commit
   messages or pull request text hold the task's words is refused by name, the job then ending failed with nothing
   merged; it appends the job's end with its commits, files and pull request, and leaves the answer in the run's summary
-  and log, where the prompt bar reads it. An endpoint the run cannot reach ends it `failed`, its summary naming the
+  and log — in the log between the lines `--- answer of <id> ---` and `--- end of the answer of <id> ---` —, where the
+  prompt bar reads it. An endpoint the run cannot reach ends it `failed`, its summary naming the
   reason that MOD-endpoint-calls' `diagnoseEndpoint` gives and the routes that would work — a self-hosted runner, or a
   Bridge (UC-049 4d).
 - `onTestsFinished(env: CiEnvironment) -> Promise<EntryStatus>` — in a product, the step after the tests of every run of

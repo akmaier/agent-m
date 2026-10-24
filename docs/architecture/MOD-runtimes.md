@@ -142,7 +142,8 @@ task in the participant's words, and `endpoint`, the address and model of a mode
 and written to no file, and the run's answer is left in the run's own log and summary, never in the job's record. It has
 one job for each route of the product's CI agents — the server's own runners, and each self-hosted runner by its
 label — and each checks out the product with the person's Agent M token, checks out the instance repository at the
-commit the file names, and runs the entry with Node. It reads the person's token from the CI secret `AGENT_M_TOKEN` and
+commit the file names, and runs the entry with Node; on GitHub, a start that names an `endpoint` first installs opencode at a
+pinned version, the agent that works with that endpoint (MOD-agent-processes), since the server's runners hold none. It reads the person's token from the CI secret `AGENT_M_TOKEN` and
 an agent's key from the secret the participant's route names; the dashboard names both and opens the server's page for
 secrets, and never asks for a value (`A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET`, `A HOSTED JOB WRITES WITH
 THE PERSON'S TOKEN FROM A CI SECRET`). It is not the product's test configuration, which starts no run for job records

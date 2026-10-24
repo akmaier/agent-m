@@ -17,6 +17,8 @@ example shows.
   Data table's two forms of the same heading (ITM-252's Outcome). All three are optional fields of this schema; which of
   them a given record carries is MOD-job-ledger's to read, not this schema's to enforce — `documentFindings` does not
   check a section's fields yet (MOD-documents, checks.mjs).
+- `declares` holds, for a model endpoint the instance's list does not hold, `{ context, capabilities }` as one line of JSON,
+  for a value no scalar type of this language expresses.
 - `## End`'s `usage:` and `cost:` hold the `Usage` and `Cost` values as one line of JSON each, for a value no scalar type
   of this language expresses (the Data table fixes no other form for them). `notes:` holds the writer's notes as a JSON
   string array, so commas and quotes stay part of the note instead of becoming list separators. Its round record (`roundsText`,
@@ -49,7 +51,8 @@ example shows.
     "inputs": { "type": "list", "required": false, "item": { "type": "text" } },
     "limit": { "type": "number", "required": true },
     "task": { "type": "enum", "values": ["in parameters", "with the hand-over"], "required": false },
-    "conversation": { "type": "text", "required": false }
+    "conversation": { "type": "text", "required": false },
+    "declares": { "type": "text", "required": false }
   },
   "sections": [
     { "heading": "## Destinations", "required": true },

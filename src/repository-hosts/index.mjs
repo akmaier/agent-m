@@ -1,5 +1,5 @@
 // The repository hosts — one interface to a repository on GitHub or on a GitLab server: parseAddress, connect, and the host it
-// returns, with repositoryInfo, readSnapshot, readHistory, listTags, issueCounts, commitFiles, createTag, listReleaseAssets, createBranch, startWorkflow, setPipelineSchedule, listCiRuns,
+// returns, with repositoryInfo, readSnapshot, readHistory, listTags, issueCounts, commitFiles, createTag, listReleaseAssets, createBranch, startWorkflow, setCiSecret, setPipelineSchedule, listCiRuns,
 // cancelCiRun, ciRunLog, ciRunLabels and webLinks. Every function of a host that reaches a server says so and names how it fails, as a HostError (A REMOTE INTERFACE
 // NAMES HOW IT FAILS).
 //
@@ -435,6 +435,17 @@ export function connect(address, credentials = {}) {
         }
       }
       return adapter.startWorkflow(workflow, ref, inputs);
+    },
+
+    // setCiSecret(name, value) -> void — on GitHub, stores `value` as the Actions secret `name` of this repository, sealed to the repository's
+    // public key, the value only in the body of the one request that stores it, never in an address (A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT).
+    // A person's click starts it: it is what the person stores, not what Agent M keeps (CONFIGURATION LIVES IN THE BROWSER). On a GitLab server and without
+    // a token it fails with NotSupported, before any request. Crosses the network; fails with PermissionMissing { permission: "Secrets" } for a token that may
+    // not write the repository's secrets, TokenRefused, RateLimited, Unreachable. A name that is no plain name, or begins with GITHUB_, is a TypeError.
+    async setCiSecret(name, value) {
+      if (!github) throw new HostError("NotSupported", { what: "storing a CI secret on a GitLab server" }, "A CI variable of a GitLab project is set on the project's own page.");
+      if (!token || !rest.setCiSecret) throw new HostError("NotSupported", { what: "storing a CI secret without a token" }, "A CI secret is stored only with a token that may write the repository's secrets; store one first.");
+      return rest.setCiSecret(name, value);
     },
 
     // setPipelineSchedule(schedule) -> { id, url } — on a GitLab server, creates the project's pipeline schedule with this description or updates the one that has it, so that saving again

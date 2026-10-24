@@ -112,10 +112,11 @@ function answerOf(draft) {
   return draft == null ? "" : JSON.stringify(draft, null, 2);
 }
 
-// A hand-over's answer, left in the run's summary — the file GITHUB_STEP_SUMMARY names where it is set — and in the log. It goes to no record.
+// A hand-over's answer, left in the run's summary — the file GITHUB_STEP_SUMMARY names where it is set — and in the log, between the lines
+// `--- answer of <id> ---` and `--- end of the answer of <id> ---`, by which the prompt bar finds it in the run's log (MOD-prompt-bar). It goes to no record.
 function leaveAnswer(env, id, answer) {
   if (!answer) return;
-  console.log(answer);
+  console.log(`--- answer of ${id} ---\n${answer}\n--- end of the answer of ${id} ---`);
   if (env.job.summaryFile) fs.appendFileSync(env.job.summaryFile, `## ${id}\n\n${answer}\n`);
 }
 
@@ -333,8 +334,13 @@ export async function onDispatch(env) {
 
 // A run a hand-over started (UC-049 4a), for the queued job whose task travels with it: without the input `task` the job ends failed with the reason, and nothing is written
 // but the end; with it the job is run with the task as its instruction and, for a model endpoint, with the input `endpoint`.
-async function runHandOver(env, composed, participants, row, inputs) {
+async function runHandOver(env, composed, listed, row, inputs) {
   const { record, path } = row;
+  // A job that is a model endpoint's own, which the prompt bar offered from a browser's configuration (THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND
+  // AS PARTICIPANTS ARE): the instance does not list it, so it is the participant its record declares — its name, model, place (## Destinations), context and
+  // capabilities (`declares`) — with the route of the endpoint the input names. Any other job goes only to a participant the instance lists.
+  const own = !listed.some((each) => each.name === record.participant) && inputs.endpoint && record.declares ? declaredParticipant(record, inputs) : null;
+  const participants = own ? [...listed, own] : listed;
   const participant = participants.find((each) => each.name === record.participant);
   if (!participant) return failedStatus(`${record.id} names the participant ${record.participant}, whom the instance does not list.`);
   const noToken = missingSecret(env, participants, []);
@@ -355,6 +361,14 @@ async function runHandOver(env, composed, participants, row, inputs) {
       : `${secret} is missing: the key of ${participant.name} is a secret of this repository, passed to the job as ${secret}. Nothing was written.`);
   }
   return runRows(env, composed, participants, [row], { task, endpoint: inputs.endpoint ?? null, secret });
+}
+
+// The participant a record declares for a model endpoint the instance does not list (MOD-job-ledger's `declares`).
+function declaredParticipant(record, inputs) {
+  const secret = typeof inputs.secret === "string" && inputs.secret ? ` secret ${inputs.secret}` : "";
+  return { name: record.participant, type: "model endpoint", model: record.model ?? null, context: record.declares.context ?? null, price: null,
+    capabilities: Array.isArray(record.declares.capabilities) ? record.declares.capabilities : [], place: record.destinations?.[0]?.place || null,
+    route: `endpoint ${record.participant}${secret}` };
 }
 
 // The items a sprint selects, as its record lists them in its front matter: what its close works on (a job's `works_on` names items, not a sprint).

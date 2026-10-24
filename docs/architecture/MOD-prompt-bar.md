@@ -81,6 +81,9 @@ provides:
   - recordingSchema
   - recordingOf
   - handOverStrategies
+  - endpointsOffered
+  - spawnEndpointJob
+  - followJob
 ---
 # MOD-prompt-bar The prompt bar, where a person talks to an agent about the page
 
@@ -104,7 +107,7 @@ uses neither the frame nor a view (`MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE
 ## Parts
 
 - `index.mjs` — the interface.
-- `bar.mjs` — the bar: the selector, the input, *Send* and *Stop*, the conversation, the waiting for a handed-over job.
+- `bar.mjs` — the bar: the selector, the input, *Send* — *Spawn job* for an endpoint that runs through GitHub Actions — and *Stop*, the conversation, the waiting for a handed-over job.
 - `offer.mjs` — the endpoints and CLI sessions offered, read from this browser's configuration, and the place each is
   named with.
 - `send.mjs` — preparing and running a message as a job in this tab.
@@ -194,8 +197,14 @@ IN THE REPOSITORY`).
   Of those offered it offers, for the page shown, only each that can do the subject's kind: `eligible` judges them
   against the `needs` of `kindOf`'s definition of that kind, so that the offer follows the subject (UC-019 2). Where
   some are offered and none can do the kind, it says so, names the capabilities the kind needs, and links the route
-  `endpoints` through `go` (UC-019 3a). With one offered, it names it; with several, a small selector above the input
-  chooses, each named with its processing place. A folded *What is this?* explains the bar. On *Send* — the decision to
+  `endpoints` through `go` (UC-019 3a). Beside this browser's endpoints, and after them, it still offers the participants of
+  the instance's list that this browser reaches, other than an endpoint offered already, until the offer of CLI sessions
+  is built. With one offered, it names it; with several, a small selector above the input
+  chooses, each named with its processing place. A folded *What is this?* explains the bar. An endpoint that names the
+  CI secret of its key and keeps neither a key nor a Bridge in this browser runs through GitHub Actions: while it is
+  chosen, the button reads *Spawn job* instead of *Send*, and that click — the person's — makes the message the task of
+  a job that is the endpoint's own (UC-049 4a.1), of the subject's kind, spawned with `spawnEndpointJob` and followed as
+  a hand-over is; nothing is sent from the tab. For every other one it reads *Send*. On *Send* — the decision to
   send — it asks the subject for the kind and the parameters, adds the person's words as `instruction`, the conversation
   so far as `conversation`, the subject's `entry` as `entry` and its `refuses` as `refuses`, prepares the job with
   MOD-job-runner's `prepareJob` in a context from MOD-runtimes' `tabContext`, and sends nothing while the job does not
@@ -241,6 +250,17 @@ IN THE REPOSITORY`).
   older than the job's start turns up it reads that run's log once with `ciRunLog` and takes the secret from the entry's
   line `not run — <SECRET> is missing`. The cost is one `listCiRuns` call per 15-second poll while the job stays queued
   and untaken, and one `ciRunLog` call when a failed run turns up.
+- `endpointsOffered(store: Store) -> Participant[]` — this browser's endpoints the bar offers, as `startPromptBar` builds
+  them; for the settings page's test job of an endpoint.
+- `spawnEndpointJob({ kind, task, participant, store, instance, page, ofProduct, conversation, source }) -> Promise<{ id,
+  path, commit, person } | { refused: string, needsWorkflow: boolean }>` — the job that is an endpoint's own, on GitHub
+  Actions, on a person's click: assessed and queued as a proposed hand-over is, working on the repository of `page`,
+  with `task` travelling in the workflow's inputs, on the server's own runners; where no CI route can be taken — no job
+  workflow, or an endpoint naming no CI secret — nothing is written and `refused` says why.
+- `followJob({ id, address, host, store, show }) -> { stop, cancel }` — a handed-over job followed every 15 seconds until
+  its record has its end, `show` given its state, its run's address, its end and, for a run on CI, the answer the run
+  left in its log between `--- answer of <id> ---` and `--- end of the answer of <id> ---` (MOD-workflow-entries), read
+  once with `listCiRuns` and `ciRunLog` when its end is read.
 - `latestDraft(store: Store, subject: string) -> ConversationDraft | null` — the conversation's latest draft, if it was
   drafted on that subject; for the review pages' route that shows it.
 - `dropDraft(store: Store, subject: string) -> void` — drops the conversation's latest draft, if it was drafted on that

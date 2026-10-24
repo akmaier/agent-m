@@ -96,7 +96,7 @@ function paramsOf(worksOn, snapshot) {
   const planned = worksOn.filter((name) => /^ITM-\d+$/.test(name));
   const steps = planned.filter((name) => snapshot.paths.some((path) => path.startsWith(`docs/plan/${name}-`)));
   const items = planned.filter((name) => !steps.includes(name));
-  const requirements = worksOn.filter((name) => !/^[A-Z]+-[A-Za-z0-9-]+$/.test(name));
+  const requirements = worksOn.filter((name) => !/^[A-Z]+-[A-Za-z0-9-]+$/.test(name) && !/^https?:\/\//.test(name));
   return { ...(requirements.length ? { requirements } : {}), ...(useCases.length ? { useCases } : {}), ...(useCases.length === 1 ? { useCase: useCases[0] } : {}),
     ...(items.length ? { items } : {}), ...(steps.length ? { steps } : {}) };
 }
@@ -123,11 +123,31 @@ export async function queue({ handOver, participant, assessment, store, instance
   const prepared = await prepareJob(handOver.kind, tabContext({ kind: null, params: { ...params, instruction: handOver.task }, ...inputs }), { drafter: participant, reviewers: [] });
   const start = { id, kind: handOver.kind, worksOn, participant: participant.name, model: participant.model ?? null, route: recordRoute(route), run: null, retries: null, startedBy: person,
     start: now, agentM, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit, task: "with the hand-over", conversation: conversation ?? null,
-    destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place ?? "", parts: each.parts })), params };
+    destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place ?? "", parts: each.parts })), params,
+    // A job that is an endpoint's own, which the instance does not list: its record declares the endpoint's context and capabilities (MOD-job-ledger's `declares`).
+    ...(participants.some((each) => each.name === participant.name) ? {} : { declares: { context: participant.context ?? null, capabilities: participant.capabilities ?? [] } }) };
   const { endpoints, bridges } = connectionsOf(participant, store);
   const endpoint = endpoints[/^endpoint\s+(\S+)/.exec(participant.route ?? "")?.[1]]?.config ?? null;
   const target = { endpoint: route.kind === "ci" && endpoint ? { kind: endpoint.kind, baseUrl: endpoint.baseUrl, model: endpoint.model } : null,
     bridge: route.kind === "bridge" ? bridges[route.bridge] ?? null : null };
   const queued = await handOverJob(prepared, route, start, page.host, assessment.head, handOver.task, target);
   return { id, ...queued, person };
+}
+
+/**
+ * spawnEndpointJob({ kind, task, participant, store, instance, page, ofProduct, conversation, source }) -> Promise<{ id, path, commit, person } | { refused: string, needsWorkflow: boolean }>
+ * — the job that is a model endpoint's own (UC-049 4a.1, "for any other kind, the job is the endpoint's own"), spawned on GitHub Actions on a person's click: the job of
+ * `kind`, working on the page's repository, by the web address of the snapshot that was read, with `task` travelling in the workflow's inputs, assessed and queued as a proposed hand-over is (assess,
+ * queue), on the server's own runners. `participant` is the endpoint as the bar offers it (offer.mjs endpointsOffered), its route naming the CI secret of its key. Where
+ * no CI route can be taken — the product has no job workflow, or the endpoint names no CI secret — nothing is written and `refused` says why, `needsWorkflow` whether the
+ * job workflow is what is missing (UC-049 4c). Throws what queue throws.
+ */
+export async function spawnEndpointJob({ kind, task, participant, store, instance, page, ofProduct, conversation = null, source }) {
+  const assessment = await assess({ handOver: { kind, works_on: [], task }, participant, instance, page });
+  if (assessment.route === null || assessment.route.kind !== "ci") {
+    return { refused: assessment.route === null ? assessment.routeText : "the endpoint's route is not GitHub Actions", needsWorkflow: assessment.needsWorkflow };
+  }
+  // It works on the repository the page is held on, by its web address as the snapshot that was read names it.
+  const handOver = { kind, works_on: [assessment.facts.snapshot.repository.web], task };
+  return queue({ handOver, participant, assessment, store, instance, page, ofProduct, conversation, source });
 }

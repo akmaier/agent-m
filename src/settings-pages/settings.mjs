@@ -16,7 +16,7 @@ import { jobWorkflowFiles } from "../runtimes/index.mjs";
 import { checkProduct, credentialsFor, tokenKeyAddress, tokenRefusal, tokenSettingKey, route as addProductRoute } from "./products.mjs";
 import { connect, HostError, parseAddress } from "../repository-hosts/index.mjs";
 import { bridgeAt, pair, probe, settingsOf, testBridge } from "../bridge-client/index.mjs";
-import { bridgeFailureText, bridgeSettings as endpointBridgeSettings, CHOOSE_BRIDGE_DISCLOSURE, CHOOSE_BRIDGE_TEXT, namesNoBridge, recordTest, route as endpointsRoute } from "./endpoints.mjs";
+import { actionsOffer, bridgeFailureText, bridgeSettings as endpointBridgeSettings, CHOOSE_BRIDGE_DISCLOSURE, CHOOSE_BRIDGE_TEXT, namesNoBridge, recordTest, refusedText, route as endpointsRoute, runsOnActions, testThroughActions } from "./endpoints.mjs";
 import { route as bridgeRoute } from "./bridge.mjs";
 import { mailboxSetting } from "./mailbox.mjs";
 import { settingsSubject } from "./subject.mjs";
@@ -54,11 +54,16 @@ function endpointConfig(name, setting) {
   return { name, kind: setting.kind, baseUrl: setting.url, model: setting.model, key: setting.key ?? null };
 }
 
-function resultText(result) {
+function resultText(result, baseUrl) {
   if (result.works) return `✓ ${result.model} is working.`;
-  const { diagnosis } = result;
-  const alternatives = diagnosis.routes.length ? ` Try this job through ${diagnosis.routes.map((route) => route === "ci" ? "CI" : "the Bridge").join(" or ")}.` : "";
-  return `✗ ${diagnosis.message}${alternatives}`;
+  return refusedText(result.diagnosis, baseUrl);
+}
+
+// The state of an endpoint's line: one that runs through GitHub Actions says so, with its CI secret; one the browser refused says why, plainly (UC-003 4a).
+function endpointStateText(setting, lastTest) {
+  if (runsOnActions(setting)) return `Runs through GitHub Actions with the CI secret ${setting.secret}. ${stateText(lastTest)}`;
+  if (lastTest?.outcome === "refused" && lastTest.browser) return refusedText({ routes: ["ci", "bridge"], message: "" }, setting.url).replace(/^✗ /, "Refused: ");
+  return stateText(lastTest);
 }
 
 function stateText(lastTest) {
@@ -82,7 +87,8 @@ function endpointLine(target, context, info) {
   const change = el("button", "settings-endpoint-change btn", "Change");
   const clear = el("button", "settings-endpoint-clear btn", "Clear");
   const result = el("p", "settings-endpoint-result");
-  const status = el("p", "settings-endpoint-status", stateText(info.lastTest));
+  const status = el("p", "settings-endpoint-status", endpointStateText(setting, readSetting(context.store, `last-test:${info.key}`) ?? info.lastTest));
+  const offerSlot = el("div", "settings-endpoint-actions-slot");
   key.type = "password";
   key.value = setting.key ?? "";
   key.autocomplete = "off";
@@ -119,11 +125,18 @@ function endpointLine(target, context, info) {
       }
       return;
     }
+    if (runsOnActions(setting)) {
+      await testThroughActions(context, name, result);
+      status.textContent = endpointStateText(setting, readSetting(context.store, `last-test:${info.key}`));
+      return;
+    }
     result.textContent = "Testing the endpoint…";
     const checked = await testEndpoint(endpointConfig(name, setting));
     const lastTest = recordTest(context.store, info.key, checked);
-    result.textContent = resultText(checked);
-    status.textContent = stateText(lastTest);
+    result.textContent = resultText(checked, setting.url);
+    status.textContent = endpointStateText(setting, lastTest);
+    const offer = !checked.works && checked.diagnosis?.routes?.includes("ci") ? actionsOffer(context, name, result) : null;
+    offerSlot.replaceChildren(...(offer ? [offer] : []));
   });
   change.addEventListener("click", () => context.go("endpoints", { name }));
   clear.addEventListener("click", async () => {
@@ -143,6 +156,7 @@ function endpointLine(target, context, info) {
     el("p", null, test, " ", change, " ", clear),
     el("div", "settings-endpoint-explanation", explain("endpoint-test")),
     result,
+    offerSlot,
   );
 }
 
@@ -885,7 +899,11 @@ async function jobWorkflowInput(context) {
   const participants = await snapshot.read("docs/participants.md");
   const rows = participants ? readRegister(participantSchema(), "docs/participants.md", participants).rows : [];
   const ci = rows.map(({ cells }) => ciRoute(cells.Route)).filter(Boolean);
-  const keys = [...new Set(ci.map((route) => route.secret))];
+  // Beside the CI secrets of the participants' routes, the CI secret each of this browser's endpoints names (THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS
+  // PARTICIPANTS ARE; ITM-1188's decision): the job workflow reads only keys it names.
+  const endpointSecrets = listSettings(context.store).filter((setting) => setting.key.startsWith("endpoint:"))
+    .map((setting) => readSetting(context.store, setting.key)?.secret).filter((name) => typeof name === "string" && /^[A-Za-z_][A-Za-z0-9_]*$/.test(name));
+  const keys = [...new Set([...ci.map((route) => route.secret), ...endpointSecrets])];
   const runners = [...new Set(ci.map((route) => route.runner).filter(Boolean))];
   return {
     instance: { repository: context.instance.repository, commit: snapshot.commit },

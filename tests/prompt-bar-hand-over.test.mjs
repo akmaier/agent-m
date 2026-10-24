@@ -239,11 +239,12 @@ const subjectOf = () => ({ key: "use-case:UC-007", title: "UC-007 Derive use cas
   paramsFor: () => ({ page: "The page shows UC-007.", target: "UC-007" }), draftRoute: null, withhold: null, refuses: [] });
 
 // A page of the product (or of the instance): the instance with the register, a store keeping the endpoint ep1, the Bridge lab-pc and the tokens, and the bar started on it.
-function open({ files = scrumFiles(), rows = [DEV_CI, DEV_BRIDGE, OUTSIDER, TAB_ONLY], recording = false, store = null, went = [], instanceFiles = {}, subject = subjectOf } = {}) {
+function open({ files = scrumFiles(), rows = [DEV_CI, DEV_BRIDGE, OUTSIDER, TAB_ONLY], recording = false, store = null, went = [], instanceFiles = {}, subject = subjectOf, endpoints = {} } = {}) {
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() });
   if (store === null) Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: new Storage() });
   const kept = store ?? openStore("alice/agent-m");
   writeSetting(kept, "endpoint:ep1", { kind: "openai-compatible", url: `${MODELS}/v1`, model: "model-ci", key: "sk-fixture-KEY" });
+  for (const [name, setting] of Object.entries(endpoints)) writeSetting(kept, `endpoint:${name}`, setting);
   writeSetting(kept, "bridge:lab-pc", { address: BRIDGE, token: BRIDGE_TOKEN });
   writeSetting(kept, "github-token", { value: "github_pat_INSTANCE0123456789abcdef", name: "alice", expires: "2027-01-01" });
   writeSetting(kept, "github-token:alice/thesis-tool", { value: "github_pat_PRODUCT0123456789abcdefg", name: "alice", expires: "2027-01-01" });
@@ -833,4 +834,93 @@ test("a hand-over of the subject's own kind is refused by name when the subject 
   assert.match(textOf(proposal(it)), /NoPersonSource/);
   assert.equal(writesOf(it), 0, NOTHING_WRITTEN);
   assert.equal(handOverButton(it).disabled, false, "Hand over can be pressed again");
+});
+
+// ---------------------------------------------------------------- an endpoint of this browser that runs through GitHub Actions: *Spawn job*
+
+const NVIDIA = "https://integrate.api.nvidia.com/v1";
+const NVIDIA_MODEL = "nvidia/nemotron-3-ultra-550b-a55b";
+// This browser's endpoint nvidia, declared with its place, context and the CI secret of its key, and no key here; and one that names no place, which is not offered.
+const ON_ACTIONS = { nvidia: { kind: "openai-compatible", url: NVIDIA, model: NVIDIA_MODEL, place: "NVIDIA, USA", context: 128000, secret: "NVIDIA_API_KEY" },
+  undeclared: { kind: "openai-compatible", url: NVIDIA, model: NVIDIA_MODEL, secret: "NVIDIA_API_KEY" } };
+const choose = (it, name) => { const selector = one(it.target, "participant"); selector.value = name; selector.dispatchEvent(new Event("change")); };
+const optionNames = (it) => all(one(it.target, "participant"), (node) => node.localName === "option").map((node) => node.value);
+const ANSWER_LOG = (id) => ["Agent M jobs on hosted", `2026-10-16T12:08:00.0000000Z --- answer of ${id} ---`, "2026-10-16T12:08:00.0000000Z PLANTED-ANSWER-NV7 ok",
+  `2026-10-16T12:08:00.0000000Z --- end of the answer of ${id} ---`, ""].join("\n");
+
+// TST-1200001 · level: component · module: MOD-prompt-bar
+// guards: UC-049; THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; THE PAGE NAMES WHERE IT SENDS
+// given: this browser keeps the endpoint nvidia — place "NVIDIA, USA", context 128000, the CI secret NVIDIA_API_KEY and no key — and the endpoint undeclared, which names no place nor context; the instance's register does not list either; the register's dev-ci is on the endpoint ep1, whose key this browser keeps
+// input: the bar drawn; nvidia chosen; then dev-ci chosen
+// expect: nvidia is offered, named "nvidia — NVIDIA, USA", and undeclared is not; with nvidia chosen the button reads "Spawn job"; with dev-ci (called by this tab) it reads "Send"
+test("an endpoint that runs through GitHub Actions is offered from this browser's configuration, and the button then reads Spawn job; for one the tab calls it reads Send", async () => {
+  const it = open({ endpoints: ON_ACTIONS });
+  await until(() => one(it.target, "instruction") !== undefined, "the bar is drawn");
+  assert.ok(optionNames(it).includes("nvidia"), optionNames(it).join(", "));
+  assert.equal(optionNames(it).includes("undeclared"), false, "an endpoint without a place and a context is not offered");
+  assert.ok(textOf(one(it.target, "participant")).includes("nvidia — NVIDIA, USA"));
+  choose(it, "nvidia");
+  assert.equal(textOf(one(it.target, "send")), "Spawn job");
+  choose(it, "dev-ci");
+  assert.equal(textOf(one(it.target, "send")), "Send");
+});
+
+// TST-1200002 · level: component · module: MOD-prompt-bar
+// guards: UC-049; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; NO SECRET IN THE REPOSITORY; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
+// given: the page of TST-1200001 on the Scrum product, which holds Agent M's job workflow; nvidia chosen; recording off
+// input: a script's click on Spawn job, then a person's, with the message TASK; then a runtime takes the job, its run leaves the answer "PLANTED-ANSWER-NV7 ok" in its log and its record ends done with that run's address; 15 seconds pass
+// expect: the script's click writes nothing; no request goes to NVIDIA or anywhere but GitHub's fixtures; one commit queues the record — participant nvidia, model the endpoint's, route ci hosted, `declares` the context 128000 and the capabilities, the place NVIDIA, USA, and none of the task's words —; the job workflow is started once with the inputs job, task TASK, endpoint the JSON of { kind, baseUrl, model } and secret NVIDIA_API_KEY; the bar says waiting for GitHub Actions; once ended, it shows the answer, and the conversation holds it
+test("Spawn job hands the message to GitHub Actions with the endpoint and the name of its CI secret, follows the run and shows its answer", async () => {
+  const it = open({ endpoints: ON_ACTIONS });
+  await until(() => one(it.target, "instruction") !== undefined, "the bar is drawn");
+  choose(it, "nvidia");
+  one(it.target, "instruction").value = TASK;
+  one(it.target, "send").dispatchEvent(scripted());
+  await settle();
+  assert.equal(writesOf(it), 0, "a script's click spawns nothing");
+  one(it.target, "send").dispatchEvent(personal());
+  await until(() => following(it).includes("State:"), "the job is followed");
+  assert.deepEqual(it.net.seen, [], "no request reached a model or any address outside the repository fixtures");
+  assert.equal(it.product.starts.length, 1);
+  const { inputs } = it.product.starts[0];
+  assert.deepEqual(Object.keys(inputs).sort(), ["endpoint", "job", "secret", "task"]);
+  assert.equal(inputs.task, TASK);
+  assert.deepEqual(JSON.parse(inputs.endpoint), { kind: "openai-compatible", baseUrl: NVIDIA, model: NVIDIA_MODEL });
+  assert.equal(inputs.secret, "NVIDIA_API_KEY");
+  const record = it.product.file(it.product.jobPath());
+  assert.match(record, /^participant: nvidia$/m);
+  assert.match(record, new RegExp(`^model: ${NVIDIA_MODEL}$`, "m"));
+  assert.match(record, /^route: ci hosted$/m);
+  assert.match(record, /^declares: \{"context":128000,"capabilities":\["draft text","read the repository"\]\}$/m);
+  assert.match(record, /nvidia, at NVIDIA, USA/);
+  assert.doesNotMatch(record, /PLANTED-TASK-9C2E/);
+  assert.ok(following(it).includes("waiting for GitHub Actions"), following(it));
+  takes(it, RUN_URL);
+  it.product.runs.push(ciRun("succeeded"));
+  const id = /docs\/jobs\/(JOB-[^/]+)\.md$/.exec(it.product.jobPath())[1];
+  it.product.logs.set("7", ANSWER_LOG(id));
+  ends(it, "done", [], null, RUN_URL);
+  await after(15000);
+  await until(() => following(it).includes("PLANTED-ANSWER-NV7 ok"), "the answer is shown");
+  assert.ok(textOf(one(it.target, "conversation")).includes("PLANTED-ANSWER-NV7 ok"), "the answer joins the conversation");
+});
+
+// TST-1200003 · level: component · module: MOD-prompt-bar
+// guards: UC-049; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// given: the page of TST-1200001 on a product without Agent M's job workflow; nvidia chosen
+// input: a person's click on Spawn job
+// expect: "Nothing was spawned" naming the missing job workflow, and the button "Set up the job workflow", whose click goes to the route settings; nothing was written and no workflow started
+test("Spawn job on a product without the job workflow spawns nothing and links setting it up", async () => {
+  const files = scrumFiles();
+  delete files[WORKFLOW_FILE];
+  const it = open({ files, endpoints: ON_ACTIONS });
+  await until(() => one(it.target, "instruction") !== undefined, "the bar is drawn");
+  choose(it, "nvidia");
+  one(it.target, "instruction").value = TASK;
+  one(it.target, "send").dispatchEvent(personal());
+  await until(() => textOf(one(it.target, "status")).includes("Nothing was spawned"), "the refusal is shown");
+  assert.match(textOf(one(it.target, "status")), /no Agent M job workflow/);
+  one(it.target, "settings-link").dispatchEvent(personal());
+  assert.deepEqual(it.went.at(-1), ["settings"]);
+  assert.equal(writesOf(it), 0, NOTHING_WRITTEN);
 });

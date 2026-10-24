@@ -253,6 +253,16 @@ browser's localStorage with this endpoint configuration and sends it only in the
 that endpoint. It is never placed in a URL, a cookie or a repository. A refused key stays stored until you replace it or
 clear the configuration.
 
+## endpoint-declaration
+
+An endpoint is offered for conversations about a page only when it declares where it processes data — the provider and
+its country, or *this machine* — and how many tokens its model's context holds; that place is named before a message is
+sent. The CI secret is the name of a GitHub Actions secret of the repository that holds the endpoint's key, never the key
+itself. An endpoint that names a CI secret and keeps no API key in this browser runs through GitHub Actions: the button
+that sends then reads *Spawn job*, and each message becomes a job on GitHub's runners, which call the endpoint with the
+key from that secret. An endpoint that does not accept calls from a web page — it sends no cross-origin permission — can only run that
+way or through a Bridge.
+
 ## endpoint-route
 
 For an endpoint that the browser can reach, choose the direct route. For a model server on this computer, choose the
