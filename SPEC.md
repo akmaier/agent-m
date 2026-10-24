@@ -782,9 +782,13 @@ session its name, port and bridge token, are kept in the browser's settings.
 
 **A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET** *(PO A. Maier)*
 A job on the server's own machines pushes, opens pull requests and merges them with the person's Agent M
-token stored as a CI secret of the product repository, never with the workflow's built-in token.
+token stored as a CI secret of the product repository, never with the workflow's built-in token. The token is read
+only on a runner machine on which no agent works; the agent's work reaches that machine as the run's result, which is
+refused when it changes the repository's workflow files or holds a key of the run, and which is deleted from the
+server once it is written.
 *Check:* `tests/test_runtime_levels.py` — the generated job workflow authenticates its pushes and pull
-requests with the named secret; counter-proof: a workflow that uses `GITHUB_TOKEN` for them fails.
+requests with the named secret, on a runner machine that runs no agent; counter-proof: a workflow that uses
+`GITHUB_TOKEN` for them, or that hands the secret to the machine the agent works on, fails.
 ## 8. Versioning
 
 **CALENDAR VERSIONS** *(PO A. Maier)*
