@@ -158,14 +158,10 @@ function openedAfter(pullRequest, job) {
   return new Date(pullRequest?.opened) > new Date(job?.record?.start);
 }
 
-// The merged pull request that makes the item done: any merged one naming it; after a job that ended as done, one opened after
-// that job's start. Null while the pull requests are unknown.
-function mergedPullRequest(item, job, facts) {
-  if (facts.pullRequests === "unknown") return null;
-  if (job?.state !== "done") return pullRequestFor(item, facts.pullRequests, "merged");
-  const id = idOf(item);
-  return (facts.pullRequests ?? []).find((pullRequest) => pullRequest?.state === "merged" && namesPullRequest(pullRequest, id)
-    && openedAfter(pullRequest, job)) ?? null;
+// The merged pull request that makes the item done: any merged one naming it, whatever job or pull request of it followed. Null while the
+// pull requests are unknown.
+function mergedPullRequest(item, facts) {
+  return facts.pullRequests === "unknown" ? null : pullRequestFor(item, facts.pullRequests, "merged");
 }
 
 function derivedState(item, phase, states, facts) {
@@ -173,13 +169,15 @@ function derivedState(item, phase, states, facts) {
   const job = jobFor(item, facts.jobs);
   const named = job ? jobId(job) : null;
 
-  // An item whose pull request is merged is asked neither for the acceptance of what it realises nor for the items it builds on:
-  // a text that changed since, or an item that is not done, leave it done.
-  const merged = mergedPullRequest(item, job, facts);
-  const acceptance = merged ? [] : acceptanceReasons(item, facts);
+  // A merged pull request decides first: the item is done whatever else holds — a text it realises that changed since, an item it builds
+  // on that is not done, a gate, or a job or pull request of it after the merge. A change to it is a new item.
+  const merged = mergedPullRequest(item, facts);
+  if (merged) return { item: id, state: "done", reason: null, job: named, pullRequest: pullRequestRef(merged) };
+
+  const acceptance = acceptanceReasons(item, facts);
   if (acceptance.length) return { item: id, state: "waiting for acceptance", reason: acceptance.join("; "), job: named, pullRequest: null };
 
-  const prerequisites = merged ? [] : unfinishedPrerequisites(item, states);
+  const prerequisites = unfinishedPrerequisites(item, states);
   if (prerequisites.length) return { item: id, state: "waiting for an item it builds on",
     reason: `${listed(prerequisites)} ${prerequisites.length === 1 ? "is" : "are"} not done`, job: named, pullRequest: null };
 
@@ -200,8 +198,6 @@ function derivedState(item, phase, states, facts) {
   const open = pullRequestFor(item, facts.pullRequests, "open");
   if (open) return { item: id, state: "in progress", reason: `pull request ${pullRequestRef(open)} is open for review`,
     job: named, pullRequest: pullRequestRef(open) };
-
-  if (merged) return { item: id, state: "done", reason: null, job: named, pullRequest: pullRequestRef(merged) };
 
   // A job that ended as done keeps the item in progress until a pull request opened after its start is merged or closed.
   if (job?.state === "done") {
@@ -244,7 +240,7 @@ function stateReason(item, state) {
     case "waiting": return `${item} waits for ${why}: no decision of it is recorded.`;
     case "in progress": return `${item} is in progress already.`;
     case "blocked": return `${item} is blocked${why ? `: ${why}` : ""}.`;
-    case "done": return `${item} is done.`;
+    case "done": return `${item} is done: a change to it is a new item.`;
     default: return `The state of ${item} is unknown: the pull requests could not be read.`;
   }
 }

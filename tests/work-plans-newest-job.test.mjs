@@ -63,17 +63,15 @@ test("itemStates — an item whose newest job ended as done stays in progress, w
 // guards: THE BUILD IS SHOWN AS IT HAPPENS; STATUS IS DERIVED FROM THE RECORDS
 // given: an item whose newest job JOB-1 ended as done at 09:00, and (a) a pull request opened at 10:00 and closed without merge, (b) a merged pull request opened at 08:00, before the job's start, (c) the same merged one and a second opened at 10:00 and still open
 // input: itemStates for the item
-// expect: (a) ready, job JOB-1 — the closed pull request ends the stay; (b) in progress, job JOB-1 — an earlier pull request is not the job's; (c) in progress, job JOB-1, the open pull request 8
-test("itemStates — only a pull request opened after the job's start ends the stay: a closed one returns the item to ready, an earlier merged one does not", () => {
+// expect: (a) ready, job JOB-1 — the closed pull request ends the stay; (b) done, job JOB-1, pull request 6 — a merged item stays done whatever job of it follows; (c) done, job JOB-1, pull request 6 — and whatever pull request of it is opened after the merge
+test("itemStates — a closed pull request after the job's start returns the item to ready, and an earlier merged one keeps it done", () => {
   const ended = [job("JOB-1", "done")];
   assert.deepEqual(stateOf({ jobs: ended, pullRequests: [pull("closed", AFTER, 7)] }),
     { item: ID, state: "ready", reason: null, job: "JOB-1", pullRequest: null });
   const earlier = stateOf({ jobs: ended, pullRequests: [pull("merged", BEFORE, 6)] });
-  assert.equal(earlier.state, "in progress");
-  assert.equal(earlier.job, "JOB-1");
-  assert.equal(earlier.pullRequest, null);
+  assert.deepEqual([earlier.state, earlier.job, earlier.pullRequest], ["done", "JOB-1", "6"]);
   const both = stateOf({ jobs: ended, pullRequests: [pull("merged", BEFORE, 6), pull("open", AFTER, 8)] });
-  assert.deepEqual([both.state, both.job, both.pullRequest], ["in progress", "JOB-1", "8"]);
+  assert.deepEqual([both.state, both.job, both.pullRequest], ["done", "JOB-1", "6"]);
 });
 
 // TST-864003 · level: unit · module: MOD-work-plans
@@ -92,15 +90,15 @@ test("itemStates — a job that has not ended as done is named as before, and on
 
 // TST-864004 · level: unit · module: MOD-work-plans
 // guards: THE BUILD IS SHOWN AS IT HAPPENS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
-// given: (a) an item with a done job and pull requests "unknown"; (b) an item with a running job and a merged pull request opened before the job started; (c) an item waiting for acceptance, one waiting for an item it builds on and one waiting at a gate, each with a done job; (d) an item with no job and a merged pull request; (e) two done jobs of the item, JOB-new (started 09:00) listed before JOB-old (started 08:00), as listJobs lists them newest first
+// given: (a) an item with a done job and pull requests "unknown"; (b) an item with a running job and a merged pull request opened before the job started; (c) an item waiting for acceptance, one waiting for an item it builds on and one waiting at a gate, each with a done job; (d) an item with no job and a merged pull request; (e) two done jobs of the item, JOB-new (started 09:00) listed before JOB-old (started 08:00), as listJobs lists them newest first, and a merged pull request of the item
 // input: itemStates
-// expect: (a) unknown, job JOB-1; (b) in progress, job JOB-1; (c) each names its job JOB-1 in its state; (d) done, job null; (e) job JOB-new
+// expect: (a) unknown, job JOB-1; (b) done, job JOB-1 — a merged item stays done whatever job of it runs; (c) each names its job JOB-1 in its state; (d) done, job null; (e) done, job JOB-new
 test("itemStates — job is set in every branch, null when the item has no job, and names the newest of several", () => {
   const ended = [job("JOB-1", "done")];
   const unknown = stateOf({ jobs: ended, pullRequests: "unknown" });
   assert.deepEqual([unknown.state, unknown.job, unknown.pullRequest], ["unknown", "JOB-1", null]);
   const running = stateOf({ jobs: [job("JOB-1", "running")], pullRequests: [pull("merged", BEFORE, 6)] });
-  assert.deepEqual([running.state, running.job], ["in progress", "JOB-1"]);
+  assert.deepEqual([running.state, running.job], ["done", "JOB-1"]);
 
   const acceptance = stateOf({ jobs: ended, statuses: new Map() });
   assert.deepEqual([acceptance.state, acceptance.job], ["waiting for acceptance", "JOB-1"]);
@@ -121,5 +119,5 @@ test("itemStates — job is set in every branch, null when the item has no job, 
 
   const newest = stateOf({ jobs: [job("JOB-new", "done", "2026-10-20T09:00:00Z"), job("JOB-old", "done", "2026-10-20T08:00:00Z")],
     pullRequests: [pull("merged", "2026-10-20T08:30:00Z", 5)] });
-  assert.deepEqual([newest.state, newest.job], ["in progress", "JOB-new"]);
+  assert.deepEqual([newest.state, newest.job], ["done", "JOB-new"]);
 });

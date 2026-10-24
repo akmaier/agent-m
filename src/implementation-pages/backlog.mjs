@@ -98,12 +98,10 @@ export async function contextOf(context) {
   return { ref, snapshot, facts, declaration, modelFile, model, modelUnread: facts.modelUnread, assignments, sprints, items, modules, teams, newest, requirements, useCases, reviewed };
 }
 
-// The pull requests the page derives from, in one listing of all of them (the facts hold it): an item's hold can outlast its sprint, and an item can be done before any sprint ran. Only those into the default branch or into the branch of a
-// sprint count, whatever else the server answers.
+// The pull requests the page derives from, in one listing of all of them (the facts hold it): an item's hold can outlast its sprint, and an item can be done before any sprint ran. Every one
+// counts, into whichever branch it was merged: the page derives from the same pull requests as MOD-work-plans.
 async function pullRequestsOf(context, ctx) {
-  const bases = new Set([ctx.ref, ...ctx.sprints.map((sprint) => text(sprint.fields.branch)).filter(Boolean)]);
-  const found = ctx.facts.pullRequests === "unknown" ? await context.product.host.listPullRequests() : ctx.facts.pullRequests;
-  return found.filter((pullRequest) => bases.has(pullRequest.branchBase ?? pullRequest.base));
+  return ctx.facts.pullRequests === "unknown" ? await context.product.host.listPullRequests() : ctx.facts.pullRequests;
 }
 
 // The approval statuses MOD-work-plans' itemStates reads: the reviewed files', and each requirement the SPEC holds as accepted.
