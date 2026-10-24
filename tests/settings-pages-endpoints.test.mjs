@@ -658,8 +658,7 @@ test("TST-998001: the last test of an endpoint keeps whether the model called th
 
 // TST-1202002 · level: unit · module: MOD-settings-pages
 // guards: UC-003; UC-049
-// given: a stored direct endpoint with a place and no context, which the prompt bar does not offer, and a LiteLLM gateway: the test answers, GET /models states
-// no context, GET /model/info states max_input_tokens 131072 for tiny-model
+// given: a stored direct endpoint with a place and no context, which the prompt bar does not offer, and a LiteLLM gateway: the test answers, GET /models states no context, GET /model/info states max_input_tokens 131072 for tiny-model
 // input: the person presses Test on the Settings page
 // expect: endpoint:campus keeps everything it had and gains context 131072; the result says so; the line no longer says the prompt bar does not offer it
 test("TST-1202002: a working test keeps the context the endpoint states, and the endpoint is then offered", async () => {

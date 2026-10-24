@@ -16,10 +16,11 @@ import { productFiles, fakeGitHub, openPage, byClass, ENTRY_ID, TOKEN } from "./
 
 // TST-479201 · level: release · module: MOD-review-pages; MOD-trace-graph; MOD-repository-hosts
 // guards: UC-006; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST
-// given: the product of 1,332 files in which UC-002, the only artifact that names "A WRITE RULE", is the last file of the tree, so that it lies in the last query of 31 files
+// given: the product of 1,332 files in which UC-002, the only artifact that names "A WRITE RULE", is the last file of the tree; the branch trace-cache holds the graph the workflow "main changed" stored for the commit (a page reads that graph and never builds one — MOD-trace-graph)
 // input: open the SPEC-entry page of entry 07, which changes "A WRITE RULE"
-// expect: the impact list reads "A WRITE RULE — changed, named by UC-002", though the use case came in the last of the trace graph's 14 queries, the one that names 31 files; at most 17 queries (the 14 and at most 3 more for the queues' files) and at most 22 requests in all, against the 1,336 of one request for each file
-test("TST-479201: an impact list names the artifact read in the last batch, within 17 queries", async () => {
+// expect: the impact list reads "A WRITE RULE — changed, named by UC-002", though the page reads no use case: UC-002 stands in no query and is read on its own by no request; the
+//         graph is read by one request; at most 3 queries (the queue's and the entry's files) and at most 7 requests in all, against the 1,336 of one request for each file
+test("TST-479201: an impact list names an artifact the page never reads, from the stored graph, within 3 queries", async () => {
   const held = productFiles(1332), uc2 = "docs/use-cases/UC-002-write-a-file.md";
   const last = held[uc2];
   delete held[uc2];
@@ -28,18 +29,18 @@ test("TST-479201: an impact list names the artifact read in the last batch, with
   const page = await openPage(fake, { id: ENTRY_ID });
 
   assert.equal(byClass(page, "ul", "impact")[0].textContent, "A WRITE RULE — changed, named by UC-002");
-  const holding = fake.graphqlRequests().findIndex((q) => q.body.query.includes(uc2));
-  assert.ok(holding >= 0, "UC-002 stands in a query");
-  assert.equal(fake.namedPerQuery()[holding], 31, "the query that names UC-002 is the last one of the trace graph's 14, which names 31 files");
-  assert.ok(fake.graphqlRequests().length <= 17);
-  assert.ok(fake.requests.length <= 22, `${fake.requests.length} requests, at most 22`);
+  assert.equal(fake.graphqlRequests().filter((q) => q.body.query.includes(uc2)).length, 0, "UC-002 stands in no query");
+  assert.deepEqual(fake.contentPaths().filter((path) => path === uc2), [], "UC-002 is read on its own by no request");
+  assert.equal(fake.requests.filter((r) => r.url.pathname.endsWith(".json.gz") && r.url.searchParams.get("ref") === "trace-cache").length, 1, "the stored graph, read once");
+  assert.ok(fake.graphqlRequests().length <= 3);
+  assert.ok(fake.requests.length <= 7, `${fake.requests.length} requests, at most 7`);
 });
 
 // TST-479202 · level: release · module: MOD-review-pages; MOD-trace-graph; MOD-repository-hosts
 // guards: UC-006; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
 // given: the product on GitHub with the reviewer's token stored
 // input: open the SPEC-entry page of entry 07 (the queries and the reads are made)
-// expect: every request goes to https://api.github.com; every request carries "Authorization: Bearer <the token>"; the token is in no address and no body; there are 14 to 17 queries (the trace graph's 14 and at most 3 more for the queues' files), each a POST to https://api.github.com/graphql; and those POSTs are the only requests not GET
+// expect: every request goes to https://api.github.com — the read of the stored graph on the branch trace-cache among them; every request carries "Authorization: Bearer <the token>"; the token is in no address and no body; there are 1 to 3 queries (the queue's and the entry's files), each a POST to https://api.github.com/graphql; and those POSTs are the only requests not GET
 test("TST-479202: the token goes only to api.github.com, in the header, also on the batched reads", async () => {
   const fake = fakeGitHub(productFiles(1332));
   await openPage(fake, { id: ENTRY_ID });
@@ -51,7 +52,8 @@ test("TST-479202: the token goes only to api.github.com, in the header, also on 
     assert.equal(r.url.href.includes(TOKEN) || JSON.stringify(r.body ?? "").includes(TOKEN), false, r.url.href);
   }
   const queries = fake.graphqlRequests();
-  assert.ok(queries.length >= 14 && queries.length <= 17, `${queries.length} queries, 14 to 17`);
+  assert.ok(fake.requests.some((r) => r.url.pathname.endsWith(".json.gz") && r.url.searchParams.get("ref") === "trace-cache"), "the stored graph is among the requests checked");
+  assert.ok(queries.length >= 1 && queries.length <= 3, `${queries.length} queries, 1 to 3`);
   for (const q of queries) { assert.equal(q.method, "POST"); assert.equal(q.url.href, "https://api.github.com/graphql"); }
   assert.equal(fake.requests.filter((r) => r.method !== "GET").length, queries.length, "every request that is not a GET is one of those queries");
 });

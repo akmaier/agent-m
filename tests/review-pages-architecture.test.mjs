@@ -29,6 +29,10 @@ import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { withStoredGraph } from "./stored-graph-fake.mjs";
+
+// Every commit the fakes of this file make is its own: MOD-trace-graph's storedGraph keeps a commit's graph for the page.
+let commitsMade = 0;
 
 // A localStorage of the file's own, for MOD-browser-store.
 const kept = new Map();
@@ -87,21 +91,24 @@ const STEPS = [
 
 // ---------------------------------------------------------------- the fake host
 
-function fakeHost({ steps = STEPS, refuse = null, unreadable = [] } = {}) {
+function fakeHost({ steps = STEPS, refuse = null, graphStored = true } = {}) {
   const calls = [], commits = new Map();
   let made = 0, head = null;
   const commitOf = (tree, parent) => {
-    const sha = createHash("sha1").update(`commit ${++made}`).digest("hex");
+    const sha = createHash("sha1").update(`commit ${++made} of the file's ${++commitsMade}`).digest("hex");
     commits.set(sha, { tree, parent, date: `2026-10-0${made}T10:00:00Z` });
     return sha;
   };
   for (const files of steps) head = commitOf(new Map([...(head ? commits.get(head).tree : []), ...Object.entries(files)]), head);
-  const snapshotAt = (sha) => {
+  const bareSnapshotAt = (sha) => {
     const { tree } = commits.get(sha);
     return { repository: ON_GITHUB, ref: sha, commit: sha, paths: [...tree.keys()].sort(),
-      read: async (path) => { if (unreadable.includes(path)) throw failure("Unreachable", `${path} cannot be read`); return tree.has(path) ? tree.get(path) : null; },
+      read: async (path) => (tree.has(path) ? tree.get(path) : null),
       blob: (path) => (tree.has(path) ? blobOf(tree.get(path)) : null) };
   };
+  // Each snapshot serves the graph the push job stores for its commit (tests/stored-graph-fake.mjs), unless `graphStored` is false; a page reads it and never
+  // builds one (MOD-trace-graph).
+  const snapshotAt = (...args) => (graphStored ? withStoredGraph(bareSnapshotAt(...args)) : bareSnapshotAt(...args));
   return {
     head: () => head,
     writes: () => calls.filter((call) => call.fn === "commitFiles"),
@@ -285,14 +292,15 @@ test("MOD-review-pages decision/<id> and module/<id> — a change to an accepted
 
 // TST-680102 · level: unit · module: MOD-review-pages
 // guards: AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST
-// given: MOD-lister changed since acceptance, and a host that cannot read a use case the graph of the impact list reads
+// given: MOD-lister changed since acceptance, and a host whose branch trace-cache holds no graph of the commit shown — the page derives the impact list from the stored graph only (MOD-review-pages: "The graph is the one `onMainChanged` stored for the commit shown (MOD-workflow-entries), read through `storedGraph`; no page builds a graph")
 // input: the route module rendered for MOD-lister
-// expect: the page says that the impact list could not be derived and that the change cannot be accepted without it; no Accept; counter-proof: the same page on a host that reads it offers Accept
+// expect: the page says that the impact list could not be derived, naming the graph not stored, and that the change cannot be accepted without it; no Accept;
+//   counter-proof: the same page on a host that holds the graph offers Accept
 test("MOD-review-pages module/<id> — a change whose impact list cannot be derived is not offered for acceptance", async () => {
   const good = await show(fakeHost(), "module", { id: "MOD-lister" });
   assert.equal(byClass(good, "button", "accept").length, 1, "known positive: Accept with the list");
-  const target = await show(fakeHost({ unreadable: ["docs/use-cases/UC-001-borrow-a-book.md"] }), "module", { id: "MOD-lister" });
-  assert.match(target.textContent, /The impact list could not be derived: [^]*cannot be read — without it, this change cannot be accepted\./);
+  const target = await show(fakeHost({ graphStored: false }), "module", { id: "MOD-lister" });
+  assert.match(target.textContent, /The impact list could not be derived: the trace graph of [0-9a-f]{12} is not stored yet[^]* — without it, this change cannot be accepted\./);
   assert.equal(byClass(target, "button", "accept").length, 0);
   assert.equal(byClass(target, "section", "change-impact").length, 0);
 });

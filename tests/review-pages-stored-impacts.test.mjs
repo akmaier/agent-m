@@ -11,7 +11,7 @@
 // The product is a Host of this file's own over one repository in memory with a history, keeping to MOD-repository-hosts' interface; its snapshots offer `readOn`, and the branch
 // `trace-cache` holds the file `<main commit>.impacts.json` that MOD-trace-graph's publishGraph writes. Every call is recorded. The real MOD-approvals, MOD-trace-graph and MOD-documents run.
 // Nothing reaches the network. Where the module file leaves a reading open, the test states the one it takes, and the pull request names it:
-//   - A "traceGraph read" is any read of `<commit>.json` on the branch `trace-cache`, or of a file only the graph reads (the fixture's code file and test file); "lastAcceptedText" is a `readSnapshot` of a commit other than the
+//   - A "traceGraph read" is any read of `<commit>.json.gz` (the stored graph) on the branch `trace-cache`, or of a file only the graph reads (the fixture's code file and test file); "lastAcceptedText" is a `readSnapshot` of a commit other than the
 //     default branch's head, which is how that function reads the text at the commit of the record.
 //   - The stored list is drawn without the graph: the stored list is all the page then has, so it shows the modules with their reasons, and the code files and the tests of the whole
 //     list in one line each below them, as <p class="small code-files"> and <p class="small tests"> children of <section class="change-impact">.
@@ -21,6 +21,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
 import { blobOf, byClass, draw, failure, GITHUB, text, fetched } from "./review-pages-draft-world.mjs";
+import { storedGraphReadOn } from "./stored-graph-fake.mjs";
 
 test.afterEach(() => { assert.deepEqual(fetched.splice(0), [], "no request left the fixtures"); });
 
@@ -47,21 +48,30 @@ const STORED_IMPACT = { modules: [{ id: "MOD-reader", why: "changed", breaks: fa
   named: { added: ["RULE TWO"], removed: ["UC-001"] }, items: ["ITM-STORED"] };
 
 // A Host of this file's own. `stored` is what the branch holds for the head commit: { blob } for the entry of MOD-reader, or null for no file.
+// Each Host's commits are its own: MOD-trace-graph's storedGraph keeps a commit's graph for the page, so two drawings never share a commit.
+let products = 0;
 function fakeProduct({ stored }) {
-  const commits = new Map(), calls = [];
+  const commits = new Map(), calls = [], product = ++products;
   let made = 0, head = null, accepted = null;
   for (const files of STEPS) {
-    const sha = createHash("sha1").update(`commit ${++made}`).digest("hex");
+    const sha = createHash("sha1").update(`product ${product} commit ${++made}`).digest("hex");
     commits.set(sha, { tree: new Map([...(head ? commits.get(head).tree : []), ...Object.entries(files)]), parent: head, date: `2026-10-0${made}T10:00:00Z` });
     if (made === 2) accepted = sha;
     head = sha;
   }
+  // The graph the push job stores for a commit (tests/stored-graph-fake.mjs), built from a read that is not recorded: building it is the push job's work, not the page's.
+  const graphs = new Map();
+  const graphOf = (sha) => {
+    if (!graphs.has(sha)) { const { tree } = commits.get(sha); graphs.set(sha, storedGraphReadOn({ commit: sha, paths: [...tree.keys()], read: async (each) => tree.get(each) ?? null })); }
+    return graphs.get(sha);
+  };
   const snapshotAt = (sha, ref) => {
     const { tree } = commits.get(sha);
     return { repository: GITHUB, ref, commit: sha, paths: [...tree.keys()].sort(), read: async (path) => { calls.push({ fn: "read", path }); return tree.has(path) ? tree.get(path) : null; },
       readMany: async (paths) => { calls.push({ fn: "readMany", sha, paths }); },
-      readOn: async (branch, path) => {
+      readOn: async (branch, path, options) => {
         calls.push({ fn: "readOn", branch, path });
+        if (branch === "trace-cache" && path.endsWith(".json.gz")) return graphOf(sha)(branch, path, options);
         if (branch !== "trace-cache" || path !== `${head}.impacts.json` || stored === null) return null;
         return JSON.stringify({ format: "agent-m-trace-impacts", version: 1, commit: head, entries: [{ path: READER_PATH, blob: stored.blob, before: accepted, impact: STORED_IMPACT }] });
       },

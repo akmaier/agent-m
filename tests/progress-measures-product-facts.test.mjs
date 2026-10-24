@@ -846,8 +846,7 @@ test("TST-940010 publishOverview writes latest.json naming its commit with the f
 
 // TST-940011 · level: unit · module: MOD-progress-measures
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
-// given: a snapshot of ccc…c whose readOn serves on overview-cache latest.json naming the older commit bbb…b and the overview TST-940004 stores, rewritten as bbb…b's; then readOns where latest.json is missing (null; NotFound),
-//   holds no JSON or no commit, or names bbb…b whose overview is missing (null; NotFound)
+// given: a snapshot of ccc…c whose readOn serves on overview-cache latest.json naming the older commit bbb…b and the overview TST-940004 stores, rewritten as bbb…b's; then readOns where latest.json is missing (null; NotFound), holds no JSON or no commit, or names bbb…b whose overview is missing (null; NotFound)
 // input: latestOverview(snapshot) for each
 // expect: the first gives { commit: "bbb…b", shares, waiting, model, build, queues } as stored, by two readOns — latest.json, then bbb…b.json — and no read; every other gives null
 test("TST-940011 latestOverview gives the overview latest.json names with its commit, and null where latest.json or that overview is missing", async () => {

@@ -211,8 +211,7 @@ test("TST-960003: a failed listing is a diagnosis, as testEndpoint gives it", as
 
 // TST-1202001 · level: unit · module: MOD-endpoint-calls
 // guards: UC-003; A CREDENTIAL IS NEVER PLACED IN A URL
-// given: (a) an endpoint whose /models entry for tiny-model states context_length 32768; (b) a LiteLLM gateway whose /models entry states nothing and whose
-// /model/info entry for tiny-model has model_info.max_input_tokens 131072; (c) an endpoint that states nothing in either, as NVIDIA's listing does
+// given: (a) an endpoint whose /models entry for tiny-model states context_length 32768; (b) a LiteLLM gateway whose /models entry states nothing and whose /model/info entry for tiny-model has model_info.max_input_tokens 131072; (c) an endpoint that states nothing in either, as NVIDIA's listing does
 // input: modelContext(config) for each
 // expect: (a) 32768 after one GET /models; (b) 131072 after GET /models and GET /model/info, each with the key as Authorization only; (c) null
 test("TST-1202001: modelContext reads the model's context from the listing, else from LiteLLM's model info, and null where neither states it", async (t) => {

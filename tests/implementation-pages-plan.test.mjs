@@ -20,6 +20,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { withStoredGraph } from "./stored-graph-fake.mjs";
 
 // The fixture DOM of the frame, installed as the globals `document` and `window` when it is imported.
 import "./site-frame-dom.mjs";
@@ -82,9 +83,12 @@ function productFiles({ model = "v-model", accepted = "all", changed = [], plan 
   return files;
 }
 
+// The snapshot's commit is named by its files, so that two snapshots of different files never share a commit (the stored graph is kept per commit);
+// its readOn serves the graph the push job stores for that commit (tests/stored-graph-fake.mjs), which the page reads and never builds.
 function snapshotOf(files, web) {
-  return { repository: { server: "github", path: "acme/product", web }, ref: "main", commit: "c".repeat(40), paths: Object.keys(files),
-    blob: (path) => (Object.hasOwn(files, path) ? blobOf(files[path]) : null), read: async (path) => (Object.hasOwn(files, path) ? files[path] : null) };
+  const commit = createHash("sha1").update(JSON.stringify(Object.entries(files).sort())).digest("hex");
+  return withStoredGraph({ repository: { server: "github", path: "acme/product", web }, ref: "main", commit, paths: Object.keys(files),
+    blob: (path) => (Object.hasOwn(files, path) ? blobOf(files[path]) : null), read: async (path) => (Object.hasOwn(files, path) ? files[path] : null) });
 }
 const INSTANCE = "# Participants\n\n**REGISTER**\n\nThe people and agents of the fixture instance.\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n";
 
