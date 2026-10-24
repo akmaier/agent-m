@@ -176,7 +176,7 @@ export const gitlabTokenPageUrl = (product) => `${product.address}/-/settings/ac
 // ONE GITHUB TOKEN SERVES EVERY FEATURE: the permissions of the one fine-grained token, in GitHub's display names (`permission`)
 // and the parameter names and access levels of GitHub's prefilled token page (`param`, `access`) — read on 2026-10-01 in the
 // table "Repository permissions" of docs.github.com, "Pre-filling fine-grained personal access token details using URL
-// parameters": pull_requests read/write, workflows write only, metadata read only; "write always includes read".
+// parameters": pull_requests read/write, workflows write only, secrets read/write, metadata read only; "write always includes read".
 const GITHUB_PERMISSIONS = Object.freeze([
   { permission: "Contents", param: "contents", access: "write",
     why: "to save and accept: every edit and acceptance is a commit you ask for by clicking" },
@@ -188,6 +188,8 @@ const GITHUB_PERMISSIONS = Object.freeze([
     why: "to start a run of a workflow, such as the tests" },
   { permission: "Workflows", param: "workflows", access: "write",
     why: "for a job that writes a product's CI configuration, the files under .github/workflows/" },
+  { permission: "Secrets", param: "secrets", access: "write",
+    why: "to store an endpoint's key as a GitHub Actions secret, on your click" },
   { permission: "Metadata", param: "metadata", access: "read",
     why: "GitHub requires it for every token; it reads names and settings, nothing else" },
 ].map(Object.freeze));
