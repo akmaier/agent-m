@@ -743,9 +743,11 @@ const allFacts = async (files) => { const f = fixture({ files }); return product
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the fixture product read with the scope "all" at the commit ccc…c; a repository whose branch overview-cache holds no file for that commit
 // input: publishOverview(host, snapshot, facts)
-// expect: { commit: "ccc…c", written: true }; exactly one commitFiles, on the branch "overview-cache", expectedHead the branch's head 00…01, two files, `ccc…c.json` (the second, `ccc…c.facts.json`, is TST-1117001's) whose text is the JSON { commit, shares, waiting } and a line end — shares the six stages in their order,
-// waiting what waitingForAPerson gives, whose first two entries are UC-002 (open) and the open SPEC change entry — and no other file
-test("TST-940004 publishOverview adds <commit>.json with the stage shares and what waits, on the head it read", async () => {
+// expect: { commit: "ccc…c", written: true }; exactly one commitFiles, on the branch "overview-cache", expectedHead the branch's head 00…01, two files, `ccc…c.json` (the second, `ccc…c.facts.json`, is TST-1117001's) whose text is the JSON
+// { commit, shares, waiting, model, build, queues } and a line end — shares the six stages in their order, waiting what waitingForAPerson gives, whose first two entries are UC-002 (open) and the open SPEC change entry;
+// model the name of the facts' model or null; build { states, records } of the steps in progress that a job works on, with those jobs' records as the snapshot reads them; queues the facts' queues with an entry
+// not in the SPEC — and no other file
+test("TST-940004 publishOverview adds <commit>.json with the stage shares, what waits, the model, the build and the undecided queues, on the head it read", async () => {
   const facts = await allFacts(withTests());
   const host = overviewHost(overviewBranch());
   const done = await measures.publishOverview(host, facts.snapshot, facts);
@@ -754,7 +756,14 @@ test("TST-940004 publishOverview adds <commit>.json with the stage shares and wh
   assert.deepEqual([host.commits[0].branch, host.commits[0].expectedHead, host.commits[0].files.map((file) => file.path)], ["overview-cache", OVERVIEW_HEAD, [`${COMMIT}.json`, `${COMMIT}.facts.json`]]);
   const stored = JSON.parse(host.commits[0].files[0].text);
   assert.equal(host.commits[0].files[0].text.endsWith("}\n"), true);
-  assert.deepEqual(Object.keys(stored), ["commit", "shares", "waiting"]);
+  assert.deepEqual(Object.keys(stored), ["commit", "shares", "waiting", "model", "build", "queues"]);
+  assert.equal(stored.model, typeof facts.model?.name === "string" ? facts.model.name : null);
+  const inProgress = facts.plan.states.filter((state) => state.state === "in progress" && facts.jobs.some((row) => row.record.id === state.job));
+  assert.deepEqual(stored.build.states, JSON.parse(JSON.stringify(inProgress)));
+  const records = [...new Set(inProgress.map((state) => facts.jobs.find((row) => row.record.id === state.job).record.path))];
+  assert.deepEqual(stored.build.records, await Promise.all(records.map(async (path) => ({ path, text: await facts.snapshot.read(path) }))));
+  assert.deepEqual(stored.queues, JSON.parse(JSON.stringify(facts.queues.filter((queue) => queue.entries.some((entry) => entry.state !== "in SPEC")))));
+  assert.ok(stored.queues.length > 0, "known positive: the fixture's waiting queue is held");
   assert.equal(stored.commit, COMMIT);
   assert.deepEqual(stored.shares.map((entry) => entry.stage), ["Requirements", "Use cases", "Architecture", "Implementation", "Tests", "Release"]);
   assert.deepEqual(stored.shares, JSON.parse(JSON.stringify(await measures.stageShares(facts))));
@@ -786,30 +795,33 @@ function withReadOn(readOn) {
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the overview that TST-940004 stores, served by the snapshot's readOn
 // input: storedOverview(snapshot)
-// expect: { shares, waiting } as stored — the same lists publishOverview wrote —; exactly one request, readOn("overview-cache", "ccc…c.json"), and no read
-test("TST-940006 storedOverview reads the overview of the snapshot's commit with one readOn, and gives its shares and what waits", async () => {
+// expect: { shares, waiting, model, build, queues } as stored — the same lists publishOverview wrote —; exactly one request, readOn("overview-cache", "ccc…c.json"), and no read
+test("TST-940006 storedOverview reads the overview of the snapshot's commit with one readOn, and gives what it holds", async () => {
   const facts = await allFacts(withTests());
   const host = overviewHost(overviewBranch());
   await measures.publishOverview(host, facts.snapshot, facts);
   const text = host.commits[0].files[0].text;
   const held = withReadOn(() => text);
   const overview = await measures.storedOverview(held.snapshot);
-  assert.deepEqual(overview, { shares: JSON.parse(text).shares, waiting: JSON.parse(text).waiting });
+  const { shares, waiting, model, build, queues } = JSON.parse(text);
+  assert.deepEqual(overview, { shares, waiting, model, build, queues });
   assert.equal(overview.shares.length, 6);
   assert.deepEqual(held.calls, [["readOn", "overview-cache", `${COMMIT}.json`]]);
 });
 
 // TST-940007 · level: unit · module: MOD-progress-measures
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
-// given: snapshots whose readOn gives null (no branch or no file); text that is no JSON; JSON of another shape; an overview naming another commit; and a readOn that fails with NotFound (no branch)
+// given: snapshots whose readOn gives null (no branch or no file); text that is no JSON; JSON of another shape; an overview naming another commit; an overview of the earlier format, { commit, shares, waiting } without the model, the build and the queues; and a readOn that fails with NotFound (no branch)
 // input: storedOverview of each
 // expect: null for each — the branch or the file missing, or another format, is no failure
 test("TST-940007 storedOverview gives null for a missing branch or file and for another format", async () => {
-  const good = JSON.stringify({ commit: COMMIT, shares: [], waiting: [] });
-  const cases = [() => null, () => "not json", () => "[]", () => JSON.stringify({ commit: COMMIT, shares: {} , waiting: [] }), () => JSON.stringify({ commit: "d".repeat(40), shares: [], waiting: [] }),
+  const rest = { model: null, build: { states: [], records: [] }, queues: [] };
+  const good = JSON.stringify({ commit: COMMIT, shares: [], waiting: [], ...rest });
+  const cases = [() => null, () => "not json", () => "[]", () => JSON.stringify({ commit: COMMIT, shares: {}, waiting: [], ...rest }),
+    () => JSON.stringify({ commit: "d".repeat(40), shares: [], waiting: [], ...rest }), () => JSON.stringify({ commit: COMMIT, shares: [], waiting: [] }),
     () => { throw named("NotFound", "no branch overview-cache"); }];
   for (const [at, readOn] of cases.entries()) assert.equal(await measures.storedOverview(withReadOn(readOn).snapshot), null, `case ${at}`);
-  assert.deepEqual(await measures.storedOverview(withReadOn(() => good).snapshot), { shares: [], waiting: [] }, "known positive: a well-formed overview is returned");
+  assert.deepEqual(await measures.storedOverview(withReadOn(() => good).snapshot), { shares: [], waiting: [], ...rest }, "known positive: a well-formed overview is returned");
 });
 
 // TST-1070001 · level: unit · module: MOD-progress-measures

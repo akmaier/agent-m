@@ -342,8 +342,10 @@ async function readAhead(kind) {
     // The links file and the register's entries (MOD-source-register's registerPaths) are read with the SPEC, in the first wave, beside the overview stored for the commit
     // (MOD-progress-measures' storedOverview). The change queues it holds — those with an entry not in the SPEC yet — are what the specification lists as waiting: their files are
     // read in a second wave, and no other queue is read. Where no overview is stored, every queue's index and decisions are read, then the proposals of the queues still open.
+    // A tree without a queue asks for no overview.
+    const queued = pathsOf(QUEUE_INDEX_PATH).length > 0;
     const [, stored] = await Promise.all([readWave(["SPEC.md", "docs/sources.md", ...registerPaths(state.tree.map((e) => e.path))]),
-      pinned().then((snap) => storedOverview(snap)).catch(() => null)]);
+      queued ? pinned().then((snap) => storedOverview(snap)).catch(() => null) : null]);
     if (stored) {
       await readWave(stored.queues.flatMap((queue) => [`${queue.folder}/index.md`, `${queue.folder}/entscheidungen.md`,
         ...queue.entries.filter((entry) => entry.state !== "in SPEC").flatMap((entry) => [entry.proposal?.path, entry.rationale, entry.file, entry.record])]).filter(Boolean));

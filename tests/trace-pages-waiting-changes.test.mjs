@@ -111,11 +111,9 @@ test("TST-878004 a repository without a change queue costs the page no queue rea
 
 // TST-878005 · level: unit · module: MOD-trace-pages
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; OPEN PROPOSALS ARE SHOWN IN THE BROWSER; UC-006
-// given: the default branch of TST-878001 (an open queue and a decided one), whose snapshot has `readOn` and whose branch overview-cache holds the overview of its commit in the format MOD-progress-measures'
-// Data names — its queues the open queue alone, as MOD-spec-changes' queues gives it, the queues with an entry not in the SPEC yet
+// given: the default branch of TST-878001 (an open queue and a decided one), whose snapshot has `readOn` and whose branch overview-cache holds the overview of its commit in the format MOD-progress-measures' Data names — its queues the open queue alone, as MOD-spec-changes' queues gives it, the queues with an entry not in the SPEC yet
 // input: the specification view drawn at main
-// expect: the open entry is linked as in TST-878001 (#spec-entry/id=spec-2026-10-09_open-01), the overview was read once, and no file of the decided queue's folder is read or named to readMany —
-// counter-proof: without the overview the page reads the decided queue's index (known positive that the log sees such a read)
+// expect: the open entry is linked as in TST-878001 (#spec-entry/id=spec-2026-10-09_open-01), the overview was read once, and no file of the decided queue's folder is read or named to readMany — counter-proof: without the overview the page reads the decided queue's index (known positive that the log sees such a read)
 test("TST-878005 with an overview stored for the commit, the page lists the waiting entries from it and reads no queue that holds none", async () => {
   const { queues } = await import("../src/spec-changes/index.mjs");
   const decided = `docs/spec-freigaben/${DONE}/`;

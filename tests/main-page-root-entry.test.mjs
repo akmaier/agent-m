@@ -10,7 +10,7 @@ import { readFileSync } from "node:fs";
 import { view } from "../src/main-page/index.mjs";
 import { connect, parseAddress } from "../src/repository-hosts/index.mjs";
 import { productFacts, publishOverview } from "../src/progress-measures/index.mjs";
-import { INSTANCE, NOW, PRODUCT, PRODUCT_TOKEN, PRODUCT_URL, browser, cardsOf, draw, endedJob, headOf, instanceFiles, network, smallProduct, timers } from "./main-page-home-harness.mjs";
+import { INSTANCE, NOW, PRODUCT, PRODUCT_TOKEN, PRODUCT_URL, browser, buildOf, cardsOf, draw, endedJob, headOf, instanceFiles, network, smallProduct, timers } from "./main-page-home-harness.mjs";
 
 const ROOT = new URL("../", import.meta.url);
 const home = view.routes.find((route) => route.name === "home");
@@ -57,7 +57,7 @@ test("TST-684001 the real root starts the native main-page view, not the legacy 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; THE BUILD IS SHOWN AS IT HAPPENS; UC-046
 // given: the native home route, one kept product with a real ended job plus the overview and stored facts its existing producer writes for the product's exact default-branch head; the existing Host fake records requests
 // input: home is drawn; its first one-minute poll fires unchanged; then the same job record changes from done to failed and the following poll fires
-// expect: after the public producer has prepared the cache, the initial draw reads its overview and stored facts without a job-record source fetch; the unchanged poll reads only product main commit/tree; the changed poll reads those plus one GraphQL batch containing only that changed job record
+// expect: after the public producer has prepared the cache, the initial draw reads its overview alone — not the stored facts, and no job-record source fetch: the overview holds the build's records; the unchanged poll reads only product main commit/tree; the changed poll reads those plus one GraphQL batch containing only that changed job record
 test("TST-684002 the native cached home keeps its initial job facts and polls unchanged and changed job records distinctly", async () => {
   const ended = endedJob({ id: JOB, by: "lab-pc-4", state: "done" });
   const files = smallProduct({ jobs: [ended] });
@@ -70,7 +70,7 @@ test("TST-684002 the native cached home keeps its initial job facts and polls un
     const target = await draw(home, context);
     assert.equal(cardsOf(target).length, 1);
     const initialRequests = net.requests.slice(preparedRequests);
-    assert.equal(initialRequests.filter((request) => request.url.includes("ref=overview-cache")).length, 2, "the overview and facts cache files are both read after the producer prepared them");
+    assert.equal(initialRequests.filter((request) => request.url.includes("ref=overview-cache")).length, 1, "the overview alone is read after the producer prepared it, not the stored facts");
     assert.equal(overviewReads({ requests: initialRequests }).length, 1);
     const initial = net.server.log.slice(preparedLog);
     assert.equal(initial.some((entry) => (entry.kind === "file" || entry.kind === "batch") && entry.files.includes(ended.path)), false, "stored facts supply the initial job text");
@@ -95,8 +95,9 @@ test("TST-684002 the native cached home keeps its initial job facts and polls un
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; THE BUILD IS SHOWN AS IT HAPPENS; UC-046
 // given: the cached native home of TST-684002, then a newer main snapshot that adds one ended job record and then one that removes it
 // input: the next two one-minute polls
-// expect: the added record is read in one existing GraphQL batch and appears in the card's refreshed jobs; its removal reads no record text and leaves it out
-test("TST-684005 the native cached home batches an added job record and drops a removed one", async () => {
+// expect: the readings follow the jobs the card was drawn with alone (MOD-main-page, Data: "the records of the jobs the cards were drawn with, and nothing else"): the added record is not read — the poll
+// reads the product's main commit and tree and nothing else, no GraphQL batch — and the card's build is unchanged; its removal reads no record text either
+test("TST-684005 the native cached home reads no job record added after it was drawn, nor one removed", async () => {
   const ended = endedJob({ id: JOB, by: "lab-pc-4", state: "done" });
   const added = endedJob({ id: "JOB-20261016-1001-ffff", by: "lab-pc-4", state: "done" });
   const files = smallProduct({ jobs: [ended] });
@@ -104,12 +105,15 @@ test("TST-684005 the native cached home batches an added job record and drops a 
   net.install();
   try {
     const context = await cachedContext(net);
-    await draw(home, context);
+    const target = await draw(home, context);
+    const drawn = buildOf(cardsOf(target)[0]);
+    assert.equal(drawn.length, 1, "known positive: the drawn job is in the build");
     net.change(PRODUCT, { ...files, [added.path]: added.text });
     const beforeAdded = net.requests.length;
     await timers.fire(NOW + 60000);
-    assert.deepEqual(requestPaths(net, beforeAdded), ["/repos/alice/product/commits/main", "/repos/alice/product/git/trees/<commit>", "/graphql"]);
-    assert.deepEqual(net.server.log.filter((entry) => entry.kind === "batch" && entry.files.includes(added.path)).map((entry) => entry.files), [[added.path]]);
+    assert.deepEqual(requestPaths(net, beforeAdded), ["/repos/alice/product/commits/main", "/repos/alice/product/git/trees/<commit>"]);
+    assert.deepEqual(net.server.log.filter((entry) => entry.files?.includes(added.path)), []);
+    assert.deepEqual(buildOf(cardsOf(target)[0]), drawn);
     const withoutAdded = { ...files };
     delete withoutAdded[added.path];
     net.change(PRODUCT, withoutAdded);
