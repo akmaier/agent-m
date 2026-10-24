@@ -35,6 +35,10 @@ import { scripted } from "./review-pages-harness.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { withStoredGraph } from "./stored-graph-fake.mjs";
+
+// Every commit the fakes of this file make is its own: MOD-trace-graph's storedGraph keeps a commit's graph for the page.
+let commitsMade = 0;
 
 const { openStore, writeSetting } = await import("../src/browser-store/index.mjs");
 const pages = await import("../src/review-pages/index.mjs").catch((error) => ({ error }));
@@ -88,16 +92,18 @@ function fakeHost(files, repository = ON_GITHUB) {
   const calls = [], commits = new Map();
   let made = 0, head = null;
   const commitOf = (tree, parent) => {
-    const sha = createHash("sha1").update(`commit ${++made}`).digest("hex");
+    const sha = createHash("sha1").update(`commit ${++made} of the file's ${++commitsMade}`).digest("hex");
     commits.set(sha, { tree, parent, date: `2026-10-0${made}T10:00:00Z` });
     return sha;
   };
   head = commitOf(new Map(Object.entries(files)), null);
-  const snapshotAt = (sha) => {
+  const bareSnapshotAt = (sha) => {
     const { tree } = commits.get(sha);
     return { repository, ref: sha, commit: sha, paths: [...tree.keys()].sort(), read: async (path) => (tree.has(path) ? tree.get(path) : null),
       blob: (path) => (tree.has(path) ? blobOf(tree.get(path)) : null) };
   };
+  // Each snapshot serves the graph the push job stores for its commit (tests/stored-graph-fake.mjs); a page reads it and never builds one (MOD-trace-graph).
+  const snapshotAt = (...args) => withStoredGraph(bareSnapshotAt(...args));
   return {
     head: () => head,
     files: () => Object.fromEntries(commits.get(head).tree),
