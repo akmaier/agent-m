@@ -574,13 +574,28 @@ async function waitingEntries(snapshot) {
     .map((entry) => ({ queue, entry })));
 }
 
+// The badge class of a waiting entry's state, as the review pages' lists colour it.
+const WAITING_BADGE = { open: "b-open", stale: "b-stale", "waiting for its anchor": "b-superseded" };
+
+// The waiting entries in the table of the review pages' lists (table.list, a badge for the state): the queue's name as the person reads it, the entry's number,
+// the section of the SPEC it changes, and its state; each cell labelled for the phone's stacked rows.
 function waitingSection(waiting) {
   if (!waiting.length) return null;
-  const items = waiting.map(({ queue, entry }) => {
-    const name = `${queue.folder.slice(queue.folder.lastIndexOf("/") + 1)}-${String(entry.number).padStart(2, "0")}`;
-    return el("li", null, reviewLink("spec-waiting-entry", `${name} — ${entry.anchor}`, "spec-entry", { id: `spec-${name}` }), ` ${entry.state}`);
+  const cell = (label, ...children) => {
+    const td = el("td", null, ...children);
+    td.setAttribute("data-label", label);
+    return td;
+  };
+  const rows = waiting.map(({ queue, entry }) => {
+    const folder = queue.folder.slice(queue.folder.lastIndexOf("/") + 1);
+    const name = `${folder}-${String(entry.number).padStart(2, "0")}`;
+    const title = folder.replace(/^\d{4}-\d{2}-\d{2}_/, "").replace(/-/g, " ");
+    const shown = `${title.charAt(0).toUpperCase()}${title.slice(1)} · ${entry.number}`;
+    return el("tr", null, cell("Proposal", reviewLink("spec-waiting-entry", shown, "spec-entry", { id: `spec-${name}` })),
+      cell("Section", String(entry.anchor ?? "").replace(/^#+\s*/, "")), cell("Status", el("span", `badge ${WAITING_BADGE[entry.state] ?? "b-open"}`, entry.state)));
   });
-  return el("section", "spec-waiting head", el("h2", null, "SPEC changes waiting for acceptance"), el("ul", "list", ...items));
+  const head = el("thead", null, el("tr", null, el("th", null, "Proposal"), el("th", null, "Section"), el("th", null, "Status")));
+  return el("section", "spec-waiting head", el("h2", null, "SPEC changes waiting for acceptance"), el("table", "list", head, el("tbody", null, ...rows)));
 }
 
 // The links from the specification to the review pages' lists of the SPEC change entries and of their history, and to the arrangement of the requirements
