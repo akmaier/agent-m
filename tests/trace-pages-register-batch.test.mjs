@@ -42,12 +42,15 @@ const REPOSITORY = { server: "github", origin: "https://github.com", path: "acme
 // A Host whose Snapshots hold `files`, with the graph of each ref stored on trace-cache as the workflow "main changed" stores it (tests/stored-graph-fake.mjs); every
 // call to a Snapshot is noted in `events` under `label` (`readOn <branch> <path>` for readOn). `pinned`: the Host hands the same Snapshot for a ref every
 // time, as the dashboard's host does while a page loads. `batching: false`: its Snapshots have no readMany.
+// Each Host's commits are its own (`<ref>@<n>`), since MOD-trace-graph's storedGraph keeps a commit's graph for the page (the module).
+let hosts = 0;
 function recordingHost({ label, files, events, pinned = false, batching = true }) {
-  const held = new Map();
+  const held = new Map(), host = ++hosts;
   const make = (ref) => {
-    const stored = storedGraphReadOn({ commit: ref, paths: Object.keys(files), read: async (path) => files[path] ?? null });
+    const commit = `${ref}@${host}`;
+    const stored = storedGraphReadOn({ commit, paths: Object.keys(files), read: async (path) => files[path] ?? null });
     const snapshot = {
-      ref, commit: ref, repository: REPOSITORY, paths: Object.keys(files), blob: () => null,
+      ref, commit, repository: REPOSITORY, paths: Object.keys(files), blob: () => null,
       async read(path) { events.push(`${label} read ${path}`); return files[path] ?? null; },
       async readOn(branch, path, options) { events.push(`${label} readOn ${branch} ${path}`); return stored(branch, path, options); },
     };
@@ -91,7 +94,7 @@ test("on the default branch the links file and the register entries are named to
   assert.equal(register(events)[0], `host many docs/sources.md,${PERSON_FILE},${OTHER_FILE}`);
   assert.deepEqual(register(events).slice(1).sort(), [`host read docs/sources.md`, `host read ${OTHER_FILE}`, `host read ${PERSON_FILE}`].sort());
   assert.equal(events.filter((event) => event.startsWith("host many")).length, 1);
-  assert.deepEqual(events.filter((event) => event.startsWith("host readOn")), ["host readOn trace-cache main.json.gz"], "the trace graph is the stored one");
+  assert.deepEqual(events.filter((event) => event.startsWith("host readOn")), [`host readOn trace-cache main@${hosts}.json.gz`], "the trace graph is the stored one");
   assert.equal(subject.paramsFor({ name: "po-opus" }).source, PERSON);
 });
 
@@ -111,7 +114,7 @@ test("where the register is another snapshot's, its entries are named to readMan
   assert.equal(instanceCalls[0], `instance many ${PERSON_FILE},${OTHER_FILE}`);
   assert.deepEqual(instanceCalls.slice(1).sort(), [`instance read ${OTHER_FILE}`, `instance read ${PERSON_FILE}`].sort());
   assert.deepEqual(events.filter((event) => event.startsWith("product many")), []);
-  assert.deepEqual(events.filter((event) => event.startsWith("product readOn")), ["product readOn trace-cache main.json.gz"]);
+  assert.deepEqual(events.filter((event) => event.startsWith("product readOn")), [`product readOn trace-cache main@${hosts - 1}.json.gz`]);
   assert.deepEqual(events.filter((event) => event === "product read docs/sources.md"), ["product read docs/sources.md"]);
   assert.equal(subject.paramsFor({ name: "po-opus" }).source, PERSON);
 });
@@ -142,7 +145,7 @@ test("at a released version no file of the register is asked for", async () => {
   await drawn({ product: host, instance: host, ref: "v1.0" });
   assert.deepEqual(register(events), []);
   assert.deepEqual(events.filter((event) => event.startsWith("host many")), []);
-  assert.deepEqual(events.filter((event) => event.startsWith("host readOn")), ["host readOn trace-cache v1.0.json.gz"]);
+  assert.deepEqual(events.filter((event) => event.startsWith("host readOn")), [`host readOn trace-cache v1.0@${hosts}.json.gz`]);
 });
 
 // An opened requirement (ITM-846): the specification of the cases below holds two requirements that name the person's source, SRC-acme-person, as their source.
