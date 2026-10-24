@@ -294,10 +294,12 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
   file, which the test configuration generates. Crosses the network; fails with `PermissionMissing` — a project access
   token without the role *Maintainer* —, `TokenRefused`, `RateLimited`, `Unreachable`.
 - `ciVariableScopes() -> Promise<{ name: string, scope: string }[]>` — on a GitLab server, each CI/CD variable of the
-  project by its name and environment scope, a name standing once for each of its scopes; never its value, which the
-  server's list holds and which is dropped as the answer is read. On GitHub, whose secrets have no environment scope, and
-  without a token it throws `NotSupported`, before any request. Crosses the network; fails with `PermissionMissing` — a
-  project access token without the role *Maintainer* —, `TokenRefused`, `RateLimited`, `Unreachable`.
+  project by its name and environment scope, a name standing once for each of its scopes; never its value: it asks the
+  server's GraphQL API (`/api/graphql`, the token as `Authorization: Bearer`) for the key and the environment scope of
+  each variable alone, page after page, so that no value leaves the server. On GitHub, whose secrets have no environment
+  scope, and without a token it throws `NotSupported`, before any request. Crosses the network; fails with
+  `PermissionMissing` — a token that may not read the variables, which the server answers as `null`; listing them needs the
+  role *Maintainer* —, `TokenRefused`, `RateLimited`, `Unreachable`.
 - `issueCounts() -> Promise<{ open: number, closed: number }>` — the numbers of open and closed issues of the repository,
   pull requests not counted, without listing the issues — on GitHub through its search, which has a limit of its own, on
   a GitLab server through the project's issue statistics. Crosses the network; fails with `RateLimited` — on GitHub with
