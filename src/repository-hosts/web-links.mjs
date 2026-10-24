@@ -10,9 +10,9 @@
 
 // ONE GITHUB TOKEN SERVES EVERY FEATURE: the permissions of the one fine-grained token, as the parameters and access levels of
 // GitHub's prefilled token page ("Pre-filling fine-grained personal access token details using URL parameters", table
-// "Repository permissions": pull_requests read/write, workflows write only, metadata read only; write always includes read).
+// "Repository permissions": pull_requests read/write, workflows write only, secrets read/write, metadata read only; write always includes read).
 const GITHUB_PERMISSIONS = Object.freeze([["contents", "write"], ["issues", "write"], ["pull_requests", "write"],
-  ["actions", "write"], ["workflows", "write"], ["metadata", "read"]]);
+  ["actions", "write"], ["workflows", "write"], ["secrets", "write"], ["metadata", "read"]]);
 
 const GITHUB_TOKENS = "https://github.com/settings/personal-access-tokens";
 

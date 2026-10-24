@@ -11,7 +11,7 @@ Permission parameter names and access levels as GitHub documents them, read 2026
 "Repository permissions" of
 https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#pre-filling-fine-grained-personal-access-token-details-using-url-parameters
 — `pull_requests` (Pull requests: read, write), `workflows` (Workflows: write only), `contents`, `issues`,
-`actions` (read, write), `metadata` (read only); "write always includes read".
+`actions` (read, write), `secrets` (read, write), `metadata` (read only); "write always includes read".
 """
 import unittest
 from urllib.parse import parse_qsl, urlsplit
@@ -20,9 +20,9 @@ from settings_pages_page import live
 
 TOKEN_FIELDS = {"name", "description", "expires_in", "target_name"}
 ONE_TOKEN = {"contents": "write", "issues": "write", "pull_requests": "write", "actions": "write",
-             "workflows": "write", "metadata": "read"}
+             "workflows": "write", "secrets": "write", "metadata": "read"}
 NAMED = ["Contents (read and write)", "Issues (read and write)", "Pull requests (read and write)",
-         "Actions (read and write)", "Workflows (read and write)", "Metadata (read)"]
+         "Actions (read and write)", "Workflows (read and write)", "Secrets (read and write)", "Metadata (read)"]
 
 # Step A of the route `setup`: its text with the folded explanations opened as text, the prefilled link, and the steps beside it.
 STEP_A = """
@@ -52,11 +52,11 @@ class TokenScopeDocumented(unittest.TestCase):
 
     def test_counter_proof_a_missing_or_extra_permission_is_seen(self):
         base = "https://github.com/settings/personal-access-tokens/new?name=x&expires_in=90"
-        six = "&contents=write&issues=write&pull_requests=write&actions=write&workflows=write&metadata=read"
+        seven = "&contents=write&issues=write&pull_requests=write&actions=write&workflows=write&secrets=write&metadata=read"
         self.assertNotEqual(permissions(base + "&contents=write&issues=write&actions=write&metadata=read"), ONE_TOKEN)
-        self.assertNotEqual(permissions(base + six.replace("&workflows=write", "")), ONE_TOKEN)
-        self.assertNotEqual(permissions(base + six + "&administration=write"), ONE_TOKEN)
-        self.assertEqual(permissions(base + six), ONE_TOKEN)
+        self.assertNotEqual(permissions(base + seven.replace("&workflows=write", "")), ONE_TOKEN)
+        self.assertNotEqual(permissions(base + seven + "&administration=write"), ONE_TOKEN)
+        self.assertEqual(permissions(base + seven), ONE_TOKEN)
 
     def test_steps_carry_the_scope(self):
         r = live(STEP_A)

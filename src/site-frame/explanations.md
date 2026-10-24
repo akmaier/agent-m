@@ -810,6 +810,7 @@ One key serves every feature, so the prefilled page asks for these permissions:
 - Pull requests (read and write) — for the jobs' changes.
 - Actions (read and write) — to start a run.
 - Workflows (read and write) — for a generated CI configuration.
+- Secrets (read and write) — to store an endpoint's key as a GitHub Actions secret.
 - Metadata (read) — to read the repository.
 
 ## setup-store

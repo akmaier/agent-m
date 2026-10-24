@@ -91,7 +91,7 @@ page reads each blob once. It keeps nothing beyond that, and nothing in any stor
 The **token page** it links for GitHub is the page for a new fine-grained token, prefilled with name, description and
 expiry, with the repository's owner as the token's owner — GitHub limits a token to the repositories of one owner —, and
 with exactly the permissions of `ONE GITHUB TOKEN SERVES EVERY FEATURE` — *Contents*, *Issues* and *Pull
-requests* read and write, *Actions* and *Workflows* read and write, *Metadata* read (`THE TOKEN LINK IS PREFILLED`); the
+requests* read and write, *Actions*, *Workflows* and *Secrets* read and write, *Metadata* read (`THE TOKEN LINK IS PREFILLED`); the
 repositories to select are named beside the link, not in it (`THE REPOSITORY CHOICE IS SPELLED OUT`). For a product on a
 GitLab server it links the project's *Access tokens* page, where the person creates a project access token with role
 *Maintainer* and scope `api` (`A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN`).

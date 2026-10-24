@@ -99,7 +99,7 @@ test("release · UC-014 7: the prefilled link asks for exactly the permissions e
   const link = tokenLink(target);
   assert.ok(link, "Step A holds the link");
   const asked = Object.fromEntries([...link.searchParams].filter(([key]) => !NOT_PERMISSIONS.includes(key)));
-  assert.deepEqual(asked, { contents: "write", issues: "write", pull_requests: "write", actions: "write", workflows: "write", metadata: "read" });
+  assert.deepEqual(asked, { contents: "write", issues: "write", pull_requests: "write", actions: "write", workflows: "write", secrets: "write", metadata: "read" });
 });
 
 // TST-627003 · level: release · module: MOD-settings-pages

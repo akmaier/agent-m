@@ -98,7 +98,7 @@ test("TST-283 UC-001 release disclosure covers GitHub and GitLab product routes"
   assert.equal(prefilled.get("target_name"), "alice", "the product owner scopes the token page");
   assert.equal(prefilled.get("expires_in"), "90");
   assert.deepEqual(Object.fromEntries([...prefilled].filter(([key]) => !["name", "description", "target_name", "expires_in"].includes(key))), {
-    contents: "write", issues: "write", pull_requests: "write", actions: "write", workflows: "write", metadata: "read",
+    contents: "write", issues: "write", pull_requests: "write", actions: "write", workflows: "write", secrets: "write", metadata: "read",
   }, "the prefilled product token grants every and only UC-014 feature permission");
   const long = await page("https://github.com/owner-with-a-long-name/repository-name-that-is-longer-than-github-allows");
   const longParams = new URL(long.querySelector("a").href).searchParams;

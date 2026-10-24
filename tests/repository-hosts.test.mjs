@@ -752,7 +752,7 @@ test("UC-001 — the token pages: GitHub's prefilled token page and the list of 
     assert.equal(u.origin + u.pathname, "https://github.com/settings/personal-access-tokens/new");
     assert.deepEqual(Object.fromEntries(u.searchParams), { name: "Agent M · alice/agent-m",
       description: "Agent M dashboard of alice/agent-m", target_name: "alice", expires_in: "90",
-      contents: "write", issues: "write", pull_requests: "write", actions: "write", workflows: "write", metadata: "read" },
+      contents: "write", issues: "write", pull_requests: "write", actions: "write", workflows: "write", secrets: "write", metadata: "read" },
       "exactly these fields and permissions, no repository");
     const gl = connect(GITLAB, { token: GL_TOKEN }).webLinks();
     assert.equal(gl.projectTokens, GL_TOKENS);
