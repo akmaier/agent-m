@@ -24,6 +24,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
 import { PRODUCT, blobOf, byClass, contextOf, draw, failure, keepDraft, resultOf, ROUND_ONE, GITHUB, text, fetched } from "./review-pages-draft-world.mjs";
+import { withStoredGraph } from "./stored-graph-fake.mjs";
+
+// Every commit the fakes of this file make is its own: MOD-trace-graph's storedGraph keeps a commit's graph for the page.
+let commitsMade = 0;
 
 test.afterEach(() => { assert.deepEqual(fetched.splice(0), [], "no request left the fixtures"); });
 
@@ -75,15 +79,17 @@ function fakeProduct(changed) {
   const commits = new Map();
   let made = 0, head = null;
   for (const files of steps(changed)) {
-    const sha = createHash("sha1").update(`commit ${++made}`).digest("hex");
+    const sha = createHash("sha1").update(`commit ${++made} of the file's ${++commitsMade}`).digest("hex");
     commits.set(sha, { tree: new Map([...(head ? commits.get(head).tree : []), ...Object.entries(files)]), parent: head, date: `2026-10-0${made}T10:00:00Z` });
     head = sha;
   }
-  const snapshotAt = (sha, ref) => {
+  const bareSnapshotAt = (sha, ref) => {
     const { tree } = commits.get(sha);
     return { repository: GITHUB, ref, commit: sha, paths: [...tree.keys()].sort(), read: async (path) => (tree.has(path) ? tree.get(path) : null),
       blob: (path) => (tree.has(path) ? blobOf(tree.get(path)) : null) };
   };
+  // Each snapshot serves the graph the push job stores for its commit (tests/stored-graph-fake.mjs); a page reads it and never builds one (MOD-trace-graph).
+  const snapshotAt = (...args) => withStoredGraph(bareSnapshotAt(...args));
   return {
     host: {
       async repositoryInfo() { return { defaultBranch: "main", visibility: "public", canWrite: true, archived: false, description: "" }; },
