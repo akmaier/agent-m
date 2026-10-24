@@ -181,6 +181,9 @@ sequenceDiagram
   The record is evidence and is never shown for acceptance. A message holding a stored token, key or password, or on a page
   of mail a name, address, phone number or account found in that mail, is not recorded; the record says that a message
   was withheld, and why. A job handed to CI (4a) names the conversation record it came from.
+- **6d. The author clears the conversation.** **Clear conversation**, below the message field on the left, removes the
+  conversation from the tab; the next message starts a new one. While a message is still being answered it does nothing;
+  **Stop** ends that first. A conversation recorded in git (6c) stays in its record.
 
 ## Postcondition
 

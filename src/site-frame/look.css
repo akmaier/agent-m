@@ -45,7 +45,7 @@
   color: var(--fg); padding: .45rem .8rem; border-radius: 6px; text-decoration: none; display: inline-block; }
 .btn:hover, .prompt-bar button:hover { border-color: var(--accent); }
 .btn.primary, .prompt-bar button.send { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
-.btn.small { font-size: .78rem; padding: .2rem .5rem; }
+.btn.small, .prompt-bar button.clear { font-size: .78rem; padding: .2rem .5rem; }
 .btn:disabled, .prompt-bar button:disabled { opacity: .55; cursor: not-allowed; }
 /* The fields the pages share: the product selector in the header, the main page's job filters and retry choices, and the fields above the Requirements page's tree. */
 .product select, select.product, select.filter, .job-retry select, .spec-narrow input, .spec-narrow select, .version-bar select { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: .3rem .4rem; max-width: 22rem; }

@@ -111,6 +111,7 @@ export function startPromptBar(target, setup) {
   const recorded = el("p", "recording", "This conversation is recorded in the repository of the page it is held on.");
   const input = el("textarea", "instruction");
   const send = button("send", SEND);
+  const clear = button("clear", "Clear conversation");
   const stop = button("stop", "Stop");
   stop.disabled = true;
   let selector = null;
@@ -455,10 +456,16 @@ export function startPromptBar(target, setup) {
     input.addEventListener("focus", () => judge().catch(() => {}));
     showRecording(await recordingOf(snapshot));
     send.addEventListener("click", onSend);
+    // Clear conversation empties the tab's conversation and what the bar shows of the last message; while a message runs it does nothing — Stop ends that first.
+    clear.addEventListener("click", () => {
+      if (send.disabled) return;
+      keep([]);
+      status.replaceChildren();
+    });
     stop.addEventListener("click", () => (state.controller ? state.controller.abort() : state.follower?.cancel()));
     conversation.replaceChildren(...conversationOf(store).map(line));
     // Below the message field: on the left the folded explanation, on the right the buttons.
-    const notes = el("div", "bar-notes", setup.explain("prompt-bar"));
+    const notes = el("div", "bar-notes", clear, " ", setup.explain("prompt-bar"));
     const bar = el("section", "prompt-bar", recorded, chooser, conversation, input, el("div", "bar-foot", notes, el("div", "buttons", send, stop)), status, followed);
     bar.setAttribute("data-page", setup.page);
     // "fixed to the bottom of the window" (Interfaces: startPromptBar): the bar's own root element carries the style, as Parts name no style sheet.

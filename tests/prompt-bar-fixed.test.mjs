@@ -172,3 +172,24 @@ test("the bar stays fixed when the route changes and a message is sent on the ne
     { position: "fixed", bottom: "0", left: "0", right: "0" },
   );
 });
+
+// TST-1207001 · level: unit · module: MOD-prompt-bar
+// guards: UC-049
+// given: the bar of TST-600034, a message sent and answered, so that the conversation holds the author's message and the answer
+// input: Clear conversation, clicked
+// expect: the conversation shown is empty and the tab keeps no conversation; known positive: before the click both messages are shown
+test("Clear conversation empties the conversation of the tab and what the bar shows of it", async () => {
+  endpointAnswers("Done.");
+  const it = await drawnBar();
+  one(it.target, "instruction").value = "hello";
+  one(it.target, "send").dispatchEvent(Object.defineProperty(new Event("click"), "isTrusted", { value: true }));
+  await until(() => one(it.target, "answer") && !one(it.target, "send").disabled, "the answer is shown");
+  const messages = () => all(it.target, (node) => String(node.className).split(" ").includes("message")).length;
+  assert.ok(messages() >= 2, "known positive: the author's message and the answer are shown");
+  const key = [...globalThis.sessionStorage.values.keys()].find((name) => name.includes("prompt-bar:conversation"));
+  assert.ok(key, "known positive: the tab keeps the conversation");
+  assert.ok(globalThis.sessionStorage.getItem(key).includes("hello"), "known positive: the kept conversation holds the message");
+  one(it.target, "clear").dispatchEvent(new Event("click"));
+  assert.equal(messages(), 0);
+  assert.equal(globalThis.sessionStorage.getItem(key).includes("hello"), false);
+});
