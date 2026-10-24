@@ -104,6 +104,10 @@ export function readResult(productDir, outDir) {
   const result = readJson(file);
   if (result.refs.length === 0) return { result, commits: [] };
   const bundle = path.resolve(outDir, "result.bundle");
+  // The bundle needs the base's commits; a checkout of a later head, or a shallow one, fetches each it lacks from the origin.
+  for (const commit of new Set(Object.values(result.base))) {
+    if (typeof git(productDir, ["cat-file", "-e", `${commit}^{commit}`], { tolerate: true }) !== "string") git(productDir, ["fetch", "--quiet", "--depth=1", "origin", commit], { tolerate: true });
+  }
   const fetched = git(productDir, ["fetch", "--quiet", bundle, "+refs/heads/*:refs/agent-m-result/*"], { tolerate: true });
   if (typeof fetched !== "string") throw failure("ResultUnreadable", `the result's bundle does not apply to the checkout: ${fetched.failed}`);
   for (const { ref, commit } of result.refs) {

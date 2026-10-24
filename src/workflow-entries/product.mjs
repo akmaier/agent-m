@@ -21,6 +21,7 @@ import { recordGateDecision } from "../product-process/index.mjs";
 import { queueJob } from "../runtimes/index.mjs";
 import { sprintsToClose } from "../work-plans/index.mjs";
 import { composeProduct } from "./compose.mjs";
+import { packResult, readResult, checkResult, writeBranches, pendingPullRequest } from "./result.mjs";
 
 const fs = globalThis.process?.getBuiltinModule?.("node:fs");
 
@@ -69,6 +70,9 @@ async function endRecord(host, path, part, trailers) {
     }
   }
 }
+
+// How a job's end is written: on the agent's machine kept for the writing machine, which writes it once the result is written (result.mjs); elsewhere at once.
+const endOf = (composed) => (composed.result ? (path, part, trailers) => composed.result.end(path, part, trailers) : (path, part, trailers) => endRecord(composed.product.host, path, part, trailers));
 
 // The driver of a model endpoint a hand-over names: opencode working with that endpoint, its key the variable the participant's secret names (MOD-agent-processes).
 async function opencodeDriver(participant, endpoint, secretName, workdir) {
@@ -153,11 +157,12 @@ async function runJobOf(env, composed, participants, row, handOver = null) {
       : await driverOf(participant, record.params ?? {}, secretName, job.keys[secretName], instance.checkout);
     const result = await runJob(prepared, { drafter: driver, reviewers: [] }, { attended: false, context });
     outcome = result.written;
-    if (handOver) {
+    // On the agent's machine the branch is not on the server yet: the writing machine refuses a result whose commits or pull request hold the task (result.mjs).
+    if (handOver && !composed.result) {
       const refused = await refusedBranch(product.host, outcome, handOver.task, context.product.snapshot.commit);
       if (refused) throw Object.assign(new Error(`the branch ${refused.branch} is refused: ${refused.where} holds the task of the hand-over.`), { name: "TaskInBranch" });
-      leaveAnswer(env, record.id, answerOf(outcome?.shown ?? result.draft));
     }
+    if (handOver) leaveAnswer(env, record.id, answerOf(outcome?.shown ?? result.draft));
     const handedBack = context.kind.writer === "return-draft";
     const made = outcome ? [...outcome.commits, ...(handOver ? [...outcome.files, ...(outcome.pullRequest ? [outcome.pullRequest] : [])] : [])] : [];
     ended = { state: "done", results: handOver ? (made.length > 0 ? [...made, ...outcome.notes.map((note) => `note: ${note}`)] : handedBack ? [] : ["no change"])
@@ -178,7 +183,7 @@ async function runJobOf(env, composed, participants, row, handOver = null) {
   const part = { part: { part: "end", at: env.now, state: ended.state, results: ended.results, draft: ended.draft, rounds: ended.rounds, usage: ended.usage,
     cost: jobCost(ended.usage, participant), reason: ended.reason, log: job.runUrl ?? null, ...(ended.stoppedBecause ? { stoppedBecause: ended.stoppedBecause } : {}) }, branch: env.branch };
   const trailers = provenanceLines({ agentM: record.agentM, jobId: record.id, kind: record.kind, participant, rounds: ended.rounds.length, instruction: record.params?.instruction ?? null });
-  await endRecord(product.host, path, part, trailers);
+  await endOf(composed)(path, part, trailers);
   const noChange = ended.state === "done" && ended.results.length === 1 && ended.results[0] === "no change";
   return { id: record.id, state: ended.state, summary: ended.state === "failed" ? `${record.id} failed: ${ended.reason}` : `${record.id} ${noChange ? "ended done, no change" : "ended done"}` };
 }
@@ -191,6 +196,19 @@ async function queuedOf(env, snapshot, { handedOver = false } = {}) {
     if (record.route === wanted && jobState(record, null) === "queued" && (handedOver || record.task !== WITH_HAND_OVER)) rows.push({ record, path: record.path });
   }
   return rows.reverse();
+}
+
+// The key secret a queued job's participant reads, as its route names it — `ci <runner> secret <NAME>` —, or null.
+const keyOfRow = (participants, { record }) => CI_ROUTE.exec(participants.find((each) => each.name === record.participant)?.route ?? "")?.[1] ?? null;
+
+// The jobs this machine runs: on the agent's machine, those whose key is the one it was given, or none the job workflow reads; a job whose key is another of
+// those the file reads is left queued for the run its own key's machine makes. Elsewhere every job.
+function ofThisMachine(env, participants, rows) {
+  if (env.job.part !== "agent") return rows;
+  return rows.filter((row) => {
+    const key = keyOfRow(participants, row);
+    return key === null || key === env.job.agentKey || !Object.hasOwn(env.job.keys, key);
+  });
 }
 
 // The product's facts of the scope `work`, read once: the workflow, the jobs and the states of the gates (gateStates).
@@ -233,7 +251,7 @@ async function participantsOfInstance(snapshot) {
 
 // The secrets a job needs, as a status when one is missing: the person's token, and the key of each participant whose route names a secret.
 function missingSecret(env, participants, rows) {
-  if (!env.job.personToken) return `${env.job.tokenName} is missing: the person's Agent M token is a secret of this repository, passed to the job as ${env.job.tokenName}. Nothing was written.`;
+  if (!env.job.personToken && env.job.part !== "agent") return `${env.job.tokenName} is missing: the person's Agent M token is a secret of this repository, passed to the job as ${env.job.tokenName}. Nothing was written.`;
   for (const { record } of rows) {
     const participant = participants.find((each) => each.name === record.participant);
     const secret = CI_ROUTE.exec(participant?.route ?? "")?.[1];
@@ -260,7 +278,7 @@ async function runRows(env, composed, participants, rows, handOver = null) {
 export async function onRecordsChanged(env) {
   const composed = composeProduct(env);
   const participants = await participantsOfInstance(await composed.instance.host.readSnapshot("HEAD"));
-  const rows = await queuedOf(env, await composed.product.host.readSnapshot("HEAD"));
+  const rows = ofThisMachine(env, participants, await queuedOf(env, await composed.product.host.readSnapshot("HEAD")));
   const missing = missingSecret(env, participants, rows);
   if (missing) return notRun(missing);
   const resumed = [];
@@ -327,9 +345,9 @@ export async function onDispatch(env) {
   const rows = (await queuedOf(env, snapshot, { handedOver: true })).filter(({ record }) => record.id === inputs.job);
   const handed = rows.find(({ record }) => record.task === WITH_HAND_OVER);
   if (handed) return runHandOver(env, composed, participants, handed, inputs);
-  const missing = missingSecret(env, participants, rows);
+  const missing = missingSecret(env, participants, ofThisMachine(env, participants, rows));
   if (missing) return notRun(missing);
-  return runRows(env, composed, participants, rows);
+  return runRows(env, composed, participants, ofThisMachine(env, participants, rows));
 }
 
 // A run a hand-over started (UC-049 4a), for the queued job whose task travels with it: without the input `task` the job ends failed with the reason, and nothing is written
@@ -348,7 +366,7 @@ async function runHandOver(env, composed, listed, row, inputs) {
   const task = typeof inputs.task === "string" ? inputs.task : "";
   if (!task.trim()) {
     const part = { part: { part: "end", at: env.now, state: "failed", results: [], draft: null, rounds: [], usage: null, cost: jobCost(null, participant), reason: NO_TASK, log: env.job.runUrl ?? null }, branch: env.branch };
-    await endRecord(composed.product.host, path, part, provenanceLines({ agentM: record.agentM, jobId: record.id, kind: record.kind, participant, rounds: 0 }));
+    await endOf(composed)(path, part, provenanceLines({ agentM: record.agentM, jobId: record.id, kind: record.kind, participant, rounds: 0 }));
     return failedStatus(`${record.id} failed: ${NO_TASK}`);
   }
   // The key: for a model endpoint, the secret the input `secret` names, which the job workflow must name among its keys (`AGENT_M_KEY_NAMES`, by own property, so that no other
@@ -411,4 +429,93 @@ export async function onSchedule(env) {
   }
   if (queued.length === 0) return { outcome: "nothing to do", summary: skipped.length ? skipped.join("; ") : "No sprint that an agent closes has ended.", findings: [] };
   return { outcome: "done", summary: [...queued, ...skipped].join("; "), findings: [] };
+}
+
+// ---------------------------------------------------------------- the machines of GitHub's job workflow
+
+/**
+ * chooseAgentKey(env: CiEnvironment) -> Promise<EntryStatus> — on GitHub, before the agent's machine starts: which of the job workflow's agent jobs runs, given to the
+ * workflow as the step's output `agent` — the place, from 1, of the key the run's job reads among AGENT_M_KEY_NAMES, or 0 for none. The key is the one the input
+ * `secret` names for a hand-over to a model endpoint; for any other dispatch the one the route of the job's participant names; on a push the one of the oldest queued
+ * job of this route. A key the file does not read is none: the agent's machine then reports it missing, as it reports a missing key. Holds no secret; writes nothing.
+ */
+export async function chooseAgentKey(env) {
+  const composed = composeProduct(env);
+  const participants = await participantsOfInstance(await composed.instance.host.readSnapshot("HEAD"));
+  const snapshot = await composed.product.host.readSnapshot("HEAD");
+  const inputs = env.event?.name === "workflow_dispatch" ? env.event.payload?.inputs ?? {} : null;
+  let key = null;
+  if (inputs?.endpoint) key = typeof inputs.secret === "string" && inputs.secret ? inputs.secret : null;
+  else if (inputs) {
+    const row = (await queuedOf(env, snapshot, { handedOver: true })).find(({ record }) => record.id === inputs.job);
+    const participant = participants.find((each) => each.name === (row?.record.participant ?? inputs.participant));
+    key = (row?.record.task === WITH_HAND_OVER ? SECRET_OF : CI_ROUTE).exec(participant?.route ?? "")?.[1] ?? null;
+  } else {
+    const [first] = await queuedOf(env, snapshot);
+    key = first ? keyOfRow(participants, first) : null;
+  }
+  const at = key !== null && Object.hasOwn(env.job.keys, key) ? Object.keys(env.job.keys).indexOf(key) + 1 : 0;
+  if (env.job.outputFile) fs.appendFileSync(env.job.outputFile, `agent=${at}\n`);
+  return { outcome: "done", findings: [], summary: at > 0 ? `The agent's machine receives the key ${key}.`
+    : key ? `${key} is not a key this job workflow reads: the agent's machine receives none.` : "The agent's machine receives no key." };
+}
+
+/**
+ * leaveResult(env: CiEnvironment) -> Promise<EntryStatus> — on the agent's machine, after its entry, whether that ended well or not: the run's result packed for the
+ * writing machine (result.mjs' packResult); `nothing to do` where the entry made none.
+ */
+export async function leaveResult(env) {
+  if (env.job.part !== "agent" || !env.job.resultDir) return notRun("This is not the agent's machine of a job workflow: AGENT_M_PART is not agent, or AGENT_M_RESULT_DIR is not set.");
+  const packed = packResult(env.job.resultDir);
+  if (!packed) return { outcome: "nothing to do", summary: "The entry left no result.", findings: [] };
+  return { outcome: "done", findings: [], summary: `The result holds ${packed.refs.length} branch(es), ${packed.ends} end(s) of jobs and ${packed.pullRequests} pull request(s) to open.` };
+}
+
+/**
+ * writeResult(env: CiEnvironment) -> Promise<EntryStatus> — on the writing machine, which runs no agent, with the person's token: reads the result the agent's machine
+ * left (readResult) and checks it (checkResult) against the token and every key of the file and, for a hand-over, its task. A result that passes is written:
+ * its branches pushed (writeBranches), each pull request kept for later opened — or the open or merged one of its branch taken —, and each job's end appended, its
+ * commits and pull requests named as they now stand. A result that is refused, or that does not apply, writes no branch; each job it ended is ended failed, naming
+ * why — except one another run has taken or ended meanwhile. `nothing to do` where no result was left; `not run` without the token.
+ */
+export async function writeResult(env) {
+  if (!env.job.personToken) return notRun(`${env.job.tokenName} is missing: the person's Agent M token is a secret of this repository, passed to the job as ${env.job.tokenName}. Nothing was written.`);
+  const path = globalThis.process.getBuiltinModule("node:path");
+  const out = env.job.resultDir ? path.join(env.job.resultDir, "out") : null;
+  const resultFile = out ? path.join(out, "result.json") : null;
+  if (!resultFile || !fs.existsSync(resultFile)) return { outcome: "nothing to do", summary: "The agent's machine left no result.", findings: [] };
+  const composed = composeProduct(env);
+  const task = env.event?.name === "workflow_dispatch" && typeof env.event.payload?.inputs?.task === "string" ? env.event.payload.inputs.task : null;
+  let result = JSON.parse(fs.readFileSync(resultFile, "utf8")), refused = null, notApplied = null, renamed = new Map();
+  const pulls = new Map();
+  try {
+    const read = readResult(env.job.productDir, out);
+    result = read.result;
+    refused = checkResult(read, [env.job.personToken, ...Object.values(env.job.keys)].filter(Boolean), task);
+  } catch (error) { refused = error.message; }
+  if (!refused) {
+    try {
+      renamed = writeBranches(env.job.productDir, result);
+      for (const request of result.pullRequests) {
+        const open = (await composed.product.host.listPullRequests({ branch: request.branch, state: "all" })).find((pull) => pull.state === "open" || pull.state === "merged");
+        pulls.set(pendingPullRequest(request.branch), open?.url ?? (await composed.product.host.openPullRequest(request)).url);
+      }
+    } catch (error) { notApplied = error.message; }
+  }
+  const why = refused ? `the result of the agent's machine is refused: ${refused}` : notApplied ? `the result of the agent's machine was not written: ${notApplied}` : null;
+  // Where nothing was written, a record another run has taken or ended meanwhile is that run's.
+  const others = new Set();
+  if (why) {
+    for await (const record of recordsNewestFirst(await composed.product.host.readSnapshot("HEAD"))) if (record.taken || record.end) others.add(record.path);
+  }
+  const ended = [];
+  for (const { path: recordPath, part, trailers } of result.ends) {
+    if (why && others.has(recordPath)) continue;
+    const end = why ? { ...part.part, at: new Date(part.part.at), state: "failed", results: [], draft: null, reason: why }
+      : { ...part.part, at: new Date(part.part.at), results: part.part.results.map((each) => renamed.get(each) ?? pulls.get(each) ?? each) };
+    await endRecord(composed.product.host, recordPath, { part: end, branch: part.branch }, trailers);
+    ended.push(`${/([^/]+)\.md$/.exec(recordPath)?.[1] ?? recordPath} ${end.state}`);
+  }
+  if (why) return failedStatus(`${why}${ended.length ? `; ended: ${ended.join(", ")}` : ""}.`);
+  return { outcome: "done", findings: [], summary: `Written: ${result.refs.length} branch(es)${pulls.size ? `, ${pulls.size} pull request(s)` : ""}${ended.length ? `; ended: ${ended.join(", ")}` : ""}.` };
 }

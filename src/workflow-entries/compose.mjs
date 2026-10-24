@@ -12,7 +12,9 @@
 // MOD-runtimes' jobWorkflowFiles writes) gives its entries, besides: AGENT_M_RUNNER, the route's runner — `hosted`, or a self-hosted runner's
 // label —; AGENT_M_PRODUCT_DIR, the product's checkout; AGENT_M_TOKEN_NAME, the name of the secret that holds the person's Agent M token, and
 // AGENT_M_TOKEN, its value; AGENT_M_KEY_NAMES, the names of the secrets that hold the agents' keys, separated by blanks, each of which the
-// workflow gives the entry as a variable of that name. The instance is checked out into `instance/` of GITHUB_WORKSPACE, from which the entry runs.
+// workflow gives the entry as a variable of that name — on the agent's machine only the one at the place AGENT_M_KEY names —; AGENT_M_PART, the machine
+// (`agent` or `write`), and AGENT_M_RESULT_DIR, the folder of the result between them; GITHUB_OUTPUT, the file of a step's outputs. The instance is checked
+// out into `instance/` of GITHUB_WORKSPACE, from which the entry runs.
 
 import { parseAddress, connect } from "../repository-hosts/index.mjs";
 import { registerStrategies } from "../job-runner/index.mjs";
@@ -23,6 +25,7 @@ import * as sourceRegister from "../source-register/index.mjs";
 import * as workPlans from "../work-plans/index.mjs";
 import * as runPlanner from "../run-planner/index.mjs";
 import * as runtimes from "../runtimes/index.mjs";
+import { prepareResult } from "./result.mjs";
 
 const fs = globalThis.process?.getBuiltinModule?.("node:fs");
 const path = globalThis.process?.getBuiltinModule?.("node:path");
@@ -56,6 +59,7 @@ function githubEnvironment(entry, env, now) {
       tokenName: env.AGENT_M_TOKEN_NAME || "AGENT_M_TOKEN", personToken: env.AGENT_M_TOKEN || null,
       keys: keysOf(env),
       summaryFile: env.GITHUB_STEP_SUMMARY || null,
+      ...partOf(env), outputFile: env.GITHUB_OUTPUT || null,
     },
   };
 }
@@ -83,9 +87,17 @@ function gitlabEnvironment(entry, env, now) {
       instanceDir: env.CI_PROJECT_DIR ? path.join(env.CI_PROJECT_DIR, "..", "instance") : null, actor: env.GITLAB_USER_LOGIN || null, runUrl: env.CI_PIPELINE_URL || null,
       tokenName: env.AGENT_M_TOKEN_NAME || "AGENT_M_TOKEN", personToken: env.AGENT_M_TOKEN || null,
       keys: keysOf(env),
-      summaryFile: null,
+      summaryFile: null, part: null, resultDir: null, agentKey: null, outputFile: null,
     },
   };
+}
+
+// The machine a GitHub job workflow's job is (src/runtimes/workflow/github.yml): AGENT_M_PART `agent` or `write`, else null, where one job does all — GitLab's —; the
+// result's folder, AGENT_M_RESULT_DIR; and, on the agent's machine, the key it was given, AGENT_M_KEY, by its place among AGENT_M_KEY_NAMES from 1, 0 for none.
+function partOf(env) {
+  const part = ["agent", "write"].includes(env.AGENT_M_PART) ? env.AGENT_M_PART : null;
+  const at = /^\d+$/.test(env.AGENT_M_KEY ?? "") ? Number(env.AGENT_M_KEY) : 0;
+  return { part, resultDir: part ? env.AGENT_M_RESULT_DIR || null : null, agentKey: part === "agent" ? Object.keys(keysOf(env))[at - 1] ?? null : null };
 }
 
 // Each key secret's value by its name: AGENT_M_KEY_NAMES lists the names, separated by blanks, and the workflow gives each as a variable of that name.
@@ -148,17 +160,34 @@ function registerStrategiesOnce() {
 }
 
 /**
- * composeProduct(env: CiEnvironment) -> { product: { address, host }, instance: { address, host, checkout } } — the product's and the instance's
- * checkouts connected through the local clone, with the person's token from AGENT_M_TOKEN, every secret's value given as a secret no commit
- * may hold; and the strategies of the modules that offer them, registered with the job runner.
+ * composeProduct(env: CiEnvironment) -> { product: { address, host }, instance: { address, host, checkout }, result?: { pullRequest, end } } — the product's and
+ * the instance's checkouts connected through the local clone, with the person's token from AGENT_M_TOKEN, every secret's value given as a secret no commit
+ * may hold; and the strategies of the modules that offer them, registered with the job runner. On the agent's machine (`job.part` `agent`) the checkouts are
+ * connected without a token, and `result` keeps what is written later (composeAgentPart).
  */
 export function composeProduct(env) {
   const { job } = env;
   const secrets = [job.personToken, ...Object.values(job.keys)].filter(Boolean);
   registerStrategiesOnce();
+  if (job.part === "agent") return composeAgentPart(env, secrets);
   return {
     product: { address: env.repository, host: checkoutHost(env.repository, job.productDir, env.branch, job.personToken, secrets) },
     instance: { address: originOf(job.instanceDir, env.repository),
       host: checkoutHost(originOf(job.instanceDir, env.repository), job.instanceDir, env.branch, job.personToken, secrets), checkout: job.instanceDir },
+  };
+}
+
+// The agent's machine: no token. The product's checkout pushes into the result's own repository (result.mjs' prepareResult), so that every commit a job makes
+// travels in the result; a pull request the writer `branch-and-pull-request` opens is kept for the writing machine, which opens it — or takes the one the
+// branch has —, and stands under its pending address until then; the server is asked for no pull request here, so the writer finds none.
+function composeAgentPart(env, secrets) {
+  const { job } = env;
+  const result = prepareResult(job.productDir, job.resultDir, env.branch);
+  const product = checkoutHost(env.repository, job.productDir, env.branch, null, secrets);
+  const instanceAddress = originOf(job.instanceDir, env.repository);
+  return {
+    product: { address: env.repository, host: { ...product, listPullRequests: async () => [], openPullRequest: async (request) => ({ url: result.pullRequest(request) }) } },
+    instance: { address: instanceAddress, host: checkoutHost(instanceAddress, job.instanceDir, env.branch, null, secrets), checkout: job.instanceDir },
+    result,
   };
 }
