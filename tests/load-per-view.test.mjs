@@ -90,13 +90,21 @@ const recordOf = (repo, id) => Object.keys(repo).filter((p) => p.startsWith(`doc
 const sorted = (list) => [...list].sort();
 const batchesOf = (requests) => requests.filter((r) => r.startsWith("batch "));
 const count = (requests, what) => requests.filter((r) => r === what).length;
+// The head commit the harness's server answers, and the reads of the branches that hold what the workflow "main changed" stored for it — the
+// graph (`stored graph <commit>`, trace-cache), the overview and the facts (overview-cache) and the impact lists: each is one request of its own by
+// design (MOD-trace-graph's storedGraph and storedImpacts, MOD-progress-measures' storedOverview and storedFacts), not a file the page shows.
+const HEAD = "c0ffee".padEnd(40, "0");
+const STORED = new RegExp(`^${HEAD}\\.(json|facts\\.json|impacts\\.json)$`);
+const shownFiles = (requests) => files(requests).filter((path) => !STORED.test(path));
+// The order of the one read of the repository's information among a load's requests is no part of the rule: it is counted, and left out of the sequence.
+const withoutInfo = (requests) => requests.filter((r) => r !== "repository");
 
 // ---------------------------------------------------------------- the start page, #arc, #spec, #backlog: the Check
 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the fixture product — two use cases, one of them with a record of an earlier text
 // input: open the start page with a token
-// expect: the commit and the tree once, then one batch of the 2 files it shows, the repository's information once, and no file by
+// expect: the commit and the tree once, then one batch of the 2 files it shows, the repository's information once (wherever in the load), and no file by
 //         itself; both use cases listed with their status — UC-001 accepted, UC-002 changed since acceptance — read from the names of
 //         the records, so that no record is read
 test("the start page sends its commit and tree once and one batch of the files it shows", async () => {
@@ -106,7 +114,8 @@ test("the start page sends its commit and tree once and one batch of the files i
   assert.match(page.main(), /UC-002/);
   assert.match(page.main(), /<span class="badge b-accepted">accepted<\/span>/);
   assert.match(page.main(), /<span class="badge b-changed">changed since acceptance<\/span>/);
-  assert.deepEqual(page.requests, ["commit", "tree", "batch 2", "repository"]);
+  assert.deepEqual(withoutInfo(page.requests), ["commit", "tree", "batch 2"]);
+  assert.equal(count(page.requests, "repository"), 1);
   assert.deepEqual(srv.batches.map(sorted), [sorted([UC1, UC2])]);
 });
 
@@ -115,14 +124,16 @@ test("the start page sends its commit and tree once and one batch of the files i
 // input: open #arc with a token
 // expect: the commit and the tree once, then one batch of the 4 architecture files, the repository's information once, and no use
 //         case, no queue file, no file by itself; then, for the table and the gaps of the modules view (ITM-721), the graph of the commit: the
-//         stored graph asked for by one file (none is stored) and one batch of the 7 files of the graph that the first batch did not read
+//         graph stored for it, read by one request, and no file of the graph (MOD-trace-graph: "A page never builds the graph: it reads the stored
+//         one through `storedGraph`")
 test("#arc sends its commit and tree once and one batch of the files it shows — no use case and no queue file", async () => {
   const repo = await product(), srv = await server(repo);
   const page = await openDashboard({ server: srv, hash: "#arc" });
   for (const id of ["ARC-001", "MOD-page", "MOD-reader", "MOD-review"]) assert.match(page.main(), new RegExp(id));
-  assert.deepEqual(page.requests, ["commit", "tree", "batch 4", "repository", `file ${STORED_GRAPH}`, "batch 7"]);
+  assert.deepEqual(withoutInfo(page.requests), ["commit", "tree", "batch 4", STORED_GRAPH]);
+  assert.equal(count(page.requests, "repository"), 1);
   assert.deepEqual(sorted(srv.batches[0]), sorted([ARC, PAGE, READER, REVIEW]));
-  assert.equal(srv.batches.length, 2);
+  assert.equal(srv.batches.length, 1, "no graph is built from the files");
   assert.equal(new Set(srv.batches.flat()).size, srv.batches.flat().length, "no file twice");
 });
 
@@ -145,33 +156,36 @@ test("#arc/<id>: a module that names what is not accepted says so, and is not of
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the fixture product with a queue whose one entry is accepted and written, and a queue with an open entry
 // input: open #spec with a token
-// expect: the app reads in four waves, each one request: the SPEC and the queues' heads — 4 files, the two queues' index files
-//         being the same blob —, then the proposals of the open queue — 1 file —, then its rationale — 1 file, named to the batch before
-//         the impact list of the open entry reads it (the statuses of the specification view, UC-020 step 3) —, then the artifacts of the trace
-//         graph that impact list is made from — 10 files; no file twice, the accepted queue's proposal not at all, and no file by itself. The open entry stands under "SPEC changes waiting for acceptance" as a link; the written
-//         one does not.
-test("#spec: the app reads the SPEC and the queues' heads in one batch, the open queue's proposals in a second, its rationale in a third and the trace graph's artifacts in a fourth", async () => {
+// expect: no overview is stored for the commit, so the app reads, as MOD-site-frame states it ("the change queues stored for the commit, read
+//         beside the first wave of `#spec` …; where no overview is stored, the index and decisions of every queue are read, then the proposals of
+//         those still open"), in four waves, each one request: the SPEC — 1 file —, then the queues' heads — 3 files, the two queues' index files
+//         being the same blob —, then the proposals of the open queue — 1 file —, then its rationale — 1 file, named to the batch before the impact
+//         list of the open entry reads it (the statuses of the specification view, UC-020 step 3); the graph that impact list is made from is the
+//         stored one, and no batch of its artifacts is sent (MOD-trace-graph: "A page never builds the graph"); no file twice, the accepted queue's
+//         proposal not at all, and no file by itself. The open entry stands under "SPEC changes waiting for acceptance" as a link with its state
+//         open; the written one does not.
+test("#spec: the app reads the SPEC in one batch, the queues' heads in a second, the open queue's proposals in a third and its rationale in a fourth, and builds no graph", async () => {
   const repo = await product(), srv = await server(repo);
   const page = await openDashboard({ server: srv, hash: "#spec" });
-  const wave1 = sorted(["SPEC.md", `${DONE}/entscheidungen.md`, `${DONE}/index.md`, `${OPEN}/entscheidungen.md`]);
-  const wave2 = [`${OPEN}/01-more.md`], wave3 = [`${OPEN}/01-more.begruendung.md`];
-  assert.deepEqual(batchesOf(page.requests), ["batch 4", "batch 1", "batch 1", "batch 10"]);
-  assert.deepEqual(srv.batches.slice(0, 3).map(sorted), [wave1, wave2, wave3]);
-  assert.deepEqual(srv.batches[3].filter((path) => path === "SPEC.md" || wave1.includes(path)), [], "the fourth batch repeats none of the first");
+  const wave1 = ["SPEC.md"], heads = sorted([`${DONE}/entscheidungen.md`, `${DONE}/index.md`, `${OPEN}/entscheidungen.md`]);
+  const wave3 = [`${OPEN}/01-more.md`], wave4 = [`${OPEN}/01-more.begruendung.md`];
+  assert.deepEqual(batchesOf(page.requests), ["batch 1", "batch 3", "batch 1", "batch 1"]);
+  assert.deepEqual(srv.batches.map(sorted), [wave1, heads, wave3, wave4], "no fifth batch: no graph is built from the files");
   assert.equal(new Set(srv.batches.flat()).size, srv.batches.flat().length, "no file twice");
-  assert.deepEqual(files(page.requests).filter((p) => p !== "SPEC.md"), [], "the app reads no file by itself");
+  assert.deepEqual(shownFiles(page.requests), [], "the app reads no file by itself");
   const main = page.main();
   assert.match(main, /SPEC changes waiting for acceptance/);
-  assert.match(main, /href="#spec-entry\/id=spec-2026-09-02_open-01"[^>]*>2026-09-02_open-01 — ## 1\. Rules<\/a> open/);
+  assert.match(main, /href="#spec-entry\/id=spec-2026-09-02_open-01"[^>]*>[^<]*<\/a><\/td><td>1\. Rules<\/td><td><span class="badge b-open">open<\/span>/);
   assert.doesNotMatch(main, /spec-2026-09-01_done-01/, "the written entry is not among the waiting ones");
 });
 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the fixture product with a register: the links file docs/sources.md and two entries docs/sources/SRC-a.md and SRC-b.md
 // input: open #spec with a token
-// expect: the first wave is one batch of 7 files — the SPEC, the queues' heads and the links file with the two register entries —, the
-//         open queue's proposal a second batch of 1, its rationale a third batch of 1 and the trace graph's artifacts a fourth of 10; no file twice,
-//         none by itself; the register is read in no batch of its own
+// expect: the first wave is one batch of 4 files — the SPEC and the links file with the two register entries —, then, no overview being stored,
+//         the queues' heads a second batch of 3 (MOD-site-frame: "where no overview is stored, the index and decisions of every queue are read, then
+//         the proposals of those still open"), the open queue's proposal a third batch of 1, its rationale a fourth batch of 1, and no batch of the
+//         graph's artifacts; no file twice, none by itself; the register is read in no batch of its own
 test("#spec: the links file and the register's entries are read in the first wave, beside the SPEC and the queues' heads", async () => {
   const entry = (id) => ["---", `id: ${id}`, "title: A person", "kind: person", "authority: normative", "licence: may be republished — fixture",
     `identifier: github.com/${id}`, "---", `# ${id} A person`, "", "## Versions", "", "| Version | Date | Edition | Read from | Files |", "|---|---|---|---|---|",
@@ -180,11 +194,12 @@ test("#spec: the links file and the register's entries are read in the first wav
     "docs/sources/SRC-a.md": entry("SRC-a"), "docs/sources/SRC-b.md": entry("SRC-b") };
   const srv = await server(await product(register));
   const page = await openDashboard({ server: srv, hash: "#spec" });
-  const wave1 = sorted(["SPEC.md", `${DONE}/entscheidungen.md`, `${DONE}/index.md`, `${OPEN}/entscheidungen.md`, ...Object.keys(register)]);
-  assert.deepEqual(batchesOf(page.requests), ["batch 7", "batch 1", "batch 1", "batch 10"]);
-  assert.deepEqual(srv.batches.slice(0, 3).map(sorted), [wave1, [`${OPEN}/01-more.md`], [`${OPEN}/01-more.begruendung.md`]]);
+  const wave1 = sorted(["SPEC.md", ...Object.keys(register)]);
+  const heads = sorted([`${DONE}/entscheidungen.md`, `${DONE}/index.md`, `${OPEN}/entscheidungen.md`]);
+  assert.deepEqual(batchesOf(page.requests), ["batch 4", "batch 3", "batch 1", "batch 1"]);
+  assert.deepEqual(srv.batches.map(sorted), [wave1, heads, [`${OPEN}/01-more.md`], [`${OPEN}/01-more.begruendung.md`]]);
   assert.equal(new Set(srv.batches.flat()).size, srv.batches.flat().length, "no file twice");
-  assert.deepEqual(files(page.requests), [], "no file by itself");
+  assert.deepEqual(shownFiles(page.requests), [], "no file by itself");
 });
 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
@@ -198,7 +213,7 @@ test("#spec: the whole load sends its commit and tree once, and every file in a 
   assert.equal(count(page.requests, "commit"), 1);
   assert.equal(count(page.requests, "tree"), 1);
   assert.equal(count(page.requests, "repository"), 1);
-  assert.deepEqual(files(page.requests), []);
+  assert.deepEqual(shownFiles(page.requests), []);
 });
 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
@@ -232,7 +247,8 @@ test("#backlog sends its commit and tree once, one batch of the files it shows, 
   const srv = await server(repo, [pulls]);
   const page = await openDashboard({ server: srv, hash: "#backlog" });
   assert.match(page.main(), /ITM-001/);
-  assert.deepEqual(page.requests.filter((r) => !r.startsWith("handler ")), ["commit", "tree", "batch 7", `file ${"c0ffee".padEnd(40, "0")}.facts.json`, "batch 3", "batch 3", "commit", "tree", "batch 1"]);
+  assert.deepEqual(withoutInfo(page.requests).filter((r) => !r.startsWith("handler ")), ["commit", "tree", "batch 7", `file ${"c0ffee".padEnd(40, "0")}.facts.json`, "batch 3", "batch 3", "commit", "tree", "batch 1"]);
+  assert.equal(count(page.requests, "repository"), 1);
   const wave1 = sorted(["docs/process.md", "SPEC.md", "docs/role-assignments/team1.md", "docs/backlog/sprints/team1/01.md",
     "docs/backlog/ITM-001-item-1.md", "docs/backlog/ITM-002-item-2.md", ...recordOf(repo, "UC-002")]);
   assert.deepEqual(srv.batches.map(sorted).slice(0, 1), [wave1]);
@@ -250,7 +266,8 @@ const item = (n) => ["---", `id: ITM-00${n}`, `title: The work of item ${n}`, "l
 test("a page that shows more than a hundred files sends one batch for every hundred of them", async () => {
   const repo = await product(extraUseCases(100, 205)), srv = await server(repo);
   const page = await openDashboard({ server: srv });
-  assert.deepEqual(page.requests, ["commit", "tree", "batch 100", "batch 100", "batch 7", "repository"]);
+  assert.deepEqual(withoutInfo(page.requests), ["commit", "tree", "batch 100", "batch 100", "batch 7"]);
+  assert.equal(count(page.requests, "repository"), 1);
   assert.equal(new Set(srv.batches.flat()).size, 207, "each of the 207 files once");
 });
 
@@ -337,8 +354,8 @@ test("#uc/<id> and #arc/<id> of an accepted file read that one file by itself", 
 const decision = (n) => base[ARC].replaceAll("ARC-001", `ARC-${n}`);
 const ARC2 = "docs/architecture/ARC-002-second.md", ARC3 = "docs/architecture/ARC-003-third.md";
 const MODULES = [PAGE, READER, REVIEW];
-// The file the graph of the fixture's commit would be stored in (the commit the harness's server answers), asked for once by a page that reads the graph.
-const STORED_GRAPH = "c0ffee0000000000000000000000000000000000.json";
+// The read of the graph stored for the fixture's commit (the commit the harness's server answers) on the branch trace-cache, asked for once by a page that reads the graph.
+const STORED_GRAPH = `stored graph ${"c0ffee".padEnd(40, "0")}`;
 
 // The files each address shows: the fixture's two use cases, three decisions and three module files.
 const SHOWN = { "#use-case": [UC1, UC2], "#decision": [ARC, ARC2, ARC3], "#module": MODULES };
@@ -350,17 +367,18 @@ const withDecisions = () => product({ [ARC2]: decision("002"), [ARC3]: decision(
 // input: open #use-case (then #decision, then #module) with a token
 // expect: the commit and the tree once, one batch of exactly the files of its own kind — 2 files for #use-case, 3 for #decision, 3 for
 //         #module —, the repository's information once, and no file by itself; #module also shows the modules view (ITM-721), which reads the
-//         graph of the commit: the stored graph asked for by one file (none is stored), then one batch of the 10 files of the graph that the first did not read
-const GRAPH_AFTER = { "#module": [`file ${STORED_GRAPH}`, "batch 10"] };
+//         graph of the commit: the graph stored for it, by at most one request — the modules view may ask for it after the page has settled, so the
+//         read is counted, not placed —, and no file of the graph (MOD-trace-graph: "A page never builds the graph")
 for (const [hash, paths] of Object.entries(SHOWN)) {
   test(`${hash} sends its commit and tree once and one batch of the files it shows`, async () => {
     const srv = await server(await withDecisions());
     const page = await openDashboard({ server: srv, hash });
-    const graph = GRAPH_AFTER[hash] ?? [];
-    assert.deepEqual(page.requests, ["commit", "tree", `batch ${paths.length}`, "repository", ...graph]);
+    assert.deepEqual(withoutInfo(page.requests).filter((r) => r !== STORED_GRAPH), ["commit", "tree", `batch ${paths.length}`]);
+    assert.ok(count(page.requests, STORED_GRAPH) <= 1, "the stored graph is read at most once");
+    assert.equal(count(page.requests, "repository"), 1);
     assert.deepEqual(sorted(srv.batches[0]), sorted(paths));
-    assert.equal(srv.batches.length, graph.length ? 2 : 1);
-    assert.deepEqual(files(page.requests).filter((path) => path !== STORED_GRAPH), [], "no file by itself");
+    assert.equal(srv.batches.length, 1, "no graph is built from the files");
+    assert.deepEqual(shownFiles(page.requests), [], "no file by itself");
   });
 }
 
@@ -417,7 +435,9 @@ test("opening one use case reads that use case, the history of its record and th
 // given: MOD-reader, accepted in an earlier text, edited since
 // input: open #arc/MOD-reader with a token
 // expect: the difference to its last accepted text, the impact list beside it — the affected modules —, Accept offered with it; the
-//         graph the list is derived from is read in one batch, and no use case and no queue file by itself
+//         page first asks for the impact lists stored for the commit, in one request (MOD-review-pages: "the page first reads the impact lists
+//         stored for the commit it shows (MOD-trace-graph's `storedImpacts`, one request)"), builds no graph from the files — no batch is
+//         sent (MOD-review-pages: "no page builds a graph") —, and reads no use case and no queue file
 test("opening a changed module shows its impact list beside the difference, and offers Accept with it", async () => {
   const repo = await product();
   const srv = await server(repo);
@@ -429,8 +449,8 @@ test("opening a changed module shows its impact list beside the difference, and 
   assert.match(page.main(), /<button class="btn accept" type="button">Accept<\/button>/, "Accept, once the impact list is shown");
   assert.deepEqual(under(page.requests, "docs/use-cases/"), []);
   assert.deepEqual(under(page.requests, "docs/spec-freigaben/"), []);
-  assert.equal(batchesOf(page.requests).length, 1, "the graph in one batch");
-  assert.ok(srv.batches[0].includes("SPEC.md") && srv.batches[0].includes(ARC), "the SPEC and the architecture files");
+  assert.equal(count(page.requests, `file ${HEAD}.impacts.json`), 1, "the stored impact lists, in one request");
+  assert.deepEqual(batchesOf(page.requests), [], "no graph is built from the files");
 });
 
 test("settings read the product's settings, and no use case, architecture file, record or queue", async () => {
@@ -445,15 +465,15 @@ test("settings read the product's settings, and no use case, architecture file, 
 test("a second load on an unchanged tree sends the same requests as the first; an edited file is read in the same batch", async () => {
   const repo = await product(), caches = fakeCaches();
   const first = await openDashboard({ server: await server(repo), caches });
-  assert.deepEqual(first.requests, ["commit", "tree", "batch 2", "repository"]);
+  assert.deepEqual(withoutInfo(first.requests), ["commit", "tree", "batch 2"]);
   const again = await openDashboard({ server: await server(repo), caches });
-  assert.deepEqual(again.requests, ["commit", "tree", "batch 2", "repository"]);
+  assert.deepEqual(withoutInfo(again.requests), ["commit", "tree", "batch 2"]);
   assert.equal(again.main(), first.main(), "the same page");
   // A file whose blob changed is shown with its new text, from the same batch: a status is told by the names of the records alone.
   const edited = { ...repo, [UC1]: repo[UC1].replaceAll("Read a file", "Read one file") };
   const srv = await server(edited);
   const third = await openDashboard({ server: srv, caches });
-  assert.deepEqual(third.requests, ["commit", "tree", "batch 2", "repository"]);
+  assert.deepEqual(withoutInfo(third.requests), ["commit", "tree", "batch 2"]);
   assert.deepEqual(srv.batches.map(sorted), [sorted([UC1, UC2])]);
   assert.match(third.main(), /Read one file/);
 });

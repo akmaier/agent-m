@@ -28,6 +28,7 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { withStoredGraph } from "./stored-graph-fake.mjs";
 
 const { openStore, writeSetting } = await import("../src/browser-store/index.mjs");
 const pages = await import("../src/review-pages/index.mjs").catch((error) => ({ error }));
@@ -189,22 +190,25 @@ const instanceSourceFiles = () => ({
   "docs/sources/SRC-fixture-po.md": ENTRY_PO,
 });
 
+// Each host's commits are its own: MOD-trace-graph's storedGraph keeps a commit's graph for the page, so two hosts never share a commit. Every snapshot's
+// readOn serves the graph the workflow "main changed" stores for its commit (tests/stored-graph-fake.mjs), which a page reads and never builds.
+let hosts = 0;
 function memoryHost({ files = productFiles(), repository = PRODUCT, canWrite = true } = {}) {
-  const calls = [], commits = new Map();
+  const calls = [], commits = new Map(), host = ++hosts;
   let made = 0, head = null;
   const commitOf = (tree, parent) => {
-    const sha = createHash("sha1").update(`commit ${++made}`).digest("hex");
+    const sha = createHash("sha1").update(`host ${host} commit ${++made}`).digest("hex");
     commits.set(sha, { tree, parent, date: `2026-03-0${Math.min(made, 9)}T10:00:00Z` });
     return sha;
   };
   head = commitOf(new Map(Object.entries(files)), null);
   const snapshotAt = (sha, ref = sha) => {
     const { tree } = commits.get(sha);
-    return {
+    return withStoredGraph({
       repository, ref, commit: sha, paths: [...tree.keys()].sort(),
       read: async (path) => (tree.has(path) ? tree.get(path) : null),
       blob: (path) => (tree.has(path) ? blobOf(tree.get(path)) : null),
-    };
+    });
   };
   return {
     calls: () => calls,
