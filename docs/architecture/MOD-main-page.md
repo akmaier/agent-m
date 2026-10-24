@@ -29,6 +29,7 @@ uses:
   - MOD-progress-measures.buildInProgress
   - MOD-progress-measures.waitingForAPerson
   - MOD-progress-measures.storedOverview
+  - MOD-progress-measures.latestOverview
   - MOD-product-process.mayDecide
   - MOD-product-process.recordGateDecision
   - MOD-job-ledger.listJobs
@@ -114,7 +115,10 @@ once, when the page is drawn, and never again (UC-046 4b). It stores nothing bet
     and its build — the states of the steps or items in progress and the records of the jobs working on them, from which
     `listJobs` derives the rows with the live states of those jobs whose record has no end, asked at once. It lists no
     pull request and reads no other file: what derives from the repository was computed when the commit was pushed.
-    Where there is none, the card reads the scope `all` as before. Without a token and
+    While the head's overview is not stored yet, the card reads the overview stored last (MOD-progress-measures'
+    `latestOverview`, two requests more) and is drawn from it alone in the same way, saying "As of <its commit's first
+    seven characters>: the overview of the newest commit is being stored."; the page never derives what the workflow
+    computes. Only where the branch holds neither, the card reads the scope `all` as before. Without a token and
     without facts stored for the head (`storedFacts`), that reading costs one request per test file of the default
     branch (MOD-progress-measures' `stageShares`); that cost is accepted. The stored overview is a record of the
     repository, derived from that commit alone by `onMainChanged` (MOD-workflow-entries), never kept in the
@@ -163,7 +167,8 @@ instance repository through their hosts, and the browser's store for the product
   setting and a run's page.
 - MOD-progress-measures.productFacts, MOD-progress-measures.stageShares, MOD-progress-measures.currentStage,
   MOD-progress-measures.buildInProgress, MOD-progress-measures.waitingForAPerson — the cards, the workflow and gate
-  states of a product, and what waits; MOD-progress-measures.storedOverview — the overview stored for a commit.
+  states of a product, and what waits; MOD-progress-measures.storedOverview — the overview stored for a commit;
+  MOD-progress-measures.latestOverview — the overview stored last, while the head's is not stored yet.
 - MOD-product-process.mayDecide — whether this person may decide the gate a job waits at;
   MOD-product-process.recordGateDecision — the decision.
 - MOD-job-ledger.listJobs, MOD-job-ledger.jobState, MOD-job-ledger.jobCost — the jobs, their states and costs;

@@ -743,7 +743,7 @@ const allFacts = async (files) => { const f = fixture({ files }); return product
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the fixture product read with the scope "all" at the commit ccc…c; a repository whose branch overview-cache holds no file for that commit
 // input: publishOverview(host, snapshot, facts)
-// expect: { commit: "ccc…c", written: true }; exactly one commitFiles, on the branch "overview-cache", expectedHead the branch's head 00…01, two files, `ccc…c.json` (the second, `ccc…c.facts.json`, is TST-1117001's) whose text is the JSON
+// expect: { commit: "ccc…c", written: true }; exactly one commitFiles, on the branch "overview-cache", expectedHead the branch's head 00…01, three files, `ccc…c.json` (the second, `ccc…c.facts.json`, is TST-1117001's, the third, latest.json, TST-940010's) whose text is the JSON
 // { commit, shares, waiting, model, build, queues } and a line end — shares the six stages in their order, waiting what waitingForAPerson gives, whose first two entries are UC-002 (open) and the open SPEC change entry;
 // model the name of the facts' model or null; build { states, records } of the steps in progress that a job works on, with those jobs' records as the snapshot reads them; queues the facts' queues with an entry
 // not in the SPEC — and no other file
@@ -753,7 +753,7 @@ test("TST-940004 publishOverview adds <commit>.json with the stage shares, what 
   const done = await measures.publishOverview(host, facts.snapshot, facts);
   assert.deepEqual(done, { commit: COMMIT, written: true });
   assert.equal(host.commits.length, 1);
-  assert.deepEqual([host.commits[0].branch, host.commits[0].expectedHead, host.commits[0].files.map((file) => file.path)], ["overview-cache", OVERVIEW_HEAD, [`${COMMIT}.json`, `${COMMIT}.facts.json`]]);
+  assert.deepEqual([host.commits[0].branch, host.commits[0].expectedHead, host.commits[0].files.map((file) => file.path)], ["overview-cache", OVERVIEW_HEAD, [`${COMMIT}.json`, `${COMMIT}.facts.json`, "latest.json"]]);
   const stored = JSON.parse(host.commits[0].files[0].text);
   assert.equal(host.commits[0].files[0].text.endsWith("}\n"), true);
   assert.deepEqual(Object.keys(stored), ["commit", "shares", "waiting", "model", "build", "queues"]);
@@ -822,6 +822,55 @@ test("TST-940007 storedOverview gives null for a missing branch or file and for 
     () => { throw named("NotFound", "no branch overview-cache"); }];
   for (const [at, readOn] of cases.entries()) assert.equal(await measures.storedOverview(withReadOn(readOn).snapshot), null, `case ${at}`);
   assert.deepEqual(await measures.storedOverview(withReadOn(() => good).snapshot), { shares: [], waiting: [], ...rest }, "known positive: a well-formed overview is returned");
+});
+
+// TST-940010 · level: unit · module: MOD-progress-measures
+// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// given: the fixture product read with the scope "all" at the commit ccc…c; a branch overview-cache that holds no file for it; one that holds ccc…c.json only; and one that holds ccc…c.json and ccc…c.facts.json
+// input: publishOverview to each
+// expect: the first commit holds, last, latest.json whose text is {"commit":"ccc…c"} and a line end; the second's commit holds ccc…c.facts.json and that same latest.json; the third sends no commit, so latest.json is written only with an overview's files
+test("TST-940010 publishOverview writes latest.json naming its commit with the files it adds, and not when it adds none", async () => {
+  const facts = await allFacts(withTests());
+  const latest = `${JSON.stringify({ commit: COMMIT })}\n`;
+  const empty = overviewHost(overviewBranch());
+  await measures.publishOverview(empty, facts.snapshot, facts);
+  assert.deepEqual(empty.commits.map((commit) => commit.files.at(-1)), [{ path: "latest.json", text: latest }]);
+  const oldOnly = overviewHost(overviewBranch({ [`${COMMIT}.json`]: "{}\n" }));
+  await measures.publishOverview(oldOnly, facts.snapshot, facts);
+  assert.deepEqual(oldOnly.commits.map((commit) => commit.files.map((file) => [file.path, file.path === "latest.json" ? file.text : null])),
+    [[[FACTS_FILE, null], ["latest.json", latest]]]);
+  const both = overviewHost(overviewBranch({ [`${COMMIT}.json`]: "{}\n", [FACTS_FILE]: "{}\n" }));
+  assert.deepEqual(await measures.publishOverview(both, facts.snapshot, facts), { commit: COMMIT, written: false });
+  assert.deepEqual(both.commits, []);
+});
+
+// TST-940011 · level: unit · module: MOD-progress-measures
+// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// given: a snapshot of ccc…c whose readOn serves on overview-cache latest.json naming the older commit bbb…b and the overview TST-940004 stores, rewritten as bbb…b's; then readOns where latest.json is missing (null; NotFound),
+//   holds no JSON or no commit, or names bbb…b whose overview is missing (null; NotFound)
+// input: latestOverview(snapshot) for each
+// expect: the first gives { commit: "bbb…b", shares, waiting, model, build, queues } as stored, by two readOns — latest.json, then bbb…b.json — and no read; every other gives null
+test("TST-940011 latestOverview gives the overview latest.json names with its commit, and null where latest.json or that overview is missing", async () => {
+  const OLDER = "b".repeat(40);
+  const facts = await allFacts(withTests());
+  const host = overviewHost(overviewBranch());
+  await measures.publishOverview(host, facts.snapshot, facts);
+  const text = JSON.stringify({ ...JSON.parse(host.commits[0].files[0].text), commit: OLDER });
+  const latest = JSON.stringify({ commit: OLDER });
+  const served = (files) => (branch, path) => {
+    assert.equal(branch, "overview-cache");
+    const file = files[path];
+    if (typeof file === "function") return file();
+    return file ?? null;
+  };
+  const held = withReadOn(served({ "latest.json": latest, [`${OLDER}.json`]: text }));
+  const { shares, waiting, model, build, queues } = JSON.parse(text);
+  assert.deepEqual(await measures.latestOverview(held.snapshot), { commit: OLDER, shares, waiting, model, build, queues });
+  assert.deepEqual(held.calls, [["readOn", "overview-cache", "latest.json"], ["readOn", "overview-cache", `${OLDER}.json`]]);
+  const notFound = () => { throw named("NotFound", "no such file on overview-cache"); };
+  const cases = [{ [`${OLDER}.json`]: text }, { "latest.json": notFound, [`${OLDER}.json`]: text }, { "latest.json": "not json", [`${OLDER}.json`]: text },
+    { "latest.json": "{}", [`${OLDER}.json`]: text }, { "latest.json": latest }, { "latest.json": latest, [`${OLDER}.json`]: notFound }];
+  for (const [at, files] of cases.entries()) assert.equal(await measures.latestOverview(withReadOn(served(files)).snapshot), null, `case ${at}`);
 });
 
 // TST-1070001 · level: unit · module: MOD-progress-measures
@@ -935,13 +984,13 @@ test("TST-1175001 productFacts gives itemStates the accepted SPEC requirements w
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the fixture product with a SPEC rule, a test file and a job record that has not ended, read with the scope "all" at the commit ccc…c; a branch overview-cache that holds no file for it
 // input: publishOverview(host, snapshot, facts)
-// expect: { commit, written: true }; one commitFiles holding exactly `ccc…c.json` and `ccc…c.facts.json`; the second ends with a line end and is JSON with format 1, the commit, and the declaration (docs/process.md), the plan's order (null), the four items, the sprint, the role assignment, the gate record, the two module files, the queue, the requirement FIRST RULE, the test declaration TST-001 and the job record, each document as { path, text } of the file it was read from; a job is its record's file, not a row: no state, no elapsed time, no cost; the model scrum
+// expect: { commit, written: true }; one commitFiles holding exactly `ccc…c.json`, `ccc…c.facts.json` and latest.json; the second ends with a line end and is JSON with format 1, the commit, and the declaration (docs/process.md), the plan's order (null), the four items, the sprint, the role assignment, the gate record, the two module files, the queue, the requirement FIRST RULE, the test declaration TST-001 and the job record, each document as { path, text } of the file it was read from; a job is its record's file, not a row: no state, no elapsed time, no cost; the model scrum
 test("TST-1117001 publishOverview adds <commit>.facts.json beside <commit>.json in one commit, holding the facts the files alone give", async () => {
   const facts = await allFacts(storedFiles());
   const host = overviewHost(overviewBranch());
   assert.deepEqual(await measures.publishOverview(host, facts.snapshot, facts), { commit: COMMIT, written: true });
   assert.equal(host.commits.length, 1);
-  assert.deepEqual(host.commits[0].files.map((file) => file.path).sort(), [`${COMMIT}.json`, FACTS_FILE].sort());
+  assert.deepEqual(host.commits[0].files.map((file) => file.path).sort(), [`${COMMIT}.json`, FACTS_FILE, "latest.json"].sort());
   const file = host.commits[0].files.find((each) => each.path === FACTS_FILE);
   assert.equal(file.text.endsWith("}\n"), true);
   const stored = JSON.parse(file.text);
@@ -965,12 +1014,12 @@ test("TST-1117001 publishOverview adds <commit>.facts.json beside <commit>.json 
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the same facts; a branch that holds ccc…c.json only (the old format of the store); one that holds both files; and the facts of a product whose model the instance could not read (NotFound at the commit the declaration names)
 // input: publishOverview to each; and the stored file of the third
-// expect: the first branch gets one commit with `ccc…c.facts.json` alone, written true — the file it holds is left as it is —; the second gets none, written false; the file of the unread model holds no key `model`, so that a reader reads the model again
+// expect: the first branch gets one commit with `ccc…c.facts.json` and latest.json alone, written true — the file it holds is left as it is —; the second gets none, written false; the file of the unread model holds no key `model`, so that a reader reads the model again
 test("TST-1117002 publishOverview leaves a file the branch holds as it is, adds the other, and stores no model that could not be read", async () => {
   const facts = await allFacts(storedFiles());
   const oldOnly = overviewHost(overviewBranch({ [`${COMMIT}.json`]: "{}\n" }));
   assert.deepEqual(await measures.publishOverview(oldOnly, facts.snapshot, facts), { commit: COMMIT, written: true });
-  assert.deepEqual(oldOnly.commits.map((commit) => commit.files.map((file) => file.path)), [[FACTS_FILE]]);
+  assert.deepEqual(oldOnly.commits.map((commit) => commit.files.map((file) => file.path)), [[FACTS_FILE, "latest.json"]]);
   const both = overviewHost(overviewBranch({ [`${COMMIT}.json`]: "{}\n", [FACTS_FILE]: "{}\n" }));
   assert.deepEqual(await measures.publishOverview(both, facts.snapshot, facts), { commit: COMMIT, written: false });
   assert.deepEqual(both.commits, []);

@@ -35,7 +35,7 @@ async function cachedContext(net) {
     commitFiles: async (change) => { commits.push(change); return { commit: "1".repeat(40), url: "https://example.test/overview" }; },
   }, snapshot, facts);
   const files = commits[0].files;
-  assert.deepEqual(files.map((file) => file.path).sort(), [`${head}.facts.json`, `${head}.json`]);
+  assert.deepEqual(files.map((file) => file.path).sort(), [`${head}.facts.json`, `${head}.json`, "latest.json"]);
   net.overviews[PRODUCT] = Object.fromEntries(files.map((file) => [file.path.replace(/\.json$/, ""), file.text]));
   return context;
 }
@@ -55,7 +55,7 @@ test("TST-684001 the real root starts the native main-page view, not the legacy 
 
 // TST-684002 · level: component · module: MOD-main-page
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; THE BUILD IS SHOWN AS IT HAPPENS; UC-046
-// given: the native home route, one kept product with a real ended job plus the overview and stored facts its existing producer writes for the product's exact default-branch head; the existing Host fake records requests
+// given: the native home route, one kept product with a real ended job plus the overview, stored facts and latest.json its existing producer writes for the product's exact default-branch head; the existing Host fake records requests
 // input: home is drawn; its first one-minute poll fires unchanged; then the same job record changes from done to failed and the following poll fires
 // expect: after the public producer has prepared the cache, the initial draw reads its overview alone — not the stored facts, and no job-record source fetch: the overview holds the build's records; the unchanged poll reads only product main commit/tree; the changed poll reads those plus one GraphQL batch containing only that changed job record
 test("TST-684002 the native cached home keeps its initial job facts and polls unchanged and changed job records distinctly", async () => {

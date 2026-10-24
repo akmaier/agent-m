@@ -169,7 +169,7 @@ export function network(repos, { bridgeLists = null } = {}) {
   const requests = [];
   const real = globalThis.fetch;
   let held = repos, fake = null, spy = null;
-  // `overviews` ({ "owner/name": { "<commit>": text } }): the files `<commit>.json` of the branch `overview-cache` each repository holds; none is held at first.
+  // `overviews` ({ "owner/name": { "<commit>": text } }): the files `<commit>.json` of the branch `overview-cache` each repository holds, and under the key "latest" its file latest.json; none is held at first.
   const net = { requests, bridgeLists, bridgeUsage: null, bridgeLog: null, refusing: null, ciRuns: [], overviews: {},
     // the fake's own record of what each request read: those of every state the repositories have been in
     server: { get log() { return servers.flatMap((server) => server.log); } },
@@ -185,7 +185,7 @@ export function network(repos, { bridgeLists = null } = {}) {
         if (logOf) return net.bridgeLog ? json(200, await net.bridgeLog(decodeURIComponent(logOf[1]), Number(url.searchParams.get("from")))) : json(404, { error: "not-found", message: "The Bridge keeps no log." });
         if (url.host === "127.0.0.1:4712") throw new TypeError("connect ECONNREFUSED 127.0.0.1:4712");
         const overview = url.host === "api.github.com" && url.searchParams.get("ref") === "overview-cache"
-          ? /^\/repos\/([^/]+\/[^/]+)\/contents\/([0-9a-f]+(?:\.facts)?)\.json$/.exec(url.pathname) : null;
+          ? /^\/repos\/([^/]+\/[^/]+)\/contents\/([0-9a-f]+(?:\.facts)?|latest)\.json$/.exec(url.pathname) : null;
         if (overview) {
           const held = net.overviews[overview[1]]?.[overview[2]];
           return held === undefined ? new Response('{"message":"Not Found"}', { status: 404 }) : new Response(held, { status: 200 });
