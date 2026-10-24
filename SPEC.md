@@ -544,9 +544,11 @@ runnable on the hosted-CI route; counter-proof: a job needing a compute resource
 
 **A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET** *(PO A. Maier)*
 A job on the server's own machines authenticates its coding agent with a key stored as a CI secret of the
-repository, which the dashboard names and whose settings page it opens, and never asks for.
+repository, which the dashboard names and whose settings page it opens, and never asks for. The runner machine the
+agent works on receives only the key of the participant the job names; no other secret of the repository reaches it.
 *Check:* `tests/test_runtime_levels.py` — the generated job workflow reads the key only from the named
-secret; counter-proof: a workflow with the key written into it fails.
+secret, and the part of it that runs the agent reads no other secret; counter-proof: a workflow with the key written
+into it, or one whose agent part reads `AGENT_M_TOKEN` or another participant's key, fails.
 
 **THE BRIDGE IS ONE FILE PER PLATFORM** *(PO A. Maier)*
 The local bridge is delivered as one file for each of Windows on x86-64, macOS and Linux — an executable,
