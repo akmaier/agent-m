@@ -1,7 +1,7 @@
 // The settings pages for an endpoint that runs through GitHub Actions — MOD-settings-pages' `endpoints` route and the Settings page's endpoint line and job
 // workflow line, as UC-003 (step 2, 4a) and docs/architecture/MOD-settings-pages.md state them: the form asks the place, the context and the name of the CI
 // secret of the key; a test the browser refuses says plainly that the host does not accept calls from a web page; for such an endpoint whose key this browser keeps,
-// one click stores the key as a GitHub Actions secret of the repository, keeps the secret's name with the endpoint, removes the key from this browser and spawns a
+// one click stores the key as a GitHub Actions secret of the repository, keeps the secret's name with the endpoint beside the key, which stays in this browser, and spawns a
 // test job there; and the job workflow's Install names the CI secret each of this browser's endpoints names.
 // Run: node --test tests/settings-pages-endpoints-actions.test.mjs
 //
@@ -139,21 +139,21 @@ test("a test the browser refuses says plainly that the host does not accept call
 // guards: UC-003; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the refused endpoint of TST-1200202, whose key this browser keeps; the instance's repository on GitHub, which holds no job workflow
 // input: the offer read; a script's click on its button; then a person's click
-// expect: before the click the page says what the click does — the secret NVIDIA_API_KEY, the repository fixture/instance, that the key is removed from this browser and a test job spawned —; the script's click stores nothing; the person's click stores exactly one secret, NVIDIA_API_KEY with the key, keeps endpoint:nvidia with the secret's name and without the key, and, since the repository has no job workflow, says that no test job was spawned and why, committing nothing
-test("one click stores the key as the GitHub secret, removes it from this browser and spawns the test job, saying first what it does", async () => {
+// expect: before the click the page says what the click does — the secret NVIDIA_API_KEY, the repository fixture/instance, that the key stays in this browser and a test job is spawned —; the script's click stores nothing; the person's click stores exactly one secret, NVIDIA_API_KEY with the key, keeps endpoint:nvidia with the secret's name and with the key, and, since the repository has no job workflow, says that no test job was spawned and why, committing nothing
+test("one click stores the key as the GitHub secret, keeps it in this browser and spawns the test job, saying first what it does", async () => {
   const store = freshStore(), repo = instanceRepository();
   const target = document.createElement("div");
   await route("endpoints").render(target, { instance: { repository: "fixture/instance", host: repo.host }, product: null, store, go() {} }, {});
   for (const [field, value] of [["endpoint-name", "nvidia"], ["endpoint-url", NVIDIA.url], ["endpoint-model", NVIDIA.model], ["endpoint-key", KEY], ["endpoint-place", "NVIDIA, USA"], ["endpoint-context", "128000"]]) one(target, field).value = value;
   await asTheBrowser(() => click(one(target, "endpoint-test"), true));
   const consent = one(target, "endpoint-actions-consent").textContent;
-  for (const part of ["NVIDIA_API_KEY", "fixture/instance", "removes the key from this browser", "test job"]) assert.ok(consent.includes(part), `${part} in ${consent}`);
+  for (const part of ["NVIDIA_API_KEY", "fixture/instance", "the key stays in this browser", "test job"]) assert.ok(consent.includes(part), `${part} in ${consent}`);
   await click(one(target, "endpoint-actions"), false);
   assert.deepEqual(repo.secrets, [], "a script's click stores nothing");
   await click(one(target, "endpoint-actions"), true);
   await until(() => /No test job was spawned|could not be spawned/.test(one(target, "endpoint-result").textContent), "the test job's outcome is shown");
   assert.deepEqual(repo.secrets, [{ name: "NVIDIA_API_KEY", value: KEY }]);
-  assert.deepEqual(readSetting(store, "endpoint:nvidia"), { ...NVIDIA, place: "NVIDIA, USA", context: 128000, secret: "NVIDIA_API_KEY" });
+  assert.deepEqual(readSetting(store, "endpoint:nvidia"), { ...NVIDIA, place: "NVIDIA, USA", context: 128000, key: KEY, secret: "NVIDIA_API_KEY" });
   assert.match(one(target, "endpoint-result").textContent, /No test job was spawned: the product has no Agent M job workflow yet/);
   assert.deepEqual(repo.commits, []);
 });

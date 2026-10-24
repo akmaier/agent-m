@@ -190,10 +190,10 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     words only after it, in parentheses, on the form and on the endpoint's line of the Settings page. For such an endpoint whose key this browser
     keeps, it says what one click does and offers it: the key stored as the GitHub Actions secret the endpoint names —
     else its name in capitals followed by `_API_KEY` — of the chosen product's repository, else the instance's, with
-    MOD-repository-hosts' `setCiSecret`; the secret's name kept with the endpoint and the key removed from this browser;
+    MOD-repository-hosts' `setCiSecret`; the secret's name kept with the endpoint, and the key kept in this browser;
     and one test job of the endpoint spawned there with MOD-prompt-bar's `spawnEndpointJob` (the kind `converse`, a
     one-line task) and followed with `followJob`, whose end and answer are the endpoint's test, recorded as its last
-    test. An endpoint that names a CI secret and keeps neither a key nor a Bridge in this browser runs through GitHub
+    test. An endpoint that names a CI secret and no Bridge runs through GitHub
     Actions: it is not called from the page, and its *Test* is that test job; a folded explanation that the prompt bar
     appears once an endpoint is configured or a Bridge offers a CLI session (UC-049 1a); *Clear*.
   - `participants` — the instance's participants in a form from the participant schema, a new one prefilled with the

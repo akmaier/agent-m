@@ -202,7 +202,7 @@ IN THE REPOSITORY`).
   the instance's list that this browser reaches, other than an endpoint offered already, until the offer of CLI sessions
   is built. With one offered, it names it; with several, a small selector above the input
   chooses, each named with its processing place. A folded *What is this?* explains the bar. An endpoint that names the
-  CI secret of its key and keeps neither a key nor a Bridge in this browser runs through GitHub Actions: while it is
+  CI secret of its key and no Bridge runs through GitHub Actions, whether or not this browser keeps its key: while it is
   chosen, the button reads *Spawn job* instead of *Send*, and that click — the person's — makes the message the task of
   a job that is the endpoint's own (UC-049 4a.1), of the subject's kind, spawned with `spawnEndpointJob` and followed as
   a hand-over is; nothing is sent from the tab. For every other one it reads *Send*. On *Send* — the decision to

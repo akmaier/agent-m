@@ -95,12 +95,12 @@ export function endpointLacks(setting) {
 
 /**
  * throughActions(participant: Participant, store: Store) -> boolean — whether a message to the participant runs through GitHub Actions: a model endpoint of
- * this browser whose configuration names the CI secret of its key and that keeps neither a key nor a Bridge in this browser, so that the tab cannot call it and its work is
+ * this browser whose configuration names the CI secret of its key and no Bridge, so that the tab does not call it and its work is
  * spawned as a job (UC-049 4a); the bar's button then reads *Spawn job*.
  */
 export function throughActions(participant, store) {
   const name = /^endpoint\s+(\S+)\s+secret\s+\S+$/.exec(String(participant?.route ?? "").trim())?.[1];
   if (name === undefined) return false;
   const setting = readSetting(store, `endpoint:${name}`);
-  return Boolean(setting?.secret) && !setting.key && !setting.bridge;
+  return Boolean(setting?.secret) && !setting.bridge;
 }

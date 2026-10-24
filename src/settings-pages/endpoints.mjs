@@ -118,7 +118,7 @@ export const ACTIONS_TEST_TASK = "This is a test of the endpoint. Answer with th
  * actionsOffer(context, name, result) -> Element | null — for an endpoint the browser may not call (its last test refused it with GitHub Actions among the routes),
  * whose key this browser keeps: what one click does, said before it, and the button that does it (UC-003 4a). The click stores the key as the GitHub Actions secret
  * of the repository the job workflow runs in — the chosen product's, else the instance's — sealed for GitHub and sent only to GitHub's API with the token stored for
- * that repository (MOD-repository-hosts' setCiSecret); it then keeps the secret's name with the endpoint and removes the key from this browser, so that the endpoint
+ * that repository (MOD-repository-hosts' setCiSecret); it then keeps the secret's name with the endpoint, beside the key this browser keeps, so that the endpoint
  * runs through GitHub Actions; and it spawns one test job of the endpoint there (MOD-prompt-bar's spawnEndpointJob, the kind `converse`, ACTIONS_TEST_TASK),
  * follows it, and shows its outcome in `result` as the endpoint's test, recorded as `last-test:endpoint:<name>`. Null where nothing of this applies.
  */
@@ -132,7 +132,7 @@ export function actionsOffer(context, name, result) {
   const go = el("button", "endpoint-actions btn primary", "Store the key as a GitHub secret and test on GitHub Actions");
   const said = el("p", "endpoint-actions-consent",
     `One click: Agent M stores this endpoint's API key as the GitHub Actions secret ${secret} of ${where}, sealed with the repository's public key and sent only to GitHub's API with the token stored for that repository. `
-    + `It then removes the key from this browser, keeps the secret's name with the endpoint, and spawns one test job of ${setting.model} on GitHub Actions; each message to this endpoint then becomes a job there.`);
+    + `It then keeps the secret's name with the endpoint — the key stays in this browser — and spawns one test job of ${setting.model} on GitHub Actions; each message to this endpoint then becomes a job there.`);
   go.addEventListener("click", async (event) => {
     if (event?.isTrusted !== true || go.disabled) return;
     go.disabled = true;
@@ -150,8 +150,7 @@ export function actionsOffer(context, name, result) {
       go.disabled = false;
       return;
     }
-    const { key: _dropped, ...kept } = setting;
-    writeSetting(context.store, key, { ...kept, secret });
+    writeSetting(context.store, key, { ...setting, secret });
     clearSetting(context.store, `last-test:${key}`);
     await context.endpointsChanged?.();
     await testOnActions(context, name, repository, result);
@@ -165,8 +164,8 @@ function jobRepository(context) {
     : context.instance?.host ? { address: null, host: context.instance.host, ofProduct: false, label: context.instance.repository } : null;
 }
 
-/** runsOnActions(setting) -> boolean — whether an endpoint's setting runs through GitHub Actions: it names a CI secret and keeps neither a key nor a Bridge here. */
-export const runsOnActions = (setting) => Boolean(setting?.secret) && !setting.key && !setting.bridge;
+/** runsOnActions(setting) -> boolean — whether an endpoint's setting runs through GitHub Actions: it names a CI secret and no Bridge. */
+export const runsOnActions = (setting) => Boolean(setting?.secret) && !setting.bridge;
 
 /**
  * testThroughActions(context, name, result) -> Promise<void> — an endpoint that runs through GitHub Actions, tested there: one test job spawned on a person's click,
@@ -361,8 +360,8 @@ export const route = {
           }
           return;
         }
-        if (stored.secret && !stored.key) {
-          result.textContent = `Stored. ${chosenName} keeps no key in this browser and names the CI secret ${stored.secret}: it runs through GitHub Actions, and the prompt bar spawns a job for each message.`;
+        if (runsOnActions(stored)) {
+          result.textContent = `Stored. ${chosenName} names the CI secret ${stored.secret}: it runs through GitHub Actions, and the prompt bar spawns a job for each message.`;
           return;
         }
         result.textContent = "Testing the endpoint…";
