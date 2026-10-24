@@ -81,6 +81,7 @@ provides:
   - recordingSchema
   - recordingOf
   - handOverStrategies
+  - endpointLacks
   - endpointsOffered
   - spawnEndpointJob
   - followJob
@@ -250,6 +251,9 @@ IN THE REPOSITORY`).
   older than the job's start turns up it reads that run's log once with `ciRunLog` and takes the secret from the entry's
   line `not run — <SECRET> is missing`. The cost is one `listCiRuns` call per 15-second poll while the job stays queued
   and untaken, and one `ciRunLog` call when a failed run turns up.
+- `endpointLacks(setting: object) -> string[]` — what an endpoint's configuration lacks for the bar to offer it (UC-049 1b): the
+  place where it processes data, its context in tokens, its model; empty when it lacks nothing. `endpointsOffered` offers only
+  one that lacks nothing; the settings page names the rest where the endpoint is configured.
 - `endpointsOffered(store: Store) -> Participant[]` — this browser's endpoints the bar offers, as `startPromptBar` builds
   them; for the settings page's test job of an endpoint.
 - `spawnEndpointJob({ kind, task, participant, store, instance, page, ofProduct, conversation, source }) -> Promise<{ id,

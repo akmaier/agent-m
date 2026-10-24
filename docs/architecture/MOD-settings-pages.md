@@ -99,6 +99,7 @@ uses:
   - MOD-prompt-bar.recordingSchema
   - MOD-prompt-bar.recordingOf
   - MOD-prompt-bar.Subject
+  - MOD-prompt-bar.endpointLacks
   - MOD-prompt-bar.endpointsOffered
   - MOD-prompt-bar.spawnEndpointJob
   - MOD-prompt-bar.followJob
@@ -315,6 +316,7 @@ reaches.
 - MOD-prompt-bar.recordingSchema, MOD-prompt-bar.recordingOf — the instance's switch of recording conversations;
   MOD-prompt-bar.Subject — the subject its routes give the prompt bar; MOD-prompt-bar.endpointsOffered,
   MOD-prompt-bar.spawnEndpointJob, MOD-prompt-bar.followJob — the test job of an endpoint that runs through GitHub Actions.
+- MOD-prompt-bar.endpointLacks — what an endpoint lacks for the prompt bar to offer it, named on its line and on its own page (UC-049 1b).
 - MOD-repository-hosts.setCiSecret — an endpoint's key stored as a GitHub Actions secret, on the person's click.
 - MOD-notifications.NotificationState, MOD-notifications.notificationState, MOD-notifications.switchOn,
   MOD-notifications.testNotification, MOD-notifications.switchOff — the line *Notifications*: its state, *Switch on* in

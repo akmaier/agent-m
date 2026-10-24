@@ -12,6 +12,6 @@
 export { currentJob, dropDraft, latestDraft, startPromptBar } from "./bar.mjs";
 export { handOverStrategies } from "./hand-over.mjs";
 export { recordingOf, recordingSchema } from "./record.mjs";
-export { endpointsOffered } from "./offer.mjs";
+export { endpointLacks, endpointsOffered } from "./offer.mjs";
 export { spawnEndpointJob } from "./hand-over.mjs";
 export { followJob } from "./follow.mjs";

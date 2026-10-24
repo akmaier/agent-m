@@ -11,7 +11,7 @@ import { sourceSchemas } from "../source-register/index.mjs";
 import { resourceSchema } from "../resource-list/index.mjs";
 import { settingsSchemas, pseudonymisationOf, namedPersonFindings } from "../personal-data/index.mjs";
 import { saveFile } from "../artifact-edits/index.mjs";
-import { recordingOf, recordingSchema } from "../prompt-bar/index.mjs";
+import { endpointLacks, recordingOf, recordingSchema } from "../prompt-bar/index.mjs";
 import { jobWorkflowFiles } from "../runtimes/index.mjs";
 import { checkProduct, credentialsFor, tokenKeyAddress, tokenRefusal, tokenSettingKey, route as addProductRoute } from "./products.mjs";
 import { connect, HostError, parseAddress } from "../repository-hosts/index.mjs";
@@ -89,6 +89,9 @@ function endpointLine(target, context, info) {
   const result = el("p", "settings-endpoint-result");
   const status = el("p", "settings-endpoint-status", endpointStateText(setting, readSetting(context.store, `last-test:${info.key}`) ?? info.lastTest));
   const offerSlot = el("div", "settings-endpoint-actions-slot");
+  // What it lacks for the prompt bar to offer it, named where it is configured (UC-049 1b).
+  const lacks = endpointLacks(setting);
+  const notOffered = lacks.length ? el("p", "notice settings-endpoint-lacks", `The prompt bar does not offer it: it lacks ${lacks.join(" and ")}. Press Change to enter ${lacks.length === 1 ? "it" : "them"}.`) : null;
   key.type = "password";
   key.value = setting.key ?? "";
   key.autocomplete = "off";
@@ -149,6 +152,7 @@ function endpointLine(target, context, info) {
     el("h3", null, info.label),
     el("p", null, `Model: ${setting.model}`),
     status,
+    ...(notOffered ? [notOffered] : []),
     el("p", null, el("label", null, "API key ", key, " ", show)),
     el("p", "settings-endpoint-disclosure", namesNoBridge(setting) ? CHOOSE_BRIDGE_DISCLOSURE : setting.bridge
       ? `Agent M sends one short test request to Bridge ${setting.bridge}. Its optional endpoint key is inside that Bridge request; Bridge and jump-host credentials are sent only as authorisation headers, never in a URL or repository.`

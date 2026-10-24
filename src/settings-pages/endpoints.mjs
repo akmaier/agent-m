@@ -6,7 +6,7 @@ import { testEndpoint } from "../endpoint-calls/index.mjs";
 import { bridgeAt, probe, settingsOf } from "../bridge-client/index.mjs";
 import { clearSetting, listSettings, readSetting, writeSetting } from "../browser-store/index.mjs";
 import { explain } from "../site-frame/index.mjs";
-import { endpointsOffered, followJob, spawnEndpointJob } from "../prompt-bar/index.mjs";
+import { endpointLacks, endpointsOffered, followJob, spawnEndpointJob } from "../prompt-bar/index.mjs";
 
 function el(name, className, ...children) {
   const node = document.createElement(name);
@@ -394,6 +394,9 @@ export const route = {
       el("h2", null, "Configure a model endpoint"),
       el("p", "muted", "Store an endpoint in this browser, then make one short test request."),
       el("p", "muted prompt-bar-note", PROMPT_BAR_NOTE),
+      // A stored endpoint names what it lacks for the prompt bar to offer it (UC-049 1b).
+      ...(loadedSetting && endpointLacks(loadedSetting).length
+        ? [el("p", "notice endpoint-lacks", `The prompt bar does not offer ${requestedName}: it lacks ${endpointLacks(loadedSetting).join(" and ")}. Enter ${endpointLacks(loadedSetting).length === 1 ? "it" : "them"} below and save.`)] : []),
       el("p", null, el("label", null, "Name ", name)),
       el("p", null, el("label", null, "Endpoint URL ", url)),
       explain("endpoint-url"),

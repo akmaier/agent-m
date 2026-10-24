@@ -68,10 +68,10 @@ export function endpointsOffered(store) {
     const name = key.slice("endpoint:".length);
     const setting = readSetting(store, key);
     if (!setting || typeof setting !== "object") continue;
-    const place = typeof setting.place === "string" ? setting.place.trim() : "";
+    if (endpointLacks(setting).length) continue;
+    const place = setting.place.trim();
     const context = Number(setting.context);
-    const model = typeof setting.model === "string" ? setting.model.trim() : "";
-    if (!place || !model || !Number.isInteger(context) || context <= 0) continue;
+    const model = setting.model.trim();
     if (setting.bridge && readSetting(store, `bridge:${setting.bridge}`) === null) continue;
     const tools = readSetting(store, `last-test:${key}`)?.tools === true;
     const secret = typeof setting.secret === "string" && /^[A-Za-z_][A-Za-z0-9_]*$/.test(setting.secret) ? setting.secret : null;
@@ -80,6 +80,17 @@ export function endpointsOffered(store) {
       route: `endpoint ${name}${secret ? ` secret ${secret}` : ""}` });
   }
   return offered;
+}
+
+/**
+ * endpointLacks(setting: object) -> string[] — what an endpoint's configuration lacks for the bar to offer it (UC-049 1b), each as the settings page
+ * names it: the place where it processes data, its context in tokens, its model; empty when it lacks nothing.
+ */
+export function endpointLacks(setting) {
+  const text = (value) => (typeof value === "string" ? value.trim() : "");
+  const context = Number(setting?.context);
+  return [!text(setting?.place) && "the place where it processes data", !(Number.isInteger(context) && context > 0) && "its context in tokens",
+    !text(setting?.model) && "its model"].filter(Boolean);
 }
 
 /**

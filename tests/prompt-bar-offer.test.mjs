@@ -149,3 +149,19 @@ test("dropDraft — drops the draft where it was drafted on that subject, and le
 test("currentJob — null while no message runs", () => {
   assert.equal(currentJob(), null);
 });
+
+// TST-1201001 · level: unit · module: MOD-prompt-bar
+// guards: UC-049
+// given: an endpoint as an older Settings page stored it — address, kind, model and key, with no place and no context —, the same with a place and a context, and one with only a place
+// input: endpointLacks for each, and endpointsOffered over a store holding the first and the second
+// expect: the first lacks the place and the context, the second nothing, the third its context in tokens and its model; endpointsOffered offers only the second
+test("endpointLacks — names what keeps an endpoint out of the bar, and endpointsOffered offers only one that lacks nothing", () => {
+  const old = { url: "https://example.invalid/v1", kind: "openai-compatible", model: "model-x", key: "k" };
+  assert.deepEqual(promptBar.endpointLacks(old), ["the place where it processes data", "its context in tokens"]);
+  assert.deepEqual(promptBar.endpointLacks({ ...old, place: "Example, USA", context: 128000 }), []);
+  assert.deepEqual(promptBar.endpointLacks({ place: "Example, USA" }), ["its context in tokens", "its model"]);
+  const store = freshStore();
+  writeSetting(store, "endpoint:old", old);
+  writeSetting(store, "endpoint:complete", { ...old, place: "Example, USA", context: 128000 });
+  assert.deepEqual(promptBar.endpointsOffered(store).map((each) => each.name), ["complete"]);
+});
