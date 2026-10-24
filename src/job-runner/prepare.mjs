@@ -19,7 +19,8 @@ import { needs } from "./builtins.mjs";
 import { failure, strategyOf } from "./registry.mjs";
 
 const REGISTER = "docs/participants.md";
-const estimate = (text) => Math.ceil(text.length / 3);
+// estimate(text) -> number — a text's size in tokens as the runner estimates it: its characters divided by three, rounded up (MOD-job-runner, Data).
+export const estimate = (text) => Math.ceil(text.length / 3);
 
 // Every strategy a kind names, by its category in the registry, in the order a job meets them.
 const named = (kind) => [

@@ -325,3 +325,23 @@ test("TST-488013: a ToolUse with no definitions makes the one request it made be
     { model: "fixture-model", max_tokens: 1024, messages: [{ role: "user", content: "Inspect the fixture." }] });
   assert.deepEqual(log, []);
 });
+
+// TST-1206001 · level: unit · module: MOD-endpoint-calls
+// guards: UC-049
+// given: a participant whose context holds 2000 tokens; the model asks to read big.md, whose text has 30000 characters (about 10000 tokens), then answers
+// input: the driver's send with a read_file tool
+// expect: the second request carries, as the tool's result, a refusal naming about 10000 tokens and the tokens left — not the file's text; the answer is returned;
+// counter-proof: the same exchange for a participant without a declared context carries the file's text
+test("TST-1206001: a tool result that would carry the conversation past the participant's context is refused, naming its size", async (t) => {
+  const big = "x".repeat(30000);
+  for (const [participant, refused] of [[{ name: "small", context: 2000 }, true], [PARTICIPANT, false]]) {
+    const bodies = provider(t, "openai-compatible", [providerReply("openai-compatible", { calls: [{ id: "c1", path: "big.md" }] }), providerReply("openai-compatible", { text: "done" })]);
+    const result = await endpointDriver(OPENAI, participant).send(input(toolUse({ results: { "big.md": big } })));
+    assert.equal(result.text, "done");
+    const toolMessage = bodies[1].messages.find((message) => message.role === "tool");
+    if (refused) {
+      assert.match(toolMessage.content, /^refused: the result of read_file holds about 10000 tokens, and about \d+ of the context's 2000 tokens are left/);
+      assert.equal(toolMessage.content.includes(big), false);
+    } else assert.equal(toolMessage.content, big);
+  }
+});

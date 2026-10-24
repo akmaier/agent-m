@@ -1,6 +1,6 @@
 // MOD-endpoint-calls — direct endpoint tests, diagnoses, and model drivers for browser and Node callers.
 
-import { driverPrompt } from "../job-runner/index.mjs";
+import { driverPrompt, estimate } from "../job-runner/index.mjs";
 
 /**
  * @typedef {{ name: string, kind: "openai-compatible" | "anthropic", baseUrl: string, model: string, key: string | null }} EndpointConfig
@@ -158,9 +158,12 @@ function addUsage(total, usage) {
 }
 
 // The execution loop: each request is one endpointExchange; the runner's ToolUse carries every call out.
-async function toolLoop(config, input, signal, exchangeOf) {
+// A tool's result that would carry the conversation past the participant's declared context is not added: the model is told its size and what is left, so that
+// it asks for a smaller part (UC-049 3a: nothing is left out silently, nothing is sent that does not fit). Null `context`: no bound is known, and none is applied.
+async function toolLoop(config, input, signal, exchangeOf, context = null) {
   const { definitions, limit } = input.tools;
   const messages = [{ role: "user", text: driverPrompt(input) }];
+  const used = () => messages.reduce((sum, message) => sum + estimate(message.text ?? "") + (message.calls ? estimate(JSON.stringify(message.calls)) : 0), 0);
   let offered = definitions, carriedOut = 0, usage = null;
   for (;;) {
     signal?.throwIfAborted();
@@ -174,6 +177,11 @@ async function toolLoop(config, input, signal, exchangeOf) {
         signal?.throwIfAborted();
         text = await input.tools.call(requested.name, requested.args);
         carriedOut += 1;
+        const size = estimate(text), left = context === null ? null : context - used();
+        if (left !== null && size > left) {
+          text = `refused: the result of ${requested.name} holds about ${size} tokens, and about ${Math.max(0, left)} of the context's ${context} tokens are left; `
+            + "ask for a smaller part — search-files for the lines you need, or read a shorter file";
+        }
       } else text = `refused: the limit of ${limit} tool calls is reached`;
       messages.push({ role: "tool", text, callId: requested.id });
     }
@@ -185,7 +193,7 @@ async function toolLoop(config, input, signal, exchangeOf) {
 // tools, the requests of the execution loop — each one call of `exchange`, which is endpointExchange unless the caller gives its own; no route selection, retries, input cutting, or part duplication belongs here.
 export function endpointDriver(config, participant, exchange = endpointExchange) {
   return { participant, async send(input, options = {}) {
-    if (input.tools?.definitions?.length) return toolLoop(config, input, options.signal, exchange);
+    if (input.tools?.definitions?.length) return toolLoop(config, input, options.signal, exchange, Number.isInteger(participant?.context) ? participant.context : null);
     const where = typeof window === "undefined" ? "node" : "browser";
     const { url, init } = driverRequest(config, driverPrompt(input), options.signal);
     const response = await endpointResponse(config, { url, init }, where);

@@ -46,6 +46,7 @@ provides:
   - DriverInput
   - ToolUse
   - driverPrompt
+  - estimate
   - Usage
   - JobContext
   - Part
@@ -266,6 +267,9 @@ ONLY WHEN RECORDING IS ON`).
   offers. Throws `DuplicateStrategy { strategy, owners }` when a name is registered twice — the strategy's name in
   `strategy`, since an error's own `name` is its type —, and then adds none of them; a program registers each owner
   once, before its first job.
+- `estimate(text: string) -> number` — a text's size in tokens as the runner estimates it: its characters divided by
+  three, rounded up; the size prepareJob gives each part, and the one MOD-endpoint-calls' execution loop bounds its tool
+  results by.
 - `prepareJob(kind: string, context: JobContext, choice: { drafter: Participant | null, reviewers: Participant[], limit?:
   number }) -> Promise<Prepared>` — sends nothing. It reads the kind, evaluates its preconditions, builds the parts from
   its recipes, estimates their sizes, and checks each destination with MOD-participant-list's `eligible`: the
