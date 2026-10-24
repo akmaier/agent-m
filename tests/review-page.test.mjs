@@ -59,7 +59,10 @@ async function product() {
 
 // ---------------------------------------------------------------- the app: the page, the click, what it reads
 
-const server = async (files) => repoServer({ files, history: EARLIER });
+// Each server stands at a commit of its own (tests/app-harness.mjs' head): MOD-trace-graph's storedGraph keeps a commit's graph for the length of this file.
+let servers = 0;
+const ownHead = () => `c0ffee${String(++servers).padStart(6, "0")}`.padEnd(40, "0");
+const server = async (files) => repoServer({ files, history: EARLIER, head: ownHead() });
 const files = (requests) => requests.filter((r) => r.startsWith("file ")).map((r) => r.slice(5)).sort();
 const writesOf = (requests) => requests.filter((r) => /^write /.test(r) || r === "ref" || r === "commit object");
 const count = (requests, what) => requests.filter((r) => r === what).length;
@@ -108,7 +111,7 @@ test("a change to an architecture file is not offered for acceptance where its i
   // The page derives the impact list only from the graph the workflow "main changed" stored for the commit (MOD-review-pages: "no page builds a graph"); a
   // server whose branch trace-cache holds no graph, through the contents API or the raw host, leaves it underivable.
   const refused = async (url) => (/\/[0-9a-f]{40}\.json\.gz$/.test(url.pathname) ? new Response('{"message":"Not Found"}', { status: 404 }) : undefined);
-  const page = await openDashboard({ server: await repoServer({ files: repo, history: EARLIER, handlers: [refused] }), hash: "#arc/MOD-reader" });
+  const page = await openDashboard({ server: await repoServer({ files: repo, history: EARLIER, handlers: [refused], head: ownHead() }), hash: "#arc/MOD-reader" });
   assert.match(page.main(), /The impact list could not be derived/);
   assert.doesNotMatch(page.main(), /Impact of this change/);
   assert.doesNotMatch(page.main(), /<button class="btn accept"/, "without the list, no Accept");
