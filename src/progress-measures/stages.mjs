@@ -281,6 +281,8 @@ export async function publishOverview(host, snapshot, facts) {
 ` });
   }
   if (!branch.paths.includes(factsPath(commit))) files.push({ path: factsPath(commit), text: await factsText(snapshot, facts) });
+  // latest.json names the commit of the overview stored last, which a page shows while its head's own is not stored yet (latestOverview).
+  if (files.length > 0) files.push({ path: LATEST, text: `${JSON.stringify({ commit })}\n` });
   if (files.length === 0) return { commit, written: false };
   await host.commitFiles({ branch: OVERVIEW_BRANCH, expectedHead: branch.commit ?? null, message: `Overview of ${commit}`, files });
   return { commit, written: true };
@@ -306,6 +308,24 @@ export function storedOverview(snapshot) {
     reading.then((held) => { if (held === null) OVERVIEWS.delete(snapshot); }, () => OVERVIEWS.delete(snapshot));
   }
   return OVERVIEWS.get(snapshot);
+}
+
+const LATEST = "latest.json";
+
+/**
+ * latestOverview(snapshot) -> Promise<{ commit, shares, waiting, model, build, queues } | null> — the overview stored last on the branch, whichever commit it is of, as the file
+ * latest.json names it: what a page shows while the overview of its head is not stored yet, never deriving one itself. Null where the branch, `latest` or that overview is missing.
+ * @param {object} snapshot
+ */
+export async function latestOverview(snapshot) {
+  if (typeof snapshot?.readOn !== "function") return null;
+  let named;
+  try { named = await snapshot.readOn(OVERVIEW_BRANCH, LATEST); } catch (error) { if (error?.name === "NotFound") return null; throw error; }
+  let commit = "";
+  try { commit = typeof named === "string" ? String(JSON.parse(named)?.commit ?? "") : ""; } catch { return null; }
+  if (!/^[0-9a-f]{40}$/.test(commit)) return null;
+  const held = await readOverview({ readOn: snapshot.readOn, commit });
+  return held && { commit, ...held };
 }
 
 async function readOverview(snapshot) {

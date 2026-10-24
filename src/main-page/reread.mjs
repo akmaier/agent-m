@@ -89,7 +89,7 @@ export function readAgain({ target, cards, nodes, held, store }) {
         const next = await jobsAgain(card.entry, store);
         card.entry.facts = { ...facts, jobs: next.jobs };
         card.entry.jobState = next.jobState;
-        nodes[at] = productCard({ title: source.title, address: source.address, model, shares, current, build: buildInProgress(card.entry.facts), own: source.own === true });
+        nodes[at] = productCard({ title: source.title, address: source.address, model, shares, current, build: buildInProgress(card.entry.facts), own: source.own === true, asOf: card.entry.asOf ?? null });
         problems.delete(at);
         card.due = now + EVERY;
       } catch (failure) {

@@ -63,17 +63,19 @@ const head = (title, address) => {
 };
 
 /**
- * productCard({ title, address, model, shares, current, build, own }) -> Element — the card of a product whose facts were read: `model` the name of its process model, or null where it declares none
+ * productCard({ title, address, model, shares, current, build, own, asOf }) -> Element — the card of a product whose facts were read: `model` the name of its process model, or null where it declares none
  * (its Implementation stage then says that the process is configured when implementation starts); `shares`, `current` and `build` as MOD-progress-measures' stageShares, currentStage and
  * buildInProgress give them.
  */
-export function productCard({ title, address, model, shares, current, build, own = false }) {
+export function productCard({ title, address, model, shares, current, build, own = false, asOf = null }) {
   // Each stage links to the menu's entry of the same place in the process, for the card's product; Agent M's own card (`own`) has no product.
   const entries = menuOf("main", [], own ? null : address);
   const card = el("article", "card", head(title, address),
     el("p", "card-model", model ? `Developed with ${model}` : "Its process is chosen when implementation starts"), stageBar(shares, current, entries));
   const rows = buildList(build);
   if (rows) card.append(rows);
+  // An overview of an earlier commit, shown while the workflow stores the head's: said, never derived here.
+  if (asOf) card.append(el("p", "muted card-as-of", `As of ${asOf.slice(0, 7)}: the overview of the newest commit is being stored.`));
   card.setAttribute("data-card", address);
   return card;
 }

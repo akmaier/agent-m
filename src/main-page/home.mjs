@@ -21,7 +21,7 @@
 import { readSetting } from "../browser-store/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
 import { menuOf } from "../site-frame/index.mjs";
-import { productFacts, stageShares, currentStage, buildInProgress, waitingForAPerson, storedOverview } from "../progress-measures/index.mjs";
+import { productFacts, stageShares, currentStage, buildInProgress, waitingForAPerson, storedOverview, latestOverview } from "../progress-measures/index.mjs";
 import { listJobs } from "../job-ledger/index.mjs";
 import { bridgesOf, liveStatesOf, sourcesOf } from "./jobs.mjs";
 import { el, productCard, readingCard, errorCard } from "./cards.mjs";
@@ -49,16 +49,20 @@ function once(host) {
     readSnapshot: (ref) => { if (!branches.has(ref)) branches.set(ref, host.readSnapshot(ref)); return branches.get(ref); } };
 }
 
-// The head of the host's default branch and the overview stored for it (MOD-progress-measures' storedOverview), null where there is none. A failure of the host here is left to the
+// The head of the host's default branch and the overview stored for it (MOD-progress-measures' storedOverview); while that is not stored yet, the overview stored last
+// (latestOverview), with the commit it is of; null only for a repository that stores none, whose card is then derived as before. A failure of the host here is left to the
 // scope `all`, which meets it again and gives the card its reason; any other error is a fault of the page.
 const HOST_FAILURES = new Set(["NotFound", "NotSupported", "TokenRefused", "PermissionMissing", "RateLimited", "Unreachable"]);
 async function storedFor(host) {
   try {
     const { defaultBranch } = await host.repositoryInfo();
     const snapshot = await host.readSnapshot(defaultBranch);
-    return { snapshot, stored: await storedOverview(snapshot) };
+    const own = await storedOverview(snapshot);
+    if (own) return { snapshot, stored: own, asOf: null };
+    const latest = await latestOverview(snapshot);
+    return { snapshot, stored: latest, asOf: latest ? latest.commit : null };
   } catch (failure) {
-    if (HOST_FAILURES.has(failure?.name)) return { snapshot: null, stored: null };
+    if (HOST_FAILURES.has(failure?.name)) return { snapshot: null, stored: null, asOf: null };
     throw failure;
   }
 }
@@ -91,12 +95,12 @@ async function cardOf(source, reading, go, known = null) {
     const raw = known === null ? source.host : { ...source.host, repositoryInfo: () => Promise.resolve(known.info),
       readSnapshot: (ref) => (ref === known.snapshot.ref ? Promise.resolve(known.snapshot) : source.host.readSnapshot(ref)) };
     const host = once(raw);
-    const { snapshot, stored } = await storedFor(host);
+    const { snapshot, stored, asOf } = await storedFor(host);
     const facts = stored ? await buildOf(host, reading.store, snapshot, stored) : await factsOf(host, reading);
     const shares = stored ? stored.shares : await stageShares(facts);
     const model = stored ? stored.model : facts.model?.name ?? null, current = currentStage(shares);
-    return { card: productCard({ title: source.title, address: source.address, model, shares, current, build: buildInProgress(facts), own: source.own === true }),
-      held: { source, facts, shares, current, model },
+    return { card: productCard({ title: source.title, address: source.address, model, shares, current, build: buildInProgress(facts), own: source.own === true, asOf }),
+      held: { source, facts, shares, current, model, asOf },
       waits: (stored ? stored.waiting : waitingForAPerson(facts)).map((item) => ({ ...item, product: source.title, address: source.address, own: source.own === true })) };
   } catch (failure) {
     return { card: errorCard({ title: source.title, address: source.address, reason: reasonOf(failure), go }), waits: [] };

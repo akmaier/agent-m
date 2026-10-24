@@ -164,8 +164,8 @@ test("TST-827005 while this browser keeps no product, the one card is Agent M's 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-046
 // given: this browser keeps the product alice/product of 600 backlog items, 400 job records, SPEC.md and one test file, with a token for it and one for the instance, whose repository holds its participant list
 // input: the route home drawn; the fake's requests counted
-// expect: 25 requests in all — the repository 2 (the instance's and the product's), the commits 3 (the instance's main, the product's main and test-results), the trees 2, the pull requests 1, the tags 1, the CI runs of the product's head 1, the overview and the stored facts of the product's head 1 each (it holds neither) and 13 batch requests of at most a hundred files; not one file is read by a request of its own; every request carries an Authorization header
-test("TST-827006 with a token, the route home reads 600 items and 400 job records in 13 batches, 25 requests in all", async () => {
+// expect: 26 requests in all — the repository 2 (the instance's and the product's), the commits 3 (the instance's main, the product's main and test-results), the trees 2, the pull requests 1, the tags 1, the CI runs of the product's head 1, the overview and the stored facts of the product's head 1 each (it holds neither) and 13 batch requests of at most a hundred files; not one file is read by a request of its own; every request carries an Authorization header
+test("TST-827006 with a token, the route home reads 600 items and 400 job records in 13 batches, 26 requests in all", async () => {
   net = network({ [PRODUCT]: productFiles({ items: 600, jobs: 400 }), [INSTANCE]: instanceFiles() });
   net.install();
   const target = await draw(home, browser());
@@ -173,7 +173,7 @@ test("TST-827006 with a token, the route home reads 600 items and 400 job record
   for (const { kind } of net.server.log) kinds[kind] = (kinds[kind] ?? 0) + 1;
   assert.equal(cardsOf(target).length, 1);
   assert.equal(byClass(target, "is-error").length, 0);
-  assert.equal(net.requests.length, 25);
+  assert.equal(net.requests.length, 26);
   assert.deepEqual(kinds, { repository: 2, commit: 3, tree: 2, "pull requests": 1, tags: 1, "ci runs": 1, batch: 13 });
   assert.deepEqual(net.server.log.filter((entry) => entry.kind === "file"), []);
   assert.deepEqual(net.requests.filter((request) => request.authorization === null), []);
@@ -183,15 +183,15 @@ test("TST-827006 with a token, the route home reads 600 items and 400 job record
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-046
 // given: the product, the instance and the browser of TST-827006, with no token stored for the instance or the product, so that the host has no batch request and every file is read by a request of its own
 // input: the route home drawn; the fake's requests counted
-// expect: 1,015 requests in all — the repository 2, the commits 3, the trees 2, the pull requests 1, the tags 1, the CI runs of the product's head 1, the overview and the stored facts of the product's head 1 each (it holds neither; from the raw host, the 1,004th and 1,005th file read) and 1,003 files each by a request of its own (the 600 items, the 400 job records, SPEC.md, the test file and the instance's participant list); no batch request; no request carries an Authorization header
-test("TST-827007 without a token, the route home reads every file by a request of its own, 1,015 requests in all", async () => {
+// expect: 1,016 requests in all — the repository 2, the commits 3, the trees 2, the pull requests 1, the tags 1, the CI runs of the product's head 1, the overview and the stored facts of the product's head 1 each (it holds neither; from the raw host, the 1,004th and 1,005th file read) and 1,003 files each by a request of its own (the 600 items, the 400 job records, SPEC.md, the test file and the instance's participant list); no batch request; no request carries an Authorization header
+test("TST-827007 without a token, the route home reads every file by a request of its own, 1,016 requests in all", async () => {
   net = network({ [PRODUCT]: productFiles({ items: 600, jobs: 400 }), [INSTANCE]: instanceFiles() });
   net.install();
   const target = await draw(home, browser({ tokens: {}, instanceToken: null }));
   const kinds = {};
   for (const { kind } of net.server.log) kinds[kind] = (kinds[kind] ?? 0) + 1;
   assert.equal(byClass(target, "is-error").length, 0);
-  assert.equal(net.requests.length, 1015);
+  assert.equal(net.requests.length, 1016);
   assert.deepEqual(kinds, { repository: 2, commit: 3, tree: 2, "pull requests": 1, tags: 1, "ci runs": 1, file: 1005 });
   assert.deepEqual(net.requests.filter((request) => request.authorization !== null), []);
 });
@@ -350,7 +350,7 @@ test("TST-847002 with a token, a reading of the jobs' states is the product's co
   net = network({ [PRODUCT]: productFiles({ items: 600, jobs: 400 }), [INSTANCE]: instanceFiles() });
   net.install();
   await draw(home, browser());
-  assert.equal(net.requests.length, 25);
+  assert.equal(net.requests.length, 26);
   const sent = net.requests.length, logged = net.server.log.length;
   await timers.fire(at("12:01"));
   assert.deepEqual(net.requests.slice(sent).map(addressOf), ["/repos/alice/product/commits/main", "/repos/alice/product/git/trees/<commit>"]);
@@ -376,7 +376,7 @@ test("TST-847003 a card whose repository this browser keeps no token for is not 
   net = network({ [PRODUCT]: productFiles({ items: 600, jobs: 400 }), [INSTANCE]: instanceFiles() });
   net.install();
   await draw(home, browser({ tokens: {}, instanceToken: null }));
-  assert.equal(net.requests.length, 1015);
+  assert.equal(net.requests.length, 1016);
   assert.deepEqual(waitingDelays(), []);
 
   net.restore();
@@ -835,7 +835,8 @@ test("TST-943004 each card reads its own head's overview, and an overview stored
   assert.deepEqual(stagesOf(first), STORED_STAGES);
   assert.deepEqual(stagesOf(second)[1], ["Use cases", "50 %", "1 of 2 accepted"]);
   assert.equal(overviewReads().filter((request) => request.url.includes("/repos/alice/product/")).length, 1);
-  assert.equal(overviewReads().filter((request) => request.url.includes("/repos/bob/other/")).length, 1);
+  // bob/other: its head's overview, then the file `latest`, which its branch does not hold — so its card is derived from its files.
+  assert.equal(overviewReads().filter((request) => request.url.includes("/repos/bob/other/")).length, 2);
 });
 
 // TST-943005 · level: unit · module: MOD-main-page
