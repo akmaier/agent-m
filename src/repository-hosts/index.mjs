@@ -1,5 +1,5 @@
 // The repository hosts — one interface to a repository on GitHub or on a GitLab server: parseAddress, connect, and the host it
-// returns, with repositoryInfo, readSnapshot, readHistory, listTags, issueCounts, commitFiles, createTag, listReleaseAssets, createBranch, startWorkflow, setCiSecret, setPipelineSchedule, listCiRuns,
+// returns, with repositoryInfo, readSnapshot, readHistory, listTags, issueCounts, commitFiles, createTag, listReleaseAssets, createBranch, startWorkflow, setCiSecret, setPipelineSchedule, ciVariableScopes, listCiRuns,
 // cancelCiRun, ciRunLog, ciRunLabels and webLinks. Every function of a host that reaches a server says so and names how it fails, as a HostError (A REMOTE INTERFACE
 // NAMES HOW IT FAILS).
 //
@@ -166,6 +166,7 @@ function throughClone(repository, folder, rest) {
     createBranch: rest ? (...a) => rest.createBranch(...a) : without("a branch"),
     startWorkflow: rest ? (...a) => rest.startWorkflow(...a) : without("starting a workflow"),
     setPipelineSchedule: rest ? (...a) => rest.setPipelineSchedule(...a) : without("a pipeline schedule"),
+    ciVariableScopes: rest?.ciVariableScopes ? (...a) => rest.ciVariableScopes(...a) : without("the CI/CD variables"),
     listCiRuns: rest ? (...a) => rest.listCiRuns(...a) : without("the CI runs"),
     cancelCiRun: rest ? (...a) => rest.cancelCiRun(...a) : without("cancelling a CI run"),
     jobLogs: rest ? (...a) => rest.jobLogs(...a) : without("the log of a CI run"),
@@ -472,6 +473,15 @@ export function connect(address, credentials = {}) {
         }
       }
       return adapter.setPipelineSchedule(schedule);
+    },
+
+    // ciVariableScopes() -> { name, scope }[] — on a GitLab server, each CI/CD variable of the project by its name and environment scope, never its value. On GitHub
+    // NotSupported (an Actions secret has no environment scope), and without a token before any request. Crosses the network; fails with PermissionMissing — a token
+    // without the role Maintainer —, TokenRefused, RateLimited, Unreachable.
+    async ciVariableScopes() {
+      if (github) throw new HostError("NotSupported", { what: "CI/CD variable scopes on GitHub" }, "An Actions secret of a GitHub repository has no environment scope.");
+      if (!token) throw new HostError("NotSupported", { what: "the CI/CD variables without a token" }, "The CI/CD variables are listed only with a token of the role Maintainer; store one first.");
+      return adapter.ciVariableScopes();
     },
 
     // listPullRequests(filter) -> PullRequest[] — the pull requests of GitHub or the merge requests of GitLab, every page, optionally only those of a state (open, merged, closed, all — the
