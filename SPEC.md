@@ -755,7 +755,7 @@ that one project, with role *Maintainer* and scope `api`, and to paste it into A
 **ONE GITHUB TOKEN SERVES EVERY FEATURE** *(PO A. Maier)*
 On GitHub, each token Agent M asks a person for — the instance's and each product's — is one fine-grained token that
 carries every permission its features need on its repositories — *Contents*, *Issues* and *Pull requests* read and write,
-*Actions* and *Workflows* read and write, *Metadata* read.
+*Actions*, *Workflows* and *Secrets* read and write, *Metadata* read.
 *Check:* `tests/test_token_scope_documented.py` — the prefilled link asks for exactly these
 permissions; `tests/dashboard-review-flows.test.mjs` — so does the link for a product's token.
 
