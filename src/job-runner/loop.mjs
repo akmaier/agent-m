@@ -85,10 +85,16 @@ function reviewed(text, kind) {
 }
 
 // The kind's prompt with each recipe's parts in its named place, each under its name; "(none)" where a recipe gave none.
-const promptOf = (kind, parts) => kind.prompt.replace(/\{\{([a-z-]+)\}\}/g, (place, recipe) => {
+// The prepared prompt: the kind's prompt with each recipe's parts in its place, followed by the form of the answer — the envelope the runner reads every answer
+// by (envelopeOf), as a JSON schema — so that a participant is told the form before its first answer, not only by a finding after an answer that does not have it.
+const promptOf = (kind, parts) => `${kind.prompt.replace(/\{\{([a-z-]+)\}\}/g, (place, recipe) => {
   const given = parts.filter((part) => part.recipe === recipe);
   return given.length ? given.map((part) => `### ${part.name}\n\n${part.text}`).join("\n\n") : "(none)";
-});
+})}\n\n${answerForm(kind)}`;
+
+const answerForm = (kind) => "## The form of your answer\n\nAnswer with exactly one JSON object and nothing else, of the form this JSON schema gives: your work under "
+  + "`draft`, and under `answers` one entry for each finding you were given — `fixed`, `justified` with its one-line `text`, or `answered`.\n\n"
+  + "```json\n" + JSON.stringify(envelopeOf(kind.answer), null, 2) + "\n```";
 
 const draftText = (draft) => (typeof draft === "string" ? draft : JSON.stringify(draft, null, 2));
 const partsFor = (kind, parts) => parts.filter((part) => kind.recipes.some((recipe) => recipe.name === part.recipe));

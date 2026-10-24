@@ -307,7 +307,8 @@ test("runOnTab — the Bridge a participant's route names is chosen by its name 
   assert.deepEqual(result.draft, { text: "from the Bridge" });
   assert.deepEqual([...new Set(requests.map((each) => each.origin))], [OTHER_ADDRESS]);
   assert.equal(requests[0].token, "token-office");
-  assert.deepEqual(requests[0].body, { agent: "claude", input: "Write." });
+  assert.deepEqual([Object.keys(requests[0].body).sort(), requests[0].body.agent], [["agent", "input"], "claude"]);
+  assert.ok(requests[0].body.input.startsWith("Write.\n\n## The form of your answer\n"), "the prepared prompt, then the form of the answer");
   let end = (await repository.record()).end;
   assert.deepEqual([end.state, end.usage.inputTokens, end.usage.outputTokens], ["done", 12, 7]);
 
@@ -317,7 +318,8 @@ test("runOnTab — the Bridge a participant's route names is chosen by its name 
   result = await runtimes.runOnTab(await job(endpoint), contextOf(endpoint), { endpoints: { ep1: { config: CONFIG, bridge: "lab-pc" } }, bridges }, { host: repository.host, record: { ...START, path: RECORD_PATH, run: null } });
   assert.deepEqual(result.draft, { text: "from the Bridge" });
   assert.deepEqual([...new Set(requests.map((each) => each.origin))], [BRIDGE_ADDRESS]);
-  assert.deepEqual(requests[0].body, { endpoint: CONFIG, input: "Write." });
+  assert.deepEqual([Object.keys(requests[0].body).sort(), requests[0].body.endpoint], [["endpoint", "input"], CONFIG]);
+  assert.ok(requests[0].body.input.startsWith("Write.\n\n## The form of your answer\n"), "the prepared prompt, then the form of the answer");
   assert.ok(!requests.some((each) => each.origin.includes("example.test")), "the model endpoint is called by the Bridge, not by the page");
   end = (await repository.record()).end;
   assert.equal(end.state, "done");

@@ -191,7 +191,8 @@ ONLY WHEN RECORDING IS ON`).
   missing or ended with an error, a cancel — and never retries until an answer pleases.
 - `DriverInput` — `{ prompt: string, parts: Part[], output: object | null, findings: Finding[], previous: string | null,
   workdir: string | null }`: the kind's prompt with each recipe's parts in that recipe's named place, each under its name,
-  and `(none)` where a recipe gave no part — a driver sends this prompt as it is and does not add the parts again —; the
+  and `(none)` where a recipe gave no part, followed by *The form of your answer*: the envelope every answer is read by,
+  as a JSON schema — a driver sends this prompt as it is and does not add the parts again —; the
   parts; the output schema the answer must follow; the findings of the last round with the draft they concern — or, in
   the first exchange of a job given `refine`, no finding and the draft to change —; for an agent that works in a
   folder, that folder; and `tools`, a `ToolUse` or `null`.
