@@ -190,9 +190,28 @@ def input_problems(kind, sent):
     for recipe in re.findall(r"\{\{([a-z-]+)\}\}", kind["prompt"]):
         if recipe not in kind["recipes"]:
             problems.append(f"the prompt names the place {recipe}, which no recipe of the kind fills")
-    if sent != expected_input(kind["prompt"], kind["parts"]):
+    body = expected_input(kind["prompt"], kind["parts"])
+    if not sent.startswith(body) or not is_answer_form(sent[len(body):]):
         problems.append("the input is not the prompt with its recipes' parts and nothing else")
     return problems
+
+
+# The form of the answer that follows the prompt (MOD-job-runner, DriverInput: "followed by *The form of your answer*: the envelope every answer is
+# read by, as a JSON schema"): its heading, one paragraph, and the envelope as one JSON block that ends the input. The envelope MOD-job-catalogue states:
+# every answer has the same envelope, { "draft": …, "answers": [...] }. Its wording is the runner's; only its form is read here.
+ANSWER_FORM = re.compile(r"\n\n## The form of your answer\n\n[^\n]+\n\n```json\n(.*)\n```", re.S)
+
+
+def is_answer_form(rest):
+    """Whether `rest`, what the input holds after the prompt with its parts, is the form of the answer and nothing else."""
+    match = ANSWER_FORM.fullmatch(rest)
+    if not match:
+        return False
+    try:
+        schema = json.loads(match.group(1))
+    except ValueError:
+        return False
+    return isinstance(schema, dict) and {"draft", "answers"} <= set(schema.get("properties", {}))
 
 
 class JobInput(unittest.TestCase):
@@ -215,8 +234,8 @@ class JobInput(unittest.TestCase):
     # TST-1072002 · level: component · module: MOD-job-runner
     # guards: AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF
     # given: every kind of the job catalogue, its prompt, the parts its recipes gave and the input it sent
-    # input: the input against the kind's prompt with each recipe's parts in its named place (and "(none)" where a recipe gave none), built here from that sentence
-    # expect: every input equals that text exactly: it is the prompt with its recipes' inputs and nothing else, and no part comes from a recipe the kind lacks
+    # input: the input against the kind's prompt with each recipe's parts in its named place (and "(none)" where a recipe gave none), built here from that sentence, followed by the form of the answer
+    # expect: every input is that text exactly, followed only by the form of the answer — its heading, one paragraph and the envelope as a JSON schema with draft and answers —: it is the prompt with its recipes' inputs and nothing else, and no part comes from a recipe the kind lacks
     def test_the_input_of_each_kind_is_its_prompt_with_its_recipes_inputs_and_nothing_else(self):
         for name, kind in self.kinds.items():
             with self.subTest(name):
