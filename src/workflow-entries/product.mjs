@@ -1,7 +1,7 @@
 // product.mjs — the entries of a product's job workflow (MOD-workflow-entries, Parts): ITM-365 builds onRecordsChanged and onDispatch, which take
 // and run the queued jobs of this CI route; ITM-498 adds to onDispatch the job whose task travels with a conversation's hand-over (UC-049 4a), which onRecordsChanged
-// leaves queued. ITM-791 adds to onRecordsChanged the resumption of the jobs of this route whose gate is recorded (A JOB STOPS AT EVERY GATE). The runs' next actions, onDoneCheck and onPullRequestClosed
-// are other items'. ITM-1032 builds onSchedule: the close of a sprint an agent closes. ITM-1209 adds onTestsFinished, which MOD-test-schedule's test configuration runs.
+// leaves queued. ITM-791 adds to onRecordsChanged the resumption of the jobs of this route whose gate is recorded (A JOB STOPS AT EVERY GATE). The runs' next actions and onPullRequestClosed
+// are other items'. ITM-1032 builds onSchedule: the close of a sprint an agent closes. ITM-1209 adds onTestsFinished and ITM-1210 onDoneCheck, which MOD-test-schedule's test configuration runs.
 //
 // Module: MOD-workflow-entries
 //
@@ -17,7 +17,7 @@ import { agentDriver, installedAgents } from "../agent-processes/index.mjs";
 import { participantSchema, participantsOf } from "../participant-list/index.mjs";
 import { readDocument } from "../documents/index.mjs";
 import { productFacts } from "../progress-measures/index.mjs";
-import { recordGateDecision } from "../product-process/index.mjs";
+import { doneCheck, recordGateDecision } from "../product-process/index.mjs";
 import { queueJob } from "../runtimes/index.mjs";
 import { sprintsToClose } from "../work-plans/index.mjs";
 import { appendResult, parseOutcomes, resultSchema } from "../result-records/index.mjs";
@@ -607,4 +607,67 @@ export async function onTestsFinished(env) {
       return failedStatus(`The run's record ${path} was not added to test-results: ${error?.message ?? error}`);
     }
   }
+}
+
+// A job's identifier, as a pull request's title and description name it (MOD-runtimes' writer branch-and-pull-request: the title `<id>: <kind> …`, the line `Job: <id>`).
+const JOB_ID = /\bJOB-\d{8}-\d{4}-[0-9a-f]+\b/;
+// The kinds of an implementation job, whose pull request the Definition of Done is checked for (MOD-product-process' doneCheck).
+const IMPLEMENTING = ["implement", "refactor", "fix-bug"];
+const nothingToDo = (summary) => ({ outcome: "nothing to do", summary, findings: [] });
+const findingLine = (found) => `${found.artifact}:${found.line}: ${found.kind}: ${found.what} [${found.rule}] — ${found.fix}`;
+
+// The facts without this entry's own check: the check that runs onDoneCheck is running while it checks. Of the head's checks, the one of this run whose name, its blanks read as
+// hyphens, is this job's — on GitHub its page lies under this run's, on GitLab it is this job's page — is not weighed, and the head's CI counts green where only that check kept it
+// running. Every other check counts.
+function withoutOwnCheck(facts, env) {
+  const { job, jobUrl } = env.tests;
+  const own = (check) => Boolean(job) && String(check.name).replace(/\s+/g, "-") === job
+    && (env.service === "gitlab" ? Boolean(jobUrl) && check.url === jobUrl : Boolean(env.job.runUrl) && String(check.url).startsWith(`${env.job.runUrl}/job/`));
+  const checks = facts.checks.filter((check) => !own(check));
+  if (checks.length === facts.checks.length) return facts;
+  const head = facts.commits.at(-1);
+  const green = checks.length > 0 && checks.every((check) => ["success", "neutral", "skipped"].includes(check.state));
+  const commits = head?.ci === "running" && green ? facts.commits.map((commit) => (commit === head ? { ...commit, ci: "success" } : commit)) : facts.commits;
+  return { ...facts, checks, commits };
+}
+
+// The modules of a job: those its items and plan steps name, and a module it works on itself.
+function modulesOfJob(record, items) {
+  const modules = new Set();
+  for (const id of record.worksOn ?? []) {
+    if (/^MOD-/.test(id)) modules.add(id);
+    for (const item of items.filter((each) => each.fields?.id === id)) for (const module of [].concat(item.fields.modules ?? [])) modules.add(module);
+  }
+  return [...modules];
+}
+
+/**
+ * onDoneCheck(env: CiEnvironment) -> Promise<EntryStatus> — in the job `agent-m done` of MOD-test-schedule's test configuration, on a pull request opened or updated: MOD-product-process'
+ * doneCheck of the pull request's facts (pullRequestFacts, through the server's API with the person's token), for the job its title or description names, with the product's workflow,
+ * module files and gate records as the checkout of the pull request holds them (productFacts, the instance's catalogue read from the checkout of the instance, `.agent-m`), the job's
+ * modules those of the items and plan steps it works on. `done` when the Definition of Done holds, `failed` with each condition it misses as a finding; the status and the findings stand
+ * in the check's log and in the run's summary. A pull request that names no job, or a job of no implementing kind, is `nothing to do`; a missing token or pull request ends the
+ * entry `not run` before anything is read.
+ */
+export async function onDoneCheck(env) {
+  if (!env.job.personToken) return notRun(`${env.job.tokenName} is missing: the person's Agent M token is a secret of this repository, passed to the step as ${env.job.tokenName}. Nothing was written.`);
+  const number = env.tests.pullRequest;
+  if (!number) return notRun("The event names no pull request: the Definition of Done is checked on a pull request. Nothing was written.");
+  const { checkout, server, instance } = composeTestRun(env);
+  const facts = await server.pullRequestFacts(number);
+  const id = JOB_ID.exec(`${facts.pullRequest.title}\n${facts.pullRequest.body}`)?.[0];
+  if (!id) return nothingToDo(`Pull request #${number} names no job: the Definition of Done is checked for an implementation job's pull request.`);
+  const product = await productFacts(checkout, await instance.readSnapshot("HEAD"), (commit) => instance.readSnapshot(commit), env.now, { scope: "work" });
+  const row = product.jobs.find(({ record }) => record.id === id);
+  if (!row) return failedStatus(`Pull request #${number} names the job ${id}, which has no record in docs/jobs/.`);
+  if (!IMPLEMENTING.includes(row.record.kind)) return nothingToDo(`Pull request #${number} is of the job ${id} of kind ${row.record.kind}, which is no implementation job.`);
+  if (!product.workflow || product.workflow === "unknown") {
+    return failedStatus(`The product's declared process could not be read${product.modelUnread ? ` at ${product.modelUnread.commit}: ${product.modelUnread.error}` : ": docs/process.md declares none"}.`);
+  }
+  const findings = await doneCheck(withoutOwnCheck(facts, env), product.workflow, product.modules, product.gates, { kind: row.record.kind, modules: modulesOfJob(row.record, product.plan.items) });
+  const failed = findings.some((found) => found.kind === "error");
+  const summary = failed ? `The Definition of Done of pull request #${number} (${id}) does not hold: ${findings.length} finding(s).`
+    : `The Definition of Done of pull request #${number} (${id}) holds.`;
+  if (env.job.summaryFile) fs.appendFileSync(env.job.summaryFile, `## agent-m done\n\n${summary}\n${findings.map((found) => `\n- ${findingLine(found)}`).join("")}\n`);
+  return { outcome: failed ? "failed" : "done", summary, findings };
 }
