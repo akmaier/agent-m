@@ -15,7 +15,9 @@
 // Readings the cases take, each stated with the sentence it reads:
 //   - "the one line naming both commits, in the same wording `latestGraph` gives" and "say so in the line": the line is latestGraph's sentence followed by
 //     " Until then it shows that commit's version, read-only.", with the class version-earlier, in place of the "as of" line.
-//   - "Where the head's graph exists, nothing changes": the calls are pinned as a list written out here, which the route sent before this change.
+//   - "Where the head's graph exists, nothing changes" and "a test that counts the host's calls": the calls are pinned as a list written out here, which the route
+//     sent before this change, and compared as counted — each call as often as listed —, not by their order: the page asks several at once, and which of
+//     those the Host hears first is not a request more or less.
 // Each test states its input and its expected result before it runs. The counter-proofs are recorded in the commit messages.
 
 import test from "node:test";
@@ -105,6 +107,8 @@ async function render(host, params) {
   }
   return { target, texts };
 }
+// The calls as counted: each as often as made, in one order.
+const counted = (calls) => [...calls].sort();
 const hasClass = (node, name) => (node.getAttribute?.("class") ?? "").split(/\s+/).includes(name);
 const byClass = (root, name) => find(root, (node) => hasClass(node, name));
 const requirementNames = (target) => byClass(target, "requirement-name").map((node) => node.textContent);
@@ -123,9 +127,9 @@ test("where the head's graph is stored, the specification shows the head and sen
   assert.deepEqual(requirementNames(target), ["RULE THREE", "RULE ONE", "RULE TWO"]);
   assert.equal(byClass(target, "version-earlier").length, 0);
   assert.equal(byClass(target, "requirement-edit").length, 3);
-  assert.deepEqual(given.calls, [
+  assert.deepEqual(counted(given.calls), counted([
     "listTags", "repositoryInfo", "readSnapshot main", "readOn trace-cache <head>.json.gz", "read head SPEC.md", "read head docs/groups/requirements.md",
-  ]);
+  ]));
 });
 
 // TST-trace-pages-earlier-02 · level: component · module: MOD-trace-pages
@@ -144,15 +148,16 @@ test("while the head's graph is not stored, the specification shows the earlier 
   assert.match(target.textContent, /2 requirements, 1 that no use case realises/);
   assert.equal(byClass(target, "version-as-of").length, 0);
   for (const name of ["requirement-edit", "requirement-new", "arrange-link", "spec-change-links"]) assert.equal(byClass(target, name).length, 0, name);
-  assert.deepEqual(given.calls, [
+  assert.deepEqual(counted(given.calls), counted([
     "listTags", "repositoryInfo", "readSnapshot main", "readOn trace-cache <head>.json.gz", "read head SPEC.md", "read head docs/groups/requirements.md",
     "readOn trace-cache latest.json", "readOn trace-cache <earlier>.json.gz",
     "readSnapshot earlier", "read earlier SPEC.md", "read earlier docs/groups/requirements.md",
-  ]);
+  ]));
   byClass(target, "requirement-name").find((node) => node.textContent === "RULE ONE").dispatchEvent(new Event("click"));
   await until(() => byClass(target, "requirement-trace").length > 0);
   assert.match(byClass(target, "requirement-traces")[0].textContent, /UC-001 Read a book/);
-  assert.equal(given.calls.length, 11, "opening reads nothing more: the earlier graph is held");
+  assert.deepEqual(given.calls.slice(11), ["readMany earlier docs/sources.md", "read earlier docs/sources.md"],
+    "opening reads the earlier commit's links to sources, as an opening reads them at any version, and no graph: the earlier one is held");
 });
 
 // TST-trace-pages-earlier-03 · level: component · module: MOD-trace-pages
@@ -195,10 +200,10 @@ test("where the head's graph is stored, the modules show the head and send the r
   const { target } = await render(given.host, { key: "modules", ref: "main" });
   assert.deepEqual(byClass(target, "module-row").map((node) => node.getAttribute("data-module")), ["MOD-reader", "MOD-writer"]);
   assert.equal(byClass(target, "version-earlier").length, 0);
-  assert.deepEqual(given.calls, [
+  assert.deepEqual(counted(given.calls), counted([
     "readSnapshot main", "readOn trace-cache <head>.json.gz", "readMany head docs/architecture/MOD-reader.md, docs/architecture/MOD-writer.md",
     "read head docs/architecture/MOD-reader.md", "read head docs/architecture/MOD-writer.md", "repositoryInfo",
-  ]);
+  ]));
 });
 
 // TST-trace-pages-earlier-06 · level: component · module: MOD-trace-pages
