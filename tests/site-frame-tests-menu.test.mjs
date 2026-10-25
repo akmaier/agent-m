@@ -158,10 +158,8 @@ test("TST-1206004 #schedule and #generate render MOD-test-pages' routes of those
 // TST-1206005 · level: unit · module: MOD-site-frame
 // guards: UC-029; UC-030
 // given: the live app on the instance, a token stored, its default branch main; MOD-trace-pages' route trace recording what it is rendered with
-// input: the dashboard opened at #trace/key=tests, and at #trace/key=audit/ref=v2026.1.0/commit=<sha> — the link embedRoute puts into the release panel where the route
-//   is not on the page
-// expect: each renders the route trace with the parameters its fragment holds — { key: "tests", ref: "main" }, the ref the page shows where the fragment names none, and
-//   { key: "audit", ref: "v2026.1.0", commit: <sha> } — and the frame's ViewContext; the page shows the route, not the use-case list
+// input: the dashboard opened at #trace/key=tests, and at #trace/key=audit/ref=v2026.1.0/commit=<sha>, the link embedRoute puts into the release panel
+// expect: each renders the route trace with the parameters its fragment holds, the ref the page shows where it names none: { key: "tests", ref: "main" }, and { key: "audit", ref: "v2026.1.0", commit: <sha> }; with the frame's ViewContext, not the use-case list
 // Planted fault: an app without the dispatch shows the use cases at both addresses.
 test("TST-1206005 #trace with key=tests and with key=audit renders MOD-trace-pages' route trace", async () => {
   const { seen, restore } = await recording("../src/trace-pages/index.mjs", ["trace"]);

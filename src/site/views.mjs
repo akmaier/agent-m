@@ -32,13 +32,13 @@ export const DASHBOARD = [
   { view: "sprint-close", file: "sprint-close-view.mjs", useCases: ["UC-041"] },
   { view: "jobs", file: "jobs-view.mjs", useCases: ["UC-036"] },
   { view: "run", file: "run-view.mjs", useCases: ["UC-043", "UC-034", "UC-024"] },
-  { view: "tests", file: "tests-runs-view.mjs", useCases: ["UC-028"] },
-  { view: "tests-browser", file: "tests-browser-view.mjs", useCases: ["UC-029"] },
-  { view: "tests-schedule", file: "tests-schedule-view.mjs", useCases: ["UC-027"] },
-  { view: "tests-generate", file: "tests-generate-view.mjs", useCases: ["UC-026"] },
-  // UC-013 is rendered by MOD-test-pages through dashboard-app's public route dispatch; it has no dashboard view file.
+  // UC-028, UC-027, UC-026 and UC-013 are rendered by MOD-test-pages through dashboard-app's public route dispatch; they have no dashboard view file.
+  { view: "runs", builtIn: true, useCases: ["UC-028"] },
+  { view: "schedule", builtIn: true, useCases: ["UC-027"] },
+  { view: "generate", builtIn: true, useCases: ["UC-026"] },
   { view: "release", builtIn: true, useCases: ["UC-013"] },
-  { view: "audit", file: "audit-view.mjs", useCases: ["UC-030"] },
+  // UC-029 and UC-030, the tests browser and the audit, are rendered by MOD-trace-pages' route trace through dashboard-app's public route dispatch; it has no dashboard view file.
+  { view: "trace", builtIn: true, useCases: ["UC-029", "UC-030"] },
   { view: "issues", file: "issues-view.mjs", useCases: ["UC-012", "UC-033"] },
   // UC-038 is rendered by MOD-maintenance-pages through dashboard-app's public route dispatch; it has no dashboard view file.
   { view: "mail", builtIn: true, useCases: ["UC-038"] },
