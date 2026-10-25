@@ -60,6 +60,7 @@ const REPORT = ["<?xml version=\"1.0\" encoding=\"utf-8\"?>", "<testsuites>", "<
   "<testcase name=\"TST-002 a loan\" time=\"0.01\"><failure message=\"expected 14, got 7\">AssertionError: expected 14 | got 7\n    at tests/store.test.mjs:12</failure></testcase>",
   "<testcase name=\"TST-004 a loan\" time=\"0.01\"/>",
   "<testcase name=\"a stray case\" time=\"0.01\"/>", "</testsuite>", "</testsuites>"].join("\n");
+const UNIT_ONLY = "<testsuites><testsuite name=\"s\"><testcase name=\"TST-001 a loan\"/></testsuite></testsuites>";
 const SKIPPED = ["<testsuites><testsuite name=\"s\">", "<testcase name=\"TST-001 a loan\"><skipped/></testcase>", "<testcase name=\"TST-002 a loan\"><skipped/></testcase>",
   "<testcase name=\"TST-003 a loan\"><skipped/></testcase>", "</testsuite></testsuites>"].join("\n");
 
@@ -208,7 +209,7 @@ test("onTestsFinished — a run's record is added to test-results with its commi
 
 // TST-1209102 · level: unit · module: MOD-workflow-entries
 // guards: EVERY TEST RUN LEAVES A RESULT RECORD; UC-028
-// given: the same checkout; (a) a report whose cases of TST-001, TST-002 and TST-003 are all skipped; (b) the report of TST-1209101, which holds no case of the component test TST-004 but a passing one of TST-001
+// given: the same checkout; (a) a report whose cases of TST-001, TST-002 and TST-003 are all skipped; (b) a report that holds no case of the component test TST-004 but a passing one of TST-001
 // input: onTestsFinished (a) for the row unit; (b) for the row component
 // expect: (a) `done`, levels [unit], TST-001, TST-002 and TST-003 each `not run`, none passed; (b) `done`, levels [component], TST-004 `not run`, and no row of a unit test — a level that did not run is not recorded as passed
 test("onTestsFinished — a level that did not run is not recorded as passed", async () => {
@@ -222,7 +223,7 @@ test("onTestsFinished — a level that did not run is not recorded as passed", a
     for (const test of ["TST-001", "TST-002", "TST-003"]) assert.equal(outcomes.find((row) => row.Test === test)?.Outcome, "not run", test);
     assert.ok(!outcomes.some((row) => row.Outcome === "passed"));
   });
-  await withCheckout(REPORT, async (w) => {
+  await withCheckout(UNIT_ONLY, async (w) => {
     const server = fakeGitHub();
     const status = await onTestsFinished(w, server, { level: "component" });
     assert.equal(status.outcome, "done", status.summary);
