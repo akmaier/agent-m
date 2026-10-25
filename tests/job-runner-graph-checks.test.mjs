@@ -189,8 +189,7 @@ test("graph-checks — a corrected draft ends the loop, and what a changed file 
 
 // TST-1209001 · level: unit · module: MOD-job-runner
 // guards: UC-049
-// given: the fixture product, whose snapshot counts every file read and every batch; a draft that holds no files — as a conversation's answer holds none — and,
-// as the known positive, a draft that holds UC-009's file unchanged
+// given: the fixture product, whose snapshot counts every file read and every batch; a draft that holds no files — as a conversation's answer holds none — and, as the known positive, a draft that holds UC-009's file unchanged
 // input: the check graph-checks on each
 // expect: the draft without files has no finding and reads nothing; the draft with a file reads the repository, in batches
 test("graph-checks reads nothing for a draft that changes no file, and reads in batches for one that does", async () => {

@@ -242,14 +242,14 @@ export function browserStore() {
 
 export const settingKeys = [
   { key: TOKEN_KEY, label: "GitHub token", secret: true,
-    grants: "writes — commits, issues, pull requests and workflow runs — to every repository it was given, under your account" },
+    grants: "writes — commits, issues, pull requests, workflow runs and Actions secrets — to every repository it was given, under your account" },
   { key: TOKEN_EXPIRY_KEY, label: "GitHub token expiry date", secret: false, partOf: TOKEN_KEY },
   { key: TOKEN_TEST_KEY, label: "GitHub token's last test", secret: false, partOf: TOKEN_KEY },
   { key: PRODUCTS_KEY, label: "Products", secret: false },
   { key: GITLAB_TOKENS_KEY, label: "GitLab project tokens", secret: true,
     grants: "write — commits — to the one GitLab project each was created for, with the role it was given there" },
   { key: GITHUB_PRODUCT_TOKENS_KEY, label: "GitHub product tokens", secret: true,
-    grants: "write — commits, issues, pull requests and workflow runs — to the one GitHub product each was created for, under your account" },
+    grants: "write — commits, issues, pull requests, workflow runs and Actions secrets — to the one GitHub product each was created for, under your account" },
   { key: JUMP_HOST_KEY, label: "Jump host", secret: false },
   { key: REMOTE_SESSIONS_KEY, label: "remote sessions' bridge tokens", secret: true,
     grants: "hand jobs to the CLI session behind each tunnel, which works there with that machine's own credentials" },

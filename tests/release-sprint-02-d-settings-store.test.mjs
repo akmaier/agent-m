@@ -20,20 +20,20 @@ import { requiredPermissions } from "../docs/assets/git-host.mjs";
 
 // The write each GitHub permission carries, as the grant must name it.
 const WRITE_OF = { contents: /\bcommits?\b/i, issues: /\bissues?\b/i, pull_requests: /\bpull requests?\b/i,
-  actions: /\bworkflow runs?\b/i, workflows: /\bcommits?\b/i };
+  actions: /\bworkflow runs?\b/i, workflows: /\bcommits?\b/i, secrets: /\bsecrets?\b/i };
 
 // ONE GITHUB TOKEN SERVES EVERY FEATURE · AN EXPORT STATES THAT IT CONTAINS SECRETS: the GitHub token's grant names every write
-// the one token carries. Expected: commits, issues, pull requests and workflow runs, under the person's account; every permission
+// the one token carries. Expected: commits, issues, pull requests, workflow runs and Actions secrets, under the person's account; every permission
 // with write access in the one list has its word; the permission list is the one the SPEC names — no write permission the grant
 // would not know.
 test("ITM-125 · the GitHub token's grant names every write the one token carries — pull requests included", () => {
   const github = settingKeys.find((s) => s.key === TOKEN_KEY);
   assert.ok(github?.secret, "the GitHub token is a secret of the export");
   const grant = String(github.grants ?? "");
-  for (const w of ["commits", "issues", "pull requests", "workflow runs"]) assert.match(grant, new RegExp(`\\b${w}\\b`, "i"), w);
+  for (const w of ["commits", "issues", "pull requests", "workflow runs", "secrets"]) assert.match(grant, new RegExp(`\\b${w}\\b`, "i"), w);
   assert.match(grant, /your account/i, "under the person's account");
   const writes = requiredPermissions("github.com").github.filter((p) => p.access === "write");
-  assert.deepEqual(writes.map((p) => p.permission).sort(), ["Actions", "Contents", "Issues", "Pull requests", "Workflows"],
+  assert.deepEqual(writes.map((p) => p.permission).sort(), ["Actions", "Contents", "Issues", "Pull requests", "Secrets", "Workflows"],
     "the write permissions ONE GITHUB TOKEN SERVES EVERY FEATURE names");
   for (const p of writes) {
     assert.ok(WRITE_OF[p.param], `${p.permission}: a permission this test does not know the write of`);
