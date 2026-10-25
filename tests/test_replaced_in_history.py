@@ -5,7 +5,7 @@
 
 A replaced SPEC section stays reachable through the git history, and no second copy is kept in the working tree. Both
 writers of an approved entry — the dashboard's acceptance commit (docs/assets/review-core.mjs planAcceptance, asked through
-node) and the instance's workflow (tools/apply_approvals.py) — run here in a real git repository made from the fixture
+node) and the instance's workflow (MOD-spec-changes' applyApproved) — run here in a real git repository made from the fixture
 product tests/fixtures/gates/. Expected for each route, after the commit that writes entry 01:
 
 - the commit changes SPEC.md, the queue's entscheidungen.md and — on the dashboard's route — adds the approval record;

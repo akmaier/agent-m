@@ -1,4 +1,4 @@
-// UC-048 "Fill the roles" as a system path: the author opens #roles on the real dashboard (docs/assets/dashboard-app.mjs with MOD-implementation-pages' route `roles`, in
+// UC-048 "Fill the roles" as a system path: the author opens #roles on the real dashboard (src/site-frame/dashboard-app.mjs with MOD-implementation-pages' route `roles`, in
 // tests/app-harness.mjs against a GitHub API mock that serves one repository as both the instance and the product, and that changes its files by a commit), reads the
 // role assignments and the roles of the model, names a role assignment, assigns participants, and presses Save — and each alternative flow UC-048 names: 2a, 2b, 3a, 3b, 3c,
 // 3d, 4a and 4b. Each test states its expected result from UC-048 and the requirements it realises, not from the page.

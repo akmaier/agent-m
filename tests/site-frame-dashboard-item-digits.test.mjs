@@ -7,7 +7,7 @@
 // Level: unit
 //
 // The real app (src/site-frame/dashboard-app.mjs) runs in tests/app-harness.mjs against a GitHub API mock that serves GitHub's batch request and records the files of each batch (as tests/load-per-view.test.mjs does).
-// Readings the texts leave open, which the tests state: the reader does not order the items it reads (it hands the paths to one batch), so no order is asserted; the page drawn from the files is the views' (backlog-view.mjs,
+// Readings the texts leave open, which the tests state: the reader does not order the items it reads (it hands the paths to one batch), so no order is asserted; the page drawn from the files is the views' (src/implementation-pages/backlog.mjs,
 // ITM-1087), not this item's, so only the files read are asserted.
 // The counter-proofs are recorded in the pull request.
 

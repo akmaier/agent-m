@@ -21,7 +21,7 @@
 // statuses(snapshot) (src/approvals/status.mjs) correctly is NOT, since it alone derives its answer from paths and
 // blob SHAs, without reading a single file. docs/architecture/MOD-result-records.md (Interfaces: resultsAt,
 // flakyTests, rateComparison) types them without Promise<>, and names no crossing of the network — the same gap
-// already resolved the same way for MOD-job-ledger's listJobs (typed JobRow[] there): docs/backlog/sprints/12.md,
+// already resolved the same way for MOD-job-ledger's listJobs (typed JobRow[] there): docs/backlog/sprints/team1/12.md,
 // "notes of earlier gates" — "listJobs is async (#183, #191) ... ITM-254 awaits it, names the point in its pull
 // request, and no item needs the file changed now." Named here in the pull request for the same reason; no item
 // needs MOD-result-records.md's or its callers' (MOD-release-evidence.md, MOD-work-plans.md) signatures changed now.

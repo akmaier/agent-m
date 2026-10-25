@@ -270,7 +270,7 @@ test("TST-290119: product removal and product-list clear ask before changing bro
 // guards: UC-042; EVERY STEP EXPLAINS ITSELF; A TOKEN IS SCOPED TO WHAT IT WRITES
 // given: the public instance repository-token line
 // input: the person opens Repositories
-// expect: the line holds a folded What is this? before the token can be changed; what it says is MOD-site-frame's, pinned in tests/site-frame-settings-explanations.test.mjs (this file's fixture document does not render an explanation's body)
+// expect: the line holds a folded What is this? before the token can be changed; what it says is MOD-site-frame's (this file's fixture document does not render an explanation's body)
 test("TST-290120: repository token controls retain folded scope and purpose explanations", async () => {
   const target = repositories(await render(store()));
   const line = byClass(target, "settings-repository").find((node) => /GitHub token/.test(node.textContent));
@@ -285,7 +285,7 @@ test("TST-290120: repository token controls retain folded scope and purpose expl
 // guards: UC-042; EVERY STEP EXPLAINS ITSELF
 // given: the public Settings Route with one repository token, Bridge, jump host, remote session, and writable product
 // input: the person opens each Settings tab
-// expect: every rendered settings section holds exactly one folded What is this?; what each says (purpose, storage and readers) is MOD-site-frame's, pinned in tests/site-frame-settings-explanations.test.mjs (this file's fixture document does not render an explanation's body)
+// expect: every rendered settings section holds exactly one folded What is this?; what each says (purpose, storage and readers) is MOD-site-frame's (this file's fixture document does not render an explanation's body)
 test("TST-290123: every rendered Settings section states purpose, storage, and readers in a folded explanation", async () => {
   const browserStore = store();
   writeSetting(browserStore, "github-token", { value: "ghp_fixture" });
@@ -313,7 +313,7 @@ test("TST-290123: every rendered Settings section states purpose, storage, and r
 // guards: UC-042; UC-047; EVERY STEP EXPLAINS ITSELF
 // given: the public Settings Route on its Usability tab
 // input: the person opens Notifications without changing its switch, test, permission, or stored state
-// expect: while Notifications is off, it directly holds exactly one folded What is this?; what it says (notification delivery's purpose, browser storage and readers, the pending acceptance records checked every five minutes, repository-server checks only with this browser's tokens, no checks without an open dashboard page) is MOD-site-frame's, pinned in tests/site-frame-settings-explanations.test.mjs (this file's fixture document does not render an explanation's body)
+// expect: while Notifications is off, it directly holds exactly one folded What is this?; what it says (notification delivery's purpose, browser storage and readers, the pending acceptance records checked every five minutes, repository-server checks only with this browser's tokens, no checks without an open dashboard page) is MOD-site-frame's (this file's fixture document does not render an explanation's body)
 test("TST-290124: Notifications explains its off-state checks, tokens, and open-page boundary in a folded explanation", async () => {
   const notification = Object.getOwnPropertyDescriptor(globalThis, "Notification");
   const navigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");

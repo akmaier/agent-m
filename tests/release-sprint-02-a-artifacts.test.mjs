@@ -6,7 +6,7 @@
 // Guards: AN EDITED FILE KEEPS ITS IDENTIFIER; A FINDING READS LIKE A COMPILER MESSAGE
 // Level: release
 //
-// MOD-artifacts (docs/architecture/MOD-artifacts.md) declares `identifierKept(openedId, text) -> null | finding` and
+// MOD-artifacts declares `identifierKept(openedId, text) -> null | finding` and
 // `formatChecks(kind, text, context) -> [finding]`, "each finding naming the artifact, the line, the rule and the expected
 // correction"; ARC-003 decision 5: the kernel returns findings, the sentence a person reads is the shell's. SPEC §9, A FINDING
 // READS LIKE A COMPILER MESSAGE: "names the artifact and line it concerns, its kind (error or warning), the rule it violates by

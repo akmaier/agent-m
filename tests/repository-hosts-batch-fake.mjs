@@ -6,7 +6,7 @@
 //
 // GitHub's answer (docs.github.com/en/graphql/reference/objects#blob): `data.repository` has one field for each alias, a Blob — `text`, null for a binary file; `isTruncated`; `isBinary`; `byteSize` — or null where the
 // commit holds no such file or the commit is unknown; `data.rateLimit` the cost of the call. A repository the viewer cannot see is `data.repository: null` with an error of the type NOT_FOUND. The commit of an expression is
-// what stands before its first colon, the path whatever follows it (a path may hold a colon). The tests of this file's behaviour are tests/repository-hosts-batch-fake.test.mjs.
+// what stands before its first colon, the path whatever follows it (a path may hold a colon).
 
 const FIELD = /(\w+):object\(expression:("(?:[^"\\]|\\.)*")\)/g;
 

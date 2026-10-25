@@ -1,6 +1,6 @@
 // The system tests of UC-047, Be told what waits for your acceptance (ITM-238): its main flow and every alternative flow it
 // names, walked through the settings page and the main and review pages as the dashboard reaches MOD-notifications since the
-// change between jobs #157 (docs/assets/dashboard/settings-view.mjs, docs/assets/dashboard-app.mjs, src/home/home.mjs) —
+// change between jobs #157 —
 // reached the way tests/dashboard-notifications-wiring.test.mjs reaches them: tests/app-harness.mjs's repoServer and
 // openDashboard, a browser's Notification/navigator/setInterval stood in for as that file's own installBrowser() does, never a
 // real timer. MOD-notifications' own checking logic (the timing, the grouping past three, the dedupe) is unit-tested by
@@ -74,8 +74,7 @@ function installBrowser({ permission = "granted", userAgent = "node" } = {}) {
   };
 }
 
-// The instance's server, with one product behind it (UC-047 step 2's "each product this browser keeps") — forwarded the
-// way tests/release-sprint-04-uc-001-repository-hosts.test.mjs's own servers() forwards a product's requests, trimmed to
+// The instance's server, with one product behind it (UC-047 step 2's "each product this browser keeps") — a product's requests forwarded, trimmed to
 // reading alone (no write is tested here).
 async function withProduct(instanceFiles, productFiles) {
   const product = await repoServer({ repo: PRODUCT, files: productFiles, handlers: [emptyTags] });
@@ -110,7 +109,7 @@ function captureNotifications() {
   return shown;
 }
 
-// What a person reads: HTML entities decoded, as tests/release-sprint-04-uc-001-repository-hosts.test.mjs's own unesc does.
+// What a person reads: HTML entities decoded.
 const unesc = (s) => String(s).replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
 const publicControls = (root, name, out = []) => { for (const child of root?.children ?? []) { if (typeof child !== "object") continue; if (child.className?.split(" ").includes(name)) out.push(child); publicControls(child, name, out); } return out; };
 

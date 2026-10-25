@@ -1,5 +1,5 @@
 // The controlled Electron that tests/site-usability.test.mjs draws the site's pages in, and the wait that bounds every condition by
-// the clock. It is the engine tests/dashboard-backlog-layout.test.mjs and tests/release-itm-290-public-settings-layout.test.mjs run
+// the clock. It is the engine
 // (Electron 44.5.1 from npm, under xvfb-run and openbox on Linux, driven over the Chrome DevTools Protocol), so that the page has the
 // geometry a browser gives it. Staging holds the lock of tests/desktop-shell.test.mjs while Electron is fetched and openbox installed,
 // and releases it before the window opens: those are the steps two test files must not do at once. It is test code; it holds no
@@ -96,8 +96,8 @@ function electronCommand(executable, arguments_) {
 
 const freePort = () => new Promise((resolve) => { const s = createServer(); s.listen(0, "127.0.0.1", () => { const value = s.address().port; s.close(() => resolve(value)); }); });
 
-// The main process of the window: Electron's light theme, a hidden window that loads the address it is given. It is exported so that
-// tests/site-usability-boot-entry.test.mjs runs this very text against a stand-in for Electron. The first load is superseded by the checks' own first Page.navigate
+// The main process of the window: Electron's light theme, a hidden window that loads the address it is given. It is exported.
+// The first load is superseded by the checks' own first Page.navigate
 // when it is not yet finished; Electron then rejects it with ERR_ABORTED, which is no failure of the window, so only another error quits the app.
 export const ENTRY = `import electron from "electron"; const start = async () => { const url = process.argv.find((value) => value.startsWith("--fixture-url="))?.slice("--fixture-url=".length); if (!url) throw new Error("Missing --fixture-url."); await electron.app.whenReady(); electron.app.dock?.hide(); electron.nativeTheme.themeSource = "light"; const window = new electron.BrowserWindow({ show: false, webPreferences: { contextIsolation: true, nodeIntegration: false, backgroundThrottling: false } }); electron.app.on("window-all-closed", () => electron.app.quit()); await window.loadURL(url).catch((failure) => { if (failure.code !== "ERR_ABORTED") throw failure; }); }; start().catch((failure) => { console.error(failure.message); electron.app?.quit?.(); });`;
 

@@ -3,8 +3,8 @@
 # Level: unit
 """SPEC §9 A SPECIFICATION CHANGE IS APPROVED BEFORE IT IS WRITTEN — characterisation tests of ITM-014 (a refactoring job).
 
-The SPEC is written in two places, both MOD-review-core: the dashboard's acceptance commit (docs/assets/review-core.mjs
-planAcceptance, asked through node) and the instance's workflow (tools/apply_approvals.py). What they keep today, on the
+The SPEC is written in two places: the dashboard's acceptance commit (docs/assets/review-core.mjs
+planAcceptance, asked through node) and the instance's workflow (MOD-spec-changes' applyApproved). What they keep today, on the
 fixture product tests/fixtures/gates/ (a queue of two entries, 01 and 02, against SPEC.md):
 
 - the workflow writes nothing for an entry no approval record names — an open queue leaves every byte of the tree as it was;
