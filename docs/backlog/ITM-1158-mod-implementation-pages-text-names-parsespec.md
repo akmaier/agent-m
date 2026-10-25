@@ -12,6 +12,8 @@ tests:
   - unit
 origin:
   - ITM-1068's pull request #1219 (sprint team1/99), from developer-sonnet-a's probe
+built_by:
+  - 4008e93b20de09a9924a530c4bd278fe61eab2d9
 ---
 # ITM-1158 MOD-implementation-pages's text names `parseSpec`, which its backlog route imports
 

@@ -11,6 +11,8 @@ tests:
   - unit
 origin:
   - developer-sonnet-g's probe for ITM-1068 (sprint team2/97), on main at b1e4e7f4
+built_by:
+  - 258f72be504a063d0bef2529546169f43c40c32f
 ---
 # ITM-1114 MOD-test-pages's text names `blobSha`, which its code imports
 

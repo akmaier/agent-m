@@ -17,6 +17,9 @@ tests:
   - unit
 origin:
   - UC-017 steps 3 and 6, 6a
+built_by:
+  - 0c1aed27429a0ed7afc0dc56eeea67604a004e49
+  - 53e81f1df798981cf39115e6908554e9e8c9f98a
 ---
 # ITM-353 The agents a Bridge offers, and their test
 

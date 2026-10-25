@@ -14,6 +14,8 @@ tests:
   - unit
 origin:
   - ITM-507's gate (#602): its route `draft` shows an architecture file with its rounds and due diligence, but no impact list, since architectureImpact is not built
+built_by:
+  - 5ff0f100770b8c5e6e45e12034cd313b554e5a1c
 ---
 # ITM-556 A drafted architecture file shows its impact list
 

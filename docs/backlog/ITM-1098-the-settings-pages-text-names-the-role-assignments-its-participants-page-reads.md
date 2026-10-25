@@ -11,6 +11,8 @@ tests:
   - unit
 origin:
   - the review of ITM-1096's draft (architecture-reviewer-opus-b), on main at 1c46340b
+built_by:
+  - 87d440a2868674b297093ec97cd8268ff16e0594
 ---
 # ITM-1098 MOD-settings-pages' text names the role assignments its participants page reads
 

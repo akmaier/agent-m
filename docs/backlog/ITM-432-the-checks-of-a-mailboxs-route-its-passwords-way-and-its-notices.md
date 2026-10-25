@@ -24,6 +24,8 @@ origin:
   - SPEC.md: the check `tests/test_mail_routes.py` its requirements name
   - SPEC.md: the check `tests/test_mail_password_route.py` its requirements name
   - SPEC.md: the check `tests/test_settings_disclosure.py` its requirements name
+built_by:
+  - 82db8d4a43ec1fc92b4adea095683f3b1f8c55db
 ---
 # ITM-432 The checks of a mailbox's route, its password's way and its notices
 

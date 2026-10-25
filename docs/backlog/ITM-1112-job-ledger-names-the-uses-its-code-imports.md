@@ -11,6 +11,8 @@ tests:
   - unit
 origin:
   - developer-sonnet-g's probe for ITM-1068 (sprint team2/97), on main at b1e4e7f4
+built_by:
+  - aedaf5cff47327dff25f34231dac7b9f612faa79
 ---
 # ITM-1112 MOD-job-ledger's text names `parseFinding`, which its code imports
 

@@ -17,6 +17,9 @@ tests:
   - unit
 origin:
   - UC-004 step 7, 7a
+built_by:
+  - c821814103e4e6959e7d085ae3a32688f8414fb7
+  - 72e83c5afd6b49039c124034847fc5a5aa519bc2
 ---
 # ITM-402 A legal text waiting for its fetch in the library
 
