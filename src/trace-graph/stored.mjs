@@ -45,6 +45,8 @@ export function graphFromText(text, commit) {
 // The branch the graphs are stored on, and the files of a commit on it.
 const BRANCH = "trace-cache";
 export const fileOf = (commit) => `${commit}.json.gz`;
+// The file of the branch that names the commit of the graph stored last: `{ commit }`, written with every commit that adds a graph (publishGraph), read by latestGraph.
+export const LATEST = "latest.json";
 
 // A text gzipped, and gzipped bytes as their text: the platform's CompressionStream, the same in a browser and in Node.
 const through = (bytes, stream) => new Response(new Blob([bytes]).stream().pipeThrough(stream));
@@ -86,7 +88,8 @@ export async function storedImpacts(source, commit) {
  * publishGraph(host: Host, snapshot: Snapshot, changed?: Array<{ path: string, before: { commit: string, text: string } | null }>) ->
  * Promise<{ commit: string, written: boolean }> — builds the graph of the snapshot's commit from its files and adds `<commit>.json.gz` (its graphText gzipped) to the
  * branch `trace-cache` by `commitFiles`, on the head it read; `written` is false when the branch holds the file already, which it then leaves
- * as it is. With `changed` it adds `<commit>.impacts.json` in the same commit. Crosses the network; fails as `commitFiles` fails — `Moved` when
+ * as it is. With `changed` it adds `<commit>.impacts.json` in the same commit. The commit that adds the graph also writes `latest.json` naming the commit; where it adds
+ * nothing, `latest.json` is left as it is. Crosses the network; fails as `commitFiles` fails — `Moved` when
  * the branch moved meanwhile, so that the run can be made again —, and with `NotFound` naming the branch when the repository has none.
  * @param {object} host @param {object} snapshot @param {Array<{ path: string, before: { commit: string, text: string } | null }>} [changed]
  * @returns {Promise<{ commit: string, written: boolean }>}
@@ -105,6 +108,7 @@ export async function publishGraph(host, snapshot, changed) {
   const graph = await traceGraph({ paths: snapshot.paths, read: (path) => snapshot.read(path), readMany: (paths) => snapshot.readMany?.(paths) }, { commit });
   const files = [{ path: fileOf(commit), bytes: await gzipped(graphText(graph)) }];
   if (changed) files.push({ path: impactsOf(commit), text: await impactsText(graph, snapshot, commit, changed) });
+  files.push({ path: LATEST, text: `${JSON.stringify({ commit })}\n` });
   await host.commitFiles({ branch: BRANCH, expectedHead: branch.commit, files, message: `trace-cache: the graph of ${commit}\n` });
   return { commit, written: true };
 }
