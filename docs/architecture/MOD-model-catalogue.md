@@ -47,9 +47,6 @@ browser and in Node.
 - `validate.mjs` — the rules a schema cannot express.
 - `plan.mjs` — the plan of requirements times phases.
 - `diagram.mjs` — the Mermaid text of a model.
-- **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `docs/assets/process-model.mjs`: removed: `modelFindings` and `catalogue` give it.
-  - `tests/test_model_validation.py`, `tests/test_gate_definition.py`, `tests/release-sprint-02-b-process-model.test.mjs`: rewritten on this module.
 
 ## Data
 

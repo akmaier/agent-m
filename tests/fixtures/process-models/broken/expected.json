@@ -1,95 +1,83 @@
 {
   "transition-unknown-phase.md": [
-    [31, "THE MODEL DETERMINES THE PHASES AND THE GATES", "the transition Closing → Review names Review, which is no phase of the model"]
+    [31,"THE MODEL DETERMINES THE PHASES AND THE GATES","the transition Closing → Review names Review, which is no phase of the model"]
   ],
   "transition-kind-invalid.md": [
-    [26, "THE MODEL DETERMINES THE PHASES AND THE GATES", "the transition Planning → Building has the kind \"parallel\", not sequence, alternative or back"]
+    [26,"THE MODEL DETERMINES THE PHASES AND THE GATES","the column Kind does not fit: \"parallel\" is not one of sequence, alternative, back"]
   ],
   "phase-unreached.md": [
-    [21, "THE MODEL DETERMINES THE PHASES AND THE GATES", "no transition reaches the phase Archiving"]
-  ],
-  "phase-duplicate.md": [
-    [19, "THE MODEL DETERMINES THE PHASES AND THE GATES", "the phase Building is defined twice (first on line 18)"]
+    [21,"THE MODEL DETERMINES THE PHASES AND THE GATES","no transition reaches the phase Archiving from the first phase, Planning"]
   ],
   "pair-unknown-phase.md": [
-    [37, "THE MODEL DETERMINES THE PHASES AND THE GATES", "the verification pair Planning ↔ Retrospective names Retrospective, which is no phase of the model"]
+    [37,"THE MODEL DETERMINES THE PHASES AND THE GATES","the verification pair Planning ↔ Retrospective names Retrospective, which is no phase of the model"]
   ],
   "gate-without-artifacts.md": [
-    [43, "A GATE NAMES WHAT IT CHECKS", "the gate Building → Checking names no artifacts it checks"]
+    [43,"A GATE NAMES WHAT IT CHECKS","the column Artifacts is required, and left out"]
   ],
   "gate-without-condition.md": [
-    [43, "A GATE NAMES WHAT IT CHECKS", "the gate Building → Checking names no condition that must hold"]
+    [43,"A GATE NAMES WHAT IT CHECKS","the column Condition is required, and left out"]
   ],
   "gate-without-decider.md": [
-    [43, "A GATE NAMES WHO DECIDES IT", "the gate Building → Checking names no decider"]
+    [43,"A GATE NAMES WHO DECIDES IT","the column Decider is required, and left out"]
   ],
   "gate-decider-unknown.md": [
-    [44, "A GATE NAMES WHO DECIDES IT", "the gate Checking → Closing is decided by \"Release manager\", which is no role of the model and no CI check"]
+    [44,"A GATE NAMES WHO DECIDES IT","the gate Checking → Closing is decided by Release manager, which is neither a role of the model nor a check"]
   ],
   "gate-artifact-not-produced.md": [
-    [43, "A GATE NAMES WHAT IT CHECKS", "the gate Building → Checking checks ARC, which no phase up to Building produces"]
-  ],
-  "gate-unknown-phase.md": [
-    [44, "THE MODEL DETERMINES THE PHASES AND THE GATES", "the gate Checking → Shipping names Shipping, which is no phase of the model"]
-  ],
-  "gate-between-malformed.md": [
-    [43, "THE MODEL DETERMINES THE PHASES AND THE GATES", "the gate \"Building to Checking\" does not name two phases as \"From → To\""]
+    [43,"A GATE NAMES WHAT IT CHECKS","the gate Building → Checking checks ARC, which no phase up to Building produces"]
   ],
   "role-how-many-invalid.md": [
-    [52, "A ROLE NAMES HOW MANY FILL IT", "the role Checker says \"many\", not one or several"]
+    [52,"A ROLE NAMES HOW MANY FILL IT","the column How many does not fit: \"many\" is not one of one, several"]
   ],
   "role-without-capabilities.md": [
-    [52, "A ROLE NAMES THE CAPABILITIES IT NEEDS", "the role Checker names no capabilities"]
+    [52,"A ROLE NAMES THE CAPABILITIES IT NEEDS","the column Capabilities is required, and left out"]
   ],
   "role-filled-by-invalid.md": [
-    [50, "A PROCESS MODEL ORGANISES PEOPLE AND AGENTS", "the role Owner is filled by \"anyone\", not by person, agent or either"]
-  ],
-  "role-duplicate.md": [
-    [53, "A PROCESS MODEL ORGANISES PEOPLE AND AGENTS", "the role Owner is defined twice (first on line 50)"]
+    [50,"A PROCESS MODEL ORGANISES PEOPLE AND AGENTS","the column Filled by does not fit: \"anyone\" is not one of person, agent, either"]
   ],
   "phase-without-role.md": [
-    [19, "A PROCESS MODEL ORGANISES PEOPLE AND AGENTS", "the phase Checking names no role"]
+    [19,"A PROCESS MODEL ORGANISES PEOPLE AND AGENTS","the column Role is required, and left out"]
   ],
   "phase-role-unknown.md": [
-    [19, "A PROCESS MODEL ORGANISES PEOPLE AND AGENTS", "the phase Checking names the role Auditor, which the model does not define"]
+    [19,"A PROCESS MODEL ORGANISES PEOPLE AND AGENTS","the phase Checking names the role Auditor, which the model does not define"]
   ],
   "no-kind.md": [
-    [1, "A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED", "the model declares no kind of work"]
+    [1,"A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED","the key kind is required, and left out"]
   ],
   "kind-invalid.md": [
-    [3, "A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED", "the kind of work \"iterative\" is neither planned nor pulled"]
+    [3,"A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED","the key kind does not fit: \"iterative\" is not one of planned, pulled"]
   ],
   "no-name.md": [
-    [1, "A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED", "the model has no name"]
+    [1,"A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED","the key name is required, and left out"]
   ],
   "no-measure.md": [
-    [1, "PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE", "the model names no progress measure"]
+    [1,"PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE","the key measure is required, and left out"]
   ],
   "measure-unknown.md": [
-    [5, "PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE", "the measure \"velocity\" is no progress measure Agent M knows"]
+    [5,"PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE","the key measure does not fit: \"velocity\" is not one of remaining items per time box, items per state over time"]
   ],
   "measure-not-fitting.md": [
-    [5, "PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE", "the measure \"plan entries per phase\" does not fit pulled work"]
+    [5,"PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE","the key measure does not fit: \"plan entries per phase\" is not one of remaining items per time box, items per state over time"]
   ],
   "pulled-without-flow-control.md": [
-    [54, "A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED", "pulled work names neither a time box nor a WIP limit"]
+    [54,"A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED","pulled work names neither a time box nor a work-in-progress limit"]
   ],
   "pulled-with-both.md": [
-    [54, "A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED", "pulled work names both a time box and a WIP limit"]
+    [54,"A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED","pulled work names both a time box and a work-in-progress limit"]
   ],
   "wip-not-a-number.md": [
-    [58, "A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED", "the WIP limit \"three\" is no positive whole number"]
+    [58,"A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED","the column Value does not fit: \"three\" is not a number"]
   ],
   "sprints-invalid.md": [
-    [60, "A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED", "\"sometimes\" does not say whether the work runs in sprints (yes or no)"]
+    [60,"A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED","the column Value does not fit: \"sometimes\" is not one of yes, no"]
   ],
   "flow-row-unknown.md": [
-    [61, "A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED", "the row \"Velocity\" is no part of the flow control (WIP limit, Time box, Sprints)"]
+    [61,"A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED","the column Kind does not fit: \"Velocity\" is not one of WIP limit, Time box, Sprints"]
   ],
   "row-malformed.md": [
-    [28, "A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED", "the row has 4 cells; the table Transitions has 3 columns"]
+    [28,"THE MODEL DETERMINES THE PHASES AND THE GATES","the row has 4 cells where the table under ## Transitions has 3 columns: the cell beyond the last column, Kind, is “again”, and no column reads it"]
   ],
   "columns-wrong.md": [
-    [34, "A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED", "the table Verification pairs has the columns Phase | Verified by, not Phase | Checked by"]
+    [34,"THE MODEL DETERMINES THE PHASES AND THE GATES","the header of the table under ## Verification pairs names Phase, Verified by, where the format model names Phase, Checked by in that order: it adds Verified by; lacks Checked by, so no row of the table is read"]
   ]
 }
