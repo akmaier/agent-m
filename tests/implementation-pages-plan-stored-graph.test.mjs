@@ -61,13 +61,15 @@ function productFiles() {
 }
 
 // The product's snapshot, keeping every call; `stored` is the gzipped text of the graph on trace-cache, or null for a branch that holds none.
-function snapshotOf(files, calls, stored) {
+// `others` holds further files of trace-cache, by path: latest.json and the graph of an earlier commit, where a test gives them.
+function snapshotOf(files, calls, stored, others = {}) {
   return { repository: { server: "github", path: "acme/product", web: ADDRESS }, ref: "main", commit: COMMIT, paths: Object.keys(files),
     blob: (path) => (Object.hasOwn(files, path) ? blobOf(files[path]) : null),
     read: async (path) => { calls.push({ fn: "read", path }); return Object.hasOwn(files, path) ? files[path] : null; },
     readOn: async (branch, path, options) => {
       calls.push({ fn: "readOn", branch, path });
-      return branch === "trace-cache" && path === `${COMMIT}.json.gz` && options?.bytes ? stored : null;
+      if (branch === "trace-cache" && path === `${COMMIT}.json.gz` && options?.bytes) return stored;
+      return branch === "trace-cache" && Object.hasOwn(others, path) ? others[path] : null;
     } };
 }
 const INSTANCE = "# Participants\n\n**REGISTER**\n\nThe people and agents of the fixture instance.\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n";
@@ -77,13 +79,13 @@ function contextOf(snapshot) {
   const instance = { ...snapshotOf({ "SPEC.md": "# Instance\n", "docs/participants.md": INSTANCE }, [], null), repository: { server: "github", path: "acme/agent-m", web: "https://github.com/acme/agent-m" } };
   return { product: { address: ADDRESS, host: host(snapshot) }, instance: { host: host(instance) } };
 }
-async function render(stored) {
+async function render(stored, others = async () => ({})) {
   globalThis.mermaid = { initialize() {}, mermaidAPI: { getDiagramFromText: async () => ({ db: { getVertices: () => ({}) } }) }, run: async () => {} };
   const files = productFiles(), calls = [];
   const target = document.createElement("div");
   document.body.append(target);
   let failure = null;
-  try { await route.render(target, contextOf(snapshotOf(files, calls, stored(files))), {}); } catch (error) { failure = error; } finally { delete globalThis.mermaid; }
+  try { await route.render(target, contextOf(snapshotOf(files, calls, await stored(files), await others(files))), {}); } catch (error) { failure = error; } finally { delete globalThis.mermaid; }
   return { target, calls, failure };
 }
 const elements = (root, match) => {
@@ -93,12 +95,13 @@ const elements = (root, match) => {
 };
 const architecture = (target) => elements(target, (e) => e.getAttribute("data-architecture") !== null).map((e) => e.getAttribute("data-architecture"));
 // The graph of the commit as `onMainChanged` stored it, with one architecture node more than the files hold: the page lists it only from the stored graph.
-const graphOf = async (files) => {
-  const graph = await traceGraph({ paths: Object.keys(files), read: async (path) => files[path] ?? null }, { commit: COMMIT });
+const graphOf = async (files, commit = COMMIT, extra = "MOD-stored") => {
+  const graph = await traceGraph({ paths: Object.keys(files), read: async (path) => files[path] ?? null }, { commit });
   const reader = graph.nodes.get("MOD-reader");
-  graph.nodes.set("MOD-stored", { ...reader, id: "MOD-stored", title: "MOD-stored", path: "docs/architecture/MOD-stored.md" });
+  graph.nodes.set(extra, { ...reader, id: extra, title: extra, path: `docs/architecture/${extra}.md` });
   return gzipped(graphText(graph));
 };
+const asOf = (target) => elements(target, (e) => e.getAttribute("data-graph-as-of") !== null).map((e) => e.textContent);
 
 // TST-1120001 · level: unit · module: MOD-implementation-pages
 // guards: UC-045; A PAGE LOAD READS THE REPOSITORY IN BATCHES
@@ -113,20 +116,42 @@ test("the plan page reads the graph stored for its commit and builds none", asyn
   assert.deepEqual(architecture(shown).filter((id) => id !== "MOD-stored"), ["ARC-001", "ARC-002", "MOD-reader"]);
   assert.equal(asked.filter((call) => call.path === ONLY_THE_GRAPH).length, 0, "no file only the graph reads is read");
   assert.deepEqual(asked.filter((call) => call.fn === "readOn"), [{ fn: "readOn", branch: "overview-cache", path: `${COMMIT}.facts.json` }, { fn: "readOn", branch: "trace-cache", path: `${COMMIT}.json.gz` }]);
+  assert.deepEqual(asOf(shown), [], "the head's own graph is shown, and no line says otherwise");
 });
 
 // TST-1120002 · level: unit · module: MOD-implementation-pages
 // guards: UC-045; A PAGE LOAD READS THE REPOSITORY IN BATCHES
-// given: the same product, `trace-cache` holding no graph of the commit
+// given: the same product, `trace-cache` holding no graph of the commit and no latest.json
 // input: the route plan's render
 // expect: no graph is built: tests/sample.test.mjs is read by no one and no architecture is listed; the render fails with GraphNotStored, whose message — "the trace graph of <commit> is not stored yet" — the
-//         frame shows in the page's place (MOD-site-frame's readProblem); `readOn` was asked as in TST-1120001 (the counter-proof of TST-1120001)
+//         frame shows in the page's place (MOD-site-frame's readProblem); `readOn` was asked as in TST-1120001, and once more for trace-cache / latest.json (the counter-proof of TST-1120001)
 test("the plan page builds no graph where none is stored, and fails with GraphNotStored", async () => {
   COMMIT = "d".repeat(40);
   const { target, calls, failure } = await render(() => null);
   assert.deepEqual(architecture(target), []);
   assert.equal(failure?.name, "GraphNotStored");
   assert.match(failure.message, new RegExp(`the trace graph of ${COMMIT.slice(0, 12)} is not stored yet`));
-  assert.deepEqual(calls.filter((call) => call.fn === "readOn"), [{ fn: "readOn", branch: "overview-cache", path: `${COMMIT}.facts.json` }, { fn: "readOn", branch: "trace-cache", path: `${COMMIT}.json.gz` }]);
+  assert.deepEqual(calls.filter((call) => call.fn === "readOn"), [{ fn: "readOn", branch: "overview-cache", path: `${COMMIT}.facts.json` }, { fn: "readOn", branch: "trace-cache", path: `${COMMIT}.json.gz` },
+    { fn: "readOn", branch: "trace-cache", path: "latest.json" }]);
+  assert.equal(calls.filter((call) => call.path === ONLY_THE_GRAPH).length, 0, "no graph is built from the files");
+});
+
+// TST-1300005 · level: unit · module: MOD-implementation-pages
+// guards: UC-045; A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: the same product, `trace-cache` holding no graph of the commit, a latest.json naming an earlier commit, and that commit's graph, which holds MOD-earlier (a node the files do not hold)
+// input: the route plan's render
+// expect: no failure; the architecture is the earlier graph's (MOD-earlier listed, MOD-stored not); one line, data-graph-as-of, reads "As of <earlier, 7>: the trace graph of the newest commit, <commit, 7>, is
+//         being stored."; `readOn` asked for overview-cache / <commit>.facts.json, trace-cache / <commit>.json.gz, latest.json and <earlier>.json.gz, once each and nothing else; tests/sample.test.mjs read by no one
+test("the plan page shows the graph stored last, with the line naming both commits, while its commit's graph is not stored", async () => {
+  COMMIT = "e".repeat(40);
+  const earlier = "f".repeat(40);
+  const { target, calls, failure } = await render(() => null,
+    async (files) => ({ "latest.json": `{"commit":"${earlier}"}\n`, [`${earlier}.json.gz`]: await graphOf(files, earlier, "MOD-earlier") }));
+  assert.equal(failure, null);
+  assert.ok(architecture(target).includes("MOD-earlier"), "the architecture is the earlier graph's");
+  assert.equal(architecture(target).includes("MOD-stored"), false);
+  assert.deepEqual(asOf(target), [`As of ${earlier.slice(0, 7)}: the trace graph of the newest commit, ${COMMIT.slice(0, 7)}, is being stored.`]);
+  assert.deepEqual(calls.filter((call) => call.fn === "readOn"), [{ fn: "readOn", branch: "overview-cache", path: `${COMMIT}.facts.json` }, { fn: "readOn", branch: "trace-cache", path: `${COMMIT}.json.gz` },
+    { fn: "readOn", branch: "trace-cache", path: "latest.json" }, { fn: "readOn", branch: "trace-cache", path: `${earlier}.json.gz` }]);
   assert.equal(calls.filter((call) => call.path === ONLY_THE_GRAPH).length, 0, "no graph is built from the files");
 });
