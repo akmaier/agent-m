@@ -15,29 +15,6 @@ export const viewFiles = () => readdirSync(new URL("dashboard/", ASSETS), { recu
 export const dashboardText = ({ shell = true } = {}) => [...(shell ? [APP] : []), ...viewFiles()]
   .map((u) => readFileSync(u, "utf8")).join("\n");
 
-export const click = { isTrusted: true };
-
-export function fakeGitHub(files = {}) {
-  // Minimal git-data API: one branch "main" at commit c0 with tree t0.
-  const calls = [];
-  const fetchMock = async (u, init) => {
-    const url = new URL(u), m = init.method, path = url.pathname;
-    calls.push([m, path, init.headers?.Authorization, init.body ? JSON.parse(init.body) : null]);
-    const ok = (o) => new Response(JSON.stringify(o), { status: 200 });
-    if (m === "GET" && path.endsWith("/git/ref/heads/main")) return ok({ object: { sha: "c0" } });
-    if (m === "GET" && path.endsWith("/git/commits/c0")) return ok({ tree: { sha: "t0" } });
-    if (m === "GET" && path.includes("/contents/")) {
-      const p = decodeURIComponent(path.split("/contents/")[1]);
-      return p in files ? ok({ sha: files[p] }) : new Response("{}", { status: 404 });
-    }
-    if (m === "POST" && path.endsWith("/git/trees")) return ok({ sha: "t1" });
-    if (m === "POST" && path.endsWith("/git/commits")) return ok({ sha: "c1", html_url: "https://github.com/a/b/commit/c1" });
-    if (m === "PATCH" && path.endsWith("/git/refs/heads/main")) return ok({ object: { sha: "c1" } });
-    return new Response("{}", { status: 500 });
-  };
-  return { calls, fetchMock };
-}
-
 export async function withFetch(mock, f) {
   const real = globalThis.fetch;
   globalThis.fetch = mock;

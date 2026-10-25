@@ -14,8 +14,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import { parseFrontMatter, headerModules } from "../../docs/assets/artifacts.mjs";
-import { tokenListUrl, parseProductAddress, fetchText, gitlabAuth, gitlabApiBase } from "../../docs/assets/git-host.mjs";
-import * as gitHost from "../../docs/assets/git-host.mjs";
+import { parseAddress, connect } from "../../src/repository-hosts/index.mjs";
 import { stepHtml, gitlabWriteRefusal } from "../../src/site-frame/dashboard-app.mjs";
 import * as shell from "../../src/site-frame/dashboard-app.mjs";
 import { ASSETS, APP, viewFiles, dashboardText, GL_ADDR, GL_TOKEN, withFetch } from "./helpers.mjs";
@@ -23,22 +22,20 @@ import { ASSETS, APP, viewFiles, dashboardText, GL_ADDR, GL_TOKEN, withFetch } f
 // Every module file of the site (vendored libraries excepted), with the modules its Module line names.
 const moduleFiles = () => [...readdirSync(ASSETS, { recursive: true }).filter((f) => f.endsWith(".mjs") && !f.split("/").includes("vendor"))
   .map((f) => ({ file: f, text: readFileSync(new URL(f, ASSETS), "utf8") })), { file: "dashboard-app.mjs", text: readFileSync(APP, "utf8") }]
-  .sort((a, b) => (a.file < b.file ? -1 : a.file > b.file ? 1 : 0));
 // The adapters (ARC-003 decision 1): the modules that reach the outside, as the code is built.
 function adapterModules() {
-  return new Set(["MOD-git-host", "MOD-settings-store", "MOD-participants", "MOD-mailbox", "MOD-bridge-server", "MOD-bridge-tunnel"]);
+  return new Set(["MOD-settings-store", "MOD-participants", "MOD-mailbox", "MOD-bridge-server", "MOD-bridge-tunnel"]);
 }
 
-test("the app never calls fetch directly — every request goes through fetchText", () => {
+test("the app never calls fetch directly — every request goes through an adapter", () => {
   // ARC-003 decision 6: no module file but an adapter's calls fetch or touches browser storage — the dashboard's files and every
-  // kernel and feature file. A file's module is its Module line; a file naming no adapter is checked.
+  // kernel and feature file; the dashboard's requests leave through the hosts of MOD-repository-hosts. A file's module is its
+  // Module line; a file naming no adapter is checked.
   const adapters = adapterModules(), files = moduleFiles();
   const checked = files.filter((f) => !headerModules(f.text).some((m) => adapters.has(m)));
-  assert.ok(adapters.has("MOD-git-host") && adapters.has("MOD-settings-store"), "the adapters are listed");
-  assert.ok(!checked.some((f) => f.file === "git-host.mjs") && checked.some((f) => f.file === "dashboard-app.mjs")
-    && checked.some((f) => f.file === "artifacts.mjs"), "kernel and shell files are checked");
+  assert.ok(checked.some((f) => f.file === "dashboard-app.mjs") && checked.some((f) => f.file === "artifacts.mjs"), "kernel and shell files are checked");
   const FORBIDDEN = /\bfetch\s*\(|XMLHttpRequest|sendBeacon|\b(globalThis|window|self)\s*\.\s*(localStorage|sessionStorage)\b|\b(localStorage|sessionStorage)\s*[.[]|document\.cookie/;
-  for (const { file, text: app } of checked) assert.doesNotMatch(app.replace(/fetchText\(/g, ""), FORBIDDEN, file);
+  for (const { file, text: app } of checked) assert.doesNotMatch(app, FORBIDDEN, file);
   // counter-proof: access is caught, the word in an explanation is not
   assert.match("localStorage.getItem('t')", FORBIDDEN);
   assert.match("fetch(url)", FORBIDDEN);
@@ -51,101 +48,57 @@ function kernelModules() {
   return new Set(["MOD-artifacts", "MOD-review-core", "MOD-traceability", "MOD-job-harness", "MOD-run-engine", "MOD-process-model",
     "MOD-work-items"]);
 }
-// The three write functions of the git host (MOD-git-host): the one write path and the commit on each kind of server.
-const GIT_HOST_WRITES = ["commitFiles", "commitFilesGitLab", "writeFiles"];
-// What a module file imports from the git host: each name it imports (an alias counts by its original name), and "*" for a
-// namespace or dynamic import, which reaches every function of it.
-function gitHostImports(text) {
+// What a module file imports from MOD-repository-hosts (src/repository-hosts/): for each import, the file of the module it names
+// and the names it takes, "*" for a namespace or dynamic import, which reaches every function of that file.
+function hostImports(text) {
   const out = [];
+  const fileOf = (specifier) => /(?:^|\/)repository-hosts\/([\w.-]+\.mjs)$/.exec(specifier)?.[1] ?? null;
   for (const m of text.matchAll(/\bimport\s+([^;]*?)\s+from\s+["']([^"']+)["']/g)) {
-    if (!/(^|\/)git-host\.mjs$/.test(m[2])) continue;
-    if (/\*\s*as\s+[\w$]+/.test(m[1])) out.push("*");
+    const file = fileOf(m[2]);
+    if (!file) continue;
+    if (/\*\s*as\s+[\w$]+/.test(m[1])) out.push({ file, name: "*" });
     for (const n of (m[1].match(/\{([^}]*)\}/)?.[1] ?? "").split(",")) {
       const name = n.trim().split(/\s+as\s+/)[0];
-      if (name) out.push(name);
+      if (name) out.push({ file, name });
     }
   }
-  if (/\bimport\s*\(\s*[^)]*git-host\.mjs/.test(text)) out.push("*");
+  for (const m of text.matchAll(/\bimport\s*\(\s*["']([^"']+)["']/g)) if (fileOf(m[1])) out.push({ file: fileOf(m[1]), name: "*" });
   return out;
 }
-
-test("the kernel never writes — no kernel file imports a write function of the git host", () => {
-  // ARC-003 decision 1: a kernel module imports only kernel modules; MOD-review-core returns the files, and a shell commits
-  // them on its authority. The kernel's reads through the git host are not checked here (ITM-124). A file's module is its
-  // Module line; the kernel is read from the group file.
-  const kernel = kernelModules(), files = moduleFiles();
-  const checked = files.filter((f) => headerModules(f.text).some((m) => kernel.has(m)));
-  assert.ok(kernel.has("MOD-review-core") && kernel.has("MOD-artifacts") && !kernel.has("MOD-git-host"), "the kernel is read from the group file");
-  assert.ok(checked.some((f) => f.file === "review-core.mjs") && !checked.some((f) => f.file.startsWith("dashboard")),
-    "the kernel's files are checked, the dashboard's are not");
-  for (const { file, text } of checked) {
-    assert.deepEqual(gitHostImports(text).filter((n) => n === "*" || GIT_HOST_WRITES.includes(n)), [], file);
-  }
-  // counter-proof: each way of importing a write function is caught, a read is not, and another module's writeFiles is not
-  assert.deepEqual(gitHostImports('import {\n  fetchText, writeFiles,\n} from "./git-host.mjs";'), ["fetchText", "writeFiles"]);
-  assert.deepEqual(gitHostImports('import { commitFiles as commit } from "../git-host.mjs";'), ["commitFiles"]);
-  assert.deepEqual(gitHostImports('import * as gitHost from "./git-host.mjs";'), ["*"]);
-  assert.deepEqual(gitHostImports('const g = await import("./git-host.mjs");'), ["*"]);
-  assert.deepEqual(gitHostImports('import { fetchText } from "./git-host.mjs";\nimport { writeFiles } from "./other.mjs";'), ["fetchText"]);
-});
+const names = (imports) => imports.map(({ file, name }) => `${file}: ${name}`);
 
 // Guards: UC-024
-test("the kernel never reads through the git host — no kernel file imports anything of it", () => {
+test("the kernel never reaches a repository — no kernel file imports anything of MOD-repository-hosts", () => {
   // ARC-003 decisions 1 and 2: a kernel module imports only kernel modules; what it reads is handed to it as a port
-  // (MOD-review-core lastAccepted's committedAt and read), and a shell wires the git host's reads to it (ITM-130). The kernel is
-  // read from the group file, a file's module from its Module line, as in the check above.
+  // (MOD-review-core lastAccepted's committedAt and read), and a shell commits the files it returns, through a host it connected.
+  // The kernel is read from the group file, a file's module from its Module line.
   const kernel = kernelModules(), files = moduleFiles();
   const checked = files.filter((f) => headerModules(f.text).some((m) => kernel.has(m)));
   assert.ok(checked.some((f) => f.file === "review-core.mjs") && checked.some((f) => f.file === "artifacts.mjs"), "the kernel's files are checked");
-  for (const { file, text } of checked) assert.deepEqual(gitHostImports(text), [], file);
-  // counter-proof: a read imported into the kernel is caught — the check above lets it pass, it is no write
-  assert.deepEqual(gitHostImports('import { readBlob, REPO_RE } from "./git-host.mjs";'), ["readBlob", "REPO_RE"]);
+  for (const { file, text } of checked) assert.deepEqual(names(hostImports(text)), [], file);
+  // counter-proof: each way of importing the module is caught, another module's import is not
+  assert.deepEqual(names(hostImports('import {\n  parseAddress, connect,\n} from "../../src/repository-hosts/index.mjs";')),
+    ["index.mjs: parseAddress", "index.mjs: connect"]);
+  assert.deepEqual(names(hostImports('import { connect as open } from "../repository-hosts/index.mjs";')), ["index.mjs: connect"]);
+  assert.deepEqual(names(hostImports('import * as hosts from "../repository-hosts/index.mjs";')), ["index.mjs: *"]);
+  assert.deepEqual(names(hostImports('const h = await import("../repository-hosts/github.mjs");')), ["github.mjs: *"]);
+  assert.deepEqual(names(hostImports('import { connect } from "./other.mjs";')), []);
 });
 
 // Guards: UC-024
-test("the shells read only through what the git host provides — no file of the dashboard imports fetchText", () => {
-  // MOD-git-host calls its request helper internal: the dashboard reads through readSnapshot, readFile, readBlob,
-  // commitsTouching and repositoryInfo (ITM-130). A namespace or dynamic import reaches the helper too. No exception: Add
-  // product reads a GitHub product's branch through readSnapshot (ITM-130, back from Release testing, finding A1).
+test("the dashboard reaches MOD-repository-hosts only through its interface — no file of the dashboard imports another of its files", () => {
+  // MOD-repository-hosts' Parts: index.mjs is the interface, and every other file of its folder — the adapters, the request
+  // helper and the failures behind them — is private to it. A namespace or dynamic import of a private file reaches it too.
   const files = moduleFiles().filter((f) => headerModules(f.text).includes("MOD-dashboard-app"));
   assert.ok(files.some((f) => f.file === "dashboard-app.mjs"), "the shell's files are checked");
-  const importing = files.filter((f) => gitHostImports(f.text).some((n) => n === "*" || n === "fetchText")).map((f) => f.file);
-  assert.deepEqual(importing, [], "no file of the dashboard imports the request helper");
-  // counter-proof: the helper imported by name, by a namespace or dynamically is caught; a provided read is not
-  assert.deepEqual(gitHostImports('import { readFile, fetchText as get } from "../git-host.mjs";'), ["readFile", "fetchText"]);
-  assert.deepEqual(gitHostImports('import * as host from "./git-host.mjs";'), ["*"]);
-  assert.deepEqual(gitHostImports('import { readSnapshot, repositoryInfo } from "./git-host.mjs";'), ["readSnapshot", "repositoryInfo"]);
-});
-
-// The git host's reads that MOD-git-host keeps to itself: the request helper and the GitLab reads behind readSnapshot,
-// readFile and repositoryInfo. Each sends a request; none is in MOD-git-host's `provides`.
-const GIT_HOST_INTERNAL_READS = ["fetchText", "request", "gitlabProject", "gitlabSnapshot", "gitlabReadFile"];
-// MOD-git-host's interfaces: the names it provides to the other modules, as the code is built.
-const gitHostProvides = () => new Set(["assetAnswer", "assetRequest", "authHeaders", "branchHead", "branchProtection", "cancelRun",
-  "candidateTags", "checks", "commentIssue", "commitFiles", "commitOf", "commitsTouching", "createBranch", "createIssue", "createTag",
-  "dispatchWorkflow", "editUrl", "fileUrl", "issueClosedBy", "issueComments", "issueLabel", "issues", "latestRelease",
-  "mergePullRequest", "newFileUrl", "openPullRequest", "parseProductAddress", "pathHistory", "pipelineSchedules",
-  "pipelineSchedulesPageUrl", "pullRequestCommits", "pullRequests", "readBlob", "readBlobBytes", "readFile", "readSnapshot",
-  "recentCommits", "releaseTags", "releaseText", "releaseWith", "repositoryInfo", "requiredPermissions", "runnersPageUrl",
-  "savePipelineSchedule", "secretsPageUrl", "setIssueBody", "setIssueState", "tagCommits", "tokenAccount", "tokenPageUrl",
-  "treeUrl", "workflowPageUrl", "workflowRuns", "writeFiles"]);
-
-// Guards: UC-024; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN
-test("the shells read only through what the git host provides — no file of the dashboard imports a read MOD-git-host keeps to itself", () => {
-  // ITM-130, back from Release testing (A2): checkGitLab reads a GitLab project through repositoryInfo, not gitlabProject.
-  const provides = gitHostProvides();
-  assert.ok(provides.has("repositoryInfo") && provides.has("readSnapshot") && provides.size >= 10, "the interfaces are read");
-  for (const n of GIT_HOST_INTERNAL_READS) {
-    assert.ok(!provides.has(n), `${n} is not provided`);
-    assert.equal(typeof gitHost[n], "function", `${n} is a function of the git host`);
-  }
-  const files = moduleFiles().filter((f) => headerModules(f.text).includes("MOD-dashboard-app"));
-  const reading = files.flatMap((f) => gitHostImports(f.text).filter((n) => n === "*" || GIT_HOST_INTERNAL_READS.includes(n))
-    .map((n) => `${f.file}: ${n}`));
-  assert.deepEqual(reading, []);
-  // counter-proof: a GitLab read imported by name or under another name is caught; the provided read is not
-  assert.deepEqual(gitHostImports('import { repositoryInfo, gitlabProject as project } from "../git-host.mjs";')
-    .filter((n) => GIT_HOST_INTERNAL_READS.includes(n)), ["gitlabProject"]);
+  assert.ok(files.some((f) => hostImports(f.text).some((i) => i.file === "index.mjs" && i.name === "connect")), "known positive: the shell's connect is seen");
+  const past = files.flatMap((f) => names(hostImports(f.text).filter((i) => i.file !== "index.mjs")).map((n) => `${f.file}: ${n}`));
+  assert.deepEqual(past, [], "no file of the dashboard imports a private file of MOD-repository-hosts");
+  // counter-proof: a private file imported by name, by a namespace or dynamically is caught; the interface is not
+  assert.deepEqual(names(hostImports('import { send } from "../repository-hosts/failures.mjs";')), ["failures.mjs: send"]);
+  assert.deepEqual(names(hostImports('import * as gh from "../repository-hosts/github.mjs";')), ["github.mjs: *"]);
+  assert.deepEqual(names(hostImports('import { parseAddress, HostError } from "../repository-hosts/index.mjs";')),
+    ["index.mjs: parseAddress", "index.mjs: HostError"]);
 });
 
 // ---------------------------------------------------------------- one click per decision (queue 2026-09-24)
@@ -168,7 +121,7 @@ test("every site module parses — the app itself is only run in a browser, so c
 });
 
 test("the list of the person's tokens is GitHub's page of fine-grained tokens, where a token is renewed", () => {
-  assert.equal(tokenListUrl(), "https://github.com/settings/personal-access-tokens");
+  assert.equal(connect(parseAddress("https://github.com/akmaier/agent-m")).webLinks().tokens, "https://github.com/settings/personal-access-tokens");
 });
 
 // ---------------------------------------------------------------- the use-case key is `area` (was `stage`)
@@ -197,14 +150,15 @@ test("the use-case key is `area` — `stage` is used nowhere in the dashboard's 
 const RESET = 1790000000; // X-RateLimit-Reset, seconds
 const AT = new Date((RESET - 17 * 60) * 1000); // seventeen minutes before the reset
 const resetTime = new Date(RESET * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-const GH = parseProductAddress("https://github.com/akmaier/agent-m");
+const GH = shell.productOf("https://github.com/akmaier/agent-m");
 const limitHeaders = (limit, remaining = 0) => ({ "X-RateLimit-Limit": String(limit), "X-RateLimit-Remaining": String(remaining),
   "X-RateLimit-Reset": String(RESET) });
-// The error the dashboard's read gets from fetchText when the server answers `status` with `headers`.
-async function refused(status, headers = {}, { url = "https://api.github.com/repos/akmaier/agent-m/commits/main", auth = "github_pat_STORED" } = {}) {
+// The failure the dashboard's read of the repository gets from the host it connected (MOD-repository-hosts) when the server
+// answers `status` with `headers`.
+async function refused(status, headers = {}, { address = GH.address, token = "github_pat_STORED" } = {}) {
   let err = null;
   await withFetch(async () => new Response('{"message":"refused"}', { status, statusText: "Forbidden", headers }), async () => {
-    try { await fetchText(url, {}, auth); } catch (e) { err = e; }
+    try { await connect(parseAddress(address), { token }).readSnapshot("main"); } catch (e) { err = e; }
   });
   return err;
 }
@@ -221,7 +175,7 @@ test("A USED-UP RATE LIMIT IS NAMED — the load error names the account's limit
 });
 
 test("A USED-UP RATE LIMIT IS NAMED — without a token, the network's limit and when it resets", async () => {
-  const html = shell.loadErrorHtml({ error: await refused(403, limitHeaders(60), { auth: null }), product: GH, ref: "main",
+  const html = shell.loadErrorHtml({ error: await refused(403, limitHeaders(60), { token: null }), product: GH, ref: "main",
     hasToken: false, now: AT });
   assert.match(html, /this network/);
   assert.match(html, /used up/);
@@ -246,8 +200,8 @@ test("A USED-UP RATE LIMIT IS NAMED — a refused write names the limit; counter
 });
 
 test("A USED-UP RATE LIMIT IS NAMED — a GitLab product's limit is named by its server, without a time", async () => {
-  const p = parseProductAddress(GL_ADDR);
-  const err = await refused(429, {}, { url: gitlabApiBase(p), auth: gitlabAuth(p, GL_TOKEN) });
+  const p = shell.productOf(GL_ADDR);
+  const err = await refused(429, {}, { address: GL_ADDR, token: GL_TOKEN });
   const text = shell.rateLimitText(err, p, AT);
   assert.ok(text && text.includes(p.host), "names the server");
   assert.match(text, /used up/);

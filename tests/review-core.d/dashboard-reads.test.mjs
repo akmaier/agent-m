@@ -8,7 +8,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseProductAddress, webFileUrl } from "../../docs/assets/git-host.mjs";
+import { parseAddress, connect } from "../../src/repository-hosts/index.mjs";
 import { deriveTarget } from "../../src/site-frame/dashboard-app.mjs";
 import { GL, GL_ADDR } from "./helpers.mjs";
 
@@ -19,6 +19,7 @@ test("the dashboard is opened on a GitLab product by its address; its files link
   assert.equal(t.product.server, GL);
   assert.equal(t.refGiven, false);
   assert.equal(deriveTarget({ hostname: "reader.github.io", pathname: "/agent-m/", search: "?product=javascript:alert(1)" }).repo, "reader/agent-m");
-  assert.equal(webFileUrl(parseProductAddress(GL_ADDR), "main", "docs/use-cases/UC-001 a.md"), `${GL_ADDR}/-/blob/main/docs/use-cases/UC-001%20a.md`);
-  assert.equal(webFileUrl(parseProductAddress("https://github.com/a/b"), "main", "SPEC.md"), "https://github.com/a/b/blob/main/SPEC.md");
+  const fileOf = (address, ref, path) => connect(parseAddress(address)).webLinks().file(path, ref);
+  assert.equal(fileOf(GL_ADDR, "main", "docs/use-cases/UC-001 a.md"), `${GL_ADDR}/-/blob/main/docs/use-cases/UC-001%20a.md`);
+  assert.equal(fileOf("https://github.com/a/b", "main", "SPEC.md"), "https://github.com/a/b/blob/main/SPEC.md");
 });

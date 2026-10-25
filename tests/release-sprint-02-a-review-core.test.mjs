@@ -44,15 +44,16 @@ const specifiers = (t) => [...t.matchAll(/(?:\bfrom\s*|\bimport\s*\(?\s*)["']([^
 const codeOnly = (t) => t.replace(/\/\*[\s\S]*?\*\//g, "").split("\n").map((l) => l.replace(/(^|[^:"'`])\/\/.*$/, "$1")).join("\n");
 
 // ITM-130 · ARC-003 decision 1 — Expected: no code file of a kernel module (KERNEL above) imports
-// a file of MOD-git-host, or of any module outside the kernel; review-core.mjs is among the files checked. Known positive of the
-// reader: a planted `import { readFile } from "./git-host.mjs"` in review-core.mjs's text is seen as an import of MOD-git-host.
-test("release · ITM-130 ARC-003: no kernel file imports from the git host or from any module outside the kernel", () => {
+// a file of MOD-repository-hosts, or of any module outside the kernel; review-core.mjs is among the files checked. Known positive of
+// the reader: a planted `import { connect } from "../../src/repository-hosts/index.mjs"` in review-core.mjs's text is seen as an
+// import of MOD-repository-hosts.
+test("release · ITM-130 ARC-003: no kernel file imports from a repository host or from any module outside the kernel", () => {
   assert.ok(KERNEL.has("MOD-review-core") && KERNEL.has("MOD-artifacts"), [...KERNEL].join(", "));
   const kernelFiles = codeFiles().filter((f) => KERNEL.has(moduleOf(f)));
   assert.ok(kernelFiles.some((f) => f.endsWith(path.join("docs/assets/review-core.mjs"))), "review-core.mjs is a kernel file");
   const target = (f, s) => path.resolve(path.dirname(f), s);
-  const planted = `import { readFile } from "./git-host.mjs";\n${fs.readFileSync(path.join(ROOT, "docs/assets/review-core.mjs"), "utf8")}`;
-  assert.ok(specifiers(planted).some((s) => moduleOf(target(path.join(ROOT, "docs/assets/review-core.mjs"), s)) === "MOD-git-host"), "known positive");
+  const planted = `import { connect } from "../../src/repository-hosts/index.mjs";\n${fs.readFileSync(path.join(ROOT, "docs/assets/review-core.mjs"), "utf8")}`;
+  assert.ok(specifiers(planted).some((s) => moduleOf(target(path.join(ROOT, "docs/assets/review-core.mjs"), s)) === "MOD-repository-hosts"), "known positive");
   const outside = [];
   for (const f of kernelFiles) {
     for (const s of specifiers(codeOnly(fs.readFileSync(f, "utf8")))) {

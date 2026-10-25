@@ -3,8 +3,7 @@
 // editFile(path: string) -> string, … }: the server's own pages; a page the server does not offer is null", and "A new-file page
 // prepared for the fallback without a token carries at most a file's path and an approval record — never a reviewed text (NO TEXT
 // TRAVELS IN A URL), and never a credential (A CREDENTIAL IS NEVER PLACED IN A URL)". Deterministic, no network: the pages are
-// addresses, navigation only, so `fetch` is replaced by a recorder that must stay silent. The pages as the model builds them
-// (newFileUrl and editUrl in docs/assets/git-host.mjs): GitHub's new-file page https://github.com/<owner>/<name>/new/<branch>
+// addresses, navigation only, so `fetch` is replaced by a recorder that must stay silent. The pages: GitHub's new-file page https://github.com/<owner>/<name>/new/<branch>
 // with the parameters `filename` and `value`, and its editor https://github.com/<owner>/<name>/edit/<branch>/<path>; GitLab's
 // single-file editor as GitLab links it itself, https://<server>/<project>/-/edit/<branch>/<path> (its handbook links
 // https://gitlab.com/gitlab-com/content-sites/handbook/-/edit/main/.gitlab/CODEOWNERS, read 2026-10-11); GitLab has no new-file

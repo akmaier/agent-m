@@ -44,9 +44,9 @@ export function webLinks(address, defaultBranch = DEFAULT_BRANCH) {
       newRepository: "https://github.com/new",
       // WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK: the new-file page of the default branch with the file's path and an
       // approval record filled in, and nothing else — no reviewed text (NO TEXT TRAVELS IN A URL) and no credential travels in the
-      // address. The model is newFileUrl in docs/assets/git-host.mjs.
+      // address.
       newFile: (path, record) => `${address.web}/new/${branch}?filename=${encodeURIComponent(path)}&value=${encodeURIComponent(record)}`,
-      // The editor page of a file. The model is editUrl in docs/assets/git-host.mjs.
+      // The editor page of a file.
       editFile: (path) => `${address.web}/edit/${branch}/${encodedPath(path)}`,
       // The page that shows one file as it stands at a branch, a tag or a commit, to read it.
       file: (path, ref) => `${address.web}/blob/${encodedPath(ref)}/${encodedPath(path)}`,
