@@ -193,7 +193,13 @@ the writing machine.
   of the pull request's head is read from the run's own statuses (*The reports of a run*), the same on GitHub and
   GitLab, with no call to the server: green only when every shard `AGENT_M_EXPECTED` names left the status `done` or
   `nothing to do` and `records.status` is `done`; a status that is missing — a job that failed before its end, was
-  cancelled or ran out of time — or any other status is not green, and the finding names the job.
+  cancelled or ran out of time — or any other status is not green, and the finding names the job. A test job's status
+  is trusted as the exit status of the product's command already is: the code of the pull request that the job runs
+  decides its own tests' outcome either way — a test that passes falsely is as green as a status written falsely —, so
+  the status file gives that code no power it does not have. What guards against a pull request that fakes its tests is
+  the review of its code and the Definition of Done's other conditions, which are read from the server's
+  `pullRequestFacts` — its earlier commits' CI results among them —, never from a file of the run. `records.status` is
+  written by `agent-m records`, which runs no code of the product.
 - `onPullRequestClosed(env: CiEnvironment) -> Promise<EntryStatus>` — run by the job workflow when a pull request of a
   product is merged or closed: on a merge, the issues it names closed with links, and, on a GitLab server, when it is the
   pull request that set up a run's CI, the project's pipeline schedule of the nightly run set from the merged schedule;
@@ -263,8 +269,10 @@ the writing machine.
   standing for the levels of the tests it ran, and the occasion is the one the reports' names give. A level that did not
   run is not recorded as passed, and a test whose shard left no report is recorded `not run`. A report that
   MOD-result-records' `parseOutcomes` refuses as unreadable — a shard stopped by its time limit may leave one cut off —
-  counts as no report of that shard: it is left out, the others are read again, its tests read `not run` with the
-  reason `report unreadable: <file>`, and the record is still added. The tests of a row whose status is `not run:
+  counts as no report of that shard: it is left out, the others are read again, and the record is still added. Since
+  the command draws a shard's files, which tests the shard held is not known: every test of that shard's row — the
+  files `testsOfRow` names for it — for which no readable report holds a case reads `not run` with the reason `report
+  unreadable: <file>`, naming every unreadable report of the row. The tests of a row whose status is `not run:
   secret missing: <name>` — the files `testsOfRow` names for it — read `not run` with the reason `secret missing:
   <name>`, never `failed` (UC-027 4a). On `Moved` it reads the branch again and adds again; a record that cannot be added
   ends the entry with `failed`, so that the run is not shown green without its record. A run without a report or a

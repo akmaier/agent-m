@@ -80,7 +80,7 @@ where `<run>` is `<yyyymmdd>-<hhmm>-<occasion>-<4 hex>` and the occasion one of 
 |---|---|
 | shape | document: front matter, then one register |
 | front matter | `commit` (40 hex), `levels` (the levels run), `occasion`, `participant` (who ran it: the CI service's runner or a participant of the instance), `date`, `run` (the address of the run on the server, if any), `uncommitted` (`true` when the working tree had changes not in the commit — such a record is shown, never counted for the commit) |
-| section `## Outcomes` | a table with the columns `Test`, `Level`, `Outcome`, `Runs`, `Reason`; `Test` a `TST-<nnn>`, or the name of a test case that names none; `Outcome` `passed`, `failed`, `not run` or `undeclared`; `Runs` for a model-dependent test `<k> of <n>` with `n` the number of runs fixed before the first, empty otherwise; `Reason` for a test `not run`, why, where the run knows it — such as `secret missing: <name>` (UC-027 4a) —, empty otherwise |
+| section `## Outcomes` | a table with the columns `Test`, `Level`, `Outcome`, `Runs`, `Reason`; `Test` a `TST-<nnn>`, or the name of a test case that names none; `Outcome` `passed`, `failed`, `not run` or `undeclared`; `Runs` for a model-dependent test `<k> of <n>` with `n` the number of runs fixed before the first, empty otherwise; `Reason` for a test `not run`, why, where the run knows it — such as `secret missing: <name>` (UC-027 4a) —, empty otherwise. `Reason` is optional: a record of the four columns before it, as the branch already holds and never rewrites, is valid, and every reader of the records — `resultsAt`, `flakyTests`, `rateComparison`, `testHistory`, MOD-release-evidence's report — reads its tests with no reason. The module's tests read such a four-column record as the counter-case |
 | section `## Failures` | per failed test its expected and observed result and a log excerpt |
 
 **The outcome input.** A run's test jobs hand their outcomes over as JUnit XML reports, one for each job — the report
@@ -105,7 +105,7 @@ default branch, entering with the test's pull request:
   one test's outcome in a run — `test` the `TST-<nnn>`, or the case's name for an undeclared case; `runs` `<k> of <n>`
   for a model-dependent test; `failure` the declaration's expected result, the observed one and an excerpt of the case's
   output; `reason` why a test is `not run` where the run knows it, written to the record's column `Reason` —
-  `parseOutcomes` gives `null`, its caller sets it.
+  `parseOutcomes` gives `null`, its caller sets it; `null` too for a test of a record without that column.
 - `resultSchema: { run: Schema, counterProof: Schema }` — the two schemas, for MOD-documents and for MOD-release-evidence.
 - `parseOutcomes(reports: string[], declarations: TestDeclaration[]) -> Outcome[]` — the outcomes of one run, for
   MOD-workflow-entries' `onTestsFinished`, from the JUnit XML reports of its jobs, read together as one: each test case
