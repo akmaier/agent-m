@@ -11,13 +11,14 @@
 // documentFindings finds what ITM-227 builds: front matter keys missing, unknown, out of order, required or forbidden by a
 // condition; values not of their type or of the variant that holds, or empty where nonEmpty; the rows of a table, cell by
 // cell, in the same way; required sections missing, sections out of order, sections the schema forbids, and a document path
-// that matches none of the schema's path patterns. The identifier against the path, the title, describedIn, diagrams and
-// images, the marks of history, the fields of a section, a record of `key: value` lines and appended sections are not
-// checked yet. Each finding is an error, made with
-// MOD-text-tools' finding, and names the rule of the part of the schema closest to it (Data, The requirement a finding
-// names). A key or a section that is missing stands on no line: its finding names line 1, as the dashboard's checks of
-// today do (docs/assets/artifacts/use-cases.mjs). The section under the title (ITM-226) is the first section of a document
-// with a title, and is missing from a document without one.
+// that matches none of the schema's path patterns. It finds as well the identifier against the identifier its path gives, a
+// Mermaid block missing where the schema's `diagrams` is `required`, and, for a schema that names `diagrams` at all, every
+// image (DIAGRAMS ARE MERMAID IN MARKDOWN). The title, describedIn, a Mermaid block where `diagrams` is `none`, the marks of
+// history, the fields of a section, a record of `key: value` lines and appended sections are not checked yet. Each finding
+// is an error, made with MOD-text-tools' finding, and names the rule of the part of the schema closest to it (Data, The
+// requirement a finding names). A key, a section or a diagram that is missing stands on no line: its finding names line 1.
+// The section under the title (ITM-226) is the first section of a document with a title, and is missing from a document
+// without one.
 
 import { finding } from "../text-tools/index.mjs";
 import { KIND_FORMS, PATH, REQUIREMENT_NAME, compiledOf, effective, fences, holds, matchesPath, pathRule, sectionOf, textLines } from "./schema-language.mjs";
@@ -275,6 +276,45 @@ function unreadTable(table, lines) {
   return first;
 }
 
+// The identifier the document's path gives, by the first of the schema's patterns it matches that gives one, or null.
+function pathIdentifier(compiled, path) {
+  for (const pattern of compiled.patterns) {
+    const match = pattern.re.exec(String(path ?? ""));
+    if (match && pattern.idOf(match)) return pattern.idOf(match);
+  }
+  return null;
+}
+
+// The line on which a document's body begins, counted as its front matter is written (keyLines): line 1 without front matter,
+// else the line after the closing --- that follows the last key and its items.
+function bodyLine(fields) {
+  const standing = Object.keys(fields).filter((key) => fields[key] !== undefined);
+  if (!standing.length) return 1;
+  const last = standing.at(-1);
+  return keyLines(fields, standing)[last] + 1 + (Array.isArray(fields[last]) ? fields[last].length : 0) + 1;
+}
+
+// DIAGRAMS ARE MERMAID IN MARKDOWN: an image is a Markdown image, or an HTML <img>, whose address — without its query and its
+// fragment — names a file of an image type; one written inside a fenced block is an example, and no image of the document.
+const DIAGRAMS = "DIAGRAMS ARE MERMAID IN MARKDOWN";
+const MARKDOWN_IMAGE = /!\[[^\]]*\]\(\s*<?([^\s)>]+)/g;
+const HTML_IMAGE = /<img\b[^>]*?\bsrc\s*=\s*["']?([^"'\s>]+)/gi;
+const IMAGE_FILE = /\.(?:png|jpe?g|gif|svg|webp|bmp|tiff?)$/i;
+
+// The images of a body's lines, each { address, index } — the address as written, the index of its line —, in the order of
+// the text.
+function images(lines) {
+  const { inBlock } = fences(lines);
+  const found = [];
+  lines.forEach((line, index) => {
+    if (inBlock[index]) return;
+    const onLine = [MARKDOWN_IMAGE, HTML_IMAGE].flatMap((re) => [...line.matchAll(re)])
+      .filter((m) => IMAGE_FILE.test(m[1].replace(/[?#].*$/, ""))).sort((a, b) => a.index - b.index);
+    for (const m of onLine) found.push({ address: m[1], index });
+  });
+  return found;
+}
+
 export function documentFindings(schema, document) {
   const compiled = compiledOf(schema);
   const artifact = document.id ?? document.path;
@@ -312,6 +352,29 @@ export function documentFindings(schema, document) {
         add(lineOf[key] ?? 1, valueRules(check, spec, frontLookup), `the key ${key} ${check.why}`,
           fixOf(FIX.key, key, fields[key], check));
       }
+    }
+    // The identifier against the path: the value of the key the schema names as its identifier, where it stands and fits,
+    // is the identifier the path gives.
+    const idKey = schema.identifier?.field, idSpec = specs[idKey];
+    const given = idKey === undefined ? null : pathIdentifier(compiled, document.path);
+    if (given !== null && typeof fields[idKey] === "string" && fields[idKey] && fields[idKey] !== given
+      && !valueCheck(fields[idKey], idSpec ?? {}, frontLookup, "front matter")) {
+      add(lineOf[idKey] ?? 1, [(idSpec?.variants ?? []).find((variant) => holds(variant.when, frontLookup))?.rule, idSpec?.rule],
+        `the key ${idKey} is ${shown(fields[idKey])}, and the path ${document.path} gives the identifier ${given}`,
+        `set ${idKey}: ${given}, the identifier the path gives; a new identifier is a new file`);
+    }
+  }
+
+  if (schema.diagrams !== undefined) {
+    const lines = textLines(document.body ?? "");
+    const first = bodyLine(fields);
+    if (schema.diagrams === "required" && !fences(lines).blocks.some((block) => block.info === "mermaid")) {
+      add(1, [DIAGRAMS], `the format ${schema.schema} holds a diagram, and the document has no \`\`\`mermaid block`,
+        "draw the diagram as a fenced ```mermaid block in this document");
+    }
+    for (const { address, index } of images(lines)) {
+      add(first + index, [DIAGRAMS], `the image ${address} stands where a diagram is written as a \`\`\`mermaid block`,
+        "replace the image by the same diagram as a fenced ```mermaid block in this document");
     }
   }
 

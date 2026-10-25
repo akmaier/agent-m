@@ -7,14 +7,14 @@ SOFTWARE_MAINTENANCE §4.0a rule 5, built into the suite instead of run once by 
 """
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
+from jsrun import js
+
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
-USE_CASE_NAME = re.compile(r"^UC-(\d{3})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$")
-REQUIRED_SECTIONS = ["## Actors", "## Precondition", "## Main flow", "## Alternative flows",
-                     "## Postcondition"]
 HEX40 = re.compile(r"^[0-9a-f]{40}$")
 
 
@@ -38,73 +38,40 @@ def front_matter(text: str) -> tuple[dict, str]:
 
 
 # ---------------------------------------------------------------- use cases (SPEC §4, §10)
-# The twin of docs/assets/artifacts/use-cases.mjs useCaseProblems: the same checks in the same order, each finding's rule
-# and `what` word for word; tests/artifacts-twin.test.mjs compares the two on the same files.
-
-FIELDS = "A USE CASE HAS ACTOR, PRECONDITION, FLOW AND POSTCONDITION"
-REALISES = "A USE CASE REALISES NAMED REQUIREMENTS"
-MERMAID = "DIAGRAMS ARE MERMAID IN MARKDOWN"
-ONE_FILE = "ONE USE CASE, ONE FILE"
-MERMAID_OPEN = re.compile(r"^```mermaid\s*$")
-MD_IMAGE = re.compile(r"!\[[^\]]*\]\(\s*<?([^\s)>]+)")
-HTML_IMAGE = re.compile(r"""<img\b[^>]*?\bsrc\s*=\s*["']?([^"'\s>]+)""", re.I)
-IMAGE_TYPE = re.compile(r"\.(png|jpe?g|gif|svg|webp)$", re.I)
+# A use case is read and checked by MOD-documents — documentFindings, by the use-case schema artifactSchemas gives —; the names
+# it realises are looked up on MOD-trace-graph's graph (graphFindings), and a use case that realises nothing is a gap the graph
+# lists (coverageGaps). The data reaches node hex-encoded, so that no word of a text names a module for jsrun to import.
 
 
-def diagram_images(body: str) -> list[str]:
-    """The address of every Markdown image or HTML <img> whose address, without query or fragment, is an image file."""
-    found = [(m.start(), m.group(1)) for rx in (MD_IMAGE, HTML_IMAGE) for m in rx.finditer(body)
-             if IMAGE_TYPE.search(re.sub(r"[?#].*$", "", m.group(1)))]
-    return [t for _, t in sorted(found)]
+def module_call(expr: str, data):
+    """The value of `expr` through tests/jsrun.py, where `D` is the JSON value `data`."""
+    hexed = json.dumps(data).encode("utf-8").hex()
+    return js(f"const D = JSON.parse(Buffer.from({json.dumps(hexed)}, 'hex').toString('utf8')); {expr}")
 
 
-def use_case_findings(name: str, text: str, known_names=None) -> list[dict]:
-    """Every format error of a use case as {rule, what}. known_names: the requirements a name under `realises` must
-    match; None checks only the form of each name."""
-    out = []
-
-    def add(rule, what):
-        out.append({"rule": rule, "what": what})
-
-    m = USE_CASE_NAME.match(name)
-    if not m:
-        add(ONE_FILE, "file name is not UC-<nnn>-<slug>.md")
-    fields, body = front_matter(text)
-    if not fields:
-        add(ONE_FILE, "no front matter")
-        return out
-    if m and fields.get("id") != f"UC-{m.group(1)}":
-        shown = f'"{fields["id"]}"' if isinstance(fields.get("id"), str) else "(none)"
-        add(ONE_FILE, f"id {shown} does not match the file name (UC-{m.group(1)})")
-    for key in ("title", "area"):
-        if not fields.get(key) or not isinstance(fields[key], str):
-            add(FIELDS, f"missing {key}")
-    if "stage" in fields:
-        add(FIELDS, "key 'stage' is now 'area'")
-    if not isinstance(fields.get("actors"), list) or not fields["actors"]:
-        add(FIELDS, "actors must be a non-empty list")
-    realises = fields.get("realises") if isinstance(fields.get("realises"), list) else None
-    if not realises:
-        add(REALISES, "realises must be a non-empty list")
-    known = None if known_names is None else set(known_names)
-    for n in realises or []:
-        if not is_requirement_name(n):
-            add(REALISES, f'realises: "{n}" is not a requirement name')
-        elif known is not None and n not in known:
-            add(REALISES, f'realises "{n}" matches no requirement')
-    lines = body.split("\n")
-    for s in REQUIRED_SECTIONS:
-        if not any(line.rstrip() == s for line in lines):
-            add(FIELDS, f"missing section {s!r}")
-    if not any(MERMAID_OPEN.match(line) for line in lines):
-        add(MERMAID, "no Mermaid diagram")
-    for target in diagram_images(body):
-        add(MERMAID, f"diagram stored as an image file ({target})")
-    return out
+def use_case_findings(files: dict) -> dict:
+    """{ path: [{ line, rule, what }] } — documentFindings of each use case of { path: text }, read by the use-case schema."""
+    return module_call("const s = documents.artifactSchemas().useCase;"
+                       "return Object.fromEntries(Object.entries(D).map(([p, t]) => [p, documents.documentFindings(s,"
+                       " documents.readDocument(s, p, t)).map((f) => ({ line: f.line, rule: f.rule, what: f.what }))]));",
+                       files)
 
 
-def use_case_problems(name: str, text: str, known_names=None) -> list[str]:
-    return [f"{name}: {f['what']}" for f in use_case_findings(name, text, known_names)]
+def product_spec(names) -> str:
+    """The SPEC.md of a fixture product that holds one requirement of each name — never Agent M's own SPEC."""
+    return "# Fixture product — Specification\n\n## Rules\n\n" + "".join(
+        f"**{n}** *(PO)*\nA rule.\n*Check:* no automatic check; at review\n\n" for n in names)
+
+
+def use_case_graph(files: dict, names) -> dict:
+    """{ findings, unrealised } over the graph traceGraph builds from the use cases of { path: text } beside a SPEC of the
+    requirements `names`: each finding of graphFindings as { artifact, line, rule, what }, and the use cases that coverageGaps
+    lists as realising no requirement."""
+    return module_call("const files = { ...D.files, 'SPEC.md': D.spec };"
+                       "const g = await traceGraph.traceGraph({ paths: Object.keys(files), read: async (p) => files[p] ?? null });"
+                       "return { findings: traceGraph.graphFindings(g).map((f) => ({ artifact: f.artifact, line: f.line,"
+                       " rule: f.rule, what: f.what })), unrealised: traceGraph.coverageGaps(g).useCasesWithoutRequirement };",
+                       {"files": files, "spec": product_spec(names)})
 
 
 # ---------------------------------------------------------------- architecture files (SPEC §11)

@@ -23,7 +23,6 @@ import { renderArtifact, renderMermaid as drawDiagram } from "../markdown-render
 import { registerPaths } from "../source-register/index.mjs";
 import builtFiles from "../../docs/assets/dashboard/built.json" with { type: "json" };
 import { parseQueueIndex, parseDecisions } from "../../docs/assets/review-core.mjs";
-import { ARCHITECTURE_FILE } from "../../docs/assets/artifacts.mjs";
 import { DASHBOARD, builtViews } from "../site/views.mjs";
 import { MENU, menuHtml, entryOf, stageView } from "../site/menu.mjs";
 import { UPSTREAM, instanceOf } from "../site/instance-repository.mjs";
@@ -337,7 +336,7 @@ async function readAhead(kind) {
   if (kind === "" || kind === "uc") {
     await readWave(pathsOf(USE_CASE_PATH));
   } else if (kind === "arc") {
-    await readWave(pathsOf(ARCHITECTURE_FILE));
+    await readWave(pathsOf(DECISION_PATH, MODULE_PATH));
   } else if (kind === "use-case") {
     await readWave(pathsOf(USE_CASE_PATH));
   } else if (kind === "decision") {

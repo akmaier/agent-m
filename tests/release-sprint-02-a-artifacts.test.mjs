@@ -6,9 +6,8 @@
 // Guards: AN EDITED FILE KEEPS ITS IDENTIFIER; A FINDING READS LIKE A COMPILER MESSAGE
 // Level: release
 //
-// MOD-artifacts declares `identifierKept(openedId, text) -> null | finding` and
-// `formatChecks(kind, text, context) -> [finding]`, "each finding naming the artifact, the line, the rule and the expected
-// correction"; ARC-003 decision 5: the kernel returns findings, the sentence a person reads is the shell's. SPEC §9, A FINDING
+// MOD-artifacts declares `identifierKept(openedId, text) -> null | finding`, the finding "naming the artifact, the line, the
+// rule and the expected correction"; ARC-003 decision 5: the kernel returns findings, the sentence a person reads is the shell's. SPEC §9, A FINDING
 // READS LIKE A COMPILER MESSAGE: "names the artifact and line it concerns, its kind (error or warning), the rule it violates by
 // name, and the correction expected, in one fixed text form", e.g. `UC-007:12: error: … [A USE CASE REALISES NAMED
 // REQUIREMENTS] — use an existing name or remove the line.` The form is written out below from that example
@@ -17,7 +16,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { identifierKept } from "../docs/assets/artifacts.mjs";
-import { formatChecks } from "../docs/assets/artifacts/checks.mjs";
 
 const RULE = "AN EDITED FILE KEEPS ITS IDENTIFIER";
 
@@ -160,23 +158,3 @@ test("release · ITM-126 identifierKept: a text with CR LF line ends that keeps 
     assert.equal(identifierKept("UC-001", crlf(useCase("UC-001"))), null, "CR LF, the same identifier");
     assert.match(identifierKept("UC-001", crlf(useCase("UC-009")))?.what ?? "", /UC-009/, "CR LF, another identifier is named");
   });
-
-// AN EDITED FILE KEEPS ITS IDENTIFIER · ITM-126 ("formatChecks … take[s] the finding as it comes") — Expected: formatChecks of a
-// use case and a decision, given the identifier the file was opened with, holds exactly one finding of the rule when
-// the text carries another identifier — the same values identifierKept returns — and none when it carries its own.
-test("release · ITM-126 formatChecks: the identifier finding comes once, as identifierKept gives it", () => {
-  for (const [kind, p, opened, now, make] of [
-    ["use-case", "docs/use-cases/UC-001-read-a-report.md", "UC-001", "UC-009", useCase],
-    ["architecture-decision", "docs/architecture/ARC-001-static-client.md", "ARC-001", "ARC-009", decision],
-  ]) {
-    const kept = formatChecks(kind, make(opened), { path: p, openedId: opened }).filter((f) => f.rule === RULE);
-    assert.deepEqual(kept, [], `${kind}: known positive — none for its own identifier`);
-    const text = make(now);
-    const fs = formatChecks(kind, text, { path: p, openedId: opened }).filter((f) => f.rule === RULE);
-    assert.equal(fs.length, 1, `${kind}: one finding of the rule`);
-    const { artifact, line, kind: k, what, rule, fix } = identifierKept(opened, text);
-    assert.deepEqual({ artifact: fs[0].artifact, line: fs[0].line, kind: fs[0].kind, what: fs[0].what, rule: fs[0].rule, fix: fs[0].fix },
-      { artifact, line, kind: k, what, rule, fix }, `${kind}: as identifierKept gives it`);
-    assert.match(compilerForm(fs[0]), FORM);
-  }
-});
