@@ -20,7 +20,7 @@
 // changed. The text a document was read from is its `body`: the rows that stand are found there, by their cells.
 
 import { formatFrontMatter, parseFrontMatter } from "../text-tools/index.mjs";
-import { PATH, compiledOf, effective, fences, sectionOf, textLines } from "./schema-language.mjs";
+import { PATH, compiledOf, effective, fences, identifierOfPath, sectionOf, textLines } from "./schema-language.mjs";
 import { cellsOf, isSeparator, leftOut, sectionTable, textOf, valueProblem } from "./checks.mjs";
 
 const HEADING = /^(#{1,6})[ \t]+\S/;
@@ -186,11 +186,7 @@ function identifierOf(schema, compiled, path, fields) {
   if (!schema.identifier) return null;
   const value = fields[schema.identifier.field];
   if (typeof value === "string" && value) return value;
-  for (const pattern of compiled.patterns) {
-    const match = pattern.re.exec(String(path ?? ""));
-    if (match && pattern.idOf(match)) return pattern.idOf(match);
-  }
-  return null;
+  return identifierOfPath(compiled, path);
 }
 
 // readDocument(schema: Schema, path: string, text: string) -> Document — reads a document or a record of the schema's format.

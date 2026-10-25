@@ -9,19 +9,20 @@
 // list that holds nothing, which `nonEmpty` forbids.
 //
 // documentFindings finds what ITM-227 builds: front matter keys missing, unknown, out of order, required or forbidden by a
-// condition; values not of their type or of the variant that holds, or empty where nonEmpty; the rows of a table, cell by
-// cell, in the same way; required sections missing, sections out of order, sections the schema forbids, and a document path
-// that matches none of the schema's path patterns; and, for a schema that names `diagrams`, every image (DIAGRAMS ARE
-// MERMAID IN MARKDOWN). The identifier against the path, the title, describedIn, a Mermaid block missing where `diagrams` is
-// `required` or standing where it is `none`, the marks of history, the fields of a section, a record of `key: value` lines and
-// appended sections are not checked yet. Each finding is an error, made with MOD-text-tools' finding, and names the rule of
+// condition; values not of their type or of the variant that holds, or empty where nonEmpty, or a list that names an item
+// twice where unique; the rows of a table, cell by cell, in the same way; required sections missing, sections out of order,
+// sections the schema forbids, and a document path that matches none of the schema's path patterns; the identifier in the
+// front matter against the identifier its path gives; each front matter value that describedIn asks for and its section does
+// not describe; and, for a schema that names `diagrams`, every image (DIAGRAMS ARE MERMAID IN MARKDOWN). The title, a Mermaid
+// block missing where `diagrams` is `required` or standing where it is `none`, the marks of history, the fields of a section,
+// a record of `key: value` lines and appended sections are not checked yet. Each finding is an error, made with MOD-text-tools' finding, and names the rule of
 // the part of the schema closest to it (Data, The requirement a finding names). A key or a section that is missing stands on
 // no line: its finding names line 1.
 // The section under the title (ITM-226) is the first section of a document with a title, and is missing from a document
 // without one.
 
 import { finding } from "../text-tools/index.mjs";
-import { KIND_FORMS, PATH, REQUIREMENT_NAME, compiledOf, effective, fences, holds, matchesPath, pathRule, sectionOf, textLines } from "./schema-language.mjs";
+import { KIND_FORMS, PATH, REQUIREMENT_NAME, compiledOf, effective, fences, holds, identifierOfPath, matchesPath, pathRule, sectionOf, textLines } from "./schema-language.mjs";
 
 const INTERFACE = /^MOD-[a-z0-9]+(?:-[a-z0-9]+)*\.[A-Za-z_][A-Za-z0-9_]*$/;
 const NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -108,6 +109,8 @@ function typeProblem(value, spec, where) {
     const why = itemProblem(item, spec.item, where, true);
     if (why) return why;
   }
+  const twice = spec.unique ? value.find((item, index) => value.indexOf(item) !== index) : undefined;
+  if (twice !== undefined) return `the list names ${shown(twice)} twice, and it names each item once`;
   return null;
 }
 
@@ -186,6 +189,15 @@ function keyLines(fields, keys) {
 }
 
 const levelOf = (heading) => /^#*/.exec(heading)[0].length;
+
+// describedIn: the values a section describes — the names that begin its bullets, each `- ` followed by the value in backticks,
+// as a module's ## Interfaces describes the interfaces it provides (`- `name(…) -> …` — …`). A value is described when a bullet
+// begins with it in backticks, followed by the end of the backticks or by a character that cannot continue a name.
+function describes(sectionText, value) {
+  const { inBlock } = fences(textLines(sectionText ?? ""));
+  return textLines(sectionText ?? "").some((line, index) => !inBlock[index] && line.startsWith(`- \`${value}`)
+    && !/^[A-Za-z0-9_.-]/.test(line.slice(3 + value.length)));
+}
 
 // The section under the title, as findings name it: it has no heading of its own in the schema.
 const UNDER_TITLE = "the section under the title";
@@ -342,6 +354,26 @@ export function documentFindings(schema, document) {
       if (check) {
         add(lineOf[key] ?? 1, valueRules(check, spec, frontLookup), `the key ${key} ${check.why}`,
           fixOf(FIX.key, key, fields[key], check));
+      }
+    }
+    // The identifier against the one its path gives: a finding on the value of the identifier's key, where that value is an
+    // identifier at all — one that does not fit its type has its finding above.
+    const idKey = schema.identifier?.field;
+    const own = idKey ? fields[idKey] : undefined, given = idKey ? identifierOfPath(compiled, document.path) : null;
+    if (typeof own === "string" && own && given !== null && own !== given && !valueCheck(own, specs[idKey] ?? {}, frontLookup, "front matter")) {
+      add(lineOf[idKey] ?? 1, valueRules({ condition: null }, specs[idKey] ?? {}, frontLookup),
+        `the key ${idKey} is ${own}, and the identifier its path gives is ${given}`,
+        `write ${idKey}: ${given}, or move the document to the path of ${own}`);
+    }
+    // describedIn: each value the key holds is described by a bullet of the section it names.
+    for (const [key, spec] of Object.entries(specs)) {
+      if (!spec.describedIn || leftOut(fields[key])) continue;
+      const section = document.sections.find((each) => each.heading === spec.describedIn);
+      for (const value of Array.isArray(fields[key]) ? fields[key] : [fields[key]]) {
+        if (typeof value !== "string" || !value || describes(section?.text, value)) continue;
+        add(lineOf[key] ?? 1, valueRules({ condition: null }, spec, frontLookup),
+          `the key ${key} names ${value}, which ${spec.describedIn} does not describe`,
+          `add to ${spec.describedIn} a bullet that begins with \`${value}\`, or remove ${value} from ${key}`);
       }
     }
   }

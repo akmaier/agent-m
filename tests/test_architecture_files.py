@@ -49,6 +49,7 @@ class ArchitectureFiles(unittest.TestCase):
             "ARC-1-static-client.md": good,                                         # not ARC-<nnn>
             "ARC-1-static.md": good.replace("id: ARC-001", "id: ARC-1"),            # not ARC-<nnn>, id agreeing
             "ARC-001-Static.md": good,                                              # slug not lower case
+            "ARC-002-static-client.md": good,                                       # id differs from the name
             "ARC-001-a.md": good.replace("## Alternatives\n", "## Options\n"),      # no alternatives
             "ARC-001-b.md": good.replace("## Context\n", ""),
             "ARC-001-c.md": good.replace("## Decision\n", "### Decision\n"),
@@ -68,6 +69,8 @@ class ArchitectureFiles(unittest.TestCase):
         self.assertEqual(problems({"docs/architecture/MOD-review.md": good}), {}, "known positive")
         broken = {
             "MOD-Review.md": good,                                                  # slug not lower case
+            "MOD-other.md": good,                                                   # id differs from the name
+            "MOD-review-x.md": good,
             "mod-review.md": good,
             "MOD-review.md#1": good.replace("## Responsibility\n", ""),
             "MOD-review.md#2": good.replace("## Interfaces\n", "## API\n"),
@@ -76,6 +79,8 @@ class ArchitectureFiles(unittest.TestCase):
             "MOD-review.md#5": good.replace("follows:\n  - ARC-001\n", "follows:\n  - ARC-1\n"),
             "MOD-review.md#6": good.replace("  - MOD-reader.readFile\n", "  - readFile\n"),   # not MOD-x.name
             "MOD-review.md#7": good.replace("  - MOD-reader.readFile\n", "  - MOD-Reader.readFile\n"),
+            "MOD-review.md#8": good.replace("provides:\n  - status\n", "provides:\n  - status\n  - status\n"),
+            "MOD-review.md#9": good.replace("provides:\n  - status\n", "provides:\n  - status\n  - history\n"),  # not described
             "MOD-review.md#10": good.replace("  - UC-002\n", "  - UC-2\n"),
             "MOD-review.md#11": good.replace("provides:\n  - status\n", "provides:\n  - two words\n"),
             "MOD-review.md#12": good.replace("realises:\n", "forced_by:\n"),       # a decision's key in a module

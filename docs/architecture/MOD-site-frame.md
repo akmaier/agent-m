@@ -248,7 +248,8 @@ It keeps nothing but what is on the screen. It owns these formats:
 - `schemaForm(schema: Schema, document: Document | null, options: { onSave: (document: Document) -> Promise<void>,
   extraChecks?: (document: Document) -> Finding[], secretKeys?: string[], readOnly?: boolean }) -> Element` — a form with
   one field per key and section of a schema of MOD-documents, a section edited in the renderer's editor; the findings of
-  `documentFindings` and of `extraChecks` shown beside their fields while typing; *Save* offered only while no error
+  `documentFindings` and of `extraChecks` shown beside their fields while typing — a document given without the identifier
+  its schema names checked at the path the identifier typed gives it —; *Save* offered only while no error
   remains, so an invalid register is never saved; a key named in `secretKeys` shown hidden until *Show* (`A STORED
   SECRET IS HIDDEN UNTIL SHOWN`). It writes nothing itself: `onSave` does.
 
