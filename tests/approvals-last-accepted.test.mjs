@@ -284,3 +284,18 @@ test("lastAcceptedText — one answer takes seven calls to the host, the check o
     { repositoryInfo: 1, readSnapshot: 2, readHistory: 2, read: 2 });
   assert.equal(fake.calls.length, 7);
 });
+
+// TST-1800006 · level: unit · module: MOD-approvals
+// guards: AN APPROVAL NAMES THE EXACT TEXT; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; UC-008
+// given: the history above, with the host serving UC-010's newer record — named for V2's blob — with the content of its older one, which names V1's blob; and, apart, with a content that names V2's blob and a file of UC-011; known positive: unforged, the newer record gives V2 (TST-472015)
+// input: lastAcceptedText("UC-010", host) for each
+// expect: the newer record counts as no record and the older one's text is given both times: V1, with its blob and path
+test("lastAcceptedText — a record whose content contradicts its name counts as no record", async () => {
+  const [older10, newer10] = recordNames("UC-010");
+  const olderText = HISTORY.find((step) => step.write?.[older10]).write[older10];
+  const otherFile = text("kind: use-case", `file: ${UC11}`, `blob: ${blobOf(V2)}`);
+  for (const forged of [olderText, otherFile]) {
+    const found = await lastAcceptedText("UC-010", fakeHost({ forge: { path: newer10, text: forged } }).host);
+    assert.deepEqual(found, { text: V1, blob: blobOf(V1), path: UC10 }, forged);
+  }
+});

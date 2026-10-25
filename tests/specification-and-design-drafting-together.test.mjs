@@ -269,7 +269,7 @@ const WITH_ERRORS = useCase({ id: "UC-007", title: "Export a report", realises: 
 // guards: UC-019; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; AN EDITED FILE KEEPS ITS IDENTIFIER; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN
 // given: UC-007 accepted on its text; the instruction "add error handling to UC-007"; a drafter that first returns the use case with the identifier UC-043, then with UC-007 and the alternative flow
 // input: prepareJob of change-use-case for UC-007; runJob attended; then writeResult with the draft as the person left it
-// expect: parts: the instruction, UC-007 and the requirement it realises with its text from the SPEC, then every other use case, chapter 8; the first draft gets the finding that the identifier changed from UC-007 to UC-043 [AN EDITED FILE KEEPS ITS IDENTIFIER] with the fix keep UC-007, sent back; the loop passes in two rounds and, attended, writes nothing; the click writes one commit holding UC-007's file with the drafted text, an open (changed) file whose last accepted text is still the accepted one; the message ends with the six provenance lines, none naming the instruction
+// expect: parts: the instruction, UC-007 and the requirement it realises with its text from the SPEC, then every other use case, chapter 8; the first draft gets the finding that the identifier changed from UC-007 to UC-043 [AN EDITED FILE KEEPS ITS IDENTIFIER] with the fix keep UC-007, and the check document-schema's finding that UC-043 is not the identifier its path gives [EVERY ARTIFACT HAS AN IDENTIFIER], both sent back; the loop passes in two rounds and, attended, writes nothing; the click writes one commit holding UC-007's file with the drafted text, an open (changed) file whose last accepted text is still the accepted one; the message ends with the six provenance lines, none naming the instruction
 test("change-use-case — a changed identifier is sent back, nothing is written until the click, then one open file with the provenance lines", async () => {
   const fake = product(PRODUCT);
   const { job, context } = await prepare("change-use-case", fake, { useCase: "UC-007", instruction: INSTRUCTION });
@@ -292,7 +292,10 @@ test("change-use-case — a changed identifier is sent back, nothing is written 
   assert.equal(kept.length, 1);
   assert.ok(kept[0].what.includes("UC-007") && kept[0].what.includes("UC-043"), kept[0].what);
   assert.ok(kept[0].fix.includes("keep the identifier UC-007"), kept[0].fix);
-  assert.deepEqual(drafter.inputs[1].findings.map(lineOf), kept.map(lineOf));
+  const againstPath = result.rounds[0].findings.filter((f) => f.rule === "EVERY ARTIFACT HAS AN IDENTIFIER");
+  assert.equal(againstPath.length, 1, "MOD-documents' identifier against the path, through the check document-schema");
+  assert.ok(againstPath[0].what.includes("UC-043") && againstPath[0].what.includes("UC-007"), againstPath[0].what);
+  assert.deepEqual(drafter.inputs[1].findings.map(lineOf), [...againstPath, ...kept].map(lineOf));
   assert.deepEqual(result.rounds[1].findings, []);
   assert.equal(fake.writes.length, 0, "attended, the loop writes nothing");
   assert.equal(result.written, null);

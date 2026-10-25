@@ -36,8 +36,7 @@ performs no input or output.
 - `scheme.mjs` — the pattern of each kind.
 - `positions.mjs` — references by position.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `docs/assets/artifacts/identity.mjs`: removed: `identifiersIn` and MOD-spec-document's `renamedRequirements` give it.
-  - `tests/test_identifiers.py`, `tests/test_identifier_stability.py`, `tests/test_origin_links.py`: rewritten on this module.
+  - `tests/test_identifier_stability.py`: rewritten on this module.
 
 ## Data
 

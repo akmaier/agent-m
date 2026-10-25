@@ -1,4 +1,4 @@
-// The editor's live preview is the box that scrolls (docs/assets/style.css: `.editor .preview` has `max-height` and `overflow: auto`), so a
+// The editor's live preview is the box that scrolls (src/site-frame/look.css: `.editor .preview` has `max-height` and `overflow: auto`), so a
 // keyboard must be able to reach it: MOD-markdown-render's openEditor draws it with tabindex="0".
 // Run: node --test tests/markdown-render-931-preview-focus.test.mjs
 //

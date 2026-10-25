@@ -3,8 +3,7 @@
 // editFile(path: string) -> string, … }: the server's own pages; a page the server does not offer is null", and "A new-file page
 // prepared for the fallback without a token carries at most a file's path and an approval record — never a reviewed text (NO TEXT
 // TRAVELS IN A URL), and never a credential (A CREDENTIAL IS NEVER PLACED IN A URL)". Deterministic, no network: the pages are
-// addresses, navigation only, so `fetch` is replaced by a recorder that must stay silent. The pages as the model builds them
-// (newFileUrl and editUrl in docs/assets/git-host.mjs): GitHub's new-file page https://github.com/<owner>/<name>/new/<branch>
+// addresses, navigation only, so `fetch` is replaced by a recorder that must stay silent. The pages: GitHub's new-file page https://github.com/<owner>/<name>/new/<branch>
 // with the parameters `filename` and `value`, and its editor https://github.com/<owner>/<name>/edit/<branch>/<path>; GitLab's
 // single-file editor as GitLab links it itself, https://<server>/<project>/-/edit/<branch>/<path> (its handbook links
 // https://gitlab.com/gitlab-com/content-sites/handbook/-/edit/main/.gitlab/CODEOWNERS, read 2026-10-11); GitLab has no new-file
@@ -25,8 +24,8 @@ import { parseAddress, connect } from "../src/repository-hosts/index.mjs";
 const GITHUB = parseAddress("https://github.com/alice/agent-m");
 const GITLAB = parseAddress("https://gitlab.example.org/grp/sub/thesis-tool");
 
-// The approval record of a module file — three lines — and the path it is committed at (docs/assets/review-core.mjs: recordText,
-// approvalPath).
+// The approval record of a module file — three lines — and the path it is committed at (MOD-approvals' approval record,
+// docs/approvals/<ID>-<blob12>.md).
 const RECORD_PATH = "docs/approvals/MOD-repository-hosts-25d0f9f517ea.md";
 const RECORD = ["kind: module", "file: docs/architecture/MOD-repository-hosts.md", "blob: 25d0f9f517ea45fbce3262468b652bff6d172b55"]
   .join("\n") + "\n";

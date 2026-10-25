@@ -1,14 +1,17 @@
 ---
 id: ITM-017
 title: Measure the export time of a long thesis
-kind: measurement
-level: 1
+level: module
 realises:
   - EXPORT IS A PDF
-modules: []
-depends_on:
-  - ITM-014
-origin: sprint 03 review
+modules:
+  - MOD-export
+builds_on:
+  - ITM-016
+tests:
+  - unit
+origin:
+  - sprint 03 review
 ---
 # ITM-017 Measure the export time of a long thesis
 
@@ -17,3 +20,7 @@ origin: sprint 03 review
 ## Outcome
 
 The time to export a thesis of 300 pages, measured and recorded.
+
+## Acceptance
+
+- The export time of a thesis of 300 pages is recorded.

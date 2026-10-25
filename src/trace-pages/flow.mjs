@@ -586,7 +586,8 @@ async function countUnrealised(shown, arranged) {
 // The entries of the change queues that wait for acceptance — open, stale, or waiting for the anchor another entry creates — each as a link to its page
 // in the review pages, by the identifier `spec-<queue folder>-<NN>` MOD-review-pages addresses an entry by. The queues are those the overview stored for the
 // commit holds (MOD-progress-measures' storedOverview: every queue with an entry not in the SPEC yet), so that no queue file is read; where none is stored,
-// every queue of the snapshot is read (MOD-spec-changes' queues). A queue that cannot be read gives none.
+// every queue of the snapshot is read (MOD-spec-changes' queues). A queue that cannot be read gives none. The proposals of the entries found, which their
+// impact lists read (entryView), are named to Snapshot.readMany at once, in one batch; a host that cannot batch reads nothing ahead.
 async function waitingEntries(snapshot) {
   if (!snapshot.paths.some((path) => path.startsWith("docs/spec-freigaben/"))) return [];
   let all;
@@ -595,8 +596,11 @@ async function waitingEntries(snapshot) {
   } catch {
     return [];
   }
-  return all.flatMap((queue) => queue.entries.filter((entry) => ["open", "stale", "waiting for its anchor"].includes(entry.state))
+  const waiting = all.flatMap((queue) => queue.entries.filter((entry) => ["open", "stale", "waiting for its anchor"].includes(entry.state))
     .map((entry) => ({ queue, entry })));
+  const proposals = waiting.map(({ entry }) => entry.proposal?.path).filter(Boolean);
+  if (proposals.length) await snapshot.readMany?.(proposals);
+  return waiting;
 }
 
 // The badge class of a waiting entry's state, as the review pages' lists colour it.

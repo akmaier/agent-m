@@ -44,9 +44,6 @@ consent. Its functions are pure; it runs in the browser and in Node.
 - `consent.mjs` — names in generated artifacts against accounts and consenting collaborators.
 - `strategies.mjs` — the recipe `report-data` and the check `people-search`.
 - `settings.schema.md`, `collaborators.schema.md` — the schemas of the product's two files.
-- **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `docs/assets/pseudonymiser.mjs`: removed: `settingsSchemas` and `pseudonymisationOf` give it.
-  - `tests/review-core.d/pseudonymiser.test.mjs`: rewritten on this module.
 
 ## Data
 

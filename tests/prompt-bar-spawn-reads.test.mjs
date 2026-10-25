@@ -162,13 +162,9 @@ const FACT_FILES = /^(docs\/process\.md|docs\/role-assignments\/|docs\/backlog\/
 
 // TST-1300001 · level: unit · module: MOD-prompt-bar
 // guards: UC-049
-// given: the Scrum product, whose facts would read its declaration, its role assignment, four backlog items, a sprint, two module files and two job records, and list its pull requests; the
-//   endpoint nvidia of this browser, which runs through GitHub Actions; known positive: the same counting host sees the facts read when a hand-over works on an item (TST-1300003)
+// given: the Scrum product, whose facts would read its declaration, its role assignment, four backlog items, a sprint, two module files and two job records, and list its pull requests; the endpoint nvidia of this browser, which runs through GitHub Actions; known positive: the same counting host sees the facts read when a hand-over works on an item (TST-1300003)
 // input: spawnEndpointJob of a job of kind converse with the task TASK
-// expect: the job is spawned — one commit, one started workflow —; the product's host is asked for its information twice and for its snapshot twice — once by the spawn, for the head, the paths and
-//   the visibility, once by MOD-runtimes' handOverJob, which commits on that head —, lists no pull request and reads exactly one file, the job workflow (which handOverJob reads for the instance
-//   commit it pins); none of the files the facts read is read; the instance is read once (its default branch), its file docs/participants.md, for whether the endpoint is listed, and its
-//   AGENTS.md, which the job's input begins with (EVERY MODEL READS AGENT M'S AGENTS.MD FIRST); no request was made
+// expect: the job is spawned — one commit, one started workflow —; the product's host is asked for its information twice and for its snapshot twice — once by the spawn, for the head, the paths and the visibility, once by MOD-runtimes' handOverJob, which commits on that head —, lists no pull request and reads exactly one file, the job workflow (which handOverJob reads for the instance commit it pins); none of the files the facts read is read; the instance is read once (its default branch), its file docs/participants.md, for whether the endpoint is listed, and its AGENTS.md, which the job's input begins with (EVERY MODEL READS AGENT M'S AGENTS.MD FIRST); no request was made
 test("a spawn of an endpoint's own job reads no facts of the product: its head, its paths and its visibility, and the job workflow's file", async () => {
   const it = open();
   const spawned = await spawn(it);
@@ -189,8 +185,7 @@ test("a spawn of an endpoint's own job reads no facts of the product: its head, 
 
 // TST-1300002 · level: unit · module: MOD-prompt-bar
 // guards: UC-049
-// given: the product of TST-1300001; the instance's default branch as the bar read it already, for the recording switch (bar.mjs onSpawn); known positive: without it the spawn reads the
-//   instance's default branch once (TST-1300001)
+// given: the product of TST-1300001; the instance's default branch as the bar read it already, for the recording switch (bar.mjs onSpawn); known positive: without it the spawn reads the instance's default branch once (TST-1300001)
 // input: spawnEndpointJob with that snapshot as `instanceSnapshot`
 // expect: the job is spawned, and the instance's host is not asked for a snapshot again
 test("a spawn given the instance's snapshot the bar read does not read it again", async () => {
@@ -225,8 +220,7 @@ test("a hand-over that works on a backlog item is still checked by startable on 
 
 // TST-1300004 · level: unit · module: MOD-prompt-bar
 // guards: UC-049
-// given: the Scrum product; dev-ci proposes a hand-over that works on the use case UC-001, which is no item of the backlog and no step of the plan; known positive: the hand-over on ITM-005
-//   reads the facts (TST-1300003)
+// given: the Scrum product; dev-ci proposes a hand-over that works on the use case UC-001, which is no item of the backlog and no step of the plan; known positive: the hand-over on ITM-005 reads the facts (TST-1300003)
 // input: assess of { kind: "converse", works_on: ["UC-001"] }
 // expect: no reason, a route, and none of the product's facts read: no pull request listed, none of the files the facts read
 test("a hand-over that works on no item or step reads none of the product's facts", async () => {
@@ -244,8 +238,7 @@ test("a hand-over that works on no item or step reads none of the product's fact
 
 // TST-1300005 · level: unit · module: MOD-prompt-bar
 // guards: A JOB IDENTIFIER IS NEVER REUSED
-// given: the clock at 2026-10-25 07:26 UTC; the product holds the record docs/jobs/JOB-20261025-0726-a1b2.md; the random digits come as a, 1, b, 2 and then c, 3, d, 4; known positive: the first
-//   four digits make the identifier of the record that exists
+// given: the clock at 2026-10-25 07:26 UTC; the product holds the record docs/jobs/JOB-20261025-0726-a1b2.md; the random digits come as a, 1, b, 2 and then c, 3, d, 4; known positive: the first four digits make the identifier of the record that exists
 // input: spawnEndpointJob of a job of kind converse
 // expect: the job's record is docs/jobs/JOB-20261025-0726-c3d4.md — the identifier is new against the paths under docs/jobs/ of the snapshot —, and no record under docs/jobs/ was read for it
 test("the spawned job's identifier is new against the paths under docs/jobs/ of the snapshot, and no record is read for it", async () => {
