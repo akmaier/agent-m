@@ -226,7 +226,7 @@ test("ITM-238 F1 fixed: the Notifications controls are in the public Usability t
 // guards: UC-047; A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; NOTIFICATIONS ARE SWITCHED ON BY THE PERSON
 // given: the dashboard's own stored GitHub token (openDashboard's default), notifications on and due
 // input: opening a review page (#uc)
-// expect: (F2 fixed) every request the page makes to the instance's API — the content it shows and the check alike — carries the dashboard's own stored token (settings-store.mjs's store.getToken(), this page's ghToken()), never MOD-browser-store's separate, never-written "github-token" setting
+// expect: (F2 fixed) every request the page makes to the instance's API — the content it shows and the check alike — carries the dashboard's own stored token (this page's ghToken(), MOD-browser-store's setting "github-token")
 test("ITM-238 F2 fixed: the review pages' check connects the instance with the dashboard's own stored token", async () => {
   const seenAuth = [];
   const browser = installBrowser();

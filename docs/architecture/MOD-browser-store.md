@@ -53,7 +53,6 @@ browser; reading an export runs in Node as well, so that the Bridge can take ove
 - `sign-in.mjs` — the keys Microsoft's sign-in library writes for one mailbox connection (`mailbox-sign-in`), found,
   cleared and carried in an export under the library's own names.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `docs/assets/settings-store.mjs`, `docs/assets/product-store-adapter.mjs`: removed once the live app and the main page call this module; the adapter only translates the old store's calls to it.
   - `tests/test_clear_removes_storage.py`, `tests/test_config_client_side.py`, `tests/test_no_config_cookie.py`, `tests/release-sprint-02-d-settings-store.test.mjs`, `tests/review-core.d/settings-store.test.mjs`, `tests/dashboard-product-store-migration.test.mjs`, `tests/test_products_folder.py`: their headers name this module; a test of only the old store is rewritten on this module or goes with it.
 
 ## Data

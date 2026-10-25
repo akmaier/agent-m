@@ -347,6 +347,13 @@ function element(id) {
   };
 }
 
+// The entry of MOD-browser-store's setting `key` of the instance REPO, as this browser's localStorage holds it: the key under the
+// instance's prefix, the value as JSON (MOD-browser-store, Data).
+export const setting = (key, value) => ({ [`agent-m:${REPO}:${key}`]: JSON.stringify(value) });
+// The setting of a stored token, as the settings pages store one (MOD-browser-store, Data: `{ value, name, expires, stored }`).
+export const tokenSetting = (key, value, { name = "Agent M", expires = null } = {}) =>
+  setting(key, { value, name, expires, stored: new Date().toISOString().slice(0, 10) });
+
 function localStorageWith(entries) {
   const mem = new Map(Object.entries(entries));
   return { getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k),
@@ -373,7 +380,8 @@ let loads = 0;
 // such as `?product=<address>` for a GitLab product (empty: the instance).
 // -> { main() -> the HTML of <main>, el(id) -> the HTML of another element, requests since the load began,
 //      go(hash) -> the requests that view made, click(selector, event) -> the requests the click made }
-// entries: further settings in this browser when the page opens, { key: raw value } — a product's own token, for one.
+// entries: further entries of this browser's localStorage when the page opens, { key: raw value } — a product's own token, for one
+// (setting, tokenSetting).
 // views: the slugs of the view modules the page's script tag names in `data-views`, which the app loads (MOD-site-frame, Data: the page setup); by default the six the live page names.
 export const LIVE_VIEWS = ["review-pages", "trace-pages", "implementation-pages", "test-pages", "maintenance-pages", "settings-pages"];
 export async function openDashboard({ server, hash = "", caches = null, token = TOKEN, search = "", entries = {},
@@ -402,7 +410,7 @@ export async function openDashboard({ server, hash = "", caches = null, token = 
   const g = globalThis;
   Object.defineProperty(g, "location", { value: loc, configurable: true, writable: true });
   Object.defineProperty(g, "document", { value: doc, configurable: true, writable: true });
-  Object.defineProperty(g, "localStorage", { value: localStorageWith({ ...(token ? { "agent-m.github-token": token } : {}), ...entries }),
+  Object.defineProperty(g, "localStorage", { value: localStorageWith({ ...(token ? tokenSetting("github-token", token, { name: `Agent M · ${REPO}` }) : {}), ...entries }),
     configurable: true, writable: true });
   Object.defineProperty(g, "caches", { value: caches ?? undefined, configurable: true, writable: true });
   g.window = g;
