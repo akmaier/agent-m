@@ -365,11 +365,16 @@ export function changedPassages(before, after) {
 }
 
 const REGISTERED_SOURCE = "A REQUIREMENT HAS A REGISTERED SOURCE";
+const TERMS_ENTER_AS_SOURCE = "A RESOURCE'S TERMS ENTER AS A SOURCE";
+// A resource entry's identifier at the start of a source item, followed by the end of the item or by `, ` and the part, as an
+// item names a register entry (namesSource): a resource entry is never a source, whatever the other items name.
+const RESOURCE_ITEM = /^(RES-[a-z0-9]+(?:-[a-z0-9]+)*)(?:$|, )/;
 
 /**
  * sourceFindings(requirements: Requirement[], links: Document, register: Document[]) -> Finding[] — an error under A
  * REQUIREMENT HAS A REGISTERED SOURCE for each requirement none of whose source items names a source the product links,
- * naming the requirement, its line and its items; a requirement with no source item names none. An item names the register
+ * naming the requirement, its line and its items; a requirement with no source item names none. And an error under A
+ * RESOURCE'S TERMS ENTER AS A SOURCE for each resource entry (RES-…) a source item names, beside a linked source or not. An item names the register
  * entry whose identifier, title or — for a standard — designation it begins with, the longest such match, followed by the
  * end of the item or by `, ` and the part; the product links the source when its links file holds a row for that entry.
  * @param {Array<{ name: string, sources: string[], line: number }>} requirements — as MOD-spec-document's parseSpec reads them
@@ -383,11 +388,16 @@ export function sourceFindings(requirements, links, register) {
       const entry = entryNamed(register, item);
       return entry !== null && linkOf(links, entry) !== undefined;
     });
-    if (linked) return [];
-    return [finding({ artifact: requirement.name, line: requirement.line, kind: "error", rule: REGISTERED_SOURCE,
-      what: items.length ? `no source item names a source the product links: ${items.map((item) => `"${item}"`).join("; ")}`
-        : "it names no source",
-      fix: "begin a source item with the identifier, the title or the designation of a register entry that the product links" })];
+    const resources = [...new Set(items.map((item) => RESOURCE_ITEM.exec(item)?.[1]).filter(Boolean))];
+    return [
+      ...(linked ? [] : [finding({ artifact: requirement.name, line: requirement.line, kind: "error", rule: REGISTERED_SOURCE,
+        what: items.length ? `no source item names a source the product links: ${items.map((item) => `"${item}"`).join("; ")}`
+          : "it names no source",
+        fix: "begin a source item with the identifier, the title or the designation of a register entry that the product links" })]),
+      ...resources.map((resource) => finding({ artifact: requirement.name, line: requirement.line, kind: "error",
+        rule: TERMS_ENTER_AS_SOURCE, what: `the source names the resource entry ${resource}`,
+        fix: "name the registered source of its terms (SRC-…), linked to the product, in its place" })),
+    ];
   });
 }
 

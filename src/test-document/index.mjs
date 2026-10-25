@@ -1,5 +1,6 @@
 // MOD-test-document — the declaration of a test case (docs/architecture/MOD-test-document.md): its interface. Of it,
-// ITM-248 builds TestDeclaration and testDeclarations, ITM-304 builds testFindings, and ITM-380 builds isTestFile.
+// ITM-248 builds TestDeclaration and testDeclarations, ITM-304 builds testFindings, and ITM-380 builds isTestFile; testHeader
+// reads the header of a test file or a test helper.
 //
 // Module: MOD-test-document
 //
@@ -29,3 +30,4 @@
 
 export { isTestFile, testDeclarations } from "./declarations.mjs";
 export { testFindings } from "./checks.mjs";
+export { testHeader } from "./header.mjs";

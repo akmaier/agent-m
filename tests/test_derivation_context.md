@@ -169,12 +169,12 @@ reviewer returns no findings.
       },
       {
         "path": "docs/architecture/MOD-reader.md",
-        "text": "---\nid: MOD-reader\ntitle: Reader\nfolder: src/reader/\nrealises:\n  - A SAMPLE RULE\n  - UC-001\nfollows:\n  - ARC-001\nuses: []\nprovides:\n  - readFile\n---\n# MOD-reader Reader\n\n## Responsibility\n\nRead files.\n\n## Parts\n\nOne reader service.\n\n## Data\n\nPath and content.\n\n## Interfaces\n\nreadFile(path) returns text.\n\n## Files\n\nsrc/reader/index.mjs\n\n## Uses\n\nNone.\n",
+        "text": "---\nid: MOD-reader\ntitle: Reader\nfolder: src/reader/\nrealises:\n  - A SAMPLE RULE\n  - UC-001\nfollows:\n  - ARC-001\nuses: []\nprovides:\n  - readFile\n---\n# MOD-reader Reader\n\n## Responsibility\n\nRead files.\n\n## Parts\n\nOne reader service.\n\n## Data\n\nPath and content.\n\n## Interfaces\n\n- `readFile(path) -> string` — returns the text.\n\n## Files\n\nsrc/reader/index.mjs\n\n## Uses\n\nNone.\n",
         "class": "new"
       },
       {
         "path": "docs/architecture/MOD-writer.md",
-        "text": "---\nid: MOD-writer\ntitle: Writer\nfolder: src/writer/\nrealises:\n  - A SECOND RULE\n  - UC-002\nfollows:\n  - ARC-001\nuses: []\nprovides:\n  - writeFile\n---\n# MOD-writer Writer\n\n## Responsibility\n\nWrite files.\n\n## Parts\n\nOne writer service.\n\n## Data\n\nPath and content.\n\n## Interfaces\n\nwriteFile(path, text) stores text.\n\n## Files\n\nsrc/writer/index.mjs\n\n## Uses\n\nNone.\n",
+        "text": "---\nid: MOD-writer\ntitle: Writer\nfolder: src/writer/\nrealises:\n  - A SECOND RULE\n  - UC-002\nfollows:\n  - ARC-001\nuses: []\nprovides:\n  - writeFile\n---\n# MOD-writer Writer\n\n## Responsibility\n\nWrite files.\n\n## Parts\n\nOne writer service.\n\n## Data\n\nPath and content.\n\n## Interfaces\n\n- `writeFile(path, text) -> void` — stores the text.\n\n## Files\n\nsrc/writer/index.mjs\n\n## Uses\n\nNone.\n",
         "class": "new"
       }
     ]

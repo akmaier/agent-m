@@ -261,11 +261,9 @@ const EARLIER = "e1".repeat(20);
 
 // TST-1300006 · level: unit · module: MOD-review-pages
 // guards: UC-007; A PAGE LOAD READS THE REPOSITORY IN BATCHES
-// given: (a) the product of TST-472616, the graph of its head stored; (b) a head whose SPEC adds A LOAN IS RENEWED ONCE, whose graph trace-cache does not hold, a latest.json naming an earlier
-//        commit and that commit's graph, built from the files of (a) (A BOOK IS SHELVED realised by no use case there)
+// given: (a) the product of TST-472616, the graph of its head stored; (b) a head whose SPEC adds A LOAN IS RENEWED ONCE, whose graph trace-cache does not hold, a latest.json naming an earlier commit and that commit's graph, built from the files of (a) (A BOOK IS SHELVED realised by no use case there)
 // input: the page #use-case/id=draft for each
-// expect: (a) no line data of an earlier graph (no p.graph-as-of); (b) the three requirements of the head's SPEC listed — the head's own statement —, A BOOK IS SHELVED checked by the earlier graph's
-//         gaps, and one p.graph-as-of reading "As of <earlier, 7>: the trace graph of the newest commit, <head, 7>, is being stored."; nothing written, nothing sent
+// expect: (a) no line data of an earlier graph (no p.graph-as-of); (b) the three requirements of the head's SPEC listed — the head's own statement —, A BOOK IS SHELVED checked by the earlier graph's gaps, and one p.graph-as-of reading "As of <earlier, 7>: the trace graph of the newest commit, <head, 7>, is being stored."; nothing written, nothing sent
 test("use-case/draft — while the head's graph is not stored, the page draws from the graph stored last and says so in one line", async () => {
   endpointAnswers(drafted([OTHER]));
   assert.deepEqual(asOfLines(await show(fakeProduct())), [], "the head's own graph: no line");

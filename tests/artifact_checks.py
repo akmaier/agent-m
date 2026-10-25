@@ -7,14 +7,14 @@ SOFTWARE_MAINTENANCE §4.0a rule 5, built into the suite instead of run once by 
 """
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
+from jsrun import js
+
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
-USE_CASE_NAME = re.compile(r"^UC-(\d{3})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$")
-REQUIRED_SECTIONS = ["## Actors", "## Precondition", "## Main flow", "## Alternative flows",
-                     "## Postcondition"]
 HEX40 = re.compile(r"^[0-9a-f]{40}$")
 
 
@@ -38,169 +38,58 @@ def front_matter(text: str) -> tuple[dict, str]:
 
 
 # ---------------------------------------------------------------- use cases (SPEC §4, §10)
-# The twin of docs/assets/artifacts/use-cases.mjs useCaseProblems: the same checks in the same order, each finding's rule
-# and `what` word for word; tests/artifacts-twin.test.mjs compares the two on the same files.
-
-FIELDS = "A USE CASE HAS ACTOR, PRECONDITION, FLOW AND POSTCONDITION"
-REALISES = "A USE CASE REALISES NAMED REQUIREMENTS"
-MERMAID = "DIAGRAMS ARE MERMAID IN MARKDOWN"
-ONE_FILE = "ONE USE CASE, ONE FILE"
-MERMAID_OPEN = re.compile(r"^```mermaid\s*$")
-MD_IMAGE = re.compile(r"!\[[^\]]*\]\(\s*<?([^\s)>]+)")
-HTML_IMAGE = re.compile(r"""<img\b[^>]*?\bsrc\s*=\s*["']?([^"'\s>]+)""", re.I)
-IMAGE_TYPE = re.compile(r"\.(png|jpe?g|gif|svg|webp)$", re.I)
+# A use case is read and checked by MOD-documents — documentFindings, by the use-case schema artifactSchemas gives —; the names
+# it realises are looked up on MOD-trace-graph's graph (graphFindings), and a use case that realises nothing is a gap the graph
+# lists (coverageGaps). The data reaches node hex-encoded, so that no word of a text names a module for jsrun to import.
 
 
-def diagram_images(body: str) -> list[str]:
-    """The address of every Markdown image or HTML <img> whose address, without query or fragment, is an image file."""
-    found = [(m.start(), m.group(1)) for rx in (MD_IMAGE, HTML_IMAGE) for m in rx.finditer(body)
-             if IMAGE_TYPE.search(re.sub(r"[?#].*$", "", m.group(1)))]
-    return [t for _, t in sorted(found)]
+def module_call(expr: str, data):
+    """The value of `expr` through tests/jsrun.py, where `D` is the JSON value `data`."""
+    hexed = json.dumps(data).encode("utf-8").hex()
+    return js(f"const D = JSON.parse(Buffer.from({json.dumps(hexed)}, 'hex').toString('utf8')); {expr}")
 
 
-def use_case_findings(name: str, text: str, known_names=None) -> list[dict]:
-    """Every format error of a use case as {rule, what}. known_names: the requirements a name under `realises` must
-    match; None checks only the form of each name."""
-    out = []
-
-    def add(rule, what):
-        out.append({"rule": rule, "what": what})
-
-    m = USE_CASE_NAME.match(name)
-    if not m:
-        add(ONE_FILE, "file name is not UC-<nnn>-<slug>.md")
-    fields, body = front_matter(text)
-    if not fields:
-        add(ONE_FILE, "no front matter")
-        return out
-    if m and fields.get("id") != f"UC-{m.group(1)}":
-        shown = f'"{fields["id"]}"' if isinstance(fields.get("id"), str) else "(none)"
-        add(ONE_FILE, f"id {shown} does not match the file name (UC-{m.group(1)})")
-    for key in ("title", "area"):
-        if not fields.get(key) or not isinstance(fields[key], str):
-            add(FIELDS, f"missing {key}")
-    if "stage" in fields:
-        add(FIELDS, "key 'stage' is now 'area'")
-    if not isinstance(fields.get("actors"), list) or not fields["actors"]:
-        add(FIELDS, "actors must be a non-empty list")
-    realises = fields.get("realises") if isinstance(fields.get("realises"), list) else None
-    if not realises:
-        add(REALISES, "realises must be a non-empty list")
-    known = None if known_names is None else set(known_names)
-    for n in realises or []:
-        if not is_requirement_name(n):
-            add(REALISES, f'realises: "{n}" is not a requirement name')
-        elif known is not None and n not in known:
-            add(REALISES, f'realises "{n}" matches no requirement')
-    lines = body.split("\n")
-    for s in REQUIRED_SECTIONS:
-        if not any(line.rstrip() == s for line in lines):
-            add(FIELDS, f"missing section {s!r}")
-    if not any(MERMAID_OPEN.match(line) for line in lines):
-        add(MERMAID, "no Mermaid diagram")
-    for target in diagram_images(body):
-        add(MERMAID, f"diagram stored as an image file ({target})")
-    return out
+def use_case_findings(files: dict) -> dict:
+    """{ path: [{ line, rule, what }] } — documentFindings of each use case of { path: text }, read by the use-case schema."""
+    return module_call("const s = documents.artifactSchemas().useCase;"
+                       "return Object.fromEntries(Object.entries(D).map(([p, t]) => [p, documents.documentFindings(s,"
+                       " documents.readDocument(s, p, t)).map((f) => ({ line: f.line, rule: f.rule, what: f.what }))]));",
+                       files)
 
 
-def use_case_problems(name: str, text: str, known_names=None) -> list[str]:
-    return [f"{name}: {f['what']}" for f in use_case_findings(name, text, known_names)]
+def product_spec(names) -> str:
+    """The SPEC.md of a fixture product that holds one requirement of each name — never Agent M's own SPEC."""
+    return "# Fixture product — Specification\n\n## Rules\n\n" + "".join(
+        f"**{n}** *(PO)*\nA rule.\n*Check:* no automatic check; at review\n\n" for n in names)
+
+
+def use_case_graph(files: dict, names) -> dict:
+    """{ findings, unrealised } over the graph traceGraph builds from the use cases of { path: text } beside a SPEC of the
+    requirements `names`: each finding of graphFindings as { artifact, line, rule, what }, and the use cases that coverageGaps
+    lists as realising no requirement."""
+    return module_call("const files = { ...D.files, 'SPEC.md': D.spec };"
+                       "const g = await traceGraph.traceGraph({ paths: Object.keys(files), read: async (p) => files[p] ?? null });"
+                       "return { findings: traceGraph.graphFindings(g).map((f) => ({ artifact: f.artifact, line: f.line,"
+                       " rule: f.rule, what: f.what })), unrealised: traceGraph.coverageGaps(g).useCasesWithoutRequirement };",
+                       {"files": files, "spec": product_spec(names)})
 
 
 # ---------------------------------------------------------------- architecture files (SPEC §11)
-# The same format as docs/assets/artifacts.mjs parseArchitecture reads; tests/test_architecture_files.py.
+# A decision and a module file are read and checked by MOD-documents — documentFindings, by the schema artifactSchemaOf gives
+# for the path, or, for a path of neither, by the schema of the kind named —; tests/test_architecture_files.py.
 
 SLUG = r"[a-z0-9]+(?:-[a-z0-9]+)*"
-ARC_NAME = re.compile(rf"^ARC-(\d{{3}})-{SLUG}\.md$")
-MOD_NAME = re.compile(rf"^(MOD-{SLUG})\.md$")
-UC_ID = re.compile(r"^UC-\d{3}$")
-ARC_ID = re.compile(r"^ARC-\d{3}$")
-IFACE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-USE = re.compile(rf"^MOD-{SLUG}\.[A-Za-z_][A-Za-z0-9_]*$")
-ARC_SECTIONS = ["## Context", "## Decision", "## Alternatives", "## Consequences"]
-MOD_SECTIONS = ["## Responsibility", "## Interfaces"]
 
 
-def is_requirement_name(s: str) -> bool:
-    """A requirement is named by its name in capitals (THE NAME IS THE ID AND IT SURVIVES)."""
-    return bool(s) and not re.search(r"[a-z]", s) and bool(re.search(r"[A-Z]", s)) \
-        and not re.match(r"^(UC|ARC|MOD|SRC|TST|ITM|RES|JOB)-", s)
-
-
-def as_list(v):
-    """`key:` with list items, or an empty `key:` / `key: []`, is a list; anything else is not."""
-    if v == "[]":
-        return []
-    return v if isinstance(v, list) else None
-
-
-def section_body(body: str, heading: str) -> str:
-    m = re.search(rf"^{re.escape(heading)}\s*$", body, re.M)
-    if not m:
-        return ""
-    rest = body[m.end():]
-    n = re.search(r"^#{1,2} ", rest, re.M)
-    return rest[:n.start()] if n else rest
-
-
-def described_interfaces(body: str) -> list[str]:
-    """Each provided interface is described by a bullet `- `name…`` in the Interfaces section."""
-    return re.findall(r"^- `([A-Za-z_][A-Za-z0-9_]*)", section_body(body, "## Interfaces"), re.M)
-
-
-def architecture_problems(name: str, text: str) -> list[str]:
-    arc, mod = ARC_NAME.match(name), MOD_NAME.match(name)
-    if not arc and not mod:
-        return [f"{name}: file name is neither ARC-<nnn>-<slug>.md nor MOD-<slug>.md"]
-    p = []
-    fields, body = front_matter(text)
-    if not fields:
-        return [f"{name}: no front matter"]
-    want = f"ARC-{arc.group(1)}" if arc else mod.group(1)
-    if fields.get("id") != want:
-        p.append(f"{name}: id {fields.get('id')!r} does not match the file name ({want})")
-    if not fields.get("title") or not isinstance(fields["title"], str):
-        p.append(f"{name}: missing title")
-
-    def items(key, ok, what, non_empty=False):
-        v = as_list(fields.get(key)) if key in fields else None
-        if v is None:
-            p.append(f"{name}: {key} must be a list" + (" naming at least one item" if non_empty else " (empty: `{key}:`)".format(key=key)))
-            return []
-        if non_empty and not v:
-            p.append(f"{name}: {key} must name at least one item")
-        for x in v:
-            if not ok(x):
-                p.append(f"{name}: {key}: {x!r} is not {what}")
-        return v
-
-    origin = lambda x: bool(UC_ID.match(x)) or is_requirement_name(x)  # noqa: E731
-    if arc:
-        items("forced_by", origin, "a use case (UC-<nnn>) or a requirement name", non_empty=True)
-        for k in ("realises", "follows", "uses", "provides"):
-            if k in fields:
-                p.append(f"{name}: key {k!r} belongs to a module")
-        sections = ARC_SECTIONS
-    else:
-        items("realises", origin, "a use case (UC-<nnn>) or a requirement name")
-        items("follows", lambda x: bool(ARC_ID.match(x)), "an architecture decision (ARC-<nnn>)")
-        items("uses", lambda x: bool(USE.match(x)), "an interface of another module (MOD-<slug>.<interface>)")
-        provides = items("provides", lambda x: bool(IFACE.match(x)), "an interface name")
-        if "forced_by" in fields:
-            p.append(f"{name}: key 'forced_by' belongs to an architecture decision")
-        if len(set(provides)) != len(provides):
-            p.append(f"{name}: provides names an interface twice")
-        described = described_interfaces(body)
-        for i in provides:
-            if IFACE.match(i) and i not in described:
-                p.append(f"{name}: interface {i!r} is not described in ## Interfaces (a bullet - `{i}…`)")
-        sections = MOD_SECTIONS
-    for s in sections:
-        if not re.search(rf"^{re.escape(s)}\s*$", body, re.M):
-            p.append(f"{name}: missing section {s!r}")
-    if re.search(r"!\[[^\]]*\]\([^)]*\.(png|jpe?g|gif|svg|webp)\)", body, re.I):
-        p.append(f"{name}: diagram stored as an image file")
-    return p
+def architecture_findings(files: dict, kind: str | None = None) -> dict:
+    """{ path: ["<line>: <what> [<rule>]"] } — documentFindings of each architecture file of { path: text }, read by the schema
+    its path names, or by the schema `kind` ("decision" or "module") names where the path names none."""
+    return module_call("const all = documents.artifactSchemas();"
+                       "return Object.fromEntries(Object.entries(D.files).map(([p, t]) => {"
+                       " const s = documents.artifactSchemaOf(p) ?? all[D.kind];"
+                       " return [p, documents.documentFindings(s, documents.readDocument(s, p, t))"
+                       ".map((f) => `${f.line}: ${f.what} [${f.rule}]`)]; }));",
+                       {"files": files, "kind": kind})
 
 
 def record_fields(text: str) -> dict:

@@ -1,12 +1,12 @@
 // The views of the review pages under docs/ and the sections of their settings page — one table, read by the review pages
-// (docs/assets/dashboard-app.mjs, which loads each view's file by its name) and by the main page (its menu links only to
+// (src/site-frame/dashboard-app.mjs, which loads each view's file by its name) and by the main page (its menu links only to
 // views whose file is built).
 //
 // Every view and every settings section the accepted use cases call for. A view or section whose file is not built yet — not
 // named in docs/assets/dashboard/built.json — is not shown and not asked for; a later change adds one as a new file below
 // docs/assets/dashboard/ and one line of built.json, without editing this table.
 // view: the route (#<view>/…) and file: the view's module below docs/assets/dashboard/. section: a part of the settings page;
-// built in: written by settings-view.mjs itself.
+// built in: rendered by a module's route through dashboard-app's public route dispatch — a section by MOD-settings-pages' route settings.
 export const DASHBOARD = [
   { view: "uc", file: "review-views.mjs", useCases: ["UC-008"] },
   { view: "arc", file: "review-views.mjs", useCases: ["UC-022", "UC-023"] },
@@ -45,14 +45,15 @@ export const DASHBOARD = [
   // UC-039 is rendered by MOD-maintenance-pages through dashboard-app's public route dispatch; it has no dashboard view file.
   { view: "replies", builtIn: true, useCases: ["UC-039"] },
   { view: "how", file: "how-view.mjs", useCases: ["UC-006", "UC-008"] },
-  { view: "settings", file: "settings-view.mjs", useCases: ["UC-042"] },
+  // UC-042 is rendered by MOD-settings-pages through dashboard-app's public route dispatch; it has no dashboard view file.
+  { view: "settings", builtIn: true, useCases: ["UC-042"] },
   // UC-001 is rendered by MOD-settings-pages through dashboard-app's public route dispatch; it has no dashboard view file.
   { view: "add", builtIn: true, useCases: ["UC-001"] },
   // UC-014 is rendered by MOD-settings-pages through dashboard-app's public route dispatch; it has no dashboard view file.
   { view: "setup", builtIn: true, useCases: ["UC-014"] },
   { view: "get-your-own", file: "get-your-own-view.mjs", useCases: ["UC-014"] },
   { section: "browser", builtIn: true, useCases: ["UC-042"] },
-  { section: "endpoints", file: "settings/endpoints.mjs", useCases: ["UC-003"] },
+  { section: "endpoints", builtIn: true, useCases: ["UC-003"] },
   { section: "mailbox", file: "settings/mailbox.mjs", useCases: ["UC-037"] },
   { section: "bridge", file: "settings/bridge.mjs", useCases: ["UC-044"] },
   { section: "instance", file: "settings/instance.mjs", useCases: ["UC-042"] },

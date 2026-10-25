@@ -82,7 +82,7 @@ history. It runs in the browser and in Node.
 - `history.mjs` — the history of a requirement.
 - `strategies.mjs` — the recipes and writer of `specStrategies`.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `tests/review-core.d/apply-approvals.test.mjs`, `tests/test_verbatim.py`, `tests/test_proposal_shows_current.py`, `tests/test_replaced_in_history.py`, `tests/test_spec_gate.py`, `tests/test_prompted_source.py`, `tests/test_artifact_provenance.py`, `tests/test_derivation_context.py`, `tests/test_prompted_change_context.py`: their headers name this module; one of only the old writer is rewritten on `applyApproved`.
+  - `tests/test_prompted_source.py`, `tests/test_artifact_provenance.py`, `tests/test_derivation_context.py`, `tests/test_prompted_change_context.py`: their headers name this module; one of only the old writer is rewritten on `applyApproved`.
 
 ## Data
 

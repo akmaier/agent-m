@@ -46,7 +46,7 @@ import assert from "node:assert/strict";
 import * as traceGraphModule from "../src/trace-graph/index.mjs";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { linkGraph, moduleRows as dashboardModuleRows } from "../docs/assets/traceability.mjs";
+import { testHeader } from "../src/test-document/index.mjs";
 
 // A name the module does not provide yet is undefined here, so that each test fails by itself and not the whole file at once.
 const { traceGraph, moduleRows } = traceGraphModule;
@@ -295,13 +295,18 @@ test("TST-692010 a folder no module names is one gap, besides the gap of each co
   assert.deepEqual(inside.filter(([kind]) => kind === "folder-named-by-no-module" || kind === "code-without-module"), []);
 });
 
-// The tests and test helpers whose header names no module of the architecture, as the dashboard lists them: the gaps of its moduleRows
-// that concern a test (no `Module:` line among the first lines, or one that names a module the architecture does not describe).
-function testsNamingNoModule(files) {
-  const graph = linkGraph({ files });
-  return dashboardModuleRows(graph).gaps
-    .filter((gap) => graph.nodes[gap.artifact]?.kind === "test" && ["code-without-module", "code-names-unknown-module"].includes(gap.kind))
-    .map((gap) => [gap.kind, gap.artifact]).sort((a, b) => a[1].localeCompare(b[1]));
+// The tests and test helpers whose header names no module of the architecture, as the dashboard has listed them: no `Module:` line
+// among the first lines, or one that names a module the architecture does not describe — the header read by MOD-test-document's
+// testHeader, for every file it reads a header of; the modules of the architecture are the module nodes of the graph traceGraph
+// builds from the same files.
+async function testsNamingNoModule(files) {
+  const graph = await graphOf(files);
+  const modules = new Set([...graph.nodes.values()].filter((node) => node.kind === "MOD").map((node) => node.id));
+  return Object.keys(files).filter((path) => testHeader(path, files[path]) !== null).flatMap((path) => {
+    const named = testHeader(path, files[path]).modules;
+    return named.length === 0 ? [["code-without-module", path]]
+      : named.filter((module) => !modules.has(module)).map(() => ["code-names-unknown-module", path]);
+  }).sort((a, b) => a[1].localeCompare(b[1]));
 }
 
 // TST-1017001 · level: unit · module: MOD-trace-graph
@@ -309,12 +314,12 @@ function testsNamingNoModule(files) {
 // given: the files of this repository, read as the dashboard reads them, without the fixture products under tests/fixtures/ (products, not tests of Agent M)
 // input: the tests and test helpers whose header names no module of the architecture, as the dashboard lists them; and, as a known positive, the same call over the same files with one test, tests/ghost.test.mjs, added whose header names MOD-ghost
 // expect: the first call lists none; the known positive lists exactly [code-names-unknown-module, tests/ghost.test.mjs]
-test("TST-1017001: every test of this repository names a module of the architecture in its header", () => {
+test("TST-1017001: every test of this repository names a module of the architecture in its header", async () => {
   const tracked = execFileSync("git", ["ls-files"], { encoding: "utf8" }).split("\n").filter(Boolean)
     .filter((path) => !path.startsWith("tests/fixtures/"));
   const files = {};
   for (const path of tracked) { try { files[path] = readFileSync(path, "utf8"); } catch { /* a binary file */ } }
-  assert.deepEqual(testsNamingNoModule({ ...files, "tests/ghost.test.mjs": "// Module: MOD-ghost\n" }).filter(([, path]) => path === "tests/ghost.test.mjs"),
+  assert.deepEqual((await testsNamingNoModule({ ...files, "tests/ghost.test.mjs": "// Module: MOD-ghost\n" })).filter(([, path]) => path === "tests/ghost.test.mjs"),
     [["code-names-unknown-module", "tests/ghost.test.mjs"]], "known positive: a test naming a module the architecture does not describe is listed");
-  assert.deepEqual(testsNamingNoModule(files), []);
+  assert.deepEqual(await testsNamingNoModule(files), []);
 });

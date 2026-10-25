@@ -23,8 +23,8 @@ const FIELD_KEYS = ["level", "module", "guards", "given", "input", "expect", "ru
 
 // A test file (MOD-test-document, Data): a file under a folder named `test`, `tests` or `__tests__`, or a file named as tests are
 // named in its language — `*.test.mjs`, `test_*.py`, `*_test.go` and the like —; a Markdown file under such a folder holds manual
-// tests, and is a test file as every file under one is. The names are those of docs/assets/artifacts.mjs isTestPath, the rule the
-// dashboard has applied until now: a name that begins `test_`, ends `_test` or has `.test` or `.spec` before its extension.
+// tests, and is a test file as every file under one is. A test's name begins `test_`, ends `_test` or has `.test` or `.spec`
+// before its extension.
 const TEST_FOLDERS = new Set(["test", "tests", "__tests__"]);
 const TEST_NAME = /^test_.|_test\.[A-Za-z0-9]+$|\.(?:test|spec)\.[A-Za-z0-9]+$/;
 

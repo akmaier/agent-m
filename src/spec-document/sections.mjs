@@ -6,9 +6,8 @@
 // Pure: it reads only the texts it is given, keeps nothing and performs no input or output. What a section is, is parseSpec's: it
 // begins with a heading of level two outside a fenced block and ends before the next one or at the end of the text, and its `start`
 // and `end` are its byte range. A section's bytes are the slice of the text between them — not its lines normalised, trimmed or
-// ended —, since a caller compares or hashes them and the approved text is taken verbatim. The model is docs/assets/review-core.mjs
-// (extractSection, sectionText, replaceSection), which works on lines and trims the ends of a section; the module file asks for
-// the bytes themselves. Where the module file leaves a reading open, this file states the reading it takes:
+// ended —, since a caller compares or hashes them and the approved text is taken verbatim. Where the module file leaves a reading
+// open, this file states the reading it takes:
 //
 //   - A heading is a section's heading line as parseSpec reads it, line end left out, compared whole: no prefix, no trimming. Where
 //     two sections have the same heading line, the first is the one.

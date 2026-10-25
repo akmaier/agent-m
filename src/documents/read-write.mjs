@@ -13,15 +13,14 @@
 // A section's table (ITM-226) is the first table in it whose header row names exactly the table's columns, in their order;
 // a table without a header row is the section's first table. A table is a run of lines, outside fenced blocks, that begin
 // with |. Its cells are split at every | not escaped as \|, an escaped one is a | of the cell, and a cell that is empty or —
-// is a value left out. The parsing of front matter is MOD-text-tools'; reading a table's lines follows parseModel of
-// docs/assets/process-model.mjs.
+// is a value left out. The parsing of front matter is MOD-text-tools'; a table's cells are split by checks.mjs.
 //
 // Writing keeps what it does not form: the bytes before the first section, the text of every section, and every row of a
 // table that stands as it was read; it forms the front matter, the order of the sections, and each row that is new or
 // changed. The text a document was read from is its `body`: the rows that stand are found there, by their cells.
 
 import { formatFrontMatter, parseFrontMatter } from "../text-tools/index.mjs";
-import { PATH, compiledOf, effective, fences, sectionOf, textLines } from "./schema-language.mjs";
+import { PATH, compiledOf, effective, fences, identifierOfPath, sectionOf, textLines } from "./schema-language.mjs";
 import { cellsOf, isSeparator, leftOut, sectionTable, textOf, valueProblem } from "./checks.mjs";
 
 const HEADING = /^(#{1,6})[ \t]+\S/;
@@ -187,11 +186,7 @@ function identifierOf(schema, compiled, path, fields) {
   if (!schema.identifier) return null;
   const value = fields[schema.identifier.field];
   if (typeof value === "string" && value) return value;
-  for (const pattern of compiled.patterns) {
-    const match = pattern.re.exec(String(path ?? ""));
-    if (match && pattern.idOf(match)) return pattern.idOf(match);
-  }
-  return null;
+  return identifierOfPath(compiled, path);
 }
 
 // readDocument(schema: Schema, path: string, text: string) -> Document — reads a document or a record of the schema's format.

@@ -1,11 +1,10 @@
-// Between-jobs dashboard migration.
+// The live dashboard's entries #add and #settings mount MOD-settings-pages' routes over this browser's MOD-browser-store store.
 // Module: MOD-browser-store
 // Guards: UC-001; UC-047; CONFIGURATION LIVES IN THE BROWSER
 // Level: component
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { productStore } from "../docs/assets/product-store-adapter.mjs";
 import { openStore, readSetting } from "../src/browser-store/index.mjs";
 
 function routeDom(main) {
@@ -32,67 +31,6 @@ function routeDom(main) {
   main.querySelector = (selector) => find(main, selector);
   globalThis.document.createElement = node;
 }
-
-function storage(entries = {}) {
-  const values = new Map(Object.entries(entries));
-  return { getItem: (key) => values.get(key) ?? null, setItem: (key, value) => values.set(key, String(value)),
-    removeItem: (key) => values.delete(key), get length() { return values.size; }, key: (i) => [...values.keys()][i] ?? null };
-}
-
-// TST-265 · level: component · module: MOD-browser-store
-// guards: UC-001; UC-047; CONFIGURATION LIVES IN THE BROWSER
-// given: a dashboard browser containing its established token, product list and product token
-// input: open the dashboard adapter for that instance
-// expect: the same values are available through MOD-browser-store's instance-prefixed catalogue
-test("the dashboard migrates its product list and tokens into MOD-browser-store", () => {
-  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage({
-    "agent-m.github-token": "github_pat_INSTANCE", "agent-m.github-token-expires": "2027-01-01",
-    "agent-m.products": JSON.stringify(["https://github.com/alice/tool"]),
-    "agent-m.github-product-tokens": JSON.stringify({ "https://github.com/alice/tool": { token: "github_pat_PRODUCT", expires: "2027-02-01" } }),
-  }) });
-  const dashboard = productStore("akmaier/agent-m");
-  const store = openStore("akmaier/agent-m");
-  assert.equal(readSetting(store, "github-token").value, "github_pat_INSTANCE");
-  // The established dashboard renewal/test callers write the canonical record after migration.
-  dashboard.setToken("github_pat_INSTANCE", "2028-01-01");
-  dashboard.setTokenTest({ ok: "2026-10-07" });
-  assert.equal(readSetting(store, "github-token").expires, "2028-01-01", "renewal keeps its date in the canonical setting");
-  assert.equal(readSetting(store, "last-test:github-token").outcome, "working", "the established Test caller keeps a canonical successful outcome");
-  assert.deepEqual(readSetting(store, "products"), ["https://github.com/alice/tool"]);
-  assert.equal(readSetting(store, "github-token:alice/tool").value, "github_pat_PRODUCT");
-});
-
-// TST-267 · level: component · module: MOD-browser-store
-// guards: UC-001; UC-047; CONFIGURATION LIVES IN THE BROWSER
-// given: a legacy GitLab project token, including its last test, without a legacy product-list entry
-// input: open the adapter, then import a second product through its established settings API
-// expect: both addresses and token metadata remain visible to the settings/export API and MOD-browser-store
-test("the adapter discovers token-only GitLab products and preserves imported public values", () => {
-  const first = "https://gitlab.example.org/team/first", second = "https://gitlab.example.org/team/second";
-  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage({
-    "agent-m.gitlab-tokens": JSON.stringify({ [first]: { token: "glpat_FIRST0123456789", expires: "2027-01-01", tested: { ok: "2026-10-07" } } }),
-  }) });
-  const dashboard = productStore("akmaier/agent-m"), store = openStore("akmaier/agent-m");
-  assert.deepEqual(readSetting(store, "products"), [first]);
-  assert.deepEqual(readSetting(store, "last-test:gitlab-token:gitlab.example.org/team/first"), { at: "2026-10-07", outcome: "working" });
-  dashboard.putEntries({
-    "agent-m.products": JSON.stringify([second]),
-    "agent-m.gitlab-tokens": JSON.stringify({ [second]: { token: "glpat_SECOND012345678", expires: "2027-02-01", tested: { refused: true } } }),
-  });
-  assert.deepEqual(dashboard.getProducts(), [first, second]);
-  const entries = dashboard.entries();
-  assert.equal(entries["agent-m.gitlab-tokens"], undefined,
-    "the adapter removes the legacy duplicate credential export after canonical migration");
-  assert.deepEqual(readSetting(store, "products"), [first, second],
-    "both discovered and imported product addresses remain in the canonical catalogue");
-  const canonicalSecond = readSetting(store, "gitlab-token:gitlab.example.org/team/second");
-  assert.equal(canonicalSecond?.value, "glpat_SECOND012345678", "the imported token reaches MOD-browser-store's canonical record");
-  assert.equal(canonicalSecond?.expires, "2027-02-01", "the imported expiry reaches MOD-browser-store's canonical record");
-  const imported = dashboard.getGitLabToken(second);
-  assert.equal(imported.token, "glpat_SECOND012345678", "the imported token remains visible through the established adapter");
-  assert.equal(imported.expires, "2027-02-01", "the imported expiry remains visible through the established adapter");
-  assert.deepEqual(imported.tested, { refused: true }, "the undated legacy refusal remains visible without inventing an observation time");
-});
 
 // TST-266 · level: component · module: MOD-browser-store
 // guards: UC-001; UC-047; CONFIGURATION LIVES IN THE BROWSER
@@ -142,51 +80,4 @@ test("the public add-product route rejects a synthetic Add product click", async
   assert.ok(addProduct && !addProduct.disabled, "the public route enables Add product for the configured instance token");
   await page.click("button.add", { isTrusted: false });
   assert.equal(server.writes.length, 0, "a synthetic click must not commit the product layout");
-});
-
-// TST-269 · level: component · module: MOD-browser-store
-// guards: UC-042; A CLEAR IS A REAL CLEAR
-// given: GitHub and GitLab product tokens mirrored through the dashboard adapter
-// input: the existing Settings clear-token callers clear each product token, then the adapter reloads
-// expect: both the public catalogue and the legacy settings view stay clear
-test("clearing product tokens clears their canonical values and cannot resurrect them on reload", () => {
-  const github = "https://github.com/alice/tool", gitlab = "https://gitlab.example.org/team/tool", instance = "akmaier/agent-m";
-  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage() });
-  const dashboard = productStore(instance), store = openStore(instance);
-  dashboard.addProduct(github); dashboard.setGitHubProductToken(github, "github_pat_PRODUCT", "2027-01-01");
-  dashboard.addProduct(gitlab); dashboard.setGitLabToken(gitlab, "glpat_PRODUCT012345678", "2027-01-02");
-  assert.ok(readSetting(store, "github-token:alice/tool")?.value, "known positive: GitHub token reached the public catalogue");
-  assert.ok(readSetting(store, "gitlab-token:gitlab.example.org/team/tool")?.value, "known positive: GitLab token reached the public catalogue");
-  dashboard.clearGitHubProductToken(github); dashboard.clearGitLabToken(gitlab);
-  assert.equal(readSetting(store, "github-token:alice/tool"), null, "GitHub clear removes the public value");
-  assert.equal(readSetting(store, "gitlab-token:gitlab.example.org/team/tool"), null, "GitLab clear removes the public value");
-  const reloaded = productStore(instance);
-  assert.equal(reloaded.getGitHubProductToken(github), null, "reload cannot restore the cleared GitHub token");
-  assert.equal(reloaded.getGitLabToken(gitlab), null, "reload cannot restore the cleared GitLab token");
-});
-
-// TST-270 · level: component · module: MOD-browser-store
-// guards: UC-042; A CLEAR IS A REAL CLEAR; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER
-// given: GitHub and GitLab products with their own canonical tokens
-// input: the existing Settings remove-product caller removes each product, then the adapter reloads
-// expect: each address and its token are absent from both stores
-test("removing a product clears its canonical address and token without reload resurrection", () => {
-  const github = "https://github.com/alice/tool", gitlab = "https://gitlab.example.org/team/tool", instance = "akmaier/agent-m";
-  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage() });
-  const dashboard = productStore(instance), store = openStore(instance);
-  dashboard.addProduct(github); dashboard.setGitHubProductToken(github, "github_pat_PRODUCT", "2027-01-01");
-  dashboard.addProduct(gitlab); dashboard.setGitLabToken(gitlab, "glpat_PRODUCT012345678", "2027-01-02");
-  assert.deepEqual(readSetting(store, "products"), [github, gitlab], "known positive: public product list contains both addresses");
-  dashboard.removeProduct(github);
-  assert.deepEqual(readSetting(store, "products"), [gitlab], "removing one product retains the other public address");
-  assert.equal(readSetting(store, "github-token:alice/tool"), null, "removing one product clears only its GitHub public token");
-  assert.ok(readSetting(store, "gitlab-token:gitlab.example.org/team/tool")?.value, "removing one product retains the other public token");
-  dashboard.removeProduct(gitlab);
-  assert.equal(readSetting(store, "products"), null, "removal clears the public product list");
-  assert.equal(readSetting(store, "github-token:alice/tool"), null, "removal clears the GitHub public token");
-  assert.equal(readSetting(store, "gitlab-token:gitlab.example.org/team/tool"), null, "removal clears the GitLab public token");
-  const reloaded = productStore(instance);
-  assert.deepEqual(reloaded.getProducts(), [], "reload cannot restore removed products");
-  assert.equal(reloaded.getGitHubProductToken(github), null);
-  assert.equal(reloaded.getGitLabToken(gitlab), null);
 });

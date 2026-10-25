@@ -3,19 +3,17 @@
 # Level: unit
 """SPEC §9 A SPECIFICATION CHANGE IS APPROVED BEFORE IT IS WRITTEN — characterisation tests of ITM-014 (a refactoring job).
 
-The SPEC is written in two places: the dashboard's acceptance commit (docs/assets/review-core.mjs
-planAcceptance, asked through node) and the instance's workflow (MOD-spec-changes' applyApproved). What they keep today, on the
-fixture product tests/fixtures/gates/ (a queue of two entries, 01 and 02, against SPEC.md):
+The SPEC is written in two places: the dashboard's acceptance commit (MOD-spec-changes' acceptEntries) and the instance's
+workflow (MOD-spec-changes' applyApproved), both asked through node (tests/spec_apply.py). What they keep, on the fixture product
+tests/fixtures/gates/ (a queue of two entries, 01 and 02, against SPEC.md):
 
 - the workflow writes nothing for an entry no approval record names — an open queue leaves every byte of the tree as it was;
 - with a record for 01 only, the workflow writes 01 and leaves 02's section and decisions untouched;
-- an accepted entry changes no byte of the SPEC outside its own section — the dashboard keeps that on a SPEC with CR
-  bytes elsewhere; the workflow does not (FINDING F1, expected to fail).
+- an accepted entry changes no byte of the SPEC outside its own section, on a SPEC with CR bytes elsewhere — on both routes.
 
-What the dashboard writes when one entry of two is accepted is pinned in tests/review-core.d/dashboard-writes.test.mjs
+What the dashboard writes when one entry of two is accepted is pinned in tests/spec-changes-accept.test.mjs
 (the whole SPEC compared). Counter-proofs: docs/measurements/2026-10-01_approval-gates-counter-proofs.md.
 """
-import json
 import shutil
 import sys
 import tempfile
@@ -26,7 +24,6 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 
 import spec_apply as ap  # noqa: E402
-from jsrun import js  # noqa: E402
 
 FIX = Path(__file__).resolve().parent / "fixtures" / "gates"
 Q = "docs/spec-freigaben/2026-10-01a_gates"
@@ -69,19 +66,10 @@ class Product:
         self.write(f"docs/approvals/{file}", ap.record_text(rec))
         return file
 
-    def item(self, nr: int) -> dict:
+    def shown(self, nr: int) -> dict:
         """What the dashboard showed for entry `nr`: the proposal and the section beside it, by their blob SHAs."""
         name, anchor = ENTRIES[nr]
-        return {"kind": "spec", "queue": Q, "qname": Path(Q).name, "nr": nr, "nn": f"{nr:02d}", "proposalPath": f"{Q}/{name}",
-                "proposalBlob": ap.blob_sha(self.text(f"{Q}/{name}")), "sectionBlob": ap.blob_sha(ap.legacy_section_text(ap.legacy_extract_section(self.text("SPEC.md"), anchor))),
-                "targetPath": "SPEC.md", "anchor": anchor, "bis": None, "needs": []}
-
-    def plan(self, items: list) -> dict:
-        """The files of the dashboard's acceptance commit, computed by the engine on this tree."""
-        files = {p: b.decode("utf-8") for p, b in tree(self.root).items()}
-        return js(f"const f = {json.dumps(files)};"
-                  f"return core.planAcceptance({{ items: {json.dumps(items)}, now: new Date('2026-10-01T12:00:00Z'),"
-                  " read: async (p) => (p in f ? f[p] : null) });")
+        return {"queue": Q, "entry": nr, "proposalBlob": ap.blob_sha(self.text(f"{Q}/{name}")), "sectionBlob": ap.blob_sha(self.section(anchor))}
 
 
 class SpecGate(unittest.TestCase):
@@ -121,10 +109,10 @@ class SpecGate(unittest.TestCase):
         self.p.write("SPEC.md", crlf)
         expected = outside(crlf, "## 2. More", "## 3. Last", self.p.text(f"{Q}/01-more.md"))
         self.assertNotEqual(expected, crlf)
-        plan = self.p.plan([self.p.item(1)])
-        self.assertEqual(plan["leftOut"], [])
-        written = next(f["content"] for f in plan["files"] if f["path"] == "SPEC.md")
-        self.assertEqual(written, expected)
+        refused, paths = ap.accept(self.p.root, [self.p.shown(1)])
+        self.assertEqual(refused, [])
+        self.assertIn("SPEC.md", paths)
+        self.assertEqual(self.p.text("SPEC.md"), expected)
 
     def test_the_workflow_changes_no_byte_outside_the_approved_section(self):
         # The workflow's writer, applyApproved, reads the SPEC's bytes as they stand, so a SPEC with CR LF line ends anywhere keeps them

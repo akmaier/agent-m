@@ -47,9 +47,8 @@ export function systemDecisions(graph) {
 // naming artifact's identifier and kind, the file and the line at which it names the requirement (of a test, the line its
 // declaration begins at) and the kind of the edge as `via`. It reads the edges alone, so a name no node carries, a withdrawn
 // requirement among them, lists what still names it, and a name nothing names lists nothing. A name written twice on one line is
-// one place. The rows come use cases first, then decisions, modules, items and tests, the order in which the model in
-// docs/assets/traceability/graph.mjs lists its four kinds, each kind by identifier, the rows of one artifact in the order its file
-// gives them, so that the list does not depend on the order in which the repository lists its files.
+// one place. The rows come use cases first, then decisions, modules, items and tests, each kind by identifier, the rows of one
+// artifact in the order its file gives them, so that the list does not depend on the order in which the repository lists its files.
 const IMPACT_ORDER = ["UC", "ARC", "MOD", "ITM", "TST"];
 export function requirementImpact(graph, name) {
   const places = new Map();

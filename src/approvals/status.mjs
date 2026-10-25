@@ -112,6 +112,15 @@ export function statusOf(path, blob, snapshot) {
   return blob12s.some((blob12) => blob.startsWith(blob12)) ? "accepted" : blob12s.length ? "changed" : "open";
 }
 
+// Whether a record's content names what its name says: the blob its name's twelve hex digits begin, and — for a reviewed file
+// — a file whose identifier is its name's (a release test report's record names its report's file the same way).
+function namesWhatItsNameSays(path, fields) {
+  const named = approvalRecord(path);
+  if (!named || typeof fields.blob !== "string" || !fields.blob.startsWith(named.blob12)) return false;
+  const file = typeof fields.file === "string" ? reviewedFileOrReport(fields.file) : null;
+  return file !== null && file.id === named.id;
+}
+
 /**
  * lastAcceptedText(id: string, host: Host) -> Promise<{ text: string, blob: string, path: string } | null> — the text that the
  * most recent approval record of the identifier `id` names, with the blob the record names and the path the file had when it
@@ -123,7 +132,9 @@ export function statusOf(path, blob, snapshot) {
  * through the host; fails with its failures, unchanged — TokenRefused, RateLimited, NotFound, Unreachable —, and with
  * NotFound { what: the file } when the file did not hold the text the record names at the commit that added the record, and
  * when the text the host gave for it is not that text — the blob SHA of the text read (MOD-text-tools.blobSha) is not the
- * record's: no other text is given for it. The check hashes the text already read and makes no request.
+ * record's: no other text is given for it. The check hashes the text already read and makes no request. A record whose content
+ * names another blob than its name, or a file of another identifier, counts as no record: the most recent record that names
+ * what its name says is taken, and null returned when none does.
  * @param {string} id
  * @param {object} host
  * @returns {Promise<{ text: string, blob: string, path: string } | null>}
@@ -137,8 +148,17 @@ export async function lastAcceptedText(id, host) {
     const [adding] = await host.readHistory(path, { ref: head.commit, limit: 1, changes: false });
     return { path, commit: adding.commit, at: Date.parse(adding.date) };
   }));
-  const last = added.reduce((newest, each) => (each.at > newest.at ? each : newest));
-  const { file, blob } = readDocument(approvalSchema, last.path, await head.read(last.path)).fields;
+  // AN APPROVAL NAMES THE EXACT TEXT: a record's name only points at it; one whose content names another blob than its name,
+  // or a file of another identifier, counts as no record, and the next most recent is taken.
+  let last = null, file = null, blob = null;
+  for (const each of [...added].sort((a, b) => b.at - a.at)) {
+    const fields = readDocument(approvalSchema, each.path, await head.read(each.path)).fields;
+    if (!namesWhatItsNameSays(each.path, fields)) continue;
+    ({ file, blob } = fields);
+    last = each;
+    break;
+  }
+  if (last === null) return null;
   const then = await host.readSnapshot(last.commit);
   if (then.blob(file) !== blob) {
     throw new HostError("NotFound", { what: file }, `${file} did not hold the text ${last.path} names when the record was added`);

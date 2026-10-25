@@ -165,7 +165,7 @@ test("a request handler a test brings answers before the harness's own GitHub", 
     "without a test handler the harness answers its own GitHub requests");
 });
 
-test("a view may link a stylesheet of its own beside style.css — once, when it is first shown", async () => {
+test("a view may link a stylesheet of its own beside the site's style sheets — once, when it is first shown", async () => {
   // A copy of the site with a view of its own, the Jobs view, whose file names a stylesheet; the copy lists it among the built files. The copy keeps the site's
   // layout — docs/assets/ beside src/, which the dashboard's modules import from.
   const root = realpathSync(mkdtempSync(join(tmpdir(), "agent-m-assets-"))), dir = join(root, "docs", "assets");

@@ -1,7 +1,7 @@
 // The check `backlog-checks` of MOD-work-plans' `workStrategies` (ITM-616; UC-032 step 3), as the accepted text of docs/architecture/MOD-work-plans.md states it (blob 42e171450da1, approved in
 // docs/approvals/MOD-work-plans-42e171450da1.md): ":270 check `backlog-checks` — `backlogFindings` on drafted items", with ":187 `backlogFindings(items: Document[], architecture: Document[]) -> Finding[]`
 // — an item that realises nothing; that names no module the architecture describes; that builds on an item that does not exist, or on one that builds on it in turn; and, as a warning, an item that
-// restates an existing one", and ":112 `docs/assets/work-items.mjs` ... removed once this module gives `backlogFindings`". `backlogFindings` itself is built (ITM-688, tests/work-plans-backlog-findings.test.mjs);
+// restates an existing one". `backlogFindings` itself is built (ITM-688, tests/work-plans-backlog-findings.test.mjs);
 // what is built here is the check, which the job runner calls as check(draft, context) with the answer of the kind `propose-items`.
 // Run: node --test tests/work-plans-backlog-checks.test.mjs
 //
