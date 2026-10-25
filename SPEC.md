@@ -1686,10 +1686,11 @@ product's other teams.
 that each team plans, starts and closes its sprints without affecting the other teams' sprints.
 
 **A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH** *(PO A. Maier)*
-An item selected for a team's sprint is held by that sprint until its change is merged into the default branch or the
-item returns to the backlog.
-*Check:* `tests/test_parallel_sprints.py` — follows held items through their sprint's close and the merges into the
-default branch. It checks that an item stays held until its change is merged there or it returns to the backlog.
+An item selected for a team's sprint is held by that sprint until its change is merged into the default branch, the
+item returns to the backlog, or the Product Owner gives up the sprint's increment.
+*Check:* `tests/test_parallel_sprints.py` — follows held items through their sprint's close, the merges into the
+default branch and an increment given up. It checks that an item stays held until its change is merged there, it
+returns to the backlog or its increment is given up.
 
 **SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES** *(PO A. Maier)*
 Of two items held by sprints of different teams, neither changes a module that the other changes or uses through the
