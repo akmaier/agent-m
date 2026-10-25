@@ -145,8 +145,8 @@ sequenceDiagram
   the failing tests (UC-028). The Product Owner decides whether the next sprint repairs it first.
 - **7b. The Product Owner does not merge the increment now.** The sprint branch stays; the next sprint
   may continue on it or start a new one from the default branch. Its done items stay held, so no other team changes or
-  uses their modules meanwhile. If the Product Owner gives the increment up, its done items go back to the backlog and
-  are no longer held.
+  uses their modules meanwhile. If the Product Owner gives the increment up, its done items stay done and are no longer
+  held; a change to one of them is a new item.
 - **7c. Another team's increment was merged into the default branch first.** The pull request of this sprint's
   branch is brought up to date with the default branch. The two sprints held disjoint modules, and neither changed a
   module the other used, so only files that no module owns can conflict; on such a conflict the increment is not merged,
