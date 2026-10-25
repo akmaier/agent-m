@@ -582,9 +582,6 @@ function context() {
     noteRefusal, errorText, showBanner, gitlabShown, productHref, renderProductSelector, loadFile, present, notThere,
     seq: () => routeSeq,
     setFlash: (text) => { flash = text; },
-    // MOD-browser-store's store of the instance (UC-047; settings-view.mjs's line *Notifications*), null while this
-    // browser refused it (StorageUnavailable).
-    notificationsStore,
   };
 }
 

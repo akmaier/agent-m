@@ -10,8 +10,9 @@
 //
 // SPEC.md names this file as the check of requirements of several modules. The checks of the other modules live in
 // tests/review-core.d/, one file per module, and this file runs every file of that folder (at its end): a failing check there
-// makes this file red. Those files are not matched by tests/*.test.mjs, so CI runs each check once. The checks of the dashboard's
-// five writes (saving an edit, accepting, adding a product, the product settings) are there too, in dashboard-writes.test.mjs.
+// makes this file red. Those files are not matched by tests/*.test.mjs, so CI runs each check once. The dashboard's writes are
+// those of its modules, checked with them: accepting in tests/approvals-accept.test.mjs and tests/spec-changes-accept.test.mjs,
+// saving an edit in tests/artifact-edits-save.test.mjs, adding a product and the product settings in the tests of MOD-settings-pages.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -25,7 +26,7 @@ import {
   gitlabRole,
 } from "../docs/assets/review-core.mjs";
 import {
-  dashboardText, QD, WHEN, B_SPEC, B_P05, B_P06, B_INDEX, B_UC1, B_UC2,
+  QD, WHEN, B_SPEC, B_P05, B_P06, B_INDEX, B_UC1, B_UC2,
 } from "./review-core.d/helpers.mjs";
 
 const gitHash = (s) => execFileSync("git", ["hash-object", "--stdin"], { input: s }).toString().trim();
@@ -208,8 +209,13 @@ test("A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN — a token below Maintainer 
     assert.match(r.note, /Maintainer/);
   }
   assert.equal(gitlabRole(30).role, "Developer");
-  const app = dashboardText();
-  assert.match(app, /gitlabRole\(/, "the settings page takes the role check from the core");
+  // The live settings page (MOD-settings-pages) takes whether the token may write from the host's repositoryInfo, whose role check
+  // — Maintainer may write, Developer may not — is MOD-repository-hosts' own (tests/repository-hosts.test.mjs, TST-476076).
+  const pages = new URL("../src/settings-pages/", import.meta.url);
+  const page = readFileSync(new URL("settings.mjs", pages), "utf8");
+  assert.match(page, /repository\.canWrite === true/, "the settings page takes the role check from the host");
+  const app = [readFileSync(new URL("../src/site-frame/dashboard-app.mjs", import.meta.url), "utf8"),
+    ...readdirSync(pages).filter((n) => n.endsWith(".mjs")).map((n) => readFileSync(new URL(n, pages), "utf8"))].join("\n");
   assert.doesNotMatch(app, /role Developer|role <em>Developer<\/em>|>= 30/, "the app names no Developer token any more");
 });
 

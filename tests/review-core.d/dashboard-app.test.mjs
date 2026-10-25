@@ -2,7 +2,7 @@
 // Run through tests/review-core.test.mjs, which SPEC.md names for these checks: node --test tests/*.test.mjs
 //
 // Module: MOD-site-frame
-// Guards: THE TOKEN LINK IS PREFILLED; ONE GITHUB TOKEN SERVES EVERY FEATURE; THE REPOSITORY CHOICE IS SPELLED OUT; EVERY STEP EXPLAINS ITSELF; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; UC-001; UC-014
+// Guards: EVERY STEP EXPLAINS ITSELF; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; UC-001
 // Level: component
 //
 // Every check here was run once against a deliberately broken implementation (SOFTWARE_MAINTENANCE
@@ -14,14 +14,11 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import { parseFrontMatter, headerModules } from "../../docs/assets/artifacts.mjs";
-import { tokenListUrl, gitlabTokenPageUrl, parseProductAddress, fetchText, gitlabAuth, gitlabApiBase } from "../../docs/assets/git-host.mjs";
-import {
-  tokenLinkUrl, repositoryChoiceSteps, TOKEN_GUIDANCE, checkGitLab, productTokenName, productTokenDescription,
-} from "../../docs/assets/dashboard/settings-view.mjs";
+import { tokenListUrl, parseProductAddress, fetchText, gitlabAuth, gitlabApiBase } from "../../docs/assets/git-host.mjs";
 import * as gitHost from "../../docs/assets/git-host.mjs";
 import { stepHtml, gitlabWriteRefusal } from "../../src/site-frame/dashboard-app.mjs";
 import * as shell from "../../src/site-frame/dashboard-app.mjs";
-import { ASSETS, APP, viewFiles, dashboardText, GL, GL_ADDR, GL_TOKEN, withFetch, fakeGitLab } from "./helpers.mjs";
+import { ASSETS, APP, viewFiles, dashboardText, GL_ADDR, GL_TOKEN, withFetch } from "./helpers.mjs";
 
 // Every module file of the site (vendored libraries excepted), with the modules its Module line names.
 const moduleFiles = () => [...readdirSync(ASSETS, { recursive: true }).filter((f) => f.endsWith(".mjs") && !f.split("/").includes("vendor"))
@@ -39,7 +36,7 @@ test("the app never calls fetch directly — every request goes through fetchTex
   const checked = files.filter((f) => !headerModules(f.text).some((m) => adapters.has(m)));
   assert.ok(adapters.has("MOD-git-host") && adapters.has("MOD-settings-store"), "the adapters are listed");
   assert.ok(!checked.some((f) => f.file === "git-host.mjs") && checked.some((f) => f.file === "dashboard-app.mjs")
-    && checked.some((f) => f.file === "artifacts.mjs") && checked.some((f) => f.file.startsWith("dashboard/")), "kernel and shell files are checked");
+    && checked.some((f) => f.file === "artifacts.mjs"), "kernel and shell files are checked");
   const FORBIDDEN = /\bfetch\s*\(|XMLHttpRequest|sendBeacon|\b(globalThis|window|self)\s*\.\s*(localStorage|sessionStorage)\b|\b(localStorage|sessionStorage)\s*[.[]|document\.cookie/;
   for (const { file, text: app } of checked) assert.doesNotMatch(app.replace(/fetchText\(/g, ""), FORBIDDEN, file);
   // counter-proof: access is caught, the word in an explanation is not
@@ -111,8 +108,7 @@ test("the shells read only through what the git host provides — no file of the
   // commitsTouching and repositoryInfo (ITM-130). A namespace or dynamic import reaches the helper too. No exception: Add
   // product reads a GitHub product's branch through readSnapshot (ITM-130, back from Release testing, finding A1).
   const files = moduleFiles().filter((f) => headerModules(f.text).includes("MOD-dashboard-app"));
-  assert.ok(files.some((f) => f.file === "dashboard-app.mjs") && files.some((f) => f.file === "dashboard/settings-view.mjs")
-    && files.some((f) => f.file === "dashboard/writes.mjs"), "the shell's files are checked");
+  assert.ok(files.some((f) => f.file === "dashboard-app.mjs"), "the shell's files are checked");
   const importing = files.filter((f) => gitHostImports(f.text).some((n) => n === "*" || n === "fetchText")).map((f) => f.file);
   assert.deepEqual(importing, [], "no file of the dashboard imports the request helper");
   // counter-proof: the helper imported by name, by a namespace or dynamically is caught; a provided read is not
@@ -152,84 +148,7 @@ test("the shells read only through what the git host provides — no file of the
     .filter((n) => GIT_HOST_INTERNAL_READS.includes(n)), ["gitlabProject"]);
 });
 
-// checkGitLab (UC-001's Check, UC-042's Test of a GitLab token) reads the project through repositoryInfo and says what it said
-// before: reachable, private or public, the default branch, the role the token acts with and whether it can write; one
-// request, to the project's API with the project token. A server that reports neither a visibility nor a default branch did
-// not answer as a GitLab server.
-// Guards: A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; UC-001; UC-042
-test("A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN — the GitLab check reports reach, branch and role as before, in one request", async () => {
-  const p = parseProductAddress(GL_ADDR), app = { noteRefusal: () => {}, errorText: (e) => e.message };
-  const gl = await fakeGitLab({});
-  const x = await withFetch(gl.fetchMock, () => checkGitLab(app, p, GL_TOKEN));
-  assert.deepEqual(x, { ok: true, priv: true, branch: "main", role: "Developer", canWrite: false,
-    note: "role Developer cannot write to a protected default branch — the token needs role Maintainer", tokenUsed: true });
-  assert.deepEqual(gl.calls.map((c) => `${c.method} ${c.origin}${c.path} ${c.token}`),
-    [`GET ${GL}/api/v4/projects/${encodeURIComponent("grp/sub/proj")} ${GL_TOKEN}`]);
-  // A Maintainer token can write; a public project without a token is read without one.
-  const answer = (body) => async () => new Response(JSON.stringify(body), { status: 200 });
-  const m = await withFetch(answer({ path_with_namespace: "grp/sub/proj", visibility: "public", default_branch: "trunk",
-    permissions: { group_access: { access_level: 40 } } }), () => checkGitLab(app, p, null));
-  assert.deepEqual(m, { ok: true, priv: false, branch: "trunk", role: "Maintainer", canWrite: true, note: "", tokenUsed: false });
-});
-
-// Guards: A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; UC-001
-test("UC-001 — a server whose answer reports neither a visibility nor a default branch did not answer as a GitLab server", async () => {
-  const p = parseProductAddress(GL_ADDR), app = { noteRefusal: () => {}, errorText: (e) => e.message };
-  const answer = (body) => async () => new Response(JSON.stringify(body), { status: 200 });
-  for (const body of [{}, { hello: "world" }, null]) {
-    assert.deepEqual(await withFetch(answer(body), () => checkGitLab(app, p, GL_TOKEN)),
-      { ok: false, error: "gitlab.example.org did not answer as a GitLab server." }, JSON.stringify(body));
-  }
-  // known positive: a project that reports a visibility and no branch yet (an empty project) is reachable
-  const empty = await withFetch(answer({ path_with_namespace: "grp/sub/proj", visibility: "private", default_branch: null }),
-    () => checkGitLab(app, p, GL_TOKEN));
-  assert.equal(empty.ok, true);
-});
-
 // ---------------------------------------------------------------- one click per decision (queue 2026-09-24)
-
-// ONE GITHUB TOKEN SERVES EVERY FEATURE: parameter names and access levels as documented by GitHub, read 2026-10-01 (table
-// "Repository permissions": pull_requests read/write, workflows write only, metadata read only),
-// https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#pre-filling-fine-grained-personal-access-token-details-using-url-parameters
-const TOKEN_FIELDS = ["name", "description", "expires_in", "target_name"];
-// SPEC: "*Contents*, *Issues* and *Pull requests* read and write, *Actions*, *Workflows* and *Secrets* read and write, *Metadata* read".
-const ONE_TOKEN = { contents: "write", issues: "write", pull_requests: "write", actions: "write", workflows: "write", secrets: "write", metadata: "read" };
-// The permissions as the person reads them, in GitHub's display names.
-const NAMED = ["Contents: read and write", "Issues: read and write", "Pull requests: read and write", "Actions: read and write",
-  "Workflows: read and write", "Secrets: read and write", "Metadata: read"];
-
-test("THE TOKEN LINK IS PREFILLED · ONE GITHUB TOKEN SERVES EVERY FEATURE — exactly Contents, Issues, Pull requests, Actions, Workflows, Secrets write, Metadata read", () => {
-  const u = new URL(tokenLinkUrl("reader/agent-m"));
-  assert.equal(u.origin + u.pathname, "https://github.com/settings/personal-access-tokens/new");
-  assert.equal(u.searchParams.get("name"), "Agent M · reader/agent-m");
-  assert.equal(u.searchParams.get("expires_in"), "90");
-  assert.ok(u.searchParams.get("description"));
-  const perms = Object.fromEntries([...u.searchParams].filter(([k]) => !TOKEN_FIELDS.includes(k)));
-  assert.deepEqual(perms, ONE_TOKEN, "the link asks for exactly these permissions, no more, no less");
-});
-
-test("THE REPOSITORY CHOICE IS SPELLED OUT — both repositories named, 'Only select repositories' first", () => {
-  const s = repositoryChoiceSteps("reader/agent-m", "reader/thesis");
-  assert.match(s[0], /Only select repositories/);
-  assert.match(s[0], /All repositories/);
-  assert.ok(s.some((x) => x.includes("reader/agent-m")) && s.some((x) => x.includes("reader/thesis")));
-  assert.ok(s.some((x) => /github_pat_/.test(x)));
-  assert.equal(repositoryChoiceSteps("r/agent-m", "r/agent-m").filter((x) => x.includes("r/agent-m")).length, 1,
-    "the instance as its own product is named once");
-  const all = s.join("\n");
-  for (const p of NAMED) assert.ok(all.includes(p), `the steps name ${p}`);
-});
-
-test("ONE GITHUB TOKEN SERVES EVERY FEATURE — the link, the steps and the guidance are written from requiredPermissions", () => {
-  const list = gitHost.requiredPermissions("github.com").github;
-  const perms = Object.fromEntries([...new URL(tokenLinkUrl("r/agent-m")).searchParams].filter(([k]) => !TOKEN_FIELDS.includes(k)));
-  assert.deepEqual(perms, Object.fromEntries(list.map((p) => [p.param, p.access])), "the link asks for the list's permissions");
-  const steps = repositoryChoiceSteps("r/agent-m", null).join("\n");
-  for (const p of list) {
-    assert.ok(steps.includes(p.permission), `the steps name ${p.permission}`);
-    assert.ok(TOKEN_GUIDANCE.includes(`${p.permission}: `) && TOKEN_GUIDANCE.includes(p.why), `the guidance names ${p.permission} and why`);
-  }
-});
 
 test("EVERY STEP EXPLAINS ITSELF — a step without an explanation cannot be rendered", () => {
   const h = stepHtml({ title: "Step A", body: "<p>x</p>", explain: "A token is a key." });
@@ -248,38 +167,8 @@ test("every site module parses — the app itself is only run in a browser, so c
   }
 });
 
-// ---------------------------------------------------------------- token at instance setup (UC-014), extended in UC-001
-
-test("UC-014: setup names only the instance", () => {
-  const s = repositoryChoiceSteps("reader/agent-m", null);
-  assert.ok(s.some((x) => x.includes("reader/agent-m")));
-  assert.ok(!s.some((x) => /null|undefined/.test(x)));
-});
-
 test("the list of the person's tokens is GitHub's page of fine-grained tokens, where a token is renewed", () => {
   assert.equal(tokenListUrl(), "https://github.com/settings/personal-access-tokens");
-});
-
-// A PRODUCT'S TOKEN IS NAMED AFTER THE PRODUCT (queue 2026-10-06c). GitHub takes a name of at most 40 characters and a
-// description of at most 1024 ("Pre-filling fine-grained personal access token details using URL parameters", table
-// "Supported query parameters", read 2026-10-06). Expected: the name is Agent M and the product repository with its owner;
-// where that is longer than 40, the repository without its owner; where that is too, the repository's name cut at the end with
-// "…", 40 characters in all. The description names the product repository in full.
-test("A PRODUCT'S TOKEN IS NAMED AFTER THE PRODUCT — Agent M · owner/repository, within GitHub's 40 characters", () => {
-  assert.equal(productTokenName("alice/thesis"), "Agent M · alice/thesis");
-  assert.equal(productTokenName("a-long-owner-name/a-repository-name"), "Agent M · a-repository-name", "45 characters with the owner");
-  const cut = productTokenName("alice/an-exceptionally-long-repository-name-for-a-thesis");
-  assert.equal(cut, "Agent M · an-exceptionally-long-reposit…");
-  assert.equal(cut.length, 40);
-  for (const r of ["akmaier/agent-m-test", `${"o".repeat(39)}/${"r".repeat(100)}`]) assert.ok(productTokenName(r).length <= 40, r);
-  assert.notEqual(productTokenName("alice/thesis"), "Agent M · akmaier/agent-m", "counter-proof: not the instance's name");
-});
-
-test("A PRODUCT'S TOKEN IS NAMED AFTER THE PRODUCT — the description names the product repository, within GitHub's 1024 characters", () => {
-  assert.equal(productTokenDescription("alice/thesis"),
-    "Agent M for the product alice/thesis: reviews, commits, issues, pull requests and runs of the work you start in it.");
-  assert.ok(productTokenDescription(`${"o".repeat(39)}/${"r".repeat(100)}`).length <= 1024);
-  assert.doesNotMatch(productTokenDescription("alice/thesis"), /dashboard of/, "counter-proof: not the instance's description");
 });
 
 // ---------------------------------------------------------------- the use-case key is `area` (was `stage`)

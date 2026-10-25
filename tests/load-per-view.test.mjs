@@ -5,7 +5,7 @@
 // request and serves GitHub's batch request (POST /graphql), one aliased field for each file.
 //
 // Module: MOD-site-frame
-// Guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; STATUS IS DERIVED FROM THE RECORDS; AN APPROVAL NAMES THE EXACT TEXT; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; A CLEAR IS A REAL CLEAR
+// Guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; STATUS IS DERIVED FROM THE RECORDS; AN APPROVAL NAMES THE EXACT TEXT; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT
 // Level: component
 //
 // The expected requests are written here from the requirement, for the fixture product of tests/fixtures/architecture: the files a
@@ -21,15 +21,6 @@ import { fileURLToPath } from "node:url";
 import { gitBlobSha, recordText, useCaseRecord, reviewedRecord, specRecord, extractSection, sectionText, approvalPath }
   from "../docs/assets/review-core.mjs";
 import { repoServer, fakeCaches, openDashboard, REPO } from "./app-harness.mjs";
-
-// The dashboard's own files (MOD-dashboard-app): the shell, src/site-frame/dashboard-app.mjs, and every view and settings section
-// under docs/assets/dashboard/ — what a test that read the one app file reads now.
-const dashboardText = () => {
-  const assets = new URL("../docs/assets/", import.meta.url);
-  const views = readdirSync(new URL("dashboard/", assets), { recursive: true }).filter((f) => f.endsWith(".mjs")).sort();
-  return [readFileSync(new URL("../src/site-frame/dashboard-app.mjs", import.meta.url), "utf8"),
-    ...views.map((f) => readFileSync(new URL(`dashboard/${f}`, assets), "utf8"))].join("\n");
-};
 
 // ---------------------------------------------------------------- the product: tests/fixtures/architecture, with records and queues
 
@@ -501,12 +492,4 @@ test("a use case is accepted exactly when a record names its current text", asyn
   const changed = await openDashboard({ server: await server(repo), hash: "#uc/UC-002" });
   assert.match(changed.main(), /<span class="badge b-changed">changed since acceptance<\/span>/);
   assert.match(changed.main(), /<button class="btn accept" type="button">Accept<\/button>/);
-});
-
-test("Clear everything also removes the kept file texts (A CLEAR IS A REAL CLEAR)", () => {
-  const app = dashboardText();
-  const handler = app.match(/getElementById\("token-clear"\)\.addEventListener\("click", [\s\S]*?\n {2}\}\);\n/)?.[0] ?? "";
-  assert.match(handler, /store\.clear\(\)/);
-  assert.match(handler, /kept\.clear\(\)/, "the texts kept by blob SHA go with the settings");
-  assert.match(handler, /Clearing failed/, "and the page says so when something is left");
 });
