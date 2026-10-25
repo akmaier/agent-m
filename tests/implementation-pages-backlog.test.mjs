@@ -381,3 +381,33 @@ test("the model is read as it stood at the commit the declaration names, not as 
   assert.match(html, /data-team="team1"/);
   assert.doesNotMatch(html, /works without sprints/);
 });
+
+// TST-8110 · level: unit · module: MOD-implementation-pages
+// guards: UC-032; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// given: the fixture, with ITM-003 — which no pull request names, and on which ITM-004 builds — built by the commit B1 (its built_by); then the fixture without it
+// input: the route's render, and the commits the host's containsCommit is asked about
+// expect: B1 is never asked about — the record decides —; with built_by, ITM-003 done and ITM-004 ready, no longer waiting for an item it builds on; without it, ITM-003 ready and ITM-004 waiting for an item it builds on
+test("the backlog derives an item done by its built_by with no request", async () => {
+  const B1 = "b1".repeat(20);
+  for (const builtBy of [true, false]) {
+    const files = fixtureFiles();
+    if (builtBy) files[itemPath(3)] = files[itemPath(3)].replace("\n---\n# ITM-003", `\nbuilt_by:\n  - ${B1}\n---\n# ITM-003`);
+    const context = contextOf(files);
+    const asked = [];
+    const contains = context.product.host.containsCommit;
+    context.product.host.containsCommit = async (branch, commit) => { asked.push([branch, commit]); return contains ? contains(branch, commit) : false; };
+    const target = document.createElement("div");
+    document.body.append(target);
+    recorder();
+    await route.render(target, context, {});
+    const backlog = part(htmlOf(target), 'data-part="backlog"');
+    assert.deepEqual(asked.filter(([, commit]) => commit === B1), [], `built_by ${builtBy}`);
+    if (builtBy) {
+      assert.match(row(backlog, "ITM-003"), /done/);
+      assert.match(row(backlog, "ITM-004"), />ready</);
+    } else {
+      assert.match(row(backlog, "ITM-003"), />ready</);
+      assert.match(row(backlog, "ITM-004"), /waiting for an item it builds on/);
+    }
+  }
+});

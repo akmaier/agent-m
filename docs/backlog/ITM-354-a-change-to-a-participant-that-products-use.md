@@ -14,6 +14,9 @@ tests:
   - unit
 origin:
   - UC-017 7a
+built_by:
+  - b55367bc349a81a576b6f1cdcede4796e33f021c
+  - a32729088da45552c449c21a526f4d2eac617ef7
 ---
 # ITM-354 A change to a participant that products use
 

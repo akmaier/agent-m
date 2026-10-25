@@ -12,8 +12,10 @@ uses:
 provides:
   - TestDeclaration
   - isTestFile
+  - isNamedTestFile
   - testDeclarations
   - testFindings
+  - testHeader
 ---
 # MOD-test-document The declaration of a test case
 
@@ -22,15 +24,16 @@ provides:
 It belongs to the artifact model (ARC-048). It owns the form in which a test case declares itself inside a test file of
 any language — its identifier, its one level, what it guards, the module it exercises, its precondition, input and
 expected result — so that what a test checks can be read without running it (`A TEST STATES ITS EXPECTED RESULT BEFORE IT
-RUNS`), and it checks these declarations. It runs in a browser and in Node, and performs no input or output.
+RUNS`), and it checks these declarations. It also owns the header in which a test file or a test helper names the module it
+exercises, what it guards and its level. It runs in a browser and in Node, and performs no input or output.
 
 ## Parts
 
 - `index.mjs` — the interface.
 - `declarations.mjs` — finding the declarations in a file.
 - `checks.mjs` — the findings of a declaration.
+- `header.mjs` — the header of a test file or a test helper.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `docs/assets/artifacts/headers.mjs`: removed once the workflows read a test's level through `testDeclarations`, which reads the same header lines.
   - `tests/jsrun.py`: moved in as the runner by which the Python tests call the code of the modules: a test of any language is this module's concern, and no other module states it.
   - `tests/test_test_levels.py`, `tests/test_release_sprint_02_c.py`, `tests/test_test_battery.py`, `tests/test_rate_reporting.py`: their headers name this module.
 
@@ -71,6 +74,11 @@ where neither is found.
 A **test file** is a file under a folder named `test`, `tests` or `__tests__`, or a file named as tests are named in its
 language — such as `*.test.mjs`, `test_*.py` or `*_test.go` —; a Markdown file under such a folder holds manual tests.
 
+The **header** of a test file that is no Markdown file — a test or a test helper — is its lines `Module: MOD-<slug>`,
+`Guards: <name>[; <name> …]` and `Level: <level>` among its first 20 lines, each after the comment marker of the file's
+language; a line that begins with a letter, a digit or a quote is no header line. `Module:` names the module it exercises,
+`Guards:` what it guards — requirements by name, use cases by identifier, separated by `;` — and `Level:` its one level.
+
 ## Interfaces
 
 - `TestDeclaration` — `{ id: string, title: string | null, level: "unit" | "component" | "system" | "release" | "user", module: string | null,
@@ -78,6 +86,9 @@ language — such as `*.test.mjs`, `test_*.py` or `*_test.go` —; a Markdown fi
   number | null, paid: string | null, path: string, line: number }`; `module` is a module's identifier or the word
   `system`.
 - `isTestFile(path: string) -> boolean` — whether a path is a test file as defined under Data.
+- `isNamedTestFile(path: string) -> boolean` — whether a path is named as tests are named in its language, as defined
+  under Data, wherever it lies: the test files a test runner runs, as against a helper, a fixture or a Markdown file of
+  manual tests, which are test files by their folder alone.
 - `testDeclarations(path: string, text: string) -> TestDeclaration[]` — every declaration in a test file, in order. It
   never throws on content: a declaration missing a key is read with that key `null`, and `testFindings` names it. A file
   with no declaration yields none; the caller decides whether that is a gap.
@@ -90,6 +101,12 @@ language — such as `*.test.mjs`, `test_*.py` or `*_test.go` —; a Markdown fi
   writes such an entry fails it; under `A MODEL-DEPENDENT TEST IS MEASURED AS A RATE` for a test with `phrasings` and
   no `runs`, or with fewer than two runs. Whether a guarded name exists, and whether a commit-level test calls a paid
   service, need the graph and the schedule; they are decided by MOD-trace-graph and by the test schedule's owner.
+- `testHeader(path: string, text: string) -> { modules: string[], guards: string[], level: string | null, findings:
+  Finding[] } | null` — the header of a test file as defined under Data: the modules its `Module:` lines name and the names
+  its `Guards:` lines guard, each once and in order; the value of its one `Level:` line, `null` without one or with more
+  than one; and an error under `EVERY TEST HAS ONE LEVEL`, naming the file by its path, for a header with no `Level:` line,
+  with more than one, or with a level outside the five. `null` for a path that is no test file and for a Markdown file. It
+  never throws on content.
 
 ## Files
 

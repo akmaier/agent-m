@@ -11,6 +11,8 @@ tests:
   - unit
 origin:
   - ITM-1014's first task (sprint team1/93), from developer-sonnet-c's finding
+built_by:
+  - 43347a8a5cedc3bb70221037650e023b13876f87
 ---
 # ITM-1069 renderArtifact turns the identifiers a caller resolves into links, as its text says
 

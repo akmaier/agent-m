@@ -44,7 +44,7 @@ export const TYPES = ["text", "enum", "number", "date", "time", "sha", "path", "
   "interface", "name", "either", "list"];
 // The types that need no parameter, and so may be named alone among the types an `either` value may be of.
 const PLAIN_TYPES = ["text", "number", "date", "time", "path", "url", "requirement", "interface", "name"];
-const SPEC_KEYS = ["type", "required", "nonEmpty", "rule", "values", "digits", "of", "item", "describedIn", "requiredWhen",
+const SPEC_KEYS = ["type", "required", "nonEmpty", "unique", "rule", "values", "digits", "of", "item", "describedIn", "requiredWhen",
   "forbiddenWhen", "variants"];
 const VARIANT_KEYS = ["when", "rule", "type", "nonEmpty", "values", "digits", "of", "item"];
 const ITEM_KEYS = ["type", "values", "digits", "of", "item"];
@@ -286,6 +286,8 @@ function checker(owner) {
     type(spec, at);
     isBoolean(spec.required, `${at}.required`);
     isBoolean(spec.nonEmpty, `${at}.nonEmpty`);
+    isBoolean(spec.unique, `${at}.unique`);
+    if ("unique" in spec && spec.type !== "list") fail(`${at}.unique`, "unique belongs to the type list");
     requirementName(spec.rule, `${at}.rule`);
     if ("describedIn" in spec && !context.headings.includes(spec.describedIn)) {
       fail(`${at}.describedIn`, `the heading of a section of the schema: one of ${context.headings.join(", ") || "none"}`);
@@ -512,6 +514,17 @@ function compile(s) {
     appended: new Map((s.appended ?? []).map((spec) => [spec.heading, spec])),
     tables: sections.filter((spec) => spec.table),
   };
+}
+
+// identifierOfPath(compiled, path) -> the identifier the first of the schema's path patterns that the path matches gives, or
+// null — for a schema that names where its identifier stands (readDocument reads a document's identifier the same way where
+// its front matter names none).
+export function identifierOfPath(compiled, path) {
+  for (const pattern of compiled.patterns) {
+    const match = pattern.re.exec(String(path ?? ""));
+    if (match && pattern.idOf(match)) return pattern.idOf(match);
+  }
+  return null;
 }
 
 // sectionOf(compiled, section, place, title) -> { spec, index } | undefined — the section of the schema that a document's

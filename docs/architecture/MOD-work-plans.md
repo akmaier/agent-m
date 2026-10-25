@@ -108,9 +108,6 @@ in the browser and in Node.
 - `sprints.mjs` — the facts of a sprint, the items the sprints hold, and what keeps an item from a team's selection.
 - `saves.mjs` — the commits of a plan, of items and of a sprint.
 - `strategies.mjs` — the recipes, checks and writers of `workStrategies`.
-- **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `docs/assets/work-items.mjs`, `docs/assets/work-items/flow.mjs`: removed once no file imports them.
-  - `tests/test_backlog_layout.py`, `tests/test_backlog_item_fields.py`, `tests/release-sprint-02-b-work-items.test.mjs`, `tests/flow_fixture.py`, `tests/test_job_from_backlog.py`, `tests/test_time_box_selection.py`, `tests/test_wip_limit.py`, `tests/test_implementation_job.py`, `tests/test_job_preconditions.py`: their headers name this module; one of only the old items is rewritten on this module.
 
 ## Data
 
@@ -125,9 +122,11 @@ item schema of MOD-documents (`artifactSchemas().item`).
 An item's state, `ItemState`, is derived from the approval records, the queues, the job records and the pull requests:
 `waiting for acceptance`, `waiting for an item it builds on`, `ready`, `in progress` (a job runs, or its pull request is
 open; and once its newest job has ended as done, until a pull request of it opened after that job's `start` is merged or
-closed without merge), `blocked` (a job failed, or waits for a person), `done` (its pull request is merged). A merged
+closed without merge), `blocked` (a job failed, or waits for a person), `done` (its pull request is merged, or — for an item built
+without a pull request naming it — its record names the commits that built it, `built_by`). A merged
 pull request decides first: an item whose pull request is merged is `done` whatever else holds, including a job of
-it started, or a pull request of it opened, after the merge, and stays `done`. A
+it started, or a pull request of it opened, after the merge, and stays `done`; an item whose record names `built_by`
+is `done` in the same way, from its record alone, with no request. A
 requirement or use case it realises that is withdrawn, changed or not accepted, or an item it builds on that is not done,
 marks a `done` item: its `reason` names that. A plan step that waits for the gate before its phase is `waiting` with
 that gate named.
@@ -155,7 +154,8 @@ assignment is the one of the team whose sprint holds it, and the product's one i
   `order` —, with its state, from
   the approval statuses, the change queues, the jobs, the pull requests and the gate states `gateStates` gives; with the
   pull requests `"unknown"` — a host that does no server operations —, a step or item whose state needs them is
-  `unknown`, never guessed; a `done` item is marked as the states above say.
+  `unknown`, never guessed; a `done` item is marked as the states above say; one done by its `built_by` has
+  `pullRequest` null.
 - `startable(item: string, states: ItemState[], context: { workflow: Workflow, assignment: Document, sprint: Document |
   null, held: Held[], wip: number | null, participants: Participant[] }) -> { startable: true } | { startable: false,
   reasons: string[] }` — every reason a job for this step or item cannot start: the item is `done`, a change to it being

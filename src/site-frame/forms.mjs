@@ -80,6 +80,13 @@ export function schemaForm(schema, opened, { onSave, extraChecks = () => [] }) {
     return read?.rows ? { heading, line, text, rows: read.rows.map((row) => ({ ...row, line: row.line - read.line + line })) } : { heading, line, text };
   }
 
+  // Where the document stands: a new one — given without the identifier its schema names — at the path its identifier puts it
+  // once the person has typed one, the file Save writes; any other where it was given.
+  const idKey = schema.identifier?.field;
+  const isNew = typeof idKey === "string" && given.fields?.[idKey] === undefined && typeof given.id === "string" && given.id !== ""
+    && typeof given.path === "string" && given.path.includes(given.id);
+  const pathOf = (fields) => (isNew && typeof fields[idKey] === "string" && fields[idKey] ? given.path.replace(given.id, fields[idKey]) : given.path);
+
   // The document as the person has left the form.
   function documentNow() {
     const fields = {};
@@ -91,7 +98,7 @@ export function schemaForm(schema, opened, { onSave, extraChecks = () => [] }) {
       sections.splice(later < 0 ? sections.length : later, 0, editedSection(heading, 0, text));
     }
     let line = frontLines(fields) + 1 + lead;
-    return { ...given, fields, sections: sections.map((section) => {
+    return { ...given, path: pathOf(fields), fields, sections: sections.map((section) => {
       const at = line;
       line += 1 + lineEnds(section.text);
       if (at === section.line) return section;

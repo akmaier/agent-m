@@ -116,7 +116,7 @@ classes of candidates, the trace graph, coverage gaps, impact lists and the modu
 | MOD-documents | `Schema`, `Document`, `loadSchema`, `readDocument`, `writeDocument`, `documentFindings`, `readRegister`, `appendSection`, `classifyCandidates`, `artifactSchemas`, `artifactSchemaOf` |
 | MOD-identifiers | `kindOfIdentifier`, `identifiersIn`, `nextIdentifier`, `instanceOfPagesAddress` |
 | MOD-spec-document | `Requirement`, `parseSpec`, `requirementFindings`, `sectionText`, `replaceSection`, `requirementNamesIn`, `renamedRequirements`, `specSkeleton` |
-| MOD-test-document | `TestDeclaration`, `isTestFile`, `testDeclarations`, `testFindings` |
+| MOD-test-document | `TestDeclaration`, `isTestFile`, `isNamedTestFile`, `testDeclarations`, `testFindings`, `testHeader` |
 | MOD-group-document | `parseGroupFile`, `groupFileText`, `applyMoves`, `hierarchy` |
 | MOD-trace-graph | `Graph`, `traceGraph`, `graphFindings`, `tracesTo`, `coverageGaps`, `requirementImpact`, `architectureImpact`, `moduleOrder`, `moduleRows`, `compareGraphs`, `selfSufficiencyFindings` |
 

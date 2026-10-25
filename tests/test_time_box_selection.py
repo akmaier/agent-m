@@ -5,359 +5,115 @@
 implementation jobs start only for items selected for that team's current sprint. With several teams running sprints at
 once, TestSeveralTeamsRunSprints asks MOD-work-plans' startable to start a job for every item under each team, and compares
 each answer with the team's current sprint (the fixture product of tests/parallel_sprints_fixture.py). The rest of this file
-asks the dashboard's kernel, for one team: implementation
-jobs start only for items selected for the current sprint (UC-032 step 6, 6a, 6b, and step 7: in a model with sprints
-and a WIP limit, both hold).
+starts jobs in a product of one team (tests/flow_fixture.py): implementation jobs start only for items selected for the
+current sprint (UC-032 step 6, 6a), and in a model with sprints and a WIP limit both hold (step 7).
 
-docs/assets/work-items/flow.mjs (MOD-work-items): sprint(text) reads a sprint record of docs/backlog/sprints/ — its goal,
-start, end, selection, closer and branch —, with a problem for a record that is not one; in a sprint without a time box,
-`end` stays empty until the sprint ends. itemState refuses the start of an item outside the running sprint's selection,
-with no sprint running, or with the sprint ended or not yet begun (the day is passed in; a kernel reads no clock).
-Agent M's own sprint records are read as they stand only to check that they parse — the backlog of the instance's own
-product, not its SPEC, which no test reads; what a sprint of Agent M's holds is read from a frozen copy under
-tests/fixtures/flow/agent-m/, since the live records change at every sprint close. The fixture product is
-tests/flow_fixture.py's. Counter-proofs: docs/measurements/2026-10-01_sprints-wip-and-selection.md.
+MOD-work-plans' startable refuses the start of an item outside the selection of its team's current sprint, naming the item
+and the sprint, and every start while the team runs no sprint; a model without sprints keeps no selection.
 """
-import json
-import re
 import unittest
 
-from artifact_checks import DOCS
-from flow_fixture import FIX, SELECTED, WIP, item_state, js, kinds, pr, starts
+from flow_fixture import pr, reasons, run, starts
 from parallel_sprints_fixture import CURRENT, ITEMS, SELECTIONS, all_ready, start
 
-SPRINTS = FIX / "sprints"
-OPEN = (SPRINTS / "open.md").read_text(encoding="utf-8")
+# ITM-014 and ITM-017 build on ITM-016: with ITM-016 merged, ITM-014, ITM-015 and ITM-017 may each be in progress.
+DONE = pr(9, "ITM-016", state="merged")
 
 
-def sprint_of(text: str) -> dict:
-    return js(f"return flow.sprint({json.dumps(text)});")
+def selection_reasons(result: dict) -> list:
+    return [r for r in reasons(result) if "is not selected" in r or "No sprint" in r]
 
 
-def sprint_file(path) -> dict:
-    """A sprint record read by node itself — Agent M's own are longer than one argument of the command line may be."""
-    return js(f"const fs = await import('node:fs'); return flow.sprint(fs.readFileSync({json.dumps(str(path))}, 'utf8'));")
-
-
-def edited(text: str, old: str, new: str) -> str:
-    assert text.count(old) == 1, old
-    return text.replace(old, new)
-
-
-def problems(text: str) -> list:
-    return [(f["line"], f["kind"], f["rule"], f["what"]) for f in sprint_of(text)["problems"]]
-
-
-class TestASprintIsRead(unittest.TestCase):
-    # Module (as the case stated it): MOD-work-items; MOD-work-plans
-    # TST-475044 · level: unit · module: MOD-work-items
-    # guards: A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-032
-    # given: the fixture sprint record open.md, a running sprint without a time box
-    # input: flow.sprint of its text
-    # expect: id sprint-02, goal, start 2026-09-15 and end empty; selection ITM-014, ITM-017, ITM-016; closer bob-agent, branch sprint/02, model fixture-scrum-wip, plannedBy alice; no problems
-    def test_a_running_sprint_without_a_time_box_is_read_into_its_parts_and_its_end_is_empty(self):
-        s = sprint_of(OPEN)
-        self.assertEqual((s["id"], s["goal"], s["start"], s["end"]),
-                         ("sprint-02", "The thesis is exported as PDF, and the export is measured", "2026-09-15", None))
-        self.assertEqual(s["selection"], ["ITM-014", "ITM-017", "ITM-016"])
-        self.assertEqual((s["closer"], s["branch"], s["model"], s["plannedBy"]),
-                         ("bob-agent", "sprint/02", "fixture-scrum-wip", "alice"))
-        self.assertEqual(s["problems"], [])
-
-    # Module (as the case stated it): MOD-work-items; MOD-work-plans
-    # TST-475045 · level: unit · module: MOD-work-items
-    # guards: A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-032
-    # given: the fixture sprint record closed.md
-    # input: flow.sprint of the file
-    # expect: id sprint-01, start 2026-09-01, end 2026-09-12, selection ITM-016; no problems
-    def test_a_closed_sprint_names_its_end(self):
-        s = sprint_file(SPRINTS / "closed.md")
-        self.assertEqual((s["id"], s["start"], s["end"], s["selection"]), ("sprint-01", "2026-09-01", "2026-09-12", ["ITM-016"]))
-        self.assertEqual(s["problems"], [])
-
-    # Module (as the case stated it): MOD-work-items; MOD-work-plans
-    # TST-475046 · level: unit · module: MOD-work-items
-    # guards: A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-032
-    # given: the fixture sprint record timeboxed.md, naming no closer and no branch
-    # input: flow.sprint of the file
-    # expect: end 2026-09-28, closer and branch empty; no problems
-    def test_a_sprint_naming_no_closer_and_no_branch_leaves_both_empty(self):
-        s = sprint_file(SPRINTS / "timeboxed.md")
-        self.assertEqual((s["end"], s["closer"], s["branch"]), ("2026-09-28", None, None))
-        self.assertEqual(s["problems"], [])
-
-
-class TestASprintThatIsNotOne(unittest.TestCase):
-    # Module (as the case stated it): MOD-work-items; MOD-work-plans
-    # TST-475047 · level: unit · module: MOD-work-items
-    # guards: A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-032
-    # given: the text of open.md without its front matter
-    # input: flow.sprint problems of that text
-    # expect: one error on line 1 of THE BACKLOG LIVES IN THE PRODUCT REPOSITORY
-    def test_counter_proof_a_text_without_front_matter_is_no_sprint_record(self):
-        self.assertEqual([p[:3] for p in problems(OPEN.split("---\n", 2)[2])],
-                         [(1, "error", "THE BACKLOG LIVES IN THE PRODUCT REPOSITORY")])
-
-    # Module (as the case stated it): MOD-work-items; MOD-work-plans
-    # TST-475048 · level: unit · module: MOD-work-items
-    # guards: A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-032
-    # given: open.md with the id line removed, and with the start emptied
-    # input: flow.sprint problems of each text
-    # expect: an error on line 1 'the sprint record has no id'; an error on line 4 'the sprint has no start date'
-    def test_counter_proof_a_sprint_without_an_id_or_a_start_is_a_problem(self):
-        self.assertEqual(problems(edited(OPEN, "id: sprint-02\n", "")),
-                         [(1, "error", "THE BACKLOG LIVES IN THE PRODUCT REPOSITORY", "the sprint record has no id")])
-        self.assertEqual(problems(edited(OPEN, "start: 2026-09-15\n", "start:\n")),
-                         [(4, "error", SELECTED, "the sprint has no start date")])
-
-    # Module (as the case stated it): MOD-work-items; MOD-work-plans
-    # TST-475049 · level: unit · module: MOD-work-items
-    # guards: A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-032
-    # given: open.md with start 15.09.2026, end soon, and end 2026-09-14
-    # input: flow.sprint problems of each text
-    # expect: errors on line 4 (start is no date YYYY-MM-DD), line 5 (end is no date), line 5 (end lies before the start)
-    def test_counter_proof_a_date_that_is_no_date_or_an_end_before_the_start_is_a_problem(self):
-        self.assertEqual(problems(edited(OPEN, "start: 2026-09-15\n", "start: 15.09.2026\n")),
-                         [(4, "error", SELECTED, 'the start "15.09.2026" is no date YYYY-MM-DD')])
-        self.assertEqual(problems(edited(OPEN, "end:\n", "end: soon\n")),
-                         [(5, "error", SELECTED, 'the end "soon" is no date YYYY-MM-DD')])
-        self.assertEqual(problems(edited(OPEN, "end:\n", "end: 2026-09-14\n")),
-                         [(5, "error", SELECTED, "the end 2026-09-14 lies before the start 2026-09-15")])
-
-    # Module (as the case stated it): MOD-work-items; MOD-work-plans
-    # TST-475050 · level: unit · module: MOD-work-items
-    # guards: A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-032
-    # given: open.md with the selection as a plain value, an empty list, an entry 'export', and ITM-014 twice
-    # input: flow.sprint problems of each text
-    # expect: errors: the selection is not a list; the sprint selects no item; 'export' is no item ITM-<nnn>; ITM-014 named a second time
-    def test_counter_proof_a_selection_that_selects_no_item_once_is_a_problem(self):
-        self.assertEqual(problems(edited(OPEN, "selection:\n  - ITM-014\n  - ITM-017\n  - ITM-016\n", "selection: ITM-014\n")),
-                         [(6, "error", SELECTED, "the selection is not a list")])
-        self.assertEqual(problems(edited(OPEN, "selection:\n  - ITM-014\n  - ITM-017\n  - ITM-016\n", "selection: []\n")),
-                         [(6, "error", SELECTED, "the sprint selects no item")])
-        self.assertEqual(problems(edited(OPEN, "  - ITM-017\n", "  - export\n")),
-                         [(8, "error", SELECTED, 'the selection names "export", which is no item ITM-<nnn>')])
-        self.assertEqual(problems(edited(OPEN, "  - ITM-016\n", "  - ITM-014\n")),
-                         [(9, "error", SELECTED, "the selection names ITM-014 a second time")])
-
-
-@unittest.skipUnless(any((DOCS / "backlog" / "sprints").glob("sprint-*.md")), "this repository has no sprint records")
-class TestAgentMsOwnSprints(unittest.TestCase):
-    """The sprint records of this repository: Agent M is the instance's own product (`docs/process.md`)."""
-
-    OWN = DOCS / "backlog" / "sprints"
-
-    def table_items(self, path) -> list:
-        """The identifiers in the Item column of the record's *Selection* table, in its order — read here, not by the
-        module, to compare the module's reading of the front matter with what the record shows."""
-        text = path.read_text(encoding="utf-8")
-        table = text.split("\n## Selection\n", 1)[1].split("\n## ", 1)[0]
-        return [m.group(1) for m in re.finditer(r"^\| \d+ \| (ITM-\d{3,}) \|", table, re.M)]
-
-    # Module (as the case stated it): MOD-work-items; MOD-work-plans
-    # TST-475051 · level: unit · module: MOD-work-items
-    # guards: A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-032
-    # given: the sprint records docs/backlog/sprints/*.md of this repository (at least 2) and the items docs/backlog/ITM-*.md
-    # input: flow.sprint of each record, and its Selection table read in the test
-    # expect: no problem, the id equals the file name, the selection equals the Item column of the Selection table, and every selected item exists
-    def test_every_sprint_record_of_this_repository_is_read_without_a_problem(self):
-        paths = sorted(self.OWN.glob("*.md"))
-        self.assertGreaterEqual(len(paths), 2)
-        items = {re.match(r"ITM-\d{3,}", p.name).group(0) for p in (DOCS / "backlog").glob("ITM-*.md")}
-        for path in paths:
-            s = sprint_file(path)
-            self.assertEqual(s["problems"], [], path.name)
-            self.assertEqual(s["id"], path.stem, path.name)
-            self.assertEqual(s["selection"], self.table_items(path), path.name)
-            self.assertEqual(sorted(set(s["selection"]) - items), [], path.name)
-
-    # Agent M's own sprint records as they stood while sprint 02 ran (docs/backlog/sprints/ at 87b3268, `end:` empty in
-    # sprint-02.md), frozen: a test of the live records' state would break at every sprint close.
-    FROZEN = FIX / "agent-m"
-
-    # Module (as the case stated it): MOD-work-items; MOD-work-plans
-    # TST-475052 · level: unit · module: MOD-work-items
-    # guards: A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-032
-    # given: the frozen copies of Agent M's sprint records under tests/fixtures/flow/agent-m/
-    # input: flow.sprint of sprint-01.md and sprint-02.md
-    # expect: sprint 01: end 2026-10-01, branch sprint/01, 15 items; sprint 02: end empty, branch sprint/02, closer scrum-master-session, plannedBy po-fable, 25 items
-    def test_sprint_01_is_closed_and_sprint_02_runs(self):
-        one, two = sprint_file(self.FROZEN / "sprint-01.md"), sprint_file(self.FROZEN / "sprint-02.md")
-        self.assertEqual((one["end"], one["branch"], len(one["selection"])), ("2026-10-01", "sprint/01", 15))
-        self.assertEqual((two["end"], two["branch"], two["closer"], two["plannedBy"]),
-                         (None, "sprint/02", "scrum-master-session", "po-fable"))
-        self.assertEqual(len(two["selection"]), 25)
+def limit_reasons(result: dict) -> list:
+    return [r for r in reasons(result) if "work-in-progress limit" in r]
 
 
 class TestOnlyTheSelectionStarts(unittest.TestCase):
-    """The Scrum fixture: a time box of two weeks; the sprint `timeboxed` runs from 2026-09-15 to 2026-09-28 and selects
-    ITM-015 and ITM-014."""
+    """The Scrum fixture: sprints with a time box, and no WIP limit; the team's running sprint selects ITM-015 and ITM-016."""
 
-    # Module (as the case stated it): MOD-work-items; MOD-work-plans
-    # TST-475053 · level: unit · module: MOD-work-items
+    SPRINT = ["ITM-015", "ITM-016"]
+
+    # TST-475053 · level: unit · module: MOD-work-plans
     # guards: A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-032
-    # given: the Scrum fixture, sprint timeboxed (2026-09-15 to 2026-09-28) selecting ITM-015 and ITM-014, on 2026-09-20
-    # input: itemState of ITM-015
-    # expect: state ready and no reason
+    # given: the Scrum fixture, the running sprint selecting ITM-015 and ITM-016
+    # input: startable of ITM-015
+    # expect: the item starts
     def test_a_selected_item_starts(self):
-        got = item_state("ITM-015", "scrum", sprint="timeboxed", today="2026-09-20")
-        self.assertEqual((got["state"], got["reasons"]), ("ready", []))
+        self.assertTrue(starts(run("ITM-015", "scrum", sprint=self.SPRINT)))
 
-    # Module (as the case stated it): MOD-work-items; MOD-work-plans
-    # TST-475054 · level: unit · module: MOD-work-items
+    # TST-475054 · level: unit · module: MOD-work-plans
     # guards: A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-032
-    # given: the Scrum fixture, sprint timeboxed running on 2026-09-20
-    # input: itemState of ITM-016, which the sprint does not select
-    # expect: state ready and the one reason not-selected naming sprint-07
+    # given: the Scrum fixture, the running sprint selecting ITM-015 and ITM-016; ITM-016 merged
+    # input: startable of ITM-014, which the sprint does not select
+    # expect: the one reason names ITM-014 and the team's current sprint
     def test_an_item_outside_the_selection_is_refused_with_the_sprint_named(self):
-        got = item_state("ITM-016", "scrum", sprint="timeboxed", today="2026-09-20")
-        self.assertEqual(got["state"], "ready")
-        self.assertEqual(got["reasons"], [{"kind": "not-selected", "rule": SELECTED, "sprint": "sprint-07"}])
+        got = run("ITM-014", "scrum", sprint=self.SPRINT, prs=[DONE])
+        self.assertEqual(len(reasons(got)), 1, reasons(got))
+        self.assertIn("ITM-014 is not selected", reasons(got)[0])
+        self.assertIn("the current sprint of product", reasons(got)[0])
 
-    # Module (as the case stated it): MOD-work-items; MOD-work-plans
-    # TST-475055 · level: unit · module: MOD-work-items
+    # TST-475055 · level: unit · module: MOD-work-plans
     # guards: A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-032
     # given: the Scrum fixture with no sprint running
-    # input: itemState of ITM-015
-    # expect: the one reason no-sprint
+    # input: startable of ITM-015
+    # expect: the one reason says that no sprint of the team runs
     def test_with_no_sprint_running_nothing_starts(self):
-        got = item_state("ITM-015", "scrum", sprint=None)
-        self.assertEqual(got["reasons"], [{"kind": "no-sprint", "rule": SELECTED}])
+        got = run("ITM-015", "scrum", sprint=None)
+        self.assertEqual(len(reasons(got)), 1, reasons(got))
+        self.assertIn("No sprint of product is running", reasons(got)[0])
 
-    # Module (as the case stated it): MOD-work-items; MOD-work-plans
-    # TST-475056 · level: unit · module: MOD-work-items
-    # guards: A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-032
-    # given: the Scrum fixture, sprint timeboxed ending 2026-09-28
-    # input: itemState of ITM-015 on 2026-09-28 and on 2026-09-29
-    # expect: starts on the end date; the day after the reason sprint-ended with the end 2026-09-28
-    def test_a_time_box_ends_on_its_end_date(self):
-        self.assertTrue(starts(item_state("ITM-015", "scrum", sprint="timeboxed", today="2026-09-28")))
-        got = item_state("ITM-015", "scrum", sprint="timeboxed", today="2026-09-29")
-        self.assertEqual(got["reasons"], [{"kind": "sprint-ended", "rule": SELECTED, "sprint": "sprint-07", "end": "2026-09-28"}])
-
-    # Module (as the case stated it): MOD-work-items; MOD-work-plans
-    # TST-475057 · level: unit · module: MOD-work-items
-    # guards: A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-032
-    # given: the Scrum fixture, sprint timeboxed starting 2026-09-15
-    # input: itemState of ITM-015 on 2026-09-14
-    # expect: the one reason sprint-not-started with the start 2026-09-15
-    def test_a_sprint_not_yet_begun_starts_nothing(self):
-        got = item_state("ITM-015", "scrum", sprint="timeboxed", today="2026-09-14")
-        self.assertEqual(got["reasons"], [{"kind": "sprint-not-started", "rule": SELECTED, "sprint": "sprint-07",
-                                           "start": "2026-09-15"}])
-
-    # Module (as the case stated it): MOD-work-items; MOD-work-plans
-    # TST-475058 · level: unit · module: MOD-work-items
-    # guards: A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-032
-    # given: the scrum-wip fixture, sprints without a time box; sprint open has no end, sprint closed has one
-    # input: itemState of ITM-014 in sprint open on 2026-10-30, and of ITM-016 in sprint closed on 2026-09-05
-    # expect: ITM-014 starts; ITM-016 gets the one reason kind sprint-ended
-    def test_without_a_time_box_a_recorded_end_ends_the_sprint(self):
-        self.assertTrue(starts(item_state("ITM-014", "scrum-wip", sprint="open", today="2026-10-30")))
-        got = item_state("ITM-016", "scrum-wip", sprint="closed", today="2026-09-05")
-        self.assertEqual(kinds(got), ["sprint-ended"])
-
-    # Module (as the case stated it): MOD-work-items; MOD-work-plans
-    # TST-475059 · level: unit · module: MOD-work-items
+    # TST-475059 · level: unit · module: MOD-work-plans
     # guards: A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-032
     # given: the Kanban fixture, a model without sprints
-    # input: itemState of ITM-015 with no sprint, and of ITM-016 with sprint timeboxed
+    # input: startable of ITM-015 with no sprint, and of ITM-016 with a sprint that does not select it
     # expect: both start
     def test_counter_proof_a_model_without_sprints_has_no_selection_to_keep(self):
-        self.assertTrue(starts(item_state("ITM-015", "kanban", sprint=None)))
-        self.assertTrue(starts(item_state("ITM-016", "kanban", sprint="timeboxed", today="2026-09-20")))
+        self.assertTrue(starts(run("ITM-015", "kanban", sprint=None)))
+        self.assertTrue(starts(run("ITM-016", "kanban", sprint=["ITM-015"])))
 
 
 class TestSprintsAndALimitBothHold(unittest.TestCase):
-    """The fixture scrum-wip: sprints without a time box and a WIP limit of 2; the sprint `open` selects ITM-014, ITM-017
-    and ITM-016 (UC-032 step 7: only selected items are pulled, and only below the limit)."""
+    """The fixture scrum-wip: sprints without a time box and a WIP limit of 2 (UC-032 step 7: only selected items are pulled,
+    and only below the limit); ITM-016 merged."""
 
-    # Module (as the case stated it): MOD-work-items; MOD-work-plans
-    # TST-475060 · level: unit · module: MOD-work-items
+    # TST-475060 · level: unit · module: MOD-work-plans
     # guards: A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-032
-    # given: the scrum-wip fixture (WIP limit 2), sprint open selecting ITM-014, ITM-017, ITM-016; pull requests of ITM-014 and ITM-016 open
-    # input: itemState of the selected ITM-017
-    # expect: the only reason kind is wip-limit, with the WIP rule
+    # given: the scrum-wip fixture (WIP limit 2), the sprint selecting ITM-014, ITM-015 and ITM-017; pull requests of ITM-014 and ITM-015 open
+    # input: startable of the selected ITM-017
+    # expect: the one reason is the limit's
     def test_a_selected_item_above_the_limit_is_refused_for_the_limit_only(self):
-        got = item_state("ITM-017", "scrum-wip", sprint="open", prs=[pr(1, "ITM-014"), pr(2, "ITM-016")])
-        self.assertEqual(kinds(got), ["wip-limit"])
-        self.assertEqual(got["reasons"][0]["rule"], WIP)
+        got = run("ITM-017", "scrum-wip", sprint=["ITM-014", "ITM-015", "ITM-017"], prs=[DONE, pr(1, "ITM-014"), pr(2, "ITM-015")])
+        self.assertEqual(len(reasons(got)), 1, reasons(got))
+        self.assertEqual(len(limit_reasons(got)), 1, reasons(got))
 
-    # Module (as the case stated it): MOD-work-items; MOD-work-plans
-    # TST-475061 · level: unit · module: MOD-work-items
+    # TST-475061 · level: unit · module: MOD-work-plans
     # guards: A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-032
-    # given: the scrum-wip fixture, sprint open, one pull request (ITM-014) open
-    # input: itemState of ITM-015, which is not selected
-    # expect: the only reason kind is not-selected
+    # given: the scrum-wip fixture, the sprint selecting ITM-014 and ITM-017, ITM-014's pull request open
+    # input: startable of ITM-015, which is not selected
+    # expect: the one reason is the selection's
     def test_an_item_outside_the_selection_below_the_limit_is_refused_for_the_selection_only(self):
-        got = item_state("ITM-015", "scrum-wip", sprint="open", prs=[pr(1, "ITM-014")])
-        self.assertEqual(kinds(got), ["not-selected"])
+        got = run("ITM-015", "scrum-wip", sprint=["ITM-014", "ITM-017"], prs=[DONE, pr(1, "ITM-014")])
+        self.assertEqual(len(reasons(got)), 1, reasons(got))
+        self.assertEqual(len(selection_reasons(got)), 1, reasons(got))
 
-    # Module (as the case stated it): MOD-work-items; MOD-work-plans
-    # TST-475062 · level: unit · module: MOD-work-items
+    # TST-475062 · level: unit · module: MOD-work-plans
     # guards: A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-032
-    # given: the scrum-wip fixture, sprint open, pull requests of ITM-014 and ITM-016 open
-    # input: itemState of ITM-015, which is not selected
-    # expect: the reason kinds are not-selected and wip-limit
+    # given: the scrum-wip fixture, the sprint selecting ITM-014 and ITM-017, pull requests of ITM-014 and ITM-017 open
+    # input: startable of ITM-015, which is not selected
+    # expect: two reasons: the selection's, then the limit's
     def test_an_item_outside_the_selection_above_the_limit_is_refused_for_both(self):
-        got = item_state("ITM-015", "scrum-wip", sprint="open", prs=[pr(1, "ITM-014"), pr(2, "ITM-016")])
-        self.assertEqual(kinds(got), ["not-selected", "wip-limit"])
+        got = run("ITM-015", "scrum-wip", sprint=["ITM-014", "ITM-017"], prs=[DONE, pr(1, "ITM-014"), pr(2, "ITM-017")])
+        self.assertEqual(len(reasons(got)), 2, reasons(got))
+        self.assertEqual((len(selection_reasons(got)), len(limit_reasons(got))), (1, 1), reasons(got))
+        self.assertLess(reasons(got).index(selection_reasons(got)[0]), reasons(got).index(limit_reasons(got)[0]))
 
-    # Module (as the case stated it): MOD-work-items; MOD-work-plans
-    # TST-475063 · level: unit · module: MOD-work-items
+    # TST-475063 · level: unit · module: MOD-work-plans
     # guards: A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; UC-032
-    # given: the scrum-wip fixture, sprint open, one pull request (ITM-014) open
-    # input: itemState of the selected ITM-017
+    # given: the scrum-wip fixture, the sprint selecting ITM-014 and ITM-017, ITM-014's pull request open
+    # input: startable of the selected ITM-017
     # expect: the item starts
     def test_a_selected_item_below_the_limit_starts(self):
-        self.assertTrue(starts(item_state("ITM-017", "scrum-wip", sprint="open", prs=[pr(1, "ITM-014")])))
-
-    # Module (as the case stated it): MOD-work-items
-    # TST-590002 · level: unit · module: MOD-work-items
-    # guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-032
-    # given: the fixture backlog item ITM-014 and a merged pull request whose head branch says `codex/itm-014-work` in lower case
-    # input: itemState of ITM-014 with that pull request
-    # expect: ITM-014 is done; the pull request reason is kept
-    def test_lower_case_item_id_in_a_pull_request_branch_names_the_item(self):
-        got = item_state("ITM-014", "scrum-wip", sprint="open", prs=[
-            pr(1, "ITM-014", state="merged", head="codex/itm-014-work", title="the work")
-        ])
-        self.assertEqual(got["state"], "done")
-        self.assertEqual(kinds(got), ["pull-request"])
-
-
-
-class TestSelectionsTakeThreeOrMoreDigits(unittest.TestCase):
-    """ITM-<nnn> takes three or more digits; the items that hold the limit are listed by their number."""
-
-    def test_a_selection_may_name_an_item_of_four_digits(self):
-        self.assertEqual(problems(edited(OPEN, "  - ITM-017\n", "  - ITM-1000\n")), [])
-        self.assertEqual(sprint_of(edited(OPEN, "  - ITM-017\n", "  - ITM-1000\n"))["selection"],
-                         ["ITM-014", "ITM-1000", "ITM-016"])
-
-    def test_a_selection_may_name_an_item_of_three_digits(self):
-        self.assertEqual(problems(edited(OPEN, "  - ITM-017\n", "  - ITM-999\n")), [])
-
-    def test_counter_proof_a_selection_naming_an_item_of_two_digits_is_a_problem(self):
-        self.assertEqual(problems(edited(OPEN, "  - ITM-017\n", "  - ITM-99\n")),
-                         [(8, "error", SELECTED, 'the selection names "ITM-99", which is no item ITM-<nnn>')])
-
-    def test_counter_proof_a_selection_naming_an_item_of_four_digits_a_second_time_is_a_problem(self):
-        self.assertEqual(problems(edited(edited(OPEN, "  - ITM-017\n", "  - ITM-1000\n"), "  - ITM-016\n", "  - ITM-1000\n")),
-                         [(9, "error", SELECTED, "the selection names ITM-1000 a second time")])
-
-    def test_a_pull_request_of_an_item_of_four_digits_holds_a_slot_of_the_limit_in_the_order_of_the_numbers(self):
-        backlog = ["ITM-014", "ITM-015", "ITM-016", "ITM-017", "ITM-999", "ITM-1000"]
-        got = item_state("ITM-017", "scrum-wip", sprint="open", backlog=backlog,
-                         prs=[pr(1, "ITM-1000"), pr(2, "ITM-999")])
-        self.assertEqual(kinds(got), ["wip-limit"])
-        self.assertEqual([i["id"] for i in got["reasons"][0]["inProgress"]], ["ITM-999", "ITM-1000"])
-
-    def test_counter_proof_a_pull_request_naming_four_digits_is_not_an_item_of_three(self):
-        backlog = ["ITM-014", "ITM-015", "ITM-016", "ITM-017", "ITM-100"]
-        got = item_state("ITM-017", "scrum-wip", sprint="open", backlog=backlog,
-                         prs=[pr(1, "ITM-1000"), pr(2, "ITM-014")])
-        self.assertTrue(starts(got))
+        self.assertTrue(starts(run("ITM-017", "scrum-wip", sprint=["ITM-014", "ITM-017"], prs=[DONE, pr(1, "ITM-014")])))
 
 
 class TestSeveralTeamsRunSprints(unittest.TestCase):

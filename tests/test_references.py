@@ -4,10 +4,11 @@
 """SPEC §1 A REFERENCE NAMES THE IDENTIFIER, NOT THE POSITION — a cross-reference names the identifier it points at,
 never a section number or line number.
 
-MOD-traceability linkGraph(snapshot) links artifacts by the identifiers they state (ARC-006): a requirement by its name,
-a use case, decision or module by its identifier, whatever section, line or file name it stands in. A reference by
-position — a section number, a line number, a file and line — names no identifier, so it reaches no artifact and is kept
-among the unknown names, where the gaps show it. The files are the fixture product tests/fixtures/architecture/.
+MOD-trace-graph traceGraph(source) links artifacts by the identifiers they state: a requirement by its name, a use case,
+decision, module or test by its identifier, whatever section, line or file name it stands in. A reference by position — a
+section number, a line number, a file and line — names no identifier, so it reaches no artifact and is kept among the
+unknown names of coverageGaps, where the gaps show it. The files are the fixture product tests/fixtures/architecture/, its
+test written here with a declaration.
 """
 import json
 import unittest
@@ -16,9 +17,14 @@ from pathlib import Path
 from jsrun import js
 
 FIX = Path(__file__).resolve().parent / "fixtures" / "architecture"
-FILES = {p.relative_to(FIX).as_posix(): p.read_text(encoding="utf-8") for p in sorted(FIX.rglob("*")) if p.is_file()}
+TEST = "tests/reader.test.js"
+# The fixture's test, with one declaration that guards RULE ONE, written from parts so that this file declares no test by it.
+TEST_TEXT = ("// Module: MOD-reader\n" + " ".join(["//", "TST-100001", "·", "level: unit", "·", "module: MOD-reader"])
+             + "\n// guards: RULE ONE\n// given: nothing\n// input: nothing\n// expect: nothing\ntest(\"reads\", () => {});\n")
+FILES = {**{p.relative_to(FIX).as_posix(): p.read_text(encoding="utf-8") for p in sorted(FIX.rglob("*")) if p.is_file()},
+         TEST: TEST_TEXT}
 UC1, UC2 = "docs/use-cases/UC-001-read-a-file.md", "docs/use-cases/UC-002-show-the-status.md"
-READER, TEST = "docs/architecture/MOD-reader.md", "tests/reader.test.js"
+READER = "docs/architecture/MOD-reader.md"
 NAMES = ["RULE ONE", "THE READER'S RULE"]
 
 
@@ -28,12 +34,13 @@ def edited(files: dict, path: str, old: str, new: str) -> dict:
 
 
 def view(files: dict) -> dict:
-    """What the graph links: each requirement's row, every module's impact list for a change of its text, and the unknown
-    names with what names them."""
-    return js(f"const g = traceability.linkGraph({{ files: {json.dumps(files)} }});"
-              f"return {{ rows: Object.fromEntries({json.dumps(NAMES)}.map((n) => [n, traceability.tracesTo(g, n)])),"
-              "  impact: Object.fromEntries(" + json.dumps(NAMES) + ".map((n) => [n, traceability.requirementImpact(g, n)])),"
-              "  unknown: traceability.coverageGaps(g).unknownNames };")
+    """What the graph links: each requirement's row, each requirement's impact list, and the unknown names with what names
+    them."""
+    return js(f"const files = {json.dumps(files)};"
+              "const g = await traceGraph.traceGraph({ paths: Object.keys(files), read: async (p) => files[p] ?? null });"
+              f"return {{ rows: Object.fromEntries({json.dumps(NAMES)}.map((n) => [n, traceGraph.tracesTo(g, n)])),"
+              "  impact: Object.fromEntries(" + json.dumps(NAMES) + ".map((n) => [n, traceGraph.requirementImpact(g, n)])),"
+              "  unknown: traceGraph.coverageGaps(g).unknownNames };")
 
 
 class ReferencesByIdentifier(unittest.TestCase):
@@ -61,14 +68,13 @@ class ReferencesByIdentifier(unittest.TestCase):
         # reach no requirement: the row of RULE ONE does not grow, and each position is an unknown name.
         files = edited(FILES, UC2, "  - THE READER'S RULE\n", "  - THE READER'S RULE\n  - §1\n")
         files = edited(files, READER, "  - RULE ONE\n", "  - RULE ONE\n  - SPEC.md:7\n")
-        files = edited(files, TEST, "// Guards: RULE ONE\n", "// Guards: RULE ONE; section 1\n")
+        files = edited(files, TEST, "// guards: RULE ONE\n", "// guards: RULE ONE; section 1\n")
         v = view(files)
         self.assertEqual(v["rows"]["RULE ONE"], view(FILES)["rows"]["RULE ONE"])
-        unknown = {u["name"]: u for u in v["unknown"]}
-        self.assertEqual(unknown["§1"]["from"], ["UC-002"])
-        self.assertEqual(unknown["SPEC.md:7"]["from"], ["MOD-reader"])
-        self.assertEqual(unknown["section 1"]["from"], [TEST])
-        self.assertFalse(any(u["withdrawn"] for u in (unknown["§1"], unknown["SPEC.md:7"], unknown["section 1"])))
+        unknown = {u["name"]: [p["id"] for p in u["namedBy"]] for u in v["unknown"]}
+        self.assertEqual(unknown["§1"], ["UC-002"])
+        self.assertEqual(unknown["SPEC.md:7"], ["MOD-reader"])
+        self.assertEqual(unknown["section 1"], ["TST-100001"])
 
     def test_counter_proof_a_name_spelled_otherwise_is_another_name(self):
         # The identifier is the name exactly as the SPEC writes it: a name in other letters or with its apostrophe changed

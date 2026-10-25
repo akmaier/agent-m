@@ -181,7 +181,8 @@ names no source.
   `sourceFindings` read an item.
 - `sourceFindings(requirements: Requirement[], links: Document, register: Document[]) -> Finding[]` — an error under `A
   REQUIREMENT HAS A REGISTERED SOURCE` for each requirement none of whose source items names a source the product links,
-  naming the requirement, its line and its items.
+  naming the requirement, its line and its items; and an error under `A RESOURCE'S TERMS ENTER AS A SOURCE` for each
+  resource entry, `RES-<slug>`, that a source item names, beside a linked source or not.
 - `changedPassages(before: string, after: string) -> DiffLine[]` — the passages that changed between two versions of a
   text, line by line.
 - `recogniseLegalText(address: string) -> { celex: string } | { eli: string } | null` — the CELEX number or ELI an

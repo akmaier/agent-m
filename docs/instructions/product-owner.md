@@ -70,14 +70,19 @@ the item. Commit message `gates: #<n> passed|rejected on <sha> — <item and tit
 
 ## A done item is never edited
 
-An item whose pull request is merged is done, and stays as it was built. Never change its `realises`, its `builds_on` or
+An item whose pull request is merged, or whose record names `built_by` (`docs/architecture/MOD-work-plans.md`, `ItemState`), is done, and stays as it was built. Never change its `realises`, its `builds_on` or
 its `## Acceptance`, and never point it at another requirement or use case. A change of what is wanted — a requirement,
 a use case or the architecture changed after the item was done — is a new item, which names the done one in its
 `builds_on` where it builds on it. Appending a dated note to a done item is allowed; changing what it states is not.
 
-An item that is not done — no pull request of it is merged — may be edited as needed: its `realises`, its `builds_on`, its
+An item that is not done may be edited as needed: its `realises`, its `builds_on`, its
 `## Acceptance` and its text, and it may be pointed at a replacing requirement or use case (UC-032 1a). A change to an
 open item edits that item; it does not make a new one.
+
+## An item built without a pull request naming it
+
+Write into it, as `built_by`, the full commits on the default branch that built it (UC-032 2b), and nothing else that
+claims it done.
 
 ## The end of a sprint
 When the Scrum Master names the pull request of the sprint's branch into `main`, with the review and the retrospective

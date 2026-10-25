@@ -8,7 +8,7 @@
 // Level: system
 
 import { readFileSync } from "node:fs";
-import { gitBlobSha } from "../../docs/assets/review-core.mjs";
+import { blobSha } from "../../src/text-tools/index.mjs";
 
 const root = new URL("../..", import.meta.url).pathname;
 
@@ -151,7 +151,7 @@ ${title}.
 `;
 
 const approval = async (kind, file, text) => {
-  const blob = await gitBlobSha(text);
+  const blob = await blobSha(text);
   return [`docs/approvals/${file.split("/").pop().replace(/\.md$/, "").split("-").slice(0, 2).join("-")}-${blob.slice(0, 12)}.md`, `kind: ${kind}\nfile: ${file}\nblob: ${blob}\n`];
 };
 

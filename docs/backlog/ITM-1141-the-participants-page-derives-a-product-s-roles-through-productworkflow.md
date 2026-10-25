@@ -12,6 +12,8 @@ tests:
   - unit
 origin:
   - po-opus-b's run of MOD-trace-graph's moduleRows over main at f9a793f7, for ITM-1068's draft
+built_by:
+  - 7d0efa0dc936796c6cf36f559db112edfc6597cd
 ---
 # ITM-1141 The participants page derives a product's roles through productWorkflow, not through the model catalogue
 

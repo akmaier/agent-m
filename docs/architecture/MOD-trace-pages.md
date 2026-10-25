@@ -29,6 +29,7 @@ uses:
   - MOD-group-document.hierarchy
   - MOD-test-document.testDeclarations
   - MOD-trace-graph.storedGraph
+  - MOD-trace-graph.latestGraph
   - MOD-trace-graph.tracesTo
   - MOD-trace-graph.coverageGaps
   - MOD-trace-graph.compareGraphs
@@ -75,6 +76,15 @@ history; the coverage gaps; the modules view with its component diagram; the tes
 with its export. Everything is derived when it is shown, from the artifacts of the chosen version; nothing is read from a
 stored matrix (`THE TRACEABILITY MATRIX IS DERIVED`).
 
+The specification, the gaps and the modules view read the graph of the default branch's head through `latestGraph`. While
+that graph is not stored yet and `latestGraph` gives the graph of an earlier commit, the view shows the whole version of
+that commit: its snapshot, read once, and every file the view reads, read from it in the batches the view reads them in,
+so that requirements and traces come from the same version. Above it stands `latestGraph`'s line, followed by *Until then
+it shows that commit's version, read-only.*; as at a release tag, nothing that writes or leads to writing is offered —
+no *Edit*, *+ Requirement*, *Arrange*, change entries waiting, impact lists or next steps of the modules view. Where the
+head's graph is stored, the view reads nothing more than the graph itself. At a release tag the view reads the tag's graph
+through `storedGraph`, and no other.
+
 It serves UC-020, UC-025, UC-029 and UC-030, and gives the prompt bar the subject of what it shows (UC-049). Editing,
 the draft of a change asked for in the prompt bar, and arranging are the review pages' routes, which its links lead to.
 
@@ -117,7 +127,7 @@ TraceView = {
 
 | View | Versions | Shape and rows | Opening a row | Extras |
 |---|---|---|---|---|
-| specification | branch and tags | first, only while an entry of a change queue waits for acceptance, those entries, each with its status and a link to it (MOD-review-pages' `spec-entry/<id>`), and nothing where none waits; then the tree of `docs/groups/requirements.md`, every requirement once with its status — in SPEC, change proposed, removal proposed, proposed — and, where MOD-source-register's `affectedRequirements` names it for a source the product moved to a newer version after its section last changed, *source changed* until its section changes (UC-016 step 5), each group with how many it holds and how many no use case realises | the four fields; sources with version and part; use cases with their review status; decisions, modules and tests naming it; open proposals; its history of accepted changes | to the review pages, on the default branch only: *Edit* on a requirement, *+ Requirement* once for each section of the SPEC, listed beside the tree and not within it, each of which opens `requirements/new` for that section (UC-018 3d), and *Arrange*; *History of SPEC changes*, which opens MOD-review-pages' `spec-entry/history`. Its subject for the prompt bar, on the default branch, is the open requirement, or the group with the names it holds, with the kind `change-requirements`, the person's own source and the review pages' `draft` as its draft route (UC-019 step 1); at a released version, the requirement as it read there, with the kind `converse` (UC-020 1a, UC-049 2a) |
+| specification | branch and tags | first, only while an entry of a change queue waits for acceptance, those entries, each with its status and a link to it (MOD-review-pages' `spec-entry/<id>`), and nothing where none waits; then the tree of `docs/groups/requirements.md`, every requirement once with its status, one that no group names at the top level, marked *not yet placed* (UC-021 3b) — in SPEC, change proposed, removal proposed, proposed — and, where MOD-source-register's `affectedRequirements` names it for a source the product moved to a newer version after its section last changed, *source changed* until its section changes (UC-016 step 5), each group with how many it holds and how many no use case realises | the four fields; sources with version and part; use cases with their review status; decisions, modules and tests naming it; open proposals; its history of accepted changes | to the review pages, on the default branch only: *Edit* on a requirement, *+ Requirement* once for each section of the SPEC, listed beside the tree and not within it, each of which opens `requirements/new` for that section (UC-018 3d), and *Arrange*; *History of SPEC changes*, which opens MOD-review-pages' `spec-entry/history`. Its subject for the prompt bar, on the default branch, is the open requirement, or the group with the names it holds, with the kind `change-requirements`, the person's own source and the review pages' `draft` as its draft route (UC-019 step 1); at a released version, the requirement as it read there, with the kind `converse` (UC-020 1a, UC-049 2a) |
 | gaps | branch and tags | table of requirements realised by no use case and named by no module or test, use cases realising none, names matching nothing | the artifact as it read in that version | what became covered and what lost its coverage between two versions |
 | modules | branch | table of modules: subsystem, the requirements its tests guard with their statuses, its file, code, tests; and every gap | the module's file and folder | component diagram: one box per module in its subsystem's box, one arrow per use, gaps marked, a missing provider as a box marked *missing*; *Change the architecture* and *Implement* |
 | tests | branch and tags | tree by level, file and case, or by requirement, use case or module, each test with its outcome on the latest commit | its declaration, its schedule, its counter-proof, its code, its history across commits and releases | comparing two releases |
@@ -165,7 +175,7 @@ log, the link reads *no longer available*, and the mark keeps its outcome (UC-02
   run's log (UC-029 5b).
 - MOD-documents.artifactSchemas, MOD-documents.readDocument, MOD-spec-document.parseSpec, MOD-group-document.parseGroupFile,
   MOD-group-document.hierarchy, MOD-test-document.testDeclarations — the artifacts of the version.
-- MOD-trace-graph.storedGraph, MOD-trace-graph.tracesTo, MOD-trace-graph.coverageGaps, MOD-trace-graph.compareGraphs,
+- MOD-trace-graph.storedGraph, MOD-trace-graph.latestGraph, MOD-trace-graph.tracesTo, MOD-trace-graph.coverageGaps, MOD-trace-graph.compareGraphs,
   MOD-trace-graph.moduleRows, MOD-trace-graph.graphFindings — the rows, gaps, unknown names and comparisons.
 - MOD-approvals.statuses — the review status of use cases and architecture files.
 - MOD-spec-changes.queues, MOD-spec-changes.entryView, MOD-spec-changes.requirementHistory — open proposals, what each

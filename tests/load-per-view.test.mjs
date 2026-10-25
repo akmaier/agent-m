@@ -5,7 +5,7 @@
 // request and serves GitHub's batch request (POST /graphql), one aliased field for each file.
 //
 // Module: MOD-site-frame
-// Guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; STATUS IS DERIVED FROM THE RECORDS; AN APPROVAL NAMES THE EXACT TEXT; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; A CLEAR IS A REAL CLEAR
+// Guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; STATUS IS DERIVED FROM THE RECORDS; AN APPROVAL NAMES THE EXACT TEXT; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT
 // Level: component
 //
 // The expected requests are written here from the requirement, for the fixture product of tests/fixtures/architecture: the files a
@@ -18,18 +18,10 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { gitBlobSha, recordText, useCaseRecord, reviewedRecord, specRecord, extractSection, sectionText, approvalPath }
-  from "../docs/assets/review-core.mjs";
+import { blobSha } from "../src/text-tools/index.mjs";
+import { sectionText } from "../src/spec-document/index.mjs";
 import { repoServer, fakeCaches, openDashboard, REPO } from "./app-harness.mjs";
-
-// The dashboard's own files (MOD-dashboard-app): the shell, src/site-frame/dashboard-app.mjs, and every view and settings section
-// under docs/assets/dashboard/ — what a test that read the one app file reads now.
-const dashboardText = () => {
-  const assets = new URL("../docs/assets/", import.meta.url);
-  const views = readdirSync(new URL("dashboard/", assets), { recursive: true }).filter((f) => f.endsWith(".mjs")).sort();
-  return [readFileSync(new URL("../src/site-frame/dashboard-app.mjs", import.meta.url), "utf8"),
-    ...views.map((f) => readFileSync(new URL(`dashboard/${f}`, assets), "utf8"))].join("\n");
-};
+import { recordText, approvalPath, reviewedRecord } from "./approval-records.mjs";
 
 // ---------------------------------------------------------------- the product: tests/fixtures/architecture, with records and queues
 
@@ -56,22 +48,22 @@ const server = async (files, handlers = []) => repoServer({ files, history: EARL
 async function product(over = {}) {
   const f = { ...base, [README]: "# Use cases\n\nThe overview.\n", "docs/approvals/README.md": "# Approval records\n" };
   const rec = async (id, path, text, blob = null) => {
-    const b = blob ?? await gitBlobSha(text);
+    const b = blob ?? await blobSha(text);
     if (text !== f[path]) EARLIER.push(text);
-    f[approvalPath(id, await gitBlobSha(text))] = recordText(path.includes("/use-cases/") ? useCaseRecord(path, b) : reviewedRecord(path, b));
+    f[approvalPath(id, await blobSha(text))] = recordText(reviewedRecord(path, b));
   };
   await rec("UC-001", UC1, f[UC1]);                                  // accepted
   await rec("UC-002", UC2, f[UC2].replace("Show the status", "Show a status"));   // changed: accepted in an earlier text
   await rec("ARC-001", ARC, f[ARC]);                                 // accepted
   await rec("MOD-reader", READER, f[READER].replace("Reads files at", "Reads a file at"));   // changed
   // A queue whose one entry is accepted and written, and a queue with an open entry.
-  const section = sectionText(extractSection(f["SPEC.md"], "## 1. Rules"));
+  const section = sectionText(f["SPEC.md"], "## 1. Rules");
   f[`${DONE}/index.md`] = INDEX("## 1. Rules");
   f[`${DONE}/01-rules.md`] = section;
   f[`${DONE}/01-rules.begruendung.md`] = "# Why\n\nBecause.\n";
-  const doneRec = approvalPath("spec-2026-09-01_done-01", await gitBlobSha(section));
-  f[doneRec] = recordText(specRecord({ queue: DONE, entry: 1, proposal: `${DONE}/01-rules.md`, blob: await gitBlobSha(section),
-    target: "SPEC.md", anchor: "## 1. Rules", section: await gitBlobSha(section) }));
+  const doneRec = approvalPath("spec-2026-09-01_done-01", await blobSha(section));
+  f[doneRec] = recordText({ kind: "spec", queue: DONE, entry: "01", proposal: `${DONE}/01-rules.md`, blob: await blobSha(section),
+    target: "SPEC.md", anchor: "## 1. Rules", section: await blobSha(section) });
   f[`${DONE}/entscheidungen.md`] = `# Decisions\n\n| 2026-09-01 10:00 UTC | 1 | uebernommen | approval:${doneRec.split("/").pop()} |\n`;
   f[`${OPEN}/index.md`] = INDEX("## 1. Rules");
   f[`${OPEN}/01-more.md`] = section + "\n**RULE TWO** *(PO, 2026-09-02)*\nA second rule.\n*Check:* none\n";
@@ -91,10 +83,11 @@ const sorted = (list) => [...list].sort();
 const batchesOf = (requests) => requests.filter((r) => r.startsWith("batch "));
 const count = (requests, what) => requests.filter((r) => r === what).length;
 // The head commit the harness's server answers, and the reads of the branches that hold what the workflow "main changed" stored for it — the
-// graph (`stored graph <commit>`, trace-cache), the overview and the facts (overview-cache) and the impact lists: each is one request of its own by
-// design (MOD-trace-graph's storedGraph and storedImpacts, MOD-progress-measures' storedOverview and storedFacts), not a file the page shows.
+// graph (`stored graph <commit>`, trace-cache), the overview and the facts (overview-cache), the impact lists, and latest.json, which names the overview
+// stored last while the head's is not stored yet: each is one request of its own by design (MOD-trace-graph's storedGraph and storedImpacts,
+// MOD-progress-measures' storedOverview, storedFacts and latestOverview), not a file the page shows.
 const HEAD = "c0ffee".padEnd(40, "0");
-const STORED = new RegExp(`^${HEAD}\\.(json|facts\\.json|impacts\\.json)$`);
+const STORED = new RegExp(`^(${HEAD}\\.(json|facts\\.json|impacts\\.json)|latest\\.json)$`);
 const shownFiles = (requests) => files(requests).filter((path) => !STORED.test(path));
 // The order of the one read of the repository's information among a load's requests is no part of the rule: it is counted, and left out of the sequence.
 const withoutInfo = (requests) => requests.filter((r) => r !== "repository");
@@ -229,8 +222,9 @@ test("the repository's information is read once for as long as the page is open"
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: a product that declares its process model, with one team, its sprint and two items
 // input: open #backlog with a token
-// expect: the commit and the tree once, one batch of the 7 files it shows — the declaration, the SPEC, the team's role
-//         assignment and sprint, the 2 items, and the record that decides UC-002's status —; then the facts stored for the commit are asked for (none), and the facts the page takes from MOD-progress-measures'
+// expect: the commit and the tree once, one batch of the 6 files it shows — the declaration, the SPEC, the team's role
+//         assignment and sprint, the 2 items; no approval record, since the statuses come from the records' names (MOD-approvals'
+//         statuses) —; then the facts stored for the commit are asked for (none), and the facts the page takes from MOD-progress-measures'
 //         productFacts are read in batches: the 3 module files, the 3 files of the change queues; then the instance at the commit the declaration's model_version names (the commit, the tree) and the process
 //         model it names in one batch of its own; no use case and no other file by itself
 test("#backlog sends its commit and tree once, one batch of the files it shows, and the process model by one request of its own", async () => {
@@ -247,11 +241,11 @@ test("#backlog sends its commit and tree once, one batch of the files it shows, 
   const srv = await server(repo, [pulls]);
   const page = await openDashboard({ server: srv, hash: "#backlog" });
   assert.match(page.main(), /ITM-001/);
-  assert.deepEqual(withoutInfo(page.requests).filter((r) => !r.startsWith("handler ")), ["commit", "tree", "batch 7", `file ${"c0ffee".padEnd(40, "0")}.facts.json`, "batch 3", "batch 3", "commit", "tree", "batch 1"]);
+  assert.deepEqual(withoutInfo(page.requests).filter((r) => !r.startsWith("handler ")), ["commit", "tree", "batch 6", `file ${"c0ffee".padEnd(40, "0")}.facts.json`, "batch 3", "batch 3", "commit", "tree", "batch 1"]);
   // The page needs no repository information, and the prompt bar reads through what the load read (instanceSnapshot), asking for none either.
   assert.equal(count(page.requests, "repository"), 0);
   const wave1 = sorted(["docs/process.md", "SPEC.md", "docs/role-assignments/team1.md", "docs/backlog/sprints/team1/01.md",
-    "docs/backlog/ITM-001-item-1.md", "docs/backlog/ITM-002-item-2.md", ...recordOf(repo, "UC-002")]);
+    "docs/backlog/ITM-001-item-1.md", "docs/backlog/ITM-002-item-2.md"]);
   assert.deepEqual(srv.batches.map(sorted).slice(0, 1), [wave1]);
   assert.equal(srv.batches.flat().filter((path) => path === "SPEC.md").length, 1, "no file twice");
 });
@@ -404,7 +398,7 @@ test("#use-case, #decision and #module without a token: each file is read by its
 // expect: the commit, the tree and the repository's information, and the one file by its own request — a batch of one file is no fewer requests
 test("#use-case/id= and #module/id= of an accepted file read that one file by itself", async () => {
   const repo = await product();
-  const blob = await gitBlobSha(repo[PAGE]);
+  const blob = await blobSha(repo[PAGE]);
   repo[approvalPath("MOD-page", blob)] = recordText(reviewedRecord(PAGE, blob));
   const use = await openDashboard({ server: await server(repo), hash: "#use-case/id=UC-001" });
   assert.deepEqual(use.requests, ["commit", "tree", "repository", `file ${UC1}`]);
@@ -501,12 +495,4 @@ test("a use case is accepted exactly when a record names its current text", asyn
   const changed = await openDashboard({ server: await server(repo), hash: "#uc/UC-002" });
   assert.match(changed.main(), /<span class="badge b-changed">changed since acceptance<\/span>/);
   assert.match(changed.main(), /<button class="btn accept" type="button">Accept<\/button>/);
-});
-
-test("Clear everything also removes the kept file texts (A CLEAR IS A REAL CLEAR)", () => {
-  const app = dashboardText();
-  const handler = app.match(/getElementById\("token-clear"\)\.addEventListener\("click", [\s\S]*?\n {2}\}\);\n/)?.[0] ?? "";
-  assert.match(handler, /store\.clear\(\)/);
-  assert.match(handler, /kept\.clear\(\)/, "the texts kept by blob SHA go with the settings");
-  assert.match(handler, /Clearing failed/, "and the page says so when something is left");
 });

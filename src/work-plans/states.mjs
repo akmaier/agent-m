@@ -164,6 +164,9 @@ function mergedPullRequest(item, facts) {
   return facts.pullRequests === "unknown" ? null : pullRequestFor(item, facts.pullRequests, "merged");
 }
 
+// Whether the item's record names the commits that built it: the Product Owner's own record, read from the item alone, with no request.
+const builtBy = (item) => fieldList(item, "built_by").length > 0;
+
 function derivedState(item, phase, states, facts) {
   const id = idOf(item);
   const job = jobFor(item, facts.jobs);
@@ -173,6 +176,9 @@ function derivedState(item, phase, states, facts) {
   // on that is not done, a gate, or a job or pull request of it after the merge. A change to it is a new item.
   const merged = mergedPullRequest(item, facts);
   if (merged) return { item: id, state: "done", reason: null, job: named, pullRequest: pullRequestRef(merged) };
+
+  // An item no merged pull request names is done when its record names the commits that built it (built_by).
+  if (builtBy(item)) return { item: id, state: "done", reason: null, job: named, pullRequest: null };
 
   const acceptance = acceptanceReasons(item, facts);
   if (acceptance.length) return { item: id, state: "waiting for acceptance", reason: acceptance.join("; "), job: named, pullRequest: null };
@@ -215,8 +221,8 @@ function derivedState(item, phase, states, facts) {
 /**
  * itemStates(items: Document[], order: Document | null, facts: { statuses: Map<string, { id: string, kind: string,
  * status: string }>, queues: Queue[], jobs: JobRow[], pullRequests: PullRequest[] | "unknown", gates: Array<{ gate:
- * string, state: string }>, workflow: Workflow | null }) -> ItemState[] — every supplied step in the plan order, or every
- * backlog item after the items it builds on, with state derived only from the supplied facts.
+ * string, state: string }>, workflow: Workflow | null }) -> ItemState[] — every supplied step in the
+ * plan order, or every backlog item after the items it builds on, with state derived only from the supplied facts.
  * @param {object[]} items @param {object | null} order @param {object} facts
  * @returns {object[]}
  */

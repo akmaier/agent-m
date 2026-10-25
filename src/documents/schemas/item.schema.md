@@ -4,7 +4,8 @@ A step of the implementation plan, `docs/plan/ITM-<nnn>-<slug>.md`, and an item 
 `docs/backlog/ITM-<nnn>-<slug>.md`, alike, in MOD-documents' schema language, as docs/architecture/MOD-documents.md states
 it under Data. Each path names its own rule. A requirement the SPEC states for one kind of item only is named through a
 variant whose condition is that kind's path: `realises` and `modules` for a file under `docs/backlog/`, `level` and
-`tests` for a file under `docs/plan/`; for the other kind they name its path's rule. Other sections are allowed.
+`tests` for a file under `docs/plan/`; for the other kind they name its path's rule. `built_by`, optional, names the
+commits that built an item no merged pull request names. Other sections are allowed.
 
 ```json
 {
@@ -158,6 +159,15 @@ variant whose condition is that kind's path: `realises` and `modules` for a file
       },
       "required": true,
       "rule": "EVERY ARTIFACT NAMES ITS ORIGIN"
+    },
+    "built_by": {
+      "type": "list",
+      "item": {
+        "type": "sha",
+        "digits": 40
+      },
+      "required": false,
+      "rule": "PROGRESS AND JOB STATE ARE DERIVED, NOT STORED"
     }
   },
   "title": "# {id} {title}",

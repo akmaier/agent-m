@@ -20,6 +20,9 @@ tests:
   - component
 origin:
   - UC-037 step 7
+built_by:
+  - db7e2551b2c985cd013b7e9b1cb73169010faad9
+  - 88148a892d7ec9d3b4a213d57a48f5c3b1abc010
 ---
 # ITM-430 The Bridge answers the mail routes
 
@@ -50,4 +53,4 @@ This item is built: commit `88148a89` ("Team2 sprint46 ITM-430 compose mail hand
 format in which a merge names its item. So MOD-work-plans' reading of the pull requests still shows it open. The gap analysis
 of UC-036 to UC-049 found its code and tests on `main`.
 
-**Done (sprint team2/98, po-opus-b):** read against its Acceptance on `main` at `3436203a`: `tests/mod-desktop-shell-mail-composition.test.mjs` and `tests/system-uc-037-connect-mailbox.test.mjs` pass on `main`; built by `88148a89`. No pull request names it, since it predates the pull-request flow or was built by another item. No code changes.
+**Done (sprint team2/98, po-opus-b):** read against its Acceptance on `main` at `3436203a`: `tests/mod-desktop-shell-mail-composition.test.mjs` (TST-430001, TST-430002) carries it and passes on `main`; built by `88148a89`. No pull request names it, since it predates the pull-request flow or was built by another item. No code changes.

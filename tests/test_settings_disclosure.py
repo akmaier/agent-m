@@ -8,15 +8,14 @@ import re
 import unittest
 from pathlib import Path
 
-from jsrun import ASSETS, SRC, js
+from jsrun import SRC, js
 from settings_pages_page import live
 
 
 def dashboard_text(shell: bool = True) -> str:
-    """The settings page files: the shell, src/site-frame/dashboard-app.mjs, and every view and settings section under
-    docs/assets/dashboard/; `shell=False`: the views alone."""
-    views = sorted((ASSETS / "dashboard").rglob("*.mjs"))
-    return "\n".join(f.read_text(encoding="utf-8") for f in ([SRC / "site-frame" / "dashboard-app.mjs"] if shell else []) + views)
+    """The settings page files outside MOD-settings-pages' routes: the shell, src/site-frame/dashboard-app.mjs; `shell=False`:
+    none, since no view or settings section of the shell is a file of its own."""
+    return "\n".join(f.read_text(encoding="utf-8") for f in ([SRC / "site-frame" / "dashboard-app.mjs"] if shell else []))
 
 
 def mailbox_text() -> str:

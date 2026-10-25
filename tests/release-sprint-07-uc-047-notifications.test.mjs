@@ -16,7 +16,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { gitBlobSha } from "../docs/assets/review-core.mjs";
+import { blobSha } from "../src/text-tools/index.mjs";
 import { repoServer, openDashboard, press, settle, REPO, TOKEN } from "./app-harness.mjs";
 
 const PREFIX = `agent-m:${REPO}:`; // MOD-browser-store's own prefix of the instance (store.mjs prefixOf)
@@ -166,7 +166,7 @@ test("NOTIFICATIONS ARE SWITCHED ON BY THE PERSON — no page asks before the cl
 test("STATUS IS DERIVED FROM THE RECORDS — accepted while the blob matches the record, waiting once it does not", async () => {
   const path = "docs/use-cases/UC-710-sample.md";
   const text1 = "# UC-710 v1\n";
-  const blob1 = await gitBlobSha(text1);
+  const blob1 = await blobSha(text1);
   const server = await repoServer({
     files: { [path]: text1, [`docs/approvals/UC-710-${blob1.slice(0, 12)}.md`]: `kind: use-case\nblob: ${blob1}\n` }, handlers: [emptyTags],
   });

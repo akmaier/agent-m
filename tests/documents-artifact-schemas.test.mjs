@@ -95,3 +95,19 @@ test("artifactSchemas().item — this repository's backlog items are read with t
     assert.ok(Array.isArray(doc.fields.builds_on), path);
   }
 });
+
+// TST-8108 · level: unit · module: MOD-documents
+// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; THE BACKLOG LIVES IN THE PRODUCT REPOSITORY
+// given: known positive first — the fixture item, complete, without built_by —; then with `built_by` naming one commit of 40 lowercase hexadecimal digits, after `origin`; then naming a short form `43347a8a`, and the word `main`
+// input: documentFindings(artifactSchemas().item, the item read at docs/backlog/ITM-007-store-the-drafts.md), and the item's fields.built_by as read
+// expect: no finding without built_by and none with the full commit, which is read as a list of that one commit; for the short form and for the word, one finding each, under PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+test("artifactSchemas().item — built_by names commits of 40 hexadecimal digits, and nothing else", () => {
+  const backlog = "docs/backlog/ITM-007-store-the-drafts.md";
+  const sha = "0123456789abcdef0123456789abcdef01234567";
+  const withBuiltBy = (values) => itemText().replace("---\n# ITM-007", `built_by:\n${values.map((v) => `  - ${v}`).join("\n")}\n---\n# ITM-007`);
+  assert.deepEqual(rulesAt(backlog, itemText()), []);
+  assert.deepEqual(rulesAt(backlog, withBuiltBy([sha])), []);
+  assert.deepEqual(readDocument(artifactSchemas().item, backlog, withBuiltBy([sha])).fields.built_by, [sha]);
+  assert.deepEqual(rulesAt(backlog, withBuiltBy(["43347a8a"])), ["PROGRESS AND JOB STATE ARE DERIVED, NOT STORED"]);
+  assert.deepEqual(rulesAt(backlog, withBuiltBy(["main"])), ["PROGRESS AND JOB STATE ARE DERIVED, NOT STORED"]);
+});

@@ -327,6 +327,36 @@ test("productFacts, scope work — held asks containsCommit for exactly the head
   assert.deepEqual(heldB.map((h) => h.item), ["ITM-001", "ITM-004"]);
 });
 
+// ---------------------------------------------------------------- built by
+
+const B1 = "b1".repeat(20), B2 = "b2".repeat(20);
+// The fixture product, with ITM-001 built by B1 and ITM-004 built by B1 and B2 — no pull request names either.
+function builtByFiles() {
+  const files = productFiles();
+  const withBuiltBy = (text, commits) => text.replace(/\n---\n# /, `\nbuilt_by:\n${commits.map((c) => `  - ${c}`).join("\n")}\n---\n# `);
+  files["docs/backlog/ITM-001-store.md"] = withBuiltBy(files["docs/backlog/ITM-001-store.md"], [B1]);
+  files["docs/backlog/ITM-004-feed.md"] = withBuiltBy(files["docs/backlog/ITM-004-feed.md"], [B1, B2]);
+  return files;
+}
+
+// TST-8109 · level: unit · module: MOD-progress-measures
+// guards: STATUS IS DERIVED FROM THE RECORDS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-032
+// given: the fixture product with ITM-001 built by B1 and ITM-004 built by B1 and B2, and no pull request at all; a host with server operations, then one without (a clone)
+// input: productFacts(…) with the scopes work, all and build, and the containsCommit calls of the host
+// expect: in every scope no containsCommit call — the records decide, no request is made for them —; ITM-001 and ITM-004 done, each with pullRequest null, and ITM-002, which builds on ITM-001, in progress by its job, not waiting for ITM-001
+test("productFacts — an item's built_by makes it done with no request", async () => {
+  for (const serverOperations of [true, false]) {
+    for (const scope of ["work", "all", "build"]) {
+      const f = fixture({ files: builtByFiles(), pullRequests: [], serverOperations });
+      const { plan } = await productFacts(f.host, f.instance, f.instanceAt, NOW, { scope });
+      const at = `server operations ${serverOperations}, ${scope}`;
+      assert.deepEqual(f.calls.filter((c) => c[0] === "containsCommit"), [], at);
+      assert.deepEqual(plan.states.filter((s) => s.state === "done").map((s) => [s.item, s.pullRequest]), [["ITM-001", null], ["ITM-004", null]], at);
+      assert.equal(plan.states.find((s) => s.item === "ITM-002").state, "in progress", at);
+    }
+  }
+});
+
 // ---------------------------------------------------------------- once
 
 // TST-536008 · level: unit · module: MOD-progress-measures

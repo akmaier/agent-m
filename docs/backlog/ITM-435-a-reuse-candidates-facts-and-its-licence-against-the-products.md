@@ -15,6 +15,9 @@ tests:
   - unit
 origin:
   - UC-022 step 7, 7a, 7b, 7c, 7d
+built_by:
+  - 2bc299c5c22833c2b3fc30e6ff47950b48e5f323
+  - e64190f8e3e8eda02790ac8440d26da07bcd7cfc
 ---
 # ITM-435 A reuse candidate's facts, and its licence against the product's
 

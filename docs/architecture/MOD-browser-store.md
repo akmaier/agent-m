@@ -52,8 +52,9 @@ browser; reading an export runs in Node as well, so that the Bridge can take ove
 - `export.mjs` — the export file, plain or locked, and its import.
 - `sign-in.mjs` — the keys Microsoft's sign-in library writes for one mailbox connection (`mailbox-sign-in`), found,
   cleared and carried in an export under the library's own names.
+- `legacy-keys.mjs` — the entries an earlier dashboard kept in this browser under the prefix `agent-m.`, moved once into
+  the instance's keys.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `docs/assets/settings-store.mjs`, `docs/assets/product-store-adapter.mjs`: removed once the live app and the main page call this module; the adapter only translates the old store's calls to it.
   - `tests/test_clear_removes_storage.py`, `tests/test_config_client_side.py`, `tests/test_no_config_cookie.py`, `tests/release-sprint-02-d-settings-store.test.mjs`, `tests/review-core.d/settings-store.test.mjs`, `tests/dashboard-product-store-migration.test.mjs`, `tests/test_products_folder.py`: their headers name this module; a test of only the old store is rewritten on this module or goes with it.
 
 ## Data
@@ -106,7 +107,11 @@ it the file cannot be read, and the passphrase cannot be recovered.
 - `ExportFile` — the export file as defined under Data.
 - `StoreError` — `StorageUnavailable` (the browser refuses `localStorage`, for example in a private window),
   `UnknownSetting { key }`, `NotAnExport`, `WrongPassphrase`.
-- `openStore(instance: string) -> Store` — the store for the instance `owner/repository`. Throws `StorageUnavailable`.
+- `openStore(instance: string) -> Store` — the store for the instance `owner/repository`. The entries an earlier dashboard
+  kept in this browser under the prefix `agent-m.` — the GitHub token with its expiry and last test, each product's own
+  token, the products, the jump host without key files, each remote session without a Bridge port — are first moved into
+  the instance's keys; an old entry is removed once what it holds stands there, and a value the instance keeps already is
+  never replaced. Throws `StorageUnavailable`.
 - `readSetting(store: Store, key: SettingKey) -> unknown | null` — the value, or `null` when it is not set.
 - `writeSetting(store: Store, key: SettingKey, value: unknown) -> void` — stores a value under a key of the catalogue.
   Throws `UnknownSetting` for any other key and `StorageUnavailable`. It sets no cookie and puts nothing into an address.

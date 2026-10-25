@@ -67,6 +67,7 @@ uses:
   - MOD-run-planner.raiseLimits
   - MOD-run-planner.finishRun
   - MOD-trace-graph.storedGraph
+  - MOD-trace-graph.latestGraph
   - MOD-trace-graph.moduleRows
   - MOD-run-planner.runStrategies
   - MOD-progress-measures.productFacts
@@ -122,9 +123,7 @@ It runs in a browser, loaded by `docs/index.html` through MOD-site-frame.
 - `run.mjs` — a run over a selection.
 - `progress.mjs` — progress in the model's measure, gates, what is blocked, who works on what.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `docs/assets/dashboard/backlog-view.mjs`: removed once this module's route `backlog` is built and the live app shows it.
-  - `docs/assets/dashboard/process-view.mjs`, `docs/assets/dashboard/roles-view.mjs`: removed: the live app shows the routes `process` and `roles` directly.
-  - `tests/dashboard-process-view.test.mjs`, `tests/dashboard-backlog-teams.test.mjs`, `tests/dashboard-backlog-layout.test.mjs`: their headers name this module.
+  - `tests/dashboard-process-view.test.mjs`, `tests/dashboard-backlog-teams.test.mjs`: their headers name this module.
 
 ## Data
 
@@ -249,6 +248,9 @@ product's `docs/sources.md`.
 - MOD-trace-graph.storedGraph, MOD-trace-graph.moduleRows — a finished run's validation, at the commit its end names; the
   architecture's subsystems and modules beside the plan, from the graph of the commit shown. Each graph is asked for
   with its commit, so that the graph `onMainChanged` stored for it is read where there is one (MOD-workflow-entries).
+  MOD-trace-graph.latestGraph — for the plan, while the graph of the commit shown is not stored yet, the graph stored last,
+  with that function's line above the page; the steps, their states and the statuses of the architecture files stay the
+  commit's own.
 - MOD-progress-measures.productFacts, MOD-progress-measures.progressIn, MOD-progress-measures.gateOverview,
   MOD-progress-measures.blocked, MOD-progress-measures.whoWorksOnWhat — the product's facts and its progress.
 - MOD-participant-list.participantSchema, MOD-participant-list.participantsOf, MOD-participant-list.eligible — the

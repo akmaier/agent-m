@@ -4,24 +4,24 @@
 """SPEC §3 A REQUIREMENT NAMES ITS CHECK — the check field names the test that guards the requirement, or
 states explicitly that it is guarded only at review.
 
-The texts are the fixture tests/fixtures/requirements/spec.md, never Agent M's own SPEC; each
-counter-proof replaces the check of a copy of one requirement.
+MOD-spec-document reads the text (parseSpec) and reports its findings (requirementFindings); the findings of
+the named requirement are compared. The texts are the fixture tests/fixtures/requirements/spec.md, never
+Agent M's own SPEC; each counter-proof replaces the check of a copy of one requirement.
 """
-import json
 import unittest
 from pathlib import Path
 
-from jsrun import js
+from artifact_checks import module_call
 
 SPEC = (Path(__file__).resolve().parent / "fixtures" / "requirements" / "spec.md").read_text(encoding="utf-8")
-LINKED = ["SRC-po", "SRC-model-licence", "SRC-iec-62304"]
 RULE = "A REQUIREMENT NAMES ITS CHECK"
 PDF_CHECK = "*Check:* `tests/test_export.py`\n"
 
 
 def findings(text: str, name: str) -> list:
-    return js(f"const r = requirements.parseRequirements({json.dumps(text)}).get({json.dumps(name)});"
-              f"return requirements.requirementProblems(r, {json.dumps(LINKED)});")
+    """Every finding requirementFindings reports for the requirement `name` of the SPEC `text`."""
+    return module_call("return specDocument.requirementFindings(specDocument.parseSpec(D.text))"
+                       ".filter((f) => f.artifact === D.name);", {"text": text, "name": name})
 
 
 def kinds(fs: list) -> list:

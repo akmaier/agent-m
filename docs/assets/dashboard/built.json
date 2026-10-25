@@ -1,7 +1,5 @@
 [
   "how-view.mjs",
   "review-views.mjs",
-  "settings/endpoints.mjs",
-  "settings-view.mjs",
   "spec-changes-view.mjs"
 ]

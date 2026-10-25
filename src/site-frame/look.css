@@ -41,28 +41,52 @@
 
 /* The buttons the pages draw, which every page shares: a button, or a link drawn as one; .primary the one action a page leads
    with, .small an action beside a line of text. */
-.btn, .prompt-bar button { font: inherit; font-size: .9rem; cursor: pointer; border: 1px solid var(--line); background: var(--panel);
+.btn, .prompt-bar button, .arrange button { font: inherit; font-size: .9rem; cursor: pointer; border: 1px solid var(--line); background: var(--panel);
   color: var(--fg); padding: .45rem .8rem; border-radius: 6px; text-decoration: none; display: inline-block; }
-.btn:hover, .prompt-bar button:hover { border-color: var(--accent); }
-.btn.primary, .prompt-bar button.send { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
-.btn.small, .prompt-bar button.clear { font-size: .78rem; padding: .2rem .5rem; }
-.btn:disabled, .prompt-bar button:disabled { opacity: .55; cursor: not-allowed; }
+.btn:hover, .prompt-bar button:hover, .arrange button:hover { border-color: var(--accent); }
+.btn.primary, .prompt-bar button.send, .arrange button.arrange-save { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
+.btn.small, .prompt-bar button.clear, .arrange-tree button, .arrange-add button { font-size: .78rem; padding: .2rem .5rem; }
+.btn:disabled, .prompt-bar button:disabled, .arrange button:disabled { opacity: .55; cursor: not-allowed; }
 /* The fields the pages share: the product selector in the header, the main page's job filters and retry choices, and the fields above the Requirements page's tree. */
-.product select, select.product, select.filter, .job-retry select, .spec-narrow input, .spec-narrow select, .version-bar select { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: .3rem .4rem; max-width: 22rem; }
+.product select, select.product, select.filter, .job-retry select, .spec-narrow input, .spec-narrow select, .version-bar select, .arrange input, .arrange select { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: .3rem .4rem; max-width: 22rem; }
 /* A button, or a link drawn as one, and the text beside it on the same line stand apart by a visible gap, however the view wrote them. */
 button, .btn { margin-inline: .35em; }
 
+/* The arrange page (review-pages/arrange.mjs): the tree beside its pending changes, each group a box with its members indented, each line's
+   controls on one row that wraps. */
+.arrange { display: grid; grid-template-columns: minmax(0, 1fr) minmax(14rem, 20rem); gap: 1.25rem; align-items: start; margin-block: .75rem; }
+@media (max-width: 760px) { .arrange { grid-template-columns: minmax(0, 1fr); } }
+.arrange-tree, .arrange-tree ul { list-style: none; margin: 0; padding: 0; }
+.arrange-tree ul { margin-inline-start: .9rem; padding-inline-start: .75rem; border-inline-start: 2px solid var(--line); }
+.arrange-group { margin-block: .5rem; }
+.arrange-group > .title { font-weight: 600; margin-inline-end: .25rem; }
+.arrange-group, .arrange-item { padding-block: .2rem; }
+.arrange-item { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; }
+.arrange-item .id { flex: 1 1 12rem; min-width: 0; font-weight: 500; }
+.arrange-item select, .arrange-group > select { flex: 0 1 11rem; width: 11rem; max-width: 100%; }
+.arrange-group > .arrange-rename { width: 12rem; }
+.arrange-item .mark { color: var(--muted); font-size: .85em; }
+.arrange input, .arrange select { font-size: .85rem; padding: .2rem .4rem; }
+.arrange-side { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); padding: .75rem 1rem; }
+.arrange-side h3 { margin-top: 0; }
+.arrange-add { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; margin-block: .75rem; }
+
 /* The requirements tree shares the frame's boxed controls, with room for labels and long requirement text. */
-/* The requirements page's links to other pages are plain links, each a target of at least 24 px. */
-.spec-change-links a { display: inline-flex; align-items: center; min-height: 24px; }
-.spec-narrow, .version-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-block: .75rem; }
+/* The requirements page's links to other pages (trace-pages/flow.mjs reviewLink, and Gaps or Specification) are plain links, each a target of at least 24 px. */
+:is(.arrange-link, .requirement-edit, .requirement-new, .spec-entries-link, .spec-history-link, .spec-waiting-entry, .trace-gaps-link, .trace-specification-link) { display: inline-flex; align-items: center; min-height: 24px; }
+/* The Requirements page's version choice and the narrowing above its tree: one line that wraps, each field at most its panel wide. */
+.spec-narrow, .version-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; margin: .5rem 0 1rem; }
+.version-bar > :is(p, details) { flex-basis: 100%; margin: 0; }
 .spec-narrow input, .spec-narrow select, .version-bar select.version-choice { box-sizing: border-box; min-width: 0; max-width: 100%; min-height: 24px;
   font: inherit; font-size: .95rem; padding: .45rem .6rem; border: 1px solid var(--line); border-radius: 4px;
   color: var(--fg); background: var(--panel); }
-.spec-narrow-text { flex: 1 1 16rem; }
-.spec-narrow label { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; min-width: 0; max-width: 100%; }
+.spec-narrow .spec-narrow-text { flex: 1 1 16rem; max-width: 28rem; }
+.spec-narrow label { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .4rem; min-width: 0; max-width: 100%; }
 .spec-narrow select { flex: 1 1 auto; }
-.spec-narrow-problem { flex-basis: 100%; }
+.spec-narrow .spec-narrow-problem { flex-basis: 100%; margin: 0; }
+.spec-narrow-source { width: 16rem; }
+/* A group's toggle at the size of its heading. */
+.spec-group-toggle { font-size: inherit; font-weight: 600; margin-inline: 0 .35em; }
 .spec-group { min-width: 0; margin-block: 1rem; }
 .spec-group > h3 { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .5rem; margin: .6rem 0; }
 .spec-group-held, .spec-group-unrealised { color: var(--muted); font-size: .85rem; font-weight: 400; }
@@ -73,10 +97,78 @@ button, .btn { margin-inline: .35em; }
 /* Narrowing and collapsed groups stay hidden even when the phone's table rows become blocks. */
 .current-requirements [hidden] { display: none; }
 
-/* The review frame's accepted status and folded explanations meet the shared WCAG check. */
+/* The parts the routes draw: code, the page's width, a route's heading and its notes, the lists, the panels and steps, rendered
+   Markdown and diagrams, the editor with its preview, a difference, the header's repository, help and product, the notices. */
+code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .88em; }
+code { background: var(--code); padding: .1em .35em; border-radius: 4px; }
+pre { background: var(--code); padding: .8em 1em; border-radius: 6px; overflow-x: auto; }
+pre code { background: none; padding: 0; }
+
+.header-tools .repo { font-size: .82rem; overflow-wrap: anywhere; }
+.header-tools .help { font-size: .88rem; white-space: nowrap; }
+.header-tools .product { display: flex; align-items: center; gap: .4rem; font-size: .85rem; color: var(--muted); align-self: center; }
+
+main { max-width: 1240px; margin: 0 auto; padding: 1.2rem 16px 3rem; }
+.head h2 { margin: .2rem 0 .3rem; display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.meta { color: var(--muted); }
+.warn { color: var(--bad); background: var(--bad-bg); padding: .5rem .75rem; border-radius: 6px; }
+
+.list { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.list th, .list td { text-align: left; padding: .5rem .7rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+.list th { font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.list tr:last-child td { border-bottom: none; }
+.queue { margin: 1.5rem 0; }
+.names { padding-left: 1.1rem; margin: .3rem 0; font-size: .88rem; }
+.names li { margin: .15rem 0; }
+.choices li { margin: .3rem 0; }
+
+/* A status's badge: the class b-<status>; an accepted and a superseded one in colours that meet the shared WCAG check. */
+.badge { display: inline-block; font-size: .75rem; font-weight: 600; padding: .1rem .5rem; border-radius: 999px; white-space: nowrap; }
+.b-open { color: var(--open); background: var(--open-bg); }
+.b-applied { color: var(--ok); background: var(--ok-bg); }
+.b-approved, .b-changed { color: var(--warn); background: var(--warn-bg); }
+.b-stale { color: var(--bad); background: var(--bad-bg); }
 body .b-accepted { color: #155724; background: #d4edda; }
 body .b-superseded { color: #5c4300; background: #fff3cd; }
-body details.explain > summary { display: inline-flex; align-items: center; min-height: 24px; }
+
+.cols { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 1.2rem; align-items: start; }
+.side { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.side h3 { margin: .2rem 0 .4rem; font-size: .95rem; color: var(--muted); }
+@media (max-width: 900px) { .cols, .side { grid-template-columns: 1fr; } }
+
+.panel, .step { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 1rem 1.2rem; margin: 1rem 0; }
+.panel h3, .step h3 { margin: 0 0 .5rem; font-size: 1rem; }
+.accept, .setup-banner { border-color: var(--accent); }
+.notice { border-color: var(--warn); background: var(--warn-bg); }
+p.notice { border: 1px solid var(--warn); background: var(--warn-bg); padding: .6rem .8rem; border-radius: 6px; }
+.banner-slot { max-width: 1240px; margin: 0 auto; padding: 0 16px; }
+.banner-slot:empty { display: none; }
+
+/* A folded explanation; its summary a target of at least 24 px. */
+details.explain { margin-top: .6rem; font-size: .9rem; }
+body details.explain > summary { display: inline-flex; align-items: center; min-height: 24px; cursor: pointer; color: var(--accent); }
+details.explain > div { margin-top: .5rem; padding: .6rem .8rem; background: var(--code); border-radius: 6px; }
+
+.md h1 { font-size: 1.4rem; }
+.md h2 { font-size: 1.15rem; margin-top: 1.4rem; }
+.md table { border-collapse: collapse; }
+.md td, .md th { border: 1px solid var(--line); padding: .3rem .5rem; }
+.mermaid { background: var(--panel); text-align: center; margin: 1rem 0; overflow-x: auto; }
+.mermaid svg { max-width: 100%; height: auto; }
+.record { font-size: .8rem; white-space: pre-wrap; word-break: break-all; }
+
+.editor { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.editor textarea { width: 100%; min-height: 520px; font-family: ui-monospace, Menlo, monospace; font-size: .82rem;
+  background: var(--code); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: .7rem; }
+.editor .preview { max-height: 560px; overflow: auto; border: 1px dashed var(--line); border-radius: 6px; padding: .5rem .9rem; }
+@media (max-width: 900px) { .editor { grid-template-columns: 1fr; } }
+
+.diff { white-space: pre-wrap; font-size: .8rem; }
+.diff span { display: block; }
+.dadd { background: var(--add); }
+.ddel { background: var(--del); text-decoration: line-through; opacity: .85; }
+.accepted-diff { border-color: var(--warn); }
+.accepted-diff .diff { max-height: 420px; overflow: auto; }
 
 @media (max-width: 599px) {
   .table-scroll { overflow-x: visible; }
@@ -92,10 +184,13 @@ body details.explain > summary { display: inline-flex; align-items: center; min-
 }
 
 /* The prompt bar, fixed to the bottom of the window on every page (its root carries the position): a panel above the page, with the
-   frame's fields and buttons. */
+   frame's fields and buttons. However high the person sets it, the field and the buttons stay in view; the conversation scrolls. */
 .prompt-bar { box-sizing: border-box; z-index: 20; background: var(--panel); color: var(--fg); border-top: 1px solid var(--line);
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, .08); padding: .6rem 16px; display: grid; gap: .45rem; max-height: 55vh; overflow-y: auto; }
-.prompt-bar > * { margin: 0; }
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, .08); padding: .6rem 16px; display: flex; flex-direction: column; gap: .45rem; max-height: 55vh; overflow-y: hidden; }
+.prompt-bar > * { margin: 0; flex: none; }
+.prompt-bar .bar-grip { height: 10px; margin: -.6rem -16px 0; cursor: ns-resize; touch-action: none; display: flex; justify-content: center; align-items: center; }
+.prompt-bar .bar-grip::before { content: ""; width: 3rem; height: 4px; border-radius: 2px; background: var(--line); }
+.prompt-bar .bar-grip:hover::before, .prompt-bar .bar-grip:focus-visible::before { background: var(--accent); }
 .prompt-bar .chooser { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
 .prompt-bar select.participant, .prompt-bar textarea.instruction { box-sizing: border-box; font: inherit; color: var(--fg); background: var(--panel);
   border: 1px solid var(--line); border-radius: 6px; padding: .45rem .6rem; max-width: 100%; }
@@ -103,5 +198,5 @@ body details.explain > summary { display: inline-flex; align-items: center; min-
 .prompt-bar .bar-foot { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: .5rem 1rem; }
 .prompt-bar .bar-notes { flex: 1 1 20rem; min-width: 0; color: var(--muted); font-size: .8rem; }
 .prompt-bar .buttons { display: flex; gap: .5rem; justify-content: flex-end; margin-left: auto; }
-.prompt-bar .conversation { list-style: none; padding: 0; display: grid; gap: .35rem; }
+.prompt-bar .conversation { list-style: none; padding: 0; display: grid; align-content: start; gap: .35rem; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 .prompt-bar .conversation:empty, .prompt-bar .status:empty { display: none; }

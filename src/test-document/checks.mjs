@@ -5,9 +5,8 @@
 //
 // Pure: it reads only the declaration it is given, keeps nothing, performs no input or output. Each finding is an error, made
 // with MOD-text-tools' finding; it names the declaration by its identifier and the line of its first line, and says in one
-// line what is wrong and what correction is expected. The reading of the level and of what a test guards follows
-// docs/assets/artifacts/headers.mjs (levelProblems) and docs/assets/artifacts/identity.mjs (originProblems), which check the
-// test files of the earlier form. Where the module file leaves a reading open, this file states the reading it takes:
+// line what is wrong and what correction is expected. Where the module file leaves a reading open, this file states the
+// reading it takes:
 //
 //   - A key that testDeclarations reads as null, and one with nothing after its colon, which it reads as an empty text, are
 //     both missing.

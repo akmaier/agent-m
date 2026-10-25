@@ -138,3 +138,27 @@ test("TST-878005 with an overview stored for the commit, the page lists the wait
   assert.equal([...without.productHost.log.reads, ...without.productHost.log.manys.flat()].some((path) => path.startsWith(decided)), true,
     "counter-proof: without an overview the decided queue is read");
 });
+
+// TST-878006 · level: unit · module: MOD-trace-pages
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; OPEN PROPOSALS ARE SHOWN IN THE BROWSER; UC-006
+// given: the default branch of TST-878001, whose overview is not stored yet — the minutes after a push —, and whose branch overview-cache holds latest.json naming an earlier commit and that commit's overview, its queues the open queue alone
+// input: the specification view drawn at main
+// expect: the open entry is linked as in TST-878001; the head's overview, latest.json and the earlier overview are read; no file of the decided queue's folder is read or named to readMany (the counter-proof of TST-878005: without any overview it is)
+test("TST-878006 while the head's overview is not stored, the page lists the waiting entries from the overview stored last and reads no queue", async () => {
+  const { queues } = await import("../src/spec-changes/index.mjs");
+  const decided = `docs/spec-freigaben/${DONE}/`, earlier = "e".repeat(40);
+  const open = (await queues(await treeHost({ trees: { main: withOpen } }).readSnapshot("main"))).filter((each) => each.folder.endsWith(OPEN));
+  const overview = JSON.stringify({ commit: earlier, shares: [], waiting: [], model: null, build: { states: [], records: [] }, queues: open });
+  const stored = { "latest.json": JSON.stringify({ commit: earlier }), [`${earlier}.json`]: overview };
+  const asked = [];
+  const host = treeHost({ trees: { main: withOpen } });
+  const productHost = { ...host, async readSnapshot(ref) {
+    return { ...(await host.readSnapshot(ref)), commit: ref, readOn: async (branch, path) => { asked.push([branch, path]); return branch === "overview-cache" ? stored[path] ?? null : null; } };
+  } };
+  const target = document.createElement("div");
+  document.body.append(target);
+  await route.render(target, { product: { host: productHost } }, { key: "specification", ref: "main" });
+  assert.deepEqual(hrefs(waitingSection(target)), [`#spec-entry/id=spec-${OPEN}-01`]);
+  assert.deepEqual(asked.filter(([branch]) => branch === "overview-cache").map(([, path]) => path).sort(), ["latest.json", "main.json", `${earlier}.json`].sort());
+  assert.deepEqual([...host.log.reads, ...host.log.manys.flat()].filter((path) => path.startsWith(decided)), []);
+});

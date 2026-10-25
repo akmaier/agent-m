@@ -61,8 +61,9 @@ async function render(productHost, params = mainParams) {
   return target;
 }
 const hasClass = (node, name) => node.className.split(/\s+/).includes(name);
+// A row's name is its button's text, or, for a row without one, the first text of its first cell: the cell of a requirement no group names also holds the mark *not yet placed* (UC-021 3b).
 const rowsOf = (root) => find(root, (node) => node.localName === "tr" && find(node, (cell) => hasClass(cell, "requirement-status")).length === 1)
-  .map((row) => [find(row, (node) => node.localName === "button" && hasClass(node, "requirement-name"))[0]?.textContent ?? row.firstChild.textContent,
+  .map((row) => [find(row, (node) => node.localName === "button" && hasClass(node, "requirement-name"))[0]?.textContent ?? row.firstChild.firstChild.textContent,
     find(row, (node) => hasClass(node, "requirement-status"))[0].textContent]);
 const groups = (root) => find(root, (node) => node.localName === "section" && hasClass(node, "spec-group"));
 const titleOf = (group) => find(group, (node) => node.localName === "button" && hasClass(node, "spec-group-toggle"))[0].textContent;

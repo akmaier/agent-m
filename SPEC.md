@@ -1686,10 +1686,11 @@ product's other teams.
 that each team plans, starts and closes its sprints without affecting the other teams' sprints.
 
 **A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH** *(PO A. Maier)*
-An item selected for a team's sprint is held by that sprint until its change is merged into the default branch or the
-item returns to the backlog.
-*Check:* `tests/test_parallel_sprints.py` — follows held items through their sprint's close and the merges into the
-default branch. It checks that an item stays held until its change is merged there or it returns to the backlog.
+An item selected for a team's sprint is held by that sprint until its change is merged into the default branch, the
+item returns to the backlog, or the Product Owner gives up the sprint's increment.
+*Check:* `tests/test_parallel_sprints.py` — follows held items through their sprint's close, the merges into the
+default branch and an increment given up. It checks that an item stays held until its change is merged there, it
+returns to the backlog or its increment is given up.
 
 **SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES** *(PO A. Maier)*
 Of two items held by sprints of different teams, neither changes a module that the other changes or uses through the
@@ -1743,6 +1744,15 @@ the path of the chapter's file in that checkout, whose SHA-256 is the one the so
 *Check:* `tests/test_job_reading.py` — builds the input of each kind of job for a participant that works in a fixture
 checkout of the instance, and reads the files the input names there. It checks that each chapter is given by the path
 of its file and none by its text, and that a chapter file whose SHA-256 differs from the register's is refused by name.
+
+**EVERY MODEL READS AGENT M'S AGENTS.MD FIRST** *(PO A. Maier)*
+The input Agent M sends to a language model — with a job, or with a message of the prompt bar — begins with Agent M's
+own `AGENTS.md`, the one at the root of the instance repository, in full, whatever repository the job or the page works
+on; for a participant that works in a checkout of the instance, it begins with the file's path there.
+*Check:* `tests/test_job_reading.py` — builds the input of each kind of job and of a message of the prompt bar for a
+fixture instance and a fixture product, in the browser and in a checkout of the instance. It checks that each input
+begins with the instance's `AGENTS.md`, as its text or as its path in the checkout; counter-proof: an input that leaves
+it out, puts it later, or gives the product's file in its place fails.
 
 **A JOB STOPS AT EVERY GATE** *(PO A. Maier; Vibe Coding, ch. 11 §8)*
 A job that reaches a gate of the product's workflow waits in the state *waiting at a gate* until the

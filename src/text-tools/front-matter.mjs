@@ -7,8 +7,7 @@
 // on its line holds that value as text, trimmed; a key with nothing after its colon, or with `[]`, holds a list, whose items
 // are the following lines of the form `  - item`. There is no nesting, no quoting and no other syntax: a line of another form
 // between the two `---` lines is not read. A text without the opening line has no front matter, and all of it is body; so is
-// a text whose closing line is missing. Reading is modelled on parseFrontMatter of docs/assets/artifacts.mjs, which reads the
-// same block.
+// a text whose closing line is missing.
 
 const DELIMITER = "---";
 const KEY = /^[a-z][a-z0-9_-]*$/;

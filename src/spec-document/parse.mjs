@@ -6,8 +6,7 @@
 //
 // Pure: it reads only the text it is given, keeps nothing, performs no input or output, and never throws on content. What a
 // requirement constrains is not read here, since no line of a SPEC states it: it follows from the SPEC the caller read — the
-// instance's own SPEC holds the requirements on the development process, a product's SPEC those on the product. The reading
-// of head lines follows docs/assets/artifacts/requirements.mjs (parseRequirements), which reads the SPEC's earlier form.
+// instance's own SPEC holds the requirements on the development process, a product's SPEC those on the product.
 
 // Headings, outside a fenced code block: one of level one before the first section is the title, one of level two begins a
 // section, and any heading ends a requirement.

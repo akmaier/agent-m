@@ -122,7 +122,8 @@ uses neither the frame nor a view (`MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE
 
 **The conversation** is held in the browser tab, through MOD-browser-store's tab values, so that it goes on when the
 person moves between the main page and the review pages in the same tab and ends with the tab. It holds the messages, the
-participant talked to, the latest draft and the job handed over while it runs. Nothing of it is written to a repository
+participant talked to, the latest draft, the job handed over while it runs, and the height the person set with the
+bar's grip. Nothing of it is written to a repository
 unless recording is on, and nothing of it is kept in `localStorage` or exported with the settings. It holds no state of a
 job: while a message runs, the job is this tab's running job; a handed-over job's state is derived from its record and
 its runtime (`PROGRESS AND JOB STATE ARE DERIVED, NOT STORED`).
@@ -210,7 +211,9 @@ IN THE REPOSITORY`).
   a hand-over is; nothing is sent from the tab. For every other one it reads *Send*. On *Send* — the decision to
   send — it asks the subject for the kind and the parameters, adds the person's words as `instruction`, the conversation
   so far as `conversation`, the subject's `entry` as `entry` and its `refuses` as `refuses`, prepares the job with
-  MOD-job-runner's `prepareJob` in a context from MOD-runtimes' `tabContext`, and sends nothing while the job does not
+  MOD-job-runner's `prepareJob` in a context from MOD-runtimes' `tabContext` — so that the message reaches the participant
+after Agent M's `AGENTS.md`, as MOD-job-runner composes every input (`EVERY MODEL READS AGENT M'S AGENTS.MD FIRST`) —,
+and sends nothing while the job does not
   fit or a finding keeps it from starting, naming what (UC-049 3a, UC-019 4a, 4b): for a participant the job does not
   fit, it names the participant, how many requirements and use cases the job holds for it and how many of them fit, from
   the `holds` and `fitting` of that `notFitting` entry, and the tokens of its context against the job's size. It names
@@ -230,20 +233,26 @@ IN THE REPOSITORY`).
   job's record (`A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON`); where the subject finds no own
   source of the person, `paramsFor` refuses by name, `NoPersonSource`, and so does the hand-over, with nothing queued
   (`THE PERSON WHO PROMPTS IS A SOURCE`). For a kind of the product's workflow, it is queued only for a participant of
-  the instance's list that the hand-over names, never for the endpoint or CLI session itself, and only when
+  the instance's list that the hand-over names, never for the endpoint or CLI session itself, and, for a hand-over that
+  works on an item of the backlog or a step of the plan (`ITM-<n>`), only when
   MOD-work-plans' `startable`, on the item states `itemStates` derives from the facts MOD-progress-measures'
   `productFacts` reads, finds no reason — not selected for its team's sprint, a requirement or use case not accepted,
   the work-in-progress limit, a gate not recorded — and MOD-product-process' `holdsRole` finds that participant in the
   implementing role of the item's role assignment; otherwise the reasons are shown and nothing is queued (`NOTHING IS
-  IMPLEMENTED BEFORE IT IS ACCEPTED`, `A JOB GOES ONLY TO A HOLDER OF ITS ROLE`). It queues and starts the job with
+  IMPLEMENTED BEFORE IT IS ACCEPTED`, `A JOB GOES ONLY TO A HOLDER OF ITS ROLE`). It reads those facts only for such a
+  hand-over; for one that works on no item or step — a job that is an endpoint's own among them —, no start rule applies,
+  its job's own preconditions decide when it is prepared, and of the product it reads only the default branch: its head,
+  on which the job's record is committed, its paths — whether it holds the job workflow, and the records under
+  `docs/jobs/`, against whose identifiers the job's identifier is new, without reading a record — and its visibility,
+  for `routesFor`. It queues and starts the job with
   MOD-runtimes' `handOverJob` — for a job that is the endpoint's own, with a start whose `participant` and `model` name
   the endpoint, whose destinations name its place, and whose `declares` holds its context and capabilities
   (MOD-job-ledger) —, then follows it by its record and
   `liveState` until it has ended — *waiting for GitHub Actions* with the run's address, or for the Bridge —, and shows
   its log's answer and the commits its end record names; *Stop* then cancels it with `cancelJob`. It says above the
   selector when the conversation is recorded (UC-049 6c). Crosses the network: to the participant through its route, and
-  to the repository servers to read the subject, the participants, the facts and the switch, to append the record, and
-  to queue and start a hand-over. A failure of the participant's route is shown in the conversation by name. A hand-over
+  to the repository servers to read the subject, the participants, the switch and, for a hand-over that works on an
+  item or step, the facts, to append the record, and to queue and start a hand-over. A failure of the participant's route is shown in the conversation by name. A hand-over
   the product cannot take yet says what is missing and links where it is set up (UC-049 4c): while the product has no
   job workflow — the CI route unavailable, `routesFor` naming its files — the route `settings` through `go`, whose
   product section installs it; for a run ended `not run` for a missing secret, the server's page of the repository's
@@ -258,11 +267,15 @@ IN THE REPOSITORY`).
   one that lacks nothing; the settings page names the rest where the endpoint is configured.
 - `endpointsOffered(store: Store) -> Participant[]` — this browser's endpoints the bar offers, as `startPromptBar` builds
   them; for the settings page's test job of an endpoint.
-- `spawnEndpointJob({ kind, task, participant, store, instance, page, ofProduct, conversation, source }) -> Promise<{ id,
-  path, commit, person } | { refused: string, needsWorkflow: boolean }>` — the job that is an endpoint's own, on GitHub
-  Actions, on a person's click: assessed and queued as a proposed hand-over is, working on the repository of `page`,
-  with `task` travelling in the workflow's inputs, on the server's own runners; where no CI route can be taken — no job
-  workflow, or an endpoint naming no CI secret — nothing is written and `refused` says why.
+- `spawnEndpointJob({ kind, task, participant, store, instance, page, ofProduct, conversation, source, instanceSnapshot?
+  }) -> Promise<{ id, path, commit, person } | { refused: string, needsWorkflow: boolean }>` — the job that is an
+  endpoint's own, on GitHub Actions, on a person's click: assessed and queued as a proposed hand-over is, working on the
+  repository of `page`, with `task` travelling in the workflow's inputs, on the server's own runners. It works on no item
+  or step of the plan, so it reads none of the product's facts: of the product, its default branch — its head, its
+  paths, its visibility —, and of the instance its participant list and the restricted sources' places, which the job's
+  preparation takes; `instanceSnapshot` is the instance's default branch where the bar read it already, for the
+  recording switch, so that it is not read again. Where no CI route can be taken — no job workflow, or an endpoint
+  naming no CI secret — nothing is written and `refused` says why.
 - `followJob({ id, address, host, store, show }) -> { stop, cancel }` — a handed-over job followed every 15 seconds until
   its record has its end, `show` given its state, its run's address, its end and, for a run on CI, the answer the run
   left in its log between `--- answer of <id> ---` and `--- end of the answer of <id> ---` (MOD-workflow-entries), read

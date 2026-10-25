@@ -860,6 +860,25 @@ test("UC-001 4 — repositoryInfo: default branch, visibility, whether the token
   assert.equal((await info(fakeGitLab({ visibility: "public" }), {}, GITLAB)).canWrite, false, "without a token");
 });
 
+// UC-001 4 · A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN — level: unit · module: MOD-repository-hosts
+// given: a GitLab address whose server answers "Get a single project" with 200 and a body that reports neither a visibility nor a
+//   default branch — an empty object, an object of other keys, null —; known positive: a project that reports its visibility and
+//   no branch yet (an empty project)
+// input: repositoryInfo of each, with the project token
+// expect: each of the three fails as HostError Unreachable whose reason is "gitlab.example.org did not answer as a GitLab server";
+//   the empty project is reachable, with defaultBranch null and its visibility
+test("UC-001 4 — repositoryInfo: a server whose answer reports neither a visibility nor a default branch did not answer as a GitLab server", async () => {
+  const answer = (body) => async () => json(200, body);
+  const empty = await using(answer({ path_with_namespace: "grp/sub/thesis-tool", visibility: "private", default_branch: null }),
+    () => connect(GITLAB, { token: GL_TOKEN }).repositoryInfo());
+  assert.deepEqual([empty.defaultBranch, empty.visibility], [null, "private"], "known positive: an empty project is reachable");
+  for (const body of [{}, { hello: "world" }, null]) {
+    const e = await using(answer(body), () => failure(connect(GITLAB, { token: GL_TOKEN }).repositoryInfo()));
+    assert.ok(e instanceof HostError, JSON.stringify(body));
+    assert.deepEqual([e.name, e.reason], ["Unreachable", "gitlab.example.org did not answer as a GitLab server"], JSON.stringify(body));
+  }
+});
+
 // UC-001 4–5 · GITLAB PRODUCTS ARE SUPPORTED — Expected, on GitHub and on a GitLab server: a snapshot is the repository at one
 // commit — the branch is resolved once, and the tree and every file are read at that commit, never by the branch's name, so that
 // a commit pushed after the snapshot changes nothing it reads; it lists every file of that commit — on GitLab across the pages of

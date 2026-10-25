@@ -28,7 +28,7 @@ import { repoServer, openDashboard, REPO, unesc } from "./app-harness.mjs";
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 const inMain = (selector) => globalThis.document.getElementById("main").querySelector(selector);
-// The style sheets the review page links, as paths of the repository — the site's src/theme/lme.css and docs/assets/style.css.
+// The style sheets the review page links, as paths of the repository — the site's src/theme/lme.css and src/site-frame/look.css.
 const linkedSheets = () => [...read("docs/index.html").matchAll(/<link rel="stylesheet" href="([^"]+)">/g)]
   .map(([, href]) => normalize(join("docs", href)));
 
@@ -337,7 +337,7 @@ test("#backlog — Plan sprint lists every item the other teams' sprints hold, w
 // input: open #backlog, click Plan sprint for team2
 // expect: the title in a section.head, every button a btn and every folded explanation a details.explain; the page holds
 //         no style attribute, none of the old board's classes, and no class the style sheets the review page links — the
-//         site's and docs/assets/style.css, the one of #uc and #arc — do not define, but for the language of the burn-down's
+//         site's src/theme/lme.css and src/site-frame/look.css, those of #uc and #arc — do not define, but for the language of the burn-down's
 //         diagram, which the Markdown renderer marks for Mermaid as it does on #uc and #arc; every panel explains itself
 test("#backlog — the page is laid out as #uc and #arc are: panels, list tables, buttons and badges, no style of its own", async () => {
   const { page } = await backlogPage();

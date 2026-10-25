@@ -34,18 +34,17 @@ jobs:
       - name: Read the level of each test file
         run: |
           cat > "$RUNNER_TEMP/level.mjs" <<'JS'
-          // A test's level is read as the repository reads it: the Level: line among a file's first 20 lines (headerTags of
-          // docs/assets/artifacts/headers.mjs); a file without one, by the one level of its cases' declarations (testDeclarations
-          // of MOD-test-document). Selects release, rest or all, then partitions that sorted list across independent shards.
+          // A test's level is read as the repository reads it: the Level: line of its header (testHeader of MOD-test-document); a
+          // file without one, by the one level of its cases' declarations (testDeclarations of MOD-test-document).
+          // Selects release, rest or all, then partitions that sorted list across independent shards.
           import { readFileSync } from "node:fs";
           import { pathToFileURL } from "node:url";
           const root = pathToFileURL(process.cwd() + "/").href;
-          const { headerTags } = await import(root + "docs/assets/artifacts/headers.mjs");
-          const { testDeclarations } = await import(root + "src/test-document/index.mjs");
+          const { testHeader, testDeclarations } = await import(root + "src/test-document/index.mjs");
           const [mode, shard, count, ...files] = process.argv.slice(2);
           const level = (f) => {
             const text = readFileSync(f, "utf8");
-            const own = headerTags(f, text).level;
+            const own = testHeader(f, text)?.level;
             if (own) return own;
             const levels = new Set(testDeclarations(f, text).map((d) => d.level));
             return levels.size === 1 ? [...levels][0] : null;
@@ -151,18 +150,17 @@ jobs:
       - name: Read the level of each test file
         run: |
           cat > "$RUNNER_TEMP/level.mjs" <<'JS'
-          // A test's level is read as the repository reads it: the Level: line among a file's first 20 lines (headerTags of
-          // docs/assets/artifacts/headers.mjs); a file without one, by the one level of its cases' declarations (testDeclarations
-          // of MOD-test-document). Selects release, rest or all, then partitions that sorted list across independent shards.
+          // A test's level is read as the repository reads it: the Level: line of its header (testHeader of MOD-test-document); a
+          // file without one, by the one level of its cases' declarations (testDeclarations of MOD-test-document).
+          // Selects release, rest or all, then partitions that sorted list across independent shards.
           import { readFileSync } from "node:fs";
           import { pathToFileURL } from "node:url";
           const root = pathToFileURL(process.cwd() + "/").href;
-          const { headerTags } = await import(root + "docs/assets/artifacts/headers.mjs");
-          const { testDeclarations } = await import(root + "src/test-document/index.mjs");
+          const { testHeader, testDeclarations } = await import(root + "src/test-document/index.mjs");
           const [mode, shard, count, ...files] = process.argv.slice(2);
           const level = (f) => {
             const text = readFileSync(f, "utf8");
-            const own = headerTags(f, text).level;
+            const own = testHeader(f, text)?.level;
             if (own) return own;
             const levels = new Set(testDeclarations(f, text).map((d) => d.level));
             return levels.size === 1 ? [...levels][0] : null;

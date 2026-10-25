@@ -38,6 +38,7 @@ uses:
   - MOD-group-document.applyMoves
   - MOD-group-document.hierarchy
   - MOD-trace-graph.storedGraph
+  - MOD-trace-graph.latestGraph
   - MOD-trace-graph.graphFindings
   - MOD-trace-graph.coverageGaps
   - MOD-trace-graph.requirementImpact
@@ -136,8 +137,7 @@ It runs in a browser, loaded by `docs/index.html` through MOD-site-frame.
   current text, rationale and impact list, an architecture change's impact list, a report's limitations.
 - `arrange.mjs` — the hierarchy of a group file, moves, pending changes.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `docs/assets/dashboard/writes.mjs`: removed once the live app shows `uc`, `arc`, `review`, `spec`, `requirement` and `requirements` through this module's routes.
-  - `tests/dashboard-spec-impact.test.mjs`, `tests/review-core.d/dashboard-reads.test.mjs`, `tests/review-core.d/dashboard-writes.test.mjs`, `tests/review-core.d/authority.test.mjs`, `tests/review-pages-edit-entry.test.mjs`, `tests/uc-006-batched-reads-harness.mjs`: their headers name this module; a test of only a removed view goes with it.
+  - `tests/dashboard-spec-impact.test.mjs`, `tests/review-core.d/dashboard-reads.test.mjs`, `tests/review-pages-edit-entry.test.mjs`, `tests/uc-006-batched-reads-harness.mjs`: their headers name this module; a test of only a removed view goes with it.
 
 ## Data
 
@@ -290,7 +290,12 @@ and `docs/participants.md` of the instance.
   impact lists stored for the commit, and the last accepted texts they name. The graph is the one `onMainChanged`
   stored for the commit shown (MOD-workflow-entries), read through `storedGraph`; no page builds a graph, also not over
   an edited text: the editor shows the stored graph's findings of the file, and the edit is checked across artifacts
-  once it is committed.
+  once it is committed. Where that graph is not stored yet, an impact list, the marks of an editor and an arrangement
+  are not derived from another commit's graph, since each states the commit shown or is written to it. Only the drafting
+  of use cases reads the graph through `latestGraph`: while the commit's graph is not stored, its default selection — the
+  requirements no use case realises — comes from the graph stored last, with that function's line above it; the
+  requirements it lists are the head's SPEC's, as are those the drafting of the architecture lists, which reads
+  `SPEC.md` while the head's graph is not stored and shows no earlier graph.
 - MOD-approvals.statuses, MOD-approvals.removedFiles, MOD-approvals.statusOf, MOD-approvals.lastAcceptedText, MOD-approvals.acceptShown,
   MOD-approvals.acceptanceBlockers, MOD-approvals.fallbackAcceptLink — statuses, the files removed since their acceptance, and acceptance; MOD-approvals.approvalSchema —
   the schema an approval record is read with, on `<k>/history` too.

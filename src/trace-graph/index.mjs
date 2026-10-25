@@ -126,7 +126,7 @@
  * }} Gaps
  */
 
-export { storedGraph, traceGraph } from "./build.mjs";
+export { latestGraph, storedGraph, traceGraph } from "./build.mjs";
 export { graphFromText, graphText, publishGraph, storedImpacts } from "./stored.mjs";
 export { graphFindings, selfSufficiencyFindings } from "./checks.mjs";
 export { architectureImpact, coverageGaps, moduleOrder, moduleRows, requirementImpact, systemDecisions, tracesTo } from "./derive.mjs";

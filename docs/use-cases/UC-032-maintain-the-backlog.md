@@ -73,7 +73,7 @@ sprint changes or uses, or uses one that it changes — so the teams' work does 
    - *ready*;
    - *in progress*: a job is running, or a pull request is open;
    - *blocked*: a job failed or waits for a person;
-   - *done*.
+   - *done*: its pull request is merged, or its record names the commits that built it.
    An item that another team's sprint holds (step 5) names that sprint and its team.
    The top of the page shows accepted requirements and use cases that no item realises yet.
 2. The Product Owner chooses **Propose items for uncovered requirements**. The run panel names the
@@ -140,6 +140,10 @@ sequenceDiagram
 - **2a. The Product Owner writes an item by hand.** They choose **+ Item**, fill in the title, the
   outcome, what it realises, the modules it changes and the items it builds on, and press **Add**. The item is committed as their
   own input.
+- **2b. An item was built without a pull request naming it** — by a commit before the pull requests, by another item's
+  change, or by a change of a text alone. The Product Owner writes into the item the commits on the default branch that
+  built it, as `built_by`, by editing the item's file, and commits it as their own input. The item is then *done*, and the items that build on
+  it no longer wait for it.
 - **3b. An item needs a module the architecture does not have.** The draft names the gap instead of
   inventing a module; the item waits until the architecture is changed (UC-023).
 - **3a. A requirement is too large for one item.** The participant proposes several items that each
@@ -177,8 +181,8 @@ sequenceDiagram
 ## Postcondition
 
 - The product repository holds its backlog as one Markdown file per item and, in Scrum, the sprint
-  selections, per team. No state is stored in them. State is derived from approvals, jobs
-  and pull requests.
+  selections, per team. No state is stored in them. State is derived from approvals, jobs,
+  pull requests and the commits an item names as built by.
 - Every item names what it realises, the modules it changes and where it came from.
 - The system is built bottom-up: no item is selected or pulled before an item it builds on, other than together
   with it.

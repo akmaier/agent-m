@@ -68,6 +68,7 @@ uses:
   - MOD-resource-list.resourceStrategies
   - MOD-test-schedule.applyPipelineSchedule
   - MOD-test-schedule.scheduleStrategies
+  - MOD-test-schedule.testsOfRow
   - MOD-result-records.parseOutcomes
   - MOD-result-records.appendResult
   - MOD-result-records.resultStrategies
@@ -83,6 +84,7 @@ provides:
   - chooseAgentKey
   - leaveResult
   - writeResult
+  - runTests
   - onTestsFinished
   - onApprovalsCommitted
   - onSourcesCommitted
@@ -112,7 +114,7 @@ It runs in Node, in GitHub Actions or GitLab CI, on hosted or self-hosted runner
   - The clone fetches that commit from its origin with its own credentials (MOD-repository-hosts' `readSnapshot`), the
     access the job workflow checked the instance out with. No further token is used, and the generated files are
     unchanged.
-- `product.mjs` — the entries of a product's job workflow.
+- `product.mjs` — the entries of a product's job workflow and of its test configuration.
 - `result.mjs` — the run's result between the agent's machine and the writing machine of a product's job workflow: the
   repository the agent's checkout pushes into, what is kept for later, the result packed, read, checked and
   written.
@@ -130,10 +132,22 @@ the file names, in a checkout of the repository the event concerns. In a product
 `onPullRequestClosed`, `onCheckCompleted`, `onSchedule` and `onDispatch`; since a run has two machines (MOD-runtimes,
 Data), `onRecordsChanged` and `onDispatch` run on the agent's machine, after `chooseAgentKey` and followed
 by `leaveResult`, and `writeResult` and the other entries on the writing machine. MOD-test-schedule's test configuration runs
-`onDoneCheck` in its Definition-of-Done job and `onTestsFinished` after each run's tests; on GitLab each file is included
-from the product's `.gitlab-ci.yml`. In the instance, one file under `.github/workflows/` runs each of its entries —
-`onApprovalsCommitted` on a push to `docs/approvals/`, `onSourcesCommitted` on a push to `docs/sources/` and on dispatch
-for *Fetch again* (UC-004 7a), `onReleaseTagged` on a release tag, `onMainChanged` on every push to the default branch — and does nothing but run it.
+`runTests` in each of its test jobs, which read no token, and `onTestsFinished` in its job `agent-m records` and
+`onDoneCheck` in its job `agent-m done`, the two that read the token and run no code of the product; on GitLab each file
+is included from the product's `.gitlab-ci.yml`. In the instance, one file under `.github/workflows/` runs each of its
+entries — `onApprovalsCommitted` on a push to `docs/approvals/`, `onSourcesCommitted` on a push to `docs/sources/` and
+on dispatch for *Fetch again* (UC-004 7a), `onReleaseTagged` on a release tag, `onMainChanged` on every push to the
+default branch — and does nothing but run it.
+
+**The reports of a run.** Each test job of the test configuration writes, below the product's checkout, its report to
+`agent-m-reports/<occasion>.<row>.<shard>.xml` and its status to `agent-m-reports/<occasion>.<row>.<shard>.status` — the
+occasion, the row and the shard as `AGENT_M_OCCASION`, `AGENT_M_ROW` and `AGENT_M_SHARD` name them (MOD-test-schedule,
+*The variables of a test job*). The status is one line, `runTests`' outcome and summary — `done`, `failed: <why>`,
+`nothing to do` or `not run: secret missing: <name>` —, written as the entry ends; a job stopped by its time limit or by
+the server leaves none. `agent-m records` writes `agent-m-reports/records.status` the same way, with `onTestsFinished`'s
+outcome. Each job keeps its files as an artifact of the run named after the same parts; `agent-m records` takes every
+test job's artifact, and `agent-m done` every artifact, into one folder `agent-m-reports/`. The occasion and the rows of
+the run are read from these names alone.
 
 On the agent's machine, `onRecordsChanged` and `onDispatch` run only the jobs whose key is the one the machine was
 given, or none the file reads; a job of another of the file's keys stays queued for the run its own key's machine makes,
@@ -155,8 +169,11 @@ the writing machine.
   or `write`, the folder of the result between them, and the file of a step's outputs — GitHub's `GITHUB_OUTPUT`, on
   GitLab the dotenv file `AGENT_M_OUTPUT` names; a GitLab pipeline started from the page or the API (`web`, `api`) is read
   as a start as GitHub's `workflow_dispatch` is; in the instance, the workflow's own token for the instance
-  repository and the signing secrets of a release; for `onTestsFinished`, the path of the run's JUnit XML report. A
-  secret that is missing ends the entry at once with a status that names it, before anything is written (UC-010).
+  repository and the signing secrets of a release; for `runTests`, the variables of MOD-test-schedule's *The variables of
+  a test job*; for `onTestsFinished`, the folder of the run's reports; for `onDoneCheck`, that folder and
+  `AGENT_M_EXPECTED`, the rows and numbers of shards of a pull request's run as MOD-test-schedule's generated file names
+  them. A secret that is missing ends the entry at once with a status that names it, before anything is written
+  (UC-010).
 - `onRecordsChanged(env: CiEnvironment) -> Promise<EntryStatus>` — on a push to `docs/jobs/` or `docs/gates/` of a
   product: takes each queued job whose route is this CI service, except one whose task travels with its hand-over, which
   `onDispatch` takes, and runs it from its record alone — its kind, the
@@ -170,9 +187,19 @@ the writing machine.
   are safe: only one taking lands. A job whose writer committed nothing, since its result equals the current files,
   ends done, and its end record and the entry's summary say `no change` (UC-010 4a).
 - `onDoneCheck(env: CiEnvironment) -> Promise<EntryStatus>` — on a pull request of a product opened or updated, run only by
-  the Definition-of-Done job of MOD-test-schedule's test configuration: the Definition-of-Done check from the pull
-  request's facts and the product's declared conditions, its status and findings shown on the pull request (`A PULL
-  REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS`).
+  the Definition-of-Done job of MOD-test-schedule's test configuration, after the run's test jobs and its records job:
+  the Definition-of-Done check from the pull request's facts and the product's declared conditions, its status and
+  findings shown on the pull request (`A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS`). The CI result
+  of the pull request's head is read from the run's own statuses (*The reports of a run*), the same on GitHub and
+  GitLab, with no call to the server: green only when every shard `AGENT_M_EXPECTED` names left the status `done` or
+  `nothing to do` and `records.status` is `done`; a status that is missing — a job that failed before its end, was
+  cancelled or ran out of time — or any other status is not green, and the finding names the job. A test job's status
+  is trusted as the exit status of the product's command already is: the code of the pull request that the job runs
+  decides its own tests' outcome either way — a test that passes falsely is as green as a status written falsely —, so
+  the status file gives that code no power it does not have. What guards against a pull request that fakes its tests is
+  the review of its code and the Definition of Done's other conditions, which are read from the server's
+  `pullRequestFacts` — its earlier commits' CI results among them —, never from a file of the run. `records.status` is
+  written by `agent-m records`, which runs no code of the product.
 - `onPullRequestClosed(env: CiEnvironment) -> Promise<EntryStatus>` — run by the job workflow when a pull request of a
   product is merged or closed: on a merge, the issues it names closed with links, and, on a GitLab server, when it is the
   pull request that set up a run's CI, the project's pipeline schedule of the nightly run set from the merged schedule;
@@ -223,14 +250,33 @@ the writing machine.
   as it stands now, writes no branch, and each job it ended is ended `failed`, naming why, except one another run has
   taken or ended meanwhile, which is that run's. While the agent works, a job's record shows it queued: its taking
   reaches the product with the result.
-- `onTestsFinished(env: CiEnvironment) -> Promise<EntryStatus>` — in a product, the step after the tests of every run of
-  MOD-test-schedule's configuration: the run's result record — the commit, the levels run, the occasion, who ran it, the
-  date, the run's address, `uncommitted` when the working tree held changes not in the commit, and each test's outcome
-  with the excerpts of its failures — added to the branch `test-results` (`EVERY TEST RUN LEAVES A RESULT RECORD`, `A
-  RESULT RECORD IS NEVER REWRITTEN`). A level that did not run is not recorded as passed. On `Moved` it reads the branch
-  again and adds again; a record that cannot be added ends the entry with `failed`, so that the run is not shown green
-  without its record. It reads the outcomes from the run's JUnit XML report, matched to the declarations of the
-  product's tests, and appends the record.
+- `runTests(env: CiEnvironment) -> Promise<EntryStatus>` — in a product, in each test job of MOD-test-schedule's
+  configuration, on a machine that holds no token: the files of the row `AGENT_M_ROW` among the commit's committed files,
+  read through Access's local clone, as MOD-test-schedule's `testsOfRow` names them; then `AGENT_M_COMMAND`, or node's
+  test runner where it is empty, run with those files and the variables of MOD-test-schedule's *The variables of a test
+  job*, writing the report and the status where *The reports of a run* fixes them. Before anything runs it checks that
+  each secret `AGENT_M_SECRETS` names is set, reading no value: one that is not set ends the entry `not run`, its status
+  `not run: secret missing: <name>`, and the command does not run (UC-027 4a). Ends `done` when the command ends with
+  0, `failed` when it does not, naming the status, `nothing to do` for a row without a file — no report is then
+  written —, and `failed` before anything runs when a named test file's level cannot be read, naming each such file.
+  The command's own output goes to the job's log as it comes. Reads no token and writes nothing to a repository.
+- `onTestsFinished(env: CiEnvironment) -> Promise<EntryStatus>` — in a product, in the job `agent-m records` of
+  MOD-test-schedule's configuration, after the run's test jobs: the run's one result record — the commit, the levels run,
+  the occasion, who ran it, the date, the run's address, `uncommitted` when the working tree held changes not in the
+  commit, and each test's outcome with the excerpts of its failures — added to the branch `test-results` (`EVERY TEST RUN
+  LEAVES A RESULT RECORD`, `A RESULT RECORD IS NEVER REWRITTEN`). It reads the outcomes from all the reports of the run
+  together, matched to the declarations of the product's tests; the levels run are the rows that left a report, `paid`
+  standing for the levels of the tests it ran, and the occasion is the one the reports' names give. A level that did not
+  run is not recorded as passed, and a test whose shard left no report is recorded `not run`. A report that
+  MOD-result-records' `parseOutcomes` refuses as unreadable — a shard stopped by its time limit may leave one cut off —
+  counts as no report of that shard: it is left out, the others are read again, and the record is still added. Since
+  the command draws a shard's files, which tests the shard held is not known: every test of that shard's row — the
+  files `testsOfRow` names for it — for which no readable report holds a case reads `not run` with the reason `report
+  unreadable: <file>`, naming every unreadable report of the row. The tests of a row whose status is `not run:
+  secret missing: <name>` — the files `testsOfRow` names for it — read `not run` with the reason `secret missing:
+  <name>`, never `failed` (UC-027 4a). On `Moved` it reads the branch again and adds again; a record that cannot be added
+  ends the entry with `failed`, so that the run is not shown green without its record. A run without a report or a
+  status ends `nothing to do`.
 - `onApprovalsCommitted(env: CiEnvironment) -> Promise<EntryStatus>` — in the instance: applies every approval of the
   instance's own SPEC that the dashboard did not apply, with the same functions the dashboard uses, byte for byte, or
   nothing when a text is stale (`WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE`, `A STALE APPROVAL IS NOT
@@ -274,7 +320,8 @@ process requirements, through the instance's checkout, the product's
 `docs/process.md`, its plan or backlog, `docs/jobs/` and `docs/gates/` —, writes job and gate records and the results of
 jobs through Access's local clone — on the agent's machine into the result's own repository, which the writing
 machine pushes —; reads pull requests and closes issues through the server's API, since the local clone
-does no server operation; appends result records to the branch `test-results`; on GitLab, sets the project's pipeline
+does no server operation; in a test job, reads the commit's test files and runs the product's test command, which writes
+the job's report; appends result records to the branch `test-results`; on GitLab, sets the project's pipeline
 schedule. It also reads the instance's process models at the commit the product's declaration names, through the
 checkout of the instance, which fetches that commit. In the instance: reads approval records, change queues, `SPEC.md`
 and `docs/sources/`; writes `SPEC.md`
@@ -310,9 +357,11 @@ sections with their decisions and the fetched texts of sources. Reads secrets on
   the gates and the Definition of Done, checked by `onDoneCheck`; `recordGateDecision` — a CI check's decision on a
   gate.
   The workflow is read with the instance's SPEC, where the process requirements stand.
-- `MOD-test-schedule.applyPipelineSchedule` — the nightly pipeline schedule on GitLab once a run's CI is merged.
-- `MOD-result-records.parseOutcomes`, `appendResult` — a run's outcomes read from its JUnit XML report, and its result
-  record.
+- `MOD-test-schedule.applyPipelineSchedule` — the nightly pipeline schedule on GitLab once a run's CI is merged;
+  `testsOfRow` — the test files a test job's row runs, in `runTests`, and those of a row that did not run for a missing
+  secret, in `onTestsFinished`.
+- `MOD-result-records.parseOutcomes`, `appendResult` — a run's outcomes read from the JUnit XML reports of its test jobs,
+  and its result record.
 - `MOD-work-plans.sprintFacts`, `MOD-work-plans.sprintsToClose` — a sprint's facts, and the sprints whose close starts now.
 - `MOD-issue-handling.closeWithLinks` — closing the issues a merged pull request names, in `onPullRequestClosed`.
 - `MOD-spec-changes.applyApproved` — applying the instance's approved SPEC changes.

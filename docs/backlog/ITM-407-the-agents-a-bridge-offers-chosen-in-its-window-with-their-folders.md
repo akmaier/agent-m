@@ -18,6 +18,9 @@ tests:
 origin:
   - UC-044 step 3
   - UC-011 3b
+built_by:
+  - 98e006d9b17ee6177d3340f64e14872490ad552b
+  - e8dcd80799c1cd175f48f9b76df81e1ee73f9471
 ---
 # ITM-407 The agents a Bridge offers, chosen in its window with their folders
 

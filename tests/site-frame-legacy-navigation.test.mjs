@@ -132,17 +132,24 @@ test("TST-684006 the live review receiver maps the main menu's canonical archite
 
 // TST-684007 · level: component · module: MOD-site-frame
 // guards: THE MENU FOLLOWS THE PROCESS
-// given: the live review receiver, its existing #uc route, and the canonical Tests entry whose menu stage has no built legacy view
+// given: the live review receiver, its existing #uc route, and the canonical Tests entry, whose first view is MOD-test-pages' route runs (ITM-1206)
 // input: open #uc as the known positive, then open #tests
-// expect: #uc keeps drawing Use cases; #tests truthfully says that the Tests entry is not built, rather than silently drawing that fallback
-test("TST-684007 the live review receiver names an unbuilt canonical menu entry instead of falling through to use cases", async () => {
+// expect: #uc keeps drawing Use cases; #tests draws the Tests entry's first view, the route runs, rather than silently drawing that fallback or saying it is not built
+test("TST-684007 the live review receiver opens a canonical menu entry on its first view instead of falling through to use cases", async () => {
   const server = await repoServer({ files: { "README.md": "# Instance\n" } });
   const positive = await openDashboard({ server, hash: "#uc" });
   assert.match(positive.main(), /Use cases/, "known positive: #uc is the legacy use-case route");
 
-  const page = await openDashboard({ server: await repoServer({ files: { "README.md": "# Instance\n" } }), hash: "#tests" });
-  assert.match(page.main(), /The Tests entry is not built yet\./);
-  assert.doesNotMatch(page.main(), /<h2>Use cases<\/h2>/, "the unbuilt canonical entry is not the use-case fallback");
+  const { view } = await import("../src/test-pages/index.mjs");
+  const runs = view.routes.find((route) => route.name === "runs");
+  const original = runs.render;
+  runs.render = async (target) => { target.innerHTML = "<p>route runs (recorded)</p>"; };
+  try {
+    const page = await openDashboard({ server: await repoServer({ files: { "README.md": "# Instance\n" } }), hash: "#tests" });
+    assert.match(page.main(), /route runs \(recorded\)/);
+    assert.doesNotMatch(page.main(), /not built yet/);
+    assert.doesNotMatch(page.main(), /<h2>Use cases<\/h2>/, "the canonical entry is not the use-case fallback");
+  } finally { runs.render = original; }
 });
 
 // TST-684008 · level: component · module: MOD-site-frame

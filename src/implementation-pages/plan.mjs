@@ -10,13 +10,14 @@
 //
 // The steps and their states are those MOD-progress-measures' productFacts gives with the scope `work`: it reads the plan (docs/plan/,
 // in the order of docs/plan/order.md), the approval statuses, the job records and the pull requests and derives each state with
-// MOD-work-plans' itemStates; no state is stored. The architecture comes from MOD-trace-graph's storedGraph: the system is the
+// MOD-work-plans' itemStates; no state is stored. The architecture comes from MOD-trace-graph's latestGraph — the graph stored for the commit, or, while that is not
+// stored yet, the graph stored last, with the line naming both commits above the page; the states and the statuses stay the head's. The system is the
 // decision that refines no other, a subsystem one that refines it and designs a module, a module a module file; a module no subsystem
 // designs stands under the system. An architecture file is open when MOD-approvals' status of it, in the facts, is not accepted.
 
 import { renderMermaid } from "../markdown-render/index.mjs";
 import { productFacts } from "../progress-measures/index.mjs";
-import { storedGraph } from "../trace-graph/index.mjs";
+import { latestGraph } from "../trace-graph/index.mjs";
 import { artifactSchemas, readDocument } from "../documents/index.mjs";
 import { planFindings } from "../work-plans/index.mjs";
 import { explain } from "../site-frame/index.mjs";
@@ -121,7 +122,7 @@ export const route = {
       return;
     }
 
-    const graph = await storedGraph(facts.snapshot, facts.snapshot.commit);
+    const { graph, line } = await latestGraph(facts.snapshot, facts.snapshot.commit);
     const architecture = architectureOf(graph);
     const marked = await marksOf(facts, graph, product.host);
     const marksFor = (id) => marked.filter((each) => each.artifact === id);
@@ -136,7 +137,7 @@ export const route = {
     const table = steps.length === 0 ? `<p class="muted">No plan is saved yet.</p>`
       : `<table><thead><tr><th>Step</th><th>State</th><th>Waits for</th></tr></thead><tbody>${steps.map((step) => `<tr data-step="${h(step.id)}" data-state="${h(step.state)}">`
         + `<td>${h(step.id)}${step.title ? ` — ${h(step.title)}` : ""}${marksFor(step.id).map((each) => ` <span class="warn small" data-mark>${h(each.what)}</span>`).join("")}</td><td>${h(step.state)}</td><td data-waits-for>${h(step.reason)}</td></tr>`).join("")}</tbody></table>`;
-    target.innerHTML = `<section class="panel"><h2>Plan</h2><div data-plan-explain></div>
+    target.innerHTML = `<section class="panel"><h2>Plan</h2>${line ? `<p class="muted small" data-graph-as-of>${h(line)}</p>` : ""}<div data-plan-explain></div>
       <div class="cols"><div><h3>Architecture</h3><ul>${tree}</ul></div><div><h3>Steps</h3>${table}<div data-plan-diagram></div></div></div></section>`;
     placeOf(target, "data-plan-explain").append(explain("implementation-plan"));
     if (steps.length > 0) placeOf(target, "data-plan-diagram").append(await renderMermaid(diagramOf(steps)));

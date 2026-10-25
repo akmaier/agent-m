@@ -50,8 +50,7 @@ unchanged in a browser and in Node, and performs no input or output.
 - `schemas/use-case.json`, `schemas/decision.json`, `schemas/module.json`, `schemas/item.json` — the schemas this module
   owns, shown under Data.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `docs/assets/artifacts.mjs`, `docs/assets/artifacts/checks.mjs`, `docs/assets/artifacts/use-cases.mjs`: removed once no file imports them: `readDocument`, `documentFindings` and `artifactSchemas` give them.
-  - `tests/artifact_checks.py`, `tests/test_architecture_files.py`, `tests/test_usecase_fields.py`, `tests/release-sprint-02-a-artifacts.test.mjs`, `tests/release-sprint-02-c-artifacts.test.mjs`, `tests/artifacts-checks.test.mjs`, `tests/artifacts-twin.test.mjs`, `tests/architecture-format.test.mjs`, `tests/review-core.d/artifacts.test.mjs`, `tests/test_usecase_realises.py`, `tests/test_diagrams_are_mermaid.py`, `tests/test_artifact_format.py`, `tests/test_self_sufficient.py`, `tests/test_release_sprint_02_d.py`, `tests/test_no_history.py`, `tests/test_derivation_classes.py`: their headers name this module; one of only the old artifacts is rewritten on this module.
+  - `tests/artifact_checks.py`, `tests/test_architecture_files.py`, `tests/release-sprint-02-a-artifacts.test.mjs`, `tests/release-sprint-02-c-artifacts.test.mjs`, `tests/architecture-format.test.mjs`, `tests/review-core.d/artifacts.test.mjs`, `tests/test_artifact_format.py`, `tests/test_self_sufficient.py`, `tests/test_release_sprint_02_d.py`, `tests/test_no_history.py`, `tests/test_derivation_classes.py`: their headers name this module; one of only the old artifacts is rewritten on this module.
 
 ## Data
 
@@ -77,7 +76,7 @@ It keeps nothing. It owns the schema language, and four schemas written in it.
 | `key` | the fields whose values, normalised, are the format's key for finding exact duplicates among candidates |
 
 A **value specification** is `{ "type": …, "required": true | false, "nonEmpty": true | false, "rule": …, … }`, with these
-types:
+types; a specification of type `list` may add `"unique": true`: no item stands in the list twice.
 
 | Type | A value of it |
 |---|---|
@@ -131,7 +130,8 @@ concerns, among the parts that name one:
 - a value that a condition requires or forbids: that condition — of combined conditions, the first part that holds and
   names a rule, before the combination —, then as every finding on a value;
 - every finding on a value — missing, required or forbidden by a condition, not of its type or of the variant that holds,
-  empty where `nonEmpty`, not described where `describedIn` asks, an identifier that is not the one its path gives —: the
+  empty where `nonEmpty`, an item twice where `unique`, not described where `describedIn` asks, an identifier that is not
+  the one its path gives —: the
   variant that holds for it, then its value specification;
 - for a value of a section's fields or of its table, after the value's own parts, and for a section that is missing, out
   of order, or whose table's header or rows do not fit it: the section, or the appended section;
@@ -211,7 +211,7 @@ in:
     "realises": { "type": "list", "item": { "type": "either", "of": ["requirement", { "type": "identifier", "of": ["UC"] }] }, "required": true, "rule": "A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES" },
     "follows": { "type": "list", "item": { "type": "identifier", "of": ["ARC"] }, "required": true, "nonEmpty": true, "rule": "A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES" },
     "uses": { "type": "list", "item": { "type": "interface" }, "required": true, "rule": "A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES" },
-    "provides": { "type": "list", "item": { "type": "name" }, "required": true, "describedIn": "## Interfaces", "rule": "A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES" } },
+    "provides": { "type": "list", "item": { "type": "name" }, "required": true, "unique": true, "describedIn": "## Interfaces", "rule": "A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES" } },
   "title": "# {id} {title}",
   "sections": [
     { "heading": "## Responsibility", "required": true, "rule": "A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES" },
@@ -238,7 +238,9 @@ The item schema, for a plan step and a backlog item alike: rule `THE BACKLOG LIV
 (list of a requirement's name or a use case's identifier, not empty), `modules` (list of `MOD` identifiers, not empty),
 `integrates` (identifier `ARC`, the subsystem's decision, for a step of level `subsystem`), `builds_on` (list of `ITM`
 identifiers), `tests` (list of enum `unit`, `component`, `system`, `release`), `origin` (list of text: an issue's address,
-a requirement's name, a use case's identifier); title `# {id} {title}`; sections `## Outcome` and `## Acceptance`
+a requirement's name, a use case's identifier), `built_by` (list of 40-digit `sha`s, optional, under `PROGRESS AND JOB
+STATE ARE DERIVED, NOT STORED`: the commits that built an item no merged pull request names, from which MOD-work-plans
+derives it `done`); title `# {id} {title}`; sections `## Outcome` and `## Acceptance`
 required; `noHistory`; key `title`. A requirement the SPEC states for one kind of item only is named through a variant
 whose condition is that kind's path: `realises` under `A BACKLOG ITEM NAMES WHAT IT REALISES` and `modules` under
 `A BACKLOG ITEM NAMES THE MODULES IT CHANGES` for a file under `docs/backlog/`, `level` and `tests` under
@@ -274,7 +276,7 @@ record, the appended sections in order. **A row** of a table: `{ line, cells }`,
 - `documentFindings(schema: Schema, document: Document) -> Finding[]` — every finding the schema can decide: the path
   against its pattern; the identifier against the path; front matter keys missing — also where a `requiredWhen`
   condition holds —, unknown, out of order, or present where a `forbiddenWhen` condition holds; values that do not fit
-  their type or the variant that holds, empty where `nonEmpty`; each row of a table, cell by cell, in the same way, and a
+  their type or the variant that holds, empty where `nonEmpty`, a list that names an item twice where `unique`; each row of a table, cell by cell, in the same way, and a
   row with more cells than the table has columns, named at its line with the cells beyond the last column, whether the
   table has a header row or none; a
   section whose schema names a table with a header row, that holds a table but none whose header row names the

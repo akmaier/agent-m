@@ -16,6 +16,9 @@ tests:
   - unit
 origin:
   - UC-022 step 7, 7a, 7b, 7c, 7d
+built_by:
+  - 3cf6d450d195910f42d0759b55e0565593e7d93d
+  - 855ab2deab9fcb8faa5acb55fcf0c59fcbce28cc
 ---
 # ITM-436 The due diligence of a drafted architecture's reuse decisions
 

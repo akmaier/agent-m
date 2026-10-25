@@ -1,19 +1,23 @@
 // MOD-prompt-bar, hand-over.mjs — a hand-over the participant proposed (docs/architecture/MOD-prompt-bar.md: Interfaces, startPromptBar; UC-049 4a): whether it may start,
-// the route it would take, and queuing it. assess reads the product's facts for the scope `work` and asks MOD-work-plans' startable for each item or step of the product's plan
-// the hand-over works on, with the proposed participant as the only participant, so that startable's own check of the implementing role (MOD-product-process' holdsRole) is the
-// check of this participant: this file repeats no rule of the work plans. queue prepares the job of the kind the participant named and hands it over with MOD-runtimes'
-// handOverJob; the bar calls it only on a person's click.
+// the route it would take, and queuing it. assess reads the product's default branch — its head, its paths, its visibility —, and only for a hand-over that works on an item of the
+// backlog or a step of the plan the product's facts for the scope `work`, to ask MOD-work-plans' startable for each item or step of the product's plan it works on, with the proposed
+// participant as the only participant, so that startable's own check of the implementing role (MOD-product-process' holdsRole) is the check of this participant: this file repeats no
+// rule of the work plans. A hand-over that works on no item or step — an endpoint's own job among them, which works on the repository's web address — reads no facts. queue prepares
+// the job of the kind the participant named and hands it over with MOD-runtimes' handOverJob; the bar calls it only on a person's click.
 //
 // Module: MOD-prompt-bar
 //
 // NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; A JOB GOES ONLY TO A HOLDER OF ITS ROLE; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK. assess writes and queues nothing. The task's
 // words reach no record and no commit through this file: they are the `instruction` of the job prepared in memory and the `task` handOverJob carries to the run.
 // Readings of the module file this file takes (the pull request names them):
+//   - an item or step of the plan is named by its identifier `ITM-<n>`, as the backlog's items and the plan's steps are; a hand-over whose `works_on` names none works on nothing
+//     of the plan, and no start rule applies to it — its job's own preconditions decide when it is prepared.
 //   - startable's context: the role assignment and the sprint are those of the team whose sprint holds the item (`facts.held`, which MOD-work-plans' heldItems derives, naming the sprint
 //     and the team); where no sprint holds it, both are null — except in a model without sprints, where the product's one role assignment is the item's (MOD-work-plans, Data: "the
 //     product's one in a model without sprints"). The work-in-progress limit is the workflow's `model.flow.wip`.
 //   - routesFor is given the repository's visibility from the host's repositoryInfo, whether the product holds Agent M's job workflow (one of the two files below, as the review pages
 //     look for them), and no resource needs: the scope `work` reads none.
+//   - The job's identifier is new against the records the snapshot's paths under docs/jobs/ name (MOD-job-ledger's newJobId); no record is read for it.
 //   - The job's parameters name what the hand-over works on, whatever the kind, by the keys the kinds' strategies read (MOD-approvals, MOD-spec-changes, MOD-run-planner, MOD-runtimes): `requirements`, `useCases`
 //     and, for one use case alone, `useCase` beside it, `items` for backlog items and `steps` for plan steps; the task is no parameter. Nothing else is given: a key that `works_on` does not determine — a
 //     source, a resource, a kind, an entry, a part — is left to the strategy that reads it, which refuses the preparation with its own error where it needs the key.
@@ -59,26 +63,40 @@ function teamOf(item, facts, workflow) {
   return { assignment: null, sprint: null };
 }
 
-/**
- * assess({ handOver, participant, instance, page }) -> Promise<{ reasons: string[], route: Route | null, routeText: string, needsWorkflow: boolean, facts, head: string, instanceSnapshot, participants }> — whether the
- * hand-over { kind, works_on, task } of `participant` may start, now: for each item or step of the product's plan that it works on, the reasons startable gives (none: it may start); and the route
- * routesFor gives it, with `routeText` the route as the record writes it, or why none is offered. `page` is { address, host } of the repository the conversation is held on; `head` is the commit
- * the facts were read at. Reads through the hosts and writes nothing; throws what the hosts throw.
- */
-export async function assess({ handOver, participant, instance, page }) {
-  const instanceSnapshot = await defaultSnapshot(instance.host);
-  const participants = await readParticipants(instanceSnapshot);
+// An item of the backlog or a step of the plan, by its identifier (see the readings above).
+const PLANNED = /^ITM-\d+$/;
+// A job record's path under docs/jobs/, with the job's identifier.
+const JOB_RECORD = /^docs\/jobs\/(JOB-[^/]+)\.md$/;
+
+// The reasons startable gives for each item or step of the product's plan in `planned`, from the product's facts of the scope `work`, which are read here; and the snapshot they were read at.
+async function startReasons(planned, participant, instance, instanceSnapshot, page) {
   const facts = await productFacts(page.host, instanceSnapshot, (commit) => instance.host.readSnapshot(commit), new Date(), { scope: "work" });
   const workflow = facts.workflow === "unknown" ? null : facts.workflow;
   const wip = workflow?.model?.flow?.wip ?? null;
   const reasons = [];
-  for (const item of worksOnOf(handOver).filter((id) => facts.plan.states.some((state) => state.item === id))) {
+  for (const item of planned.filter((id) => facts.plan.states.some((state) => state.item === id))) {
     const { assignment, sprint } = teamOf(item, facts, workflow);
     const verdict = startable(item, facts.plan.states, { workflow, assignment, sprint, held: facts.held, wip, participants: [participant] });
     if (!verdict.startable) reasons.push(...verdict.reasons);
   }
-  const { visibility } = await page.host.repositoryInfo();
-  const jobWorkflow = WORKFLOWS.some((path) => facts.snapshot.paths.includes(path));
+  return { reasons, snapshot: facts.snapshot };
+}
+
+/**
+ * assess({ handOver, participant, instance, page, instanceSnapshot? }) -> Promise<{ reasons: string[], route: Route | null, routeText: string, needsWorkflow: boolean, snapshot: Snapshot, head: string,
+ * instanceSnapshot, participants }> — whether the hand-over { kind, works_on, task } of `participant` may start, now: for each item or step of the product's plan that it works on, the reasons
+ * startable gives (none: it may start), read from the product's facts only where it works on an item or step; and the route routesFor gives it, with `routeText` the route as the record writes
+ * it, or why none is offered. `page` is { address, host } of the repository the conversation is held on; `snapshot` is its default branch as it was read, `head` that snapshot's commit.
+ * `instanceSnapshot` is the instance's default branch where the caller read it already; else it is read here. Reads through the hosts and writes nothing; throws what the hosts throw.
+ */
+export async function assess({ handOver, participant, instance, page, instanceSnapshot: given = null }) {
+  const instanceSnapshot = given ?? await defaultSnapshot(instance.host);
+  const participants = await readParticipants(instanceSnapshot);
+  const planned = worksOnOf(handOver).filter((id) => PLANNED.test(id));
+  const { defaultBranch, visibility } = await page.host.repositoryInfo();
+  const { reasons, snapshot } = planned.length > 0 ? await startReasons(planned, participant, instance, instanceSnapshot, page)
+    : { reasons: [], snapshot: await page.host.readSnapshot(defaultBranch) };
+  const jobWorkflow = WORKFLOWS.some((path) => snapshot.paths.includes(path));
   const offers = routesFor(participant, participants, { visibility, jobWorkflow }, []);
   const taken = offers.find((each) => each.route.kind !== "tab" && each.available) ?? null;
   const refused = offers.find((each) => each.route.kind !== "tab") ?? null;
@@ -86,14 +104,14 @@ export async function assess({ handOver, participant, instance, page }) {
     : offers.length > 0 ? "this participant's route is this tab, which a hand-over does not take" : "this participant has no route a job takes";
   // UC-049 4c: what is missing is the job workflow, when the product has none and the CI route is therefore unavailable.
   const needsWorkflow = taken === null && !jobWorkflow && offers.some((each) => each.route.kind === "ci" && !each.available);
-  return { reasons, route: taken?.route ?? null, routeText, needsWorkflow, facts, head: facts.snapshot.commit, instanceSnapshot, participants };
+  return { reasons, route: taken?.route ?? null, routeText, needsWorkflow, snapshot, head: snapshot.commit, instanceSnapshot, participants };
 }
 
 // The parameters the job rests on, from what it works on by name: use cases (`useCases`, and `useCase` where it is one), plan steps (`steps`: the names the product's plan holds as a file under docs/plan/) and
 // backlog items (`items`: the other ITM names), and requirements (`requirements`); any other identifier is in the record's `works_on` only.
 function paramsOf(worksOn, snapshot) {
   const useCases = worksOn.filter((name) => /^UC-\d+$/.test(name));
-  const planned = worksOn.filter((name) => /^ITM-\d+$/.test(name));
+  const planned = worksOn.filter((name) => PLANNED.test(name));
   const steps = planned.filter((name) => snapshot.paths.some((path) => path.startsWith(`docs/plan/${name}-`)));
   const items = planned.filter((name) => !steps.includes(name));
   const requirements = worksOn.filter((name) => !/^[A-Z]+-[A-Za-z0-9-]+$/.test(name) && !/^https?:\/\//.test(name));
@@ -103,22 +121,22 @@ function paramsOf(worksOn, snapshot) {
 
 /**
  * queue({ handOver, participant, assessment, store, instance, page, ofProduct, conversation }) -> Promise<{ id: string, path: string, commit: string, person: string }> — prepares the job of
- * the kind the participant named, with the task as its instruction, and hands it over on the route `assessment` found, as the person's commit on the head the facts were read at
+ * the kind the participant named, with the task as its instruction, and hands it over on the route `assessment` found, as the person's commit on the head `assessment` read
  * (MOD-runtimes' handOverJob). `conversation` is the path of the conversation record the job names, or null. `source` is the person's own source for a hand-over of the subject's own kind, else undefined. Throws NoToken when no token that writes to the page's repository is stored,
  * what prepareJob throws, and what handOverJob throws — NotStartable { findings } among it, with nothing written.
  */
 export async function queue({ handOver, participant, assessment, store, instance, page, ofProduct, conversation, source }) {
-  const { facts, route, instanceSnapshot, participants } = assessment;
-  const person = personOf(store, facts.snapshot, ofProduct, instanceSnapshot);
+  const { snapshot, route, instanceSnapshot, participants } = assessment;
+  const person = personOf(store, snapshot, ofProduct, instanceSnapshot);
   if (person === null) throw Object.assign(new Error("no token that writes to this repository is stored in this browser"), { name: "NoToken" });
   const now = new Date();
-  const id = newJobId(now, new Set(facts.jobs.map((row) => row.record.id)));
+  const id = newJobId(now, new Set(snapshot.paths.map((path) => JOB_RECORD.exec(path)?.[1]).filter(Boolean)));
   const commit = instanceSnapshot.commit ?? "unknown";
   const agentM = { version: commit, commit };
   const worksOn = worksOnOf(handOver);
   // For the subject's own kind, `source` is the person's own source that the subject's paramsFor gave: the one parameter beside what the hand-over works on, so that no message and no page text enters the job's record.
-  const params = { ...(source === undefined ? {} : { source }), ...paramsOf(worksOn, facts.snapshot) };
-  const inputs = { product: { address: page.address, snapshot: facts.snapshot, host: page.host }, instance: { snapshot: instanceSnapshot, host: instance.host }, participants,
+  const params = { ...(source === undefined ? {} : { source }), ...paramsOf(worksOn, snapshot) };
+  const inputs = { product: { address: page.address, snapshot, host: page.host }, instance: { snapshot: instanceSnapshot, host: instance.host }, participants,
     places: { ...(await placesOf(instanceSnapshot, page.address)), mailbox: null }, gates: [], person, agentM, jobId: id };
   const prepared = await prepareJob(handOver.kind, tabContext({ kind: null, params: { ...params, instruction: handOver.task }, ...inputs }), { drafter: participant, reviewers: [] });
   const start = { id, kind: handOver.kind, worksOn, participant: participant.name, model: participant.model ?? null, route: recordRoute(route), run: null, retries: null, startedBy: person,
@@ -135,19 +153,20 @@ export async function queue({ handOver, participant, assessment, store, instance
 }
 
 /**
- * spawnEndpointJob({ kind, task, participant, store, instance, page, ofProduct, conversation, source }) -> Promise<{ id, path, commit, person } | { refused: string, needsWorkflow: boolean }>
- * — the job that is a model endpoint's own (UC-049 4a.1, "for any other kind, the job is the endpoint's own"), spawned on GitHub Actions on a person's click: the job of
+ * spawnEndpointJob({ kind, task, participant, store, instance, page, ofProduct, conversation, source, instanceSnapshot? }) -> Promise<{ id, path, commit, person } | { refused: string,
+ * needsWorkflow: boolean }> — the job that is a model endpoint's own (UC-049 4a.1, "for any other kind, the job is the endpoint's own"), spawned on GitHub Actions on a person's click: the job of
  * `kind`, working on the page's repository, by the web address of the snapshot that was read, with `task` travelling in the workflow's inputs, assessed and queued as a proposed hand-over is (assess,
- * queue), on the server's own runners. `participant` is the endpoint as the bar offers it (offer.mjs endpointsOffered), its route naming the CI secret of its key. Where
+ * queue), on the server's own runners. It works on no item or step of the product's plan, so no start rule applies and none of the product's facts is read: of the product, only its default
+ * branch — its head, its paths, its visibility. `instanceSnapshot` is the instance's default branch where the caller read it already. `participant` is the endpoint as the bar offers it (offer.mjs endpointsOffered), its route naming the CI secret of its key. Where
  * no CI route can be taken — the product has no job workflow, or the endpoint names no CI secret — nothing is written and `refused` says why, `needsWorkflow` whether the
  * job workflow is what is missing (UC-049 4c). Throws what queue throws.
  */
-export async function spawnEndpointJob({ kind, task, participant, store, instance, page, ofProduct, conversation = null, source }) {
-  const assessment = await assess({ handOver: { kind, works_on: [], task }, participant, instance, page });
+export async function spawnEndpointJob({ kind, task, participant, store, instance, page, ofProduct, conversation = null, source, instanceSnapshot = null }) {
+  const assessment = await assess({ handOver: { kind, works_on: [], task }, participant, instance, page, instanceSnapshot });
   if (assessment.route === null || assessment.route.kind !== "ci") {
     return { refused: assessment.route === null ? assessment.routeText : "the endpoint's route is not GitHub Actions", needsWorkflow: assessment.needsWorkflow };
   }
   // It works on the repository the page is held on, by its web address as the snapshot that was read names it.
-  const handOver = { kind, works_on: [assessment.facts.snapshot.repository.web], task };
+  const handOver = { kind, works_on: [assessment.snapshot.repository.web], task };
   return queue({ handOver, participant, assessment, store, instance, page, ofProduct, conversation, source });
 }

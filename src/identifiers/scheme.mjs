@@ -6,10 +6,10 @@
 // A slug is lowercase letters and digits in words joined by single hyphens.
 const SLUG = "[a-z0-9]+(?:-[a-z0-9]+)*";
 
-// A requirement: a name in capitals, digits, spaces, apostrophes, commas and hyphens, with no lowercase letter and no
-// prefix of a kind below — a string such as UC-022 is that kind, never a requirement, even though digits, hyphens and
-// capitals are all a requirement's name would otherwise allow.
-const REQUIREMENT = /^(?!(?:SRC|UC|ARC|MOD|TST|ITM|RES|JOB)-)[A-Z0-9 ',-]*[A-Z][A-Z0-9 ',-]*$/;
+// A requirement: a name in capitals — one line with at least one capital, no lowercase letter, no space at either end, and
+// no prefix of a kind below; a string such as UC-022 is that kind, never a requirement. Any other character stands in a name
+// in capitals, such as the dot of AGENTS.MD.
+const REQUIREMENT = /^(?!(?:SRC|UC|ARC|MOD|TST|ITM|RES|JOB)-)(?=[^a-z\n]*[A-Z])[^a-z\s](?:[^a-z\n]*[^a-z\s])?$/;
 
 // The scheme, in the order the module file's Data table lists it: requirement, then each prefixed kind. UC and ITM take
 // three or more digits; ARC and TST take exactly three, as the table's own examples do (ARC-048, TST-014).

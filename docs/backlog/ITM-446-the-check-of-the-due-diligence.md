@@ -41,4 +41,6 @@ reported as not found.
   as a finding.
 - Only the new test file and its data file change.
 
-**Done (sprint team2/98, po-opus-b):** read against its Acceptance on `main` at `3436203a`: TST-446100 to 446102 (`tests/test_reuse_due_diligence.py`, cases in `tests/test_reuse_due_diligence.md`) pass on `main`; written in team 2's sprint 35 by developer-terra-b, who implemented none of ITM-436 (`docs/backlog/sprints/team2/35.md:32-33`). A fault planted now — `licenceVerdict` always `compatible` (`src/reuse-facts/index.mjs:157`) — fails them, and they pass again once it is restored. No pull request names it, since it predates the pull-request flow or was built by another item. No code changes.
+**Not done: what is missing.** TST-446101 tests the test's own helper `record_findings`
+(`tests/test_reuse_due_diligence.py:176-198`), not product code. No product code checks a due-diligence row for an empty
+*Read from* or *Read on*: `src/reuse-facts/index.mjs:593` writes the table's header and nothing reads the cells back.

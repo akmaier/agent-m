@@ -8,9 +8,8 @@
 // Guards: DEVELOP AGAINST INTERFACES
 // Level: component
 //
-// The graph is built as tests/release-sprint-02-d-traceability.test.mjs builds the graph of this repository: the tracked files
-// (`git ls-files`), each read with node's fs, handed to `traceGraph` as a TextSource. Each test states its expected value in its own
-// text; none takes it from a document. Only the findings of the one rule are looked at: the other rules' findings over this
+// The graph is built of this repository: the tracked files (`git ls-files`), each read with node's fs, handed to `traceGraph` as a
+// TextSource. Each test states its expected value in its own text; none takes it from a document. Only the findings of the one rule are looked at: the other rules' findings over this
 // repository are other checks' business.
 
 import test from "node:test";

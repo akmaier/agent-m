@@ -101,8 +101,6 @@ notifications (`A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE`). It runs in t
 - `stages.mjs` — the six stages, the current stage, the build, what waits for a person, what waits for acceptance.
 - `overviews.mjs` — gates, blocked items, who works on what.
 - `stored.mjs` — the facts a commit's files alone give, as a text and back.
-- **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `src/home/progress.mjs`: removed once this module gives `stageShares`, `currentStage`, `buildInProgress` and `waitingForAPerson`, which it states and does not build yet.
 
 ## Data
 
@@ -173,7 +171,7 @@ The six stages of the main page, each a share between 0 and 1:
 - `productFacts(host: Host, instance: Snapshot, instanceAt: (commit: string) -> Promise<Snapshot>, now: Date,
   options?: { scope: "all" | "work" | "build" }) -> Promise<Facts>` — with the scope `build`, what
   `buildInProgress` takes and nothing else — the plan or the backlog, the job records and the pull requests —; with the scope `work`, what MOD-prompt-bar
-  asks before a hand-over starts, it reads only what MOD-work-plans' `itemStates` and `startable` and MOD-product-process'
+  asks before a hand-over that works on an item of the backlog or a step of the plan starts, it reads only what MOD-work-plans' `itemStates` and `startable` and MOD-product-process'
   `holdsRole` take — the approval statuses, the change queues, the declaration with its model and workflow, the
   participants, the plan or the backlog, the sprints, the role assignments, the gate records with their states, the job
   records without asking their live state, and the pull requests with `held` —, and every other fact is `"unknown"`.
