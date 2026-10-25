@@ -5,8 +5,7 @@
 //
 // Module: MOD-artifact-edits
 //
-// The model is editUrl and newFileUrl in docs/assets/git-host.mjs, which stay as they are. The pages are those of
-// MOD-repository-hosts' webLinks.
+// The pages are those of MOD-repository-hosts' webLinks: its editFile and newFile.
 
 import { connect } from "../repository-hosts/index.mjs";
 

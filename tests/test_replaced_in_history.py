@@ -4,8 +4,8 @@
 """SPEC §9 THE REPLACED TEXT STAYS REACHABLE — characterisation tests of ITM-014 (a refactoring job).
 
 A replaced SPEC section stays reachable through the git history, and no second copy is kept in the working tree. Both
-writers of an approved entry — the dashboard's acceptance commit (docs/assets/review-core.mjs planAcceptance, asked through
-node) and the instance's workflow (MOD-spec-changes' applyApproved) — run here in a real git repository made from the fixture
+writers of an approved entry — the dashboard's acceptance commit (MOD-spec-changes' acceptEntries) and the instance's workflow
+(MOD-spec-changes' applyApproved), both asked through node (tests/spec_apply.py) — run here in a real git repository made from the fixture
 product tests/fixtures/gates/. Expected for each route, after the commit that writes entry 01:
 
 - the commit changes SPEC.md, the queue's entscheidungen.md and — on the dashboard's route — adds the approval record;
@@ -16,7 +16,6 @@ product tests/fixtures/gates/. Expected for each route, after the commit that wr
 
 Counter-proofs: docs/measurements/2026-10-01_approval-gates-counter-proofs.md.
 """
-import json
 import os
 import re
 import shutil
@@ -30,7 +29,6 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 
 import spec_apply as ap  # noqa: E402
-from jsrun import js  # noqa: E402
 
 FIX = Path(__file__).resolve().parent / "fixtures" / "gates"
 Q = "docs/spec-freigaben/2026-10-01a_gates"
@@ -79,11 +77,9 @@ class Repo:
         assert len(rows) == 1, rows
         rec = ap.parse_record(self.text(f"docs/approvals/{rows[0]}"))
         before = self.git("show", f"HEAD^:{rec['target']}")
-        # The workflow's record names the section as applyApproved takes it, the dashboard's as its own engine does; the text found is the one the record names.
-        found = [text for text in (ap.section_text(ap.extract_section(before, rec["anchor"])),
-                                   ap.legacy_section_text(ap.legacy_extract_section(before, rec["anchor"]))) if ap.blob_sha(text) == rec["section"]]
-        assert found, "the text found is the one the record names"
-        return found[0]
+        found = ap.section_text(ap.extract_section(before, rec["anchor"]))
+        assert ap.blob_sha(found) == rec["section"], "the text found is the one the record names"
+        return found
 
 
 class ReplacedInHistory(unittest.TestCase):
@@ -97,7 +93,7 @@ class ReplacedInHistory(unittest.TestCase):
         self.assertNotIn(MARK, self.r.text("SPEC.md"), "the section is replaced")
         self.assertEqual(self.r.changed_by_head(), changed)
         self.assertEqual(self.r.holding(MARK), [], "no copy of the replaced text in the working tree")
-        self.assertIn(self.r.replaced_from_history(), (self.r.section, ap.legacy_section_text(ap.legacy_extract_section(self.r.spec, ANCHOR))))
+        self.assertEqual(self.r.replaced_from_history(), self.r.section)
 
     def test_the_workflow_leaves_the_replaced_text_in_the_history_only(self):
         # The person commits the approval record on GitHub's page; the workflow writes the section and commits.
@@ -111,21 +107,12 @@ class ReplacedInHistory(unittest.TestCase):
         self.check_after(["SPEC.md", f"{Q}/entscheidungen.md"])
 
     def test_the_dashboard_leaves_the_replaced_text_in_the_history_only(self):
-        # One acceptance commit with the engine's files: the record, the section and the decision row.
-        files = {p.relative_to(self.r.root).as_posix(): p.read_bytes().decode("utf-8") for p in self.r.root.rglob("*")
-                 if p.is_file() and ".git" not in p.relative_to(self.r.root).parts}
-        item = {"kind": "spec", "queue": Q, "qname": Path(Q).name, "nr": 1, "nn": "01", "proposalPath": PROPOSAL,
-                "proposalBlob": ap.blob_sha(self.r.text(PROPOSAL)), "sectionBlob": ap.blob_sha(ap.legacy_section_text(ap.legacy_extract_section(self.r.spec, ANCHOR))),
-                "targetPath": "SPEC.md", "anchor": ANCHOR, "bis": None, "needs": []}
-        plan = js(f"const f = {json.dumps(files)};"
-                  f"return core.planAcceptance({{ items: [{json.dumps(item)}], now: new Date('2026-10-01T12:00:00Z'),"
-                  " read: async (p) => (p in f ? f[p] : null) });")
-        self.assertEqual(plan["leftOut"], [])
-        for f in plan["files"]:
-            (self.r.root / f["path"]).parent.mkdir(parents=True, exist_ok=True)
-            (self.r.root / f["path"]).write_bytes(f["content"].encode("utf-8"))
+        # One acceptance commit: the record, the section and the decision row.
+        proposal_blob = ap.blob_sha(self.r.text(PROPOSAL))
+        refused, _ = ap.accept(self.r.root, [{"queue": Q, "entry": 1, "proposalBlob": proposal_blob, "sectionBlob": ap.blob_sha(self.r.section)}])
+        self.assertEqual(refused, [])
         self.r.commit("accept 01")
-        record = f"docs/approvals/spec-{Path(Q).name}-01-{item['proposalBlob'][:12]}.md"
+        record = f"docs/approvals/spec-{Path(Q).name}-01-{proposal_blob[:12]}.md"
         self.check_after(sorted(["SPEC.md", f"{Q}/entscheidungen.md", record]))
 
 

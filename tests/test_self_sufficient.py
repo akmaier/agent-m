@@ -4,10 +4,10 @@
 """SPEC §0 THE PRODUCT REPOSITORY IS SELF-SUFFICIENT — no artifact references a file or service that exists only inside
 Agent M.
 
-The fixture product is made by Agent M's own writers, through node (tests/jsrun.py), as the dashboard makes it: the layout
-that *Add product* commits (missingLayout); the files of one acceptance commit for a use case and for a SPEC entry
-(planAcceptance — the approval records, the decision row, the replaced SPEC section); the product settings and the
-collaborators the settings page commits. Besides them the product holds only what a person put there — the use case and
+The fixture product is made by Agent M's own writers, through node (tests/jsrun.py), as the dashboard makes it, on the host of
+tests/memory-host.mjs: the layout that *Add product* commits (MOD-artifact-edits' reviewLayoutCommit); the files of the acceptance
+commits of a use case (MOD-approvals' acceptShown) and of a SPEC entry (MOD-spec-changes' acceptEntries — the approval records, the
+decision row, the replaced SPEC section); the product settings and the collaborators the settings page commits. Besides them the product holds only what a person put there — the use case and
 the queue entry that were accepted.
 
 A reference is a Markdown link target (resolved against the file's folder), a path in a code span or in the prose (read
@@ -17,6 +17,7 @@ inside Agent M when the address is the local bridge (a loopback name) or Agent M
 
 Only tracked files of this repository count as "inside Agent M", so a scratch file changes nothing. Counter-proofs:
 docs/measurements/2026-10-01_product-rules-repository-checks.md."""
+import json
 import posixpath
 import re
 import subprocess
@@ -34,30 +35,41 @@ AGENT_M = "akmaier/agent-m"
 # Agent M's writers, run on a fixture product. -> { written: [{ path, content }], inputs: [{ path, content }] }
 FIXTURE_PRODUCT = r"""
 const P = %(product)s;
-const repo = new Map();
-const layout = core.missingLayout([], P);
-for (const f of layout) repo.set(f.path, f.content);
-const uc = "---\nid: UC-001\ntitle: Fixture\n---\n# UC-001 Fixture\n";
-const q = "docs/spec-freigaben/2026-10-01_fixture";
-const anchor = repo.get("SPEC.md").split("\n").find((l) => l.startsWith("No requirement yet."));
-const index = "# Fixture queue\n\n**Zieldatei aller Einträge:** `SPEC.md`\n\n| Nr | Datei | Anker | bis | Commits |\n|---|---|---|---|---|\n"
-  + `| 01 | \`01-fixture.md\` | ${anchor} | — | — |\n`;
-const prop = "**A FIXTURE RULE** *(PO, 2026-10-01)*\nThe fixture holds.\n";
+const { memoryHost } = await import(%(host)s);
+const { readFileSync } = await import("node:fs");
+const product = memoryHost({}, { server: "github", origin: "https://github.com", path: P, web: `https://github.com/${P}` });
+const commitOf = (n) => product.commits()[n].files.map((f) => ({ path: f.path, content: f.text }));
+await artifactEdits.reviewLayoutCommit(product.host);
+const layout = commitOf(0);
+const uc = "---\nid: UC-001\ntitle: Fixture\narea: 1\nactors:\n  - Fixture Person\nrealises: []\n---\n# UC-001 Fixture\n";
+const q = "docs/spec-freigaben/2026-10-01_fixture", anchor = "## Requirements";
+const index = "# SPEC approvals — queue 2026-10-01 · fixture\n\n**Zieldatei aller Einträge:** `SPEC.md`\n\n"
+  + "| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |\n|---|---|---|---|---|\n"
+  + `| 01 | \`SPEC.md\` | ${anchor} | — | — |\n`;
+const prop = `${anchor}\n\n**A FIXTURE RULE** *(PO)*\nThe fixture holds.\n*Check:* no automatic check; at review\n`;
 const inputs = [["docs/use-cases/UC-001-fixture.md", uc], [`${q}/index.md`, index], [`${q}/01-fixture.md`, prop]];
-for (const [p, t] of inputs) repo.set(p, t);
-const items = [
-  { kind: "use-case", id: "UC-001", path: "docs/use-cases/UC-001-fixture.md", blob: await core.gitBlobSha(uc) },
-  { kind: "spec", queue: q, qname: "2026-10-01_fixture", nr: 1, nn: "01", proposalPath: `${q}/01-fixture.md`,
-    proposalBlob: await core.gitBlobSha(prop), targetPath: "SPEC.md", anchor, bis: null, needs: [],
-    sectionBlob: await core.gitBlobSha(core.sectionText(core.extractSection(repo.get("SPEC.md"), anchor, null))) },
-];
-const plan = await core.planAcceptance({ items, read: async (p) => (repo.has(p) ? repo.get(p) : null),
-  now: new Date("2026-10-01T12:00:00Z") });
-if (plan.leftOut.length) throw new Error("the fixture acceptance left out " + JSON.stringify(plan.leftOut));
-const written = [...layout, ...plan.files,
-  { path: pseudonymiser.PRODUCT_SETTINGS_PATH, content: pseudonymiser.setProductSetting("", "pseudonymisation", "off", P) },
-  { path: pseudonymiser.COLLABORATORS_PATH, content: pseudonymiser.formatCollaborators(
-    [{ name: "Fixture Person", account: "fixture-account", agreed: "2026-10-01" }], P) }];
+// What a person put there: the use case and the queue entry, committed before they are accepted.
+const head = (await product.host.readSnapshot("main")).commit;
+await product.host.commitFiles({ branch: "main", expectedHead: head, files: inputs.map(([path, text]) => ({ path, text })), message: "inputs" });
+await approvals.acceptShown(product.host, [{ path: "docs/use-cases/UC-001-fixture.md", blob: await textTools.blobSha(uc) }], "Fixture Person");
+// The source "PO" the requirement names, linked and registered as in the fixture product tests/fixtures/gates/.
+const gates = (p) => readFileSync(new URL(`../tests/fixtures/gates/${p}`, %(host)s), "utf8");
+const { links: linksSchema, entry: entrySchema } = sourceRegister.sourceSchemas();
+const sources = { links: documents.readDocument(linksSchema, "docs/sources.md", gates("docs/sources.md")),
+  register: [documents.readDocument(entrySchema, "docs/sources/SRC-po.md", gates("docs/sources/SRC-po.md"))] };
+const spec = product.files()["SPEC.md"];
+const done = await specChanges.acceptEntries(product.host, [{ queue: q, entry: 1, proposalBlob: await textTools.blobSha(prop),
+  sectionBlob: await textTools.blobSha(specDocument.sectionText(spec, anchor)) }], "Fixture Person", new Date("2026-10-01T12:00:00Z"), sources);
+if (done.refused) throw new Error("the fixture acceptance refused " + JSON.stringify(done.refused));
+// The product settings and the collaborators, as the settings page writes them (MOD-settings-pages): by MOD-personal-data's schemas,
+// pseudonymisation switched off, and one collaborator who agreed.
+const { settings, collaborators } = await personalData.settingsSchemas();
+const settingsFile = documents.readDocument(settings, settings.path, "# Settings of this product\n");
+const collaboratorsFile = documents.readDocument(collaborators, collaborators.path, `# Collaborators of ${P}\n\n| Name | Account | Agreed |\n|---|---|---|\n`);
+const written = [...layout, ...commitOf(2), ...commitOf(3),
+  { path: settings.path, content: documents.writeDocument(settings, { ...settingsFile, fields: { ...settingsFile.fields, pseudonymisation: "off" } }) },
+  { path: collaborators.path, content: documents.writeDocument(collaborators, { ...collaboratorsFile, sections: [{ ...collaboratorsFile.sections[0],
+    rows: [{ line: null, cells: { Name: "Fixture Person", Account: "fixture-account", Agreed: "yes" } }] }] }) }];
 return { written, inputs: inputs.map(([path, content]) => ({ path, content })) };
 """
 
@@ -68,7 +80,8 @@ def fixture_product() -> dict:
     """The fixture product, made once per run: { written, inputs }."""
     global _fixture
     if _fixture is None:
-        _fixture = js(FIXTURE_PRODUCT % {"product": '"' + PRODUCT + '"'})
+        host = json.dumps((ROOT / "tests" / "memory-host.mjs").as_uri())
+        _fixture = js(FIXTURE_PRODUCT % {"product": '"' + PRODUCT + '"', "host": host})
     return _fixture
 
 
@@ -165,11 +178,11 @@ class ProductRepositoryIsSelfSufficient(unittest.TestCase):
     def test_counter_proof_a_file_of_agent_m_is_found(self):
         agent_m = agent_m_files()
         planted = [{"path": "docs/approvals/README.md", "content": (
-            "Written by `docs/assets/review-core.mjs`; without a token src/workflow-entries/main.mjs writes the section.\n"
+            "Written by `src/approvals/accept.mjs`; without a token src/workflow-entries/main.mjs writes the section.\n"
             "See [the rules](../../SPEC.md) and [the plan](../../PLAN.md#x) and the queues in `docs/spec-freigaben/`.\n")}]
         self.assertEqual(self_sufficiency_findings(planted, self.product, agent_m, AGENT_M),
                          ["docs/approvals/README.md: PLAN.md exists only inside Agent M",
-                          "docs/approvals/README.md: docs/assets/review-core.mjs exists only inside Agent M",
+                          "docs/approvals/README.md: src/approvals/accept.mjs exists only inside Agent M",
                           "docs/approvals/README.md: src/workflow-entries/main.mjs exists only inside Agent M"])
 
     def test_counter_proof_a_service_of_agent_m_is_found(self):

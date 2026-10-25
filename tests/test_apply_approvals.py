@@ -9,8 +9,6 @@ Each test builds a throwaway repository, so nothing here touches the real SPEC.
 """
 from __future__ import annotations
 
-import datetime as dt
-import json
 import os
 import shutil
 import subprocess
@@ -22,7 +20,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 import spec_apply as ap  # noqa: E402
-from jsrun import js  # noqa: E402
 
 SPEC = """# S
 
@@ -166,20 +163,12 @@ class DashboardCommitTests(unittest.TestCase):
         self.a.tmp.cleanup()
         self.b.tmp.cleanup()
 
-    def dashboard_commit(self, repo: Repo) -> dict:
-        """The files the dashboard's planner (docs/assets/review-core.mjs) writes, computed on `repo`."""
-        item = {"kind": "spec", "queue": Q, "qname": os.path.basename(Q), "nr": 1, "nn": "01",
-                "proposalPath": f"{Q}/01-zwei.md", "proposalBlob": git_hash(PROPOSAL),
-                "sectionBlob": repo.section_sha(), "targetPath": "SPEC.md", "anchor": "## 2. Two",
-                "bis": None, "needs": []}
-        plan = js("const fs = await import('node:fs');"
-                  f"const root = {json.dumps(str(repo.root))};"
-                  "return core.planAcceptance({ items: [" + json.dumps(item) + "], now: new Date('2026-09-29T16:03:00Z'),"
-                  " read: async (p) => fs.existsSync(root + '/' + p) ? fs.readFileSync(root + '/' + p, 'utf8') : null });")
-        self.assertEqual(plan["leftOut"], [])
-        for f in plan["files"]:
-            (repo.root / f["path"]).write_text(f["content"], encoding="utf-8")
-        return plan
+    def dashboard_commit(self, repo: Repo) -> list:
+        """The dashboard's acceptance commit of entry 01 as shown (MOD-spec-changes' acceptEntries), written into `repo` -> its paths."""
+        shown = {"queue": Q, "entry": 1, "proposalBlob": git_hash(PROPOSAL), "sectionBlob": repo.section_sha()}
+        refused, paths = ap.accept(repo.root, [shown], "2026-09-29T16:03:00Z")
+        self.assertEqual(refused, [])
+        return paths
 
     def test_dashboard_writes_what_the_workflow_writes(self):
         self.dashboard_commit(self.a)
@@ -205,7 +194,7 @@ MOD_FILE = "docs/architecture/MOD-reader.md"
 
 
 class ApplierPassesOverArchitectureRecords(unittest.TestCase):
-    """Moved from tests/test_approval_records.py (MOD-artifacts) when it was split by module: the applier is MOD-review-core."""
+    """Moved from tests/test_approval_records.py (MOD-artifacts) when it was split by module: the applier is MOD-spec-changes' applyApproved."""
     def test_the_applier_passes_over_architecture_records(self):
         # applyApproved writes SPEC changes only; an architecture record must neither be applied nor refused.
         import tempfile

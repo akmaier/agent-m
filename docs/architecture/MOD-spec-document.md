@@ -41,7 +41,6 @@ inside sections. It runs in a browser and in Node, and performs no input or outp
 - `skeleton.md` — the SPEC a new product starts with.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
   - `docs/assets/artifacts/requirements.mjs`: removed once no file imports it: `parseSpec`, `requirementFindings` and `requirementNamesIn` give it.
-  - `tests/test_requirement_has_source.py`, `tests/test_requirement_fields.py`, `tests/test_requirement_names_check.py`, `tests/test_single_statement.py`: rewritten on this module.
 
 ## Data
 

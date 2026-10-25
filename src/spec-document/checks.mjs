@@ -5,9 +5,8 @@
 //
 // Pure: it reads only the Spec it is given, keeps nothing, performs no input or output, and never throws on content. Each
 // finding is made with MOD-text-tools' finding, names the requirement — its name is its identifier — and the line of its head
-// line, and says in one line what is wrong and what correction is expected. The reading follows
-// docs/assets/artifacts/requirements.mjs (requirementProblems), which checks the SPEC's earlier form. Where the module file
-// leaves a reading open, this file states the reading it takes:
+// line, and says in one line what is wrong and what correction is expected. Where the module file leaves a reading open, this
+// file states the reading it takes:
 //
 //   - A requirement missing a source, a rule and a check has three findings, one for each field. A missing check is reported
 //     under A REQUIREMENT HAS FOUR FIELDS only: it cannot also name neither a test nor review.

@@ -50,8 +50,8 @@ unchanged in a browser and in Node, and performs no input or output.
 - `schemas/use-case.json`, `schemas/decision.json`, `schemas/module.json`, `schemas/item.json` — the schemas this module
   owns, shown under Data.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `docs/assets/artifacts.mjs`, `docs/assets/artifacts/checks.mjs`, `docs/assets/artifacts/use-cases.mjs`: removed once no file imports them: `readDocument`, `documentFindings` and `artifactSchemas` give them.
-  - `tests/artifact_checks.py`, `tests/test_architecture_files.py`, `tests/test_usecase_fields.py`, `tests/release-sprint-02-a-artifacts.test.mjs`, `tests/release-sprint-02-c-artifacts.test.mjs`, `tests/artifacts-checks.test.mjs`, `tests/artifacts-twin.test.mjs`, `tests/architecture-format.test.mjs`, `tests/review-core.d/artifacts.test.mjs`, `tests/test_usecase_realises.py`, `tests/test_diagrams_are_mermaid.py`, `tests/test_artifact_format.py`, `tests/test_self_sufficient.py`, `tests/test_release_sprint_02_d.py`, `tests/test_no_history.py`, `tests/test_derivation_classes.py`: their headers name this module; one of only the old artifacts is rewritten on this module.
+  - `docs/assets/artifacts.mjs`: removed once no file imports it: `readDocument`, `documentFindings` and `artifactSchemas` give it.
+  - `tests/artifact_checks.py`, `tests/test_architecture_files.py`, `tests/release-sprint-02-a-artifacts.test.mjs`, `tests/release-sprint-02-c-artifacts.test.mjs`, `tests/architecture-format.test.mjs`, `tests/review-core.d/artifacts.test.mjs`, `tests/test_artifact_format.py`, `tests/test_self_sufficient.py`, `tests/test_release_sprint_02_d.py`, `tests/test_no_history.py`, `tests/test_derivation_classes.py`: their headers name this module; one of only the old artifacts is rewritten on this module.
 
 ## Data
 

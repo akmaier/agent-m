@@ -5,8 +5,7 @@
 //
 // Module: MOD-text-tools
 //
-// The form is the one the findings of docs/assets/artifacts/checks.mjs and headers.mjs are written in, with the period that
-// the module file's example puts after the correction.
+// The form is the module file's example, with the period it puts after the correction.
 
 // A requirement's name in capitals, as the SPEC writes it: capital letters, digits, spaces, apostrophes, commas and hyphens,
 // at least one capital letter, no blank, comma or hyphen at either end, and none of the identifiers' prefixes — the scheme

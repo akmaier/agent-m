@@ -13,7 +13,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { repoServer, openDashboard, TOKEN, richDocument, press, settle, attrOf } from "./app-harness.mjs";
-import { exportSettings } from "../docs/assets/settings-store.mjs";
 import { GL, GL_ADDR, GL_TOKEN } from "./review-core.d/helpers.mjs";
 
 const API = "https://api.github.com";
@@ -30,7 +29,7 @@ const agentEntries = () => {
   const out = {};
   for (let i = 0; i < globalThis.localStorage.length; i++) {
     const k = globalThis.localStorage.key(i);
-    if (k && (k.startsWith("agent-m.") || k.startsWith("agent-m:"))) out[k] = globalThis.localStorage.getItem(k);
+    if (k && k.startsWith("agent-m:")) out[k] = globalThis.localStorage.getItem(k);
   }
   return out;
 };
@@ -61,7 +60,7 @@ async function instanceWorld(handlers = []) {
 }
 
 // One page load of the settings page on a browser that holds `entries` (a reload keeps every entry of the page before it).
-async function settingsPage(world, entries = { "agent-m.github-token": TOKEN }) {
+async function settingsPage(world, entries = canonicalToken()) {
   const page = await openDashboard({ server: world.srv, hash: "#uc", token: null, entries });
   const dom = richDocument(), createElement = globalThis.document.createElement.bind(globalThis.document);
   globalThis.document.createElement = (name) => {

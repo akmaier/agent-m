@@ -18,10 +18,10 @@ on its own (KEIN SPEC-ZUGRIFF AUS PRODUKT-CODE). Three checks:
    provider), the loopback names of the local bridge, and the two pages the site only links to — the lab's and the
    book's —, which no channel of check 2 may call. A package registry or resource host enters this list together with
    the notice that names it before it is called.
-2. A request leaves the page only through a known channel, in the own code and in the vendored libraries alike: the git
-   host's request helper, whose origin gate admits only the instance's own origin, GitHub's API and raw hosts and the
-   product's own GitLab project (`prepare` in git-host.mjs, tested in tests/review-core.d/git-host.test.mjs, and its
-   successor in MOD-repository-hosts, src/repository-hosts/failures.mjs); the bridge probe on localhost; the dashboard's
+2. A request leaves the page only through a known channel, in the own code and in the vendored libraries alike: the
+   repository hosts' request helper, whose origin gate admits only the addresses of the one repository a host is for —
+   GitHub's API and raw hosts, or the product's own GitLab project (`prepare` in src/repository-hosts/failures.mjs, tested in
+   tests/review-core.d/repository-hosts.test.mjs and tests/repository-hosts.test.mjs); the bridge probe on localhost; the dashboard's
    own view files and style sheets; MOD-spec-document's own skeleton.md, read from the address the module was loaded
    from; MOD-endpoint-calls' configured endpoint short test and direct job-driver transports; and the own data files — schemas, models, practices —
    of the modules whose files state that they read them when
@@ -115,7 +115,7 @@ def _mail_routes_request(text: str, at: int) -> bool:
 
 
 def _prepared(text: str, at: int) -> bool:
-    """git-host.mjs: the fetch sends the URL that prepare() returned in the lines just above it."""
+    """src/repository-hosts/failures.mjs: the fetch sends the URL that prepare() returned in the lines just above it."""
     before = text[:at].split("\n")[-3:]
     return text[at:].startswith(("fetch(u,", "fetch(u)")) and any(re.search(r"const \[u,[^\]]*\] = prepare\(", l) for l in before)
 
@@ -311,7 +311,6 @@ def _trace_graph_css_form(text: str, at: int) -> bool:
 # An entry for a folder allows the channel at most as often as listed, counted over every file in it: it allows a module's
 # read of its own data files and requires none.
 PERMITTED_CHANNELS = {
-    ("docs/assets/git-host.mjs", "fetch"): (2, "the request helper and fetchText send only what the origin gate prepare() let through", _prepared),
     ("src/repository-hosts/failures.mjs", "fetch"): (1, "the repository hosts' request helper sends only what its origin gate prepare() let through", _prepared),
     ("src/spec-document/index.mjs", "fetch"): (1, "its own skeleton.md, from the address the module itself was loaded from",
                                                lambda t, i: t[i:].startswith("fetch(url)") and 'new URL("./skeleton.md", import.meta.url)' in t),
@@ -342,8 +341,6 @@ PERMITTED_CHANNELS = {
     ("src/result-records/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/job-ledger/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/prompt-bar/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
-    ("docs/assets/bridge-tunnel.mjs", "fetch"): (1, "the probe of a remote session's forward, on localhost",
-                                                  lambda t, i: t[i:].startswith("fetch(`http://localhost:")),
     ("src/site-frame/dashboard-app.mjs", "import()"): (1, "a view file of the dashboard, from its own origin", _own_origin),
     ("src/site-frame/dashboard-app.mjs", "loading element"): (1, "a view's style sheet, from its own origin", _own_origin),
     ("src/site-frame/routing.mjs", "import()"): (1, FRAME_VIEW_IMPORT, _site_frame_view_import),
@@ -433,7 +430,7 @@ class NoServer(unittest.TestCase):
 
     def test_the_site_has_code_to_check(self):
         # A scan that finds no file proves nothing: the page, the dashboard's modules and the vendored libraries are there.
-        for f in ("index.html", "src/site-frame/start.mjs", "src/main-page/home.mjs", "docs/index.html", "src/site-frame/dashboard-app.mjs", "docs/assets/git-host.mjs",
+        for f in ("index.html", "src/site-frame/start.mjs", "src/main-page/home.mjs", "docs/index.html", "src/site-frame/dashboard-app.mjs", "src/repository-hosts/failures.mjs",
                   "src/markdown-render/vendor/mermaid.min.js"):
             self.assertIn(f, self.files)
 
@@ -486,12 +483,15 @@ class NoServer(unittest.TestCase):
                                  "loading tag", "sendBeacon", "url()"])
 
     def test_counter_proof_a_permitted_channel_without_its_evidence_is_found(self):
-        unprepared = {"docs/assets/git-host.mjs": "export async function request(url) {\n  return fetch(url);\n}\n"
-                                                  "async function f(u) { const [u, i] = prepare(x); return fetch(u, i); }\n"}
+        helper = "src/repository-hosts/failures.mjs"
+        prepared = {helper: "export async function send(url, options, gate) {\n  const [u, init] = prepare(url, options, gate);\n"
+                            "  return fetch(u, init);\n}\n"}
+        self.assertEqual(channel_findings(prepared), [], "known positive: the helper's prepared request passes")
+        unprepared = {helper: "export async function send(url) {\n  return fetch(url);\n}\n"}
         self.assertEqual(channel_findings(unprepared),
-                         ["docs/assets/git-host.mjs:2: fetch: not the request helper and fetchText send only what the origin gate "
+                         [f"{helper}:2: fetch: not the repository hosts' request helper sends only what its origin gate "
                           "prepare() let through"])
-        elsewhere = {"docs/assets/bridge-tunnel.mjs": "await fetch(`https://jump.example/${port}/`);\n"}
+        elsewhere = {"src/approvals/x.mjs": "await fetch(`https://jump.example/${port}/`);\n"}
         self.assertEqual(len(channel_findings(elsewhere)), 1)
         twice = {"src/markdown-render/vendor/mermaid.min.js": "new Worker(a);new Worker(b);var k='@import';"
                                                       "document.createElement(\"img\");"}
