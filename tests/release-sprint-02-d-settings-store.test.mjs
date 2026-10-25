@@ -10,15 +10,15 @@
 // grants". ONE GITHUB TOKEN SERVES EVERY FEATURE: the one GitHub token carries Contents, Issues and Pull requests read and write,
 // Actions and Workflows read and write, Metadata read. The writes those permissions carry, as a person reads them: Contents —
 // commits; Issues — issues; Pull requests — pull requests (a job opens and merges them); Actions — workflow runs; Workflows —
-// commits to the CI configuration. The permission list itself is taken from the one list the dashboard builds its token link
-// from (MOD-git-host requiredPermissions), so that a permission added there without a word in the grant fails this test.
+// commits to the CI configuration. The permission list itself is taken from the token link the dashboard opens (MOD-repository-hosts
+// webLinks().newToken, GitHub's prefilled token page), so that a permission added there without a word in the grant fails this test.
 
 import test from "node:test";
 import assert from "node:assert/strict";
 import { settingKeys, TOKEN_KEY, KEYS } from "../docs/assets/settings-store.mjs";
-import { requiredPermissions } from "../docs/assets/git-host.mjs";
+import { parseAddress, connect } from "../src/repository-hosts/index.mjs";
 
-// The write each GitHub permission carries, as the grant must name it.
+// The write each GitHub permission carries, as the grant must name it, by the parameter of GitHub's prefilled token page.
 const WRITE_OF = { contents: /\bcommits?\b/i, issues: /\bissues?\b/i, pull_requests: /\bpull requests?\b/i,
   actions: /\bworkflow runs?\b/i, workflows: /\bcommits?\b/i, secrets: /\bsecrets?\b/i };
 
@@ -32,12 +32,13 @@ test("ITM-125 · the GitHub token's grant names every write the one token carrie
   const grant = String(github.grants ?? "");
   for (const w of ["commits", "issues", "pull requests", "workflow runs", "secrets"]) assert.match(grant, new RegExp(`\\b${w}\\b`, "i"), w);
   assert.match(grant, /your account/i, "under the person's account");
-  const writes = requiredPermissions("github.com").github.filter((p) => p.access === "write");
-  assert.deepEqual(writes.map((p) => p.permission).sort(), ["Actions", "Contents", "Issues", "Pull requests", "Secrets", "Workflows"],
+  const page = new URL(connect(parseAddress("https://github.com/alice/thesis-tool")).webLinks().newToken("Agent M", "Agent M", 90));
+  const writes = [...page.searchParams].filter(([, access]) => access === "write").map(([param]) => param);
+  assert.deepEqual(writes.sort(), ["actions", "contents", "issues", "pull_requests", "secrets", "workflows"],
     "the write permissions ONE GITHUB TOKEN SERVES EVERY FEATURE names");
-  for (const p of writes) {
-    assert.ok(WRITE_OF[p.param], `${p.permission}: a permission this test does not know the write of`);
-    assert.match(grant, WRITE_OF[p.param], `${p.permission}: its write is named in the grant`);
+  for (const param of writes) {
+    assert.ok(WRITE_OF[param], `${param}: a permission this test does not know the write of`);
+    assert.match(grant, WRITE_OF[param], `${param}: its write is named in the grant`);
   }
 });
 

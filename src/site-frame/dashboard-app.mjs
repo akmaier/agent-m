@@ -5,7 +5,7 @@
 // handed to MOD-review-pages' routes (reviewTargets), which render the use cases, the architecture and the SPEC change entries and
 // make their decisions on a person's click; a GitLab product without its project token is read-only and links to the step that
 // stores it. A page load reads the commit and its tree, then the files the route shows in batches (readAhead); the routes then take
-// the files they show from that pinned Snapshot. Every read goes through the git host (GET only), and each token only to the API of
+// the files they show from that pinned Snapshot. Every read goes through a host of MOD-repository-hosts, and each token only to the API of
 // the server that issued it.
 //
 // Module: MOD-dashboard-app
@@ -25,9 +25,6 @@ import builtFiles from "../../docs/assets/dashboard/built.json" with { type: "js
 import { retireFileTexts } from "../../docs/assets/settings-store.mjs";
 import { productStore } from "../../docs/assets/product-store-adapter.mjs";
 import {
-  REPO_RE, parseProductAddress, isGitLab, tokenRefusal, usedUpLimit,
-} from "../../docs/assets/git-host.mjs";
-import {
   parseRecord, readByBlob, recordIndex, statusByNames, parseQueueIndex, parseDecisions,
 } from "../../docs/assets/review-core.mjs";
 import { ARCHITECTURE_FILE } from "../../docs/assets/artifacts.mjs";
@@ -37,7 +34,7 @@ import { UPSTREAM, instanceOf } from "../site/instance-repository.mjs";
 // The checks of what waits for acceptance, started on the review pages (UC-047; sprint 07's change between jobs: the
 // dashboard reaches MOD-notifications, as ITM-236's Outcome names it) — through each module's own interface.
 import { openStore, secretValues } from "../browser-store/index.mjs";
-import { parseAddress, connect } from "../repository-hosts/index.mjs";
+import { parseAddress, connect, HostError } from "../repository-hosts/index.mjs";
 import { watchForAcceptance } from "../notifications/index.mjs";
 import { storedOverview } from "../progress-measures/index.mjs";
 import { attachPromptBar, explain } from "./index.mjs";
@@ -119,14 +116,16 @@ export function stepHtml({ title, body, explain }) {
     `<details class="explain"><summary>What is this?</summary><div>${explain}</div></details></section>`;
 }
 
-// A write refused with 403. What GitLab answers 403 for here: a push to a protected branch by a role it does not allow — the
-// default protection lets Maintainers push ("Fully protected - Default value. Developers cannot push new commits, but
+// The failure of a host this page connected (MOD-repository-hosts' HostError) by its name, or null for any other error.
+const hostFailure = (e, name) => (e instanceof HostError && e.name === name ? e : null);
+
+// A write refused for a missing permission. What GitLab answers 403 for here: a push to a protected branch by a role it does not
+// allow — the default protection lets Maintainers push ("Fully protected - Default value. Developers cannot push new commits, but
 // maintainers can." — doc/user/project/repository/branches/default.md), but a project may allow no one —, and a token without
-// the scope the request needs (Gitlab::Auth::InsufficientScopeError → Bearer::Forbidden, lib/api/api_guard.rb). An expired or
-// revoked token is answered with 401 instead, and named by tokenRefusal. MOD-repository-hosts, which carries no status, names
-// this refusal PermissionMissing.
+// the scope the request needs (Gitlab::Auth::InsufficientScopeError → Bearer::Forbidden, lib/api/api_guard.rb). MOD-repository-hosts
+// names this refusal PermissionMissing; an expired or revoked token it names TokenRefused instead.
 export function gitlabWriteRefusal(e, product) {
-  if (e?.status !== 403 && e?.name !== "PermissionMissing") return null;
+  if (!hostFailure(e, "PermissionMissing")) return null;
   return `GitLab refused the write (403). With a project token of role Maintainer and scope api this means that the branch is ` +
     `protected even against Maintainers on ${product.address} — Settings → Repository → Protected branches → “Allowed to push and merge” — or ` +
     "that the token lacks scope api or was created with a lower role. Check the setting, and the token's role and scopes on the " +
@@ -134,19 +133,19 @@ export function gitlabWriteRefusal(e, product) {
 }
 
 // A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN: which limit — the account's, or the network's for requests without a
-// token — and when it resets, where the server tells the page (MOD-git-host usedUpLimit); null for any other refusal. The
+// token — and when it resets, where the server tells the page (MOD-repository-hosts' RateLimited); null for any other refusal. The
 // account's text names no token: every token of the account counts against the same limit, so none of them is at fault.
 // product: the product the request went to — a GitLab one by its server; null or a GitHub product for GitHub.
 export function rateLimitText(e, product = null, now = new Date()) {
   const gl = isGitLab(product) ? product : null;
-  const l = usedUpLimit(e, gl);
+  const l = hostFailure(e, "RateLimited");
   if (!l) return null;
   const server = gl ? gl.host : "GitHub";
-  const which = l.limit === "account"
-    ? (gl ? `${server}'s request limit for the account these requests are made with is used up.`
+  const which = l.limit === "network"
+    ? `${server}'s request limit for this network, for requests made without a token, is used up.`
+    : gl ? `${server}'s request limit for the account these requests are made with is used up.`
       : "GitHub's hourly request limit for your account is used up — it counts every request made in your account's name, " +
-        "from this page and from any other program.")
-    : `${server}'s request limit for this network, for requests made without a token, is used up.`;
+        "from this page and from any other program.";
   let when;
   if (l.resetsAt) {
     const minutes = Math.ceil((l.resetsAt.getTime() - now.getTime()) / 60000);
@@ -154,23 +153,23 @@ export function rateLimitText(e, product = null, now = new Date()) {
     when = minutes > 0 ? ` It resets at ${time} (in ${minutes} minute${minutes === 1 ? "" : "s"}); reload then.`
       : ` It reset at ${time}; reload.`;
   } else when = ` ${server} does not tell this page when it resets — try again in a few minutes.`;
-  const after = l.limit === "account" ? " Nothing in Settings needs to change."
+  const after = l.limit !== "network" ? " Nothing in Settings needs to change."
     : gl ? "" : " A GitHub token in Settings gives this page your account's own, higher limit.";
   return which + when + after;
 }
 
-// UC-008 4a: a write GitHub refused because the token cannot write to the repository — 403 or 404 —, and not because a rate
-// limit is used up (A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN) or the token itself was refused (401, tokenRefusal).
-// Never a GitLab product's: there is no GitHub page to fall back to (A GITLAB PRODUCT IS WRITTEN WITH A TOKEN).
+// UC-008 4a: a write GitHub refused because the token cannot write to the repository — MOD-repository-hosts' PermissionMissing,
+// GitHub's 403 or 404 —, and not because a rate limit is used up (A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN) or the
+// token itself was refused (TokenRefused). Never a GitLab product's: there is no GitHub page to fall back to (A GITLAB PRODUCT IS
+// WRITTEN WITH A TOKEN).
 export function writeAccessRefused(e, product) {
-  if (!e || isGitLab(product) || usedUpLimit(e)) return false;
-  return e.status ? e.status === 403 || e.status === 404 : /403|404/.test(e.message || "");
+  return !isGitLab(product) && Boolean(hostFailure(e, "PermissionMissing"));
 }
 
-// Why a write was refused, in the product's terms — a used-up limit first, then GitLab's 403, then GitHub's 403 or 404 as the
-// token's missing permission; null when none of these applies (the caller then shows errorText). githubPage: GitHub's
-// new-file page prefilled with the approval record, which the caller shows beside the text as a link (UC-008 4a); without it
-// the GitHub path is named only.
+// Why a write was refused, in the product's terms — a used-up limit first, then GitLab's refusal, then GitHub's as the token's
+// missing permission; null when none of these applies (the caller then shows errorText). githubPage: GitHub's new-file page
+// prefilled with the approval record, which the caller shows beside the text as a link (UC-008 4a); without it the GitHub path is
+// named only.
 export function writeRefusalText(e, product, now = new Date(), { githubPage = null } = {}) {
   const limit = rateLimitText(e, product, now);
   if (limit) return limit;
@@ -182,37 +181,46 @@ export function writeRefusalText(e, product, now = new Date(), { githubPage = nu
     : "Extend it in Settings, or remove it to use GitHub's page instead.");
 }
 
-// The page shown when the product's commit cannot be read: the server's answer, and what it means here. A used-up rate limit
-// is named instead (A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN); a refused token is named with its renewal (AN
-// EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED). hasToken: whether a token for this product is stored; own: the GitHub product
-// whose own token was used, so that a refusal names it (A GITHUB PRODUCT USES A TOKEN OF ITS OWN).
-export function loadErrorHtml({ error: e, product, ref, hasToken, own = null, now = new Date() }) {
+// The page shown when the product's commit cannot be read: the host's failure, and what it means here. A used-up rate limit
+// is named instead (A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN); a refused token is named with the page where it is
+// renewed, as MOD-repository-hosts' TokenRefused names both (AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED). hasToken: whether a
+// token for this product is stored.
+export function loadErrorHtml({ error: e, product, ref, hasToken, now = new Date() }) {
   const gl = isGitLab(product), name = gl ? product.address : product.repo;
   const limit = rateLimitText(e, product, now);
   if (limit) return `<p class="warn">Could not read ${h(name)} @ ${h(ref)}: ${h(limit)}</p>`;
-  const refused = tokenRefusal(e, gl ? product : own);
-  const msg = e?.message || "";
-  const limited = !gl && !hasToken && /403|429/.test(msg), forbidden = !gl && hasToken && /403/.test(msg), missing = !gl && (e?.name === "NotFound" || /404/.test(msg));
-  return `<p class="warn">Could not read ${h(name)} @ ${h(ref)}: ${h(msg)}</p>
-      ${gl && e instanceof TypeError ? `<p class="muted">${h(product.host)} could not be reached from this page — it must accept requests
+  const refused = hostFailure(e, "TokenRefused"), missing = hostFailure(e, "NotFound");
+  const forbidden = !gl && hasToken && hostFailure(e, "PermissionMissing");
+  return `<p class="warn">Could not read ${h(name)} @ ${h(ref)}: ${h(e?.message || "")}</p>
+      ${gl && hostFailure(e, "Unreachable") ? `<p class="muted">${h(product.host)} could not be reached from this page — it must accept requests
         from this address, and your network must reach it.</p>` : ""}
-      ${gl && e?.status === 404 && !hasToken ? `<p class="muted">A private GitLab project is read only with its project token —
+      ${gl && missing && !hasToken ? `<p class="muted">A private GitLab project is read only with its project token —
         <a href="${h(`#add/${encodeURIComponent(product.address)}`)}">store it</a>.</p>` : ""}
-      ${gl && e?.status === 404 && hasToken ? `<p class="muted">The stored project token does not reach this project — check the address,
+      ${gl && missing && hasToken ? `<p class="muted">The stored project token does not reach this project — check the address,
         or <a href="${h(`#add/${encodeURIComponent(product.address)}`)}">store another token</a>.</p>` : ""}
-      ${limited ? `<p class="muted">Without a token GitHub allows 60 API calls per hour and network; this page uses two per load. A token in <a href="#settings">Settings</a> raises that.</p>` : ""}
       ${forbidden ? `<p class="muted">GitHub refused reading ${h(name)} with the stored token: it lacks a permission for this repository. Extend it on github.com, or check the name.</p>` : ""}
-      ${missing && !hasToken ? `<p class="muted">A private repository cannot be read without a token — add one in <a href="#settings">Settings</a>.</p>` : ""}
-      ${missing && hasToken ? `<p class="muted">The stored token does not reach this repository. Extend it on github.com or check the name.</p>` : ""}
-      ${refused ? `<p>${h(refused.text)} <a class="btn small" href="${h(refused.renewUrl)}" target="_blank" rel="noopener">Renew ↗</a></p>
-        <p class="muted small">${h(refused.renew)} <a href="#settings">Settings</a></p>` : ""}`;
+      ${!gl && missing && !hasToken ? `<p class="muted">A private repository cannot be read without a token — add one in <a href="#settings">Settings</a>.</p>` : ""}
+      ${!gl && missing && hasToken ? `<p class="muted">The stored token does not reach this repository. Extend it on github.com or check the name.</p>` : ""}
+      ${refused ? `<p><a class="btn small" href="${h(refused.renewal)}" target="_blank" rel="noopener">Renew ↗</a></p>
+        <p class="muted small">Then paste the renewed token in <a href="#settings">Settings</a>.</p>` : ""}`;
 }
 
 // ---------------------------------------------------------------- instance, product, token
 
+// A product of this page by its address, as MOD-repository-hosts' parseAddress reads it (A PRODUCT IS NAMED BY ITS ADDRESS):
+// { address, host, repo } for a GitHub repository; { address, host, repo, server, kind: "gitlab" } for a GitLab project, `repo`
+// its whole path; { error } with parseAddress's reason for anything that is no repository's address.
+export function productOf(url) {
+  let a;
+  try { a = parseAddress(url); } catch (e) { return { error: e.message }; }
+  const named = { address: a.web, host: new URL(a.origin).host, repo: a.path };
+  return a.server === "gitlab" ? { ...named, server: a.origin, kind: "gitlab" } : named;
+}
+const isGitLab = (p) => p?.kind === "gitlab";
+
 // AN INSTANCE IS A FORK OF AGENT M: the instance is the repository of the Pages address this page is served from
 // (<owner>.github.io/<name>/), else Agent M itself (src/site/instance-repository.mjs). The product is chosen with ?repo=owner/name (GitHub), ?product=<address>
-// (GitHub or GitLab), or the review route's existing product fragment when the query names neither. A GitLab product adds `product` (parseProductAddress) and `refGiven` (false: its default branch is read
+// (GitHub or GitLab), or the review route's existing product fragment when the query names neither. A GitLab product adds `product` (productOf) and `refGiven` (false: its default branch is read
 // from GitLab). Moved here from docs/assets/review-core.mjs (ITM-130): it reads the page's own address.
 export function deriveTarget({ hostname, pathname, search, hash }) {
   const instance = instanceOf({ hostname, pathname });
@@ -220,10 +228,11 @@ export function deriveTarget({ hostname, pathname, search, hash }) {
   const refOk = q.get("ref") && /^[A-Za-z0-9._\/-]{1,200}$/.test(q.get("ref")) && !q.get("ref").includes("..");
   const ref = refOk ? q.get("ref") : "main";
   const named = q.get("product") || (q.get("repo") ? null : routeOf(hash).params.product);
-  const chosen = named ? parseProductAddress(named) : null;
+  const chosen = named ? productOf(named) : null;
   if (chosen && !chosen.error && chosen.kind === "gitlab") return { instance, repo: chosen.repo, ref, product: chosen, refGiven: Boolean(refOk) };
   const wanted = chosen && !chosen.error ? chosen.repo : q.get("repo");
-  const repo = wanted && REPO_RE.test(wanted) && !wanted.includes("..") ? wanted : instance;
+  // ?repo= names a GitHub repository by owner and name: it stands only where it is that repository's whole path.
+  const repo = wanted && productOf(`https://github.com/${wanted}`).repo === wanted ? wanted : instance;
   return { instance, repo, ref };
 }
 
@@ -244,7 +253,9 @@ function currentHost() {
   const currentToken = JSON.stringify([token() || null, secrets()]);
   if (!host || hostAddress !== address || hostToken !== currentToken) {
     const changed = Boolean(host);
-    host = connect(parseAddress(address), { token: token() || null, secrets: secrets() });
+    // A refusal names the token that was used: a GitHub product's own by its product (A GITHUB PRODUCT USES A TOKEN OF ITS OWN).
+    const tokenName = !isGitLab(T.product) && ownTokenOf(T.product) ? `GitHub token for ${address}` : null;
+    host = connect(parseAddress(address), { token: token() || null, tokenName, secrets: secrets() });
     hostAddress = address;
     hostToken = currentToken;
     if (changed) {
@@ -371,7 +382,7 @@ const writeTarget = () => (GITLAB ? { product: T.product } : { repo: T.repo });
 // THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER: the list is this browser's, by address; the instance
 // repository names no product. Another browser starts with an empty list.
 function loadProducts() {
-  state.products = store.getProducts().map(parseProductAddress).filter((p) => !p.error);
+  state.products = store.getProducts().map(productOf).filter((p) => !p.error);
 }
 const paths = (re) => state.tree.filter((e) => re.test(e.path));
 
@@ -433,12 +444,12 @@ const writeErrorText = (e, githubPage = null) => writeRefusalText(e, T.product, 
 
 const shownSecrets = new Set(); // keys revealed by Show on this page; any other view hides them again
 
-// AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED: a 401 anywhere marks the token that was used as refused —
+// AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED: a refused token anywhere (TokenRefused) marks the token that was used as refused —
 // the GitHub token, or the project token of the GitLab product (`product`) — and the line at the top of every
 // view says which token and where it is renewed. The mark is the token's last test, kept in this browser beside the token
 // (MOD-settings-store), so that it holds after a reload too (UC-042 step 1); a successful Test, a new value or a Clear replace it.
 function noteRefusal(e, product = T.product) {
-  if (tokenRefusal(e)) {
+  if (hostFailure(e, "TokenRefused")) {
     if (isGitLab(product)) store.setGitLabTokenTest(product.address, { refused: true });
     else if (ownTokenOf(product)) store.setGitHubProductTokenTest(product.address, { refused: true });
     else store.setTokenTest({ refused: true });
@@ -446,13 +457,9 @@ function noteRefusal(e, product = T.product) {
   }
   return e;
 }
-// Any refusal, in words: a used-up rate limit by its name, a refused token with where it is renewed, else the server's answer.
-const errorText = (e, product = T.product) => {
-  const limit = rateLimitText(e, product);
-  if (limit) return limit;
-  const r = tokenRefusal(e, ownTokenOf(product));
-  return r ? `${r.text} Renew it with the link at the top of the page.` : e.message;
-};
+// Any refusal, in words: a used-up rate limit by its name, else the failure's own message — a refused token's names the token and
+// the page where it is renewed (MOD-repository-hosts' TokenRefused).
+const errorText = (e, product = T.product) => rateLimitText(e, product) || e.message;
 const gitlabShown = () => (GITLAB ? store.getGitLabToken(T.product.address) : null);
 // The notices at the top of every view: the frame's own notices (MOD-site-frame, showTokenNotices) of the GitHub token and of the
 // shown product's own token, each expiring or refused at its last use (its kept last test). Their place is the page's slot
@@ -483,7 +490,7 @@ function productHref(p) {
 function renderProductSelector() {
   const sel = document.getElementById("product");
   // A PRODUCT IS NAMED BY ITS ADDRESS; the instance is always offered first and is not in the list.
-  const instance = parseProductAddress(`https://github.com/${T.instance}`);
+  const instance = productOf(`https://github.com/${T.instance}`);
   const options = [{ p: instance, label: `${T.instance} — this instance` },
     ...state.products.filter((p) => p.address !== instance.address).map((p) => ({ p, label: p.address }))];
   sel.innerHTML = options.map(({ p, label }) => `<option value="${h(p.address)}" ${p.address === T.product.address ? "selected" : ""}>${h(label)}</option>`).join("")
@@ -494,7 +501,7 @@ function renderProductSelector() {
       location.hash = "#add";
       return;
     }
-    location.search = productHref(parseProductAddress(sel.value)).slice(1);
+    location.search = productHref(productOf(sel.value)).slice(1);
   };
 }
 
@@ -529,7 +536,7 @@ function notificationView(route, id) {
 // kept product's by its repository path; absolute, since the worker opens it from its own scope, not this page's
 // (src/notifications/worker.mjs).
 function addressOfNotification(route, params, repository) {
-  const p = repository === T.instance ? parseProductAddress(`https://github.com/${T.instance}`)
+  const p = repository === T.instance ? productOf(`https://github.com/${T.instance}`)
     : state.products.find((x) => x.repo === repository) ?? null;
   const query = p ? productHref(p) : "";
   return new URL(`${query}#${notificationView(route, params.id)}`, document.baseURI).href;
@@ -809,14 +816,14 @@ async function route() {
           if (route === "add-product") location.hash = params.address ? `#add/${encodeURIComponent(params.address)}` : "#add";
           if (route === "endpoints") location.hash = params.name ? `#endpoints/${encodeURIComponent(params.name)}` : "#endpoints";
           if (route === "bridge") location.hash = "#bridge";
-          if (route === "main") location.search = productHref(parseProductAddress(params.product)).slice(1);
+          if (route === "main") location.search = productHref(productOf(params.product)).slice(1);
         },
       }, {});
     } else if (kind === "add" || kind === "add-product") {
       const addProduct = settingsPages.routes.find((r) => r.name === "add-product");
       await addProduct.render(main(), {
         instance: { repository: T.instance }, product: null, store: openStore(T.instance),
-        go(_route, { product }) { location.search = productHref(parseProductAddress(product)).slice(1); },
+        go(_route, { product }) { location.search = productHref(productOf(product)).slice(1); },
       }, {});
       if (a) {
         const input = main().querySelector("input.address");
@@ -925,7 +932,7 @@ async function route() {
 
 async function start() {
   T = deriveTarget(location);
-  T.product = T.product || parseProductAddress(`https://github.com/${T.repo}`);
+  T.product = T.product || productOf(`https://github.com/${T.repo}`);
   GITLAB = isGitLab(T.product);
   SERVER = GITLAB ? T.product.host : "GitHub";
   store = productStore(T.instance);
@@ -954,7 +961,7 @@ async function start() {
     noteRefusal(e);
     state.loadError = e;
     if (early) return;
-    main().innerHTML = loadErrorHtml({ error: e, product: T.product, ref: T.ref, hasToken: Boolean(token()), own: ownTokenOf(T.product) });
+    main().innerHTML = loadErrorHtml({ error: e, product: T.product, ref: T.ref, hasToken: Boolean(token()) });
     addEventListener("hashchange", route);
     return;
   }

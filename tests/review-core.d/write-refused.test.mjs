@@ -16,8 +16,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { repoServer, openDashboard, REPO } from "../app-harness.mjs";
-import { gitBlobSha, recordText, useCaseRecord, approvalPath } from "../../docs/assets/review-core.mjs";
-import { newFileUrl, parseProductAddress } from "../../docs/assets/git-host.mjs";
+import { recordText, useCaseRecord, approvalPath } from "../../docs/assets/review-core.mjs";
+import { parseAddress, connect, HostError } from "../../src/repository-hosts/index.mjs";
+import { blobSha } from "../../src/text-tools/index.mjs";
 import * as shell from "../../src/site-frame/dashboard-app.mjs";
 import { B_SPEC, B_P05, B_INDEX, QD, GL_ADDR } from "./helpers.mjs";
 
@@ -80,9 +81,9 @@ test("UC-008 4a: a commit refused for missing write access writes nothing; the p
   assert.deepEqual(srv.writes, [], "nothing is written");
   assert.equal(accept.disabled, false, "Accept can be pressed again");
   assert.match(result.html, /<p class="result">Your GitHub token may not write to https:\/\/github\.com\/akmaier\/agent-m/, "the page says so");
-  const blob = await gitBlobSha(UC2_TEXT);
+  const blob = await blobSha(UC2_TEXT);
   const record = recordText(useCaseRecord(UC2, blob));
-  const want = newFileUrl(REPO, "main", approvalPath("UC-002", blob), record);
+  const want = connect(parseAddress(`https://github.com/${REPO}`)).webLinks().newFile(approvalPath("UC-002", blob), record);
   const links = hrefs(result.html).filter((x) => x.startsWith(NEW_PAGE));
   assert.deepEqual(links, [want], "one link: GitHub's new-file page with the approval record");
   // NO TEXT TRAVELS IN A URL: the link carries the record's path and the record, never the use case's text.
@@ -122,22 +123,28 @@ test("UC-008 4a counter-proof: a token the server refuses (401) is named for ren
   assert.ok(!hrefs(result.html).some((x) => x.startsWith(NEW_PAGE)), "no GitHub page offered");
 }));
 
+// A refusal as MOD-repository-hosts names it: a HostError by its name, with its fields.
+const refusal = (name, fields = {}) => new HostError(name, fields, `${name} — refused`);
+
 test("A GITLAB PRODUCT IS WRITTEN WITH A TOKEN: a GitLab product's refused write has no GitHub path — its refusal is GitLab's", () => {
-  const p = parseProductAddress(GL_ADDR);
-  const e = Object.assign(new Error("POST /api/v4/projects/x/repository/commits: 403 Forbidden"), { status: 403 });
+  const p = shell.productOf(GL_ADDR);
+  const e = refusal("PermissionMissing", { permission: "api", renewal: `${GL_ADDR}/-/settings/access_tokens` });
   assert.equal(shell.writeAccessRefused(e, p), false, "GitLab's 403 is not the GitHub path's refusal");
   assert.match(shell.writeRefusalText(e, p), /GitLab refused the write/);
   assert.doesNotMatch(shell.writeRefusalText(e, p), /GitHub/);
 });
 
+// Expected: a write GitHub refuses for missing write access — 403, or 404 where GitHub hides the repository, both of which
+// MOD-repository-hosts names PermissionMissing — is missing write access; a used-up limit (RateLimited), a refused token
+// (TokenRefused), a head that moved (Moved: GitHub's 422 "Update is not a fast forward"), an error that is no host's failure, and
+// none at all are not.
 test("writeAccessRefused: GitHub's 403 or 404 on a write is missing write access; counter-proof: a used-up limit, a 401 and another error are not", () => {
-  const gh = parseProductAddress(`https://github.com/${REPO}`);
-  const err = (status, message, headers = {}) => Object.assign(new Error(`POST /repos/${REPO}/git/trees: ${status} ${message}`),
-    { status, headers: new Headers(headers), authenticated: true });
-  assert.equal(shell.writeAccessRefused(err(403, "Resource not accessible by personal access token"), gh), true);
-  assert.equal(shell.writeAccessRefused(err(404, "Not Found"), gh), true);
-  assert.equal(shell.writeAccessRefused(err(403, "API rate limit exceeded", { "X-RateLimit-Limit": "5000", "X-RateLimit-Remaining": "0" }), gh), false);
-  assert.equal(shell.writeAccessRefused(err(401, "Bad credentials"), gh), false);
-  assert.equal(shell.writeAccessRefused(err(422, "Update is not a fast forward"), gh), false);
+  const gh = shell.productOf(`https://github.com/${REPO}`);
+  const renewal = "https://github.com/settings/personal-access-tokens";
+  assert.equal(shell.writeAccessRefused(refusal("PermissionMissing", { permission: "Contents", renewal }), gh), true);
+  assert.equal(shell.writeAccessRefused(refusal("RateLimited", { limit: "account", resetsAt: null }), gh), false);
+  assert.equal(shell.writeAccessRefused(refusal("TokenRefused", { tokenName: "GitHub token", renewal }), gh), false);
+  assert.equal(shell.writeAccessRefused(refusal("Moved", { head: "a".repeat(40) }), gh), false);
+  assert.equal(shell.writeAccessRefused(Object.assign(new Error("403 Forbidden"), { name: "PermissionMissing" }), gh), false, "no host's failure");
   assert.equal(shell.writeAccessRefused(null, gh), false);
 });
