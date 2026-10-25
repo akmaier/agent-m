@@ -55,7 +55,6 @@ the browser and in Node.
 - `accept.mjs` — composing an acceptance commit, the blockers, GitHub's prefilled page.
 - `strategies.mjs` — the recipes and preconditions of `approvalStrategies`.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `docs/assets/review-core.mjs`: removed once no file imports it: `statusOf`, `statuses`, `lastAcceptedText` and `acceptShown` give its records and status, MOD-spec-document its sections, MOD-text-tools its hashes.
   - `tests/test_approval_records.py`: rewritten on this module, or removed with the old core.
 
 ## Data

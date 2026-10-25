@@ -783,6 +783,15 @@ export const route = {
 
   subject: (params, context) => subjectOf({ title: descriptorFor(params.key)?.title ?? route.title, params, context, shown: drawn.get(context) ?? null }),
 
+  // The files whose list depends on files read first (MOD-site-frame's Route `reads`): for the specification, the proposals of the entries that wait
+  // for acceptance, which their impact lists read (entryView). The entries are found as the page finds them (waitingEntries): from the overview stored
+  // for the commit, or, where none is stored, from every queue, whose index and decisions `queues` reads through the snapshot's readMany itself. Every
+  // other view names none.
+  async reads(params, snapshot) {
+    if (descriptorFor(params.key)?.key !== "specification") return [];
+    return (await waitingEntries(snapshot)).map(({ entry }) => entry.proposal?.path).filter(Boolean);
+  },
+
   async render(target, context, params = {}) {
     target.replaceChildren();
     drawn.set(context, { target, ref: params.ref, onDefaultBranch: false, spec: null, source: null, requirements: [], groups: [] });

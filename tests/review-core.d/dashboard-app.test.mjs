@@ -45,7 +45,7 @@ test("the app never calls fetch directly — every request goes through an adapt
 
 // The kernel (ARC-003 decision 1): the modules of pure functions and data, as the code is built.
 function kernelModules() {
-  return new Set(["MOD-artifacts", "MOD-review-core", "MOD-traceability", "MOD-job-harness", "MOD-run-engine", "MOD-process-model",
+  return new Set(["MOD-artifacts", "MOD-traceability", "MOD-job-harness", "MOD-run-engine", "MOD-process-model",
     "MOD-work-items"]);
 }
 // What a module file imports from MOD-repository-hosts (src/repository-hosts/): for each import, the file of the module it names
@@ -69,12 +69,12 @@ const names = (imports) => imports.map(({ file, name }) => `${file}: ${name}`);
 
 // Guards: UC-024
 test("the kernel never reaches a repository — no kernel file imports anything of MOD-repository-hosts", () => {
-  // ARC-003 decisions 1 and 2: a kernel module imports only kernel modules; what it reads is handed to it as a port
-  // (MOD-review-core lastAccepted's committedAt and read), and a shell commits the files it returns, through a host it connected.
+  // ARC-003 decisions 1 and 2: a kernel module imports only kernel modules; what it reads is handed to it as a port,
+  // and a shell commits the files it returns, through a host it connected.
   // The kernel is read from the group file, a file's module from its Module line.
   const kernel = kernelModules(), files = moduleFiles();
   const checked = files.filter((f) => headerModules(f.text).some((m) => kernel.has(m)));
-  assert.ok(checked.some((f) => f.file === "review-core.mjs") && checked.some((f) => f.file === "artifacts.mjs"), "the kernel's files are checked");
+  assert.ok(checked.some((f) => f.file === "process-model.mjs") && checked.some((f) => f.file === "artifacts.mjs"), "the kernel's files are checked");
   for (const { file, text } of checked) assert.deepEqual(names(hostImports(text)), [], file);
   // counter-proof: each way of importing the module is caught, another module's import is not
   assert.deepEqual(names(hostImports('import {\n  parseAddress, connect,\n} from "../../src/repository-hosts/index.mjs";')),
@@ -114,7 +114,7 @@ test("EVERY STEP EXPLAINS ITSELF — a step without an explanation cannot be ren
 // ---------------------------------------------------------------- products in the browser (UC-001)
 
 test("every site module parses — the app itself is only run in a browser, so check its syntax here", () => {
-  for (const u of [APP, ...viewFiles(), new URL("review-core.mjs", ASSETS)]) {
+  for (const u of [APP, ...viewFiles()]) {
     const r = spawnSync(process.execPath, ["--check", u.pathname]);
     assert.equal(r.status, 0, `${u.pathname}: ${r.stderr}`);
   }
