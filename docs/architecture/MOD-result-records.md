@@ -83,9 +83,10 @@ where `<run>` is `<yyyymmdd>-<hhmm>-<occasion>-<4 hex>` and the occasion one of 
 | section `## Outcomes` | a table with the columns `Test`, `Level`, `Outcome`, `Runs`; `Test` a `TST-<nnn>`, or the name of a test case that names none; `Outcome` `passed`, `failed`, `not run` or `undeclared`; `Runs` for a model-dependent test `<k> of <n>` with `n` the number of runs fixed before the first, empty otherwise |
 | section `## Failures` | per failed test its expected and observed result and a log excerpt |
 
-**The outcome input.** A run's test steps hand their outcomes over as a JUnit XML report — the report every common test
-runner can write. Each test case is matched to its declaration by the `TST-<nnn>` at the start of its name; a case
-without one is reported as `undeclared`, and a declared test without a case as `not run`.
+**The outcome input.** A run's test jobs hand their outcomes over as JUnit XML reports, one for each job — the report
+every common test runner can write —, which are read together as the run's. Each test case is matched to its declaration
+by the `TST-<nnn>` at the start of its name; a case without one is reported as `undeclared`, and a declared test without
+a case in any of the reports as `not run`.
 
 **Schema `counter-proof`** (`counter-proof.schema.md`), a file `docs/tests/counter-proofs/TST-<nnn>.md` on the product's
 default branch, entering with the test's pull request:
@@ -104,13 +105,14 @@ default branch, entering with the test's pull request:
   run — `test` the `TST-<nnn>`, or the case's name for an undeclared case; `runs` `<k> of <n>` for a model-dependent
   test; `failure` the declaration's expected result, the observed one and an excerpt of the case's output.
 - `resultSchema: { run: Schema, counterProof: Schema }` — the two schemas, for MOD-documents and for MOD-release-evidence.
-- `parseOutcomes(report: string, declarations: TestDeclaration[]) -> Outcome[]` — the outcomes of one run, for
-  MOD-workflow-entries' `onTestsFinished`, from its JUnit XML report: each test case matched to its declaration by the
-  `TST-<nnn>` at the start of its name; a case with a failure or an error is `failed`, a skipped one `not run`, any
-  other `passed`; several cases of a deterministic test pass only if all pass; the cases of a model-dependent test are
-  its runs, `<k> of <n>` against the number its declaration fixes, and `not run` when fewer ran; a case without an
-  identifier is `undeclared`; a declared test without a case is `not run`. Errors: `UnreadableReport { reason }` for a
-  text that is not a JUnit XML report.
+- `parseOutcomes(reports: string[], declarations: TestDeclaration[]) -> Outcome[]` — the outcomes of one run, for
+  MOD-workflow-entries' `onTestsFinished`, from the JUnit XML reports of its jobs, read together as one: each test case
+  matched to its declaration by the `TST-<nnn>` at the start of its name; a case with a failure or an error is `failed`,
+  a skipped one `not run`, any other `passed`; several cases of a deterministic test, in one report or in several, pass
+  only if all pass; the cases of a model-dependent test are its runs, `<k> of <n>` against the number its declaration
+  fixes, and `not run` when fewer ran; a case without an identifier is `undeclared`; a declared test without a case in
+  any of the reports is `not run`. Errors: `UnreadableReport { index, reason }` for a text that is not a JUnit XML
+  report, naming its place in `reports`.
 - `appendResult(host: Host, record: Document) -> Promise<{ commit: string, path: string }>` — adds a run's record to the
   branch `test-results` as a new file, by a commit made only on the head that was read; it never changes or deletes a
   file and never forces a push. Considers: a record whose path already exists is refused, not replaced. Crosses the
