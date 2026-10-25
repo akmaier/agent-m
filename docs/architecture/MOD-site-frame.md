@@ -120,16 +120,15 @@ It runs in a browser — the instance's pages, and the Bridge's window, which is
 - `explanations.md` — the folded explanations, as data.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
   - `docs/index.html`: named here as the review pages' entry page, whose place the Pages site fixes; it loads `start.mjs` once the live dashboard's views are the modules' routes. It loads no library for Markdown, sanitising or diagrams: the app's Markdown is rendered with `renderArtifact`.
-  - `docs/assets/dashboard-app.mjs`: moved into this folder as the live page's app; its loading reads through `Snapshot.readMany`, the files a route shows in its first wave — for the specification, a product's `docs/sources.md` and the register's entries among them (`registerPaths`); its Markdown is rendered with `renderArtifact`, and it imports no library of the renderer's `vendor/`; removed once `docs/index.html` starts the site through `start.mjs`.
+  - `src/site-frame/dashboard-app.mjs`: the live page's app; its loading reads through `Snapshot.readMany`, the files a route shows in its first wave — for the specification, a product's `docs/sources.md` and the register's entries among them (`registerPaths`); its Markdown is rendered with `renderArtifact`, and it imports no library of the renderer's `vendor/`; removed once `docs/index.html` starts the site through `start.mjs`.
   - `docs/assets/dashboard/built.json`, `src/site/views.mjs`: removed with the app: `data-views` names the views.
   - `src/site/html.mjs`, `src/site/instance-repository.mjs`, `src/site/menu.mjs`: removed once their callers use `instanceOf` and `menuOf`.
   - `src/theme/lme.css`, `src/brand/`: removed: `look.css` and `brand/` hold them.
   - `docs/assets/style.css`: what of it the views' routes still need moves into `look.css`; the rest is removed with the legacy views.
   - `tests/app-harness.mjs`: moved in as the helper of this module's page tests; it serves the batch request (`POST /graphql`) and, after the switch, loads `start.mjs`.
   - `tests/load-per-view.test.mjs`: its header names this module: the Check of `A PAGE LOAD READS THE REPOSITORY IN BATCHES`.
-  - `tests/dashboard-shell.test.mjs`, `tests/review-page.test.mjs`, `tests/dashboard-shared-layout.test.mjs`, `tests/release-sprint-01-dashboard-app.test.mjs`, `tests/release-sprint-02-a-dashboard-app.test.mjs`, `tests/release-sprint-02-d-dashboard-app.test.mjs`, `tests/review-core.d/dashboard-app.test.mjs`, `tests/review-core.d/refused-save.test.mjs`, `tests/review-core.d/write-refused.test.mjs`, `tests/test_instance_target.py`, `tests/test_progress_derived.py`: their headers name this module while the app is its; each is removed or rewritten on the frame's routes with the part of the app it tests.
-  - `tests/test_step_explanations.py`: removed with `stepHtml`, which no view calls (queue `2026-10-17b`).
-  - `tests/test_pages_layout.py`, `tests/test_home_screen_icon.py`: their headers name this module: the pages' layout and the lab's look are the frame's.
+  - `tests/dashboard-shell.test.mjs`, `tests/review-page.test.mjs`, `tests/release-sprint-01-dashboard-app.test.mjs`, `tests/release-sprint-02-a-dashboard-app.test.mjs`, `tests/release-sprint-02-d-dashboard-app.test.mjs`, `tests/review-core.d/dashboard-app.test.mjs`, `tests/review-core.d/write-refused.test.mjs`, `tests/test_instance_target.py`, `tests/test_progress_derived.py`: their headers name this module while the app is its; each is removed or rewritten on the frame's routes with the part of the app it tests.
+  - `tests/test_pages_layout.py`: its header names this module: the pages' layout is the frame's.
 
 ## Data
 

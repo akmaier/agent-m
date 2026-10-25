@@ -119,7 +119,6 @@ It runs in Node, in GitHub Actions or GitLab CI, on hosted or self-hosted runner
 - `instance.mjs` — the entries of the instance's workflows.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
   - `.github/workflows/apply-approvals.yml`, `.github/workflows/fetch-sources.yml`, `.github/workflows/main-changed.yml`, `.github/workflows/release.yml`: named here, since GitHub fixes their place; `apply-approvals.yml` runs `onApprovalsCommitted`, `main-changed.yml` runs `onMainChanged` and `release.yml` runs `onReleaseTagged`, each and nothing else, as this module states.
-  - `tools/apply_approvals.py`: removed once the workflow runs the entry.
   - `tests/test_apply_approvals.py`: its header names this module.
 
 ## Data

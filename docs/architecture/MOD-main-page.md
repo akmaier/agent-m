@@ -80,7 +80,6 @@ It runs in a browser, loaded by `index.html` through MOD-site-frame.
   each product this browser keeps.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
   - `index.html`: named here as the main page, whose place the Pages site fixes; it loads `start.mjs` with this module's view; its greeting is drawn by `greeting.mjs`, and its footer by MOD-site-frame's `footer.mjs`.
-  - `src/home/home.mjs`, `src/home/cards.mjs`, `src/home/home.css`: moved into this folder as the route `home` and its parts `cards.mjs` and `waits.mjs`, and removed from `src/home/`.
   - `tests/test_main_page.py`: its header names this module, with MOD-progress-measures and MOD-site-frame for the menu.
 
 ## Data
