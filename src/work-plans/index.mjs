@@ -1,6 +1,6 @@
 // MOD-work-plans — implementation plans, backlogs and sprints, and the state of each item
 // (docs/architecture/MOD-work-plans.md): its interface. Of it, these are built: planSchemas, which gives the schema of the
-// implementation plan's order, planOrder, and the schema of a team's sprint, sprint; ItemState, itemStates and startable;
+// implementation plan's order, planOrder, and the schema of a team's sprint, sprint; ItemState, itemStates, builtByCommits and startable;
 // Held, heldItems, undecidedHeads and conflicts, the items the teams' sprints hold and what keeps an item from a team's selection;
 // startSprint; endSprint; closeSprint, which does not add new items from the feedback yet; backlogFindings, the findings of a backlog (checks.mjs); and workStrategies, of which the recipe architecture-and-model is built (strategies.mjs). planFindings,
 // savePlan and saveItems are not built yet; sprintFacts is built (facts.mjs). A backlog keeps no order of its own:
@@ -20,7 +20,7 @@ import { planOrderSchema, sprintSchema } from "./schemas.mjs";
 export { backlogFindings, planFindings } from "./checks.mjs";
 export { conflicts, heldItems, sprintsToClose, undecidedHeads } from "./sprints.mjs";
 export { sprintFacts } from "./facts.mjs";
-export { itemStates, startable } from "./states.mjs";
+export { builtByCommits, itemStates, startable } from "./states.mjs";
 export { closeSprint, endSprint, startSprint, WorkPlansError } from "./saves.mjs";
 export { workStrategies } from "./strategies.mjs";
 

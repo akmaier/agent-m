@@ -327,6 +327,42 @@ test("productFacts, scope work — held asks containsCommit for exactly the head
   assert.deepEqual(heldB.map((h) => h.item), ["ITM-001", "ITM-004"]);
 });
 
+// ---------------------------------------------------------------- built by
+
+const B1 = "b1".repeat(20), B2 = "b2".repeat(20);
+// The fixture product, with ITM-001 built by B1 and ITM-004 built by B1 and B2 — no pull request names either.
+function builtByFiles() {
+  const files = productFiles();
+  const withBuiltBy = (text, commits) => text.replace(/\n---\n# /, `\nbuilt_by:\n${commits.map((c) => `  - ${c}`).join("\n")}\n---\n# `);
+  files["docs/backlog/ITM-001-store.md"] = withBuiltBy(files["docs/backlog/ITM-001-store.md"], [B1]);
+  files["docs/backlog/ITM-004-feed.md"] = withBuiltBy(files["docs/backlog/ITM-004-feed.md"], [B1, B2]);
+  return files;
+}
+
+// TST-8109 · level: unit · module: MOD-progress-measures
+// guards: STATUS IS DERIVED FROM THE RECORDS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-032
+// given: the fixture product with ITM-001 built by B1 and ITM-004 built by B1 and B2, and no pull request at all; a host whose default branch contains B1 and B2 (a), then B1 only (b); a host that does no server operations whose clone contains both (c)
+// input: productFacts(…) with the scopes work, all and build, and the containsCommit calls of the host
+// expect: in every scope one containsCommit call per distinct commit, B1 then B2, on the default branch ("main"; "HEAD" for the clone) — and no other —; (a) and (c) ITM-001 and ITM-004 done, each with pullRequest null, and ITM-002, which builds on ITM-001, in progress by its job, not waiting for ITM-001; (b) ITM-001 done and ITM-004 ready
+test("productFacts — itemStates is given onDefault: the built_by commits the default branch contains, each asked once", async () => {
+  const cases = [
+    { name: "a", contained: new Set([B1, B2]), serverOperations: true, branch: "main", done: ["ITM-001", "ITM-004"] },
+    { name: "b", contained: new Set([B1]), serverOperations: true, branch: "main", done: ["ITM-001"] },
+    { name: "c", contained: new Set([B1, B2]), serverOperations: false, branch: "HEAD", done: ["ITM-001", "ITM-004"] },
+  ];
+  for (const { name, contained, serverOperations, branch, done } of cases) {
+    for (const scope of ["work", "all", "build"]) {
+      const f = fixture({ files: builtByFiles(), pullRequests: [], contained, serverOperations });
+      const { plan } = await productFacts(f.host, f.instance, f.instanceAt, NOW, { scope });
+      const at = `${name}, ${scope}`;
+      assert.deepEqual(f.calls.filter((c) => c[0] === "containsCommit"), [["containsCommit", branch, B1], ["containsCommit", branch, B2]], at);
+      assert.deepEqual(plan.states.filter((s) => s.state === "done").map((s) => [s.item, s.pullRequest]), done.map((id) => [id, null]), at);
+      if (!done.includes("ITM-004")) assert.equal(plan.states.find((s) => s.item === "ITM-004").state, "ready", at);
+      assert.equal(plan.states.find((s) => s.item === "ITM-002").state, "in progress", at);
+    }
+  }
+});
+
 // ---------------------------------------------------------------- once
 
 // TST-536008 · level: unit · module: MOD-progress-measures

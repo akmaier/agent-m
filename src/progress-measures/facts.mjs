@@ -33,7 +33,7 @@ import { artifactSchemas, readDocument, readRegister } from "../documents/index.
 import { declarationSchema, gateSchema, gateStates, productWorkflow, roleAssignmentSchema, workflowOf } from "../product-process/index.mjs";
 import { participantSchema, participantsOf } from "../participant-list/index.mjs";
 import { listJobs } from "../job-ledger/index.mjs";
-import { heldItems, itemStates, planSchemas, undecidedHeads } from "../work-plans/index.mjs";
+import { builtByCommits, heldItems, itemStates, planSchemas, undecidedHeads } from "../work-plans/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
 import { configurationDrift, defaultSchedule, scheduleSchema } from "../test-schedule/index.mjs";
@@ -157,6 +157,14 @@ async function resultsBranch(host) {
   }
 }
 
+// The commits the items' built_by names that the default branch `branch` contains (the host's containsCommit), each asked once: the
+// onDefault MOD-work-plans' itemStates takes. Only an item with built_by costs a request.
+async function builtOnDefault(host, branch, items) {
+  const found = new Set();
+  for (const commit of builtByCommits(items)) if (await host.containsCommit(branch, commit)) found.add(commit);
+  return found;
+}
+
 // The facts only the scope `all` reads: the requirements of the SPEC, the declarations of the test files (MOD-test-document's isTestFile
 // names them; they are told to the snapshot first, to be read in batches), the branch `test-results` and the tags. The trace graph is
 // not built: nothing reads Facts.graph, so `graph` is "unknown" in both scopes and no file only the graph would read is read.
@@ -263,7 +271,8 @@ async function acceptanceStatuses(approvals, items, requirements, snapshot) {
 // the tests, the results, the tags and the information. A fact not read is "unknown" where the type allows it, and empty where it does not.
 async function buildFacts(host, instance, instanceAt) {
   const info = await orUnknown(() => host.repositoryInfo());
-  const snapshot = await host.readSnapshot(info === "unknown" ? CHECKED_OUT : info.defaultBranch);
+  const branch = info === "unknown" ? CHECKED_OUT : info.defaultBranch;
+  const snapshot = await host.readSnapshot(branch);
   const held = await storedFactsWithJobs(snapshot);
   const stored = held?.facts ?? null;
   const pullRequests = await orUnknown(() => host.listPullRequests());
@@ -289,7 +298,8 @@ async function buildFacts(host, instance, instanceAt) {
   const known = workflow !== null && workflow !== "unknown" ? workflow : null;
   const gateStatesOf = known ? gateStates(known, gates, checkedBlobs(gates, snapshot)) : [];
   const acceptance = await acceptanceStatuses(approvals, items, stored?.requirements ?? null, snapshot);
-  const states = itemStates(itemsByNumber(items), order, { statuses: acceptance, queues: changeQueues, jobs, pullRequests, gates: gateStatesOf, workflow: known });
+  const onDefault = await builtOnDefault(host, branch, items);
+  const states = itemStates(itemsByNumber(items), order, { statuses: acceptance, queues: changeQueues, jobs, pullRequests, gates: gateStatesOf, workflow: known, onDefault });
   return {
     address, info: "unknown", snapshot: held ? held.serving(snapshot) : snapshot, graph: "unknown", requirements: "unknown", statuses: approvals, queues: changeQueues, declaration,
     workflow, model, modelUnread, modelSince: "unknown", participants: [], plan: { order, items, states },
@@ -361,7 +371,8 @@ export async function productFacts(host, instance, instanceAt, now, options = { 
   const states = known ? gateStates(known, gates, checkedBlobs(gates, snapshot)) : [];
   const knownRequirements = stored?.requirements ?? (all ? await requirementsOf(snapshot) : null);
   const acceptance = await acceptanceStatuses(approvals, items, knownRequirements, snapshot);
-  const planStates = itemStates(itemsByNumber(items), order, { statuses: acceptance, queues: changeQueues, jobs, pullRequests, gates: states, workflow: known });
+  const built = await builtOnDefault(host, branch, items);
+  const planStates = itemStates(itemsByNumber(items), order, { statuses: acceptance, queues: changeQueues, jobs, pullRequests, gates: states, workflow: known, onDefault: built });
 
   // held: the head commits undecidedHeads names are the only ones the default branch is asked about (containsCommit).
   const onDefault = new Set();

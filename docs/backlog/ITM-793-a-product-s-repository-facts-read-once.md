@@ -14,6 +14,9 @@ tests:
   - unit
 origin:
   - akmaier's request of 2026-10-17 to implement UC-021 to UC-035
+built_by:
+  - a13a5d54e5cb93143bb50b32e37bbfa0f132c3ae
+  - 4173b60077561db71b8ce54da1bdbab0632a8b09
 ---
 # ITM-793 A product's facts read once with the scope all, from its repository
 
