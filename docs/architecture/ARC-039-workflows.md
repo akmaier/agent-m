@@ -55,8 +55,9 @@ file names; it reads the person's token and the participant's key only from the 
 ### Responsibility within the system
 
 Running in a product's CI: taking and running the queued jobs of CI routes, resuming them after their gate, advancing
-runs on every change of their records, recording the decision of gates a CI check decides, checking pull requests
-against the Definition of Done, and the events in time — a sprint's end. Running in the instance's CI: applying approved
+runs on every change of their records, recording the decision of gates a CI check decides, running a test job's share
+of the product's tests with its own command, recording each test run's outcomes, checking pull requests against the
+Definition of Done, and the events in time — a sprint's end. Running in the instance's CI: applying approved
 changes of the instance's own SPEC, fetching legal texts, building and publishing the Bridge.
 
 ### The interface it offers

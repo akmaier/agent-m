@@ -80,7 +80,7 @@ where `<run>` is `<yyyymmdd>-<hhmm>-<occasion>-<4 hex>` and the occasion one of 
 |---|---|
 | shape | document: front matter, then one register |
 | front matter | `commit` (40 hex), `levels` (the levels run), `occasion`, `participant` (who ran it: the CI service's runner or a participant of the instance), `date`, `run` (the address of the run on the server, if any), `uncommitted` (`true` when the working tree had changes not in the commit — such a record is shown, never counted for the commit) |
-| section `## Outcomes` | a table with the columns `Test`, `Level`, `Outcome`, `Runs`; `Test` a `TST-<nnn>`, or the name of a test case that names none; `Outcome` `passed`, `failed`, `not run` or `undeclared`; `Runs` for a model-dependent test `<k> of <n>` with `n` the number of runs fixed before the first, empty otherwise |
+| section `## Outcomes` | a table with the columns `Test`, `Level`, `Outcome`, `Runs`, `Reason`; `Test` a `TST-<nnn>`, or the name of a test case that names none; `Outcome` `passed`, `failed`, `not run` or `undeclared`; `Runs` for a model-dependent test `<k> of <n>` with `n` the number of runs fixed before the first, empty otherwise; `Reason` for a test `not run`, why, where the run knows it — such as `secret missing: <name>` (UC-027 4a) —, empty otherwise |
 | section `## Failures` | per failed test its expected and observed result and a log excerpt |
 
 **The outcome input.** A run's test jobs hand their outcomes over as JUnit XML reports, one for each job — the report
@@ -101,9 +101,11 @@ default branch, entering with the test's pull request:
 ## Interfaces
 
 - `Outcome` — `{ test: string, level: string | null, outcome: "passed" | "failed" | "not run" | "undeclared", runs:
-  string | null, failure: { expected: string | null, observed: string, log: string } | null }`: one test's outcome in a
-  run — `test` the `TST-<nnn>`, or the case's name for an undeclared case; `runs` `<k> of <n>` for a model-dependent
-  test; `failure` the declaration's expected result, the observed one and an excerpt of the case's output.
+  string | null, failure: { expected: string | null, observed: string, log: string } | null, reason: string | null }`:
+  one test's outcome in a run — `test` the `TST-<nnn>`, or the case's name for an undeclared case; `runs` `<k> of <n>`
+  for a model-dependent test; `failure` the declaration's expected result, the observed one and an excerpt of the case's
+  output; `reason` why a test is `not run` where the run knows it, written to the record's column `Reason` —
+  `parseOutcomes` gives `null`, its caller sets it.
 - `resultSchema: { run: Schema, counterProof: Schema }` — the two schemas, for MOD-documents and for MOD-release-evidence.
 - `parseOutcomes(reports: string[], declarations: TestDeclaration[]) -> Outcome[]` — the outcomes of one run, for
   MOD-workflow-entries' `onTestsFinished`, from the JUnit XML reports of its jobs, read together as one: each test case
@@ -112,7 +114,8 @@ default branch, entering with the test's pull request:
   only if all pass; the cases of a model-dependent test are its runs, `<k> of <n>` against the number its declaration
   fixes, and `not run` when fewer ran; a case without an identifier is `undeclared`; a declared test without a case in
   any of the reports is `not run`. Errors: `UnreadableReport { index, reason }` for a text that is not a JUnit XML
-  report, naming its place in `reports`.
+  report — a report cut off counts as one —, naming its place in `reports`, so that the caller can leave it out and read
+  the others.
 - `appendResult(host: Host, record: Document) -> Promise<{ commit: string, path: string }>` — adds a run's record to the
   branch `test-results` as a new file, by a commit made only on the head that was read; it never changes or deletes a
   file and never forces a push. Considers: a record whose path already exists is refused, not replaced. Crosses the

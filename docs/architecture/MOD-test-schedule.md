@@ -79,11 +79,16 @@ once that pull request is merged. It runs in the browser and in Node.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
   - `.github/workflows/tests.yml`, `.github/workflows/nightly.yml`: named here, since GitHub fixes their place. They are
     removed once the `agent-m-tests.yml` generated from Agent M's own `docs/tests/schedule.md` performs their coverage.
-    Their reading of a test's level is `testsOfRow`. What their steps do that is Agent M's alone becomes the `command`
-    and the `setup` of Agent M's schedule — test helpers under `tests/` whose headers name this module — and no line of
-    the generator: running the Python and the node suite into one report, keeping the test files that start Electron in
-    shards of their own, installing xvfb and openbox, and installing the Bridge app's packages.
-  - `tests/test_ci_budget.py`: its header names this module.
+    Their reading of a test's level is `testsOfRow`; what their steps do that is Agent M's alone goes into the `command`
+    and the `setup` of Agent M's schedule, below, and no line of the generator.
+  - `tests/test_ci_budget.py`: its header names this module. It checks Agent M's own two-minute bound on the generated
+    `.github/workflows/agent-m-tests.yml`: every job the file runs on a pull request carries a limit of at most two
+    minutes, which it has because Agent M's schedule declares `minutes: 2`. The bound is Agent M's own requirement, so no
+    finding of `scheduleFindings` asks it of other products.
+- **Agent M's own `command` and `setup`**, written by this module's implementation job: test helpers under `tests/`
+  whose headers name this module (`EVERY CODE FILE BELONGS TO A MODULE`). The command runs the Python and the node suite
+  into one report and keeps the test files that start Electron in shards of their own; the setup installs xvfb and
+  openbox and the Bridge app's packages.
 
 ## Data
 
@@ -119,18 +124,22 @@ level runs the files of that level none of whose declarations names a paid servi
 of whose declarations does (`COMMIT TESTS CALL NO PAID SERVICE`). A named test file whose level cannot be read is in no
 row, and is named.
 
-**The command.** A test job runs `command` with the files of its row as its arguments and with these variables in its
-environment:
+**The variables of a test job.** Every test job of the generated configuration sets these variables, the only place they
+are defined; MOD-workflow-entries' `runTests` reads them, and passes them on to `command` except where the table says
+otherwise:
 
-| Variable | Value |
-|---|---|
-| `AGENT_M_ROW` | the row |
-| `AGENT_M_OCCASION` | the occasion that started the job: `commit`, `pull-request`, `nightly`, `release-candidate` or `on-demand` |
-| `AGENT_M_SHARD` | the job's place among the row's shards, from 1 |
-| `AGENT_M_SHARDS` | the number of the row's shards |
-| `AGENT_M_REPORT` | the path the report is written to |
+| Variable | Set by | Value |
+|---|---|---|
+| `AGENT_M_ROW` | the generated job | the row |
+| `AGENT_M_OCCASION` | the generated job | the occasion that started the job: `commit`, `pull-request`, `nightly`, `release-candidate` or `on-demand` |
+| `AGENT_M_SHARD` | the generated job | the job's place among the row's shards, from 1 |
+| `AGENT_M_SHARDS` | the generated job | the number of the row's shards |
+| `AGENT_M_COMMAND` | the generated job | the schedule's `command`, empty for node's test runner; read by `runTests` alone |
+| `AGENT_M_SECRETS` | the generated job | the names of the secrets the job reads, separated by commas — for the row `paid` those `secretsNeeded` names, empty otherwise; read by `runTests` alone, which checks that each is set and never reads a value |
+| `AGENT_M_REPORT` | `runTests` | the path the report is written to, as MOD-workflow-entries' paragraph *The reports of a run* fixes it |
 
-The command runs its share — shard `AGENT_M_SHARD` of `AGENT_M_SHARDS` — of the files it is given, writes their
+**The command.** A test job runs `command` with the files of its row as its arguments and with the variables above in
+its environment. The command runs its share — shard `AGENT_M_SHARD` of `AGENT_M_SHARDS` — of the files it is given, writes their
 outcomes as one JUnit XML report to `AGENT_M_REPORT`, and ends with a status other than 0 when a test failed. How the
 share is drawn is the command's, so that a product keeps its own constraints — files that must not share a job — in its
 own command. With `command` empty, node's test runner runs the files, drawing the share with its own sharding and writing
@@ -152,8 +161,8 @@ module. The file holds:
   GitLab `parallel:` —, on the runner the row's `runs on` names. Each checks out the product, provides the Node.js
   release Agent M's entries run with, checks out the instance at `instanceCommit`, and restores the cache where `cache`
   names paths. It runs `setup`, then MOD-workflow-entries' `runTests`, which runs the row's files through `command`.
-  Whatever their outcome, it keeps the report as an artifact of the run, which only the run's own jobs take, in the
-  folder and under the name MOD-workflow-entries' `CiEnvironment` fixes. A test job reads no token, since it runs code
+  Whatever their outcome, it keeps its report and its status as an artifact of the run, which only the run's own jobs
+  take, in the folder and under the names MOD-workflow-entries' paragraph *The reports of a run* fixes. A test job reads no token, since it runs code
   of the product, which a participant may have written; only the jobs of the row `paid` read the secrets of the services
   they call;
 - on every commit and on a pull request, `minutes` as the time limit of every job of the file, after which the CI service
@@ -168,10 +177,11 @@ module. The file holds:
 - the job `agent-m records`, after every test job of the run, whatever their outcome: it takes the reports the run's
   test jobs kept — the JUnit XML report every common test runner can write — and runs MOD-workflow-entries'
   `onTestsFinished`, which adds the run's one result record to the branch `test-results` (the reading of the reports and
-  the record's format are MOD-result-records');
+  the record's format are MOD-result-records'), and keeps its own status as an artifact of the run;
 - on every pull request, the job `agent-m done`, after the pull request's test jobs and `agent-m records`, whatever
-  their outcome. It runs MOD-workflow-entries' `onDoneCheck` with the outcomes of those jobs — the only place the
-  Definition-of-Done check runs;
+  their outcome. It takes the run's artifacts and runs MOD-workflow-entries' `onDoneCheck` with `AGENT_M_EXPECTED`, the
+  rows the schedule ticks for a pull request with their numbers of shards (`<row>:<shards>`, separated by commas) — the
+  only place the Definition-of-Done check runs;
 - the person's token only in `agent-m records` and `agent-m done`, which run Agent M's entries from the instance's
   checkout and no code of the product, on the server's own runners. On GitHub these two jobs alone name the secret
   `AGENT_M_TOKEN`, the one MOD-runtimes' job workflow reads. On GitLab they alone are of the environment `agent-m-write`,
