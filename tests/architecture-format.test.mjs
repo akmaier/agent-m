@@ -21,7 +21,6 @@ import { recordsForId, approvalPath, recordText, reviewedRecord } from "../docs/
 import {
   reviewedId, kindOfPath, parseArchitecture, specRequirements, isCodePath, isTestPath, headerModules,
 } from "../docs/assets/artifacts.mjs";
-import { moduleHeaders } from "../docs/assets/traceability.mjs";
 
 const FIX = fileURLToPath(new URL("./fixtures/architecture/", import.meta.url));
 const files = {};
@@ -137,9 +136,9 @@ test("specRequirements — the names in SPEC.md; a withdrawn one is marked; pros
   assert.equal(long.get("A RENAMED RULE IS WITHDRAWN AND ADDED").withdrawn, false, "WITHDRAWN in the name is not a withdrawal");
 });
 
-// ---------------------------------------------------------------- module headers, which the impact list reads
+// ---------------------------------------------------------------- module headers
 
-test("module headers — `Module: MOD-x` in the first lines of a code file; tests told apart; Markdown and vendored code are not code", async () => {
+test("module headers — `Module: MOD-x` in the first lines of a code file; tests told apart; Markdown and vendored code are not code", () => {
   assert.deepEqual(headerModules(files["src/reader.js"]), ["MOD-reader"]);
   assert.deepEqual(headerModules(files["src/review.py"]), ["MOD-review"]);
   assert.deepEqual(headerModules(files["src/late.js"]), [], "a header after the first lines is not a header");
@@ -151,12 +150,4 @@ test("module headers — `Module: MOD-x` in the first lines of a code file; test
   assert.ok(isTestPath("tests/reader.test.js") && isTestPath("tests/test_x.py") && isTestPath("src/x.spec.ts") && isTestPath("pkg/x_test.go"));
   assert.ok(isTestPath("tests/helpers.js") && isTestPath("pkg/__tests__/x.js"), "a file in a tests folder is a test");
   assert.ok(!isTestPath("src/reader.js") && !isTestPath("src/contest.js"));
-  const read = [];
-  const found = await moduleHeaders({ paths: Object.keys(files), read: async (p) => { read.push(p); return files[p]; } });
-  assert.deepEqual(found, [
-    { path: "src/reader.js", modules: ["MOD-reader"], test: false },
-    { path: "src/review.py", modules: ["MOD-review"], test: false },
-    { path: "tests/reader.test.js", modules: ["MOD-reader"], test: true },
-  ]);
-  assert.ok(!read.some((p) => p.endsWith(".md") || p.startsWith("vendor/")), "only code files are read");
 });

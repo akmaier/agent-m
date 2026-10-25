@@ -77,10 +77,6 @@ MATRIX IS DERIVED`): `traceGraph` builds it, and where the repository holds the 
 - `checks.mjs` — the checks across artifacts.
 - `derive.mjs` — traces, gaps, impact lists, module order and rows, comparison.
 - `stored.mjs` — the graph of one commit as a text and back, and adding it to the branch `trace-cache`.
-- **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `docs/assets/traceability.mjs`, `docs/assets/traceability/graph.mjs`: removed once this module gives `moduleRows` and no file imports them. `tests/architecture-format.test.mjs`, a file the module MOD-documents takes over, imports `moduleHeaders` from the first; no interface of this module gives the `Module:` header lines of code files, so that import and the test of `moduleHeaders` go in MOD-documents' job, before these two files are removed.
-  - `tests/test_coverage_report.py`: rewritten on `traceGraph` and `graphFindings`: it is the Check of `EVERY CODE FILE BELONGS TO A MODULE`. Its half on tests and test helpers that name no module stays as it reads them now, since no interface of this module gives a test file's `Module:` header.
-  - `tests/test_impact_list.py`, `tests/test_matrix_derived.py`, `tests/test_references.py`, `tests/release-sprint-02-d-traceability.test.mjs`: rewritten on this module, or removed with the old graph.
 
 ## Data
 
