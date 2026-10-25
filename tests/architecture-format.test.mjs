@@ -1,25 +1,23 @@
-// The format of ARC and MOD files, the requirement names of a SPEC and the Module lines of code — the readers of
-// docs/assets/artifacts.mjs. Deterministic, no network. Run: node --test tests/*.test.mjs
+// The format of ARC and MOD files and the requirement names of a SPEC, as MOD-documents reads and checks them (artifactSchemaOf,
+// readDocument, documentFindings, by the decision and module schemas artifactSchemas gives) and as MOD-spec-document reads a
+// SPEC (parseSpec); and the Module lines of code, which docs/assets/artifacts.mjs reads. Deterministic, no network.
+// Run: node --test tests/*.test.mjs
 //
 // Module: MOD-documents
 // Guards: ONE REVIEW LAYOUT FOR EVERY PRODUCT; ONE ARCHITECTURE DECISION, ONE FILE; ONE MODULE, ONE FILE; ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS; UC-022; UC-023
 // Level: unit
 //
 // SPEC §11 ONE ARCHITECTURE DECISION, ONE FILE · ONE MODULE, ONE FILE; §10 ONE REVIEW LAYOUT FOR EVERY PRODUCT (UC-022,
-// UC-023). Moved out of tests/architecture.test.mjs and tests/review-page.test.mjs, unchanged, when those were split by module.
-//
-// The product is the fixture under tests/fixtures/architecture/. Counter-proofs are listed in
-// docs/measurements/2026-09-30_review-dashboard-mutations.md §8 and, for specRequirements on fixture text (ITM-128), in
-// docs/measurements/2026-10-01_no-test-reads-the-own-spec.md.
+// UC-023). The product is the fixture under tests/fixtures/architecture/; no test reads the repository's own SPEC.md.
 
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  reviewedId, kindOfPath, parseArchitecture, specRequirements, isCodePath, isTestPath, headerModules,
-} from "../docs/assets/artifacts.mjs";
+import { artifactSchemaOf, artifactSchemas, readDocument, documentFindings } from "../src/documents/index.mjs";
+import { parseSpec } from "../src/spec-document/index.mjs";
+import { isCodePath, isTestPath, headerModules } from "../docs/assets/artifacts.mjs";
 
 const FIX = fileURLToPath(new URL("./fixtures/architecture/", import.meta.url));
 const files = {};
@@ -29,99 +27,94 @@ const files = {};
     if (statSync(p).isDirectory()) walk(p); else files[relative(FIX, p).split("\\").join("/")] = readFileSync(p, "utf8");
   }
 })(FIX);
-const base = files; // the name tests/review-page.test.mjs gives the same fixture
 const ARC = "docs/architecture/ARC-001-static-client.md", READER = "docs/architecture/MOD-reader.md";
 const REVIEW = "docs/architecture/MOD-review.md", PAGE = "docs/architecture/MOD-page.md";
-const UC1 = "docs/use-cases/UC-001-read-a-file.md", UC2 = "docs/use-cases/UC-002-show-the-status.md";
+const UC1 = "docs/use-cases/UC-001-read-a-file.md";
 
-// ---------------------------------------------------------------- identifiers, records, status
+// A file read by the schema its path names, and the findings of that schema on it.
+const read = (path, text) => readDocument(artifactSchemaOf(path), path, text);
+const findings = (path, text) => documentFindings(artifactSchemaOf(path), read(path, text));
+// The identifier of a reviewed file from its path alone: the document of an empty text, whose identifier is its path's.
+const idOfPath = (path) => (artifactSchemaOf(path) ? read(path, "").id : null);
+
+// ---------------------------------------------------------------- identifiers and kinds
 
 test("ONE REVIEW LAYOUT FOR EVERY PRODUCT — ARC and MOD files are reviewed files with identifiers from their names", () => {
-  assert.equal(reviewedId(ARC), "ARC-001");
-  assert.equal(reviewedId("docs/architecture/ARC-001-renamed-since.md"), "ARC-001");
-  assert.equal(reviewedId(READER), "MOD-reader");
-  assert.equal(reviewedId("docs/architecture/MOD-review-core.md"), "MOD-review-core", "the whole slug is the identifier");
-  assert.equal(reviewedId("docs/architecture/MOD-123-x.md"), "MOD-123-x", "a module is not read as an ARC-like number");
-  assert.equal(reviewedId("docs/architecture/README.md"), null);
-  assert.equal(kindOfPath(ARC), "architecture-decision");
-  assert.equal(kindOfPath(READER), "module");
-  assert.equal(kindOfPath(UC1), "use-case");
-  assert.equal(kindOfPath("docs/architecture/notes.md"), null);
+  assert.equal(idOfPath(ARC), "ARC-001");
+  assert.equal(idOfPath("docs/architecture/ARC-001-renamed-since.md"), "ARC-001");
+  assert.equal(idOfPath(READER), "MOD-reader");
+  assert.equal(idOfPath("docs/architecture/MOD-review-core.md"), "MOD-review-core", "the whole slug is the identifier");
+  assert.equal(idOfPath("docs/architecture/MOD-123-x.md"), "MOD-123-x", "a module is not read as an ARC-like number");
+  assert.equal(idOfPath("docs/architecture/README.md"), null);
+  assert.equal(artifactSchemaOf(ARC), artifactSchemas().decision);
+  assert.equal(artifactSchemaOf(READER), artifactSchemas().module);
+  assert.equal(artifactSchemaOf(UC1), artifactSchemas().useCase);
+  assert.equal(artifactSchemaOf("docs/architecture/notes.md"), null);
 });
 
 // ---------------------------------------------------------------- the format
 
-test("parseArchitecture — a decision: id, title, forced_by, and its four sections", () => {
-  const a = parseArchitecture(ARC, files[ARC]);
-  assert.equal(a.kind, "architecture-decision");
+test("a decision — id, title, forced_by, and its four sections", () => {
+  const a = read(ARC, files[ARC]);
+  assert.equal(a.kind, "decision");
   assert.equal(a.id, "ARC-001");
-  assert.equal(a.title, "The dashboard is a static client of the Git server's API");
-  assert.deepEqual(a.names, ["RULE ONE", "UC-001"]);
-  assert.deepEqual(a.requirements, ["RULE ONE"]);
-  assert.deepEqual(a.useCases, ["UC-001"]);
-  assert.deepEqual(a.follows, []);
-  assert.deepEqual(a.problems, []);
-  assert.ok(a.problems.length === 0);
-  assert.match(parseArchitecture(ARC, files[ARC].replace("  - RULE ONE\n  - UC-001\n", "")).problems.join(" "), /forced_by must name at least one/,
+  assert.equal(a.fields.title, "The dashboard is a static client of the Git server's API");
+  assert.deepEqual(a.fields.forced_by, ["RULE ONE", "UC-001"]);
+  assert.deepEqual(findings(ARC, files[ARC]), []);
+  assert.ok(findings(ARC, files[ARC].replace("  - RULE ONE\n  - UC-001\n", "")).some((f) => /forced_by/.test(f.what)),
     "a decision names what forces it");
-  const broken = parseArchitecture(ARC, files[ARC].replace("## Alternatives\n", ""));
-  assert.match(broken.problems.join(" "), /Alternatives/);
+  assert.ok(findings(ARC, files[ARC].replace("## Alternatives\n", "")).some((f) => /Alternatives/.test(f.what)));
 });
 
-test("parseArchitecture — a module: realises, follows, uses MOD-x.interface, provides, each interface described", () => {
-  const m = parseArchitecture(REVIEW, files[REVIEW]);
+test("a module — folder, realises, follows, uses MOD-x.interface, provides, each interface described", () => {
+  const m = read(REVIEW, files[REVIEW]);
   assert.equal(m.kind, "module");
   assert.equal(m.id, "MOD-review");
-  assert.deepEqual(m.names, ["THE READER'S RULE", "UC-002"]);
-  assert.deepEqual(m.follows, ["ARC-001"]);
-  assert.deepEqual(m.uses, [{ module: "MOD-reader", iface: "readFile" }, { module: "MOD-reader", iface: "listTree" },
-    { module: "MOD-store", iface: "load" }]);
-  assert.deepEqual(m.provides, ["status"]);
-  assert.equal(m.interfaces.status, "- `status(path) -> \"open\" | \"accepted\" | \"changed\"`\n  — derived, never stored.");
-  assert.deepEqual(m.problems, []);
-  const page = parseArchitecture(PAGE, files[PAGE]);
-  assert.deepEqual([page.names, page.follows, page.provides, page.problems], [[], [], [], []], "empty lists are lists");
+  assert.deepEqual(m.fields.realises, ["THE READER'S RULE", "UC-002"]);
+  assert.deepEqual(m.fields.follows, ["ARC-001"]);
+  assert.deepEqual(m.fields.uses, ["MOD-reader.readFile", "MOD-reader.listTree", "MOD-store.load"]);
+  assert.deepEqual(m.fields.provides, ["status"]);
+  assert.match(m.sections.find((s) => s.heading === "## Interfaces").text,
+    /^- `status\(path\) -> "open" \| "accepted" \| "changed"`\n {2}— derived, never stored\.$/m);
+  assert.deepEqual(findings(REVIEW, files[REVIEW]), []);
+  const page = read(PAGE, files[PAGE]);
+  assert.deepEqual([page.fields.realises, page.fields.provides, findings(PAGE, files[PAGE])], [[], [], []], "empty lists are lists");
   // Counter-proof: a use of an interface not written MOD-x.name, and a provided interface nobody describes.
-  assert.ok(parseArchitecture(REVIEW, files[REVIEW].replace("  - MOD-reader.readFile\n", "  - readFile\n")).problems.length);
-  assert.ok(parseArchitecture(REVIEW, files[REVIEW].replace("  - status\n", "  - status\n  - history\n")).problems.length);
-  assert.ok(parseArchitecture("docs/architecture/MOD-other.md", files[REVIEW]).problems.length, "id differs from the file name");
+  assert.ok(findings(REVIEW, files[REVIEW].replace("  - MOD-reader.readFile\n", "  - readFile\n")).length);
+  assert.ok(findings(REVIEW, files[REVIEW].replace("  - status\n", "  - status\n  - history\n")).length);
+  assert.ok(findings("docs/architecture/MOD-other.md", files[REVIEW]).length, "id differs from the file name");
 });
 
 // ---------------------------------------------------------------- ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS
 
 // The requirements planted after the fixture's sections in the test below, in the shapes the repository's own SPEC has.
 const LATER = [
-  "## 85. Withdrawn and live",
+  "## 85. Later rules",
   "",
-  "**OLD RULE ON ONE LINE** *(PO, 2026-09-23, reworded 2026-09-24 — withdrawn 2026-09-24)*",
-  "*Withdrawn:* replaced by `RULE ONE REPLACES IT`. The name is not reused.",
-  "",
-  "**RULE ONE REPLACES IT** *(PO, 2026-09-24, extended 2026-09-24)*",
-  "The rule that replaces the old one, right after it.",
+  "**RULE ONE REPLACES IT** *(PO)*",
+  "The rule that replaces an old one.",
   "*Check:* none",
   "",
-  "**A RENAMED RULE IS WITHDRAWN AND ADDED** *(PO, 2026-09-24)*",
-  "A rule whose name holds the word, and whose source does not.",
+  "**A RENAMED RULE IS WITHDRAWN AND ADDED** *(PO)*",
+  "A rule whose name holds the word WITHDRAWN.",
   "*Check:* none",
   "",
 ].join("\n");
 
-test("specRequirements — the names in SPEC.md; a withdrawn one is marked; prose in bold is no requirement", () => {
-  const r = specRequirements(files["SPEC.md"]);
+test("parseSpec — the names in SPEC.md; a source over two lines is read whole; prose in bold is no requirement", () => {
+  const r = parseSpec(files["SPEC.md"]).requirements;
   assert.deepEqual([...r.keys()], ["RULE ONE", "THE READER'S RULE", "OLD RULE"]);
-  assert.deepEqual([...r.values()].map((x) => x.withdrawn), [false, false, true],
-    "a source that runs over two lines is read whole — OLD RULE's withdrawal stands on its second line");
-  // The known positive, on fixture text — no test reads the repository's own SPEC.md (KEIN SPEC-ZUGRIFF AUS PRODUKT-CODE,
-  // ITM-128): the fixture's section under 84 headings of its own, then the cases the real SPEC supplied — a withdrawal
-  // written on one line, the live requirement that replaces it right after it, a live name that holds the word WITHDRAWN.
+  assert.match(r.get("THE READER'S RULE").source, /extended\n2026-09-30$/, "a source that runs over two lines is read whole");
+  assert.equal(r.has("Form of a requirement"), false);
+  // The known positive, on fixture text — no test reads the repository's own SPEC.md (ITM-128): the fixture's section under 84
+  // headings of its own, then requirements in the shapes the real SPEC supplied.
   const sections = Array.from({ length: 84 }, (_, i) => files["SPEC.md"]
     .replace("## 1. Rules", `## ${i + 1}. Rules`)
     .replace(/^\*\*([^*\n]+)\*\* \*\(/gm, `**$1 ${i + 1}** *(`));
-  const long = specRequirements([...sections, LATER].join("\n"));
+  const long = parseSpec([...sections, LATER].join("\n")).requirements;
   assert.ok(long.size > 250);
-  assert.ok(long.get("OLD RULE ON ONE LINE").withdrawn);
-  assert.equal(long.get("RULE ONE REPLACES IT").withdrawn, false);
-  assert.equal(long.get("A RENAMED RULE IS WITHDRAWN AND ADDED").withdrawn, false, "WITHDRAWN in the name is not a withdrawal");
+  assert.ok(long.has("RULE ONE REPLACES IT"));
+  assert.ok(long.has("A RENAMED RULE IS WITHDRAWN AND ADDED"));
 });
 
 // ---------------------------------------------------------------- module headers

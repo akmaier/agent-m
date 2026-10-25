@@ -12,9 +12,11 @@
 // condition; values not of their type or of the variant that holds, or empty where nonEmpty; the rows of a table, cell by
 // cell, in the same way; required sections missing, sections out of order, sections the schema forbids, and a document path
 // that matches none of the schema's path patterns; and, for a schema that names `diagrams`, every image (DIAGRAMS ARE
-// MERMAID IN MARKDOWN). The identifier against the path, the title, describedIn, a Mermaid block missing where `diagrams` is
-// `required` or standing where it is `none`, the marks of history, the fields of a section, a record of `key: value` lines and
-// appended sections are not checked yet. Each finding is an error, made with MOD-text-tools' finding, and names the rule of
+// MERMAID IN MARKDOWN); the identifier a document declares against the one its path gives, on the line of the identifier's
+// key; and each value that `describedIn` requires and its section does not describe, on the line of its key — a bullet
+// describes a value when its backtick is followed by the value and then by no letter, digit or underscore. The title, a
+// Mermaid block missing where `diagrams` is `required` or standing where it is `none`, the marks of history, the fields of a
+// section, a record of `key: value` lines and appended sections are not checked yet. Each finding is an error, made with MOD-text-tools' finding, and names the rule of
 // the part of the schema closest to it (Data, The requirement a finding names). A key or a section that is missing stands on
 // no line: its finding names line 1.
 // The section under the title (ITM-226) is the first section of a document with a title, and is missing from a document
@@ -187,6 +189,15 @@ function keyLines(fields, keys) {
 
 const levelOf = (heading) => /^#*/.exec(heading)[0].length;
 
+// The identifier the path gives — by the first of the schema's path patterns it matches —, or null where it gives none.
+function identifierOfPath(compiled, path) {
+  for (const pattern of compiled.patterns) {
+    const match = pattern.re.exec(String(path ?? ""));
+    if (match) return pattern.idOf(match);
+  }
+  return null;
+}
+
 // The section under the title, as findings name it: it has no heading of its own in the schema.
 const UNDER_TITLE = "the section under the title";
 
@@ -342,6 +353,27 @@ export function documentFindings(schema, document) {
       if (check) {
         add(lineOf[key] ?? 1, valueRules(check, spec, frontLookup), `the key ${key} ${check.why}`,
           fixOf(FIX.key, key, fields[key], check));
+      }
+    }
+    // The identifier against the path: where the path gives an identifier, the document declares that one.
+    const idKey = schema.identifier?.field;
+    const declared = idKey === undefined ? undefined : textOf(fields[idKey]);
+    const given = declared === undefined ? null : identifierOfPath(compiled, document.path);
+    if (given !== null && declared !== given) {
+      add(lineOf[idKey] ?? 1, [specs[idKey]?.rule], `the key ${idKey} names ${declared}, where the path ${document.path} gives the identifier ${given}`,
+        `write ${idKey}: ${given}, or move the document to the path of ${declared}`);
+    }
+    // describedIn: each value stands in the named section as a bullet that begins with the value in backticks.
+    for (const [key, spec] of Object.entries(specs)) {
+      if (spec.describedIn === undefined || leftOut(fields[key])) continue;
+      const section = document.sections.find((each) => each.heading === spec.describedIn);
+      const lines = textLines(section?.text ?? "");
+      const { inBlock } = fences(lines);
+      const described = (value) => lines.some((line, i) => !inBlock[i] && line.startsWith(`- \`${value}`)
+        && !/[A-Za-z0-9_]/.test(line.charAt(3 + value.length)));
+      for (const value of (Array.isArray(fields[key]) ? fields[key] : [String(fields[key])]).filter((each) => !described(each))) {
+        add(lineOf[key] ?? 1, [spec.rule], `the key ${key} names ${value}, which the section ${spec.describedIn} does not describe`,
+          `describe ${value} in the section ${spec.describedIn} by a bullet that begins with \`${value}\`, or remove it from ${key}`);
       }
     }
   }

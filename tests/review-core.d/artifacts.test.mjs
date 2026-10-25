@@ -1,8 +1,9 @@
-// The artifact formats (docs/assets/artifacts.mjs) — deterministic, no network.
+// The artifact formats as the modules read them — MOD-text-tools' parseFrontMatter, and MOD-documents' readDocument by the
+// schema artifactSchemaOf gives for a path — deterministic, no network.
 // Run through tests/review-core.test.mjs, which SPEC.md names for these checks: node --test tests/*.test.mjs
 //
 // Module: MOD-documents
-// Guards: A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; AN EDITED FILE KEEPS ITS IDENTIFIER; A FINDING READS LIKE A COMPILER MESSAGE; UC-008
+// Guards: A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; AN EDITED FILE KEEPS ITS IDENTIFIER; UC-008
 // Level: unit
 //
 // Every check here was run once against a deliberately broken implementation (SOFTWARE_MAINTENANCE
@@ -12,8 +13,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { parseFrontMatter, reviewedId, identifierKept } from "../../docs/assets/artifacts.mjs";
+import { parseFrontMatter } from "../../src/text-tools/index.mjs";
+import { artifactSchemaOf, readDocument } from "../../src/documents/index.mjs";
 import { UC_OLD, UC_NEW } from "./helpers.mjs";
+
+// The identifier of a reviewed file: the one its text declares, read by the schema its path names; for an empty text, the one
+// its path gives. Null for a path of no schema.
+const idOf = (path, text = "") => (artifactSchemaOf(path) ? readDocument(artifactSchemaOf(path), path, text).id : null);
 
 test("front matter: scalars and lists, body separated", () => {
   const { fields, body } = parseFrontMatter(
@@ -42,57 +48,23 @@ test("front matter with CR LF line ends: the fields of the LF text, the body the
 // identifier of a path here; the records of that identifier are MOD-approvals' (tests/approvals-last-accepted.test.mjs, a renamed
 // file; tests/approvals-status-of.test.mjs, a renamed file and a record of another kind).
 
-test("reviewedId: a reviewed file's identifier from its path — the same for a renamed file", () => {
-  assert.equal(reviewedId(UC_OLD), "UC-010");
-  assert.equal(reviewedId(UC_NEW), "UC-010");
-  assert.equal(reviewedId("docs/use-cases/README.md"), null);
+test("a reviewed file's identifier from its path — the same for a renamed file", () => {
+  assert.equal(idOf(UC_OLD), "UC-010");
+  assert.equal(idOf(UC_NEW), "UC-010");
+  assert.equal(idOf("docs/use-cases/README.md"), null);
 });
 
-// ---------------------------------------------------------------- an edited use case keeps its identifier (ITM-010, ITM-126)
-// AN EDITED FILE KEEPS ITS IDENTIFIER for a use case, as tests/architecture.test.mjs checks it for ARC and MOD files through
-// saveReviewedFile. Counter-proofs: docs/measurements/2026-10-01_use-case-checks.md, and for the finding's shape (ITM-126)
-// docs/measurements/2026-10-01_identifier-kept-finding.md.
-//
-// A FINDING READS LIKE A COMPILER MESSAGE: identifierKept returns null or a finding of the one shape of MOD-artifacts —
-// { artifact, line, kind, what, rule, fix } — naming the rule, the line of the `id`, what is wrong and the fix; the sentence a
-// person reads is written by the dashboard from it (ARC-003 decision 5).
-
-const KEPT = "AN EDITED FILE KEEPS ITS IDENTIFIER";
-
-test("AN EDITED FILE KEEPS ITS IDENTIFIER — a use case whose text carries another identifier, or none, is refused with a finding", () => {
-  const text = readFileSync(new URL("../fixtures/use-cases/UC-001-complete.md", import.meta.url), "utf8");
-  assert.equal(identifierKept("UC-001", text), null, "the same identifier: no finding");
-  assert.equal(identifierKept("UC-001", text.replace("Export the list", "Export the whole list")), null, "an edit keeping the id passes");
-  // Another identifier: the finding names the line of the `id` (line 2, under the opening ---).
-  assert.deepEqual(identifierKept("UC-001", text.replace("id: UC-001", "id: UC-002")), {
-    artifact: "UC-001", line: 2, kind: "error", rule: KEPT,
-    what: "the file was opened as UC-001, but the text carries the identifier UC-002",
-    fix: "put back id: UC-001; a new identifier is a new file, proposed as such.",
-  });
-  // The `id` line further down the front matter: the finding names that line.
-  assert.equal(identifierKept("UC-001", text.replace("id: UC-001\n", "").replace("\n---\n", "\nid: UC-003\n---\n")).line,
-    text.slice(0, text.indexOf("\n---\n", 4)).split("\n").length, "the line of the moved id");
-  // No identifier: there is no `id` line, so the finding names line 1.
-  assert.deepEqual(identifierKept("UC-001", text.replace("id: UC-001\n", "")), {
-    artifact: "UC-001", line: 1, kind: "error", rule: KEPT,
-    what: "the file was opened as UC-001, but the text carries no identifier",
-    fix: "put back id: UC-001; a new identifier is a new file, proposed as such.",
-  });
-  assert.equal(identifierKept(null, "## 1\n"), null, "a file without an identifier, such as a SPEC proposal, is not checked");
-});
-
-// ITM-126, back from Release testing (finding A5): AN EDITED FILE KEEPS ITS IDENTIFIER refuses a text "whose identifier differs
-// from the one it was opened with" — how its lines end is no part of it. Expected: the fixture use case with CR LF line ends and
-// `id: UC-001` gives null when opened as UC-001; with `id: UC-002` it gives the same finding as the LF text — the line of the
-// `id` (2), what names UC-002 without a CR. Known positive: the LF text gives null.
-test("AN EDITED FILE KEEPS ITS IDENTIFIER — a text with CR LF line ends keeps its identifier; another one is still named", () => {
+// ---------------------------------------------------------------- an edited use case keeps its identifier (ITM-126)
+// AN EDITED FILE KEEPS ITS IDENTIFIER refuses a text "whose identifier differs from the one it was opened with": MOD-artifact-edits'
+// saveFile compares the identifier the text declares, read by MOD-documents, with the one it was opened with
+// (tests/artifact-edits-identifier.test.mjs). How the text's lines end is no part of it. Expected: the fixture use case with CR LF
+// line ends declares UC-001, as the LF text does; with `id: UC-002` it declares UC-002, without a CR. Known positive: the LF text
+// declares UC-001.
+test("AN EDITED FILE KEEPS ITS IDENTIFIER — a text with CR LF line ends declares the identifier of its LF text", () => {
+  const path = "docs/use-cases/UC-001-complete.md";
   const text = readFileSync(new URL("../fixtures/use-cases/UC-001-complete.md", import.meta.url), "utf8");
   const crlf = (t) => t.replace(/\r\n/g, "\n").replace(/\n/g, "\r\n");
-  assert.equal(identifierKept("UC-001", text), null, "known positive: LF, the same identifier");
-  assert.equal(identifierKept("UC-001", crlf(text)), null, "CR LF, the same identifier: no finding");
-  assert.deepEqual(identifierKept("UC-001", crlf(text.replace("id: UC-001", "id: UC-002"))), {
-    artifact: "UC-001", line: 2, kind: "error", rule: KEPT,
-    what: "the file was opened as UC-001, but the text carries the identifier UC-002",
-    fix: "put back id: UC-001; a new identifier is a new file, proposed as such.",
-  }, "CR LF, another identifier: the finding of the LF text");
+  assert.equal(idOf(path, text), "UC-001", "known positive: LF, the identifier it declares");
+  assert.equal(idOf(path, crlf(text)), "UC-001", "CR LF, the same identifier");
+  assert.equal(idOf(path, crlf(text.replace("id: UC-001", "id: UC-002"))), "UC-002", "CR LF, another identifier, without a CR");
 });

@@ -87,7 +87,7 @@ class ImpactOfARequirementChange(unittest.TestCase):
             {"id": "UC-001", "kind": "UC", "path": UC1, "line": 8, "via": "realises"},
             {"id": "ARC-001", "kind": "ARC", "path": "docs/architecture/ARC-001-static-client.md", "line": 5,
              "via": "forced_by"},
-            {"id": "MOD-reader", "kind": "MOD", "path": "docs/architecture/MOD-reader.md", "line": 5, "via": "realises"},
+            {"id": "MOD-reader", "kind": "MOD", "path": "docs/architecture/MOD-reader.md", "line": 6, "via": "realises"},
             {"id": "TST-100001", "kind": "TST", "path": TEST, "line": 2, "via": "guards"},
         ])
         self.assertEqual([a["id"] for a in impact(FILES, "THE READER'S RULE")], ["UC-002", "MOD-review"])

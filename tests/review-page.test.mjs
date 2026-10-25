@@ -20,10 +20,12 @@ import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { blobSha } from "../src/text-tools/index.mjs";
 import { recordText, approvalPath, reviewedRecord } from "./approval-records.mjs";
-import { reviewedId } from "../docs/assets/artifacts.mjs";
+import { artifactSchemaOf, readDocument } from "../src/documents/index.mjs";
 import { repoServer, fakeCaches, openDashboard, REPO } from "./app-harness.mjs";
 
 const record = (path, blob) => recordText(reviewedRecord(path, blob));
+// The identifier of a reviewed file, as MOD-documents reads it from the file's path.
+const reviewedId = (path) => readDocument(artifactSchemaOf(path), path, "").id;
 
 // ---------------------------------------------------------------- the product: tests/fixtures/architecture, with records
 

@@ -75,99 +75,21 @@ def use_case_graph(files: dict, names) -> dict:
 
 
 # ---------------------------------------------------------------- architecture files (SPEC §11)
-# The same format as docs/assets/artifacts.mjs parseArchitecture reads; tests/test_architecture_files.py.
+# A decision and a module file are read and checked by MOD-documents — documentFindings, by the schema artifactSchemaOf gives
+# for the path, or, for a path of neither, by the schema of the kind named —; tests/test_architecture_files.py.
 
 SLUG = r"[a-z0-9]+(?:-[a-z0-9]+)*"
-ARC_NAME = re.compile(rf"^ARC-(\d{{3}})-{SLUG}\.md$")
-MOD_NAME = re.compile(rf"^(MOD-{SLUG})\.md$")
-UC_ID = re.compile(r"^UC-\d{3}$")
-ARC_ID = re.compile(r"^ARC-\d{3}$")
-IFACE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-USE = re.compile(rf"^MOD-{SLUG}\.[A-Za-z_][A-Za-z0-9_]*$")
-ARC_SECTIONS = ["## Context", "## Decision", "## Alternatives", "## Consequences"]
-MOD_SECTIONS = ["## Responsibility", "## Interfaces"]
 
 
-def is_requirement_name(s: str) -> bool:
-    """A requirement is named by its name in capitals (THE NAME IS THE ID AND IT SURVIVES)."""
-    return bool(s) and not re.search(r"[a-z]", s) and bool(re.search(r"[A-Z]", s)) \
-        and not re.match(r"^(UC|ARC|MOD|SRC|TST|ITM|RES|JOB)-", s)
-
-
-def as_list(v):
-    """`key:` with list items, or an empty `key:` / `key: []`, is a list; anything else is not."""
-    if v == "[]":
-        return []
-    return v if isinstance(v, list) else None
-
-
-def section_body(body: str, heading: str) -> str:
-    m = re.search(rf"^{re.escape(heading)}\s*$", body, re.M)
-    if not m:
-        return ""
-    rest = body[m.end():]
-    n = re.search(r"^#{1,2} ", rest, re.M)
-    return rest[:n.start()] if n else rest
-
-
-def described_interfaces(body: str) -> list[str]:
-    """Each provided interface is described by a bullet `- `name…`` in the Interfaces section."""
-    return re.findall(r"^- `([A-Za-z_][A-Za-z0-9_]*)", section_body(body, "## Interfaces"), re.M)
-
-
-def architecture_problems(name: str, text: str) -> list[str]:
-    arc, mod = ARC_NAME.match(name), MOD_NAME.match(name)
-    if not arc and not mod:
-        return [f"{name}: file name is neither ARC-<nnn>-<slug>.md nor MOD-<slug>.md"]
-    p = []
-    fields, body = front_matter(text)
-    if not fields:
-        return [f"{name}: no front matter"]
-    want = f"ARC-{arc.group(1)}" if arc else mod.group(1)
-    if fields.get("id") != want:
-        p.append(f"{name}: id {fields.get('id')!r} does not match the file name ({want})")
-    if not fields.get("title") or not isinstance(fields["title"], str):
-        p.append(f"{name}: missing title")
-
-    def items(key, ok, what, non_empty=False):
-        v = as_list(fields.get(key)) if key in fields else None
-        if v is None:
-            p.append(f"{name}: {key} must be a list" + (" naming at least one item" if non_empty else " (empty: `{key}:`)".format(key=key)))
-            return []
-        if non_empty and not v:
-            p.append(f"{name}: {key} must name at least one item")
-        for x in v:
-            if not ok(x):
-                p.append(f"{name}: {key}: {x!r} is not {what}")
-        return v
-
-    origin = lambda x: bool(UC_ID.match(x)) or is_requirement_name(x)  # noqa: E731
-    if arc:
-        items("forced_by", origin, "a use case (UC-<nnn>) or a requirement name", non_empty=True)
-        for k in ("realises", "follows", "uses", "provides"):
-            if k in fields:
-                p.append(f"{name}: key {k!r} belongs to a module")
-        sections = ARC_SECTIONS
-    else:
-        items("realises", origin, "a use case (UC-<nnn>) or a requirement name")
-        items("follows", lambda x: bool(ARC_ID.match(x)), "an architecture decision (ARC-<nnn>)")
-        items("uses", lambda x: bool(USE.match(x)), "an interface of another module (MOD-<slug>.<interface>)")
-        provides = items("provides", lambda x: bool(IFACE.match(x)), "an interface name")
-        if "forced_by" in fields:
-            p.append(f"{name}: key 'forced_by' belongs to an architecture decision")
-        if len(set(provides)) != len(provides):
-            p.append(f"{name}: provides names an interface twice")
-        described = described_interfaces(body)
-        for i in provides:
-            if IFACE.match(i) and i not in described:
-                p.append(f"{name}: interface {i!r} is not described in ## Interfaces (a bullet - `{i}…`)")
-        sections = MOD_SECTIONS
-    for s in sections:
-        if not re.search(rf"^{re.escape(s)}\s*$", body, re.M):
-            p.append(f"{name}: missing section {s!r}")
-    if re.search(r"!\[[^\]]*\]\([^)]*\.(png|jpe?g|gif|svg|webp)\)", body, re.I):
-        p.append(f"{name}: diagram stored as an image file")
-    return p
+def architecture_findings(files: dict, kind: str | None = None) -> dict:
+    """{ path: ["<line>: <what> [<rule>]"] } — documentFindings of each architecture file of { path: text }, read by the schema
+    its path names, or by the schema `kind` ("decision" or "module") names where the path names none."""
+    return module_call("const all = documents.artifactSchemas();"
+                       "return Object.fromEntries(Object.entries(D.files).map(([p, t]) => {"
+                       " const s = documents.artifactSchemaOf(p) ?? all[D.kind];"
+                       " return [p, documents.documentFindings(s, documents.readDocument(s, p, t))"
+                       ".map((f) => `${f.line}: ${f.what} [${f.rule}]`)]; }));",
+                       {"files": files, "kind": kind})
 
 
 def record_fields(text: str) -> dict:
