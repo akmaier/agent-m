@@ -10,7 +10,7 @@
 // Readings the texts leave open, which the tests state (the pull request names them), each adding no word to the sentence it reads, as tests/markdown-render-931-preview-focus.test.mjs reads "can be focused":
 //   - "can be focused" is read as the element carrying the attribute tabindex with the value "0", compared as a string;
 //   - "a region that scrolls" is read as the two kinds of box the page draws that scroll sideways: an element with the class `table-scroll` (src/theme/lme.css: `overflow-x: auto`) and the element with the class
-//     `mermaid` that MOD-markdown-render draws for a burn-down chart (docs/assets/style.css: `overflow-x: auto`); the known positive is that the page draws at least one of each.
+//     `mermaid` that MOD-markdown-render draws for a burn-down chart (src/site-frame/look.css: `overflow-x: auto`); the known positive is that the page draws at least one of each.
 // The product is a small two-team fixture held in memory behind a host of this file's own; the process model is the instance's, read from a second host. Nothing reaches the network.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 

@@ -417,7 +417,7 @@ export async function openDashboard({ server, hash = "", caches = null, token = 
   const page = {
     main: () => doc.getElementById("main").innerHTML,
     el: (id) => doc.getElementById(id).innerHTML, // a part the app fills after rendering, such as #impact
-    stylesheets: () => head.children.map((l) => l.href), // the stylesheets the views linked, beside style.css
+    stylesheets: () => head.children.map((l) => l.href), // the stylesheets the views linked, beside the site's style sheets
     requests: server.requests.slice(start),
     async go(next) {
       const from = server.requests.length;
