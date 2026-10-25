@@ -526,8 +526,7 @@ test("release · ITM-129 UC-024: a page load of every address asks for no file b
 // the order of the process (THE MENU FOLLOWS THE PROCESS), and no view whose file is not; each view of the table whose file is
 // there, opened at its address, is shown — its page is not the use-case list the shell falls back to —; the public handed
 // get-your-own route is likewise shown. The address of an
-// unbuilt view other than canonical #tests shows the use-case list and asks for no file of that view; canonical #tests truthfully
-// says "The Tests entry is not built yet."
+// unbuilt view shows the use-case list and asks for no file of that view.
 test("release · ITM-129 UC-024: every menu entry and view of today is shown; a view whose file is not built is not", async () => {
   const w = await world();
   const page = await open(w, { hash: "#uc", direct: true });
@@ -535,7 +534,7 @@ test("release · ITM-129 UC-024: every menu entry and view of today is shown; a 
   const fileOf = (view) => VIEWS.find((v) => v.view === view)?.file;
   // A view is built where its file is on the disk, or where the app hands its address to a route of MOD-review-pages or to the fold
   // of the topic `accepting`, so that its file is gone.
-  const HANDED = new Set(["uc", "arc", "review", "spec", "how", "settings", "release", "mail", "replies", "arrange", "process", "roles", "backlog", "get-your-own"]);
+  const HANDED = new Set(["uc", "arc", "review", "spec", "how", "settings", "runs", "schedule", "generate", "release", "trace", "mail", "replies", "arrange", "process", "roles", "backlog", "get-your-own"]);
   const builtView = (view) => HANDED.has(view) || builtOnDisk(fileOf(view));
   const expected = MENU.map((e) => e.views.find(builtView)).filter(Boolean);
   assert.deepEqual(tabs, expected, "the stages' views built, in the order of the process");
@@ -544,11 +543,13 @@ test("release · ITM-129 UC-024: every menu entry and view of today is shown; a 
   assert.match(fallback, /#use-case\/id=UC-001"/, "known positive: #uc is the use-case list");
   for (const v of VIEWS.filter((x) => x.view !== "uc")) {
     if (v.builtIn) {
-      assert.ok(["add", "setup", "settings", "release", "mail", "replies", "process", "roles", "backlog"].includes(v.view), "only the public settings-pages Add, Setup and Settings routes, the test pages' route release, the maintenance pages' routes mail and replies and the implementation pages' routes process, roles and backlog have no dashboard file");
+      assert.ok(["add", "setup", "settings", "runs", "schedule", "generate", "release", "trace", "mail", "replies", "process", "roles", "backlog"].includes(v.view), "only the public settings-pages Add, Setup and Settings routes, the test pages' routes runs, schedule, generate and release, the trace pages' route trace, the maintenance pages' routes mail and replies and the implementation pages' routes process, roles and backlog have no dashboard file");
       const dispatched = fs.readFileSync(APP_FILE, "utf8");
       if (v.view === "add") assert.match(dispatched, /settingsPages\.routes\.find\(\(r\) => r\.name === "add-product"\)/, "#add dispatches the public route");
       else if (v.view === "settings") assert.match(dispatched, /settingsPages\.routes\.find\(\(r\) => r\.name === "settings"\)/, "#settings dispatches the public route");
       else if (v.view === "release") assert.match(dispatched, /testPages\.routes\.find\(\(r\) => r\.name === "release"\)/, "#release dispatches the public route");
+      else if (v.view === "runs" || v.view === "schedule" || v.view === "generate") assert.match(dispatched, /kind === "runs" \|\| kind === "schedule" \|\| kind === "generate"\) \{\s*await renderProductRoute\(testPages, kind,/, `#${v.view} dispatches the test pages' public route`);
+      else if (v.view === "trace") assert.match(dispatched, /renderProductRoute\(tracePages, "trace",/, "#trace dispatches the trace pages' public route");
       else if (v.view === "mail") assert.match(dispatched, /maintenancePages\.routes\.find\(\(r\) => r\.name === "mail"\)/, "#mail dispatches the maintenance pages' public route");
       else if (v.view === "replies") assert.match(dispatched, /maintenancePages\.routes\.find\(\(r\) => r\.name === "replies"\)/, "#replies dispatches the maintenance pages' public route");
       else if (v.view === "backlog") assert.match(dispatched, /implementationPages\.routes\.find\(\(r\) => r\.name === "backlog"\)/, "#backlog dispatches the implementation pages' public route");
@@ -562,8 +563,7 @@ test("release · ITM-129 UC-024: every menu entry and view of today is shown; a 
       assert.notEqual(p.main(), fallback, `#${v.view} shows its own view`);
       assert.ok(p.main().trim().length > 0, `#${v.view} shows something`);
     } else {
-      if (v.view === "tests") assert.match(p.main(), /The Tests entry is not built yet\./, "#tests: not built — The Tests entry is not built yet");
-      else assert.match(p.main(), /#use-case\/id=UC-001"/, `#${v.view}: not built — the use-case list is shown`);
+      assert.match(p.main(), /#use-case\/id=UC-001"/, `#${v.view}: not built — the use-case list is shown`);
       assert.ok(!p.asked().some((u) => u.endsWith(`/dashboard/${v.file}`)), `#${v.view}: its file is not asked for`);
     }
   }
