@@ -44,13 +44,11 @@ class TestTheStateOfAnItem(unittest.TestCase):
         return state_of(run(item, "kanban", **kw), item)
 
     def test_an_item_whose_names_are_all_accepted_is_ready(self):
-        for item in ("ITM-014", "ITM-015", "ITM-016", "ITM-017"):
-            if item in ("ITM-014", "ITM-017"):
-                # ITM-014 builds on ITM-016, ITM-017 on ITM-014: once those are done, both are ready.
-                prs = [pr(1, "ITM-016", state="merged")] + ([pr(2, "ITM-014", state="merged")] if item == "ITM-017" else [])
-                self.assertEqual(self.state(item, prs=prs)["state"], "ready", item)
-            else:
-                self.assertEqual(self.state(item)["state"], "ready", item)
+        for item in ("ITM-015", "ITM-016"):
+            self.assertEqual(self.state(item)["state"], "ready", item)
+        # ITM-014 and ITM-017 build on ITM-016: once it is done, both are ready.
+        for item in ("ITM-014", "ITM-017"):
+            self.assertEqual(self.state(item, prs=[pr(1, "ITM-016", state="merged")])["state"], "ready", item)
 
     def test_an_item_naming_a_requirement_or_use_case_not_accepted_waits_for_acceptance_and_names_it(self):
         accepted = [r for r in KNOWN["requirements"] if r != "EXPORT IS A PDF"] + ["UC-001"]
