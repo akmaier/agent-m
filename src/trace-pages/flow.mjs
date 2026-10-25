@@ -334,10 +334,10 @@ function reviewLink(className, text, route, params) {
 // The status of a requirement the SPEC holds: "in SPEC", or what an open entry of a change queue would do to it (UC-020 step 3).
 const statusCell = (text) => el("td", "requirement-status", text);
 
-function requirementRows(requirement, editable, shown, status) {
+function requirementRows(requirement, editable, shown, status, mark = []) {
   const button = el("button", "requirement-name btn small", requirement.name);
   button.type = "button";
-  const cell = el("td", null, button);
+  const cell = el("td", null, button, ...mark);
   (shown.cells ??= []).push([requirement.name, cell]);
   if (editable) cell.append(" ", reviewLink("requirement-edit", "Edit", "requirement", { name: requirement.name }));
   const row = el("tr", null, cell, statusCell(status));
@@ -364,9 +364,11 @@ function membersTable(members, arranged, editable, shown) {
   const body = el("tbody");
   for (const { id } of members) {
     const requirement = arranged.spec.requirements.get(id);
+    // An item no group names stands at the top level, marked not yet placed (UC-021 3b).
+    const mark = arranged.ungrouped.has(id) ? [" ", el("span", "requirement-unplaced", "not yet placed")] : [];
     let nodes;
-    if (requirement) nodes = requirementRows(requirement, editable, shown, arranged.status.get(id) ?? "in SPEC");
-    else if (arranged.added.has(id)) nodes = [el("tr", "requirement-proposed", el("td", null, id), statusCell("proposed"))];
+    if (requirement) nodes = requirementRows(requirement, editable, shown, arranged.status.get(id) ?? "in SPEC", mark);
+    else if (arranged.added.has(id)) nodes = [el("tr", "requirement-proposed", el("td", null, id, ...mark), statusCell("proposed"))];
     else nodes = [el("tr", "requirement-unknown", el("td", null, id), statusCell("unknown: no requirement of this name"))];
     arranged.rowNodes.push({ id, nodes, known: Boolean(requirement) || arranged.added.has(id) });
     body.append(...nodes);
@@ -538,8 +540,8 @@ async function arrangement(snapshot, spec, waiting, groupText) {
     }
   }
   const items = [...spec.requirements.keys(), ...added];
-  const { tree } = hierarchy(parseGroupFile(GROUP_PATH, groupText ?? ""), items);
-  return { spec, tree, status, added, counts: [], rowNodes: [], tables: [], groupNodes: [], unrealised: null };
+  const { tree, ungrouped } = hierarchy(parseGroupFile(GROUP_PATH, groupText ?? ""), items);
+  return { spec, tree, ungrouped: new Set(ungrouped), status, added, counts: [], rowNodes: [], tables: [], groupNodes: [], unrealised: null };
 }
 
 // Fills in, once the trace graph is read, how many requirements of each group no use case realises: the names coverageGaps lists, and those an entry would add,

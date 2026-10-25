@@ -70,9 +70,10 @@ const hiddenWithin = (node, root) => {
 const bodyOf = (target, title) => find(find(target, (node) => node.localName === "section" && hasClass(node, "spec-group")).find((group) => find(group, (node) => hasClass(node, "spec-group-toggle"))[0].textContent === title),
   (node) => hasClass(node, "spec-group-body"))[0];
 // The names of the rows a person sees: the rows of requirements and of unknown members that no hidden element holds.
+// A row's name is its button's text, or, for a row without one, the first text of its first cell: the cell of a requirement no group names also holds the mark *not yet placed* (UC-021 3b).
 const seen = (target) => find(target, (node) => node.localName === "tr" && find(node, (cell) => hasClass(cell, "requirement-status")).length === 1)
   .filter((row) => !hiddenWithin(row, target))
-  .map((row) => find(row, (node) => node.localName === "button" && hasClass(node, "requirement-name"))[0]?.textContent ?? row.firstChild.textContent).sort();
+  .map((row) => find(row, (node) => node.localName === "button" && hasClass(node, "requirement-name"))[0]?.textContent ?? row.firstChild.firstChild.textContent).sort();
 const groupsSeen = (target) => find(target, (node) => node.localName === "section" && hasClass(node, "spec-group")).filter((group) => !hiddenWithin(group, target))
   .map((group) => find(group, (node) => node.localName === "button" && hasClass(node, "spec-group-toggle"))[0].textContent);
 // Sets the controls a person sets and waits until the tree shows `expected` (a choice of realised reads the trace graph first).
