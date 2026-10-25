@@ -12,6 +12,7 @@ uses:
 provides:
   - TestDeclaration
   - isTestFile
+  - isNamedTestFile
   - testDeclarations
   - testFindings
   - testHeader
@@ -85,6 +86,9 @@ language; a line that begins with a letter, a digit or a quote is no header line
   number | null, paid: string | null, path: string, line: number }`; `module` is a module's identifier or the word
   `system`.
 - `isTestFile(path: string) -> boolean` — whether a path is a test file as defined under Data.
+- `isNamedTestFile(path: string) -> boolean` — whether a path is named as tests are named in its language, as defined
+  under Data, wherever it lies: the test files a test runner runs, as against a helper, a fixture or a Markdown file of
+  manual tests, which are test files by their folder alone.
 - `testDeclarations(path: string, text: string) -> TestDeclaration[]` — every declaration in a test file, in order. It
   never throws on content: a declaration missing a key is read with that key `null`, and `testFindings` names it. A file
   with no declaration yields none; the caller decides whether that is a gap.
