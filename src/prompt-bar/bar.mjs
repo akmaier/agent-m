@@ -115,6 +115,7 @@ export function startPromptBar(target, setup) {
   const stop = button("stop", "Stop");
   stop.disabled = true;
   let selector = null;
+  let offeredNames = null;
   const chooser = el("div", "chooser");
 
   const show = (...nodes) => status.replaceChildren(...nodes);
@@ -412,12 +413,17 @@ export function startPromptBar(target, setup) {
     const kept = selector?.value;
     if (offered.length === 0) {
       selector = null;
+      offeredNames = null;
       const link = button("participants-link", "Set up participants");
       link.addEventListener("click", () => setup.go("participants"));
       chooser.replaceChildren(el("p", "none-able", `No participant of this instance can do ${kind.name}: it needs ${kind.needs.join(", ")}.`), link);
       return;
     }
     const named = (each) => `${each.name} — ${placeOf(each)}`;
+    // The same offer keeps its selector: replacing it while it takes focus would close its list before a choice is made.
+    const names = offered.map((each) => each.name).join("\n");
+    if (selector && names === offeredNames) return relabel();
+    offeredNames = names;
     if (offered.length === 1) {
       selector = el("span", "participant", named(offered[0]));
     } else {
