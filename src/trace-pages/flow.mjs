@@ -10,7 +10,9 @@
 // opens as it read in that version. The graph of one version is built once and kept, in memory, for every page drawn at it while the page of the frame
 // stays loaded. It writes nothing. On the default branch the specification leads to the review pages' editing: Edit beside each requirement and
 // + Requirement once for each section, beside the tree; at any other ref the view says "as of" it and offers neither. Beside the choice a link leads from the specification to the gaps
-// and from the gaps back to the specification, at the ref shown (UC-020 step 7); it reads nothing.
+// and from the gaps back to the specification, at the ref shown (UC-020 step 7); it reads nothing. At the default branch, while the graph of its head is not stored
+// yet, the specification, the gaps and the modules show the whole version of the commit whose graph MOD-trace-graph's latestGraph gives — that commit's snapshot and
+// files — with latestGraph's line, read-only as at a tag; where the head's graph is stored they read nothing more than it.
 //
 // Module: MOD-trace-pages
 
@@ -21,7 +23,7 @@ import { artifactSchemas, readDocument } from "../documents/index.mjs";
 import { statuses } from "../approvals/index.mjs";
 import { entryView, queues } from "../spec-changes/index.mjs";
 import { affectedRequirements, linkedVersion, sourceSchemas } from "../source-register/index.mjs";
-import { coverageGaps, moduleRows, storedGraph, tracesTo } from "../trace-graph/index.mjs";
+import { coverageGaps, latestGraph, moduleRows, storedGraph, tracesTo } from "../trace-graph/index.mjs";
 import { storedOverview } from "../progress-measures/index.mjs";
 import { explain, readProblem } from "../site-frame/index.mjs";
 import { componentDiagram } from "./diagram.mjs";
@@ -105,22 +107,43 @@ const problemLine = (what, failure) => el("p", "traces-problem", `${what} could 
 const failedRead = (className, what, failure, context) => el("div", className, `${what} could not be read: `, readProblem(failure, context.product.tokenStored !== false));
 const listOf = (items) => el("ul", "trace-list", ...items.map((item) => el("li", null, item)));
 
-// The graph of a commit is built once for the page that holds the browser's store (the Host, where the context has none), whichever page asks and however
-// often the version is drawn again: a commit does not change. It is kept in memory only, under the commit.
+// The graph of a commit is read once for the page that holds the browser's store (the Host, where the context has none), whichever page asks and however
+// often the version is drawn again: a commit does not change. It is kept in memory only, under the commit. At the default branch (`shown.isDefault`) it is
+// MOD-trace-graph's latestGraph — the head's graph, or, while that is not stored yet, the graph stored last with its line —; anywhere else the version's own,
+// storedGraph's. A graph with a line is not kept, so that the next drawing asks for the head's again.
 const graphsOf = new WeakMap();
 function graphKept(shown) {
   const { snapshot, context } = shown;
-  const make = () => storedGraph(snapshot, snapshot.commit ?? null);
-  if (typeof snapshot.commit !== "string") return kept(make);
+  const commit = snapshot.commit ?? null;
+  const make = async () => ((await shown.isDefault) ? latestGraph(snapshot, commit) : { graph: await storedGraph(snapshot, commit), line: null });
+  if (typeof commit !== "string") return kept(make);
   const holder = context.store ?? context.product.host;
   const graphs = graphsOf.get(holder) ?? graphsOf.set(holder, new Map()).get(holder);
-  if (!graphs.has(snapshot.commit)) graphs.set(snapshot.commit, kept(make));
-  return graphs.get(snapshot.commit);
+  if (!graphs.has(commit)) {
+    const reading = kept(async () => {
+      const found = await make();
+      if (found.line !== null && graphs.get(commit) === reading) graphs.delete(commit);
+      return found;
+    });
+    graphs.set(commit, reading);
+  }
+  return graphs.get(commit);
 }
 
-// The facts of the version drawn, each read on its first opening.
+// The line above a version drawn in place of the default branch's head, whose graph is not stored yet: latestGraph's, and that the version is read-only.
+const earlierLine = (line) => el("p", "version-earlier", `${line} Until then it shows that commit's version, read-only.`);
+
+// The facts of the version drawn, each read on its first opening. A graph latestGraph gives with a line is of an earlier commit: the view is drawn again at
+// that commit (`shown.earlier`), once, and what asked for the head's graph is told it is not stored, never given the earlier graph.
 function factsOf(shown) {
-  return shown.facts ??= { graph: graphKept(shown), sources: kept(() => sourcesOf(shown)) };
+  if (shown.facts) return shown.facts;
+  const latest = graphKept(shown);
+  const graph = () => latest().then(({ graph: found, line }) => {
+    if (line === null) return found;
+    const drawing = shown.earlier ? (shown.earlierDrawn ??= shown.earlier(found.commit, line)) : Promise.resolve();
+    return drawing.then(() => { throw Object.assign(new Error(line), { name: "GraphNotStored" }); });
+  });
+  return shown.facts = { graph, sources: kept(() => sourcesOf(shown)) };
 }
 
 // Whether the graph holds an artifact of the kind at all.
@@ -334,10 +357,10 @@ function reviewLink(className, text, route, params) {
 // The status of a requirement the SPEC holds: "in SPEC", or what an open entry of a change queue would do to it (UC-020 step 3).
 const statusCell = (text) => el("td", "requirement-status", text);
 
-function requirementRows(requirement, editable, shown, status) {
+function requirementRows(requirement, editable, shown, status, mark = []) {
   const button = el("button", "requirement-name btn small", requirement.name);
   button.type = "button";
-  const cell = el("td", null, button);
+  const cell = el("td", null, button, ...mark);
   (shown.cells ??= []).push([requirement.name, cell]);
   if (editable) cell.append(" ", reviewLink("requirement-edit", "Edit", "requirement", { name: requirement.name }));
   const row = el("tr", null, cell, statusCell(status));
@@ -364,9 +387,11 @@ function membersTable(members, arranged, editable, shown) {
   const body = el("tbody");
   for (const { id } of members) {
     const requirement = arranged.spec.requirements.get(id);
+    // An item no group names stands at the top level, marked not yet placed (UC-021 3b).
+    const mark = arranged.ungrouped.has(id) ? [" ", el("span", "requirement-unplaced", "not yet placed")] : [];
     let nodes;
-    if (requirement) nodes = requirementRows(requirement, editable, shown, arranged.status.get(id) ?? "in SPEC");
-    else if (arranged.added.has(id)) nodes = [el("tr", "requirement-proposed", el("td", null, id), statusCell("proposed"))];
+    if (requirement) nodes = requirementRows(requirement, editable, shown, arranged.status.get(id) ?? "in SPEC", mark);
+    else if (arranged.added.has(id)) nodes = [el("tr", "requirement-proposed", el("td", null, id, ...mark), statusCell("proposed"))];
     else nodes = [el("tr", "requirement-unknown", el("td", null, id), statusCell("unknown: no requirement of this name"))];
     arranged.rowNodes.push({ id, nodes, known: Boolean(requirement) || arranged.added.has(id) });
     body.append(...nodes);
@@ -538,8 +563,8 @@ async function arrangement(snapshot, spec, waiting, groupText) {
     }
   }
   const items = [...spec.requirements.keys(), ...added];
-  const { tree } = hierarchy(parseGroupFile(GROUP_PATH, groupText ?? ""), items);
-  return { spec, tree, status, added, counts: [], rowNodes: [], tables: [], groupNodes: [], unrealised: null };
+  const { tree, ungrouped } = hierarchy(parseGroupFile(GROUP_PATH, groupText ?? ""), items);
+  return { spec, tree, ungrouped: new Set(ungrouped), status, added, counts: [], rowNodes: [], tables: [], groupNodes: [], unrealised: null };
 }
 
 // Fills in, once the trace graph is read, how many requirements of each group no use case realises: the names coverageGaps lists, and those an entry would add,
@@ -641,18 +666,19 @@ function versionChoice({ shown, handed, current, tags, tagsFailure, choose, othe
     option.value = value;
     select.append(option);
   }
-  select.value = shown.ref;
+  select.value = shown.chosen ?? shown.ref;
   select.addEventListener("change", () => choose(select.value));
   const choice = el("div", "version-bar", el("label", null, "Version ", select));
   if (other) {
     const across = el("a", other.className, other.text);
-    across.setAttribute("href", fragment("trace", { key: other.key, ref: shown.ref }));
+    across.setAttribute("href", fragment("trace", { key: other.key, ref: shown.chosen ?? shown.ref }));
     choice.append(across);
   }
   choice.append(explain("trace-versions"));
   if (tagsFailure) choice.append(failedRead("traces-problem", "The tags", tagsFailure, shown.context));
   else if (!tags.length) choice.append(el("p", "version-none", "No release is tagged yet (UC-013); only the current text can be shown."));
-  if (!shown.onDefaultBranch) choice.append(el("p", "version-as-of", `as of ${shown.ref}`));
+  if (shown.asOf) choice.append(earlierLine(shown.asOf));
+  else if (!shown.onDefaultBranch) choice.append(el("p", "version-as-of", `as of ${shown.ref}`));
   return choice;
 }
 
@@ -753,14 +779,17 @@ function modulesGaps(gaps, ref, next) {
 
 // The modules page (UC-025): the component diagram of the modules of the version handed, drawn through renderMermaid, the table of the modules and every gap, all from the one graph of that version. It offers no
 // version choice and reads no tag: the view's versions are "branch". Where the version holds no module it says so, and where the graph cannot be read it names that.
-async function drawModules(target, context, host, ref, descriptor) {
-  const shown = { target, ref, onDefaultBranch: false, spec: null, source: null, requirements: [], groups: [], context, snapshot: null, facts: null };
+// While the head's graph is not stored, `earlier` ({ commit, line }) is the commit whose graph latestGraph gives: the page is drawn at it, with the line.
+async function drawModules(target, context, host, ref, descriptor, earlier = null) {
+  const shown = { target, ref: earlier?.commit ?? ref, onDefaultBranch: false, spec: null, source: null, requirements: [], groups: [], context, snapshot: null, facts: null,
+    asOf: earlier?.line ?? null, isDefault: earlier ? Promise.resolve(false) : onDefaultBranch(host, ref) };
+  shown.earlier = (commit, line) => drawModules(target, context, host, ref, descriptor, { commit, line });
   drawn.set(context, shown);
   const place = el("div", "modules-body", el("p", "traces-reading", "Reading the modules…"));
-  target.replaceChildren(el("section", "modules head", el("h2", null, descriptor.title), place));
+  target.replaceChildren(el("section", "modules head", el("h2", null, descriptor.title), ...(shown.asOf ? [earlierLine(shown.asOf)] : []), place));
   let files, graph;
   try {
-    shown.snapshot = await host.readSnapshot(ref);
+    shown.snapshot = await host.readSnapshot(shown.ref);
     graph = await factsOf(shown).graph();
     files = await moduleFilesOf(shown.snapshot);
   } catch (failure) {
@@ -772,7 +801,7 @@ async function drawModules(target, context, host, ref, descriptor) {
     return;
   }
   const { rows, gaps } = moduleRows(graph);
-  const next = await onDefaultBranch(host, ref);
+  const next = await shown.isDefault;
   place.replaceChildren(await renderMermaid(componentDiagram(files)), explain("component-diagram"), modulesTable(rows, graph, statuses(shown.snapshot), shown.snapshot), modulesGaps(gaps, ref, next));
 }
 
@@ -810,17 +839,20 @@ export const route = {
     // Draws the SPEC at `ref` under the choice; of two choices made in a row, the later one is what stays. A ref chosen later that cannot be
     // read is named in place of the tree; the handed one is the caller's. What the page reads that does not wait for another read is asked at once:
     // the snapshot, the default branch and the tags; then the SPEC, the person's source, the entries waiting, the group file and the stored graph.
-    const draw = async (ref, chosen) => {
+    // While the head's graph is not stored, `earlier` ({ commit, line }) is the commit whose graph latestGraph gives: the version drawn is that commit's, read-only, with the line.
+    const draw = async (ref, chosen, earlier = null) => {
       const mine = ++latest;
-      const shown = { target, ref, onDefaultBranch: false, spec: null, source: null, requirements: [], groups: [], context, snapshot: null, facts: null, tags: [] };
+      const shown = { target, ref: earlier?.commit ?? ref, chosen: ref, onDefaultBranch: false, spec: null, source: null, requirements: [], groups: [], context, snapshot: null, facts: null,
+        tags: [], asOf: earlier?.line ?? null, isDefault: null };
+      shown.earlier = (commit, line) => draw(ref, true, { commit, line });
       drawn.set(context, shown);
       let body;
       let waiting = null;
       let fill = null;
       let tags = [], tagsFailure = null;
       try {
-        const defaultRead = onDefaultBranch(host, ref);
-        const snapshot = await host.readSnapshot(ref);
+        const defaultRead = shown.isDefault = earlier ? Promise.resolve(false) : onDefaultBranch(host, ref);
+        const snapshot = await host.readSnapshot(shown.ref);
         shown.snapshot = snapshot;
         const specification = descriptor.key !== "gaps" && descriptor.key !== "tests";
         // The graph of the version counts the requirements no use case realises in each group: it is asked now, and its one read is shared with the impact lists.
