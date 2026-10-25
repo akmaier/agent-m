@@ -122,7 +122,8 @@ uses neither the frame nor a view (`MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE
 
 **The conversation** is held in the browser tab, through MOD-browser-store's tab values, so that it goes on when the
 person moves between the main page and the review pages in the same tab and ends with the tab. It holds the messages, the
-participant talked to, the latest draft and the job handed over while it runs. Nothing of it is written to a repository
+participant talked to, the latest draft, the job handed over while it runs, and the height the person set with the
+bar's grip. Nothing of it is written to a repository
 unless recording is on, and nothing of it is kept in `localStorage` or exported with the settings. It holds no state of a
 job: while a message runs, the job is this tab's running job; a handed-over job's state is derived from its record and
 its runtime (`PROGRESS AND JOB STATE ARE DERIVED, NOT STORED`).
