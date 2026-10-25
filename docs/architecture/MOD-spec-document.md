@@ -39,8 +39,6 @@ inside sections. It runs in a browser and in Node, and performs no input or outp
 - `checks.mjs` — the findings of a requirement.
 - `sections.mjs` — a section's exact bytes and its replacement.
 - `skeleton.md` — the SPEC a new product starts with.
-- **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `docs/assets/artifacts/requirements.mjs`: removed once no file imports it: `parseSpec`, `requirementFindings` and `requirementNamesIn` give it.
 
 ## Data
 

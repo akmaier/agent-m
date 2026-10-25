@@ -5,7 +5,7 @@
 import re
 import unittest
 
-from jsrun import ASSETS, ROOT, SRC, js
+from jsrun import ROOT, SRC, js
 
 # Browser storage: localStorage, sessionStorage, IndexedDB and Cache Storage (`caches`).
 STORAGE_ACCESS = re.compile(r"\b(?:globalThis|window|self)\s*\.\s*(?:localStorage|sessionStorage|indexedDB|caches)\b|\b(?:localStorage|sessionStorage|indexedDB|caches)\s*[.\[]")
@@ -18,7 +18,7 @@ FAKE = ("const mem = new Map(); globalThis.localStorage = { getItem: k => mem.ha
 def storage_users() -> dict:
     """{ path from the repository's root: the storages its code touches } for every module file of the site (vendored libraries
     excepted), its comments aside."""
-    files = [f for root in (SRC, ASSETS) for f in sorted(root.rglob("*.mjs")) if "vendor" not in f.parts]
+    files = [f for f in sorted(SRC.rglob("*.mjs")) if "vendor" not in f.parts]
     users = {}
     for f in files:
         code = COMMENT_LINE.sub("", f.read_text(encoding="utf-8"))

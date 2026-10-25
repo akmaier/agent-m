@@ -1,4 +1,4 @@
-// The dashboard's texts, steps and views (src/site-frame/dashboard-app.mjs, docs/assets/dashboard/) — deterministic, no network.
+// The dashboard's texts, steps and views (src/site-frame/dashboard-app.mjs) — deterministic, no network.
 // Run through tests/review-core.test.mjs, which SPEC.md names for these checks: node --test tests/*.test.mjs
 //
 // Module: MOD-site-frame
@@ -13,31 +13,44 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
-import { headerModules } from "../../docs/assets/artifacts.mjs";
+import { traceGraph, moduleRows } from "../../src/trace-graph/index.mjs";
 import { parseFrontMatter } from "../../src/text-tools/index.mjs";
 import { parseAddress, connect } from "../../src/repository-hosts/index.mjs";
 import { stepHtml, gitlabWriteRefusal } from "../../src/site-frame/dashboard-app.mjs";
 import * as shell from "../../src/site-frame/dashboard-app.mjs";
-import { ASSETS, APP, viewFiles, dashboardText, GL_ADDR, GL_TOKEN, withFetch } from "./helpers.mjs";
+import { APP, viewFiles, dashboardText, GL_ADDR, GL_TOKEN, withFetch } from "./helpers.mjs";
 
-// A planted kernel file under src/, the known positive of the checks below: its Module line names a kernel module, and it calls
-// neither fetch nor anything of MOD-repository-hosts.
-const PLANTED = { file: "src/planted/kernel.mjs", text: "// A planted kernel file.\n//\n// Module: MOD-process-model\n\nexport const planted = (text) => text.trim();\n" };
-// Every module file of the site (vendored libraries excepted), with the modules its Module line names, and the planted file.
-const moduleFiles = () => [...readdirSync(ASSETS, { recursive: true }).filter((f) => f.endsWith(".mjs") && !f.split("/").includes("vendor"))
-  .map((f) => ({ file: f, text: readFileSync(new URL(f, ASSETS), "utf8") })), { file: "dashboard-app.mjs", text: readFileSync(APP, "utf8") }, PLANTED]
+// The files whose modules the checks below read: the shell, src/site-frame/dashboard-app.mjs, with the architecture's module files;
+// and, as the known positive of the kernel checks, the fixture product tests/fixtures/kernel-product/, whose module MOD-process-model
+// is a kernel module and whose file src/process-model/kernel.mjs calls neither fetch nor anything of MOD-repository-hosts.
+const ROOT = new URL("../../", import.meta.url), KERNEL_PRODUCT = new URL("../fixtures/kernel-product/", import.meta.url);
+const PLANTED = "src/process-model/kernel.mjs", SHELL = "src/site-frame/dashboard-app.mjs";
+const moduleFilesOf = (root) => readdirSync(new URL("docs/architecture/", root)).filter((name) => /^MOD-.*\.md$/.test(name))
+  .map((name) => `docs/architecture/${name}`);
+// A code file's module, as MOD-trace-graph's moduleRows gives it: the module whose folder holds it (EVERY CODE FILE BELONGS TO A
+// MODULE). -> [{ file, text, modules }] for the code files of each product, the shell's and the fixture's.
+async function moduleFiles() {
+  const out = [];
+  for (const [root, code] of [[ROOT, [SHELL]], [KERNEL_PRODUCT, [PLANTED]]]) {
+    const texts = Object.fromEntries([...moduleFilesOf(root), ...code].map((path) => [path, readFileSync(new URL(path, root), "utf8")]));
+    const graph = await traceGraph({ paths: Object.keys(texts), read: async (path) => texts[path] ?? null });
+    const owner = new Map(moduleRows(graph).rows.flatMap((row) => row.code.map((path) => [path, row.module])));
+    for (const file of code) out.push({ file, text: texts[file], modules: owner.has(file) ? [owner.get(file)] : [] });
+  }
+  return out;
+}
 // The adapters (ARC-003 decision 1): the modules that reach the outside, as the code is built.
 function adapterModules() {
   return new Set(["MOD-settings-store", "MOD-participants", "MOD-mailbox", "MOD-bridge-server", "MOD-bridge-tunnel"]);
 }
 
-test("the app never calls fetch directly — every request goes through an adapter", () => {
+test("the app never calls fetch directly — every request goes through an adapter", async () => {
   // ARC-003 decision 6: no module file but an adapter's calls fetch or touches browser storage — the dashboard's files and every
-  // kernel and feature file; the dashboard's requests leave through the hosts of MOD-repository-hosts. A file's module is its
-  // Module line; a file naming no adapter is checked.
-  const adapters = adapterModules(), files = moduleFiles();
-  const checked = files.filter((f) => !headerModules(f.text).some((m) => adapters.has(m)));
-  assert.ok(checked.some((f) => f.file === "dashboard-app.mjs") && checked.some((f) => f.file === PLANTED.file), "kernel and shell files are checked");
+  // kernel and feature file; the dashboard's requests leave through the hosts of MOD-repository-hosts. A file's module is the one
+  // whose folder holds it; a file of no adapter is checked.
+  const adapters = adapterModules(), files = await moduleFiles();
+  const checked = files.filter((f) => !f.modules.some((m) => adapters.has(m)));
+  assert.ok(checked.some((f) => f.file === SHELL) && checked.some((f) => f.file === PLANTED), "kernel and shell files are checked");
   const FORBIDDEN = /\bfetch\s*\(|XMLHttpRequest|sendBeacon|\b(globalThis|window|self)\s*\.\s*(localStorage|sessionStorage)\b|\b(localStorage|sessionStorage)\s*[.[]|document\.cookie/;
   for (const { file, text: app } of checked) assert.doesNotMatch(app, FORBIDDEN, file);
   // counter-proof: access is caught, the word in an explanation is not
@@ -72,13 +85,13 @@ function hostImports(text) {
 const names = (imports) => imports.map(({ file, name }) => `${file}: ${name}`);
 
 // Guards: UC-024
-test("the kernel never reaches a repository — no kernel file imports anything of MOD-repository-hosts", () => {
+test("the kernel never reaches a repository — no kernel file imports anything of MOD-repository-hosts", async () => {
   // ARC-003 decisions 1 and 2: a kernel module imports only kernel modules; what it reads is handed to it as a port,
   // and a shell commits the files it returns, through a host it connected.
-  // The kernel is read from the group file, a file's module from its Module line.
-  const kernel = kernelModules(), files = moduleFiles();
-  const checked = files.filter((f) => headerModules(f.text).some((m) => kernel.has(m)));
-  assert.ok(checked.some((f) => f.file === PLANTED.file), "known positive: the planted kernel file is checked");
+  // The kernel is read from the group file, a file's module from the folder that holds it.
+  const kernel = kernelModules(), files = await moduleFiles();
+  const checked = files.filter((f) => f.modules.some((m) => kernel.has(m)));
+  assert.ok(checked.some((f) => f.file === PLANTED), "known positive: the planted kernel file is checked");
   for (const { file, text } of checked) assert.deepEqual(names(hostImports(text)), [], file);
   // counter-proof: each way of importing the module is caught, another module's import is not
   assert.deepEqual(names(hostImports('import {\n  parseAddress, connect,\n} from "../../src/repository-hosts/index.mjs";')),
@@ -90,11 +103,11 @@ test("the kernel never reaches a repository — no kernel file imports anything 
 });
 
 // Guards: UC-024
-test("the dashboard reaches MOD-repository-hosts only through its interface — no file of the dashboard imports another of its files", () => {
+test("the dashboard reaches MOD-repository-hosts only through its interface — no file of the dashboard imports another of its files", async () => {
   // MOD-repository-hosts' Parts: index.mjs is the interface, and every other file of its folder — the adapters, the request
   // helper and the failures behind them — is private to it. A namespace or dynamic import of a private file reaches it too.
-  const files = moduleFiles().filter((f) => headerModules(f.text).includes("MOD-dashboard-app"));
-  assert.ok(files.some((f) => f.file === "dashboard-app.mjs"), "the shell's files are checked");
+  const files = (await moduleFiles()).filter((f) => f.modules.includes("MOD-site-frame"));
+  assert.ok(files.some((f) => f.file === SHELL), "the shell's files are checked");
   assert.ok(files.some((f) => hostImports(f.text).some((i) => i.file === "index.mjs" && i.name === "connect")), "known positive: the shell's connect is seen");
   const past = files.flatMap((f) => names(hostImports(f.text).filter((i) => i.file !== "index.mjs")).map((n) => `${f.file}: ${n}`));
   assert.deepEqual(past, [], "no file of the dashboard imports a private file of MOD-repository-hosts");

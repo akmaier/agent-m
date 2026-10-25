@@ -46,7 +46,7 @@ import assert from "node:assert/strict";
 import * as traceGraphModule from "../src/trace-graph/index.mjs";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { headerModules, isCodePath, isTestPath } from "../docs/assets/artifacts.mjs";
+import { testHeader } from "../src/test-document/index.mjs";
 
 // A name the module does not provide yet is undefined here, so that each test fails by itself and not the whole file at once.
 const { traceGraph, moduleRows } = traceGraphModule;
@@ -296,14 +296,14 @@ test("TST-692010 a folder no module names is one gap, besides the gap of each co
 });
 
 // The tests and test helpers whose header names no module of the architecture, as the dashboard has listed them: no `Module:` line
-// among the first lines, or one that names a module the architecture does not describe — the header read as docs/assets/artifacts.mjs
-// reads it, since no interface of MOD-trace-graph gives a test's header; the modules of the architecture are the module nodes of the
-// graph traceGraph builds from the same files.
+// among the first lines, or one that names a module the architecture does not describe — the header read by MOD-test-document's
+// testHeader, for every file it reads a header of; the modules of the architecture are the module nodes of the graph traceGraph
+// builds from the same files.
 async function testsNamingNoModule(files) {
   const graph = await graphOf(files);
   const modules = new Set([...graph.nodes.values()].filter((node) => node.kind === "MOD").map((node) => node.id));
-  return Object.keys(files).filter((path) => isCodePath(path) && isTestPath(path)).flatMap((path) => {
-    const named = headerModules(files[path]);
+  return Object.keys(files).filter((path) => testHeader(path, files[path]) !== null).flatMap((path) => {
+    const named = testHeader(path, files[path]).modules;
     return named.length === 0 ? [["code-without-module", path]]
       : named.filter((module) => !modules.has(module)).map(() => ["code-names-unknown-module", path]);
   }).sort((a, b) => a[1].localeCompare(b[1]));

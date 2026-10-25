@@ -1,6 +1,6 @@
 // The format of ARC and MOD files and the requirement names of a SPEC, as MOD-documents reads and checks them (artifactSchemaOf,
 // readDocument, documentFindings, by the decision and module schemas artifactSchemas gives) and as MOD-spec-document reads a
-// SPEC (parseSpec); and the Module lines of code, which docs/assets/artifacts.mjs reads. Deterministic, no network.
+// SPEC (parseSpec). Deterministic, no network.
 // Run: node --test tests/*.test.mjs
 //
 // Module: MOD-documents
@@ -17,7 +17,6 @@ import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { artifactSchemaOf, artifactSchemas, readDocument, documentFindings } from "../src/documents/index.mjs";
 import { parseSpec } from "../src/spec-document/index.mjs";
-import { isCodePath, isTestPath, headerModules } from "../docs/assets/artifacts.mjs";
 
 const FIX = fileURLToPath(new URL("./fixtures/architecture/", import.meta.url));
 const files = {};
@@ -79,8 +78,12 @@ test("a module — folder, realises, follows, uses MOD-x.interface, provides, an
   assert.deepEqual(findings(REVIEW, files[REVIEW]), []);
   const page = read(PAGE, files[PAGE]);
   assert.deepEqual([page.fields.realises, page.fields.provides, findings(PAGE, files[PAGE])], [[], [], []], "empty lists are lists");
-  // Counter-proof: a use of an interface not written MOD-x.name.
+  // Counter-proof: a use of an interface not written MOD-x.name, a provided interface nobody describes, and an identifier that
+  // differs from the file name.
   assert.ok(findings(REVIEW, files[REVIEW].replace("  - MOD-reader.readFile\n", "  - readFile\n")).length);
+  assert.ok(findings(REVIEW, files[REVIEW].replace("  - status\n", "  - status\n  - history\n")).some((f) => /history/.test(f.what)),
+    "a provided interface nobody describes");
+  assert.ok(findings("docs/architecture/MOD-other.md", files[REVIEW]).some((f) => /MOD-review/.test(f.what)), "id differs from the file name");
 });
 
 // ---------------------------------------------------------------- ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS
@@ -113,20 +116,4 @@ test("parseSpec — the names in SPEC.md; a source over two lines is read whole;
   assert.ok(long.size > 250);
   assert.ok(long.has("RULE ONE REPLACES IT"));
   assert.ok(long.has("A RENAMED RULE IS WITHDRAWN AND ADDED"));
-});
-
-// ---------------------------------------------------------------- module headers
-
-test("module headers — `Module: MOD-x` in the first lines of a code file; tests told apart; Markdown and vendored code are not code", () => {
-  assert.deepEqual(headerModules(files["src/reader.js"]), ["MOD-reader"]);
-  assert.deepEqual(headerModules(files["src/review.py"]), ["MOD-review"]);
-  assert.deepEqual(headerModules(files["src/late.js"]), [], "a header after the first lines is not a header");
-  assert.deepEqual(headerModules("/* Module: MOD-a */\n<!-- Module: MOD-b -->\n"), ["MOD-a", "MOD-b"]);
-  assert.deepEqual(headerModules("const x = 'Module: MOD-a';\n"), [], "only a line that is a header, not a string in code");
-  assert.ok(isCodePath("src/reader.js") && isCodePath("src/review.py") && isCodePath("docs/assets/review-core.mjs"));
-  assert.ok(!isCodePath("src/notes.md") && !isCodePath("vendor/lib.js") && !isCodePath("node_modules/x/i.js")
-    && !isCodePath("src/markdown-render/vendor/marked.esm.js") && !isCodePath("logo.png"));
-  assert.ok(isTestPath("tests/reader.test.js") && isTestPath("tests/test_x.py") && isTestPath("src/x.spec.ts") && isTestPath("pkg/x_test.go"));
-  assert.ok(isTestPath("tests/helpers.js") && isTestPath("pkg/__tests__/x.js"), "a file in a tests folder is a test");
-  assert.ok(!isTestPath("src/reader.js") && !isTestPath("src/contest.js"));
 });

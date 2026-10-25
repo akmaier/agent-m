@@ -4,11 +4,10 @@
 """SPEC §12 EVERY TEST HAS ONE LEVEL — every test declares exactly one level from: unit, component, system,
 release, user.
 
-MOD-artifacts headers.headerTags(path, text) reads the Module:, Guards: and Level: lines among a file's first
-20 lines, the TST- identifiers of its cases and whether the path is a test (ARC-020 decision 2);
-headers.levelProblems(path, text) returns a finding for a test without a Level: line, with more than one, or
-with a level outside the five. The texts are the fixture repository tests/fixtures/identity/v2/ and copies of
-its tests, each counter-proof breaking one.
+MOD-test-document's testHeader(path, text) reads the header of a test file — its Module:, Guards: and Level: lines among
+its first 20 lines — and gives, with the modules, the names guarded and the level, a finding for a test without a Level:
+line, with more than one, or with a level outside the five; for a file that is no test file it gives null. The texts are
+the fixture repository tests/fixtures/identity/v2/ and copies of its tests, each counter-proof breaking one.
 """
 import json
 import unittest
@@ -23,22 +22,25 @@ READER = "tests/reader.spec.mjs"
 TEXT = (FIX / "v2" / READER).read_text(encoding="utf-8")
 
 
-def tags(path: str, text: str) -> dict:
-    return js(f"return headers.headerTags({json.dumps(path)}, {json.dumps(text)});")
+def tags(path: str, text: str):
+    """The header testHeader reads, or None for a file that is no test file."""
+    return js(f"return testDocument.testHeader({json.dumps(path)}, {json.dumps(text)});")
 
 
 def levels(path: str, text: str) -> list:
-    return js(f"return headers.levelProblems({json.dumps(path)}, {json.dumps(text)});")
+    """The findings of the header: none for a file that is no test file."""
+    header = tags(path, text)
+    return [] if header is None else header["findings"]
 
 
 class TestLevels(unittest.TestCase):
     def test_the_header_of_a_test_is_read(self):
         self.assertEqual(tags(READER, TEXT), {"modules": ["MOD-reader"], "guards": ["A FILE IS READ WHOLE", "UC-001"],
-                                              "level": "unit", "cases": ["TST-001", "TST-002"], "test": True})
+                                              "level": "unit", "findings": []})
         py = '# Module: MOD-x\n# Guards: A RULE\n# Level: system\n"""Level: unit — prose in the docstring is no header."""\n'
         self.assertEqual(tags("tests/test_x.py", py),
-                         {"modules": ["MOD-x"], "guards": ["A RULE"], "level": "system", "cases": [], "test": True})
-        self.assertFalse(tags("src/reader.js", "// Module: MOD-reader\n")["test"], "a code file is not a test")
+                         {"modules": ["MOD-x"], "guards": ["A RULE"], "level": "system", "findings": []})
+        self.assertIsNone(tags("src/reader.js", "// Module: MOD-reader\n"), "a code file is not a test")
 
     def test_every_test_of_the_fixture_has_one_level(self):
         for path in sorted((FIX / "v2" / "tests").glob("*")):

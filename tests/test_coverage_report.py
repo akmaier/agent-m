@@ -141,13 +141,13 @@ class ModuleGaps(unittest.TestCase):
 
 def tests_naming_no_module(files: dict) -> list:
     """The tests and test helpers that name no module of the architecture, read as the dashboard has read them: by the `Module:`
-    line in their header, as docs/assets/artifacts.mjs reads it (SPEC.md EVERY CODE FILE BELONGS TO A MODULE; no interface of
-    MOD-trace-graph gives a test's header). The modules of the architecture are the module nodes of the graph traceGraph builds.
+    lines of their header, as MOD-test-document's testHeader reads it (SPEC.md EVERY CODE FILE BELONGS TO A MODULE), for every
+    file it reads a header of. The modules of the architecture are the module nodes of the graph traceGraph builds.
     A test or helper whose header names no module is listed as code-without-module, one that names a module the architecture
     does not describe as code-names-unknown-module, once for each such module."""
     return run(files, "const modules = new Set([...tg.nodes.values()].filter((n) => n.kind === 'MOD').map((n) => n.id));"
-               "return Object.keys(fixture).filter((p) => artifacts.isCodePath(p) && artifacts.isTestPath(p)).flatMap((p) => {"
-               "  const named = artifacts.headerModules(fixture[p]);"
+               "return Object.keys(fixture).filter((p) => testDocument.testHeader(p, fixture[p]) !== null).flatMap((p) => {"
+               "  const named = testDocument.testHeader(p, fixture[p]).modules;"
                "  return named.length === 0 ? [['code-without-module', p]]"
                "    : named.filter((m) => !modules.has(m)).map(() => ['code-names-unknown-module', p]); });")
 
