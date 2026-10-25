@@ -122,7 +122,8 @@ uses neither the frame nor a view (`MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE
 
 **The conversation** is held in the browser tab, through MOD-browser-store's tab values, so that it goes on when the
 person moves between the main page and the review pages in the same tab and ends with the tab. It holds the messages, the
-participant talked to, the latest draft and the job handed over while it runs. Nothing of it is written to a repository
+participant talked to, the latest draft, the job handed over while it runs, and the height the person set with the
+bar's grip. Nothing of it is written to a repository
 unless recording is on, and nothing of it is kept in `localStorage` or exported with the settings. It holds no state of a
 job: while a message runs, the job is this tab's running job; a handed-over job's state is derived from its record and
 its runtime (`PROGRESS AND JOB STATE ARE DERIVED, NOT STORED`).
@@ -210,7 +211,9 @@ IN THE REPOSITORY`).
   a hand-over is; nothing is sent from the tab. For every other one it reads *Send*. On *Send* — the decision to
   send — it asks the subject for the kind and the parameters, adds the person's words as `instruction`, the conversation
   so far as `conversation`, the subject's `entry` as `entry` and its `refuses` as `refuses`, prepares the job with
-  MOD-job-runner's `prepareJob` in a context from MOD-runtimes' `tabContext`, and sends nothing while the job does not
+  MOD-job-runner's `prepareJob` in a context from MOD-runtimes' `tabContext` — so that the message reaches the participant
+after Agent M's `AGENTS.md`, as MOD-job-runner composes every input (`EVERY MODEL READS AGENT M'S AGENTS.MD FIRST`) —,
+and sends nothing while the job does not
   fit or a finding keeps it from starting, naming what (UC-049 3a, UC-019 4a, 4b): for a participant the job does not
   fit, it names the participant, how many requirements and use cases the job holds for it and how many of them fit, from
   the `holds` and `fitting` of that `notFitting` entry, and the tokens of its context against the job's size. It names

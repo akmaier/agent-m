@@ -646,3 +646,29 @@ test("selector — the participant chosen stays chosen when the page is loaded a
   await drawn(fresh);
   assert.equal(one(fresh.target, "participant").value, "drafter-a");
 });
+
+// TST-560009 · level: component · module: MOD-prompt-bar; MOD-browser-store
+// guards: UC-049
+// given: the bar drawn in one tab; a window 800 px high (the fake DOM has none, so the bar takes 800)
+// input: the person presses ArrowUp on the bar's grip twice from its lowest height, then the page is loaded again in the same tab; then 40 presses of ArrowUp
+// expect: the grip is a separator reachable by keyboard; each press raises the bar by 40 px from 120 to 200; the next bar in the tab starts at 200 px; the height never goes above nine tenths of the window, 720 px
+test("grip — the person sets the bar's height, and the tab keeps it", async () => {
+  endpointAnswers(answer("unused"));
+  const tab = new Storage();
+  const it = page({ tab });
+  await drawn(it);
+  const grip = one(it.target, "bar-grip");
+  assert.equal(grip.getAttribute("role"), "separator");
+  assert.equal(grip.getAttribute("tabindex"), "0");
+  const bar = one(it.target, "prompt-bar");
+  const press = (key) => grip.dispatchEvent(Object.assign(new Event("keydown"), { key }));
+  press("ArrowUp");
+  press("ArrowUp");
+  assert.match(bar.getAttribute("style"), /height: 200px; max-height: 200px;/);
+  it.bar.stop();
+  const again = page({ tab });
+  await drawn(again);
+  assert.match(one(again.target, "prompt-bar").getAttribute("style"), /height: 200px;/);
+  for (let i = 0; i < 40; i += 1) one(again.target, "bar-grip").dispatchEvent(Object.assign(new Event("keydown"), { key: "ArrowUp" }));
+  assert.match(one(again.target, "prompt-bar").getAttribute("style"), /height: 720px;/);
+});

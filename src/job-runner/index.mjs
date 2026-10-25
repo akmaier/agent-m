@@ -112,7 +112,9 @@ export { provenanceLines, roundsText } from "./provenance.mjs";
 /**
  * What a run panel shows before the person's click: blocking holds the findings of preconditions, of eligibility and of a
  * check that needs what the context lacks — test-declarations without the product's host — that keep the job from starting.
- * @typedef {{ kind: KindDefinition, params: Record<string, unknown>, drafter: Participant | null, reviewers: Participant[],
+ * rules is Agent M's AGENTS.md, from the instance — its text, or its path in a checkout of the instance —, with which every input to a model
+ * begins; null where the instance has none.
+ * @typedef {{ kind: KindDefinition, params: Record<string, unknown>, drafter: Participant | null, reviewers: Participant[], rules: Part | null,
  *   parts: Part[], destinations: Destination[], fits: boolean, notFitting: Array<{ participant: Participant, size: number,
  *   context: number | null }>, leftOut: Array<{ part: string, reason: string }>, blocking: Finding[], limit: number }} Prepared
  */
