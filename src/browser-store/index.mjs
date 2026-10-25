@@ -13,6 +13,7 @@
 import { isKnownKey } from "./catalogue.mjs";
 import { getRaw, openInstanceStorage, removeRaw, setRaw, StoreError, tabStorage } from "./store.mjs";
 import { removeSignIn, signInOf, viewOfStorage } from "./sign-in.mjs";
+import { moveLegacyKeys } from "./legacy-keys.mjs";
 export { exportSettings, importSettings, readExport } from "./export.mjs";
 
 export { StoreError };
@@ -20,10 +21,12 @@ export { StoreError };
 // The mailbox's sign-in: no key of its own, the sign-in library's keys for the connection.
 const MAILBOX_SIGN_IN = "mailbox-sign-in";
 
-// openStore(instance: string) -> Store — the store for the instance "owner/repository" in this browser. Throws
-// StorageUnavailable.
+// openStore(instance: string) -> Store — the store for the instance "owner/repository" in this browser; the entries an earlier
+// dashboard kept under `agent-m.` are moved into the instance's keys first (legacy-keys.mjs). Throws StorageUnavailable.
 export function openStore(instance) {
-  return openInstanceStorage(instance);
+  const store = openInstanceStorage(instance);
+  moveLegacyKeys(store, instance);
+  return store;
 }
 
 // readSetting(store, key) -> the value kept under `key`, or null when it is not set.
@@ -92,16 +95,16 @@ function settingDescription(key) {
   if (key === MAILBOX_SIGN_IN) return { label: "Mailbox sign-in", secret: true, grants: "access to the Microsoft 365 mailbox", setUpIn: "mailbox" };
   if (key === "not-an-issue") return { label: "Mails marked not an issue", secret: false, grants: "the list of mails this browser does not propose again", setUpIn: "mail" };
   if (key === "browser") return { label: "Browser identifier", secret: false, grants: "this browser's name in the job records its tab takes", setUpIn: "settings" };
-  if (key === "github-token") return { label: "GitHub token", secret: true, grants: "access to the instance repository", setUpIn: "settings" };
+  if (key === "github-token") return { label: "GitHub token", secret: true, grants: "writes — commits, issues, pull requests, workflow runs and Actions secrets — to every repository it was given, under your account", setUpIn: "settings" };
   if (key === "products") return { label: "Products", secret: false, grants: "the managed product list", setUpIn: "add-product" };
   if (key === "notifications") return { label: "Notifications", secret: false, grants: "acceptance notifications", setUpIn: "notifications" };
   if (key === "notified") return { label: "Notified files", secret: false, grants: "the record of notified files", setUpIn: "notifications" };
   if (key === "bridge") return { label: "Bridge", secret: true, grants: "access to the paired Bridge", setUpIn: "bridge" };
   if (key === "jump-host") return { label: "Jump host", secret: true, grants: "access to the configured jump host", setUpIn: "bridge" };
-  if (key.startsWith("github-token:")) return { label: `GitHub token: ${key.slice("github-token:".length)}`, secret: true, grants: "access to one GitHub product", setUpIn: "add-product" };
-  if (key.startsWith("gitlab-token:")) return { label: `GitLab token: ${key.slice("gitlab-token:".length)}`, secret: true, grants: "access to one GitLab product", setUpIn: "add-product" };
+  if (key.startsWith("github-token:")) return { label: `GitHub token: ${key.slice("github-token:".length)}`, secret: true, grants: "writes — commits, issues, pull requests, workflow runs and Actions secrets — to the one GitHub product it was created for, under your account", setUpIn: "add-product" };
+  if (key.startsWith("gitlab-token:")) return { label: `GitLab token: ${key.slice("gitlab-token:".length)}`, secret: true, grants: "writes — commits — to the one GitLab project it was created for, with the role it was given there", setUpIn: "add-product" };
   if (key.startsWith("endpoint:")) return { label: `Endpoint: ${key.slice("endpoint:".length)}`, secret: true, grants: "access to a model endpoint", setUpIn: "endpoints" };
-  if (key.startsWith("bridge:")) return { label: `Bridge: ${key.slice("bridge:".length)}`, secret: true, grants: "access to one Bridge", setUpIn: "bridge" };
+  if (key.startsWith("bridge:")) return { label: `Bridge: ${key.slice("bridge:".length)}`, secret: true, grants: "hands jobs to this Bridge and the CLI sessions it offers, which work there with that computer's own credentials", setUpIn: "bridge" };
   if (key.startsWith("remote-session:")) return { label: `Remote session: ${key.slice("remote-session:".length)}`, secret: true, grants: "access to a remote Bridge session", setUpIn: "bridge" };
   if (key.startsWith("last-test:")) return { label: `Last test: ${key.slice("last-test:".length)}`, secret: false, grants: "the recorded result of a setting test", setUpIn: "settings" };
   if (key.startsWith("resource-key:")) return { label: `Resource key: ${key.slice("resource-key:".length)}`, secret: true, grants: "access to one resource's own server", setUpIn: "resources" };

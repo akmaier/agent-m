@@ -5,14 +5,14 @@
 //
 // Pure: it reads only the Spec it is given, keeps nothing, performs no input or output, and never throws on content. Each
 // finding is made with MOD-text-tools' finding, names the requirement — its name is its identifier — and the line of its head
-// line, and says in one line what is wrong and what correction is expected. The reading follows
-// docs/assets/artifacts/requirements.mjs (requirementProblems), which checks the SPEC's earlier form. Where the module file
-// leaves a reading open, this file states the reading it takes:
+// line, and says in one line what is wrong and what correction is expected. Where the module file leaves a reading open, this
+// file states the reading it takes:
 //
 //   - A requirement missing a source, a rule and a check has three findings, one for each field. A missing check is reported
 //     under A REQUIREMENT HAS FOUR FIELDS only: it cannot also name neither a test nor review.
-//   - A check names a test when `checkPaths` is not empty: the paths parseSpec reads at its start. It names review when it
-//     says "at review", the words of `no automatic check; at review`.
+//   - A check names a test when `checkPaths` is not empty — the paths parseSpec reads at its start —, or when a path below
+//     `tests/` stands anywhere in it, on its first line or on a later one. It names review when it says "at review", the words
+//     of `no automatic check; at review`.
 //   - A rule contains "and" or "additionally" as a word of its own, in any case, over line breaks. What stands in a code span
 //     is a name that refers to another requirement, and is no word of the rule's statement.
 //   - A name given twice is found in the sections' lists of names, the one place a Spec holds every requirement that was read:
@@ -34,6 +34,7 @@ const HAS_IDENTIFIER = "EVERY ARTIFACT HAS AN IDENTIFIER";
 const NO_HISTORY = "A DOCUMENT HOLDS NO HISTORY";
 
 const AT_REVIEW = /\bat review\b/i;
+const NAMES_A_TEST = /\btests\/[\w./-]+/;
 const CONJUNCTION = /\b(and|additionally)\b/i;
 const CODE_SPAN = /`[^`]*`/g;
 
@@ -63,7 +64,7 @@ export function requirementFindings(spec) {
     if (r.check === null) {
       add("error", FOUR_FIELDS, "no check",
         "add a line *Check:* that names the test guarding the rule, or says: no automatic check; at review");
-    } else if (r.checkPaths.length === 0 && !AT_REVIEW.test(r.check)) {
+    } else if (r.checkPaths.length === 0 && !NAMES_A_TEST.test(r.check) && !AT_REVIEW.test(r.check)) {
       add("error", NAMES_ITS_CHECK, "the check names neither a test nor review",
         "begin the check with the path of the test that guards the rule, in backticks, or write: no automatic check; at review");
     }

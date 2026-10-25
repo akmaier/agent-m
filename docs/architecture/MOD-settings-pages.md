@@ -133,7 +133,6 @@ resource on its runner, queued to that runner's route; for its run panel it hand
 - `products.mjs` — adding a product.
 - `endpoints.mjs`, `participants.mjs`, `library.mjs`, `resources.mjs`, `mailbox.mjs`, `bridge.mjs` — the guided pages.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `docs/assets/dashboard/settings-view.mjs`, `docs/assets/dashboard/settings/endpoints.mjs`: removed: `#settings` already shows this module's route; the token banner is MOD-site-frame's `notice`.
   - `tests/test_settings_page.py`, `tests/test_token_scope_documented.py`, `tests/settings-pages-export-import.test.mjs`, `tests/settings-pages-settings-regressions.test.mjs`: their headers name this module.
 
 ## Data

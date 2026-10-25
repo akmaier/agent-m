@@ -55,8 +55,7 @@ the browser and in Node.
 - `accept.mjs` — composing an acceptance commit, the blockers, GitHub's prefilled page.
 - `strategies.mjs` — the recipes and preconditions of `approvalStrategies`.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `docs/assets/review-core.mjs`: removed once no file imports it: `statusOf`, `statuses`, `lastAcceptedText` and `acceptShown` give its records and status, MOD-spec-document its sections, MOD-text-tools its hashes.
-  - `tests/review-core.test.mjs`, `tests/release-sprint-02-a-review-core.test.mjs`, `tests/release-sprint-02-c-review-core.test.mjs`, `tests/architecture.test.mjs`, `tests/review-page-core.test.mjs`, `tests/status-by-names.test.mjs`, `tests/review-core.d/gates.test.mjs`, `tests/review-core.d/helpers.mjs`, `tests/test_approval_records.py`: rewritten on this module, or removed with the old core.
+  - `tests/test_approval_records.py`: rewritten on this module, or removed with the old core.
 
 ## Data
 
@@ -114,7 +113,8 @@ never written. A decision or module file that a record names and the snapshot no
   same pass over `docs/approvals/` as `statuses`, in the order of the identifiers.
 - `lastAcceptedText(id: string, host: Host) -> Promise<{ text: string, blob: string, path: string } | null>` — the text
   named by the most recent approval record of an identifier, also when the file has been renamed since; `null` when no
-  record names it. Considers: "most recent" is the order of the commits that added the records. Crosses the network:
+  record names it. A record whose content names another blob than its name, or a file of another identifier, counts as
+  no record (`AN APPROVAL NAMES THE EXACT TEXT`). Considers: "most recent" is the order of the commits that added the records. Crosses the network:
   reads the history of the records and of the file through the host; fails with the host's errors (`TokenRefused`,
   `RateLimited`, `NotFound`, `Unreachable`).
 - `acceptShown(host: Host, shown: Array<{ path: string, blob: string }>, person: string) -> Promise<{ commit: string,

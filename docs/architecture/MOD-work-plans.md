@@ -108,9 +108,6 @@ in the browser and in Node.
 - `sprints.mjs` — the facts of a sprint, the items the sprints hold, and what keeps an item from a team's selection.
 - `saves.mjs` — the commits of a plan, of items and of a sprint.
 - `strategies.mjs` — the recipes, checks and writers of `workStrategies`.
-- **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `docs/assets/work-items.mjs`, `docs/assets/work-items/flow.mjs`: removed once no file imports them.
-  - `tests/test_backlog_layout.py`, `tests/test_backlog_item_fields.py`, `tests/release-sprint-02-b-work-items.test.mjs`, `tests/flow_fixture.py`, `tests/test_job_from_backlog.py`, `tests/test_time_box_selection.py`, `tests/test_wip_limit.py`, `tests/test_implementation_job.py`, `tests/test_job_preconditions.py`: their headers name this module; one of only the old items is rewritten on this module.
 
 ## Data
 

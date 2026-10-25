@@ -17,7 +17,10 @@ const root = new URL("../..", import.meta.url).pathname;
 
 // In the browser, before the page's scripts: the token is stored, and every request to GitHub goes to this server's fake.
 function browserSide(token) {
-  localStorage.setItem("agent-m.github-token", token);
+  // The instance's GitHub token, as MOD-browser-store keeps it: under the prefix of the upstream instance, which a page served
+  // from a host other than GitHub Pages names (MOD-site-frame instanceOf).
+  localStorage.setItem("agent-m:akmaier/agent-m:github-token",
+    JSON.stringify({ value: token, name: "Agent M · akmaier/agent-m", expires: null, stored: new Date().toISOString().slice(0, 10) }));
   const nativeFetch = window.fetch.bind(window);
   window.__pending = 0;
   window.fetch = (input, init = {}) => {

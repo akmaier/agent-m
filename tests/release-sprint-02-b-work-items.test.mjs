@@ -1,126 +1,116 @@
 // Release tests of sprint 02, strand B — backlog items and the order they are listed in, sprints, item states, the work-in-progress limit and the
 // sprint's selection (ITM-143, testing ITM-033 and ITM-034). Written by tester-opus (claude-opus-5-5), the Release tester of
 // docs/process.md, who implemented nothing of the strand, from the SPEC rules, UC-032 and UC-033 alone; started on sprint/02 at
-// 58b7fe4, 2026-10-01.
+// 58b7fe4, 2026-10-01. They ask MOD-work-plans — backlogFindings, itemStates, heldItems and startable — over items read with
+// MOD-documents' item schema.
 //
 // Module: MOD-work-plans
 // Guards: THE BACKLOG LIVES IN THE PRODUCT REPOSITORY; A BACKLOG ITEM NAMES WHAT IT REALISES; EVERY ARTIFACT NAMES ITS ORIGIN; NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT; A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; AGILE IMPLEMENTATION STARTS FROM THE BACKLOG; NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-032; UC-033
 // Level: release
 //
-// Two kinds of input. This very repository — its docs/backlog/ and the sprint files frozen as they were while
-// sprint 02 ran (the copy tests/fixtures/sprint-02-running/docs/backlog/, from sprint/02 at 87b3268, sprint-02.md's end empty;
-// the live backlog changes at every close), and its docs/use-cases/, read with fs because there are more of them than a
-// command line holds; Agent M's own SPEC.md is not read (its requirement names are not needed: an item's
-// form is checked with `requirements: null`). And fixtures written from the use cases: an item that realises nothing, items
-// that build on each other, an issue classified as a bug or a change, a Scrum product with limit 2, a Kanban product. The
-// backlog keeps no order of its own (UC-032): its items are listed each after the items they build on, so the frozen copy's
-// order.md is not read.
-// Whether a start is allowed is read as itemState says it (its interface, MOD-work-items): allowed exactly when the state is
-// "ready" and no reason stands. Each expectation is stated before its case runs.
+// Two kinds of input. This very repository's backlog as it was while sprint 02 ran (the copy
+// tests/fixtures/sprint-02-running/docs/backlog/, from sprint/02 at 87b3268; the live backlog changes at every close), and its
+// docs/use-cases/, read with fs because there are more of them than a command line holds; Agent M's own SPEC.md is not read
+// (its requirement names are not needed: an item's realises is checked for its form). And fixtures written from the use cases,
+// in the item schema: an item that realises nothing, items that build on each other, a Scrum product with limit 2, a Kanban
+// product. The backlog keeps no order of its own (UC-032): its items are listed each after the items they build on.
+// Whether a start is allowed is read as startable says it: { startable: true }, or the reasons, each a sentence. Each
+// expectation is stated before its case runs.
 
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
-import { parseItem, itemProblems, buildOrder, itemFromIssue } from "../docs/assets/work-items.mjs";
-import { sprint, itemState } from "../docs/assets/work-items/flow.mjs";
+import { artifactSchemas, documentFindings, readDocument } from "../src/documents/index.mjs";
+import { roleAssignmentSchema } from "../src/product-process/index.mjs";
+import { backlogFindings, heldItems, itemStates, planSchemas, startable } from "../src/work-plans/index.mjs";
 
 const ROOT = new URL("../", import.meta.url);
-// docs/backlog/ as it was while sprint 02 ran (sprint/02 at 87b3268), not the live one; every other path from this repository.
+// docs/backlog/ as it was while sprint 02 ran (sprint/02 at 87b3268), not the live one.
 const FROZEN = new URL("tests/fixtures/sprint-02-running/", ROOT);
-const base = (path) => (path.startsWith("docs/backlog/") ? FROZEN : ROOT);
-const read = (path) => readFileSync(new URL(path, base(path)), "utf8");
+const ITEM = artifactSchemas().item;
 
 const LIVES = "THE BACKLOG LIVES IN THE PRODUCT REPOSITORY";
 const NAMES = "A BACKLOG ITEM NAMES WHAT IT REALISES";
-const WIP = "NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT";
-const SELECTED = "A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT";
-const AGILE = "AGILE IMPLEMENTATION STARTS FROM THE BACKLOG";
-const ACCEPTED = "NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED";
 
 // This repository's backlog while sprint 02 ran: every docs/backlog/ITM-<nnn>-<slug>.md of the frozen copy, read with fs.
 const ITEM_FILES = readdirSync(new URL("docs/backlog/", FROZEN)).filter((f) => /^ITM-\d{3}-.+\.md$/.test(f)).sort()
   .map((f) => `docs/backlog/${f}`);
-const ITEMS = ITEM_FILES.map((p) => parseItem(p, read(p)));
+const ITEMS = ITEM_FILES.map((p) => readDocument(ITEM, p, readFileSync(new URL(p, FROZEN), "utf8")));
 const USE_CASES = readdirSync(new URL("docs/use-cases/", ROOT)).map((f) => /^(UC-\d{3})-/.exec(f)?.[1]).filter(Boolean);
-const SPRINT_02 = read("docs/backlog/sprints/sprint-02.md");
 
-const isStartAllowed = (st) => st.state === "ready" && st.reasons.length === 0;
-const kinds = (st) => st.reasons.map((r) => r.kind);
+// An item of the item schema, ITM-900 by default, with the front matter lines given in place of the defaults.
+function itemText({ id = "ITM-900", title = "Export a thesis as PDF", realises = ["EXPORT IS A PDF"], buildsOn = [],
+  origin = ["sprint 03 planning"], extra = [] } = {}) {
+  const list = (key, values) => (values.length ? [`${key}:`, ...values.map((v) => `  - ${v}`)] : [`${key}: []`]);
+  return ["---", `id: ${id}`, `title: ${title}`, "level: module", ...list("realises", realises), "modules:", "  - MOD-export",
+    ...list("builds_on", buildsOn), "tests:", "  - unit", ...list("origin", origin), ...extra, "---", `# ${id} ${title}`, "",
+    "## Outcome", "", "The thesis is exported as one PDF.", "", "## Acceptance", "", "- a PDF.", ""].join("\n");
+}
+const itemOf = (options = {}) => {
+  const id = options.id ?? "ITM-900";
+  return readDocument(ITEM, `docs/backlog/${id}-export-a-thesis-as-pdf.md`, itemText(options));
+};
+const ARCHITECTURE = [{ kind: "module", path: "docs/architecture/MOD-export.md", id: "MOD-export", fields: { id: "MOD-export" }, sections: [] }];
+const statusesOf = (names) => new Map(names.map((id) => [id, { id, kind: /^UC-/.test(id) ? "use-case" : "requirement", status: "accepted" }]));
+const facts = (accepted, pullRequests = []) => ({ statuses: statusesOf(accepted), queues: [], jobs: [], pullRequests, gates: [], workflow: null });
+const stateOf = (states, id) => states.find((s) => s.item === id);
 
 // ---------------------------------------------------------------- ITM-033: items and their order
 
 // THE BACKLOG LIVES IN THE PRODUCT REPOSITORY · A BACKLOG ITEM NAMES WHAT IT REALISES · EVERY ARTIFACT NAMES ITS ORIGIN — this
 // backlog. Expected: every item file under docs/backlog/ is read with its identifier (the one of its file name), a title, at
-// least one name under realises and an origin, and has no error; every use case it names is one of docs/use-cases/.
-test("release · work items: this backlog parses without a problem — each item names what it realises and where it came from", () => {
+// least one requirement or use case under realises, without an error of A BACKLOG ITEM NAMES WHAT IT REALISES, and an origin;
+// every use case it names is one of docs/use-cases/.
+test("release · work items: this backlog is read — each item names what it realises and where it came from", () => {
   assert.ok(ITEMS.length >= 100, `the backlog has its items (${ITEMS.length})`);
   for (const item of ITEMS) {
     const id = /^docs\/backlog\/(ITM-\d{3})-/.exec(item.path)[1];
     assert.equal(item.id, id, `${item.path}: its identifier`);
-    assert.ok(item.title, `${item.path}: a title`);
-    assert.ok(item.realises.length >= 1, `${item.path}: realises something`);
-    assert.ok(item.origins.length >= 1, `${item.path}: names its origin`);
-    const errors = itemProblems(item, { requirements: null, useCases: USE_CASES, items: ITEMS })
-      .filter((f) => f.kind === "error");
-    assert.deepEqual(errors, [], `${item.path}: no error`);
+    assert.ok(item.fields.title, `${item.path}: a title`);
+    assert.ok(item.fields.realises?.length >= 1, `${item.path}: realises something`);
+    assert.ok(item.fields.origin, `${item.path}: names its origin`);
+    const errors = documentFindings(ITEM, item).filter((f) => f.kind === "error" && f.rule === NAMES);
+    assert.deepEqual(errors, [], `${item.path}: what it realises is a requirement or a use case`);
+    for (const uc of item.fields.realises.filter((n) => /^UC-/.test(n))) assert.ok(USE_CASES.includes(uc), `${item.path}: ${uc} exists`);
   }
+  assert.deepEqual(backlogFindings(ITEMS, []).filter((f) => f.rule === NAMES), [], "no item realises nothing");
 });
-
-const ITEM = (realises, extra = "") => `---
-id: ITM-900
-title: Export a thesis as PDF
-kind: implementation
-level: 1
-realises:${realises}
-modules: []
-depends_on: []
-origin: sprint 03 planning
----
-# ITM-900 Export a thesis as PDF
-
-## Outcome
-
-The thesis is exported as one PDF.
-${extra}`;
 
 // A BACKLOG ITEM NAMES WHAT IT REALISES: "Every backlog item names at least one requirement or use case that it realises."
 // UC-032 step 3: "Agent M rejects a draft that realises nothing". Expected: an item with an empty list, and one without the field,
-// each carry an error naming the rule; the same item realising a known requirement or a known use case carries none.
+// each carry an error naming the rule; the same item realising a requirement or a use case carries none.
 test("release · work items: an item that realises nothing is an error; one that realises a requirement or use case is not", () => {
-  const known = { requirements: ["EXPORT IS A PDF"], useCases: ["UC-001"], items: [] };
-  for (const [label, text] of [["realises: []", ITEM(" []")], ["no realises", ITEM("").replace("realises:\n", "")]]) {
-    const item = parseItem("docs/backlog/ITM-900-export-a-thesis-as-pdf.md", text);
-    const errors = itemProblems(item, known).filter((f) => f.kind === "error");
-    assert.ok(errors.some((f) => f.rule === NAMES), `${label}: an error naming ${NAMES}`);
-  }
+  const nothing = itemOf({ realises: [] });
+  assert.ok(backlogFindings([nothing], ARCHITECTURE).some((f) => f.kind === "error" && f.rule === NAMES), "realises: [] — an error");
+  assert.ok(documentFindings(ITEM, nothing).some((f) => f.kind === "error" && f.rule === NAMES), "realises: [] — a form error");
+  const missing = readDocument(ITEM, nothing.path, itemText({ realises: [] }).replace("realises: []\n", ""));
+  assert.ok(backlogFindings([missing], ARCHITECTURE).some((f) => f.kind === "error" && f.rule === NAMES), "no realises — an error");
   for (const name of ["EXPORT IS A PDF", "UC-001"]) {
-    const item = parseItem("docs/backlog/ITM-900-export-a-thesis-as-pdf.md", ITEM(`\n  - ${name}`));
-    assert.deepEqual(item.realises, [name]);
-    assert.deepEqual(itemProblems(item, known).filter((f) => f.kind === "error"), [], `realising ${name}: no error`);
+    const item = itemOf({ realises: [name] });
+    assert.deepEqual(item.fields.realises, [name]);
+    assert.deepEqual(backlogFindings([item], ARCHITECTURE), [], `realising ${name}: no finding`);
+    assert.deepEqual(documentFindings(ITEM, item), [], `realising ${name}: no form error`);
   }
-  // A draft (a job's answer, UC-032 step 3) is held to the same rule.
-  const draft = { title: "Export a thesis as PDF", outcome: "The thesis is exported.", realises: [], origins: ["sprint 03 planning"] };
-  assert.ok(itemProblems(draft, known).some((f) => f.kind === "error" && f.rule === NAMES), "a draft that realises nothing is rejected");
 });
 
-// A BACKLOG ITEM NAMES WHAT IT REALISES applies EVERY ARTIFACT NAMES ITS ORIGIN to the backlog: a name that matches nothing the
-// product has realises nothing. Expected: an item naming an unknown requirement or an unknown use case carries an error.
-test("release · work items: an item naming a requirement or use case the product does not have is an error", () => {
-  const known = { requirements: ["EXPORT IS A PDF"], useCases: ["UC-001"], items: [] };
+// A BACKLOG ITEM NAMES WHAT IT REALISES applies NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED to the backlog: a name that matches
+// nothing the product has accepted realises nothing yet. Expected: an item naming an unknown requirement or an unknown use case
+// waits for acceptance, naming it.
+test("release · work items: an item naming a requirement or use case the product does not have waits for acceptance", () => {
   for (const name of ["EXPORT IS A WORD FILE", "UC-099"]) {
-    const item = parseItem("docs/backlog/ITM-900-export-a-thesis-as-pdf.md", ITEM(`\n  - ${name}`));
-    assert.ok(itemProblems(item, known).some((f) => f.kind === "error" && f.rule === NAMES), `${name}: an error`);
+    const [state] = itemStates([itemOf({ realises: [name] })], null, facts(["EXPORT IS A PDF", "UC-001"]));
+    assert.equal(state.state, "waiting for acceptance", name);
+    assert.match(state.reason, new RegExp(name), name);
   }
 });
 
 // UC-032 step 3: Agent M "flags a draft that restates an existing item" — a flag, not a rejection. Expected: a warning naming
 // the existing item, and no error.
 test("release · work items: an item that restates an existing one is flagged, not rejected", () => {
-  const existing = parseItem("docs/backlog/ITM-014-export-thesis-as-pdf.md", ITEM("\n  - EXPORT IS A PDF").replace(/ITM-900/g, "ITM-014"));
-  const draft = { title: "Export a thesis as PDF", outcome: "Something else.", realises: ["EXPORT IS A PDF"], origins: ["sprint 03 planning"] };
-  const fs = itemProblems(draft, { requirements: ["EXPORT IS A PDF"], useCases: [], items: [existing] });
-  assert.deepEqual(fs.filter((f) => f.kind === "error"), []);
-  assert.ok(fs.some((f) => f.kind === "warning" && /ITM-014/.test(f.what)), "a warning that names ITM-014");
+  const existing = itemOf({ id: "ITM-014" });
+  const found = backlogFindings([itemOf(), existing], ARCHITECTURE).filter((f) => f.artifact === "ITM-900");
+  assert.deepEqual(found.filter((f) => f.kind === "error"), []);
+  assert.ok(found.some((f) => f.kind === "warning" && /ITM-014/.test(f.what)), "a warning that names ITM-014");
 });
 
 // THE BACKLOG LIVES IN THE PRODUCT REPOSITORY: "A product's backlog is kept as Markdown under docs/backlog/". UC-032 step 4:
@@ -128,212 +118,168 @@ test("release · work items: an item that restates an existing one is flagged, n
 // item file anywhere else, or not named ITM-<nnn>-<slug>.md, carries an error naming the rule; the same text under docs/backlog/
 // does not.
 test("release · work items: an item kept outside docs/backlog/ is an error", () => {
-  const text = ITEM("\n  - EXPORT IS A PDF");
+  const text = itemText();
   for (const path of ["backlog/ITM-900-export-a-thesis-as-pdf.md", "docs/ITM-900-export-a-thesis-as-pdf.md", "docs/backlog/export.md"]) {
-    assert.ok(parseItem(path, text).problems.some((f) => f.kind === "error" && f.rule === LIVES), `${path}: an error`);
+    assert.ok(documentFindings(ITEM, readDocument(ITEM, path, text)).some((f) => f.kind === "error" && f.rule === LIVES), `${path}: an error`);
   }
-  assert.deepEqual(parseItem("docs/backlog/ITM-900-export-a-thesis-as-pdf.md", text).problems, []);
+  assert.deepEqual(documentFindings(ITEM, readDocument(ITEM, "docs/backlog/ITM-900-export-a-thesis-as-pdf.md", text)), []);
 });
 
-// The order this backlog is listed in (UC-032 step 1: "Agent M shows the items, each after the items it builds on"; the backlog
-// keeps no order of its own). Expected: every item of docs/backlog/ exactly once, and every item it builds on that the backlog
-// holds stands before it.
-test("release · work items: this backlog is listed with every item once, each after the items it builds on", () => {
+// The order the backlog is listed in (UC-032 step 1: "Agent M shows the items, each after the items it builds on"; the backlog
+// keeps no order of its own). Expected: this backlog's every item exactly once; and of items that build on each other, every
+// item it builds on that the backlog holds stands before it.
+test("release · work items: a backlog is listed with every item once, each after the items it builds on", () => {
   const ids = ITEMS.map((i) => i.id);
-  const order = buildOrder(ITEMS);
+  const order = itemStates(ITEMS, null, facts([])).map((s) => s.item);
   assert.equal(order.length, ids.length, "every item once");
   assert.deepEqual([...order].sort(), [...ids].sort(), "exactly the items of docs/backlog/");
-  for (const item of ITEMS) {
-    for (const before of item.dependsOn.filter((d) => ids.includes(d))) {
-      assert.ok(order.indexOf(before) < order.indexOf(item.id), `${before} before ${item.id}`);
-    }
-  }
-});
 
-// Which item comes next (UC-032 step 1). Expected: of the items whose building blocks all stand before them, the one with the
-// smallest identifier; an item built on that the backlog lacks holds nothing back.
-test("release · work items: the next item listed is the smallest identifier whose building blocks stand before it", () => {
-  const items = [{ id: "ITM-001", dependsOn: ["ITM-004"] }, { id: "ITM-002", dependsOn: [] },
-    { id: "ITM-003", dependsOn: ["ITM-099"] }, { id: "ITM-004", dependsOn: [] }];
-  assert.deepEqual(buildOrder(items), ["ITM-002", "ITM-003", "ITM-004", "ITM-001"]);
-});
-
-// UC-033 steps 2 and postcondition — an item from an issue: title from the issue, outcome from its description, origin the
-// issue's address, and what it realises from the issue's class: for a bug the requirement the code violates, for a change the
-// requirement names of the queue entries UC-012 wrote for it. 1a: an issue not classified gives no item. Expected as written.
-test("release · work items: an item from an issue names the issue as its origin, and realises what its class says", () => {
-  const issue = { title: "Export fails for long theses", body: "The PDF export stops after page 200.\n",
-    url: "https://github.com/alice/thesis-tool/issues/57" };
-  const bug = itemFromIssue(issue, { kind: "bug", violated: "EXPORT IS A PDF" });
-  assert.equal(bug.title, "Export fails for long theses");
-  assert.equal(bug.outcome, "The PDF export stops after page 200.");
-  assert.deepEqual(bug.origins, ["https://github.com/alice/thesis-tool/issues/57"]);
-  assert.deepEqual(bug.issues, ["https://github.com/alice/thesis-tool/issues/57"], "the origin is read as an issue");
-  assert.deepEqual(bug.realises, ["EXPORT IS A PDF"]);
-  assert.deepEqual(itemProblems(bug, { requirements: ["EXPORT IS A PDF"], useCases: [], items: [] }).filter((f) => f.kind === "error"), []);
-
-  const change = itemFromIssue({ ...issue, url: "https://gitlab.example.org/team/proj/-/issues/12" }, { kind: "change" },
-    [{ names: ["EXPORT AS PDF/A"] }, { names: ["EXPORT NAMES ITS VERSION", "EXPORT AS PDF/A"] }]);
-  assert.deepEqual(change.origins, ["https://gitlab.example.org/team/proj/-/issues/12"]);
-  assert.deepEqual(change.issues, ["https://gitlab.example.org/team/proj/-/issues/12"], "a GitLab issue too");
-  assert.deepEqual(change.realises, ["EXPORT AS PDF/A", "EXPORT NAMES ITS VERSION"], "each queue entry's name once");
-
-  assert.equal(itemFromIssue(issue, null), null, "not classified: no item");
-  assert.equal(itemFromIssue(issue, { kind: "question" }), null, "neither bug nor change: no item");
+  const items = [itemOf({ id: "ITM-001", buildsOn: ["ITM-004"] }), itemOf({ id: "ITM-002" }),
+    itemOf({ id: "ITM-003", buildsOn: ["ITM-099"] }), itemOf({ id: "ITM-004", buildsOn: ["ITM-002"] })];
+  const listed = itemStates(items, null, facts([])).map((s) => s.item);
+  assert.deepEqual([...listed].sort(), ["ITM-001", "ITM-002", "ITM-003", "ITM-004"]);
+  assert.ok(listed.indexOf("ITM-004") < listed.indexOf("ITM-001"), "ITM-004 before ITM-001");
+  assert.ok(listed.indexOf("ITM-002") < listed.indexOf("ITM-004"), "ITM-002 before ITM-004");
 });
 
 // UC-033 step 5: "A bug item is ready. A change item is waiting for acceptance until every requirement it names is accepted
 // (UC-006). It then becomes ready by itself, because its state is derived." Postcondition: "No implementation job can start for a
-// change item before its specification change is accepted." Expected as written, in a Kanban product (no sprint selection).
+// change item before its specification change is accepted." Expected as written: an item realising the requirement the bug
+// violates is ready; one realising the change's new requirement waits until it is accepted.
 test("release · work items: a bug item is ready; a change item waits for acceptance, and is ready once accepted", () => {
-  const KANBAN = { kind: "pulled", wipLimit: 3, timeBox: null, sprints: false, sprint: null, backlog: ["ITM-031", "ITM-032"], today: "2026-10-02" };
-  const issue = { title: "Export", body: "Export as PDF/A.", url: "https://github.com/alice/thesis-tool/issues/57" };
-  const bug = { ...itemFromIssue(issue, { kind: "bug", violated: "EXPORT IS A PDF" }), id: "ITM-031" };
-  const change = { ...itemFromIssue(issue, { kind: "change" }, [{ names: ["EXPORT AS PDF/A"] }]), id: "ITM-032" };
-  const before = { requirements: ["EXPORT IS A PDF"], useCases: [], pullRequests: [], wip: KANBAN };
-  assert.deepEqual(itemState(bug, before), { state: "ready", reasons: [] });
-  const waiting = itemState(change, before);
-  assert.equal(waiting.state, "waiting for acceptance");
-  assert.equal(isStartAllowed(waiting), false);
-  assert.deepEqual(itemState(change, { ...before, requirements: ["EXPORT IS A PDF", "EXPORT AS PDF/A"] }), { state: "ready", reasons: [] });
+  const bug = itemOf({ id: "ITM-031", realises: ["EXPORT IS A PDF"], origin: ["https://github.com/alice/thesis-tool/issues/57"] });
+  const change = itemOf({ id: "ITM-032", realises: ["EXPORT AS PDF/A"], origin: ["https://github.com/alice/thesis-tool/issues/57"] });
+  let states = itemStates([bug, change], null, facts(["EXPORT IS A PDF"]));
+  assert.equal(stateOf(states, "ITM-031").state, "ready");
+  assert.equal(stateOf(states, "ITM-032").state, "waiting for acceptance");
+  states = itemStates([bug, change], null, facts(["EXPORT IS A PDF", "EXPORT AS PDF/A"]));
+  assert.equal(stateOf(states, "ITM-032").state, "ready");
 });
 
 // UC-033 postcondition "The backlog holds an item that names the issue as its origin" and 4a "The item then names both issues as
-// origins": an item file read back. Expected: both addresses are its origins and its issues.
+// origins": an item file read back. Expected: both addresses are its origins, and it has no finding.
 test("release · work items: an item file naming two issues as its origin is read with both", () => {
-  const text = ITEM("\n  - EXPORT IS A PDF").replace("origin: sprint 03 planning",
-    "origin:\n  - https://github.com/alice/thesis-tool/issues/57\n  - https://github.com/alice/thesis-tool/issues/61");
-  const item = parseItem("docs/backlog/ITM-900-export-a-thesis-as-pdf.md", text);
-  assert.deepEqual(item.issues, ["https://github.com/alice/thesis-tool/issues/57", "https://github.com/alice/thesis-tool/issues/61"]);
-  assert.deepEqual(itemProblems(item, { requirements: ["EXPORT IS A PDF"], useCases: [], items: [] }), []);
+  const origin = ["https://github.com/alice/thesis-tool/issues/57", "https://github.com/alice/thesis-tool/issues/61"];
+  const item = itemOf({ origin });
+  assert.deepEqual(item.fields.origin, origin);
+  assert.deepEqual(documentFindings(ITEM, item), []);
+  assert.deepEqual(backlogFindings([item], ARCHITECTURE), []);
 });
 
-// ---------------------------------------------------------------- ITM-034: sprints, states, limit, selection
-
-// UC-032 step 6 and postcondition — the sprint record of this sprint, docs/backlog/sprints/sprint-02.md, as written: Expected:
-// no problem; its id, start, branch and closer; its end as the file gives it (empty while it runs without a time box: none); the
-// selected items in the order of the file (25 at planning); and no state in it (PROGRESS AND JOB STATE ARE DERIVED, NOT STORED:
-// "No state is stored in them").
-test("release · work items: this sprint's record is read with its selection in order, and stores no state", () => {
-  const s = sprint(SPRINT_02);
-  const fm = SPRINT_02.split("\n---")[0];
-  assert.deepEqual(s.problems, []);
-  assert.equal(s.id, "sprint-02");
-  assert.equal(s.start, "2026-10-01");
-  assert.equal(s.end, /^end:[ \t]*(\S*)/m.exec(fm)[1] || null, "the end as written");
-  assert.equal(s.branch, "sprint/02");
-  assert.equal(s.closer, "scrum-master-session");
-  const listed = [...fm.matchAll(/^ {2}- (ITM-\d{3})$/gm)].map((m) => m[1]);
-  assert.ok(listed.length >= 25, "the selection of the planning");
-  assert.deepEqual(s.selection, listed);
-  const keys = [...SPRINT_02.split("\n---")[0].matchAll(/^([a-z_]+):/gm)].map((m) => m[1]);
-  assert.ok(!keys.some((k) => /state|status|progress|done/.test(k)), `no state field in the record: ${keys.join(", ")}`);
-  assert.deepEqual(sprint(read("docs/backlog/sprints/sprint-01.md")).problems, [], "sprint 01's record too");
-});
+// ---------------------------------------------------------------- ITM-034: states, limit, selection
 
 // A Scrum product with a work-in-progress limit of 2 (the SPEC's check of NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT), its
-// running sprint selecting four items, every requirement they realise accepted.
-const ITEM_OF = (id, realises = ["EXPORT IS A PDF"]) => ({ id, realises });
-const SCRUM_SPRINT = sprint(`---
-id: sprint-03
-goal: Export
-start: 2026-10-01
-end:
-selection:
-  - ITM-011
-  - ITM-012
-  - ITM-013
-  - ITM-014
-branch: sprint/03
----
-# Sprint 03
-`);
-const SCRUM = { kind: "pulled", wipLimit: 2, timeBox: null, sprints: true, sprint: SCRUM_SPRINT,
-  backlog: ["ITM-011", "ITM-012", "ITM-013", "ITM-014", "ITM-015"], today: "2026-10-02" };
-const pr = (number, id, state, at = "2026-10-01T10:00:00Z") => ({ number, title: `${id}: work`, head: `team/${id}`, base: "sprint/03",
-  state, openedAt: at, mergedAt: state === "merged" ? "2026-10-01T12:00:00Z" : null });
-const ACCEPTED_NAMES = { requirements: ["EXPORT IS A PDF"], useCases: [] };
+// running sprint selecting four items, every requirement they realise accepted; and a Kanban product with limit 3. Its
+// Developers are dev-a, a CLI agent with what the role needs.
+const workflowWith = (flow) => ({
+  model: { name: "fixture", kind: "pulled", flow },
+  phases: [{ name: "Sprint planning", roles: ["Product Owner"], produces: ["ITM"] },
+    { name: "Development", roles: ["Developers"], produces: ["MOD", "TST"] }],
+  roles: [{ name: "Product Owner", filledBy: "person", howMany: "one", capabilities: ["read the repository"] },
+    { name: "Developers", filledBy: "agent", howMany: "several", capabilities: ["read the repository", "write to the repository", "run code and tests"] }],
+  gates: [],
+});
+const SCRUM = workflowWith({ wip: 2, timeBox: null, sprints: true });
+const KANBAN = workflowWith({ wip: 3, timeBox: null, sprints: false });
+const ASSIGNMENT = readDocument(roleAssignmentSchema, "docs/role-assignments/team.md",
+  "# team\n\n## Roles\n\n| Role | Participants |\n|---|---|\n| Product Owner | alice |\n| Developers | dev-a |\n");
+const PARTICIPANTS = [
+  { name: "alice", type: "person", model: null, capabilities: ["read the repository"], place: null, route: "person" },
+  { name: "dev-a", type: "CLI agent", model: "example-model", capabilities: ["read the repository", "write to the repository", "run code and tests"],
+    place: "this machine", route: "bridge" },
+];
+const SPRINT = readDocument(planSchemas.sprint, "docs/backlog/sprints/team/03.md", ["---", "sprint: 3", "goal: Export",
+  "start: 2026-10-01", "end:", "closer: alice", "branch: sprint/03", "selection:", "  - ITM-011", "  - ITM-012", "  - ITM-013",
+  "  - ITM-014", "---", "# team Sprint 03", ""].join("\n"));
+const BACKLOG = ["ITM-011", "ITM-012", "ITM-013", "ITM-014", "ITM-015"].map((id) => itemOf({ id, title: `Work ${id}` }));
+const pr = (number, id, state) => ({ number, title: `${id}: work`, branch: `team/${id}`, base: "sprint/03", head: "a".repeat(40), state,
+  draft: false, url: `https://github.com/alice/thesis-tool/pull/${number}`, opened: "2026-10-01T10:00:00Z",
+  merged: state === "merged" ? "2026-10-01T12:00:00Z" : null, closed: state === "open" ? null : "2026-10-01T12:00:00Z" });
+const ACCEPTED_NAMES = ["EXPORT IS A PDF"];
+
+// startable for `item` in the product under `workflow`, with the backlog's states from the pull requests given.
+function start(item, { workflow = SCRUM, sprint = SPRINT, items = BACKLOG, pullRequests = [], accepted = ACCEPTED_NAMES } = {}) {
+  const states = itemStates(items, null, facts(accepted, pullRequests));
+  const held = sprint ? heldItems([sprint], items, ARCHITECTURE, pullRequests) : [];
+  return { states, verdict: startable(item, states, { workflow, assignment: ASSIGNMENT, sprint, held, wip: workflow.model.flow.wip,
+    participants: PARTICIPANTS }) };
+}
+const reasonsOf = (verdict) => (verdict.startable ? [] : verdict.reasons);
 
 // NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT: "With limit 2 and two items in progress, a third start is refused with the limit
 // named. With one of the two done, the start succeeds." UC-032 7: "Items in Review count as in progress" — an open pull request is
-// work waiting for review. Expected as written: the third item is ready, but a reason refuses its start, naming the limit 2, the
-// rule, and the two items that hold it; with one of them merged, nothing refuses it.
+// work waiting for review. Expected as written: the third item is ready, but a reason refuses its start, naming the limit 2 and
+// the two items that hold it; with one of them merged, nothing refuses it.
 test("release · work items: with limit 2 and two items in progress a third start is refused with the limit named", () => {
   const two = [pr(1, "ITM-011", "open"), pr(2, "ITM-012", "open")];
-  assert.equal(itemState(ITEM_OF("ITM-011"), { ...ACCEPTED_NAMES, pullRequests: two, wip: SCRUM }).state, "in progress",
-    "an item with an open pull request — waiting for review — is in progress");
-  const third = itemState(ITEM_OF("ITM-013"), { ...ACCEPTED_NAMES, pullRequests: two, wip: SCRUM });
-  assert.equal(isStartAllowed(third), false, "the third start is refused");
-  const limit = third.reasons.find((r) => r.rule === WIP);
-  assert.ok(limit, "the refusal names the rule of the limit");
-  assert.equal(limit.limit, 2, "and the limit");
-  assert.deepEqual(limit.inProgress.map((i) => i.id).sort(), ["ITM-011", "ITM-012"], "and the items that hold it");
+  const third = start("ITM-013", { pullRequests: two });
+  assert.equal(stateOf(third.states, "ITM-011").state, "in progress", "an item with an open pull request — waiting for review — is in progress");
+  assert.equal(stateOf(third.states, "ITM-013").state, "ready");
+  assert.equal(third.verdict.startable, false, "the third start is refused");
+  const limit = reasonsOf(third.verdict).find((r) => /work-in-progress limit of 2/.test(r));
+  assert.ok(limit, "the refusal names the limit");
+  assert.ok(/ITM-011/.test(limit) && /ITM-012/.test(limit), "and the items that hold it");
 
   const oneDone = [pr(1, "ITM-011", "merged"), pr(2, "ITM-012", "open")];
-  assert.equal(itemState(ITEM_OF("ITM-011"), { ...ACCEPTED_NAMES, pullRequests: oneDone, wip: SCRUM }).state, "done");
-  const now = itemState(ITEM_OF("ITM-013"), { ...ACCEPTED_NAMES, pullRequests: oneDone, wip: SCRUM });
-  assert.deepEqual(now, { state: "ready", reasons: [] }, "with one of the two done, the start succeeds");
+  const now = start("ITM-013", { pullRequests: oneDone });
+  assert.equal(stateOf(now.states, "ITM-011").state, "done");
+  assert.deepEqual(now.verdict, { startable: true }, "with one of the two done, the start succeeds");
 });
 
 // A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT: "implementation jobs start only for items selected for the current sprint".
 // UC-032 6a: an item added during a running sprint goes to the backlog, not into the sprint. Expected: an item of the backlog that
-// the running sprint does not select is refused with that rule; a selected one is not. Without a running sprint, no item starts;
-// a sprint whose end lies behind today (UC-032 6b) is no current sprint.
+// the running sprint does not select is refused, the reason naming it; a selected one is not. Without a running sprint, no item
+// starts.
 test("release · work items: an item outside the running sprint's selection is refused", () => {
-  const outside = itemState(ITEM_OF("ITM-015"), { ...ACCEPTED_NAMES, pullRequests: [], wip: SCRUM });
-  assert.equal(outside.state, "ready", "accepted and not started: ready");
-  assert.equal(isStartAllowed(outside), false, "but its start is refused");
-  assert.ok(outside.reasons.some((r) => r.rule === SELECTED), "with the rule of the sprint's selection");
-  assert.deepEqual(itemState(ITEM_OF("ITM-014"), { ...ACCEPTED_NAMES, pullRequests: [], wip: SCRUM }), { state: "ready", reasons: [] },
-    "a selected item starts");
-
-  const none = itemState(ITEM_OF("ITM-014"), { ...ACCEPTED_NAMES, pullRequests: [], wip: { ...SCRUM, sprint: null } });
-  assert.ok(none.reasons.some((r) => r.rule === SELECTED), "no sprint running: refused");
-  const ended = sprint(`---\nid: sprint-03\nstart: 2026-09-01\nend: 2026-09-14\nselection:\n  - ITM-014\n---\n`);
-  const after = itemState(ITEM_OF("ITM-014"), { ...ACCEPTED_NAMES, pullRequests: [],
-    wip: { ...SCRUM, wipLimit: null, timeBox: "2 weeks", sprint: ended, today: "2026-10-02" } });
-  assert.ok(after.reasons.some((r) => r.rule === SELECTED), "the sprint has ended: refused");
+  const outside = start("ITM-015");
+  assert.equal(stateOf(outside.states, "ITM-015").state, "ready", "accepted and not started: ready");
+  assert.equal(outside.verdict.startable, false, "but its start is refused");
+  assert.ok(reasonsOf(outside.verdict).some((r) => /ITM-015 is not selected/.test(r)), "because the sprint does not select it");
+  assert.deepEqual(start("ITM-014").verdict, { startable: true }, "a selected item starts");
+  assert.ok(reasonsOf(start("ITM-014", { sprint: null }).verdict).some((r) => /No sprint/.test(r)), "no sprint running: refused");
 });
 
 // AGILE IMPLEMENTATION STARTS FROM THE BACKLOG: "Starting an implementation job without an item is refused for a Scrum and a
-// Kanban fixture." Expected: for both, the start without an item is refused with that rule; in Kanban, which has no sprints, a
-// backlog item below the limit starts, and one that is not in the backlog does not.
+// Kanban fixture." Expected: for both, the start without an item is refused; in Kanban, which has no sprints, a backlog item
+// below the limit starts, and one that is not in the backlog does not.
 test("release · work items: a job without an item is refused, in Scrum and in Kanban", () => {
-  const KANBAN = { kind: "pulled", wipLimit: 3, timeBox: null, sprints: false, sprint: null, backlog: ["ITM-021", "ITM-022"], today: "2026-10-02" };
-  for (const [label, wip] of [["Scrum", SCRUM], ["Kanban", KANBAN]]) {
-    for (const item of [null, undefined, { realises: ["EXPORT IS A PDF"] }]) {
-      const st = itemState(item, { ...ACCEPTED_NAMES, pullRequests: [], wip });
-      assert.equal(isStartAllowed(st), false, `${label}: no item, no start`);
-      assert.ok(st.reasons.some((r) => r.rule === AGILE), `${label}: refused with ${AGILE}`);
+  for (const [label, workflow, sprint] of [["Scrum", SCRUM, SPRINT], ["Kanban", KANBAN, null]]) {
+    for (const item of [null, undefined, ""]) {
+      const { verdict } = start(item, { workflow, sprint });
+      assert.equal(verdict.startable, false, `${label}: no item, no start`);
+      assert.ok(reasonsOf(verdict).some((r) => /no item of the backlog/.test(r)), `${label}: refused, as no item of the backlog`);
     }
   }
-  assert.deepEqual(itemState(ITEM_OF("ITM-021"), { ...ACCEPTED_NAMES, pullRequests: [], wip: KANBAN }), { state: "ready", reasons: [] },
+  assert.deepEqual(start("ITM-015", { workflow: KANBAN, sprint: null }).verdict, { startable: true },
     "Kanban: an item of the backlog below the limit starts");
-  const stray = itemState(ITEM_OF("ITM-099"), { ...ACCEPTED_NAMES, pullRequests: [], wip: KANBAN });
-  assert.ok(stray.reasons.some((r) => r.rule === AGILE), "Kanban: an item not in the backlog is refused");
+  const stray = start("ITM-099", { workflow: KANBAN, sprint: null }).verdict;
+  assert.ok(reasonsOf(stray).some((r) => /ITM-099/.test(r) && /no item of the backlog/.test(r)), "Kanban: an item not in the backlog is refused");
 });
 
 // NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED (UC-032 step 1, waiting for acceptance; UC-033 step 5): "An item that names one open
 // proposal cannot be started. The same item can be started after an approval record names the proposal's text." Expected: an
-// item naming a requirement or a use case that is not accepted is waiting for acceptance, the name given as the reason; once it
-// is accepted, the item is ready and starts.
+// item naming a requirement or a use case that is not accepted is waiting for acceptance, the names given as the reason; once
+// they are accepted, the item is ready and starts.
 test("release · work items: an item naming what is not accepted waits for acceptance; accepted, it starts", () => {
-  const item = ITEM_OF("ITM-014", ["EXPORT IS A PDF", "EXPORT AS PDF/A", "UC-007"]);
-  const waits = itemState(item, { ...ACCEPTED_NAMES, pullRequests: [], wip: SCRUM });
-  assert.equal(waits.state, "waiting for acceptance");
-  assert.deepEqual(waits.reasons.filter((r) => r.rule === ACCEPTED).map((r) => r.name).sort(), ["EXPORT AS PDF/A", "UC-007"]);
-  assert.equal(isStartAllowed(waits), false);
-  const accepted = itemState(item, { requirements: ["EXPORT IS A PDF", "EXPORT AS PDF/A"], useCases: ["UC-007"], pullRequests: [], wip: SCRUM });
-  assert.deepEqual(accepted, { state: "ready", reasons: [] });
+  const items = [itemOf({ id: "ITM-014", realises: ["EXPORT IS A PDF", "EXPORT AS PDF/A", "UC-007"] })];
+  const waits = start("ITM-014", { items });
+  const state = stateOf(waits.states, "ITM-014");
+  assert.equal(state.state, "waiting for acceptance");
+  assert.match(state.reason, /EXPORT AS PDF\/A/);
+  assert.match(state.reason, /UC-007/);
+  assert.doesNotMatch(state.reason, /EXPORT IS A PDF[^/]/);
+  assert.equal(waits.verdict.startable, false);
+  const accepted = start("ITM-014", { items, accepted: ["EXPORT IS A PDF", "EXPORT AS PDF/A", "UC-007"] });
+  assert.equal(stateOf(accepted.states, "ITM-014").state, "ready");
+  assert.deepEqual(accepted.verdict, { startable: true });
 });
 
 // PROGRESS AND JOB STATE ARE DERIVED, NOT STORED: "An item is in progress because a job for it is running or a pull request for it
 // is open, not because a field says so." Expected: the same item is ready, in progress, done as the pull requests given change, and
 // a state written into its file is not read — the file decides nothing.
 test("release · work items: an item's state follows its pull requests, not a field of its file", () => {
-  const text = ITEM("\n  - EXPORT IS A PDF").replace("level: 1", "level: 1\nstate: done\nstatus: done").replace(/ITM-900/g, "ITM-014");
-  const item = parseItem("docs/backlog/ITM-014-export-a-thesis-as-pdf.md", text);
-  const at = (prs) => itemState(item, { ...ACCEPTED_NAMES, pullRequests: prs, wip: SCRUM }).state;
+  const item = itemOf({ id: "ITM-014", extra: ["state: done", "status: done"] });
+  const at = (prs) => itemStates([item], null, facts(ACCEPTED_NAMES, prs))[0].state;
   assert.equal(at([]), "ready", "no pull request: ready, whatever the file says");
   assert.equal(at([pr(7, "ITM-014", "open")]), "in progress");
   assert.equal(at([pr(7, "ITM-014", "merged")]), "done");

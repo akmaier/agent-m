@@ -124,7 +124,6 @@ It runs in a browser — the instance's pages, and the Bridge's window, which is
   - `docs/assets/dashboard/built.json`, `src/site/views.mjs`: removed with the app: `data-views` names the views.
   - `src/site/html.mjs`, `src/site/instance-repository.mjs`, `src/site/menu.mjs`: removed once their callers use `instanceOf` and `menuOf`.
   - `src/theme/lme.css`, `src/brand/`: removed: `look.css` and `brand/` hold them.
-  - `docs/assets/style.css`: what of it the views' routes still need moves into `look.css`; the rest is removed with the legacy views.
   - `tests/app-harness.mjs`: moved in as the helper of this module's page tests; it serves the batch request (`POST /graphql`) and, after the switch, loads `start.mjs`.
   - `tests/load-per-view.test.mjs`: its header names this module: the Check of `A PAGE LOAD READS THE REPOSITORY IN BATCHES`.
   - `tests/dashboard-shell.test.mjs`, `tests/review-page.test.mjs`, `tests/release-sprint-01-dashboard-app.test.mjs`, `tests/release-sprint-02-a-dashboard-app.test.mjs`, `tests/release-sprint-02-d-dashboard-app.test.mjs`, `tests/review-core.d/dashboard-app.test.mjs`, `tests/review-core.d/write-refused.test.mjs`, `tests/test_instance_target.py`, `tests/test_progress_derived.py`: their headers name this module while the app is its; each is removed or rewritten on the frame's routes with the part of the app it tests.
@@ -249,7 +248,8 @@ It keeps nothing but what is on the screen. It owns these formats:
 - `schemaForm(schema: Schema, document: Document | null, options: { onSave: (document: Document) -> Promise<void>,
   extraChecks?: (document: Document) -> Finding[], secretKeys?: string[], readOnly?: boolean }) -> Element` — a form with
   one field per key and section of a schema of MOD-documents, a section edited in the renderer's editor; the findings of
-  `documentFindings` and of `extraChecks` shown beside their fields while typing; *Save* offered only while no error
+  `documentFindings` and of `extraChecks` shown beside their fields while typing — a document given without the identifier
+  its schema names checked at the path the identifier typed gives it —; *Save* offered only while no error
   remains, so an invalid register is never saved; a key named in `secretKeys` shown hidden until *Show* (`A STORED
   SECRET IS HIDDEN UNTIL SHOWN`). It writes nothing itself: `onSave` does.
 

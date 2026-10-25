@@ -6,9 +6,9 @@
 // Guards: A STALE APPROVAL IS NOT APPLIED; WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; UC-006
 // Level: unit
 //
-// The product is tests/fixtures/gates/ (a queue of two SPEC entries, 01 and 02, against SPEC.md), held in memory as a Snapshot, with the register entry and the link
-// a product needs for the source "PO" its requirements name. A record's `section` is the exact bytes of the section (MOD-spec-document's sectionText); the dashboard's
-// acceptance names the section as its own engine takes it. The report is one line per record: "<record>: applied" or "<record>: refused — <applyApproved's reason>".
+// The product is tests/fixtures/gates/ (a queue of two SPEC entries, 01 and 02, against SPEC.md), held in memory as a Snapshot; its docs/sources.md and docs/sources/SRC-po.md
+// are the link and the register entry a product needs for the source "PO" its requirements name. A record's `section` is the blob of the section's exact bytes (MOD-spec-document's sectionText), and so
+// is the section the dashboard's acceptance (MOD-spec-changes' acceptEntries, on tests/memory-host.mjs) was shown. The report is one line per record: "<record>: applied" or "<record>: refused — <applyApproved's reason>".
 // The comparison with the old Python tool, which is gone, is no longer made; tests/test_apply_approvals.py holds the cases on throwaway repositories.
 
 import test from "node:test";
@@ -17,9 +17,12 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
-import { applyApproved } from "../../src/spec-changes/index.mjs";
-import { sectionText as exactSection } from "../../src/spec-document/index.mjs";
-import { gitBlobSha, extractSection, sectionText, recordText, specRecord, planAcceptance } from "../../docs/assets/review-core.mjs";
+import { acceptEntries, applyApproved } from "../../src/spec-changes/index.mjs";
+import { sectionText } from "../../src/spec-document/index.mjs";
+import { blobSha } from "../../src/text-tools/index.mjs";
+import { readDocument } from "../../src/documents/index.mjs";
+import { sourceSchemas } from "../../src/source-register/index.mjs";
+import { memoryHost } from "../memory-host.mjs";
 
 const FIX = fileURLToPath(new URL("../fixtures/gates/", import.meta.url));
 const Q = "docs/spec-freigaben/2026-10-01a_gates", QNAME = "2026-10-01a_gates";
@@ -37,32 +40,24 @@ function fixture() {
   return files;
 }
 
-// The read port over an in-memory tree: a file's text or null; a folder's file names.
-const reader = (tree) => async (p) => {
-  if (p.endsWith("/")) {
-    const names = Object.keys(tree).filter((k) => k.startsWith(p) && !k.slice(p.length).includes("/")).map((k) => k.slice(p.length));
-    return names.length ? names : null;
-  }
-  return p in tree ? tree[p] : null;
-};
-
-const section = (tree, anchor) => sectionText(extractSection(tree["SPEC.md"], anchor, null));
-
 // The approval record a person commits on GitHub's page for entry `nr`, naming the texts shown -> its path.
 async function record(tree, nr, over = {}) {
   const [file, anchor] = ENTRIES[nr];
-  const r = { ...specRecord({ queue: Q, entry: nr, proposal: `${Q}/${file}`, blob: await gitBlobSha(tree[`${Q}/${file}`]),
-    target: "SPEC.md", anchor, section: await gitBlobSha(exactSection(tree["SPEC.md"], anchor) ?? "") }), ...over };
+  const r = { kind: "spec", queue: Q, entry: `0${nr}`, proposal: `${Q}/${file}`, blob: await blobSha(tree[`${Q}/${file}`]),
+    target: "SPEC.md", anchor, section: await blobSha(sectionText(tree["SPEC.md"], anchor) ?? ""), ...over };
   const path = `docs/approvals/spec-${QNAME}-${r.entry}-${String(r.blob).slice(0, 12)}.md`;
-  tree[path] = recordText(r);
+  // As a person writes it on GitHub's page: one `key: value` line each, also where a key is wrong or empty.
+  tree[path] = Object.entries(r).map(([key, value]) => `${key}: ${value}\n`).join("");
   return path;
 }
 
+// The fixture's link and register entry, as MOD-documents reads them: what acceptEntries is given.
+const sources = (tree) => ({ links: readDocument(sourceSchemas().links, "docs/sources.md", tree["docs/sources.md"]),
+  register: [readDocument(sourceSchemas().entry, "docs/sources/SRC-po.md", tree["docs/sources/SRC-po.md"])] });
+
 // applyApproved on the in-memory tree -> { files: [{ path, content }], report, refused }.
 const apply = async (tree) => {
-  const hash = "c".repeat(64);
-  const all = { ...tree, "docs/sources.md": `# Sources\n\n| Source | Version | Hash | Part |\n|---|---|---|---|\n| SRC-po | 2026-10-01 | ${hash} | |\n`,
-    "docs/sources/SRC-po.md": `---\nid: SRC-po\ntitle: PO\nkind: person\nauthority: normative\nlicence: fixture\nidentifier: fixture\n---\n# SRC-po PO\n\nA fixture source.\n\n## Versions\n\n| Version | Date | Edition | Read from | Files |\n|---|---|---|---|---|\n| \`2026-10-01\` | 2026-10-01 | fixture | fixture | version hash \`${hash}\` |\n` };
+  const all = tree;
   const blobOf = (p) => (p in all ? createHash("sha1").update(Buffer.concat([Buffer.from(`blob ${Buffer.byteLength(all[p])}\0`), Buffer.from(all[p])])).digest("hex") : null);
   const out = await applyApproved({ commit: "0".repeat(40), paths: Object.keys(all), read: async (p) => all[p] ?? null, blob: blobOf }, WHEN);
   const name = (p) => p.split("/").pop();
@@ -104,20 +99,19 @@ test("WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE — the engine 
   for (const decisions of ["# Decisions — queue 2026-10-01a · gates\n\nAppend-only.\n\n", "# Decisions\n\nAppend-only."]) {
     const t = fixture();
     t[`${Q}/entscheidungen.md`] = decisions;
-    const items = [];
+    // The dashboard's acceptance of both entries, shown in the other order, each beside the section that holds now.
+    const shown = [];
     for (const nr of [2, 1]) {
       const [file, anchor] = ENTRIES[nr];
-      items.push({ kind: "spec", queue: Q, qname: QNAME, nr, nn: `0${nr}`, proposalPath: `${Q}/${file}`,
-        proposalBlob: await gitBlobSha(t[`${Q}/${file}`]), sectionBlob: await gitBlobSha(section(t, anchor)), targetPath: "SPEC.md",
-        anchor, bis: null, needs: [] });
+      shown.push({ queue: Q, entry: nr, proposalBlob: await blobSha(t[`${Q}/${file}`]), sectionBlob: await blobSha(sectionText(t["SPEC.md"], anchor)) });
     }
-    const dashboard = await planAcceptance({ items, read: reader(t), now: WHEN });
-    assert.deepEqual(dashboard.leftOut, []);
+    const dashboard = memoryHost(t);
+    assert.ok((await acceptEntries(dashboard.host, shown, "alice", WHEN, sources(t))).commit, "the dashboard's commit");
     // The person commits the two records on GitHub's page, naming the sections as the workflow takes them; the workflow runs on that commit.
     for (const nr of [1, 2]) await record(t, nr);
     const out = await apply(t);
     assert.deepEqual(out.refused, []);
-    const byDashboard = Object.fromEntries(dashboard.files.map((f) => [f.path, f.content]));
+    const byDashboard = dashboard.files();
     assert.deepEqual(written(out), { "SPEC.md": byDashboard["SPEC.md"], [`${Q}/entscheidungen.md`]: byDashboard[`${Q}/entscheidungen.md`] },
       JSON.stringify(decisions));
     assert.equal(out.report.split("\n").length, 2);

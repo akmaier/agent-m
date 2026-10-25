@@ -432,8 +432,8 @@ const resultOf = () => {
 // ================================================================ ITM-126 — AN EDITED FILE KEEPS ITS IDENTIFIER
 //
 // SPEC §10: "Saving is refused for a use case, architecture element, module or test whose identifier differs from the one it was
-// opened with." ITM-126 made the refusal a finding of MOD-artifacts and the sentence the dashboard's; the finding itself is
-// tested in tests/release-sprint-02-a-artifacts.test.mjs. Tests are not edited on the dashboard (no view of today shows one).
+// opened with." The refusal is MOD-artifact-edits' and the sentence the dashboard's; the finding of a drafted change that
+// carries another identifier is tested in tests/release-sprint-02-a-artifacts.test.mjs. Tests are not edited on the dashboard (no view of today shows one).
 
 const ucText = (w, p) => w.server.files[p];
 const withId = (text, from, to) => text.replace(`id: ${from}\n`, to === null ? "" : `id: ${to}\n`);
@@ -535,7 +535,7 @@ test("release · ITM-129 UC-024: every menu entry and view of today is shown; a 
   const fileOf = (view) => VIEWS.find((v) => v.view === view)?.file;
   // A view is built where its file is on the disk, or where the app hands its address to a route of MOD-review-pages or to the fold
   // of the topic `accepting`, so that its file is gone.
-  const HANDED = new Set(["uc", "arc", "review", "spec", "how", "release", "mail", "replies", "arrange", "process", "roles", "backlog", "get-your-own"]);
+  const HANDED = new Set(["uc", "arc", "review", "spec", "how", "settings", "release", "mail", "replies", "arrange", "process", "roles", "backlog", "get-your-own"]);
   const builtView = (view) => HANDED.has(view) || builtOnDisk(fileOf(view));
   const expected = MENU.map((e) => e.views.find(builtView)).filter(Boolean);
   assert.deepEqual(tabs, expected, "the stages' views built, in the order of the process");
@@ -544,9 +544,10 @@ test("release · ITM-129 UC-024: every menu entry and view of today is shown; a 
   assert.match(fallback, /#use-case\/id=UC-001"/, "known positive: #uc is the use-case list");
   for (const v of VIEWS.filter((x) => x.view !== "uc")) {
     if (v.builtIn) {
-      assert.ok(["add", "setup", "release", "mail", "replies", "process", "roles", "backlog"].includes(v.view), "only the public settings-pages Add and Setup routes, the test pages' route release, the maintenance pages' routes mail and replies and the implementation pages' routes process, roles and backlog have no dashboard file");
+      assert.ok(["add", "setup", "settings", "release", "mail", "replies", "process", "roles", "backlog"].includes(v.view), "only the public settings-pages Add, Setup and Settings routes, the test pages' route release, the maintenance pages' routes mail and replies and the implementation pages' routes process, roles and backlog have no dashboard file");
       const dispatched = fs.readFileSync(APP_FILE, "utf8");
       if (v.view === "add") assert.match(dispatched, /settingsPages\.routes\.find\(\(r\) => r\.name === "add-product"\)/, "#add dispatches the public route");
+      else if (v.view === "settings") assert.match(dispatched, /settingsPages\.routes\.find\(\(r\) => r\.name === "settings"\)/, "#settings dispatches the public route");
       else if (v.view === "release") assert.match(dispatched, /testPages\.routes\.find\(\(r\) => r\.name === "release"\)/, "#release dispatches the public route");
       else if (v.view === "mail") assert.match(dispatched, /maintenancePages\.routes\.find\(\(r\) => r\.name === "mail"\)/, "#mail dispatches the maintenance pages' public route");
       else if (v.view === "replies") assert.match(dispatched, /maintenancePages\.routes\.find\(\(r\) => r\.name === "replies"\)/, "#replies dispatches the maintenance pages' public route");
@@ -567,13 +568,13 @@ test("release · ITM-129 UC-024: every menu entry and view of today is shown; a 
     }
   }
 });
-// ================================================================ ITM-130 — the shells read only through what the git host provides
+// ================================================================ ITM-130 — the shells read only through what the repository hosts provide
 //
-// ITM-142: "no shell file reads past what MOD-git-host provides; the dashboard's reads behave as before". From the accepted
-// architecture: MOD-git-host's "request helper … is internal and no caller sets a header" and its `provides` list
-// (HOST_PROVIDES below); ARC-003 decision 6, "no module file but the adapters' calls fetch". A file belongs to a
-// module by its `Module:` line (ARC-020). The kernel's half — no kernel file imports from the git host — is in
-// tests/release-sprint-02-a-review-core.test.mjs.
+// ITM-142: "no shell file reads past what the git host provides; the dashboard's reads behave as before". The dashboard reads
+// through the hosts of MOD-repository-hosts, whose Parts make index.mjs the interface and every other file of its folder — the
+// adapters, the request helper and the failures behind them — private to it; ARC-003 decision 6, "no module file but the
+// adapters' calls fetch". A file belongs to a module by its `Module:` line (ARC-020). The kernel's half — no kernel file imports
+// from a repository host — is in tests/release-sprint-02-a-review-core.test.mjs.
 
 const CODE_DIR = path.join(ROOT, "docs/assets");
 function codeFiles(dir = CODE_DIR) {
@@ -606,57 +607,44 @@ function namesFrom(file, module) {
   }
   return out;
 }
-const SHELL_FILES = codeFiles().filter((f) => moduleOf(f) === "MOD-dashboard-app");
-// MOD-git-host's interfaces: the names it provides to the other modules, as the code is built.
-const HOST_PROVIDES = new Set(["assetAnswer", "assetRequest", "authHeaders", "branchHead", "branchProtection", "cancelRun",
-  "candidateTags", "checks", "commentIssue", "commitFiles", "commitOf", "commitsTouching", "createBranch", "createIssue", "createTag",
-  "dispatchWorkflow", "editUrl", "fileUrl", "issueClosedBy", "issueComments", "issueLabel", "issues", "latestRelease",
-  "mergePullRequest", "newFileUrl", "openPullRequest", "parseProductAddress", "pathHistory", "pipelineSchedules",
-  "pipelineSchedulesPageUrl", "pullRequestCommits", "pullRequests", "readBlob", "readBlobBytes", "readFile", "readSnapshot",
-  "recentCommits", "releaseTags", "releaseText", "releaseWith", "repositoryInfo", "requiredPermissions", "runnersPageUrl",
-  "savePipelineSchedule", "secretsPageUrl", "setIssueBody", "setIssueState", "tagCommits", "tokenAccount", "tokenPageUrl",
-  "treeUrl", "workflowPageUrl", "workflowRuns", "writeFiles"]);
+// The shell itself, src/site-frame/dashboard-app.mjs, and every file below docs/assets/ whose Module: line names it.
+const SHELL_APP = path.join(ROOT, "src/site-frame/dashboard-app.mjs");
+const SHELL_FILES = [...codeFiles(), SHELL_APP].filter((f) => moduleOf(f) === "MOD-dashboard-app");
+// The files of MOD-repository-hosts that a file of the dashboard imports from, each with the names it takes: [{ file, names }],
+// `file` relative to the module's folder.
+const HOSTS_DIR = path.join(ROOT, "src/repository-hosts");
+function hostFilesOf(file) {
+  return importsOf(fs.readFileSync(file, "utf8")).filter((imp) => imp.from.startsWith("."))
+    .map((imp) => ({ target: path.resolve(path.dirname(file), imp.from), names: imp.namespace ? ["*"] : imp.names }))
+    .filter(({ target }) => fs.existsSync(target) && moduleOf(target) === "MOD-repository-hosts")
+    .map(({ target, names }) => ({ file: path.relative(HOSTS_DIR, target), names }));
+}
 
-// ITM-130 · MOD-git-host's request helper is internal — Expected: no file whose Module: line names MOD-dashboard-app imports
-// `fetchText` (or the helper `request`) from a file of MOD-git-host. Known positive of the reader: a planted import of it is seen.
-test("release · ITM-130 EVERY ARTIFACT NAMES ITS ORIGIN: no file of the dashboard imports the git host's request helper",
+// ITM-130 · the request helper of the repository hosts is private to them — Expected: no file whose Module: line names
+// MOD-dashboard-app imports a file of MOD-repository-hosts other than its interface, index.mjs — neither the request helper
+// (`send` in failures.mjs) nor an adapter —, by name or as a namespace. Known positive of the reader: the shell's own import of
+// connect from index.mjs is seen, and a planted import of the helper is seen as a file of the module.
+test("release · ITM-130 EVERY ARTIFACT NAMES ITS ORIGIN: no file of the dashboard imports the repository hosts' request helper",
   () => {
-    assert.deepEqual(importsOf('import {\n  fetchText as f, readFile,\n} from "../git-host.mjs";')[0].names, ["fetchText", "readFile"], "known positive");
-    assert.ok(SHELL_FILES.length >= 2, SHELL_FILES.map(rel).join(", "));
-    const helpers = SHELL_FILES.flatMap((f) => namesFrom(f, "MOD-git-host").filter((n) => n === "fetchText" || n === "request").map((n) => `${rel(f)}: ${n}`));
-    assert.deepEqual(helpers, []);
+    assert.ok(SHELL_FILES.includes(SHELL_APP), `the shell is read: ${SHELL_FILES.map(rel).join(", ")}`);
+    assert.ok(hostFilesOf(SHELL_APP).some((i) => i.file === "index.mjs" && i.names.includes("connect")), "known positive: the shell's connect");
+    const planted = path.join(ROOT, "src/site-frame/planted.mjs");
+    assert.deepEqual(importsOf('import { send } from "../repository-hosts/failures.mjs";').map((imp) => moduleOf(path.resolve(path.dirname(planted), imp.from))),
+      ["MOD-repository-hosts"], "known positive: the helper's file belongs to the module");
+    const past = SHELL_FILES.flatMap((f) => hostFilesOf(f).filter((i) => i.file !== "index.mjs").map((i) => `${rel(f)}: ${i.file} ${i.names.join(", ")}`));
+    assert.deepEqual(past, []);
   });
 
-// ITM-130 · "no shell file reads past what MOD-git-host provides" — Expected: every name a file of MOD-dashboard-app takes from
-// the git host that is not in MOD-git-host's `provides` sends no request when it is called. Each such name is called with the
-// arguments a read of the git host takes — a product of either host with a token, an address —, under a fetch that records
-// what is sent; a write without an authority is refused before it sends anything. Known positive of the probe: fetchText,
-// called the same way, is seen to send a request, and parseProductAddress, a provided name, is not probed at all.
-const HOST = await import("../docs/assets/git-host.mjs");
-async function sends(f) {
-  const sent = [], realFetch = globalThis.fetch;
-  globalThis.fetch = async (u, init = {}) => { sent.push(`${(init.method || "GET").toUpperCase()} ${u}`); return new Response("{}", { status: 200 }); };
-  const products = [HOST.parseProductAddress(`https://github.com/${INSTANCE}`), HOST.parseProductAddress(GL_ADDRESS)];
-  const tries = [...products.flatMap((product) => [[{ product, token: TOKEN, repo: product.repo, ref: "main", commit: "c".repeat(40), path: "SPEC.md" }],
-    [product, TOKEN]]), [`${API}/repos/${INSTANCE}`, {}, TOKEN]];
-  try {
-    for (const args of tries) { try { await f(...args); } catch { /* a refusal sends nothing, or something already */ } }
-  } finally { globalThis.fetch = realFetch; }
-  return sent;
-}
-test("release · ITM-130 EVERY ARTIFACT NAMES ITS ORIGIN: the dashboard reads through no name of the git host that MOD-git-host does not provide",
+// ITM-130 · "no shell file reads past what the repository hosts provide" — Expected: every name a file of MOD-dashboard-app takes
+// from MOD-repository-hosts is one its interface exports — parseAddress, connect, HostError —, and no namespace takes the whole
+// module. Known positive: the shell takes connect and parseAddress.
+test("release · ITM-130 EVERY ARTIFACT NAMES ITS ORIGIN: the dashboard reads through no name of the repository hosts that their interface does not provide",
   async () => {
-    assert.ok((await sends(HOST.fetchText)).length > 0, "known positive: the probe sees fetchText send");
-    assert.ok(HOST_PROVIDES.has("readSnapshot") && HOST_PROVIDES.has("readBlob"), "the provides list is read");
-    const past = [];
-    for (const f of SHELL_FILES) {
-      for (const n of new Set(namesFrom(f, "MOD-git-host"))) {
-        if (HOST_PROVIDES.has(n) || typeof HOST[n] !== "function") continue;
-        const sent = await sends(HOST[n]);
-        if (sent.length) past.push(`${rel(f)}: ${n} → ${sent[0]}`);
-      }
-    }
-    assert.deepEqual(past, []);
+    const provided = new Set(Object.keys(await import("../src/repository-hosts/index.mjs")));
+    assert.ok(provided.has("connect") && provided.has("parseAddress"), "the interface is read");
+    const taken = SHELL_FILES.flatMap((f) => hostFilesOf(f).flatMap((i) => i.names.map((n) => ({ f, n }))));
+    assert.ok(taken.some(({ n }) => n === "connect") && taken.some(({ n }) => n === "parseAddress"), "known positive: the shell's names are read");
+    assert.deepEqual(taken.filter(({ n }) => !provided.has(n)).map(({ f, n }) => `${rel(f)}: ${n}`), []);
   });
 
 // ARC-003 decision 6 · ITM-130 — Expected: no file of MOD-dashboard-app calls fetch itself; every request goes through the
@@ -668,7 +656,7 @@ test("release · ITM-130 ARC-003: no file of the dashboard calls fetch itself", 
   assert.deepEqual(SHELL_FILES.filter((f) => callsFetch(fs.readFileSync(f, "utf8"))).map(rel), []);
 });
 
-// ITM-130 · UC-008 2a · MOD-git-host readBlob, MOD-review-core lastAccepted — the reads that left the kernel behave as before:
+// ITM-130 · UC-008 2a · MOD-approvals lastAcceptedText — the reads that left the kernel behave as before:
 // the last accepted text of a changed use case is read by the blob SHA its record names and refused unless it hashes to that SHA.
 // Expected: with the true text, the difference above UC-003 shows its accepted line against the current one; when the server
 // answers that blob with another text, that text is shown nowhere on the page — not as the accepted text — and UC-003's own

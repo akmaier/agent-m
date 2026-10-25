@@ -4,7 +4,7 @@
 // Module: MOD-approvals
 
 import { readFileSync, readdirSync } from "node:fs";
-import { gitBlobSha } from "../../docs/assets/review-core.mjs";
+import { blobSha } from "../../src/text-tools/index.mjs";
 
 // The dashboard's own files (MOD-dashboard-app): the shell, src/site-frame/dashboard-app.mjs, and its views and settings sections
 // under docs/assets/dashboard/. A test that read the one app file reads them all, or — `shell: false` — the views alone.
@@ -14,29 +14,6 @@ export const viewFiles = () => readdirSync(new URL("dashboard/", ASSETS), { recu
   .map((f) => new URL(`dashboard/${f}`, ASSETS));
 export const dashboardText = ({ shell = true } = {}) => [...(shell ? [APP] : []), ...viewFiles()]
   .map((u) => readFileSync(u, "utf8")).join("\n");
-
-export const click = { isTrusted: true };
-
-export function fakeGitHub(files = {}) {
-  // Minimal git-data API: one branch "main" at commit c0 with tree t0.
-  const calls = [];
-  const fetchMock = async (u, init) => {
-    const url = new URL(u), m = init.method, path = url.pathname;
-    calls.push([m, path, init.headers?.Authorization, init.body ? JSON.parse(init.body) : null]);
-    const ok = (o) => new Response(JSON.stringify(o), { status: 200 });
-    if (m === "GET" && path.endsWith("/git/ref/heads/main")) return ok({ object: { sha: "c0" } });
-    if (m === "GET" && path.endsWith("/git/commits/c0")) return ok({ tree: { sha: "t0" } });
-    if (m === "GET" && path.includes("/contents/")) {
-      const p = decodeURIComponent(path.split("/contents/")[1]);
-      return p in files ? ok({ sha: files[p] }) : new Response("{}", { status: 404 });
-    }
-    if (m === "POST" && path.endsWith("/git/trees")) return ok({ sha: "t1" });
-    if (m === "POST" && path.endsWith("/git/commits")) return ok({ sha: "c1", html_url: "https://github.com/a/b/commit/c1" });
-    if (m === "PATCH" && path.endsWith("/git/refs/heads/main")) return ok({ object: { sha: "c1" } });
-    return new Response("{}", { status: 500 });
-  };
-  return { calls, fetchMock };
-}
 
 export async function withFetch(mock, f) {
   const real = globalThis.fetch;
@@ -55,13 +32,11 @@ export const WHEN = new Date("2026-09-29T16:03:00Z");
 export const B_SPEC = "# S\n\n**VERBINDLICH (SPEC)**\n\n## 9. G\n\nold nine\n## 10. R\n\nold ten\n";
 export const B_P05 = "## 10. R\n\nnew ten\n\n## 11. X\n\n*(not yet approved)*\n";
 export const B_P06 = "## 11. X\n\nrule of eleven\n";
-export const B_INDEX = "**Zieldatei aller Einträge:** `products/agent-m/SPEC.md`\n\n| Nr | Datei | Anker | bis | Commits |\n|---|---|---|---|---|\n" +
+// The index of the queue QD, in MOD-spec-changes' form of a queue's index.md.
+export const B_INDEX = "# SPEC approvals — queue 2026-09-24g · x\n\n**Zieldatei aller Einträge:** `products/agent-m/SPEC.md`\n\n" +
+  "| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |\n|---|---|---|---|---|\n" +
   "| 05 | `SPEC.md` | ## 10. R | — | — |\n| 06 | `SPEC.md` | ## 11. X | — | — |\n";
 export const B_UC1 = "---\nid: UC-001\n---\n# one\n", B_UC2 = "---\nid: UC-002\n---\n# two\n";
-
-export const SETTINGS_OFF = "# Settings of alice/thesis\n\nintro\n\n- pseudonymisation: off\n";
-
-export const PEOPLE = [{ name: "Jane Doe", account: "jdoe", agreed: "2026-09-30" }, { name: "Max Müller", account: "max-m", agreed: "2026-10-01" }];
 
 export const GL = "https://gitlab.example.org";
 export const GL_ADDR = `${GL}/grp/sub/proj`;
@@ -75,7 +50,7 @@ export async function fakeGitLab({ files = {}, moveAt = null, parent = null, cha
   project = "grp/sub/proj", server = GL } = {}) {
   const calls = [];
   const base = `/api/v4/projects/${encodeURIComponent(project)}`;
-  const blobs = Object.fromEntries(await Promise.all(Object.entries(files).map(async ([p, t]) => [p, await gitBlobSha(t)])));
+  const blobs = Object.fromEntries(await Promise.all(Object.entries(files).map(async ([p, t]) => [p, await blobSha(t)])));
   let branchReads = 0;
   const ok = (o, status = 200) => new Response(JSON.stringify(o), { status });
   const fetchMock = async (u, init = {}) => {
@@ -116,6 +91,4 @@ export async function fakeGitLab({ files = {}, moveAt = null, parent = null, cha
 
 export const UC_OLD = "docs/use-cases/UC-010-run-a-stage-in-github-actions.md", UC_NEW = "docs/use-cases/UC-010-run-a-job-in-github-actions.md";
 
-export const JUMP = { host: "jump.example.org", user: "agentm", portFrom: 20001, portTo: 20003,
-  reverseKey: "~/.ssh/agent-m-jump", forwardKey: "~/.ssh/id_ed25519" };
 export const BRIDGE_TOKEN = "bridgeTOKEN-0123456789abcdef";

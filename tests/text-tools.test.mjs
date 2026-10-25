@@ -387,7 +387,7 @@ const linesOf = (text) => (text === "" ? [] : text.replace(/\r?\n$/, "").split(/
 // guards: A REFUSED SAVE KEEPS THE EDIT; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
 // given: before "a b c" and after "a B c d", one line each
 // input: lineDiff(before, after)
-// expect: every line of both, in order, each with its line before and after where it has one: a same (1, 1); B added (–, 2) and b removed (2, –), the added line first where a change leaves the order open, as the dashboard's diff shows it today (docs/assets/review-core.mjs); c same (3, 3); d added (–, 4). Read on one side, the lines are each text's own lines in order.
+// expect: every line of both, in order, each with its line before and after where it has one: a same (1, 1); B added (–, 2) and b removed (2, –), the added line first where a change leaves the order open; c same (3, 3); d added (–, 4). Read on one side, the lines are each text's own lines in order.
 test("lineDiff — every line of both texts, in order, each with its line before and after", () => {
   const before = "a\nb\nc\n", after = "a\nB\nc\nd\n";
   const diff = lineDiff(before, after);

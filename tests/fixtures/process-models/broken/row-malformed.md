@@ -6,8 +6,8 @@ measure: items per state over time
 ---
 # A pulled model — fixture
 
-A complete model definition in the format of ARC-019 decision 1, for tests/test_model_validation.py and
-tests/test_gate_definition.py. Work is pulled from a backlog under a work-in-progress limit; one gate is decided by a
+A complete model definition of MOD-model-catalogue's schema (src/model-catalogue/model.schema.md), for
+tests/test_model_validation.py and tests/test_gate_definition.py. Work is pulled from a backlog under a work-in-progress limit; one gate is decided by a
 role of the model, one by a named CI check. The copies under broken/ each break one rule.
 
 ## Phases
@@ -17,7 +17,7 @@ role of the model, one by a named CI check. The copies under broken/ each break 
 | Planning | Owner | ITM (the selection of backlog items) |
 | Building | Builders | MOD (code of the item's modules), TST |
 | Checking | Checker | TST (release tests of the selected items) |
-| Closing | Owner | a record of the cycle |
+| Closing | Owner | sprint record (the record of the cycle) |
 
 ## Transitions
 
@@ -41,7 +41,7 @@ role of the model, one by a named CI check. The copies under broken/ each break 
 | Between | Artifacts | Condition | Decider |
 |---|---|---|---|
 | Building → Checking | the item's pull request, with its code and TST | CI is green on it | Owner |
-| Checking → Closing | the release tests (TST) of the selected items | green on the branch | CI check `release-tests` |
+| Checking → Closing | the release tests (TST) of the selected items | green on the branch | check: release-tests |
 
 ## Roles
 

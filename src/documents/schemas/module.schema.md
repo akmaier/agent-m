@@ -14,7 +14,7 @@ docs/architecture/MOD-documents.md states under Data, as it writes it.
     "realises": { "type": "list", "item": { "type": "either", "of": ["requirement", { "type": "identifier", "of": ["UC"] }] }, "required": true, "rule": "A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES" },
     "follows": { "type": "list", "item": { "type": "identifier", "of": ["ARC"] }, "required": true, "nonEmpty": true, "rule": "A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES" },
     "uses": { "type": "list", "item": { "type": "interface" }, "required": true, "rule": "A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES" },
-    "provides": { "type": "list", "item": { "type": "name" }, "required": true, "describedIn": "## Interfaces", "rule": "A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES" } },
+    "provides": { "type": "list", "item": { "type": "name" }, "required": true, "unique": true, "describedIn": "## Interfaces", "rule": "A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES" } },
   "title": "# {id} {title}",
   "sections": [
     { "heading": "## Responsibility", "required": true, "rule": "A MODULE STATES ITS RESPONSIBILITY AND ITS INTERFACES" },

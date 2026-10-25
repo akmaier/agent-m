@@ -26,8 +26,8 @@
 // rule, underTitle, a section's table found by its header, appended sections, appendSection, classifyCandidates,
 // artifactSchemas and the module's own schemas.
 //
-// Where the module file leaves a choice open, these tests settle it as the dashboard's checks of today do
-// (docs/assets/artifacts/use-cases.mjs): a key or a section that is missing stands on no line, and its finding names line 1;
+// Where the module file leaves a choice open, these tests settle it: a key or a section that is missing stands on no line,
+// and its finding names line 1;
 // a key that stands names its own line, counted as its document's front matter is written, one line per key and one more
 // per item of a list. The findings come in the order of their lines; findings on one line, in the order of the schema.
 //

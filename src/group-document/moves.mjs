@@ -1,6 +1,6 @@
 // moves.mjs — the moves a person makes to a group file (MOD-group-document, Parts; Interfaces: GroupMove, applyMoves). Of it,
 // ITM-381 builds applyMoves, which applies the moves in order to a new tree and refuses, with a reason, the move it cannot
-// make; the model is applyMoves of docs/assets/artifacts/groups.mjs.
+// make.
 //
 // Module: MOD-group-document
 //
