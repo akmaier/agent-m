@@ -80,12 +80,12 @@ test("TST-8103: itemStates — without onDefault, built_by decides nothing; an e
 
 // TST-8104 · level: unit · module: MOD-work-plans
 // guards: STATUS IS DERIVED FROM THE RECORDS; UC-032
-// given: ITM-001 whose built_by names C1 (on the default branch) and C2 (not), and whose pull request 7 is merged
-// input: itemStates([ITM-001], null, facts with that pull request and onDefault holding C1)
-// expect: ITM-001 done by its merged pull request: pullRequest "7" — a merged pull request decides first
+// given: ITM-001 whose built_by names C1 and C2, both on the default branch, and whose pull request 7 is merged
+// input: itemStates([ITM-001], null, facts with that pull request and onDefault holding C1 and C2)
+// expect: ITM-001 done by its merged pull request: pullRequest "7", not null — a merged pull request decides first
 test("TST-8104: itemStates — a merged pull request still decides first", () => {
   const states = itemStates([item("ITM-001", { built_by: [C1, C2] })], null,
-    facts({ pullRequests: [merged("ITM-001", 7)], onDefault: new Set([C1]) }));
+    facts({ pullRequests: [merged("ITM-001", 7)], onDefault: new Set([C1, C2]) }));
   assert.deepEqual(stateOf(states, "ITM-001"), { item: "ITM-001", state: "done", reason: null, job: null, pullRequest: "7" });
 });
 
