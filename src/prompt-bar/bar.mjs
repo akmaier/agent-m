@@ -369,7 +369,7 @@ export function startPromptBar(target, setup) {
       if (recordingOn) await record(page, who, { at: new Date(), who, page: subject.title, text: instruction, withheld: subject.withhold?.(instruction) ?? undefined });
       const conversationPath = recordingOn ? (readTabValue(store, RECORDS) ?? {})[page.address]?.path ?? null : null;
       const spawned = await spawnEndpointJob({ kind: subject.kind, task: instruction, participant, store, instance, page, ofProduct: setup.product() !== null,
-        conversation: conversationPath, source });
+        conversation: conversationPath, source, instanceSnapshot });
       if (spawned.refused) {
         const parts = [problem(`Nothing was spawned: ${spawned.refused}.`)];
         if (spawned.needsWorkflow) {
