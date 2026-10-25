@@ -98,6 +98,19 @@ test("registerStrategies — a name registered twice is refused as DuplicateStra
       && error.owners.includes("owner-one") && error.owners.includes("owner-two"));
 });
 
+// TST-472335 · level: component · module: MOD-job-runner
+// guards: THE CATALOGUE IS DATA
+// given: a recipe registered under a name of this file's own by one owner, as a Bridge composed in the page's process registers MOD-approvals' strategies
+// input: registerStrategies of the very same recipe under the same name by a second owner, as a view hands the same set
+// expect: no DuplicateStrategy; the name keeps its one recipe; the counter-proof, another recipe under that name, is still refused
+test("registerStrategies — the same strategy handed again by another owner is no duplicate; another strategy under its name is", () => {
+  const once = recipe([]);
+  registerStrategies("owner-one", { recipes: { "fixture-same": once } });
+  registerStrategies("owner-two", { recipes: { "fixture-same": once } });
+  assert.throws(() => registerStrategies("owner-three", { recipes: { "fixture-same": recipe([]) } }), (error) =>
+    error.name === "DuplicateStrategy" && error.owners[0] === "owner-one" && error.owners[1] === "owner-three");
+});
+
 // ---------------------------------------------------------------- prepareJob: parts, destinations, limit
 
 // TST-472335 · level: component · module: MOD-job-runner
