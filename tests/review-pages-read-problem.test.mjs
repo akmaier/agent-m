@@ -81,7 +81,7 @@ const GRAPH_SITES = [
   { site: "edit.mjs", route: "requirement", params: { name: LOAN }, product: { graphMissing: true }, requests: 8 },
   { site: "entry-edit.mjs", route: "spec-entry", params: { id: ENTRY_ID, edit: "1" }, product: { graphMissing: true }, requests: 20 },
   { site: "jobs.mjs showDraft", route: "use-case", params: { id: "draft" }, product: { graphMissing: true }, requests: 2 },
-  { site: "jobs.mjs showArchitectureDraft", route: "decision", params: { id: "draft" }, product: { graphMissing: true }, requests: 2 },
+  // The drafting of the architecture is no such route: while the head's graph is not stored it lists the requirements of the head's SPEC.md (MOD-review-pages, Uses).
 ];
 
 async function drawSite(site, token) {
@@ -178,6 +178,24 @@ for (const site of GRAPH_SITES) {
     assert.equal(withToken.requests.length, site.requests, "requests with a token");
   });
 }
+
+// TST-1300008 · level: unit · module: MOD-review-pages
+// guards: UC-008; A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: the review pages over a product whose branch trace-cache holds no graph of the commit shown, with a token stored
+// input: the route decision/draft
+// expect: no problem paragraph — the page is drawn; its list of what the derivation covers holds the requirement A LOAN… of the head's SPEC.md (li.requirement), and no line of an earlier graph
+//         (p.graph-as-of) — the page shows none. Counter-proof: before this change the same route drew "This page could not be drawn: the trace graph of … is not stored yet" (TST-601015's row for it)
+test("jobs.mjs showArchitectureDraft — while the head's graph is not stored, the page lists the head SPEC's requirements and draws", async () => {
+  emptyStorage();
+  const fake = fakeProduct();
+  const requests = [];
+  const base = contextOf(fake, { token: true });
+  const context = { ...base, product: { ...base.product, host: recording(fake.host, requests, { graphMissing: true }) } };
+  const { target } = await draw(fake, "decision", { id: "draft" }, { context });
+  assert.deepEqual(byClass(target, "p", "problem").map((each) => each.textContent), []);
+  assert.ok(byClass(target, "li", "requirement").some((item) => item.textContent === LOAN), "the head SPEC's requirement is listed");
+  assert.deepEqual(byClass(target, "p", "graph-as-of"), []);
+});
 
 // TST-601014 · level: unit · module: MOD-review-pages
 // guards: UC-008; UC-020

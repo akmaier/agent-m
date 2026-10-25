@@ -17,7 +17,7 @@ import { identifiersIn, kindOfIdentifier, positionalReferences } from "../identi
 import { parseSpec } from "../spec-document/index.mjs";
 import { blobSha } from "../text-tools/index.mjs";
 import { importEdges, importsOf, isCodePath, readsImports } from "./code.mjs";
-import { fileOf, graphFromText, gunzipped } from "./stored.mjs";
+import { fileOf, graphFromText, gunzipped, LATEST } from "./stored.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
 
 const SPEC_PATH = "SPEC.md";
@@ -210,6 +210,33 @@ export function storedGraph(source, commit) {
     reading.catch(() => { if (STORED.get(commit) === reading) STORED.delete(commit); });
   }
   return reading;
+}
+
+// The commit latest.json on trace-cache names, read in one request through the source's readOn; null without readOn, for a missing branch or file, a text that is no
+// JSON or names no commit, and when readOn fails.
+async function latestCommit(source) {
+  if (typeof source?.readOn !== "function") return null;
+  try {
+    const text = await source.readOn("trace-cache", LATEST);
+    const commit = typeof text === "string" ? JSON.parse(text)?.commit : null;
+    return typeof commit === "string" && /^[0-9a-f]{40}$/.test(commit) ? commit : null;
+  } catch { return null; }
+}
+
+// latestGraph(source: TextSource, commit: string) -> Promise<{ graph: Graph, line: string | null }> — the graph stored for `commit` (storedGraph) and no line; while that is
+// not stored, the graph of the commit latest.json names — latest.json read once, then that one graph, and nothing else is tried — with the line a page shows above what
+// it draws from it, naming both commits. It never builds the graph; where neither is stored it rejects with the GraphNotStored of `commit`.
+export async function latestGraph(source, commit) {
+  try {
+    return { graph: await storedGraph(source, commit), line: null };
+  } catch (notStored) {
+    if (notStored?.name !== "GraphNotStored" || typeof commit !== "string" || commit === "") throw notStored;
+    const last = await latestCommit(source);
+    if (last === null || last === commit) throw notStored;
+    let graph;
+    try { graph = await storedGraph(source, last); } catch { throw notStored; }
+    return { graph, line: `As of ${last.slice(0, 7)}: the trace graph of the newest commit, ${commit.slice(0, 7)}, is being stored.` };
+  }
 }
 
 // traceGraph(source: TextSource, options?: { commit?: string }) -> Promise<Graph> — reads, in the order source.paths lists

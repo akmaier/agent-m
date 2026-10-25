@@ -36,7 +36,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { approvalSchema } from "../src/approvals/index.mjs";
 import { writeDocument } from "../src/documents/index.mjs";
-import { withStoredGraph } from "./stored-graph-fake.mjs";
+import { storedGraphBytes, withStoredGraph } from "./stored-graph-fake.mjs";
 
 // Every commit the fakes of this file make is its own: MOD-trace-graph's storedGraph keeps a commit's graph for the page.
 let commitsMade = 0;
@@ -67,7 +67,20 @@ const WORKFLOW = ".github/workflows/agent-m-jobs.yml";
 
 // ---------------------------------------------------------------- the hosts
 
-function fakeProduct(files = FILES) {
+// The branch trace-cache of a product whose head's graph is not stored yet: latest.json names `earlier.commit`, whose graph, built from `earlier.files`, it holds; with
+// `earlier.files` null it holds neither latest.json nor that graph.
+function latestOnly(earlier) {
+  return async (branch, path, options) => {
+    if (branch !== "trace-cache" || earlier.files === null) return null;
+    if (path === "latest.json") return `{"commit":"${earlier.commit}"}\n`;
+    if (path === `${earlier.commit}.json.gz` && options?.bytes) {
+      return storedGraphBytes({ paths: Object.keys(earlier.files), read: async (each) => earlier.files[each] ?? null, commit: earlier.commit });
+    }
+    return null;
+  };
+}
+
+function fakeProduct(files = FILES, { earlier = null } = {}) {
   const calls = [], commits = new Map();
   let made = 0, head = null;
   const commitOf = (tree, parent) => {
@@ -82,7 +95,7 @@ function fakeProduct(files = FILES) {
       blob: (path) => (tree.has(path) ? blobOf(tree.get(path)) : null) };
   };
   // Each snapshot serves the graph the push job stores for its commit (tests/stored-graph-fake.mjs); a page reads it and never builds one (MOD-trace-graph).
-  const snapshotAt = (...args) => withStoredGraph(bareSnapshotAt(...args));
+  const snapshotAt = (...args) => (earlier === null ? withStoredGraph(bareSnapshotAt(...args)) : { ...bareSnapshotAt(...args), readOn: latestOnly(earlier) });
   return {
     files: () => Object.fromEntries(commits.get(head).tree),
     writes: () => calls.filter((call) => call.fn === "commitFiles").map((call) => call.change),
@@ -238,6 +251,48 @@ test("use-case/draft — the requirements to cover by default, and the participa
   assert.ok(find(target, (node) => node.localName === "details").length >= 2, "the explanations are folded");
   assert.equal(fake.writes().length, 0, "nothing written");
   assert.equal(requests.length, 0, "nothing sent");
+});
+
+// The line a drafting page shows above what it draws from a graph of an earlier commit.
+const asOfLines = (target) => byClass(target, "p", "graph-as-of").map((node) => node.textContent);
+const NEWER = "A LOAN IS RENEWED ONCE";
+const WITH_NEWER = { ...FILES, "SPEC.md": SPEC + text("", `**${NEWER}** *(Product Owner)*`, "A loan is renewed at most once.", "*Check:* `tests/renew.test.mjs`") };
+const EARLIER = "e1".repeat(20);
+
+// TST-1300006 · level: unit · module: MOD-review-pages
+// guards: UC-007; A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: (a) the product of TST-472616, the graph of its head stored; (b) a head whose SPEC adds A LOAN IS RENEWED ONCE, whose graph trace-cache does not hold, a latest.json naming an earlier
+//        commit and that commit's graph, built from the files of (a) (A BOOK IS SHELVED realised by no use case there)
+// input: the page #use-case/id=draft for each
+// expect: (a) no line data of an earlier graph (no p.graph-as-of); (b) the three requirements of the head's SPEC listed — the head's own statement —, A BOOK IS SHELVED checked by the earlier graph's
+//         gaps, and one p.graph-as-of reading "As of <earlier, 7>: the trace graph of the newest commit, <head, 7>, is being stored."; nothing written, nothing sent
+test("use-case/draft — while the head's graph is not stored, the page draws from the graph stored last and says so in one line", async () => {
+  endpointAnswers(drafted([OTHER]));
+  assert.deepEqual(asOfLines(await show(fakeProduct())), [], "the head's own graph: no line");
+  const fake = fakeProduct(WITH_NEWER, { earlier: { commit: EARLIER, files: FILES } });
+  const target = await show(fake);
+  const boxes = byClass(target, "input", "requirement");
+  assert.deepEqual(boxes.map((box) => box.value).sort(), [OTHER, RULE, NEWER].sort(), "the requirements are the head's SPEC's");
+  assert.deepEqual(boxes.filter((box) => box.checked).map((box) => box.value), [OTHER], "checked by the earlier graph's gaps");
+  const head = (await fake.host.readSnapshot("trunk")).commit;
+  assert.deepEqual(asOfLines(target), [`As of ${EARLIER.slice(0, 7)}: the trace graph of the newest commit, ${head.slice(0, 7)}, is being stored.`]);
+  assert.equal(fake.writes().length, 0, "nothing written");
+  assert.equal(requests.length, 0, "nothing sent");
+});
+
+// TST-1300007 · level: unit · module: MOD-review-pages
+// guards: UC-007; A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: a product whose branch trace-cache holds neither the head's graph nor a latest.json
+// input: the page #use-case/id=draft
+// expect: the page shows the problem "the trace graph of <head> is not stored yet" (GraphNotStored, as before), no requirement to cover and no line of an earlier graph; nothing written
+test("use-case/draft — with neither graph stored, the page names the GraphNotStored problem", async () => {
+  const fake = fakeProduct(FILES, { earlier: { commit: EARLIER, files: null } });
+  const target = await show(fake);
+  const head = (await fake.host.readSnapshot("trunk")).commit;
+  assert.match(target.textContent, new RegExp(`the trace graph of ${head.slice(0, 12)} is not stored yet`));
+  assert.deepEqual(byClass(target, "input", "requirement"), []);
+  assert.deepEqual(asOfLines(target), []);
+  assert.equal(fake.writes().length, 0);
 });
 
 // TST-494007 · level: unit · module: MOD-review-pages

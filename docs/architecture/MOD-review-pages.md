@@ -38,6 +38,7 @@ uses:
   - MOD-group-document.applyMoves
   - MOD-group-document.hierarchy
   - MOD-trace-graph.storedGraph
+  - MOD-trace-graph.latestGraph
   - MOD-trace-graph.graphFindings
   - MOD-trace-graph.coverageGaps
   - MOD-trace-graph.requirementImpact
@@ -290,7 +291,12 @@ and `docs/participants.md` of the instance.
   impact lists stored for the commit, and the last accepted texts they name. The graph is the one `onMainChanged`
   stored for the commit shown (MOD-workflow-entries), read through `storedGraph`; no page builds a graph, also not over
   an edited text: the editor shows the stored graph's findings of the file, and the edit is checked across artifacts
-  once it is committed.
+  once it is committed. Where that graph is not stored yet, an impact list, the marks of an editor and an arrangement
+  are not derived from another commit's graph, since each states the commit shown or is written to it. Only the drafting
+  of use cases reads the graph through `latestGraph`: while the commit's graph is not stored, its default selection — the
+  requirements no use case realises — comes from the graph stored last, with that function's line above it; the
+  requirements it lists are the head's SPEC's, as are those the drafting of the architecture lists, which reads
+  `SPEC.md` while the head's graph is not stored and shows no earlier graph.
 - MOD-approvals.statuses, MOD-approvals.removedFiles, MOD-approvals.statusOf, MOD-approvals.lastAcceptedText, MOD-approvals.acceptShown,
   MOD-approvals.acceptanceBlockers, MOD-approvals.fallbackAcceptLink — statuses, the files removed since their acceptance, and acceptance; MOD-approvals.approvalSchema —
   the schema an approval record is read with, on `<k>/history` too.

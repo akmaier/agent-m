@@ -21,7 +21,7 @@ import { linkedVersion, restrictedPlaces } from "../source-register/index.mjs";
 import { queueJob, routesFor, runOnTab } from "../runtimes/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
 import { runPanel, explain, readProblem } from "../site-frame/index.mjs";
-import { coverageGaps, storedGraph } from "../trace-graph/index.mjs";
+import { coverageGaps, latestGraph, storedGraph } from "../trace-graph/index.mjs";
 import { editedResult, flagged, showCurrent, splitCandidate, splitProblem } from "./candidates.mjs";
 import { defaultSnapshot, el, button, link, readJobRecords, refusalText, tokenStep } from "./common.mjs";
 import { dueDiligenceSection, roundsSection, splitDueDiligence } from "./sections.mjs";
@@ -89,6 +89,13 @@ export function participantList(drafters, participants, product, needs, role = "
   return offered;
 }
 
+// The names of the requirements of the head's SPEC, sorted: from the graph where it is the head's own, else — a graph of an earlier commit, or none — from the head's SPEC.md,
+// which states them; the head's statement is never taken from an earlier graph.
+async function requirementNames(graph, snapshot) {
+  if (graph && graph.commit === snapshot.commit) return [...graph.nodes.values()].filter((node) => node.kind === "requirement").map((node) => node.id).sort();
+  return [...parseSpec((await snapshot.read("SPEC.md")) ?? "").requirements.keys()].sort();
+}
+
 /**
  * showDraft(where, kind) — the drafting page of a kind: its selection, its participants, the run panel and the result of a run. `where` is the flow's: the
  * host and snapshot of the product (or of the instance itself), the token, the context and the target.
@@ -98,17 +105,19 @@ export async function showDraft(where, kind) {
   if (kind.draft === "derive-requirements") return showRequirementsDraft(where, kind);
   const { target, snapshot, token, host, context } = where;
   target.append(el("h2", null, `Draft ${kind.plural}`), explain(kind.explain.draft.requirements), link(`#${kind.route}`, "btn", `All ${kind.plural}`));
-  let graph, loaded;
+  let graph, line, names, loaded;
   try {
-    graph = await storedGraph(snapshot, snapshot.commit);
+    ({ graph, line } = await latestGraph(snapshot, snapshot.commit));
+    names = await requirementNames(graph, snapshot);
     loaded = await loadStage(where, kind.draft);
   } catch (failure) {
     target.append(readProblem(failure, Boolean(token)));
     return;
   }
   const { definition, participants, instanceSnapshot, product, needs, drafters } = loaded;
-  const names = [...graph.nodes.values()].filter((node) => node.kind === "requirement").map((node) => node.id).sort();
+  // The default selection comes from the graph shown; where it is the graph stored last, the line above says so.
   const uncovered = new Set(coverageGaps(graph).requirementsWithoutUseCase);
+  if (line) target.append(el("p", "muted graph-as-of", line));
   const list = el("ul", "requirements");
   for (const name of names) {
     const box = el("input", "requirement");
@@ -492,9 +501,11 @@ function noReviewer(drafter, participants, needs, places) {
 async function showArchitectureDraft(where, kind) {
   const { target, snapshot, token, context } = where;
   target.append(el("h2", null, "Draft the architecture"), explain(kind.explain.draft.whole), link(`#${kind.route}`, null, `All ${kind.plural}`));
-  let graph, loaded, places, offeredPlaces, found, reviewing;
+  let requirements, loaded, places, offeredPlaces, found, reviewing;
   try {
-    graph = await storedGraph(snapshot, snapshot.commit);
+    // What the derivation covers is the head's SPEC: from the head's graph, or, while that is not stored yet, from the head's SPEC itself — no earlier graph is shown here.
+    requirements = await storedGraph(snapshot, snapshot.commit).then((graph) => requirementNames(graph, snapshot),
+      (failure) => { if (failure?.name === "GraphNotStored") return requirementNames(null, snapshot); throw failure; });
     loaded = await loadStage(where, kind.draft);
     ({ context: places, offered: offeredPlaces } = await placesOf({ ...where, instanceSnapshot: loaded.instanceSnapshot }));
     found = await approvalStrategies.preconditions["architecture-ready"]({ product: { snapshot, address: snapshot.repository?.web ?? "" } });
@@ -504,7 +515,6 @@ async function showArchitectureDraft(where, kind) {
     return;
   }
   const { definition, participants, instanceSnapshot, product, needs } = loaded;
-  const requirements = [...graph.nodes.values()].filter((node) => node.kind === "requirement").map((node) => node.id).sort();
   const useCases = [...statuses(snapshot).values()].filter((each) => each.kind === "use-case").map((each) => each.id).sort();
   const covers = el("section", "covers", el("h3", null, "What the derivation covers"),
     el("p", null, `Every requirement of the SPEC (${requirements.length}) and every use case (${useCases.length}); nothing is selected.`));
