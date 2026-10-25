@@ -27,7 +27,7 @@ import { productStore } from "../../docs/assets/product-store-adapter.mjs";
 import {
   REPO_RE, parseProductAddress, isGitLab, tokenRefusal, usedUpLimit,
 } from "../../docs/assets/git-host.mjs";
-import { queues } from "../spec-changes/index.mjs";
+import { parseQueueIndex, parseDecisions } from "../../docs/assets/review-core.mjs";
 import { ARCHITECTURE_FILE } from "../../docs/assets/artifacts.mjs";
 import { DASHBOARD, builtViews } from "../site/views.mjs";
 import { MENU, menuHtml, entryOf, stageView } from "../site/menu.mjs";
@@ -211,7 +211,7 @@ export function loadErrorHtml({ error: e, product, ref, hasToken, own = null, no
 // AN INSTANCE IS A FORK OF AGENT M: the instance is the repository of the Pages address this page is served from
 // (<owner>.github.io/<name>/), else Agent M itself (src/site/instance-repository.mjs). The product is chosen with ?repo=owner/name (GitHub), ?product=<address>
 // (GitHub or GitLab), or the review route's existing product fragment when the query names neither. A GitLab product adds `product` (parseProductAddress) and `refGiven` (false: its default branch is read
-// from GitLab). Moved here from docs/assets/review-core.mjs (ITM-130): it reads the page's own address.
+// from GitLab). It reads the page's own address.
 export function deriveTarget({ hostname, pathname, search, hash }) {
   const instance = instanceOf({ hostname, pathname });
   const q = new URLSearchParams(search || "");
@@ -306,11 +306,20 @@ async function readWave(paths) {
   if (wanted.length) await (await pinned()).readMany(wanted);
 }
 // The proposals, and the files they change, of the SPEC change queues that still have an entry to decide
-// (the route spec-entry reads them): MOD-spec-changes' queues of the pinned snapshot, whose index and decisions files the wave
-// before brought.
+// (the route spec-entry reads them): read from the queues' index and decisions files, which the first wave brought.
 async function openProposals() {
-  const open = (await queues(await pinned())).filter((queue) => queue.entries.some((entry) => entry.state !== "in SPEC"));
-  return open.flatMap((queue) => queue.entries.flatMap((entry) => [entry.proposal.path, entry.file])).filter(Boolean);
+  const lists = await Promise.all(pathsOf(QUEUE_INDEX_PATH).map(async (index) => {
+    const dir = index.replace(/\/index\.md$/, "");
+    const [indexText, decisionText] = await Promise.all([fileText(index), fileText(`${dir}/entscheidungen.md`)]);
+    const { target, entries } = parseQueueIndex(indexText), decisions = parseDecisions(decisionText);
+    if (entries.length > 0 && entries.every((en) => decisions.get(en.nr)?.decision === "uebernommen")) return [];
+    return entries.flatMap((en) => {
+      const prefix = `${dir}/${String(en.nr).padStart(2, "0")}-`;
+      const proposal = pathsOf(/\.md$/).find((p) => p.startsWith(prefix) && !p.slice(prefix.length).includes("/") && !p.endsWith(".begruendung.md"));
+      return [proposal, (target || en.file).replace(/^`|`$/g, "").replace(/^products\/[^/]+\//, "")];
+    });
+  }));
+  return lists.flat().filter(Boolean);
 }
 async function readAhead(kind) {
   if (kind === "" || kind === "uc") {

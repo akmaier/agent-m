@@ -14,8 +14,8 @@ const blobOf = (text) => createHash("sha1").update(`blob ${Buffer.byteLength(tex
 
 // memoryHost(files: { path: text }, repository?) -> { host, files(): { path: text } at the head, commits(): the commitFiles calls }.
 // repository: the RepositoryAddress the snapshots name, a github.com one by default.
-export function memoryHost(files, repository = { server: "github", origin: "https://github.com", path: "fixture-owner/fixture-product",
-  web: "https://github.com/fixture-owner/fixture-product" }) {
+export function memoryHost(files, repository = { server: "github", origin: "https://github.com", path: "memory-owner/memory-repository",
+  web: "https://github.com/memory-owner/memory-repository" }) {
   const trees = new Map(), calls = [];
   let made = 0;
   const commitOf = (tree) => {

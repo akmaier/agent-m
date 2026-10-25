@@ -55,7 +55,9 @@ export const WHEN = new Date("2026-09-29T16:03:00Z");
 export const B_SPEC = "# S\n\n**VERBINDLICH (SPEC)**\n\n## 9. G\n\nold nine\n## 10. R\n\nold ten\n";
 export const B_P05 = "## 10. R\n\nnew ten\n\n## 11. X\n\n*(not yet approved)*\n";
 export const B_P06 = "## 11. X\n\nrule of eleven\n";
-export const B_INDEX = "**Zieldatei aller Einträge:** `products/agent-m/SPEC.md`\n\n| Nr | Datei | Anker | bis | Commits |\n|---|---|---|---|---|\n" +
+// The index of the queue QD, in MOD-spec-changes' form of a queue's index.md.
+export const B_INDEX = "# SPEC approvals — queue 2026-09-24g · x\n\n**Zieldatei aller Einträge:** `products/agent-m/SPEC.md`\n\n" +
+  "| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |\n|---|---|---|---|---|\n" +
   "| 05 | `SPEC.md` | ## 10. R | — | — |\n| 06 | `SPEC.md` | ## 11. X | — | — |\n";
 export const B_UC1 = "---\nid: UC-001\n---\n# one\n", B_UC2 = "---\nid: UC-002\n---\n# two\n";
 

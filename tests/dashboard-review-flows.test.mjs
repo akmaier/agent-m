@@ -77,7 +77,7 @@ const QNAME = QD.split("/").pop();
 async function instanceFiles(over = {}) {
   const f = {
     "SPEC.md": B_SPEC,
-    [`${QD}/index.md`]: "# SPEC approvals — queue fixture\n\n" + B_INDEX.replace("| Nr | Datei | Anker | bis | Commits |", "| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |"), [`${QD}/05-a.md`]: B_P05, [`${QD}/05-a.begruendung.md`]: "# Why 05\n\nSection ten is out of date.\n",
+    [`${QD}/index.md`]: B_INDEX, [`${QD}/05-a.md`]: B_P05, [`${QD}/05-a.begruendung.md`]: "# Why 05\n\nSection ten is out of date.\n",
     [`${QD}/06-b.md`]: B_P06, [`${QD}/entscheidungen.md`]: "# Decisions\n\nAppend-only.\n\n",
     "docs/use-cases/README.md": "# Use cases\n", "docs/approvals/README.md": "# Approval records\n",
     [UC1]: ucText("UC-001", "Read a file", "The reviewer opens the file."),
