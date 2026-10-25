@@ -28,8 +28,8 @@ origin:
 
 ## Outcome
 
-UC-032 steps 2 to 4, 2a and 1a. ITM-681 makes `backlog` the module's route by taking over the old view, which offers
-neither *Propose items* nor *+ Item* (`docs/assets/dashboard/backlog-view.mjs`). This item adds them as MOD-implementation-pages'
+UC-032 steps 2 to 4, 2a and 1a. The module's route `backlog` (`src/implementation-pages/backlog.mjs`) offers
+neither *Propose items* nor *+ Item*. This item adds them as MOD-implementation-pages'
 file states the route:
 - *Propose items for uncovered requirements* with its run panel (`prepareJob` of the kind `propose-items`), whose
   drafts wait for the Product Owner, with their findings from `backlogFindings`; *Add to backlog* lets them go on as

@@ -42,7 +42,6 @@ opened on; a changed `id` disables *Save* and shows the reason (ITM-335); a refu
 text; without a token, GitHub's editor opens with the text on the clipboard, and a warning when the file differs; on
 GitLab without a token there is no *Save* and the token's step is linked; without write access, the GitHub route is
 offered; a link leads to the arrangement for another group (UC-021); leaving with unsaved changes asks first.
-`editPanel`, `wireCommon` and `showNewer` in `docs/assets/dashboard/review-views.mjs` are the model and stay.
 
 ## Acceptance
 

@@ -31,8 +31,8 @@ SPEC.md:672: "one load of a dashboard page reads its commit and that commit's tr
 - For the review pages, `pagesHost()` (`dashboard-app.mjs:576-614`) wraps the host, so a `readSnapshot` during the load
   gets that snapshot back. `reviewContext()` (`:637-643`) gives `product: null` for the instance.
 - The four pages instead get a new Host for the product and one for the instance on each load, `product` never null:
-  `#settings` at `:754-756`, `#release` at `:800-801`, `#roles` and `#process` in the adapters
-  `docs/assets/dashboard/roles-view.mjs:18-21` and `process-view.mjs:27-30`. Each route calls `readSnapshot` on both
+  `#settings` at `:754-756`, `#release` at `:800-801`, `#roles` and `#process` at `:884-888`
+  (on `7b6846bf`). Each route calls `readSnapshot` on both
   (`src/implementation-pages/roles.mjs:76-78`, `process.mjs:121-123`, `src/settings-pages/settings.mjs:945`, `:956`,
   `:862-863`).
 - `src/test-pages/release.mjs` reads the product's snapshot twice through the same host, in `pendingCandidate`
