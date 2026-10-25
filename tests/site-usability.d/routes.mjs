@@ -65,6 +65,10 @@ export const ROUTES = [
   { address: "#arrange/kind=use-cases", shows: "Arrange the use cases", ids: { 904: { drawn: 170, sheets: 171, targets: 172, widths: 173, diagrams: 174 }, 905: { drawn: 113, wcag: 114, diagrams: 115 } } },
   { address: "#mail", shows: "Read mailbox", ids: { 904: { drawn: 175, sheets: 176, targets: 177, widths: 178, diagrams: 179 }, 905: { drawn: 116, wcag: 117, diagrams: 118 } } },
   { address: "#replies", shows: "Read replies", ids: { 904: { drawn: 180, sheets: 181, targets: 182, widths: 183, diagrams: 184 }, 905: { drawn: 119, wcag: 120, diagrams: 121 } } },
+  { address: "#runs", shows: "Runs", ids: { 904: { drawn: 185, sheets: 186, targets: 187, widths: 188, diagrams: 189 }, 905: { drawn: 122, wcag: 123, diagrams: 124 } } },
+  { address: "#schedule", shows: "This is the book's default schedule", ids: { 904: { drawn: 190, sheets: 191, targets: 192, widths: 193, diagrams: 194 }, 905: { drawn: 125, wcag: 126, diagrams: 127 } } },
+  { address: "#generate", shows: "Generate tests", ids: { 904: { drawn: 195, sheets: 196, targets: 197, widths: 198, diagrams: 199 }, 905: { drawn: 128, wcag: 129, diagrams: 130 } } },
+  { address: "#trace/key=tests", shows: "Tests", ids: { 904: { drawn: 200, sheets: 201, targets: 202, widths: 203, diagrams: 204 }, 905: { drawn: 131, wcag: 132, diagrams: 133 } } },
 ];
 
 // The numbers of the generated tests that are no route's, by series: the planted cases and the tests over several routes at once.
