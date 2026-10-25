@@ -13,6 +13,7 @@
 import { isKnownKey } from "./catalogue.mjs";
 import { getRaw, openInstanceStorage, removeRaw, setRaw, StoreError, tabStorage } from "./store.mjs";
 import { removeSignIn, signInOf, viewOfStorage } from "./sign-in.mjs";
+import { moveLegacyKeys } from "./legacy-keys.mjs";
 export { exportSettings, importSettings, readExport } from "./export.mjs";
 
 export { StoreError };
@@ -20,10 +21,12 @@ export { StoreError };
 // The mailbox's sign-in: no key of its own, the sign-in library's keys for the connection.
 const MAILBOX_SIGN_IN = "mailbox-sign-in";
 
-// openStore(instance: string) -> Store — the store for the instance "owner/repository" in this browser. Throws
-// StorageUnavailable.
+// openStore(instance: string) -> Store — the store for the instance "owner/repository" in this browser; the entries an earlier
+// dashboard kept under `agent-m.` are moved into the instance's keys first (legacy-keys.mjs). Throws StorageUnavailable.
 export function openStore(instance) {
-  return openInstanceStorage(instance);
+  const store = openInstanceStorage(instance);
+  moveLegacyKeys(store, instance);
+  return store;
 }
 
 // readSetting(store, key) -> the value kept under `key`, or null when it is not set.
