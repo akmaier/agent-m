@@ -5,8 +5,8 @@ measure: plan entries per phase
 ---
 # A planned model — fixture
 
-A complete model definition in the format of ARC-019 decision 1, for tests/test_model_validation.py and
-tests/test_gate_definition.py. The whole accepted specification runs through every phase; each decomposition step is
+A complete model definition of MOD-model-catalogue's schema (src/model-catalogue/model.schema.md), for
+tests/test_model_validation.py and tests/test_gate_definition.py. The whole accepted specification runs through every phase; each decomposition step is
 paired with the phase that verifies it. No flow control: a planned model has no backlog to pull from.
 
 ## Phases
@@ -14,10 +14,10 @@ paired with the phase that verifies it. No flow control: a planned model has no 
 | Name | Role | Produces |
 |---|---|---|
 | Concept | Owner | requirements |
-| Design | Architect | ARC-, MOD- |
-| Implementation | Builders | code, TST |
+| Design | Architect | ARC, MOD (the module files) |
+| Implementation | Builders | MOD (the code), TST |
 | Testing | Tester | TST (system tests) |
-| Acceptance | Owner | a record of the acceptance |
+| Acceptance | Owner | — |
 
 ## Transitions
 
@@ -40,8 +40,8 @@ paired with the phase that verifies it. No flow control: a planned model has no 
 
 | Between | Artifacts | Condition | Decider |
 |---|---|---|---|
-| Design → Implementation | an ARC- for every requirement, and the MOD- files | the design is accepted | Architect |
-| Testing → Acceptance | the TST of every requirement | every test is green | CI check `system-tests` |
+| Design → Implementation | the requirements, an ARC for each, and the MOD files | the design is accepted | Architect |
+| Testing → Acceptance | the TST of the requirements | every test is green | check: system-tests |
 
 ## Roles
 
