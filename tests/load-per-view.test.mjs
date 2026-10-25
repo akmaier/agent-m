@@ -83,10 +83,11 @@ const sorted = (list) => [...list].sort();
 const batchesOf = (requests) => requests.filter((r) => r.startsWith("batch "));
 const count = (requests, what) => requests.filter((r) => r === what).length;
 // The head commit the harness's server answers, and the reads of the branches that hold what the workflow "main changed" stored for it — the
-// graph (`stored graph <commit>`, trace-cache), the overview and the facts (overview-cache) and the impact lists: each is one request of its own by
-// design (MOD-trace-graph's storedGraph and storedImpacts, MOD-progress-measures' storedOverview and storedFacts), not a file the page shows.
+// graph (`stored graph <commit>`, trace-cache), the overview and the facts (overview-cache), the impact lists, and latest.json, which names the overview
+// stored last while the head's is not stored yet: each is one request of its own by design (MOD-trace-graph's storedGraph and storedImpacts,
+// MOD-progress-measures' storedOverview, storedFacts and latestOverview), not a file the page shows.
 const HEAD = "c0ffee".padEnd(40, "0");
-const STORED = new RegExp(`^${HEAD}\\.(json|facts\\.json|impacts\\.json)$`);
+const STORED = new RegExp(`^(${HEAD}\\.(json|facts\\.json|impacts\\.json)|latest\\.json)$`);
 const shownFiles = (requests) => files(requests).filter((path) => !STORED.test(path));
 // The order of the one read of the repository's information among a load's requests is no part of the rule: it is counted, and left out of the sequence.
 const withoutInfo = (requests) => requests.filter((r) => r !== "repository");

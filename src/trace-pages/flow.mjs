@@ -24,7 +24,7 @@ import { statuses } from "../approvals/index.mjs";
 import { entryView, queues } from "../spec-changes/index.mjs";
 import { affectedRequirements, linkedVersion, sourceSchemas } from "../source-register/index.mjs";
 import { coverageGaps, latestGraph, moduleRows, storedGraph, tracesTo } from "../trace-graph/index.mjs";
-import { storedOverview } from "../progress-measures/index.mjs";
+import { latestOverview, storedOverview } from "../progress-measures/index.mjs";
 import { explain, readProblem } from "../site-frame/index.mjs";
 import { componentDiagram } from "./diagram.mjs";
 import { descriptorFor } from "./views.mjs";
@@ -585,14 +585,15 @@ async function countUnrealised(shown, arranged) {
 
 // The entries of the change queues that wait for acceptance — open, stale, or waiting for the anchor another entry creates — each as a link to its page
 // in the review pages, by the identifier `spec-<queue folder>-<NN>` MOD-review-pages addresses an entry by. The queues are those the overview stored for the
-// commit holds (MOD-progress-measures' storedOverview: every queue with an entry not in the SPEC yet), so that no queue file is read; where none is stored,
-// every queue of the snapshot is read (MOD-spec-changes' queues). A queue that cannot be read gives none. The proposals of the entries found, which their
+// commit holds (MOD-progress-measures' storedOverview: every queue with an entry not in the SPEC yet), so that no queue file is read; while the head's is not
+// stored yet — the minutes after a push, before the workflow "main changed" stores it — those of the overview stored last (latestOverview); only where no overview was ever stored is every queue of the snapshot read (MOD-spec-changes' queues). A queue that cannot be read gives none. The proposals of the entries found, which their
 // impact lists read (entryView), are named to Snapshot.readMany at once, in one batch; a host that cannot batch reads nothing ahead.
 async function waitingEntries(snapshot) {
   if (!snapshot.paths.some((path) => path.startsWith("docs/spec-freigaben/"))) return [];
   let all;
   try {
-    all = (await storedOverview(snapshot).catch(() => null))?.queues ?? await queues(snapshot);
+    const overview = (await storedOverview(snapshot).catch(() => null)) ?? (await latestOverview(snapshot).catch(() => null));
+    all = overview?.queues ?? await queues(snapshot);
   } catch {
     return [];
   }

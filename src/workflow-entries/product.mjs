@@ -1,7 +1,7 @@
 // product.mjs — the entries of a product's job workflow (MOD-workflow-entries, Parts): ITM-365 builds onRecordsChanged and onDispatch, which take
 // and run the queued jobs of this CI route; ITM-498 adds to onDispatch the job whose task travels with a conversation's hand-over (UC-049 4a), which onRecordsChanged
-// leaves queued. ITM-791 adds to onRecordsChanged the resumption of the jobs of this route whose gate is recorded (A JOB STOPS AT EVERY GATE). The runs' next actions, onDoneCheck, onPullRequestClosed, onCheckCompleted,
-// onTestsFinished is another item's. ITM-1032 builds onSchedule: the close of a sprint an agent closes.
+// leaves queued. ITM-791 adds to onRecordsChanged the resumption of the jobs of this route whose gate is recorded (A JOB STOPS AT EVERY GATE). The runs' next actions and onPullRequestClosed
+// are other items'. ITM-1032 builds onSchedule: the close of a sprint an agent closes. ITM-1209 adds onTestsFinished and ITM-1210 onDoneCheck, which MOD-test-schedule's test configuration runs.
 //
 // Module: MOD-workflow-entries
 //
@@ -17,10 +17,12 @@ import { agentDriver, installedAgents } from "../agent-processes/index.mjs";
 import { participantSchema, participantsOf } from "../participant-list/index.mjs";
 import { readDocument } from "../documents/index.mjs";
 import { productFacts } from "../progress-measures/index.mjs";
-import { recordGateDecision } from "../product-process/index.mjs";
+import { doneCheck, recordGateDecision } from "../product-process/index.mjs";
 import { queueJob } from "../runtimes/index.mjs";
 import { sprintsToClose } from "../work-plans/index.mjs";
-import { composeProduct } from "./compose.mjs";
+import { appendResult, parseOutcomes, resultSchema } from "../result-records/index.mjs";
+import { isTestFile, testDeclarations } from "../test-document/index.mjs";
+import { composeProduct, composeTestRun } from "./compose.mjs";
 import { packResult, readResult, checkResult, writeBranches, pendingPullRequest } from "./result.mjs";
 
 const fs = globalThis.process?.getBuiltinModule?.("node:fs");
@@ -521,4 +523,151 @@ export async function writeResult(env) {
   }
   if (why) return failedStatus(`${why}${ended.length ? `; ended: ${ended.join(", ")}` : ""}.`);
   return { outcome: "done", findings: [], summary: `Written: ${result.refs.length} branch(es)${pulls.size ? `, ${pulls.size} pull request(s)` : ""}${ended.length ? `; ended: ${ended.join(", ")}` : ""}.` };
+}
+
+// ---------------------------------------------------------------- the test configuration
+
+const LEVELS = ["unit", "component", "system", "release", "user"];
+// The occasion of a run, by its event (MOD-result-records, Data): a pushed tag is a release candidate, as the test configuration starts on a tag `v*-rc.*`.
+const OCCASIONS = { github: { push: "commit", pull_request: "pull-request", schedule: "nightly", workflow_dispatch: "on-demand" },
+  gitlab: { push: "commit", merge_request_event: "pull-request", schedule: "nightly", web: "on-demand", api: "on-demand" } };
+const occasionOf = (env) => (env.tests.tag ? "release-candidate" : OCCASIONS[env.service]?.[env.event?.name] ?? null);
+const two = (number) => String(number).padStart(2, "0");
+// A cell of a record's table: its lines joined by <br>, a bar escaped, so that a log stays in its one row.
+const cellOf = (value) => String(value ?? "").trim().replace(/\r?\n/g, "<br>").replace(/\|/g, "\\|");
+
+// Whether the checkout's tracked files hold changes the commit does not: a file the run added, such as its report, is none.
+function uncommittedIn(checkout) {
+  const said = globalThis.process.getBuiltinModule("node:child_process").execFileSync("git", ["-C", checkout, "status", "--porcelain", "--untracked-files=no"],
+    { encoding: "utf8", env: { ...process.env, GIT_TERMINAL_PROMPT: "0" } });
+  return said.trim() !== "";
+}
+
+// The declarations of the product's tests at the checkout's commit (MOD-test-document).
+async function declarationsAt(snapshot) {
+  const paths = snapshot.paths.filter((path) => isTestFile(path));
+  await snapshot.readMany?.(paths);
+  const declarations = [];
+  for (const path of paths) declarations.push(...testDeclarations(path, (await snapshot.read(path)) ?? ""));
+  return declarations;
+}
+
+// The text of a run's record in the schema `result-record`: its front matter, its outcomes, and the failures where a test failed.
+function recordText({ commit, levels, occasion, participant, now, run, uncommitted, outcomes }) {
+  const failures = outcomes.filter((outcome) => outcome.failure);
+  return ["---", `commit: ${commit}`, "levels:", ...levels.map((level) => `  - ${level}`), `occasion: ${occasion}`, `participant: ${participant}`,
+    `date: ${now.getUTCFullYear()}-${two(now.getUTCMonth() + 1)}-${two(now.getUTCDate())} ${two(now.getUTCHours())}:${two(now.getUTCMinutes())} UTC`,
+    ...(run ? [`run: ${run}`] : []), ...(uncommitted ? ["uncommitted: true"] : []), "---",
+    "## Outcomes", "", "| Test | Level | Outcome | Runs |", "|---|---|---|---|",
+    ...outcomes.map((outcome) => `| ${cellOf(outcome.test)} | ${outcome.level} | ${outcome.outcome} | ${cellOf(outcome.runs)} |`), "",
+    ...(failures.length ? ["## Failures", "", "| Test | Expected | Observed | Log |", "|---|---|---|---|",
+      ...failures.map(({ test, failure }) => `| ${cellOf(test)} | ${cellOf(failure.expected)} | ${cellOf(failure.observed)} | ${cellOf(failure.log)} |`), ""] : [])].join("\n");
+}
+
+/**
+ * onTestsFinished(env: CiEnvironment) -> Promise<EntryStatus> — the step after the tests of a run of MOD-test-schedule's test configuration: the run's result record added to the
+ * branch test-results through the server's API (appendResult) — the commit the checkout holds, the levels of the row the job runs (`env.tests.row`; for the row `paid` the levels
+ * of the tests that call a paid service), the occasion of the event, the runner, the date, the run's page, `uncommitted` where tracked files changed, and the outcomes of the
+ * run's JUnit XML report (parseOutcomes), matched to the declarations of the product's tests. Only the tests of the levels run are recorded — a declared test without a case
+ * `not run` —, and each undeclared case, with the run's level. On Moved it reads the branch again and adds again; a record that cannot be added ends `failed`. A missing token,
+ * row or report ends the entry `not run` before anything is written.
+ */
+export async function onTestsFinished(env) {
+  if (!env.job.personToken) return notRun(`${env.job.tokenName} is missing: the person's Agent M token is a secret of this repository, passed to the step as ${env.job.tokenName}. Nothing was written.`);
+  const { row, report } = env.tests;
+  if (!report) return notRun("AGENT_M_REPORT is missing: the path of the run's JUnit XML report. Nothing was written.");
+  if (!fs.existsSync(report)) return notRun(`The run's JUnit XML report ${report} does not exist: the tests wrote none. Nothing was written.`);
+  if (!LEVELS.includes(row) && row !== "paid") return notRun(`AGENT_M_LEVEL ${row ? `names ${row}, which` : "is missing: it"} is no row of the schedule. Nothing was written.`);
+  const occasion = occasionOf(env);
+  if (!occasion) return notRun(`The event ${env.event?.name ?? "(none)"} is no occasion of the schedule. Nothing was written.`);
+  const { checkout, server } = composeTestRun(env);
+  const snapshot = await checkout.readSnapshot("HEAD");
+  const declared = (await declarationsAt(snapshot)).filter((declaration) => (row === "paid" ? Boolean(declaration.paid) : declaration.level === row));
+  const levels = row === "paid" ? LEVELS.filter((level) => declared.some((declaration) => declaration.level === level)) : [row];
+  if (levels.length === 0) return { outcome: "nothing to do", summary: "No test of the product calls a paid service: the row paid ran none.", findings: [] };
+  let outcomes;
+  try {
+    outcomes = parseOutcomes(fs.readFileSync(report, "utf8"), declared);
+  } catch (error) {
+    return failedStatus(`The run's JUnit XML report ${report} could not be read: ${error.message}. Nothing was written.`);
+  }
+  outcomes = outcomes.map((outcome) => (outcome.outcome === "undeclared" ? { ...outcome, level: levels[0] } : outcome));
+  const hex = [...globalThis.crypto.getRandomValues(new Uint8Array(2))].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  const { now } = env;
+  const path = `runs/${snapshot.commit}/${now.getUTCFullYear()}${two(now.getUTCMonth() + 1)}${two(now.getUTCDate())}-${two(now.getUTCHours())}${two(now.getUTCMinutes())}-${occasion}-${hex}.md`;
+  const text = recordText({ commit: snapshot.commit, levels, occasion, participant: env.tests.runner ?? (env.service === "gitlab" ? "GitLab CI" : "GitHub Actions"), now,
+    run: env.job.runUrl, uncommitted: uncommittedIn(env.checkout), outcomes });
+  const record = readDocument(resultSchema.run, path, text);
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const { commit } = await appendResult(server, record);
+      return { outcome: "done", summary: `The run's record ${path} was added to test-results in ${commit}.`, findings: [] };
+    } catch (error) {
+      if (error?.name === "Moved" && attempt < 5) continue;
+      return failedStatus(`The run's record ${path} was not added to test-results: ${error?.message ?? error}`);
+    }
+  }
+}
+
+// A job's identifier, as a pull request's title and description name it (MOD-runtimes' writer branch-and-pull-request: the title `<id>: <kind> …`, the line `Job: <id>`).
+const JOB_ID = /\bJOB-\d{8}-\d{4}-[0-9a-f]+\b/;
+// The kinds of an implementation job, whose pull request the Definition of Done is checked for (MOD-product-process' doneCheck).
+const IMPLEMENTING = ["implement", "refactor", "fix-bug"];
+const nothingToDo = (summary) => ({ outcome: "nothing to do", summary, findings: [] });
+const findingLine = (found) => `${found.artifact}:${found.line}: ${found.kind}: ${found.what} [${found.rule}] — ${found.fix}`;
+
+// The facts without this entry's own check: the check that runs onDoneCheck is running while it checks. Of the head's checks, the one of this run whose name, its blanks read as
+// hyphens, is this job's — on GitHub its page lies under this run's, on GitLab it is this job's page — is not weighed, and the head's CI counts green where only that check kept it
+// running. Every other check counts.
+function withoutOwnCheck(facts, env) {
+  const { job, jobUrl } = env.tests;
+  const own = (check) => Boolean(job) && String(check.name).replace(/\s+/g, "-") === job
+    && (env.service === "gitlab" ? Boolean(jobUrl) && check.url === jobUrl : Boolean(env.job.runUrl) && String(check.url).startsWith(`${env.job.runUrl}/job/`));
+  const checks = facts.checks.filter((check) => !own(check));
+  if (checks.length === facts.checks.length) return facts;
+  const head = facts.commits.at(-1);
+  const green = checks.length > 0 && checks.every((check) => ["success", "neutral", "skipped"].includes(check.state));
+  const commits = head?.ci === "running" && green ? facts.commits.map((commit) => (commit === head ? { ...commit, ci: "success" } : commit)) : facts.commits;
+  return { ...facts, checks, commits };
+}
+
+// The modules of a job: those its items and plan steps name, and a module it works on itself.
+function modulesOfJob(record, items) {
+  const modules = new Set();
+  for (const id of record.worksOn ?? []) {
+    if (/^MOD-/.test(id)) modules.add(id);
+    for (const item of items.filter((each) => each.fields?.id === id)) for (const module of [].concat(item.fields.modules ?? [])) modules.add(module);
+  }
+  return [...modules];
+}
+
+/**
+ * onDoneCheck(env: CiEnvironment) -> Promise<EntryStatus> — in the job `agent-m done` of MOD-test-schedule's test configuration, on a pull request opened or updated: MOD-product-process'
+ * doneCheck of the pull request's facts (pullRequestFacts, through the server's API with the person's token), for the job its title or description names, with the product's workflow,
+ * module files and gate records as the checkout of the pull request holds them (productFacts, the instance's catalogue read from the checkout of the instance, `.agent-m`), the job's
+ * modules those of the items and plan steps it works on. `done` when the Definition of Done holds, `failed` with each condition it misses as a finding; the status and the findings stand
+ * in the check's log and in the run's summary. A pull request that names no job, or a job of no implementing kind, is `nothing to do`; a missing token or pull request ends the
+ * entry `not run` before anything is read.
+ */
+export async function onDoneCheck(env) {
+  if (!env.job.personToken) return notRun(`${env.job.tokenName} is missing: the person's Agent M token is a secret of this repository, passed to the step as ${env.job.tokenName}. Nothing was written.`);
+  const number = env.tests.pullRequest;
+  if (!number) return notRun("The event names no pull request: the Definition of Done is checked on a pull request. Nothing was written.");
+  const { checkout, server, instance } = composeTestRun(env);
+  const facts = await server.pullRequestFacts(number);
+  const id = JOB_ID.exec(`${facts.pullRequest.title}\n${facts.pullRequest.body}`)?.[0];
+  if (!id) return nothingToDo(`Pull request #${number} names no job: the Definition of Done is checked for an implementation job's pull request.`);
+  const product = await productFacts(checkout, await instance.readSnapshot("HEAD"), (commit) => instance.readSnapshot(commit), env.now, { scope: "work" });
+  const row = product.jobs.find(({ record }) => record.id === id);
+  if (!row) return failedStatus(`Pull request #${number} names the job ${id}, which has no record in docs/jobs/.`);
+  if (!IMPLEMENTING.includes(row.record.kind)) return nothingToDo(`Pull request #${number} is of the job ${id} of kind ${row.record.kind}, which is no implementation job.`);
+  if (!product.workflow || product.workflow === "unknown") {
+    return failedStatus(`The product's declared process could not be read${product.modelUnread ? ` at ${product.modelUnread.commit}: ${product.modelUnread.error}` : ": docs/process.md declares none"}.`);
+  }
+  const findings = await doneCheck(withoutOwnCheck(facts, env), product.workflow, product.modules, product.gates, { kind: row.record.kind, modules: modulesOfJob(row.record, product.plan.items) });
+  const failed = findings.some((found) => found.kind === "error");
+  const summary = failed ? `The Definition of Done of pull request #${number} (${id}) does not hold: ${findings.length} finding(s).`
+    : `The Definition of Done of pull request #${number} (${id}) holds.`;
+  if (env.job.summaryFile) fs.appendFileSync(env.job.summaryFile, `## agent-m done\n\n${summary}\n${findings.map((found) => `\n- ${findingLine(found)}`).join("")}\n`);
+  return { outcome: failed ? "failed" : "done", summary, findings };
 }
