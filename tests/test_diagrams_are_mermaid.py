@@ -6,8 +6,9 @@ Markdown, and no diagram is stored as an image file: neither referenced from a u
 HTML <img>) nor kept beside the use cases and architecture files.
 
 Checked on the fixtures of tests/fixtures/use-cases/ and on this repository's use cases as the product checks them:
-MOD-documents' documentFindings, by the use-case schema, whose diagrams is required (tests/artifact_checks.py
-use_case_findings). Counter-proofs: docs/measurements/2026-10-01_use-case-checks.md."""
+MOD-documents' documentFindings, by the use-case schema (tests/artifact_checks.py use_case_findings), which names every image.
+The requirement asks that a diagram be Mermaid, not that a use case hold one, so a use case without a diagram is not checked
+here. Counter-proofs: docs/measurements/2026-10-01_use-case-checks.md."""
 import re
 import unittest
 from pathlib import Path
@@ -17,7 +18,6 @@ from artifact_checks import DOCS, use_case_findings
 RULE = "DIAGRAMS ARE MERMAID IN MARKDOWN"
 FIX = Path(__file__).resolve().parent / "fixtures" / "use-cases"
 IMAGE_FILE = re.compile(r"\.(png|jpe?g|gif|svg|webp|bmp|tiff?)$", re.I)
-NO_BLOCK = "the format use-case holds a diagram, and the document has no ```mermaid block"
 
 
 def image(address: str) -> str:
@@ -45,13 +45,9 @@ class DiagramsAreMermaidInMarkdown(unittest.TestCase):
     def test_a_complete_use_case_passes(self):
         self.assertEqual(diagrams(["UC-001-complete.md"]), {"UC-001-complete.md": []})
 
-    def test_a_use_case_without_a_mermaid_block_is_reported(self):
-        self.assertEqual(diagrams(["UC-011-no-mermaid.md", "UC-012-mermaid-only-mentioned.md"]),
-                         {"UC-011-no-mermaid.md": [[1, NO_BLOCK]], "UC-012-mermaid-only-mentioned.md": [[1, NO_BLOCK]]})
-
     def test_a_diagram_stored_as_an_image_is_reported_on_its_line(self):
         self.assertEqual(diagrams(["UC-013-image-diagram.md", "UC-014-image-with-title.md", "UC-015-image-as-html.md"]), {
-            "UC-013-image-diagram.md": [[1, NO_BLOCK], [31, image("flow.png")]],
+            "UC-013-image-diagram.md": [[31, image("flow.png")]],
             "UC-014-image-with-title.md": [[39, image("diagrams/flow.PNG")]],
             "UC-015-image-as-html.md": [[39, image("diagrams/flow.svg?raw=true")]],
         })

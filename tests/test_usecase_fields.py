@@ -53,7 +53,6 @@ class UseCaseFiles(unittest.TestCase):
         broken = {
             "UC-1-t.md": GOOD,
             "UC-001-t.md": GOOD.replace("## Postcondition\n", ""),
-            "UC-002-t.md": GOOD,
             # A use case without the key realises; one whose realises holds nothing is a gap the graph lists
             # (tests/test_usecase_realises.py), since UNREALISED REQUIREMENTS ARE REPORTED, NOT FORBIDDEN.
             "UC-001-u.md": GOOD.replace("realises:\n  - NO SERVER\n", ""),

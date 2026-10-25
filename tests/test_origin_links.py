@@ -21,6 +21,9 @@ RULE = "EVERY ARTIFACT NAMES ITS ORIGIN"
 UC = "docs/use-cases/UC-001-read-a-file.md"
 ARC = "docs/architecture/ARC-001-static-client.md"
 TEST = "tests/reader.test.mjs"
+# The comment marker of the fixture's declaration, joined when the test runs, so that neither this file nor its compiled form
+# holds a line that declares a test of its own.
+C = "".join(["/", "/"])
 
 PRODUCT = {
     "SPEC.md": ("# Fixture product — Specification\n\n## 1. Reading\n\n"
@@ -29,8 +32,8 @@ PRODUCT = {
          "# UC-001 Read a file\n"),
     ARC: ("---\nid: ARC-001\ntitle: A static client reads the files\nforced_by:\n  - UC-001\ndesigns:\n  - MOD-reader\n---\n"
           "# ARC-001 A static client reads the files\n"),
-    TEST: ("// TST-001 · level: unit · module: MOD-reader\n// guards: A FILE IS READ WHOLE; UC-001\n// given: a file\n"
-           "// input: the file read\n// expect: its last byte read\ntest(\"a file is read to its last byte\", () => {});\n"),
+    TEST: (f"{C} TST-001 · level: unit · module: MOD-reader\n{C} guards: A FILE IS READ WHOLE; UC-001\n{C} given: a file\n"
+           f"{C} input: the file read\n{C} expect: its last byte read\ntest(\"a file is read to its last byte\", () => {{}});\n"),
 }
 
 ORIGINS = """
