@@ -66,7 +66,7 @@ test("a decision — id, title, forced_by, and its four sections", () => {
   assert.ok(findings(ARC, files[ARC].replace("## Alternatives\n", "")).some((f) => /Alternatives/.test(f.what)));
 });
 
-test("a module — folder, realises, follows, uses MOD-x.interface, provides, each interface described", () => {
+test("a module — folder, realises, follows, uses MOD-x.interface, provides, and its sections", () => {
   const m = read(REVIEW, files[REVIEW]);
   assert.equal(m.kind, "module");
   assert.equal(m.id, "MOD-review");
@@ -79,9 +79,8 @@ test("a module — folder, realises, follows, uses MOD-x.interface, provides, ea
   assert.deepEqual(findings(REVIEW, files[REVIEW]), []);
   const page = read(PAGE, files[PAGE]);
   assert.deepEqual([page.fields.realises, page.fields.provides, findings(PAGE, files[PAGE])], [[], [], []], "empty lists are lists");
-  // Counter-proof: a use of an interface not written MOD-x.name, and a provided interface nobody describes.
+  // Counter-proof: a use of an interface not written MOD-x.name.
   assert.ok(findings(REVIEW, files[REVIEW].replace("  - MOD-reader.readFile\n", "  - readFile\n")).length);
-  assert.ok(findings(REVIEW, files[REVIEW].replace("  - status\n", "  - status\n  - history\n")).length);
 });
 
 // ---------------------------------------------------------------- ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS

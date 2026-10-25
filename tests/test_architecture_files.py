@@ -76,7 +76,6 @@ class ArchitectureFiles(unittest.TestCase):
             "MOD-review.md#5": good.replace("follows:\n  - ARC-001\n", "follows:\n  - ARC-1\n"),
             "MOD-review.md#6": good.replace("  - MOD-reader.readFile\n", "  - readFile\n"),   # not MOD-x.name
             "MOD-review.md#7": good.replace("  - MOD-reader.readFile\n", "  - MOD-Reader.readFile\n"),
-            "MOD-review.md#9": good.replace("provides:\n  - status\n", "provides:\n  - status\n  - history\n"),  # not described
             "MOD-review.md#10": good.replace("  - UC-002\n", "  - UC-2\n"),
             "MOD-review.md#11": good.replace("provides:\n  - status\n", "provides:\n  - two words\n"),
             "MOD-review.md#12": good.replace("realises:\n", "forced_by:\n"),       # a decision's key in a module

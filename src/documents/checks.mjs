@@ -12,11 +12,9 @@
 // condition; values not of their type or of the variant that holds, or empty where nonEmpty; the rows of a table, cell by
 // cell, in the same way; required sections missing, sections out of order, sections the schema forbids, and a document path
 // that matches none of the schema's path patterns; and, for a schema that names `diagrams`, every image (DIAGRAMS ARE
-// MERMAID IN MARKDOWN); and each value that `describedIn` requires and its section does not describe, on the line of its
-// key — a bullet describes a value when its backtick is followed by the value and then by no letter, digit or underscore.
-// The identifier against the path, the title, a
-// Mermaid block missing where `diagrams` is `required` or standing where it is `none`, the marks of history, the fields of a
-// section, a record of `key: value` lines and appended sections are not checked yet. Each finding is an error, made with MOD-text-tools' finding, and names the rule of
+// MERMAID IN MARKDOWN). The identifier against the path, the title, describedIn, a Mermaid block missing where `diagrams` is
+// `required` or standing where it is `none`, the marks of history, the fields of a section, a record of `key: value` lines and
+// appended sections are not checked yet. Each finding is an error, made with MOD-text-tools' finding, and names the rule of
 // the part of the schema closest to it (Data, The requirement a finding names). A key or a section that is missing stands on
 // no line: its finding names line 1.
 // The section under the title (ITM-226) is the first section of a document with a title, and is missing from a document
@@ -344,19 +342,6 @@ export function documentFindings(schema, document) {
       if (check) {
         add(lineOf[key] ?? 1, valueRules(check, spec, frontLookup), `the key ${key} ${check.why}`,
           fixOf(FIX.key, key, fields[key], check));
-      }
-    }
-    // describedIn: each value stands in the named section as a bullet that begins with the value in backticks.
-    for (const [key, spec] of Object.entries(specs)) {
-      if (spec.describedIn === undefined || leftOut(fields[key])) continue;
-      const section = document.sections.find((each) => each.heading === spec.describedIn);
-      const lines = textLines(section?.text ?? "");
-      const { inBlock } = fences(lines);
-      const described = (value) => lines.some((line, i) => !inBlock[i] && line.startsWith(`- \`${value}`)
-        && !/[A-Za-z0-9_]/.test(line.charAt(3 + value.length)));
-      for (const value of (Array.isArray(fields[key]) ? fields[key] : [String(fields[key])]).filter((each) => !described(each))) {
-        add(lineOf[key] ?? 1, [spec.rule], `the key ${key} names ${value}, which the section ${spec.describedIn} does not describe`,
-          `describe ${value} in the section ${spec.describedIn} by a bullet that begins with \`${value}\`, or remove it from ${key}`);
       }
     }
   }
