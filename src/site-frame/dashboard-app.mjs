@@ -660,6 +660,17 @@ function implementationContext() {
   };
 }
 
+// A route that works on the product shown — MOD-test-pages' runs, schedule and generate, MOD-trace-pages' trace —, drawn into <main> with implementationContext(), as the
+// backlog is, reading through the snapshot this load read.
+async function renderProductRoute(view, name, params) {
+  loading += 1;
+  try {
+    await view.routes.find((route) => route.name === name).render(main(), implementationContext(), params);
+  } finally {
+    loading -= 1;
+  }
+}
+
 // Each route draws into an element of its own in <main>: a route that was left meanwhile draws into an element no longer there.
 async function renderReviewPages(targets, lead = []) {
   const context = reviewContext();
@@ -835,6 +846,11 @@ async function route() {
         instance: { host: connect(parseAddress(`https://github.com/${T.instance}`), { token: ghToken() }) },
         product: { host: connect(parseAddress(T.product.address), { token: token() }) },
       }, {});
+    } else if (kind === "runs" || kind === "schedule" || kind === "generate") {
+      await renderProductRoute(testPages, kind, routeOf(location.hash).params);
+    } else if (kind === "trace") {
+      // The tests browser and the audit (UC-029, UC-030), and every other view of the route: the version the fragment names, or the one the page shows.
+      await renderProductRoute(tracePages, "trace", { ref: T.ref, ...routeOf(location.hash).params });
     } else if (kind === "mail") {
       const mailRoute = maintenancePages.routes.find((r) => r.name === "mail");
       await mailRoute.render(main(), {

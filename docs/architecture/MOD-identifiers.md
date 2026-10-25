@@ -44,7 +44,7 @@ It keeps nothing. It owns the scheme:
 
 | Kind | Pattern | Example |
 |---|---|---|
-| requirement | a name in capitals, digits, spaces, apostrophes, commas and hyphens, with no lowercase letter and no prefix below | `THE NAME IS THE ID AND IT SURVIVES` |
+| requirement | a name in capitals: one line with at least one capital, no lowercase letter, no space at either end and no prefix below | `THE NAME IS THE ID AND IT SURVIVES` |
 | `SRC` | `SRC-<slug>` | `SRC-eu-ai-act` |
 | `UC` | `UC-<nnn>`, three or more digits | `UC-022` |
 | `ARC` | `ARC-<nnn>` | `ARC-048` |
