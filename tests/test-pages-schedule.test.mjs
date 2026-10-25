@@ -6,7 +6,7 @@
 // Run: node --test tests/test-pages-schedule.test.mjs
 //
 // Module: MOD-test-pages
-// Guards: UC-027; THE TEST SCHEDULE IS DECLARED PER PRODUCT; THE DEFAULT SCHEDULE FOLLOWS THE BOOK; A RELEASE RUNS EVERY TEST AT EVERY LEVEL; COMMIT TESTS CALL NO PAID SERVICE; NO SECRET IN THE REPOSITORY; EVERY STEP EXPLAINS ITSELF
+// Guards: UC-027; THE TEST SCHEDULE IS DECLARED PER PRODUCT; THE DEFAULT SCHEDULE FOLLOWS THE BOOK; A RELEASE RUNS EVERY TEST AT EVERY LEVEL; COMMIT TESTS CALL NO PAID SERVICE; NO SECRET IN THE REPOSITORY; EVERY STEP EXPLAINS ITSELF; THE SITE SERVES A SCREEN READER
 // Level: unit
 //
 // The document is the small DOM of tests/site-frame-dom.mjs, imported unchanged, as the tests of the settings pages do. The product and the instance are
@@ -15,6 +15,10 @@
 //   - A test that calls a paid service (its declaration's `paid` key) counts under the row `paid` and also under the row of its own level: the schedule's schema
 //     says the row `paid` cuts across the levels.
 //   - The cells that refuse are the cells of the column release candidate, in every row, and the cells every commit and pull request of the row paid.
+//   - ITM-1208: the axe rule select-name, which tests/site-accessibility.test.mjs (#1324) runs on the live route #schedule, is checked here on the module's
+//     route itself, drawn in the small DOM: a select is named as the accessible-name computation names it — aria-labelledby, aria-label, a label it stands
+//     in, its title. "Named by its level and occasion" is read as: the name holds the row (its level, or paid) and the title of the column the choice stands
+//     in, "runs on", which holds for every occasion of the row.
 // The counter-proofs are recorded in the pull request.
 
 import "./site-frame-dom.mjs";
@@ -369,4 +373,36 @@ test("schedule — where the runs cannot be read the registration is still shown
   assert.equal(byClass(block, "runner-page").length, 1);
   assert.match(byClass(block, "runs-unreadable")[0].textContent, /cannot be read/);
   assert.equal(byClass(block, "queued-runs").length, 0);
+});
+
+// ---------------------------------------------------------------- ITM-1208: the runner choice has an accessible name (THE SITE SERVES A SCREEN READER)
+
+// The accessible name of a select, in the order of the accessible-name computation: aria-labelledby, aria-label, a label it stands in, its title.
+function accessibleName(node, root) {
+  const by = (node.getAttribute("aria-labelledby") ?? "").split(/\s+/).filter(Boolean)
+    .map((id) => descendants(root, (each) => each.getAttribute?.("id") === id)[0]?.textContent ?? "").join(" ").trim();
+  if (by) return by;
+  const label = (node.getAttribute("aria-label") ?? "").trim();
+  if (label) return label;
+  let up = node.parentNode;
+  while (up && up.localName !== "label") up = up.parentNode;
+  return (up?.textContent ?? node.getAttribute("title") ?? "").trim();
+}
+
+// TST-1208101 · level: unit · module: MOD-test-pages
+// guards: THE SITE SERVES A SCREEN READER; UC-027
+// given: a saved schedule; the instance's participants that run code and tests
+// input: the route schedule rendered for the product
+// expect: the runner choice of each of the six rows has an accessible name that holds the row's name and "runs on"; the six names differ
+test("schedule — the runner choice of each row is named by its row and its column", async () => {
+  const shown = await withSchedule(SAVED);
+  const names = ROWS.map((row) => {
+    const choice = byClass(rowOf(shown, row), "runner")[0];
+    assert.ok(choice, `known positive: the row ${row} has its runner choice`);
+    const name = accessibleName(choice, shown);
+    assert.ok(name.includes(row), `the name of the row ${row}'s choice holds the row; it is "${name}"`);
+    assert.ok(name.includes("runs on"), `the name of the row ${row}'s choice holds the column "runs on"; it is "${name}"`);
+    return name;
+  });
+  assert.equal(new Set(names).size, ROWS.length, `the six names differ: ${names.join(" | ")}`);
 });

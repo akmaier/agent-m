@@ -110,13 +110,15 @@ async function testCounts(snapshot) {
   return counts;
 }
 
-function runnerChoice(offered, current) {
+// A row's runner field, named for a screen reader by its row and its column (THE SITE SERVES A SCREEN READER).
+function runnerChoice(row, offered, current) {
   const choice = el("select", "runner", ...["hosted", ...offered].map((name) => {
     const option = el("option", null, name);
     option.setAttribute("value", name);
     return option;
   }));
   choice.value = current;
+  choice.setAttribute("aria-label", `${row} runs on`);
   return choice;
 }
 
@@ -132,7 +134,7 @@ function levelsTable(schedule, counts, offered, choices) {
       return th;
     }), el("th", null, "runs on"));
   const body = ROWS.map((row) => {
-    const select = runnerChoice(offered, cells(row)["runs on"] || "hosted");
+    const select = runnerChoice(row, offered, cells(row)["runs on"] || "hosted");
     choices.set(row, { select, shown: select.value });
     const tr = el("tr", null, el("th", null, row, fold(ROW_TEXT[row])), el("td", "tests", String(counts[row])),
       ...COLUMNS.map((column) => {
