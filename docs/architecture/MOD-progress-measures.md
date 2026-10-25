@@ -172,7 +172,7 @@ The six stages of the main page, each a share between 0 and 1:
 - `productFacts(host: Host, instance: Snapshot, instanceAt: (commit: string) -> Promise<Snapshot>, now: Date,
   options?: { scope: "all" | "work" | "build" }) -> Promise<Facts>` — with the scope `build`, what
   `buildInProgress` takes and nothing else — the plan or the backlog, the job records and the pull requests —; with the scope `work`, what MOD-prompt-bar
-  asks before a hand-over starts, it reads only what MOD-work-plans' `itemStates` and `startable` and MOD-product-process'
+  asks before a hand-over that works on an item of the backlog or a step of the plan starts, it reads only what MOD-work-plans' `itemStates` and `startable` and MOD-product-process'
   `holdsRole` take — the approval statuses, the change queues, the declaration with its model and workflow, the
   participants, the plan or the backlog, the sprints, the role assignments, the gate records with their states, the job
   records without asking their live state, and the pull requests with `held` —, and every other fact is `"unknown"`.
