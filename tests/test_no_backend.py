@@ -475,7 +475,7 @@ class NoServer(unittest.TestCase):
             "docs/assets/new-view.mjs": "await fetch(url);\nnavigator.sendBeacon(u, d);\nnew WebSocket(u);\nconst x = new XMLHttpRequest();\n"
                                         "await import(`https://esm.sh/x`);\nnew Worker(u);\nconst s = document.createElement('script');\n"
                                         "el.innerHTML = `<img src=\"//pixel.example/p.gif\">`;\n",
-            "docs/assets/style.css": "@import url('https://fonts.example/f.css');\nbody { background: url(//img.example/b.png); }\n",
+            "src/site-frame/look.css": "@import url('https://fonts.example/f.css');\nbody { background: url(//img.example/b.png); }\n",
             "docs/index.html": '<link rel="stylesheet" href="https://cdn.example/x.css">\n',
         }
         kinds = sorted({f.split(": ")[1] for f in channel_findings(planted)})

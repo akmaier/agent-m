@@ -10,13 +10,17 @@
 .greeting .btn:hover { border-color: #ffffff; background: rgba(255, 255, 255, .08); }
 .greeting .btn.primary { background: #ffffff; border-color: #ffffff; color: var(--fau-blue); }
 .greeting .btn.primary:hover { background: var(--metallic-12); }
-.greeting details { margin-top: 1.1rem; max-width: 46rem; color: var(--metallic-25); }
-.greeting summary { cursor: pointer; color: #ffffff; font-weight: 600; }
-.greeting details > div { margin-top: .5rem; padding: .8rem 1rem; border-left: 3px solid var(--tf-metallic); background: rgba(255, 255, 255, .06); }
+/* The greeting's folded explanation (the frame's explain) on the blue band: light text at the greeting's size, so these rules
+   are more specific than the frame's look of a folded explanation (src/site-frame/look.css). */
+.greeting details.explain { margin-top: 1.1rem; max-width: 46rem; color: var(--metallic-25); font-size: inherit; }
+.greeting details.explain > summary { cursor: pointer; color: #ffffff; font-weight: 600; }
+.greeting details.explain > div { margin-top: .5rem; padding: .8rem 1rem; border-left: 3px solid var(--tf-metallic); border-radius: 0;
+  background: rgba(255, 255, 255, .06); }
 .greeting details p { margin: .3rem 0; }
 @media (max-width: 760px) { .greeting { padding-top: 28px; padding-bottom: 32px; } .greeting h1 { font-size: 2rem; } }
 
-main { max-width: 1240px; margin: 0 auto; padding: 8px 16px 0; }
+/* The page's width and margins, more specific than the frame's width of a route's page (src/site-frame/look.css). */
+body > main { max-width: 1240px; margin: 0 auto; padding: 8px 16px 0; }
 main > section > h2 { margin: 32px 0 14px; font-size: 1.35rem; }
 main > section > h2 small { margin-left: .5rem; color: var(--muted); font-size: .9rem; font-weight: 500; }
 

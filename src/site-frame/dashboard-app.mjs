@@ -15,7 +15,7 @@
 // Which of the table's files are built is read from one data file beside them, docs/assets/dashboard/built.json, so that a page
 // load asks for no file that is not there (one 404 each on GitHub Pages); a change that adds a view adds its file and its line
 // there. A view module exports `routes`: { <route>: (app, …parts of the address) }, and may export `stylesheet`, a
-// stylesheet of its own beside style.css. It gets `app`, this page's context: what is read, what is kept, and the helpers every
+// stylesheet of its own beside the site's style sheets. It gets `app`, this page's context: what is read, what is kept, and the helpers every
 // view uses. The notices about a token — its expiry and its refusal — are the frame's (notices.mjs), drawn into the slot `token-banner`.
 // Nothing here runs on import outside a page (no `document`), so that tests import the shell's own texts.
 
@@ -89,7 +89,7 @@ async function present(file) {
   return built.has(file);
 }
 
-// A view may bring a stylesheet of its own beside style.css: its module exports `stylesheet`, a file name in
+// A view may bring a stylesheet of its own beside the site's style sheets: its module exports `stylesheet`, a file name in
 // docs/assets/dashboard/, which is linked into the page once, when the view is first shown.
 const linked = new Set();
 function linkStylesheet(file) {
