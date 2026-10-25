@@ -502,7 +502,7 @@ function renderProductSelector() {
 //
 // Change between jobs, sprint 07 (SPEC.md WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS): ITM-236's own header named
 // making the dashboard's pages start the checks as not part of that item. This wires MOD-notifications' watchForAcceptance
-// into the review pages with MOD-browser-store's store of the instance, as sprint 07's record (docs/backlog/sprints/07.md)
+// into the review pages with MOD-browser-store's store of the instance, as sprint 07's record (docs/backlog/sprints/team1/07.md)
 // names, and builds the one thing watchForAcceptance needs that the module does not provide itself: the address of a
 // notification's review-pages route, confirmed against the routes this file and its views already serve (the PO's gate
 // record of ITM-236 names addressOf's routes as this change's reading to confirm) — #uc(/<id>), #arc(/<id>) for both an
@@ -537,7 +537,7 @@ function addressOfNotification(route, params, repository) {
 
 // Opens this browser's MOD-browser-store store of the instance, connects the instance's host with the dashboard's own
 // stored GitHub token — ghToken(), settings-store.mjs's agent-m.github-token, as the connect() of the routes of MOD-implementation-pages
-// uses it (ITM-238 F2, sprint 08's change between jobs, docs/backlog/sprints/08.md: MOD-browser-store's own
+// uses it (ITM-238 F2, sprint 08's change between jobs, docs/backlog/sprints/team1/08.md: MOD-browser-store's own
 // "github-token" setting is never written, so the instance was always checked with no token) — and starts the
 // checks — only where this browser could ever show one at all: real browsers always define Notification
 // (permission.mjs's own available() already tells "no" apart by the same check, for a browser that offers no

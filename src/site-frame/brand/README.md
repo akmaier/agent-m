@@ -13,7 +13,7 @@ as lme.tf.fau.de shows them, and the lab's logo.
 | `prl-sign.png` | the sign without lettering, 256 × 256 |
 | `prl-sign-white.png` | the same in white, for dark backgrounds |
 | `favicon-32.png`, `icon-192.png` | the sign as the site's icon |
-| `apple-touch-icon.png` | the icon a phone puts on its Home Screen: the sign at 80 % on a white square, 180 × 180, so that the rounded corners do not cut it (`tests/test_home_screen_icon.py`) |
+| `apple-touch-icon.png` | the icon a phone puts on its Home Screen: the sign at 80 % on a white square, 180 × 180, so that the rounded corners do not cut it |
 
 Taken from lme.tf.fau.de (`prl_logo_new_blue.png`, `prl_logo_new_blue_nolettering.png`) and scaled down; the white
 variants turn the blue ink white and the logo's thin white outline transparent.
