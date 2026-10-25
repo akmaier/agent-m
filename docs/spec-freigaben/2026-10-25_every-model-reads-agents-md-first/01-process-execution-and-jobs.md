@@ -143,13 +143,14 @@ the path of the chapter's file in that checkout, whose SHA-256 is the one the so
 checkout of the instance, and reads the files the input names there. It checks that each chapter is given by the path
 of its file and none by its text, and that a chapter file whose SHA-256 differs from the register's is refused by name.
 
-**EVERY MODEL READS THE REPOSITORY'S AGENTS.MD FIRST** *(PO A. Maier)*
-The input Agent M sends to a language model — with a job, or with a message of the prompt bar — begins with the
-`AGENTS.md` at the root of the repository the job or the page works on, in full, where that repository has one; for a
-participant that works in a checkout of that repository, it begins with the file's path there.
+**EVERY MODEL READS AGENT M'S AGENTS.MD FIRST** *(PO A. Maier)*
+The input Agent M sends to a language model — with a job, or with a message of the prompt bar — begins with Agent M's
+own `AGENTS.md`, the one at the root of the instance repository, in full, whatever repository the job or the page works
+on; for a participant that works in a checkout of the instance, it begins with the file's path there.
 *Check:* `tests/test_job_reading.py` — builds the input of each kind of job and of a message of the prompt bar for a
-fixture repository with an `AGENTS.md`, in the browser and in a checkout. It checks that each input begins with the
-file's text, or with its path in the checkout; counter-proof: an input that leaves it out or puts it later fails.
+fixture instance and a fixture product, in the browser and in a checkout of the instance. It checks that each input
+begins with the instance's `AGENTS.md`, as its text or as its path in the checkout; counter-proof: an input that leaves
+it out, puts it later, or gives the product's file in its place fails.
 
 **A JOB STOPS AT EVERY GATE** *(PO A. Maier; Vibe Coding, ch. 11 §8)*
 A job that reaches a gate of the product's workflow waits in the state *waiting at a gate* until the
