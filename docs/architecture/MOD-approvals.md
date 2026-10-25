@@ -113,7 +113,8 @@ never written. A decision or module file that a record names and the snapshot no
   same pass over `docs/approvals/` as `statuses`, in the order of the identifiers.
 - `lastAcceptedText(id: string, host: Host) -> Promise<{ text: string, blob: string, path: string } | null>` — the text
   named by the most recent approval record of an identifier, also when the file has been renamed since; `null` when no
-  record names it. Considers: "most recent" is the order of the commits that added the records. Crosses the network:
+  record names it. A record whose content names another blob than its name, or a file of another identifier, counts as
+  no record (`AN APPROVAL NAMES THE EXACT TEXT`). Considers: "most recent" is the order of the commits that added the records. Crosses the network:
   reads the history of the records and of the file through the host; fails with the host's errors (`TokenRefused`,
   `RateLimited`, `NotFound`, `Unreachable`).
 - `acceptShown(host: Host, shown: Array<{ path: string, blob: string }>, person: string) -> Promise<{ commit: string,
