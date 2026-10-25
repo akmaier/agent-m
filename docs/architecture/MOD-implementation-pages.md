@@ -124,9 +124,7 @@ It runs in a browser, loaded by `docs/index.html` through MOD-site-frame.
 - `run.mjs` — a run over a selection.
 - `progress.mjs` — progress in the model's measure, gates, what is blocked, who works on what.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `docs/assets/dashboard/backlog-view.mjs`: removed once this module's route `backlog` is built and the live app shows it.
-  - `docs/assets/dashboard/process-view.mjs`, `docs/assets/dashboard/roles-view.mjs`: removed: the live app shows the routes `process` and `roles` directly.
-  - `tests/dashboard-process-view.test.mjs`, `tests/dashboard-backlog-teams.test.mjs`, `tests/dashboard-backlog-layout.test.mjs`: their headers name this module.
+  - `tests/dashboard-process-view.test.mjs`, `tests/dashboard-backlog-teams.test.mjs`: their headers name this module.
 
 ## Data
 

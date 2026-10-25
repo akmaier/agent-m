@@ -102,8 +102,6 @@ notifications (`A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE`). It runs in t
 - `stages.mjs` — the six stages, the current stage, the build, what waits for a person, what waits for acceptance.
 - `overviews.mjs` — gates, blocked items, who works on what.
 - `stored.mjs` — the facts a commit's files alone give, as a text and back.
-- **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `src/home/progress.mjs`: removed once this module gives `stageShares`, `currentStage`, `buildInProgress` and `waitingForAPerson`, which it states and does not build yet.
 
 ## Data
 
