@@ -11,6 +11,10 @@
 // of the prompt; the job's parts are the drafter's and the reviewers', each once. A recipe whose part may be left out, and
 // that fails, is left out with the failure's words as its reason; any other recipe's failure is thrown. Each reviewing
 // participant differs from the drafter and from every other one, as the catalogue's `reviewers` says.
+//
+// Agent M's own AGENTS.md, at the root of the instance repository, is the job's `rules`: the part every input to a model begins with, whatever
+// repository the job works on — its text, or, where the participant works in a checkout of the instance, its path there —, counted in every
+// destination's size. It carries no source: it is the instance's own file.
 
 import { eligible } from "../participant-list/index.mjs";
 import { finding } from "../text-tools/index.mjs";
@@ -19,6 +23,7 @@ import { needs } from "./builtins.mjs";
 import { failure, strategyOf } from "./registry.mjs";
 
 const REGISTER = "docs/participants.md";
+const RULES = "AGENTS.md";
 // estimate(text) -> number — a text's size in tokens as the runner estimates it: its characters divided by three, rounded up (MOD-job-runner, Data).
 export const estimate = (text) => Math.ceil(text.length / 3);
 
@@ -50,9 +55,20 @@ async function partsOf(kind, context, leftOut) {
   return parts;
 }
 
-const destinationOf = (participant, role, kind, parts) => ({
+// rulesOf(context) -> Part | null — Agent M's AGENTS.md, read from the instance's snapshot: its text, or in a checkout of the instance the path of the file
+// there, followed by the sentence that asks the participant to read it; null where the instance has none.
+async function rulesOf(context) {
+  const { snapshot, checkout } = context.instance;
+  const text = await snapshot?.read?.(RULES);
+  if (typeof text !== "string") return null;
+  const given = typeof checkout === "string"
+    ? `${checkout.replace(/[\\/]+$/, "")}/${RULES}\n\nThe file above is Agent M's AGENTS.md: read it in full before anything else.` : text;
+  return { name: RULES, text: given, size: estimate(given), sources: [], required: true, recipe: null, artifacts: [] };
+}
+
+const destinationOf = (participant, role, kind, parts, rules) => ({
   participant, role, place: participant.place ?? "", parts: parts.map((part) => part.name),
-  size: estimate(kind.prompt) + parts.reduce((sum, part) => sum + part.size, 0),
+  size: estimate(kind.prompt) + (rules?.size ?? 0) + parts.reduce((sum, part) => sum + part.size, 0),
 });
 
 // The findings of one need judged by eligible, each reason of the participant left out under `rule`.
@@ -86,7 +102,7 @@ function blockingOf(destination, kind, parts, context, notLike, kindName) {
  * each destination with MOD-participant-list's eligible: the capabilities the kind needs, the places every part's sources
  * and the mailbox allow, the context against the size, and for a reviewing participant that it differs from the drafter
  * and from each other, and asks each check the kind names what it needs of the context. Nothing is cut: what does not fit
- * is named in notFitting. The limit is fixed here: the caller's, else the kind's. Throws CheckoutAtOtherCommit { checkout, expected, found } for a checkout of the instance at another commit than the one
+ * is named in notFitting. Agent M's AGENTS.md, read from the instance, is the job's `rules` and is counted in every destination's size. The limit is fixed here: the caller's, else the kind's. Throws CheckoutAtOtherCommit { checkout, expected, found } for a checkout of the instance at another commit than the one
  * `context.agentM.commit` names, before anything runs; UnknownKind and InvalidKind as kindOf does, UnknownStrategy { strategy } for a strategy no module registered, and whatever a recipe throws by name.
  */
 export async function prepareJob(name, context, choice) {
@@ -107,6 +123,7 @@ export async function prepareJob(name, context, choice) {
     const found = await strategyOf("preconditions", precondition)(context);
     if (found) blocking.push(found);
   }
+  const rules = await rulesOf(context);
   const leftOut = [];
   const parts = await partsOf(kind, context, leftOut);
   const reviewerParts = reviewing && choice.reviewers.length ? await partsOf(reviewing, context, leftOut) : [];
@@ -114,12 +131,12 @@ export async function prepareJob(name, context, choice) {
 
   const destinations = [];
   if (choice.drafter) {
-    const destination = destinationOf(choice.drafter, "drafter", kind, parts);
+    const destination = destinationOf(choice.drafter, "drafter", kind, parts, rules);
     destinations.push(destination);
     blocking.push(...blockingOf(destination, kind, parts, context, [], kind.name));
   }
   choice.reviewers.forEach((reviewer, at) => {
-    const destination = destinationOf(reviewer, "reviewer", reviewing ?? kind, reviewerParts);
+    const destination = destinationOf(reviewer, "reviewer", reviewing ?? kind, reviewerParts, rules);
     destinations.push(destination);
     const notLike = [choice.drafter, ...choice.reviewers.filter((other, which) => which !== at)].filter(Boolean);
     blocking.push(...blockingOf(destination, reviewing ?? kind, reviewerParts, context, notLike, kind.name));
@@ -133,7 +150,7 @@ export async function prepareJob(name, context, choice) {
     .filter((destination) => eligible([destination.participant], { capabilities: [], size: destination.size }).leftOut.length)
     .map(({ participant, size }) => ({ participant, size, context: participant.context }));
 
-  return { kind, params: context.params, drafter: choice.drafter, reviewers: choice.reviewers,
+  return { kind, params: context.params, drafter: choice.drafter, reviewers: choice.reviewers, rules,
     parts: [...parts, ...reviewerParts.filter((part) => !shared(part, parts))], destinations,
     fits: notFitting.length === 0, notFitting, leftOut, blocking, limit: choice.limit ?? kind.limit };
 }
