@@ -1,5 +1,5 @@
 // The views of the review pages under docs/ and the sections of their settings page — one table, read by the review pages
-// (docs/assets/dashboard-app.mjs, which loads each view's file by its name) and by the main page (its menu links only to
+// (src/site-frame/dashboard-app.mjs, which loads each view's file by its name) and by the main page (its menu links only to
 // views whose file is built).
 //
 // Every view and every settings section the accepted use cases call for. A view or section whose file is not built yet — not
