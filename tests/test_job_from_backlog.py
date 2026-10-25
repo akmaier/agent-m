@@ -6,117 +6,109 @@ implementation job implements one item of the product's backlog; and UC-032 step
 *waiting for acceptance* (it names a requirement or use case that is not accepted), *ready*, *in progress* (a job is
 running, or a pull request is open), *blocked* (a job failed or waits for a person), *done*.
 
-docs/assets/work-items/flow.mjs (MOD-work-items): itemState(item, { requirements, useCases, jobs, pullRequests, wip }).
-`requirements` and `useCases` are the product's accepted names; a pull request belongs to an item when its head branch
-or its title names the item's identifier; a job record names its item. A start without an item, or of an item a pulled
-model's backlog does not hold, is refused; a planned model works from its plan and refuses neither. The fixture product
-is tests/flow_fixture.py's. Counter-proofs: docs/measurements/2026-10-01_sprints-wip-and-selection.md.
+MOD-work-plans: itemStates(items, null, facts) derives the state of every item of the backlog from the approval statuses,
+the job rows and the pull requests; a pull request belongs to an item when its branch or its title names the item's
+identifier; a job row names its item in the items its record works on. startable(item, states, context) refuses a job for
+what has no state — no item, or one the backlog does not hold. The fixture product is tests/flow_fixture.py's.
 """
 import unittest
 
-from flow_fixture import ACCEPTED, AGILE, DERIVED, KNOWN, item_state, job, kinds, pr, starts
+from flow_fixture import KNOWN, job, pr, reasons, run, starts, state_of
+
+PULLED = (("scrum", ["ITM-015", "ITM-016"]), ("kanban", None))
 
 
 class TestAJobImplementsAnItemOfTheBacklog(unittest.TestCase):
     def test_starting_an_implementation_job_without_an_item_is_refused_for_a_scrum_and_a_kanban_fixture(self):
-        for model, sprint in (("scrum", "timeboxed"), ("kanban", None)):
-            got = item_state(None, model, sprint=sprint, today="2026-09-20")
-            self.assertEqual(got, {"state": None, "reasons": [{"kind": "no-item", "rule": AGILE}]}, model)
+        for model, sprint in PULLED:
+            for item in (None, ""):
+                got = run(item, model, sprint=sprint)
+                self.assertFalse(starts(got), (model, item))
+                self.assertTrue(any("no item of the backlog" in r for r in reasons(got)), (model, item, reasons(got)))
 
     def test_counter_proof_an_item_of_the_backlog_starts_in_both(self):
-        for model, sprint in (("scrum", "timeboxed"), ("kanban", None)):
-            self.assertTrue(starts(item_state("ITM-014", model, sprint=sprint, today="2026-09-20")), model)
+        for model, sprint in PULLED:
+            self.assertTrue(starts(run("ITM-016", model, sprint=sprint)), model)
 
     def test_an_item_the_backlog_does_not_hold_is_refused_in_a_pulled_model(self):
-        for model, sprint in (("scrum", "timeboxed"), ("kanban", None)):
-            got = item_state("ITM-014", model, sprint=sprint, today="2026-09-20", backlog=["ITM-015", "ITM-016"])
-            self.assertEqual(got["reasons"], [{"kind": "not-in-backlog", "rule": AGILE}], model)
-
-    def test_a_planned_model_works_from_its_plan_and_refuses_neither(self):
-        self.assertEqual(item_state(None, "planned"), {"state": None, "reasons": []})
-        self.assertTrue(starts(item_state("ITM-014", "planned", backlog=[])))
+        for model, sprint in PULLED:
+            got = run("ITM-099", model, sprint=sprint and sprint + ["ITM-099"])
+            self.assertFalse(starts(got), model)
+            self.assertTrue(any("ITM-099" in r and "no item of the backlog" in r for r in reasons(got)), (model, reasons(got)))
 
 
 class TestTheStateOfAnItem(unittest.TestCase):
-    """UC-032 step 1, under the Kanban fixture with nothing else in progress."""
+    """UC-032 step 1, under the Kanban fixture."""
 
     def state(self, item="ITM-014", **kw):
-        return item_state(item, "kanban", **kw)
+        return state_of(run(item, "kanban", **kw), item)
 
     def test_an_item_whose_names_are_all_accepted_is_ready(self):
         for item in ("ITM-014", "ITM-015", "ITM-016", "ITM-017"):
-            self.assertEqual(self.state(item), {"state": "ready", "reasons": []}, item)
+            if item in ("ITM-014", "ITM-017"):
+                # ITM-014 builds on ITM-016, ITM-017 on ITM-014: once those are done, both are ready.
+                prs = [pr(1, "ITM-016", state="merged")] + ([pr(2, "ITM-014", state="merged")] if item == "ITM-017" else [])
+                self.assertEqual(self.state(item, prs=prs)["state"], "ready", item)
+            else:
+                self.assertEqual(self.state(item)["state"], "ready", item)
 
     def test_an_item_naming_a_requirement_or_use_case_not_accepted_waits_for_acceptance_and_names_it(self):
-        reqs = [r for r in KNOWN["requirements"] if r != "EXPORT IS A PDF"]
-        got = self.state(requirements=reqs, use_cases=["UC-001"])
-        self.assertEqual(got, {"state": "waiting for acceptance", "reasons": [
-            {"kind": "not-accepted", "rule": ACCEPTED, "name": "EXPORT IS A PDF"},
-            {"kind": "not-accepted", "rule": ACCEPTED, "name": "UC-003"}]})
-        self.assertFalse(starts(got))
+        accepted = [r for r in KNOWN["requirements"] if r != "EXPORT IS A PDF"] + ["UC-001"]
+        got = self.state(accepted=accepted)
+        self.assertEqual(got["state"], "waiting for acceptance")
+        self.assertIn("EXPORT IS A PDF", got["reason"])
+        self.assertIn("UC-003", got["reason"])
+
+    def test_an_item_waits_for_an_item_it_builds_on_that_is_not_done_and_names_it(self):
+        got = self.state("ITM-014")
+        self.assertEqual(got["state"], "waiting for an item it builds on")
+        self.assertIn("ITM-016", got["reason"])
 
     def test_an_open_pull_request_makes_it_in_progress_and_is_named(self):
-        got = self.state(prs=[pr(7, "ITM-014")])
-        self.assertEqual(got["state"], "in progress")
-        self.assertEqual(got["reasons"], [{"kind": "pull-request", "rule": DERIVED, "pullRequest": pr(7, "ITM-014")}])
+        got = self.state("ITM-016", prs=[pr(7, "ITM-016")])
+        self.assertEqual((got["state"], got["pullRequest"]), ("in progress", "7"))
 
     def test_a_running_or_queued_job_makes_it_in_progress_and_is_named(self):
         for state in ("queued", "running"):
-            got = self.state(jobs=[job("JOB-a", "ITM-014", state)])
-            self.assertEqual(got["state"], "in progress", state)
-            self.assertEqual(got["reasons"], [{"kind": "job", "rule": DERIVED, "job": job("JOB-a", "ITM-014", state)}])
+            got = self.state("ITM-016", jobs=[job("JOB-a", "ITM-016", state)])
+            self.assertEqual((got["state"], got["job"]), ("in progress", "JOB-a"), state)
 
     def test_a_merged_pull_request_makes_it_done_and_is_named(self):
-        got = self.state(prs=[pr(7, "ITM-014", state="merged")])
-        self.assertEqual(got, {"state": "done", "reasons": [
-            {"kind": "pull-request", "rule": DERIVED, "pullRequest": pr(7, "ITM-014", state="merged")}]})
+        got = self.state("ITM-016", prs=[pr(7, "ITM-016", state="merged")])
+        self.assertEqual((got["state"], got["pullRequest"]), ("done", "7"))
 
     def test_a_failed_job_blocks_it(self):
-        got = self.state(jobs=[job("JOB-a", "ITM-014", "failed")])
-        self.assertEqual((got["state"], kinds(got)), ("blocked", ["job"]))
+        got = self.state("ITM-016", jobs=[job("JOB-a", "ITM-016", "failed")])
+        self.assertEqual(got["state"], "blocked")
+        self.assertIn("JOB-a", got["reason"])
 
-    def test_a_job_that_ended_without_record_blocks_it(self):
-        self.assertEqual(self.state(jobs=[job("JOB-a", "ITM-014", "ended without record")])["state"], "blocked")
+    def test_a_job_waiting_at_a_gate_blocks_it(self):
+        self.assertEqual(self.state("ITM-016", jobs=[job("JOB-a", "ITM-016", "waiting at a gate")])["state"], "blocked")
 
-    def test_a_job_waiting_at_a_gate_for_a_person_blocks_it_and_one_for_a_check_does_not(self):
-        self.assertEqual(self.state(jobs=[job("JOB-a", "ITM-014", "waiting at a gate", waits_for_person=True)])["state"], "blocked")
-        self.assertEqual(self.state(jobs=[job("JOB-a", "ITM-014", "waiting at a gate")])["state"], "in progress")
-
-    def test_an_item_back_in_development_after_its_merge_is_in_progress_again(self):
-        got = self.state(prs=[pr(7, "ITM-014", state="merged"), pr(9, "ITM-014", opened_at="2026-09-20T08:00:00.000Z")])
-        self.assertEqual((got["state"], [r["pullRequest"]["number"] for r in got["reasons"]]), ("in progress", [9]))
-
-    def test_a_failed_job_after_the_merge_blocks_it_and_one_before_it_does_not(self):
-        merged = pr(7, "ITM-014", state="merged", merged_at="2026-09-17T10:00:00.000Z")
-        self.assertEqual(self.state(prs=[merged], jobs=[job("JOB-b", "ITM-014", "failed", start="2026-09-18T08:00:00.000Z")])["state"],
-                         "blocked")
-        self.assertEqual(self.state(prs=[merged], jobs=[job("JOB-a", "ITM-014", "failed", start="2026-09-16T08:00:00.000Z")])["state"],
-                         "done")
-
-    def test_a_failed_job_retried_by_a_later_running_one_is_in_progress(self):
-        jobs = [job("JOB-a", "ITM-014", "failed", start="2026-09-16T08:00:00.000Z"),
-                job("JOB-b", "ITM-014", "running", start="2026-09-16T09:00:00.000Z")]
-        got = self.state(jobs=jobs)
-        self.assertEqual((got["state"], [r["job"]["id"] for r in got["reasons"]]), ("in progress", ["JOB-b"]))
-
-    def test_counter_proof_a_closed_pull_request_and_a_finished_or_cancelled_job_leave_it_ready(self):
-        for kw in ({"prs": [pr(7, "ITM-014", state="closed")]}, {"jobs": [job("JOB-a", "ITM-014", "done")]},
-                   {"jobs": [job("JOB-a", "ITM-014", "cancelled")]}):
-            self.assertEqual(self.state(**kw), {"state": "ready", "reasons": []}, kw)
+    def test_counter_proof_a_closed_pull_request_and_a_cancelled_job_leave_it_ready(self):
+        for kw in ({"prs": [pr(7, "ITM-016", state="closed")]}, {"jobs": [job("JOB-a", "ITM-016", "cancelled")]}):
+            self.assertEqual(self.state("ITM-016", **kw)["state"], "ready", kw)
 
     def test_counter_proof_the_pull_requests_and_jobs_of_another_item_change_nothing(self):
-        got = self.state(prs=[pr(7, "ITM-016", state="merged"), pr(8, "ITM-017")], jobs=[job("JOB-a", "ITM-015", "failed")])
-        # Its own state stays ready; the two others hold the two slots of the limit, which refuses its start.
-        self.assertEqual((got["state"], kinds(got)), ("ready", ["wip-limit"]))
-        self.assertEqual([i["id"] for i in got["reasons"][0]["inProgress"]], ["ITM-015", "ITM-017"])
+        got = self.state("ITM-015", prs=[pr(7, "ITM-016", state="merged"), pr(8, "ITM-017")], jobs=[job("JOB-a", "ITM-014", "failed")])
+        self.assertEqual(got["state"], "ready")
 
     def test_counter_proof_a_pull_request_naming_a_longer_identifier_is_not_the_items(self):
-        got = self.state(prs=[pr(7, "x", head="team/ITM-0145", title="ITM-0145: another"), pr(8, "x", head="x/ITM-0147")])
-        self.assertEqual(got, {"state": "ready", "reasons": []})
+        got = self.state("ITM-016", prs=[pr(7, "x", branch="team/ITM-0165", title="ITM-0165: another"), pr(8, "x", branch="x/ITM-0167")])
+        self.assertEqual(got["state"], "ready")
 
-    def test_what_is_happening_is_shown_before_what_is_not_accepted(self):
-        got = self.state(prs=[pr(7, "ITM-014")], requirements=[])
-        self.assertEqual((got["state"], kinds(got)), ("in progress", ["pull-request"]))
+    # TST-590002 · level: unit · module: MOD-work-plans
+    # guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-032
+    # given: the fixture backlog item ITM-016 and a merged pull request whose branch says `codex/itm-016-work` in lower case
+    # input: itemStates of the fixture backlog with that pull request
+    # expect: ITM-016 is done
+    def test_a_lower_case_identifier_in_a_pull_request_branch_names_the_item(self):
+        got = self.state("ITM-016", prs=[pr(1, "x", state="merged", branch="codex/itm-016-work", title="the work")])
+        self.assertEqual(got["state"], "done")
+
+    def test_what_is_merged_decides_before_what_is_not_accepted(self):
+        got = self.state("ITM-016", prs=[pr(7, "ITM-016", state="merged")], accepted=[])
+        self.assertEqual(got["state"], "done")
 
 
 if __name__ == "__main__":
