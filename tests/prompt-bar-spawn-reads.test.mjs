@@ -167,7 +167,8 @@ const FACT_FILES = /^(docs\/process\.md|docs\/role-assignments\/|docs\/backlog\/
 // input: spawnEndpointJob of a job of kind converse with the task TASK
 // expect: the job is spawned — one commit, one started workflow —; the product's host is asked for its information twice and for its snapshot twice — once by the spawn, for the head, the paths and
 //   the visibility, once by MOD-runtimes' handOverJob, which commits on that head —, lists no pull request and reads exactly one file, the job workflow (which handOverJob reads for the instance
-//   commit it pins); none of the files the facts read is read; the instance is read once (its default branch) and its file docs/participants.md, for whether the endpoint is listed; no request was made
+//   commit it pins); none of the files the facts read is read; the instance is read once (its default branch), its file docs/participants.md, for whether the endpoint is listed, and its
+//   AGENTS.md, which the job's input begins with (EVERY MODEL READS AGENT M'S AGENTS.MD FIRST); no request was made
 test("a spawn of an endpoint's own job reads no facts of the product: its head, its paths and its visibility, and the job workflow's file", async () => {
   const it = open();
   const spawned = await spawn(it);
@@ -182,7 +183,7 @@ test("a spawn of an endpoint's own job reads no facts of the product: its head, 
   assert.equal(count(calls, "repositoryInfo"), 2, calls.join(", "));
   assert.equal(count(calls, "readSnapshot"), 2, calls.join(", "));
   assert.equal(count(it.instance.calls, "readSnapshot"), 1, it.instance.calls.join(", "));
-  assert.deepEqual(readsOf(it.instance.calls), ["docs/participants.md"]);
+  assert.deepEqual(readsOf(it.instance.calls), ["docs/participants.md", "AGENTS.md"]);
   assert.deepEqual(requests, []);
 });
 

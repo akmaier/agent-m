@@ -27,6 +27,10 @@ const DRAFT = "prompt-bar:draft";
 const RECORDS = "prompt-bar:records";
 const JOB = "prompt-bar:job";
 const CHOSEN = "prompt-bar:participant";
+const HEIGHT = "prompt-bar:height";
+// The bar's height a person sets with its grip, in pixels: at least LOWEST, at most nine tenths of the window; a key press moves it by STEP.
+const LOWEST = 120, STEP = 40;
+const FIXED = "position: fixed; bottom: 0; left: 0; right: 0;";
 
 // The label of the button that sends: *Spawn job* where the message runs through GitHub Actions (offer.mjs throughActions), *Send* otherwise.
 export const SEND = "Send", SPAWN = "Spawn job";
@@ -480,10 +484,42 @@ export function startPromptBar(target, setup) {
     conversation.replaceChildren(...conversationOf(store).map(line));
     // Below the message field: on the left the folded explanation, on the right the buttons.
     const notes = el("div", "bar-notes", clear, " ", setup.explain("prompt-bar"));
-    const bar = el("section", "prompt-bar", recorded, chooser, conversation, input, el("div", "bar-foot", notes, el("div", "buttons", send, stop)), status, followed);
+    // The grip on the bar's top edge: dragged, or moved with the arrow keys, it sets how much of the window the bar takes; the tab keeps it (Data: the conversation).
+    const grip = el("div", "bar-grip");
+    grip.setAttribute("role", "separator");
+    grip.setAttribute("aria-orientation", "horizontal");
+    grip.setAttribute("aria-label", "Drag up or down, or use the arrow keys, to set the height of the prompt bar");
+    grip.setAttribute("tabindex", "0");
+    const bar = el("section", "prompt-bar", grip, recorded, chooser, conversation, input, el("div", "bar-foot", notes, el("div", "buttons", send, stop)), status, followed);
     bar.setAttribute("data-page", setup.page);
     // "fixed to the bottom of the window" (Interfaces: startPromptBar): the bar's own root element carries the style, as Parts name no style sheet.
-    bar.setAttribute("style", "position: fixed; bottom: 0; left: 0; right: 0;");
+    bar.setAttribute("style", FIXED);
+    const sized = (height) => {
+      const highest = Math.round((globalThis.innerHeight ?? 800) * 0.9);
+      const kept = Math.max(LOWEST, Math.min(highest, Math.round(height)));
+      bar.setAttribute("style", `${FIXED} height: ${kept}px; max-height: ${kept}px;`);
+      grip.setAttribute("aria-valuenow", String(kept));
+      try { writeTabValue(store, HEIGHT, kept); } catch { /* the tab keeps no values */ }
+      return kept;
+    };
+    let held = null;
+    try { held = readTabValue(store, HEIGHT); } catch { /* the tab keeps no values */ }
+    if (typeof held === "number") sized(held);
+    const current = () => bar.offsetHeight || held || LOWEST;
+    grip.addEventListener("keydown", (event) => {
+      if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+      event.preventDefault?.();
+      held = sized(current() + (event.key === "ArrowUp" ? STEP : -STEP));
+    });
+    grip.addEventListener("pointerdown", (event) => {
+      event.preventDefault?.();
+      grip.setPointerCapture?.(event.pointerId);
+      const move = (moved) => { held = sized((globalThis.innerHeight ?? 800) - moved.clientY); };
+      const end = () => { grip.removeEventListener("pointermove", move); grip.removeEventListener("pointerup", end); grip.removeEventListener("pointercancel", end); };
+      grip.addEventListener("pointermove", move);
+      grip.addEventListener("pointerup", end);
+      grip.addEventListener("pointercancel", end);
+    });
     target.replaceChildren(bar);
     // A job handed over on an earlier page of this tab goes on being followed.
     let handedOver = null;
