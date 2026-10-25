@@ -58,8 +58,7 @@ test("latestGraph gives the head's graph where it is stored, with no line, and r
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: trace-cache holding no graph of the head, and latest.json naming an earlier commit whose graph it holds
 // input: latestGraph(source, head)
-// expect: the earlier commit's graph; the line "As of <earlier, 7 characters>: the trace graph of the newest commit, <head, 7 characters>, is being stored."; readOn asked for
-//         "<head>.json.gz", "latest.json" and "<earlier>.json.gz", in that order; no read, no readMany — no graph is built
+// expect: the earlier commit's graph; the line "As of <earlier, 7 characters>: the trace graph of the newest commit, <head, 7 characters>, is being stored."; readOn asked for "<head>.json.gz", "latest.json" and "<earlier>.json.gz", in that order; no read, no readMany — no graph is built
 test("latestGraph gives the graph stored last, with the line naming both commits, while the head's is not stored", async () => {
   const head = commitOf("3"), earlier = commitOf("4");
   const { source: given, calls } = source({ [`${earlier}.json.gz`]: await storedBytes(earlier), "latest.json": `{"commit":"${earlier}"}\n` });
@@ -73,8 +72,7 @@ test("latestGraph gives the graph stored last, with the line naming both commits
 
 // TST-1300003 · level: unit · module: MOD-trace-graph
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
-// given: trace-cache holding no graph of the head and (a) no latest.json; (b) a latest.json naming a commit whose graph it does not hold; (c) a latest.json that is no JSON;
-//        (d) a latest.json naming no commit; and (e) a source without readOn
+// given: trace-cache holding no graph of the head and (a) no latest.json; (b) a latest.json naming a commit whose graph it does not hold; (c) a latest.json that is no JSON; (d) a latest.json naming no commit; and (e) a source without readOn
 // input: latestGraph(source, head) for each, a head of its own
 // expect: each rejects with GraphNotStored whose message is storedGraph's for the head ("the trace graph of <head> is not stored yet"); no read and no readMany — no graph is built
 test("latestGraph rejects with the head's GraphNotStored where neither graph is stored", async () => {
