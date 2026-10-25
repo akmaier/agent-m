@@ -210,7 +210,9 @@ IN THE REPOSITORY`).
   a hand-over is; nothing is sent from the tab. For every other one it reads *Send*. On *Send* — the decision to
   send — it asks the subject for the kind and the parameters, adds the person's words as `instruction`, the conversation
   so far as `conversation`, the subject's `entry` as `entry` and its `refuses` as `refuses`, prepares the job with
-  MOD-job-runner's `prepareJob` in a context from MOD-runtimes' `tabContext`, and sends nothing while the job does not
+  MOD-job-runner's `prepareJob` in a context from MOD-runtimes' `tabContext` — so that the message reaches the participant
+after Agent M's `AGENTS.md`, as MOD-job-runner composes every input (`EVERY MODEL READS AGENT M'S AGENTS.MD FIRST`) —,
+and sends nothing while the job does not
   fit or a finding keeps it from starting, naming what (UC-049 3a, UC-019 4a, 4b): for a participant the job does not
   fit, it names the participant, how many requirements and use cases the job holds for it and how many of them fit, from
   the `holds` and `fitting` of that `notFitting` entry, and the tokens of its context against the job's size. It names

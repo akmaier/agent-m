@@ -74,8 +74,11 @@ gates, the writer —, keeps the registry of the strategies the kinds name, offe
 model, and gives every commit a job makes its provenance lines. Where a kind names tools, it offers the drafter those its
 capabilities allow and carries out each call, so that a model endpoint works in the execution loop of the book (Vibe
 Coding, ch. 11) — the model proposes a call, the runner carries it out deterministically and returns the result —, and
-it holds the edits a participant proposes until a person saves them. It knows no kind and no service by name. It runs
-unchanged in a browser and in Node.
+it holds the edits a participant proposes until a person saves them. It composes the input of every call of a language
+model Agent M makes — a job's, and a message of the prompt bar's, which is a job too —, and that input begins with Agent
+M's own `AGENTS.md`, the one at the root of the instance repository, in full, whatever repository the job works on; for a
+participant that works in a checkout of the instance, with the file's path there (`EVERY MODEL READS AGENT M'S AGENTS.MD
+FIRST`). It knows no kind and no service by name. It runs unchanged in a browser and in Node.
 
 ## Parts
 
@@ -118,8 +121,8 @@ from the `artifacts` of its parts, and from nothing else, whatever recipe gave t
 `kindOfIdentifier` gives as `requirement` is a requirement, as `UC` a use case, and any other kind is neither. An
 identifier counts once, at the first part that carries it: a requirement shown in two parts is one requirement.
 
-How many of them fit: the room is the participant's context less the kind's prompt, that is, the destination's `size`
-less the sizes of its parts. Taking the parts in the order the destination lists them, a part has its size and the
+How many of them fit: the room is the participant's context less the kind's prompt and Agent M's `AGENTS.md`, that is,
+the destination's `size` less the sizes of its parts. Taking the parts in the order the destination lists them, a part has its size and the
 artifacts of a part share it equally, each rounded up. An item fits when the sizes of everything before it, its own
 included, are within the room; the count stops at the first item that does not, so that the items after it are counted as
 not fitting. A repeated identifier takes its share of the room and counts nothing. With a `context` of `null` none fits.
@@ -190,7 +193,8 @@ ONLY WHEN RECORDING IS ON`).
   throws the failure of its route by name — the endpoint's refusal, a browser that blocked the call, an agent that is
   missing or ended with an error, a cancel — and never retries until an answer pleases.
 - `DriverInput` — `{ prompt: string, parts: Part[], output: object | null, findings: Finding[], previous: string | null,
-  workdir: string | null }`: the kind's prompt with each recipe's parts in that recipe's named place, each under its name,
+  workdir: string | null }`: the prepared job's `rules` — Agent M's `AGENTS.md`, its text or its path in a checkout of
+  the instance, followed by a blank line —, then the kind's prompt with each recipe's parts in that recipe's named place, each under its name,
   and `(none)` where a recipe gave no part, followed by *The form of your answer*: the envelope every answer is read by,
   as a JSON schema — a driver sends this prompt as it is and does not add the parts again —; the
   parts; the output schema the answer must follow; the findings of the last round with the draft they concern — or, in
@@ -237,13 +241,18 @@ ONLY WHEN RECORDING IS ON`).
   format's key — for a requirement its name and its rule —, against which `candidate-classes` classifies a draft; empty
   for a part that shows none.
 - `Destination` — `{ participant: Participant, role: "drafter" | "reviewer" | "checker", place: string, parts: string[],
-  size: number }`: one participant that will receive something, and what; `size` is the kind's prompt and every part
-  it receives, each estimated as a part's size is.
+  size: number }`: one participant that will receive something, and what; `size` is the kind's prompt, the job's `rules`
+  and every part it receives, each estimated as a part's size is.
 - `Prepared` — `{ kind: KindDefinition, params: Record<string, unknown>, drafter: Participant | null, reviewers:
-  Participant[], parts: Part[], destinations: Destination[], fits: boolean, notFitting: { participant: Participant, size:
+  Participant[], rules: Part | null, parts: Part[], destinations: Destination[], fits: boolean, notFitting: { participant: Participant, size:
   number, context: number | null, holds: { requirements: number, useCases: number }, fitting: { requirements: number,
   useCases: number } }[], leftOut: { part: string, reason: string }[], blocking: Finding[], limit: number }`:
-  what a run panel or the prompt bar shows before the person's click (`THE PAGE NAMES WHERE IT SENDS`); `parts` holds the parts of
+  what a run panel or the prompt bar shows before the person's click (`THE PAGE NAMES WHERE IT SENDS`); `rules` is Agent
+  M's `AGENTS.md`, read from the instance's snapshot at the root of the instance repository — its text, or, where the
+  context names `instance.checkout`, the path of the file in that checkout followed by one sentence asking the participant
+  to read it in full first —, `null` where the instance has none: the part with which every input to the drafter and to
+  each reviewer begins, before anything else the runner composes, carrying no source, since the restricted-source rules
+  concern requirement sources and it is the instance's own file; `parts` holds the parts of
   the drafter's and the reviewers' recipes, each once; `leftOut` the parts a recipe whose part may be left out could not
   give, each with the failure's words as its reason; a `notFitting` entry's `holds` counts the requirements and use cases
   the destination's parts hold and `fitting` how many of them fit its context, as Data states, so that the difference is
@@ -272,8 +281,9 @@ ONLY WHEN RECORDING IS ON`).
   three, rounded up; the size prepareJob gives each part, and the one MOD-endpoint-calls' execution loop bounds its tool
   results by.
 - `prepareJob(kind: string, context: JobContext, choice: { drafter: Participant | null, reviewers: Participant[], limit?:
-  number }) -> Promise<Prepared>` — sends nothing. It reads the kind, evaluates its preconditions, builds the parts from
-  its recipes, estimates their sizes, and checks each destination with MOD-participant-list's `eligible`: the
+  number }) -> Promise<Prepared>` — sends nothing. It reads the kind, evaluates its preconditions, reads Agent M's
+  `AGENTS.md` once from the instance's snapshot as the job's `rules`, builds the parts from its recipes, estimates their
+  sizes — the `rules` counted in every destination's size —, and checks each destination with MOD-participant-list's `eligible`: the
   capabilities the kind needs, the places every part's sources and the mailbox allow, the context against the size, and
   for a reviewer or checker that it `differs` from the drafter and, for checkers, from each other. Nothing is truncated:
   what does not fit is named in `notFitting`, with how many requirements and use cases each destination holds and how many of
@@ -342,7 +352,8 @@ ONLY WHEN RECORDING IS ON`).
 
 ## Files
 
-It reads the data files of MOD-job-catalogue through `kindOf`, its own `rounds.schema.md`, for `test-declarations` the
+It reads the data files of MOD-job-catalogue through `kindOf`, its own `rounds.schema.md`, the instance's `AGENTS.md`
+through the instance's snapshot, for `test-declarations` the
 branch a coding participant reports, through the host, and for `group-rules` the group file and the items of its kind in
 the product's snapshot. It writes nothing itself: the writers write, and the route
 appends to the job's record.
