@@ -26,6 +26,7 @@ const CONVERSATION = "prompt-bar:conversation";
 const DRAFT = "prompt-bar:draft";
 const RECORDS = "prompt-bar:records";
 const JOB = "prompt-bar:job";
+const CHOSEN = "prompt-bar:participant";
 
 // The label of the button that sends: *Spawn job* where the message runs through GitHub Actions (offer.mjs throughActions), *Send* otherwise.
 export const SEND = "Send", SPAWN = "Spawn job";
@@ -410,7 +411,11 @@ export function startPromptBar(target, setup) {
     const kind = await kindOf(setup.subject().kind);
     if (state.stopped) return;
     offered = eligible(reached, { capabilities: kind.needs }).eligible;
-    const kept = selector?.value;
+    // The participant talked to is kept in the tab (Data: the conversation), so that a reload or the next page offers it first again.
+    let kept = selector?.value;
+    if (kept === undefined) {
+      try { kept = readTabValue(store, CHOSEN) ?? undefined; } catch { /* the tab keeps no values */ }
+    }
     if (offered.length === 0) {
       selector = null;
       offeredNames = null;
@@ -435,7 +440,10 @@ export function startPromptBar(target, setup) {
       }
       selector.value = offered.some((each) => each.name === kept) ? kept : offered[0].name;
       selector.addEventListener("focus", () => judge().catch(() => {}));
-      selector.addEventListener("change", relabel);
+      selector.addEventListener("change", (event) => {
+        try { writeTabValue(store, CHOSEN, event.target.value); } catch { /* the tab keeps no values */ }
+        relabel();
+      });
     }
     chooser.replaceChildren(selector);
     relabel();

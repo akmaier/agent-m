@@ -149,9 +149,9 @@ const subjectOf = (over = {}) => ({
 
 // A page: the instance with its register and recording switch, a store keeping the endpoint ep1 (and ep2 where asked) and the instance's token, and the bar started
 // on it. `product` is a repository when the page is a product's.
-function page({ rows = [DRAFTER], ep2 = false, recording = false, product = null, token = true, subject = subjectOf(), instanceFiles = {} } = {}) {
+function page({ rows = [DRAFTER], ep2 = false, recording = false, product = null, token = true, subject = subjectOf(), instanceFiles = {}, tab = new Storage() } = {}) {
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() });
-  Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: new Storage() });
+  Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: tab });
   const store = openStore("alice/agent-m");
   writeSetting(store, "endpoint:ep1", { kind: "openai-compatible", url: "https://models.example/v1", model: "model-drafter-a", key: "sk-fixture" });
   if (ep2) writeSetting(store, "endpoint:ep2", { kind: "openai-compatible", url: "https://local.example/v1", model: "model-drafter-b", key: null });
@@ -622,4 +622,27 @@ test("selector — taking focus keeps the same select, so the person's choice st
   await tick();
   await tick();
   assert.equal(one(it.target, "participant").value, "drafter-b");
+});
+
+// TST-560008 · level: component · module: MOD-prompt-bar; MOD-browser-store
+// guards: UC-049
+// given: drafter-a and drafter-b (draft text each), both reached; one browser tab, whose storage the reload keeps
+// input: startPromptBar; the person chooses drafter-b; the page is loaded again in the same tab (a new bar on the same tab storage)
+// expect: the new bar's selector shows drafter-b, not the first offered, drafter-a; in a new tab it shows drafter-a
+test("selector — the participant chosen stays chosen when the page is loaded again in the tab", async () => {
+  endpointAnswers(answer("unused"));
+  const tab = new Storage();
+  const it = page({ rows: [DRAFTER, OTHER], ep2: true, tab });
+  await drawn(it);
+  const chooser = one(it.target, "participant");
+  chooser.value = "drafter-b";
+  chooser.dispatchEvent(new Event("change"));
+  it.bar.stop();
+  const again = page({ rows: [DRAFTER, OTHER], ep2: true, tab });
+  await drawn(again);
+  assert.equal(one(again.target, "participant").value, "drafter-b");
+  again.bar.stop();
+  const fresh = page({ rows: [DRAFTER, OTHER], ep2: true });
+  await drawn(fresh);
+  assert.equal(one(fresh.target, "participant").value, "drafter-a");
 });
