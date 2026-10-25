@@ -116,6 +116,4 @@ export async function fakeGitLab({ files = {}, moveAt = null, parent = null, cha
 
 export const UC_OLD = "docs/use-cases/UC-010-run-a-stage-in-github-actions.md", UC_NEW = "docs/use-cases/UC-010-run-a-job-in-github-actions.md";
 
-export const JUMP = { host: "jump.example.org", user: "agentm", portFrom: 20001, portTo: 20003,
-  reverseKey: "~/.ssh/agent-m-jump", forwardKey: "~/.ssh/id_ed25519" };
 export const BRIDGE_TOKEN = "bridgeTOKEN-0123456789abcdef";

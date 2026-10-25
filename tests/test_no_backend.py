@@ -342,8 +342,6 @@ PERMITTED_CHANNELS = {
     ("src/result-records/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/job-ledger/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/prompt-bar/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
-    ("docs/assets/bridge-tunnel.mjs", "fetch"): (1, "the probe of a remote session's forward, on localhost",
-                                                  lambda t, i: t[i:].startswith("fetch(`http://localhost:")),
     ("src/site-frame/dashboard-app.mjs", "import()"): (1, "a view file of the dashboard, from its own origin", _own_origin),
     ("src/site-frame/dashboard-app.mjs", "loading element"): (1, "a view's style sheet, from its own origin", _own_origin),
     ("src/site-frame/routing.mjs", "import()"): (1, FRAME_VIEW_IMPORT, _site_frame_view_import),
@@ -491,7 +489,7 @@ class NoServer(unittest.TestCase):
         self.assertEqual(channel_findings(unprepared),
                          ["docs/assets/git-host.mjs:2: fetch: not the request helper and fetchText send only what the origin gate "
                           "prepare() let through"])
-        elsewhere = {"docs/assets/bridge-tunnel.mjs": "await fetch(`https://jump.example/${port}/`);\n"}
+        elsewhere = {"src/approvals/x.mjs": "await fetch(`https://jump.example/${port}/`);\n"}
         self.assertEqual(len(channel_findings(elsewhere)), 1)
         twice = {"src/markdown-render/vendor/mermaid.min.js": "new Worker(a);new Worker(b);var k='@import';"
                                                       "document.createElement(\"img\");"}

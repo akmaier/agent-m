@@ -51,7 +51,6 @@ host's web server (`THE DASHBOARD WRITES THE TUNNEL COMMANDS`). It runs in a bro
 - `tunnels.mjs` — the tunnel plan, the allocation of ports and the commands.
 - `proxy.mjs` — the configuration of the jump host's web server.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `docs/assets/bridge-tunnel.mjs`: removed: `allocatePort` and `tunnelCommands` give it.
   - `tests/test_bridge_tunnel.py`, `tests/review-core.d/bridge-tunnel.test.mjs`, `tests/test_mail_routes.py`, `tests/test_mail_password_route.py`: their headers name this module; one of only the old tunnel goes with it.
 
 ## Data
