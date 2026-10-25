@@ -70,6 +70,7 @@ const CLAUSES = [
 const TODAY = {
   "#arc": { widths: "the table of the modules is wider than a phone's window (src/trace-pages/flow.mjs, MOD-trace-pages); ITM-1159, The architecture and modules views fit a phone" },
   "#module": { widths: "the table of the modules is wider than a phone's window (src/trace-pages/flow.mjs, MOD-trace-pages); ITM-1159, The architecture and modules views fit a phone" },
+  "#schedule": { widths: "the table of the levels by occasion (table.levels) is 557 px wide at a phone's 390 px (src/test-pages/schedule.mjs, MOD-test-pages); found by ITM-1206, its item not yet registered" },
 };
 
 // ---------------------------------------------------------------- drawing

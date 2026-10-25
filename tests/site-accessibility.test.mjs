@@ -37,12 +37,14 @@ const RULE = {
   contrast: "color-contrast: the text of a superseded status badge (.b-superseded) is below the contrast AA asks",
   scroll: "scrollable-region-focusable: a box that scrolls cannot be reached with the keyboard",
   target: "target-size: a return link is smaller than 24 px",
+  select: "select-name: the runner of a level's row (.runner, src/test-pages/schedule.mjs, MOD-test-pages) has no accessible name; found by ITM-1206, its item not yet registered",
 };
 const PER_ROUTE = {
   "/": [],
   "#use-case/id=draft": [],
   "#spec-entry/id=spec-2026-10-18_sample-01/edit=1": [],
   "#backlog": [],
+  "#schedule": ["select"],
 };
 const TODAY = Object.fromEntries(ROUTES.map((route) => [route.address, (PER_ROUTE[route.address] ?? ["menu"]).map((rule) => RULE[rule]).join("; ")]));
 
