@@ -12,9 +12,8 @@ const nodeId = (id) => String(id).replace(/[^A-Za-z0-9]/g, "_");
 const label = (s) => String(s ?? "").replace(/[\r\n]+/g, " ").replace(/"/g, "#quot;").replace(/</g, "#lt;").replace(/>/g, "#gt;");
 const byCodePoint = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 
-// componentDiagram(files, gaps) -> the Mermaid text of a flowchart, ending in a newline. files: architecture files as
-// parseArchitecture (docs/assets/artifacts.mjs) reads them; those of kind "module" are drawn, each { id, title, follows, uses,
-// provides } with follows the decisions it follows, uses [{ module, iface }] the interfaces of other modules it uses, and
+// componentDiagram(files, gaps) -> the Mermaid text of a flowchart, ending in a newline. files: the architecture files, each
+// with its kind; those of kind "module" are drawn, each { id, title, follows, uses, provides } with follows the decisions it follows, uses [{ module, iface }] the interfaces of other modules it uses, and
 // provides the interfaces it provides itself. gaps: the module gaps of UC-025 step 4, as MOD-trace-graph's moduleRows returns
 // them — each { artifact, … } naming the module it concerns; defaults to none, as every call before ITM-210 made it.
 // - One box per module, showing its identifier and title, inside the box of its subsystem: the first decision it follows. A

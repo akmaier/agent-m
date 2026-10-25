@@ -35,7 +35,6 @@ and performs no input or output.
 - `moves.mjs` — the moves.
 - `hierarchy.mjs` — the hierarchy and its findings.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `docs/assets/artifacts/groups.mjs`: removed once this module gives `groupFileText`, which it states and does not build yet.
   - `tests/test_groups.py`: rewritten on this module.
 
 ## Data
