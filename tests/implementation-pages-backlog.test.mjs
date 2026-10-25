@@ -386,7 +386,7 @@ test("the model is read as it stood at the commit the declaration names, not as 
 // guards: UC-032; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the fixture, with ITM-003 — which no pull request names, and on which ITM-004 builds — built by the commit B1 (its built_by); a host whose default branch contains B1 (a), then none (b)
 // input: the route's render, and the commits the host's containsCommit is asked about
-// expect: B1 is asked about once, on "main", and no other commit; (a) ITM-003 done and ITM-004 ready, no longer waiting for an item it builds on; (b) ITM-003 ready and ITM-004 waiting for an item it builds on, naming ITM-003
+// expect: B1 is asked about once, on "main" — the head of ITM-001's merge into the sprint branch is asked about as before, for what the sprints hold —; (a) ITM-003 done and ITM-004 ready, no longer waiting for an item it builds on; (b) ITM-003 ready and ITM-004 waiting for an item it builds on, naming ITM-003
 test("the backlog derives each item's state with the built_by commits the default branch contains", async () => {
   const B1 = "b1".repeat(20);
   const files = fixtureFiles();
@@ -400,7 +400,7 @@ test("the backlog derives each item's state with the built_by commits the defaul
     recorder();
     await route.render(target, context, {});
     const backlog = part(htmlOf(target), 'data-part="backlog"');
-    assert.deepEqual(asked, [["main", B1]], `contained ${contained}`);
+    assert.deepEqual(asked.filter(([, commit]) => commit === B1), [["main", B1]], `contained ${contained}`);
     if (done) {
       assert.match(row(backlog, "ITM-003"), /done/);
       assert.match(row(backlog, "ITM-004"), />ready</);

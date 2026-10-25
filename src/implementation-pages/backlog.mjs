@@ -22,7 +22,7 @@ import { artifactSchemas, readDocument } from "../documents/index.mjs";
 import { renderArtifact, renderMermaid } from "../markdown-render/index.mjs";
 import { productFacts, progressIn, storedFacts } from "../progress-measures/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
-import { conflicts, endSprint, heldItems, itemStates, startSprint, startable } from "../work-plans/index.mjs";
+import { builtByCommits, conflicts, endSprint, heldItems, itemStates, startSprint, startable } from "../work-plans/index.mjs";
 import { participantSchema, participantsOf } from "../participant-list/index.mjs";
 
 const DECLARATION = "docs/process.md";
@@ -56,6 +56,7 @@ export async function contextOf(context) {
   // The product's host as productFacts reads it: the branch the page has read, where the caller says which it is (else the default branch the repository reports), and each snapshot read once — the instance's too, where
   // the product is the instance.
   const shots = new Map();
+  const asked = new Map();
   // A snapshot that asks the branch of the stored facts once, whoever asks.
   const once = (snapshot) => {
     if (typeof snapshot.readOn !== "function") return snapshot;
@@ -67,6 +68,8 @@ export async function contextOf(context) {
     const set = (name, value) => Object.defineProperty(own, name, { value, writable: true, configurable: true, enumerable: true });
     if (ref) set("repositoryInfo", async () => ({ defaultBranch: ref }));
     set("readSnapshot", (at) => { if (!shots.has(at)) shots.set(at, host.readSnapshot(at).then(once)); return shots.get(at); });
+    // Each commit is asked about once, whoever asks: productFacts and the item states below ask for the same built_by commits.
+    set("containsCommit", (branch, commit) => { const key = `${branch}\n${commit}`; if (!asked.has(key)) asked.set(key, host.containsCommit(branch, commit)); return asked.get(key); });
     return own;
   };
   const ref = product.ref ?? (await product.host.repositoryInfo()).defaultBranch;
@@ -95,7 +98,7 @@ export async function contextOf(context) {
   const requirements = stored ? stored.requirements : [...parseSpec((await snapshot.read("SPEC.md")) ?? "").requirements.keys()];
   const reviewed = facts.statuses;
   const useCases = [...reviewed.values()].filter((entry) => entry.kind === "use-case" && entry.status === "accepted").map((entry) => entry.id);
-  return { ref, snapshot, facts, declaration, modelFile, model, modelUnread: facts.modelUnread, assignments, sprints, items, modules, teams, newest, requirements, useCases, reviewed };
+  return { ref, host, snapshot, facts, declaration, modelFile, model, modelUnread: facts.modelUnread, assignments, sprints, items, modules, teams, newest, requirements, useCases, reviewed };
 }
 
 // The pull requests the page derives from, in one listing of all of them (the facts hold it): an item's hold can outlast its sprint, and an item can be done before any sprint ran. Every one
@@ -114,7 +117,10 @@ function statusesOf(ctx) {
 // What the route derives: the pull requests, each item's state and when a done item was merged, what the sprints hold, each team's sprint.
 export async function derivedOf(context, ctx) {
   const pull = await pullRequestsOf(context, ctx);
-  const states = itemStates(ctx.items, null, { statuses: statusesOf(ctx), queues: [], jobs: [], pullRequests: pull, gates: [], workflow: null });
+  // The built_by commits the default branch contains, asked through the route's host, which asks each commit once.
+  const onDefault = new Set();
+  for (const commit of builtByCommits(ctx.items)) if (await ctx.host.containsCommit(ctx.ref, commit)) onDefault.add(commit);
+  const states = itemStates(ctx.items, null, { statuses: statusesOf(ctx), queues: [], jobs: [], pullRequests: pull, gates: [], workflow: null, onDefault });
   const mergedAt = new Map();
   for (const doc of ctx.items) {
     const id = idOf(doc);
