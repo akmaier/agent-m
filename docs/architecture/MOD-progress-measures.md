@@ -12,6 +12,7 @@ uses:
   - MOD-work-plans.heldItems
   - MOD-work-plans.conflicts
   - MOD-work-plans.undecidedHeads
+  - MOD-work-plans.builtByCommits
   - MOD-work-plans.planSchemas
   - MOD-product-process.Workflow
   - MOD-product-process.declarationSchema
@@ -177,6 +178,9 @@ The six stages of the main page, each a share between 0 and 1:
   `holdsRole` take — the approval statuses, the change queues, the declaration with its model and workflow, the
   participants, the plan or the backlog, the sprints, the role assignments, the gate records with their states, the job
   records without asking their live state, and the pull requests with `held` —, and every other fact is `"unknown"`.
+  In every scope, the states of `plan` are derived with the commits MOD-work-plans' `builtByCommits` names that the default
+  branch contains, each asked once through the host's `containsCommit` — the `onDefault` of `itemStates` —; only an item
+  with `built_by` costs a request.
   With the scope `all`, the default, it reads everything once: the default branch of the product — through a
   local clone, the branch it has checked out — and what the repository says about it, the approval
   records, the change queues, the declaration with its model and practices as the instance's catalogue held them at the
@@ -328,8 +332,8 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
 
 ## Uses
 
-- MOD-work-plans.ItemState, Held, itemStates, heldItems, undecidedHeads, planSchemas — the steps and items, their order, the sprints,
-  what they hold, and each one's state; MOD-work-plans.conflicts — what keeps an item from its team's selection, for
+- MOD-work-plans.ItemState, Held, itemStates, heldItems, undecidedHeads, builtByCommits, planSchemas — the steps and items, their order, the sprints,
+  what they hold, and each one's state, with the commits of `built_by` to ask the default branch about; MOD-work-plans.conflicts — what keeps an item from its team's selection, for
   `blocked`.
 - MOD-product-process.Workflow, declarationSchema, productWorkflow, gateSchema, gateStates, roleAssignmentSchema — the
   declared process, its gates and their states, and the role assignments. The workflow is `productWorkflow`'s, read with

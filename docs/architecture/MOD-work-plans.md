@@ -45,6 +45,8 @@ uses:
   - MOD-repository-hosts.readHistory
   - MOD-repository-hosts.listPullRequests
   - MOD-repository-hosts.listIssues
+  - MOD-repository-hosts.repositoryInfo
+  - MOD-repository-hosts.containsCommit
   - MOD-repository-hosts.createBranch
   - MOD-repository-hosts.commitFiles
   - MOD-text-tools.Finding
@@ -60,6 +62,7 @@ provides:
   - Held
   - planSchemas
   - itemStates
+  - builtByCommits
   - startable
   - heldItems
   - undecidedHeads
@@ -125,9 +128,11 @@ item schema of MOD-documents (`artifactSchemas().item`).
 An item's state, `ItemState`, is derived from the approval records, the queues, the job records and the pull requests:
 `waiting for acceptance`, `waiting for an item it builds on`, `ready`, `in progress` (a job runs, or its pull request is
 open; and once its newest job has ended as done, until a pull request of it opened after that job's `start` is merged or
-closed without merge), `blocked` (a job failed, or waits for a person), `done` (its pull request is merged). A merged
+closed without merge), `blocked` (a job failed, or waits for a person), `done` (its pull request is merged, or — for an item built
+without a pull request naming it — every commit its `built_by` names is on the default branch). A merged
 pull request decides first: an item whose pull request is merged is `done` whatever else holds, including a job of
-it started, or a pull request of it opened, after the merge, and stays `done`. A
+it started, or a pull request of it opened, after the merge, and stays `done`; an item whose `built_by` commits are all
+on the default branch is `done` in the same way. A
 requirement or use case it realises that is withdrawn, changed or not accepted, or an item it builds on that is not done,
 marks a `done` item: its `reason` names that. A plan step that waits for the gate before its phase is `waiting` with
 that gate named.
@@ -151,11 +156,15 @@ assignment is the one of the team whose sprint holds it, and the product's one i
   for the page's forms.
 - `itemStates(items: Document[], order: Document | null, facts: { statuses: Map<string, { id: string, kind: string, status:
   string }>, queues: Queue[], jobs: JobRow[], pullRequests: PullRequest[] | "unknown", gates: Array<{ gate: string,
-  state: string }>, workflow: Workflow | null }) -> ItemState[]` — every step in the plan's order, or every item after the items it builds on — a backlog has no
+  state: string }>, workflow: Workflow | null, onDefault?: Set<string> }) -> ItemState[]` — every step in the plan's order, or every item after the items it builds on — a backlog has no
   `order` —, with its state, from
   the approval statuses, the change queues, the jobs, the pull requests and the gate states `gateStates` gives; with the
   pull requests `"unknown"` — a host that does no server operations —, a step or item whose state needs them is
-  `unknown`, never guessed; a `done` item is marked as the states above say.
+  `unknown`, never guessed; a `done` item is marked as the states above say. `onDefault` holds the commits of
+  `builtByCommits` that a caller found on the default branch with the host's `containsCommit`; an item whose `built_by`
+  names commits that are all in it is `done`, with `pullRequest` null. Without `onDefault`, `built_by` decides nothing.
+- `builtByCommits(items: Document[]) -> string[]` — every commit the items' `built_by` names, each once: the only commits a
+  caller needs to ask `containsCommit` about before calling `itemStates` with `onDefault`. Pure; no request.
 - `startable(item: string, states: ItemState[], context: { workflow: Workflow, assignment: Document, sprint: Document |
   null, held: Held[], wip: number | null, participants: Participant[] }) -> { startable: true } | { startable: false,
   reasons: string[] }` — every reason a job for this step or item cannot start: the item is `done`, a change to it being
@@ -266,8 +275,9 @@ assignment is the one of the team whose sprint holds it, and the product's one i
   - recipe `sprint-facts` — the sprint's facts, the product's issues opened or closed during the sprint, its job records
     and result records — each named as a source; never a mail. The sprint is the one the job's parameter `sprint` names;
     its facts are `sprintFacts` of the product's items, of its tests with what each guards (`isTestFile`,
-    `testDeclarations`), of the items' states (`itemStates`, with the product's workflow), of its jobs (`listJobs`,
-    without live states), of the branch `test-results` (the product host's `readSnapshot`), of its pull requests, and of
+    `testDeclarations`), of the items' states (`itemStates`, with the product's workflow and with the commits of
+    `builtByCommits` the default branch contains), of its jobs (`listJobs`, without live states), of the branch
+    `test-results` (the product host's `readSnapshot`), of its pull requests, and of
     the issues whose `opened` or `closed` falls within the sprint; where the product's host gives no issues, they are
     left out and named as not read;
   - check `plan-checks` — `planFindings` on a drafted plan, with the product's workflow and no `graph`, since its steps
@@ -319,7 +329,9 @@ assignment is the one of the team whose sprint holds it, and the product's one i
 - MOD-result-records.flakyTests — the flaky tests of a sprint.
 - MOD-repository-hosts.Host, Snapshot, PullRequest, Issue, readHistory, listPullRequests, listIssues, createBranch,
   commitFiles — the product's files and history, its pull requests and issues, a sprint's branch, and the saves'
-  commits; MOD-repository-hosts.readSnapshot — the branch `test-results` and the instance at a commit, in a job.
+  commits; MOD-repository-hosts.readSnapshot — the branch `test-results` and the instance at a commit, in a job;
+  MOD-repository-hosts.repositoryInfo, containsCommit — for `sprint-facts`, the default branch and whether it contains the
+  commits of `builtByCommits`.
 - MOD-text-tools.Finding, finding — the findings.
 - MOD-job-runner.sourcesOf — the sources a part carries.
 - MOD-job-runner.Strategies, JobContext, Part, JobResult, provenanceLines — the form of the strategies and the
