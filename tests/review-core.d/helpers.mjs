@@ -59,10 +59,6 @@ export const B_INDEX = "**Zieldatei aller Einträge:** `products/agent-m/SPEC.md
   "| 05 | `SPEC.md` | ## 10. R | — | — |\n| 06 | `SPEC.md` | ## 11. X | — | — |\n";
 export const B_UC1 = "---\nid: UC-001\n---\n# one\n", B_UC2 = "---\nid: UC-002\n---\n# two\n";
 
-export const SETTINGS_OFF = "# Settings of alice/thesis\n\nintro\n\n- pseudonymisation: off\n";
-
-export const PEOPLE = [{ name: "Jane Doe", account: "jdoe", agreed: "2026-09-30" }, { name: "Max Müller", account: "max-m", agreed: "2026-10-01" }];
-
 export const GL = "https://gitlab.example.org";
 export const GL_ADDR = `${GL}/grp/sub/proj`;
 export const GL_TOKEN = "glpat-projectTOKENvalue0123456789";
