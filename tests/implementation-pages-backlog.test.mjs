@@ -384,24 +384,25 @@ test("the model is read as it stood at the commit the declaration names, not as 
 
 // TST-8110 · level: unit · module: MOD-implementation-pages
 // guards: UC-032; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
-// given: the fixture, with ITM-003 — which no pull request names, and on which ITM-004 builds — built by the commit B1 (its built_by); a host whose default branch contains B1 (a), then none (b)
+// given: the fixture, with ITM-003 — which no pull request names, and on which ITM-004 builds — built by the commit B1 (its built_by); then the fixture without it
 // input: the route's render, and the commits the host's containsCommit is asked about
-// expect: B1 is asked about once, on "main" — the head of ITM-001's merge into the sprint branch is asked about as before, for what the sprints hold —; (a) ITM-003 done and ITM-004 ready, no longer waiting for an item it builds on; (b) ITM-003 ready and ITM-004 waiting for an item it builds on, naming ITM-003
-test("the backlog derives each item's state with the built_by commits the default branch contains", async () => {
+// expect: B1 is never asked about — the record decides —; with built_by, ITM-003 done and ITM-004 ready, no longer waiting for an item it builds on; without it, ITM-003 ready and ITM-004 waiting for an item it builds on
+test("the backlog derives an item done by its built_by with no request", async () => {
   const B1 = "b1".repeat(20);
-  const files = fixtureFiles();
-  files[itemPath(3)] = files[itemPath(3)].replace("\n---\n# ITM-003", `\nbuilt_by:\n  - ${B1}\n---\n# ITM-003`);
-  for (const { contained, done } of [{ contained: true, done: true }, { contained: false, done: false }]) {
+  for (const builtBy of [true, false]) {
+    const files = fixtureFiles();
+    if (builtBy) files[itemPath(3)] = files[itemPath(3)].replace("\n---\n# ITM-003", `\nbuilt_by:\n  - ${B1}\n---\n# ITM-003`);
     const context = contextOf(files);
     const asked = [];
-    context.product.host.containsCommit = async (branch, commit) => { asked.push([branch, commit]); return contained && commit === B1; };
+    const contains = context.product.host.containsCommit;
+    context.product.host.containsCommit = async (branch, commit) => { asked.push([branch, commit]); return contains ? contains(branch, commit) : false; };
     const target = document.createElement("div");
     document.body.append(target);
     recorder();
     await route.render(target, context, {});
     const backlog = part(htmlOf(target), 'data-part="backlog"');
-    assert.deepEqual(asked.filter(([, commit]) => commit === B1), [["main", B1]], `contained ${contained}`);
-    if (done) {
+    assert.deepEqual(asked.filter(([, commit]) => commit === B1), [], `built_by ${builtBy}`);
+    if (builtBy) {
       assert.match(row(backlog, "ITM-003"), /done/);
       assert.match(row(backlog, "ITM-004"), />ready</);
     } else {

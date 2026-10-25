@@ -164,22 +164,8 @@ function mergedPullRequest(item, facts) {
   return facts.pullRequests === "unknown" ? null : pullRequestFor(item, facts.pullRequests, "merged");
 }
 
-// Whether the item names commits as built by, and the caller found every one of them on the default branch.
-function builtOnDefault(item, onDefault) {
-  const commits = fieldList(item, "built_by");
-  return onDefault instanceof Set && commits.length > 0 && commits.every((commit) => onDefault.has(commit));
-}
-
-/**
- * builtByCommits(items: Document[]) -> string[] — every commit the items' `built_by` names, in the order of the items and of
- * their lists, each once: the only commits a caller needs to ask the host's `containsCommit` about before calling itemStates
- * with `onDefault`. Pure; no request.
- * @param {object[]} items
- * @returns {string[]}
- */
-export function builtByCommits(items) {
-  return [...new Set((items ?? []).flatMap((item) => fieldList(item, "built_by")))];
-}
+// Whether the item's record names the commits that built it: the Product Owner's own record, read from the item alone, with no request.
+const builtBy = (item) => fieldList(item, "built_by").length > 0;
 
 function derivedState(item, phase, states, facts) {
   const id = idOf(item);
@@ -191,9 +177,8 @@ function derivedState(item, phase, states, facts) {
   const merged = mergedPullRequest(item, facts);
   if (merged) return { item: id, state: "done", reason: null, job: named, pullRequest: pullRequestRef(merged) };
 
-  // An item no merged pull request names is done when every commit its built_by names is on the default branch, as the caller
-  // found them (onDefault); without onDefault, built_by decides nothing.
-  if (builtOnDefault(item, facts.onDefault)) return { item: id, state: "done", reason: null, job: named, pullRequest: null };
+  // An item no merged pull request names is done when its record names the commits that built it (built_by).
+  if (builtBy(item)) return { item: id, state: "done", reason: null, job: named, pullRequest: null };
 
   const acceptance = acceptanceReasons(item, facts);
   if (acceptance.length) return { item: id, state: "waiting for acceptance", reason: acceptance.join("; "), job: named, pullRequest: null };
@@ -236,9 +221,8 @@ function derivedState(item, phase, states, facts) {
 /**
  * itemStates(items: Document[], order: Document | null, facts: { statuses: Map<string, { id: string, kind: string,
  * status: string }>, queues: Queue[], jobs: JobRow[], pullRequests: PullRequest[] | "unknown", gates: Array<{ gate:
- * string, state: string }>, workflow: Workflow | null, onDefault?: Set<string> }) -> ItemState[] — every supplied step in the
- * plan order, or every backlog item after the items it builds on, with state derived only from the supplied facts. `onDefault`
- * holds the commits of builtByCommits that the caller found on the default branch; without it, `built_by` decides nothing.
+ * string, state: string }>, workflow: Workflow | null }) -> ItemState[] — every supplied step in the
+ * plan order, or every backlog item after the items it builds on, with state derived only from the supplied facts.
  * @param {object[]} items @param {object | null} order @param {object} facts
  * @returns {object[]}
  */

@@ -239,8 +239,8 @@ The item schema, for a plan step and a backlog item alike: rule `THE BACKLOG LIV
 `integrates` (identifier `ARC`, the subsystem's decision, for a step of level `subsystem`), `builds_on` (list of `ITM`
 identifiers), `tests` (list of enum `unit`, `component`, `system`, `release`), `origin` (list of text: an issue's address,
 a requirement's name, a use case's identifier), `built_by` (list of 40-digit `sha`s, optional, under `PROGRESS AND JOB
-STATE ARE DERIVED, NOT STORED`: the commits on the default branch that built an item no merged pull request names, from
-which MOD-work-plans derives it `done`); title `# {id} {title}`; sections `## Outcome` and `## Acceptance`
+STATE ARE DERIVED, NOT STORED`: the commits that built an item no merged pull request names, from which MOD-work-plans
+derives it `done`); title `# {id} {title}`; sections `## Outcome` and `## Acceptance`
 required; `noHistory`; key `title`. A requirement the SPEC states for one kind of item only is named through a variant
 whose condition is that kind's path: `realises` under `A BACKLOG ITEM NAMES WHAT IT REALISES` and `modules` under
 `A BACKLOG ITEM NAMES THE MODULES IT CHANGES` for a file under `docs/backlog/`, `level` and `tests` under

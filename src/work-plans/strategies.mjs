@@ -22,7 +22,7 @@ import { closeSprint } from "./saves.mjs";
 import { sprintFacts } from "./facts.mjs";
 import { selectionOf as selectionOfRecord } from "./sprints.mjs";
 import { planOrderSchema, sprintSchema } from "./schemas.mjs";
-import { builtByCommits, itemStates } from "./states.mjs";
+import { itemStates } from "./states.mjs";
 
 const PROCESS = "docs/process.md";
 const PLAN = "docs/plan";
@@ -92,7 +92,7 @@ function checkedBlobs(records, snapshot) {
  * The recipe sprint-facts(context, params) -> Part[] — what UC-041 sends to the closer: the sprint is the one the job's parameter `sprint` names, `<team>/<nn>`, and its record
  * docs/backlog/sprints/<team>/<nn>.md must exist (UnknownWork otherwise). Five parts, in this order:
  * - the sprint's record, whole, by its path;
- * - "facts of sprint <name>": `sprintFacts` as JSON, of the product's items (the plan's steps, else the backlog's), its tests with what each guards, the items' states (`itemStates`, with the built_by commits the default branch contains and the
+ * - "facts of sprint <name>": `sprintFacts` as JSON, of the product's items (the plan's steps, else the backlog's), its tests with what each guards, the items' states (`itemStates`, with the
  *   workflow `productWorkflow` gives from the declaration, read at the version it names), its jobs (`listJobs`, without live states), the branch `test-results` (the host's readSnapshot) and its
  *   pull requests;
  * - "issues of sprint <name>": the issues the host gives (of every state) whose `opened` or `closed` is dated within the sprint's time box, one line each with its address; where the host gives
@@ -135,17 +135,8 @@ async function sprintInputs(context, params) {
   const pullRequests = host ? await orUnknown(() => host.listPullRequests(), "unknown") : "unknown";
   const jobs = await listJobs([{ address, snapshot }], new Map());
   const gates = await Promise.all(snapshot.paths.filter((each) => GATE_RECORD.test(each)).sort().map(async (each) => readDocument(gateSchema, each, (await snapshot.read(each)) ?? "")));
-  // The built_by commits the default branch contains, each asked once through the host — on the branch a clone has checked out where the host
-  // does no server operations, as MOD-progress-measures' productFacts reads it —; without a host none is known, and built_by decides nothing.
-  const onDefault = new Set();
-  const commits = builtByCommits(items);
-  if (host && commits.length) {
-    const info = await orUnknown(() => host.repositoryInfo(), "unknown");
-    const branch = info === "unknown" ? "HEAD" : info.defaultBranch;
-    for (const commit of commits) if (await host.containsCommit(branch, commit)) onDefault.add(commit);
-  }
   const states = itemStates(items, order, { statuses: statuses(snapshot), queues: await queues(snapshot), jobs, pullRequests, workflow,
-    gates: workflow ? gateStates(workflow, gates, checkedBlobs(gates, snapshot)) : [], onDefault });
+    gates: workflow ? gateStates(workflow, gates, checkedBlobs(gates, snapshot)) : [] });
 
   const tests = (await Promise.all(snapshot.paths.filter(isTestFile).map(async (each) => testDeclarations(each, (await snapshot.read(each)) ?? "")))).flat()
     .map((each) => ({ id: each.id, guards: each.guards ?? [] }));

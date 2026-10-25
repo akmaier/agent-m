@@ -70,7 +70,7 @@ the item. Commit message `gates: #<n> passed|rejected on <sha> — <item and tit
 
 ## A done item is never edited
 
-An item whose pull request is merged, or whose `built_by` commits are on the default branch (`docs/architecture/MOD-work-plans.md`, `ItemState`), is done, and stays as it was built. Never change its `realises`, its `builds_on` or
+An item whose pull request is merged, or whose record names `built_by` (`docs/architecture/MOD-work-plans.md`, `ItemState`), is done, and stays as it was built. Never change its `realises`, its `builds_on` or
 its `## Acceptance`, and never point it at another requirement or use case. A change of what is wanted — a requirement,
 a use case or the architecture changed after the item was done — is a new item, which names the done one in its
 `builds_on` where it builds on it. Appending a dated note to a done item is allowed; changing what it states is not.

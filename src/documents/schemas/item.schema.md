@@ -5,7 +5,7 @@ A step of the implementation plan, `docs/plan/ITM-<nnn>-<slug>.md`, and an item 
 it under Data. Each path names its own rule. A requirement the SPEC states for one kind of item only is named through a
 variant whose condition is that kind's path: `realises` and `modules` for a file under `docs/backlog/`, `level` and
 `tests` for a file under `docs/plan/`; for the other kind they name its path's rule. `built_by`, optional, names the
-commits on the default branch that built an item no merged pull request names. Other sections are allowed.
+commits that built an item no merged pull request names. Other sections are allowed.
 
 ```json
 {

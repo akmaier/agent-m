@@ -21,7 +21,6 @@ uses:
   - MOD-repository-hosts.readSnapshot
   - MOD-repository-hosts.repositoryInfo
   - MOD-repository-hosts.listPullRequests
-  - MOD-repository-hosts.containsCommit
   - MOD-repository-hosts.pullRequestFacts
   - MOD-repository-hosts.openPullRequest
   - MOD-repository-hosts.mergePullRequest
@@ -50,7 +49,6 @@ uses:
   - MOD-work-plans.planSchemas
   - MOD-work-plans.targetBranch
   - MOD-work-plans.itemStates
-  - MOD-work-plans.builtByCommits
   - MOD-work-plans.startable
   - MOD-work-plans.giveUpIncrement
   - MOD-work-plans.heldItems
@@ -168,8 +166,7 @@ Its formats are those of the modules it uses.
     the step was saved, and a module without a step named (UC-045); *Draft the plan* with its run panel, run in this tab and attended, whose result waits for the planner; the
     draft reviewed in order, reordered, split, merged or edited where its dependencies allow; *Save plan*, which lets the
     drafted plan go on as the planner left it, or writes a plan made by hand with `savePlan`; *+ Step*.
-  - `backlog`, `board` — the items, each after the items it builds on, with their derived states — with the commits of
-    `builtByCommits` that the default branch contains, each asked once —, the requirements and
+  - `backlog`, `board` — the items, each after the items it builds on, with their derived states, the requirements and
     use cases no item realises; *Propose items* with its run panel, whose drafts wait for the Product Owner, and *Add to
     backlog*, which lets them go on as edited; *+ Item*, an item pointed at a replacing requirement or removed, with
     `saveItems`; in a product with several teams, what the other teams' sprints hold, from `heldItems`, and on each item
@@ -223,8 +220,7 @@ product's `docs/sources.md`.
   its server enforces green CI before a merge;
   MOD-repository-hosts.listPullRequests,
   MOD-repository-hosts.pullRequestFacts, MOD-repository-hosts.openPullRequest, MOD-repository-hosts.mergePullRequest,
-  MOD-repository-hosts.listCiRuns — pull requests, their CI and their merge; MOD-repository-hosts.containsCommit — whether
-  the default branch contains an item's `built_by` commits; MOD-repository-hosts.webLinks — the
+  MOD-repository-hosts.listCiRuns — pull requests, their CI and their merge; MOD-repository-hosts.webLinks — the
   server's page for branch protection; MOD-repository-hosts.commitFiles — a removed team's role assignment deleted.
 - MOD-documents.artifactSchemas, MOD-documents.readDocument, MOD-documents.writeDocument, MOD-documents.readRegister —
   the item schema of a form, documents of the common shape, the text of a declaration or model to save, the participant
@@ -238,7 +234,7 @@ product's `docs/sources.md`.
   Done of a pull request; the declaration is checked, and the workflow read, with the instance's SPEC,
   where the process requirements stand, and with the catalogue at the commit the declaration names, read with
   MOD-repository-hosts' `readSnapshot`.
-- MOD-work-plans.planSchemas, MOD-work-plans.itemStates, MOD-work-plans.builtByCommits, MOD-work-plans.startable, MOD-work-plans.giveUpIncrement,
+- MOD-work-plans.planSchemas, MOD-work-plans.itemStates, MOD-work-plans.startable, MOD-work-plans.giveUpIncrement,
   MOD-work-plans.planFindings,
   MOD-work-plans.backlogFindings, MOD-work-plans.sprintFacts, MOD-work-plans.heldItems, MOD-work-plans.conflicts —
   plans, backlogs, sprints, their states, and what the teams' sprints hold; MOD-work-plans.targetBranch — the target
