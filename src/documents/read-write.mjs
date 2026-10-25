@@ -13,8 +13,7 @@
 // A section's table (ITM-226) is the first table in it whose header row names exactly the table's columns, in their order;
 // a table without a header row is the section's first table. A table is a run of lines, outside fenced blocks, that begin
 // with |. Its cells are split at every | not escaped as \|, an escaped one is a | of the cell, and a cell that is empty or —
-// is a value left out. The parsing of front matter is MOD-text-tools'; reading a table's lines follows parseModel of
-// docs/assets/process-model.mjs.
+// is a value left out. The parsing of front matter is MOD-text-tools'; a table's cells are split by checks.mjs.
 //
 // Writing keeps what it does not form: the bytes before the first section, the text of every section, and every row of a
 // table that stands as it was read; it forms the front matter, the order of the sections, and each row that is new or
