@@ -1,8 +1,8 @@
 // UC-003 public-dashboard system coverage for alternative 2a (ITM-266).
 // Module: MOD-settings-pages -> MOD-browser-store -> MOD-bridge-client -> MOD-bridge-http -> MOD-bridge-jobs -> MOD-desktop-shell
 // Level: system
-// Guards: UC-003; CONFIGURATION LIVES IN THE BROWSER; CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE;
-//         A CREDENTIAL IS NEVER PLACED IN A URL; NO SECRET IN THE REPOSITORY
+// Guards: UC-003; CONFIGURATION LIVES IN THE BROWSER; CONFIGURATION IS STORED IN LOCALSTORAGE, NOT IN A COOKIE
+// Guards: A CREDENTIAL IS NEVER PLACED IN A URL; NO SECRET IN THE REPOSITORY
 //
 // The model is a controlled loopback HTTP server. compose(), serveBridge(), jobHandlers(), and the dashboard are real.
 // No Electron process, paid endpoint, TLS endpoint, or tunnel is launched by this test.
@@ -13,7 +13,7 @@ import { existsSync } from "node:fs";
 import http from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import Module from "node:module";
 import test from "node:test";
 import { openDashboard, press, repoServer, richDocument } from "./app-harness.mjs";
@@ -29,7 +29,26 @@ function sshRuntime() {
 }
 process.env.NODE_PATH = sshRuntime();
 Module._initPaths();
-const { compose } = await import("../src/desktop-shell/compose.mjs");
+// The Bridge is a program of its own (MOD-desktop-shell), the dashboard another: each registers its strategies with the job runner once
+// (MOD-job-runner's registry, "for the life of the program"). The real composed Bridge therefore runs in a child process of its own, as it does
+// beside a browser, and answers here with its address and token; closing it ends that process. Nothing else of the Bridge is replaced.
+const COMPOSE_URL = new URL("../src/desktop-shell/compose.mjs", import.meta.url).href;
+const BRIDGE_PROGRAM = `
+const { compose } = await import(process.env.AGENT_M_COMPOSE_URL);
+const bridge = await compose(JSON.parse(process.env.AGENT_M_COMPOSE_OPTIONS));
+process.stdout.write(JSON.stringify({ address: bridge.address, token: bridge.token }) + "\\n");
+process.stdin.resume();
+process.stdin.on("end", async () => { await bridge.close(); process.exit(0); });`;
+async function compose(options) {
+  const child = spawn(process.execPath, ["--input-type=module", "-e", BRIDGE_PROGRAM], { stdio: ["pipe", "pipe", "inherit"],
+    env: { ...process.env, AGENT_M_COMPOSE_URL: COMPOSE_URL, AGENT_M_COMPOSE_OPTIONS: JSON.stringify(options) } });
+  const started = await new Promise((resolve, reject) => {
+    let out = "";
+    child.stdout.on("data", (chunk) => { out += chunk; if (out.includes("\n")) resolve(JSON.parse(out.slice(0, out.indexOf("\n")))); });
+    child.once("exit", (code) => reject(new Error(`the composed Bridge ended with ${code} before it answered`)));
+  });
+  return { ...started, close: () => new Promise((resolve) => { child.once("exit", () => resolve()); child.stdin.end(); }) };
+}
 
 const ORIGIN = "https://akmaier.github.io";
 const PREFIX = "agent-m:akmaier/agent-m:";

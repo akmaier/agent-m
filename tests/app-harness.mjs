@@ -11,6 +11,7 @@
 // Module: MOD-site-frame
 
 import { gitBlobSha } from "../docs/assets/review-core.mjs";
+import { storedGraphBytes } from "./stored-graph-fake.mjs";
 
 const HEAD = "c0ffee".padEnd(40, "0");
 export const REPO = "akmaier/agent-m";
@@ -22,13 +23,15 @@ export const TOKEN = "github_pat_HARNESS0123456789abcdefghij";
 // `handler <METHOD> <url>`. So a view's tests bring the servers that view talks to.
 // empty: the repository has no commit yet — GitHub's Git database answers 409 "Git Repository is empty." until a file is created
 // through the contents API (PUT …/contents/<path>), which makes the first commit.
-export async function repoServer({ files: given, history = [], dates = {}, repo = REPO, handlers = [], empty = false }) {
+// head: the commit the default branch stands at, c0ffee… unless a test names its own — MOD-trace-graph's storedGraph keeps a commit's graph for the length
+// of a test file, so two servers of different files in one file name different heads where both are read for a graph.
+export async function repoServer({ files: given, history = [], dates = {}, repo = REPO, handlers = [], empty = false, head: first = HEAD }) {
   const files = { ...given };
   const shas = Object.fromEntries(await Promise.all(Object.entries(files).map(async ([p, t]) => [p, await gitBlobSha(t)])));
   const bySha = Object.fromEntries(await Promise.all(history.map(async (t) => [await gitBlobSha(t), t])));
   for (const [p, s] of Object.entries(shas)) bySha[s] = files[p];
   const requests = [], writes = [], batches = [];
-  let pending = 0, head = empty ? null : HEAD, seq = 0;
+  let pending = 0, head = empty ? null : first, seq = 0;
   // The commit that added an approval record: the head, or, for a record that names a text its file no longer holds, an earlier commit
   // whose tree is the head's with that text at the file's path — the history that readHistory lists and the reads at that commit find
   // (A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT). eras: sha -> { files, date }; added: record path -> its commit, null for the head.
@@ -42,7 +45,7 @@ export async function repoServer({ files: given, history = [], dates = {}, repo 
     added.set(path, sha);
   }
   const eraOf = (sha) => (sha === null ? { files, date: "2026-10-01T10:00:00Z" } : eras.get(sha));
-  const trees = new Map(), commits = new Map();
+  const trees = new Map(), commits = new Map(), graphs = new Map();
   const next = (c) => `${c}${String(++seq).padStart(6, "0")}`.padEnd(40, "0");
   const put = async (path, text) => { files[path] = text; shas[path] = await gitBlobSha(text); bySha[shas[path]] = text; };
   const api = `/repos/${repo}`;
@@ -57,6 +60,17 @@ export async function repoServer({ files: given, history = [], dates = {}, repo 
       for (const handle of handlers) {
         const answer = await handle(url, { ...init, method });
         if (answer) { what = `handler ${method} ${url.origin}${p}${url.search}`; return answer; }
+      }
+      // The branch trace-cache holds `<commit>.json.gz` for the head and each earlier commit, as the workflow "main changed" stores it
+      // (tests/stored-graph-fake.mjs): read through the contents API with a token, from the raw host without. Counted as `stored graph <commit>`.
+      const storedFile = method === "GET" && ((url.origin === "https://api.github.com" && url.searchParams.get("ref") === "trace-cache" && new RegExp(`^${api}/contents/([0-9a-f]{40})\\.json\\.gz$`).exec(p))
+        || (url.origin === "https://raw.githubusercontent.com" && new RegExp(`^/${repo}/trace-cache/([0-9a-f]{40})\\.json\\.gz$`).exec(p)));
+      if (storedFile) {
+        const sha = storedFile[1], at = sha === head ? files : eras.get(sha)?.files;
+        what = `stored graph ${sha}`;
+        if (!at) return new Response('{"message":"Not Found"}', { status: 404 });
+        if (!graphs.has(sha)) graphs.set(sha, storedGraphBytes({ commit: sha, paths: Object.keys(at), read: async (path) => at[path] ?? null }));
+        return new Response(await graphs.get(sha), { status: 200 });
       }
       // Without a token a public repository's files come from GitHub's raw host, at the commit the page pinned.
       const rawFile = url.origin === "https://raw.githubusercontent.com" && method === "GET"
@@ -428,7 +442,7 @@ export async function openDashboard({ server, hash = "", caches = null, token = 
 // ---------------------------------------------------------------- what the harness's document lacks, added for the flows
 //
 // Moved here unchanged from tests/dashboard-review-flows.test.mjs (written by ITM-123), so that the checks of the dashboard's
-// editor in other files (tests/review-core.d/refused-save.test.mjs) use the same document.
+// editor in other files use the same document.
 //
 // The harness above keeps the listeners of the controls it finds in an element's HTML by an attribute selector ([data-x]),
 // and page.click fires them in <main>. Three kinds of control these flows click are not reached that way; richDocument() adds

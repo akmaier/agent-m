@@ -5,13 +5,13 @@
 // Run: node --test tests/system-uc-006-approve-spec-change.test.mjs
 //
 // Module: MOD-review-pages · MOD-spec-changes · MOD-workflow-entries
-// Guards: UC-006; A SPECIFICATION CHANGE IS APPROVED BEFORE IT IS WRITTEN; NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE
-// IT; THE APPROVED TEXT IS TAKEN VERBATIM; THE GATE IS RECORDED; THE REPLACED TEXT STAYS REACHABLE; A REQUIREMENT IS
-// NOT CHANGED WITHOUT AN IMPACT LIST; AN APPROVAL NAMES THE EXACT TEXT; A STALE APPROVAL IS NOT APPLIED; THE DASHBOARD
-// WRITES ONLY ON A PERSON'S CLICK; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; EDITS ARE PREPARED ON THE
-// DASHBOARD; ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL;
-// WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE
-// ACCEPTED IN ONE CLICK
+// Guards: UC-006; A SPECIFICATION CHANGE IS APPROVED BEFORE IT IS WRITTEN; NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT
+// Guards: THE APPROVED TEXT IS TAKEN VERBATIM; THE GATE IS RECORDED; THE REPLACED TEXT STAYS REACHABLE
+// Guards: A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; AN APPROVAL NAMES THE EXACT TEXT; A STALE APPROVAL IS NOT APPLIED
+// Guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
+// Guards: EDITS ARE PREPARED ON THE DASHBOARD; ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON
+// Guards: AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; WITHOUT A TOKEN, THE INSTANCE'S WORKFLOW WRITES THE CHANGE
+// Guards: A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK
 // Level: system
 //
 // The browser is the DOM harness of tests/review-pages-harness.mjs, imported unchanged. The product repository,
@@ -28,6 +28,7 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { withStoredGraph } from "./stored-graph-fake.mjs";
 
 const { openStore, writeSetting } = await import("../src/browser-store/index.mjs");
 const pages = await import("../src/review-pages/index.mjs").catch((error) => ({ error }));
@@ -189,22 +190,25 @@ const instanceSourceFiles = () => ({
   "docs/sources/SRC-fixture-po.md": ENTRY_PO,
 });
 
+// Each host's commits are its own: MOD-trace-graph's storedGraph keeps a commit's graph for the page, so two hosts never share a commit. Every snapshot's
+// readOn serves the graph the workflow "main changed" stores for its commit (tests/stored-graph-fake.mjs), which a page reads and never builds.
+let hosts = 0;
 function memoryHost({ files = productFiles(), repository = PRODUCT, canWrite = true } = {}) {
-  const calls = [], commits = new Map();
+  const calls = [], commits = new Map(), host = ++hosts;
   let made = 0, head = null;
   const commitOf = (tree, parent) => {
-    const sha = createHash("sha1").update(`commit ${++made}`).digest("hex");
+    const sha = createHash("sha1").update(`host ${host} commit ${++made}`).digest("hex");
     commits.set(sha, { tree, parent, date: `2026-03-0${Math.min(made, 9)}T10:00:00Z` });
     return sha;
   };
   head = commitOf(new Map(Object.entries(files)), null);
   const snapshotAt = (sha, ref = sha) => {
     const { tree } = commits.get(sha);
-    return {
+    return withStoredGraph({
       repository, ref, commit: sha, paths: [...tree.keys()].sort(),
       read: async (path) => (tree.has(path) ? tree.get(path) : null),
       blob: (path) => (tree.has(path) ? blobOf(tree.get(path)) : null),
-    };
+    });
   };
   return {
     calls: () => calls,

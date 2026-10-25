@@ -870,7 +870,7 @@ test("an endpoint that runs through GitHub Actions is offered from this browser'
 // given: the page of TST-1200001 on the Scrum product, which holds Agent M's job workflow; nvidia chosen; recording off
 // input: a script's click on Spawn job, then a person's, with the message TASK; then a runtime takes the job, its run leaves the answer "PLANTED-ANSWER-NV7 ok" in its log and its record ends done with that run's address; 15 seconds pass
 // expect: the script's click writes nothing; no request goes to NVIDIA or anywhere but GitHub's fixtures; one commit queues the record — participant nvidia, model the endpoint's, route ci hosted, `declares` the context 128000 and the capabilities, the place NVIDIA, USA, and none of the task's words —; the job workflow is started once with the inputs job, task TASK, endpoint the JSON of { kind, baseUrl, model } and secret NVIDIA_API_KEY; the bar says waiting for GitHub Actions; once ended, it shows the answer, and the conversation holds it
-test("Spawn job hands the message to GitHub Actions with the endpoint and the name of its CI secret, follows the run and shows its answer", async () => {
+test("Spawn job hands the message to GitHub Actions with the endpoint and the name of its CI secret, follows the run and shows its answer once, in the conversation", async () => {
   const it = open({ endpoints: ON_ACTIONS });
   await until(() => one(it.target, "instruction") !== undefined, "the bar is drawn");
   choose(it, "nvidia");
@@ -901,8 +901,8 @@ test("Spawn job hands the message to GitHub Actions with the endpoint and the na
   it.product.logs.set("7", ANSWER_LOG(id));
   ends(it, "done", [], null, RUN_URL);
   await after(15000);
-  await until(() => following(it).includes("PLANTED-ANSWER-NV7 ok"), "the answer is shown");
-  assert.ok(textOf(one(it.target, "conversation")).includes("PLANTED-ANSWER-NV7 ok"), "the answer joins the conversation");
+  await until(() => textOf(one(it.target, "conversation")).includes("PLANTED-ANSWER-NV7 ok"), "the answer joins the conversation");
+  assert.equal(following(it).includes("PLANTED-ANSWER-NV7 ok"), false, "the answer stands once, in the conversation, not again under the run");
 });
 
 // TST-1200003 · level: component · module: MOD-prompt-bar

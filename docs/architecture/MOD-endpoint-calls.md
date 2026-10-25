@@ -9,6 +9,7 @@ uses:
   - MOD-job-runner.Driver
   - MOD-job-runner.DriverInput
   - MOD-job-runner.driverPrompt
+  - MOD-job-runner.estimate
   - MOD-job-runner.Usage
   - MOD-job-runner.ToolUse
   - MOD-participant-list.Participant
@@ -78,7 +79,10 @@ address and is never written anywhere (`A CREDENTIAL IS NEVER PLACED IN A URL`, 
   OpenAI-compatible endpoint, tool use of an Anthropic one —, hands each call the endpoint makes to `tools.call` and
   returns its result to the endpoint, and goes on until the endpoint answers without a call; that answer is the text it
   returns, and the usage is the sum of what each request reported. It makes at most `tools.limit` calls; at the limit it
-  asks the endpoint once more for its answer without offering tools. The driver decides nothing about a call: what a
+  asks the endpoint once more for its answer without offering tools. A call's result that would carry the conversation
+  past the participant's declared `context` — each message's size estimated as MOD-job-runner's `estimate` does — is not
+  returned: the endpoint is told instead how large it is and how much of the context is left, so that it asks for a smaller
+  part (UC-049 3a); a participant without a declared context sets no such bound. The driver decides nothing about a call: what a
   tool may do, and what it refuses, is the runner's. Each request of the loop is one `endpointExchange` — or one call of `exchange` where the caller gives it: MOD-runtimes'
   `bridgeDriver` gives the Bridge's `ask` of one exchange, so that the loop of an endpoint a Bridge calls is this same
   loop, run in the tab.

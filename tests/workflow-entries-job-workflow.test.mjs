@@ -44,7 +44,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { appendToRecord, startRecord } from "../src/job-ledger/index.mjs";
@@ -329,5 +329,122 @@ test("onRecordsChanged — no secret value in any commit", async () => {
     assert.equal(holdsSecret(w), false, "a leaky endpoint");
     assert.equal(isWritten(w, GATE_PATH), false, "nothing of the decision is written");
     assert.match(fileAt(w, `docs/jobs/${JOB}.md`), /## End[^]*state: failed/);
+  });
+});
+
+// ---------------------------------------------------------------- the two machines of GitHub's job workflow
+
+// The agent's machine (AGENT_M_PART agent): no token, the one key at its place among the names, the result's folder. The writing machine (AGENT_M_PART write): its
+// own workspace, cloned from the same origins, the token and every key, the same result's folder, into whose `out/` the agent's result was downloaded.
+const agentMachine = (w, extra = {}) => environment(w, { AGENT_M_PART: "agent", AGENT_M_TOKEN: undefined, AGENT_M_RESULT_DIR: join(w.root, "result"), AGENT_M_KEY: "1", ...extra });
+function writingMachine(w) {
+  const workspace = join(w.root, "ws-write");
+  for (const [name, origin] of [["product", w.product], ["instance", w.instance]]) {
+    git(w.root, "clone", "-q", ...NO_MAINTENANCE, origin, join(workspace, name));
+    quiet(join(workspace, name));
+    git(join(workspace, name), "config", "user.name", "Alice Agent M token");
+    git(join(workspace, name), "config", "user.email", "alice@example.org");
+  }
+  return environment({ ...w, workspace, productDir: join(workspace, "product") }, { AGENT_M_PART: "write", AGENT_M_RESULT_DIR: join(w.root, "result") });
+}
+const entry = (name, env) => { assert.ok(runEntry, `runEntry: ${entries.error?.message}`); return runEntry(name, env, { now: NOW }); };
+
+// TST-0124201 · level: unit · module: MOD-workflow-entries
+// guards: A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
+// given: the product with a queued job of `ci hosted`, run first on the agent's machine — onRecordsChanged, then leaveResult —, then on the writing machine — writeResult
+// input: the three entries in that order; the origin's main read after each
+// expect: after the agent's machine the origin's main is as it was and the endpoint was asked with the key; leaveResult names one branch and one end; after writeResult the origin's main holds, in order, the taking, the writer's commit and the end, the record ending `done` and naming the writer's commit as it stands on main
+test("the agent's machine writes nothing to the origin; the writing machine writes its result with the job's end", async () => {
+  const requests = fakeEndpoint();
+  await withWorkspace({ records: (agentM) => [recordFile(jobStart(JOB, { agentM }))] }, async (w) => {
+    assert.equal((await entry("onRecordsChanged", agentMachine(w))).outcome, "done");
+    assert.equal(headOf(w), w.head, "the origin's main is as it was");
+    assert.equal(requests[0].headers.Authorization, `Bearer ${KEY}`);
+    const left = await entry("leaveResult", agentMachine(w));
+    assert.equal(left.outcome, "done");
+    assert.match(left.summary, /1 branch\(es\), 1 end\(s\)/);
+    assert.equal(headOf(w), w.head, "still as it was");
+
+    const written = await entry("writeResult", writingMachine(w));
+    assert.equal(written.outcome, "done", written.summary);
+    assert.deepEqual(subjects(w).slice(0, 3), [`end ${JOB}: done`, "gate fixture decided", `take ${JOB} (https://github.com/alice/thesis-tool/actions/runs/4711)`]);
+    const writerCommit = git(w.product, "log", "-1", "--format=%H", "--grep=gate fixture decided", "main");
+    assert.match(fileAt(w, `docs/jobs/${JOB}.md`), new RegExp(`## End[^]*state: done[^]*${writerCommit}`));
+  });
+});
+
+// TST-0124202 · level: unit · module: MOD-workflow-entries
+// guards: A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
+// given: the same run, and someone pushes a commit to the origin's main while the agent works
+// input: onRecordsChanged and leaveResult on the agent's machine, the other commit, writeResult
+// expect: done; the origin's main holds the other commit, then the taking, the writer's commit and the end; the end names the writer's commit by the identifier it has on main, not by the one the agent's machine made
+test("writeResult — on a main that moved, the commits are picked onto it and the end names them as they now stand", async () => {
+  fakeEndpoint();
+  await withWorkspace({ records: (agentM) => [recordFile(jobStart(JOB, { agentM }))] }, async (w) => {
+    await entry("onRecordsChanged", agentMachine(w));
+    await entry("leaveResult", agentMachine(w));
+    const made = git(join(w.root, "result", "result.git"), "log", "-1", "--format=%H", "--grep=gate fixture decided", "main");
+    const seed = join(w.root, "product-seed");
+    write(seed, { "README.md": "# Thesis tool, renamed\n" });
+    git(seed, "commit", "-q", "-am", "someone else");
+    git(seed, "push", "-q", "origin", "HEAD:refs/heads/main");
+
+    const written = await entry("writeResult", writingMachine(w));
+    assert.equal(written.outcome, "done", written.summary);
+    assert.deepEqual(subjects(w).slice(0, 4), [`end ${JOB}: done`, "gate fixture decided", `take ${JOB} (https://github.com/alice/thesis-tool/actions/runs/4711)`, "someone else"]);
+    const onMain = git(w.product, "log", "-1", "--format=%H", "--grep=gate fixture decided", "main");
+    assert.notEqual(onMain, made);
+    const record = fileAt(w, `docs/jobs/${JOB}.md`);
+    assert.ok(record.includes(onMain) && !record.includes(made), "the end names the commit as it stands on main");
+  });
+});
+
+// TST-0124203 · level: unit · module: MOD-workflow-entries
+// guards: A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET
+// given: the same run, after which the agent — led astray — commits a change of .github/workflows/ on a branch of its own and pushes it, as its checkout pushes
+// input: leaveResult, then writeResult
+// expect: writeResult ends `failed`, naming the workflow file; the origin holds neither the branch nor the taking nor the writer's commit; the queued record gets one end, `failed`, whose reason names the refusal
+test("writeResult — a result that changes a workflow file writes nothing but the job's failed end", async () => {
+  fakeEndpoint();
+  await withWorkspace({ records: (agentM) => [recordFile(jobStart(JOB, { agentM }))] }, async (w) => {
+    await entry("onRecordsChanged", agentMachine(w));
+    git(w.productDir, "checkout", "-q", "-b", "led-astray");
+    write(w.productDir, { ".github/workflows/steal.yml": "on: push\n" });
+    git(w.productDir, "add", "-A");
+    git(w.productDir, "commit", "-q", "-m", "a workflow of its own");
+    git(w.productDir, "push", "-q", "origin", "led-astray");
+    await entry("leaveResult", agentMachine(w));
+
+    const written = await entry("writeResult", writingMachine(w));
+    assert.equal(written.outcome, "failed");
+    assert.match(written.summary, /\.github\/workflows\/steal\.yml/);
+    assert.equal(spawnSync("git", ["rev-parse", "--verify", "--quiet", "refs/heads/led-astray"], { cwd: w.product }).status, 1, "the branch is not on the origin");
+    assert.deepEqual(subjects(w).slice(0, 2), [`end ${JOB}: failed`, "first"]);
+    const record = fileAt(w, `docs/jobs/${JOB}.md`);
+    assert.ok(!record.includes("## Taken"), "the taking was not written");
+    assert.match(record, /## End[^]*state: failed[^]*reason: the result of the agent's machine is refused: [^\n]*steal\.yml/);
+  });
+});
+
+// TST-0124204 · level: unit · module: MOD-workflow-entries
+// guards: A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
+// given: the product with a queued job whose participant reads FIXTURE_KEY, and a file that reads the keys OTHER_KEY and FIXTURE_KEY
+// input: chooseAgentKey on a push, its output file read; onRecordsChanged on the agent's machine given OTHER_KEY (1), then given FIXTURE_KEY (2)
+// expect: the output is `agent=2`; given OTHER_KEY the job is left queued and the endpoint not asked (`nothing to do`); given FIXTURE_KEY it is run
+test("chooseAgentKey and the agent's machine — the machine of the job's own key runs it, another leaves it queued", async () => {
+  const requests = fakeEndpoint();
+  await withWorkspace({ records: (agentM) => [recordFile(jobStart(JOB, { agentM }))] }, async (w) => {
+    const output = join(w.root, "output.txt");
+    writeFileSync(output, "");
+    const chosen = await entry("chooseAgentKey", environment(w, { AGENT_M_TOKEN: undefined, FIXTURE_KEY: undefined, AGENT_M_KEY_NAMES: "OTHER_KEY FIXTURE_KEY", GITHUB_OUTPUT: output }));
+    assert.equal(chosen.outcome, "done", chosen.summary);
+    assert.equal(readFileSync(output, "utf8"), "agent=2\n");
+
+    const other = await entry("onRecordsChanged", agentMachine(w, { AGENT_M_KEY_NAMES: "OTHER_KEY FIXTURE_KEY", AGENT_M_KEY: "1", FIXTURE_KEY: undefined, OTHER_KEY: "other-key-value-0123" }));
+    assert.equal(other.outcome, "nothing to do", other.summary);
+    assert.equal(requests.length, 0);
+    const own = await entry("onRecordsChanged", agentMachine(w, { AGENT_M_KEY_NAMES: "OTHER_KEY FIXTURE_KEY", AGENT_M_KEY: "2" }));
+    assert.equal(own.outcome, "done", own.summary);
+    assert.equal(requests.length, 1);
   });
 });

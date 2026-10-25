@@ -1,7 +1,7 @@
 // MOD-review-pages' routes `decision/<id>/edit` and `module/<id>/edit` (ITM-728), as UC-023 step 1 (route Edit) and the accepted text of
 // docs/architecture/MOD-review-pages.md state them: "the editor with live preview and the descriptor's marks ... every save only on the blob the file
-// was opened on" — the marks of the kind's schema (MOD-documents) and the findings across artifacts (MOD-trace-graph's graphFindings) for the edited
-// text, none of which blocks Save; Save through MOD-artifact-edits' saveFile; a changed identifier disables Save with the reason; a refused save keeps
+// was opened on" — the marks of the kind's schema (MOD-documents) for the edited text and the findings across artifacts (MOD-trace-graph's graphFindings)
+// of the stored graph of the commit opened, none of which blocks Save; Save through MOD-artifact-edits' saveFile; a changed identifier disables Save with the reason; a refused save keeps
 // the edit beside the newer text; without a token GitHub's page opens for the file, no text in its address; the saved file is changed since acceptance.
 // Run: node --test tests/review-pages-edit-architecture.test.mjs
 //
@@ -18,6 +18,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { emptyStorage } from "./review-pages-harness.mjs";
+import { withStoredGraph } from "./stored-graph-fake.mjs";
+
+// Every commit the fakes of this file make is its own: MOD-trace-graph's storedGraph keeps a commit's graph for the page.
+let commitsMade = 0;
 
 const { openStore, writeSetting } = await import("../src/browser-store/index.mjs");
 const pages = await import("../src/review-pages/index.mjs").catch((error) => ({ error }));
@@ -70,16 +74,18 @@ function fakeHost({ refuse = null } = {}) {
   const calls = [], commits = new Map();
   let made = 0, head = null;
   const commitOf = (tree, parent) => {
-    const sha = createHash("sha1").update(`commit ${++made}`).digest("hex");
+    const sha = createHash("sha1").update(`commit ${++made} of the file's ${++commitsMade}`).digest("hex");
     commits.set(sha, { tree, parent, date: `2026-10-0${made}T10:00:00Z` });
     return sha;
   };
   for (const files of STEPS) head = commitOf(new Map([...(head ? commits.get(head).tree : []), ...Object.entries(files)]), head);
-  const snapshotAt = (sha) => {
+  const bareSnapshotAt = (sha) => {
     const { tree } = commits.get(sha);
     return { repository: ON_GITHUB, ref: sha, commit: sha, paths: [...tree.keys()].sort(), read: async (path) => (tree.has(path) ? tree.get(path) : null),
       blob: (path) => (tree.has(path) ? blobOf(tree.get(path)) : null) };
   };
+  // Each snapshot serves the graph the push job stores for its commit (tests/stored-graph-fake.mjs); a page reads it and never builds one (MOD-trace-graph).
+  const snapshotAt = (...args) => withStoredGraph(bareSnapshotAt(...args));
   return {
     head: () => head,
     writes: () => calls.filter((call) => call.fn === "commitFiles"),
@@ -175,11 +181,13 @@ test("MOD-review-pages decision/<id>/edit and module/<id>/edit — Save commits 
 
 // TST-728002 · level: unit · module: MOD-review-pages
 // guards: EDITS ARE PREPARED ON THE DASHBOARD; UC-023
-// given: ARC-002 and MOD-writer, open, each opened in the editor
-// input: a change that breaks the kind's schema (the title emptied), and a change that breaks a rule across artifacts (ARC-002 forced by a name no requirement has; MOD-writer using an interface MOD-reader does not provide)
-// expect: before any change no mark names the unknown name or interface; after the first change a mark at line 3 of the file and Save offered; after the second the mark of the graph's check at its line, the rule named, Save offered
+// given: ARC-002 and MOD-writer, open, each opened in the editor; then each committed with a text that breaks a rule across artifacts (ARC-002 forced by a name no requirement has; MOD-writer using an interface MOD-reader does not provide), the graph stored for that commit, and opened in the editor again
+// input: a change that breaks the kind's schema (the title emptied); for the committed broken file, the editor as it opens
+// expect: on the file as it stands no mark names the unknown name or interface; after the schema change a mark at line 3 of the file and Save offered; on the committed
+//   broken file the stored graph's mark of the graph's check at its line, the rule named, Save offered. MOD-review-pages: "no page builds a graph, also not over an
+//   edited text: the editor shows the stored graph's findings of the file, and the edit is checked across artifacts once it is committed."
 test("MOD-review-pages decision/<id>/edit and module/<id>/edit — the schema's marks and the graph's marks are shown, and Save is still offered", async () => {
-  for (const { route, open: [id, , body], graphEdit, graphMark } of CASES) {
+  for (const { route, open: [id, path, body], graphEdit, graphMark } of CASES) {
     const target = await show(fakeHost(), route, { id, edit: "1" });
     assert.doesNotMatch(marksOf(target), graphMark, `${id}: known negative: the text as it stands has no such mark`);
 
@@ -187,9 +195,11 @@ test("MOD-review-pages decision/<id>/edit and module/<id>/edit — the schema's 
     assert.match(marksOf(target), new RegExp(`${id}:3: error: the key title is required`), `${id}: the schema's mark`);
     assert.equal(saveButton(target).disabled, false, `${id}: Save offered with the schema's mark`);
 
-    type(target, graphEdit(body));
-    await until(() => graphMark.test(marksOf(target)), `${id}: the graph's mark`);
-    assert.equal(saveButton(target).disabled, false, `${id}: Save offered with the graph's mark`);
+    const broken = fakeHost();
+    broken.land({ [path]: graphEdit(body) });
+    const opened = await show(broken, route, { id, edit: "1" });
+    await until(() => graphMark.test(marksOf(opened)), `${id}: the stored graph's mark`);
+    assert.equal(saveButton(opened).disabled, false, `${id}: Save offered with the graph's mark`);
   }
 });
 

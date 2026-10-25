@@ -14,14 +14,56 @@ spec:
 # named in each job. The secrets are named here and never valued; they are CI/CD variables of the project. The inputs job, task, endpoint and
 # secret of a pipeline started through the API (UC-049 4a) are declared above, as the product's .gitlab-ci.yml declares them, and each
 # job holds them in the variables AGENT_M_INPUT_JOB, AGENT_M_INPUT_TASK, AGENT_M_INPUT_ENDPOINT and AGENT_M_INPUT_SECRET, each the whole value of its input.
+# GitLab gives a job every CI/CD variable of the project unless the variable is scoped to an environment, which only a job of that environment receives:
+# the person's token is scoped to agent-m-write, each key to agent-m-key-<its name> and to agent-m-write. The agent works in a job of its key's environment
+# alone; the token is read only by the job that writes, which runs no agent. No job takes the product's default: or its global variables:.
 # --- one job for each route of the product's CI agents: the lines below are written once for each ---
-@@id@@:
+@@id@@-plan:
+  # Which agent's job runs: the one whose key the job names, among the keys this file reads. It has no environment, so no scoped variable reaches it.
   stage: test
   image: node:22
-@@tags@@  variables:
+  inherit:
+    default: false
+    variables: false
+  variables:
     AGENT_M_RUNNER: @@runner@@
     AGENT_M_INSTANCE: "@@repository@@"
     AGENT_M_COMMIT: "@@commit@@"
+    AGENT_M_KEY_NAMES: "@@key-names@@"
+    AGENT_M_INPUT_JOB: $[[ inputs.job ]]
+    AGENT_M_INPUT_TASK: $[[ inputs.task ]]
+    AGENT_M_INPUT_ENDPOINT: $[[ inputs.endpoint ]]
+    AGENT_M_INPUT_SECRET: $[[ inputs.secret ]]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      changes:
+        - docs/jobs/**/*
+        - docs/gates/**/*
+    - if: '$CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api"'
+  script:
+    - git clone "https://github.com/$AGENT_M_INSTANCE.git" ../instance
+    - git -C ../instance checkout "$AGENT_M_COMMIT"
+    - cd ../instance && AGENT_M_PRODUCT_DIR="$CI_PROJECT_DIR" AGENT_M_OUTPUT="$CI_PROJECT_DIR/agent-m-plan.env" node src/workflow-entries/main.mjs chooseAgentKey
+  artifacts:
+    reports:
+      dotenv: agent-m-plan.env
+@@agent-jobs@@
+@@id@@:
+  # The job that writes: it runs no agent, reads the person's token, and writes the agent's result once it has checked it.
+  stage: test
+  image: node:22
+  inherit:
+    default: false
+    variables: false
+  environment:
+    name: agent-m-write
+    action: verify
+  needs:
+@@agent-needs@@  variables:
+    AGENT_M_RUNNER: @@runner@@
+    AGENT_M_INSTANCE: "@@repository@@"
+    AGENT_M_COMMIT: "@@commit@@"
+    AGENT_M_PART: "write"
     AGENT_M_TOKEN_NAME: "@@token@@"
     AGENT_M_KEY_NAMES: "@@key-names@@"
     AGENT_M_INPUT_JOB: $[[ inputs.job ]]
@@ -33,8 +75,9 @@ spec:
       changes:
         - docs/jobs/**/*
         - docs/gates/**/*
+      when: always
       variables:
-        AGENT_M_ENTRY: onRecordsChanged
+        AGENT_M_ENTRY: writeResult
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       variables:
         AGENT_M_ENTRY: onPullRequestClosed
@@ -45,10 +88,85 @@ spec:
       variables:
         AGENT_M_ENTRY: onSchedule
     - if: '$CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api"'
+      when: always
+      variables:
+        AGENT_M_ENTRY: writeResult
+  script:
+    - export AGENT_M_TOKEN="$(printenv "$AGENT_M_TOKEN_NAME")"
+    # The committer of what the job writes is the person who started the pipeline.
+    - git config --global user.name "$GITLAB_USER_NAME"
+    - git config --global user.email "$GITLAB_USER_EMAIL"
+    - git clone "https://github.com/$AGENT_M_INSTANCE.git" ../instance
+    - git -C ../instance checkout "$AGENT_M_COMMIT"
+    # The product's checkout pushes with the person's token, given by a credential helper of this checkout alone, which sends it to the project's own server only.
+    - git remote set-url origin "$CI_PROJECT_URL.git"
+    - git config credential.helper '!f() { echo username=agent-m; echo "password=$AGENT_M_TOKEN"; }; f'
+    - cd ../instance
+    - AGENT_M_STATUS=0; AGENT_M_PRODUCT_DIR="$CI_PROJECT_DIR" AGENT_M_RESULT_DIR="$CI_PROJECT_DIR/agent-m-result" node src/workflow-entries/main.mjs "$AGENT_M_ENTRY" || AGENT_M_STATUS=$?
+    # The result is deleted from the server once it is written, or refused: GitLab keeps the newest pipeline's artifacts past their expiry.
+    - |
+      node --input-type=module -e '
+        const api = process.env.CI_API_V4_URL + "/projects/" + process.env.CI_PROJECT_ID, headers = { Authorization: "Bearer " + process.env.AGENT_M_TOKEN };
+        for (let page = 1; ; page += 1) {
+          const listed = await fetch(api + "/pipelines/" + process.env.CI_PIPELINE_ID + "/jobs?per_page=100&page=" + page, { headers });
+          if (!listed.ok) throw new Error("the jobs of the pipeline cannot be listed: " + listed.status);
+          const jobs = await listed.json();
+          for (const job of jobs.filter((each) => /^@@id@@-agent-[0-9]+$/.test(each.name) && each.artifacts_file)) {
+            const deleted = await fetch(api + "/jobs/" + job.id + "/artifacts", { method: "DELETE", headers });
+            if (!deleted.ok) throw new Error("the result of " + job.name + " cannot be deleted: " + deleted.status);
+          }
+          if (jobs.length < 100) break;
+        }'
+    - exit "$AGENT_M_STATUS"
+# --- the agent's job, written once for each key the file reads and once for none: the lines below are written once for each ---
+@@agent-id@@:
+  # The agent's machine: the product and the instance read without a token, the one key of the participant the run names, no other secret.
+  stage: test
+  image: node:22
+  inherit:
+    default: false
+    variables: false
+@@tags@@@@agent-environment@@  needs:
+    - job: @@id@@-plan
+  variables:
+    AGENT_M_RUNNER: @@runner@@
+    AGENT_M_INSTANCE: "@@repository@@"
+    AGENT_M_COMMIT: "@@commit@@"
+    AGENT_M_PART: "agent"
+    AGENT_M_KEY_NAMES: "@@key-names@@"
+    AGENT_M_KEY: "@@agent@@"
+    AGENT_M_INPUT_JOB: $[[ inputs.job ]]
+    AGENT_M_INPUT_TASK: $[[ inputs.task ]]
+    AGENT_M_INPUT_ENDPOINT: $[[ inputs.endpoint ]]
+    AGENT_M_INPUT_SECRET: $[[ inputs.secret ]]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      changes:
+        - docs/jobs/**/*
+        - docs/gates/**/*
+      variables:
+        AGENT_M_ENTRY: onRecordsChanged
+    - if: '$CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api"'
       variables:
         AGENT_M_ENTRY: onDispatch
   script:
-    - export AGENT_M_TOKEN="$(printenv "$AGENT_M_TOKEN_NAME")"
-    - git -c "http.extraHeader=Authorization: Bearer $AGENT_M_TOKEN" clone "https://github.com/$AGENT_M_INSTANCE.git" ../instance
+    # Only the job the plan chose works; every other ends here, before anything runs.
+    - if [ "$AGENT_M_AGENT" != "@@agent@@" ]; then echo "The plan chose the agent's job $AGENT_M_AGENT, not this one."; exit 0; fi
+    # The committer of what the job commits in its checkouts is the person who started the pipeline.
+    - git config --global user.name "$GITLAB_USER_NAME"
+    - git config --global user.email "$GITLAB_USER_EMAIL"
+    - if [ -n "$AGENT_M_INPUT_ENDPOINT" ]; then npm install --global opencode-ai@1.19.0; fi
+    - git clone "https://github.com/$AGENT_M_INSTANCE.git" ../instance
     - git -C ../instance checkout "$AGENT_M_COMMIT"
-    - cd ../instance && AGENT_M_PRODUCT_DIR="$CI_PROJECT_DIR" node src/workflow-entries/main.mjs "$AGENT_M_ENTRY"
+    - cd ../instance
+    - AGENT_M_STATUS=0; AGENT_M_PRODUCT_DIR="$CI_PROJECT_DIR" AGENT_M_RESULT_DIR="$CI_PROJECT_DIR/../agent-m-result" node src/workflow-entries/main.mjs "$AGENT_M_ENTRY" || AGENT_M_STATUS=$?
+    - AGENT_M_PRODUCT_DIR="$CI_PROJECT_DIR" AGENT_M_RESULT_DIR="$CI_PROJECT_DIR/../agent-m-result" node src/workflow-entries/main.mjs leaveResult || AGENT_M_STATUS=1
+    # The result is left where the job's artifact takes it from, inside the project's folder, outside the checkout the agent worked in until now.
+    - if [ -d "$CI_PROJECT_DIR/../agent-m-result/out" ]; then mkdir -p "$CI_PROJECT_DIR/agent-m-result" && cp -R "$CI_PROJECT_DIR/../agent-m-result/out" "$CI_PROJECT_DIR/agent-m-result/"; fi
+    - exit "$AGENT_M_STATUS"
+  artifacts:
+    when: always
+    access: none
+    expire_in: 1 hour
+    paths:
+      - agent-m-result/

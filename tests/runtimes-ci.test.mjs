@@ -106,6 +106,25 @@ test("queueJob — the CI route commits the job's start record at its path, on t
   assert.deepEqual(result, { path, commit: fake.head() }, "the path and the commit commitFiles returned");
 });
 
+// TST-1205001 · level: unit · module: MOD-runtimes
+// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-049
+// given: a product whose job workflow pins the instance at commit P on GitHub (the checkout's `repository:` and `ref:`), and one on GitLab (AGENT_M_COMMIT); a job's start whose agentM names the commit abc1234 the page was served from
+// input: queueJob(host, START, { kind: "ci", runner: "hosted" }, the head read)
+// expect: the start record committed names P as agentM's commit and version — the commit the run's checkout of the instance is at —, everything else as startRecord(START)
+test("queueJob — the CI route's record names the instance commit the product's job workflow pins", async () => {
+  const P = "5db55fa7f059c46fe45db0f6cfcb6ffab6e6cf84";
+  const pinnedFiles = {
+    github: { [GITHUB_WORKFLOW]: `jobs:\n  hosted:\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          repository: alice/agent-m\n          ref: ${P}\n          path: instance\n` },
+    gitlab: { [GITLAB_WORKFLOW]: `variables:\n    AGENT_M_INSTANCE: "alice/agent-m"\n    AGENT_M_COMMIT: "${P}"\n` },
+  };
+  for (const server of ["github", "gitlab"]) {
+    const fake = fakeHost({ server, workflow: false, files: pinnedFiles[server] });
+    await queueJob(fake.host, START, CI_HOSTED, fake.head());
+    const expected = startRecord({ ...START, agentM: { version: P, commit: P } });
+    assert.deepEqual(fake.writes[0].files, [{ path: expected.path, text: expected.text }], `${server}: the record names the pinned commit`);
+  }
+});
+
 // TST-472703 · level: unit · module: MOD-runtimes
 // guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; A REMOTE INTERFACE NAMES HOW IT FAILS; UC-013
 // given: a product whose default branch moved on since the head given was read

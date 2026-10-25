@@ -43,6 +43,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { lineDiff } from "../src/text-tools/index.mjs";
 import * as specChanges from "../src/spec-changes/index.mjs";
+import { withStoredGraph } from "./stored-graph-fake.mjs";
 
 // A name the module does not provide yet is undefined here, so that each test fails by itself and not the whole file at once.
 const { queues, entryView } = specChanges;
@@ -55,13 +56,16 @@ function gitBlob(text) {
   return createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
 }
 
-// A snapshot of the files given: every key is a path; `unreadable` are paths the tree lists but the snapshot cannot read.
+// A snapshot of the files given at a commit of its own: every key is a path; `unreadable` are paths the tree lists but the snapshot cannot read. The graph of the commit is stored on
+// trace-cache, as the workflow "main changed" stores it (tests/stored-graph-fake.mjs); each snapshot's commit is its own, since MOD-trace-graph's storedGraph keeps a commit's graph for the page.
+let snapshots = 0;
 function snapshotOf(files, unreadable = []) {
-  return {
+  return withStoredGraph({
+    commit: (++snapshots).toString(16).padStart(40, "e"),
     paths: [...Object.keys(files), ...unreadable],
     blob: (path) => (Object.hasOwn(files, path) ? gitBlob(files[path]) : null),
     read: async (path) => (Object.hasOwn(files, path) ? files[path] : null),
-  };
+  });
 }
 
 // The lines given as a text; a last empty line is a blank line before whatever follows.

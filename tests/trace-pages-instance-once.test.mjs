@@ -21,6 +21,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { document, find, until } from "./trace-pages-harness.mjs";
+import { storedGraphReadOn } from "./stored-graph-fake.mjs";
 
 const { view } = await import("../src/trace-pages/index.mjs");
 const route = view.routes.find((candidate) => candidate.name === "trace");
@@ -35,17 +36,19 @@ const REPOSITORY = { server: "github", origin: "https://github.com", path: "acme
 const SOURCES_SHOWN = "A person — version 2026-10-11";
 
 // A Host whose Snapshots hold `files`, for any ref. `label: "instance"` notes its readSnapshot and repositoryInfo calls in `events`. `tags`: the names listTags gives.
-// `failing`: the number of readSnapshot calls, counted from the first, that fail as an unreachable server does.
+// `failing`: the number of readSnapshot calls, counted from the first, that fail as an unreachable server does. Each ref's graph is stored on trace-cache, as the
+// workflow "main changed" stores it (tests/stored-graph-fake.mjs).
 function host({ label, files, events, tags = [], failing = 0 }) {
   let snapshots = 0;
   return {
     async readSnapshot(ref) {
       events.push(`${label} snapshot ${ref}`);
       if (++snapshots <= failing) throw Object.assign(new Error("unreachable"), { name: "Unreachable" });
+      const read = async (path) => files[path] ?? null;
       return {
-        ref, commit: ref, repository: REPOSITORY, paths: Object.keys(files), blob: () => null,
-        async read(path) { return files[path] ?? null; },
+        ref, commit: ref, repository: REPOSITORY, paths: Object.keys(files), blob: () => null, read,
         async readMany() {},
+        readOn: storedGraphReadOn({ commit: ref, paths: Object.keys(files), read }),
       };
     },
     async repositoryInfo() { events.push(`${label} info`); return { defaultBranch: "main", visibility: "public", canWrite: false, archived: false, description: "" }; },

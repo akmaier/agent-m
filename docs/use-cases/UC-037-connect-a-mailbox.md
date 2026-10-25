@@ -48,7 +48,7 @@ alone.
 | needs | a one-time app registration with the provider, whose return address is this dashboard | a Bridge running and paired with this browser (UC-011, UC-044) |
 | why | the provider allows web pages to call it (measured 2026-09-29) | browsers let no web page open an IMAP or SMTP connection |
 
-**The accepted risk on the IMAP route, stated plainly** (PO decision 2026-09-24): the password is
+**The accepted risk on the IMAP route, stated plainly:** the password is
 stored in this browser's `localStorage` for the instance's Pages address. Browser storage belongs to the
 origin `https://<owner>.github.io`, not to the path, so **every GitHub Pages site of the same owner can
 read it** — measured 2026-09-23: seven sites share `https://akmaier.github.io`. Agent M says so before

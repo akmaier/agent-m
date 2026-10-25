@@ -84,7 +84,7 @@ export async function storedImpacts(source, commit) {
 
 /**
  * publishGraph(host: Host, snapshot: Snapshot, changed?: Array<{ path: string, before: { commit: string, text: string } | null }>) ->
- * Promise<{ commit: string, written: boolean }> — builds the graph of the snapshot's commit from its files and adds `<commit>.json` to the
+ * Promise<{ commit: string, written: boolean }> — builds the graph of the snapshot's commit from its files and adds `<commit>.json.gz` (its graphText gzipped) to the
  * branch `trace-cache` by `commitFiles`, on the head it read; `written` is false when the branch holds the file already, which it then leaves
  * as it is. With `changed` it adds `<commit>.impacts.json` in the same commit. Crosses the network; fails as `commitFiles` fails — `Moved` when
  * the branch moved meanwhile, so that the run can be made again —, and with `NotFound` naming the branch when the repository has none.

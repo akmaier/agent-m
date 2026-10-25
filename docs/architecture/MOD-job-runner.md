@@ -46,6 +46,7 @@ provides:
   - DriverInput
   - ToolUse
   - driverPrompt
+  - estimate
   - Usage
   - JobContext
   - Part
@@ -100,14 +101,14 @@ It keeps the registry of strategies of the program it runs in, in memory, filled
 | `instruction` | recipe | the person's words, from the job's parameters, as one part |
 | `conversation` | recipe | the conversation so far, from the job's parameters, each message with who wrote it, as one part; none for the first message |
 | `page` | recipe | the page the person sees, as its route's subject gives it in the job's parameters (MOD-prompt-bar), as one part |
-| `list-files`, `read-file`, `search-files` | tool | the product's files at the commit the job read: the paths under a folder, one file's text, the lines that match a text; a path the context's `places.contents` names for a restricted source is refused unless that source allows the drafter's processing place (`RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS`), and the refusal says why (UC-049 4e) |
+| `list-files`, `read-file`, `search-files` | tool | the product's files at the commit the job read: the paths under a folder, one file's text, the lines that match a text in the files below the call's `path` — a search that would read more than 200 files is refused, naming their number, and reads none —; a path the context's `places.contents` names for a restricted source is refused unless that source allows the drafter's processing place (`RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS`), and the refusal says why (UC-049 4e) |
 | `propose-edit` | tool | holds a new text for one document below `docs/` — added to the draft's `edits` — and writes nothing (`THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK`). It refuses, naming where the document is changed: `SPEC.md`, a use case, an architecture decision and a module file, which their pages change with their neighbours (`A PROMPTED REQUIREMENT CHANGE FOLLOWS THE DERIVATION RULES`, `A PROMPTED USE-CASE CHANGE SEES ITS NEIGHBOURS`, `THE ARCHITECTURE'S PARTICIPANTS RECEIVE THE WHOLE PROJECT`); every record — approval, gate, job, conversation and test result records, counter-proofs — (`A RECORD IS EVIDENCE, NOT A PROPOSAL`); every change queue under `docs/spec-freigaben/`; every test declaration, which test generation writes (`A TEST JOB RECEIVES THE CHAPTER ON TESTING`); a settings file whose change states a notice first — `docs/settings.md`, `docs/collaborators.md`, `docs/conversation-recording.md` (`SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS`, `SWITCHING CONVERSATION RECORDING ON STATES WHAT FOLLOWS`); and every file outside `docs/`, since code, tests and workflows reach the default branch only by a pull request (`CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI`), through `hand-over` |
 | `hand-over` | tool | holds a proposed hand-over — a kind of the catalogue with a participant, what it works on, and the task in the drafter's words — in the draft's `handOver`, and queues nothing: the prompt bar shows it, and the person's click *Hand over* lets it go on (MOD-runtimes' `handOverJob`) |
 | `draft` | recipe | the draft the job is handed: the draft under review, for a reviewing kind; the cases as the person left them, for `write-tests`; the conversation's draft as it stands, for a change kind's follow-up |
 | `return-draft` | writer | writes nothing; hands the result to the caller |
 | `document-schema` | check | MOD-documents' `documentFindings` on every drafted document, read with the schema `artifactSchemaOf` names for its path; a path no schema's pattern matches is not judged here |
 | `candidate-classes` | check | MOD-documents' `classifyCandidates` of the drafted candidates against the existing artifacts the job's parts carry, each round: an error for a candidate the rule finds a duplicate of an existing artifact while its drafter classed it otherwise, naming that artifact (`EXACT DUPLICATES ARE FOUND WITHOUT A MODEL`), and for a change, a duplicate or a conflict that names no existing artifact or one no part carries (`A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT`). The classes of the last round — the candidates of one key merged, naming every one they came from, and exact duplicates decided by rule — are the result's `classes`. A draft whose parts carry no artifact has nothing to classify |
-| `graph-checks` | check | MOD-trace-graph's `graphFindings` on the snapshot with the drafted files put in place of their paths, and its `selfSufficiencyFindings` there against the instance's repository, the `owner/name` of the context's instance |
+| `graph-checks` | check | MOD-trace-graph's `graphFindings` on the snapshot with the drafted files put in place of their paths, and its `selfSufficiencyFindings` there against the instance's repository, the `owner/name` of the context's instance, read in the snapshot's batches; a draft that holds no files has none and reads nothing |
 | `requirement-form` | check | MOD-spec-document's `requirementFindings` on every drafted requirement, the candidates written as a SPEC section with the job's `source` as their source and read with `parseSpec` |
 | `group-rules` | check | the drafted moves — MOD-group-document's `GroupMove`s — applied with `applyMoves` to the group file of the kind the job's parameters name, read from the product's snapshot: each refused move, and the findings `hierarchy` reports for the result against the kind's items, read from the snapshot too |
 | `test-declarations` | check | MOD-test-document's `testFindings` on every declaration in the files the reported branch adds or changes, read with `testDeclarations`, and an error under `A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS` for a file the branch adds that `isTestFile` calls a test file and that declares none. A branch the host does not hold is a finding sent back, since the drafter reported a branch it has not pushed; any other failure of the host is thrown by name |
@@ -190,7 +191,8 @@ ONLY WHEN RECORDING IS ON`).
   missing or ended with an error, a cancel — and never retries until an answer pleases.
 - `DriverInput` — `{ prompt: string, parts: Part[], output: object | null, findings: Finding[], previous: string | null,
   workdir: string | null }`: the kind's prompt with each recipe's parts in that recipe's named place, each under its name,
-  and `(none)` where a recipe gave no part — a driver sends this prompt as it is and does not add the parts again —; the
+  and `(none)` where a recipe gave no part, followed by *The form of your answer*: the envelope every answer is read by,
+  as a JSON schema — a driver sends this prompt as it is and does not add the parts again —; the
   parts; the output schema the answer must follow; the findings of the last round with the draft they concern — or, in
   the first exchange of a job given `refine`, no finding and the draft to change —; for an agent that works in a
   folder, that folder; and `tools`, a `ToolUse` or `null`.
@@ -266,6 +268,9 @@ ONLY WHEN RECORDING IS ON`).
   offers. Throws `DuplicateStrategy { strategy, owners }` when a name is registered twice — the strategy's name in
   `strategy`, since an error's own `name` is its type —, and then adds none of them; a program registers each owner
   once, before its first job.
+- `estimate(text: string) -> number` — a text's size in tokens as the runner estimates it: its characters divided by
+  three, rounded up; the size prepareJob gives each part, and the one MOD-endpoint-calls' execution loop bounds its tool
+  results by.
 - `prepareJob(kind: string, context: JobContext, choice: { drafter: Participant | null, reviewers: Participant[], limit?:
   number }) -> Promise<Prepared>` — sends nothing. It reads the kind, evaluates its preconditions, builds the parts from
   its recipes, estimates their sizes, and checks each destination with MOD-participant-list's `eligible`: the

@@ -173,13 +173,13 @@ test("a group opens and closes with its control and leaves the other groups as t
 
 // TST-595007 · level: component · module: MOD-trace-pages
 // guards: UC-020
-// given: the fixture on main, in which every read of UC-001's file fails as an unreachable server does; known positive: the same page with the file readable counts 1 for Loans
+// given: the fixture on main, whose branch trace-cache holds no graph of main (the workflow "main changed" has not stored it); known positive: the same page with the graph stored counts 2 for Loans
 // input: the route rendered at main
-// expect: the groups still show how many they hold (the impact list of the entry reads the same file and fails too, so ZETA RULE is unknown and not counted), and where the unrealised count would stand they read "whether a use case realises them could not be read"
-test("a trace graph that cannot be read leaves the counts of held requirements and names what is missing", async () => {
+// expect: the groups still show how many they hold (the impact list of the entry reads the same stored graph and finds none too, so ZETA RULE is unknown and not counted), and where the unrealised count would stand they read "whether a use case realises them could not be read"
+test("a trace graph that is not stored leaves the counts of held requirements and names what is missing", async () => {
   const positive = await render(treeHost({ trees: { main: FILES } }));
   assert.equal(spanOf(groups(positive)[1], "spec-group-unrealised"), "2 that no use case realises");
-  const target = await render(treeHost({ trees: { main: FILES }, failing: (path) => path === "docs/use-cases/UC-001-first.md" }));
+  const target = await render(treeHost({ trees: { main: FILES }, stored: () => false }));
   assert.deepEqual(groups(target).map((group) => [spanOf(group, "spec-group-held"), spanOf(group, "spec-group-unrealised")]),
     ["2 requirements", "1 requirement", "1 requirement"].map((held) => [held, "whether a use case realises them could not be read"]));
 });

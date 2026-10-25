@@ -41,8 +41,6 @@ It runs in a browser — the instance's pages and the Bridge's window.
 - `difference.mjs` — the difference of two texts, line by line.
 - `vendor/` — the vendored libraries for Markdown, sanitising and diagrams, each with its licence file, and a
   `README.md` naming each library, its version and its licence.
-- **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `docs/assets/vendor/marked.esm.js`, `docs/assets/vendor/mermaid.min.js`, `docs/assets/vendor/purify.es.mjs`, with the folder's licence files and `README.md`: removed once the live app renders its Markdown with `renderArtifact` and `docs/index.html` loads no library of its own; this module's `vendor/` holds the libraries, `marked` newer.
 
 ## Data
 

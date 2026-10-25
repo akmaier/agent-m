@@ -1,5 +1,5 @@
 // UC-042 step 1 — each browser setting's line shows ✓ works with the date of the last successful test, or ✗ refused when the server
-// refused it at the last use, also after a reload (ITM-136). The real app (docs/assets/dashboard-app.mjs) runs in
+// refused it at the last use, also after a reload (ITM-136). The real app (src/site-frame/dashboard-app.mjs) runs in
 // tests/app-harness.mjs; a reload is a new page load — the app imported afresh, with nothing in memory — on the same browser
 // storage. The kept date and outcome are browser settings like the rest: shown on the settings page, removed by Clear and by Clear
 // everything, carried by an export. Run: node --test tests/*.test.mjs

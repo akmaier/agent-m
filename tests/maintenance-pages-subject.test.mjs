@@ -5,7 +5,7 @@
 // Run: node --test tests/maintenance-pages-subject.test.mjs
 //
 // Module: MOD-maintenance-pages
-// Guards: THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL; NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY; MAIL STAYS IN THE MAILBOX; A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE; UC-049, UC-038, UC-039
+// Guards: THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL; NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY; MAIL STAYS IN THE MAILBOX; A TEXT FROM A MAIL IS SEARCHED FOR THAT MAIL'S PEOPLE; UC-049; UC-038; UC-039
 // Level: unit
 //
 // The world is tests/maintenance-pages-world.mjs. The subject of a route is `route.subject(params, context)`, and `paramsFor(participant)` gives `{ page }` (MOD-prompt-bar's Subject). Readings the texts leave open, which the tests state (the pull request names them):

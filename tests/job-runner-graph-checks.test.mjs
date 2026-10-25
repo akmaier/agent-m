@@ -186,3 +186,22 @@ test("graph-checks — a corrected draft ends the loop, and what a changed file 
   assert.deepEqual([result.draft, result.stoppedBecause, result.remaining], [corrected, "passed", []]);
   drafter.inputs[1].findings.forEach(sayItInOneLine);
 });
+
+// TST-1209001 · level: unit · module: MOD-job-runner
+// guards: UC-049
+// given: the fixture product, whose snapshot counts every file read and every batch; a draft that holds no files — as a conversation's answer holds none — and, as the known positive, a draft that holds UC-009's file unchanged
+// input: the check graph-checks on each
+// expect: the draft without files has no finding and reads nothing; the draft with a file reads the repository, in batches
+test("graph-checks reads nothing for a draft that changes no file, and reads in batches for one that does", async () => {
+  const { builtins } = await import("../src/job-runner/builtins.mjs");
+  const reads = [], batches = [];
+  const counting = { ...snapshotOf("alice/product", PRODUCT), read: async (file) => { reads.push(file); return PRODUCT[file] ?? null; },
+    readMany: async (paths) => { batches.push(paths.length); } };
+  const context = { ...contextOf(), product: { address: "https://github.com/alice/product", snapshot: counting, host: null } };
+  const check = builtins.checks["graph-checks"];
+  assert.deepEqual(await check({ answer: "no files" }, context), []);
+  assert.deepEqual([reads.length, batches.length], [0, 0]);
+  await check({ files: [{ path: UC9_PATH, text: UC9 }] }, context);
+  assert.ok(reads.length > 0, "known positive: a draft with files reads the repository");
+  assert.ok(batches.length > 0, "it reads in batches");
+});

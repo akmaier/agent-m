@@ -40,9 +40,10 @@ import { openStore, secretValues } from "../browser-store/index.mjs";
 import { parseAddress, connect } from "../repository-hosts/index.mjs";
 import { watchForAcceptance } from "../notifications/index.mjs";
 import { storedOverview } from "../progress-measures/index.mjs";
-import { explain } from "./index.mjs";
+import { attachPromptBar, explain } from "./index.mjs";
+import { subjectOf } from "./subject.mjs";
 import { foldMenu } from "./menu.mjs";
-import { fragmentOf, loadView, routeOf, productHostFollowingStore } from "./routing.mjs";
+import { fragmentOf, instanceHostFollowingStore, loadView, routeOf, productHostFollowingStore } from "./routing.mjs";
 import { registerViews } from "./register.mjs";
 import { noticePlace, showTokenNotices } from "./notices.mjs";
 
@@ -501,7 +502,7 @@ function renderProductSelector() {
 //
 // Change between jobs, sprint 07 (SPEC.md WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS): ITM-236's own header named
 // making the dashboard's pages start the checks as not part of that item. This wires MOD-notifications' watchForAcceptance
-// into the review pages with MOD-browser-store's store of the instance, as sprint 07's record (docs/backlog/sprints/07.md)
+// into the review pages with MOD-browser-store's store of the instance, as sprint 07's record (docs/backlog/sprints/team1/07.md)
 // names, and builds the one thing watchForAcceptance needs that the module does not provide itself: the address of a
 // notification's review-pages route, confirmed against the routes this file and its views already serve (the PO's gate
 // record of ITM-236 names addressOf's routes as this change's reading to confirm) — #uc(/<id>), #arc(/<id>) for both an
@@ -536,7 +537,7 @@ function addressOfNotification(route, params, repository) {
 
 // Opens this browser's MOD-browser-store store of the instance, connects the instance's host with the dashboard's own
 // stored GitHub token — ghToken(), settings-store.mjs's agent-m.github-token, as the connect() of the routes of MOD-implementation-pages
-// uses it (ITM-238 F2, sprint 08's change between jobs, docs/backlog/sprints/08.md: MOD-browser-store's own
+// uses it (ITM-238 F2, sprint 08's change between jobs, docs/backlog/sprints/team1/08.md: MOD-browser-store's own
 // "github-token" setting is never written, so the instance was always checked with no token) — and starts the
 // checks — only where this browser could ever show one at all: real browsers always define Notification
 // (permission.mjs's own available() already tells "no" apart by the same check, for a browser that offers no
@@ -961,6 +962,42 @@ async function start() {
     return;
   }
   if (!early) { addEventListener("hashchange", route); route(); }
+  // The bar is started once the load has read the instance, so that it reads through what this load holds.
+  startBar();
+}
+
+// The prompt bar on every review page (UC-049 step 1: "On every page of the dashboard"), in a footer of its own fixed to the bottom of the window, as startPage attaches
+// it on the main page: this browser's endpoints and the instance's participants, the instance read through the host that follows the store, the product shown unless it is the
+// instance itself, and the subject of what the page shows.
+function startBar() {
+  const foot = document.createElement("footer");
+  foot.className = "site-frame-prompt-bar";
+  document.body.append(foot);
+  const barStore = openStore(T.instance);
+  const isInstance = () => { const address = parseAddress(T.product.address); return address.server === "github" && address.path === T.instance; };
+  attachPromptBar(foot, { page: "review", store: barStore,
+    // The instance shown is read through the app's own host, which holds what this load read; another instance through the host that follows the store.
+    instance: { repository: T.instance, host: isInstance() ? pagesHost() : instanceHostFollowingStore({ store: barStore, address: parseAddress(`https://github.com/${T.instance}`) }) },
+    product: () => (isInstance() ? null : { address: T.product.address, host: pagesHost() }),
+    subject: barSubject,
+    // The snapshot this load read, where the product shown is the instance and no other branch than its default is named (?ref=): the bar reads no commit and no tree
+    // again (A PAGE LOAD READS THE REPOSITORY IN BATCHES).
+    instanceSnapshot: () => (isInstance() && !new URLSearchParams(location.search).get("ref") && snapshot && snapshotHost === currentHost() ? snapshot : null),
+    explain,
+    go: (name, given = {}) => { location.hash = fragmentOf(name, given); } });
+}
+
+// The subject of what the page shows (MOD-site-frame's subjectOf): a review route's own, with the review pages' context; for any other page, the default subject of
+// its menu entry, keyed by the fragment.
+function barSubject() {
+  const [kind, a, b] = location.hash.replace(/^#/, "").split("/");
+  const context = reviewContext();
+  const drawn = () => main()?.textContent ?? "";
+  const targets = reviewTargets(kind, a, b);
+  const route = targets?.length ? reviewPages.routes.find((candidate) => candidate.name === targets[0].name) : null;
+  if (route) return subjectOf({ route, params: targets[0].params, context, drawn });
+  const entry = MENU.find((candidate) => candidate.key === (kind || "uc") || candidate.views.includes(kind || "uc"));
+  return subjectOf({ route: { name: kind || "uc", title: entry?.label ?? document.title, entry: entry?.key ?? null }, params: routeOf(location.hash).params, context, drawn });
 }
 
 if (globalThis.document) start();

@@ -1,5 +1,5 @@
-// A change between jobs, sprint 07 (SPEC.md WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS; docs/backlog/sprints/07.md): the
-// dashboard's old code (docs/assets/dashboard/settings-view.mjs, docs/assets/dashboard-app.mjs, src/home/home.mjs) now
+// A change between jobs, sprint 07 (SPEC.md WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS; docs/backlog/sprints/team1/07.md): the
+// dashboard's old code now
 // reaches MOD-notifications, as ITM-236's Outcome names it — the settings page shows the line *Notifications* through
 // notificationState, switchOn, testNotification and switchOff, and the main and review pages start watchForAcceptance
 // with MOD-browser-store's store of the instance. MOD-notifications' own behaviour — the checks, the timing, the

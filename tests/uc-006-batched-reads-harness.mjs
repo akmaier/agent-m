@@ -12,13 +12,16 @@ import "./review-pages-harness.mjs";
 import { createHash } from "node:crypto";
 import { openStore, writeSetting } from "../src/browser-store/index.mjs";
 import { connect, parseAddress } from "../src/repository-hosts/index.mjs";
+import { storedGraphBytes } from "./stored-graph-fake.mjs";
 
 const pages = await import("../src/review-pages/index.mjs");
 const route = pages.view.routes.find((candidate) => candidate.name === "spec-entry");
 
 export const TOKEN = "github_pat_ALICEbatchedREADS0123456789abcdef";
 export const PRODUCT_ADDRESS = "https://github.com/alice/spec-product";
-const COMMIT = "5ec0ffee5ec0ffee5ec0ffee5ec0ffee5ec0ffee";
+// Each fake's commit is its own: MOD-trace-graph's storedGraph keeps a commit's graph for the page (the module, for the length of a test file), so two
+// fakes never share a commit.
+let fakes = 0;
 const sha1 = (s) => createHash("sha1").update(s).digest("hex");
 const blobSha = (t) => sha1(`blob ${Buffer.byteLength(t)}\0${t}`);
 const json = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", ...headers } });
@@ -74,11 +77,16 @@ export function instanceFiles({ withAuthor = true } = {}) {
     [REGISTER_PATHS[1]]: registerEntry("SRC-bob", "Bob", "github.com/bob") };
 }
 
-// A fake GitHub holding `held` at COMMIT. special: { path: "truncated" | "binary" | "absent" } is how GraphQL answers that path;
+// A fake GitHub holding `held` at a commit of its own (COMMIT), and on its branch trace-cache the graph the workflow "main changed" stores for COMMIT, `<COMMIT>.json.gz`
+// (tests/stored-graph-fake.mjs), which a page reads and never builds (MOD-trace-graph); `storedGraph: false` holds none. special: { path: "truncated" | "binary" | "absent" } is how GraphQL answers that path;
 // graphql(body, headers) may answer the /graphql request instead (a Response), or nothing to let the fake answer. Every request
 // is recorded as { method, url, headers, body }.
-export function fakeGitHub(held, { graphql = null, special = {}, repo = "alice/spec-product" } = {}) {
+export function fakeGitHub(held, { graphql = null, special = {}, repo = "alice/spec-product", storedGraph = true } = {}) {
   const requests = [];
+  const COMMIT = sha1(`${repo} fake ${++fakes}`);
+  let graphBytes = null;
+  const stored = () => (graphBytes ??= storedGraphBytes({ commit: COMMIT, paths: Object.keys(held), read: async (path) => held[path] ?? null }));
+  const graphFile = `${COMMIT}.json.gz`;
   const fetch = async (input, init = {}) => {
     const url = new URL(String(input));
     const headers = Object.fromEntries(Object.entries(init.headers ?? {}).map(([k, v]) => [k.toLowerCase(), String(v)]));
@@ -99,6 +107,8 @@ export function fakeGitHub(held, { graphql = null, special = {}, repo = "alice/s
       }
       return json({ data: { rateLimit: { cost: 1, remaining: 4999 }, repository } });
     }
+    if (storedGraph && method === "GET" && ((url.origin === "https://api.github.com" && url.pathname === `/repos/${repo}/contents/${graphFile}` && url.searchParams.get("ref") === "trace-cache")
+      || (url.origin === "https://raw.githubusercontent.com" && url.pathname === `/${repo}/trace-cache/${graphFile}`))) return new Response(await stored());
     if (url.origin === "https://raw.githubusercontent.com") {
       const body1 = held[decodeURIComponent(url.pathname.slice(`/${repo}/${COMMIT}/`.length))];
       return body1 === undefined ? json({ message: "Not Found" }, 404) : new Response(body1);

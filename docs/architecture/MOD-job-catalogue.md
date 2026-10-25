@@ -116,7 +116,7 @@ data, kept here once like a kind's prompt; the module that owns what a tool does
 |---|---|---|---|
 | `list-files` | read the repository | name the files under a folder of the product, at the commit the job read | MOD-job-runner |
 | `read-file` | read the repository | read one file of the product | MOD-job-runner |
-| `search-files` | read the repository | find the lines of the product's files that hold a text | MOD-job-runner |
+| `search-files` | read the repository | find the lines that hold a text in the product's files below a path — a file, or a folder —, at most 200 files a search | MOD-job-runner |
 | `propose-edit` | draft text | propose the new text of one document below `docs/`, held for a person | MOD-job-runner |
 | `hand-over` | draft text | propose to hand work the tab cannot do — running code or tests, changing code, reaching the web — to a job of a kind with a participant, on the drafter's route to CI or a Bridge, with the task in its words; the person's click lets it go on | MOD-job-runner |
 

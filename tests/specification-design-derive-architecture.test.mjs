@@ -5,9 +5,8 @@
 // Run: node --test tests/specification-design-derive-architecture.test.mjs
 //
 // Module: MOD-approvals; MOD-spec-changes; MOD-artifact-edits
-// Guards: UC-022; THE ARCHITECTURE'S PARTICIPANTS RECEIVE THE WHOLE PROJECT; AN ARCHITECTURE DRAFT IS CHECKED BEFORE A
-//         PERSON SEES IT; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; AN ARTIFACT RECORDS THE VERSION THAT
-//         PRODUCED IT
+// Guards: UC-022; THE ARCHITECTURE'S PARTICIPANTS RECEIVE THE WHOLE PROJECT; AN ARCHITECTURE DRAFT IS CHECKED BEFORE A PERSON SEES IT
+// Guards: A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
 // Level: component
 //
 // The product and the instance are fixture hosts that keep to the subset of MOD-repository-hosts used by the strategies:

@@ -7,10 +7,10 @@
 // Run: node --test tests/release-evidence.test.mjs
 //
 // Module: MOD-release-evidence
-// Guards: UC-013; CALENDAR VERSIONS; EVERY PRODUCT HAS ITS OWN VERSION LINE; A RELEASE IS TAGGED AND LOGGED;
-//         A VERSION IS NOT REWRITTEN; A RELEASE RUNS EVERY TEST AT EVERY LEVEL; RELEASE TESTS ARE NOT WRITTEN BY THE
-//         IMPLEMENTER; THE RELEASE TEST REPORT IS ACCEPTED BY A PERSON;
-//         A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED; ACCEPTING THE RELEASE TEST REPORT RELEASES
+// Guards: UC-013; CALENDAR VERSIONS; EVERY PRODUCT HAS ITS OWN VERSION LINE; A RELEASE IS TAGGED AND LOGGED; A VERSION IS NOT REWRITTEN
+// Guards: A RELEASE RUNS EVERY TEST AT EVERY LEVEL; RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER
+// Guards: THE RELEASE TEST REPORT IS ACCEPTED BY A PERSON; A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED
+// Guards: ACCEPTING THE RELEASE TEST REPORT RELEASES
 // Level: unit
 //
 // The host and the snapshots are fakes, kept to MOD-repository-hosts' interface (paths, read(path), blob(path),
@@ -24,6 +24,7 @@ import { createHash } from "node:crypto";
 import { nextVersion, startReleaseCandidate, releaseReport, acceptAndRelease, reportsAwaitingAcceptance } from "../src/release-evidence/index.mjs";
 import { readDocument } from "../src/documents/index.mjs";
 import { approvalSchema, statusOf } from "../src/approvals/index.mjs";
+import { storedGraphReadOn, withStoredGraph } from "./stored-graph-fake.mjs";
 
 // ================================================================== fakes
 
@@ -72,12 +73,13 @@ function fakeHost({ defaultBranch = "main", branchFiles = {}, extraCommits = {},
       const sha = branches.get(ref) ?? tagMap.get(ref) ?? (commits.has(ref) ? ref : null);
       if (!sha) throw failure("NotFound", { what: ref });
       const tree = commits.get(sha);
-      return {
+      // The graph of every commit is stored on trace-cache, as the workflow "main changed" stores it (tests/stored-graph-fake.mjs).
+      return withStoredGraph({
         repository: { server: "github", origin: "https://github.com", path: "org/product", web: "https://github.com/org/product" },
         ref, commit: sha, paths: [...tree.keys()],
         read: async (path) => (tree.has(path) ? tree.get(path) : null),
         blob: (path) => (tree.has(path) ? blobSha(tree.get(path)) : null),
-      };
+      });
     },
     async listTags(pattern) {
       const re = globPattern(pattern);
@@ -102,12 +104,16 @@ function fakeHost({ defaultBranch = "main", branchFiles = {}, extraCommits = {},
 }
 
 // A fixture snapshot (MOD-repository-hosts' Snapshot) over a plain object of files — for releaseReport's `at` and
-// `results`, which this item's functions never write through.
-function fixtureSnapshot(files) {
+// `results`, which this item's functions never write through. With `commit`, the branch trace-cache holds the graph of these files as that
+// commit's, as the workflow "main changed" stores it (tests/stored-graph-fake.mjs); MOD-trace-graph's storedGraph keeps a commit's graph, so two
+// snapshots of different files are given different commits.
+function fixtureSnapshot(files, commit = null) {
+  const read = async (path) => (Object.hasOwn(files, path) ? files[path] : null);
   return {
     paths: Object.keys(files),
     blob: (path) => (Object.hasOwn(files, path) ? blobSha(files[path]) : null),
-    read: async (path) => (Object.hasOwn(files, path) ? files[path] : null),
+    read,
+    ...(commit ? { readOn: storedGraphReadOn({ paths: Object.keys(files), read, commit }) } : {}),
   };
 }
 
@@ -316,7 +322,7 @@ function runRecord({ commit, rows }) {
 // input: releaseReport(at, results, { version, tag, commit, changelog })
 // expect: the text holds every part in the module's own order — "## Limitations" first, then "## Levels", "## Tests", "## Requirements", "## Changelog entry" —; Limitations empty (the run is green); complete true; failing and worse both empty
 test("releaseReport — its parts in the module's own order, Limitations first, complete and green", async () => {
-  const at = fixtureSnapshot({ "SPEC.md": SPEC_TEXT, "tests/sample.test.mjs": TEST_FILE });
+  const at = fixtureSnapshot({ "SPEC.md": SPEC_TEXT, "tests/sample.test.mjs": TEST_FILE }, CANDIDATE_COMMIT);
   const results = fixtureSnapshot({
     [`runs/${CANDIDATE_COMMIT}/20261007-1000-release-candidate-aaaa.md`]: runRecord({ commit: CANDIDATE_COMMIT, rows: [["TST-001", "unit", "passed", ""]] }),
   });
@@ -342,7 +348,7 @@ test("releaseReport — its parts in the module's own order, Limitations first, 
 //                always false) would pass this one alone; instead planting `if (t.outcome === "not run") complete =
 //                true;` (inverted) in report.mjs fails this test's assert.equal
 test("releaseReport — incomplete while a test has not run on the candidate's commit", async () => {
-  const at = fixtureSnapshot({ "SPEC.md": SPEC_TEXT, "tests/sample.test.mjs": TEST_FILE });
+  const at = fixtureSnapshot({ "SPEC.md": SPEC_TEXT, "tests/sample.test.mjs": TEST_FILE }, CANDIDATE_COMMIT);
   const results = fixtureSnapshot({});
   const candidate = { version: "2026.4.0", tag: "v2026.4.0-rc.1", commit: CANDIDATE_COMMIT, changelog: "Entry." };
   const { complete } = await releaseReport(at, results, candidate);
@@ -350,6 +356,8 @@ test("releaseReport — incomplete while a test has not run on the candidate's c
 });
 
 const LAST_RELEASE_COMMIT = "e".repeat(40);
+// The candidate of the rate case holds other files than CANDIDATE_COMMIT's, so it is a commit of its own.
+const RATE_CANDIDATE_COMMIT = "d".repeat(40);
 const RATE_TEST_FILE = ["// TST-010", "// level: unit", "// guards: A SAMPLE REQUIREMENT", "// runs: 10", "// phrasings: 2", ""].join("\n");
 
 function lastReleaseReportText(commit) {
@@ -373,12 +381,12 @@ test("releaseReport — a worse model-dependent rate is read against the last re
   const at = fixtureSnapshot({
     "SPEC.md": SPEC_TEXT, "tests/rate.test.mjs": RATE_TEST_FILE,
     "docs/tests/releases/v2026.3.0.md": lastReleaseReportText(LAST_RELEASE_COMMIT),
-  });
+  }, RATE_CANDIDATE_COMMIT);
   const results = fixtureSnapshot({
     [`runs/${LAST_RELEASE_COMMIT}/20260901-1000-release-candidate-aaaa.md`]: runRecord({ commit: LAST_RELEASE_COMMIT, rows: [["TST-010", "unit", "passed", "8 of 10"]] }),
-    [`runs/${CANDIDATE_COMMIT}/20261007-1000-release-candidate-bbbb.md`]: runRecord({ commit: CANDIDATE_COMMIT, rows: [["TST-010", "unit", "failed", "6 of 10"]] }),
+    [`runs/${RATE_CANDIDATE_COMMIT}/20261007-1000-release-candidate-bbbb.md`]: runRecord({ commit: RATE_CANDIDATE_COMMIT, rows: [["TST-010", "unit", "failed", "6 of 10"]] }),
   });
-  const candidate = { version: "2026.4.0", tag: "v2026.4.0-rc.1", commit: CANDIDATE_COMMIT, changelog: "Entry." };
+  const candidate = { version: "2026.4.0", tag: "v2026.4.0-rc.1", commit: RATE_CANDIDATE_COMMIT, changelog: "Entry." };
   const { text, worse } = await releaseReport(at, results, candidate);
   assert.deepEqual(worse, ["TST-010"]);
   const limitations = text.slice(text.indexOf("## Limitations"), text.indexOf("## Levels"));

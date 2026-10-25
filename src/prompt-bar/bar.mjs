@@ -111,9 +111,11 @@ export function startPromptBar(target, setup) {
   const recorded = el("p", "recording", "This conversation is recorded in the repository of the page it is held on.");
   const input = el("textarea", "instruction");
   const send = button("send", SEND);
+  const clear = button("clear", "Clear conversation");
   const stop = button("stop", "Stop");
   stop.disabled = true;
   let selector = null;
+  let offeredNames = null;
   const chooser = el("div", "chooser");
 
   const show = (...nodes) => status.replaceChildren(...nodes);
@@ -123,8 +125,9 @@ export function startPromptBar(target, setup) {
     recorded.hidden = !on;
   };
   const chosen = () => offered.find((each) => each.name === (selector.value ?? offered[0].name)) ?? offered[0];
+  // A participant's answer stands once, in the conversation: its text is the bar's `answer`.
   const line = (message) => {
-    const text = el("div", "text");
+    const text = el("div", message.from === "participant" ? "text answer" : "text");
     if (message.from === "participant") text.append(renderArtifact(message.text, { frontMatter: "hidden" }));
     else text.append(message.text);
     return el("li", `message ${message.from}`, el("span", "who", message.who), " ", text);
@@ -171,9 +174,8 @@ export function startPromptBar(target, setup) {
     const ended = view.end === null ? [] : [el("p", "ended", `Ended: ${view.end.state}`),
       ...(view.end.reason ? [el("p", "reason", `Reason: ${view.end.reason}`)] : []),
       ...(view.end.results.length ? [el("ul", "commits", ...view.end.results.map((each) => el("li", "commit", each)))] : [])];
-    const answer = view.answer ? [el("div", "answer", renderArtifact(view.answer, { frontMatter: "hidden" }))] : [];
     followed.replaceChildren(el("h3", null, `Handed over: ${view.id}`), el("p", "state", `State: ${view.state ?? "reading…"}`), ...waiting, ...secret, ...run,
-      ...(view.lines.length ? [el("pre", "log", view.lines.join("\n"))] : []), ...ended, ...answer, ...(view.cancel ? [el("p", "cancel", view.cancel)] : []),
+      ...(view.lines.length ? [el("pre", "log", view.lines.join("\n"))] : []), ...ended, ...(view.cancel ? [el("p", "cancel", view.cancel)] : []),
       ...(view.problem ? [problem(view.problem)] : []));
     // The run's answer joins the conversation once (UC-049 4a.4).
     if (view.answer && state.answered !== view.id) {
@@ -255,8 +257,7 @@ export function startPromptBar(target, setup) {
     const text = typeof draft.answer === "string" ? draft.answer
       : subject.draftRoute !== null ? `A draft of ${subject.title} is ready to review.` : "";
     const left = [...result.remaining, ...result.forPerson];
-    const parts = [el("div", "answer", renderArtifact(text, { frontMatter: "hidden" })),
-      el("p", "rounds", `Rounds: ${result.rounds.length}`)];
+    const parts = [el("p", "rounds", `Rounds: ${result.rounds.length}`)];
     if (left.length) parts.push(el("ul", "left", ...left.map((each) => el("li", "finding", shown(each)))));
     if (draft.handOver) {
       const { kind, task } = draft.handOver;
@@ -412,12 +413,17 @@ export function startPromptBar(target, setup) {
     const kept = selector?.value;
     if (offered.length === 0) {
       selector = null;
+      offeredNames = null;
       const link = button("participants-link", "Set up participants");
       link.addEventListener("click", () => setup.go("participants"));
       chooser.replaceChildren(el("p", "none-able", `No participant of this instance can do ${kind.name}: it needs ${kind.needs.join(", ")}.`), link);
       return;
     }
     const named = (each) => `${each.name} — ${placeOf(each)}`;
+    // The same offer keeps its selector: replacing it while it takes focus would close its list before a choice is made.
+    const names = offered.map((each) => each.name).join("\n");
+    if (selector && names === offeredNames) return relabel();
+    offeredNames = names;
     if (offered.length === 1) {
       selector = el("span", "participant", named(offered[0]));
     } else {
@@ -442,7 +448,8 @@ export function startPromptBar(target, setup) {
   }
 
   async function draw() {
-    const snapshot = await defaultSnapshot(instance.host);
+    // The instance's default branch as the page's own load read it, where the page hands it (setup.instanceSnapshot), else read here.
+    const snapshot = (await setup.instanceSnapshot?.()) ?? await defaultSnapshot(instance.host);
     instanceWeb = snapshot.repository.web;
     // This browser's endpoints first (UC-049 1); then the participants of the instance's list this browser reaches, other than an endpoint offered already.
     const own = endpointsOffered(store);
@@ -455,9 +462,17 @@ export function startPromptBar(target, setup) {
     input.addEventListener("focus", () => judge().catch(() => {}));
     showRecording(await recordingOf(snapshot));
     send.addEventListener("click", onSend);
+    // Clear conversation empties the tab's conversation and what the bar shows of the last message; while a message runs it does nothing — Stop ends that first.
+    clear.addEventListener("click", () => {
+      if (send.disabled) return;
+      keep([]);
+      status.replaceChildren();
+    });
     stop.addEventListener("click", () => (state.controller ? state.controller.abort() : state.follower?.cancel()));
     conversation.replaceChildren(...conversationOf(store).map(line));
-    const bar = el("section", "prompt-bar", setup.explain("prompt-bar"), recorded, chooser, conversation, input, el("div", "buttons", send, stop), status, followed);
+    // Below the message field: on the left the folded explanation, on the right the buttons.
+    const notes = el("div", "bar-notes", clear, " ", setup.explain("prompt-bar"));
+    const bar = el("section", "prompt-bar", recorded, chooser, conversation, input, el("div", "bar-foot", notes, el("div", "buttons", send, stop)), status, followed);
     bar.setAttribute("data-page", setup.page);
     // "fixed to the bottom of the window" (Interfaces: startPromptBar): the bar's own root element carries the style, as Parts name no style sheet.
     bar.setAttribute("style", "position: fixed; bottom: 0; left: 0; right: 0;");

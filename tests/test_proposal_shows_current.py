@@ -5,7 +5,7 @@
 
 The engine gives the view the text that currently holds beside each entry (docs/assets/review-core.mjs sectionForEntry,
 asked through node), and both writers — the dashboard's acceptance commit (planAcceptance) and the instance's workflow
-(tools/apply_approvals.py) — write an approved entry only when its approval names that current text by its blob SHA. On
+(MOD-spec-changes' applyApproved) — write an approved entry only when its approval names that current text by its blob SHA. On
 the fixture product tests/fixtures/gates/:
 
 - the current text beside an entry is the whole SPEC section, byte for byte — sub-headings and fenced blocks included —,

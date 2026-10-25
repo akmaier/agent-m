@@ -3,9 +3,9 @@
 //
 // Module: MOD-agent-processes
 // Level: release
-// Guards: THE BRIDGE FINDS THE INSTALLED AGENTS; A LOCAL AGENT USES THE PERSON'S OWN LOGIN;
-//         A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; A CANCELLED JOB WRITES NOTHING MORE;
-//         ONE DEFINITION, THREE DRIVERS; A REMOTE INTERFACE NAMES HOW IT FAILS; UC-010; UC-011
+// Guards: THE BRIDGE FINDS THE INSTALLED AGENTS; A LOCAL AGENT USES THE PERSON'S OWN LOGIN
+// Guards: A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET; A CANCELLED JOB WRITES NOTHING MORE; ONE DEFINITION, THREE DRIVERS
+// Guards: A REMOTE INTERFACE NAMES HOW IT FAILS; UC-010; UC-011
 //
 // Every executable is a temporary controlled fixture. The file never calls an installed vendor agent,
 // a provider, or a Bridge. Its CI-only counter-proofs run a copied checkout so each planted fault and
@@ -13,7 +13,7 @@
 
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
@@ -21,7 +21,7 @@ import { join } from "node:path";
 import { agentDriver, installedAgents, testAgent } from "../src/agent-processes/index.mjs";
 
 const NODE = process.execPath;
-const fixture = () => mkdtempSync(join(tmpdir(), "agent-m-release-320-321-"));
+const fixture = () => realpathSync(mkdtempSync(join(tmpdir(), "agent-m-release-320-321-")));
 const PARTICIPANT = { name: "release-cli", type: "CLI agent", model: "fixture", context: 1, price: null,
   capabilities: ["draft text"], place: "fixture", route: "bridge fixture agent claude" };
 const INPUT = { prompt: "Release prompt remains whole.", parts: [], output: null, findings: [], previous: null, workdir: null };

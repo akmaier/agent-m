@@ -14,8 +14,8 @@ import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:f
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { releaseReport } from "../src/release-evidence/index.mjs";
+import { storedGraphReadOn } from "./stored-graph-fake.mjs";
 
-const CANDIDATE_COMMIT = "c".repeat(40);
 const RUNNING_COMMIT = "e".repeat(40);
 const Z_95 = 1.959963984540054;
 const FAULTS = {
@@ -129,7 +129,11 @@ function limitationsOf(text) {
   return text.slice(text.indexOf("## Limitations"), text.indexOf("## Levels"));
 }
 
+// The candidate's commit is one of this call's own: MOD-trace-graph's storedGraph keeps a commit's graph for the page, and the calls differ in their files.
+// The branch trace-cache holds the graph of the candidate's files as that commit's, as the workflow "main changed" stores it (tests/stored-graph-fake.mjs).
+let candidates = 0;
 function reportInputs(id, currentRuns, runningRuns = "8 of 10") {
+  const CANDIDATE_COMMIT = createHash("sha1").update(`candidate ${++candidates}`).digest("hex");
   const atFiles = {
     "SPEC.md": [
       "# Fixture product — Specification",
@@ -152,7 +156,8 @@ function reportInputs(id, currentRuns, runningRuns = "8 of 10") {
     resultFiles[`runs/${RUNNING_COMMIT}/20261001-2100-release-candidate.md`] = runRecord(RUNNING_COMMIT,
       [[id, "unit", "passed", runningRuns]]);
   }
-  return { at: snapshotOf(atFiles), results: snapshotOf(resultFiles) };
+  const at = { ...snapshotOf(atFiles), readOn: storedGraphReadOn({ paths: Object.keys(atFiles), read: async (path) => atFiles[path] ?? null, commit: CANDIDATE_COMMIT }) };
+  return { at, results: snapshotOf(resultFiles), commit: CANDIDATE_COMMIT };
 }
 
 // TST-293101 · level: unit · module: MOD-release-evidence
@@ -166,9 +171,9 @@ test("TST-293101 releaseReport — a worse 6-of-10 model rate has its two-sided 
     "known positive: score inversion agrees with NIST's 20-of-25 Wilson interval");
 
   const id = "TST-293101";
-  const { at, results } = reportInputs(id, "6 of 10");
+  const { at, results, commit } = reportInputs(id, "6 of 10");
   const report = await releaseReport(at, results, {
-    version: "2026.4.0", tag: "v2026.4.0-rc.1", commit: CANDIDATE_COMMIT, changelog: "Rate finding.",
+    version: "2026.4.0", tag: "v2026.4.0-rc.1", commit, changelog: "Rate finding.",
   });
   const limits = limitationsOf(report.text);
   const expected = wilson95ByScoreInversion(6, 10);
@@ -201,9 +206,9 @@ test("TST-293102 releaseReport — unchanged, improved, and no-baseline rates ad
     ["6 of 10", null],
   ];
   for (const [current, running] of cases) {
-    const { at, results } = reportInputs("TST-293102", current, running);
+    const { at, results, commit } = reportInputs("TST-293102", current, running);
     const report = await releaseReport(at, results, {
-      version: "2026.4.0", tag: "v2026.4.0-rc.1", commit: CANDIDATE_COMMIT, changelog: "No finding.",
+      version: "2026.4.0", tag: "v2026.4.0-rc.1", commit, changelog: "No finding.",
     });
     const limits = limitationsOf(report.text);
     assert.deepEqual(report.worse, [], `${current} versus ${running}`);

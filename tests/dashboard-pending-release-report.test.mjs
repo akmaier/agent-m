@@ -4,6 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { repoServer, openDashboard, richDocument, TOKEN } from "./app-harness.mjs";
 import { connect, parseAddress } from "../src/repository-hosts/index.mjs";
+import { storedGraphBytes } from "./stored-graph-fake.mjs";
 
 const PRODUCT = "customer/release-fixture", COMMIT = "a".repeat(40), VERSION = "2026.10.8";
 const TAG = `v${VERSION}-rc.1`, JOB = "docs/jobs/JOB-20261009-0148-2890.md", RESULT = "b".repeat(40);
@@ -23,7 +24,7 @@ async function selectedProductServer({ pending }) {
   let server;
   const api = `/repos/${PRODUCT}`;
   server = await repoServer({ repo: PRODUCT, files, handlers: [async (url) => {
-    if (url.origin !== "https://api.github.com") return undefined;
+    if (url.origin !== "https://api.github.com" && url.origin !== "https://raw.githubusercontent.com") return undefined;
     if (url.pathname === `${api}/tags`) return json(pending ? [{ name: TAG, commit: { sha: COMMIT } }] : []);
     if (pending && (url.pathname === `${api}/commits/${TAG}` || url.pathname === `${api}/commits/${COMMIT}`)) return json({ sha: COMMIT });
     if (pending && url.pathname === `${api}/commits/test-results`) return json({ sha: RESULT });
@@ -31,6 +32,13 @@ async function selectedProductServer({ pending }) {
       tree: Object.keys(files).filter((path) => !path.startsWith("runs/")).map((path) => ({ path, type: "blob", sha: server.shas[path] })) });
     if (pending && url.pathname === `${api}/git/trees/${RESULT}`) return json({ truncated: false,
       tree: Object.keys(files).filter((path) => path.startsWith("runs/")).map((path) => ({ path, type: "blob", sha: server.shas[path] })) });
+    // The branch trace-cache holds the candidate's graph as `<commit>.json.gz`, as the workflow "main changed" stores it (tests/stored-graph-fake.mjs); the page
+    // reads it and never builds one. Read through the contents API with a token, from the raw host without.
+    if (pending && ((url.pathname === `${api}/contents/${COMMIT}.json.gz` && url.searchParams.get("ref") === "trace-cache")
+      || (url.origin === "https://raw.githubusercontent.com" && url.pathname === `/${PRODUCT}/trace-cache/${COMMIT}.json.gz`))) {
+      const candidate = Object.fromEntries(Object.entries(files).filter(([path]) => !path.startsWith("runs/")));
+      return new Response(await storedGraphBytes({ commit: COMMIT, paths: Object.keys(candidate), read: async (path) => candidate[path] ?? null }));
+    }
     if (pending && url.pathname.startsWith(`${api}/contents/`)) {
       const path = url.pathname.slice(`${api}/contents/`.length).split("/").map(decodeURIComponent).join("/");
       if (path in files) return new Response(files[path]);

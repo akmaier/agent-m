@@ -96,7 +96,6 @@ It runs in a browser, loaded by `docs/index.html` through MOD-site-frame.
 - `generate.mjs` — generating tests.
 - `release.mjs` — the release panel.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `docs/assets/dashboard/release-view.mjs`: removed: the live app shows the route `release` directly.
   - `tests/test-pages-pending-release-report.test.mjs`, `tests/dashboard-pending-release-report.test.mjs`: their headers name this module.
 
 ## Data

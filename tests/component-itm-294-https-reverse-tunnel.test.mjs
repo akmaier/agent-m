@@ -7,10 +7,9 @@
 // Module: MOD-settings-pages; MOD-browser-store; MOD-bridge-client; MOD-tunnels; MOD-desktop-shell;
 //         MOD-bridge-http; MOD-bridge-jobs; MOD-endpoint-calls
 // Level: component
-// Guards: UC-003; UC-044; A BRIDGE CAN BE REACHED OVER HTTPS THROUGH THE JUMP HOST;
-//         THE JUMP HOST FORWARDS TO A BRIDGE ONLY AFTER ITS OWN LOGIN;
-//         THE JUMP HOST ALLOWS CROSS-ORIGIN REQUESTS ONLY FROM THE INSTANCE;
-//         A REVERSE TUNNEL LISTENS ONLY ON THE JUMP HOST'S LOOPBACK
+// Guards: UC-003; UC-044; A BRIDGE CAN BE REACHED OVER HTTPS THROUGH THE JUMP HOST
+// Guards: THE JUMP HOST FORWARDS TO A BRIDGE ONLY AFTER ITS OWN LOGIN; THE JUMP HOST ALLOWS CROSS-ORIGIN REQUESTS ONLY FROM THE INSTANCE
+// Guards: A REVERSE TUNNEL LISTENS ONLY ON THE JUMP HOST'S LOOPBACK
 
 import assert from "node:assert/strict";
 import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";

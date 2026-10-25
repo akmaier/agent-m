@@ -421,3 +421,17 @@ test("a fixture drafter reads, proposes an edit and a hand-over; nothing is writ
   assert.equal(result.written, null);
   assert.deepEqual(touched, []);
 });
+
+// TST-1208001 · level: unit · module: MOD-job-runner
+// guards: UC-049
+// given: a product of 250 files — SPEC.md holding the needle, 249 others below docs/many/ —
+// input: search-files { text: "needle" } with no path; then with path "SPEC.md"; then with path "docs/many/" (249 files)
+// expect: with no path and with docs/many/ a refusal naming the count and the limit of 200; with SPEC.md its one matching line
+test("search-files reads only the files below its path, and refuses a search of more than 200 files", async () => {
+  const files = { "SPEC.md": "# SPEC\nthe needle\n", ...Object.fromEntries(Array.from({ length: 249 }, (_, at) => [`docs/many/${at}.md`, "hay"])) };
+  const { answers } = await answersTo([["search-files", { text: "needle" }], ["search-files", { text: "needle", path: "SPEC.md" }],
+    ["search-files", { text: "needle", path: "docs/many/" }]], { files });
+  assert.match(answers[0], /^refused: the repository holds 250 files, more than the 200 one search reads; name a file or a folder as path/);
+  assert.equal(answers[1], "SPEC.md:2: the needle");
+  assert.match(answers[2], /^refused: docs\/many\/ holds 249 files, more than the 200/);
+});

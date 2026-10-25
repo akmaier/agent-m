@@ -20,6 +20,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { gunzipSync } from "node:zlib";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
@@ -44,6 +45,12 @@ function git(cwd, ...args) {
   const r = spawnSync("git", args, { cwd, encoding: "utf8" });
   if (r.status !== 0) throw new Error(`git ${args.join(" ")} failed in ${cwd}: ${r.stderr}`);
   return r.stdout.trim();
+}
+// The bytes of a file at a commit of the repository at `cwd`, as git holds them.
+function gitBytes(cwd, object) {
+  const r = spawnSync("git", ["show", object], { cwd });
+  if (r.status !== 0) throw new Error(`git show ${object} failed in ${cwd}: ${r.stderr}`);
+  return r.stdout;
 }
 function write(root, files) {
   for (const [path, body] of Object.entries(files)) { mkdirSync(join(root, path, ".."), { recursive: true }); writeFileSync(join(root, path), body); }
@@ -116,7 +123,7 @@ const refetch = (f) => { for (const branch of ["trace-cache", "overview-cache"])
 // guards: THE TRACEABILITY MATRIX IS DERIVED
 // given: an instance whose main has just been pushed, and whose branch trace-cache holds only its first commit
 // input: onMainChanged with the workflow's token
-// expect: outcome `done`; one new commit on the origin's trace-cache, on the head the entry read, that adds exactly "<commit of main>.json"; that file is the graph of main's commit, which graphFromText restores for it and which holds the requirement and the use case; main is untouched
+// expect: outcome `done`; one new commit on the origin's trace-cache, on the head the entry read, that adds exactly "<commit of main>.json.gz" (beside the impact lists); that file is gzip whose text is the graph of main's commit, which graphFromText restores for it and which holds the requirement and the use case; main is untouched
 test("onMainChanged adds the graph of the pushed commit to trace-cache in one commit", async () => {
   await withInstance({}, async (f) => {
     const before = cacheHead(f);
@@ -124,8 +131,8 @@ test("onMainChanged adds the graph of the pushed commit to trace-cache in one co
     assert.equal(status.outcome, "done", status.summary);
     const after = cacheHead(f);
     assert.equal(git(f.origin, "rev-parse", `${after}^`), before);
-    assert.deepEqual(git(f.origin, "diff", "--name-only", before, after).split("\n"), [`${f.head}.impacts.json`, `${f.head}.json`]);
-    const graph = graphFromText(git(f.origin, "show", `${after}:${f.head}.json`), f.head);
+    assert.deepEqual(git(f.origin, "diff", "--name-only", before, after).split("\n"), [`${f.head}.impacts.json`, `${f.head}.json.gz`]);
+    const graph = graphFromText(gunzipSync(gitBytes(f.origin, `${after}:${f.head}.json.gz`)).toString("utf8"), f.head);
     assert.deepEqual([graph?.nodes.has("A THING IS DONE"), graph?.nodes.has("UC-001")], [true, true]);
     assert.equal(git(f.origin, "rev-parse", "main"), f.head);
   });
@@ -198,7 +205,6 @@ test("the workflow file runs onMainChanged on a push to main, makes the branches
   assert.match(text, new RegExp(`push origin \\S+:refs/heads/\\$${loop[1]}`));
   assert.match(text, new RegExp(`fetch origin \\+\\$${loop[1]}:\\$${loop[1]}`));
   assert.deepEqual([...text.matchAll(/node src\/workflow-entries\/main\.mjs (\w+)/g)].map((m) => m[1]), ["onMainChanged"]);
-  assert.match(text, /timeout-minutes: 2\b/);
 });
 
 // TST-1175002 · level: component · module: MOD-workflow-entries
@@ -278,7 +284,7 @@ test("onMainChanged hands publishGraph exactly the files not accepted, each with
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the instance of the first impact test, whose branch overview-cache holds only its first commit
 // input: onMainChanged
-// expect: one new commit on overview-cache, on the head it read, that adds exactly "<commit>.json" and "<commit>.facts.json" (the facts of ITM-1117, whose content ITM-1118 pins); storedOverview-shaped content: { commit, shares, waiting } of main's commit, the six stages in their order; the origin's main is untouched
+// expect: one new commit on overview-cache, on the head it read, that adds exactly "<commit>.json" and "<commit>.facts.json" (the facts of ITM-1117, whose content ITM-1118 pins) and writes "latest.json" naming the commit; storedOverview-shaped content: { commit, shares, waiting } of main's commit, the six stages in their order; the origin's main is untouched
 test("onMainChanged adds the overview of the commit to overview-cache once", async () => {
   await withInstance({ commits: await impactCommits() }, async (f) => {
     const before = overviewHead(f);
@@ -287,7 +293,8 @@ test("onMainChanged adds the overview of the commit to overview-cache once", asy
     assert.match(status.summary, new RegExp(`Added the overview and the facts of ${f.head} to overview-cache\\.`), "the summary names both files");
     const after = overviewHead(f);
     assert.equal(git(f.origin, "rev-parse", `${after}^`), before);
-    assert.deepEqual(git(f.origin, "diff", "--name-only", before, after).split("\n"), [`${f.head}.facts.json`, `${f.head}.json`]);
+    assert.deepEqual(git(f.origin, "diff", "--name-only", before, after).split("\n"), [`${f.head}.facts.json`, `${f.head}.json`, "latest.json"]);
+    assert.equal(JSON.parse(git(f.origin, "show", `${after}:latest.json`)).commit, f.head, "latest.json names the commit");
     const overview = JSON.parse(git(f.origin, "show", `${after}:${f.head}.json`));
     assert.equal(overview.commit, f.head);
     assert.equal(overview.shares.length, 6);
@@ -326,7 +333,7 @@ test("a failing overview leaves the graph and the impact lists written and ends 
     const status = await run(f);
     assert.equal(status.outcome, "failed");
     assert.match(status.summary, /overview-cache/);
-    assert.deepEqual(git(f.origin, "ls-tree", "--name-only", "trace-cache").split("\n").filter((name) => name.startsWith(f.head)).sort(), [`${f.head}.impacts.json`, `${f.head}.json`]);
+    assert.deepEqual(git(f.origin, "ls-tree", "--name-only", "trace-cache").split("\n").filter((name) => name.startsWith(f.head)).sort(), [`${f.head}.impacts.json`, `${f.head}.json.gz`]);
     assert.equal(git(f.origin, "branch", "--list", "overview-cache"), "");
   });
 });

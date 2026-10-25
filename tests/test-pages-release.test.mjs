@@ -35,6 +35,7 @@ import { until } from "./prompt-bar.d/until.mjs";
 
 // The document is that of the frame's fixture DOM, tests/site-frame-dom.mjs, installed as the globals `document` and `window` when it is imported.
 import "./site-frame-dom.mjs";
+import { withStoredGraph } from "./stored-graph-fake.mjs";
 
 // The modules, loaded once the document is there (a static import of them would run before the lines above could
 // set it up).
@@ -116,12 +117,13 @@ function fakeHost({ defaultBranch = "main", branchFiles = {}, tags = {} } = {}) 
       const sha = branches.get(ref) ?? tagMap.get(ref) ?? (commits.has(ref) ? ref : null);
       if (!sha) throw failure("NotFound", { what: ref });
       const tree = commits.get(sha);
-      return {
+      // The graph of every commit is stored on trace-cache, as the workflow "main changed" stores it (tests/stored-graph-fake.mjs).
+      return withStoredGraph({
         repository: { server: "github", origin: "https://github.com", path: "org/product", web: "https://github.com/org/product" },
         ref, commit: sha, paths: [...tree.keys()],
         read: async (path) => (tree.has(path) ? tree.get(path) : null),
         blob: (path) => (tree.has(path) ? blobSha(tree.get(path)) : null),
-      };
+      });
     },
     async listTags(pattern) {
       const re = globPattern(pattern);

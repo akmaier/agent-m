@@ -600,3 +600,26 @@ test("Send — reads the subject again: a page no participant can do sends nothi
   assert.match(textOf(it.target), /No participant of this instance can do run-tests: it needs run code and tests\./);
   assert.equal(byClass(it.target, "participants-link").length, 1);
 });
+
+// TST-560007 · level: component · module: MOD-prompt-bar
+// guards: UC-019; ONE CLICK PER DECISION
+// given: drafter-a and drafter-b (draft text each), both reached; the subject's kind converse, which both can do
+// input: startPromptBar; the person clicks the selector (it takes focus), then chooses drafter-b
+// expect: the select the person clicked is still the one in the bar after the focus, and drafter-b stays chosen
+test("selector — taking focus keeps the same select, so the person's choice stays", async () => {
+  endpointAnswers(answer("unused"));
+  const it = page({ rows: [DRAFTER, OTHER], ep2: true });
+  await drawn(it);
+  const clicked = one(it.target, "participant");
+  assert.equal(clicked.localName, "select");
+  clicked.dispatchEvent(new Event("focus"));
+  await tick();
+  await tick();
+  assert.equal(one(it.target, "participant"), clicked, "the focused select is not replaced");
+  clicked.value = "drafter-b";
+  clicked.dispatchEvent(new Event("change"));
+  clicked.dispatchEvent(new Event("focus"));
+  await tick();
+  await tick();
+  assert.equal(one(it.target, "participant").value, "drafter-b");
+});

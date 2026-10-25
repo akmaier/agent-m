@@ -1,5 +1,5 @@
 // The accessibility checker that tests/site-accessibility.test.mjs runs in the pages it draws: axe-core, at one exact version, fetched
-// from the npm registry into a folder of the test run's temporary directory the way tests/dashboard-backlog-layout.test.mjs fetches
+// from the npm registry into a folder of the test run's temporary directory the way tests/site-usability.d/browser.mjs fetches
 // Electron (`npm install --no-save --prefix`). It is a package of the test run and no file of the site: nothing is vendored into the
 // pages, and no workflow or package list of the repository names it. It is test code; it holds no expected result.
 //

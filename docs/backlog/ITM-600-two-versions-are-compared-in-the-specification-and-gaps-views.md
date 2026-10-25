@@ -25,8 +25,15 @@ origin:
 UC-020 1b: "compares two versions". MOD-trace-graph provides `compareGraphs`, which is not built (`src/trace-graph/index.mjs:10-11`).
 
 **The reading of 2026-10-17 (sprint team1/63): it waits for ITM-599's merge.** It compares in that view.
-`compareGraphs` and `showDifference` are in MOD-trace-pages' Uses. `compareGraphs` is not built
-(`src/trace-graph/index.mjs:12-13`), and its rule is stated in MOD-trace-graph's file.
+`compareGraphs` and `showDifference` are in MOD-trace-pages' Uses. `compareGraphs` is not built, and its rule is stated in
+MOD-trace-graph's file.
+
+**Since `c2e6e5c1`** a page reads a version's graph only through `storedGraph` (`<commit>.json.gz` on `trace-cache`,
+`bbf92700`) and never builds one; the workflow *main changed* stores it for the heads of the default branch it runs on
+(MOD-workflow-entries' `onMainChanged`). So the views compare the two stored graphs, and a version whose commit has none
+stored — a release tag on a commit no run stored, or a commit stored before the gzipped format — is named with
+`GraphNotStored`, never built. Whether a tag's graph is stored is read at the start; where no text stores it, the item
+stops for a draft to akmaier.
 
 ## Acceptance
 

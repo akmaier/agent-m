@@ -135,7 +135,7 @@ that gate named.
 An item is held by a team's sprint from its selection until a pull request with its change is merged into the default
 branch, or until its sprint's close sends it back to the backlog or into the team's next sprint: once the close is recorded
 — its record holds `## Review` —, the sprint holds none of its items without a merged pull request. Once its record also
-holds `## Increment given up`, it holds none of its items at all, and its done items are back in the backlog (UC-041 7b). An item's role
+holds `## Increment given up`, it holds none of its items at all, and its done items stay `done` (UC-041 7b). An item's role
 assignment is the one of the team whose sprint holds it, and the product's one in a model without sprints.
 
 ## Interfaces

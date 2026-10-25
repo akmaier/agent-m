@@ -101,7 +101,7 @@ test("candidate-classes — a use case is compared with the use cases only, and 
 });
 
 // TST-472313 · level: unit · module: MOD-job-runner
-// guards: A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT; DEDUPLICATED AMONG THEMSELVES
+// guards: A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT; CANDIDATES ARE DEDUPLICATED AMONG THEMSELVES
 // given: the same part; a draft of a new use case whose title no artifact has, a change of a use case that a part shows (a use case of another title, naming UC-001), a change of UC-099, which no part shows, and two new use cases of one title
 // input: the check on the draft
 // expect: one error for the change of UC-099, under A CANDIDATE IS NEW, A CHANGE, A DUPLICATE OR A CONFLICT, in one line; none for the others; `classes` holds the new use case as new decided by its participant, the change of UC-001 as it was classed, the change of UC-099 as it was, and the two use cases of one title as one class naming both paths

@@ -99,7 +99,9 @@ test("typing part of a name or of a rule narrows the tree to the requirements th
   assert.deepEqual(seen(target), EVERY, "known positive");
   assert.deepEqual(await narrowTo(target, { text: "shelf" }, ["BETA RULE"]), ["BETA RULE"]);
   assert.deepEqual(groupsSeen(target), ["Lending rules"], "the group of no matching requirement is hidden");
-  const tables = () => find(target, (node) => node.localName === "table" && hasClass(node, "list")).filter((table) => !hiddenWithin(table, target)).length;
+  // The tables of the tree: the list of the SPEC changes waiting for acceptance above it (section.spec-waiting) is a table.list too, and is not narrowed.
+  const waiting = find(target, (node) => node.localName === "section" && hasClass(node, "spec-waiting")).flatMap((section) => find(section, (node) => node.localName === "table"));
+  const tables = () => find(target, (node) => node.localName === "table" && hasClass(node, "list")).filter((table) => !waiting.includes(table) && !hiddenWithin(table, target)).length;
   assert.equal(tables(), 1, "so are the tables in which nothing matches: only that of Lending rules is left");
   assert.equal(find(find(target, (node) => node.localName === "section" && hasClass(node, "spec-group"))[0], (node) => hasClass(node, "spec-group-held"))[0].textContent, "2 requirements");
   assert.deepEqual(await narrowTo(target, { text: "Gamma" }, ["GAMMA RULE"]), ["GAMMA RULE"]);
@@ -216,11 +218,11 @@ test("a released version narrows the same way", async () => {
 
 // TST-596009 · level: unit · module: MOD-trace-pages
 // guards: UC-020
-// given: the fixture on main, in which every read of UC-001's file fails as an unreachable server does
+// given: the fixture on main, whose branch trace-cache holds no graph of main (the workflow "main changed" has not stored it)
 // input: realised chosen
 // expect: the tree is not narrowed by it (every row stays) and the page says "Whether a use case realises a requirement could not be read."
-test("a trace graph that cannot be read leaves the tree as it is and names what is missing", async () => {
-  const target = await render(treeHost({ trees: { main: FILES }, failing: (path) => path === "docs/use-cases/UC-001-first.md" }));
+test("a trace graph that is not stored leaves the tree as it is and names what is missing", async () => {
+  const target = await render(treeHost({ trees: { main: FILES }, stored: () => false }));
   const all = seen(target);
   assert.ok(all.includes("DELTA RULE") && all.includes("GHOST RULE"), "known positive: the tree is drawn");
   const field = control(target, "realised");

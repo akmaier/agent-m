@@ -106,11 +106,10 @@ function fixtureFiles() {
 }
 const PRS = [pr({ number: 1, item: "ITM-001", base: "sprint/team1/01", created: "2026-09-14T10:00:00Z", merged: "2026-09-15T10:00:00Z" }),
   pr({ number: 2, item: "ITM-002", base: "sprint/team1/01", created: "2026-09-15T12:00:00Z" }),
-  // Counter-proofs: a pull request that names no item; one of ITM-005 merged into a branch that is no sprint's and not the
-  // default branch.
+  // Counter-proof: a merged pull request that names no item. (A merged pull request naming an item makes it done whatever branch
+  // it was merged into: MOD-work-plans, "A merged pull request decides first".)
   { ...pr({ number: 3, item: "ITM-000", base: "sprint/team1/01", created: "2026-09-15T13:00:00Z", merged: "2026-09-15T14:00:00Z" }),
-    title: "Tidy the README", head: { ref: "team/tidy", sha: "b".repeat(40) } },
-  pr({ number: 4, item: "ITM-005", base: "experiment/x", created: "2026-09-15T13:00:00Z", merged: "2026-09-15T15:00:00Z" })];
+    title: "Tidy the README", head: { ref: "team/tidy", sha: "b".repeat(40) } }];
 
 // A same-day sprint: team1's sprint 01 starts on 2026-09-14 with ITM-001, ITM-002 and ITM-005; ITM-001 is merged into its
 // branch at 09:30 UTC that day and ITM-005 at 11:45 UTC, and ITM-002's pull request is open.
@@ -216,7 +215,7 @@ test("#backlog — a team's closed sprint: its final chart from start through ea
 // input: open #backlog
 // expect: the load lists the pull requests in one request, and makes 9 requests in all — the commit, the tree, the batch of its 16 files, the facts stored for the commit (none), the pull requests, then the
 //         instance at the commit its declaration's model_version names (the commit, the tree and one batch) and the one question whether the default branch holds the head of a sprint's pull request: the merge
-//         times come from the pull requests the page reads anyway (A PAGE LOAD READS THE REPOSITORY IN BATCHES)
+//         times come from the pull requests the page reads anyway (A PAGE LOAD READS THE REPOSITORY IN BATCHES); the prompt bar reads through what the load read and adds no request
 test("#backlog — the chart's merges cost no request: one listing of the pull requests, and 9 requests in all", async () => {
   const { page } = await backlogPage();
   assert.equal(page.requests.filter((r) => /\/pulls(?:\?|\/|$)/.test(r)).length, 1, page.requests.join(" | "));
@@ -245,11 +244,10 @@ test("#backlog — a team's panel names its items in progress against the model'
 });
 
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
-// given: the fixture product, with a pull request that names no item and one of ITM-005 merged into a branch that is neither
-//        a sprint's nor the default branch
+// given: the fixture product, with a merged pull request that names no item
 // input: open #backlog
-// expect: every request of the load is a read — nothing is written —; ITM-005 is still ready, and no other state changes
-test("#backlog — a load writes nothing; a pull request naming no item, or merged elsewhere, changes no state", async () => {
+// expect: every request of the load is a read — nothing is written —; ITM-005, which no pull request names, is still ready
+test("#backlog — a load writes nothing; a pull request naming no item changes no state", async () => {
   const { page, server } = await backlogPage();
   assert.equal(server.writes.length, 0);
   assert.ok(page.requests.every((r) => !/^(write|other (POST|PUT|PATCH|DELETE))/.test(r)), page.requests.join(" | "));
@@ -345,7 +343,7 @@ test("#backlog — the page is laid out as #uc and #arc are: panels, list tables
   const { page } = await backlogPage();
   await page.click('[data-plan="team2"]');
   const html = page.main();
-  // The shared layout of #uc and #arc, as tests/dashboard-shared-layout.test.mjs reads it: the title in a section.head, every
+  // The shared layout of #uc and #arc: the title in a section.head, every
   // button a btn, every folded explanation a details.explain.
   const tags = (name) => html.match(new RegExp(`<${name}\\b[^>]*>`, "g")) ?? [];
   const classesOf = (tag) => (/\sclass="([^"]*)"/.exec(tag)?.[1] ?? "").split(/\s+/).filter(Boolean);

@@ -4,8 +4,8 @@
 //
 // Module: MOD-settings-pages · MOD-browser-store · MOD-endpoint-calls
 // Level: system
-// Guards: UC-042; UC-003; EVERY SETTING IS REACHED FROM ONE PAGE; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN;
-//         CONFIGURATION LIVES IN THE BROWSER
+// Guards: UC-042; UC-003; EVERY SETTING IS REACHED FROM ONE PAGE; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN
+// Guards: CONFIGURATION LIVES IN THE BROWSER
 //
 // The endpoint servers below are controlled in-process handlers of the existing dashboard harness. No provider is called.
 // Counter-proofs: each TST's named source fault was planted, its case failed at the stated assertion, and the byte was restored.

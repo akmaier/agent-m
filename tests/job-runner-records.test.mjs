@@ -4,8 +4,7 @@
 // Run: node --test tests/job-runner-records.test.mjs
 //
 // Module: MOD-job-runner
-// Guards: AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; THE ROUNDS ARE COUNTED AND SHOWN; A FINDING READS LIKE A
-//         COMPILER MESSAGE
+// Guards: AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; THE ROUNDS ARE COUNTED AND SHOWN; A FINDING READS LIKE A COMPILER MESSAGE
 // Level: unit
 //
 // The expected trailer lines are stated in the test itself; the round record's expected text is read from the module file's Data: its

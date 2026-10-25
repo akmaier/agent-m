@@ -11,6 +11,10 @@
 import { HostError, send, json, refusal } from "./failures.mjs";
 
 const PAGE = 100, MAX_PAGES = 1000;
+// The GraphQL query of a project's CI/CD variables (GraphQL reference: Query.project(fullPath: ID!), Project.ciVariables — a connection with the standard
+// pagination arguments —, CiProjectVariable.key and .environmentScope, PageInfo.hasNextPage and .endCursor): the key and the scope of each, never the value.
+const VARIABLE_SCOPES = "query($path: ID!, $after: String) { project(fullPath: $path) { ciVariables(first: 100, after: $after) "
+  + "{ nodes { key environmentScope } pageInfo { hasNextPage endCursor } } } }";
 // GitLab's role Maintainer: the access level that may push to a protected default branch (A GITLAB PRODUCT USES A PROJECT
 // ACCESS TOKEN); GitLab's default branch protection lets no Developer push.
 const MAINTAINER = 40;
@@ -56,7 +60,9 @@ function base64(bytes) {
 export function gitlabAdapter(address, { token, tokenName }, links) {
   const host = new URL(address.origin).host;
   const api = `${address.origin}/api/v4/projects/${encodeURIComponent(address.path)}`;
-  const gate = { allowed: [api], tokenAt: api, header: "PRIVATE-TOKEN", value: token || null, token };
+  // The server's GraphQL API, which ciVariableScopes alone calls: it answers only the fields a query names.
+  const graphql = `${address.origin}/api/graphql`;
+  const gate = { allowed: [api, graphql], tokenAt: api, header: "PRIVATE-TOKEN", value: token || null, token };
   const context = { server: "gitlab", host, web: address.web, authenticated: Boolean(token), tokenName,
     renewal: links.projectTokens, permission: "the role Maintainer with the scope api", what: address.web };
 
@@ -345,6 +351,36 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
       if (branch) query.set("ref", branch);
       if (commit) query.set("sha", commit);
       return (await everyPage(`${api}/pipelines${query.size ? `?${query}` : ""}`, {}, (p) => p.id)).map((p) => ciRunOf(p, workflow ?? ""));
+    },
+
+    // Each CI/CD variable of the project by its key and environment scope, through the server's GraphQL API, which answers only the fields asked for: the query asks
+    // for `key` and `environmentScope` of `Project.ciVariables` and never for `value`, so no value leaves the server. The connection is read 100 nodes to a page (the
+    // default maximum page size), following `pageInfo.endCursor` while `hasNextPage`. The token goes to the server's own /api/graphql as the header
+    // `Authorization: Bearer`, which GraphQL documents. A query field the token may not read is `null` (GraphQL "Authorization": "Query fields return `null` when you
+    // do not have permission to access a resource"): `ciVariables` or `project` null is PermissionMissing; listing a project's variables needs the role Maintainer.
+    async ciVariableScopes() {
+      const options = { ...context, write: false, what: `the CI/CD variables of ${address.web}` };
+      const scopes = [];
+      let after = null;
+      for (let page = 1; page <= MAX_PAGES; page++) {
+        const answer = await send(graphql, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ query: VARIABLE_SCOPES, variables: { path: address.path, after } }) }, gate);
+        if (!answer.ok) throw await refusal(answer, options);
+        const said = await json(answer, address.origin);
+        const variables = said?.data?.project?.ciVariables;
+        if (!variables) {
+          if (Array.isArray(said?.errors) && said.errors.length) {
+            const reason = said.errors.map((error) => error?.message).filter(Boolean).join("; ") || "an error";
+            throw new HostError("Unreachable", { reason }, `${host} answered the list of CI/CD variables with ${reason}`);
+          }
+          throw new HostError("PermissionMissing", { permission: context.permission, renewal: context.renewal },
+            `${host} lists no CI/CD variables of ${address.web} for this token: they are listed for ${context.permission}. Renew it on ${context.renewal}.`);
+        }
+        scopes.push(...(variables.nodes ?? []).map((node) => ({ name: node.key, scope: node.environmentScope ?? "*" })));
+        if (!variables.pageInfo?.hasNextPage) break;
+        after = variables.pageInfo.endCursor;
+      }
+      return scopes;
     },
 
     // Cancels a pipeline's jobs ("Cancel a pipeline's jobs": POST …/pipelines/:pipeline_id/cancel, which answers the pipeline, one that has finished already included).

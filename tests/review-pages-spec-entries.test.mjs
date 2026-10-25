@@ -35,6 +35,10 @@ import { scripted } from "./review-pages-harness.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { withStoredGraph } from "./stored-graph-fake.mjs";
+
+// Every commit the fakes of this file make is its own: MOD-trace-graph's storedGraph keeps a commit's graph for the page.
+let commitsMade = 0;
 
 const { openStore, writeSetting } = await import("../src/browser-store/index.mjs");
 const pages = await import("../src/review-pages/index.mjs").catch((error) => ({ error }));
@@ -88,16 +92,18 @@ function fakeHost(files, repository = ON_GITHUB) {
   const calls = [], commits = new Map();
   let made = 0, head = null;
   const commitOf = (tree, parent) => {
-    const sha = createHash("sha1").update(`commit ${++made}`).digest("hex");
+    const sha = createHash("sha1").update(`commit ${++made} of the file's ${++commitsMade}`).digest("hex");
     commits.set(sha, { tree, parent, date: `2026-10-0${made}T10:00:00Z` });
     return sha;
   };
   head = commitOf(new Map(Object.entries(files)), null);
-  const snapshotAt = (sha) => {
+  const bareSnapshotAt = (sha) => {
     const { tree } = commits.get(sha);
     return { repository, ref: sha, commit: sha, paths: [...tree.keys()].sort(), read: async (path) => (tree.has(path) ? tree.get(path) : null),
       blob: (path) => (tree.has(path) ? blobOf(tree.get(path)) : null) };
   };
+  // Each snapshot serves the graph the push job stores for its commit (tests/stored-graph-fake.mjs); a page reads it and never builds one (MOD-trace-graph).
+  const snapshotAt = (...args) => withStoredGraph(bareSnapshotAt(...args));
   return {
     head: () => head,
     files: () => Object.fromEntries(commits.get(head).tree),
@@ -460,7 +466,7 @@ test("spec-entry/<id> — the other open proposals on the same section", async (
 // ---------------------------------------------------------------- through the one review flow
 
 // TST-472675 · level: unit · module: MOD-review-pages
-// guards: THE ENTRIES TAKE PART IN THE ONE REVIEW FLOW THROUGH THEIR DESCRIPTOR; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
 // given: the instance's entry 07, no token — the page of any other kind, an accepted-by-record use case's, offers the record with a Copy button for its path and for its text
 // input: the page of entry 07
 // expect: the flow's fallback block: the explanation, the link, the path with a Copy button and the record with a Copy button
@@ -474,7 +480,7 @@ test("spec-entry/<id> — the flow's fallback block: the record's path and text 
 });
 
 // TST-472676 · level: unit · module: MOD-review-pages
-// guards: THE ENTRIES TAKE PART IN THE ONE REVIEW FLOW THROUGH THEIR DESCRIPTOR; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
+// guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
 // given: the instance with the entry 07 open and a token whose host refuses the write for lack of permission (PermissionMissing)
 // input: a click on Accept
 // expect: as the flow does for every kind: the refusal shown in the result, Accept enabled again, and GitHub's page with the record offered; nothing written

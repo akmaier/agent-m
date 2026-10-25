@@ -348,7 +348,7 @@ class RecordingConversationsDisclosure(unittest.TestCase):
         self.assertIn("fixture/instance", public)
         self.assertIn(PUBLIC_PRODUCT, public)
 
-    # guards: SWITCHING CONVERSATION RECORDING ON STATES WHAT FOLLOWS (counter-proof)
+    # guards: SWITCHING CONVERSATION RECORDING ON STATES WHAT FOLLOWS
     # given: the fixture above
     # input: the person presses Switch on
     # expect: the address https://github.com/fixture/private-product, whose server reports it private, is in no part of the notice,

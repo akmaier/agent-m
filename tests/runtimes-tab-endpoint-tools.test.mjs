@@ -204,14 +204,16 @@ test("runOnTab — the reviewer's endpoint is offered no tools, though it declar
 // guards: A PARTICIPANT DECLARES ITS CAPABILITIES; A RUNTIME IS INTERCHANGEABLE
 // given: the job of TST-496001 with a CLI agent claude on the Bridge lab-pc as drafter, declaring draft text, read the repository, use tools and run code and tests; the Bridge answers the draft { answer: "from the Bridge" }; the connections hold ep1 as well
 // input: runOnTab of the prepared job, with no record
-// expect: the Bridge receives POST /v1/ask with the token of lab-pc and a body whose keys are exactly agent and input, the agent "claude" and the input the prompt "Answer." — no tool is named in it —, then polls GET /v1/ask/ask-1; no request goes to ep1 or any other origin than the Bridge's http://127.0.0.1:4712; the result is the draft { answer: "from the Bridge" }, stopped because passed
+// expect: the Bridge receives POST /v1/ask with the token of lab-pc and a body whose keys are exactly agent and input, the agent "claude" and the input the prompt "Answer." followed by the form of the answer, the envelope as a JSON schema — no tool is named in it —, then polls GET /v1/ask/ask-1; no request goes to ep1 or any other origin than the Bridge's http://127.0.0.1:4712; the result is the draft { answer: "from the Bridge" }, stopped because passed
 test("runOnTab — an agent on a Bridge is sent its prompt and no tools", async () => {
   bridgeAnswers({ answer: "from the Bridge" });
   const { result, touched } = await runInTab(preparedOf(AGENT), connectionsOf(OPENAI));
   assert.deepEqual(bridged.map((each) => [each.origin, each.method, each.path, each.token]),
     [["http://127.0.0.1:4712", "POST", "/v1/ask", "token-lab-pc"], ["http://127.0.0.1:4712", "GET", "/v1/ask/ask-1", "token-lab-pc"]]);
   assert.deepEqual(Object.keys(bridged[0].body).sort(), ["agent", "input"]);
-  assert.deepEqual([bridged[0].body.agent, bridged[0].body.input], ["claude", "Answer."]);
+  assert.equal(bridged[0].body.agent, "claude");
+  assert.ok(bridged[0].body.input.startsWith("Answer.\n\n## The form of your answer\n"), bridged[0].body.input);
+  assert.match(bridged[0].body.input, /"required": \[\n\s*"draft"\n\s*\]/);
   assert.deepEqual([result.draft, result.stoppedBecause], [{ answer: "from the Bridge" }, "passed"]);
   assert.deepEqual(touched, []);
 });

@@ -2,10 +2,9 @@
 // The release tests of A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE and NOTIFICATIONS ARE SWITCHED ON BY THE PERSON
 // (ITM-246): SPEC.md names this file, which did not exist, as both requirements' own Check, with the cases its two Check
 // lines state — through the main, settings and review pages as the dashboard reaches MOD-notifications since the change
-// between jobs #157 (docs/assets/dashboard/settings-view.mjs, docs/assets/dashboard-app.mjs, src/home/home.mjs) —
+// between jobs #157 —
 // reached the way ITM-238's tests reach them: tests/app-harness.mjs's repoServer and openDashboard for the settings and
-// review pages; the main page, src/home/home.mjs, has no test harness of its own (unlike docs/assets/dashboard-app.mjs's
-// app-harness.mjs), so openMainPage below brings the small environment its start() needs, the same shape tests/
+// review pages; for the main page, openMainPage below brings the small environment its start() needs, the same shape tests/
 // dashboard-notifications-wiring.test.mjs's own main-page tests do — a local copy here, not a change to that file or to
 // tests/app-harness.mjs. A browser's Notification/navigator/setInterval stood in for the way that file's own
 // installBrowser() does, never a real timer. Every expected result is the requirement's own, from SPEC.md and UC-047,
@@ -13,7 +12,7 @@
 // unit-tested by tests/notifications.test.mjs and is not repeated here.
 //
 // Corrected after sprint 10's gate (docs/gates/20261007-1603-development-release-testing-9980.md, pull request #181):
-// the main page, src/home/home.mjs, also runs MOD-notifications' checks (UC-047 step 2) and the item's Acceptance names
+// the main page also runs MOD-notifications' checks (UC-047 step 2) and the item's Acceptance names
 // it beside the review pages; the test of NOTIFICATIONS ARE SWITCHED ON BY THE PERSON below now opens it first, before
 // the review and settings pages, and checks that it asks for the permission no more than they do.
 //

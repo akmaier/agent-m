@@ -3,8 +3,7 @@
 //
 // Module: MOD-bridge-client · MOD-bridge-http
 // Level: release
-// Guards: UC-003; A CREDENTIAL IS NEVER PLACED IN A URL; A REMOTE INTERFACE NAMES HOW IT FAILS;
-//         THE LOCAL BRIDGE REQUIRES A TOKEN
+// Guards: UC-003; A CREDENTIAL IS NEVER PLACED IN A URL; A REMOTE INTERFACE NAMES HOW IT FAILS; THE LOCAL BRIDGE REQUIRES A TOKEN
 
 import assert from "node:assert/strict";
 import { mkdtemp } from "node:fs/promises";

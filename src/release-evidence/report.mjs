@@ -17,7 +17,7 @@
 // which is given one); the call below uses the real clock. No item needs the signature changed now.
 //
 // resultsAt, flakyTests, rateComparison and listJobs are async, typed without Promise<> by MOD-result-records.md and
-// MOD-job-ledger.md for the same reason (docs/backlog/sprints/12.md, "notes of earlier gates"; src/result-records/
+// MOD-job-ledger.md for the same reason (docs/backlog/sprints/team1/12.md, "notes of earlier gates"; src/result-records/
 // read.mjs's and src/job-ledger/index.mjs's own header notes) — awaited at every call below.
 
 import { loadSchema, readDocument, writeDocument } from "../documents/index.mjs";

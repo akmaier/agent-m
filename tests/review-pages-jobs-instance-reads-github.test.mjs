@@ -17,22 +17,28 @@ import assert from "node:assert/strict";
 import { TOKEN, PRODUCT_ADDRESS, INSTANCE_REPO, INSTANCE_ADDRESS, fakeGitHub, productWithLinks, instanceFiles } from "./uc-006-batched-reads-harness.mjs";
 import { openStore, writeSetting } from "../src/browser-store/index.mjs";
 import { connect, parseAddress } from "../src/repository-hosts/index.mjs";
+import { storedGraphBytes } from "./stored-graph-fake.mjs";
 
 const pages = await import("../src/review-pages/index.mjs");
 
-// The request of each repository goes to its own fake, told apart by the repository in the path, the raw host's path or the GraphQL variables.
-const routed = (product, instance) => async (input, init = {}) => {
+// The request of each repository goes to its own fake, told apart by the repository in the path, the raw host's path or the GraphQL variables. The product's branch
+// trace-cache holds the graph of its commit, `<commit>.json.gz`, as the workflow "main changed" stores it (tests/stored-graph-fake.mjs): a page reads that graph and
+// never builds one (MOD-trace-graph). The product fake answers no other branch, so this router answers that file's read.
+const routed = (product, instance, held) => async (input, init = {}) => {
   const url = new URL(String(input));
   const body = typeof init.body === "string" ? JSON.parse(init.body) : null;
   const ofInstance = url.pathname.startsWith(`/repos/${INSTANCE_REPO}`) || url.pathname.startsWith(`/${INSTANCE_REPO}/`) || body?.variables?.name === INSTANCE_REPO.split("/")[1];
+  const stored = !ofInstance && /\/([0-9a-f]{40})\.json\.gz$/.exec(url.pathname);
+  if (stored) return new Response(await storedGraphBytes({ commit: stored[1], paths: Object.keys(held), read: async (path) => held[path] ?? null }));
   return (ofInstance ? instance : product).fetch(input, init);
 };
 
 // Draws `<route>/id=draft` of the product over the real GitHub host, with the product's token stored or none, and returns the requests the instance received, by kind.
 async function startPage(routeName, token) {
-  const product = fakeGitHub(productWithLinks(10)), instance = fakeGitHub(instanceFiles(), { repo: INSTANCE_REPO });
+  const held = productWithLinks(10);
+  const product = fakeGitHub(held), instance = fakeGitHub(instanceFiles(), { repo: INSTANCE_REPO });
   const real = globalThis.fetch;
-  globalThis.fetch = routed(product, instance);
+  globalThis.fetch = routed(product, instance, held);
   try {
     while (globalThis.localStorage.length) globalThis.localStorage.removeItem(globalThis.localStorage.key(0));
     const store = openStore("alice/agent-m");

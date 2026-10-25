@@ -82,7 +82,7 @@ const LISTING = "docs/a.md\ndocs/sub/b.md", FILE_TEXT = "alpha\nneedle in a\nome
 // guards: ONE DEFINITION, THREE DRIVERS; A RUNTIME IS INTERCHANGEABLE; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: a model endpoint ep1 the Bridge lab-pc calls (its bridge is "lab-pc"), declaring draft text, read the repository and use tools; a kind that names list-files and read-file; a product snapshot holding README.md, docs/a.md and docs/sub/b.md; the Bridge answers the first exchange with the calls list-files("docs") and read-file("docs/a.md") (10 in, 2 out) and the second with the text {"draft":{"answer":"read it"},"answers":[]} (20 in, 3 out)
 // input: runOnTab of the prepared job, with no record
-// expect: exactly two POST /v1/ask, both to the Bridge with its token, each body with exactly the keys endpoint and exchange, the endpoint the configuration given; the first exchange is the user message "Answer." and the tools list-files and read-file in that order, each with name, description and input; the second exchange ends with the assistant turn that made c1 and c2, then the tool turn "docs/a.md\ndocs/sub/b.md" for c1 and the tool turn "alpha\nneedle in a\nomega" for c2, and offers the same two tools; the result's draft is { answer: "read it" }, stopped because passed, its one usage entry the drafter's with 30 in and 5 out; no property of either host, of the hooks' host or of connect was touched; no request reached any origin but the Bridge's
+// expect: exactly two POST /v1/ask, both to the Bridge with its token, each body with exactly the keys endpoint and exchange, the endpoint the configuration given; the first exchange is the user message "Answer." followed by the form of the answer, and the tools list-files and read-file in that order, each with name, description and input; the second exchange ends with the assistant turn that made c1 and c2, then the tool turn "docs/a.md\ndocs/sub/b.md" for c1 and the tool turn "alpha\nneedle in a\nomega" for c2, and offers the same two tools; the result's draft is { answer: "read it" }, stopped because passed, its one usage entry the drafter's with 30 in and 5 out; no property of either host, of the hooks' host or of connect was touched; no request reached any origin but the Bridge's
 test("runOnTab — an endpoint the Bridge calls is offered the kind's tools, each request of its loop one exchange ask and each call carried out in the tab", async () => {
   bridgeAnswers([{ state: "running" }, done({ calls: TWO_CALLS, usage: { inputTokens: 10, outputTokens: 2, minutes: null, cost: null } }),
     done({ text: JSON.stringify({ draft: { answer: "read it" }, answers: [] }), usage: { inputTokens: 20, outputTokens: 3, minutes: null, cost: null } })]);
@@ -92,7 +92,8 @@ test("runOnTab — an endpoint the Bridge calls is offered the kind's tools, eac
   assert.ok(posts().every((each) => JSON.stringify(Object.keys(each.body).sort()) === JSON.stringify(["endpoint", "exchange"])));
   assert.ok(posts().every((each) => JSON.stringify(each.body.endpoint) === JSON.stringify(CONFIG)));
   const [first, second] = posts().map((each) => each.body.exchange);
-  assert.deepEqual(first.messages, [{ role: "user", text: "Answer." }]);
+  assert.deepEqual(first.messages.map((message) => message.role), ["user"]);
+  assert.ok(first.messages[0].text.startsWith("Answer.\n\n## The form of your answer\n"), "the prepared prompt, then the form of the answer");
   assert.deepEqual(first.tools.map((tool) => tool.name), ["list-files", "read-file"]);
   assert.ok(first.tools.every((tool) => typeof tool.description === "string" && typeof tool.input === "object"));
   assert.deepEqual(second.tools.map((tool) => tool.name), ["list-files", "read-file"]);
@@ -106,7 +107,7 @@ test("runOnTab — an endpoint the Bridge calls is offered the kind's tools, eac
 // guards: A PARTICIPANT DECLARES ITS CAPABILITIES; ONE DEFINITION, THREE DRIVERS
 // given: the job of TST-497009 with the drafter declared with draft text and read the repository only; known positive first — the declaring drafter's first ask is an exchange; the Bridge answers the draft {"draft":{"answer":"plain"},"answers":[]} at once
 // input: runOnTab of each
-// expect: the declaring drafter's POST body has the key exchange (the known positive); the other's single POST body has exactly the keys endpoint and input, the endpoint the configuration, the input "Answer."; one ask only; the draft { answer: "plain" }, stopped because passed
+// expect: the declaring drafter's POST body has the key exchange (the known positive); the other's single POST body has exactly the keys endpoint and input, the endpoint the configuration, the input "Answer." followed by the form of the answer; one ask only; the draft { answer: "plain" }, stopped because passed
 test("runOnTab — an endpoint the Bridge calls, given no tools, is still one ask with the prompt", async () => {
   bridgeAnswers([done({ text: JSON.stringify({ draft: { answer: "plain" }, answers: [] }) })]);
   await runInTab(preparedOf(DRAFTER));
@@ -115,7 +116,8 @@ test("runOnTab — an endpoint the Bridge calls, given no tools, is still one as
   const { result } = await runInTab(preparedOf({ ...DRAFTER, capabilities: ["draft text", "read the repository"] }));
   assert.equal(posts().length, 1);
   assert.deepEqual(Object.keys(posts()[0].body).sort(), ["endpoint", "input"]);
-  assert.deepEqual([posts()[0].body.endpoint, posts()[0].body.input], [CONFIG, "Answer."]);
+  assert.deepEqual(posts()[0].body.endpoint, CONFIG);
+  assert.ok(posts()[0].body.input.startsWith("Answer.\n\n## The form of your answer\n"), "the prepared prompt, then the form of the answer");
   assert.deepEqual([result.draft, result.stoppedBecause], [{ answer: "plain" }, "passed"]);
 });
 

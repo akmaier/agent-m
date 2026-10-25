@@ -136,9 +136,8 @@ It runs in a browser, loaded by `docs/index.html` through MOD-site-frame.
   current text, rationale and impact list, an architecture change's impact list, a report's limitations.
 - `arrange.mjs` — the hierarchy of a group file, moves, pending changes.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `docs/assets/dashboard/review-views.mjs`, `docs/assets/dashboard/spec-changes-view.mjs`, `docs/assets/dashboard/reads.mjs`, `docs/assets/dashboard/writes.mjs`, `docs/assets/dashboard/requirement-prompt-view.mjs`: removed once the live app shows `uc`, `arc`, `review`, `spec`, `requirement` and `requirements` through this module's routes.
-  - `docs/assets/dashboard/how-view.mjs`: removed: *How acceptance works* is the topic `accepting`, folded on the review pages with `explain`.
-  - `tests/architecture-view.test.mjs`, `tests/dashboard-spec-impact.test.mjs`, `tests/review-core.d/dashboard-reads.test.mjs`, `tests/review-core.d/dashboard-writes.test.mjs`, `tests/review-core.d/authority.test.mjs`, `tests/review-pages-edit-entry.test.mjs`, `tests/uc-006-batched-reads-harness.mjs`: their headers name this module; a test of only a removed view goes with it.
+  - `docs/assets/dashboard/writes.mjs`: removed once the live app shows `uc`, `arc`, `review`, `spec`, `requirement` and `requirements` through this module's routes.
+  - `tests/dashboard-spec-impact.test.mjs`, `tests/review-core.d/dashboard-reads.test.mjs`, `tests/review-core.d/dashboard-writes.test.mjs`, `tests/review-core.d/authority.test.mjs`, `tests/review-pages-edit-entry.test.mjs`, `tests/uc-006-batched-reads-harness.mjs`: their headers name this module; a test of only a removed view goes with it.
 
 ## Data
 

@@ -2,9 +2,8 @@
 //
 // Module: MOD-bridge-http · MOD-bridge-client
 // Level: release
-// Guards: UC-011; UC-017; THE BRIDGE FINDS THE INSTALLED AGENTS;
-//         THE LOCAL BRIDGE REQUIRES A TOKEN; A REMOTE INTERFACE NAMES HOW IT FAILS;
-//         A DATA FORMAT IS DEFINED ONCE
+// Guards: UC-011; UC-017; THE BRIDGE FINDS THE INSTALLED AGENTS; THE LOCAL BRIDGE REQUIRES A TOKEN; A REMOTE INTERFACE NAMES HOW IT FAILS
+// Guards: A DATA FORMAT IS DEFINED ONCE
 
 import assert from "node:assert/strict";
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";

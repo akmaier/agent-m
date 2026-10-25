@@ -21,22 +21,21 @@ origin:
 
 ## Outcome
 
-`const writes = …`, the rule that tells which of a fake server's requests is a write, stands copied in four release
+`const writes = …`, the rule that tells which of a fake server's requests is a write, stands copied in three release
 files:
-- `tests/release-sprint-14-spec-overview-readonly.test.mjs`;
 - `tests/release-sprint-15-spec-toggles.test.mjs`;
 - `tests/release-sprint-02-d-dashboard-app.test.mjs`;
 - `tests/release-sprint-02-d-settings-store.test.mjs`.
 
 ITM-678 had to teach two of them that the batch `POST …/graphql` is a read. A copy left untaught would count it as a
 write. Sprint 56's agreement reads: "A shared test harness lives in a helper file of its own, never in a test file."
-So the rule moves into `tests/app-harness.mjs`, MOD-site-frame's since ITM-574, and the four files use it.
+So the rule moves into `tests/app-harness.mjs`, MOD-site-frame's since ITM-574, and the three files use it.
 
 It is written by a participant who builds none of ITM-574, since the files are release tests.
 
 ## Acceptance
 
-- One function of `tests/app-harness.mjs` tells a write. The four files use it, and none keeps a copy.
+- One function of `tests/app-harness.mjs` tells a write. The three files use it, and none keeps a copy.
 - Their expected results are unchanged, and each passes on the base and on ITM-574's head.
 - Its counter-proof: a planted write in a page fails each of them.
 

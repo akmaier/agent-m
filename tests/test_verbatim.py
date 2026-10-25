@@ -4,7 +4,7 @@
 """SPEC §9 THE APPROVED TEXT IS TAKEN VERBATIM — characterisation tests of ITM-014 (a refactoring job).
 
 Both writers of an approved SPEC entry — the dashboard's acceptance commit (docs/assets/review-core.mjs planAcceptance,
-asked through node) and the instance's workflow (tools/apply_approvals.py) — on the fixture product tests/fixtures/gates/,
+asked through node) and the instance's workflow (MOD-spec-changes' applyApproved) — on the fixture product tests/fixtures/gates/,
 with the proposal of entry 01 rewritten to hold the bytes a formatter, an editor or a normaliser would touch: two trailing
 spaces (a Markdown line break), a tab, a no-break space, a non-breaking hyphen, a line separator, a character outside the
 Basic Multilingual Plane, a decomposed accent, and no final newline. Expected for each: the SPEC is the old one with the

@@ -22,6 +22,7 @@ import { createHash } from "node:crypto";
 import { readDocument } from "../src/documents/index.mjs";
 import { sourceSchemas } from "../src/source-register/index.mjs";
 import * as specChanges from "../src/spec-changes/index.mjs";
+import { withStoredGraph } from "./stored-graph-fake.mjs";
 
 const { entryView, acceptEntries, queues } = specChanges;
 
@@ -56,7 +57,8 @@ function files({ spec = SPEC, until = "## 3. Third" } = {}) {
     [`${QUEUE}/01-first.md`]: PROPOSAL, [`${QUEUE}/01-first.begruendung.md`]: text("# First: a change", "", "**The change.** A sample."),
   };
 }
-const snapshotOf = (tree) => ({ repository: ON_GITHUB, ref: "trunk", commit: "c".repeat(40), paths: Object.keys(tree).sort(), read: async (path) => (Object.hasOwn(tree, path) ? tree[path] : null), blob: (path) => (Object.hasOwn(tree, path) ? gitBlob(tree[path]) : null) });
+// A snapshot of the tree, whose graph is stored on trace-cache as the workflow "main changed" stores it (tests/stored-graph-fake.mjs), for the commit it names.
+const snapshotOf = (tree) => withStoredGraph({ repository: ON_GITHUB, ref: "trunk", commit: "c".repeat(40), paths: Object.keys(tree).sort(), read: async (path) => (Object.hasOwn(tree, path) ? tree[path] : null), blob: (path) => (Object.hasOwn(tree, path) ? gitBlob(tree[path]) : null) });
 
 function fakeHost(initial) {
   let tree = { ...initial }, head = "a".repeat(40);

@@ -220,7 +220,11 @@ export const builtins = {
       const { snapshot } = context.product;
       const instance = context.instance.snapshot.repository.path;
       const drafted = new Map((Array.isArray(draft?.files) ? draft.files : []).map(({ path, text }) => [path, text]));
+      // A draft that changes no file leaves the graph as it is: nothing it holds is new, and the repository is not read.
+      if (drafted.size === 0) return [];
+      // The files read in batches, as the snapshot reads them; a drafted file is the draft's.
       const inPlace = { paths: [...new Set([...snapshot.paths, ...drafted.keys()])],
+        readMany: async (paths) => snapshot.readMany?.(paths.filter((path) => !drafted.has(path))),
         read: async (path) => (drafted.has(path) ? drafted.get(path) : snapshot.read(path)) };
       return notHeld(await acrossArtifacts(inPlace, instance), await acrossArtifacts(snapshot, instance));
     },

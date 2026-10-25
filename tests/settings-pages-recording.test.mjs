@@ -6,8 +6,9 @@
 // Run: node --test tests/settings-pages-recording.test.mjs
 //
 // Module: MOD-settings-pages
-// Guards: UC-042; SWITCHING CONVERSATION RECORDING ON STATES WHAT FOLLOWS; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON;
-//   EVERY STEP EXPLAINS ITSELF; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A FORM OPENS WITH ITS FIRST FIELD FOCUSED
+// Guards: UC-042; SWITCHING CONVERSATION RECORDING ON STATES WHAT FOLLOWS
+// Guards: A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; EVERY STEP EXPLAINS ITSELF
+// Guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A FORM OPENS WITH ITS FIRST FIELD FOCUSED
 // Level: unit
 //
 // Each test names its input and states its expected values in its own text; none reads an expected result from the SPEC, a use
@@ -301,7 +302,7 @@ test("a switch file created meanwhile refuses the save and nothing is written", 
 // given: an instance repository without a switch file
 // input: the Settings page is rendered
 // expect: the line holds one folded explanation — a details of class explain — with the summary "What is this?". The fixture DOM of this file renders no Markdown, so the
-//   text of the topic is checked on the line in tests/site-frame-settings-subject.test.mjs, and the topic itself in tests/site-frame-recording-explanations.test.mjs
+//   text of the topic is checked on the line in tests/site-frame-settings-subject.test.mjs
 test("the line has its folded explanation", async () => {
   const page = await open();
   const folded = descendants(page.line, (node) => node.localName === "details" && node.className.split(" ").includes("explain"));

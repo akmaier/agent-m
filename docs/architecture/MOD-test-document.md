@@ -31,7 +31,7 @@ RUNS`), and it checks these declarations. It runs in a browser and in Node, and 
 - `checks.mjs` — the findings of a declaration.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
   - `docs/assets/artifacts/headers.mjs`: removed once the workflows read a test's level through `testDeclarations`, which reads the same header lines.
-  - `tests/jsrun.py`, `tests/test_jsrun_names.py`: moved in as the runner by which the Python tests call the code of the modules: a test of any language is this module's concern, and no other module states it.
+  - `tests/jsrun.py`: moved in as the runner by which the Python tests call the code of the modules: a test of any language is this module's concern, and no other module states it.
   - `tests/test_test_levels.py`, `tests/test_release_sprint_02_c.py`, `tests/test_test_battery.py`, `tests/test_rate_reporting.py`: their headers name this module.
 
 ## Data

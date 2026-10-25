@@ -1,6 +1,6 @@
 ---
 id: ITM-1034
-title: A sprint's increment that is given up returns its done items to the backlog
+title: A sprint's increment that is given up holds none of its items
 level: module
 realises:
   - UC-041
@@ -16,14 +16,15 @@ origin:
   - the gap analysis of UC-036 to UC-049 on main, proposal NEW-041-7, read against the accepted texts on main at 40e04d8d
   - akmaier's direction of 2026-10-18 ("fill the backlog to implement the remaining missing UC 36 to the end")
 ---
-# ITM-1034 A sprint's increment that is given up returns its done items to the backlog
+# ITM-1034 A sprint's increment that is given up holds none of its items
 
 **REGISTER**
 
 ## Outcome
 
-UC-041-close-a-sprint.md:148-149 (7b): "If the Product Owner gives the increment up, its done items go back to the backlog and
-are no longer held."
+UC-041 7b: "If the Product Owner gives the increment up, its done items stay done and are no longer held; a change to one of
+them is a new item." It waits for the SPEC entry `docs/spec-freigaben/2026-10-25_a-given-up-increment-holds-no-item/` and for
+the acceptance of UC-041 and MOD-work-plans as they read with it.
 
 ## The accepted text
 
@@ -37,7 +38,14 @@ MOD-work-plans.md:233-237:
 >   (UC-041 7b). Errors: `NotFound { path }`, `NotClosed` for a sprint without `## Review`, `Merged` for a sprint whose
 >   branch's pull request is merged, and the host's.
 
+## Done items stay done
+
+Every merged pull request naming an item makes it `done`, into any branch (MOD-work-plans, `ItemState`: "A merged pull
+request decides first"). An item merged into the branch of a sprint whose increment is given up therefore stays `done`, and
+`startable` refuses a job on it ("a change to it is a new item"), as UC-041 7b states. This item changes nothing of that.
+
 ## Acceptance
 
-- Unit tests that name MOD-work-plans: after the increment is given up, `heldItems` holds none of the sprint's done items.
+- Unit tests that name MOD-work-plans: after the increment is given up, `heldItems` holds none of the sprint's items, and
+  `itemStates` keeps its merged items `done`.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.

@@ -26,7 +26,7 @@
 //     a link is an a[href] or a [role=link].
 //   - "The site's style sheets" are the style sheets the pages link from their own address. A `<style>` element, a style sheet built in script
 //     and a style sheet from another address are not; a `<style>` inside a drawn diagram is the diagram's.
-// The engine is the controlled Electron of tests/dashboard-backlog-layout.test.mjs, in tests/site-usability.d/browser.mjs; the fixture
+// The engine is the controlled Electron in tests/site-usability.d/browser.mjs; the fixture
 // product is in tests/site-usability.d/product.mjs. A route's finding is a todo: the test of its clause asserts that there is none, fails
 // today, and names the finding. Each fix is an item of the route's module.
 // The requirements-repair Markdown files are intentional, fixed snapshots of SPEC.md and docs/groups/requirements.md

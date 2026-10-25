@@ -3,8 +3,8 @@
 //
 // Module: MOD-settings-pages · MOD-browser-store · MOD-bridge-client · MOD-bridge-http
 // Level: release
-// Guards: UC-003; UC-044; CONFIGURATION LIVES IN THE BROWSER; EVERY SETTING IS REACHED FROM ONE PAGE;
-//         A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR
+// Guards: UC-003; UC-044; CONFIGURATION LIVES IN THE BROWSER; EVERY SETTING IS REACHED FROM ONE PAGE; A STORED SECRET IS HIDDEN UNTIL SHOWN
+// Guards: A CLEAR IS A REAL CLEAR
 
 import assert from "node:assert/strict";
 import { mkdtemp } from "node:fs/promises";

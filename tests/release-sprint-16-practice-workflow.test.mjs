@@ -2,8 +2,8 @@
 // routes.process(app); its older generic adapter is generation input, not this test's subject.
 //
 // Module: MOD-product-process; MOD-implementation-pages; MOD-model-catalogue
-// Guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL;
-//         A PROCESS REQUIREMENT ADDS TO THE MODEL; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
+// Guards: UC-002; THE MODEL DETERMINES THE PHASES AND THE GATES; A PRACTICE IS NOT A MODEL; A PROCESS REQUIREMENT ADDS TO THE MODEL
+// Guards: A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
 // Level: release
 //
 // Input/precondition/expected are declared beside the case below.  The imported component

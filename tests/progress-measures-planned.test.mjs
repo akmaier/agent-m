@@ -88,7 +88,7 @@ test("progressIn — the grid of a planned model gives every requirement in ever
 });
 
 // TST-795002 · level: unit · module: MOD-progress-measures
-// guards: UC-035 (phases on a timeline with their gates as milestones); STATUS IS DERIVED FROM THE RECORDS
+// guards: UC-035; STATUS IS DERIVED FROM THE RECORDS
 // given: the product above, whose model was declared on 2026-10-01; the record of Requirements → Design dated 2026-10-05 09:00 UTC and that of Design → Implementation dated 2026-10-10 14:30 UTC; Testing → Operation pending; as a second case, Design → Implementation passed on an earlier text; as a third, Testing → Operation passed on 2026-10-20
 // input: progressIn(facts, now).planned.timeline; the same with the second and the third state
 // expect: five entries in the model's order — Requirements from 2026-10-01 to 2026-10-05 with its gate passed 2026-10-05; Design from 2026-10-05 to 2026-10-10 with its gate passed 2026-10-10; Implementation from 2026-10-10 to nothing yet, no gate of its own; Testing from nothing yet, with its gate Testing → Operation not passed; Operation with neither date. With the gate passed on an earlier text, it counts as not passed: Design has no end and no passed date, Implementation no start. With Testing → Operation passed, Implementation, which has no gate of its own, ends with it on 2026-10-20, and Testing and Operation start that day
@@ -130,7 +130,7 @@ test("progressIn — beside the grid, the steps of the implementation plan with 
 });
 
 // TST-795004 · level: unit · module: MOD-progress-measures
-// guards: UC-035 alternative flow 2a; A PLAN COVERS THE WHOLE SPECIFICATION
+// guards: UC-035; A PLAN COVERS THE WHOLE SPECIFICATION
 // given: the product above with no accepted requirement; and, as a second case, one whose requirements are unknown
 // input: progressIn(facts, now).planned
 // expect: no entry in the grid and the count "0 requirements × 5 phases = 0 plan entries", the phases still on the timeline and the steps still listed; for unknown requirements no entry and a count that says the requirements are unknown, never a guess
@@ -158,7 +158,7 @@ test("progressIn — accepting one more requirement adds one entry per phase", (
 });
 
 // TST-795006 · level: unit · module: MOD-progress-measures
-// guards: UC-035 ("merged and passing")
+// guards: UC-035
 // given: the product above; THE FIRST RULE's Implementation cell rests on ITM-0001, merged; the CI runs of the default branch's head are, in turn, unknown, one that succeeded, one that succeeded beside one that failed
 // input: progressIn(facts, now) for each
 // expect: the cell is done with unknown runs — only a known failure holds a merged step back — and with a run that succeeded; it is in progress while a run of the head failed. A cell of an accepted file is not held back by the runs: THE FIRST RULE's Design stays done
@@ -171,7 +171,7 @@ test("progressIn — a merged step counts as done while the head's CI is not fai
 });
 
 // TST-795007 · level: unit · module: MOD-progress-measures
-// guards: UC-035 ("done when what the phase produces for the requirement is accepted")
+// guards: UC-035
 // given: the product above, whose MOD-queue is open and ARC-002 accepted; the same with MOD-queue accepted; the same with MOD-queue accepted and ARC-002 on no record; the same with neither on any record; the same with ITM-0003 removed from the plan
 // input: THE SECOND RULE's Design cell
 // expect: in progress while a file it rests on is open; done once all are accepted; in progress while one is accepted and another is on no record; open while none is on a record, and while no step of the plan names a module
@@ -186,7 +186,7 @@ test("progressIn — a phase that produces files is done when they are all accep
 });
 
 // TST-795009 · level: unit · module: MOD-progress-measures
-// guards: UC-035 ("or, for implementation and tests, merged and passing")
+// guards: UC-035
 // given: the product above with a third requirement whose one step, ITM-0004, is in Testing and names MOD-store, which is accepted with ARC-001; the plan puts steps of other requirements in Implementation
 // input: the third requirement's cells
 // expect: Design done, the files of its trace being accepted; Implementation open, not done — a phase that has steps is built by them, and an accepted module file is no merged code —; Testing open, ITM-0004 being ready

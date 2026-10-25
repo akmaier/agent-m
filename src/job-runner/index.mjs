@@ -19,7 +19,7 @@ import { registerStrategies } from "./registry.mjs";
 import { tools } from "./tools.mjs";
 
 export { registerStrategies } from "./registry.mjs";
-export { prepareJob } from "./prepare.mjs";
+export { estimate, prepareJob } from "./prepare.mjs";
 export { runJob, writeResult } from "./loop.mjs";
 export { driverPrompt } from "./driver-prompt.mjs";
 export { provenanceLines, roundsText } from "./provenance.mjs";

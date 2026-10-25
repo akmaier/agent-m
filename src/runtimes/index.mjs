@@ -23,7 +23,7 @@ import { retryJob as retryWith } from "./retry.mjs";
 import { bridgeNamed, cancelBridgeJob, followBridgeLog, handOverAgain, listedOnBridge, queueOnBridge } from "./bridge.mjs";
 
 export { routesFor } from "./routes.mjs";
-export { jobWorkflowFiles } from "./ci.mjs";
+export { jobWorkflowFiles, gitlabVariableScopes } from "./ci.mjs";
 export { tabContext, runOnTab } from "./tab.mjs";
 export { bridgeDriver } from "./bridge.mjs";
 export { jobTrail, revertAfterCancel } from "./trail.mjs";

@@ -1,5 +1,5 @@
 // The wait that the prompt bar's, the frame's and the release panel's tests share (tests/prompt-bar.test.mjs, tests/prompt-bar-fixed.test.mjs,
-// tests/prompt-bar-hand-over.test.mjs, tests/site-frame-prompt-bar.test.mjs, tests/site-frame-prompt-bar-foot.test.mjs,
+// tests/prompt-bar-hand-over.test.mjs, tests/site-frame-prompt-bar.test.mjs,
 // tests/test-pages-release.test.mjs): it checks a
 // condition, and while the condition does not hold lets the event loop run one turn (setImmediate), until the condition holds or ten
 // seconds of the clock (Date.now) have passed. At the limit it fails "never: <what>", naming what it waited for. Neither Date.now nor

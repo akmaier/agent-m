@@ -19,7 +19,7 @@
 //
 // listJobs is async (MOD-job-ledger.md types it JobRow[], without Promise<>; src/job-ledger/index.mjs:373 names the
 // gap and awaits it the same way) — awaited here at the call below, for the same reason this sprint's own record
-// already names (docs/backlog/sprints/12.md, "notes of earlier gates").
+// already names (docs/backlog/sprints/team1/12.md, "notes of earlier gates").
 
 import { listJobs, newJobId } from "../job-ledger/index.mjs";
 import { queueJob } from "../runtimes/index.mjs";

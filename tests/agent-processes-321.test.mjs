@@ -13,7 +13,7 @@ import { agentDriver } from "../src/agent-processes/index.mjs";
 import { formatFinding } from "../src/text-tools/index.mjs";
 
 const node = process.execPath;
-const fixture = () => mkdtempSync(join(tmpdir(), "agent-m-321-"));
+const fixture = () => realpathSync(mkdtempSync(join(tmpdir(), "agent-m-321-")));
 const PARTICIPANT = {
   name: "fixture-cli-agent",
   type: "CLI agent",
