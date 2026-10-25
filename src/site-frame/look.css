@@ -41,16 +41,35 @@
 
 /* The buttons the pages draw, which every page shares: a button, or a link drawn as one; .primary the one action a page leads
    with, .small an action beside a line of text. */
-.btn, .prompt-bar button { font: inherit; font-size: .9rem; cursor: pointer; border: 1px solid var(--line); background: var(--panel);
+.btn, .prompt-bar button, .arrange button { font: inherit; font-size: .9rem; cursor: pointer; border: 1px solid var(--line); background: var(--panel);
   color: var(--fg); padding: .45rem .8rem; border-radius: 6px; text-decoration: none; display: inline-block; }
-.btn:hover, .prompt-bar button:hover { border-color: var(--accent); }
-.btn.primary, .prompt-bar button.send { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
-.btn.small, .prompt-bar button.clear { font-size: .78rem; padding: .2rem .5rem; }
-.btn:disabled, .prompt-bar button:disabled { opacity: .55; cursor: not-allowed; }
+.btn:hover, .prompt-bar button:hover, .arrange button:hover { border-color: var(--accent); }
+.btn.primary, .prompt-bar button.send, .arrange button.arrange-save { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
+.btn.small, .prompt-bar button.clear, .arrange-tree button, .arrange-add button { font-size: .78rem; padding: .2rem .5rem; }
+.btn:disabled, .prompt-bar button:disabled, .arrange button:disabled { opacity: .55; cursor: not-allowed; }
 /* The fields the pages share: the product selector in the header, the main page's job filters and retry choices, and the fields above the Requirements page's tree. */
-.product select, select.product, select.filter, .job-retry select, .spec-narrow input, .spec-narrow select, .version-bar select { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: .3rem .4rem; max-width: 22rem; }
+.product select, select.product, select.filter, .job-retry select, .spec-narrow input, .spec-narrow select, .version-bar select, .arrange input, .arrange select { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: .3rem .4rem; max-width: 22rem; }
 /* A button, or a link drawn as one, and the text beside it on the same line stand apart by a visible gap, however the view wrote them. */
 button, .btn { margin-inline: .35em; }
+
+/* The arrange page (review-pages/arrange.mjs): the tree beside its pending changes, each group a box with its members indented, each line's
+   controls on one row that wraps. */
+.arrange { display: grid; grid-template-columns: minmax(0, 1fr) minmax(14rem, 20rem); gap: 1.25rem; align-items: start; margin-block: .75rem; }
+@media (max-width: 760px) { .arrange { grid-template-columns: minmax(0, 1fr); } }
+.arrange-tree, .arrange-tree ul { list-style: none; margin: 0; padding: 0; }
+.arrange-tree ul { margin-inline-start: .9rem; padding-inline-start: .75rem; border-inline-start: 2px solid var(--line); }
+.arrange-group { margin-block: .5rem; }
+.arrange-group > .title { font-weight: 600; margin-inline-end: .25rem; }
+.arrange-group, .arrange-item { padding-block: .2rem; }
+.arrange-item { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; }
+.arrange-item .id { flex: 1 1 12rem; min-width: 0; font-weight: 500; }
+.arrange-item select, .arrange-group > select { flex: 0 1 11rem; width: 11rem; max-width: 100%; }
+.arrange-group > .arrange-rename { width: 12rem; }
+.arrange-item .mark { color: var(--muted); font-size: .85em; }
+.arrange input, .arrange select { font-size: .85rem; padding: .2rem .4rem; }
+.arrange-side { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); padding: .75rem 1rem; }
+.arrange-side h3 { margin-top: 0; }
+.arrange-add { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; margin-block: .75rem; }
 
 /* The requirements tree shares the frame's boxed controls, with room for labels and long requirement text. */
 /* The requirements page's links to other pages (trace-pages/flow.mjs reviewLink, and Gaps or Specification) are plain links, each a target of at least 24 px. */
