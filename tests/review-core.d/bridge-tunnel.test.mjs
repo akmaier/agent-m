@@ -10,6 +10,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { allocatePort, tunnelCommands } from "../../src/bridge-client/index.mjs";
+import { tunnelBindProblems } from "../../src/bridge-client/tunnels.mjs";
 import { BRIDGE_TOKEN } from "./helpers.mjs";
 
 // The jump host as the browser's store keeps it (MOD-bridge-client JumpHost), with a range of three ports.
@@ -63,4 +64,35 @@ test("THE DASHBOARD WRITES THE TUNNEL COMMANDS — both ends filled from the set
   // Counter-proof: a command cannot be written without the key file of each end, or with a port outside 1–65535.
   assert.throws(() => tunnelCommands(JUMP, lab, 8765, { remote: "", local: KEYS.local }), /key file/);
   assert.throws(() => tunnelCommands(JUMP, session("lab-pc", 70000), 8765, KEYS), /port/);
+});
+
+// ---------------------------------------------------------------- what enters a command is checked first (UC-011 1c)
+// THE DASHBOARD WRITES THE TUNNEL COMMANDS · A REVERSE TUNNEL LISTENS ONLY ON THE JUMP HOST'S LOOPBACK
+
+test("the jump host's settings are checked — a host, user, key name or range that could change the command is refused", () => {
+  const lab = session("lab-pc", 20001);
+  assert.ok(tunnelCommands(JUMP, lab, 8765, KEYS).reverse, "known positive: the stored jump host writes its commands");
+  assert.ok(tunnelCommands({ ...JUMP, hostname: "10.0.0.7" }, lab, 8765, KEYS).reverse, "an IPv4 address is a host");
+  for (const bad of [{ hostname: "-oProxyCommand=x" }, { hostname: "a b" }, { hostname: "jump;rm -rf ~" }, { user: "a b" }, { user: "-l" }]) {
+    assert.throws(() => tunnelCommands({ ...JUMP, ...bad }, lab, 8765, KEYS), TypeError, JSON.stringify(bad));
+  }
+  for (const bad of [{ remote: "-----BEGIN OPENSSH PRIVATE KEY-----" }, { local: "~/.ssh/id ed" }, { remote: "-i" }, { local: "a\nb" }]) {
+    assert.throws(() => tunnelCommands(JUMP, lab, 8765, { ...KEYS, ...bad }), /key file/, JSON.stringify(bad));
+  }
+  for (const range of [[20003, 20001], [80, 20001], [20001, 70000], ["x", 20001]]) {
+    assert.throws(() => allocatePort(range, []), TypeError, JSON.stringify(range));
+  }
+});
+
+test("A REVERSE TUNNEL LISTENS ONLY ON THE JUMP HOST'S LOOPBACK — the writer refuses a command whose forward binds elsewhere", () => {
+  const c = tunnelCommands(JUMP, session("lab-pc", 20001), 8765, KEYS);
+  for (const command of [c.reverse, c.forward]) assert.deepEqual(tunnelBindProblems(command), [], command);
+  // Counter-proof: every other bind address of either end, and every option that lets other hosts connect, is caught.
+  for (const bad of ["ssh -N -R 0.0.0.0:20001:127.0.0.1:8765 u@h", "ssh -N -R *:20001:127.0.0.1:8765 u@h",
+    "ssh -N -R :20001:127.0.0.1:8765 u@h", "ssh -N -R 20001:127.0.0.1:8765 u@h", "ssh -N -R 192.168.1.5:20001:127.0.0.1:8765 u@h",
+    "ssh -N -L 0.0.0.0:20001:127.0.0.1:20001 u@h", "ssh -N -L 20001:127.0.0.1:20001 u@h", "ssh -N -R 127.0.0.1:20001:10.0.0.2:8765 u@h",
+    "ssh -N -g -L 127.0.0.1:20001:127.0.0.1:20001 u@h", "ssh -N -o GatewayPorts=yes -R 127.0.0.1:20001:127.0.0.1:8765 u@h",
+    "ssh -N u@h"]) {
+    assert.ok(tunnelBindProblems(bad).length, bad);
+  }
 });

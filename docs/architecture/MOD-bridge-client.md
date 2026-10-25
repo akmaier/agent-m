@@ -168,14 +168,17 @@ uses; the key itself stays on its computer.
   `BridgeError` but `AskFailed`, among them `BridgeFailed` with `upstream-failed` or `paused`.
 - `allocatePort(range: [number, number], bridges: BridgeEntry[]) -> number` — the lowest port of the range that no Bridge
   reached through the jump host holds (`EACH REMOTE SESSION HAS ITS OWN PORT FROM THE CONFIGURED RANGE`). Throws
-  `NoFreePort` naming the range.
+  `NoFreePort` naming the range, and `TypeError` for a range that does not lie between 1024 and 65535 from its lower end.
 - `tunnelCommands(jumpHost: JumpHost, bridge: { name: string, port: number }, bridgePort: number, keyFiles: { remote:
   string, local: string }) -> { reverse: string, forward: string, plans: TunnelPlan[], service: string }` — the two
   commands of UC-011,
   filled in: the reverse tunnel for the computer behind NAT, `ssh -N -R 127.0.0.1:<port>:127.0.0.1:<bridge port>`, and
   the forward for the person's computer, `ssh -N -L <port>:127.0.0.1:<port>`, each with keep-alive options and the key
   file it uses, to `<user>@<jump host>`; the plans they carry out; and how to keep the reverse tunnel running as a
-  service. No request is made.
+  service. Every value is checked before it enters a command, so that no setting adds an option or an address to it: a
+  `TypeError` names a jump host that is no host name or IPv4 address, a user that is no login name, and a key file that is
+  no file name; and a command any of whose forwards would bind elsewhere than the loopback, forward elsewhere than to
+  `127.0.0.1`, or let other hosts connect, is refused and not written. No request is made.
 - `proxyConfiguration(jumpHost: JumpHost, bridges: { name: string, port: number }[], instanceOrigin: string, server:
   "apache" | "nginx") -> string` — the configuration of the jump host's web server for the route over HTTPS: its own login over TLS before
   anything is forwarded (`THE JUMP HOST FORWARDS TO A BRIDGE ONLY AFTER ITS OWN LOGIN`); cross-origin requests allowed
