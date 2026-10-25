@@ -151,7 +151,7 @@ test("#arc/<id>: a module that names what is not accepted says so, and is not of
 // expect: no overview is stored for the commit, so the app reads, as MOD-site-frame states it ("the change queues stored for the commit, read
 //         beside the first wave of `#spec` …; where no overview is stored, the index and decisions of every queue are read, then the proposals of
 //         those still open"), in four waves, each one request: the SPEC — 1 file —, then the queues' heads — 3 files, the two queues' index files
-//         being the same blob, named by the newer queue's path, as MOD-spec-changes' queues reads them newest first —, then the proposals of the open queue — 1 file —, then its rationale — 1 file, named to the batch before the impact
+//         being the same blob —, then the proposals of the open queue — 1 file —, then its rationale — 1 file, named to the batch before the impact
 //         list of the open entry reads it (the statuses of the specification view, UC-020 step 3); the graph that impact list is made from is the
 //         stored one, and no batch of its artifacts is sent (MOD-trace-graph: "A page never builds the graph"); no file twice, the accepted queue's
 //         proposal not at all, and no file by itself. The open entry stands under "SPEC changes waiting for acceptance" as a link with its state
@@ -159,7 +159,7 @@ test("#arc/<id>: a module that names what is not accepted says so, and is not of
 test("#spec: the app reads the SPEC in one batch, the queues' heads in a second, the open queue's proposals in a third and its rationale in a fourth, and builds no graph", async () => {
   const repo = await product(), srv = await server(repo);
   const page = await openDashboard({ server: srv, hash: "#spec" });
-  const wave1 = ["SPEC.md"], heads = sorted([`${DONE}/entscheidungen.md`, `${OPEN}/index.md`, `${OPEN}/entscheidungen.md`]);
+  const wave1 = ["SPEC.md"], heads = sorted([`${DONE}/entscheidungen.md`, `${DONE}/index.md`, `${OPEN}/entscheidungen.md`]);
   const wave3 = [`${OPEN}/01-more.md`], wave4 = [`${OPEN}/01-more.begruendung.md`];
   assert.deepEqual(batchesOf(page.requests), ["batch 1", "batch 3", "batch 1", "batch 1"]);
   assert.deepEqual(srv.batches.map(sorted), [wave1, heads, wave3, wave4], "no fifth batch: no graph is built from the files");
@@ -187,7 +187,7 @@ test("#spec: the links file and the register's entries are read in the first wav
   const srv = await server(await product(register));
   const page = await openDashboard({ server: srv, hash: "#spec" });
   const wave1 = sorted(["SPEC.md", ...Object.keys(register)]);
-  const heads = sorted([`${DONE}/entscheidungen.md`, `${OPEN}/index.md`, `${OPEN}/entscheidungen.md`]);
+  const heads = sorted([`${DONE}/entscheidungen.md`, `${DONE}/index.md`, `${OPEN}/entscheidungen.md`]);
   assert.deepEqual(batchesOf(page.requests), ["batch 4", "batch 3", "batch 1", "batch 1"]);
   assert.deepEqual(srv.batches.map(sorted), [wave1, heads, [`${OPEN}/01-more.md`], [`${OPEN}/01-more.begruendung.md`]]);
   assert.equal(new Set(srv.batches.flat()).size, srv.batches.flat().length, "no file twice");

@@ -301,10 +301,11 @@ async function loadSnapshot() {
 
 // A page load reads the files a route shows in batches, ahead of the reads of the views (Snapshot.readMany): each route's
 // paths are taken from the tree, so no view changes. A route whose list of files depends on files it has read — the open
-// queues' proposals — names them in its `reads` (MOD-site-frame's Route), and they are read in a second wave. Each wave is one batch per hundred
+// queues' proposals — reads them through the snapshot itself, in a batch of its own. Each wave is one batch per hundred
 // files; a path the tree does not hold is left out, and a file the batch could not give is read by its own fileText.
 const USE_CASE_PATH = /^docs\/use-cases\/UC-\d{3}-[^/]+\.md$/;
 const QUEUE_INDEX_PATH = /^docs\/spec-freigaben\/[^/]+\/index\.md$/;
+const QUEUE_HEAD_PATH = /^docs\/spec-freigaben\/[^/]+\/(?:index|entscheidungen)\.md$/;
 const ITEM_PATH = /^docs\/backlog\/ITM-\d{3,}-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
 const SPRINT_PATH = /^docs\/backlog\/sprints\/([^/]+)\/\d+\.md$/;
 const ASSIGNMENT_PATH = /^docs\/role-assignments\/([^/]+)\.md$/;
@@ -329,8 +330,8 @@ async function readAhead(kind) {
   } else if (kind === "spec") {
     // The links file and the register's entries (MOD-source-register's registerPaths) are read with the SPEC, in the first wave, beside the overview stored for the commit
     // (MOD-progress-measures' storedOverview). The change queues it holds — those with an entry not in the SPEC yet — are what the specification lists as waiting: their files are
-    // read in a second wave, and no other queue is read. Where no overview is stored, the specification route's `reads` names the proposals of the entries waiting, having
-    // read every queue's index and decisions through the snapshot (MOD-trace-pages), and they are read in a second wave. A tree without a queue asks for no overview.
+    // read in a second wave, and no other queue is read. Where no overview is stored, every queue's index and decisions are read in the second wave, by their paths; the
+    // specification (MOD-trace-pages) finds the entries waiting from them and reads their proposals through the snapshot in a batch. A tree without a queue asks for no overview.
     const queued = pathsOf(QUEUE_INDEX_PATH).length > 0;
     const [, stored] = await Promise.all([readWave(["SPEC.md", "docs/sources.md", ...registerPaths(state.tree.map((e) => e.path))]),
       queued ? pinned().then((snap) => storedOverview(snap)).catch(() => null) : null]);
@@ -338,8 +339,7 @@ async function readAhead(kind) {
       await readWave(stored.queues.flatMap((queue) => [`${queue.folder}/index.md`, `${queue.folder}/entscheidungen.md`,
         ...queue.entries.filter((entry) => entry.state !== "in SPEC").flatMap((entry) => [entry.proposal?.path, entry.rationale, entry.file, entry.record])]).filter(Boolean));
     } else {
-      const specification = tracePages.routes.find((candidate) => candidate.name === "trace");
-      await readWave(await specification.reads({ key: "specification", ref: T.ref }, await pinned()));
+      await readWave(pathsOf(QUEUE_HEAD_PATH));
     }
   } else if (kind === "backlog") {
     // The module files are read for a product with more than one team (the route backlog of MOD-implementation-pages reads them).

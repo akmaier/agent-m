@@ -561,7 +561,8 @@ async function countUnrealised(shown, arranged) {
 // The entries of the change queues that wait for acceptance — open, stale, or waiting for the anchor another entry creates — each as a link to its page
 // in the review pages, by the identifier `spec-<queue folder>-<NN>` MOD-review-pages addresses an entry by. The queues are those the overview stored for the
 // commit holds (MOD-progress-measures' storedOverview: every queue with an entry not in the SPEC yet), so that no queue file is read; where none is stored,
-// every queue of the snapshot is read (MOD-spec-changes' queues). A queue that cannot be read gives none.
+// every queue of the snapshot is read (MOD-spec-changes' queues). A queue that cannot be read gives none. The proposals of the entries found, which their
+// impact lists read (entryView), are named to Snapshot.readMany at once, in one batch; a host that cannot batch reads nothing ahead.
 async function waitingEntries(snapshot) {
   if (!snapshot.paths.some((path) => path.startsWith("docs/spec-freigaben/"))) return [];
   let all;
@@ -570,8 +571,11 @@ async function waitingEntries(snapshot) {
   } catch {
     return [];
   }
-  return all.flatMap((queue) => queue.entries.filter((entry) => ["open", "stale", "waiting for its anchor"].includes(entry.state))
+  const waiting = all.flatMap((queue) => queue.entries.filter((entry) => ["open", "stale", "waiting for its anchor"].includes(entry.state))
     .map((entry) => ({ queue, entry })));
+  const proposals = waiting.map(({ entry }) => entry.proposal?.path).filter(Boolean);
+  if (proposals.length) await snapshot.readMany?.(proposals);
+  return waiting;
 }
 
 // The badge class of a waiting entry's state, as the review pages' lists colour it.
@@ -782,15 +786,6 @@ export const route = {
   title: "Current requirements",
 
   subject: (params, context) => subjectOf({ title: descriptorFor(params.key)?.title ?? route.title, params, context, shown: drawn.get(context) ?? null }),
-
-  // The files whose list depends on files read first (MOD-site-frame's Route `reads`): for the specification, the proposals of the entries that wait
-  // for acceptance, which their impact lists read (entryView). The entries are found as the page finds them (waitingEntries): from the overview stored
-  // for the commit, or, where none is stored, from every queue, whose index and decisions `queues` reads through the snapshot's readMany itself. Every
-  // other view names none.
-  async reads(params, snapshot) {
-    if (descriptorFor(params.key)?.key !== "specification") return [];
-    return (await waitingEntries(snapshot)).map(({ entry }) => entry.proposal?.path).filter(Boolean);
-  },
 
   async render(target, context, params = {}) {
     target.replaceChildren();
