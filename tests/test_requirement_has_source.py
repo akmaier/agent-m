@@ -23,6 +23,7 @@ REGISTER = [("SRC-po", "PO A. Maier"), ("SRC-model-licence", "The licence of the
             ("SRC-iec-62304", "Medical device software"), ("SRC-other", "Another source")]
 LINKED = ["SRC-po", "SRC-model-licence", "SRC-iec-62304"]
 REGISTERED = "A REQUIREMENT HAS A REGISTERED SOURCE"
+TERMS = "A RESOURCE'S TERMS ENTER AS A SOURCE"
 SOLD = "THE PRODUCT IS NOT SOLD"
 SOLD_SOURCE = "*(SRC-model-licence, its terms\nof use)*"
 NAMED = "A NAMED RULE STAYS ONE"
@@ -73,9 +74,15 @@ class RequirementHasSource(unittest.TestCase):
     def test_a_resource_entry_named_as_source_is_rejected(self):
         # The resource entry RES-model records which licence applies; it does not by itself create a requirement.
         as_resource = SPEC.replace(SOLD_SOURCE, "*(RES-model, its terms\nof use)*")
-        self.assertEqual(kinds(findings(as_resource, [SOLD])), [("error", REGISTERED)])
+        self.assertEqual(kinds(findings(as_resource, [SOLD])), [("error", REGISTERED), ("error", TERMS)])
         # Counter-proof: the same requirement naming the registered licence source passes.
         self.assertEqual(findings(SPEC, [SOLD]), [])
+        # A resource entry among linked sources is still rejected.
+        both = SPEC.replace(SOLD_SOURCE, "*(SRC-model-licence; RES-model, its terms\nof use)*")
+        self.assertEqual(kinds(findings(both, [SOLD])), [("error", TERMS)])
+        # A resource entry beside a source named by its register entry's title is rejected too.
+        named = SPEC.replace("*(PO A. Maier)*", "*(PO A. Maier; RES-model)*")
+        self.assertEqual(kinds(findings(named, [NAMED])), [("error", TERMS)])
 
 
 if __name__ == "__main__":

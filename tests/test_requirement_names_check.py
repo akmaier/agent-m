@@ -33,6 +33,8 @@ class RequirementNamesItsCheck(unittest.TestCase):
         self.assertEqual(findings(SPEC, "THE EXPORT IS A PDF"), [], "a test file")
         self.assertEqual(findings(SPEC, "THE PRODUCT IS NOT SOLD"), [], "no automatic check; at review")
         self.assertEqual(findings(SPEC, "EVERY CHANGE IS VERIFIED"), [], "a test file with what it does")
+        self.assertEqual(findings(SPEC.replace(PDF_CHECK, "*Check:* the export run of\n`tests/test_export.py`\n"),
+                                  "THE EXPORT IS A PDF"), [], "the test named on the check's second line")
 
     def test_counter_proof_a_check_that_names_neither_is_an_error(self):
         for check in ("*Check:* none\n", "*Check:* to be decided\n", "*Check:* the export test\n",
