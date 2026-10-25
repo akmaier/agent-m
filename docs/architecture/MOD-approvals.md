@@ -56,7 +56,7 @@ the browser and in Node.
 - `strategies.mjs` — the recipes and preconditions of `approvalStrategies`.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
   - `docs/assets/review-core.mjs`: removed once no file imports it: `statusOf`, `statuses`, `lastAcceptedText` and `acceptShown` give its records and status, MOD-spec-document its sections, MOD-text-tools its hashes.
-  - `tests/review-core.test.mjs`, `tests/release-sprint-02-a-review-core.test.mjs`, `tests/release-sprint-02-c-review-core.test.mjs`, `tests/architecture.test.mjs`, `tests/review-page-core.test.mjs`, `tests/status-by-names.test.mjs`, `tests/review-core.d/gates.test.mjs`, `tests/review-core.d/helpers.mjs`, `tests/test_approval_records.py`: rewritten on this module, or removed with the old core.
+  - `tests/test_approval_records.py`: rewritten on this module, or removed with the old core.
 
 ## Data
 

@@ -16,7 +16,8 @@ import assert from "node:assert/strict";
 import {
   repoServer, fakeCaches, openDashboard, REPO, TOKEN, richDocument, press, settle, reEsc, unesc, setting, tokenSetting,
 } from "./app-harness.mjs";
-import { gitBlobSha, recordText, useCaseRecord, approvalPath, specRecord } from "../docs/assets/review-core.mjs";
+import { blobSha } from "../src/text-tools/index.mjs";
+import { recordText, approvalPath, reviewedRecord } from "./approval-records.mjs";
 import { B_SPEC, B_P05, B_P06, B_INDEX, QD, GL, GL_ADDR, GL_TOKEN, fakeGitLab } from "./review-core.d/helpers.mjs";
 import { parseAddress, connect } from "../src/repository-hosts/index.mjs";
 import { reviewLayoutCommit } from "../src/artifact-edits/index.mjs";
@@ -75,7 +76,7 @@ const QNAME = QD.split("/").pop();
 async function instanceFiles(over = {}) {
   const f = {
     "SPEC.md": B_SPEC,
-    [`${QD}/index.md`]: "# SPEC approvals — queue fixture\n\n" + B_INDEX.replace("| Nr | Datei | Anker | bis | Commits |", "| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |"), [`${QD}/05-a.md`]: B_P05, [`${QD}/05-a.begruendung.md`]: "# Why 05\n\nSection ten is out of date.\n",
+    [`${QD}/index.md`]: B_INDEX, [`${QD}/05-a.md`]: B_P05, [`${QD}/05-a.begruendung.md`]: "# Why 05\n\nSection ten is out of date.\n",
     [`${QD}/06-b.md`]: B_P06, [`${QD}/entscheidungen.md`]: "# Decisions\n\nAppend-only.\n\n",
     "docs/use-cases/README.md": "# Use cases\n", "docs/approvals/README.md": "# Approval records\n",
     [UC1]: ucText("UC-001", "Read a file", "The reviewer opens the file."),
@@ -84,8 +85,8 @@ async function instanceFiles(over = {}) {
     ...over,
   };
   for (const [p, t] of [[UC1, f[UC1]], [UC3, UC3_ACCEPTED]]) {
-    const b = await gitBlobSha(t);
-    f[approvalPath(p === UC1 ? "UC-001" : "UC-003", b)] = recordText(useCaseRecord(p, b));
+    const b = await blobSha(t);
+    f[approvalPath(p === UC1 ? "UC-001" : "UC-003", b)] = recordText(reviewedRecord(p, b));
   }
   return f;
 }
@@ -121,10 +122,10 @@ test("UC-008 main flow: a use case is shown with its text and diagram; one click
   assert.match(html, /<button class="btn accept" type="button">Accept<\/button>/);
   assert.deepEqual(srv.writes, [], "opening writes nothing");
   const made = await page.click(".accept");
-  const blob = await gitBlobSha(srv.files[UC2]);
+  const blob = await blobSha(srv.files[UC2]);
   assert.equal(srv.writes.length, 1, "one commit");
-  assert.deepEqual(srv.writes[0].files, { [approvalPath("UC-002", blob)]: recordText(useCaseRecord(UC2, blob)) });
-  assert.equal(recordText(useCaseRecord(UC2, blob)).trim().split("\n").length, 3, "a three-line record");
+  assert.deepEqual(srv.writes[0].files, { [approvalPath("UC-002", blob)]: recordText(reviewedRecord(UC2, blob)) });
+  assert.equal(recordText(reviewedRecord(UC2, blob)).trim().split("\n").length, 3, "a three-line record");
   assert.match(srv.writes[0].message, /UC-002/);
   assert.deepEqual(writesOf(made), ["write tree", "write commit", "write ref"]);
   // The new head is read once to show the page again, and the head before the commit once (A PAGE LOAD READS THE REPOSITORY IN BATCHES).
@@ -219,8 +220,8 @@ test("UC-008 3d: ticks on the list; Accept ticked writes one commit with one rec
   assert.equal(srv.writes.length, 1, "one commit");
   const want = {};
   for (const [id, p] of [["UC-002", UC2], ["UC-003", UC3]]) {
-    const b = await gitBlobSha(srv.files[p]);
-    want[approvalPath(id, b)] = recordText(useCaseRecord(p, b));
+    const b = await blobSha(srv.files[p]);
+    want[approvalPath(id, b)] = recordText(reviewedRecord(p, b));
   }
   assert.deepEqual(srv.writes[0].files, want);
 });
@@ -236,7 +237,7 @@ test("UC-008 3d counter-proof: a ticked use case changed after it was shown is l
   for (const box of globalThis.document.getElementById("main").querySelectorAll(".tick")) await tick(srv, box);
   await srv.change(UC3, srv.files[UC3] + "\nEdited meanwhile.\n");
   await press(srv, inMain(".accept-ticked"));
-  const b2 = await gitBlobSha(srv.files[UC2]);
+  const b2 = await blobSha(srv.files[UC2]);
   assert.deepEqual(Object.keys(srv.writes[0].files), [approvalPath("UC-002", b2)]);
   assert.match(page.main(), /UC-003 was left out: /);
 });
@@ -250,8 +251,8 @@ test("UC-008 3d counter-proof: a ticked use case changed after it was shown is l
 test("UC-008 3b: without a token, Accept is GitHub's new-file page prefilled with the record, with the record and path to copy", async () => {
   const srv = await ucServer();
   const page = await openDashboard({ server: srv, hash: "#uc/UC-002", token: null });
-  const blob = await gitBlobSha(srv.files[UC2]);
-  const path = approvalPath("UC-002", blob), rec = recordText(useCaseRecord(UC2, blob));
+  const blob = await blobSha(srv.files[UC2]);
+  const path = approvalPath("UC-002", blob), rec = recordText(reviewedRecord(UC2, blob));
   const html = page.main();
   const href = `https://github.com/${REPO}/new/main?filename=${encodeURIComponent(path)}&amp;value=${encodeURIComponent(rec)}`;
   assert.ok(html.includes(href), "the prefilled new-file page");
@@ -336,10 +337,10 @@ const ROW = /^\| \d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC \| (\d+) \| uebernommen \| ap
 const rowsOf = (text) => text.split("\n").filter((l) => l.startsWith("| 2")).map((l) => ROW.exec(l)).map((m) => m && [m[1], m[2]]);
 // The record of an entry as MOD-approvals' approvalSchema writes it: the kind and the blob first, then the entry's own fields.
 async function specRecordFor(nr, proposalPath, proposalText, anchor, section) {
-  const blob = await gitBlobSha(proposalText);
+  const blob = await blobSha(proposalText);
   const nn = String(nr).padStart(2, "0");
   return { path: approvalPath(`spec-${QNAME}-${nn}`, blob), text: `kind: spec\nblob: ${blob}\nqueue: ${QD}\nentry: ${nn}\nproposal: ${proposalPath}\n` +
-    `target: SPEC.md\nanchor: ${anchor}\nsection: ${await gitBlobSha(section)}\n` };
+    `target: SPEC.md\nanchor: ${anchor}\nsection: ${await blobSha(section)}\n` };
 }
 
 // TST-474016 · level: component · module: MOD-settings-pages

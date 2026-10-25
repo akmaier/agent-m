@@ -17,7 +17,6 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { recordsForId, approvalPath, recordText, reviewedRecord } from "../docs/assets/review-core.mjs";
 import {
   reviewedId, kindOfPath, parseArchitecture, specRequirements, isCodePath, isTestPath, headerModules,
 } from "../docs/assets/artifacts.mjs";
@@ -48,17 +47,6 @@ test("ONE REVIEW LAYOUT FOR EVERY PRODUCT — ARC and MOD files are reviewed fil
   assert.equal(kindOfPath(READER), "module");
   assert.equal(kindOfPath(UC1), "use-case");
   assert.equal(kindOfPath("docs/architecture/notes.md"), null);
-  assert.equal(approvalPath("MOD-reader", "0123456789ab".padEnd(40, "0")), "docs/approvals/MOD-reader-0123456789ab.md");
-  const r = reviewedRecord(READER, "b".repeat(40));
-  assert.deepEqual(r, { kind: "module", file: READER, blob: "b".repeat(40) });
-  assert.equal(recordText(r), `kind: module\nfile: ${READER}\nblob: ${"b".repeat(40)}\n`, "the three lines of a use case's record");
-  assert.equal(reviewedRecord(ARC, "a".repeat(40)).kind, "architecture-decision");
-  assert.throws(() => reviewedRecord("docs/architecture/notes.md", "a".repeat(40)), /reviewed file/);
-  // Records of MOD-reader are found by identifier; MOD-reader-extra's are not MOD-reader's.
-  const recs = [reviewedRecord(READER, "a".repeat(40)), reviewedRecord("docs/architecture/MOD-reader-extra.md", "b".repeat(40)),
-    reviewedRecord(ARC, "c".repeat(40))];
-  assert.deepEqual(recordsForId(recs, "MOD-reader"), [recs[0]]);
-  assert.deepEqual(recordsForId(recs, "ARC-001"), [recs[2]]);
 });
 
 // ---------------------------------------------------------------- the format

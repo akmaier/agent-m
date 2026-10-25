@@ -24,8 +24,8 @@ import { parseAddress, connect } from "../src/repository-hosts/index.mjs";
 const GITHUB = parseAddress("https://github.com/alice/agent-m");
 const GITLAB = parseAddress("https://gitlab.example.org/grp/sub/thesis-tool");
 
-// The approval record of a module file — three lines — and the path it is committed at (docs/assets/review-core.mjs: recordText,
-// approvalPath).
+// The approval record of a module file — three lines — and the path it is committed at (MOD-approvals' approval record,
+// docs/approvals/<ID>-<blob12>.md).
 const RECORD_PATH = "docs/approvals/MOD-repository-hosts-25d0f9f517ea.md";
 const RECORD = ["kind: module", "file: docs/architecture/MOD-repository-hosts.md", "blob: 25d0f9f517ea45fbce3262468b652bff6d172b55"]
   .join("\n") + "\n";

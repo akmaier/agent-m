@@ -22,9 +22,7 @@
 import { renderArtifact, renderMermaid as drawDiagram } from "../markdown-render/index.mjs";
 import { registerPaths } from "../source-register/index.mjs";
 import builtFiles from "../../docs/assets/dashboard/built.json" with { type: "json" };
-import {
-  parseRecord, readByBlob, recordIndex, statusByNames, parseQueueIndex, parseDecisions,
-} from "../../docs/assets/review-core.mjs";
+import { parseQueueIndex, parseDecisions } from "../../docs/assets/review-core.mjs";
 import { ARCHITECTURE_FILE } from "../../docs/assets/artifacts.mjs";
 import { DASHBOARD, builtViews } from "../site/views.mjs";
 import { MENU, menuHtml, entryOf, stageView } from "../site/menu.mjs";
@@ -219,7 +217,7 @@ const isGitLab = (p) => p?.kind === "gitlab";
 // AN INSTANCE IS A FORK OF AGENT M: the instance is the repository of the Pages address this page is served from
 // (<owner>.github.io/<name>/), else Agent M itself (src/site/instance-repository.mjs). The product is chosen with ?repo=owner/name (GitHub), ?product=<address>
 // (GitHub or GitLab), or the review route's existing product fragment when the query names neither. A GitLab product adds `product` (productOf) and `refGiven` (false: its default branch is read
-// from GitLab). Moved here from docs/assets/review-core.mjs (ITM-130): it reads the page's own address.
+// from GitLab). It reads the page's own address.
 export function deriveTarget({ hostname, pathname, search, hash }) {
   const instance = instanceOf({ hostname, pathname });
   const q = new URLSearchParams(search || "");
@@ -263,7 +261,6 @@ function currentHost() {
       snapshot = null;
       snapshotHost = null;
       memo = new Map();
-      state.records = null;
     }
   }
   return host;
@@ -272,7 +269,7 @@ function currentHost() {
 // a refusal names that token; null where the instance's token was used.
 const ownTokenOf = (p) => (isGitLab(p) || ownToken(p)?.value ? p : null);
 // The pinned commit and its tree (every file with its blob SHA). Everything else is read by the view that shows it (`once`).
-const state = { commit: null, tree: [], byPath: new Map(), records: null, products: [] };
+const state = { commit: null, tree: [], byPath: new Map(), products: [] };
 let flash = null; // the outcome of the last acceptance, shown once above the next view
 
 // ---------------------------------------------------------------- loading
@@ -280,8 +277,8 @@ let flash = null; // the outcome of the last acceptance, shown once above the ne
 // A page load reads the commit the branch points at and that commit's tree — two requests. The tree names every file with its
 // blob SHA. The files the route shows are read in batches (readAhead); each view then takes what it shows once per commit
 // (`once`): a file by its blob SHA through the pinned Snapshot, whose texts the batches have brought.
-// The status of a reviewed file comes from the names of the approval records in the tree (statusByNames); a record is read
-// where its content decides.
+// The status of a reviewed file comes from the names of the approval records in the tree (MOD-approvals' statuses, which the
+// routes call); no record is read for it.
 
 let memo = new Map(); // what this page has read or derived at state.commit
 function once(key, f) {
@@ -300,7 +297,7 @@ async function loadSnapshot() {
   state.commit = snap.commit;
   state.tree = snap.paths.map((path) => ({ path, sha: snap.blob(path) }));
   state.byPath = new Map(state.tree.map((e) => [e.path, e]));
-  if (state.commit !== before) { memo = new Map(); state.records = null; }
+  if (state.commit !== before) memo = new Map();
 }
 
 // A page load reads the files a route shows in batches, ahead of the reads of the views (Snapshot.readMany): each route's
@@ -316,13 +313,6 @@ const ASSIGNMENT_PATH = /^docs\/role-assignments\/([^/]+)\.md$/;
 const MODULE_PATH = /^docs\/architecture\/MOD-[^/]+\.md$/;
 const DECISION_PATH = /^docs\/architecture\/ARC-\d{3}-[^/]+\.md$/;
 const pathsOf = (...res) => state.tree.map((e) => e.path).filter((p) => res.some((re) => re.test(p)));
-// The approval records a status of `path` reads: statusByNames run with a reader that notes what it is asked.
-async function recordsRead(path, blob) {
-  const asked = [];
-  try { await statusByNames({ index: recIndex(), path, blob, read: async (list) => { asked.push(...list); return list.map(() => ({})); } }); } catch { /* only what it asked */ }
-  return asked;
-}
-const recordsOfAll = async (paths) => (await Promise.all(paths.map((p) => recordsRead(p, state.byPath.get(p).sha)))).flat();
 async function readWave(paths) {
   const wanted = [...new Set(paths)].filter((p) => state.byPath.has(p));
   if (wanted.length) await (await pinned()).readMany(wanted);
@@ -372,8 +362,7 @@ async function readAhead(kind) {
   } else if (kind === "backlog") {
     // The module files are read for a product with more than one team (the route backlog of MOD-implementation-pages reads them).
     const teams = new Set([...pathsOf(ASSIGNMENT_PATH).map((p) => ASSIGNMENT_PATH.exec(p)[1]), ...pathsOf(SPRINT_PATH).map((p) => SPRINT_PATH.exec(p)[1])]);
-    await readWave(["docs/process.md", "SPEC.md", ...pathsOf(ITEM_PATH, SPRINT_PATH, ASSIGNMENT_PATH), ...(teams.size > 1 ? pathsOf(MODULE_PATH) : []),
-      ...await recordsOfAll(pathsOf(USE_CASE_PATH))]);
+    await readWave(["docs/process.md", "SPEC.md", ...pathsOf(ITEM_PATH, SPRINT_PATH, ASSIGNMENT_PATH), ...(teams.size > 1 ? pathsOf(MODULE_PATH) : [])]);
   }
 }
 
@@ -387,8 +376,8 @@ function loadProducts() {
 }
 const paths = (re) => state.tree.filter((e) => re.test(e.path));
 
-// A file of the pinned commit, by its blob SHA — "" for a file the tree does not hold. Snapshot.read is the public Host
-// interface for this address and credential lifetime; without an injected cache, readByBlob returns Snapshot.read's text.
+// A file of the pinned commit — "" for a file the tree does not hold. Snapshot.read is the public Host interface for this
+// address and credential lifetime.
 // The load's one snapshot: the one loadSnapshot read, or, after Settings changed the host, the same commit read through the new one.
 async function pinned() {
   const activeHost = currentHost();
@@ -399,21 +388,15 @@ async function pinned() {
   return snapshot;
 }
 function fileText(path) {
-  const e = state.byPath.get(path);
-  if (!e) return Promise.resolve("");
+  if (!state.byPath.has(path)) return Promise.resolve("");
   currentHost();
-  return once(`file:${path}`, () => readByBlob({ sha: e.sha, read: async () => {
+  return once(`file:${path}`, async () => {
     const text = await (await pinned()).read(path);
     if (text === null && !GITLAB) throw Object.assign(new Error(`404 Not Found — ${path} at ${state.commit}`), { status: 404 });
     return text ?? "";
-  } }));
+  });
 }
 
-// The approval records named in the tree, and those read so far (each parsed, with its own path).
-const recIndex = () => (state.records ??= recordIndex(state.tree.map((e) => e.path)));
-const readRecords = (list) => Promise.all(list.map((p) => once(`record:${p}`, async () => ({ ...parseRecord(await fileText(p)), _path: p }))));
-// STATUS IS DERIVED FROM THE RECORDS: from their names in the tree.
-const statusOf = (path, blob, ids = [], verify = false) => statusByNames({ index: recIndex(), path, blob, ids, read: readRecords, verify });
 // A view renders only while it is still the one asked for: reading may take long enough for the person to have moved on.
 let routeSeq = 0;
 
@@ -588,7 +571,7 @@ let app = null;
 function context() {
   return {
     T, GITLAB, SERVER, store, state, DASHBOARD,
-    ghToken, token, once, loadSnapshot, writeTarget, loadProducts, paths, fileText, recIndex, readRecords, statusOf, shownSecrets,
+    ghToken, token, once, loadSnapshot, writeTarget, loadProducts, paths, fileText, shownSecrets,
     main, h, md, renderMermaid, rateLimitText, reloadAndRoute, writeErrorText,
     noteRefusal, errorText, showBanner, gitlabShown, productHref, renderProductSelector, loadFile, present, notThere,
     seq: () => routeSeq,

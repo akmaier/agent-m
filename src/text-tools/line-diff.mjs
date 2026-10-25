@@ -3,8 +3,7 @@
 // Module: MOD-text-tools
 //
 // By the longest common subsequence of the two texts' lines, so that as few lines are added and removed as the two texts
-// allow. Where a change leaves the order open, its added lines come before its removed ones, as the dashboard's difference
-// shows them today: the walk is the one of lineDiff in docs/assets/review-core.mjs. A line is a line of the text without its
+// allow. Where a change leaves the order open, its added lines come before its removed ones. A line is a line of the text without its
 // line ending, LF or CR LF, so a text that changed only its line endings shows no difference; an empty text has no line.
 
 // The lines of a text, each without its line ending.

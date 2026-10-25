@@ -10,7 +10,7 @@
 //
 // Module: MOD-site-frame
 
-import { gitBlobSha } from "../docs/assets/review-core.mjs";
+import { blobSha } from "../src/text-tools/index.mjs";
 import { storedGraphBytes } from "./stored-graph-fake.mjs";
 
 const HEAD = "c0ffee".padEnd(40, "0");
@@ -27,8 +27,8 @@ export const TOKEN = "github_pat_HARNESS0123456789abcdefghij";
 // of a test file, so two servers of different files in one file name different heads where both are read for a graph.
 export async function repoServer({ files: given, history = [], dates = {}, repo = REPO, handlers = [], empty = false, head: first = HEAD }) {
   const files = { ...given };
-  const shas = Object.fromEntries(await Promise.all(Object.entries(files).map(async ([p, t]) => [p, await gitBlobSha(t)])));
-  const bySha = Object.fromEntries(await Promise.all(history.map(async (t) => [await gitBlobSha(t), t])));
+  const shas = Object.fromEntries(await Promise.all(Object.entries(files).map(async ([p, t]) => [p, await blobSha(t)])));
+  const bySha = Object.fromEntries(await Promise.all(history.map(async (t) => [await blobSha(t), t])));
   for (const [p, s] of Object.entries(shas)) bySha[s] = files[p];
   const requests = [], writes = [], batches = [];
   let pending = 0, head = empty ? null : first, seq = 0;
@@ -47,7 +47,7 @@ export async function repoServer({ files: given, history = [], dates = {}, repo 
   const eraOf = (sha) => (sha === null ? { files, date: "2026-10-01T10:00:00Z" } : eras.get(sha));
   const trees = new Map(), commits = new Map(), graphs = new Map();
   const next = (c) => `${c}${String(++seq).padStart(6, "0")}`.padEnd(40, "0");
-  const put = async (path, text) => { files[path] = text; shas[path] = await gitBlobSha(text); bySha[shas[path]] = text; };
+  const put = async (path, text) => { files[path] = text; shas[path] = await blobSha(text); bySha[shas[path]] = text; };
   const api = `/repos/${repo}`;
   const blobShaOf = (text) => Object.keys(bySha).find((sha) => bySha[sha] === text) ?? "0".repeat(40);
   const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { "Content-Type": "application/json" } });

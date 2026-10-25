@@ -39,7 +39,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CHECKS = {"NO SERVER": "test_no_backend", "ARTIFACTS ARE MARKDOWN": "test_artifact_format",
           "THE PRODUCT REPOSITORY IS SELF-SUFFICIENT": "test_self_sufficient"}
-SKELETON = "No requirement yet. Requirements enter through the approval queues in"
+SKELETON = "No section of this file is written by hand."
+SKELETON_FILE = "src/spec-document/skeleton.md"
 # Runs one check module in the copy's tests folder, as `python3 -m unittest <module>` would, leaving out its counter-proof tests.
 RUNNER = """import sys, unittest
 module = __import__(sys.argv[1])
@@ -119,10 +120,11 @@ class ProductRuleChecks(unittest.TestCase):
         self.assertEqual(code, 0, f"{rule}: a permitted plant was refused\n{out[-1500:]}")
 
     def writer(self, extra):
-        """review-core.mjs of the copy, its SPEC skeleton for a new product (Add product) ending in `extra`."""
-        text = (self.copy / "docs/assets/review-core.mjs").read_text(encoding="utf-8")
+        """The SPEC skeleton of the copy that Agent M writes into a new product (Add product: MOD-spec-document's skeleton.md),
+        with `extra` after one of its sentences."""
+        text = (self.copy / SKELETON_FILE).read_text(encoding="utf-8")
         self.assertEqual(text.count(SKELETON), 1, "the SPEC skeleton Agent M writes into a new product")
-        return {"docs/assets/review-core.mjs": text.replace(SKELETON, SKELETON.replace("No requirement yet.", f"No requirement yet. {extra}"))}
+        return {SKELETON_FILE: text.replace(SKELETON, f"{SKELETON} {extra}")}
 
     # ------------------------------------------------------------------------------------------------ the repository
 

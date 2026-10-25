@@ -13,7 +13,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { parseFrontMatter, reviewedId, identifierKept } from "../../docs/assets/artifacts.mjs";
-import { useCaseRecord, specRecord, recordsForId } from "../../docs/assets/review-core.mjs";
 import { UC_OLD, UC_NEW } from "./helpers.mjs";
 
 test("front matter: scalars and lists, body separated", () => {
@@ -39,15 +38,14 @@ test("front matter with CR LF line ends: the fields of the LF text, the body the
 });
 
 // ---------------------------------------------------------------- the last accepted text (queue 2026-09-30, entry 03)
-// A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT finds the records of a renamed file by its identifier (UC-008 2a).
+// A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT finds the records of a renamed file by its identifier (UC-008 2a): the
+// identifier of a path here; the records of that identifier are MOD-approvals' (tests/approvals-last-accepted.test.mjs, a renamed
+// file; tests/approvals-status-of.test.mjs, a renamed file and a record of another kind).
 
 test("reviewedId: a reviewed file's identifier from its path — the same for a renamed file", () => {
   assert.equal(reviewedId(UC_OLD), "UC-010");
   assert.equal(reviewedId(UC_NEW), "UC-010");
   assert.equal(reviewedId("docs/use-cases/README.md"), null);
-  const recs = [useCaseRecord(UC_OLD, "a".repeat(40)), useCaseRecord("docs/use-cases/UC-011-x.md", "b".repeat(40)),
-    specRecord({ queue: "q", entry: 1, proposal: "q/UC-010-named-like-a-use-case.md", blob: "c".repeat(40), target: "SPEC.md", anchor: "## 1", section: "d".repeat(40) })];
-  assert.deepEqual(recordsForId(recs, "UC-010"), [recs[0]], "only the records of that identifier, and no SPEC record");
 });
 
 // ---------------------------------------------------------------- an edited use case keeps its identifier (ITM-010, ITM-126)

@@ -4,7 +4,7 @@
 // Module: MOD-approvals
 
 import { readFileSync, readdirSync } from "node:fs";
-import { gitBlobSha } from "../../docs/assets/review-core.mjs";
+import { blobSha } from "../../src/text-tools/index.mjs";
 
 // The dashboard's own files (MOD-dashboard-app): the shell, src/site-frame/dashboard-app.mjs, and its views and settings sections
 // under docs/assets/dashboard/. A test that read the one app file reads them all, or — `shell: false` — the views alone.
@@ -32,7 +32,9 @@ export const WHEN = new Date("2026-09-29T16:03:00Z");
 export const B_SPEC = "# S\n\n**VERBINDLICH (SPEC)**\n\n## 9. G\n\nold nine\n## 10. R\n\nold ten\n";
 export const B_P05 = "## 10. R\n\nnew ten\n\n## 11. X\n\n*(not yet approved)*\n";
 export const B_P06 = "## 11. X\n\nrule of eleven\n";
-export const B_INDEX = "**Zieldatei aller Einträge:** `products/agent-m/SPEC.md`\n\n| Nr | Datei | Anker | bis | Commits |\n|---|---|---|---|---|\n" +
+// The index of the queue QD, in MOD-spec-changes' form of a queue's index.md.
+export const B_INDEX = "# SPEC approvals — queue 2026-09-24g · x\n\n**Zieldatei aller Einträge:** `products/agent-m/SPEC.md`\n\n" +
+  "| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |\n|---|---|---|---|---|\n" +
   "| 05 | `SPEC.md` | ## 10. R | — | — |\n| 06 | `SPEC.md` | ## 11. X | — | — |\n";
 export const B_UC1 = "---\nid: UC-001\n---\n# one\n", B_UC2 = "---\nid: UC-002\n---\n# two\n";
 
@@ -48,7 +50,7 @@ export async function fakeGitLab({ files = {}, moveAt = null, parent = null, cha
   project = "grp/sub/proj", server = GL } = {}) {
   const calls = [];
   const base = `/api/v4/projects/${encodeURIComponent(project)}`;
-  const blobs = Object.fromEntries(await Promise.all(Object.entries(files).map(async ([p, t]) => [p, await gitBlobSha(t)])));
+  const blobs = Object.fromEntries(await Promise.all(Object.entries(files).map(async ([p, t]) => [p, await blobSha(t)])));
   let branchReads = 0;
   const ok = (o, status = 200) => new Response(JSON.stringify(o), { status });
   const fetchMock = async (u, init = {}) => {

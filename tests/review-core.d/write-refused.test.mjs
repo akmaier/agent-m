@@ -16,9 +16,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { repoServer, openDashboard, REPO } from "../app-harness.mjs";
-import { recordText, useCaseRecord, approvalPath } from "../../docs/assets/review-core.mjs";
 import { parseAddress, connect, HostError } from "../../src/repository-hosts/index.mjs";
 import { blobSha } from "../../src/text-tools/index.mjs";
+import { writeDocument } from "../../src/documents/index.mjs";
+import { approvalSchema } from "../../src/approvals/index.mjs";
 import * as shell from "../../src/site-frame/dashboard-app.mjs";
 import { B_SPEC, B_P05, B_INDEX, QD, GL_ADDR } from "./helpers.mjs";
 
@@ -82,13 +83,13 @@ test("UC-008 4a: a commit refused for missing write access writes nothing; the p
   assert.equal(accept.disabled, false, "Accept can be pressed again");
   assert.match(result.html, /<p class="result">Your GitHub token may not write to https:\/\/github\.com\/akmaier\/agent-m/, "the page says so");
   const blob = await blobSha(UC2_TEXT);
-  const record = recordText(useCaseRecord(UC2, blob));
-  const want = connect(parseAddress(`https://github.com/${REPO}`)).webLinks().newFile(approvalPath("UC-002", blob), record);
+  const record = writeDocument(approvalSchema, { fields: { kind: "use-case", file: UC2, blob } });
+  const want = connect(parseAddress(`https://github.com/${REPO}`)).webLinks().newFile(`docs/approvals/UC-002-${blob.slice(0, 12)}.md`, record);
   const links = hrefs(result.html).filter((x) => x.startsWith(NEW_PAGE));
   assert.deepEqual(links, [want], "one link: GitHub's new-file page with the approval record");
   // NO TEXT TRAVELS IN A URL: the link carries the record's path and the record, never the use case's text.
   const u = new URL(want);
-  assert.equal(u.searchParams.get("filename"), approvalPath("UC-002", blob));
+  assert.equal(u.searchParams.get("filename"), `docs/approvals/UC-002-${blob.slice(0, 12)}.md`);
   assert.equal(u.searchParams.get("value"), record);
   assert.ok(!want.includes(encodeURIComponent("The dashboard shows the status")), "not the reviewed text");
   assert.match(result.html, /pull request/, "says that without write access the commit becomes a pull request");

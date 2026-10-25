@@ -1,5 +1,5 @@
-// Architecture on the review dashboard: the status of ARC and MOD files, and what they rest on — deterministic, no network.
-// Run: node --test tests/*.test.mjs
+// Architecture on the review dashboard: the status of ARC and MOD files, and what they rest on — MOD-approvals' statusOf and
+// acceptanceBlockers. Deterministic, no network. Run: node --test tests/*.test.mjs
 //
 // Module: MOD-approvals
 // Guards: STATUS IS DERIVED FROM THE RECORDS; ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS; UC-022; UC-023
@@ -9,20 +9,17 @@
 // The format of the files is checked in tests/architecture-format.test.mjs. Accepting and
 // editing ARC and MOD files — the dashboard's writes — are checked in tests/approvals-accept.test.mjs and tests/artifact-edits-save.test.mjs.
 //
-// The product is the fixture under tests/fixtures/architecture/. Counter-proofs are listed in
-// docs/measurements/2026-09-30_review-dashboard-mutations.md §8.
+// The product is the fixture under tests/fixtures/architecture/, held by tests/memory-host.mjs.
 
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  gitBlobSha, approvalPath, recordText, parseRecord, reviewedRecord,
-  deriveReviewedStatus, deriveUseCaseStatus, architecturePrerequisites,
-  useCaseRecord,
-} from "../docs/assets/review-core.mjs";
-import { reviewedId, parseArchitecture } from "../docs/assets/artifacts.mjs";
+import { statusOf, acceptanceBlockers } from "../src/approvals/index.mjs";
+import { blobSha } from "../src/text-tools/index.mjs";
+import { memoryHost } from "./memory-host.mjs";
+import { recordText, approvalPath, reviewedRecord } from "./approval-records.mjs";
 
 const FIX = fileURLToPath(new URL("./fixtures/architecture/", import.meta.url));
 const files = {};
@@ -33,59 +30,42 @@ const files = {};
   }
 })(FIX);
 const ARC = "docs/architecture/ARC-001-static-client.md", READER = "docs/architecture/MOD-reader.md";
-const REVIEW = "docs/architecture/MOD-review.md", PAGE = "docs/architecture/MOD-page.md";
+const REVIEW = "docs/architecture/MOD-review.md";
 const UC1 = "docs/use-cases/UC-001-read-a-file.md", UC2 = "docs/use-cases/UC-002-show-the-status.md";
-const archPaths = [ARC, READER, REVIEW, PAGE];
-// The use cases as the app holds them: path, blob, status, and the record naming the current text.
-async function ucRecordFiles(which = [UC1, UC2]) {
-  const out = {};
-  for (const p of which) {
-    const blob = await gitBlobSha(files[p]);
-    out[approvalPath(reviewedId(p), blob)] = recordText(useCaseRecord(p, blob));
-  }
-  return out;
-}
-async function useCasesOf(repo) {
-  const records = Object.entries(repo).filter(([p]) => p.startsWith("docs/approvals/")).map(([p, t]) => ({ ...parseRecord(t), _path: p }));
-  return Promise.all([UC1, UC2].filter((p) => p in repo).map(async (p) => {
-    const blob = await gitBlobSha(repo[p]);
-    const status = deriveUseCaseStatus(p, blob, records);
-    const record = records.find((r) => r.kind === "use-case" && r.file === p && r.blob === blob)?._path ?? null;
-    return { id: reviewedId(p), path: p, blob, status, record };
-  }));
-}
-// ---------------------------------------------------------------- identifiers, records, status
 
-test("STATUS IS DERIVED FROM THE RECORDS — ARC and MOD: open, accepted, changed; only records of their own kind count", async () => {
-  const b = await gitBlobSha(files[READER]);
-  assert.equal(deriveReviewedStatus(READER, b, []), "open");
-  assert.equal(deriveReviewedStatus(READER, b, [reviewedRecord(READER, b)]), "accepted");
-  assert.equal(deriveReviewedStatus(READER, b, [reviewedRecord(READER, "e".repeat(40))]), "changed");
-  // Counter-proof: a record of another kind naming the same path and text does not accept it.
-  assert.equal(deriveReviewedStatus(READER, b, [{ kind: "use-case", file: READER, blob: b }]), "open");
-  assert.equal(deriveReviewedStatus(UC1, b, [reviewedRecord(UC1, b)]), "accepted", "use cases derive the same way");
+// The record of `path`, under the identifier `id`, naming `blob`: { its path: its text }.
+const recordOf = (id, path, blob) => ({ [approvalPath(id, blob)]: recordText(reviewedRecord(path, blob)) });
+// The product with `over` added, as the snapshot of its head.
+const snapshotOf = (over = {}) => memoryHost({ ...files, ...over }).host.readSnapshot("main");
+// Both use cases accepted in their current texts.
+const useCasesAccepted = async () => ({ ...recordOf("UC-001", UC1, await blobSha(files[UC1])), ...recordOf("UC-002", UC2, await blobSha(files[UC2])) });
+
+// ---------------------------------------------------------------- status
+
+test("STATUS IS DERIVED FROM THE RECORDS — ARC and MOD: open, accepted, changed; only records of their own identifier count", async () => {
+  const b = await blobSha(files[READER]);
+  assert.equal(statusOf(READER, b, await snapshotOf()), "open");
+  assert.equal(statusOf(READER, b, await snapshotOf(recordOf("MOD-reader", READER, b))), "accepted");
+  assert.equal(statusOf(READER, b, await snapshotOf(recordOf("MOD-reader", READER, "e".repeat(40)))), "changed");
+  // Counter-proof: a record of another identifier naming the same text does not accept it.
+  assert.equal(statusOf(READER, b, await snapshotOf(recordOf("MOD-review", REVIEW, b))), "open");
+  const a = await blobSha(files[ARC]);
+  assert.equal(statusOf(ARC, a, await snapshotOf(recordOf("ARC-001", ARC, a))), "accepted", "a decision derives the same way");
 });
 
 // ---------------------------------------------------------------- ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS
 
 test("ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS — every named requirement in the SPEC, every named use case accepted", async () => {
-  const repo = { ...files, ...(await ucRecordFiles()) };
-  const useCases = await useCasesOf(repo);
-  const ok = architecturePrerequisites({ arch: parseArchitecture(ARC, files[ARC]), specText: files["SPEC.md"], useCases });
-  assert.deepEqual(ok.open, []);
-  assert.deepEqual(ok.useCases.map((u) => u.id), ["UC-001"], "the accepted use cases the file rests on, with their records");
-  assert.ok(ok.useCases[0].record && ok.useCases[0].blob);
+  const accepted = await useCasesAccepted();
+  assert.deepEqual(await acceptanceBlockers(ARC, await snapshotOf(accepted)), [], "RULE ONE is in the SPEC and UC-001 accepted");
   // UC-022 10a / UC-023 4b: each open item is named.
-  const open = (text, ucs = useCases) => architecturePrerequisites({ arch: parseArchitecture(ARC, text), specText: files["SPEC.md"], useCases: ucs }).open;
-  assert.deepEqual(open(files[ARC].replace("  - RULE ONE\n", "  - OLD RULE\n")).map((o) => o.name), ["OLD RULE"]);
-  assert.match(open(files[ARC].replace("  - RULE ONE\n", "  - OLD RULE\n"))[0].reason, /withdrawn/);
-  assert.deepEqual(open(files[ARC].replace("  - RULE ONE\n", "  - NO SUCH RULE\n")).map((o) => o.name), ["NO SUCH RULE"]);
-  assert.match(open(files[ARC].replace("  - RULE ONE\n", "  - NO SUCH RULE\n"))[0].reason, /not in SPEC\.md/);
-  assert.deepEqual(open(files[ARC].replace("  - UC-001\n", "  - UC-009\n")).map((o) => o.name), ["UC-009"]);
-  const changedUc = useCases.map((u) => (u.id === "UC-001" ? { ...u, status: "changed", record: null } : u));
-  assert.deepEqual(open(files[ARC], changedUc).map((o) => [o.name, o.reason]), [["UC-001", "changed since it was accepted"]]);
-  const openUc = useCases.map((u) => (u.id === "UC-001" ? { ...u, status: "open", record: null } : u));
-  assert.deepEqual(open(files[ARC], openUc).map((o) => [o.name, o.reason]), [["UC-001", "not accepted yet"]]);
+  const blockers = async (text, over = accepted) => acceptanceBlockers(ARC, await snapshotOf({ ...over, [ARC]: text }));
+  assert.deepEqual(await blockers(files[ARC].replace("  - RULE ONE\n", "  - NO SUCH RULE\n")), ["NO SUCH RULE"]);
+  assert.deepEqual(await blockers(files[ARC].replace("  - UC-001\n", "  - UC-009\n")), ["UC-009"], "a use case the product does not hold");
+  const changed = { ...recordOf("UC-001", UC1, "e".repeat(40)), ...recordOf("UC-002", UC2, await blobSha(files[UC2])) };
+  assert.deepEqual(await blockers(files[ARC], changed), ["UC-001"], "a use case changed since it was accepted");
+  assert.deepEqual(await blockers(files[ARC], {}), ["UC-001"], "a use case not accepted yet");
   // A module's `realises` counts the same; `follows` (decisions) is not a prerequisite of the rule.
-  assert.deepEqual(architecturePrerequisites({ arch: parseArchitecture(REVIEW, files[REVIEW]), specText: files["SPEC.md"], useCases }).open, []);
+  assert.deepEqual(await acceptanceBlockers(REVIEW, await snapshotOf(accepted)), []);
+  assert.deepEqual(await acceptanceBlockers(REVIEW, await snapshotOf()), ["UC-002"], "counter-proof: UC-002 not accepted");
 });
