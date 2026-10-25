@@ -13,19 +13,20 @@ export const failure = (name, message, fields) => Object.assign(new Error(messag
 
 /**
  * registerStrategies(owner: string, strategies: Partial<Strategies>) -> void — adds the named strategies a module offers.
- * Throws DuplicateStrategy { strategy, owners } when a name is registered twice, and then adds none of them.
+ * Throws DuplicateStrategy { strategy, owners } when a name is registered twice with another strategy, and then adds none of them; the same
+ * strategy handed again, by any owner, stays registered under its first owner.
  */
 export function registerStrategies(owner, strategies) {
   const adding = CATEGORIES.flatMap((category) => Object.entries(strategies[category] ?? {})
     .map(([name, strategy]) => ({ category, name, strategy })));
-  for (const { category, name } of adding) {
+  for (const { category, name, strategy } of adding) {
     const registered = registry.get(category).get(name);
-    if (registered) {
+    if (registered && registered.strategy !== strategy) {
       throw failure("DuplicateStrategy", `the ${category} ${name} is registered by ${registered.owner} and again by ${owner}`,
         { strategy: name, owners: [registered.owner, owner] });
     }
   }
-  for (const { category, name, strategy } of adding) registry.get(category).set(name, { owner, strategy });
+  for (const { category, name, strategy } of adding) if (!registry.get(category).has(name)) registry.get(category).set(name, { owner, strategy });
 }
 
 /**

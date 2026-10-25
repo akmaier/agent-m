@@ -265,9 +265,10 @@ ONLY WHEN RECORDING IS ON`).
   what a writer did; `shown` is what `return-draft` hands back; `notes` what the writer changed of the draft while
   writing, one line each, which the job's end record lists — a realised name it removed (UC-007 4a).
 - `registerStrategies(owner: string, strategies: Partial<Strategies>) -> void` — adds the named strategies a module
-  offers. Throws `DuplicateStrategy { strategy, owners }` when a name is registered twice — the strategy's name in
-  `strategy`, since an error's own `name` is its type —, and then adds none of them; a program registers each owner
-  once, before its first job.
+  offers. Throws `DuplicateStrategy { strategy, owners }` when a name is registered twice with another strategy — the
+  strategy's name in `strategy`, since an error's own `name` is its type —, and then adds none of them; the same strategy
+  handed again, by any owner, stays registered under its first owner. A program registers each owner once, before its
+  first job.
 - `estimate(text: string) -> number` — a text's size in tokens as the runner estimates it: its characters divided by
   three, rounded up; the size prepareJob gives each part, and the one MOD-endpoint-calls' execution loop bounds its tool
   results by.

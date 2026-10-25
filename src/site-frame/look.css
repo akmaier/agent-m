@@ -53,8 +53,8 @@
 button, .btn { margin-inline: .35em; }
 
 /* The requirements tree shares the frame's boxed controls, with room for labels and long requirement text. */
-/* The requirements page's links to other pages are plain links, each a target of at least 24 px. */
-.spec-change-links a { display: inline-flex; align-items: center; min-height: 24px; }
+/* The requirements page's links to other pages (trace-pages/flow.mjs reviewLink, and Gaps or Specification) are plain links, each a target of at least 24 px. */
+:is(.arrange-link, .requirement-edit, .requirement-new, .spec-entries-link, .spec-history-link, .spec-waiting-entry, .trace-gaps-link, .trace-specification-link) { display: inline-flex; align-items: center; min-height: 24px; }
 .spec-narrow, .version-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-block: .75rem; }
 .spec-narrow input, .spec-narrow select, .version-bar select.version-choice { box-sizing: border-box; min-width: 0; max-width: 100%; min-height: 24px;
   font: inherit; font-size: .95rem; padding: .45rem .6rem; border: 1px solid var(--line); border-radius: 4px;
