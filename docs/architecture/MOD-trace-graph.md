@@ -38,6 +38,7 @@ provides:
   - Comparison
   - traceGraph
   - storedGraph
+  - latestGraph
   - graphFindings
   - tracesTo
   - coverageGaps
@@ -65,7 +66,7 @@ change, the order of the modules by their uses, the module rows of UC-025, the c
 references to what exists only inside Agent M. The matrix is derived from the files of one commit alone and edited by no one (`THE TRACEABILITY
 MATRIX IS DERIVED`): `traceGraph` builds it, and where the repository holds the graph of that very commit on its branch
 `trace-cache`, `traceGraph` returns that graph and reads no file. A page never builds the graph: it reads the stored one through
-`storedGraph`, and the workflow that runs on every push to the default branch builds and stores it (MOD-workflow-entries'
+`storedGraph`, or, where it may show the graph stored last while its commit's is not stored yet, through `latestGraph`, and the workflow that runs on every push to the default branch builds and stores it (MOD-workflow-entries'
 `onMainChanged`). It runs in a browser and in Node; it reads only through the source it is given and writes only through
 `publishGraph`, which adds the graph of one commit to that branch.
 
@@ -87,7 +88,9 @@ MATRIX IS DERIVED`): `traceGraph` builds it, and where the repository holds the 
 It keeps nothing between calls. A graph lives as long as its caller holds it, or on the branch `trace-cache` of the repository,
 which only grows: the file `<commit>.json.gz` is the text `graphText` gives for the graph of the commit it is named by, gzipped, the
 file `<commit>.impacts.json` holds the impact lists of that commit's decision and module files that are not accepted, and no
-file of it is changed or deleted.
+file of these two kinds is changed or deleted. The file `latest.json`, `{ commit }`, names the commit of the graph stored last;
+`publishGraph` writes it again with every commit that adds a graph, and `latestGraph` reads it while the graph of a page's commit
+is not stored yet.
 
 What it reads, and as what:
 
@@ -189,7 +192,16 @@ identifier, and which register entry an item names is MOD-source-register's to s
   however many views and functions ask for it, since a commit's graph never changes; a graph not stored, or a read that
   failed, is read again at the next call. It never builds the graph and
   reads no other file; it rejects with `GraphNotStored`, naming the commit and the workflow that stores it, where the
-  source has no `readOn`, `commit` is none, or the branch holds no graph of it. Every page reads a graph only through it.
+  source has no `readOn`, `commit` is none, or the branch holds no graph of it. Every page reads a graph only through it,
+  directly or through `latestGraph`.
+- `latestGraph(source: TextSource, commit: string) -> Promise<{ graph: Graph, line: string | null }>` — the graph stored for
+  `commit`, as `storedGraph` gives it, and `line` null; while that is not stored yet, `latest.json` on the branch
+  `trace-cache` read once with the source's `readOn`, then the graph of the commit it names, as `storedGraph` gives it, and
+  nothing else is tried; `line` is then the one line a page shows above what it draws from that graph, naming both commits:
+  `As of <that commit, 7 characters>: the trace graph of the newest commit, <commit, 7 characters>, is being stored.` The
+  graph's `commit` says which commit it is of. It never builds the graph and reads no other file; where neither graph is
+  stored — no `readOn`, no `latest.json`, a text that names no commit, or no graph of the commit it names — it rejects with
+  the `GraphNotStored` of `commit`.
 - `graphFindings(graph: Graph) -> Finding[]` — the checks across artifacts, each decided from the graph alone and each an
   error naming the artifact and line:
   a name in `realises`, `forced_by`, an item's `realises` or a test's `guards` that matches no requirement or use case
@@ -225,8 +237,9 @@ identifier, and which register entry an item names is MOD-source-register's to s
   no `graphText` or names a commit other than `commit`. Reads nothing.
 - `publishGraph(host: Host, snapshot: Snapshot, changed?: Array<{ path: string, before: { commit: string, text: string }
   | null }>) -> Promise<{ commit: string, written: boolean }>` — builds the graph of the snapshot's commit from its files
-  and adds `<commit>.json.gz`, the graph's text gzipped, to the branch `trace-cache` by `commitFiles`, on the head it read; `written` is `false` when
-  the branch holds the file already, which it then leaves as it is. With `changed`, the decision and module files of the
+  and adds `<commit>.json.gz`, the graph's text gzipped, to the branch `trace-cache` by `commitFiles`, on the head it read,
+  with `latest.json` naming the commit in the same commit; `written` is `false` when
+  the branch holds the file already, which it then leaves as it is, and `latest.json` with it. With `changed`, the decision and module files of the
   commit that are not accepted, each with the text it was last accepted at and that text's commit (`null` for a file never
   accepted), as the caller reads them, it adds `<commit>.impacts.json` in the same commit: for each file, its path, its
   blob at the commit, `before`'s commit, and `architectureImpact(graph, [{ path, before: before.text, after }])`. This
@@ -257,9 +270,9 @@ identifier, and which register entry an item names is MOD-source-register's to s
 
 ## Files
 
-It reads, through the `TextSource` it is given, the files listed under Data, and the files `<commit>.json.gz` and
-`<commit>.impacts.json` of the branch `trace-cache`. It writes both on that branch, only by adding, and only in
-`publishGraph`.
+It reads, through the `TextSource` it is given, the files listed under Data, and the files `<commit>.json.gz`,
+`<commit>.impacts.json` and `latest.json` of the branch `trace-cache`. It writes them on that branch only in `publishGraph`:
+the first two only by adding, `latest.json` again in each commit that adds a graph.
 
 ## Uses
 
