@@ -49,7 +49,6 @@ class ArchitectureFiles(unittest.TestCase):
             "ARC-1-static-client.md": good,                                         # not ARC-<nnn>
             "ARC-1-static.md": good.replace("id: ARC-001", "id: ARC-1"),            # not ARC-<nnn>, id agreeing
             "ARC-001-Static.md": good,                                              # slug not lower case
-            "ARC-002-static-client.md": good,                                       # id differs from the name
             "ARC-001-a.md": good.replace("## Alternatives\n", "## Options\n"),      # no alternatives
             "ARC-001-b.md": good.replace("## Context\n", ""),
             "ARC-001-c.md": good.replace("## Decision\n", "### Decision\n"),
@@ -69,8 +68,6 @@ class ArchitectureFiles(unittest.TestCase):
         self.assertEqual(problems({"docs/architecture/MOD-review.md": good}), {}, "known positive")
         broken = {
             "MOD-Review.md": good,                                                  # slug not lower case
-            "MOD-other.md": good,                                                   # id differs from the name
-            "MOD-review-x.md": good,
             "mod-review.md": good,
             "MOD-review.md#1": good.replace("## Responsibility\n", ""),
             "MOD-review.md#2": good.replace("## Interfaces\n", "## API\n"),

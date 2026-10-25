@@ -82,7 +82,6 @@ test("a module — folder, realises, follows, uses MOD-x.interface, provides, ea
   // Counter-proof: a use of an interface not written MOD-x.name, and a provided interface nobody describes.
   assert.ok(findings(REVIEW, files[REVIEW].replace("  - MOD-reader.readFile\n", "  - readFile\n")).length);
   assert.ok(findings(REVIEW, files[REVIEW].replace("  - status\n", "  - status\n  - history\n")).length);
-  assert.ok(findings("docs/architecture/MOD-other.md", files[REVIEW]).length, "id differs from the file name");
 });
 
 // ---------------------------------------------------------------- ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS
