@@ -4,7 +4,7 @@
 // Module: MOD-approvals
 
 import { readFileSync, readdirSync } from "node:fs";
-import { gitBlobSha } from "../../docs/assets/review-core.mjs";
+import { blobSha } from "../../src/text-tools/index.mjs";
 
 // The dashboard's own files (MOD-dashboard-app): the shell, src/site-frame/dashboard-app.mjs, and its views and settings sections
 // under docs/assets/dashboard/. A test that read the one app file reads them all, or — `shell: false` — the views alone.
@@ -75,7 +75,7 @@ export async function fakeGitLab({ files = {}, moveAt = null, parent = null, cha
   project = "grp/sub/proj", server = GL } = {}) {
   const calls = [];
   const base = `/api/v4/projects/${encodeURIComponent(project)}`;
-  const blobs = Object.fromEntries(await Promise.all(Object.entries(files).map(async ([p, t]) => [p, await gitBlobSha(t)])));
+  const blobs = Object.fromEntries(await Promise.all(Object.entries(files).map(async ([p, t]) => [p, await blobSha(t)])));
   let branchReads = 0;
   const ok = (o, status = 200) => new Response(JSON.stringify(o), { status });
   const fetchMock = async (u, init = {}) => {

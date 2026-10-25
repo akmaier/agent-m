@@ -18,11 +18,12 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import * as core from "../docs/assets/review-core.mjs";
+import { blobSha } from "../src/text-tools/index.mjs";
+import { recordText, approvalPath, reviewedRecord } from "./approval-records.mjs";
 import { reviewedId } from "../docs/assets/artifacts.mjs";
 import { repoServer, fakeCaches, openDashboard, REPO } from "./app-harness.mjs";
 
-const { gitBlobSha, recordText, useCaseRecord, reviewedRecord, approvalPath } = core;
+const record = (path, blob) => recordText(reviewedRecord(path, blob));
 
 // ---------------------------------------------------------------- the product: tests/fixtures/architecture, with records
 
@@ -46,9 +47,9 @@ const EARLIER = [];
 async function product() {
   const f = { ...base, "docs/use-cases/README.md": "# Use cases\n", "docs/approvals/README.md": "# Approval records\n" };
   const rec = async (id, path, text) => {
-    const b = await gitBlobSha(text);
+    const b = await blobSha(text);
     if (text !== f[path]) EARLIER.push(text);
-    f[approvalPath(id, b)] = recordText(path.includes("/use-cases/") ? useCaseRecord(path, b) : reviewedRecord(path, b));
+    f[approvalPath(id, b)] = record(path, b);
   };
   await rec("UC-001", UC1, f[UC1]);
   await rec("UC-002", UC2, f[UC2].replace("Show the status", "Show a status"));
@@ -125,7 +126,7 @@ test("Accept all N shown: one commit with one record per file the page could cou
   assert.equal(srv.writes.length, 1, "one commit");
   const written = srv.writes[0].files;
   const want = {};
-  for (const p of [PAGE, READER]) want[approvalPath(reviewedId(p), await gitBlobSha(repo[p]))] = recordText(reviewedRecord(p, await gitBlobSha(repo[p])));
+  for (const p of [PAGE, READER]) want[approvalPath(reviewedId(p), await blobSha(repo[p]))] = record(p, await blobSha(repo[p]));
   assert.deepEqual(written, want, "a record for MOD-page and MOD-reader, each naming the blob rendered — none for ARC-001, MOD-review or a use case");
   assert.match(srv.writes[0].message, /MOD-page/);
   // The acceptance path of SEVERAL FILES ARE ACCEPTED IN ONE CLICK: read again at the head, then one commit.
@@ -145,7 +146,7 @@ test("counter-proof: a file changed between building the page and the click is l
   await srv.change(PAGE, repo[PAGE] + "\nEdited by someone else.\n");
   await page.click(".accept-all");
   assert.equal(srv.writes.length, 1);
-  assert.deepEqual(Object.keys(srv.writes[0].files), [approvalPath("MOD-reader", await gitBlobSha(repo[READER]))]);
+  assert.deepEqual(Object.keys(srv.writes[0].files), [approvalPath("MOD-reader", await blobSha(repo[READER]))]);
   assert.match(page.main(), /MOD-page was left out: /);
   // The page shows the new text, to be decided on again.
   assert.match(section(page.main(), "MOD-page"), /Edited by someone else\./);
@@ -196,8 +197,8 @@ test("the use cases' review page: a changed use case as its difference, no accep
     "nothing outside the use cases and their records");
   t.diagnostic(`use-case review page: ${page.requests.length} requests (${page.requests.join(", ")})`);
   await page.click(".accept-all");
-  const b = await gitBlobSha(repo[UC2]);
-  assert.deepEqual(srv.writes.map((w) => w.files), [{ [approvalPath("UC-002", b)]: recordText(useCaseRecord(UC2, b)) }]);
+  const b = await blobSha(repo[UC2]);
+  assert.deepEqual(srv.writes.map((w) => w.files), [{ [approvalPath("UC-002", b)]: record(UC2, b) }]);
 });
 
 test("without a token: no Accept all — GitHub's prefilled page for each record, as for a single Accept", async () => {
@@ -208,7 +209,7 @@ test("without a token: no Accept all — GitHub's prefilled page for each record
   assert.doesNotMatch(html, /accept-all/);
   const hrefs = [...html.matchAll(/<a class="github-page" href="([^"]*)"/g)].map((m) => m[1].replace(/&amp;/g, "&"));
   for (const p of [PAGE, READER]) {
-    const path = approvalPath(reviewedId(p), await gitBlobSha(repo[p]));
+    const path = approvalPath(reviewedId(p), await blobSha(repo[p]));
     assert.ok(hrefs.some((href) => href.startsWith(`https://github.com/${REPO}/new/main?`) && new URL(href).searchParams.get("filename") === path), path);
   }
 });
