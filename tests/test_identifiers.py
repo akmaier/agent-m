@@ -4,30 +4,80 @@
 """SPEC §1 EVERY ARTIFACT HAS AN IDENTIFIER — a requirement its name in capitals, every other artifact one
 from the scheme SRC- · UC- · ARC- · MOD- · TST- · ITM- · RES- · JOB-.
 
-MOD-artifacts identity.identifierKind tells the kind of an identifier from its form; identity.identifiers(files)
-reads every identifier of one version of a repository — the requirements of its SPEC.md, the use cases,
-decisions, modules, backlog items, job records and sources by their files, the test cases by their TST-
-identifiers — and returns a finding for an artifact that carries none, carries a malformed one, or shares
-one with another artifact. The files are the fixture repository tests/fixtures/identity/v2/, never Agent M's
-own (KEIN SPEC-ZUGRIFF AUS PRODUKT-CODE); each counter-proof breaks a copy of it.
+MOD-identifiers' kindOfIdentifier tells the kind of an identifier by the scheme, and identifiersIn finds where a text writes
+it. Where each artifact carries its identifier is its format's: a requirement's name is read by MOD-spec-document (parseSpec,
+and requirementFindings for a name that is not in capitals), the identifier of a use case, a decision, a module and an item
+by MOD-documents (artifactSchemaOf, readDocument, and documentFindings for an identifier that is missing, of another kind or
+not the one its path gives), a test case's by MOD-test-document (testDeclarations). Each finding counted here is one under
+this requirement. The files are a small fixture product written below, never Agent M's own (KEIN SPEC-ZUGRIFF AUS
+PRODUKT-CODE); each counter-proof breaks a copy of it.
+
+Readings, each named: "carries an identifier" is read of each artifact on its own — that two artifacts carry the same one is
+no part of this requirement's text (a requirement's name given twice is THE NAME IS THE ID AND IT SURVIVES', decided by
+requirementFindings); a test file whose cases declare no identifier carries none; a file under an artifact's folder whose path
+is no artifact's path of its format carries none.
 """
-import json
 import unittest
-from pathlib import Path
 
-from jsrun import js
+from artifact_checks import module_call
 
-FIX = Path(__file__).resolve().parent / "fixtures" / "identity"
 RULE = "EVERY ARTIFACT HAS AN IDENTIFIER"
 
+PRODUCT = {
+    "SPEC.md": ("# Fixture product — Specification\n\n## 1. Reading\n\n"
+                "**A FILE IS READ WHOLE** *(PO)*\nA file is read from its first byte to its last.\n*Check:* `tests/reader.test.mjs`\n\n"
+                "**EVERY FILE HAS A STATUS** *(PO)*\nEvery file read has a status.\n*Check:* `tests/reader.test.mjs`\n"),
+    "docs/use-cases/UC-001-read-a-file.md": ("---\nid: UC-001\ntitle: Read a file\narea: Reading\nactors:\n  - Author\n"
+                                             "realises:\n  - A FILE IS READ WHOLE\n---\n# UC-001 Read a file\n"),
+    "docs/architecture/ARC-001-static-client.md": ("---\nid: ARC-001\ntitle: A static client reads the files\nforced_by:\n"
+                                                   "  - UC-001\n---\n# ARC-001 A static client reads the files\n"),
+    "docs/architecture/MOD-reader.md": ("---\nid: MOD-reader\ntitle: Reads a file whole\nfolder: src/reader/\nrealises:\n"
+                                        "  - A FILE IS READ WHOLE\nfollows:\n  - ARC-001\nuses: []\nprovides: []\n---\n"
+                                        "# MOD-reader Reads a file whole\n"),
+    "docs/backlog/ITM-1000-read-files-whole.md": ("---\nid: ITM-1000\ntitle: Read files whole\n---\n# ITM-1000 Read files whole\n"),
+    "tests/reader.test.mjs": ("// TST-001 · level: unit · module: MOD-reader\n// guards: A FILE IS READ WHOLE\n"
+                              "test(\"a file is read to its last byte\", () => {});\n\n"
+                              "// TST-002 · level: unit · module: MOD-reader\n// guards: EVERY FILE HAS A STATUS\n"
+                              "test(\"an empty file is read as empty\", () => {});\n"),
+}
 
-def version(name: str) -> dict:
-    """{ path: text } of one version of the fixture repository."""
-    root = FIX / name
-    return {p.relative_to(root).as_posix(): p.read_text(encoding="utf-8") for p in sorted(root.rglob("*")) if p.is_file()}
+CARRIED = """
+const RULE = 'EVERY ARTIFACT HAS AN IDENTIFIER';
+const out = { items: [], problems: [] };
+const placeOf = (path, text, id) => identifiers.identifiersIn(path, text).find((p) => p.id === id)?.line ?? null;
+for (const [path, text] of Object.entries(D)) {
+  if (path === 'SPEC.md') {
+    const spec = specDocument.parseSpec(text);
+    const named = new Set(specDocument.requirementFindings(spec).filter((f) => f.rule === RULE).map((f) => f.artifact));
+    for (const r of spec.requirements.values()) {
+      if (named.has(r.name)) out.problems.push([path, r.line, r.name]);
+      else out.items.push([r.name, identifiers.kindOfIdentifier(r.name), path, placeOf(path, text, r.name)]);
+    }
+  } else if (testDocument.isTestFile(path)) {
+    const declared = testDocument.testDeclarations(path, text);
+    if (!declared.length) out.problems.push([path, 1, null]);
+    for (const d of declared) {
+      if (identifiers.kindOfIdentifier(d.id) === 'TST') out.items.push([d.id, 'TST', path, placeOf(path, text, d.id)]);
+      else out.problems.push([path, d.line, d.id]);
+    }
+  } else {
+    const schema = documents.artifactSchemaOf(path);
+    if (!schema) { out.problems.push([path, 1, null]); continue; }
+    const doc = documents.readDocument(schema, path, text);
+    const found = documents.documentFindings(schema, doc).filter((f) => f.rule === RULE);
+    for (const f of found) out.problems.push([path, f.line, f.artifact]);
+    if (!found.length) out.items.push([doc.id, identifiers.kindOfIdentifier(doc.id), path, placeOf(path, text, doc.id)]);
+  }
+}
+return out;
+"""
 
 
-V2 = version("v2")
+def carried(files: dict) -> dict:
+    """{ items: [[id, kind, path, line]], problems: [[path, line, what is named]] } — each artifact of `files` with the
+    identifier it carries, its kind by the scheme and the line identifiersIn finds it on; or the place of an artifact that
+    carries none of the scheme."""
+    return module_call(CARRIED, files)
 
 
 def edited(files: dict, changes: dict) -> dict:
@@ -41,94 +91,61 @@ def edited(files: dict, changes: dict) -> dict:
     return out
 
 
-def identifiers(files: dict) -> dict:
-    return js(f"return identity.identifiers({json.dumps(files)});")
-
-
-def problems(files: dict) -> list:
-    return identifiers(files)["problems"]
-
-
 class Identifiers(unittest.TestCase):
     def test_the_kind_of_an_identifier_is_told_by_its_form(self):
-        kinds = {"THE STATUS IS SHOWN": "requirement", "SRC-po": "source", "UC-001": "use-case",
-                 "ARC-001": "architecture-decision", "MOD-reader": "module", "TST-001": "test",
-                 "ITM-001": "backlog-item", "ITM-1000": "backlog-item", "RES-gpu-cluster": "resource", "JOB-20260924-1432-7f3a": "job"}
-        got = js(f"return Object.fromEntries({json.dumps(list(kinds))}.map((i) => [i, identity.identifierKind(i)]));")
+        kinds = {"THE STATUS IS SHOWN": "requirement", "SRC-po": "SRC", "UC-001": "UC", "UC-1000": "UC", "ARC-001": "ARC",
+                 "MOD-reader": "MOD", "TST-001": "TST", "ITM-001": "ITM", "ITM-1000": "ITM", "RES-gpu-cluster": "RES",
+                 "JOB-20260924-1432-7f3a": "JOB"}
+        got = module_call("return Object.fromEntries(D.map((i) => [i, identifiers.kindOfIdentifier(i)]));", list(kinds))
         self.assertEqual(got, kinds)
 
     def test_counter_proof_a_malformed_identifier_has_no_kind(self):
         bad = ["UC-1", "uc-001", "UC-001-read", "MOD-Reader", "MOD-", "TST-12", "ITM-99", "RES-", "SRC_po",
                "JOB-", "The status is shown", ""]
-        got = js(f"return {json.dumps(bad)}.map((i) => identity.identifierKind(i));")
-        self.assertEqual(got, [None] * len(bad))
+        self.assertEqual(module_call("return D.map((i) => identifiers.kindOfIdentifier(i));", bad), [None] * len(bad))
 
-    def test_every_artifact_of_the_fixture_is_read_by_its_identifier(self):
-        r = identifiers(V2)
+    def test_every_artifact_of_the_fixture_carries_an_identifier_where_its_format_writes_it(self):
+        r = carried(PRODUCT)
         self.assertEqual(r["problems"], [])
-        by_kind = {}
-        for i in r["items"]:
-            by_kind.setdefault(i["kind"], []).append(i["id"])
-        self.assertEqual({k: sorted(v) for k, v in by_kind.items()}, {
-            "requirement": ["A FILE IS READ WHOLE", "EVERY FILE HAS A STATUS", "OLD READER", "THE STATUS IS SHOWN"],
-            "use-case": ["UC-001", "UC-002"],
-            "architecture-decision": ["ARC-001"],
-            "module": ["MOD-page", "MOD-reader", "MOD-view"],
-            "backlog-item": ["ITM-001", "ITM-002"],
-            "job": ["JOB-20260924-1432-7f3a", "JOB-20260930-0910-c2d4"],
-            "source": ["SRC-po"],
-            "test": ["TST-001", "TST-002", "TST-003", "TST-004"],
-        })
-        at = {i["id"]: i for i in r["items"]}
-        self.assertEqual((at["UC-002"]["path"], at["UC-002"]["line"]), ("docs/use-cases/UC-002-show-each-status.md", 1))
-        self.assertEqual((at["TST-004"]["path"], at["TST-004"]["line"]), ("tests/view.spec.mjs", 9))
-        self.assertEqual((at["THE STATUS IS SHOWN"]["path"], at["THE STATUS IS SHOWN"]["line"]), ("SPEC.md", 24))
-        self.assertEqual(sorted(i for i, x in at.items() if x["withdrawn"]), ["MOD-page", "OLD READER"])
+        self.assertEqual(sorted(r["items"]), sorted([
+            ["A FILE IS READ WHOLE", "requirement", "SPEC.md", 5], ["EVERY FILE HAS A STATUS", "requirement", "SPEC.md", 9],
+            ["UC-001", "UC", "docs/use-cases/UC-001-read-a-file.md", 2],
+            ["ARC-001", "ARC", "docs/architecture/ARC-001-static-client.md", 2],
+            ["MOD-reader", "MOD", "docs/architecture/MOD-reader.md", 2],
+            ["ITM-1000", "ITM", "docs/backlog/ITM-1000-read-files-whole.md", 2],
+            ["TST-001", "TST", "tests/reader.test.mjs", 1], ["TST-002", "TST", "tests/reader.test.mjs", 5],
+        ]))
 
-    def assert_one(self, files: dict, artifact: str, label: str):
-        fs = problems(files)
-        self.assertEqual([(f["kind"], f["rule"], f["artifact"]) for f in fs], [("error", RULE, artifact)], label)
-        self.assertTrue(fs[0]["what"] and fs[0]["fix"] and fs[0]["line"] >= 1, label)
+    def assert_one(self, changes: dict, path: str, label: str):
+        r = carried(edited(PRODUCT, changes))
+        self.assertEqual([p[0] for p in r["problems"]], [path], label)
+        self.assertTrue(r["problems"][0][1] >= 1, label)
 
-    def test_counter_proof_a_file_without_an_identifier(self):
-        uc = V2["docs/use-cases/UC-002-show-each-status.md"]
-        cases = {
-            "a use case": ("docs/use-cases/show-each-status.md", "docs/use-cases/UC-002-show-each-status.md", uc),
-            "a decision": ("docs/architecture/static-client.md", "docs/architecture/ARC-001-static-client.md",
-                           V2["docs/architecture/ARC-001-static-client.md"]),
-            "a job record": ("docs/jobs/job-1432.md", "docs/jobs/JOB-20260924-1432-7f3a.md",
-                             V2["docs/jobs/JOB-20260924-1432-7f3a.md"]),
-            "a source": ("docs/sources/po.md", "docs/sources/SRC-po.md", V2["docs/sources/SRC-po.md"]),
-            "a backlog item with a malformed number": ("docs/backlog/ITM-1-read-files-whole.md",
-                                                       "docs/backlog/ITM-001-read-files-whole.md",
-                                                       V2["docs/backlog/ITM-001-read-files-whole.md"]),
-        }
-        for label, (new, old, text) in cases.items():
-            self.assert_one(edited(V2, {old: None, new: text}), new, label)
+    def test_counter_proof_an_artifact_without_an_identifier(self):
+        uc, arc = "docs/use-cases/UC-001-read-a-file.md", "docs/architecture/ARC-001-static-client.md"
+        self.assert_one({uc: PRODUCT[uc].replace("id: UC-001\n", "")}, uc, "a use case without its id")
+        self.assert_one({arc: PRODUCT[arc].replace("id: ARC-001", "id: ARC-1")}, arc, "a decision whose id is of no kind")
+        self.assert_one({uc: None, "docs/use-cases/read-a-file.md": PRODUCT[uc]}, "docs/use-cases/read-a-file.md",
+                        "a use case whose path carries no identifier")
+        itm = "docs/backlog/ITM-1000-read-files-whole.md"
+        self.assert_one({itm: None, "docs/backlog/ITM-99-read-files-whole.md": PRODUCT[itm].replace("ITM-1000", "ITM-99")},
+                        "docs/backlog/ITM-99-read-files-whole.md", "a backlog item numbered with two digits")
 
-    def test_counter_proof_an_identifier_that_is_not_the_one_its_file_carries(self):
-        uc, itm = "docs/use-cases/UC-002-show-each-status.md", "docs/backlog/ITM-001-read-files-whole.md"
-        self.assert_one(edited(V2, {uc: V2[uc].replace("id: UC-002", "id: UC-003")}), "UC-002", "another id in the front matter")
-        self.assert_one(edited(V2, {uc: V2[uc].replace("id: UC-002\n", "")}), "UC-002", "a use case without its id")
-        self.assert_one(edited(V2, {itm: V2[itm].replace("id: ITM-001", "id: ITM-002")}), "ITM-001", "a backlog item")
+    def test_counter_proof_an_identifier_that_is_not_the_one_its_path_gives(self):
+        uc, mod = "docs/use-cases/UC-001-read-a-file.md", "docs/architecture/MOD-reader.md"
+        self.assert_one({uc: PRODUCT[uc].replace("id: UC-001", "id: UC-003")}, uc, "another id in the front matter")
+        self.assert_one({mod: PRODUCT[mod].replace("id: MOD-reader", "id: MOD-writer")}, mod, "a module")
 
     def test_counter_proof_a_requirement_without_a_name_in_capitals(self):
-        spec = V2["SPEC.md"].replace("**EVERY FILE HAS A STATUS**", "**Every file has a status**")
-        fs = problems(edited(V2, {"SPEC.md": spec}))
-        self.assertEqual([(f["rule"], f["artifact"], f["line"]) for f in fs], [(RULE, "SPEC.md", 29)])
+        spec = PRODUCT["SPEC.md"].replace("**EVERY FILE HAS A STATUS**", "**Every file has a status**")
+        r = carried(edited(PRODUCT, {"SPEC.md": spec}))
+        self.assertEqual(r["problems"], [["SPEC.md", 9, "Every file has a status"]])
 
     def test_counter_proof_a_test_whose_cases_carry_no_identifier(self):
-        t = "tests/reader.spec.mjs"
-        self.assert_one(edited(V2, {t: V2[t].replace("TST-001 ", "").replace("TST-002 ", "")}), t, "no TST- at all")
-        self.assert_one(edited(V2, {t: V2[t].replace("TST-002", "TST-02")}), t, "a malformed TST- identifier")
-
-    def test_counter_proof_one_identifier_on_two_artifacts(self):
-        again = "docs/use-cases/UC-001-read-it-again.md"
-        self.assert_one(edited(V2, {again: V2["docs/use-cases/UC-001-read-a-file.md"]}), "UC-001", "two use case files")
-        view = "tests/view.spec.mjs"
-        self.assert_one(edited(V2, {view: V2[view].replace("TST-004", "TST-001")}), "TST-001", "two test cases")
-        twice = V2["SPEC.md"] + "\n**A FILE IS READ WHOLE** *(SRC-po, 2026-09-30)*\nA file is read.\n*Occasion:* o.\n*Check:* `tests/x.py`\n"
-        self.assert_one(edited(V2, {"SPEC.md": twice}), "A FILE IS READ WHOLE", "one name for two requirements")
+        t = "tests/reader.test.mjs"
+        self.assert_one({t: PRODUCT[t].replace("// TST-001 · ", "// ").replace("// TST-002 · ", "// ")}, t,
+                        "no case declares a TST- identifier")
+        self.assert_one({t: PRODUCT[t].replace("TST-002", "TST-02")}, t, "a malformed TST- identifier")
 
 
 if __name__ == "__main__":
