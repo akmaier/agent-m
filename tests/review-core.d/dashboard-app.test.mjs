@@ -13,15 +13,19 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
-import { parseFrontMatter, headerModules } from "../../docs/assets/artifacts.mjs";
+import { headerModules } from "../../docs/assets/artifacts.mjs";
+import { parseFrontMatter } from "../../src/text-tools/index.mjs";
 import { parseAddress, connect } from "../../src/repository-hosts/index.mjs";
 import { stepHtml, gitlabWriteRefusal } from "../../src/site-frame/dashboard-app.mjs";
 import * as shell from "../../src/site-frame/dashboard-app.mjs";
 import { ASSETS, APP, viewFiles, dashboardText, GL_ADDR, GL_TOKEN, withFetch } from "./helpers.mjs";
 
-// Every module file of the site (vendored libraries excepted), with the modules its Module line names.
+// A planted kernel file under src/, the known positive of the checks below: its Module line names a kernel module, and it calls
+// neither fetch nor anything of MOD-repository-hosts.
+const PLANTED = { file: "src/planted/kernel.mjs", text: "// A planted kernel file.\n//\n// Module: MOD-process-model\n\nexport const planted = (text) => text.trim();\n" };
+// Every module file of the site (vendored libraries excepted), with the modules its Module line names, and the planted file.
 const moduleFiles = () => [...readdirSync(ASSETS, { recursive: true }).filter((f) => f.endsWith(".mjs") && !f.split("/").includes("vendor"))
-  .map((f) => ({ file: f, text: readFileSync(new URL(f, ASSETS), "utf8") })), { file: "dashboard-app.mjs", text: readFileSync(APP, "utf8") }]
+  .map((f) => ({ file: f, text: readFileSync(new URL(f, ASSETS), "utf8") })), { file: "dashboard-app.mjs", text: readFileSync(APP, "utf8") }, PLANTED]
 // The adapters (ARC-003 decision 1): the modules that reach the outside, as the code is built.
 function adapterModules() {
   return new Set(["MOD-settings-store", "MOD-participants", "MOD-mailbox", "MOD-bridge-server", "MOD-bridge-tunnel"]);
@@ -33,7 +37,7 @@ test("the app never calls fetch directly — every request goes through an adapt
   // Module line; a file naming no adapter is checked.
   const adapters = adapterModules(), files = moduleFiles();
   const checked = files.filter((f) => !headerModules(f.text).some((m) => adapters.has(m)));
-  assert.ok(checked.some((f) => f.file === "dashboard-app.mjs") && checked.some((f) => f.file === "artifacts.mjs"), "kernel and shell files are checked");
+  assert.ok(checked.some((f) => f.file === "dashboard-app.mjs") && checked.some((f) => f.file === PLANTED.file), "kernel and shell files are checked");
   const FORBIDDEN = /\bfetch\s*\(|XMLHttpRequest|sendBeacon|\b(globalThis|window|self)\s*\.\s*(localStorage|sessionStorage)\b|\b(localStorage|sessionStorage)\s*[.[]|document\.cookie/;
   for (const { file, text: app } of checked) assert.doesNotMatch(app, FORBIDDEN, file);
   // counter-proof: access is caught, the word in an explanation is not
@@ -74,7 +78,7 @@ test("the kernel never reaches a repository — no kernel file imports anything 
   // The kernel is read from the group file, a file's module from its Module line.
   const kernel = kernelModules(), files = moduleFiles();
   const checked = files.filter((f) => headerModules(f.text).some((m) => kernel.has(m)));
-  assert.ok(checked.some((f) => f.file === "process-model.mjs") && checked.some((f) => f.file === "artifacts.mjs"), "the kernel's files are checked");
+  assert.ok(checked.some((f) => f.file === PLANTED.file), "known positive: the planted kernel file is checked");
   for (const { file, text } of checked) assert.deepEqual(names(hostImports(text)), [], file);
   // counter-proof: each way of importing the module is caught, another module's import is not
   assert.deepEqual(names(hostImports('import {\n  parseAddress, connect,\n} from "../../src/repository-hosts/index.mjs";')),

@@ -432,8 +432,8 @@ const resultOf = () => {
 // ================================================================ ITM-126 — AN EDITED FILE KEEPS ITS IDENTIFIER
 //
 // SPEC §10: "Saving is refused for a use case, architecture element, module or test whose identifier differs from the one it was
-// opened with." ITM-126 made the refusal a finding of MOD-artifacts and the sentence the dashboard's; the finding itself is
-// tested in tests/release-sprint-02-a-artifacts.test.mjs. Tests are not edited on the dashboard (no view of today shows one).
+// opened with." The refusal is MOD-artifact-edits' and the sentence the dashboard's; the finding of a drafted change that
+// carries another identifier is tested in tests/release-sprint-02-a-artifacts.test.mjs. Tests are not edited on the dashboard (no view of today shows one).
 
 const ucText = (w, p) => w.server.files[p];
 const withId = (text, from, to) => text.replace(`id: ${from}\n`, to === null ? "" : `id: ${to}\n`);

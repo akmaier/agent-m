@@ -7,7 +7,7 @@
 //
 // UC-025 step 5: Agent M draws the component diagram from the modules' declared uses as Mermaid — one box per module inside
 // the box of its subsystem, one arrow per used module —; 5a: a used module that has no file is drawn as a box marked missing.
-// The modules are given as parseArchitecture (docs/assets/artifacts.mjs) reads their files. The diagram is read back line by
+// The modules are given in the shape componentDiagram takes (src/trace-pages/diagram.mjs). The diagram is read back line by
 // line (`drawn`, below), every line accounted for, so that each expectation is stated in modules, subsystems and arrows. The size case: 52 modules — as
 // many as Agent M has — with 400 uses stay below Mermaid's limit of 50,000 characters (maxTextSize of the vendored mermaid
 // 12.0.0), above which Mermaid draws "Maximum text size in diagram exceeded" instead of the diagram. Counter-proofs: the pull
