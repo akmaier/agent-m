@@ -343,7 +343,7 @@ test("#backlog — the page is laid out as #uc and #arc are: panels, list tables
   const { page } = await backlogPage();
   await page.click('[data-plan="team2"]');
   const html = page.main();
-  // The shared layout of #uc and #arc, as tests/dashboard-shared-layout.test.mjs reads it: the title in a section.head, every
+  // The shared layout of #uc and #arc: the title in a section.head, every
   // button a btn, every folded explanation a details.explain.
   const tags = (name) => html.match(new RegExp(`<${name}\\b[^>]*>`, "g")) ?? [];
   const classesOf = (tag) => (/\sclass="([^"]*)"/.exec(tag)?.[1] ?? "").split(/\s+/).filter(Boolean);

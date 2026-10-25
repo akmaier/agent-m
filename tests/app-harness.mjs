@@ -442,7 +442,7 @@ export async function openDashboard({ server, hash = "", caches = null, token = 
 // ---------------------------------------------------------------- what the harness's document lacks, added for the flows
 //
 // Moved here unchanged from tests/dashboard-review-flows.test.mjs (written by ITM-123), so that the checks of the dashboard's
-// editor in other files (tests/review-core.d/refused-save.test.mjs) use the same document.
+// editor in other files use the same document.
 //
 // The harness above keeps the listeners of the controls it finds in an element's HTML by an attribute selector ([data-x]),
 // and page.click fires them in <main>. Three kinds of control these flows click are not reached that way; richDocument() adds

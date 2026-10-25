@@ -23,7 +23,7 @@ origin:
 ## Outcome
 
 UC-003's direct endpoint increment checked through the dashboard's Settings entry after ITM-265 and the endpoint
-wiring named in docs/backlog/sprints/09.md are merged. A Developer who implemented none of the exercised behaviour
+wiring named in docs/backlog/sprints/team2/09.md are merged. A Developer who implemented none of the exercised behaviour
 writes a system test of the main flow and direct alternatives 4a, 4b and 2b, and at least one release test per requirement
 UC-003 realises. Use controlled OpenAI-compatible and Anthropic endpoint responses through the actual page and driver,
 with browser blocking represented where the browser obscures its cause. This item does not claim the unimplemented

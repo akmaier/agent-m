@@ -9,7 +9,7 @@
 //
 // This takes the browser harness (the fixture document and its helpers) from tests/settings-pages-harness.mjs, the helper file of the tests of MOD-settings-pages, and imports no
 // test file. Every request is answered by a fake of fetch of this file's own that answers the status each case names with a JSON body; nothing reaches the
-// network. What the explanation says is MOD-site-frame's, pinned in tests/site-frame-new-repository-explanation.test.mjs; here only that the notice carries what the real
+// network. What the explanation says is MOD-site-frame's; here only that the notice carries what the real
 // explain() returns for the topic, and where. Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the
 // pull request.
 

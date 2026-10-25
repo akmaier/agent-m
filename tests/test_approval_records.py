@@ -3,7 +3,7 @@
 # Level: unit
 """SPEC §10 ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON · AN APPROVAL NAMES THE EXACT TEXT.
 
-That the applier (tools/apply_approvals.py, MOD-review-core) passes over architecture records is checked in
+That the applier (MOD-spec-changes' applyApproved) passes over architecture records is checked in
 tests/test_apply_approvals.py.
 """
 import unittest

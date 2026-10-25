@@ -1,8 +1,7 @@
 // The setup-specific fixture of the tests of MOD-settings-pages' route `setup` (tests/settings-pages-setup.test.mjs): pressing and ticking, a fake localStorage and a store opened
 // over it, a context as the frame hands it to a route, and a fake of fetch that records every request and answers the status a case names. Nothing reaches the network: a
 // request the case has not scripted answers 599. The document of the part of a browser's DOM that MOD-site-frame's explain() needs is not here: it is that of
-// tests/settings-pages-harness.mjs, the helper file of the tests of MOD-settings-pages, from which this file hands on installDocument, which
-// tests/site-frame-setup-explanations.test.mjs imports from here. It is code only; it holds no expected result.
+// tests/settings-pages-harness.mjs, the helper file of the tests of MOD-settings-pages, from which this file hands on installDocument. It is code only; it holds no expected result.
 //
 // Module: MOD-settings-pages; MOD-site-frame
 // Level: unit

@@ -1,6 +1,6 @@
 // MOD-implementation-pages' route `backlog` — the backlog and the sprints of each team (ITM-681), as the accepted text of docs/architecture/MOD-implementation-pages.md states it (blob 0a1451e6e24c): "`backlog`, `board` — the items,
 // each after the items they build on, with their derived states, the requirements and use cases no item realises; … in a product with several teams, what the other teams' sprints hold, from `heldItems`, and on each item the
-// marks `conflicts` gives; *Plan sprint* and *Start sprint* for the person's team with `startSprint`", and UC-032 steps 1, 5 and 6 and UC-035. The route is the one docs/assets/dashboard/backlog-view.mjs was.
+// marks `conflicts` gives; *Plan sprint* and *Start sprint* for the person's team with `startSprint`", and UC-032 steps 1, 5 and 6 and UC-035.
 // Run: node --test tests/implementation-pages-backlog.test.mjs
 //
 // Module: MOD-implementation-pages

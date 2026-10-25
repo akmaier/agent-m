@@ -10,7 +10,7 @@
 // Guards: THE PAGE NAMES WHERE IT SENDS; ONE CLICK PER DECISION; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY; NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY; THE CORRECTION LOOP HAS A FIXED LIMIT; UC-005; UC-007; UC-019
 // Level: unit
 //
-// This imports the module's existing browser harness unchanged, as tests/site-frame-review-explanations.test.mjs does, and
+// This imports the module's existing browser harness unchanged, and
 // calls runPanel with Prepared values as MOD-job-runner's prepareJob gives them, written out here. The panel is read as a person
 // meets it: its text, its buttons and what pressing one does. Where the module file leaves a reading open, the test states the one it
 // takes, and the pull request names it:

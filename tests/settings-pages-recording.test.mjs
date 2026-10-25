@@ -302,7 +302,7 @@ test("a switch file created meanwhile refuses the save and nothing is written", 
 // given: an instance repository without a switch file
 // input: the Settings page is rendered
 // expect: the line holds one folded explanation — a details of class explain — with the summary "What is this?". The fixture DOM of this file renders no Markdown, so the
-//   text of the topic is checked on the line in tests/site-frame-settings-subject.test.mjs, and the topic itself in tests/site-frame-recording-explanations.test.mjs
+//   text of the topic is checked on the line in tests/site-frame-settings-subject.test.mjs
 test("the line has its folded explanation", async () => {
   const page = await open();
   const folded = descendants(page.line, (node) => node.localName === "details" && node.className.split(" ").includes("explain"));

@@ -1,6 +1,5 @@
 // The instance's workflow that applies approved SPEC changes runs MOD-workflow-entries' entry onApprovalsCommitted and nothing else (ITM-691), as the accepted text of
-// docs/architecture/MOD-workflow-entries.md states it: "`apply-approvals.yml` runs `onApprovalsCommitted` … each and nothing else"; and the files it takes over: "`tools/apply_approvals.py`:
-// removed once the workflow runs the entry" and, of MOD-spec-changes, "`docs/assets/review-core/apply-approvals.mjs`: removed: `applyApproved` gives it".
+// docs/architecture/MOD-workflow-entries.md states it: "`apply-approvals.yml` runs `onApprovalsCommitted` … each and nothing else".
 // Run: node --test tests/workflow-entries-apply-approvals-workflow.test.mjs
 //
 // Module: MOD-workflow-entries

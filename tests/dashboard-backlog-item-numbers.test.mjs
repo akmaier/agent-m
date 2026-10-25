@@ -1,6 +1,6 @@
 // The Backlog page reads an item whose number has three or more digits and lists the items in the order of their numbers (ITM-1087):
 // MOD-identifiers.md gives an item's identifier as ITM-<nnn>, three or more digits. ITM-1000 changed MOD-work-plans' reader; this is the one of
-// the route `backlog` of MOD-implementation-pages (docs/architecture/MOD-implementation-pages.md, Parts), which took over docs/assets/dashboard/backlog-view.mjs.
+// the route `backlog` of MOD-implementation-pages (docs/architecture/MOD-implementation-pages.md, Parts).
 // Run: node --test tests/dashboard-backlog-item-numbers.test.mjs
 //
 // Module: MOD-implementation-pages

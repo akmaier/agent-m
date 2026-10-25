@@ -12,7 +12,7 @@
 // Guards: UC-048; A ROLE ASSIGNMENT FILLS THE ROLES; A PRODUCT HAS ONE ROLE ASSIGNMENT, OR ONE PER TEAM; A ROLE NAMES HOW MANY FILL IT; A ROLE NAMES THE CAPABILITIES IT NEEDS; A PROCESS MODEL ORGANISES PEOPLE AND AGENTS; RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; EVERY STEP EXPLAINS ITSELF
 // Level: component
 //
-// The real dashboard (docs/assets/dashboard-app.mjs) hands the route to MOD-implementation-pages' route `roles` by its name, in
+// The real dashboard (src/site-frame/dashboard-app.mjs) hands the route to MOD-implementation-pages' route `roles` by its name, in
 // tests/app-harness.mjs against a GitHub API mock, which serves one repository as both the instance and the product. The
 // fixture model is Scrum with a work-in-progress limit (tests/fixtures/flow/scrum-wip.md): Owner, a person, one; Builders,
 // agents, several, who need read, write, run code and tests and use tools; Checker, either, several, who need read and run.
@@ -227,7 +227,7 @@ test("#roles — the page is laid out as #uc and #arc are: panels with their exp
   const { page } = await rolesPage();
   await page.click('[data-edit="team1"]');
   const html = page.main();
-  // The shared layout of #uc and #arc, as tests/dashboard-shared-layout.test.mjs reads it: the title in a section.head, every
+  // The shared layout of #uc and #arc: the title in a section.head, every
   // button a btn, every folded explanation a details.explain.
   const tags = (name) => html.match(new RegExp(`<${name}\\b[^>]*>`, "g")) ?? [];
   const classesOf = (tag) => (/\sclass="([^"]*)"/.exec(tag)?.[1] ?? "").split(/\s+/).filter(Boolean);
