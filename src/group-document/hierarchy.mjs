@@ -1,5 +1,5 @@
 // hierarchy.mjs — the hierarchy of the items of one kind, over a group file's tree (MOD-group-document, Parts; Interfaces:
-// Hierarchy, hierarchy). Of it, ITM-381 builds hierarchy; the model is hierarchy of docs/assets/artifacts/groups.mjs.
+// Hierarchy, hierarchy). Of it, ITM-381 builds hierarchy.
 //
 // Module: MOD-group-document
 //
