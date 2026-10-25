@@ -124,7 +124,14 @@ function runnerChoice(row, offered, current) {
 
 const levelsOf = (schedule) => schedule.sections.find((section) => section.heading === "## Levels")?.rows ?? [];
 
-// The table; `choices` receives, per row, its runner field and the runner it was shown with, which Save compares.
+// A cell of a row, labelled by its column's title for the frame's narrow form of a table on a phone (MOD-site-frame, look.css).
+function labelled(cell, label) {
+  cell.setAttribute("data-label", label);
+  return cell;
+}
+
+// The table, the frame's table (class list) with no style of its own; `choices` receives, per row, its runner field and the runner it was shown with,
+// which Save compares.
 function levelsTable(schedule, counts, offered, choices) {
   const cells = (row) => levelsOf(schedule).find((candidate) => candidate.cells.Row === row)?.cells ?? {};
   const head = el("tr", null, el("th", null, "Level"), el("th", null, "tests"),
@@ -136,18 +143,18 @@ function levelsTable(schedule, counts, offered, choices) {
   const body = ROWS.map((row) => {
     const select = runnerChoice(row, offered, cells(row)["runs on"] || "hosted");
     choices.set(row, { select, shown: select.value });
-    const tr = el("tr", null, el("th", null, row, fold(ROW_TEXT[row])), el("td", "tests", String(counts[row])),
+    const tr = el("tr", null, labelled(el("th", null, row, fold(ROW_TEXT[row])), "Level"), labelled(el("td", "tests", String(counts[row])), "tests"),
       ...COLUMNS.map((column) => {
         const reason = refusal(row, column);
         const td = el("td", reason ? "refused" : null, el("span", "mark", cells(row)[column] === "✓" ? "✓" : ""));
         if (reason) td.append(" ", el("span", "reason", reason));
         td.setAttribute("data-column", column);
-        return td;
-      }), el("td", null, select));
+        return labelled(td, column);
+      }), labelled(el("td", null, select), "runs on"));
     tr.setAttribute("data-row", row);
     return tr;
   });
-  return el("table", "levels", el("thead", null, head), el("tbody", null, ...body));
+  return el("table", "list levels", el("thead", null, head), el("tbody", null, ...body));
 }
 
 // The schedule to save: the form's document with the runner chosen in the table for each row whose choice the person changed.
