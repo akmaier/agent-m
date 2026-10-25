@@ -54,10 +54,15 @@ const items = [
 const plan = await core.planAcceptance({ items, read: async (p) => (repo.has(p) ? repo.get(p) : null),
   now: new Date("2026-10-01T12:00:00Z") });
 if (plan.leftOut.length) throw new Error("the fixture acceptance left out " + JSON.stringify(plan.leftOut));
+// The product settings and the collaborators, as the settings page writes them (MOD-settings-pages): by MOD-personal-data's schemas,
+// pseudonymisation switched off, and one collaborator who agreed.
+const { settings, collaborators } = await personalData.settingsSchemas();
+const settingsFile = documents.readDocument(settings, settings.path, "# Settings of this product\n");
+const collaboratorsFile = documents.readDocument(collaborators, collaborators.path, `# Collaborators of ${P}\n\n| Name | Account | Agreed |\n|---|---|---|\n`);
 const written = [...layout, ...plan.files,
-  { path: pseudonymiser.PRODUCT_SETTINGS_PATH, content: pseudonymiser.setProductSetting("", "pseudonymisation", "off", P) },
-  { path: pseudonymiser.COLLABORATORS_PATH, content: pseudonymiser.formatCollaborators(
-    [{ name: "Fixture Person", account: "fixture-account", agreed: "2026-10-01" }], P) }];
+  { path: settings.path, content: documents.writeDocument(settings, { ...settingsFile, fields: { ...settingsFile.fields, pseudonymisation: "off" } }) },
+  { path: collaborators.path, content: documents.writeDocument(collaborators, { ...collaboratorsFile, sections: [{ ...collaboratorsFile.sections[0],
+    rows: [{ line: null, cells: { Name: "Fixture Person", Account: "fixture-account", Agreed: "yes" } }] }] }) }];
 return { written, inputs: inputs.map(([path, content]) => ({ path, content })) };
 """
 

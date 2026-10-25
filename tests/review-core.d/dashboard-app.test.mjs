@@ -161,7 +161,7 @@ test("EVERY STEP EXPLAINS ITSELF — a step without an explanation cannot be ren
 // ---------------------------------------------------------------- products in the browser (UC-001)
 
 test("every site module parses — the app itself is only run in a browser, so check its syntax here", () => {
-  for (const u of [APP, ...viewFiles(), new URL("review-core.mjs", ASSETS), new URL("settings-store.mjs", ASSETS)]) {
+  for (const u of [APP, ...viewFiles(), new URL("review-core.mjs", ASSETS)]) {
     const r = spawnSync(process.execPath, ["--check", u.pathname]);
     assert.equal(r.status, 0, `${u.pathname}: ${r.stderr}`);
   }

@@ -22,8 +22,6 @@
 import { renderArtifact, renderMermaid as drawDiagram } from "../markdown-render/index.mjs";
 import { registerPaths } from "../source-register/index.mjs";
 import builtFiles from "../../docs/assets/dashboard/built.json" with { type: "json" };
-import { retireFileTexts } from "../../docs/assets/settings-store.mjs";
-import { productStore } from "../../docs/assets/product-store-adapter.mjs";
 import {
   REPO_RE, parseProductAddress, isGitLab, tokenRefusal, usedUpLimit,
 } from "../../docs/assets/git-host.mjs";
@@ -36,14 +34,14 @@ import { MENU, menuHtml, entryOf, stageView } from "../site/menu.mjs";
 import { UPSTREAM, instanceOf } from "../site/instance-repository.mjs";
 // The checks of what waits for acceptance, started on the review pages (UC-047; sprint 07's change between jobs: the
 // dashboard reaches MOD-notifications, as ITM-236's Outcome names it) — through each module's own interface.
-import { openStore, secretValues } from "../browser-store/index.mjs";
+import { openStore, readSetting, writeSetting, secretValues } from "../browser-store/index.mjs";
 import { parseAddress, connect } from "../repository-hosts/index.mjs";
 import { watchForAcceptance } from "../notifications/index.mjs";
 import { storedOverview } from "../progress-measures/index.mjs";
 import { attachPromptBar, explain } from "./index.mjs";
 import { subjectOf } from "./subject.mjs";
 import { foldMenu } from "./menu.mjs";
-import { fragmentOf, instanceHostFollowingStore, loadView, routeOf, productHostFollowingStore } from "./routing.mjs";
+import { fragmentOf, instanceHostFollowingStore, loadView, routeOf, productHostFollowingStore, tokenKeyOf } from "./routing.mjs";
 import { registerViews } from "./register.mjs";
 import { noticePlace, showTokenNotices } from "./notices.mjs";
 
@@ -229,12 +227,15 @@ export function deriveTarget({ hostname, pathname, search, hash }) {
 
 // The instance is the fork this page is served from; the product is chosen with ?repo= or ?product= (SPEC §10). Set by start().
 let T, GITLAB, SERVER, store, host, hostAddress, hostToken, snapshot, snapshotHost;
-// The GitHub token (the instance's key, UC-014).
-const ghToken = () => store.getToken();
-// The token that writes to the product shown (settings-store tokenFor): a GitLab product's own project token (A GITLAB PRODUCT
-// USES A PROJECT ACCESS TOKEN), never the GitHub token; a GitHub product's own token, or the instance's while it has none (A
-// GITHUB PRODUCT USES A TOKEN OF ITS OWN).
-const token = () => store.tokenFor(T.product);
+// `store` is this browser's MOD-browser-store store of the instance (openStore), read by its catalogue's keys.
+// The GitHub token (the instance's key, UC-014): the value of the setting `github-token`.
+const ghToken = () => readSetting(store, "github-token")?.value ?? null;
+// The setting of a product's own token, under the key MOD-site-frame's tokenKeyOf names for its address, or null.
+const ownToken = (p) => (p?.address && !p.error ? readSetting(store, tokenKeyOf(parseAddress(p.address))) : null);
+// The token that writes to the product shown: a GitLab product's own project token (A GITLAB PRODUCT USES A PROJECT ACCESS
+// TOKEN), never the GitHub token; a GitHub product's own token, or the instance's while it has none (A GITHUB PRODUCT USES A
+// TOKEN OF ITS OWN).
+const token = () => ownToken(T.product)?.value ?? (parseAddress(T.product.address).server === "github" ? ghToken() : null);
 // The values of every secret stored at this moment, which no commit made through a host the app connects may hold (NO SECRET IN THE REPOSITORY).
 const secrets = () => secretValues(openStore(T.instance));
 // A Host retains the credential it was connected with. Reuse its Snapshot and blob memory while the selected repository and
@@ -258,7 +259,7 @@ function currentHost() {
 }
 // The product whose own token a request to `p` carries — a GitLab product, or a GitHub product with a token of its own —, so that
 // a refusal names that token; null where the instance's token was used.
-const ownTokenOf = (p) => (isGitLab(p) || (p?.address && !p.error && store.getGitHubProductToken(p.address)) ? p : null);
+const ownTokenOf = (p) => (isGitLab(p) || ownToken(p)?.value ? p : null);
 // The pinned commit and its tree (every file with its blob SHA). Everything else is read by the view that shows it (`once`).
 const state = { commit: null, tree: [], byPath: new Map(), records: null, products: [] };
 let flash = null; // the outcome of the last acceptance, shown once above the next view
@@ -371,7 +372,7 @@ const writeTarget = () => (GITLAB ? { product: T.product } : { repo: T.repo });
 // THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER: the list is this browser's, by address; the instance
 // repository names no product. Another browser starts with an empty list.
 function loadProducts() {
-  state.products = store.getProducts().map(parseProductAddress).filter((p) => !p.error);
+  state.products = (readSetting(store, "products") ?? []).map(parseProductAddress).filter((p) => !p.error);
 }
 const paths = (re) => state.tree.filter((e) => re.test(e.path));
 
@@ -435,13 +436,13 @@ const shownSecrets = new Set(); // keys revealed by Show on this page; any other
 
 // AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED: a 401 anywhere marks the token that was used as refused —
 // the GitHub token, or the project token of the GitLab product (`product`) — and the line at the top of every
-// view says which token and where it is renewed. The mark is the token's last test, kept in this browser beside the token
-// (MOD-settings-store), so that it holds after a reload too (UC-042 step 1); a successful Test, a new value or a Clear replace it.
+// view says which token and where it is renewed. The mark is the token's last test, kept in this browser as the setting
+// `last-test:<the token's key>` (MOD-browser-store), so that it holds after a reload too (UC-042 step 1); a successful Test, a new
+// value or a Clear replace it. A token that is not stored has no test to keep.
 function noteRefusal(e, product = T.product) {
   if (tokenRefusal(e)) {
-    if (isGitLab(product)) store.setGitLabTokenTest(product.address, { refused: true });
-    else if (ownTokenOf(product)) store.setGitHubProductTokenTest(product.address, { refused: true });
-    else store.setTokenTest({ refused: true });
+    const key = ownTokenOf(product) ? tokenKeyOf(parseAddress(product.address)) : "github-token";
+    if (readSetting(store, key)?.value) writeSetting(store, `last-test:${key}`, { at: new Date().toISOString(), outcome: "refused" });
     showBanner();
   }
   return e;
@@ -453,7 +454,10 @@ const errorText = (e, product = T.product) => {
   const r = tokenRefusal(e, ownTokenOf(product));
   return r ? `${r.text} Renew it with the link at the top of the page.` : e.message;
 };
-const gitlabShown = () => (GITLAB ? store.getGitLabToken(T.product.address) : null);
+const gitlabShown = () => {
+  const own = GITLAB ? ownToken(T.product) : null;
+  return own?.value ? { token: own.value, expires: own.expires ?? null } : null;
+};
 // The notices at the top of every view: the frame's own notices (MOD-site-frame, showTokenNotices) of the GitHub token and of the
 // shown product's own token, each expiring or refused at its last use (its kept last test). Their place is the page's slot
 // `token-banner`, made at the start of the page.
@@ -536,7 +540,7 @@ function addressOfNotification(route, params, repository) {
 }
 
 // Opens this browser's MOD-browser-store store of the instance, connects the instance's host with the dashboard's own
-// stored GitHub token — ghToken(), settings-store.mjs's agent-m.github-token, as the connect() of the routes of MOD-implementation-pages
+// stored GitHub token — ghToken(), the setting `github-token` of that store, as the connect() of the routes of MOD-implementation-pages
 // uses it (ITM-238 F2, sprint 08's change between jobs, docs/backlog/sprints/team1/08.md: MOD-browser-store's own
 // "github-token" setting is never written, so the instance was always checked with no token) — and starts the
 // checks — only where this browser could ever show one at all: real browsers always define Notification
@@ -803,7 +807,7 @@ async function route() {
           repository: T.instance,
           host: connect(parseAddress(`https://github.com/${T.instance}`), { token: ghToken(), secrets: secrets() }),
         },
-        product: { address: T.product.address, kind: address.server, host: connect(address, { token: store.tokenFor(T.product), secrets: secrets() }) },
+        product: { address: T.product.address, kind: address.server, host: connect(address, { token: token(), secrets: secrets() }) },
         store: settingsStore,
         go(route, params = {}) {
           if (route === "add-product") location.hash = params.address ? `#add/${encodeURIComponent(params.address)}` : "#add";
@@ -923,12 +927,23 @@ async function route() {
   window.scrollTo(0, 0);
 }
 
+// The Cache Storage `agent-m-file-texts`, where an earlier version of this page kept the texts of the files it read, is removed at
+// the start of the page, so that no entry of Agent M outlives a clear there (A CLEAR IS A REAL CLEAR); other caches stay. It is
+// no setting and no part of MOD-browser-store's store (its Files: localStorage and sessionStorage): only this live app, which
+// once kept it, removes it. The start fails while an available Cache Storage still holds it.
+async function retireFileTexts() {
+  const cacheStorage = globalThis.caches;
+  if (!cacheStorage) return;
+  await cacheStorage.delete("agent-m-file-texts");
+  if (await cacheStorage.has("agent-m-file-texts")) throw new Error("Could not remove retired CacheStorage agent-m-file-texts.");
+}
+
 async function start() {
   T = deriveTarget(location);
   T.product = T.product || parseProductAddress(`https://github.com/${T.repo}`);
   GITLAB = isGitLab(T.product);
   SERVER = GITLAB ? T.product.host : "GitHub";
-  store = productStore(T.instance);
+  store = openStore(T.instance);
   tokenNotices = noticePlace();
   currentHost();
   await retireFileTexts();

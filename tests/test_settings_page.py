@@ -13,12 +13,11 @@ import json
 import re
 import unittest
 
-from jsrun import ASSETS, SRC, js
+from jsrun import SRC, js
 from settings_pages_page import live
 
-STORE = ASSETS / "settings-store.mjs"
-CATALOGUE = SRC / "browser-store" / "catalogue.mjs"
-KEY_RE = re.compile(r"""PREFIX\s*\+\s*["']([^"']+)["']""")
+STORE = SRC / "browser-store"
+CATALOGUE = STORE / "catalogue.mjs"
 SECRET = "github_pat_11SECRETVALUEabcdefghijklmnop"
 TOKEN = {"value": SECRET, "name": "GitHub token", "expires": "2026-12-29", "stored": "2026-09-01"}
 GL_KEY = "gitlab-token:gitlab.example.org/grp/sub/proj"
@@ -84,11 +83,19 @@ class EverySettingOnOnePage(unittest.TestCase):
             self.assertIn(text, empty, f"{text} has its place in an empty browser")
 
     def test_the_store_writes_no_key_but_its_named_ones(self):
-        # A key built any other way (a template, a variable) would escape the check above.
-        src = STORE.read_text(encoding="utf-8")
-        for call in re.findall(r"setItem\(([^,]+),", src):
-            self.assertRegex(call.strip(), r"^(TOKEN_KEY|TOKEN_EXPIRY_KEY|TOKEN_TEST_KEY|PRODUCTS_KEY|GITLAB_TOKENS_KEY|GITHUB_PRODUCT_TOKENS_KEY|JUMP_HOST_KEY|REMOTE_SESSIONS_KEY|k)$", call)
-        self.assertIn("KEYS.includes(k)", src, "putEntries writes only the named keys")
+        # A key outside the catalogue would escape the check above: MOD-browser-store refuses to write one, and nothing is stored.
+        v = js("""
+const mem = new Map();
+globalThis.localStorage = { getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k),
+  get length() { return mem.size; }, key: (i) => [...mem.keys()][i] ?? null };
+const store = browserStore.openStore('a/agent-m');
+let refused = null;
+try { browserStore.writeSetting(store, 'bridge-token', 'x'); } catch (error) { refused = error.name; }
+browserStore.writeSetting(store, 'products', ['https://github.com/alice/thesis']);
+return { refused, keys: [...mem.keys()] };
+""")
+        self.assertEqual(v["refused"], "UnknownSetting")
+        self.assertEqual(v["keys"], ["agent-m:a/agent-m:products"], "known positive: a key of the catalogue is written; the other is not")
 
     def test_counter_proof_a_key_without_a_place_fails(self):
         fixture = keys_written(CATALOGUE.read_text(encoding="utf-8")) + ["bridge-token"]
@@ -271,9 +278,11 @@ return out;
 
 class ProductSettingsInTheRepository(unittest.TestCase):
     def test_the_store_has_no_product_setting(self):
-        src = STORE.read_text(encoding="utf-8")
-        for word in ("pseudonym", "collaborator", "settings.md"):
-            self.assertNotIn(word, src.lower())
+        sources = sorted(STORE.glob("*.mjs"))
+        self.assertTrue(any("writeSetting" in f.read_text(encoding="utf-8") for f in sources), "known positive: the store's own files are read")
+        for f in sources:
+            for word in ("pseudonym", "collaborator", "settings.md"):
+                self.assertNotIn(word, f.read_text(encoding="utf-8").lower(), f.name)
         # The product section of the page: pseudonymisation switched off, the tick under the notice, and Save pressed by a person.
         v = live("""
 const commits = [];

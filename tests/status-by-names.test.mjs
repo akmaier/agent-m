@@ -11,7 +11,6 @@
 // record, on a fixture with renamed files, several records, a record named by no known form, and SPEC entries in every state.
 // AN APPROVAL NAMES THE EXACT TEXT: where the record is read, its content decides — a name its content contradicts counts
 // for nothing.
-// Where the texts are kept: settings-store.mjs createFileTexts.
 
 import test from "node:test";
 import assert from "node:assert/strict";

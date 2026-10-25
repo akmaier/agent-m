@@ -59,10 +59,6 @@ export const B_INDEX = "**Zieldatei aller Einträge:** `products/agent-m/SPEC.md
   "| 05 | `SPEC.md` | ## 10. R | — | — |\n| 06 | `SPEC.md` | ## 11. X | — | — |\n";
 export const B_UC1 = "---\nid: UC-001\n---\n# one\n", B_UC2 = "---\nid: UC-002\n---\n# two\n";
 
-export const SETTINGS_OFF = "# Settings of alice/thesis\n\nintro\n\n- pseudonymisation: off\n";
-
-export const PEOPLE = [{ name: "Jane Doe", account: "jdoe", agreed: "2026-09-30" }, { name: "Max Müller", account: "max-m", agreed: "2026-10-01" }];
-
 export const GL = "https://gitlab.example.org";
 export const GL_ADDR = `${GL}/grp/sub/proj`;
 export const GL_TOKEN = "glpat-projectTOKENvalue0123456789";
@@ -116,6 +112,4 @@ export async function fakeGitLab({ files = {}, moveAt = null, parent = null, cha
 
 export const UC_OLD = "docs/use-cases/UC-010-run-a-stage-in-github-actions.md", UC_NEW = "docs/use-cases/UC-010-run-a-job-in-github-actions.md";
 
-export const JUMP = { host: "jump.example.org", user: "agentm", portFrom: 20001, portTo: 20003,
-  reverseKey: "~/.ssh/agent-m-jump", forwardKey: "~/.ssh/id_ed25519" };
 export const BRIDGE_TOKEN = "bridgeTOKEN-0123456789abcdef";

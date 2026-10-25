@@ -1,76 +1,54 @@
-// The product's personal-data settings (docs/assets/pseudonymiser.mjs) — deterministic, no network.
-// Run through tests/review-core.test.mjs, which SPEC.md names for these checks: node --test tests/*.test.mjs
+// The product's personal-data settings (src/personal-data/, MOD-personal-data: settingsSchemas and pseudonymisationOf) — the files
+// docs/settings.md and docs/collaborators.md, read and written by their schemas through MOD-documents — deterministic, no network.
+// Run through tests/review-core.test.mjs: node --test tests/*.test.mjs
 //
 // Module: MOD-personal-data
 // Guards: PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; UC-042
 // Level: unit
 //
-// Every check here was run once against a deliberately broken implementation (SOFTWARE_MAINTENANCE
-// §4.0a rule 5): a check that cannot fail checks nothing. The mutations are listed in
-// docs/measurements/2026-09-30_review-dashboard-mutations.md.
+// Every expected value is written here; none is read from a document.
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import {
-  parseProductSettings, pseudonymisationOn, parseCollaborators, formatCollaborators, addCollaborator, removeCollaborator,
-  setProductSetting,
-} from "../../docs/assets/pseudonymiser.mjs";
-import { SETTINGS_OFF, PEOPLE } from "./helpers.mjs";
+import { settingsSchemas, pseudonymisationOf } from "../../src/personal-data/index.mjs";
+import { readDocument, writeDocument } from "../../src/documents/index.mjs";
+
+const { settings, collaborators } = await settingsSchemas();
+const readSettings = (text) => readDocument(settings, "docs/settings.md", text);
+const readCollaborators = (text) => readDocument(collaborators, "docs/collaborators.md", text);
 
 // ---------------------------------------------------------------- settings in one place (UC-042)
 // PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF · A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT
 
-test("PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF — docs/settings.md, one line per setting", () => {
-  assert.equal(pseudonymisationOn(null), true, "no file: on");
-  assert.equal(pseudonymisationOn("# Settings\n"), true, "no setting: on");
-  assert.equal(pseudonymisationOn(SETTINGS_OFF), false);
-  assert.deepEqual(parseProductSettings(SETTINGS_OFF), { pseudonymisation: "off" });
-  const created = setProductSetting(null, "pseudonymisation", "off", "alice/thesis");
-  assert.match(created, /^# Settings of alice\/thesis\n/);
-  assert.deepEqual(parseProductSettings(created), { pseudonymisation: "off" });
-  // Switching back on removes the line; everything else of the file stays as it was.
-  const on = setProductSetting(SETTINGS_OFF, "pseudonymisation", null, "alice/thesis");
-  assert.equal(on, "# Settings of alice/thesis\n\nintro\n\n");
-  assert.equal(pseudonymisationOn(on), true);
-  assert.equal(setProductSetting(on, "pseudonymisation", "off", "alice/thesis"), "# Settings of alice/thesis\n\nintro\n\n- pseudonymisation: off\n");
+test("PSEUDONYMISATION IS ON UNLESS A PRODUCT SWITCHES IT OFF — docs/settings.md, its key in the front matter", () => {
+  assert.equal(settings.path, "docs/settings.md");
+  assert.equal(pseudonymisationOf(null), "on", "no file: on");
+  const plain = readSettings("# Settings of alice/thesis\n\nintro\n");
+  assert.equal(pseudonymisationOf(plain), "on", "no setting: on");
+  assert.equal(pseudonymisationOf(readSettings("---\npseudonymisation: on\n---\n# Settings of alice/thesis\n")), "on");
+  // Switching it off writes the key, and everything else of the file stays as it was.
+  const off = writeDocument(settings, { ...plain, fields: { ...plain.fields, pseudonymisation: "off" } });
+  assert.equal(off, "---\npseudonymisation: off\n---\n# Settings of alice/thesis\n\nintro\n");
+  assert.equal(pseudonymisationOf(readSettings(off)), "off", "only an explicit off switches it off");
+  const on = readSettings(off);
+  assert.equal(pseudonymisationOf(readSettings(writeDocument(settings, { ...on, fields: { ...on.fields, pseudonymisation: "on" } }))), "on",
+    "switching back on");
+  // Counter-proof: a value that is neither on nor off is not written.
+  assert.throws(() => writeDocument(settings, { ...plain, fields: { pseudonymisation: "maybe" } }), /pseudonymisation/);
 });
 
-test("A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT — docs/collaborators.md parses and formats losslessly", () => {
-  const text = formatCollaborators(PEOPLE, "alice/thesis");
-  assert.match(text, /^# Collaborators of alice\/thesis\n/);
-  assert.match(text, /\| Jane Doe \| @jdoe \| 2026-09-30 \|/);
-  assert.deepEqual(parseCollaborators(text), PEOPLE);
-  assert.deepEqual(parseCollaborators(null), []);
-  assert.deepEqual(parseCollaborators(formatCollaborators([], "alice/thesis")), []);
-});
-
-test("+ Collaborator needs the tick 'this person has agreed to be named'; Remove takes one off", () => {
-  const add = { name: "Ann Lee", account: "annlee", agreed: "2026-09-30" };
-  assert.throws(() => addCollaborator(PEOPLE, { ...add, consent: false }), /agreed to be named/);
-  const more = addCollaborator(PEOPLE, { ...add, consent: true });
-  assert.deepEqual(more.at(-1), add);
-  assert.throws(() => addCollaborator(more, { ...add, consent: true }), /already listed/);
-  for (const bad of [{ account: "not an account" }, { agreed: "30.09.2026" }, { name: "" }, { name: "A | B" }]) {
-    assert.throws(() => addCollaborator(PEOPLE, { ...add, ...bad, consent: true }), Error, JSON.stringify(bad));
-  }
-  assert.deepEqual(removeCollaborator(more, "annlee"), PEOPLE);
-});
-
-// ---------------------------------------------------------------- collaborators by the account syntax of the product's server
-
-test("A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT — a GitLab product accepts GitLab user names, a GitHub product GitHub's", () => {
-  const add = { name: "Ann Lee", agreed: "2026-09-30", consent: true };
-  // GitLab: letters, digits, '_', '-', '.'; not starting with '-', not ending in '.', '.git' or '.atom' (lib/gitlab/path_regex.rb).
-  for (const a of ["ann.lee", "ann_lee", "a", "_x", "ann-lee.2"]) {
-    assert.equal(addCollaborator([], { ...add, account: a, gitlab: true }).at(-1).account, a, a);
-  }
-  for (const a of ["-ann", "ann.", "ann.git", "ann.atom", "ann lee", "ann@x"]) {
-    assert.throws(() => addCollaborator([], { ...add, account: a, gitlab: true }), /GitLab/, a);
-  }
-  // GitHub stays as it was: no '.' or '_'.
-  for (const a of ["ann.lee", "ann_lee", "-ann"]) assert.throws(() => addCollaborator([], { ...add, account: a }), /GitHub/, a);
-  assert.equal(addCollaborator([], { ...add, account: "ann-lee" }).at(-1).account, "ann-lee");
-  // The file keeps such names: a GitLab name with '.' and '_' survives formatting and parsing.
-  const list = [{ name: "Ann Lee", account: "ann.lee_2", agreed: "2026-09-30" }];
-  assert.deepEqual(parseCollaborators(formatCollaborators(list, "grp/proj")), list);
+test("A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT — docs/collaborators.md reads and writes losslessly; a row records an agreement", () => {
+  assert.equal(collaborators.path, "docs/collaborators.md");
+  const text = "# Collaborators of alice/thesis\n\n| Name | Account | Agreed |\n|---|---|---|\n| Jane Doe | jdoe | yes |\n";
+  const document = readCollaborators(text);
+  assert.deepEqual(document.sections[0].rows.map((row) => row.cells), [{ Name: "Jane Doe", Account: "jdoe", Agreed: "yes" }]);
+  assert.equal(writeDocument(collaborators, document), text, "read and written back unchanged");
+  // + Collaborator adds a row of a person who agreed; the rows before it stay.
+  const added = { ...document, sections: [{ ...document.sections[0], rows: [...document.sections[0].rows,
+    { line: null, cells: { Name: "Max Müller", Account: "max-m", Agreed: "yes" } }] }] };
+  assert.equal(writeDocument(collaborators, added), `${text}| Max Müller | max-m | yes |\n`);
+  // Counter-proof: a person who did not agree is not written as a collaborator.
+  const refused = { ...document, sections: [{ ...document.sections[0], rows: [...document.sections[0].rows,
+    { line: null, cells: { Name: "Ann Lee", Account: "annlee", Agreed: "no" } }] }] };
+  assert.throws(() => writeDocument(collaborators, refused), /Agreed/);
 });
