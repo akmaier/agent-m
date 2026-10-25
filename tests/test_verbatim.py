@@ -12,7 +12,7 @@ section replaced by the proposal byte for byte — the proposal's line terminato
 writers write the same bytes.
 
 The proposal with umlauts and a dash of tests/test_apply_approvals.py and the dashboard's whole-SPEC comparisons in
-tests/review-core.d/dashboard-writes.test.mjs stay as they are; this file adds the bytes they do not hold.
+tests/spec-changes-accept.test.mjs stay as they are; this file adds the bytes they do not hold.
 Two behaviours are not pinned as correct: a proposal with CR LF line ends (the dashboard writes it as it is; the workflow
 refuses it, which writes no other text either — the refusal is reported with the pull request), and a proposal ending in
 blank lines (FINDING V1, expected to fail). Counter-proofs: docs/measurements/2026-10-01_approval-gates-counter-proofs.md.

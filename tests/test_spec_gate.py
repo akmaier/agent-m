@@ -12,7 +12,7 @@ fixture product tests/fixtures/gates/ (a queue of two entries, 01 and 02, agains
 - an accepted entry changes no byte of the SPEC outside its own section — the dashboard keeps that on a SPEC with CR
   bytes elsewhere; the workflow does not (FINDING F1, expected to fail).
 
-What the dashboard writes when one entry of two is accepted is pinned in tests/review-core.d/dashboard-writes.test.mjs
+What the dashboard writes when one entry of two is accepted is pinned in tests/spec-changes-accept.test.mjs
 (the whole SPEC compared). Counter-proofs: docs/measurements/2026-10-01_approval-gates-counter-proofs.md.
 """
 import json

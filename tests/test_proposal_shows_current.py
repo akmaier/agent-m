@@ -16,7 +16,7 @@ the fixture product tests/fixtures/gates/:
   first occurrence is not taken.
 
 A current text that changed after it was shown is refused by both writers in tests/test_apply_approvals.py and
-tests/review-core.d/dashboard-writes.test.mjs; the page that shows it beside the proposal in
+tests/spec-changes-accept.test.mjs; the page that shows it beside the proposal in
 tests/dashboard-review-flows.test.mjs. Counter-proofs: docs/measurements/2026-10-01_approval-gates-counter-proofs.md.
 """
 import json

@@ -87,7 +87,7 @@ test("fetchText reads with GET only; the GitHub token goes only to GitHub's API 
 // ---------------------------------------------------------------- one write path, with an authority (ARC-003 decision 3)
 //
 // The git host knows nothing of a page or a click: it takes an authority of kind `click`, `ci-secret` or `agent-login`, and
-// refuses a write without one. Which runtime makes which kind is the shells' business (authority.test.mjs).
+// refuses a write without one. Which runtime makes which kind is the shells' business.
 
 const KINDS = ["click", "ci-secret", "agent-login"];
 const authority = Object.freeze({ kind: "click" });

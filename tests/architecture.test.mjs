@@ -7,7 +7,7 @@
 //
 // SPEC §11 ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS; §10 STATUS IS DERIVED FROM THE RECORDS (UC-022 step 10a; UC-023 step 4b).
 // The format of the files is checked in tests/architecture-format.test.mjs. Accepting and
-// editing ARC and MOD files — the dashboard's writes — are checked in tests/review-core.d/dashboard-writes.test.mjs (ITM-124).
+// editing ARC and MOD files — the dashboard's writes — are checked in tests/approvals-accept.test.mjs and tests/artifact-edits-save.test.mjs.
 //
 // The product is the fixture under tests/fixtures/architecture/. Counter-proofs are listed in
 // docs/measurements/2026-09-30_review-dashboard-mutations.md §8.

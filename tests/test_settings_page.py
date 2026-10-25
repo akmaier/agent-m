@@ -3,7 +3,7 @@
 # Level: component
 """SPEC §7 EVERY SETTING IS REACHED FROM ONE PAGE · A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN · A STORED SECRET IS
 HIDDEN UNTIL SHOWN · A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE (UC-042). A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY: changing a product
-setting commits to the product's repository (docs/assets/dashboard/writes.mjs savePseudonymisation), and the browser's store holds none.
+setting commits to the product's repository (the page's *Save* of the pseudonymisation), and the browser's store holds none.
 
 The page is MOD-settings-pages' route `settings`, drawn in the DOM of tests/settings-pages-harness.mjs over a browser store the case
 fills (tests/settings_pages_page.py). "Appears on the page" is checked on what that page shows.
@@ -274,21 +274,28 @@ class ProductSettingsInTheRepository(unittest.TestCase):
         src = STORE.read_text(encoding="utf-8")
         for word in ("pseudonym", "collaborator", "settings.md"):
             self.assertNotIn(word, src.lower())
-        v = js("const mem = new Map(); const fake = { getItem: k => mem.has(k) ? mem.get(k) : null, setItem: (k, v) => mem.set(k, String(v)),"
-               " removeItem: k => mem.delete(k), get length() { return mem.size; }, key: i => [...mem.keys()][i] ?? null };"
-               "const calls = []; globalThis.fetch = async (u, init) => { calls.push(init.method + ' ' + new URL(u).pathname);"
-               " const ok = (o) => new Response(JSON.stringify(o)); const p = new URL(u).pathname;"
-               " if (p.endsWith('/git/ref/heads/main')) return ok({ object: { sha: 'c0' } });"
-               " if (p.endsWith('/git/commits/c0')) return ok({ tree: { sha: 't0' } });"
-               " if (p.endsWith('/git/trees')) return ok({ sha: 't1' }); if (p.endsWith('/git/commits')) return ok({ sha: 'c1' });"
-               " return ok({}); };"
-               "store.createStore(fake).setToken('github_pat_t');"
-               "await writes.savePseudonymisation({ repo: 'alice/thesis', branch: 'main', token: 'github_pat_t', authority: writes.clickAuthority({ isTrusted: true }),"
-               " current: null, currentBlob: null, off: true, acknowledged: true });"
-               "return [calls, [...mem.keys()]];")
-        calls, keys = v
-        self.assertIn("PATCH /repos/alice/thesis/git/refs/heads/main", calls, "changing a product setting commits to the product")
-        self.assertEqual(keys, ["agent-m.github-token"], "counter-proof: localStorage holds no product setting")
+        # The product section of the page: pseudonymisation switched off, the tick under the notice, and Save pressed by a person.
+        v = live("""
+const commits = [];
+const product = { address: "https://github.com/alice/thesis", kind: "github", tokenStored: true, host: {
+  async repositoryInfo() { return { defaultBranch: "main", canWrite: true, visibility: "private" }; },
+  async readSnapshot() { return { commit: "1".repeat(40), paths: [], blob: () => null, async read() { return null; } }; },
+  async commitFiles(change) { commits.push(change); return { commit: "2".repeat(40), url: "https://github.com/alice/thesis/commit/" + "2".repeat(40) }; } } };
+const t = await render("settings", { product });
+const one = (name) => elements(t, (e) => e.className.split(" ").includes(name))[0];
+one("settings-pseudonymisation-off").checked = true;
+one("settings-pseudonymisation-ack").checked = true;
+await pressed(one("settings-pseudonymisation-save"));
+return [commits.map((c) => c.files.map((f) => [f.path, f.text])), [...mem.keys()]];
+""", {"github-token": TOKEN})
+        commits, keys = v
+        self.assertEqual([[path for path, _ in files] for files in commits], [["docs/settings.md"]],
+                         "changing a product setting commits to the product")
+        self.assertIn("pseudonymisation: off", commits[0][0][1])
+        self.assertTrue(keys, "known positive: the browser's store holds the token")
+        for key in keys:
+            for word in ("pseudonym", "collaborator", "settings.md"):
+                self.assertNotIn(word, key.lower(), "counter-proof: localStorage holds no product setting")
 
 
 GL_SETUP = {GL_KEY: {"value": GL_SECRET, "name": "p", "expires": "2026-12-29", "stored": "2026-09-01"}}

@@ -8,8 +8,8 @@
 // SPEC §10 SEVERAL FILES ARE ACCEPTED IN ONE CLICK (extended 2026-10-01, queue 2026-10-01c) · AN APPROVAL NAMES THE EXACT TEXT;
 // §11 ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS · AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST (UC-008 3e,
 // UC-022 step 10, UC-023 step 5). Moved out of tests/review-page.test.mjs, unchanged, when it was split by module; the page
-// itself is checked there. The one commit that accepts a review page's files is the dashboard's write, checked in
-// tests/review-core.d/dashboard-writes.test.mjs (ITM-124).
+// itself is checked there. The one commit that accepts a review page's files is MOD-approvals' acceptShown, checked in
+// tests/approvals-accept.test.mjs.
 
 import test from "node:test";
 import assert from "node:assert/strict";
