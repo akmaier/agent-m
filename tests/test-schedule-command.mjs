@@ -17,15 +17,20 @@
 // other files it fails and names the files that start Electron. It writes the outcomes of both suites as one JUnit XML
 // report to AGENT_M_REPORT and ends with a status other than 0 when a test failed. A Python case is named `TST-<nnn> <method>`
 // where the declaration before its method names one (MOD-test-document's testDeclarations), so that MOD-result-records'
-// parseOutcomes matches it to its declaration, and by its method where none does. A node case is named `TST-<nnn> <title>`
-// the same way: by the declaration in its file whose title is the case's — a template title matching as a pattern, `${…}`
-// any text —, or else the title of the test whose subtest it is (node's reporter writes that test as a <testsuite> around
-// the subtest's case); a case whose name starts with a TST-<nnn> of its own keeps it.
+// parseOutcomes matches it to its declaration, and by its method where none does. A node case is named `TST-<nnn> <name>`
+// the same way, against the declarations of its own file only: each node file runs in a node test runner of its own,
+// writing a report of its own, since node's JUnit reporter in the release the generated configuration provides names no
+// file. A case whose name starts with a TST-<nnn> its file declares keeps its name. Any other takes the declaration whose
+// title is that of a test it is a subtest of — node's reporter writes such a test as a <testsuite> around the case, the
+// innermost first —, or else whose title is the case's own name; a template title matches as a pattern, `${…}` any text,
+// and a title that is a template alone matches no case. Tags are read with their quoted values whole, since the reporter
+// leaves a > in a value unescaped.
 
 import { spawn } from "node:child_process";
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { availableParallelism, tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { testDeclarations } from "../src/test-document/index.mjs";
 
@@ -74,46 +79,71 @@ const ENTITIES = { lt: "<", gt: ">", amp: "&", quot: '"', apos: "'" };
 const decoded = (text) => text.replace(/&(?:#(\d+)|#x([0-9a-fA-F]+)|(lt|gt|amp|quot|apos));/g,
   (_, dec, hex, name) => (name ? ENTITIES[name] : String.fromCodePoint(dec ? Number(dec) : parseInt(hex, 16))));
 const escaped = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const TEMPLATE_PART = /\$\{[^}]*\}/g;
 // A declaration's title as a pattern of the case names it gives: a template title's `${…}` stands for any text.
-const titlePattern = (title) => new RegExp(`^${title.split(/\$\{[^}]*\}/).map(escaped).join("[\\s\\S]*")}$`);
+const titlePattern = (title) => new RegExp(`^${title.split(TEMPLATE_PART).map(escaped).join("[\\s\\S]*")}$`);
+// A tag of a report, read with its quoted values whole: a value may hold a > the reporter leaves unescaped.
+const TAG = /<testsuite\b(?:[^>"]|"[^"]*")*?(\/?)>|<\/testsuite\s*>|<testcase\b(?:[^>"]|"[^"]*")*>/g;
 
-// The node part of the report with each case named by its declaration's identifier and its title (see the file's head).
-function declaredNode(content, files) {
-  const byFile = new Map(files.map((file) => [resolve(file), testDeclarations(file, readFileSync(file, "utf8"))
-    .filter((d) => d.title).map((d) => ({ id: d.id, pattern: titlePattern(d.title) }))]));
-  const everyDeclaration = [...byFile.values()].flat();
+// The report of the node file `file` with each case named by its file's declaration (see the file's head).
+function declaredNode(content, file) {
+  const declarations = testDeclarations(file, readFileSync(file, "utf8"));
+  const own = new Set(declarations.map((d) => d.id));
+  const titled = declarations.filter((d) => d.title && d.title.replace(TEMPLATE_PART, "").trim() !== "")
+    .map((d) => ({ id: d.id, pattern: titlePattern(d.title) }));
   const suites = []; // the names of the <testsuite> elements around the current place, innermost last
-  return content.replace(/<testsuite\b[^>]*?(\/?)>|<\/testsuite\s*>|<testcase\b[^>]*>/g, (tag, selfClosing) => {
+  return content.replace(TAG, (tag, selfClosing) => {
     const attribute = (key) => { const m = new RegExp(`\\s${key}="([^"]*)"`).exec(tag); return m ? decoded(m[1]) : null; };
     if (tag.startsWith("</")) { suites.pop(); return tag; }
     if (tag.startsWith("<testsuite")) { if (!selfClosing) suites.push(attribute("name") ?? ""); return tag; }
     const name = attribute("name");
-    if (name === null || /^TST-\d+/.test(name)) return tag;
-    const file = attribute("file");
-    const declarations = file === null ? everyDeclaration : byFile.get(resolve(file)) ?? [];
-    const found = [name, ...[...suites].reverse()].map((title) => declarations.find((d) => d.pattern.test(title))).find(Boolean);
+    if (name === null || own.has(/^TST-\d+/.exec(name)?.[0])) return tag;
+    const found = [...[...suites].reverse(), name].map((title) => titled.find((d) => d.pattern.test(title))).find(Boolean);
     return found ? tag.replace(/\sname="/, ` name="${found.id} `) : tag;
   });
 }
 
-// Runs a program with its output going to this process's; resolves to its status.
-function run(program, args) {
+// Runs a program; resolves to its status. Its output goes to this process's, each line after `prefix` where one is given.
+function run(program, args, prefix = "") {
   return new Promise((resolve) => {
-    const child = spawn(program, args, { stdio: ["ignore", "inherit", "inherit"] });
+    const child = spawn(program, args, { stdio: ["ignore", prefix ? "pipe" : "inherit", prefix ? "pipe" : "inherit"] });
+    if (prefix) {
+      for (const [from, to] of [[child.stdout, process.stdout], [child.stderr, process.stderr]]) {
+        createInterface({ input: from, crlfDelay: Infinity }).on("line", (line) => to.write(`${prefix}${line}\n`));
+      }
+    }
     child.on("error", (error) => { console.error(`${program}: ${error.message}`); resolve(127); });
     child.on("close", (status, signal) => resolve(status ?? (signal ? 1 : 0)));
   });
 }
 
-// The elements inside the root of a suite's report; a test case that fails where the suite ended non-zero and wrote none.
-function contentOf(path, suite, status) {
+// The statuses of the node files, each run by a node test runner of its own into the report reportOf(file), at most as
+// many at once as node's test runner runs files at once.
+async function runNodeFiles(files, reportOf) {
+  const statuses = new Array(files.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < files.length) {
+      const index = next++;
+      statuses[index] = await run(process.execPath, ["--test", "--test-reporter=spec", "--test-reporter-destination=stdout",
+        "--test-reporter=junit", `--test-reporter-destination=${reportOf(files[index])}`, files[index]], `${files[index]}: `);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.max(1, availableParallelism() - 1) }, worker));
+  return statuses;
+}
+
+// The elements inside the root of a report; a test case that fails where its run, named `label`, ended non-zero and
+// wrote none.
+function contentOf(path, label, status) {
   const text = existsSync(path) ? readFileSync(path, "utf8") : "";
   const root = /<testsuites\b[^>]*>([\s\S]*)<\/testsuites>/.exec(text);
   if (root) return root[1].trim();
   const own = /<testsuite\b[\s\S]*<\/testsuite>|<testsuite\b[^>]*\/>/.exec(text);
   if (own) return own[0];
   if (status === 0) return "";
-  return `<testcase name="the ${suite} suite" classname="${suite}"><error message="the ${suite} suite ended with status `
+  const quoted = label.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+  return `<testcase name="${quoted}" classname="${quoted}"><error message="${quoted} ended with status `
     + `${status} and wrote no report"/></testcase>`;
 }
 
@@ -136,17 +166,18 @@ async function main() {
 
   const scratch = mkdtempSync(join(tmpdir(), "agent-m-report-"));
   try {
-    const pythonReport = join(scratch, "python.xml"), nodeReport = join(scratch, "node.xml");
-    const [pythonStatus, nodeStatus] = await Promise.all([
+    const pythonReport = join(scratch, "python.xml");
+    const nodeReport = (file) => join(scratch, `node-${node.indexOf(file)}.xml`);
+    const [pythonStatus, nodeStatuses] = await Promise.all([
       python.length ? run("python3", [PYTHON_RUNNER, pythonReport, ...python]) : 0,
-      node.length ? run(process.execPath, ["--test", "--test-reporter=spec", "--test-reporter-destination=stdout",
-        "--test-reporter=junit", `--test-reporter-destination=${nodeReport}`, ...node]) : 0,
+      runNodeFiles(node, nodeReport),
     ]);
-    const content = [declaredPython(contentOf(pythonReport, "python", pythonStatus), python), declaredNode(contentOf(nodeReport, "node", nodeStatus), node)]
+    const content = [declaredPython(contentOf(pythonReport, "the python suite", pythonStatus), python),
+      ...node.map((file, index) => declaredNode(contentOf(nodeReport(file), `the node test file ${file}`, nodeStatuses[index]), file))]
       .filter(Boolean).join("\n");
     mkdirSync(dirname(report), { recursive: true });
     writeFileSync(report, `<?xml version="1.0" encoding="utf-8"?>\n<testsuites>\n${content}\n</testsuites>\n`);
-    return pythonStatus === 0 && nodeStatus === 0 ? 0 : 1;
+    return pythonStatus === 0 && nodeStatuses.every((status) => status === 0) ? 0 : 1;
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
