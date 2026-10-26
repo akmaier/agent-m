@@ -696,12 +696,16 @@ async function renderComponents(context) {
     { instance: { host: context.instance.host }, product: { host: (context.product ?? context.instance).host } }, { key: "modules", ref: T.ref });
 }
 
-// The specification browser under the open SPEC changes (MOD-trace-pages' route `trace`), read through the same host.
+// The specification browser under the open SPEC changes (MOD-trace-pages' route `trace`), read through the same host. Its context and parameters are
+// kept, so that the prompt bar's subject on #spec is the route's own — the open requirement or group, to change (barSubject).
+let specificationShown = null;
 async function renderSpecification(context) {
   const box = document.createElement("div");
   main().append(box);
-  await tracePages.routes.find((route) => route.name === "trace").render(box,
-    { instance: { host: context.instance.host }, product: { host: (context.product ?? context.instance).host } }, { key: "specification", ref: T.ref });
+  const trace = tracePages.routes.find((route) => route.name === "trace");
+  const shown = { context: { instance: { host: context.instance.host }, product: { host: (context.product ?? context.instance).host } }, params: { key: "specification", ref: T.ref } };
+  specificationShown = shown;
+  await trace.render(box, shown.context, shown.params);
 }
 
 // UC-014 step 6: while this browser holds no key for the instance, the start page opens with Finish setting up your instance.
@@ -995,6 +999,10 @@ function barSubject() {
   const targets = reviewTargets(kind, a, b);
   const route = targets?.length ? reviewPages.routes.find((candidate) => candidate.name === targets[0].name) : null;
   if (route) return subjectOf({ route, params: targets[0].params, context, drawn });
+  if (kind === "spec" && !a && specificationShown) {
+    const trace = tracePages.routes.find((candidate) => candidate.name === "trace");
+    return subjectOf({ route: trace, params: specificationShown.params, context: specificationShown.context, drawn });
+  }
   const entry = MENU.find((candidate) => candidate.key === (kind || "uc") || candidate.views.includes(kind || "uc"));
   return subjectOf({ route: { name: kind || "uc", title: entry?.label ?? document.title, entry: entry?.key ?? null }, params: routeOf(location.hash).params, context, drawn });
 }
