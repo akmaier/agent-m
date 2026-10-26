@@ -44,7 +44,7 @@ function computer({ claude = null, codex = null, opencode = null } = {}) {
   mkdirSync(bin);
   writeFileSync(calls, "");
   const log = `printf '%s\\n' "$0 $*" >> ${calls}`;
-  const input = `cat >> ${calls}; printf '\\n' >> ${calls}`;
+  const input = `/bin/cat >> ${calls}; printf '\\n' >> ${calls}`;
   if (claude) {
     script(bin, "claude", `${log}\ncase "$*" in '--version') echo '2.1.300';; 'auth status') ${claude.loggedIn ? "echo '{\"authMethod\":\"claude.ai\"}'" : "exit 1"};; *) ${claude.answers === false ? "exit 2" : "echo ok"};; esac`);
   }
