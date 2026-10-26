@@ -34,10 +34,10 @@ Any attempt to use tools is a critical violation. Respond with text ONLY.`;
 const CUT = "Your last answer was cut off at the output limit. Continue exactly where it stopped; if you were writing or editing a file, make smaller edits instead.";
 
 const reply = (status, body, headers = {}) => ({ ok: status >= 200 && status < 300, status, headers: new Headers(headers), json: async () => body });
+const REAL_FETCH = globalThis.fetch;
 function withFetch(t, handler) {
-  const previous = globalThis.fetch;
   globalThis.fetch = handler;
-  t.after(() => { globalThis.fetch = previous; });
+  t.after(() => { globalThis.fetch = REAL_FETCH; });
 }
 // An OpenAI reply: text, calls [{ id, name?, args? | raw? }], finish_reason.
 const openai = ({ text = "", calls = [], finish = "stop" } = {}) => reply(200, { choices: [{ finish_reason: finish, message: { content: text || null,

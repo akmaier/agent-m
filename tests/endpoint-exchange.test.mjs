@@ -125,12 +125,13 @@ async function failureCase(t, provider) {
   next = { error: new TypeError("connect ECONNREFUSED") };
   const before = calls;
   let settled = false;
-  const failing = exchange(fixtures[provider].config, input).finally(() => { settled = true; });
+  const failing = exchange(fixtures[provider].config, input).then(() => null, (error) => error).finally(() => { settled = true; });
   for (let step = 0; step < 400 && !settled; step++) {
     await new Promise((resolve) => setImmediate(resolve));
     t.mock.timers.tick(1000);
   }
-  await assert.rejects(failing, (error) => error.name === "EndpointFailed" && error.diagnosis.reason === "not reachable" && error.diagnosis.message === "connect ECONNREFUSED");
+  const error = await failing;
+  assert.ok(error?.name === "EndpointFailed" && error.diagnosis.reason === "not reachable" && error.diagnosis.message === "connect ECONNREFUSED", String(error));
   assert.equal(calls, before + 6);
 }
 
