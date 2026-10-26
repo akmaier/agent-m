@@ -1,7 +1,7 @@
 // product.mjs — the entries of a product's job workflow (MOD-workflow-entries, Parts): ITM-365 builds onRecordsChanged and onDispatch, which take
 // and run the queued jobs of this CI route; ITM-498 adds to onDispatch the job whose task travels with a conversation's hand-over (UC-049 4a), which onRecordsChanged
 // leaves queued. ITM-791 adds to onRecordsChanged the resumption of the jobs of this route whose gate is recorded (A JOB STOPS AT EVERY GATE). The runs' next actions and onPullRequestClosed
-// are other items'. ITM-1032 builds onSchedule: the close of a sprint an agent closes. ITM-1209 adds onTestsFinished and ITM-1210 onDoneCheck, which MOD-test-schedule's test configuration runs.
+// are other items'. ITM-1032 builds onSchedule: the close of a sprint an agent closes. ITM-1209 adds onTestsFinished, ITM-1210 onDoneCheck and ITM-1215 runTests, which MOD-test-schedule's test configuration runs.
 //
 // Module: MOD-workflow-entries
 //
@@ -22,7 +22,8 @@ import { queueJob } from "../runtimes/index.mjs";
 import { sprintsToClose } from "../work-plans/index.mjs";
 import { appendResult, parseOutcomes, resultSchema } from "../result-records/index.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
-import { composeProduct, composeTestRun } from "./compose.mjs";
+import { testsOfRow } from "../test-schedule/index.mjs";
+import { composeProduct, composeTestJob, composeTestRun } from "./compose.mjs";
 import { packResult, readResult, checkResult, writeBranches, pendingPullRequest } from "./result.mjs";
 
 const fs = globalThis.process?.getBuiltinModule?.("node:fs");
@@ -528,13 +529,91 @@ export async function writeResult(env) {
 // ---------------------------------------------------------------- the test configuration
 
 const LEVELS = ["unit", "component", "system", "release", "user"];
-// The occasion of a run, by its event (MOD-result-records, Data): a pushed tag is a release candidate, as the test configuration starts on a tag `v*-rc.*`.
-const OCCASIONS = { github: { push: "commit", pull_request: "pull-request", schedule: "nightly", workflow_dispatch: "on-demand" },
-  gitlab: { push: "commit", merge_request_event: "pull-request", schedule: "nightly", web: "on-demand", api: "on-demand" } };
-const occasionOf = (env) => (env.tests.tag ? "release-candidate" : OCCASIONS[env.service]?.[env.event?.name] ?? null);
+// The rows of a schedule, in its order (MOD-test-schedule, Data: Schema schedule).
+const ROWS = ["unit", "component", "system", "paid", "release", "user"];
+// A report or a status a test job kept, by its name <occasion>.<row>.<shard>.xml or .status (Data: The reports of a run).
+const KEPT = /^(commit|pull-request|nightly|release-candidate|on-demand)\.(unit|component|system|paid|release|user)\.([1-9]\d*)\.(xml|status)$/;
+// The status of a test job that did not run since a secret was missing (runTests), and the identifier at the start of a test case's name (MOD-result-records, Data).
+const SECRET_MISSING = /^not run: secret missing: (\S+)$/;
+const TEST_ID = /^TST-\d+/;
 const two = (number) => String(number).padStart(2, "0");
 // A cell of a record's table: its lines joined by <br>, a bar escaped, so that a log stays in its one row.
 const cellOf = (value) => String(value ?? "").trim().replace(/\r?\n/g, "<br>").replace(/\|/g, "\\|");
+
+// The folder below the product's checkout that holds a run's reports and statuses (Data: The reports of a run).
+const REPORTS = "agent-m-reports";
+const childProcess = globalThis.process?.getBuiltinModule?.("node:child_process");
+const pathOf = globalThis.process?.getBuiltinModule?.("node:path");
+
+// The test files among a commit's files, with their texts: every file MOD-test-document counts a test file, of which testsOfRow takes those named as tests. The clone reads a
+// file by one process of git, so they are read thirty-two at a time.
+async function testFilesAt(snapshot) {
+  const paths = snapshot.paths.filter((path) => isTestFile(path));
+  await snapshot.readMany?.(paths);
+  const files = [];
+  for (let at = 0; at < paths.length; at += 32) {
+    files.push(...await Promise.all(paths.slice(at, at + 32).map(async (path) => ({ path, text: (await snapshot.read(path)) ?? "" }))));
+  }
+  return files;
+}
+
+// The product's command run with the files as its arguments — `<command> "$@"` in a shell —, or, where the command is empty, node's test runner, which draws the shard's share
+// with its own sharding and writes the JUnit XML report with its own reporter, besides its readable output. The output goes to the job's log as it comes. Resolves with how it
+// ended: its status, or the signal that stopped it.
+function runCommand(command, files, { cwd, variables, shard, shards, report }) {
+  const [program, args] = command ? ["sh", ["-c", `${command} "$@"`, "agent-m-tests", ...files]]
+    : [globalThis.process.execPath, ["--test", `--test-shard=${shard}/${shards}`, "--test-reporter=spec", "--test-reporter-destination=stdout", "--test-reporter=junit",
+      `--test-reporter-destination=${report}`, ...files]];
+  return new Promise((resolve) => {
+    const child = childProcess.spawn(program, args, { cwd, env: variables, stdio: ["ignore", "inherit", "inherit"] });
+    child.on("error", (error) => resolve({ code: null, signal: null, error }));
+    child.on("close", (code, signal) => resolve({ code, signal, error: null }));
+  });
+}
+
+/**
+ * runTests(env: CiEnvironment) -> Promise<EntryStatus> — in each test job of MOD-test-schedule's test configuration, on a machine that holds no token: the files of the row
+ * AGENT_M_ROW among the commit's committed files, read through the local clone, as testsOfRow names them; then AGENT_M_COMMAND, or node's test runner where it is empty, run in
+ * the checkout with those files and the job's variables, AGENT_M_REPORT among them, the path of the report agent-m-reports/<occasion>.<row>.<shard>.xml. As it ends it writes
+ * its status, one line, to agent-m-reports/<occasion>.<row>.<shard>.status: `done`, `nothing to do`, `failed: <why>` or `not run: secret missing: <name>`. A secret
+ * AGENT_M_SECRETS names that is not set — absent or empty — ends it `not run` before anything runs; a named test file whose level cannot be read ends it `failed` before
+ * anything runs, naming each; a row without a file ends `nothing to do`, with no report. The command ending with 0 is `done`, any other end `failed`, naming its status. Reads
+ * no token and writes nothing to a repository. Without the row, the occasion or the shard, no status can be named: it ends `failed` and writes none.
+ */
+export async function runTests(env) {
+  const { row, occasion, shard, shards, command, secrets, variables } = env.run;
+  if (!row || !occasion || !shard) {
+    return failedStatus(`${!row ? "AGENT_M_ROW" : !occasion ? "AGENT_M_OCCASION" : "AGENT_M_SHARD"} is missing: the test job names its row, occasion and shard. Nothing was run.`);
+  }
+  const folder = pathOf.join(env.checkout, REPORTS);
+  const name = `${occasion}.${row}.${shard}`;
+  const report = pathOf.join(folder, `${name}.xml`);
+  const end = (outcome, reason, summary) => {
+    fs.mkdirSync(folder, { recursive: true });
+    fs.writeFileSync(pathOf.join(folder, `${name}.status`), `${reason ? `${outcome}: ${String(reason).replace(/\s*\n\s*/g, " ")}` : outcome}\n`);
+    return { outcome, summary, findings: [] };
+  };
+  const missing = secrets.find((secret) => !variables[secret]);
+  if (missing) return end("not run", `secret missing: ${missing}`, `The secret ${missing}, which AGENT_M_SECRETS names, is not set: the tests of the row ${row} did not run.`);
+  try {
+    const snapshot = await composeTestJob(env).checkout.readSnapshot("HEAD");
+    const { files, unreadable } = testsOfRow(row, await testFilesAt(snapshot));
+    if (unreadable.length) {
+      const why = `the level of ${unreadable.join(", ")} cannot be read`;
+      return end("failed", why, `Nothing was run: ${why}; a test file names its level in its header's Level: or in its declarations.`);
+    }
+    if (!files.length) return end("nothing to do", null, `The row ${row} has no test file at ${snapshot.commit}: nothing was run.`);
+    fs.mkdirSync(folder, { recursive: true });
+    const ended = await runCommand(command, files, { cwd: env.checkout, variables: { ...variables, AGENT_M_REPORT: report }, shard, shards, report });
+    const ran = `${files.length} test file(s) of the row ${row}, shard ${shard} of ${shards}`;
+    if (ended.code === 0) return end("done", null, `The ${command ? "command" : "node test runner"} ran the ${ran}; it ended with 0.`);
+    const why = ended.error ? `the command could not be started: ${ended.error.message}` : ended.signal ? `the command was stopped by ${ended.signal}` : `the command ended with status ${ended.code}`;
+    return end("failed", why, `The ${ran} were run, and ${why}.`);
+  } catch (error) {
+    const why = `${error?.name === "UnknownRow" ? "" : "runTests failed: "}${error?.message ?? error}`;
+    return end("failed", why, `${why}. Nothing was run.`);
+  }
+}
 
 // Whether the checkout's tracked files hold changes the commit does not: a file the run added, such as its report, is none.
 function uncommittedIn(checkout) {
@@ -543,60 +622,116 @@ function uncommittedIn(checkout) {
   return said.trim() !== "";
 }
 
-// The declarations of the product's tests at the checkout's commit (MOD-test-document).
-async function declarationsAt(snapshot) {
-  const paths = snapshot.paths.filter((path) => isTestFile(path));
-  await snapshot.readMany?.(paths);
-  const declarations = [];
-  for (const path of paths) declarations.push(...testDeclarations(path, (await snapshot.read(path)) ?? ""));
-  return declarations;
-}
-
-// The text of a run's record in the schema `result-record`: its front matter, its outcomes, and the failures where a test failed.
+// The text of a run's record in the schema `result-record`: its front matter, its outcomes with the reason of a test not run, and the failures where a test failed.
 function recordText({ commit, levels, occasion, participant, now, run, uncommitted, outcomes }) {
   const failures = outcomes.filter((outcome) => outcome.failure);
   return ["---", `commit: ${commit}`, "levels:", ...levels.map((level) => `  - ${level}`), `occasion: ${occasion}`, `participant: ${participant}`,
     `date: ${now.getUTCFullYear()}-${two(now.getUTCMonth() + 1)}-${two(now.getUTCDate())} ${two(now.getUTCHours())}:${two(now.getUTCMinutes())} UTC`,
     ...(run ? [`run: ${run}`] : []), ...(uncommitted ? ["uncommitted: true"] : []), "---",
-    "## Outcomes", "", "| Test | Level | Outcome | Runs |", "|---|---|---|---|",
-    ...outcomes.map((outcome) => `| ${cellOf(outcome.test)} | ${outcome.level} | ${outcome.outcome} | ${cellOf(outcome.runs)} |`), "",
+    "## Outcomes", "", "| Test | Level | Outcome | Runs | Reason |", "|---|---|---|---|---|",
+    ...outcomes.map((outcome) => `| ${cellOf(outcome.test)} | ${outcome.level} | ${outcome.outcome} | ${cellOf(outcome.runs)} | ${cellOf(outcome.reason)} |`), "",
     ...(failures.length ? ["## Failures", "", "| Test | Expected | Observed | Log |", "|---|---|---|---|",
       ...failures.map(({ test, failure }) => `| ${cellOf(test)} | ${cellOf(failure.expected)} | ${cellOf(failure.observed)} | ${cellOf(failure.log)} |`), ""] : [])].join("\n");
 }
 
+// The reports and statuses a run's test jobs kept in the folder, by their names; files of other names are none of them.
+function keptIn(folder) {
+  const names = fs.existsSync(folder) ? fs.readdirSync(folder) : [];
+  return names.map((name) => KEPT.exec(name)).filter(Boolean).map(([name, occasion, row, shard, kind]) => ({ name, occasion, row, shard: Number(shard), kind }));
+}
+// The first line of a status file, or null where the job left none.
+function statusIn(folder, name) {
+  const path = pathOf.join(folder, name);
+  return fs.existsSync(path) ? fs.readFileSync(path, "utf8").split(/\r?\n/)[0].trim() : null;
+}
+// The line an entry's status file holds: the outcome, and after it the summary where the outcome is neither `done` nor `nothing to do`.
+const statusLineOf = (status) => (["done", "nothing to do"].includes(status.outcome) ? status.outcome : `${status.outcome}: ${status.summary.replace(/\s*\n\s*/g, " ")}`);
+
+// The outcomes of a row's reports, read together: a report parseOutcomes refuses as unreadable is left out and the others read again. `withCase` holds the tests some readable
+// report holds a case of — read as the cases no declaration claims, which parseOutcomes names by their own names —, `unreadable` the paths of the reports left out.
+function outcomesOfRow(reports, declared) {
+  const readable = [...reports];
+  const unreadable = [];
+  for (;;) {
+    try {
+      const texts = readable.map((report) => report.text);
+      const outcomes = parseOutcomes(texts, declared);
+      const withCase = new Set(parseOutcomes(texts, []).map((outcome) => TEST_ID.exec(outcome.test)?.[0]).filter(Boolean));
+      return { outcomes, withCase, unreadable };
+    } catch (error) {
+      if (error?.name !== "UnreadableReport" || !(error.index >= 0 && error.index < readable.length)) throw error;
+      unreadable.push(readable[error.index].path);
+      readable.splice(error.index, 1);
+    }
+  }
+}
+
+// The run's record: its levels and outcomes, from every row that left a report or a status — the declared tests of the files testsOfRow names for the row, each undeclared
+// case with the level of its row —, or null where no test of any row is recorded.
+function runOutcomes(folder, kept, files) {
+  const levels = new Set();
+  const outcomes = [];
+  for (const row of ROWS.filter((each) => kept.some((file) => file.row === each))) {
+    const texts = new Map(files.map((file) => [file.path, file.text]));
+    const declared = testsOfRow(row, files).files.flatMap((path) => testDeclarations(path, texts.get(path)));
+    const ofRow = kept.filter((file) => file.row === row).sort((a, b) => a.shard - b.shard);
+    const reports = ofRow.filter((file) => file.kind === "xml").map((file) => ({ path: `${REPORTS}/${file.name}`, text: fs.readFileSync(pathOf.join(folder, file.name), "utf8") }));
+    const secret = ofRow.filter((file) => file.kind === "status").map((file) => SECRET_MISSING.exec(statusIn(folder, file.name) ?? "")?.[1]).find(Boolean);
+    const { outcomes: own, withCase, unreadable } = outcomesOfRow(reports, declared);
+    const reason = unreadable.length ? `report unreadable: ${unreadable.join(", ")}` : secret ? `secret missing: ${secret}` : null;
+    const ofLevels = row === "paid" ? LEVELS.filter((level) => declared.some((declaration) => declaration.level === level)) : [row];
+    if (reports.length) for (const level of ofLevels) levels.add(level);
+    for (const outcome of own) {
+      if (outcome.outcome === "undeclared") {
+        if (ofLevels.length) outcomes.push({ ...outcome, level: ofLevels[0] });
+      } else outcomes.push(outcome.outcome === "not run" && reason && !withCase.has(outcome.test) ? { ...outcome, reason } : outcome);
+    }
+  }
+  const run = LEVELS.filter((level) => levels.has(level));
+  const recorded = run.length ? run : LEVELS.filter((level) => outcomes.some((outcome) => outcome.level === level));
+  return recorded.length ? { levels: recorded, outcomes } : null;
+}
+
 /**
- * onTestsFinished(env: CiEnvironment) -> Promise<EntryStatus> — the step after the tests of a run of MOD-test-schedule's test configuration: the run's result record added to the
- * branch test-results through the server's API (appendResult) — the commit the checkout holds, the levels of the row the job runs (`env.tests.row`; for the row `paid` the levels
- * of the tests that call a paid service), the occasion of the event, the runner, the date, the run's page, `uncommitted` where tracked files changed, and the outcomes of the
- * run's JUnit XML report (parseOutcomes), matched to the declarations of the product's tests. Only the tests of the levels run are recorded — a declared test without a case
- * `not run` —, and each undeclared case, with the run's level. On Moved it reads the branch again and adds again; a record that cannot be added ends `failed`. A missing token,
- * row or report ends the entry `not run` before anything is written.
+ * onTestsFinished(env: CiEnvironment) -> Promise<EntryStatus> — in the job `agent-m records` of MOD-test-schedule's test configuration, after the run's test jobs: the run's one
+ * result record added to the branch test-results through the server's API (appendResult). It reads every report and status the test jobs kept in agent-m-reports/ together: the
+ * occasion is the one their names give, the levels run the rows that left a report — the row paid standing for the levels of the tests it ran —, and the outcomes those of the
+ * declared tests of each row that left a report or a status, the files testsOfRow names for it, matched by parseOutcomes; a test whose shard left no report reads `not run`. A
+ * report parseOutcomes refuses is left out and the others read again; the row's tests no readable report holds a case of read `not run` with the reason `report unreadable:
+ * <file>, …`. The tests of a row whose status is `not run: secret missing: <name>` read `not run` with the reason `secret missing: <name>`. The record names the commit the
+ * checkout holds, the runner, the date, the run's page and `uncommitted` where tracked files changed. On Moved it reads the branch again and adds again; a record that cannot be
+ * added ends `failed`. A run without a report or a status ends `nothing to do`; a missing token ends `not run` before anything is read. As it ends it writes its status, one
+ * line, to agent-m-reports/records.status.
  */
 export async function onTestsFinished(env) {
+  const folder = pathOf.join(env.checkout, REPORTS);
+  let status;
+  try {
+    status = await recordRun(env, folder);
+  } catch (error) {
+    status = failedStatus(`onTestsFinished failed: ${error?.message ?? error}`);
+  }
+  fs.mkdirSync(folder, { recursive: true });
+  fs.writeFileSync(pathOf.join(folder, "records.status"), `${statusLineOf(status)}\n`);
+  return status;
+}
+
+async function recordRun(env, folder) {
   if (!env.job.personToken) return notRun(`${env.job.tokenName} is missing: the person's Agent M token is a secret of this repository, passed to the step as ${env.job.tokenName}. Nothing was written.`);
-  const { row, report } = env.tests;
-  if (!report) return notRun("AGENT_M_REPORT is missing: the path of the run's JUnit XML report. Nothing was written.");
-  if (!fs.existsSync(report)) return notRun(`The run's JUnit XML report ${report} does not exist: the tests wrote none. Nothing was written.`);
-  if (!LEVELS.includes(row) && row !== "paid") return notRun(`AGENT_M_LEVEL ${row ? `names ${row}, which` : "is missing: it"} is no row of the schedule. Nothing was written.`);
-  const occasion = occasionOf(env);
-  if (!occasion) return notRun(`The event ${env.event?.name ?? "(none)"} is no occasion of the schedule. Nothing was written.`);
+  const kept = keptIn(folder);
+  if (!kept.length) return nothingToDo(`The run's test jobs kept no report and no status in ${REPORTS}/: there is nothing to record.`);
+  const occasions = [...new Set(kept.map((file) => file.occasion))];
+  if (occasions.length > 1) return failedStatus(`The reports in ${REPORTS}/ name the occasions ${occasions.join(", ")}: they are not one run's. Nothing was written.`);
+  const [occasion] = occasions;
   const { checkout, server } = composeTestRun(env);
   const snapshot = await checkout.readSnapshot("HEAD");
-  const declared = (await declarationsAt(snapshot)).filter((declaration) => (row === "paid" ? Boolean(declaration.paid) : declaration.level === row));
-  const levels = row === "paid" ? LEVELS.filter((level) => declared.some((declaration) => declaration.level === level)) : [row];
-  if (levels.length === 0) return { outcome: "nothing to do", summary: "No test of the product calls a paid service: the row paid ran none.", findings: [] };
-  let outcomes;
-  try {
-    outcomes = parseOutcomes(fs.readFileSync(report, "utf8"), declared);
-  } catch (error) {
-    return failedStatus(`The run's JUnit XML report ${report} could not be read: ${error.message}. Nothing was written.`);
-  }
-  outcomes = outcomes.map((outcome) => (outcome.outcome === "undeclared" ? { ...outcome, level: levels[0] } : outcome));
+  const run = runOutcomes(folder, kept, await testFilesAt(snapshot));
+  if (!run) return nothingToDo(`No row of the run holds a test at ${snapshot.commit}: there is nothing to record.`);
   const hex = [...globalThis.crypto.getRandomValues(new Uint8Array(2))].map((byte) => byte.toString(16).padStart(2, "0")).join("");
   const { now } = env;
   const path = `runs/${snapshot.commit}/${now.getUTCFullYear()}${two(now.getUTCMonth() + 1)}${two(now.getUTCDate())}-${two(now.getUTCHours())}${two(now.getUTCMinutes())}-${occasion}-${hex}.md`;
-  const text = recordText({ commit: snapshot.commit, levels, occasion, participant: env.tests.runner ?? (env.service === "gitlab" ? "GitLab CI" : "GitHub Actions"), now,
-    run: env.job.runUrl, uncommitted: uncommittedIn(env.checkout), outcomes });
+  const text = recordText({ commit: snapshot.commit, levels: run.levels, occasion, participant: env.tests.runner ?? (env.service === "gitlab" ? "GitLab CI" : "GitHub Actions"), now,
+    run: env.job.runUrl, uncommitted: uncommittedIn(env.checkout), outcomes: run.outcomes });
   const record = readDocument(resultSchema.run, path, text);
   for (let attempt = 1; ; attempt++) {
     try {
@@ -616,19 +751,39 @@ const IMPLEMENTING = ["implement", "refactor", "fix-bug"];
 const nothingToDo = (summary) => ({ outcome: "nothing to do", summary, findings: [] });
 const findingLine = (found) => `${found.artifact}:${found.line}: ${found.kind}: ${found.what} [${found.rule}] — ${found.fix}`;
 
-// The facts without this entry's own check: the check that runs onDoneCheck is running while it checks. Of the head's checks, the one of this run whose name, its blanks read as
-// hyphens, is this job's — on GitHub its page lies under this run's, on GitLab it is this job's page — is not weighed, and the head's CI counts green where only that check kept it
-// running. Every other check counts.
-function withoutOwnCheck(facts, env) {
-  const { job, jobUrl } = env.tests;
-  const own = (check) => Boolean(job) && String(check.name).replace(/\s+/g, "-") === job
-    && (env.service === "gitlab" ? Boolean(jobUrl) && check.url === jobUrl : Boolean(env.job.runUrl) && String(check.url).startsWith(`${env.job.runUrl}/job/`));
-  const checks = facts.checks.filter((check) => !own(check));
-  if (checks.length === facts.checks.length) return facts;
+// The rule a head without green CI misses (MOD-product-process' doneCheck names the same), and the jobs of a pull request's run that AGENT_M_EXPECTED names: `<row>:<shards>`,
+// separated by commas; null where it names none or one cannot be read.
+const GREEN_CI = "CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI";
+function expectedJobs(expected) {
+  const entries = String(expected ?? "").split(",").map((entry) => entry.trim()).filter(Boolean);
+  const jobs = entries.map((entry) => /^(unit|component|system|paid|release|user):([1-9]\d*)$/.exec(entry));
+  return jobs.length && jobs.every(Boolean) ? jobs.map(([, row, shards]) => ({ row, shards: Number(shards) })) : null;
+}
+
+// The CI result of the pull request's head, from the run's own statuses in the folder (Data: The reports of a run): green only when every shard the expected jobs name left
+// `done` or `nothing to do` and the job `agent-m records` left `done`. Each job that is not green is a finding, named by its status file: a status that is missing — a job that
+// failed before its end, was cancelled or ran out of time — or any other.
+function headCi(folder, jobs) {
+  const findings = [];
+  const weigh = (name, job, green) => {
+    const line = statusIn(folder, `${name}.status`);
+    if (line !== null && green.includes(line)) return;
+    findings.push({ artifact: `${REPORTS}/${name}.status`, line: 1, kind: "error", rule: GREEN_CI,
+      what: line === null ? `${job} (${name}) left no status: it failed before its end, was cancelled or ran out of time` : `${job} (${name}) ended "${line}"`,
+      fix: "repair the failure and push, or run the job again" });
+  };
+  for (const { row, shards } of jobs) {
+    for (let shard = 1; shard <= shards; shard++) weigh(`pull-request.${row}.${shard}`, `the test job of the row ${row}, shard ${shard} of ${shards},`, ["done", "nothing to do"]);
+  }
+  weigh("records", "the job agent-m records", ["done"]);
+  return { green: findings.length === 0, findings };
+}
+
+// The pull request's facts with the head's CI result the run's statuses give: the head commit green or failed by them, and none of the head's checks the server reports weighed.
+// The earlier commits keep the CI results the server gives.
+function withHeadCi(facts, green) {
   const head = facts.commits.at(-1);
-  const green = checks.length > 0 && checks.every((check) => ["success", "neutral", "skipped"].includes(check.state));
-  const commits = head?.ci === "running" && green ? facts.commits.map((commit) => (commit === head ? { ...commit, ci: "success" } : commit)) : facts.commits;
-  return { ...facts, checks, commits };
+  return { ...facts, checks: [], commits: facts.commits.map((commit) => (commit === head ? { ...commit, ci: green ? "success" : "failure" } : commit)) };
 }
 
 // The modules of a job: those its items and plan steps name, and a module it works on itself.
@@ -645,14 +800,17 @@ function modulesOfJob(record, items) {
  * onDoneCheck(env: CiEnvironment) -> Promise<EntryStatus> — in the job `agent-m done` of MOD-test-schedule's test configuration, on a pull request opened or updated: MOD-product-process'
  * doneCheck of the pull request's facts (pullRequestFacts, through the server's API with the person's token), for the job its title or description names, with the product's workflow,
  * module files and gate records as the checkout of the pull request holds them (productFacts, the instance's catalogue read from the checkout of the instance, `.agent-m`), the job's
- * modules those of the items and plan steps it works on. `done` when the Definition of Done holds, `failed` with each condition it misses as a finding; the status and the findings stand
- * in the check's log and in the run's summary. A pull request that names no job, or a job of no implementing kind, is `nothing to do`; a missing token or pull request ends the
- * entry `not run` before anything is read.
+ * modules those of the items and plan steps it works on. The CI result of the head is read from the run's own statuses in agent-m-reports/, with no call to the server: green
+ * only when every shard AGENT_M_EXPECTED names left `done` or `nothing to do` and records.status is `done` (headCi); each job that is not green is a finding naming it. `done` when
+ * the Definition of Done holds, `failed` with each condition it misses as a finding; the status and the findings stand in the check's log and in the run's summary. A pull request
+ * that names no job, or a job of no implementing kind, is `nothing to do`; a missing token, pull request or AGENT_M_EXPECTED ends the entry `not run` before anything is read.
  */
 export async function onDoneCheck(env) {
   if (!env.job.personToken) return notRun(`${env.job.tokenName} is missing: the person's Agent M token is a secret of this repository, passed to the step as ${env.job.tokenName}. Nothing was written.`);
   const number = env.tests.pullRequest;
   if (!number) return notRun("The event names no pull request: the Definition of Done is checked on a pull request. Nothing was written.");
+  const jobs = expectedJobs(env.tests.expected);
+  if (!jobs) return notRun(`AGENT_M_EXPECTED ${env.tests.expected ? `names no job as <row>:<shards>: ${env.tests.expected}` : "is missing"}: without it the jobs of the run are not known. Nothing was read.`);
   const { checkout, server, instance } = composeTestRun(env);
   const facts = await server.pullRequestFacts(number);
   const id = JOB_ID.exec(`${facts.pullRequest.title}\n${facts.pullRequest.body}`)?.[0];
@@ -664,7 +822,9 @@ export async function onDoneCheck(env) {
   if (!product.workflow || product.workflow === "unknown") {
     return failedStatus(`The product's declared process could not be read${product.modelUnread ? ` at ${product.modelUnread.commit}: ${product.modelUnread.error}` : ": docs/process.md declares none"}.`);
   }
-  const findings = await doneCheck(withoutOwnCheck(facts, env), product.workflow, product.modules, product.gates, { kind: row.record.kind, modules: modulesOfJob(row.record, product.plan.items) });
+  const ci = headCi(pathOf.join(env.checkout, REPORTS), jobs);
+  const findings = [...ci.findings, ...await doneCheck(withHeadCi(facts, ci.green), product.workflow, product.modules, product.gates,
+    { kind: row.record.kind, modules: modulesOfJob(row.record, product.plan.items) })];
   const failed = findings.some((found) => found.kind === "error");
   const summary = failed ? `The Definition of Done of pull request #${number} (${id}) does not hold: ${findings.length} finding(s).`
     : `The Definition of Done of pull request #${number} (${id}) holds.`;

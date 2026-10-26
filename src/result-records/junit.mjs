@@ -1,9 +1,11 @@
-// A run's outcomes from its JUnit XML report — MOD-result-records' parseOutcomes (docs/architecture/MOD-result-records.md,
-// Interfaces: parseOutcomes). Each test case is matched to its declaration by the TST-<nnn> at the start of its name;
-// a case with a failure or an error is failed, a skipped one not run, any other passed. Several cases of a
-// deterministic test pass only if all pass; the cases of a model-dependent test are its runs, "<k> of <n>" against the
-// number its declaration fixes, and not run when fewer ran. A case without a declaration is undeclared, a declared test
-// without a case not run. A text that is not a JUnit XML report gives UnreadableReport.
+// A run's outcomes from the JUnit XML reports of its jobs, read together as one — MOD-result-records' parseOutcomes
+// (docs/architecture/MOD-result-records.md, Interfaces: parseOutcomes). Each test case is matched to its declaration by
+// the TST-<nnn> at the start of its name; a case with a failure or an error is failed, a skipped one not run, any other
+// passed. Several cases of a deterministic test, in one report or in several, pass only if all pass; the cases of a
+// model-dependent test are its runs, "<k> of <n>" against the number its declaration fixes, and not run when fewer ran.
+// A case without a declaration is undeclared, a declared test without a case in any report not run. Every outcome's
+// reason is null: its caller sets it. A text that is not a JUnit XML report — a report cut off counts as one — gives
+// UnreadableReport { index, reason }, naming its place in the list.
 //
 // Module: MOD-result-records
 
@@ -12,6 +14,22 @@ const ENTITIES = { lt: "<", gt: ">", amp: "&", quot: '"', apos: "'" };
 
 const unreadable = (reason) => Object.assign(new Error(`parseOutcomes: not a JUnit XML report — ${reason}`),
   { name: "UnreadableReport", reason });
+
+// The test cases of every report, in order; an unreadable report's error carries its index.
+function casesOfAll(reports) {
+  if (!Array.isArray(reports)) throw new TypeError("parseOutcomes: reports is not a list of texts");
+  return reports.flatMap((report, index) => {
+    try {
+      return cases(report);
+    } catch (error) {
+      if (error.name === "UnreadableReport") {
+        error.index = index;
+        error.message = `parseOutcomes: the report at ${index} is not a JUnit XML report — ${error.reason}`;
+      }
+      throw error;
+    }
+  });
+}
 
 const decode = (text) => text.replace(/&(?:#(\d+)|#x([0-9a-fA-F]+)|(lt|gt|amp|quot|apos));/g,
   (_, dec, hex, name) => (name ? ENTITIES[name] : String.fromCodePoint(dec ? Number(dec) : parseInt(hex, 16))));
@@ -70,25 +88,25 @@ function cases(report) {
 }
 
 /**
- * The outcomes of one run from its JUnit XML report (see the file's head). In the order the tests first appear in the
- * report, then the declared tests without a case in the order of the declarations.
- * @param {string} report
+ * The outcomes of one run from the JUnit XML reports of its jobs (see the file's head). In the order the tests first
+ * appear across the reports, then the declared tests without a case in the order of the declarations.
+ * @param {string[]} reports
  * @param {Array<{ id: string, level: string | null, expect: string | null, runs: number | null }>} declarations
  * @returns {object[]} Outcome[] (index.mjs)
  */
-export function parseOutcomes(report, declarations) {
+export function parseOutcomes(reports, declarations) {
   const declared = new Map(declarations.map((d) => [d.id, d]));
   const slots = []; // in the order of the report: an undeclared outcome, or the id of a declared test at its first case
   const byTest = new Map();
-  for (const found of cases(report)) {
+  for (const found of casesOfAll(reports)) {
     const id = /^TST-\d+/.exec(found.name)?.[0];
-    if (!id || !declared.has(id)) slots.push({ test: found.name, level: null, outcome: "undeclared", runs: null, failure: null });
+    if (!id || !declared.has(id)) slots.push({ test: found.name, level: null, outcome: "undeclared", runs: null, failure: null, reason: null });
     else if (byTest.has(id)) byTest.get(id).push(found);
     else { byTest.set(id, [found]); slots.push(id); }
   }
   const outcomeOf = (declaration) => {
     const own = byTest.get(declaration.id) ?? [];
-    const base = { test: declaration.id, level: declaration.level, runs: null, failure: null };
+    const base = { test: declaration.id, level: declaration.level, runs: null, failure: null, reason: null };
     if (!own.length) return { ...base, outcome: "not run" };
     if (declaration.runs) {
       const ran = own.filter((c) => c.kind !== "skipped");

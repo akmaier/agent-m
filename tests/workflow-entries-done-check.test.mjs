@@ -14,8 +14,11 @@
 // reviews, a file's text at a commit), which `fetch` is replaced with. The readings, named in the pull request:
 //   - The pull request's job is the job its title or description names (`Job: <id>`, as MOD-runtimes' writer branch-and-pull-request writes them); its modules are those of the
 //     items and plan steps the job works on. A pull request that names no job is no implementation job's: `nothing to do`.
-//   - The check `agent-m done` that runs the entry is running while it checks: of the head's checks, the one of this run whose name is this job's is not weighed, and the head's CI
-//     counts green when only that check keeps it running. Every other check counts.
+//   - The CI result of the pull request's head is read from the run's own statuses (ITM-1216; MOD-workflow-entries, Data: The reports of a run), which the job `agent-m done`
+//     takes into the folder agent-m-reports/ of the checkout: green only when every shard AGENT_M_EXPECTED names (`<row>:<shards>`, separated by commas) left
+//     agent-m-reports/pull-request.<row>.<shard>.status holding `done` or `nothing to do`, and agent-m-reports/records.status holds `done`. The head's checks the server
+//     reports are not weighed; the earlier commits' CI results are the server's. A job that is not green is named in a finding by its status file's name —
+//     pull-request.<row>.<shard>, or records for the job `agent-m records`.
 //   - The status and the findings are shown on the pull request as the check's: its outcome, its log (main.mjs prints the findings) and the run's summary, which GitHub
 //     links from the check (GITHUB_STEP_SUMMARY).
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
@@ -78,8 +81,14 @@ function repository(folder, files) {
   return git(folder, "rev-parse", "HEAD");
 }
 
-// The job `agent-m done`'s checkout of the pull request, with the instance in its folder .agent-m, and the event's payload.
-async function withCheckout(run) {
+// The statuses of a green run of the pull request, as AGENT_M_EXPECTED names its jobs: the row unit in two shards, the row component in one, which had no file, and the job
+// `agent-m records`.
+const EXPECTED = "unit:2,component:1";
+const GREEN = { "pull-request.unit.1.status": "done\n", "pull-request.unit.2.status": "done\n", "pull-request.component.1.status": "nothing to do\n", "records.status": "done\n" };
+
+// The job `agent-m done`'s checkout of the pull request, with the instance in its folder .agent-m, the event's payload, and the run's statuses taken into agent-m-reports/ —
+// `statuses` maps each file's name in that folder to its text.
+async function withCheckout(run, { statuses = GREEN } = {}) {
   const root = mkdtempSync(join(tmpdir(), "agent-m-done-check-"));
   const checkout = join(root, "product");
   try {
@@ -96,19 +105,21 @@ async function withCheckout(run) {
     git(checkout, "commit", "-q", "-m", "the merge of the pull request");
     const event = join(root, "event.json"), summary = join(root, "summary.md");
     writeFileSync(event, JSON.stringify({ action: "synchronize", number: 7, pull_request: { number: 7 } }));
+    write(checkout, Object.fromEntries(Object.entries(statuses).map(([name, text]) => [`agent-m-reports/${name}`, text])));
     return await run({ checkout, event, summary });
   } finally { rmSync(root, { recursive: true, force: true }); }
 }
 
 // A fake of GitHub's REST API serving the pull request #7 of alice/thesis-tool: its first commit adds the test and was red, its head commit changes src/store/index.mjs — and
-// `outside`, where given — with the check `node` green and this run's check `agent-m done` running. `title`/`body` are the pull request's.
-function fakeGitHub({ outside = null, title = `${JOB}: implement ITM-001`, body = `Job: ${JOB}\nKind: implement\nBacklog item: ITM-001\nModules: MOD-store` } = {}) {
+// `outside`, where given — with the check `node` of the conclusion `headNode`, green unless given, and this run's check `agent-m done` running. `title`/`body` are the pull
+// request's.
+function fakeGitHub({ outside = null, headNode = "success", title = `${JOB}: implement ITM-001`, body = `Job: ${JOB}\nKind: implement\nBacklog item: ITM-001\nModules: MOD-store` } = {}) {
   const answer = (status, value) => new Response(typeof value === "string" ? value : JSON.stringify(value), { status, headers: { "content-type": "application/json" } });
   const headFiles = ["src/store/index.mjs", ...(outside ? [outside] : [])];
   const commits = [
     { sha: FIRST, parents: [BASE], files: [{ filename: "tests/store.test.mjs", status: "added" }], checks: [{ name: "node", status: "completed", conclusion: "failure", html_url: `${WEB}/actions/runs/4700/job/1` }] },
     { sha: HEAD, parents: [FIRST], files: headFiles.map((filename) => ({ filename, status: filename === outside ? "added" : "modified" })),
-      checks: [{ name: "node", status: "completed", conclusion: "success", html_url: `${RUN}/job/98` }, { name: "agent-m done", status: "in_progress", conclusion: null, html_url: `${RUN}/job/99` }] },
+      checks: [{ name: "node", status: "completed", conclusion: headNode, html_url: `${RUN}/job/98` }, { name: "agent-m done", status: "in_progress", conclusion: null, html_url: `${RUN}/job/99` }] },
   ];
   const calls = [];
   const fetch = async (address) => {
@@ -136,13 +147,14 @@ function fakeGitHub({ outside = null, title = `${JOB}: implement ITM-001`, body 
 }
 
 // The entry, run in the job `agent-m done` of GitHub Actions on the event pull_request, with the fake server in place of the network.
-async function onDoneCheck(w, server, { token = TOKEN } = {}) {
+async function onDoneCheck(w, server, { token = TOKEN, expected = EXPECTED } = {}) {
   const real = globalThis.fetch;
   globalThis.fetch = server ? server.fetch : async () => { throw new Error("no request may be made"); };
   try {
     return await runEntry("onDoneCheck", { GITHUB_ACTIONS: "true", GITHUB_EVENT_NAME: "pull_request", GITHUB_EVENT_PATH: w.event, GITHUB_WORKSPACE: w.checkout,
       GITHUB_SERVER_URL: "https://github.com", GITHUB_REPOSITORY: "alice/thesis-tool", GITHUB_REF_NAME: "7/merge", GITHUB_SHA: "3".repeat(40), GITHUB_RUN_ID: "4711",
-      GITHUB_JOB: "agent-m-done", GITHUB_ACTOR: "alice", GITHUB_STEP_SUMMARY: w.summary, AGENT_M_INSTANCE_COMMIT: "f".repeat(40), ...(token ? { AGENT_M_TOKEN: token } : {}) }, { now: NOW });
+      GITHUB_JOB: "agent-m-done", GITHUB_ACTOR: "alice", GITHUB_STEP_SUMMARY: w.summary, AGENT_M_INSTANCE_COMMIT: "f".repeat(40), ...(expected ? { AGENT_M_EXPECTED: expected } : {}),
+      ...(token ? { AGENT_M_TOKEN: token } : {}) }, { now: NOW });
   } finally { globalThis.fetch = real; }
 }
 const summaryOf = (w) => (existsSync(w.summary) ? readFileSync(w.summary, "utf8") : "");
@@ -151,7 +163,7 @@ const summaryOf = (w) => (existsSync(w.summary) ? readFileSync(w.summary, "utf8"
 
 // TST-1210101 · level: unit · module: MOD-workflow-entries
 // guards: A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS; THE DEFAULT DEFINITION OF DONE IS THE JOB RULES; UC-027
-// given: the pull request #7 of the job JOB-20261025-0900-a1b2 (kind implement, item ITM-001 of MOD-store): its first commit adds only the test file and its CI failed; its head changes src/store/index.mjs, the check node is green and this run's check `agent-m done` is running; the new test TST-001 names what it guards and its module; the product declares kanban, whose one gate stands after the merge, and adds no condition
+// given: the pull request #7 of the job JOB-20261025-0900-a1b2 (kind implement, item ITM-001 of MOD-store): its first commit adds only the test file and its CI failed; its head changes src/store/index.mjs, the check node is green and this run's check `agent-m done` is running; AGENT_M_EXPECTED unit:2,component:1, and the run's statuses pull-request.unit.1 and pull-request.unit.2 `done`, pull-request.component.1 `nothing to do`, records `done`; the new test TST-001 names what it guards and its module; the product declares kanban, whose one gate stands after the merge, and adds no condition
 // input: onDoneCheck on the event pull_request
 // expect: outcome `done`, no finding, the summary saying that the Definition of Done holds; the run's summary says so too; the pull request's facts were read from the server
 test("onDoneCheck — a pull request meeting every condition of the Definition of Done ends passed", async () => {
@@ -207,5 +219,53 @@ test("onDoneCheck — a pull request that names no job is no implementation job'
     const status = await onDoneCheck(w, fakeGitHub({ title: "Fix a typo", body: "" }));
     assert.equal(status.outcome, "nothing to do", status.summary);
     assert.match(status.summary, /no job/);
+  });
+});
+
+// TST-1216105 · level: unit · module: MOD-workflow-entries
+// guards: A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS; UC-027
+// given: the pull request of TST-1210101 with the run's green statuses — pull-request.unit.1 and pull-request.unit.2 `done`, pull-request.component.1 `nothing to do`, records `done` —, while the server reports the head's check node as failed
+// input: onDoneCheck on the event pull_request with AGENT_M_EXPECTED unit:2,component:1
+// expect: outcome `done`, no finding: the head's CI result is the run's statuses', not the server's checks
+test("onDoneCheck — the head's CI result is read from the run's statuses", async () => {
+  await withCheckout(async (w) => {
+    const status = await onDoneCheck(w, fakeGitHub({ headNode: "failure" }));
+    assert.equal(status.outcome, "done", `${status.summary} ${JSON.stringify(status.findings)}`);
+    assert.deepEqual(status.findings, []);
+  });
+});
+
+// TST-1216106 · level: unit · module: MOD-workflow-entries
+// guards: A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS; UC-027
+// given: the pull request of TST-1210101, the server reporting the head's check node green; the run's statuses green but for one job: (a) pull-request.unit.2 left no status — a job that failed before its end, was cancelled or ran out of time —; (b) pull-request.unit.2 holds `failed: the command ended with status 1`; (c) records.status is missing
+// input: onDoneCheck on the event pull_request with AGENT_M_EXPECTED unit:2,component:1
+// expect: each outcome `failed`; a finding names the job — (a) and (b) pull-request.unit.2, (c) records —, and no finding names a job that is green
+test("onDoneCheck — a missing or other status is not green, and the finding names the job", async () => {
+  const { ["pull-request.unit.2.status"]: _unit2, ...withoutUnit2 } = GREEN;
+  const { ["records.status"]: _records, ...withoutRecords } = GREEN;
+  for (const [statuses, job] of [[withoutUnit2, "pull-request.unit.2"], [{ ...GREEN, "pull-request.unit.2.status": "failed: the command ended with status 1\n" }, "pull-request.unit.2"],
+    [withoutRecords, "records"]]) {
+    await withCheckout(async (w) => {
+      const status = await onDoneCheck(w, fakeGitHub());
+      assert.equal(status.outcome, "failed", `${job}: ${status.summary}`);
+      const named = status.findings.filter((found) => `${found.artifact} ${found.what}`.includes(job));
+      assert.ok(named.length >= 1, `${job}: ${JSON.stringify(status.findings)}`);
+      for (const green of ["pull-request.unit.1", "pull-request.component.1"]) {
+        assert.ok(!status.findings.some((found) => `${found.artifact} ${found.what}`.includes(green)), `${green} is green: ${JSON.stringify(status.findings)}`);
+      }
+    }, { statuses });
+  }
+});
+
+// TST-1216107 · level: unit · module: MOD-workflow-entries
+// guards: A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS; UC-027
+// given: the pull request of TST-1210101 with the run's green statuses; the job `agent-m done` is given no AGENT_M_EXPECTED
+// input: onDoneCheck on the event pull_request
+// expect: outcome `not run`, its summary naming AGENT_M_EXPECTED — without it, which jobs the run holds is not known, and no status is taken as green
+test("onDoneCheck — without AGENT_M_EXPECTED the entry does not run", async () => {
+  await withCheckout(async (w) => {
+    const status = await onDoneCheck(w, fakeGitHub(), { expected: null });
+    assert.equal(status.outcome, "not run", status.summary);
+    assert.match(status.summary, /AGENT_M_EXPECTED/);
   });
 });

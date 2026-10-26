@@ -11,6 +11,8 @@ Data; `src/job-ledger/job.schema.md`).
 - `uncommitted` has no boolean type in this language (Data: *The schema language*, the value types); it is written
   only when the working tree had changes not in the commit, with the one value `true` — present or absent, as a
   flag — never written `false`.
+- `Reason` is the one optional column of `## Outcomes`: a record of the four columns before it is valid, and read with
+  no reason.
 - `## Failures` stands only where a test failed: it is not required, so a record with nothing failing leaves it out.
 
 ```json
@@ -34,7 +36,8 @@ Data; `src/job-ledger/job.schema.md`).
       { "name": "Test", "value": { "type": "text", "required": true } },
       { "name": "Level", "value": { "type": "enum", "values": ["unit", "component", "system", "release", "user"], "required": true } },
       { "name": "Outcome", "value": { "type": "enum", "values": ["passed", "failed", "not run", "undeclared"], "required": true } },
-      { "name": "Runs", "value": { "type": "text", "required": false } }
+      { "name": "Runs", "value": { "type": "text", "required": false } },
+      { "name": "Reason", "value": { "type": "text", "required": false }, "optional": true }
     ] } },
     { "heading": "## Failures", "required": false, "table": { "columns": [
       { "name": "Test", "value": { "type": "text", "required": true } },

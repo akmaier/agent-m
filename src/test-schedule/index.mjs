@@ -4,7 +4,8 @@
 // default. They give the complete run of a release candidate the levels it runs, the command that runs them and the
 // runner of each (MOD-release-evidence). ITM-742 adds scheduleFindings (rules.mjs). ITM-743 adds occasionsOf and secretsNeeded (occasions.mjs). ITM-744 adds
 // ciConfiguration (generate.mjs, templates/). ITM-746 adds proposeSchedule and applyPipelineSchedule (propose.mjs). ITM-747 adds scheduleStrategies
-// (strategies.mjs). ITM-745 adds configurationDrift (generate.mjs).
+// (strategies.mjs). ITM-745 adds configurationDrift (generate.mjs). ITM-1213 adds testsOfRow (rows.mjs). ITM-1214 gives ciConfiguration
+// shards, time limits, the jobs agent-m setup and agent-m records, and the token in agent-m records and agent-m done alone.
 //
 // Module: MOD-test-schedule
 //
@@ -15,6 +16,7 @@
 
 import { loadSchema, readDocument } from "../documents/index.mjs";
 import { ownText } from "./own-file.mjs";
+import { filesOfRow } from "./rows.mjs";
 
 export { scheduleFindings } from "./rules.mjs";
 export { occasionsOf, secretsNeeded } from "./occasions.mjs";
@@ -46,4 +48,18 @@ const DEFAULT_TEXT = await ownText(DEFAULT_FILE);
 export function defaultSchedule() {
   const document = readDocument(scheduleSchema, DEFAULT_PATH, DEFAULT_TEXT);
   return { ...document, default: true };
+}
+
+// The rows the schedule's schema names, in its order: the values of the column Row of "## Levels".
+const ROWS = scheduleSchema.sections.find((section) => section.heading === "## Levels").table.columns
+  .find((column) => column.name === "Row").value.values;
+
+/**
+ * testsOfRow(row: string, files: Array<{ path: string, text: string }>) -> { files: string[], unreadable: string[] } — the
+ * test files a row runs, as MOD-test-schedule's Data states them, in the order of their paths, from the product's committed
+ * files given with their texts; `unreadable` the named test files whose level cannot be read. Pure; it never throws on
+ * content. Errors: `UnknownRow` for a row the schema does not name.
+ */
+export function testsOfRow(row, files) {
+  return filesOfRow(ROWS, row, files);
 }
