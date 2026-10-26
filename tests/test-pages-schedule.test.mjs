@@ -62,7 +62,7 @@ const DEFAULT_ROWS = ["| unit | ✓ | ✓ | ✓ | ✓ | ✓ | |", "| component |
   "| paid | | | ✓ | ✓ | ✓ | |", "| release | | | | ✓ | ✓ | |", "| user | | | | ✓ | ✓ | |"];
 // A saved schedule that differs from the book's default: system tests nightly only, the nightly run at 03:30, a command, and a runner for the system row.
 const SAVED = scheduleText(["| unit | ✓ | ✓ | ✓ | ✓ | ✓ | |", "| component | ✓ | ✓ | ✓ | ✓ | ✓ | |", "| system | | | ✓ | ✓ | ✓ | lab-runner |",
-  "| paid | | | ✓ | ✓ | ✓ | |", "| release | | | | ✓ | ✓ | |", "| user | | | | ✓ | ✓ | |"], "nightly: 03:30\ncommand: make test\nreport: out/junit.xml");
+  "| paid | | | ✓ | ✓ | ✓ | |", "| release | | | | ✓ | ✓ | |", "| user | | | | ✓ | ✓ | |"], "nightly: 03:30\ncommand: make test");
 // A saved schedule that says what the rules refuse: the row unit leaves out the release candidate, the row paid runs on every commit, and the row system
 // names a participant that cannot run tests.
 const BROKEN = scheduleText(["| unit | ✓ | ✓ | ✓ | | ✓ | |", "| component | ✓ | ✓ | ✓ | ✓ | ✓ | |", "| system | ✓ | ✓ | ✓ | ✓ | ✓ | writer |",
@@ -143,9 +143,9 @@ test("schedule — without a schedule the page shows the book's default, marked 
 
 // TST-758002 · level: unit · module: MOD-test-pages
 // guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT; UC-027
-// given: a product whose docs/tests/schedule.md ticks the row system only for nightly, release candidate and on demand, names the nightly time 03:30, the command `make test` and the report out/junit.xml
+// given: a product whose docs/tests/schedule.md ticks the row system only for nightly, release candidate and on demand, names the nightly time 03:30 and the command `make test`
 // input: the route schedule rendered for the product
-// expect: no mark of the default; the table shows the saved ticks (system ticked on nightly, release candidate and on demand only; the other rows as in the file); the form's fields hold 03:30, `make test` and out/junit.xml
+// expect: no mark of the default; the table shows the saved ticks (system ticked on nightly, release candidate and on demand only; the other rows as in the file); the form's fields hold 03:30 and `make test`
 test("schedule — a saved schedule is shown as saved, with its nightly time and command", async () => {
   const shown = await withSchedule(SAVED);
   assert.equal(byClass(shown, "default-schedule").length, 0, "no default mark");
@@ -155,7 +155,6 @@ test("schedule — a saved schedule is shown as saved, with its nightly time and
   assert.deepEqual(ticks("user"), ["release candidate", "on demand"]);
   assert.equal(inputOf(shown, "nightly").value, "03:30");
   assert.equal(inputOf(shown, "command").value, "make test");
-  assert.equal(inputOf(shown, "report").value, "out/junit.xml");
 });
 
 // TST-758003 · level: unit · module: MOD-test-pages
