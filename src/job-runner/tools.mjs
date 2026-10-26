@@ -170,7 +170,7 @@ const PLANNED = /^ITM-\d+$/;
 
 /**
  * handOverParams(worksOn: string[], snapshot: Snapshot) -> Record<string, unknown> — the parameters a hand-over's job takes for what it works on, by the keys the kinds'
- * strategies read: `requirements` for the names that are neither an identifier nor a web address, `useCases` for the use cases and `useCase` beside it for one alone, `steps`
+ * strategies read: `requirements` for the names in capitals that are neither an identifier nor a web address — an entry with a lowercase letter, such as a section, names no requirement —, `useCases` for the use cases and `useCase` beside it for one alone, `steps`
  * for the plan's steps — the ITM-<n> the snapshot holds as a file under docs/plan/ — and `items` for the other ITM-<n>; a key it would leave empty is left out.
  */
 export function handOverParams(worksOn, snapshot) {
@@ -179,7 +179,9 @@ export function handOverParams(worksOn, snapshot) {
   const planned = names.filter((name) => PLANNED.test(name));
   const steps = planned.filter((name) => snapshot.paths.some((path) => path.startsWith(`docs/plan/${name}-`)));
   const items = planned.filter((name) => !steps.includes(name));
-  const requirements = names.filter((name) => !/^[A-Z]+-[A-Za-z0-9-]+$/.test(name) && !/^https?:\/\//.test(name));
+  // A requirement is named in capitals, as the SPEC writes it; any other entry — a section, a file, a place for something new — names none,
+  // and the task in the model's words carries it.
+  const requirements = names.filter((name) => !/^[A-Z]+-[A-Za-z0-9-]+$/.test(name) && !/^https?:\/\//.test(name) && !/[a-z]/.test(name));
   return { ...(requirements.length ? { requirements } : {}), ...(useCases.length ? { useCases } : {}), ...(useCases.length === 1 ? { useCase: useCases[0] } : {}),
     ...(items.length ? { items } : {}), ...(steps.length ? { steps } : {}) };
 }
