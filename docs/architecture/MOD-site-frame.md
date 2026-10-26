@@ -121,7 +121,7 @@ It runs in a browser — the instance's pages, and the Bridge's window, which is
 - `explanations.md` — the folded explanations, as data.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
   - `docs/index.html`: named here as the review pages' entry page, whose place the Pages site fixes; it loads `start.mjs` once the live dashboard's views are the modules' routes. It loads no library for Markdown, sanitising or diagrams: the app's Markdown is rendered with `renderArtifact`.
-  - `src/site-frame/dashboard-app.mjs`: the live page's app; its loading reads through `Snapshot.readMany`, the files a route shows in its first wave — for the specification, a product's `docs/sources.md` and the register's entries among them (`registerPaths`); its Markdown is rendered with `renderArtifact`, and it imports no library of the renderer's `vendor/`; for a route of a loaded view it shows, `#trace` among them, the entry it marks in the menu and gives the bar's subject is the entry of the page shown, by `subject.mjs` as on the frame's pages; removed once `docs/index.html` starts the site through `start.mjs`.
+  - `src/site-frame/dashboard-app.mjs`: the live page's app; its loading reads through `Snapshot.readMany`, the files a route shows in its first wave — for the specification, a product's `docs/sources.md` and the register's entries among them (`registerPaths`); its Markdown is rendered with `renderArtifact`, and it imports no library of the renderer's `vendor/`; for a route of a loaded view it shows, `#trace` among them, the entry it marks in the menu and gives the bar's subject is the entry of the page shown, by the same rule as on the frame's pages — the route's `entryShown`, else its `entry` —, in place of the lookup by view name of `src/site/menu.mjs`; removed once `docs/index.html` starts the site through `start.mjs`.
   - `docs/assets/dashboard/built.json`, `src/site/views.mjs`: removed with the app: `data-views` names the views.
   - `src/site/html.mjs`, `src/site/instance-repository.mjs`, `src/site/menu.mjs`: removed once their callers use `instanceOf` and `menuOf`.
   - `src/theme/lme.css`, `src/brand/`: removed: `look.css` and `brand/` hold them.
@@ -152,7 +152,7 @@ It keeps nothing but what is on the screen. It owns these formats:
   the strategy sets of the services whose job kinds its routes prepare or run in the tab (MOD-job-runner's
   `Strategies`).
 - `Route` — `{ name: string, entry: "requirements" | "use-cases" | "architecture" | "implementation" | "tests" |
-  "releases" | "maintenance" | "settings" | null, entryOf?: (params: Record<string, string>) -> Route["entry"],
+  "releases" | "maintenance" | "settings" | null, entryShown?: (params: Record<string, string>) -> Route["entry"],
   title: string, render(target: Element, context: ViewContext,
   params: Record<string, string>) -> Promise<void>, subject?: (params: Record<string, string>, context: ViewContext) ->
   Subject | null, leave?: () -> boolean, unsaved?: () -> boolean,
@@ -162,10 +162,12 @@ It keeps nothing but what is on the screen. It owns these formats:
   the frame reads them with `readMany` before it calls `render`, a hundred to a batch (`A PAGE LOAD READS THE REPOSITORY IN BATCHES`), and keeps no list of files for any route. A route whose
   files depend on files it must read first reads those through `snapshot.readMany` itself, in `reads`. `name` is the first part of the address's fragment, the rest are its `params`; a route's `entry` puts it
   under that entry of the menu, `null` keeps it out of the menu: it is the entry `menuOf` counts as served, and the one
-  whose first route a fragment naming the entry and no route shows. `entryOf` names the menu entry of the page the route
-  shows for these `params`, for a route whose pages lie under more than one entry; where a route gives none, or it gives
-  `null` for these `params`, the page shown is under the route's `entry`. The entry of the page shown is the one the menu
-  marks and the one the subject carries. `subject`, MOD-prompt-bar's type, says what a message in
+  whose first route a fragment naming the entry and no route shows. `entryShown` names the menu entry of the page the route
+  shows for these `params`, for a route whose pages lie under more than one entry; its `null` means the route's `entry`,
+  not a page out of the menu, so it never takes a route out of the menu; where a route gives none, the page shown is
+  under the route's `entry`. The entry of the page shown is the one the menu marks and the one the subject carries.
+  `menuOf` counts only `entry` as served: a page whose `entryShown` names an entry that no loaded route lists is marked
+  under an entry the menu shows as *not built yet*. `subject`, MOD-prompt-bar's type, says what a message in
   the prompt bar is about while the route is shown — a route showing a requirement, a use case or an architecture file
   names its change kind and its target; a route of mail or of settings says what of its page a participant may be given.
   Whichever gives the subject, the frame sets its `entry` to the entry of the page shown. A route that gives none, or whose
