@@ -1,0 +1,11 @@
+agent-m-setup:
+  stage: .pre
+  image: node:22
+{{timeout}}
+  variables:
+    AGENT_M_SETUP: {{setup}}
+  rules:
+{{rules}}
+{{cache}}
+  script:
+    - 'week="$(date -u +%G-W%V)"; if [ "$(cat .agent-m-setup-week 2>/dev/null)" != "$week" ]; then eval "$AGENT_M_SETUP" && printf %s "$week" > .agent-m-setup-week; fi'

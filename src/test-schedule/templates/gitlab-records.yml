@@ -1,0 +1,22 @@
+agent-m-records:
+  stage: .post
+  image: node:22
+  inherit:
+    default: false
+    variables: false
+  environment:
+    name: agent-m-write
+    action: verify
+{{timeout}}
+  variables:
+    AGENT_M_INSTANCE_COMMIT: {{commit}}
+  rules:
+{{rules}}
+  script:
+    - {{clone}}
+    - node .agent-m/src/workflow-entries/main.mjs onTestsFinished
+  artifacts:
+    when: always
+    expire_in: 1 day
+    paths:
+      - agent-m-reports/

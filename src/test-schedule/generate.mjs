@@ -1,5 +1,10 @@
 // The CI configuration generated from a schedule (MOD-test-schedule, Interfaces: ciConfiguration): a GitHub Actions
-// workflow or a GitLab CI file with one job per ticked row and occasion, from the fixed parts in templates/.
+// workflow or a GitLab CI file with one job per ticked row and occasion, from the fixed parts in templates/. As the module's
+// Data states under The generated configuration (ITM-1214): each test job runs as its row's shards — a matrix on GitHub,
+// `parallel:` on GitLab — with the variables of a test job, restores the cache, runs `setup`, then runTests, and keeps its
+// report and status; every job of a commit or a pull request carries `minutes`; agent-m setup fills the cache where `cache`
+// names paths; agent-m records runs onTestsFinished after every test job and agent-m done onDoneCheck on a pull request, the
+// two the only jobs that read the person's token.
 //
 // Module: MOD-test-schedule
 
@@ -9,15 +14,21 @@ import { scheduleFindings } from "./rules.mjs";
 import { OCCASIONS, nightlyCron, nightlyRows, occasionsOf, rowsOf, secretsNeeded } from "./occasions.mjs";
 import { ownText } from "./own-file.mjs";
 
-const NAMES = ["github-head", "github-job", "github-done", "gitlab-head", "gitlab-job", "gitlab-done"];
+const NAMES = ["github-head", "github-checkouts", "github-setup", "github-job", "github-records", "github-done",
+  "gitlab-head", "gitlab-setup", "gitlab-job", "gitlab-records", "gitlab-done"];
 const TEMPLATES = Object.fromEntries(await Promise.all(
   NAMES.map(async (name) => [name, await ownText(`templates/${name}.yml`)])));
 
 const GITHUB_FILE = ".github/workflows/agent-m-tests.yml";
 const GITLAB_FILE = ".gitlab/agent-m-tests.yml";
 const INCLUDE_ENTRY = `- local: ${GITLAB_FILE}`;
-const DEFAULT_COMMAND = "node --test --test-reporter=junit --test-reporter-destination=";
-const DEFAULT_REPORT = "agent-m-report.xml";
+// The occasion as a test job names it in AGENT_M_OCCASION (MOD-test-schedule, Data: The variables of a test job).
+const OCCASION_VALUE = { "every commit": "commit", "pull request": "pull-request", nightly: "nightly", "release candidate": "release-candidate",
+  "on demand": "on-demand" };
+// The occasions whose jobs carry the schedule's `minutes` (MOD-test-schedule, Data: The generated configuration).
+const BOUNDED = ["every commit", "pull request"];
+// The file on a GitLab runner that holds the week whose setup the cache keeps.
+const WEEK_FILE = ".agent-m-setup-week";
 
 // What starts a job of each occasion, on GitHub (an `if:` expression) and on GitLab (a rule's `if` expression).
 const GITHUB_IF = {
@@ -32,7 +43,7 @@ const GITLAB_IF = {
   "pull request": () => '$CI_PIPELINE_SOURCE == "merge_request_event"',
   nightly: () => '$CI_PIPELINE_SOURCE == "schedule"',
   "release candidate": () => "$CI_COMMIT_TAG =~ /^v.*-rc\\..*$/",
-  "on demand": (row) => `$CI_PIPELINE_SOURCE == "web" && $ROWS =~ /(^|,)${row}(,|$)/`,
+  "on demand": (row) => (row ? `$CI_PIPELINE_SOURCE == "web" && $ROWS =~ /(^|,)${row}(,|$)/` : '$CI_PIPELINE_SOURCE == "web"'),
 };
 // A push that changes only job records or conversation records starts no GitLab commit job. GitLab's `rules:changes` takes
 // globs of Ruby's File.fnmatch, which have no negation of a directory but do have `[!x]` and braces: the paths below are
@@ -85,50 +96,97 @@ export function ciConfiguration(schedule, target, resources, participants) {
     throw Object.assign(new Error(`InvalidSchedule: ${findings.map(formatFinding).join("; ")}`),
       { name: "InvalidSchedule", findings });
   }
-  const github = target.server === "github";
-  const secrets = secretsNeeded(schedule, resources).map((s) => s.name);
   const fm = schedule.fields;
-  const command = fm.command || null;
-  const report = fm.report || DEFAULT_REPORT;
-  const rows = rowsOf(schedule);
-  const jobs = rows.flatMap(({ cells }) => OCCASIONS.filter((o) => occasionsOf(cells.Row, schedule).includes(o)).map((occasion) => {
-    const row = cells.Row;
-    const key = `${row}-${occasion.replaceAll(" ", "-")}`;
-    const runner = runnerOf(cells, participants);
-    const names = row === "paid" ? secrets : [];
-    const run = command ?? `${DEFAULT_COMMAND}${report}`;
-    if (github) {
-      return fill(TEMPLATES["github-job"], {
-        key, row, condition: GITHUB_IF[occasion](row), runsOn: runner ? `[self-hosted, ${runner}]` : "ubuntu-latest",
-        secrets: lines("      ", names.map((n) => `${n}: \${{ secrets.${n} }}`)),
-        instance: target.instance, commit: target.instanceCommit, command: run, report,
-      });
-    }
-    const clone = quoted(`git clone ${target.instance} .agent-m && git -C .agent-m checkout ${target.instanceCommit}`);
-    return fill(TEMPLATES["gitlab-job"], {
-      key, row, tags: runner ? `  tags: [${runner}]` : "", rule: quoted(GITLAB_IF[occasion](row)),
-      secrets: names.length ? `  # Secrets, read from the CI variables: ${names.join(", ")}` : "",
-      changes: occasion === "every commit" ? `      changes:\n${lines("        ", GITLAB_CHANGES.map((c) => `- "${c}"`))}` : "",
-      clone, command: quoted(run),
-      handOn: quoted(`if [ -f ${report} ]; then AGENT_M_REPORT=${report} AGENT_M_INSTANCE_COMMIT=${target.instanceCommit} `
-        + "node .agent-m/src/workflow-entries/main.mjs onTestsFinished; fi"),
-    });
-  }));
+  const secrets = secretsNeeded(schedule, resources).map((s) => s.name);
+  // One test job for each row and occasion the schedule ticks, in the order of the table and of the occasions.
+  const tests = rowsOf(schedule).flatMap(({ cells }) => occasionsOf(cells.Row, schedule).map((occasion) => ({
+    row: cells.Row, occasion, key: `${cells.Row}-${occasion.replaceAll(" ", "-")}`, shards: cells.shards ?? 1,
+    runner: runnerOf(cells, participants), secrets: cells.Row === "paid" ? secrets : [],
+  })));
+  const parts = {
+    tests, setup: fm.setup || "", cache: fm.cache ?? [], minutes: fm.minutes ?? null, command: quoted(fm.command || ""),
+    commit: target.instanceCommit,
+    // The rows a pull request runs, with their numbers of shards, as agent-m done expects them.
+    expected: quoted(tests.filter((t) => t.occasion === "pull request").map((t) => `${t.row}:${t.shards}`).join(",")),
+  };
   const nightly = nightlyRows(schedule);
-  const instance = { instance: target.instance, commit: target.instanceCommit };
-  if (github) {
+  if (target.server === "github") {
     const head = fill(TEMPLATES["github-head"], {
       nightly: nightly.length ? `  schedule:\n    - cron: "${nightlyCron(schedule)}"` : "",
     });
-    const done = fill(TEMPLATES["github-done"], instance);
-    return { files: { [GITHUB_FILE]: head + [...jobs, done].join("") }, include: null, pipelineSchedule: null };
+    return { files: { [GITHUB_FILE]: head + githubJobs(parts, target).join("") }, include: null, pipelineSchedule: null };
   }
-  const done = fill(TEMPLATES["gitlab-done"], { clone: quoted(`git clone ${target.instance} .agent-m && git -C .agent-m checkout ${target.instanceCommit}`), commit: target.instanceCommit });
   return {
-    files: { [GITLAB_FILE]: TEMPLATES["gitlab-head"] + [...jobs, done].join("\n") },
+    files: { [GITLAB_FILE]: TEMPLATES["gitlab-head"] + gitlabJobs(parts, target).join("\n") },
     include: { file: ".gitlab-ci.yml", entry: INCLUDE_ENTRY },
     pipelineSchedule: nightly.length ? { cron: nightlyCron(schedule), rows: nightly } : null,
   };
+}
+
+// A short name of a text that changes with it — FNV-1a's 32 bits in hexadecimal —, so that another setup gives another cache key.
+function digest(text) {
+  let hash = 0x811c9dc5;
+  for (const byte of new TextEncoder().encode(text)) hash = Math.imul(hash ^ byte, 0x01000193) >>> 0;
+  return hash.toString(16).padStart(8, "0");
+}
+const indented = (indent, text) => text.split("\n").map((line) => indent + line).join("\n");
+const cached = (parts) => parts.cache.length > 0;
+
+// The jobs of the GitHub workflow: agent-m setup where the cache names paths, the test jobs, agent-m records and agent-m done.
+function githubJobs(parts, target) {
+  const limit = (bounded) => (parts.minutes && bounded ? `    timeout-minutes: ${parts.minutes}` : "");
+  const commit = quoted(parts.commit);
+  const checkouts = fill(TEMPLATES["github-checkouts"], { instance: target.instance, commit: parts.commit }).replace(/\n$/, "");
+  const paths = indented("            ", parts.cache.join("\n"));
+  const setupJob = cached(parts) ? fill(TEMPLATES["github-setup"], {
+    timeout: limit(true), hash: digest(parts.setup), paths, setup: parts.setup ? indented("          ", parts.setup) : "          true",
+  }) : "";
+  const restore = cached(parts) ? ["      - uses: actions/cache/restore@v4", "        with:", "          path: |", paths,
+    "          key: ${{ needs.agent-m-setup.outputs.key }}"].join("\n") : "";
+  const setupStep = parts.setup ? ["      - name: Set up the tests", "        run: |", indented("          ", parts.setup)].join("\n") : "";
+  const jobs = parts.tests.map((t) => fill(TEMPLATES["github-job"], {
+    key: t.key, row: t.row, occasion: OCCASION_VALUE[t.occasion], condition: GITHUB_IF[t.occasion](t.row),
+    needs: cached(parts) ? "    needs: agent-m-setup" : "", runsOn: t.runner ? `[self-hosted, ${t.runner}]` : "ubuntu-latest",
+    timeout: limit(BOUNDED.includes(t.occasion)), shards: Array.from({ length: t.shards }, (_, i) => i + 1).join(", "),
+    count: quoted(String(t.shards)), command: parts.command, secretNames: quoted(t.secrets.join(",")), commit,
+    secrets: lines("      ", t.secrets.map((n) => `${n}: \${{ secrets.${n} }}`)), checkouts, restore, setup: setupStep,
+  }));
+  const records = fill(TEMPLATES["github-records"], {
+    needs: parts.tests.map((t) => t.key).join(", "), timeout: limit(true), commit, checkouts,
+  });
+  const done = fill(TEMPLATES["github-done"], {
+    needs: [...parts.tests.filter((t) => t.occasion === "pull request").map((t) => t.key), "agent-m-records"].join(", "),
+    timeout: limit(true), expected: parts.expected, commit, checkouts,
+  });
+  return [setupJob, ...jobs, records, done].filter(Boolean);
+}
+
+// The jobs of the GitLab file: agent-m setup where the cache names paths, the test jobs, agent-m records and agent-m done.
+function gitlabJobs(parts, target) {
+  const limit = (bounded) => (parts.minutes && bounded ? `  timeout: ${parts.minutes} minutes` : "");
+  const commit = quoted(parts.commit);
+  const clone = quoted(`git clone ${target.instance} .agent-m && git -C .agent-m checkout ${parts.commit}`);
+  const changes = `      changes:\n${lines("        ", GITLAB_CHANGES.map((c) => `- "${c}"`))}`;
+  const key = `agent-m-setup-${digest(parts.setup)}`;
+  const cache = (policy) => (cached(parts) ? ["  cache:", `    key: ${key}`, "    paths:", lines("      - ", [...parts.cache, WEEK_FILE]),
+    ...(policy ? [`    policy: ${policy}`] : [])].join("\n") : "");
+  // The rules of a job that serves every occasion the schedule ticks: one for each, a push of only job records left out as for the commit rows.
+  const used = OCCASIONS.filter((o) => parts.tests.some((t) => t.occasion === o));
+  const rules = (always) => used.map((o) => [`    - if: ${quoted(GITLAB_IF[o](null))}`, ...(o === "every commit" ? [changes] : []),
+    ...(always ? ["      when: always"] : [])].join("\n")).join("\n");
+  const setupJob = cached(parts) ? fill(TEMPLATES["gitlab-setup"], { timeout: limit(true), setup: quoted(parts.setup), rules: rules(false), cache: cache(null) }) : "";
+  const jobs = parts.tests.map((t) => fill(TEMPLATES["gitlab-job"], {
+    key: t.key, row: t.row, occasion: OCCASION_VALUE[t.occasion], tags: t.runner ? `  tags: [${t.runner}]` : "",
+    parallel: t.shards > 1 ? `  parallel: ${t.shards}` : "", timeout: limit(BOUNDED.includes(t.occasion)),
+    shard: t.shards > 1 ? "$CI_NODE_INDEX" : quoted("1"), count: quoted(String(t.shards)), command: parts.command,
+    secretNames: quoted(t.secrets.join(",")), commit, rule: quoted(GITLAB_IF[t.occasion](t.row)),
+    changes: t.occasion === "every commit" ? changes : "",
+    secrets: t.secrets.length ? `  # Secrets, read from the CI variables: ${t.secrets.join(", ")}` : "",
+    cache: cache("pull"), clone, setup: parts.setup ? `    - ${quoted(parts.setup)}` : "",
+  }));
+  const records = fill(TEMPLATES["gitlab-records"], { timeout: limit(true), commit, rules: rules(true), clone });
+  const done = fill(TEMPLATES["gitlab-done"], { timeout: limit(true), expected: parts.expected, commit, clone });
+  return [setupJob, ...jobs, records, done].filter(Boolean);
 }
 
 // ---------------------------------------------------------------------------------------- the comparison with a committed one

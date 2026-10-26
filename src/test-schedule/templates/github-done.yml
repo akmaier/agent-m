@@ -1,15 +1,19 @@
   agent-m-done:
     name: agent-m done
-    if: github.event_name == 'pull_request'
+    needs: [{{needs}}]
+    if: ${{ !cancelled() && github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
+{{timeout}}
+    env:
+      AGENT_M_TOKEN: ${{ secrets.AGENT_M_TOKEN }}
+      AGENT_M_EXPECTED: {{expected}}
+      AGENT_M_INSTANCE_COMMIT: {{commit}}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
+{{checkouts}}
+      - name: Take the run's artifacts
+        uses: actions/download-artifact@v4
         with:
-          repository: {{instance}}
-          ref: {{commit}}
-          path: .agent-m
+          path: agent-m-reports
+          merge-multiple: true
       - name: Check the Definition of Done
         run: node .agent-m/src/workflow-entries/main.mjs onDoneCheck
-        env:
-          AGENT_M_INSTANCE_COMMIT: {{commit}}

@@ -4,7 +4,8 @@
 // default. They give the complete run of a release candidate the levels it runs, the command that runs them and the
 // runner of each (MOD-release-evidence). ITM-742 adds scheduleFindings (rules.mjs). ITM-743 adds occasionsOf and secretsNeeded (occasions.mjs). ITM-744 adds
 // ciConfiguration (generate.mjs, templates/). ITM-746 adds proposeSchedule and applyPipelineSchedule (propose.mjs). ITM-747 adds scheduleStrategies
-// (strategies.mjs). ITM-745 adds configurationDrift (generate.mjs). ITM-1213 adds testsOfRow (rows.mjs).
+// (strategies.mjs). ITM-745 adds configurationDrift (generate.mjs). ITM-1213 adds testsOfRow (rows.mjs). ITM-1214 gives ciConfiguration
+// shards, time limits, the jobs agent-m setup and agent-m records, and the token in agent-m records and agent-m done alone.
 //
 // Module: MOD-test-schedule
 //
