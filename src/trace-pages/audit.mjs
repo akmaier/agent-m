@@ -107,6 +107,13 @@ function select(className, label, values, change) {
   return node;
 }
 
+// A cell of the table that names its column in `data-label`, which a phone shows above the cell's text when the table's rows stand as blocks (table.list).
+function cell(label, className, ...children) {
+  const td = el("td", className, ...children);
+  td.setAttribute("data-label", label);
+  return td;
+}
+
 // One row: the requirement and what it constrains, its sources, its tests, its gates, the acceptance of the report, and the detail with the links.
 function rowOf(row, { release, audit, acceptance }, links) {
   const accepted = audit.summary.accepted;
@@ -132,12 +139,12 @@ function rowOf(row, { release, audit, acceptance }, links) {
     detail.append(approval);
   }
   const tr = el("tr", "audit-row",
-    el("td", null, el("span", "audit-requirement", row.requirement), " ", el("span", "audit-constrains", row.constrains)),
-    el("td", null, ...row.sources.flatMap((source) => [el("span", "audit-source", source.id), ` (${source.authority}, ${source.version}) `])),
-    el("td", null, ...tests),
-    el("td", null, ...row.gates.map((gate) => el("span", "audit-gate", gate))),
-    el("td", "audit-evidence", evidence),
-    el("td", null, detail));
+    cell("Requirement", null, el("span", "audit-requirement", row.requirement), " ", el("span", "audit-constrains", row.constrains)),
+    cell("Sources", null, ...row.sources.flatMap((source) => [el("span", "audit-source", source.id), ` (${source.authority}, ${source.version}) `])),
+    cell("Tests", null, ...tests),
+    cell("Gates", null, ...row.gates.map((gate) => el("span", "audit-gate", gate))),
+    cell("Acceptance", "audit-evidence", evidence),
+    cell("Detail", null, detail));
   tr.setAttribute("data-requirement", row.requirement);
   return tr;
 }
@@ -153,7 +160,7 @@ function page(loaded, links, host) {
     && (!state.gaps || !COUNTED.passing(row));
   const draw = () => tbody.replaceChildren(...audit.rows.filter(keep).map((row) => rowOf(row, loaded, links)));
 
-  const summary = el("div", "audit-summary");
+  const summary = el("div", "audit-summary panel");
   for (const [kind, label] of KINDS) {
     const number = String(audit.summary[kind]);
     if (COUNTED[kind]) {
@@ -175,7 +182,7 @@ function page(loaded, links, host) {
   gaps.setAttribute("type", "checkbox");
   gaps.checked = false;
   gaps.addEventListener("change", () => { state.gaps = gaps.checked; draw(); });
-  const filters = el("div", "audit-filters",
+  const filters = el("div", "audit-filters panel",
     select("audit-filter-normative", "Sources", ["all", "normative"], (event) => { state.normative = event.target.value; draw(); }),
     select("audit-filter-source", "Source", ["all", ...sources], (event) => { state.source = event.target.value; draw(); }),
     select("audit-filter-level", "Level", ["all", ...levels], (event) => { state.level = event.target.value; draw(); }),
@@ -183,23 +190,24 @@ function page(loaded, links, host) {
 
   const accept = el("a", "audit-accept", "Accept the report");
   accept.setAttribute("href", "#release");
-  const head = el("tr", null, ...["Requirement", "Sources", "Tests", "Gates", "Acceptance", ""].map((text) => el("th", null, text)));
+  const head = el("tr", null, ...["Requirement", "Sources", "Tests", "Gates", "Acceptance", "Detail"].map((text) => el("th", null, text)));
   draw();
   return [
     ...(audit.summary.accepted ? [] : [el("p", "audit-not-accepted", "The release test report has not been accepted: evidence not accepted. ", accept)]),
     ...(audit.summary.limitations.length ? [el("ul", "audit-limitations", ...audit.summary.limitations.map((text) => el("li", null, text)))] : []),
     exportControls(el, { audit, release, host, head: defaultBranch, canWrite }),
-    summary, filters, el("table", "audit-table", el("thead", null, head), tbody)];
+    summary, filters, el("table", "audit-table list", el("thead", null, head), tbody)];
 }
 
 /**
- * drawAudit(target, context, host, ref, descriptor, tags, tagsProblem) — draws the audit of the release tag `ref` (the newest of `tags`, the release tags newest first, where
+ * drawAudit(target, context, host, ref, descriptor, tags, tagsProblem, underHeading) — draws the audit of the release tag `ref` (the newest of `tags`, the release tags newest first, where
  * `ref` is none of them) into `target`; the choice offers `tags` and nothing else, and choosing one draws the page again at it. Where a read fails the page names it;
- * `tagsProblem`, when the tags could not be read, is the element that says so, and stands in place of the audit.
+ * `tagsProblem`, when the tags could not be read, is the element that says so, and stands in place of the audit. `underHeading`, the elements flow.mjs hands — the
+ * Tests entry's views for the audit of a release tag, none for a candidate's —, stand under the heading, whatever the page shows below it.
  */
-export async function drawAudit(target, context, host, ref, descriptor, tags, tagsProblem = null) {
+export async function drawAudit(target, context, host, ref, descriptor, tags, tagsProblem = null, underHeading = []) {
   const place = el("div", "audit-body");
-  const section = el("section", "audit head", el("h2", null, descriptor.title), place);
+  const section = el("section", "audit head", el("h2", null, descriptor.title), ...underHeading, place);
   if (tagsProblem) {
     target.replaceChildren(section);
     place.append(tagsProblem);
