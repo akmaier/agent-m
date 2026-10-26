@@ -96,18 +96,26 @@ export function testDeclarations(path, text) {
   return p.endsWith(".md") ? markdownDeclarations(p, t) : commentDeclarations(p, t);
 }
 
-// testDeclarations for any file read by its comment lines (every language but Markdown).
+// testDeclarations for any file read by its comment lines (every language but Markdown). A declaration's fields end at its
+// first comment line not of their form, but its title is read on the first line after the whole block of comment lines it
+// stands in — past a `Planted fault:` line or a field's value continued over further comment lines —: every declaration of
+// the block waits for that line.
 function commentDeclarations(path, text) {
   const declarations = [];
   let current = null;
+  let untitled = [];
   const lines = splitLines(text);
   for (let i = 0; i < lines.length; i += 1) {
     const content = commentContent(lines[i]);
-    if (content === null) { if (current !== null) current.title = titleOn(lines[i]); current = null; continue; }
+    if (content === null) {
+      for (const waiting of untitled) waiting.title = titleOn(lines[i]);
+      untitled = [];
+      current = null;
+      continue;
+    }
     if (current !== null) {
       const key = KEY_LINE.exec(content);
       if (key !== null) { applyField(current.fields, key[1], key[2]); continue; }
-      current.title = titleOn(lines[i]);
       current = null; // this comment line does not continue the declaration — it may still start a new one below
     }
     const parts = content.split(PACK_SEPARATOR);
@@ -119,6 +127,7 @@ function commentDeclarations(path, text) {
       if (key !== null) applyField(current.fields, key[1], key[2]);
     }
     declarations.push(current);
+    untitled.push(current);
   }
   return declarations.map(toDeclaration);
 }
