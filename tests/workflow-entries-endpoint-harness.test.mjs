@@ -129,9 +129,12 @@ async function world({ register = false, answers }, run) {
   const productDir = join(workspace, "product");
   repository(root, "product", { ...PRODUCT, [path]: record, ...(register ? { "docs/sources/SRC-secret/notes.txt": `${SECRET_LINE}\n` } : {}) }, productDir);
   const requests = [];
-  const saved = { PATH: process.env.PATH, FIXTURE_KEY: process.env.FIXTURE_KEY, AGENT_M_TOKEN: process.env.AGENT_M_TOKEN, FIXTURE_VISIBLE: process.env.FIXTURE_VISIBLE, fetch: globalThis.fetch };
-  // The machine's environment as a command of bash would inherit it: the key and the token are in it, and a variable that is neither, as the known positive.
+  const saved = { PATH: process.env.PATH, FIXTURE_KEY: process.env.FIXTURE_KEY, AGENT_M_TOKEN: process.env.AGENT_M_TOKEN, FIXTURE_VISIBLE: process.env.FIXTURE_VISIBLE,
+    NODE_TEST_CONTEXT: process.env.NODE_TEST_CONTEXT, fetch: globalThis.fetch };
+  // The machine's environment as a command of bash would inherit it: the key and the token are in it, and a variable that is neither, as the known positive. The test
+  // runner's own NODE_TEST_CONTEXT is not, so that the product's tests run by bash report as they do on a runner.
   Object.assign(process.env, { PATH: `${bin}:${process.env.PATH}`, FIXTURE_KEY: KEY, AGENT_M_TOKEN: TOKEN, FIXTURE_VISIBLE: "seen-visible-2026" });
+  delete process.env.NODE_TEST_CONTEXT;
   globalThis.fetch = async (address, init = {}) => {
     if (!String(address).startsWith(ENDPOINT.baseUrl)) throw new TypeError(`uncontrolled request: ${address}`);
     requests.push({ address: String(address), headers: init.headers ?? {}, body: JSON.parse(String(init.body ?? "{}")) });
@@ -152,7 +155,7 @@ async function world({ register = false, answers }, run) {
       // The text of every tool result the endpoint was sent, in the order sent.
       toolResults: () => requests.at(-1).body.messages.filter((message) => message.role === "tool").map((message) => message.content) });
   } finally {
-    for (const name of ["PATH", "FIXTURE_KEY", "AGENT_M_TOKEN", "FIXTURE_VISIBLE"]) { if (saved[name] === undefined) delete process.env[name]; else process.env[name] = saved[name]; }
+    for (const name of ["PATH", "FIXTURE_KEY", "AGENT_M_TOKEN", "FIXTURE_VISIBLE", "NODE_TEST_CONTEXT"]) { if (saved[name] === undefined) delete process.env[name]; else process.env[name] = saved[name]; }
     globalThis.fetch = saved.fetch;
     rmSync(root, { recursive: true, force: true });
   }
