@@ -24,7 +24,7 @@ import { createHash, createPublicKey, generateKeyPairSync, verify } from "node:c
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { buildPlatform } from "../src/bridge-build/index.mjs";
 import { appDescription } from "../src/desktop-shell/index.mjs";
@@ -365,14 +365,39 @@ test("buildPlatform — the Linux build writes the AppImage with its detached si
   } finally { run.settle(); }
 });
 
+// The occasions of Agent M's schedule on which the real build runs: those whose test jobs carry no time limit — the nightly run, a release
+// candidate, a start by hand —, so never a commit's or a pull request's CI (A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES). Every test job of the
+// schedule names its occasion in AGENT_M_OCCASION.
+const REAL_BUILD = ["nightly", "release-candidate", "on-demand"].includes(process.env.AGENT_M_OCCASION) && process.platform === "linux";
+
+// A virtual display for the packaged app's tunnel check where the machine has none, as xvfb-run gives one: Xvfb on a free display number, which it
+// writes to its file descriptor 3. Resolves with the display and the function that ends it; where a display is set, with that one.
+function virtualDisplay() {
+  if (process.env.DISPLAY) return Promise.resolve({ display: process.env.DISPLAY, end: () => {} });
+  return new Promise((resolve, reject) => {
+    const server = spawn("Xvfb", ["-displayfd", "3", "-screen", "0", "1280x1024x24", "-nolisten", "tcp"], { stdio: ["ignore", "ignore", "pipe", "pipe"] });
+    let said = "";
+    server.on("error", reject);
+    server.on("close", (code) => reject(new Error(`Xvfb ended with ${code} before it named its display`)));
+    server.stdio[3].on("data", (chunk) => {
+      said += chunk;
+      const number = /^(\d+)\n/.exec(said);
+      if (number) resolve({ display: `:${number[1]}`, end: () => server.kill("SIGTERM") });
+    });
+  });
+}
+
 // TST-961006 · level: component · module: MOD-bridge-build
 // guards: THE BRIDGE IS ONE FILE PER PLATFORM; THE BRIDGE IS SIGNED BY ITS PUBLISHER; UC-044
-// given: a Linux runner, a checkout of this repository's src/ at a tag, and a test update key; the real npm, electron-builder and Electron — which the overnight runs start, never a pull request's CI (BRIDGE_BUILD_REAL=1)
-// input: buildPlatform({ platform: "linux", checkout, tag, folder })
+// given: a Linux runner with Xvfb, a checkout of this repository's src/ at a tag, and a test update key; the real npm, electron-builder and Electron — which the nightly run, a release candidate and a start by hand run (AGENT_M_OCCASION nightly, release-candidate or on-demand), never a pull request's CI
+// input: buildPlatform({ platform: "linux", checkout, tag, folder }), with a virtual display where the runner has none
 // expect: the folder holds the .AppImage, its <file>.sig that the public half of the test key verifies, and the line of SHA256SUMS for it
-test("buildPlatform — the real Linux build writes the AppImage, its detached signature and its SHA256SUMS line", { skip: process.env.BRIDGE_BUILD_REAL !== "1" || process.platform !== "linux" ? "the overnight runs set BRIDGE_BUILD_REAL=1 on a Linux runner" : false, timeout: 1_800_000 }, async () => {
+test("buildPlatform — the real Linux build writes the AppImage, its detached signature and its SHA256SUMS line", { skip: REAL_BUILD ? false : "runs on a Linux runner on the nightly run, a release candidate and a start by hand (AGENT_M_OCCASION)", timeout: 1_800_000 }, async () => {
   const root = mkdtempSync(join(tmpdir(), "bridge-build-real-"));
   const before = process.env.BRIDGE_UPDATE_KEY;
+  const display = process.env.DISPLAY;
+  const screen = await virtualDisplay();
+  process.env.DISPLAY = screen.display;
   try {
     const checkout = join(root, "checkout");
     mkdirSync(checkout);
@@ -393,6 +418,8 @@ test("buildPlatform — the real Linux build writes the AppImage, its detached s
     assert.ok(readFileSync(join(folder, "SHA256SUMS"), "utf8").split("\n").includes(`${sha256(bytes)}  ${appImage.name}`));
   } finally {
     if (before === undefined) delete process.env.BRIDGE_UPDATE_KEY; else process.env.BRIDGE_UPDATE_KEY = before;
+    if (display === undefined) delete process.env.DISPLAY; else process.env.DISPLAY = display;
+    screen.end();
     rmSync(root, { recursive: true, force: true });
   }
 });
