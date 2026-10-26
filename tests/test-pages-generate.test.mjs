@@ -532,3 +532,20 @@ test("TST-1223007 — generate: the head leads through the Tests entry's views, 
   look.assertButtons(target, 2);
   look.assertPanels(target, 3);
 });
+
+// TST-1225004 · level: unit · module: MOD-test-pages
+// guards: EVERY STEP EXPLAINS ITSELF; UC-026
+// given: the same product
+// input: the route generate, drawn
+// expect: the fold of each of the five levels has the text of the frame's explain(test-level-<level>), which is not empty; generate.mjs creates no details element itself
+test("TST-1225004 — generate: each level's fold is the frame's explanation of its topic", async () => {
+  const { explain } = await import("../src/site-frame/index.mjs");
+  const target = await show(fakeProduct());
+  for (const row of byClass(target, "tr", "level")) {
+    const level = row.getAttribute("data-level");
+    const framed = explain(`test-level-${level}`).textContent;
+    assert.ok(framed.trim() !== "", `explanations.md holds test-level-${level}`);
+    assert.deepEqual(find(row, (node) => node.localName === "details").map((fold) => fold.textContent), [framed], level);
+  }
+  assert.doesNotMatch(readFileSync(new URL("../src/test-pages/generate.mjs", import.meta.url), "utf8"), /"details"/, "the module builds no fold of its own");
+});

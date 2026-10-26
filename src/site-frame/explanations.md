@@ -1031,6 +1031,88 @@ A **failed** test has a recorded result that did not meet its expectation. A **f
 
 Choose *Run on this commit* to start the levels that still need a result. Before it starts, the page shows where the run will happen, any paid services it calls, and the secrets it uses by name.
 
+## test-level-unit
+
+Tests of one function or class in isolation, fast and without external services. Book: ch. 13, Unit Testing.
+
+The level unit checks one function, class or small module in isolation; derived from a module; automated, external services mocked. The book, chapter 13, section "Unit Testing and Automation Structure".
+
+## test-level-component
+
+Tests of the interface between modules. Book: ch. 13, Component Testing.
+
+The level component checks the interface between units that work together; derived from an architecture element and its modules; automated, misuse, misunderstanding and timing cases. The book, chapter 13, section "Component Testing and Interface Risks".
+
+## test-level-system
+
+Tests that walk a use case end to end, with recorded responses in place of paid services. Book: ch. 13, System Testing and ch. 13 on mocking.
+
+The level system checks the integrated product along a use case; derived from a use case; automated, end to end. The book, chapter 13, section "System Testing and Practical Scope Selection".
+
+## test-level-paid
+
+Tests that call a paid service or a model, which cut across the levels; they run nightly, not on every commit. Book: ch. 13 on mocking and the nightly integration test.
+
+## test-level-release
+
+Tests written by a participant other than the implementer, for each requirement. Book: ch. 13, Release Testing.
+
+The level release checks a release candidate against the specification; derived from a requirement; automated or manual, written by someone other than the implementer. The book, chapter 13, section "Release Testing".
+
+## test-level-user
+
+Manual tests whose outcome the people assigned enter. Book: ch. 13, User Testing and Acceptance Decisions.
+
+The level user checks the product in real use: alpha, beta, acceptance; derived from a requirement or acceptance criterion; manual, the outcome entered by a person. The book, chapter 13, section "User Testing and Acceptance Decisions".
+
+## test-occasion-every-commit
+
+Runs on each push to the default branch, so a break shows at once. Book: ch. 12, Test Automation and Continuous Integration.
+
+## test-occasion-pull-request
+
+Runs on each pull request before its merge. Book: ch. 12, Test Automation and Continuous Integration.
+
+## test-occasion-nightly
+
+Runs once a night, for what is too slow or too costly for every commit, such as the integration test against real services. Book: ch. 13 on mocking and the nightly integration test.
+
+## test-occasion-release-candidate
+
+Runs on a release candidate, and must run every test at every level; it cannot be cleared. Book: ch. 13, Release Testing.
+
+## test-occasion-on-demand
+
+Runs when a person starts it, naming the rows to run. Book: ch. 12, Test Automation and Continuous Integration.
+
+## schedule-field-nightly
+
+The time of the nightly run, HH:MM in UTC. Book: ch. 13 on mocking and the nightly integration test.
+
+## schedule-field-command
+
+The command that runs the test files a job is given; leave it empty where the tests run with node's own test runner. Book: ch. 12, Automated Build Systems.
+
+## schedule-field-setup
+
+A command run in every test job before its tests, such as installing what they need; leave it empty where nothing is installed. Book: ch. 12, Automated Build Systems.
+
+## schedule-field-cache
+
+The paths on the runner that setup fills and the CI service keeps between runs, one path per line; leave it empty where nothing is kept. Book: ch. 12, Test Automation and Continuous Integration.
+
+## schedule-field-minutes
+
+The time limit of every job on every commit and on a pull request, in whole minutes; leave it empty where none is set. Book: ch. 12, Test Automation and Continuous Integration.
+
+## schedule-secrets
+
+The tests that call a paid service or a model read their key from the CI's secrets. Open the server's secrets page for this product, add a secret there under the name shown, and paste its value into the server's form, never into Agent M. Book: ch. 13 on mocking and the nightly integration test.
+
+## schedule-self-hosted-runner
+
+A row on a self-hosted runner waits until a machine of yours is registered to this repository with the label shown. Open the server's runner page: it shows the command to run on that machine, with a short-lived token of its own, which Agent M never sees. Until a runner with the label is online, the runs of the row stay queued. Book: ch. 12, Test Automation and Continuous Integration.
+
 ## run-jobs-at-once
 
 How many jobs the run may have running at the same time. It is preset to the work-in-progress limit of the product's process model, or to 3 where the model sets none. A job that waits for another job or for a gate does not start before it is done, however high the number is; steps that do not depend on each other run side by side up to it.
