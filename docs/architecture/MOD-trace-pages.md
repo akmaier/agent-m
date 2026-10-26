@@ -61,6 +61,7 @@ uses:
   - MOD-source-register.personSource
   - MOD-source-register.personAccount
   - MOD-prompt-bar.Subject
+  - MOD-test-pages.testsViews
 provides:
   - view
 ---
@@ -188,6 +189,8 @@ log, the link reads *no longer available*, and the mark keeps its outcome (UC-02
   MOD-source-register.personSource, MOD-source-register.personAccount — the person's own source, which the subject of a
   requirement carries.
 - MOD-prompt-bar.Subject — the subject each route gives the prompt bar.
+- MOD-test-pages.testsViews — the Tests entry's views, drawn under the heading of the tests browser and of the audit,
+  the one shown marked.
 - MOD-test-schedule.occasionsOf — when the schedule runs a test; MOD-test-schedule.scheduleSchema reads the product's
   `docs/tests/schedule.md` at the version shown, and MOD-test-schedule.defaultSchedule gives the book's schedule where the
   product has none, the document `occasionsOf` is given.

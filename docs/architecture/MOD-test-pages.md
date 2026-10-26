@@ -73,6 +73,7 @@ uses:
   - MOD-runtimes.routeStrategies
 provides:
   - view
+  - testsViews
 ---
 # MOD-test-pages The pages of tests and releases
 
@@ -83,8 +84,9 @@ trace graph: the schedule of the product's test levels and the CI configuration 
 commit, per level and per test, with a missing level run from the page; generating tests; and the release panel — the
 next version, the release candidate and its complete run, and the release test report with *Accept and release*. The
 tests browser and the audit are views of MOD-trace-pages; the release panel shows the audit of its candidate inside
-itself through the frame (`embedRoute`), without using that module, and the routes of Tests link those two views by
-their addresses through the frame's `go`.
+itself through the frame (`embedRoute`), without using that module. The Tests entry's views — which they are, their
+order and how the one shown is marked — are this module's, and it offers them to the two views of MOD-trace-pages that
+stand under the entry (`testsViews`).
 
 It serves UC-013, UC-026, UC-027 and UC-028.
 
@@ -93,9 +95,8 @@ It runs in a browser, loaded by `docs/index.html` through MOD-site-frame.
 ## Parts
 
 - `index.mjs` — the interface: `view`.
-- `look.mjs` — what the routes of Tests share of the site's look: the head — the route's heading and the line of where
-  it reads, the address, the ref read and how — with the Tests entry's views under it in this order, the one shown
-  marked: Schedule, Browser (`#trace/key=tests`), Runs, Audit (`#trace/key=audit`), Generate; and the frame's table
+- `look.mjs` — what the routes of Tests share of the site's look: `testsViews`; the head — the route's heading and the
+  line of where it reads, the address, the ref read and how — with `testsViews` under it; and the frame's table
   (`table.list`), each cell labelled with its column's title.
 - `schedule.mjs` — the schedule and its configuration.
 - `runs.mjs` — the runs of a commit.
@@ -150,6 +151,12 @@ formats are those of the modules it uses.
     level with its result, every model-dependent check as a rate against the running version, every requirement with its
     evidence — the audit of the candidate, drawn by the trace pages' route inside this panel —, and the release test
     report with *Accept and release*, which asks first for the reason of every failing test and every worse rate.
+
+- `testsViews(context: ViewContext, shown: "Schedule" | "Browser" | "Runs" | "Audit" | "Generate") -> Element` — the
+  Tests entry's views as a navigation named *Tests*, in this order: Schedule (`#schedule`), Browser (`#trace/key=tests`),
+  Runs (`#runs`), Audit (`#trace/key=audit`), Generate (`#generate`); each a link drawn as the frame's button, whose
+  address is its route's and whose click goes through `context.go`; the view `shown` marked as the page shown
+  (`aria-current="page"`) and drawn as the frame's primary button. It throws nothing and reads nothing.
 
 ## Files
 

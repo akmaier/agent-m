@@ -186,6 +186,7 @@ conversation's draft, the main page the conversation's job, and the settings pag
 | MOD-site-frame | the types `View`, `Route`, `ViewContext` and `PageSetup`; `startPage`, `embedRoute`, `menuOf`, `instanceOf`, `chosenProduct`, `explain`, `runPanel`, `confirmDecision`, `notice`, `schemaForm` |
 | MOD-markdown-render | `renderArtifact`, `renderMermaid`, `openEditor`, `showDifference` |
 | MOD-notifications | `NotificationState`, `watchForAcceptance`, `notificationState`, `switchOn`, `testNotification`, `switchOff` |
+| MOD-test-pages | `testsViews` |
 | MOD-prompt-bar | `Subject`, `Message`, `ConversationDraft`, `startPromptBar`, `latestDraft`, `currentJob`, `recordingSchema`, `recordingOf` |
 
 ### Its modules
@@ -225,6 +226,7 @@ flowchart BT
   TR --> SF
   TR --> MRD
   TR --> PB
+  TR --> TP
   IMP --> SF
   IMP --> MRD
   TP --> SF
@@ -251,7 +253,8 @@ starts the prompt bar and hands it the subject of the route shown, its explanati
 needs the frame, which would close a cycle (`MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE`), and the form of an address
 stays the frame's alone (`A DATA FORMAT IS DEFINED ONCE`). The views use MOD-prompt-bar for the type of their subject and,
 on the review pages' route `draft`, for the conversation's draft; the main page for the conversation's job; the settings
-page for the recording switch.
+page for the recording switch. The trace pages' tests browser and audit use MOD-test-pages' `testsViews`, the Tests
+entry's views, which that module owns with the entry's other routes; MOD-test-pages uses no trace page.
 
 ## Alternatives
 
