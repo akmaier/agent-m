@@ -34,8 +34,7 @@ const path = globalThis.process?.getBuiltinModule?.("node:path");
  * CiEnvironment — { entry: string, service: "github" | "gitlab", event: { name: string | null, payload: object | null }, checkout: string,
  * repository: string, branch: string | null, agentM: { commit: string | null }, token: string | null, now: Date, job: { runner: string | null,
  * productDir: string | null, instanceDir: string | null, actor: string | null, runUrl: string | null, tokenName: string, personToken: string | null,
- * keys: Record<string, string | null>, summaryFile: string | null }, tests?: { row: string | null, report: string | null, runner: string | null, tag: boolean, pullRequest: number | null, job: string | null,
- * jobUrl: string | null } } — what an entry reads from the workflow's environment; `job` is what a product's job workflow adds:
+ * keys: Record<string, string | null>, summaryFile: string | null }, tests?: { expected: string | null, runner: string | null, pullRequest: number | null } } — what an entry reads from the workflow's environment; `job` is what a product's job workflow adds:
  * the runner, the checkouts, the run's address, the name and value of the person's token and each key secret's value by its name, and the file GITHUB_STEP_SUMMARY names
  * for the run's summary, where it is set. `token` is the workflow's own token, by its name GITHUB_TOKEN, never by value in a file; `branch` the branch the workflow runs for.
  * `service` is `gitlab` where GITLAB_CI is `true`, else `github`; a GitLab job's variables are read as gitlabEnvironment states. `tests`, for the entries
@@ -76,8 +75,7 @@ function githubEnvironment(entry, env, now) {
     checkout: env.GITHUB_WORKSPACE ?? "", repository: env.GITHUB_SERVER_URL && env.GITHUB_REPOSITORY ? `${env.GITHUB_SERVER_URL}/${env.GITHUB_REPOSITORY}` : "",
     branch: env.GITHUB_REF_NAME || null, agentM: { commit: env.GITHUB_SHA ?? null }, token: env.GITHUB_TOKEN || null, now,
     ...(entry === "onReleaseTagged" ? { release: releaseOf(env) } : {}),
-    ...(TEST_ENTRIES.includes(entry) ? { tests: testsOf(env, env.GITHUB_WORKSPACE ?? "", { runner: env.RUNNER_NAME || null, tag: env.GITHUB_REF_TYPE === "tag",
-      pullRequest: Number(payload?.pull_request?.number) || null, job: env.GITHUB_JOB || null, jobUrl: null }) } : {}),
+    ...(TEST_ENTRIES.includes(entry) ? { tests: testsOf(env, { runner: env.RUNNER_NAME || null, pullRequest: Number(payload?.pull_request?.number) || null }) } : {}),
     job: {
       runner: env.AGENT_M_RUNNER || null, productDir: env.AGENT_M_PRODUCT_DIR || null,
       instanceDir: env.GITHUB_WORKSPACE ? path.join(env.GITHUB_WORKSPACE, "instance") : null, actor: env.GITHUB_ACTOR || null,
@@ -109,8 +107,7 @@ function gitlabEnvironment(entry, env, now) {
   return {
     entry, service: "gitlab", event: { name: env.CI_PIPELINE_SOURCE ?? null, payload: { inputs } },
     checkout: env.CI_PROJECT_DIR ?? "", repository: env.CI_PROJECT_URL ?? "", branch: env.CI_COMMIT_REF_NAME || null, agentM: { commit: env.CI_COMMIT_SHA ?? null }, token: null, now,
-    ...(TEST_ENTRIES.includes(entry) ? { tests: testsOf(env, env.CI_PROJECT_DIR ?? "", { runner: env.CI_RUNNER_DESCRIPTION || null, tag: Boolean(env.CI_COMMIT_TAG),
-      pullRequest: Number(env.CI_MERGE_REQUEST_IID) || null, job: env.CI_JOB_NAME || null, jobUrl: env.CI_JOB_URL || null }) } : {}),
+    ...(TEST_ENTRIES.includes(entry) ? { tests: testsOf(env, { runner: env.CI_RUNNER_DESCRIPTION || null, pullRequest: Number(env.CI_MERGE_REQUEST_IID) || null }) } : {}),
     job: {
       runner: env.AGENT_M_RUNNER || null, productDir: env.AGENT_M_PRODUCT_DIR || null,
       instanceDir: env.CI_PROJECT_DIR ? path.join(env.CI_PROJECT_DIR, "..", "instance") : null, actor: env.GITLAB_USER_LOGIN || null, runUrl: env.CI_PIPELINE_URL || null,
@@ -121,14 +118,14 @@ function gitlabEnvironment(entry, env, now) {
   };
 }
 
-// What MOD-test-schedule's generated test configuration gives the entries it runs, for those entries only (`tests`; src/test-schedule/templates/): each job runs in the product's checkout, the
-// workspace, the instance checked out into its folder `.agent-m`; AGENT_M_LEVEL is the schedule's row the job runs and AGENT_M_REPORT the path of the run's JUnit XML
-// report, relative to the checkout. `runner` is the name the runner gives itself — GitHub's RUNNER_NAME, GitLab's CI_RUNNER_DESCRIPTION —, `tag` whether a tag was pushed,
-// `pullRequest` the number of the event's pull request — GitHub's payload, GitLab's CI_MERGE_REQUEST_IID —, `job` the job that runs — GitHub's GITHUB_JOB, GitLab's CI_JOB_NAME —
-// and `jobUrl` its page where the service names it (GitLab's CI_JOB_URL).
+// What MOD-test-schedule's generated test configuration gives the entries of its jobs `agent-m records` and `agent-m done`, for those entries only (`tests`): each job runs in the
+// product's checkout, the workspace, with the run's reports and statuses taken into its folder agent-m-reports/, the instance checked out into its folder `.agent-m`.
+// `expected` is AGENT_M_EXPECTED, the rows and numbers of shards of a pull request's run (`<row>:<shards>`, separated by commas), which onDoneCheck reads; `runner` the name
+// the runner gives itself — GitHub's RUNNER_NAME, GitLab's CI_RUNNER_DESCRIPTION —; `pullRequest` the number of the event's pull request — GitHub's payload, GitLab's
+// CI_MERGE_REQUEST_IID.
 const TEST_ENTRIES = ["onTestsFinished", "onDoneCheck"];
-function testsOf(env, checkout, more) {
-  return { row: env.AGENT_M_LEVEL || null, report: env.AGENT_M_REPORT ? path.resolve(checkout || ".", env.AGENT_M_REPORT) : null, ...more };
+function testsOf(env, more) {
+  return { expected: env.AGENT_M_EXPECTED || null, ...more };
 }
 
 // The machine a job workflow's job is (src/runtimes/workflow/github.yml, gitlab.yml): AGENT_M_PART `agent` or `write`, else null, where it is neither — the plan —; the
