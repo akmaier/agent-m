@@ -203,7 +203,7 @@ const FIELD_TEXT = {
   nightly: "The time of the nightly run, HH:MM in UTC. Book: ch. 13 on mocking and the nightly integration test.",
   command: "The command that runs the test files a job is given; leave it empty where the tests run with node's own test runner. Book: ch. 12, Automated Build Systems.",
   setup: "A command run in every test job before its tests, such as installing what they need; leave it empty where nothing is installed. Book: ch. 12, Automated Build Systems.",
-  cache: "The paths on the runner that setup fills and the CI service keeps between runs, separated by commas; leave it empty where nothing is kept. Book: ch. 12, Test Automation and Continuous Integration.",
+  cache: "The paths on the runner that setup fills and the CI service keeps between runs, one path per line; leave it empty where nothing is kept. Book: ch. 12, Test Automation and Continuous Integration.",
   minutes: "The time limit of every job on every commit and on a pull request, in whole minutes; leave it empty where none is set. Book: ch. 12, Test Automation and Continuous Integration.",
 };
 
@@ -212,10 +212,12 @@ const FIELD_TEXT = {
 // writes nothing itself: `onSave` does.
 function scheduleForm(schedule, table, state, { participants, findings, onSave }) {
   const inputs = new Map();
+  // A key the schema holds as a list is a field of one item per line, as schedule.schema.md describes `cache`: one path per line.
+  const isList = (key) => scheduleSchema.frontMatter[key].type === "list";
   const fields = Object.keys(scheduleSchema.frontMatter ?? {}).map((key) => {
-    const input = el("input");
+    const input = el(isList(key) ? "textarea" : "input");
     const value = schedule.fields?.[key];
-    input.value = Array.isArray(value) ? value.join(", ") : String(value ?? "");
+    input.value = Array.isArray(value) ? value.join("\n") : String(value ?? "");
     inputs.set(key, input);
     const field = el("div", "field", el("label", null, `${key} `, input), fold(FIELD_TEXT[key] ?? ""));
     field.setAttribute("data-key", key);
@@ -228,7 +230,7 @@ function scheduleForm(schedule, table, state, { participants, findings, onSave }
     for (const [key, input] of inputs) {
       const typed = input.value.trim();
       if (typed === "") delete now.fields[key];
-      else now.fields[key] = scheduleSchema.frontMatter[key].type === "list" ? typed.split(",").map((each) => each.trim()).filter(Boolean) : typed;
+      else now.fields[key] = isList(key) ? typed.split("\n").map((each) => each.trim()).filter(Boolean) : typed;
     }
     return now;
   };
