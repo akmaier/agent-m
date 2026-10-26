@@ -8,6 +8,7 @@ realises:
   - THE CI CONFIGURATION IS GENERATED FROM THE SCHEDULE
   - A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES
 modules:
+  - MOD-test-schedule
   - MOD-workflow-entries
 builds_on:
   - ITM-475
