@@ -312,7 +312,7 @@ test("TST-1172001 — a commit detail explains its results through the shared fo
 //
 // Readings the texts leave open, which these tests state (the pull request names them):
 //   - The head is the route's first part, <section class="head">, its <h2> the route's heading; the line of where it reads is the product's address and the ref read.
-//   - The five views are links <a class="btn"> to the fragments #schedule, #trace/key=tests, #runs, #trace/key=audit and #generate; the one shown carries aria-current="page";
+//   - The five views are the route tests-views under the head: buttons of the frame (btn) Schedule, Browser, Runs, Audit, Generate, no link among them; the one shown carries aria-current="page";
 //     a click goes through the context's go with the view's route and parameters.
 //   - A commit to choose and a test of a level are rows of table.list; every cell carries data-label.
 
@@ -322,7 +322,7 @@ const look = await import("./test-pages-look.mjs");
 // guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE; UC-028; UC-027; UC-029; UC-030; UC-026
 // given: the fixture product with two commits on its default branch, one open pull request and two tags
 // input: the route runs rendered without a commit; then the link Browser clicked
-// expect: the first part is section.head with the heading Runs, the product's address and the default branch as the line of where it reads, and the five views Schedule, Browser, Runs, Audit, Generate as btn links, Runs marked; the click goes to the route trace with key tests
+// expect: the first part is section.head with the heading Runs, the product's address and the default branch as the line of where it reads, and the five views Schedule, Browser, Runs, Audit, Generate as the frame's buttons, Runs marked; the click goes to the route trace with key tests
 test("TST-1223001 — runs: the head names the route and leads through the Tests entry's views, Runs marked", async () => {
   const shown = await page({}, {});
   const links = look.assertTestsHead(shown, { heading: /^Runs$/, shown: "Runs" });
@@ -339,7 +339,7 @@ test("TST-1223001 — runs: the head names the route and leads through the Tests
 test("TST-1223002 — runs: the commits to choose are rows of the frame's table, their buttons the frame's", async () => {
   const shown = await page({}, {});
   assert.equal(look.assertListRows(shown, 5).length, 5);
-  assert.equal(look.assertButtons(shown, 5).length, 5);
+  assert.equal(look.assertButtons(shown, 10).length, 10, "the five commits and the five views");
   look.assertPanels(shown, 3);
 });
 

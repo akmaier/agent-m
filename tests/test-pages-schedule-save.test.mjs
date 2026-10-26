@@ -374,3 +374,22 @@ test("TST-1223006 — schedule: the table of levels is edited in place and writt
   assert.deepEqual(ticked("system"), ["every commit", "nightly", "release candidate", "on demand"]);
   assert.equal(saved.fields.nightly, "02:00");
 });
+
+// TST-1223011 · level: unit · module: MOD-test-pages
+// guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT; UC-027
+// given: a saved schedule whose front matter names the cache paths node_modules and .cache, as schedule.schema.md describes them, one path per line
+// input: the route schedule rendered; then the field cache given the three lines "node_modules", "~/.npm, a path with a comma" and ".cache", then the one Save
+// expect: the field cache shows "node_modules" and ".cache" on two lines; the committed schedule's cache is the three paths, the second with its comma kept
+test("TST-1223011 — schedule: the field cache holds one path per line, as the schedule's schema describes it", async () => {
+  const text = SAVED.replace("nightly: 02:00", "nightly: 02:00\ncache:\n  - node_modules\n  - .cache");
+  const shown = await page("github", { "docs/tests/schedule.md": text });
+  const field = byTag(descendants(shown.target, (node) => node.getAttribute?.("data-key") === "cache")[0], "textarea")[0];
+  assert.ok(field, "known positive: the field cache is drawn");
+  assert.equal(field.value, "node_modules\n.cache");
+  field.value = "node_modules\n~/.npm, a path with a comma\n.cache\n";
+  field.dispatchEvent(new Event("input"));
+  click(saveOf(shown.target));
+  await until(() => writes(shown.host, "commitFiles").length, "the commit made");
+  const written = writes(shown.host, "commitFiles")[0][1].files.find((file) => file.path === "docs/tests/schedule.md").text;
+  assert.deepEqual(readDocument(scheduleSchema, "docs/tests/schedule.md", written).fields.cache, ["node_modules", "~/.npm, a path with a comma", ".cache"]);
+});

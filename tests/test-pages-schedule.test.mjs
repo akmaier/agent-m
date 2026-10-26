@@ -437,7 +437,8 @@ test("schedule — the table of levels takes the frame's narrow form: the frame'
 //   - The levels by occasion are shown once: the table of levels is the page's only table where the product holds no CI configuration, and the form draws
 //     no editor of the section ## Levels; each occasion cell of a row holds a box (<input type="checkbox">) for its tick, named by its row and its column;
 //     a box that the rule of its cell holds — the release candidate ticked, the commit cells of paid unticked — cannot be changed.
-//   - The front matter fields are rows <div class="field" data-key="<key>"> of the form, each with a label naming the key, its input and a folded explanation.
+//   - The front matter fields are rows <div class="field" data-key="<key>"> of the form, each with a label naming the key, its field and a folded explanation;
+//     the key cache, which src/test-schedule/schedule.schema.md describes as one path per line, is a <textarea> with one path on each line, every other an <input>.
 
 const look = await import("./test-pages-look.mjs");
 const FRONT = ["nightly", "command", "setup", "cache", "minutes"];
@@ -447,7 +448,7 @@ const boxOf = (page, row, column) => byTag(cellOf(page, row, column), "input").f
 // guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE; UC-027; UC-029; UC-030; UC-028; UC-026
 // given: a product without a schedule
 // input: the route schedule rendered for the product
-// expect: the first part is section.head with the heading Schedule, the product's address and its default branch, and the five views as btn links, Schedule marked; every button carries btn; the levels' rows are rows of table.list with labelled cells
+// expect: the first part is section.head with the heading Schedule, the product's address and its default branch, and the five views as the frame's buttons, Schedule marked; every button carries btn; the levels' rows are rows of table.list with labelled cells
 test("TST-1223004 — schedule: the head leads through the Tests entry's views, Schedule marked, in the frame's look", async () => {
   const shown = await page();
   look.assertTestsHead(shown, { heading: /^Schedule$/, shown: "Schedule" });
@@ -460,11 +461,12 @@ test("TST-1223004 — schedule: the head leads through the Tests entry's views, 
 // guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE; THE TEST SCHEDULE IS DECLARED PER PRODUCT; EVERY STEP EXPLAINS ITSELF; UC-027
 // given: a saved schedule, and a product without CI configuration
 // input: the route schedule rendered for the product
-// expect: one table on the page, the table of levels; no editor (no textarea); one button Save; each occasion cell of each row holds a checkbox that is checked where the cell is ticked, named by its row and column; the release candidate box of unit is checked and cannot be changed, the every commit box of paid unchecked and cannot be changed, the every commit box of system can; each of the front matter keys nightly, command, setup, cache, minutes is a field row with a label naming it, an input and a folded explanation
+// expect: one table on the page, the table of levels; no editor of ## Levels (no textarea but the field cache's); one button Save; each occasion cell of each row holds a checkbox that is checked where the cell is ticked, named by its row and column; the release candidate box of unit is checked and cannot be changed, the every commit box of paid unchecked and cannot be changed, the every commit box of system can; each of the front matter keys nightly, command, setup, cache, minutes is a field row with a label naming it, its field — a textarea for cache, an input for the others — and a folded explanation
 test("TST-1223005 — schedule: the levels are shown once, as the form's own input, with one Save and the fields explained", async () => {
   const shown = await withSchedule(SAVED);
   assert.equal(byTag(shown, "table").length, 1, "one table: the levels");
-  assert.equal(byTag(shown, "textarea").length, 0, "no editor of ## Levels");
+  const cacheField = descendants(shown, (node) => node.getAttribute?.("data-key") === "cache")[0];
+  assert.deepEqual(byTag(shown, "textarea").filter((area) => !byTag(cacheField, "textarea").includes(area)), [], "no editor of ## Levels");
   assert.equal(descendants(shown, (node) => node.localName === "button" && node.textContent.trim() === "Save").length, 1, "one Save");
   for (const row of ROWS) {
     for (const column of COLUMNS) {
@@ -483,7 +485,7 @@ test("TST-1223005 — schedule: the levels are shown once, as the form's own inp
     const field = descendants(shown, (node) => node.getAttribute?.("data-key") === key)[0];
     assert.ok(field, `the field ${key} is a row of the form`);
     assert.ok(byTag(field, "label").some((label) => label.textContent.includes(key)), `${key} is labelled`);
-    assert.equal(byTag(field, "input").length, 1, `${key} has its input`);
+    assert.equal(byTag(field, key === "cache" ? "textarea" : "input").length, 1, `${key} has its field`);
     assert.equal(byClass(field, "explain").length, 1, `${key} has its folded explanation`);
   }
 });

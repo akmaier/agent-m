@@ -520,7 +520,7 @@ const look = await import("./test-pages-look.mjs");
 // guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE; UC-026; UC-027; UC-028; UC-029; UC-030
 // given: the product with RULE ONE, RULE TWO, UC-001, UC-002, MOD-a and MOD-b, and the writers writer-a, writer-b and ci-writer
 // input: the route generate, drawn
-// expect: the first part is section.head with the heading Generate tests, the product's address and its default branch, and the five views as btn links, Generate marked; each of the six names, the five levels and the three writers is a row of table.list with labelled cells; every button carries btn; every section under the head is a panel
+// expect: the first part is section.head with the heading Generate tests, the product's address and its default branch, and the five views as the frame's buttons, Generate marked; each of the six names, the five levels and the three writers is a row of table.list with labelled cells; every button carries btn; every section under the head is a panel
 test("TST-1223007 — generate: the head leads through the Tests entry's views, Generate marked, its rows the frame's table", async () => {
   const target = await show(fakeProduct());
   look.assertTestsHead(target, { heading: /^Generate tests$/, shown: "Generate" });

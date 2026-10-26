@@ -1,5 +1,5 @@
 // The checks of the look of MOD-test-pages' Tests routes (ITM-1223), shared by the tests of the routes schedule, runs and generate: each route draws the
-// frame's head — its heading and, under it, the Tests entry's five views as links in the order Schedule, Browser, Runs, Audit, Generate, the one shown
+// frame's head — its heading and, under it, the Tests entry's five views as the frame's buttons in the order Schedule, Browser, Runs, Audit, Generate, the one shown
 // marked —; its rows of items are rows of the frame's table (table.list) whose cells carry data-label; its buttons carry the frame's class btn.
 // It is code only; the expected results stand in the tests that call it, which hand them in.
 //
@@ -8,9 +8,7 @@
 
 import assert from "node:assert/strict";
 
-export const VIEWS = [["Schedule", "#schedule"], ["Browser", "#trace/key=tests"], ["Runs", "#runs"], ["Audit", "#trace/key=audit"], ["Generate", "#generate"]];
-// What a click on each view asks of the context's go: the route's name and its parameters.
-export const GOES = [["schedule", {}], ["trace", { key: "tests" }], ["runs", {}], ["trace", { key: "audit" }], ["generate", {}]];
+export const VIEWS = ["Schedule", "Browser", "Runs", "Audit", "Generate"];
 
 export function descendants(root, predicate) {
   const found = [];
@@ -21,8 +19,8 @@ const classes = (node) => (node.className ?? "").split(" ").filter(Boolean);
 const text = (node) => node.textContent.replace(/\s+/g, " ").trim();
 const inside = (node, test) => { for (let up = node.parentNode; up; up = up.parentNode) if (test(up)) return true; return false; };
 
-// The head: the first element the route draws is <section class="head"> with an h2 holding `heading`, and its links are the five views in their order,
-// each to its fragment, exactly the one labelled `shown` marked with aria-current="page".
+// The head: the first element the route draws is <section class="head"> with an h2 holding `heading`, and under it the navigation Tests (the route
+// tests-views): the five views in their order as the frame's buttons, no link among them, exactly the one labelled `shown` marked with aria-current="page".
 export function headOf(target) {
   const first = [...target.childNodes].find((node) => node.nodeType === 1);
   assert.ok(first, "the route draws something");
@@ -35,8 +33,11 @@ export function assertTestsHead(target, { heading, shown }) {
   const titles = descendants(head, (node) => node.localName === "h2");
   assert.equal(titles.length, 1, "one heading");
   assert.match(text(titles[0]), heading);
-  const links = descendants(head, (node) => node.localName === "a" && VIEWS.some(([, href]) => href === node.getAttribute("href")));
-  assert.deepEqual(links.map((link) => [text(link), link.getAttribute("href")]), VIEWS, "the five views in their order");
+  const navs = descendants(head, (node) => node.localName === "nav" && node.getAttribute("aria-label") === "Tests");
+  assert.equal(navs.length, 1, "the navigation Tests under the heading");
+  const links = descendants(navs[0], (node) => node.localName === "button");
+  assert.deepEqual(links.map(text), VIEWS, "the five views in their order");
+  assert.equal(descendants(navs[0], (node) => node.localName === "a").length, 0, "no link of its own: the frame writes the address");
   assert.deepEqual(links.filter((link) => link.getAttribute("aria-current") === "page").map(text), [shown], "the one shown is marked");
   for (const link of links) assert.ok(classes(link).includes("btn"), `${text(link)} is drawn as the frame's button`);
   return links;
