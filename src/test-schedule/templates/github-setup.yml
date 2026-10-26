@@ -1,0 +1,22 @@
+  agent-m-setup:
+    name: agent-m setup
+    runs-on: ubuntu-latest
+{{timeout}}
+    outputs:
+      key: ${{ steps.key.outputs.key }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - id: key
+        run: echo "key=agent-m-setup-{{hash}}-$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+      - id: cache
+        uses: actions/cache@v4
+        with:
+          path: |
+{{paths}}
+          key: ${{ steps.key.outputs.key }}
+      - name: Set up the tests
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+{{setup}}

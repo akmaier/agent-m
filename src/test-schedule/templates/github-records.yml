@@ -1,0 +1,26 @@
+  agent-m-records:
+    name: agent-m records
+    needs: [{{needs}}]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+{{timeout}}
+    env:
+      AGENT_M_TOKEN: ${{ secrets.AGENT_M_TOKEN }}
+      AGENT_M_INSTANCE_COMMIT: {{commit}}
+    steps:
+{{checkouts}}
+      - name: Take the reports of the run
+        uses: actions/download-artifact@v4
+        with:
+          path: agent-m-reports
+          merge-multiple: true
+      - name: Add the run's result record
+        run: node .agent-m/src/workflow-entries/main.mjs onTestsFinished
+      - name: Keep the status
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: records
+          path: agent-m-reports/records.status
+          if-no-files-found: ignore
+          retention-days: 1
