@@ -202,7 +202,7 @@ async function world({ records = [], agent = "ok", probe = refuse, baseMessage =
   script(bin, "git", `exec ${REAL_GIT} "$@"`);
   script(bin, "sleep", `exec ${REAL_SLEEP} "$@"`);
   const event = JSON.stringify({ type: "text", part: { text: JSON.stringify({ draft: { decision: "passed", reason: ANSWER }, answers: [] }) } });
-  script(bin, "opencode", `case "$1" in --version) echo 1.4.0;; auth) echo '1 credentials';;
+  script(bin, "opencode", `case "$1" in --version) echo 1.4.0;; auth) echo '1 credentials';; models) echo opencode/big-pickle;;
 run) printf 'RUN %s\\n' "$*" >> ${calls}
 ${REAL_CAT} >> ${calls}; printf '\\n' >> ${calls}
 printf 'CONFIG %s\\n' "$OPENCODE_CONFIG_CONTENT" >> ${calls}

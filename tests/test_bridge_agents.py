@@ -25,7 +25,7 @@ REGISTER = ROOT / "src" / "agent-processes" / "agents.md"
 LOGIN = {
     "claude": ("auth status", "exit 0", "exit 1"),
     "codex": ("login status", "exit 0", "exit 1"),
-    "opencode": ("auth list", "echo '1 credentials'", "echo '0 credentials'"),
+    "opencode": ("models", "echo opencode/big-pickle", ":"),
 }
 
 JS = """

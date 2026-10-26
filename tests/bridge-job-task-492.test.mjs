@@ -84,7 +84,7 @@ async function world(run) {
   script(bin, "git", `exec ${REAL_GIT} "$@"`);
   script(bin, "sleep", `exec ${REAL_SLEEP} "$@"`);
   const event = JSON.stringify({ type: "text", part: { text: JSON.stringify({ draft: { answer: "Done.", edits: [], files: [] }, answers: [] }) } });
-  script(bin, "opencode", `case "$1" in --version) echo 1.4.0;; auth) echo '1 credentials';;
+  script(bin, "opencode", `case "$1" in --version) echo 1.4.0;; auth) echo '1 credentials';; models) echo opencode/big-pickle;;
 run) printf 'RUN %s\\n' "$*" >> ${calls}
 printf '%s\\n' '${event}' '{"type":"step_finish","part":{"tokens":{"input":11,"output":7}}}';; esac`);
   const instance = repository(root, "instance", { "docs/participants.md": PARTICIPANTS });
