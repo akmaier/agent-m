@@ -1538,8 +1538,9 @@ paid endpoint fails the run.
 
 **A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES** *(PO A. Maier)*
 Every job that the CI of Agent M's own repository runs on a pull request finishes within two minutes.
-*Check:* `tests/test_ci_budget.py` — every job of `.github/workflows/tests.yml` carries a limit of two minutes, after which
-GitHub stops it and the run fails; counter-proof: a job without that limit, or with a longer one, fails.
+*Check:* `tests/test_ci_budget.py` — every job that `.github/workflows/agent-m-tests.yml` runs on a pull request carries a
+limit of two minutes, after which GitHub stops it and the run fails; counter-proof: a job without that limit, or with a
+longer one, fails.
 
 **THE CI CONFIGURATION IS GENERATED FROM THE SCHEDULE** *(PO A. Maier)*
 The CI configuration of Agent M and of every managed product — a GitHub Actions workflow on GitHub, a GitLab CI pipeline
