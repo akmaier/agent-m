@@ -56,7 +56,6 @@ test("defaultSchedule — the book's default, read with the schema, marked as th
 const PRODUCT_SCHEDULE = `---
 nightly: 03:30
 command: pytest -q
-report: build/junit.xml
 ---
 ## Levels
 
@@ -72,14 +71,13 @@ report: build/junit.xml
 
 // TST-473098 · level: unit · module: MOD-test-schedule
 // guards: THE DEFAULT SCHEDULE FOLLOWS THE BOOK
-// given: PRODUCT_SCHEDULE, a product's own docs/tests/schedule.md — a declared nightly time, a command and a report path (so it runs its tests with neither node's own test runner nor its JUnit reporter), a tick pattern that differs from the book's default in every one of the five occasion columns, and one row naming a self-hosted runner
+// given: PRODUCT_SCHEDULE, a product's own docs/tests/schedule.md — a declared nightly time and a command (so it runs its tests with a command of its own, not node's test runner), a tick pattern that differs from the book's default in every one of the five occasion columns, and one row naming a self-hosted runner
 // input: readDocument(scheduleSchema, "docs/tests/schedule.md", PRODUCT_SCHEDULE)
 // expect: the front matter and the "## Levels" table read back exactly as given, with no finding; document.default is left unset — only defaultSchedule()'s own document carries it
 test("scheduleSchema — a product's own schedule, read with the schema", () => {
   const document = readDocument(scheduleSchema, "docs/tests/schedule.md", PRODUCT_SCHEDULE);
   assert.equal(document.fields.nightly, "03:30");
   assert.equal(document.fields.command, "pytest -q");
-  assert.equal(document.fields.report, "build/junit.xml");
   assert.deepEqual(levelsOf(document), [
     { Row: "unit", "every commit": "✓", "pull request": "✓", "release candidate": "✓", "on demand": "✓" },
     { Row: "component", "every commit": "✓", "release candidate": "✓", "on demand": "✓" },
