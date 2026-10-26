@@ -343,3 +343,174 @@ test("a manual test's title is its heading's title; a function's name is a title
   const code = [...declared("//", "TST-708"), "function check() {}", ""].join("\n");
   assert.deepEqual(testDeclarations("fixtures/title-function.test.mjs", code).map((d) => d.title), ["check"]);
 });
+
+// ---------------------------------------------------------------- the title past every comment line of the block (ITM-1220)
+//
+// MOD-test-document, Data: for a test in code, the title is the name the test case gives itself on the first line after the
+// declaration. A declaration's block of comment lines may go on past its last field — a line `// Planted fault: …`, or a
+// field's value continued over further comment lines —; the test case's first line is the first line after that whole block.
+// The fixtures below are shaped as Agent M's own declarations whose title was read null or wrong: TST-961007
+// (tests/bridge-build-build-platform.test.mjs), TST-1182001 (tests/bridge-build-tunnel-check-host-key.test.mjs), TST-1120002
+// (tests/implementation-pages-plan-stored-graph.test.mjs) and TST-519011 (tests/test_artifact_provenance.py).
+
+// TST-1220101 · level: unit · module: MOD-test-document
+// guards: EVERY TEST RUN LEAVES A RESULT RECORD; UC-028
+// given: a JavaScript file shaped as TST-961007: its declaration's fields, then the comment line `// Planted fault: a scan of the whole installed tree finds the build tools' addon and rejects.`, then the line `test("buildPlatform — a .node file in the build tools only, which the app does not ship, gives no NativeAddonFound", async () => {`
+// input: that file's text
+// expect: one declaration whose title is "buildPlatform — a .node file in the build tools only, which the app does not ship, gives no NativeAddonFound", and whose fields are read as before
+test("a title is read past a comment line after the fields that is no field — MOD-test-document", () => {
+  const text = [
+    "// TST-961007 · level: unit · module: MOD-bridge-build",
+    "// guards: THE BRIDGE IS BUILT FROM THE DASHBOARD'S CODE; UC-044",
+    "// given: a Linux build whose installed tree holds compiled addons in its build tools only",
+    "// input: buildPlatform({ platform: \"linux\", checkout, tag, folder })",
+    "// expect: it does not reject with NativeAddonFound: electron-builder is started and the AppImage is handed on",
+    "// Planted fault: a scan of the whole installed tree finds the build tools' addon and rejects.",
+    "test(\"buildPlatform — a .node file in the build tools only, which the app does not ship, gives no NativeAddonFound\", async () => {",
+    "});",
+    "",
+  ].join("\n");
+  const [declaration] = testDeclarations("tests/bridge-build-build-platform.test.mjs", text);
+  assert.equal(declaration.title, "buildPlatform — a .node file in the build tools only, which the app does not ship, gives no NativeAddonFound");
+  assert.deepEqual([declaration.id, declaration.module, declaration.expect],
+    ["TST-961007", "MOD-bridge-build", "it does not reject with NativeAddonFound: electron-builder is started and the AppImage is handed on"]);
+});
+
+// TST-1220102 · level: unit · module: MOD-test-document
+// guards: EVERY TEST RUN LEAVES A RESULT RECORD; UC-028
+// given: two JavaScript blocks whose comment lines after the fields hold a string literal: one shaped as TST-1182001, ending with `// Planted fault: today's check, which hands the first key to the Server whatever it is, fails with "Malformed OpenSSH private key".`; one shaped as TST-1120002, its expect continued on `//         frame shows in the page's place (MOD-site-frame's readProblem); …`; each followed by its `test("…", async () => {` line
+// input: that file's text
+// expect: the titles "tunnelCheck — the test SSH server takes only a host key that ssh2 parses, and generates another when one does not" and "the plan page builds no graph where none is stored, and fails with GraphNotStored" — not "Malformed OpenSSH private key", not "s place (MOD-site-frame"
+test("a title is not read from a comment line of the block that holds a string literal — MOD-test-document", () => {
+  const text = [
+    "// TST-1182001 · level: unit · module: MOD-bridge-build",
+    "// guards: THE BRIDGE IS SIGNED BY ITS PUBLISHER",
+    "// input: tunnelCheck",
+    "// expect: the Server is built with a host key that ssh2 parses",
+    "// Planted fault: today's check, which hands the first key to the Server whatever it is, fails with \"Malformed OpenSSH private key\".",
+    "test(\"tunnelCheck — the test SSH server takes only a host key that ssh2 parses, and generates another when one does not\", async () => {",
+    "});",
+    "",
+    "// TST-1120002 · level: unit · module: MOD-implementation-pages",
+    "// guards: UC-045; A PAGE LOAD READS THE REPOSITORY IN BATCHES",
+    "// input: the route plan's render",
+    "// expect: no graph is built; the render fails with GraphNotStored, whose message the",
+    "//         frame shows in the page's place (MOD-site-frame's readProblem); `readOn` was asked as in TST-1120001",
+    "test(\"the plan page builds no graph where none is stored, and fails with GraphNotStored\", async () => {",
+    "});",
+    "",
+  ].join("\n");
+  assert.deepEqual(testDeclarations("tests/sample-titles.test.mjs", text).map((d) => [d.id, d.title]), [
+    ["TST-1182001", "tunnelCheck — the test SSH server takes only a host key that ssh2 parses, and generates another when one does not"],
+    ["TST-1120002", "the plan page builds no graph where none is stored, and fails with GraphNotStored"],
+  ]);
+});
+
+// TST-1220103 · level: unit · module: MOD-test-document
+// guards: EVERY TEST RUN LEAVES A RESULT RECORD; UC-028
+// given: a Python file shaped as TST-519011: an indented declaration whose expect continues over two `#         …` lines — the first holding `Agent-M-Kind: change-use-case`, the second `the detector names the version …` —, then `def test_the_commit_of_a_written_use_case_names_the_version_the_participant_and_the_model(self):`
+// input: that file's text
+// expect: one declaration whose title is "test_the_commit_of_a_written_use_case_names_the_version_the_participant_and_the_model", the name the method defines
+test("a Python title is read past a field continued over comment lines — MOD-test-document", () => {
+  const text = [
+    "class ArtifactProvenance(unittest.TestCase):",
+    "    # TST-519011 · level: system · module: system",
+    "    # guards: AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT",
+    "    # given: the fixture CI agent ci-drafter (model ci-model-7) at Agent M 2026.10.0, commit abc123def456",
+    "    # input: its change-use-case job run unattended; the message of the commit the writer open-files made",
+    "    # expect: the message ends with the six lines Agent-M-Version: 2026.10.0, commit abc123def456 /",
+    "    #         Agent-M-Kind: change-use-case / Agent-M-Participant: ci-drafter / Agent-M-Model: ci-model-7 / Agent-M-Rounds: 1;",
+    "    #         the detector names the version, the commit, the job, the participant, the model and a trailer line in that message",
+    "    def test_the_commit_of_a_written_use_case_names_the_version_the_participant_and_the_model(self):",
+    "        pass",
+    "",
+  ].join("\n");
+  assert.deepEqual(testDeclarations("tests/test_artifact_provenance.py", text).map((d) => [d.id, d.title]), [
+    ["TST-519011", "test_the_commit_of_a_written_use_case_names_the_version_the_participant_and_the_model"],
+  ]);
+});
+
+// ---------------------------------------------------------------- a declaration only in code, its title the case's name (ITM-1222)
+//
+// MOD-test-document, Data: a declaration is a block of comment lines, in the comment marker of the file's language, directly
+// before a test case, whose title is the name the test case gives itself. The fixtures are shaped as Agent M's own tests whose
+// declaration or title was misread: the fixture of tests/job-runner-check-fixes.test.mjs (TST-584001), TST-472351
+// (tests/job-runner-requirement-form.test.mjs), TST-748001 (tests/repository-hosts-merge-pull-request.test.mjs), TST-1149003
+// (tests/implementation-pages-backlog-stored-facts.test.mjs) and TST-604003 (tests/runtimes-gitlab-ci-merge.test.mjs).
+
+// TST-1222101 · level: unit · module: MOD-test-document
+// guards: EVERY TEST RUN LEAVES A RESULT RECORD; UC-028
+// given: a JavaScript file shaped as tests/job-runner-check-fixes.test.mjs: a template string `const DECLARED = (id) => \`…\`` whose lines inside are comment-shaped and hold the declaration TST-584001 and `test("${id}", …)`, closed by "\`;"; then a real declaration TST-584002 before `test("a real case", () => {});`
+// input: that file's text
+// expect: exactly one declaration, TST-584002 with the title "a real case" — none from the lines inside the string literal
+test("comment-shaped lines inside a string literal are no declaration — MOD-test-document", () => {
+  const text = [
+    "const DECLARED = (id) => `// ${id} · level: unit · module: MOD-export",
+    "// guards: EXPORT IS A PDF",
+    "// TST-584001 · level: unit · module: MOD-job-runner",
+    "// guards: EXPORT IS A PDF",
+    "// expect: a PDF file",
+    "test(\"${id}\", () => {});",
+    "`;",
+    "",
+    "// TST-584002 · level: unit · module: MOD-job-runner",
+    "// guards: EXPORT IS A PDF",
+    "test(\"a real case\", () => {});",
+    "",
+  ].join("\n");
+  assert.deepEqual(testDeclarations("tests/job-runner-check-fixes.test.mjs", text).map((d) => [d.id, d.title]), [["TST-584002", "a real case"]]);
+});
+
+// TST-1222102 · level: unit · module: MOD-test-document
+// guards: EVERY TEST RUN LEAVES A RESULT RECORD; UC-028
+// given: a JavaScript file shaped as TST-472351, its case `test("requirement-form — a rule with \"and\" goes back as a warning, and a one-line justification ends the loop", async () => {`; and a Python case `def test_quote(label='it\'s here'):`
+// input: each file's text
+// expect: the titles `requirement-form — a rule with "and" goes back as a warning, and a one-line justification ends the loop` and `it's here`: the whole literal, each escaped quote read as the quote it stands for
+test("a title with an escaped quote is read whole — MOD-test-document", () => {
+  const js = ["// TST-472351 · level: unit · module: MOD-job-runner", "// guards: ONE STATEMENT PER REQUIREMENT",
+    "test(\"requirement-form — a rule with \\\"and\\\" goes back as a warning, and a one-line justification ends the loop\", async () => {", "});", ""].join("\n");
+  assert.deepEqual(testDeclarations("tests/job-runner-requirement-form.test.mjs", js).map((d) => d.title),
+    ["requirement-form — a rule with \"and\" goes back as a warning, and a one-line justification ends the loop"]);
+  const py = ["    # TST-472352 · level: unit · module: MOD-job-runner", "    def test_quote(label='it\\'s here'):", "        pass", ""].join("\n");
+  assert.deepEqual(testDeclarations("tests/test_quote.py", py).map((d) => d.title), ["it's here"]);
+});
+
+// TST-1222103 · level: unit · module: MOD-test-document
+// guards: EVERY TEST RUN LEAVES A RESULT RECORD; UC-028
+// given: two declarations before a loop whose body is the test: one shaped as TST-748001, `for (const [label, connectTo, server, path, header, value, token] of SERVERS) {` then `  test(\`mergePullRequest on ${label} — at the expected head it merges, carrying that head, and returns the merge commit\`, async () => {`; one shaped as TST-1149003, `for (const [label, stored] of [["stored facts", (files) => factsFile(files)], ["files", undefined]]) {` then a `test(\`…\`)` line
+// input: that file's text
+// expect: the titles are the cases' names on the line after the loop header — "mergePullRequest on ${label} — at the expected head it merges, carrying that head, and returns the merge commit" and "the backlog page names a model version it cannot read and does not fall back to today's catalogue (${label})" —, not null and not "stored facts"
+test("a title is read past a loop header whose body is the test — MOD-test-document", () => {
+  const text = [
+    "// TST-748001 · level: unit · module: MOD-repository-hosts",
+    "// guards: A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS",
+    "for (const [label, connectTo, server, path, header, value, token] of SERVERS) {",
+    "  test(`mergePullRequest on ${label} — at the expected head it merges, carrying that head, and returns the merge commit`, async () => {",
+    "  });",
+    "}",
+    "",
+    "// TST-1149003 · level: unit · module: MOD-implementation-pages",
+    "// guards: UC-045",
+    "for (const [label, stored] of [[\"stored facts\", (files) => factsFile(files)], [\"files\", undefined]]) {",
+    "  test(`the backlog page names a model version it cannot read and does not fall back to today's catalogue (${label})`, async () => {",
+    "  });",
+    "}",
+    "",
+  ].join("\n");
+  assert.deepEqual(testDeclarations("tests/sample-loops.test.mjs", text).map((d) => [d.id, d.title]), [
+    ["TST-748001", "mergePullRequest on ${label} — at the expected head it merges, carrying that head, and returns the merge commit"],
+    ["TST-1149003", "the backlog page names a model version it cannot read and does not fall back to today's catalogue (${label})"],
+  ]);
+});
+
+// TST-1222104 · level: unit · module: MOD-test-document
+// guards: EVERY TEST RUN LEAVES A RESULT RECORD; UC-028
+// given: a declaration shaped as TST-604003 whose next line is `const ENTRY_ENDING = " Agent M passes its inputs only through an entry written with local: and inputs:";`
+// input: that file's text
+// expect: the title "Agent M passes its inputs only through an entry written with local: and inputs:" — no leading space
+test("a title keeps no leading space — MOD-test-document", () => {
+  const text = ["// TST-604003 · level: unit · module: MOD-runtimes", "// guards: UC-010; UC-027",
+    "const ENTRY_ENDING = \" Agent M passes its inputs only through an entry written with local: and inputs:\";", ""].join("\n");
+  assert.deepEqual(testDeclarations("tests/runtimes-gitlab-ci-merge.test.mjs", text).map((d) => d.title),
+    ["Agent M passes its inputs only through an entry written with local: and inputs:"]);
+});

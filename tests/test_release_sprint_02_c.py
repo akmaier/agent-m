@@ -121,7 +121,8 @@ def watched(cmd: list, cwd: Path, watch: Path, reads: bool = False) -> tuple:
         (d / "watch.mjs").write_text(NODE_HOOK, encoding="utf-8")
         log = d / "seen.log"
         log.write_text("", encoding="utf-8")
-        env = dict(os.environ, RELEASE_WATCH_FILE=str(watch), RELEASE_WATCH_LOG=str(log),
+        # The suites run as a pull request's CI runs them: without the nightly occasion, which would start the tests bound to it.
+        env = dict({k: v for k, v in os.environ.items() if k != "AGENT_M_OCCASION"}, RELEASE_WATCH_FILE=str(watch), RELEASE_WATCH_LOG=str(log),
                    **({"RELEASE_WATCH_READS": "1"} if reads else {}),
                    PYTHONPATH=os.pathsep.join(filter(None, [str(d), os.environ.get("PYTHONPATH")])),
                    NODE_OPTIONS=" ".join(filter(None, [f"--import={(d / 'watch.mjs').as_uri()}", os.environ.get("NODE_OPTIONS")])))
@@ -219,12 +220,13 @@ class TheWatcherSeesAKnownRead(unittest.TestCase):
         self.assertEqual(not_from_a_scan(seen_node, markdown), seen_node)
 
 
-# Both suites run once more here, which takes longer than everything else of a CI run: this class runs in the nightly workflow
-# (.github/workflows/nightly.yml), which sets AGENT_M_NIGHTLY=1, and is skipped on every push.
-NIGHTLY = os.environ.get("AGENT_M_NIGHTLY") == "1"
+# Both suites run once more here, which takes longer than everything else of a CI run: this class runs on the nightly run of
+# Agent M's schedule, whose test jobs set AGENT_M_OCCASION=nightly (MOD-test-schedule, The variables of a test job), and is
+# skipped on every other occasion.
+NIGHTLY = os.environ.get("AGENT_M_OCCASION") == "nightly"
 
 
-@unittest.skipUnless(NIGHTLY, "runs nightly: it runs both suites once more (.github/workflows/nightly.yml)")
+@unittest.skipUnless(NIGHTLY, "runs nightly: it runs both suites once more (AGENT_M_OCCASION=nightly)")
 class NoTestOpensAgentMsOwnSpec(unittest.TestCase):
     """Both suites, run as CI runs them, with Agent M's own SPEC.md watched. Expected: the suites run; no node test opens it,
     and every Python open of it comes from a whole-repository scan (ITM-128's corrected criterion)."""

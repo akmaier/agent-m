@@ -17,7 +17,9 @@ const PACK_SEPARATOR = " · ";
 const FIRST_LINE = /^TST-(\d+)$/;
 const KEY_LINE = /^([a-z]+):(.*)$/;
 const HEADING = /^### (TST-\d+)\b(.*)$/;
-const STRING_LITERAL = /"([^"]*)"|'([^']*)'|`([^`]*)`/;
+// A string literal, an escaped quote inside it read as part of it; a loop header whose body opens on its line, `for (…) {`.
+const STRING_LITERAL = /"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)'|`((?:[^`\\]|\\.)*)`/;
+const LOOP_HEADER = /^\s*for\s*\(.*\)\s*\{\s*$/;
 const DEFINED_NAME = /\b(?:def|function|func)\s+([A-Za-z_]\w*)/;
 const FIELD_KEYS = ["level", "module", "guards", "given", "input", "expect", "runs", "phrasings", "paid"];
 
@@ -61,7 +63,7 @@ function applyField(fields, key, rawValue) {
 function titleOn(line) {
   if (line === undefined) return null;
   const literal = STRING_LITERAL.exec(line);
-  if (literal !== null) return literal[1] ?? literal[2] ?? literal[3];
+  if (literal !== null) return (literal[1] ?? literal[2] ?? literal[3]).replace(/\\(["'`\\])/g, "$1").trim();
   const defined = DEFINED_NAME.exec(line);
   return defined === null ? null : defined[1];
 }
@@ -96,18 +98,39 @@ export function testDeclarations(path, text) {
   return p.endsWith(".md") ? markdownDeclarations(p, t) : commentDeclarations(p, t);
 }
 
-// testDeclarations for any file read by its comment lines (every language but Markdown).
+// The backquotes of a line that are not escaped: an odd number opens or closes a template string that spans lines.
+const backticks = (line) => (line.match(/(?<!\\)`/g) ?? []).length;
+
+// testDeclarations for any file read by its comment lines (every language but Markdown). A comment-shaped line inside a
+// template string spanning lines is no comment line, and starts no declaration. A declaration before a loop header
+// `for (…) {` stands before the loop's body: its title is read on the line after the header. A declaration's fields end at its
+// first comment line not of their form, but its title is read on the first line after the whole block of comment lines it
+// stands in — past a `Planted fault:` line or a field's value continued over further comment lines —: every declaration of
+// the block waits for that line.
 function commentDeclarations(path, text) {
   const declarations = [];
   let current = null;
+  let untitled = [];
+  let inString = false;
   const lines = splitLines(text);
   for (let i = 0; i < lines.length; i += 1) {
+    if (inString) {
+      // a line inside a string literal that spans lines (a template string): no comment line of the file, whatever it holds
+      if (backticks(lines[i]) % 2 === 1) inString = false;
+      continue;
+    }
     const content = commentContent(lines[i]);
-    if (content === null) { if (current !== null) current.title = titleOn(lines[i]); current = null; continue; }
+    if (content === null) {
+      inString = backticks(lines[i]) % 2 === 1;
+      if (untitled.length && LOOP_HEADER.test(lines[i])) { current = null; continue; } // the test case is the loop's body
+      for (const waiting of untitled) waiting.title = titleOn(lines[i]);
+      untitled = [];
+      current = null;
+      continue;
+    }
     if (current !== null) {
       const key = KEY_LINE.exec(content);
       if (key !== null) { applyField(current.fields, key[1], key[2]); continue; }
-      current.title = titleOn(lines[i]);
       current = null; // this comment line does not continue the declaration — it may still start a new one below
     }
     const parts = content.split(PACK_SEPARATOR);
@@ -119,6 +142,7 @@ function commentDeclarations(path, text) {
       if (key !== null) applyField(current.fields, key[1], key[2]);
     }
     declarations.push(current);
+    untitled.push(current);
   }
   return declarations.map(toDeclaration);
 }

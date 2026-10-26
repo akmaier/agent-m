@@ -246,3 +246,90 @@ test("command — a Python case is named by the TST identifier of its declaratio
     assert.deepEqual(outcomes, { "TST-9101": "passed", "TST-9102": "failed", test_undeclared: "undeclared" });
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+// TST-1219001 · level: unit · module: MOD-test-schedule
+// guards: EVERY TEST RUN LEAVES A RESULT RECORD; UC-027; UC-028
+// given: a checkout with tests/declared.test.mjs holding the passing test "plain" under the declaration of TST-9201; the passing tests `loop ${n} of two` for n 1 and 2, written once in a loop with a template title, under the declaration of TST-9202; the test "with subtests" under the declaration of TST-9203, whose subtest "first" passes and whose subtest "second" fails; and the passing test "not declared" under no declaration
+// input: the command with tests/declared.test.mjs as its argument, run as shard 1 of AGENT_M_SHARDS 1; MOD-result-records' parseOutcomes([report], [the declarations of TST-9201, TST-9202 and TST-9203]) of the report it writes
+// expect: parseOutcomes gives TST-9201 passed, TST-9202 passed, TST-9203 failed and "not declared" undeclared — no declared test not run
+test("command — a node case is named by the TST identifier of its declaration, through a template title and a test's subtests", async () => {
+  const declaration = (id) => [`// TST-${id} · level: unit · module: MOD-reader`, "// guards: A RULE OF THE READER",
+    "// given: a text", "// input: read(text)", "// expect: its words"].join("\n");
+  const root = checkout({
+    "tests/declared.test.mjs": ['import test from "node:test";', "",
+      declaration(9201), 'test("plain", () => {});', "",
+      declaration(9202), "for (const n of [1, 2]) test(`loop ${n} of two`, () => {});", "",
+      declaration(9203), 'test("with subtests", async (t) => {',
+      '  await t.test("first", () => {});', '  await t.test("second", () => { throw new Error("planted failure"); });', "});", "",
+      'test("not declared", () => {});', ""].join("\n"),
+  });
+  try {
+    const run = await runCommand(root, ["tests/declared.test.mjs"], 1, 1);
+    assert.ok(run.report, `no report: ${run.output}`);
+    const declared = [9201, 9202, 9203].map((n) => ({ id: `TST-${n}`, level: "unit", expect: "its words", runs: null }));
+    const outcomes = Object.fromEntries(parseOutcomes([run.report], declared).map((o) => [o.test, o.outcome]));
+    assert.deepEqual(outcomes, { "TST-9201": "passed", "TST-9202": "passed", "TST-9203": "failed", "not declared": "undeclared" });
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+// A declaration of `id` in a node test file, as MOD-test-document's testDeclarations reads it.
+const nodeDeclaration = (id) => [`// TST-${id} · level: unit · module: MOD-reader`, "// guards: A RULE OF THE READER",
+  "// given: a text", "// input: read(text)", "// expect: its words"].join("\n");
+// The outcome of each test MOD-result-records' parseOutcomes reads from the report of `run`, given the declarations of
+// the identifiers `ids`, by its test.
+function outcomesOf(run, ids) {
+  assert.ok(run.report, `no report: ${run.output}`);
+  const declared = ids.map((n) => ({ id: `TST-${n}`, level: "unit", expect: "its words", runs: null }));
+  return Object.fromEntries(parseOutcomes([run.report], declared).map((o) => [o.test, o.outcome]));
+}
+
+// TST-1221001 · level: unit · module: MOD-test-schedule
+// guards: EVERY TEST RUN LEAVES A RESULT RECORD; UC-027; UC-028
+// given: a checkout with tests/a-template.test.mjs, whose declaration of TST-9301 stands before the line that writes the test `${id}` in a loop over the ids "TST-9301 alpha" and "TST-9301 beta" named on a line above, both passing — its title the template `${id}` alone; and tests/b-agents.test.mjs, whose declaration of TST-9302 stands before the test "agents answer" with the subtests "claude", which passes, and "codex", which fails — run with the Node.js release the generated configuration provides, whose JUnit reporter writes no file attribute and the classname test for a subtest
+// input: the command with both files as its arguments, run as shard 1 of AGENT_M_SHARDS 1; MOD-result-records' parseOutcomes([report], [the declarations of TST-9301 and TST-9302]) of the report it writes
+// expect: TST-9301 passed and TST-9302 failed, and no case undeclared — the subtests take the declaration of their own file's test, never the template title of the other file
+test("command — a node case is matched only to its own file's declarations, a template-only title matching none", async () => {
+  const root = checkout({
+    "tests/a-template.test.mjs": ['import test from "node:test";', "", 'const ids = ["TST-9301 alpha", "TST-9301 beta"];',
+      nodeDeclaration(9301), "for (const id of ids) test(`${id}`, () => {});", ""].join("\n"),
+    "tests/b-agents.test.mjs": ['import test from "node:test";', "", nodeDeclaration(9302), 'test("agents answer", async (t) => {',
+      '  await t.test("claude", () => {});', '  await t.test("codex", () => { throw new Error("planted failure"); });', "});", ""].join("\n"),
+  });
+  try {
+    const run = await runCommand(root, ["tests/a-template.test.mjs", "tests/b-agents.test.mjs"], 1, 1);
+    assert.deepEqual(outcomesOf(run, [9301, 9302]), { "TST-9301": "passed", "TST-9302": "failed" });
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+// TST-1221002 · level: unit · module: MOD-test-schedule
+// guards: EVERY TEST RUN LEAVES A RESULT RECORD; UC-027; UC-028
+// given: a checkout with tests/bridge-name.test.mjs, whose declaration of TST-9303 stands before the passing test "bridge:<name> — answers when x > 0" — a title holding < and >, of which node's JUnit reporter escapes only the < — run with the Node.js release the generated configuration provides
+// input: the command with the file as its argument, run as shard 1 of AGENT_M_SHARDS 1; MOD-result-records' parseOutcomes([report], [the declaration of TST-9303]) of the report it writes
+// expect: TST-9303 passed, and no case undeclared
+test("command — a node case whose name holds > is read whole and named by its declaration", async () => {
+  const root = checkout({
+    "tests/bridge-name.test.mjs": ['import test from "node:test";', "", nodeDeclaration(9303),
+      'test("bridge:<name> — answers when x > 0", () => {});', ""].join("\n"),
+  });
+  try {
+    const run = await runCommand(root, ["tests/bridge-name.test.mjs"], 1, 1);
+    assert.deepEqual(outcomesOf(run, [9303]), { "TST-9303": "passed" });
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+// TST-1221003 · level: unit · module: MOD-test-schedule
+// guards: EVERY TEST RUN LEAVES A RESULT RECORD; UC-027; UC-028
+// given: a checkout with tests/numbered.test.mjs, whose declaration of TST-9304 stands before the passing test "TST-262-001: keeps an older number" — a leading TST-262 its file does not declare —, and whose declaration of TST-9305 stands before the passing test "TST-9305: names itself" — a leading TST-<nnn> its file declares — run with the Node.js release the generated configuration provides
+// input: the command with the file as its argument, run as shard 1 of AGENT_M_SHARDS 1; MOD-result-records' parseOutcomes([report], [the declarations of TST-9304 and TST-9305]) of the report it writes
+// expect: TST-9304 passed and TST-9305 passed, and no case undeclared — TST-262 is no test of the record
+test("command — a node case keeps a leading TST number only where its file declares it, and is named by its declaration otherwise", async () => {
+  const root = checkout({
+    "tests/numbered.test.mjs": ['import test from "node:test";', "",
+      nodeDeclaration(9304), 'test("TST-262-001: keeps an older number", () => {});', "",
+      nodeDeclaration(9305), 'test("TST-9305: names itself", () => {});', ""].join("\n"),
+  });
+  try {
+    const run = await runCommand(root, ["tests/numbered.test.mjs"], 1, 1);
+    assert.deepEqual(outcomesOf(run, [9304, 9305]), { "TST-9304": "passed", "TST-9305": "passed" });
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
