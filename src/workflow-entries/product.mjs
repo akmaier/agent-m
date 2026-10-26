@@ -215,7 +215,7 @@ async function runJobOf(env, composed, participants, row, handOver = null) {
     endpoint = handOver?.endpoint ? endpointOf(handOver.endpoint) : null;
     // A model endpoint driven by Agent M's own tool loop gets AGENTS.md as text, not as a path in the instance's checkout, which only a coding agent
     // reads (EVERY MODEL READS AGENT M'S AGENTS.MD FIRST).
-    if (endpoint || (record.params ?? {}).endpoint) context.instance = { ...context.instance, checkout: null };
+    if (endpoint || (record.params ?? {}).endpoint) context.instance = { ...context.instance, checkout: undefined };
     // A hand-over's endpoint of a kind that changes code or runs tests works in the job's checkout of the product, with the tools of MOD-checkout-tools — bash
     // refused where a restricted source's content there may not go to its place.
     const inCheckout = Boolean(endpoint) && !readsAndDrafts(context.kind);
