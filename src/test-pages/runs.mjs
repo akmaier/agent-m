@@ -71,9 +71,10 @@ function chooser(target, context, { history, pulls, tags, branch }) {
     rows.length ? listTable(columns, rows) : el("p", "muted", "None."));
   target.replaceChildren(testsHead(context, { title: "Runs", shown: "Runs",
     reads: readsAt(context.product.address, branch, "read now from the repository, its pull requests and its tags; nothing here is stored.") }),
-  group("Default branch", ["Commit", "Message", "Date"], history.map((entry) => el("tr", null, column("Commit", choose(entry.commit, entry.commit.slice(0, 7))),
-    column("Message", firstLine(entry.message)), column("Date", entry.date ?? "")))),
-  group("Open pull requests", ["Pull request", "Title"], pulls.map((pull) => el("tr", null, column("Pull request", choose(pull.head, `#${pull.number}`)), column("Title", pull.title)))),
+  group("Default branch", ["Commit", "Date"], history.map((entry) => el("tr", null, column("Commit", choose(entry.commit, `${entry.commit.slice(0, 7)} ${firstLine(entry.message)}`)),
+    column("Date", entry.date ?? "")))),
+  group("Open pull requests", ["Pull request", "Head"], pulls.map((pull) => el("tr", null, column("Pull request", choose(pull.head, `#${pull.number} ${pull.title}`)),
+    column("Head", String(pull.head ?? "").slice(0, 7))))),
   group("Release tags", ["Tag", "Commit"], tags.map((tag) => el("tr", null, column("Tag", choose(tag.commit, tag.name)), column("Commit", tag.commit.slice(0, 7))))));
 }
 
