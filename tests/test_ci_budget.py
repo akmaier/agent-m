@@ -68,12 +68,9 @@ def jobs_over_budget(text: str, limit: int = LIMIT) -> list:
 class PullRequestCiWithinTwoMinutes(unittest.TestCase):
     # TST-476921 · level: unit · module: MOD-test-schedule
     # guards: A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES
-    # given: .github/workflows/agent-m-tests.yml as it is committed; and written workflows: a pull request's job with the limit 2, one
-    #        without a limit, one with 5, one with the limit on a step only, one whose if is ${{ !cancelled() }} without a limit, and a
-    #        nightly job (if: github.event_name == 'schedule') without a limit
+    # given: .github/workflows/agent-m-tests.yml as it is committed; and written workflows: a pull request's job with the limit 2, one without a limit, one with 5, one with the limit on a step only, one whose if is ${{ !cancelled() }} without a limit, and a nightly job (if: github.event_name == 'schedule') without a limit
     # input: jobs_over_budget over each
-    # expect: the committed workflow starts on pull_request and no job of it is named; of the written ones, every pull request's job
-    #         without the limit or with a longer one is named, the one with !cancelled() too, and the nightly job is not
+    # expect: the committed workflow starts on pull_request and no job of it is named; of the written ones, every pull request's job without the limit or with a longer one is named, the one with !cancelled() too, and the nightly job is not
     def test_every_job_the_generated_workflow_runs_on_a_pull_request_stops_after_two_minutes(self):
         text = WORKFLOW.read_text(encoding="utf-8")
         self.assertRegex(text, r"(?m)^on:\n(?:  .*\n|\n)*?  pull_request:", "the workflow starts on a pull request")
