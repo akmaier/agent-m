@@ -167,6 +167,8 @@ log, the link reads *no longer available*, and the mark keeps its outcome (UC-02
   MOD-test-pages' route `tests-views`, shown under the heading of the tests browser and of the audit of a release tag,
   with `shown` naming the view; the audit of a release candidate (`commit` among its params), which the release panel
   shows inside itself, shows none. They are drawn by the route, not given by the descriptor's `links`, which are a row's.
+  Where MOD-test-pages is not loaded on the page, the frame's link to the route stands in their place (`RouteNotLoaded`),
+  and the view is drawn on.
 - MOD-markdown-render.renderArtifact, MOD-markdown-render.renderMermaid, MOD-markdown-render.showDifference — rows'
   details, the component diagram, the comparison of versions.
 - MOD-repository-hosts.readSnapshot, MOD-repository-hosts.readHistory, MOD-repository-hosts.readFileAt,

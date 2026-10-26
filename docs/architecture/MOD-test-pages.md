@@ -150,11 +150,13 @@ formats are those of the modules it uses.
     level with its result, every model-dependent check as a rate against the running version, every requirement with its
     evidence — the audit of the candidate, drawn by the trace pages' route inside this panel —, and the release test
     report with *Accept and release*, which asks first for the reason of every failing test and every worse rate.
-  - `tests-views`, outside the menu (`entry` null) — the Tests entry's views as a navigation named *Tests*, in this
-    order, each named by its route and params: Schedule (`schedule`), Browser (`trace`, `key` `tests`), Runs (`runs`),
-    Audit (`trace`, `key` `audit`), Generate (`generate`); each a link drawn as the frame's button, at the address the
-    frame's `Route` defines for that name and params, whose click goes through `context.go`; the view its param `shown`
-    names marked as the page shown (`aria-current="page"`) and drawn as the frame's primary button. It reads nothing.
+  - `tests-views`, titled *Tests*, outside the menu (`entry` null), made to be shown inside the routes that embed it
+    with the frame's `embedRoute`; opened by its own address it draws the same navigation and nothing else. It is the
+    Tests entry's views as a navigation named *Tests*, in this order, each named by its route and params: Schedule
+    (`schedule`), Browser (`trace`, `key` `tests`), Runs (`runs`), Audit (`trace`, `key` `audit`), Generate
+    (`generate`); each a button of the frame whose click calls `go` of the context the frame renders it with, so that
+    the frame alone writes the address; the view its param `shown` names marked as the page shown
+    (`aria-current="page"`) and drawn as the frame's primary button. It reads nothing.
 
 ## Files
 
@@ -167,8 +169,8 @@ the result records on the branch `test-results`, the product's resources and the
 ## Uses
 
 - MOD-site-frame.View, MOD-site-frame.chosenProduct, MOD-site-frame.explain, MOD-site-frame.notice,
-  MOD-site-frame.runPanel, MOD-site-frame.confirmDecision — the frame's parts, the form of a route's address among
-  them; MOD-site-frame.embedRoute — the audit of a candidate inside the release panel.
+  MOD-site-frame.runPanel, MOD-site-frame.confirmDecision — the frame's parts, `ViewContext`'s `go` among them, through
+  which alone a route of this module leads to another; MOD-site-frame.embedRoute — the audit of a candidate inside the release panel.
 - MOD-markdown-render.renderArtifact, MOD-markdown-render.showDifference — the report, the configuration against the
   schedule.
 - MOD-browser-store.readSetting — the endpoints' configurations and the Bridges' settings a job needs;
