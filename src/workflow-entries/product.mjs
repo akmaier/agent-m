@@ -112,7 +112,8 @@ const PLANNED = /^ITM-\d+$/;
 // writer writes at once. -> the lines the job's end lists: what its writer wrote, or `not run: <kind> — <why>`.
 async function handedOver(handOver, context, participant, driver, record) {
   const worksOn = [handOver.works_on].flat().filter(Boolean).map(String);
-  const notRun = (why) => [`not run: ${handOver.kind} — ${why}`];
+  // One line each, as the record's `results` holds them: a failure's own text may span several, as git's does.
+  const notRun = (why) => [`not run: ${handOver.kind} — ${String(why).replace(/\s*\n\s*/g, " ")}`];
   let kind;
   try {
     kind = await kindOf(handOver.kind);
