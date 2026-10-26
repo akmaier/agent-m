@@ -1,23 +1,33 @@
   {{key}}:
     name: {{key}}
     if: {{condition}}
+{{needs}}
     runs-on: {{runsOn}}
+{{timeout}}
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [{{shards}}]
     env:
-      AGENT_M_LEVEL: {{row}}
+      AGENT_M_ROW: {{row}}
+      AGENT_M_OCCASION: {{occasion}}
+      AGENT_M_SHARD: ${{ matrix.shard }}
+      AGENT_M_SHARDS: {{count}}
+      AGENT_M_COMMAND: {{command}}
+      AGENT_M_SECRETS: {{secretNames}}
+      AGENT_M_INSTANCE_COMMIT: {{commit}}
 {{secrets}}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
-        with:
-          repository: {{instance}}
-          ref: {{commit}}
-          path: .agent-m
-      - name: Run the tests of the level {{row}}
-        run: |
-          {{command}}
-      - name: Hand the report to onTestsFinished
+{{checkouts}}
+{{restore}}
+{{setup}}
+      - name: Run the tests of the row {{row}}
+        run: node .agent-m/src/workflow-entries/main.mjs runTests
+      - name: Keep the report and the status
         if: always()
-        run: node .agent-m/src/workflow-entries/main.mjs onTestsFinished
-        env:
-          AGENT_M_REPORT: {{report}}
-          AGENT_M_INSTANCE_COMMIT: {{commit}}
+        uses: actions/upload-artifact@v4
+        with:
+          name: {{occasion}}.{{row}}.${{ matrix.shard }}
+          path: agent-m-reports/
+          if-no-files-found: ignore
+          retention-days: 1

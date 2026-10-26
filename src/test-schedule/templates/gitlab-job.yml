@@ -1,14 +1,28 @@
 {{key}}:
   stage: test
+  image: node:22
 {{tags}}
+{{parallel}}
+{{timeout}}
   variables:
-    AGENT_M_LEVEL: {{row}}
+    AGENT_M_ROW: {{row}}
+    AGENT_M_OCCASION: {{occasion}}
+    AGENT_M_SHARD: {{shard}}
+    AGENT_M_SHARDS: {{count}}
+    AGENT_M_COMMAND: {{command}}
+    AGENT_M_SECRETS: {{secretNames}}
+    AGENT_M_INSTANCE_COMMIT: {{commit}}
   rules:
     - if: {{rule}}
 {{changes}}
 {{secrets}}
+{{cache}}
   script:
     - {{clone}}
-    - {{command}}
-  after_script:
-    - {{handOn}}
+{{setup}}
+    - node .agent-m/src/workflow-entries/main.mjs runTests
+  artifacts:
+    when: always
+    expire_in: 1 day
+    paths:
+      - agent-m-reports/

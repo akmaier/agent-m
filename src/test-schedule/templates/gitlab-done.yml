@@ -1,7 +1,22 @@
 agent-m-done:
-  stage: test
+  stage: .post
+  image: node:22
+  inherit:
+    default: false
+    variables: false
+  environment:
+    name: agent-m-write
+    action: verify
+{{timeout}}
+  needs:
+    - job: agent-m-records
+      artifacts: true
+  variables:
+    AGENT_M_EXPECTED: {{expected}}
+    AGENT_M_INSTANCE_COMMIT: {{commit}}
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: always
   script:
     - {{clone}}
-    - AGENT_M_INSTANCE_COMMIT={{commit}} node .agent-m/src/workflow-entries/main.mjs onDoneCheck
+    - node .agent-m/src/workflow-entries/main.mjs onDoneCheck
