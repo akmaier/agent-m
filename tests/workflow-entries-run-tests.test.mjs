@@ -25,7 +25,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -124,7 +124,7 @@ test("runTests — the command runs the files testsOfRow names for the row, with
     const given = w.given();
     assert.ok(given, "the command ran");
     assert.deepEqual(given.args, ["tests/store-a.test.mjs", "tests/store-b.test.mjs"]);
-    assert.equal(given.cwd, w.checkout);
+    assert.equal(realpathSync(given.cwd), realpathSync(w.checkout), "the command runs in the checkout");
     const report = join(reportsOf(w), "pull-request.unit.1.xml");
     assert.deepEqual(given.variables, { AGENT_M_ROW: "unit", AGENT_M_OCCASION: "pull-request", AGENT_M_SHARD: "1", AGENT_M_SHARDS: "2", AGENT_M_REPORT: report });
     assert.ok(existsSync(report), "the report lies where AGENT_M_REPORT names it");
