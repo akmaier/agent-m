@@ -23,7 +23,7 @@
 //
 // ITM-1223 draws the route in the site's one look (look.mjs): the frame's head with the Tests entry's views; the names to test, the levels and the participants
 // that write tests as rows of the frame's table, each cell labelled by its column; each step a panel. A proposed case, which the person edits, stays an item of
-// its group's list.
+// its group's list. ITM-1225: each level's fold is the frame's `explain` of its topic in explanations.md (look.mjs' LEVEL_TOPIC); the page builds no fold of its own.
 //
 // ONE CLICK PER DECISION; THE PAGE NAMES WHERE IT SENDS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK: nothing is written or sent while the page is drawn or the run panel shown; Run, the panel's own
 // button, is the one click that queues the job.
@@ -41,7 +41,7 @@ import { queueJob, routesFor } from "../runtimes/index.mjs";
 import { explain, runPanel, readProblem } from "../site-frame/index.mjs";
 import { reachableBy, resourceSchema } from "../resource-list/index.mjs";
 import { readRegister } from "../documents/index.mjs";
-import { testsHead, readsAt, column, listTable } from "./look.mjs";
+import { testsHead, readsAt, column, listTable, LEVEL_TOPIC } from "./look.mjs";
 
 const REGISTER = "docs/participants.md";
 const WORKFLOWS = [".github/workflows/agent-m-jobs.yml", ".gitlab/agent-m-jobs.yml"];
@@ -50,14 +50,6 @@ const LEVELS = ["unit", "component", "system", "release", "user"];
 // The levels that fit a kind of name (UC-026's table: unit from a module, component from its modules, system from a use case, release and user from a requirement).
 const FITTING = { requirement: ["release", "user"], UC: ["system"], MOD: ["unit", "component"] };
 const PARAMETER = { requirement: "requirements", UC: "useCases", MOD: "modules" };
-// What each level checks, from UC-026's table, and the chapter of the book (chapter 13) that explains it.
-const LEVEL_TEXT = {
-  unit: ["one function, class or small module in isolation; derived from a module; automated, external services mocked", "Unit Testing and Automation Structure"],
-  component: ["the interface between units that work together; derived from an architecture element and its modules; automated, misuse, misunderstanding and timing cases", "Component Testing and Interface Risks"],
-  system: ["the integrated product along a use case; derived from a use case; automated, end to end", "System Testing and Practical Scope Selection"],
-  release: ["a release candidate against the specification; derived from a requirement; automated or manual, written by someone other than the implementer", "Release Testing"],
-  user: ["the product in real use: alpha, beta, acceptance; derived from a requirement or acceptance criterion; manual, the outcome entered by a person", "User Testing and Acceptance Decisions"],
-};
 
 const TITLE = "Generate tests";
 
@@ -78,11 +70,6 @@ function button(className, text, listener) {
 
 const walk = (node) => [...node.childNodes].flatMap((kid) => (kid.nodeType === 1 ? [kid, ...walk(kid)] : []));
 const inputsOf = (root, className) => walk(root).filter((node) => node.localName === "input" && node.className.split(" ").includes(className));
-
-function levelExplanation(level) {
-  const [what, chapter] = LEVEL_TEXT[level];
-  return el("details", "explain", el("summary", null, "What is this?"), el("p", null, `The level ${level} checks ${what}. The book, chapter 13, section "${chapter}".`));
-}
 
 // The tests that guard a name: those `tracesTo` finds, and, for a module, those that exercise it.
 function guardingTests(graph, name) {
@@ -164,7 +151,7 @@ async function render(target, context, params = {}) {
     box.type = "checkbox";
     box.value = level;
     box.checked = preselectedLevels.has(level);
-    const item = el("tr", "level", column("Level", el("label", null, box, ` ${level}`)), column("What it checks", levelExplanation(level)));
+    const item = el("tr", "level", column("Level", el("label", null, box, ` ${level}`)), column("What it checks", explain(LEVEL_TOPIC[level])));
     item.setAttribute("data-level", level);
     return item;
   }));

@@ -18,13 +18,15 @@
 // labelled row with its explanation for each key of the schedule's front matter, and one Save. The form is built here from the schedule's schema, its findings
 // those of documentFindings and scheduleFindings: the frame's schemaForm edits a section only in the renderer's editor and draws a key without its explanation.
 //
-// The folded explanations are built here, not by the frame's `explain`: explanations.md holds no topic of the schedule, and it is the frame's file.
+// ITM-1225: every folded explanation is the frame's `explain` of a topic of explanations.md — a level, an occasion, a field of the front matter, the secrets
+// and a self-hosted runner —; the page builds no fold of its own.
 //
 // Module: MOD-test-pages
 
 import { scheduleSchema, defaultSchedule, scheduleFindings, secretsNeeded, configurationDrift, occasionsOf, proposeSchedule, applyPipelineSchedule } from "../test-schedule/index.mjs";
 import { readDocument, documentFindings } from "../documents/index.mjs";
-import { testsHead, readsAt } from "./look.mjs";
+import { testsHead, readsAt, LEVEL_TOPIC, OCCASION_TOPIC } from "./look.mjs";
+import { explain } from "../site-frame/index.mjs";
 import { participantSchema, participantsOf, eligible } from "../participant-list/index.mjs";
 import { resourceSchema } from "../resource-list/index.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
@@ -48,22 +50,9 @@ const OCCASION_OF_EVENT = { push: "every commit", pull_request: "pull request", 
 const RUN_OCCASIONS = ["every commit", "pull request", "nightly", "on demand"];
 const DAY = 24 * 60 * 60 * 1000;
 
-const ROW_TEXT = {
-  unit: "Tests of one function or class in isolation, fast and without external services. Book: ch. 13, Unit Testing.",
-  component: "Tests of the interface between modules. Book: ch. 13, Component Testing.",
-  system: "Tests that walk a use case end to end, with recorded responses in place of paid services. Book: ch. 13, System Testing and ch. 13 on mocking.",
-  paid: "Tests that call a paid service or a model, which cut across the levels; they run nightly, not on every commit. Book: ch. 13 on mocking and the nightly integration test.",
-  release: "Tests written by a participant other than the implementer, for each requirement. Book: ch. 13, Release Testing.",
-  user: "Manual tests whose outcome the people assigned enter. Book: ch. 13, User Testing and Acceptance Decisions.",
-};
-const COLUMN_TEXT = {
-  "every commit": "Runs on each push to the default branch, so a break shows at once. Book: ch. 12, Test Automation and Continuous Integration.",
-  "pull request": "Runs on each pull request before its merge. Book: ch. 12, Test Automation and Continuous Integration.",
-  nightly: "Runs once a night, for what is too slow or too costly for every commit, such as the integration test against real services. Book: ch. 13 on mocking and the nightly integration test.",
-  "release candidate": "Runs on a release candidate, and must run every test at every level; it cannot be cleared. Book: ch. 13, Release Testing.",
-  "on demand": "Runs when a person starts it, naming the rows to run. Book: ch. 12, Test Automation and Continuous Integration.",
-};
-const SECRETS_TEXT = "The tests that call a paid service or a model read their key from the CI's secrets. Open the server's secrets page for this product, add a secret there under the name shown, and paste its value into the server's form, never into Agent M. Book: ch. 13 on mocking and the nightly integration test.";
+// The topics of the frame's explanations.md that explain each key of the schedule's front matter (ITM-1225).
+const FIELD_TOPIC = { nightly: "schedule-field-nightly", command: "schedule-field-command", setup: "schedule-field-setup", cache: "schedule-field-cache",
+  minutes: "schedule-field-minutes" };
 
 function el(name, className, ...children) {
   const node = document.createElement(name);
@@ -76,12 +65,6 @@ function link(className, text, href) {
   const node = el("a", className, text);
   node.setAttribute("href", href);
   return node;
-}
-
-// A folded "What is this?" with the given text.
-function fold(text) {
-  const summary = el("summary", null, "What is this?");
-  return el("details", "explain", summary, el("p", null, text));
 }
 
 // What a failure says to the person: the host's reason where it names one, else its message.
@@ -160,7 +143,7 @@ function levelsTable(schedule, counts, offered, { choices, ticks, changed }) {
   const cells = (row) => levelsOf(schedule).find((candidate) => candidate.cells.Row === row)?.cells ?? {};
   const head = el("tr", null, el("th", null, "Level"), el("th", null, "tests"),
     ...COLUMNS.map((column) => {
-      const th = el("th", null, column, fold(COLUMN_TEXT[column]));
+      const th = el("th", null, column, explain(OCCASION_TOPIC[column]));
       th.setAttribute("data-column", column);
       return th;
     }), el("th", null, "runs on"));
@@ -169,7 +152,7 @@ function levelsTable(schedule, counts, offered, { choices, ticks, changed }) {
     select.addEventListener("change", changed);
     choices.set(row, { select, shown: select.value });
     ticks.set(row, new Map());
-    const tr = el("tr", null, labelled(el("th", null, row, fold(ROW_TEXT[row])), "Level"), labelled(el("td", "tests", String(counts[row])), "tests"),
+    const tr = el("tr", null, labelled(el("th", null, row, explain(LEVEL_TOPIC[row])), "Level"), labelled(el("td", "tests", String(counts[row])), "tests"),
       ...COLUMNS.map((column) => {
         const reason = refusal(row, column);
         const ticked = cells(row)[column] === "✓";
@@ -198,15 +181,6 @@ function withTable(schedule, { choices, ticks }) {
   return chosen;
 }
 
-// What each key of the front matter holds, as the schedule's schema states it, with the chapter of the book that explains it.
-const FIELD_TEXT = {
-  nightly: "The time of the nightly run, HH:MM in UTC. Book: ch. 13 on mocking and the nightly integration test.",
-  command: "The command that runs the test files a job is given; leave it empty where the tests run with node's own test runner. Book: ch. 12, Automated Build Systems.",
-  setup: "A command run in every test job before its tests, such as installing what they need; leave it empty where nothing is installed. Book: ch. 12, Automated Build Systems.",
-  cache: "The paths on the runner that setup fills and the CI service keeps between runs, one path per line; leave it empty where nothing is kept. Book: ch. 12, Test Automation and Continuous Integration.",
-  minutes: "The time limit of every job on every commit and on a pull request, in whole minutes; leave it empty where none is set. Book: ch. 12, Test Automation and Continuous Integration.",
-};
-
 // The form of the schedule's schema: one labelled row per key of its front matter, each with its explanation, the table of levels as the input of its
 // section ## Levels, the findings of the schema and of scheduleFindings while the person edits, and one Save, offered only while no error remains. It
 // writes nothing itself: `onSave` does.
@@ -219,7 +193,7 @@ function scheduleForm(schedule, table, state, { participants, findings, onSave }
     const value = schedule.fields?.[key];
     input.value = Array.isArray(value) ? value.join("\n") : String(value ?? "");
     inputs.set(key, input);
-    const field = el("div", "field", el("label", null, `${key} `, input), fold(FIELD_TEXT[key] ?? ""));
+    const field = el("div", "field", el("label", null, `${key} `, input), explain(FIELD_TOPIC[key]));
     field.setAttribute("data-key", key);
     return field;
   });
@@ -253,8 +227,6 @@ function scheduleForm(schedule, table, state, { participants, findings, onSave }
   return { form: el("div", "schedule-form", table, ...fields, findings, el("p", null, save)), check };
 }
 
-const RUNNER_TEXT = "A row on a self-hosted runner waits until a machine of yours is registered to this repository with the label shown. Open the server's runner page: it shows the command to run on that machine, with a short-lived token of its own, which Agent M never sees. Until a runner with the label is online, the runs of the row stay queued. Book: ch. 12, Test Automation and Continuous Integration.";
-
 // The label a CI agent's route `ci runner:<label> ...` names, or null.
 const runnerLabel = (route) => /^ci runner:(\S+)/.exec(route ?? "")?.[1] ?? null;
 
@@ -284,7 +256,7 @@ function runnerBlocks(rows, runnersPage, asked) {
       : queued.length === 0 ? el("p", "no-queued", "No run waits for a runner.")
         : el("ul", "queued-runs", ...queued.map((run) => el("li", null, link(null, `${run.workflow} ${run.commit.slice(0, 7)} (queued)`, run.url))));
     const block = el("div", "runner-registration", el("h3", null, `Row ${row}: a self-hosted runner`),
-      el("p", null, "The runner must carry the label ", el("span", "runner-label", label), ". ", link("runner-page", "Open the server's runner page", runnersPage)), waiting, fold(RUNNER_TEXT));
+      el("p", null, "The runner must carry the label ", el("span", "runner-label", label), ". ", link("runner-page", "Open the server's runner page", runnersPage)), waiting, explain("schedule-self-hosted-runner"));
     block.setAttribute("data-row", row);
     return block;
   });
@@ -293,7 +265,7 @@ function runnerBlocks(rows, runnersPage, asked) {
 function secretsBlock(names, secretsPage) {
   return el("section", "panel secrets", el("h3", null, "Secrets needed"),
     el("ul", null, ...names.map(({ name, for: service }) => el("li", null, `${name} (for ${service})`))),
-    el("p", null, link("secrets-page", "Open the server's secrets page", secretsPage), " Agent M never asks for a secret's value."), fold(SECRETS_TEXT));
+    el("p", null, link("secrets-page", "Open the server's secrets page", secretsPage), " Agent M never asks for a secret's value."), explain("schedule-secrets"));
 }
 
 // ---------------------------------------------------------------- the configuration against the schedule (UC-027 1a, 1b)

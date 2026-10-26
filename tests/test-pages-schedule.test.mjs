@@ -489,3 +489,36 @@ test("TST-1223005 — schedule: the levels are shown once, as the form's own inp
     assert.equal(byClass(field, "explain").length, 1, `${key} has its folded explanation`);
   }
 });
+
+// ---------------------------------------------------------------- ITM-1225: the folds are the frame's explanations
+//
+// Reading the item leaves open, which the pull request names: a fold of the page "is the frame's explain of its topic" when its text equals the text of
+// explain(topic) and that text is not empty (explain gives an empty element for a topic explanations.md lacks); the topics are test-level-<row>,
+// test-occasion-<occasion with hyphens>, schedule-field-<key>, schedule-secrets and schedule-self-hosted-runner; and the module builds no fold of its own:
+// src/test-pages/schedule.mjs creates no details element.
+
+const { explain } = await import("../src/site-frame/index.mjs");
+const { readFileSync } = await import("node:fs");
+const slug = (name) => name.replace(/ /g, "-");
+const foldText = (node) => byClass(node, "explain").map((fold) => fold.textContent);
+const framed = (topic) => {
+  const text = explain(topic).textContent;
+  assert.ok(text.trim() !== "", `explanations.md holds ${topic}`);
+  return text;
+};
+
+// TST-1225003 · level: unit · module: MOD-test-pages
+// guards: EVERY STEP EXPLAINS ITSELF; UC-027
+// given: a saved schedule whose row system runs on lab-runner (a self-hosted runner), and a resource list
+// input: the route schedule rendered
+// expect: the fold of each row is explain(test-level-<row>), of each column explain(test-occasion-<column>), of each front matter field explain(schedule-field-<key>), of the secrets explain(schedule-secrets), of the row system's runner explain(schedule-self-hosted-runner); schedule.mjs creates no details element itself
+test("TST-1225003 — schedule: every fold is the frame's explanation of its topic", async () => {
+  const shown = await withSchedule(SAVED, { "docs/resources.md": resourcesText(ORACLE) });
+  for (const row of ROWS) assert.deepEqual(foldText(byTag(rowOf(shown, row), "th")[0]), [framed(`test-level-${row}`)], row);
+  for (const column of COLUMNS) assert.deepEqual(foldText(headOf(shown, column)), [framed(`test-occasion-${slug(column)}`)], column);
+  for (const key of FRONT) assert.deepEqual(foldText(descendants(shown, (node) => node.getAttribute?.("data-key") === key)[0]), [framed(`schedule-field-${key}`)], key);
+  assert.deepEqual(foldText(byClass(shown, "secrets")[0]), [framed("schedule-secrets")]);
+  assert.deepEqual(foldText(registrationOf(shown, "system")), [framed("schedule-self-hosted-runner")]);
+  const source = readFileSync(new URL("../src/test-pages/schedule.mjs", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /"details"/, "the module builds no fold of its own");
+});

@@ -7,6 +7,13 @@
 
 import { testsViews } from "./views.mjs";
 
+// The topics of the frame's explanations.md (ITM-1225) that explain a level of tests and an occasion on which they run, as the schedule and generate pages
+// show them with the frame's explain.
+export const LEVEL_TOPIC = { unit: "test-level-unit", component: "test-level-component", system: "test-level-system", paid: "test-level-paid",
+  release: "test-level-release", user: "test-level-user" };
+export const OCCASION_TOPIC = { "every commit": "test-occasion-every-commit", "pull request": "test-occasion-pull-request", nightly: "test-occasion-nightly",
+  "release candidate": "test-occasion-release-candidate", "on demand": "test-occasion-on-demand" };
+
 function el(name, className, ...children) {
   const node = document.createElement(name);
   if (className) node.className = className;
