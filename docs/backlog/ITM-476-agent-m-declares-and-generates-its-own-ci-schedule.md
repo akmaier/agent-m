@@ -56,6 +56,15 @@ the schedule integration uses it: openPullRequest by ITM-606, setPipelineSchedul
 findings, ciConfiguration, proposeSchedule and applyPipelineSchedule are built by ITM-742, ITM-744 and ITM-746.
 This item adopts them on Agent M's own repository and builds the workflow entries it uses.
 
+What `.github/workflows/tests.yml` and `nightly.yml` do that the generated configuration must carry when they go:
+
+- `tests/test_release_sprint_02_c.py` reads `AGENT_M_NIGHTLY=1`; a test that runs only on some occasions reads
+  `AGENT_M_OCCASION` (MOD-test-schedule, *The command*).
+- `nightly.yml`'s job `bridge-build-real` (`BRIDGE_BUILD_REAL=1` under `xvfb-run`) becomes a test of a row the schedule
+  ticks for `nightly`, reading `AGENT_M_OCCASION`.
+- `tests/fixtures/architecture/tests/reader.test.js` is named as a test and has no readable level, so `runTests` would end
+  the row `failed` before running; it is given a level or a name that is not a test's.
+
 ## Acceptance
 
 - Use the workflow entries the generated configuration calls, `runTests` (ITM-1215), `onTestsFinished` (ITM-1209,
