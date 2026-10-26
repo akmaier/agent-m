@@ -78,6 +78,14 @@ export function isTestFile(path) {
   return parts.slice(0, -1).some((folder) => TEST_FOLDERS.has(folder)) || TEST_NAME.test(parts[parts.length - 1]);
 }
 
+// isNamedTestFile(path: string) -> boolean — whether a path is named as tests are named in its language, as defined above,
+// wherever it lies: the files a test runner runs. A helper, a fixture or a Markdown file of manual tests is a test file by its
+// folder alone and is none; Markdown is no language whose tests a runner runs, whatever the file is called.
+export function isNamedTestFile(path) {
+  const name = path.split("/").pop();
+  return !name.endsWith(".md") && TEST_NAME.test(name);
+}
+
 // testDeclarations(path: string, text: string) -> TestDeclaration[] — every test declaration of a test file, in order,
 // as MOD-test-document's Data states them. `path` names the declarations it returns, and selects the form read: a
 // Markdown file (`path` ending `.md`) by its headings, any other by its comment lines. It never throws on content: a
