@@ -343,3 +343,89 @@ test("a manual test's title is its heading's title; a function's name is a title
   const code = [...declared("//", "TST-708"), "function check() {}", ""].join("\n");
   assert.deepEqual(testDeclarations("fixtures/title-function.test.mjs", code).map((d) => d.title), ["check"]);
 });
+
+// ---------------------------------------------------------------- the title past every comment line of the block (ITM-1220)
+//
+// MOD-test-document, Data: for a test in code, the title is the name the test case gives itself on the first line after the
+// declaration. A declaration's block of comment lines may go on past its last field — a line `// Planted fault: …`, or a
+// field's value continued over further comment lines —; the test case's first line is the first line after that whole block.
+// The fixtures below are shaped as Agent M's own declarations whose title was read null or wrong: TST-961007
+// (tests/bridge-build-build-platform.test.mjs), TST-1182001 (tests/bridge-build-tunnel-check-host-key.test.mjs), TST-1120002
+// (tests/implementation-pages-plan-stored-graph.test.mjs) and TST-519011 (tests/test_artifact_provenance.py).
+
+// TST-1220101 · level: unit · module: MOD-test-document
+// guards: EVERY TEST RUN LEAVES A RESULT RECORD; UC-028
+// given: a JavaScript file shaped as TST-961007: its declaration's fields, then the comment line `// Planted fault: a scan of the whole installed tree finds the build tools' addon and rejects.`, then the line `test("buildPlatform — a .node file in the build tools only, which the app does not ship, gives no NativeAddonFound", async () => {`
+// input: that file's text
+// expect: one declaration whose title is "buildPlatform — a .node file in the build tools only, which the app does not ship, gives no NativeAddonFound", and whose fields are read as before
+test("a title is read past a comment line after the fields that is no field — MOD-test-document", () => {
+  const text = [
+    "// TST-961007 · level: unit · module: MOD-bridge-build",
+    "// guards: THE BRIDGE IS BUILT FROM THE DASHBOARD'S CODE; UC-044",
+    "// given: a Linux build whose installed tree holds compiled addons in its build tools only",
+    "// input: buildPlatform({ platform: \"linux\", checkout, tag, folder })",
+    "// expect: it does not reject with NativeAddonFound: electron-builder is started and the AppImage is handed on",
+    "// Planted fault: a scan of the whole installed tree finds the build tools' addon and rejects.",
+    "test(\"buildPlatform — a .node file in the build tools only, which the app does not ship, gives no NativeAddonFound\", async () => {",
+    "});",
+    "",
+  ].join("\n");
+  const [declaration] = testDeclarations("tests/bridge-build-build-platform.test.mjs", text);
+  assert.equal(declaration.title, "buildPlatform — a .node file in the build tools only, which the app does not ship, gives no NativeAddonFound");
+  assert.deepEqual([declaration.id, declaration.module, declaration.expect],
+    ["TST-961007", "MOD-bridge-build", "it does not reject with NativeAddonFound: electron-builder is started and the AppImage is handed on"]);
+});
+
+// TST-1220102 · level: unit · module: MOD-test-document
+// guards: EVERY TEST RUN LEAVES A RESULT RECORD; UC-028
+// given: two JavaScript blocks whose comment lines after the fields hold a string literal: one shaped as TST-1182001, ending with `// Planted fault: today's check, which hands the first key to the Server whatever it is, fails with "Malformed OpenSSH private key".`; one shaped as TST-1120002, its expect continued on `//         frame shows in the page's place (MOD-site-frame's readProblem); …`; each followed by its `test("…", async () => {` line
+// input: that file's text
+// expect: the titles "tunnelCheck — the test SSH server takes only a host key that ssh2 parses, and generates another when one does not" and "the plan page builds no graph where none is stored, and fails with GraphNotStored" — not "Malformed OpenSSH private key", not "s place (MOD-site-frame"
+test("a title is not read from a comment line of the block that holds a string literal — MOD-test-document", () => {
+  const text = [
+    "// TST-1182001 · level: unit · module: MOD-bridge-build",
+    "// guards: THE BRIDGE IS SIGNED BY ITS PUBLISHER",
+    "// input: tunnelCheck",
+    "// expect: the Server is built with a host key that ssh2 parses",
+    "// Planted fault: today's check, which hands the first key to the Server whatever it is, fails with \"Malformed OpenSSH private key\".",
+    "test(\"tunnelCheck — the test SSH server takes only a host key that ssh2 parses, and generates another when one does not\", async () => {",
+    "});",
+    "",
+    "// TST-1120002 · level: unit · module: MOD-implementation-pages",
+    "// guards: UC-045; A PAGE LOAD READS THE REPOSITORY IN BATCHES",
+    "// input: the route plan's render",
+    "// expect: no graph is built; the render fails with GraphNotStored, whose message the",
+    "//         frame shows in the page's place (MOD-site-frame's readProblem); `readOn` was asked as in TST-1120001",
+    "test(\"the plan page builds no graph where none is stored, and fails with GraphNotStored\", async () => {",
+    "});",
+    "",
+  ].join("\n");
+  assert.deepEqual(testDeclarations("tests/sample-titles.test.mjs", text).map((d) => [d.id, d.title]), [
+    ["TST-1182001", "tunnelCheck — the test SSH server takes only a host key that ssh2 parses, and generates another when one does not"],
+    ["TST-1120002", "the plan page builds no graph where none is stored, and fails with GraphNotStored"],
+  ]);
+});
+
+// TST-1220103 · level: unit · module: MOD-test-document
+// guards: EVERY TEST RUN LEAVES A RESULT RECORD; UC-028
+// given: a Python file shaped as TST-519011: an indented declaration whose expect continues over two `#         …` lines — the first holding `Agent-M-Kind: change-use-case`, the second `the detector names the version …` —, then `def test_the_commit_of_a_written_use_case_names_the_version_the_participant_and_the_model(self):`
+// input: that file's text
+// expect: one declaration whose title is "test_the_commit_of_a_written_use_case_names_the_version_the_participant_and_the_model", the name the method defines
+test("a Python title is read past a field continued over comment lines — MOD-test-document", () => {
+  const text = [
+    "class ArtifactProvenance(unittest.TestCase):",
+    "    # TST-519011 · level: system · module: system",
+    "    # guards: AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT",
+    "    # given: the fixture CI agent ci-drafter (model ci-model-7) at Agent M 2026.10.0, commit abc123def456",
+    "    # input: its change-use-case job run unattended; the message of the commit the writer open-files made",
+    "    # expect: the message ends with the six lines Agent-M-Version: 2026.10.0, commit abc123def456 /",
+    "    #         Agent-M-Kind: change-use-case / Agent-M-Participant: ci-drafter / Agent-M-Model: ci-model-7 / Agent-M-Rounds: 1;",
+    "    #         the detector names the version, the commit, the job, the participant, the model and a trailer line in that message",
+    "    def test_the_commit_of_a_written_use_case_names_the_version_the_participant_and_the_model(self):",
+    "        pass",
+    "",
+  ].join("\n");
+  assert.deepEqual(testDeclarations("tests/test_artifact_provenance.py", text).map((d) => [d.id, d.title]), [
+    ["TST-519011", "test_the_commit_of_a_written_use_case_names_the_version_the_participant_and_the_model"],
+  ]);
+});
