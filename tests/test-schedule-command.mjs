@@ -1,3 +1,6 @@
+// Module: MOD-test-schedule
+// Level: unit
+//
 // Agent M's own test command — the `command` of Agent M's schedule, as docs/architecture/MOD-test-schedule.md names it
 // (Parts, *Agent M's own `command` and `setup`*) and states it under *The command* and *The variables of a test job*.
 // A test job runs it in the checkout's root with the files of its row as its arguments:
@@ -16,11 +19,8 @@
 // where the declaration before its method names one (MOD-test-document's testDeclarations), so that MOD-result-records'
 // parseOutcomes matches it to its declaration, and by its method where none does. A node case is named `TST-<nnn> <title>`
 // the same way: by the declaration in its file whose title is the case's — a template title matching as a pattern, `${…}`
-// any text —, or else the title of the test whose subtest it is (node's reporter writes that test as a <testsuite>, and
-// the subtest's classname is its title); a case whose name starts with a TST-<nnn> of its own keeps it.
-//
-// Module: MOD-test-schedule
-// Level: unit
+// any text —, or else the title of the test whose subtest it is (node's reporter writes that test as a <testsuite> around
+// the subtest's case); a case whose name starts with a TST-<nnn> of its own keeps it.
 
 import { spawn } from "node:child_process";
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, rmSync } from "node:fs";
@@ -82,15 +82,16 @@ function declaredNode(content, files) {
   const byFile = new Map(files.map((file) => [resolve(file), testDeclarations(file, readFileSync(file, "utf8"))
     .filter((d) => d.title).map((d) => ({ id: d.id, pattern: titlePattern(d.title) }))]));
   const everyDeclaration = [...byFile.values()].flat();
-  return content.replace(/<testcase\b[^>]*>/g, (tag) => {
+  const suites = []; // the names of the <testsuite> elements around the current place, innermost last
+  return content.replace(/<testsuite\b[^>]*?(\/?)>|<\/testsuite\s*>|<testcase\b[^>]*>/g, (tag, selfClosing) => {
     const attribute = (key) => { const m = new RegExp(`\\s${key}="([^"]*)"`).exec(tag); return m ? decoded(m[1]) : null; };
+    if (tag.startsWith("</")) { suites.pop(); return tag; }
+    if (tag.startsWith("<testsuite")) { if (!selfClosing) suites.push(attribute("name") ?? ""); return tag; }
     const name = attribute("name");
     if (name === null || /^TST-\d+/.test(name)) return tag;
     const file = attribute("file");
     const declarations = file === null ? everyDeclaration : byFile.get(resolve(file)) ?? [];
-    const classname = attribute("classname");
-    const found = declarations.find((d) => d.pattern.test(name))
-      ?? (classname === null ? undefined : declarations.find((d) => d.pattern.test(classname)));
+    const found = [name, ...[...suites].reverse()].map((title) => declarations.find((d) => d.pattern.test(title))).find(Boolean);
     return found ? tag.replace(/\sname="/, ` name="${found.id} `) : tag;
   });
 }
