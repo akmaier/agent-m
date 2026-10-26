@@ -843,9 +843,15 @@ export const route = {
       return;
     }
     if (descriptor.key === "audit") {
+      // The audit of a release candidate (`commit` among its params, as the release panel embeds it) is drawn at the candidate's tag, its rows derived there as
+      // a release's are at the release's (ITM-1227); Tests → Audit offers the release tags alone.
+      if (params.commit) {
+        await drawAudit(target, context, host, params.ref, descriptor, [params.ref]);
+        return;
+      }
       const { names, failure } = await tagsOf(host);
       await drawAudit(target, context, host, params.ref, descriptor, names.filter((tag) => RELEASE.test(tag)), failure && failedRead("traces-problem", "The tags", failure, context),
-        params.commit ? [] : [await testsViews("Audit")]);
+        [await testsViews("Audit")]);
       return;
     }
     const handed = params.ref;
