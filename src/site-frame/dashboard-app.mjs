@@ -31,7 +31,7 @@ import { openStore, readSetting, writeSetting, secretValues } from "../browser-s
 import { parseAddress, connect, HostError } from "../repository-hosts/index.mjs";
 import { watchForAcceptance } from "../notifications/index.mjs";
 import { storedOverview } from "../progress-measures/index.mjs";
-import { attachPromptBar, explain } from "./index.mjs";
+import { attachPromptBar, explain, pageStarted } from "./index.mjs";
 import { subjectOf } from "./subject.mjs";
 import { foldMenu } from "./menu.mjs";
 import { fragmentOf, instanceHostFollowingStore, loadView, routeOf, productHostFollowingStore, tokenKeyOf } from "./routing.mjs";
@@ -61,6 +61,11 @@ for (const slug of (ownTag?.getAttribute("data-views") ?? "").split(/\s+/).filte
 // Every view's strategies and the prompt bar's, registered at load (register.mjs), so that a job any route prepares — a review page's, or the test job of an endpoint on the
 // Settings page — finds every recipe of the page's views.
 if (inPage) registerViews([...loaded]);
+// The routes of the views it loads, reachable by embedRoute with the context of the route shown now, recorded as startPage records its page (pageStarted), so that
+// one view shows another's part here as on a page startPage starts: the tests browser and the audit the Tests entry's views, the release panel its candidate's audit.
+// The context is the one the route shown was rendered with (shownContext), none while a route renders without one of the frame's.
+let shownContext = null;
+if (inPage) pageStarted("review", [...loaded.values()].flatMap((view) => view.routes ?? []), () => shownContext);
 const NO_VIEW = { routes: [], strategies: [] };
 const viewOf = (slug) => {
   if (loaded.has(slug)) return loaded.get(slug);
@@ -665,7 +670,8 @@ function implementationContext() {
 async function renderProductRoute(view, name, params) {
   loading += 1;
   try {
-    await view.routes.find((route) => route.name === name).render(main(), implementationContext(), params);
+    shownContext = implementationContext();
+    await view.routes.find((route) => route.name === name).render(main(), shownContext, params);
   } finally {
     loading -= 1;
   }
@@ -755,6 +761,7 @@ async function renderTabs() {
 
 async function route() {
   routeSeq += 1;
+  shownContext = null;
   let [kind, a, b] = location.hash.replace(/^#/, "").split("/");
   const entry = MENU.find((candidate) => candidate.key === kind);
   const params = routeOf(location.hash).params;
@@ -846,10 +853,11 @@ async function route() {
       }, {});
     } else if (kind === "release") {
       const releasePanel = testPages.routes.find((r) => r.name === "release");
-      await releasePanel.render(main(), {
+      shownContext = {
         instance: { host: connect(parseAddress(`https://github.com/${T.instance}`), { token: ghToken() }) },
         product: { host: connect(parseAddress(T.product.address), { token: token() }) },
-      }, {});
+      };
+      await releasePanel.render(main(), shownContext, {});
     } else if (kind === "runs" || kind === "schedule" || kind === "generate") {
       await renderProductRoute(testPages, kind, routeOf(location.hash).params);
     } else if (kind === "trace") {

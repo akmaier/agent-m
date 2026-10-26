@@ -184,6 +184,15 @@ export function instanceOf(location) {
 let started = null;
 
 /**
+ * pageStarted(page: "main" | "review", routes: Route[], context: () -> ViewContext | null) -> void — records the page started now, the one way `started` is
+ * set: startPage and the Bridge's start record theirs, and the live review page's app (dashboard-app.mjs) the routes of the views it loads, so that embedRoute
+ * reaches them there too. Private to the module: index.mjs and dashboard-app.mjs use it.
+ */
+export function pageStarted(page, routes, context) {
+  started = { page, routes, context };
+}
+
+/**
  * embedRoute(name: string, target: Element, params: Record<string, string>) -> Promise<void> — renders the route `name` of a view loaded on the same page inside
  * `target`, with `params` and the context of the route shown now, so one view shows another's part without using it. For a route that no view of the page serves,
  * and before any page is started, it puts a link to the route in `target` — a <a> holding "Open <name>", at the address `go` writes for it — and rejects with an Error
@@ -287,7 +296,7 @@ async function startSite({ page, views }) {
 
   // The route shown now, with the parameters and the context it was rendered with: what the prompt bar's subject is read from.
   let shown = null;
-  started = { page, routes, context: () => shown?.context ?? null };
+  pageStarted(page, routes, () => shown?.context ?? null);
   let shownName = routes[0]?.name ?? "";
   const defaultBranches = new Map();
   const drawMenu = (active, product) => {
@@ -463,7 +472,7 @@ async function startBridge({ page, views }) {
 
   // The route shown and the fragment it was drawn for, asked by askBeforeShowing before another route is shown.
   let shown = null;
-  started = { page, routes, context: () => shown?.context ?? null };
+  pageStarted(page, routes, () => shown?.context ?? null);
   const defaultBranches = new Map();
   const show = async () => {
     const selected = routeOf(location.hash);
