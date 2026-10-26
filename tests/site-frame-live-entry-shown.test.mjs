@@ -41,8 +41,7 @@ function menuElements() {
 // TST-1228007 · level: unit · module: MOD-site-frame
 // guards: THE MENU FOLLOWS THE PROCESS; UC-029; UC-030
 // given: the live app on the instance, a token stored; MOD-trace-pages' route trace recording what it is rendered with; the menu's eight entries
-// input: the dashboard opened at #trace/key=specification; the fragment changes to #trace/key=tests, to #trace/key=audit/ref=v2026.1.0, to
-//   #trace/key=modules and to #trace/key=nothing-like-this
+// input: the dashboard opened at #trace/key=specification; the fragment changes to #trace/key=tests, to #trace/key=audit/ref=v2026.1.0, to #trace/key=modules and to #trace/key=nothing-like-this
 // expect: the menu marks tests, tests, architecture, then requirements — one entry each time; each address renders the route trace
 // Planted fault: an app that looks the entry up by view name in src/site/menu.mjs marks nothing at #trace/key=tests, #trace/key=audit and #trace/key=modules.
 test("TST-1228007 the live app marks Tests on #trace with the key tests", async () => {

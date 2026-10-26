@@ -50,11 +50,9 @@ const itemOf = (page, key) => page.menu.children.find((item) => item.getAttribut
 
 // TST-1228001 · level: unit · module: MOD-site-frame
 // guards: THE MENU FOLLOWS THE PROCESS; UC-049
-// given: a route `trace` under Requirements whose entryShown gives tests for the key tests and architecture for the key modules; once giving no subject
-//   of its own, once giving its own with the entry "settings"
+// given: a route `trace` under Requirements whose entryShown gives tests for the key tests and architecture for the key modules; once giving no subject of its own, once giving its own with the entry "settings"
 // input: subjectOf with the params { key: "tests" }, then { key: "modules" }, the instance acme/instance, nothing drawn
-// expect: the default subject's entry is "tests" and its page names the label Tests, not Requirements; with { key: "modules" } its entry is "architecture";
-//   the route's own subject has the entry "tests", not its own "settings" nor the route's "requirements"
+// expect: the default subject's entry is "tests" and its page names the label Tests, not Requirements; with { key: "modules" } its entry is "architecture"; the route's own subject has the entry "tests", not its own "settings" nor the route's "requirements"
 // Planted fault: a subjectOf that sets the route's `entry` gives "requirements" and the label Requirements.
 test("TST-1228001 the subject carries the entry the route's entryShown gives", () => {
   const drawn = () => "";
@@ -84,8 +82,7 @@ test("TST-1228002 where entryShown gives null, or the route gives none, the subj
 // TST-1228003 · level: unit · module: MOD-site-frame
 // guards: THE MENU FOLLOWS THE PROCESS; UC-030
 // given: the review page with the routes `trace` (Requirements, entryShown by key), `schedule` (Tests) and `module` (Architecture)
-// input: startPage at #trace/key=tests; the fragment changes to #trace/key=audit/ref=v1, to #trace/key=modules, to #trace/key=specification, to
-//   #trace/key=none, then to #trace
+// input: startPage at #trace/key=tests; the fragment changes to #trace/key=audit/ref=v1, to #trace/key=modules, to #trace/key=specification, to #trace/key=none, then to #trace
 // expect: the menu marks tests, tests, architecture, requirements, requirements, requirements — one entry each time; the route rendered is `trace` each time
 // Planted fault: a menu marked by the route's `entry` marks requirements at #trace/key=tests, #trace/key=audit and #trace/key=modules.
 test("TST-1228003 the menu marks the entry the route's entryShown gives, else the route's entry", async () => {
@@ -105,8 +102,7 @@ test("TST-1228003 the menu marks the entry the route's entryShown gives, else th
 // guards: THE MENU FOLLOWS THE PROCESS
 // given: the review page with the routes `trace` (Requirements, entryShown by key) and `schedule` (Tests); then with `trace` alone
 // input: startPage at #tests; then at #trace/key=tests with `trace` alone
-// expect: #tests renders `schedule`, the first route listed under Tests, not `trace`, and the menu marks tests; with `trace` alone the menu's Tests is a span
-//   of class soon titled not built yet (menuOf counts only `entry`), Requirements is a link to #requirements, and no entry is marked — not Requirements
+// expect: #tests renders `schedule`, the first route listed under Tests, not `trace`, and the menu marks tests; with `trace` alone the menu's Tests is a span of class soon titled not built yet (menuOf counts only `entry`), Requirements is a link to #requirements, and no entry is marked — not Requirements
 // Planted fault: a menu marked by the route's `entry` marks requirements with `trace` alone; a menuOf counting entryShown makes Tests a link.
 test("TST-1228004 menuOf counts only entry, and a fragment naming an entry opens its first route", async () => {
   const both = await start({ fragment: "#tests", views: [trace(), route("schedule", "tests")] });
