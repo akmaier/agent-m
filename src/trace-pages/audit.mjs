@@ -200,14 +200,14 @@ function page(loaded, links, host) {
 }
 
 /**
- * drawAudit(target, context, host, ref, descriptor, tags, tagsProblem, links) — draws the audit of the release tag `ref` (the newest of `tags`, the release tags newest first, where
+ * drawAudit(target, context, host, ref, descriptor, tags, tagsProblem, underHeading) — draws the audit of the release tag `ref` (the newest of `tags`, the release tags newest first, where
  * `ref` is none of them) into `target`; the choice offers `tags` and nothing else, and choosing one draws the page again at it. Where a read fails the page names it;
- * `tagsProblem`, when the tags could not be read, is the element that says so, and stands in place of the audit. `links`, the elements of the descriptor's links
- * (flow.mjs), stand under the heading, whatever the page shows below it.
+ * `tagsProblem`, when the tags could not be read, is the element that says so, and stands in place of the audit. `underHeading`, the elements flow.mjs hands — the
+ * Tests entry's views for the audit of a release tag, none for a candidate's —, stand under the heading, whatever the page shows below it.
  */
-export async function drawAudit(target, context, host, ref, descriptor, tags, tagsProblem = null, links = []) {
+export async function drawAudit(target, context, host, ref, descriptor, tags, tagsProblem = null, underHeading = []) {
   const place = el("div", "audit-body");
-  const section = el("section", "audit head", el("h2", null, descriptor.title), ...links, place);
+  const section = el("section", "audit head", el("h2", null, descriptor.title), ...underHeading, place);
   if (tagsProblem) {
     target.replaceChildren(section);
     place.append(tagsProblem);

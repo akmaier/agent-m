@@ -25,7 +25,7 @@ import { entryView, queues } from "../spec-changes/index.mjs";
 import { affectedRequirements, linkedVersion, sourceSchemas } from "../source-register/index.mjs";
 import { coverageGaps, latestGraph, moduleRows, storedGraph, tracesTo } from "../trace-graph/index.mjs";
 import { latestOverview, storedOverview } from "../progress-measures/index.mjs";
-import { explain, readProblem } from "../site-frame/index.mjs";
+import { embedRoute, explain, readProblem } from "../site-frame/index.mjs";
 import { componentDiagram } from "./diagram.mjs";
 import { descriptorFor } from "./views.mjs";
 import { showTests } from "./tests.mjs";
@@ -693,20 +693,16 @@ const OTHER = {
   gaps: { key: "specification", text: "Specification", className: "trace-specification-link" },
 };
 
-// The links a view's descriptor gives for its page (`links` without a row) — for the tests and the audit the views of the menu entry Tests (ITM-1224) — as a nav
-// named after the view's entry, drawn under the view's heading: each a link drawn as a button, the one of the view shown marked as the page shown. A view
-// whose descriptor gives none draws nothing.
-function entryLinks(descriptor) {
-  if (typeof descriptor.links !== "function") return [];
-  const own = fragment("trace", { key: descriptor.key });
-  const nav = el("nav", "entry-views", ...descriptor.links().map(({ text, href }) => {
-    const link = el("a", href === own ? "btn small primary" : "btn small", text);
-    link.setAttribute("href", href);
-    if (href === own) link.setAttribute("aria-current", "page");
-    return link;
-  }));
-  nav.setAttribute("aria-label", `${descriptor.entry.charAt(0).toUpperCase()}${descriptor.entry.slice(1)}`);
-  return [nav];
+// The Tests entry's views under a heading (ITM-1224): MOD-test-pages' route `tests-views`, shown through the frame's embedRoute with `shown` naming the view.
+// Where that route is not on the page, the frame has put its link to it in the element (RouteNotLoaded), and the view is drawn on.
+async function testsViews(shown) {
+  const place = el("div", "tests-views-place");
+  try {
+    await embedRoute("tests-views", place, { shown });
+  } catch (failure) {
+    if (failure?.name !== "RouteNotLoaded") throw failure;
+  }
+  return place;
 }
 
 // What each drawn route keeps for its subject, by the context it was drawn with: the frame asks the route for the subject with the same context.
@@ -849,7 +845,7 @@ export const route = {
     if (descriptor.key === "audit") {
       const { names, failure } = await tagsOf(host);
       await drawAudit(target, context, host, params.ref, descriptor, names.filter((tag) => RELEASE.test(tag)), failure && failedRead("traces-problem", "The tags", failure, context),
-        entryLinks(descriptor));
+        params.commit ? [] : [await testsViews("Audit")]);
       return;
     }
     const handed = params.ref;
@@ -899,7 +895,7 @@ export const route = {
           fill = () => showGaps(place, shown);
         } else if (descriptor.key === "tests") {
           const place = el("div", "tests-page", el("p", "traces-reading", "Reading the tests…"));
-          body = el("section", "tests head", el("h2", null, descriptor.title), ...entryLinks(descriptor), place);
+          body = el("section", "tests head", el("h2", null, descriptor.title), await testsViews("Browser"), place);
           fill = () => showTests(place, shown, params);
         } else {
           if (editable) shown.source = source;

@@ -26,24 +26,12 @@ export const gaps = {
   shape: "table",
 };
 
-// The views of the menu entry Tests, in its order — the batteries' setup first, then the results (ITM-1224) —, each as { text, href }: the links the tests browser
-// and the audit draw under their heads, the one shown marked. MOD-test-pages' routes draw the same five (ITM-1223).
-const TESTS_ENTRY = [
-  { text: "Schedule", href: "#schedule" },
-  { text: "Browser", href: "#trace/key=tests" },
-  { text: "Runs", href: "#runs" },
-  { text: "Audit", href: "#trace/key=audit" },
-  { text: "Generate", href: "#generate" },
-];
-const testsEntry = () => TESTS_ENTRY.map((link) => ({ ...link }));
-
 export const tests = {
   key: "tests",
   entry: "tests",
   title: "Tests",
   versions: "branch-and-tags",
   shape: "tree",
-  links: testsEntry,
 };
 
 export const modules = {
@@ -60,7 +48,6 @@ export const audit = {
   title: "Audit",
   versions: "tags",
   shape: "table",
-  links: testsEntry,
 };
 
 const descriptors = new Map([[specification.key, specification], [gaps.key, gaps], [modules.key, modules], [tests.key, tests], [audit.key, audit]]);
