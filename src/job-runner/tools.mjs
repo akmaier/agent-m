@@ -72,17 +72,25 @@ export function withHeld(draft, held, refuses = []) {
 const trimmed = (folder) => (folder === "." ? "" : folder.replace(/^\/+/, "").replace(/\/+$/, ""));
 const within = (path, folder) => path === trimmed(folder) || path.startsWith(`${trimmed(folder)}/`);
 
-// The refusal for a path whose content is a restricted source's that does not allow the drafter's place, or null.
-function barred(path, context) {
-  const { place } = context.exchange.drafter;
-  for (const { source, paths } of context.places.contents ?? []) {
-    if (!paths.some((each) => within(path, each))) continue;
-    if (!(context.places.sources?.[source] ?? []).includes(place)) {
-      return refusal(`${path} holds content of ${source}, which may not go to ${place ?? "an unknown place"}`);
-    }
-  }
-  return null;
+/**
+ * sourcesOf(context, path) -> string[] — the sources of every `context.places.contents` entry that names the path or a folder above it, once each: what a
+ * part holding that file carries (RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS).
+ */
+export function sourcesOf(context, path) {
+  const sources = (context.places?.contents ?? []).filter(({ paths }) => paths.some((each) => within(path, each))).map(({ source }) => source);
+  return [...new Set(sources)];
 }
+
+/**
+ * withheld(context, path) -> string | null — the refusal a tool answers for a path whose content is a restricted source's that does not allow the place of
+ * the exchange's drafter, naming the source and the place; null where every source of the path allows it.
+ */
+export function withheld(context, path) {
+  const { place } = context.exchange.drafter;
+  const source = sourcesOf(context, path).find((each) => !(context.places.sources?.[each] ?? []).includes(place));
+  return source ? refusal(`${path} holds content of ${source}, which may not go to ${place ?? "an unknown place"}`) : null;
+}
+const barred = (path, context) => withheld(context, path);
 
 // ---------------------------------------------------------------- the paths propose-edit refuses
 
