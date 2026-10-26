@@ -346,3 +346,31 @@ test("schedule — the runner chosen in the table is written by Save", async () 
   const text = writes(shown.host, "commitFiles")[0][1].files.find((file) => file.path === "docs/tests/schedule.md").text;
   assert.match(text, /\| system \|[^\n]*\| lab-runner \|/);
 });
+
+// TST-1223006 · level: unit · module: MOD-test-pages
+// guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT; ONE CLICK PER DECISION; EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE; UC-027
+// given: a saved schedule whose row unit runs on every commit and whose row system does not
+// input: in the table of levels, the box every commit of the row unit unticked and that of the row system ticked (each a change event), then the one Save
+// expect: one commit; its docs/tests/schedule.md holds the row unit without a tick under every commit and the row system with one, the other cells of both rows as before, and the nightly time 02:00
+test("TST-1223006 — schedule: the table of levels is edited in place and written by the one Save", async () => {
+  const shown = await page("github", { "docs/tests/schedule.md": SAVED });
+  const boxOf = (row) => byTag(descendants(shown.target, (node) => node.localName === "tr" && node.getAttribute("data-row") === row)[0], "input")
+    .find((input) => input.getAttribute("type") === "checkbox" && input.parentNode.getAttribute("data-column") === "every commit");
+  const unit = boxOf("unit"), system = boxOf("system");
+  assert.ok(unit && system, "known positive: the boxes are drawn");
+  unit.checked = false;
+  unit.dispatchEvent(new Event("change"));
+  system.checked = true;
+  system.dispatchEvent(new Event("change"));
+  assert.equal(descendants(shown.target, (node) => node.localName === "button" && node.textContent === "Save").length, 1, "one Save");
+  click(saveOf(shown.target));
+  await until(() => writes(shown.host, "commitFiles").length, "the commit made");
+  assert.equal(writes(shown.host, "commitFiles").length, 1);
+  const text = writes(shown.host, "commitFiles")[0][1].files.find((file) => file.path === "docs/tests/schedule.md").text;
+  const saved = readDocument(scheduleSchema, "docs/tests/schedule.md", text);
+  const cells = (row) => saved.sections.find((section) => section.heading === "## Levels").rows.find((each) => each.cells.Row === row).cells;
+  const ticked = (row) => ["every commit", "pull request", "nightly", "release candidate", "on demand"].filter((column) => cells(row)[column] === "✓");
+  assert.deepEqual(ticked("unit"), ["pull request", "nightly", "release candidate", "on demand"]);
+  assert.deepEqual(ticked("system"), ["every commit", "nightly", "release candidate", "on demand"]);
+  assert.equal(saved.fields.nightly, "02:00");
+});

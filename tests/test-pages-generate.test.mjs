@@ -17,7 +17,8 @@
 //     when no test of that level guards the name; a test guards a module it names in its `Module:` line, as the recipe test-selection counts it.
 //   - A name is preselected when one of its combinations is uncovered; a level when a preselected name lacks it.
 //   - The implementer of what a selection checks is the participant of a job of kind implement whose worksOn names a selected name.
-//   - The page holds <input class="name"> per name, <input class="level"> per level with a folded <details class="explain">, <li class="participant"> per offered participant with <input
+//   - The page holds <input class="name"> per name, <input class="level"> per level with a folded <details class="explain">, each in a row <tr> of the frame's table (ITM-1223),
+//     <tr class="participant"> per offered participant with <input
 //     class="participant"> (a radio), <p class="left-out"> per participant left out, <p class="release-needs-another"> for 4a, <input class="person">, <button class="prepare">, and Run is the panel's own.
 // The counter-proofs are recorded in the pull request.
 
@@ -143,7 +144,7 @@ async function until(condition, what) {
 }
 const checkedNames = (target) => byClass(target, "input", "name").filter((box) => box.checked).map((box) => box.value);
 const checkedLevels = (target) => byClass(target, "input", "level").filter((box) => box.checked).map((box) => box.value);
-const offeredNames = (target) => byClass(target, "li", "participant").map((item) => item.getAttribute("data-name")).sort();
+const offeredNames = (target) => byClass(target, "tr", "participant").map((item) => item.getAttribute("data-name")).sort();
 function setLevel(target, level, on) {
   const box = byClass(target, "input", "level").find((each) => each.value === level);
   box.checked = on;
@@ -169,16 +170,16 @@ const runButtons = (root) => find(root, (node) => node.localName === "button" &&
 test("generate — what can be tested with the levels that guard it, the uncovered combinations preselected, each level explained", async () => {
   const fake = fakeProduct();
   const target = await show(fake);
-  const listed = byClass(target, "li", "uncovered").concat(byClass(target, "li", "covered")).map((item) => item.getAttribute("data-name")).sort();
+  const listed = byClass(target, "tr", "uncovered").concat(byClass(target, "tr", "covered")).map((item) => item.getAttribute("data-name")).sort();
   assert.deepEqual(listed, ["MOD-a", "MOD-b", "RULE ONE", "RULE TWO", "UC-001", "UC-002"]);
   assert.deepEqual(checkedNames(target).sort(), ["MOD-a", "RULE TWO", "UC-002"]);
-  const rowOf = (name) => find(target, (node) => node.localName === "li" && node.getAttribute("data-name") === name)[0];
+  const rowOf = (name) => find(target, (node) => node.localName === "tr" && node.getAttribute("data-name") === name)[0];
   assert.match(byClass(rowOf("RULE ONE"), "span", "covered")[0].textContent, /release, user/);
   assert.match(byClass(rowOf("MOD-a"), "span", "covered")[0].textContent, /no level/);
   assert.match(byClass(rowOf("MOD-a"), "span", "uncovered")[0].textContent, /unit, component/);
   assert.match(byClass(rowOf("MOD-b"), "span", "covered")[0].textContent, /unit, component/);
   assert.deepEqual(checkedLevels(target), ["unit", "component", "system", "release", "user"]);
-  for (const item of byClass(target, "li", "level")) {
+  for (const item of byClass(target, "tr", "level")) {
     const details = find(item, (node) => node.localName === "details");
     assert.equal(details.length, 1, `${item.getAttribute("data-level")} has one folded explanation`);
     assert.match(details[0].textContent, /chapter 13/);
@@ -486,7 +487,7 @@ test("generate — the graph is asked for with its commit, so that the graph sto
   graph.nodes.set("MOD-stored", { ...graph.nodes.get("MOD-b"), id: "MOD-stored", title: "MOD-stored", path: "docs/architecture/MOD-stored.md" });
   bytes = await gzipped(graphText(graph));
   const target = await show(fake);
-  const listed = byClass(target, "li", "uncovered").concat(byClass(target, "li", "covered")).map((item) => item.getAttribute("data-name")).sort();
+  const listed = byClass(target, "tr", "uncovered").concat(byClass(target, "tr", "covered")).map((item) => item.getAttribute("data-name")).sort();
   assert.deepEqual(listed, ["MOD-a", "MOD-b", "MOD-stored", "RULE ONE", "RULE TWO", "UC-001", "UC-002"]);
   assert.deepEqual(asked, [["trace-cache", `${shot.commit}.json.gz`]]);
 });
@@ -502,7 +503,32 @@ test("generate — where no graph is stored for the commit, none is built and th
   const fake = fakeProduct(FILES, { readOn: async (branch, path) => { asked.push([branch, path]); return null; } });
   const shot = await fake.host.readSnapshot();
   const target = await show(fake);
-  assert.deepEqual(byClass(target, "li", "uncovered").concat(byClass(target, "li", "covered")), []);
+  assert.deepEqual(byClass(target, "tr", "uncovered").concat(byClass(target, "tr", "covered")), []);
   assert.match(target.textContent, new RegExp(`This page could not be drawn: the trace graph of ${shot.commit.slice(0, 12)} is not stored yet`));
   assert.deepEqual(asked, [["trace-cache", `${shot.commit}.json.gz`]]);
+});
+
+// ---------------------------------------------------------------- ITM-1223: the Tests entry's views, in the site's one look
+//
+// Readings the texts leave open, which these tests state (the pull request names them): the head, its links, the rows, the buttons and the panels are
+// checked as tests/test-pages-look.mjs states them; the heading of this route is "Generate tests"; a name to test, a level and a participant that writes
+// tests are rows of table.list; a proposed case, which the person edits, is not a row of items.
+
+const look = await import("./test-pages-look.mjs");
+
+// TST-1223007 · level: unit · module: MOD-test-pages
+// guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE; UC-026; UC-027; UC-028; UC-029; UC-030
+// given: the product with RULE ONE, RULE TWO, UC-001, UC-002, MOD-a and MOD-b, and the writers writer-a, writer-b and ci-writer
+// input: the route generate, drawn
+// expect: the first part is section.head with the heading Generate tests, the product's address and its default branch, and the five views as btn links, Generate marked; each of the six names, the five levels and the three writers is a row of table.list with labelled cells; every button carries btn; every section under the head is a panel
+test("TST-1223007 — generate: the head leads through the Tests entry's views, Generate marked, its rows the frame's table", async () => {
+  const target = await show(fakeProduct());
+  look.assertTestsHead(target, { heading: /^Generate tests$/, shown: "Generate" });
+  assert.match(look.headOf(target).textContent, new RegExp(`${PRODUCT}.*trunk`));
+  const rows = look.assertListRows(target, 6 + 5 + 3);
+  const named = (attribute) => rows.map((row) => row.getAttribute(attribute)).filter(Boolean);
+  assert.deepEqual(named("data-name").sort(), ["MOD-a", "MOD-b", "RULE ONE", "RULE TWO", "UC-001", "UC-002", "ci-writer", "writer-a", "writer-b"]);
+  assert.deepEqual(named("data-level"), ["unit", "component", "system", "release", "user"]);
+  look.assertButtons(target, 2);
+  look.assertPanels(target, 3);
 });
