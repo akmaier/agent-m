@@ -14,7 +14,10 @@
 // other files it fails and names the files that start Electron. It writes the outcomes of both suites as one JUnit XML
 // report to AGENT_M_REPORT and ends with a status other than 0 when a test failed. A Python case is named `TST-<nnn> <method>`
 // where the declaration before its method names one (MOD-test-document's testDeclarations), so that MOD-result-records'
-// parseOutcomes matches it to its declaration, and by its method where none does.
+// parseOutcomes matches it to its declaration, and by its method where none does. A node case is named `TST-<nnn> <title>`
+// the same way: by the declaration in its file whose title is the case's — a template title matching as a pattern, `${…}`
+// any text —, or else the title of the test whose subtest it is (node's reporter writes that test as a <testsuite>, and
+// the subtest's classname is its title); a case whose name starts with a TST-<nnn> of its own keeps it.
 //
 // Module: MOD-test-schedule
 // Level: unit
@@ -22,7 +25,7 @@
 import { spawn } from "node:child_process";
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { testDeclarations } from "../src/test-document/index.mjs";
 
@@ -64,6 +67,31 @@ function declaredPython(content, files) {
   return content.replace(/<testcase name="([^"]*)" classname="([^".]*)\.[^"]*"/g, (whole, method, module) => {
     const id = ids.get(`${module} ${method}`);
     return id ? whole.replace(`name="${method}"`, `name="${id} ${method}"`) : whole;
+  });
+}
+
+const ENTITIES = { lt: "<", gt: ">", amp: "&", quot: '"', apos: "'" };
+const decoded = (text) => text.replace(/&(?:#(\d+)|#x([0-9a-fA-F]+)|(lt|gt|amp|quot|apos));/g,
+  (_, dec, hex, name) => (name ? ENTITIES[name] : String.fromCodePoint(dec ? Number(dec) : parseInt(hex, 16))));
+const escaped = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+// A declaration's title as a pattern of the case names it gives: a template title's `${…}` stands for any text.
+const titlePattern = (title) => new RegExp(`^${title.split(/\$\{[^}]*\}/).map(escaped).join("[\\s\\S]*")}$`);
+
+// The node part of the report with each case named by its declaration's identifier and its title (see the file's head).
+function declaredNode(content, files) {
+  const byFile = new Map(files.map((file) => [resolve(file), testDeclarations(file, readFileSync(file, "utf8"))
+    .filter((d) => d.title).map((d) => ({ id: d.id, pattern: titlePattern(d.title) }))]));
+  const everyDeclaration = [...byFile.values()].flat();
+  return content.replace(/<testcase\b[^>]*>/g, (tag) => {
+    const attribute = (key) => { const m = new RegExp(`\\s${key}="([^"]*)"`).exec(tag); return m ? decoded(m[1]) : null; };
+    const name = attribute("name");
+    if (name === null || /^TST-\d+/.test(name)) return tag;
+    const file = attribute("file");
+    const declarations = file === null ? everyDeclaration : byFile.get(resolve(file)) ?? [];
+    const classname = attribute("classname");
+    const found = declarations.find((d) => d.pattern.test(name))
+      ?? (classname === null ? undefined : declarations.find((d) => d.pattern.test(classname)));
+    return found ? tag.replace(/\sname="/, ` name="${found.id} `) : tag;
   });
 }
 
@@ -113,7 +141,7 @@ async function main() {
       node.length ? run(process.execPath, ["--test", "--test-reporter=spec", "--test-reporter-destination=stdout",
         "--test-reporter=junit", `--test-reporter-destination=${nodeReport}`, ...node]) : 0,
     ]);
-    const content = [declaredPython(contentOf(pythonReport, "python", pythonStatus), python), contentOf(nodeReport, "node", nodeStatus)]
+    const content = [declaredPython(contentOf(pythonReport, "python", pythonStatus), python), declaredNode(contentOf(nodeReport, "node", nodeStatus), node)]
       .filter(Boolean).join("\n");
     mkdirSync(dirname(report), { recursive: true });
     writeFileSync(report, `<?xml version="1.0" encoding="utf-8"?>\n<testsuites>\n${content}\n</testsuites>\n`);
