@@ -76,11 +76,12 @@ async function withQueues(context) {
   const { snapshot } = context.product;
   const listed = [...parseSpec(await snapshot.read(SPEC_PATH)).requirements.values()]
     .map((requirement) => ({ requirement, state: IN_SPEC }));
-  for (const queue of await queues(snapshot)) {
-    for (const entry of queue.entries.filter(({ state }) => state !== IN_SPEC)) {
-      const proposal = parseSpec(await snapshot.read(entry.proposal.path));
-      listed.push(...[...proposal.requirements.values()].map((requirement) => ({ requirement, state: entry.state })));
-    }
+  const open = (await queues(snapshot)).flatMap((queue) => queue.entries.filter(({ state }) => state !== IN_SPEC));
+  // The proposals are named to Snapshot.readMany first, in one batch, so that the reads below find their texts held (A PAGE LOAD READS THE REPOSITORY IN BATCHES).
+  await snapshot.readMany?.(open.map((entry) => entry.proposal.path));
+  for (const entry of open) {
+    const proposal = parseSpec(await snapshot.read(entry.proposal.path));
+    listed.push(...[...proposal.requirements.values()].map((requirement) => ({ requirement, state: entry.state })));
   }
   return listed.length === 0 ? [] : [{ ...partOf("SPEC.md with its open queues", listed.map(blockOf).join("\n\n")),
     artifacts: listed.map(({ requirement }) => ({ id: requirement.name, keys: [requirement.name, requirement.rule ?? ""] })) }];

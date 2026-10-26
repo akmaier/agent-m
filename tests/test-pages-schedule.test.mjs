@@ -429,3 +429,96 @@ test("schedule — the table of levels takes the frame's narrow form: the frame'
   }
   assert.deepEqual([table, ...descendants(table, () => true)].filter((node) => node.hasAttribute?.("style")).map((node) => node.localName), [], "no style of its own");
 });
+
+// ---------------------------------------------------------------- ITM-1223: the Tests entry's views, in the site's one look
+//
+// Readings the texts leave open, which these tests state (the pull request names them):
+//   - The head, its links and the rows are checked as tests/test-pages-look.mjs states them; the heading of this route is "Schedule".
+//   - The levels by occasion are shown once: the table of levels is the page's only table where the product holds no CI configuration, and the form draws
+//     no editor of the section ## Levels; each occasion cell of a row holds a box (<input type="checkbox">) for its tick, named by its row and its column;
+//     a box that the rule of its cell holds — the release candidate ticked, the commit cells of paid unticked — cannot be changed.
+//   - The front matter fields are rows <div class="field" data-key="<key>"> of the form, each with a label naming the key, its field and a folded explanation;
+//     the key cache, which src/test-schedule/schedule.schema.md describes as one path per line, is a <textarea> with one path on each line, every other an <input>.
+
+const look = await import("./test-pages-look.mjs");
+const FRONT = ["nightly", "command", "setup", "cache", "minutes"];
+const boxOf = (page, row, column) => byTag(cellOf(page, row, column), "input").find((input) => input.getAttribute("type") === "checkbox");
+
+// TST-1223004 · level: unit · module: MOD-test-pages
+// guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE; UC-027; UC-029; UC-030; UC-028; UC-026
+// given: a product without a schedule
+// input: the route schedule rendered for the product
+// expect: the first part is section.head with the heading Schedule, the product's address and its default branch, and the five views as the frame's buttons, Schedule marked; every button carries btn; the levels' rows are rows of table.list with labelled cells
+test("TST-1223004 — schedule: the head leads through the Tests entry's views, Schedule marked, in the frame's look", async () => {
+  const shown = await page();
+  look.assertTestsHead(shown, { heading: /^Schedule$/, shown: "Schedule" });
+  assert.match(look.headOf(shown).textContent, new RegExp(`${PRODUCT}.*main`));
+  look.assertListRows(shown, ROWS.length);
+  look.assertButtons(shown, 1);
+});
+
+// TST-1223005 · level: unit · module: MOD-test-pages
+// guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE; THE TEST SCHEDULE IS DECLARED PER PRODUCT; EVERY STEP EXPLAINS ITSELF; UC-027
+// given: a saved schedule, and a product without CI configuration
+// input: the route schedule rendered for the product
+// expect: one table on the page, the table of levels; no editor of ## Levels (no textarea but the field cache's); one button Save; each occasion cell of each row holds a checkbox that is checked where the cell is ticked, named by its row and column; the release candidate box of unit is checked and cannot be changed, the every commit box of paid unchecked and cannot be changed, the every commit box of system can; each of the front matter keys nightly, command, setup, cache, minutes is a field row with a label naming it, its field — a textarea for cache, an input for the others — and a folded explanation
+test("TST-1223005 — schedule: the levels are shown once, as the form's own input, with one Save and the fields explained", async () => {
+  const shown = await withSchedule(SAVED);
+  assert.equal(byTag(shown, "table").length, 1, "one table: the levels");
+  const cacheField = descendants(shown, (node) => node.getAttribute?.("data-key") === "cache")[0];
+  assert.deepEqual(byTag(shown, "textarea").filter((area) => !byTag(cacheField, "textarea").includes(area)), [], "no editor of ## Levels");
+  assert.equal(descendants(shown, (node) => node.localName === "button" && node.textContent.trim() === "Save").length, 1, "one Save");
+  for (const row of ROWS) {
+    for (const column of COLUMNS) {
+      const box = boxOf(shown, row, column);
+      assert.ok(box, `${row}/${column} holds a box`);
+      assert.equal(box.checked, markOf(cellOf(shown, row, column)) === "✓", `${row}/${column} is checked as it is ticked`);
+      const name = box.getAttribute("aria-label") ?? "";
+      assert.ok(name.includes(row) && name.includes(column), `${row}/${column} is named by its row and column: "${name}"`);
+    }
+  }
+  assert.equal(boxOf(shown, "unit", "release candidate").checked, true);
+  assert.equal(boxOf(shown, "unit", "release candidate").disabled, true, "the release candidate cannot be cleared");
+  assert.equal(boxOf(shown, "paid", "every commit").disabled, true, "the commit cell of paid cannot be ticked");
+  assert.equal(boxOf(shown, "system", "every commit").disabled, false, "known positive: an open cell can be changed");
+  for (const key of FRONT) {
+    const field = descendants(shown, (node) => node.getAttribute?.("data-key") === key)[0];
+    assert.ok(field, `the field ${key} is a row of the form`);
+    assert.ok(byTag(field, "label").some((label) => label.textContent.includes(key)), `${key} is labelled`);
+    assert.equal(byTag(field, key === "cache" ? "textarea" : "input").length, 1, `${key} has its field`);
+    assert.equal(byClass(field, "explain").length, 1, `${key} has its folded explanation`);
+  }
+});
+
+// ---------------------------------------------------------------- ITM-1225: the folds are the frame's explanations
+//
+// Reading the item leaves open, which the pull request names: a fold of the page "is the frame's explain of its topic" when its text equals the text of
+// explain(topic) and that text is not empty (explain gives an empty element for a topic explanations.md lacks); the topics are test-level-<row>,
+// test-occasion-<occasion with hyphens>, schedule-field-<key>, schedule-secrets and schedule-self-hosted-runner; and the module builds no fold of its own:
+// src/test-pages/schedule.mjs creates no details element.
+
+const { explain } = await import("../src/site-frame/index.mjs");
+const { readFileSync } = await import("node:fs");
+const slug = (name) => name.replace(/ /g, "-");
+const foldText = (node) => byClass(node, "explain").map((fold) => fold.textContent);
+const framed = (topic) => {
+  const text = explain(topic).textContent;
+  assert.ok(text.trim() !== "", `explanations.md holds ${topic}`);
+  return text;
+};
+
+// TST-1225003 · level: unit · module: MOD-test-pages
+// guards: EVERY STEP EXPLAINS ITSELF; UC-027
+// given: a saved schedule whose row system runs on lab-runner (a self-hosted runner), and a resource list
+// input: the route schedule rendered
+// expect: the fold of each row is explain(test-level-<row>), of each column explain(test-occasion-<column>), of each front matter field explain(schedule-field-<key>), of the secrets explain(schedule-secrets), of the row system's runner explain(schedule-self-hosted-runner); schedule.mjs creates no details element itself
+test("TST-1225003 — schedule: every fold is the frame's explanation of its topic", async () => {
+  const shown = await withSchedule(SAVED, { "docs/resources.md": resourcesText(ORACLE) });
+  for (const row of ROWS) assert.deepEqual(foldText(byTag(rowOf(shown, row), "th")[0]), [framed(`test-level-${row}`)], row);
+  for (const column of COLUMNS) assert.deepEqual(foldText(headOf(shown, column)), [framed(`test-occasion-${slug(column)}`)], column);
+  for (const key of FRONT) assert.deepEqual(foldText(descendants(shown, (node) => node.getAttribute?.("data-key") === key)[0]), [framed(`schedule-field-${key}`)], key);
+  assert.deepEqual(foldText(byClass(shown, "secrets")[0]), [framed("schedule-secrets")]);
+  assert.deepEqual(foldText(registrationOf(shown, "system")), [framed("schedule-self-hosted-runner")]);
+  const source = readFileSync(new URL("../src/test-pages/schedule.mjs", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /"details"/, "the module builds no fold of its own");
+});

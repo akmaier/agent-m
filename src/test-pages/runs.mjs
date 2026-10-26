@@ -10,6 +10,10 @@
 //
 // The commit-detail page draws its folded explanation through the frame; its topic stays in MOD-site-frame's explanations.md.
 //
+// ITM-1223 draws the route in the site's one look: the frame's head with the Tests entry's views (look.mjs); the commits to choose, the tests of a level and the
+// user-level tests of a release candidate as rows of the frame's table (class list), each cell labelled by its column (data-label); the groups and levels as
+// panels; the buttons as the frame's (btn).
+//
 // Readings the texts leave open: the log of a failed test is asked of ciRunLog with the id that ends the record's `run` address, when webLinks().run(id) gives that address back; the last release
 // is the highest tag v<major>.<minor>.<patch>; a record is read with readDocument and resultSchema.run, since readRegister refuses a schema of two tables.
 //
@@ -27,6 +31,7 @@ import { participantSchema, participantsOf, eligible } from "../participant-list
 import { queueJob, routesFor, liveState } from "../runtimes/index.mjs";
 import { resourceSchema } from "../resource-list/index.mjs";
 import { runPanel, explain } from "../site-frame/index.mjs";
+import { testsHead, readsAt, column, listTable } from "./look.mjs";
 
 const SCHEDULE_PATH = "docs/tests/schedule.md";
 const PARTICIPANTS_PATH = "docs/participants.md";
@@ -55,17 +60,22 @@ function addressOf(graph, name) {
   return route ? `#${route[0]}/${route[1]}=${encodeURIComponent(name)}` : null;
 }
 
-function chooser(target, context, { history, pulls, tags }) {
-  const button = (commit, text) => {
-    const choice = el("button", "choose", text);
+function chooser(target, context, { history, pulls, tags, branch }) {
+  const choose = (commit, text) => {
+    const choice = el("button", "btn choose", text);
+    choice.setAttribute("type", "button");
     choice.addEventListener("click", () => context.go("runs", { commit }));
-    return el("li", null, choice);
+    return choice;
   };
-  const group = (title, items) => el("section", "choices", el("h3", null, title), el("ul", null, ...items));
-  target.replaceChildren(el("h2", null, "Runs"),
-    group("Default branch", history.map((entry) => button(entry.commit, `${entry.commit.slice(0, 7)} ${firstLine(entry.message)} (${entry.date})`))),
-    group("Open pull requests", pulls.map((pull) => button(pull.head, `#${pull.number} ${pull.title}`))),
-    group("Release tags", tags.map((tag) => button(tag.commit, `${tag.name} ${tag.commit.slice(0, 7)}`))));
+  const group = (title, columns, rows) => el("section", "panel choices", el("h3", null, title),
+    rows.length ? listTable(columns, rows) : el("p", "muted", "None."));
+  target.replaceChildren(testsHead(context, { title: "Runs", shown: "Runs",
+    reads: readsAt(context.product.address, branch, "read now from the repository, its pull requests and its tags; nothing here is stored.") }),
+  group("Default branch", ["Commit", "Date"], history.map((entry) => el("tr", null, column("Commit", choose(entry.commit, `${entry.commit.slice(0, 7)} ${firstLine(entry.message)}`)),
+    column("Date", entry.date ?? "")))),
+  group("Open pull requests", ["Pull request", "Head"], pulls.map((pull) => el("tr", null, column("Pull request", choose(pull.head, `#${pull.number} ${pull.title}`)),
+    column("Head", String(pull.head ?? "").slice(0, 7))))),
+  group("Release tags", ["Tag", "Commit"], tags.map((tag) => el("tr", null, column("Tag", choose(tag.commit, tag.name)), column("Commit", tag.commit.slice(0, 7))))));
 }
 
 // The tag of the last release: the highest v<major>.<minor>.<patch>.
@@ -108,19 +118,20 @@ async function testRow(host, test, declaration, { graph, documents, rate, flaky 
   const comparison = rate
     ? [rate.then ? ` (last release: ${rate.then})` : "", rate.worse ? " worse than the last release" : ""].join("")
     : "";
-  const shown = [el("span", "id", test.id), " ", el("span", "outcome", test.outcome), " ",
-    ...(rateText ? [el("span", "rate", rateText + comparison), " "] : []),
-    ...(who ? [el("span", "who", `${who.fields.participant}, ${who.fields.date}`), " "] : []),
-    el("span", "guards", ...guards)];
-  if (flaky) shown.push(el("span", "flaky-runs", ` passed in ${flaky.passedIn.join(", ")}; failed in ${flaky.failedIn.join(", ")}`));
+  const outcome = [el("span", "outcome", test.outcome)];
+  if (flaky) outcome.push(el("span", "flaky-runs", ` passed in ${flaky.passedIn.join(", ")}; failed in ${flaky.failedIn.join(", ")}`));
   if (test.outcome === "failed") {
     const path = [...test.records].reverse().find((candidate) => failureRow(documents.get(candidate), test.id));
-    if (path) shown.push(await failureBlock(host, { row: failureRow(documents.get(path), test.id), document: documents.get(path) }));
+    if (path) outcome.push(await failureBlock(host, { row: failureRow(documents.get(path), test.id), document: documents.get(path) }));
   }
-  const item = el("li", "test", ...shown);
-  item.setAttribute("data-test", test.id);
-  return item;
+  const row = el("tr", "test", column("Test", el("span", "id", test.id)), column("Outcome", ...outcome),
+    column("Runs", ...(rateText ? [el("span", "rate", rateText + comparison)] : [])),
+    column("Run by", ...(who ? [el("span", "who", `${who.fields.participant}, ${who.fields.date}`)] : [])),
+    column("Guards", el("span", "guards", ...guards)));
+  row.setAttribute("data-test", test.id);
+  return row;
 }
+const TEST_COLUMNS = ["Test", "Outcome", "Runs", "Run by", "Guards"];
 
 const RC_TAG = /^v\d+\.\d+\.\d+-rc\.\d+$/;
 const cell = (text) => String(text ?? "").replace(/\|/g, "/").replace(/\s*\n\s*/g, " ").trim();
@@ -159,19 +170,22 @@ function checklistOf(host, { declarations, levels, schedule, commit, again }) {
         result.textContent = error?.message ?? String(error);
       }
     };
-    const passed = el("button", "passed", "Passed");
-    const failed = el("button", "failed", "Failed");
+    const passed = el("button", "btn passed", "Passed");
+    const failed = el("button", "btn failed", "Failed");
+    passed.setAttribute("type", "button");
+    failed.setAttribute("type", "button");
+    seen.setAttribute("aria-label", `What you saw in ${declaration.id}`);
     passed.addEventListener("click", () => record("passed"));
     failed.addEventListener("click", () => record("failed"));
-    const item = el("li", "user-test", el("span", "id", declaration.id), " ", el("span", "outcome", outcomes.get(declaration.id) ?? "not run"), " ",
-      el("div", "expected", declaration.expect ?? ""), seen, passed, " ", failed);
+    const item = el("tr", "user-test", column("Test", el("span", "id", declaration.id)), column("Outcome", el("span", "outcome", outcomes.get(declaration.id) ?? "not run")),
+      column("Expected", el("div", "expected", declaration.expect ?? "")), column("What you saw", seen), column("Record", passed, failed));
     item.setAttribute("data-checklist", declaration.id);
     return item;
   });
-  return el("section", "checklist", el("h3", null, "Checklist of user-level tests"),
+  return el("section", "panel checklist", el("h3", null, "Checklist of user-level tests"),
     el("p", "assigned", assigned ? `Assigned to: ${assigned}` : "No one assigned: the schedule's row user names no one."),
     el("p", "missing", missing.length ? `Still missing: ${missing.map((declaration) => declaration.id).join(", ")}` : "Nothing is missing."),
-    el("label", null, "Your name ", person), el("ul", null, ...items), result);
+    el("label", null, "Your name ", person), listTable(["Test", "Outcome", "Expected", "What you saw", "Record"], items), result);
 }
 
 // ---------------------------------------------------------------- Run on this commit (ITM-761; UC-028 steps 5 to 7, 5a, 5b)
@@ -314,8 +328,9 @@ async function openRun(state, section) {
 }
 
 function runOnCommit(state) {
-  const section = el("section", "run-section");
-  const open = el("button", "run-on-commit", "Run on this commit");
+  const section = el("section", "panel run-section");
+  const open = el("button", "btn run-on-commit", "Run on this commit");
+  open.setAttribute("type", "button");
   open.addEventListener("click", () => openRun(state, section));
   section.append(open);
   return section;
@@ -324,7 +339,10 @@ function runOnCommit(state) {
 async function detail(target, context, commit) {
   const { host } = context.product;
   const entry = (await host.readHistory(null, { ref: commit, limit: 1, changes: false }))[0];
-  const head = el("p", "commit", `${commit} ${firstLine(entry?.message)} ${entry?.date ?? ""}`);
+  const shown = el("p", "commit", `${commit} ${firstLine(entry?.message)} ${entry?.date ?? ""}`);
+  const head = testsHead(context, { title: "Runs", shown: "Runs",
+    reads: readsAt(context.product.address, commit.slice(0, 7), `and the records of its runs on the branch ${RESULTS_BRANCH}, read now; nothing here is stored.`) });
+  head.append(shown);
   let results;
   try {
     results = await host.readSnapshot(RESULTS_BRANCH);
@@ -357,7 +375,8 @@ async function detail(target, context, commit) {
       : `not run on this commit — runs on: ${occasionsOf(level.level, schedule).join(", ") || "no occasion of the schedule"}`;
     const rows = await Promise.all(level.tests.map((test) => testRow(host, test, byId.get(test.id),
       { graph, documents, rate: rates.find((rate) => rate.test === test.id), flaky: flaky.find((each) => each.test === test.id) })));
-    const section = el("section", "level", el("h3", null, level.level), el("p", "summary", summary), el("ul", null, ...rows));
+    const section = el("section", "panel level", el("h3", null, level.level), el("p", "summary", summary),
+      rows.length ? listTable(TEST_COLUMNS, rows) : el("p", "muted", "No test of this level."));
     section.setAttribute("data-level", level.level);
     sections.push(section);
   }
@@ -367,19 +386,20 @@ async function detail(target, context, commit) {
   const checklist = candidate ? [checklistOf(host, { declarations, levels, schedule, commit, again: () => detail(target, context, commit) })] : [];
   const levelsShown = [...levels].sort((a, b) => LEVELS.indexOf(a.level) - LEVELS.indexOf(b.level));
   const run = runOnCommit({ host, context, commit, levels: levelsShown, schedule, again: () => detail(target, context, commit) });
-  target.replaceChildren(head, explain("test-runs"), ...sections, ...uncommitted, ...checklist, run);
+  head.append(explain("test-runs"));
+  target.replaceChildren(head, ...sections, ...uncommitted, ...checklist, run);
 }
 
 async function render(target, context, params = {}) {
   if (!context.product) {
-    target.replaceChildren(el("p", null, "Choose a product to see the runs of its commits."));
+    target.replaceChildren(testsHead(context, { title: "Runs", shown: "Runs" }), el("p", null, "Choose a product to see the runs of its commits."));
     return;
   }
   if (params.commit) return detail(target, context, params.commit);
   const { host } = context.product;
   const info = await host.repositoryInfo();
   const [history, pulls, tags] = await Promise.all([host.readHistory(null, { ref: info.defaultBranch, limit: 20, changes: false }), host.listPullRequests({ state: "open" }), host.listTags()]);
-  chooser(target, context, { history, pulls, tags });
+  chooser(target, context, { history, pulls, tags, branch: info.defaultBranch });
 }
 
 export const route = { name: "runs", entry: "tests", title: "Runs", render };

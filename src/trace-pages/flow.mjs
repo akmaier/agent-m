@@ -25,7 +25,7 @@ import { entryView, queues } from "../spec-changes/index.mjs";
 import { affectedRequirements, linkedVersion, sourceSchemas } from "../source-register/index.mjs";
 import { coverageGaps, latestGraph, moduleRows, storedGraph, tracesTo } from "../trace-graph/index.mjs";
 import { latestOverview, storedOverview } from "../progress-measures/index.mjs";
-import { explain, readProblem } from "../site-frame/index.mjs";
+import { embedRoute, explain, readProblem } from "../site-frame/index.mjs";
 import { componentDiagram } from "./diagram.mjs";
 import { descriptorFor } from "./views.mjs";
 import { showTests } from "./tests.mjs";
@@ -693,6 +693,18 @@ const OTHER = {
   gaps: { key: "specification", text: "Specification", className: "trace-specification-link" },
 };
 
+// The Tests entry's views under a heading (ITM-1224): MOD-test-pages' route `tests-views`, shown through the frame's embedRoute with `shown` naming the view.
+// Where that route is not on the page, the frame has put its link to it in the element (RouteNotLoaded), and the view is drawn on.
+async function testsViews(shown) {
+  const place = el("div", "tests-views-place");
+  try {
+    await embedRoute("tests-views", place, { shown });
+  } catch (failure) {
+    if (failure?.name !== "RouteNotLoaded") throw failure;
+  }
+  return place;
+}
+
 // What each drawn route keeps for its subject, by the context it was drawn with: the frame asks the route for the subject with the same context.
 const drawn = new WeakMap();
 
@@ -831,8 +843,15 @@ export const route = {
       return;
     }
     if (descriptor.key === "audit") {
+      // The audit of a release candidate (`commit` among its params, as the release panel embeds it) is drawn at the candidate's tag, its rows derived there as
+      // a release's are at the release's (ITM-1227); Tests → Audit offers the release tags alone.
+      if (params.commit) {
+        await drawAudit(target, context, host, params.ref, descriptor, [params.ref]);
+        return;
+      }
       const { names, failure } = await tagsOf(host);
-      await drawAudit(target, context, host, params.ref, descriptor, names.filter((tag) => RELEASE.test(tag)), failure && failedRead("traces-problem", "The tags", failure, context));
+      await drawAudit(target, context, host, params.ref, descriptor, names.filter((tag) => RELEASE.test(tag)), failure && failedRead("traces-problem", "The tags", failure, context),
+        [await testsViews("Audit")]);
       return;
     }
     const handed = params.ref;
@@ -882,7 +901,7 @@ export const route = {
           fill = () => showGaps(place, shown);
         } else if (descriptor.key === "tests") {
           const place = el("div", "tests-page", el("p", "traces-reading", "Reading the tests…"));
-          body = el("section", "tests head", el("h2", null, descriptor.title), place);
+          body = el("section", "tests head", el("h2", null, descriptor.title), await testsViews("Browser"), place);
           fill = () => showTests(place, shown, params);
         } else {
           if (editable) shown.source = source;

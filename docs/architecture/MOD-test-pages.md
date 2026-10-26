@@ -12,7 +12,6 @@ uses:
   - MOD-site-frame.notice
   - MOD-site-frame.runPanel
   - MOD-site-frame.confirmDecision
-  - MOD-site-frame.schemaForm
   - MOD-site-frame.embedRoute
   - MOD-markdown-render.renderArtifact
   - MOD-markdown-render.showDifference
@@ -28,6 +27,8 @@ uses:
   - MOD-repository-hosts.ciRunLog
   - MOD-repository-hosts.ciRunLabels
   - MOD-repository-hosts.webLinks
+  - MOD-documents.readDocument
+  - MOD-documents.documentFindings
   - MOD-documents.readRegister
   - MOD-test-document.testDeclarations
   - MOD-trace-graph.storedGraph
@@ -82,7 +83,8 @@ trace graph: the schedule of the product's test levels and the CI configuration 
 commit, per level and per test, with a missing level run from the page; generating tests; and the release panel — the
 next version, the release candidate and its complete run, and the release test report with *Accept and release*. The
 tests browser and the audit are views of MOD-trace-pages; the release panel shows the audit of its candidate inside
-itself through the frame (`embedRoute`), without using that module.
+itself through the frame (`embedRoute`), without using that module. The Tests entry's views — which they are, their
+order and how the one shown is marked — are this module's route `tests-views`, which those two views show the same way.
 
 It serves UC-013, UC-026, UC-027 and UC-028.
 
@@ -91,6 +93,10 @@ It runs in a browser, loaded by `docs/index.html` through MOD-site-frame.
 ## Parts
 
 - `index.mjs` — the interface: `view`.
+- `views.mjs` — the route `tests-views`: the Tests entry's views.
+- `look.mjs` — what this module's routes of Tests share of the site's look: the head — the route's heading and the line
+  of where it reads, the address, the ref read and how — with the Tests entry's views of `views.mjs` under it; and the
+  frame's table (`table.list`), each cell labelled with its column's title.
 - `schedule.mjs` — the schedule and its configuration.
 - `runs.mjs` — the runs of a commit.
 - `generate.mjs` — generating tests.
@@ -107,8 +113,11 @@ formats are those of the modules it uses.
 
 - `view: View` — its routes, and the strategies its kinds use in the tab — `scheduleStrategies`, `resultStrategies`,
   `routeStrategies`, `approvalStrategies`, `sourceStrategies`, `resourceStrategies`:
-  - `schedule` — the table of levels by occasion, a form from the schedule's schema, the book's default marked as such
-    until one is saved; each row with the number of the product's tests it holds — the declarations of its level, and
+  - `schedule` — the schedule's form, built from its schema: the table of levels by occasion, shown once, as the form's
+    input for the section `## Levels`, a box per occasion edited in place; a labelled field with its explanation for
+    each key of the front matter; the findings of the schema (`documentFindings`) and of `scheduleFindings` while the
+    person edits, and *Save* offered only while no error remains; the book's default marked as such until one is
+    saved; each row with the number of the product's tests it holds — the declarations of its level, and
     for the row of paid services those that call one —, counted from the test declarations stored for the commit shown
     (MOD-progress-measures' `storedFacts`), or from the test files where none are stored; the release candidate column
     that cannot be cleared and the commit and pull request columns that
@@ -141,6 +150,13 @@ formats are those of the modules it uses.
     level with its result, every model-dependent check as a rate against the running version, every requirement with its
     evidence — the audit of the candidate, drawn by the trace pages' route inside this panel —, and the release test
     report with *Accept and release*, which asks first for the reason of every failing test and every worse rate.
+  - `tests-views`, titled *Tests*, outside the menu (`entry` null), made to be shown inside the routes that embed it
+    with the frame's `embedRoute`; opened by its own address it draws the same navigation and nothing else. It is the
+    Tests entry's views as a navigation named *Tests*, in this order, each named by its route and params: Schedule
+    (`schedule`), Browser (`trace`, `key` `tests`), Runs (`runs`), Audit (`trace`, `key` `audit`), Generate
+    (`generate`); each a button of the frame whose click calls `go` of the context the frame renders it with, so that
+    the frame alone writes the address; the view its param `shown` names marked as the page shown
+    (`aria-current="page"`) and drawn as the frame's primary button. It reads nothing.
 
 ## Files
 
@@ -153,22 +169,26 @@ the result records on the branch `test-results`, the product's resources and the
 ## Uses
 
 - MOD-site-frame.View, MOD-site-frame.chosenProduct, MOD-site-frame.explain, MOD-site-frame.notice,
-  MOD-site-frame.runPanel, MOD-site-frame.confirmDecision, MOD-site-frame.schemaForm — the frame's parts, the schedule's
-  form and a user test's outcome; MOD-site-frame.embedRoute — the audit of a candidate inside the release panel.
+  MOD-site-frame.runPanel, MOD-site-frame.confirmDecision — the frame's parts, `ViewContext`'s `go` among them, through
+  which alone a route of this module leads to another; MOD-site-frame.embedRoute — the audit of a candidate inside the release panel.
 - MOD-markdown-render.renderArtifact, MOD-markdown-render.showDifference — the report, the configuration against the
   schedule.
 - MOD-browser-store.readSetting — the endpoints' configurations and the Bridges' settings a job needs;
   MOD-bridge-client.bridgeAt — a handle for each Bridge, handed to the runtimes.
 - MOD-repository-hosts.readSnapshot, MOD-repository-hosts.readHistory, MOD-repository-hosts.listTags,
   MOD-repository-hosts.listPullRequests — the commits to choose from; MOD-repository-hosts.repositoryInfo — the
-  repository's visibility for the routes of a job; MOD-repository-hosts.mergePullRequest,
+  repository's default branch, which the head's line names, and its visibility for the routes of a job;
+  MOD-repository-hosts.mergePullRequest,
   MOD-repository-hosts.listCiRuns — the schedule's pull request, its CI and its merge;
   MOD-repository-hosts.ciRunLabels — which queued runs wait for a self-hosted row's runner;
   MOD-repository-hosts.ciRunLog,
   MOD-repository-hosts.webLinks — a run's log, the runs of a commit, the branch `test-results`, and the secrets,
   workflow, runner and pipeline schedule pages.
-- MOD-documents.readRegister, MOD-resource-list.resourceSchema, MOD-participant-list.participantSchema — the product's
-  resources and the instance's participants, which the schedule's runners and paid services come from;
+- MOD-documents.readDocument — the schedule, the result records, the instance's participants and, for the schedule and
+  the runs, the product's resources, each by its schema; MOD-documents.readRegister — the product's resources for
+  generating tests; MOD-documents.documentFindings — the findings of the schedule's schema in its form;
+  MOD-resource-list.resourceSchema, MOD-participant-list.participantSchema — the schemas of the product's resources and
+  of the instance's participants, which the schedule's runners and paid services come from;
   MOD-resource-list.reachableBy — the routes that reach the product's resources, for the routes of `write-tests` and
   `run-tests`.
 - MOD-test-document.testDeclarations, MOD-trace-graph.storedGraph, MOD-trace-graph.tracesTo — which levels guard what. A

@@ -13,18 +13,26 @@
 // request is kept only in the screen. Where the product holds a CI configuration, configurationDrift shows it against the schedule; where it holds the
 // generated file, the last run per occasion, told by the run's event, and a nightly run that has not run, with its date beside the expected one.
 //
-// The folded explanations are built here, not by the frame's `explain`: explanations.md holds no topic of the schedule, and it is the frame's file.
+// ITM-1223 draws the page in the site's one look (look.mjs): the frame's head with the Tests entry's views, its parts as panels, its buttons the frame's (btn).
+// The levels by occasion are shown once: the table is the form's own input for the section ## Levels — a box per occasion cell, edited in place — beside a
+// labelled row with its explanation for each key of the schedule's front matter, and one Save. The form is built here from the schedule's schema, its findings
+// those of documentFindings and scheduleFindings: the frame's schemaForm edits a section only in the renderer's editor and draws a key without its explanation.
+//
+// ITM-1225: every folded explanation is the frame's `explain` of a topic of explanations.md — a level, an occasion, a field of the front matter, the secrets
+// and a self-hosted runner —; the page builds no fold of its own.
 //
 // Module: MOD-test-pages
 
-import { schemaForm } from "../site-frame/index.mjs";
 import { scheduleSchema, defaultSchedule, scheduleFindings, secretsNeeded, configurationDrift, occasionsOf, proposeSchedule, applyPipelineSchedule } from "../test-schedule/index.mjs";
-import { readDocument } from "../documents/index.mjs";
+import { readDocument, documentFindings } from "../documents/index.mjs";
+import { testsHead, readsAt, LEVEL_TOPIC, OCCASION_TOPIC } from "./look.mjs";
+import { explain } from "../site-frame/index.mjs";
 import { participantSchema, participantsOf, eligible } from "../participant-list/index.mjs";
 import { resourceSchema } from "../resource-list/index.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
 import { storedFacts } from "../progress-measures/index.mjs";
 
+const TITLE = "Schedule";
 const SCHEDULE_PATH = "docs/tests/schedule.md";
 const RESOURCES_PATH = "docs/resources.md";
 const PARTICIPANTS_PATH = "docs/participants.md";
@@ -42,22 +50,9 @@ const OCCASION_OF_EVENT = { push: "every commit", pull_request: "pull request", 
 const RUN_OCCASIONS = ["every commit", "pull request", "nightly", "on demand"];
 const DAY = 24 * 60 * 60 * 1000;
 
-const ROW_TEXT = {
-  unit: "Tests of one function or class in isolation, fast and without external services. Book: ch. 13, Unit Testing.",
-  component: "Tests of the interface between modules. Book: ch. 13, Component Testing.",
-  system: "Tests that walk a use case end to end, with recorded responses in place of paid services. Book: ch. 13, System Testing and ch. 13 on mocking.",
-  paid: "Tests that call a paid service or a model, which cut across the levels; they run nightly, not on every commit. Book: ch. 13 on mocking and the nightly integration test.",
-  release: "Tests written by a participant other than the implementer, for each requirement. Book: ch. 13, Release Testing.",
-  user: "Manual tests whose outcome the people assigned enter. Book: ch. 13, User Testing and Acceptance Decisions.",
-};
-const COLUMN_TEXT = {
-  "every commit": "Runs on each push to the default branch, so a break shows at once. Book: ch. 12, Test Automation and Continuous Integration.",
-  "pull request": "Runs on each pull request before its merge. Book: ch. 12, Test Automation and Continuous Integration.",
-  nightly: "Runs once a night, for what is too slow or too costly for every commit, such as the integration test against real services. Book: ch. 13 on mocking and the nightly integration test.",
-  "release candidate": "Runs on a release candidate, and must run every test at every level; it cannot be cleared. Book: ch. 13, Release Testing.",
-  "on demand": "Runs when a person starts it, naming the rows to run. Book: ch. 12, Test Automation and Continuous Integration.",
-};
-const SECRETS_TEXT = "The tests that call a paid service or a model read their key from the CI's secrets. Open the server's secrets page for this product, add a secret there under the name shown, and paste its value into the server's form, never into Agent M. Book: ch. 13 on mocking and the nightly integration test.";
+// The topics of the frame's explanations.md that explain each key of the schedule's front matter (ITM-1225).
+const FIELD_TOPIC = { nightly: "schedule-field-nightly", command: "schedule-field-command", setup: "schedule-field-setup", cache: "schedule-field-cache",
+  minutes: "schedule-field-minutes" };
 
 function el(name, className, ...children) {
   const node = document.createElement(name);
@@ -70,12 +65,6 @@ function link(className, text, href) {
   const node = el("a", className, text);
   node.setAttribute("href", href);
   return node;
-}
-
-// A folded "What is this?" with the given text.
-function fold(text) {
-  const summary = el("summary", null, "What is this?");
-  return el("details", "explain", summary, el("p", null, text));
 }
 
 // What a failure says to the person: the host's reason where it names one, else its message.
@@ -130,23 +119,47 @@ function labelled(cell, label) {
   return cell;
 }
 
-// The table, the frame's table (class list) with no style of its own; `choices` receives, per row, its runner field and the runner it was shown with,
-// which Save compares.
-function levelsTable(schedule, counts, offered, choices) {
+// The state a cell's rule holds: the release candidate ticked, the commit cells of paid unticked; null for a cell without a rule.
+const ruled = (row, column) => (column === "release candidate" ? true : refusal(row, column) ? false : null);
+
+// A cell's box for its tick, named by its row and its column (THE SITE SERVES A SCREEN READER); a box in the state its cell's rule holds cannot be
+// changed, one that breaks the rule can, so that the person can mend it. Its change shows in the cell's mark and calls `changed`.
+function tickBox(row, column, ticked, mark, changed) {
+  const box = el("input", "tick");
+  box.setAttribute("type", "checkbox");
+  box.setAttribute("aria-label", `${row} on ${column}`);
+  box.checked = ticked;
+  box.disabled = ruled(row, column) === ticked;
+  box.addEventListener("change", () => {
+    mark.textContent = box.checked ? "✓" : "";
+    changed();
+  });
+  return box;
+}
+
+// The table, the frame's table (class list) with no style of its own, and the form's own input for the section ## Levels; `choices` receives, per
+// row, its runner field and the runner it was shown with, which Save compares, and `ticks`, per row, the box of each occasion.
+function levelsTable(schedule, counts, offered, { choices, ticks, changed }) {
   const cells = (row) => levelsOf(schedule).find((candidate) => candidate.cells.Row === row)?.cells ?? {};
   const head = el("tr", null, el("th", null, "Level"), el("th", null, "tests"),
     ...COLUMNS.map((column) => {
-      const th = el("th", null, column, fold(COLUMN_TEXT[column]));
+      const th = el("th", null, column, explain(OCCASION_TOPIC[column]));
       th.setAttribute("data-column", column);
       return th;
     }), el("th", null, "runs on"));
   const body = ROWS.map((row) => {
     const select = runnerChoice(row, offered, cells(row)["runs on"] || "hosted");
+    select.addEventListener("change", changed);
     choices.set(row, { select, shown: select.value });
-    const tr = el("tr", null, labelled(el("th", null, row, fold(ROW_TEXT[row])), "Level"), labelled(el("td", "tests", String(counts[row])), "tests"),
+    ticks.set(row, new Map());
+    const tr = el("tr", null, labelled(el("th", null, row, explain(LEVEL_TOPIC[row])), "Level"), labelled(el("td", "tests", String(counts[row])), "tests"),
       ...COLUMNS.map((column) => {
         const reason = refusal(row, column);
-        const td = el("td", reason ? "refused" : null, el("span", "mark", cells(row)[column] === "✓" ? "✓" : ""));
+        const ticked = cells(row)[column] === "✓";
+        const mark = el("span", "mark", ticked ? "✓" : "");
+        const box = tickBox(row, column, ticked, mark, changed);
+        ticks.get(row).set(column, box);
+        const td = el("td", reason ? "refused" : null, box, mark);
         if (reason) td.append(" ", el("span", "reason", reason));
         td.setAttribute("data-column", column);
         return labelled(td, column);
@@ -157,17 +170,62 @@ function levelsTable(schedule, counts, offered, choices) {
   return el("table", "list levels", el("thead", null, head), el("tbody", null, ...body));
 }
 
-// The schedule to save: the form's document with the runner chosen in the table for each row whose choice the person changed.
-function withRunners(schedule, choices) {
+// The schedule as the person has left the table: each occasion as its box holds it, and the runner chosen for each row whose choice the person changed.
+function withTable(schedule, { choices, ticks }) {
   const chosen = structuredClone(schedule);
   for (const row of levelsOf(chosen)) {
+    for (const [column, box] of ticks.get(row.cells.Row) ?? []) row.cells[column] = box.checked ? "✓" : "";
     const choice = choices.get(row.cells.Row);
     if (choice && choice.select.value !== choice.shown) row.cells["runs on"] = choice.select.value;
   }
   return chosen;
 }
 
-const RUNNER_TEXT = "A row on a self-hosted runner waits until a machine of yours is registered to this repository with the label shown. Open the server's runner page: it shows the command to run on that machine, with a short-lived token of its own, which Agent M never sees. Until a runner with the label is online, the runs of the row stay queued. Book: ch. 12, Test Automation and Continuous Integration.";
+// The form of the schedule's schema: one labelled row per key of its front matter, each with its explanation, the table of levels as the input of its
+// section ## Levels, the findings of the schema and of scheduleFindings while the person edits, and one Save, offered only while no error remains. It
+// writes nothing itself: `onSave` does.
+function scheduleForm(schedule, table, state, { participants, findings, onSave }) {
+  const inputs = new Map();
+  // A key the schema holds as a list is a field of one item per line, as schedule.schema.md describes `cache`: one path per line.
+  const isList = (key) => scheduleSchema.frontMatter[key].type === "list";
+  const fields = Object.keys(scheduleSchema.frontMatter ?? {}).map((key) => {
+    const input = el(isList(key) ? "textarea" : "input");
+    const value = schedule.fields?.[key];
+    input.value = Array.isArray(value) ? value.join("\n") : String(value ?? "");
+    inputs.set(key, input);
+    const field = el("div", "field", el("label", null, `${key} `, input), explain(FIELD_TOPIC[key]));
+    field.setAttribute("data-key", key);
+    return field;
+  });
+  const save = el("button", "btn primary", "Save");
+  save.setAttribute("type", "button");
+  const documentNow = () => {
+    const now = withTable(schedule, state);
+    for (const [key, input] of inputs) {
+      const typed = input.value.trim();
+      if (typed === "") delete now.fields[key];
+      else now.fields[key] = isList(key) ? typed.split("\n").map((each) => each.trim()).filter(Boolean) : typed;
+    }
+    return now;
+  };
+  const check = () => {
+    const now = documentNow();
+    const found = [...documentFindings(scheduleSchema, now), ...scheduleFindings(now, participants)];
+    findings.replaceChildren(...found.map((finding) => el("li", finding.kind, `${finding.what} — ${finding.fix} [${finding.rule}]`)));
+    save.disabled = found.some((finding) => finding.kind === "error");
+  };
+  state.changed = check;
+  for (const input of inputs.values()) input.addEventListener("input", check);
+  save.addEventListener("click", async () => {
+    save.disabled = true;
+    try {
+      await onSave(documentNow());
+    } finally {
+      check();
+    }
+  });
+  return { form: el("div", "schedule-form", table, ...fields, findings, el("p", null, save)), check };
+}
 
 // The label a CI agent's route `ci runner:<label> ...` names, or null.
 const runnerLabel = (route) => /^ci runner:(\S+)/.exec(route ?? "")?.[1] ?? null;
@@ -198,22 +256,22 @@ function runnerBlocks(rows, runnersPage, asked) {
       : queued.length === 0 ? el("p", "no-queued", "No run waits for a runner.")
         : el("ul", "queued-runs", ...queued.map((run) => el("li", null, link(null, `${run.workflow} ${run.commit.slice(0, 7)} (queued)`, run.url))));
     const block = el("div", "runner-registration", el("h3", null, `Row ${row}: a self-hosted runner`),
-      el("p", null, "The runner must carry the label ", el("span", "runner-label", label), ". ", link("runner-page", "Open the server's runner page", runnersPage)), waiting, fold(RUNNER_TEXT));
+      el("p", null, "The runner must carry the label ", el("span", "runner-label", label), ". ", link("runner-page", "Open the server's runner page", runnersPage)), waiting, explain("schedule-self-hosted-runner"));
     block.setAttribute("data-row", row);
     return block;
   });
 }
 
 function secretsBlock(names, secretsPage) {
-  return el("div", "secrets", el("h3", null, "Secrets needed"),
+  return el("section", "panel secrets", el("h3", null, "Secrets needed"),
     el("ul", null, ...names.map(({ name, for: service }) => el("li", null, `${name} (for ${service})`))),
-    el("p", null, link("secrets-page", "Open the server's secrets page", secretsPage), " Agent M never asks for a secret's value."), fold(SECRETS_TEXT));
+    el("p", null, link("secrets-page", "Open the server's secrets page", secretsPage), " Agent M never asks for a secret's value."), explain("schedule-secrets"));
 }
 
 // ---------------------------------------------------------------- the configuration against the schedule (UC-027 1a, 1b)
 
 function driftBlock(files, schedule, target, resources, participants) {
-  const block = el("div", "drift", el("h3", null, "The configuration against the schedule"));
+  const block = el("section", "panel drift", el("h3", null, "The configuration against the schedule"));
   let found;
   try {
     found = configurationDrift(files, schedule, target, resources, participants);
@@ -252,15 +310,15 @@ function expectedNightly(time, now) {
 }
 
 function lastRunsBlock(runs, schedule, server, links) {
-  const block = el("div", "last-runs-block", el("h3", null, "The last run per occasion"));
+  const block = el("section", "panel last-runs-block", el("h3", null, "The last run per occasion"));
   if (runs === null) {
     block.append(el("p", "runs-unreadable", "The runs of this repository cannot be read, so the last runs are not shown."));
     return block;
   }
-  block.append(el("table", "last-runs", el("tbody", null, ...RUN_OCCASIONS.map((occasion) => {
+  block.append(el("table", "list last-runs", el("tbody", null, ...RUN_OCCASIONS.map((occasion) => {
     const run = lastRun(runs, occasion);
-    const tr = el("tr", null, el("th", null, occasion),
-      el("td", null, run ? link(null, `${run.state}, ${dateOf(run.started) || "not started"}`, run.url) : "no run yet"));
+    const tr = el("tr", null, labelled(el("th", null, occasion), "Occasion"),
+      labelled(el("td", null, run ? link(null, `${run.state}, ${dateOf(run.started) || "not started"}`, run.url) : "no run yet"), "Last run"));
     tr.setAttribute("data-occasion", occasion);
     return tr;
   }))), el("p", null, "A release candidate's run is shown on the release panel."));
@@ -308,13 +366,13 @@ async function drawProposal(place, host, pullRequest, schedule) {
         link("failing-runs", "the runs of the pull request", host.webLinks().commitRuns(pullRequest.head)), "."));
     }
     if (state === "green") {
-      const merge = el("button", "merge", "Merge");
+      const merge = el("button", "btn primary merge", "Merge");
       merge.setAttribute("type", "button");
       merge.addEventListener("click", () => mergeAndSchedule(box, merge, host, pullRequest, schedule));
       box.append(merge);
     }
   }
-  const again = el("button", "refresh", "Check CI again");
+  const again = el("button", "btn refresh", "Check CI again");
   again.setAttribute("type", "button");
   again.addEventListener("click", () => drawProposal(place, host, pullRequest, schedule));
   box.append(again);
@@ -347,7 +405,7 @@ async function mergeAndSchedule(box, button, host, pullRequest, schedule) {
 
 async function render(target, context) {
   if (!context.product) {
-    target.replaceChildren(el("p", null, "Choose a product to see its test schedule."));
+    target.replaceChildren(testsHead(context, { title: TITLE, shown: "Schedule" }), el("p", null, "Choose a product to see its test schedule."));
     return;
   }
   const { host, kind: server } = context.product;
@@ -365,11 +423,11 @@ async function render(target, context) {
   const offered = eligible(participantsOf(participants), { capabilities: ["run code and tests"] }).eligible.map(({ name }) => name);
   const findings = el("ul", "schedule-findings");
   const proposal = el("div", "proposal-place");
-  const choices = new Map();
-  const table = levelsTable(schedule, counts, offered, choices);
-  const form = schemaForm(scheduleSchema, schedule, {
-    onSave: async (document) => {
-      const chosen = withRunners(document, choices);
+  const state = { choices: new Map(), ticks: new Map(), changed: null };
+  const table = levelsTable(schedule, counts, offered, { ...state, changed: () => state.changed?.() });
+  const { form, check } = scheduleForm(schedule, table, state, {
+    participants, findings,
+    onSave: async (chosen) => {
       try {
         const { pullRequest } = await proposeSchedule(host, chosen, { ...targetOf(), resources, participants, head: snapshot.commit, trailers: [] });
         await drawProposal(proposal, host, pullRequest, chosen);
@@ -377,12 +435,8 @@ async function render(target, context) {
         proposal.replaceChildren(el("p", "save-failed", `Nothing was saved: ${said(error)}`));
       }
     },
-    extraChecks: (document) => {
-      const found = scheduleFindings(document, participants);
-      findings.replaceChildren(...found.map((finding) => el("li", finding.kind, `${finding.what} — ${finding.fix} [${finding.rule}]`)));
-      return found;
-    },
   });
+  check();
   const secrets = resourcesText ? secretsNeeded(schedule, resources) : [];
   const selfHosted = selfHostedRows(schedule, participants);
   const links = host.webLinks();
@@ -398,9 +452,14 @@ async function render(target, context) {
     try { runs = await host.listCiRuns({ workflow: GENERATED_WORKFLOW }); } catch { runs = null; }
     configured.push(lastRunsBlock(runs, schedule, server, links));
   }
+  const { defaultBranch } = await host.repositoryInfo();
   target.replaceChildren(
-    ...(schedule.default ? [el("p", "default-schedule", "This is the book's default schedule, not yet saved for this product.")] : []),
-    table, ...runners, findings, form, proposal, secretsBlock(secrets, links.secrets), ...configured);
+    testsHead(context, { title: TITLE, shown: "Schedule", reads: readsAt(context.product.address, defaultBranch,
+      "read now from the repository; nothing is written before Save, which opens a pull request.") }),
+    el("section", "panel levels-step", el("h3", null, "The levels, what each checks, and when each runs"),
+      ...(schedule.default ? [el("p", "default-schedule", "This is the book's default schedule, not yet saved for this product.")] : []),
+      form, proposal, ...runners),
+    secretsBlock(secrets, links.secrets), ...configured);
 }
 
-export const route = { name: "schedule", entry: "tests", title: "Schedule", render };
+export const route = { name: "schedule", entry: "tests", title: TITLE, render };

@@ -21,6 +21,10 @@
 //   - a case that carries a `paid` call is marked for the nightly or release run (5a); a test the report of the last `write-tests` job lists in `notWritten` is shown again beside its reason (8b);
 //   - *Write tests* queues the job for the participant of the proposal, with the selection and levels of the proposal's record, the cases as `draft`, and the route as `route`, which the recipe `resource-pins` reads.
 //
+// ITM-1223 draws the route in the site's one look (look.mjs): the frame's head with the Tests entry's views; the names to test, the levels and the participants
+// that write tests as rows of the frame's table, each cell labelled by its column; each step a panel. A proposed case, which the person edits, stays an item of
+// its group's list. ITM-1225: each level's fold is the frame's `explain` of its topic in explanations.md (look.mjs' LEVEL_TOPIC); the page builds no fold of its own.
+//
 // ONE CLICK PER DECISION; THE PAGE NAMES WHERE IT SENDS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK: nothing is written or sent while the page is drawn or the run panel shown; Run, the panel's own
 // button, is the one click that queues the job.
 //
@@ -37,6 +41,7 @@ import { queueJob, routesFor } from "../runtimes/index.mjs";
 import { explain, runPanel, readProblem } from "../site-frame/index.mjs";
 import { reachableBy, resourceSchema } from "../resource-list/index.mjs";
 import { readRegister } from "../documents/index.mjs";
+import { testsHead, readsAt, column, listTable, LEVEL_TOPIC } from "./look.mjs";
 
 const REGISTER = "docs/participants.md";
 const WORKFLOWS = [".github/workflows/agent-m-jobs.yml", ".gitlab/agent-m-jobs.yml"];
@@ -45,14 +50,8 @@ const LEVELS = ["unit", "component", "system", "release", "user"];
 // The levels that fit a kind of name (UC-026's table: unit from a module, component from its modules, system from a use case, release and user from a requirement).
 const FITTING = { requirement: ["release", "user"], UC: ["system"], MOD: ["unit", "component"] };
 const PARAMETER = { requirement: "requirements", UC: "useCases", MOD: "modules" };
-// What each level checks, from UC-026's table, and the chapter of the book (chapter 13) that explains it.
-const LEVEL_TEXT = {
-  unit: ["one function, class or small module in isolation; derived from a module; automated, external services mocked", "Unit Testing and Automation Structure"],
-  component: ["the interface between units that work together; derived from an architecture element and its modules; automated, misuse, misunderstanding and timing cases", "Component Testing and Interface Risks"],
-  system: ["the integrated product along a use case; derived from a use case; automated, end to end", "System Testing and Practical Scope Selection"],
-  release: ["a release candidate against the specification; derived from a requirement; automated or manual, written by someone other than the implementer", "Release Testing"],
-  user: ["the product in real use: alpha, beta, acceptance; derived from a requirement or acceptance criterion; manual, the outcome entered by a person", "User Testing and Acceptance Decisions"],
-};
+
+const TITLE = "Generate tests";
 
 function el(name, className, ...children) {
   const node = document.createElement(name);
@@ -71,11 +70,6 @@ function button(className, text, listener) {
 
 const walk = (node) => [...node.childNodes].flatMap((kid) => (kid.nodeType === 1 ? [kid, ...walk(kid)] : []));
 const inputsOf = (root, className) => walk(root).filter((node) => node.localName === "input" && node.className.split(" ").includes(className));
-
-function levelExplanation(level) {
-  const [what, chapter] = LEVEL_TEXT[level];
-  return el("details", "explain", el("summary", null, "What is this?"), el("p", null, `The level ${level} checks ${what}. The book, chapter 13, section "${chapter}".`));
-}
 
 // The tests that guard a name: those `tracesTo` finds, and, for a module, those that exercise it.
 function guardingTests(graph, name) {
@@ -125,7 +119,7 @@ const recordRoute = (route) => (route.kind === "tab" ? "tab" : route.kind === "c
 
 async function render(target, context, params = {}) {
   if (!context.product) {
-    target.replaceChildren(el("p", null, "Choose a product to generate tests for."));
+    target.replaceChildren(testsHead(context, { title: TITLE, shown: "Generate" }), el("p", null, "Choose a product to generate tests for."));
     return;
   }
   const { host } = context.product;
@@ -135,40 +129,39 @@ async function render(target, context, params = {}) {
     product = await loadProduct(host);
     register = await loadParticipants(context, definition);
   } catch (failure) {
-    target.replaceChildren(readProblem(failure, Boolean(context.product.tokenStored)));
+    target.replaceChildren(testsHead(context, { title: TITLE, shown: "Generate" }), readProblem(failure, Boolean(context.product.tokenStored)));
     return;
   }
 
   const preselectedLevels = new Set(product.names.filter((each) => each.uncovered.length).flatMap((each) => each.uncovered));
-  const list = el("ul", "names");
-  for (const each of product.names) {
+  const list = listTable(["Name", "Kind", "Guarded at", "Not guarded at"], product.names.map((each) => {
     const box = el("input", "name");
     box.type = "checkbox";
     box.value = each.id;
     box.checked = each.uncovered.length > 0;
-    const item = el("li", each.uncovered.length ? "uncovered" : "covered", el("label", null, box, ` ${each.id}`), " ",
-      el("span", "kind", each.kind === "requirement" ? "requirement" : each.kind === "UC" ? "use case" : "module"), " ",
-      el("span", "covered", `guarded at: ${each.covered.join(", ") || "no level"}`), " ", el("span", "uncovered", each.uncovered.length ? `not guarded at: ${each.uncovered.join(", ")}` : ""));
+    const item = el("tr", each.uncovered.length ? "uncovered" : "covered", column("Name", el("label", null, box, ` ${each.id}`)),
+      column("Kind", el("span", "kind", each.kind === "requirement" ? "requirement" : each.kind === "UC" ? "use case" : "module")),
+      column("Guarded at", el("span", "covered", `guarded at: ${each.covered.join(", ") || "no level"}`)),
+      column("Not guarded at", el("span", "uncovered", each.uncovered.length ? `not guarded at: ${each.uncovered.join(", ")}` : "—")));
     item.setAttribute("data-name", each.id);
-    list.append(item);
-  }
-  const levels = el("ul", "levels");
-  for (const level of LEVELS) {
+    return item;
+  }));
+  const levels = listTable(["Level", "What it checks"], LEVELS.map((level) => {
     const box = el("input", "level");
     box.type = "checkbox";
     box.value = level;
     box.checked = preselectedLevels.has(level);
-    const item = el("li", "level", el("label", null, box, ` ${level}`), " ", levelExplanation(level));
+    const item = el("tr", "level", column("Level", el("label", null, box, ` ${level}`)), column("What it checks", explain(LEVEL_TOPIC[level])));
     item.setAttribute("data-level", level);
-    levels.append(item);
-  }
+    return item;
+  }));
 
   const person = el("input", "person");
   person.placeholder = "Your name";
   let queuedId = null;
-  const participantsBox = el("section", "writers");
+  const participantsBox = el("section", "panel writers");
   const proposalBox = el("section", "proposal");
-  const stage = el("section", "stage");
+  const stage = el("div", "stage");
   const selection = () => ({
     names: inputsOf(list, "name").filter((box) => box.checked).map((box) => product.names.find((each) => each.id === box.value)),
     levels: inputsOf(levels, "level").filter((box) => box.checked).map((box) => box.value),
@@ -177,7 +170,7 @@ async function render(target, context, params = {}) {
   async function showParticipants() {
     stage.replaceChildren();
     const { names, levels: chosen } = selection();
-    const offered = el("ul", "participants");
+    const rows = [];
     let writers = register.writers;
     const notes = [];
     if (chosen.includes("release")) {
@@ -200,11 +193,13 @@ async function render(target, context, params = {}) {
       box.name = "participant";
       box.value = writer.name;
       const offers = routesFor(writer, register.participants, { visibility: product.info.visibility, jobWorkflow: WORKFLOWS.some((path) => product.snapshot.paths.includes(path)) }, []);
-      const item = el("li", "participant", el("label", null, box, ` ${writer.name} `), el("span", "place", writer.place ?? "no processing place declared"), " ",
-        el("span", "route", offers.length ? offers.map((offer) => `${recordRoute(offer.route)}${offer.available ? "" : " — not available"}`).join(", ") : "no route of a job"));
+      const item = el("tr", "participant", column("Participant", el("label", null, box, ` ${writer.name}`)),
+        column("Processing place", el("span", "place", writer.place ?? "no processing place declared")),
+        column("Routes", el("span", "route", offers.length ? offers.map((offer) => `${recordRoute(offer.route)}${offer.available ? "" : " — not available"}`).join(", ") : "no route of a job")));
       item.setAttribute("data-name", writer.name);
-      offered.append(item);
+      rows.push(item);
     }
+    const offered = rows.length ? listTable(["Participant", "Processing place", "Routes"], rows) : el("p", "muted", "No participant can write the tests chosen.");
     participantsBox.replaceChildren(el("h3", null, "Participants that write tests"), explain("independent-release-tests"), ...notes, offered);
   }
 
@@ -383,10 +378,13 @@ async function render(target, context, params = {}) {
   const show = button("btn prepare", "Show the run panel", showPanel);
   const read = button("btn read", "Read the proposal", () => loadProposal());
   await showParticipants();
-  target.replaceChildren(el("h2", null, "Generate tests"), explain("release-test-levels"),
-    el("section", "to-test", el("h3", null, "What can be tested"), list), el("section", "chosen-levels", el("h3", null, "Levels"), levels),
-    participantsBox, el("label", null, "Your name ", person), show, stage, el("h3", null, "The proposal"), read, proposalBox);
+  const head = testsHead(context, { title: TITLE, shown: "Generate", reads: readsAt(context.product.address, product.info.defaultBranch) });
+  head.append(explain("release-test-levels"));
+  target.replaceChildren(head,
+    el("section", "panel to-test", el("h3", null, "What can be tested"), list), el("section", "panel chosen-levels", el("h3", null, "Levels"), levels),
+    participantsBox, el("section", "panel run-step", el("h3", null, "Run"), el("label", null, "Your name ", person), " ", show, stage),
+    el("section", "panel proposal-step", el("h3", null, "The proposal"), read, proposalBox));
   stage.replaceChildren();
 }
 
-export const route = { name: "generate", entry: "tests", title: "Generate tests", render };
+export const route = { name: "generate", entry: "tests", title: TITLE, render };
