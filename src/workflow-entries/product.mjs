@@ -1,7 +1,7 @@
 // product.mjs — the entries of a product's job workflow (MOD-workflow-entries, Parts): ITM-365 builds onRecordsChanged and onDispatch, which take
 // and run the queued jobs of this CI route; ITM-498 adds to onDispatch the job whose task travels with a conversation's hand-over (UC-049 4a), which onRecordsChanged
 // leaves queued. ITM-791 adds to onRecordsChanged the resumption of the jobs of this route whose gate is recorded (A JOB STOPS AT EVERY GATE). The runs' next actions and onPullRequestClosed
-// are other items'. ITM-1032 builds onSchedule: the close of a sprint an agent closes. ITM-1209 adds onTestsFinished and ITM-1210 onDoneCheck, which MOD-test-schedule's test configuration runs.
+// are other items'. ITM-1032 builds onSchedule: the close of a sprint an agent closes. ITM-1209 adds onTestsFinished, ITM-1210 onDoneCheck and ITM-1215 runTests, which MOD-test-schedule's test configuration runs.
 //
 // Module: MOD-workflow-entries
 //
@@ -22,7 +22,8 @@ import { queueJob } from "../runtimes/index.mjs";
 import { sprintsToClose } from "../work-plans/index.mjs";
 import { appendResult, parseOutcomes, resultSchema } from "../result-records/index.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
-import { composeProduct, composeTestRun } from "./compose.mjs";
+import { testsOfRow } from "../test-schedule/index.mjs";
+import { composeProduct, composeTestJob, composeTestRun } from "./compose.mjs";
 import { packResult, readResult, checkResult, writeBranches, pendingPullRequest } from "./result.mjs";
 
 const fs = globalThis.process?.getBuiltinModule?.("node:fs");
@@ -535,6 +536,81 @@ const occasionOf = (env) => (env.tests.tag ? "release-candidate" : OCCASIONS[env
 const two = (number) => String(number).padStart(2, "0");
 // A cell of a record's table: its lines joined by <br>, a bar escaped, so that a log stays in its one row.
 const cellOf = (value) => String(value ?? "").trim().replace(/\r?\n/g, "<br>").replace(/\|/g, "\\|");
+
+// The folder below the product's checkout that holds a run's reports and statuses (Data: The reports of a run).
+const REPORTS = "agent-m-reports";
+const childProcess = globalThis.process?.getBuiltinModule?.("node:child_process");
+const pathOf = globalThis.process?.getBuiltinModule?.("node:path");
+
+// The test files among a commit's files, with their texts: every file MOD-test-document counts a test file, of which testsOfRow takes those named as tests. The clone reads a
+// file by one process of git, so they are read thirty-two at a time.
+async function testFilesAt(snapshot) {
+  const paths = snapshot.paths.filter((path) => isTestFile(path));
+  await snapshot.readMany?.(paths);
+  const files = [];
+  for (let at = 0; at < paths.length; at += 32) {
+    files.push(...await Promise.all(paths.slice(at, at + 32).map(async (path) => ({ path, text: (await snapshot.read(path)) ?? "" }))));
+  }
+  return files;
+}
+
+// The product's command run with the files as its arguments — `<command> "$@"` in a shell —, or, where the command is empty, node's test runner, which draws the shard's share
+// with its own sharding and writes the JUnit XML report with its own reporter, besides its readable output. The output goes to the job's log as it comes. Resolves with how it
+// ended: its status, or the signal that stopped it.
+function runCommand(command, files, { cwd, variables, shard, shards, report }) {
+  const [program, args] = command ? ["sh", ["-c", `${command} "$@"`, "agent-m-tests", ...files]]
+    : [globalThis.process.execPath, ["--test", `--test-shard=${shard}/${shards}`, "--test-reporter=spec", "--test-reporter-destination=stdout", "--test-reporter=junit",
+      `--test-reporter-destination=${report}`, ...files]];
+  return new Promise((resolve) => {
+    const child = childProcess.spawn(program, args, { cwd, env: variables, stdio: ["ignore", "inherit", "inherit"] });
+    child.on("error", (error) => resolve({ code: null, signal: null, error }));
+    child.on("close", (code, signal) => resolve({ code, signal, error: null }));
+  });
+}
+
+/**
+ * runTests(env: CiEnvironment) -> Promise<EntryStatus> — in each test job of MOD-test-schedule's test configuration, on a machine that holds no token: the files of the row
+ * AGENT_M_ROW among the commit's committed files, read through the local clone, as testsOfRow names them; then AGENT_M_COMMAND, or node's test runner where it is empty, run in
+ * the checkout with those files and the job's variables, AGENT_M_REPORT among them, the path of the report agent-m-reports/<occasion>.<row>.<shard>.xml. As it ends it writes
+ * its status, one line, to agent-m-reports/<occasion>.<row>.<shard>.status: `done`, `nothing to do`, `failed: <why>` or `not run: secret missing: <name>`. A secret
+ * AGENT_M_SECRETS names that is not set — absent or empty — ends it `not run` before anything runs; a named test file whose level cannot be read ends it `failed` before
+ * anything runs, naming each; a row without a file ends `nothing to do`, with no report. The command ending with 0 is `done`, any other end `failed`, naming its status. Reads
+ * no token and writes nothing to a repository. Without the row, the occasion or the shard, no status can be named: it ends `failed` and writes none.
+ */
+export async function runTests(env) {
+  const { row, occasion, shard, shards, command, secrets, variables } = env.run;
+  if (!row || !occasion || !shard) {
+    return failedStatus(`${!row ? "AGENT_M_ROW" : !occasion ? "AGENT_M_OCCASION" : "AGENT_M_SHARD"} is missing: the test job names its row, occasion and shard. Nothing was run.`);
+  }
+  const folder = pathOf.join(env.checkout, REPORTS);
+  const name = `${occasion}.${row}.${shard}`;
+  const report = pathOf.join(folder, `${name}.xml`);
+  const end = (outcome, reason, summary) => {
+    fs.mkdirSync(folder, { recursive: true });
+    fs.writeFileSync(pathOf.join(folder, `${name}.status`), `${reason ? `${outcome}: ${String(reason).replace(/\s*\n\s*/g, " ")}` : outcome}\n`);
+    return { outcome, summary, findings: [] };
+  };
+  const missing = secrets.find((secret) => !variables[secret]);
+  if (missing) return end("not run", `secret missing: ${missing}`, `The secret ${missing}, which AGENT_M_SECRETS names, is not set: the tests of the row ${row} did not run.`);
+  try {
+    const snapshot = await composeTestJob(env).checkout.readSnapshot("HEAD");
+    const { files, unreadable } = testsOfRow(row, await testFilesAt(snapshot));
+    if (unreadable.length) {
+      const why = `the level of ${unreadable.join(", ")} cannot be read`;
+      return end("failed", why, `Nothing was run: ${why}; a test file names its level in its header's Level: or in its declarations.`);
+    }
+    if (!files.length) return end("nothing to do", null, `The row ${row} has no test file at ${snapshot.commit}: nothing was run.`);
+    fs.mkdirSync(folder, { recursive: true });
+    const ended = await runCommand(command, files, { cwd: env.checkout, variables: { ...variables, AGENT_M_REPORT: report }, shard, shards, report });
+    const ran = `${files.length} test file(s) of the row ${row}, shard ${shard} of ${shards}`;
+    if (ended.code === 0) return end("done", null, `The ${command ? "command" : "node test runner"} ran the ${ran}; it ended with 0.`);
+    const why = ended.error ? `the command could not be started: ${ended.error.message}` : ended.signal ? `the command was stopped by ${ended.signal}` : `the command ended with status ${ended.code}`;
+    return end("failed", why, `The ${ran} were run, and ${why}.`);
+  } catch (error) {
+    const why = `${error?.name === "UnknownRow" ? "" : "runTests failed: "}${error?.message ?? error}`;
+    return end("failed", why, `${why}. Nothing was run.`);
+  }
+}
 
 // Whether the checkout's tracked files hold changes the commit does not: a file the run added, such as its report, is none.
 function uncommittedIn(checkout) {

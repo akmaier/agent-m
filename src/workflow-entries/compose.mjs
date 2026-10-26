@@ -39,10 +39,32 @@ const path = globalThis.process?.getBuiltinModule?.("node:path");
  * the runner, the checkouts, the run's address, the name and value of the person's token and each key secret's value by its name, and the file GITHUB_STEP_SUMMARY names
  * for the run's summary, where it is set. `token` is the workflow's own token, by its name GITHUB_TOKEN, never by value in a file; `branch` the branch the workflow runs for.
  * `service` is `gitlab` where GITLAB_CI is `true`, else `github`; a GitLab job's variables are read as gitlabEnvironment states. `tests`, for the entries
- * MOD-test-schedule's test configuration runs, is what it gives them (testsOf).
+ * MOD-test-schedule's test configuration runs, is what it gives them (testsOf). For runTests the environment is a test job's instead (testJobEnvironment): `run` in
+ * place of `job`, `tests` and `token`, which it does not hold.
  */
 export function ciEnvironment(entry, env, now) {
+  if (entry === "runTests") return testJobEnvironment(entry, env, now);
   return env.GITLAB_CI === "true" ? gitlabEnvironment(entry, env, now) : githubEnvironment(entry, env, now);
+}
+
+// A test job of MOD-test-schedule's generated configuration, which runs code of the product and holds no token: the entry runTests reads none — not the person's
+// AGENT_M_TOKEN, not the workflow's GITHUB_TOKEN, not GitLab's CI_JOB_TOKEN —, and the command it runs is given none. `run` is what the job gives runTests, MOD-test-schedule's
+// *The variables of a test job*: the row, the occasion, the shard and the number of shards, the command, the names of the secrets the job reads (AGENT_M_SECRETS, separated
+// by commas), and `variables`, the job's environment that is passed on to the command — without the tokens, and without AGENT_M_COMMAND and AGENT_M_SECRETS, which runTests
+// alone reads. The checkout is the workspace (GitHub's GITHUB_WORKSPACE, GitLab's CI_PROJECT_DIR) and the repository its address, as for every entry.
+const TOKENS = ["AGENT_M_TOKEN", "GITHUB_TOKEN", "CI_JOB_TOKEN"];
+const READ_BY_RUN_TESTS = ["AGENT_M_COMMAND", "AGENT_M_SECRETS"];
+function testJobEnvironment(entry, env, now) {
+  const gitlab = env.GITLAB_CI === "true";
+  const variables = {};
+  for (const name of Object.keys(env)) if (!TOKENS.includes(name) && !READ_BY_RUN_TESTS.includes(name)) variables[name] = env[name];
+  const repository = gitlab ? env.CI_PROJECT_URL ?? "" : env.GITHUB_SERVER_URL && env.GITHUB_REPOSITORY ? `${env.GITHUB_SERVER_URL}/${env.GITHUB_REPOSITORY}` : "";
+  return {
+    entry, service: gitlab ? "gitlab" : "github", event: { name: (gitlab ? env.CI_PIPELINE_SOURCE : env.GITHUB_EVENT_NAME) ?? null, payload: null },
+    checkout: (gitlab ? env.CI_PROJECT_DIR : env.GITHUB_WORKSPACE) ?? "", repository, now,
+    run: { row: env.AGENT_M_ROW || null, occasion: env.AGENT_M_OCCASION || null, shard: env.AGENT_M_SHARD || null, shards: env.AGENT_M_SHARDS || "1",
+      command: String(env.AGENT_M_COMMAND ?? "").trim(), secrets: String(env.AGENT_M_SECRETS ?? "").split(",").map((name) => name.trim()).filter(Boolean), variables },
+  };
 }
 
 // A GitHub Actions job: the variables of the header above.
@@ -143,6 +165,14 @@ export function composeTestRun(env) {
   const instanceDir = path.join(env.checkout, ".agent-m");
   return { checkout: connect(address, { clone: env.checkout }), server: connect(address, { token: env.job.personToken, secrets: [env.job.personToken].filter(Boolean) }),
     instance: connect(parseAddress(originOf(instanceDir, env.repository)), { clone: instanceDir }) };
+}
+
+/**
+ * composeTestJob(env: CiEnvironment) -> { checkout: Host } — the product as runTests reaches it in a test job: its checkout, the commit under test, through the local clone,
+ * with no token; the clone reads the commit's files and asks the server nothing.
+ */
+export function composeTestJob(env) {
+  return { checkout: connect(parseAddress(env.repository), { clone: env.checkout }) };
 }
 
 // ---------------------------------------------------------------- a product's job workflow
