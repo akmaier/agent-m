@@ -10,7 +10,7 @@ export const MENU = [
   { key: "use-cases", label: "Use cases", views: ["uc"] },
   { key: "architecture", label: "Architecture", views: ["arc"] },
   { key: "implementation", label: "Implementation", views: ["progress", "backlog", "roles"] },
-  { key: "tests", label: "Tests", views: ["runs", "schedule", "generate"] },
+  { key: "tests", label: "Tests", views: ["schedule", "runs", "generate"] },
   { key: "releases", label: "Releases", views: ["release"] },
   { key: "maintenance", label: "Maintenance", views: ["issues", "mail", "replies"], title: "Issues and mail" },
   { key: "settings", label: "Settings", views: ["settings"], icon: "⚙", title: "Every setting Agent M uses" },

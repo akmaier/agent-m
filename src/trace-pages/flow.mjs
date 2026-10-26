@@ -693,6 +693,22 @@ const OTHER = {
   gaps: { key: "specification", text: "Specification", className: "trace-specification-link" },
 };
 
+// The links a view's descriptor gives for its page (`links` without a row) — for the tests and the audit the views of the menu entry Tests (ITM-1224) — as a nav
+// named after the view's entry, drawn under the view's heading: each a link drawn as a button, the one of the view shown marked as the page shown. A view
+// whose descriptor gives none draws nothing.
+function entryLinks(descriptor) {
+  if (typeof descriptor.links !== "function") return [];
+  const own = fragment("trace", { key: descriptor.key });
+  const nav = el("nav", "entry-views", ...descriptor.links().map(({ text, href }) => {
+    const link = el("a", href === own ? "btn small primary" : "btn small", text);
+    link.setAttribute("href", href);
+    if (href === own) link.setAttribute("aria-current", "page");
+    return link;
+  }));
+  nav.setAttribute("aria-label", `${descriptor.entry.charAt(0).toUpperCase()}${descriptor.entry.slice(1)}`);
+  return [nav];
+}
+
 // What each drawn route keeps for its subject, by the context it was drawn with: the frame asks the route for the subject with the same context.
 const drawn = new WeakMap();
 
@@ -832,7 +848,8 @@ export const route = {
     }
     if (descriptor.key === "audit") {
       const { names, failure } = await tagsOf(host);
-      await drawAudit(target, context, host, params.ref, descriptor, names.filter((tag) => RELEASE.test(tag)), failure && failedRead("traces-problem", "The tags", failure, context));
+      await drawAudit(target, context, host, params.ref, descriptor, names.filter((tag) => RELEASE.test(tag)), failure && failedRead("traces-problem", "The tags", failure, context),
+        entryLinks(descriptor));
       return;
     }
     const handed = params.ref;
@@ -882,7 +899,7 @@ export const route = {
           fill = () => showGaps(place, shown);
         } else if (descriptor.key === "tests") {
           const place = el("div", "tests-page", el("p", "traces-reading", "Reading the tests…"));
-          body = el("section", "tests head", el("h2", null, descriptor.title), place);
+          body = el("section", "tests head", el("h2", null, descriptor.title), ...entryLinks(descriptor), place);
           fill = () => showTests(place, shown, params);
         } else {
           if (editable) shown.source = source;
