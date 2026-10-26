@@ -305,6 +305,13 @@ audit MOD-test-pages' route `tests-views`, the Tests entry's views.
   another without that use, as the release panel shows the audit.
 - **The Tests entry's views in the frame, beside the menu.** Rejected: the frame would carry one entry's views and
   their labels, and change whenever an entry's views change; it knows views only as the routes it is handed.
+- **One route per trace view, each with its own `entry`, so that the menu marks the entry of the view shown.** Rejected:
+  the addresses `#trace/key=…` that the Tests entry's views and the links of the site lead to would change, and the one
+  template method would be listed as five routes; the route's optional `entryOf` gives each page the entry its
+  descriptor already names, without a second copy (`DON'T REPEAT YOURSELF`).
+- **The entry of the page shown given by the route's `subject`, or by a map of views to entries in the frame.**
+  Rejected: the subject says what a message in the prompt bar is about, and the menu is marked on a route that gives
+  none; a map in the frame would make it name views, which it knows only as the routes it is handed.
 
 ## Consequences
 
