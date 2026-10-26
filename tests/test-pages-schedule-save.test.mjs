@@ -346,3 +346,50 @@ test("schedule — the runner chosen in the table is written by Save", async () 
   const text = writes(shown.host, "commitFiles")[0][1].files.find((file) => file.path === "docs/tests/schedule.md").text;
   assert.match(text, /\| system \|[^\n]*\| lab-runner \|/);
 });
+
+// TST-1223006 · level: unit · module: MOD-test-pages
+// guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT; ONE CLICK PER DECISION; EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE; UC-027
+// given: a saved schedule whose row unit runs on every commit and whose row system does not
+// input: in the table of levels, the box every commit of the row unit unticked and that of the row system ticked (each a change event), then the one Save
+// expect: one commit; its docs/tests/schedule.md holds the row unit without a tick under every commit and the row system with one, the other cells of both rows as before, and the nightly time 02:00
+test("TST-1223006 — schedule: the table of levels is edited in place and written by the one Save", async () => {
+  const shown = await page("github", { "docs/tests/schedule.md": SAVED });
+  const boxOf = (row) => byTag(descendants(shown.target, (node) => node.localName === "tr" && node.getAttribute("data-row") === row)[0], "input")
+    .find((input) => input.getAttribute("type") === "checkbox" && input.parentNode.getAttribute("data-column") === "every commit");
+  const unit = boxOf("unit"), system = boxOf("system");
+  assert.ok(unit && system, "known positive: the boxes are drawn");
+  unit.checked = false;
+  unit.dispatchEvent(new Event("change"));
+  system.checked = true;
+  system.dispatchEvent(new Event("change"));
+  assert.equal(descendants(shown.target, (node) => node.localName === "button" && node.textContent === "Save").length, 1, "one Save");
+  click(saveOf(shown.target));
+  await until(() => writes(shown.host, "commitFiles").length, "the commit made");
+  assert.equal(writes(shown.host, "commitFiles").length, 1);
+  const text = writes(shown.host, "commitFiles")[0][1].files.find((file) => file.path === "docs/tests/schedule.md").text;
+  const saved = readDocument(scheduleSchema, "docs/tests/schedule.md", text);
+  const cells = (row) => saved.sections.find((section) => section.heading === "## Levels").rows.find((each) => each.cells.Row === row).cells;
+  const ticked = (row) => ["every commit", "pull request", "nightly", "release candidate", "on demand"].filter((column) => cells(row)[column] === "✓");
+  assert.deepEqual(ticked("unit"), ["pull request", "nightly", "release candidate", "on demand"]);
+  assert.deepEqual(ticked("system"), ["every commit", "nightly", "release candidate", "on demand"]);
+  assert.equal(saved.fields.nightly, "02:00");
+});
+
+// TST-1223011 · level: unit · module: MOD-test-pages
+// guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT; UC-027
+// given: a saved schedule whose front matter names the cache paths node_modules and .cache, as schedule.schema.md describes them, one path per line
+// input: the route schedule rendered; then the field cache given the three lines "node_modules", "~/.npm, a path with a comma" and ".cache", then the one Save
+// expect: the field cache shows "node_modules" and ".cache" on two lines; the committed schedule's cache is the three paths, the second with its comma kept
+test("TST-1223011 — schedule: the field cache holds one path per line, as the schedule's schema describes it", async () => {
+  const text = SAVED.replace("nightly: 02:00", "nightly: 02:00\ncache:\n  - node_modules\n  - .cache");
+  const shown = await page("github", { "docs/tests/schedule.md": text });
+  const field = byTag(descendants(shown.target, (node) => node.getAttribute?.("data-key") === "cache")[0], "textarea")[0];
+  assert.ok(field, "known positive: the field cache is drawn");
+  assert.equal(field.value, "node_modules\n.cache");
+  field.value = "node_modules\n~/.npm, a path with a comma\n.cache\n";
+  field.dispatchEvent(new Event("input"));
+  click(saveOf(shown.target));
+  await until(() => writes(shown.host, "commitFiles").length, "the commit made");
+  const written = writes(shown.host, "commitFiles")[0][1].files.find((file) => file.path === "docs/tests/schedule.md").text;
+  assert.deepEqual(readDocument(scheduleSchema, "docs/tests/schedule.md", written).fields.cache, ["node_modules", "~/.npm, a path with a comma", ".cache"]);
+});

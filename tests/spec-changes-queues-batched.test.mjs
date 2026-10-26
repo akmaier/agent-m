@@ -153,3 +153,27 @@ test("TST-677004: queues on a server that serves no /graphql gives the same queu
   assert.equal(alone(sent).filter((request) => request.url.pathname.includes("/contents/")).length, 121);
   assert.equal(sent.length, 123);
 });
+
+// TST-677005 · level: component · module: MOD-spec-changes; MOD-repository-hosts
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-019
+// given: the product of TST-677001, 2 of its 60 queues open, and the reader's token
+// input: the recipe `spec-with-queues` of specStrategies on the snapshot, as a change-requirements job prepares its input
+// expect: the part "SPEC.md with its open queues"; SPEC.md read first, on its own; then only POST https://api.github.com/graphql — 100 and 20 files as `queues` reads them
+//   (SPEC.md, its target, is held already), then the 2 open proposals in one more batch, which holds 1 file since both proposals are the same text —; no proposal read on its own
+test("TST-677005: spec-with-queues reads the open proposals in one batch, none on its own", async () => {
+  const { specStrategies } = await import("../src/spec-changes/index.mjs");
+  const fake = fakeGitHub();
+  const real = globalThis.fetch;
+  globalThis.fetch = fake.fetch;
+  try {
+    const snapshot = await connect(parseAddress(ADDRESS), { token: TOKEN }).readSnapshot("main");
+    const before = fake.requests.length;
+    const parts = await specStrategies.recipes["spec-with-queues"]({ product: { snapshot } }, {});
+    const sent = fake.requests.slice(before);
+    assert.equal(parts[0].name, "SPEC.md with its open queues");
+    assert.deepEqual(alone(sent).map((request) => request.url.pathname), ["/repos/alice/product/contents/SPEC.md"], "only SPEC.md, read first, on its own");
+    assert.deepEqual(named(sent), [100, 20, 1]);
+  } finally {
+    globalThis.fetch = real;
+  }
+});

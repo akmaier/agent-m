@@ -12,6 +12,7 @@ uses:
   - MOD-site-frame.notice
   - MOD-site-frame.readProblem
   - MOD-site-frame.confirmDecision
+  - MOD-site-frame.embedRoute
   - MOD-markdown-render.renderArtifact
   - MOD-markdown-render.renderMermaid
   - MOD-markdown-render.showDifference
@@ -113,7 +114,7 @@ It keeps nothing but the screen. It owns the **descriptor** of a trace view:
 ```text
 TraceView = {
   key: "specification" | "gaps" | "modules" | "tests" | "audit",
-  entry: "requirements" | "architecture" | "tests" | "releases",   // the menu entry it is under
+  entry: "requirements" | "architecture" | "tests",                // the menu entry it is under
   versions: "branch-and-tags" | "tags",                            // what the version choice offers; a second version compares
   shape: "tree" | "table",
   rows: (graph, facts) -> Row[],                                   // built from the trace graph and the services' facts
@@ -162,7 +163,12 @@ log, the link reads *no longer available*, and the mark keeps its outcome (UC-02
 ## Uses
 
 - MOD-site-frame.View, MOD-site-frame.chosenProduct, MOD-site-frame.explain, MOD-site-frame.notice, MOD-site-frame.readProblem,
-  MOD-site-frame.confirmDecision — the frame's parts of every route.
+  MOD-site-frame.confirmDecision — the frame's parts of every route; MOD-site-frame.embedRoute — the Tests entry's views,
+  MOD-test-pages' route `tests-views`, shown under the heading of the tests browser and of the audit of a release tag,
+  with `shown` naming the view; the audit of a release candidate (`commit` among its params), which the release panel
+  shows inside itself, shows none. They are drawn by the route, not given by the descriptor's `links`, which are a row's.
+  Where MOD-test-pages is not loaded on the page, the frame's link to the route stands in their place (`RouteNotLoaded`),
+  and the view is drawn on.
 - MOD-markdown-render.renderArtifact, MOD-markdown-render.renderMermaid, MOD-markdown-render.showDifference — rows'
   details, the component diagram, the comparison of versions.
 - MOD-repository-hosts.readSnapshot, MOD-repository-hosts.readHistory, MOD-repository-hosts.readFileAt,
