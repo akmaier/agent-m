@@ -39,8 +39,7 @@ const opencodeOf = (found) => {
 // level: unit
 // module: MOD-agent-processes
 // guards: THE BRIDGE FINDS THE INSTALLED AGENTS; A LOCAL AGENT USES THE PERSON'S OWN LOGIN; UC-044
-// given: a controlled PATH holding opencode alone, in the 2.1.4 and the 1.19.0 manner, with no credential stored (its `auth
-// list` names none) and listing free models with `models`.
+// given: a controlled PATH holding opencode alone, in the 2.1.4 and the 1.19.0 manner, with no credential stored (its `auth list` names none) and listing free models with `models`.
 // input: installedAgents().
 // expect: opencode is installed with its version, logged in, and carries its login step `opencode auth login`.
 test("TST-1230001: opencode with no credential that lists a free model is installed and logged in", async () => {
@@ -59,8 +58,7 @@ test("TST-1230001: opencode with no credential that lists a free model is instal
 // level: unit
 // module: MOD-agent-processes
 // guards: THE BRIDGE FINDS THE INSTALLED AGENTS; A LOCAL AGENT USES THE PERSON'S OWN LOGIN; UC-044
-// given: a controlled PATH holding opencode alone with no credential stored, whose `models` lists no model: (a) it prints
-// nothing and ends 0, as 2.1.4 with free models switched off; (b) it fails, ending 1 with an error on standard error.
+// given: a controlled PATH holding opencode alone with no credential stored, whose `models` lists no model: (a) it prints nothing and ends 0, as 2.1.4 with free models switched off; (b) it fails, ending 1 with an error on standard error.
 // input: installedAgents().
 // expect: opencode is installed and not logged in, and its login step is `opencode auth login`.
 test("TST-1230002: opencode that lists no model is installed, not logged in, with its login step", async () => {
