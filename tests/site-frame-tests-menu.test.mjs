@@ -1,7 +1,8 @@
 // The live dashboard reaches MOD-test-pages' routes `runs`, `schedule` and `generate`, and MOD-trace-pages' route `trace` for its own fragment (ITM-1206), as it reaches
 // `release` (ITM-682) and `mail` (ITM-1099, tests/site-frame-maintenance-menu.test.mjs) — MOD-site-frame.md, Data: the page names the view modules it loads in
 // `data-views`, `test-pages` and `trace-pages` among them; and Parts, taken over: `src/site/views.mjs` and `docs/assets/dashboard/built.json` list the views the live
-// app builds. Each view is a built-in one without a file of its own, the app hands its address to the module's route, and the menu entry Tests opens `runs`.
+// app builds. Each view is a built-in one without a file of its own, the app hands its address to the module's route, and the menu entry Tests opens `schedule`,
+// the setup of the batteries first (ITM-1224).
 // Run: node --test tests/site-frame-tests-menu.test.mjs
 //
 // Module: MOD-site-frame
@@ -12,7 +13,7 @@
 // `go("runs", { commit })` does, so the module text's `runs/<commit>` is the route `runs` with the parameter commit; the context the routes are given is the frame's
 // ViewContext with the product shown — the instance itself included, since the test pages work on a product's files and say so where none is given; `#trace/…` is
 // given the parameters its fragment holds, and, where the fragment names no `ref`, the ref the page shows, as the app hands it to the route under `#spec` and `#arc`.
-// The menu has one entry per stage: the entry Tests opens `runs`, the first of its views, and is the entry marked on `#schedule` and `#generate`. The table and the
+// The menu has one entry per stage: the entry Tests opens `schedule`, the first of its views, and is the entry marked on `#runs` and `#generate`. The table and the
 // menu are read as they are; the live app runs in tests/app-harness.mjs against the GitHub API mock of tests/load-per-view.test.mjs; each route's `render` is
 // replaced by one that records what it is given, so that these tests read the frame's dispatch and not the routes' pages. The counter-proofs are recorded in the
 // pull request.
@@ -23,7 +24,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DASHBOARD, builtViews } from "../src/site/views.mjs";
-import { MENU, entryOf, stageView } from "../src/site/menu.mjs";
+import { MENU, entryOf, menuHtml, stageView } from "../src/site/menu.mjs";
 import { repoServer, openDashboard, REPO } from "./app-harness.mjs";
 
 const ROOT = new URL("../", import.meta.url);
@@ -68,9 +69,10 @@ function assertViewContext(context) {
 // given: the table of the dashboard's views, the list built.json and the menu that follows the process
 // input: the views runs, schedule, generate and trace in DASHBOARD, the views whose files were never built, builtViews(built.json), stageView and entryOf for the entry Tests
 // expect: runs, schedule, generate and trace are built-in views without a file, for their use cases, and count as built; tests, tests-schedule, tests-generate,
-//   tests-browser and audit are no view of the table; the entry Tests opens runs, and #schedule and #generate belong to it; built.json names no file for any of them
-// Planted fault: leaving the table as it is (tests with the file tests-runs-view.mjs) makes the entry Tests open nothing.
-test("TST-1206001 the test pages' routes and the trace route are built in, and the menu entry Tests opens runs", () => {
+//   tests-browser and audit are no view of the table; the entry Tests opens schedule, and #runs and #generate belong to it; built.json names no file for any of them
+// Planted fault: leaving the table as it is (tests with the file tests-runs-view.mjs) makes the entry Tests open nothing; the entry's views in the order runs,
+//   schedule, generate make it open runs.
+test("TST-1206001 the test pages' routes and the trace route are built in, and the menu entry Tests opens schedule", () => {
   const built = builtViews(builtFiles);
   for (const [view, useCases] of Object.entries(ROUTES)) {
     const entry = DASHBOARD.find((candidate) => candidate.view === view);
@@ -81,7 +83,8 @@ test("TST-1206001 the test pages' routes and the trace route are built in, and t
     assert.ok(built.has(view), `${view} counts as built`);
   }
   for (const view of GONE) assert.equal(DASHBOARD.find((candidate) => candidate.view === view), undefined, `the view ${view}, whose file was never built, is gone`);
-  assert.equal(stageView(tests, built), "runs");
+  assert.equal(stageView(tests, built), "schedule");
+  assert.equal(entryOf("runs"), "tests");
   assert.equal(entryOf("schedule"), "tests");
   assert.equal(entryOf("generate"), "tests");
   assert.ok(!builtFiles.some((file) => /^(tests|audit|runs|schedule|generate|trace)/.test(file)));
@@ -91,11 +94,11 @@ test("TST-1206001 the test pages' routes and the trace route are built in, and t
 // guards: UC-028; THE MENU FOLLOWS THE PROCESS
 // given: counter-proof of TST-1206001: the table without the built-in views of the test pages
 // input: builtViews over the table and over that table, stageView for the entry Tests over each
-// expect: with the table the entry Tests opens runs; without its built-in views none of runs, schedule, generate is built and the entry Tests opens nothing (the known
+// expect: with the table the entry Tests opens schedule; without its built-in views none of runs, schedule, generate is built and the entry Tests opens nothing (the known
 //   negative); the known positive: release is still built, and the entry Releases opens it
 // Planted fault: a table that keeps one of the views where the test removes it makes the known negative fail.
 test("TST-1206002 counter-proof: without the table's built-in views the menu entry Tests opens nothing", () => {
-  assert.equal(stageView(tests, builtViews(builtFiles)), "runs", "with the table, the entry Tests opens runs");
+  assert.equal(stageView(tests, builtViews(builtFiles)), "schedule", "with the table, the entry Tests opens schedule");
   const without = DASHBOARD.filter((entry) => !["runs", "schedule", "generate"].includes(entry.view));
   const builtWithout = new Set(without.filter((entry) => entry.view && (entry.builtIn || builtFiles.includes(entry.file))).map((entry) => entry.view));
   assert.equal(stageView(tests, builtWithout), null, "known negative: nothing opens the entry Tests");
@@ -103,27 +106,47 @@ test("TST-1206002 counter-proof: without the table's built-in views the menu ent
   assert.equal(stageView(MENU.find((entry) => entry.key === "releases"), builtWithout), "release");
 });
 
+// TST-1224001 · level: unit · module: MOD-site-frame
+// guards: UC-027; THE MENU FOLLOWS THE PROCESS
+// given: the menu that follows the process, the views built as builtViews(built.json) gives them
+// input: menuHtml over those views, the link of the entry Tests and of the entry Releases
+// expect: the entry Tests names its views in the order schedule, runs, generate and links #schedule, the setup of the batteries first (UC-027 1: "Tests → Schedule");
+//   the known positive: the entry Releases still links #release
+// Planted fault: the entry's views in the order runs, schedule, generate make its link #runs.
+test("TST-1224001 the menu's entry Tests links #schedule", () => {
+  assert.deepEqual(tests.views, ["schedule", "runs", "generate"]);
+  const html = menuHtml({ built: builtViews(builtFiles) });
+  const linkOf = (key) => new RegExp(`<a href="#([^"]+)"[^>]*data-entry="${key}"`).exec(html)?.[1] ?? null;
+  assert.equal(linkOf("tests"), "schedule");
+  assert.equal(linkOf("releases"), "release", "known positive: the entry Releases links #release");
+});
+
 // TST-1206003 · level: unit · module: MOD-site-frame
 // guards: UC-028; THE MENU FOLLOWS THE PROCESS
-// given: the live app on the instance, a token stored; MOD-test-pages' route runs recording what it is rendered with
+// given: the live app on the instance, a token stored; MOD-test-pages' routes schedule and runs recording what they are rendered with
 // input: the dashboard opened at #tests, at #runs and at #runs/commit=<sha>; the route's go("runs", { commit })
-// expect: the menu links #runs for the entry Tests; each address renders the route runs — #tests and #runs with no parameter, #runs/commit=<sha> with { commit } —
-//   with the frame's ViewContext, the product shown included; go writes #runs/commit=<sha>; the page shows the route, not the use cases or "not built yet"
-// Planted fault: an app without the dispatch says "The Tests entry is not built yet." at #tests and shows the use cases at #runs.
-test("TST-1206003 the menu entry Tests opens MOD-test-pages' route runs, and #runs/commit=<sha> hands the commit to it", async () => {
-  const { seen, restore } = await recording("../src/test-pages/index.mjs", ["runs"]);
+// expect: the menu's entry Tests links #schedule, and #tests renders the route schedule with no parameter (ITM-1224); #runs renders the route runs with no parameter,
+//   #runs/commit=<sha> with { commit } — each with the frame's ViewContext, the product shown included; go writes #runs/commit=<sha>; the page shows the route, not
+//   the use cases or "not built yet"
+// Planted fault: an app without the dispatch says "The Tests entry is not built yet." at #tests and shows the use cases at #runs; the entry's views in the order
+//   runs, schedule, generate make the entry link #runs and #tests render runs.
+test("TST-1206003 the menu entry Tests opens MOD-test-pages' route schedule, and #runs/commit=<sha> hands the commit to the route runs", async () => {
+  const { seen, restore } = await recording("../src/test-pages/index.mjs", ["runs", "schedule"]);
   try {
     const srv = await repoServer({ files: fixtureFiles(), history: [], handlers: [] });
     const page = await openDashboard({ server: srv, hash: "#tests" });
-    const tabs = [...page.el("tabs").matchAll(/href="#([^"]+)"/g)].map((match) => match[1]);
-    assert.ok(tabs.includes("runs"), `the entry Tests links #runs: ${tabs.join(", ")}`);
-    assert.match(page.main(), /route runs \(recorded\)/);
+    const entry = /<a href="#([^"]+)"[^>]*data-entry="tests"/.exec(page.el("tabs"));
+    assert.equal(entry?.[1], "schedule", `the entry Tests links #schedule: ${page.el("tabs")}`);
+    assert.match(page.main(), /route schedule \(recorded\)/);
     assert.doesNotMatch(page.main(), /not built yet/);
     assert.equal(seen.length, 1);
+    assert.equal(seen[0].name, "schedule");
     assert.deepEqual(seen[0].params, {});
     assertViewContext(seen[0].context);
     const sha = "a".repeat(40);
-    await openDashboard({ server: srv, hash: "#runs" });
+    const runs = await openDashboard({ server: srv, hash: "#runs" });
+    assert.match(runs.main(), /route runs \(recorded\)/);
+    assert.equal(seen.at(-1).name, "runs");
     assert.deepEqual(seen.at(-1).params, {});
     const withCommit = await openDashboard({ server: srv, hash: `#runs/commit=${sha}` });
     assert.match(withCommit.main(), /route runs \(recorded\)/);

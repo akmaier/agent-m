@@ -85,7 +85,7 @@ test("TST-289101: public #release reopens the selected product's pending report 
   const release = '<a href="#release" id="tab-release" data-entry="releases">Releases</a>';
   const releasePosition = tabs.indexOf(release);
   assert.ok(releasePosition > 0, "the process menu links the built Release view");
-  assert.equal(tabs[releasePosition - 1], '<a href="#runs" id="tab-runs" data-entry="tests">Tests</a>',
+  assert.equal(tabs[releasePosition - 1], '<a href="#schedule" id="tab-schedule" data-entry="tests">Tests</a>',
     "Release follows Tests in the process menu");
   assert.equal(tabs[releasePosition + 1], '<a href="#mail" id="tab-mail" data-entry="maintenance" title="Issues and mail">Maintenance</a>',
     "Maintenance follows Release in the process menu");

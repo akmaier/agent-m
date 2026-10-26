@@ -44,7 +44,7 @@ export const modules = {
 
 export const audit = {
   key: "audit",
-  entry: "releases",
+  entry: "tests",
   title: "Audit",
   versions: "tags",
   shape: "table",
