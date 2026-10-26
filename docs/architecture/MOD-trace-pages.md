@@ -114,7 +114,7 @@ It keeps nothing but the screen. It owns the **descriptor** of a trace view:
 ```text
 TraceView = {
   key: "specification" | "gaps" | "modules" | "tests" | "audit",
-  entry: "requirements" | "architecture" | "tests" | "releases",   // the menu entry it is under
+  entry: "requirements" | "architecture" | "tests",                // the menu entry it is under
   versions: "branch-and-tags" | "tags",                            // what the version choice offers; a second version compares
   shape: "tree" | "table",
   rows: (graph, facts) -> Row[],                                   // built from the trace graph and the services' facts

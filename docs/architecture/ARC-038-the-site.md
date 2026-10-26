@@ -244,9 +244,9 @@ flowchart BT
 
 The menu's entries map onto these modules: Requirements to the trace pages' specification browser and the review pages'
 SPEC entries; Use cases and Architecture to the review pages, with the architecture's modules view on the trace pages;
-Implementation, Tests, Releases, Maintenance and Settings to their own modules, Releases with the audit on the trace
-pages. `index.html` starts the frame with the main page; `docs/index.html` starts it with every other view. The frame
-knows views only as the routes the entry page hands it, so no view module is used by the frame. Besides the renderer,
+Implementation, Tests, Releases, Maintenance and Settings to their own modules, Tests with the tests browser and the
+audit on the trace pages. `index.html` starts the frame with the main page; `docs/index.html` starts it with every
+other view. The frame knows views only as the routes the entry page hands it, so no view module is used by the frame. Besides the renderer,
 the frame uses two modules of the Site, MOD-notifications and MOD-prompt-bar, which are no views and use no module of the
 Site but the renderer: the frame starts the notifications' checks and hands them the writing of a route's address, and
 starts the prompt bar and hands it the subject of the route shown, its explanations and its navigation, so that neither
