@@ -587,7 +587,7 @@ export async function onTestsFinished(env) {
   if (levels.length === 0) return { outcome: "nothing to do", summary: "No test of the product calls a paid service: the row paid ran none.", findings: [] };
   let outcomes;
   try {
-    outcomes = parseOutcomes(fs.readFileSync(report, "utf8"), declared);
+    outcomes = parseOutcomes([fs.readFileSync(report, "utf8")], declared);
   } catch (error) {
     return failedStatus(`The run's JUnit XML report ${report} could not be read: ${error.message}. Nothing was written.`);
   }
