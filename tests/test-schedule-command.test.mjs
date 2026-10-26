@@ -8,7 +8,7 @@
 // Run: node --test tests/test-schedule-command.test.mjs
 //
 // Module: MOD-test-schedule
-// Guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT; A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES; UC-027
+// Guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT; A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES; UC-027; EVERY TEST RUN LEAVES A RESULT RECORD; UC-028
 // Level: unit
 //
 // Each test states its input and its expected result before it runs (given / input / expect). Every fixture file is a path
@@ -218,5 +218,31 @@ test("setup — installs xvfb and openbox and the Bridge app's packages", async 
     const calls = readFileSync(log, "utf8").split("\n").filter(Boolean);
     assert.ok(calls.some((c) => /^apt-get .*\binstall\b/.test(c) && /\bxvfb\b/.test(c) && /\bopenbox\b/.test(c)), calls.join("\n"));
     assert.ok(calls.includes("npm install --prefix src/bridge-build --omit=dev --ignore-scripts"), calls.join("\n"));
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+// TST-1218001 · level: unit · module: MOD-test-schedule
+// guards: EVERY TEST RUN LEAVES A RESULT RECORD; UC-027; UC-028
+// given: a checkout with tests/test_declared.py, whose class has the passing method test_declared_passes under the declaration of TST-9101, the failing method test_declared_fails under the declaration of TST-9102, and the passing method test_undeclared under no declaration
+// input: the command with tests/test_declared.py as its argument, run as shard 1 of AGENT_M_SHARDS 1; MOD-result-records' parseOutcomes([report], [the declarations of TST-9101 and TST-9102]) of the report it writes
+// expect: the report names the cases "TST-9101 test_declared_passes", "TST-9102 test_declared_fails" and "test_undeclared"; parseOutcomes gives TST-9101 passed, TST-9102 failed, and test_undeclared undeclared — no declared case undeclared
+test("command — a Python case is named by the TST identifier of its declaration, and by its method where none declares it", async () => {
+  const declaration = (id) => [`    # TST-${id} · level: unit · module: MOD-reader`, "    # guards: A RULE OF THE READER",
+    "    # given: a text", "    # input: read(text)", "    # expect: its words"].join("\n");
+  const root = checkout({
+    "tests/test_declared.py": ["import unittest", "", "", "class Case(unittest.TestCase):",
+      declaration(9101), "    def test_declared_passes(self):", "        self.assertTrue(True)", "",
+      declaration(9102), "    def test_declared_fails(self):", '        self.fail("planted failure")', "",
+      "    def test_undeclared(self):", "        self.assertTrue(True)", ""].join("\n"),
+  });
+  try {
+    const run = await runCommand(root, ["tests/test_declared.py"], 1, 1);
+    assert.ok(run.report, `no report: ${run.output}`);
+    assert.deepEqual(casesOf(run.report), {
+      "TST-9101 test_declared_passes": "passed", "TST-9102 test_declared_fails": "failed", test_undeclared: "passed",
+    });
+    const declared = [9101, 9102].map((n) => ({ id: `TST-${n}`, level: "unit", expect: "its words", runs: null }));
+    const outcomes = Object.fromEntries(parseOutcomes([run.report], declared).map((o) => [o.test, o.outcome]));
+    assert.deepEqual(outcomes, { "TST-9101": "passed", "TST-9102": "failed", test_undeclared: "undeclared" });
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
