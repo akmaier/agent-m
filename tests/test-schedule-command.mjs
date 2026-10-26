@@ -12,7 +12,9 @@
 // share) takes one of the first shards on its own, since two of them in one job wait on that lock past the job's time
 // limit; every other file goes round-robin, in the sorted order, to the shards that are left. With no shard left for the
 // other files it fails and names the files that start Electron. It writes the outcomes of both suites as one JUnit XML
-// report to AGENT_M_REPORT and ends with a status other than 0 when a test failed.
+// report to AGENT_M_REPORT and ends with a status other than 0 when a test failed. A Python case is named `TST-<nnn> <method>`
+// where the declaration before its method names one (MOD-test-document's testDeclarations), so that MOD-result-records'
+// parseOutcomes matches it to its declaration, and by its method where none does.
 //
 // Module: MOD-test-schedule
 // Level: unit
@@ -22,6 +24,7 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, rmSync
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { testDeclarations } from "../src/test-document/index.mjs";
 
 const PYTHON_RUNNER = join(dirname(fileURLToPath(import.meta.url)), "test-schedule-command.d", "unittest_junit.py");
 const STARTS_ELECTRON = /stageElectron|native-fixture-lock/;
@@ -46,6 +49,22 @@ function shareOf(files, shard, shards) {
   if (shard <= electron.length) return [electron[shard - 1]];
   const left = shards - electron.length;
   return others.filter((_, index) => index % left === shard - electron.length - 1);
+}
+
+// The Python part of the report with each case named by its declaration's identifier and its method, where the declaration
+// before the method in the case's file names one: the file is the case's module, tests/<module>.py among `files`.
+function declaredPython(content, files) {
+  const ids = new Map();
+  for (const file of files) {
+    const module = file.slice("tests/".length, -".py".length);
+    for (const declaration of testDeclarations(file, readFileSync(file, "utf8"))) {
+      if (declaration.title) ids.set(`${module} ${declaration.title}`, declaration.id);
+    }
+  }
+  return content.replace(/<testcase name="([^"]*)" classname="([^".]*)\.[^"]*"/g, (whole, method, module) => {
+    const id = ids.get(`${module} ${method}`);
+    return id ? whole.replace(`name="${method}"`, `name="${id} ${method}"`) : whole;
+  });
 }
 
 // Runs a program with its output going to this process's; resolves to its status.
@@ -94,7 +113,7 @@ async function main() {
       node.length ? run(process.execPath, ["--test", "--test-reporter=spec", "--test-reporter-destination=stdout",
         "--test-reporter=junit", `--test-reporter-destination=${nodeReport}`, ...node]) : 0,
     ]);
-    const content = [contentOf(pythonReport, "python", pythonStatus), contentOf(nodeReport, "node", nodeStatus)]
+    const content = [declaredPython(contentOf(pythonReport, "python", pythonStatus), python), contentOf(nodeReport, "node", nodeStatus)]
       .filter(Boolean).join("\n");
     mkdirSync(dirname(report), { recursive: true });
     writeFileSync(report, `<?xml version="1.0" encoding="utf-8"?>\n<testsuites>\n${content}\n</testsuites>\n`);
