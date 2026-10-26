@@ -186,7 +186,6 @@ conversation's draft, the main page the conversation's job, and the settings pag
 | MOD-site-frame | the types `View`, `Route`, `ViewContext` and `PageSetup`; `startPage`, `embedRoute`, `menuOf`, `instanceOf`, `chosenProduct`, `explain`, `runPanel`, `confirmDecision`, `notice`, `schemaForm` |
 | MOD-markdown-render | `renderArtifact`, `renderMermaid`, `openEditor`, `showDifference` |
 | MOD-notifications | `NotificationState`, `watchForAcceptance`, `notificationState`, `switchOn`, `testNotification`, `switchOff` |
-| MOD-test-pages | `testsViews` |
 | MOD-prompt-bar | `Subject`, `Message`, `ConversationDraft`, `startPromptBar`, `latestDraft`, `currentJob`, `recordingSchema`, `recordingOf` |
 
 ### Its modules
@@ -199,7 +198,7 @@ conversation's draft, the main page the conversation's job, and the settings pag
 | MOD-review-pages | `src/review-pages/` | the review flow of every reviewed kind — use cases, architecture decisions and module files, SPEC change entries, release test reports —: the list with statuses, a file with its difference to its last accepted text, accepting one, the ticked ones or all shown, editing, the draft of a conversation shown against the current text and saved, drafting, arranging groups; one descriptor per kind |
 | MOD-trace-pages | `src/trace-pages/` | the views over the trace graph at a chosen version: the specification browser with a requirement's traces, proposals and history; the gaps; the modules view with its rows, gaps and component diagram; the tests browser; the audit with its export; one descriptor per view |
 | MOD-implementation-pages | `src/implementation-pages/` | Implementation: how the product is developed and the process models of the instance; the plan or the backlog and sprints, with closing a sprint; implementing steps or items; a run over a selection; progress in the model's measure |
-| MOD-test-pages | `src/test-pages/` | Tests and Releases: the schedule, the runs of a commit, generating tests; the release panel with the release test report |
+| MOD-test-pages | `src/test-pages/` | Tests and Releases: the Tests entry's views; the schedule, the runs of a commit, generating tests; the release panel with the release test report |
 | MOD-maintenance-pages | `src/maintenance-pages/` | Maintenance: issues with their analysis, class, fix and move to the backlog; mail read into issues; replies to answer, drafts and sending, asking a reporter |
 | MOD-settings-pages | `src/settings-pages/` | Settings: every setting on one page with its test, change, clear and its notices; getting one's own Agent M; adding a product; participants; endpoints; the source library and a product's links; resources; the mailbox; the Bridge, the jump host and remote sessions; export and import |
 | MOD-notifications | `src/notifications/` | the browser's notifications of what waits for the person's acceptance: the switch, with the browser's permission asked on the person's click; a check every five minutes while a page is open; what was notified; the service worker that opens the page where a file is accepted |
@@ -226,7 +225,6 @@ flowchart BT
   TR --> SF
   TR --> MRD
   TR --> PB
-  TR --> TP
   IMP --> SF
   IMP --> MRD
   TP --> SF
@@ -245,16 +243,17 @@ flowchart BT
 The menu's entries map onto these modules: Requirements to the trace pages' specification browser and the review pages'
 SPEC entries; Use cases and Architecture to the review pages, with the architecture's modules view on the trace pages;
 Implementation, Tests, Releases, Maintenance and Settings to their own modules, Tests with the tests browser and the
-audit on the trace pages. `index.html` starts the frame with the main page; `docs/index.html` starts it with every
-other view. The frame knows views only as the routes the entry page hands it, so no view module is used by the frame. Besides the renderer,
-the frame uses two modules of the Site, MOD-notifications and MOD-prompt-bar, which are no views and use no module of the
-Site but the renderer: the frame starts the notifications' checks and hands them the writing of a route's address, and
-starts the prompt bar and hands it the subject of the route shown, its explanations and its navigation, so that neither
-needs the frame, which would close a cycle (`MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE`), and the form of an address
-stays the frame's alone (`A DATA FORMAT IS DEFINED ONCE`). The views use MOD-prompt-bar for the type of their subject and,
-on the review pages' route `draft`, for the conversation's draft; the main page for the conversation's job; the settings
-page for the recording switch. The trace pages' tests browser and audit use MOD-test-pages' `testsViews`, the Tests
-entry's views, which that module owns with the entry's other routes; MOD-test-pages uses no trace page.
+audit on the trace pages. `index.html` starts the frame with the main page; `docs/index.html` starts it with every other
+view. The frame knows views only as the routes the entry page hands it, so no view module is used by the frame. Besides
+the renderer, the frame uses two modules of the Site, MOD-notifications and MOD-prompt-bar, which are no views and use
+no module of the Site but the renderer: the frame starts the notifications' checks and hands them the writing of a
+route's address, and starts the prompt bar and hands it the subject of the route shown, its explanations and its
+navigation, so that neither needs the frame, which would close a cycle (`MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE`),
+and the form of an address stays the frame's alone (`A DATA FORMAT IS DEFINED ONCE`). The views use MOD-prompt-bar for
+the type of their subject and, on the review pages' route `draft`, for the conversation's draft; the main page for the
+conversation's job; the settings page for the recording switch. No view uses another: one view shows another's part
+through the frame's `embedRoute` — the release panel the audit of its candidate, the trace pages' tests browser and
+audit MOD-test-pages' route `tests-views`, the Tests entry's views.
 
 ## Alternatives
 
@@ -300,6 +299,12 @@ entry's views, which that module owns with the entry's other routes; MOD-test-pa
   it reads, so what is sent could not be listed before anyway.
 - **The bar showing a draft itself.** Rejected: the review pages already show a drafted change against the current text
   and save it as an edit; a second place would repeat that, so the bar leads to their route `draft`.
+- **The Tests entry's views as an interface of MOD-test-pages that the trace pages use, or as a list in each of the
+  two.** Rejected: two lists would mark the shown view in two ways (`DON'T REPEAT YOURSELF`), and an interface would make
+  the trace pages the first view to use another view, where the frame's `embedRoute` already shows one view's part in
+  another without that use, as the release panel shows the audit.
+- **The Tests entry's views in the frame, beside the menu.** Rejected: the frame would carry one entry's views and
+  their labels, and change whenever an entry's views change; it knows views only as the routes it is handed.
 
 ## Consequences
 
