@@ -57,6 +57,7 @@ function agents(folder, record) {
     const args = process.argv.slice(2);
     if (args[0] === "--version") process.stdout.write("1.19.0\\n");
     else if (args[0] === "auth") process.stdout.write("1 credential\\n");
+    else if (args[0] === "models") process.stdout.write("opencode/big-pickle\\n");
     else { process.stdout.write(JSON.stringify({ type: "text", part: { text: "opencode answer" } }) + "\\n"); process.stdout.write(JSON.stringify({ type: "step_finish", part: { tokens: { input: 3, output: 2 } } }) + "\\n"); }
   `);
 }
@@ -169,7 +170,7 @@ test("TST-320321904: public Driver names missing, local-login, and process failu
 const FAULTS = {
   "TST-320321901": { file: "src/agent-processes/index.mjs", needle: "return { answered: true, version: agent.version };", replacement: "return { answered: false, version: agent.version };" },
   "TST-320321902": { file: "src/agent-processes/processes.mjs", needle: "return ownLoginEnvironment();", replacement: "return process.env;" },
-  "TST-320321903": { file: "src/agent-processes/processes.mjs", needle: "process.kill(-child.pid, \"SIGKILL\");", replacement: "child.kill(\"SIGTERM\");" },
+  "TST-320321903": { file: "src/agent-processes/processes.mjs", needle: "process.kill(-child.pid, signal);", replacement: "child.kill(\"SIGTERM\");" },
   "TST-320321904": { file: "src/agent-processes/processes.mjs", needle: "throw failure(\"AgentNotLoggedIn\", \"the selected agent is not logged in\");", replacement: "throw failure(\"AgentMissing\", \"the selected agent is not logged in\");" },
 };
 

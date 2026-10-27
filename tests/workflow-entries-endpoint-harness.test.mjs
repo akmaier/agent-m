@@ -118,7 +118,7 @@ async function world({ register = false, answers }, run) {
   const workspace = join(root, "ws"), bin = join(root, "bin"), starts = join(root, "opencode-starts");
   mkdirSync(bin);
   writeFileSync(starts, "");
-  script(bin, "opencode", `printf '%s\\n' "$*" >> ${starts}\ncase "$1" in --version) echo 1.4.0;; auth) echo '1 credentials';; esac`);
+  script(bin, "opencode", `printf '%s\\n' "$*" >> ${starts}\ncase "$1" in --version) echo 1.4.0;; auth) echo '1 credentials';; models) echo opencode/big-pickle;; esac`);
   const instanceFiles = { "README.md": "# Instance\n", "AGENTS.md": AGENTS_MD, "docs/participants.md": PARTICIPANTS, ...(register ? { "docs/sources/SRC-secret.md": RESTRICTED } : {}) };
   repository(root, "instance", instanceFiles, join(workspace, "instance"));
   const instanceDir = join(workspace, "instance");
