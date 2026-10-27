@@ -15,6 +15,7 @@ uses:
   - MOD-job-runner.JobResult
   - MOD-job-runner.Strategies
   - MOD-job-runner.WriteOutcome
+  - MOD-job-runner.taskRefusal
   - MOD-job-ledger.startRecord
   - MOD-job-ledger.appendToRecord
   - MOD-job-ledger.jobCost
@@ -330,7 +331,9 @@ pins — the commit the run's checkout of the instance is at —, not the commit
   on a Bridge, hands it over with `handOver` and the task. `prepared` is the job of the kind the participant named, with
   the task as its instruction, prepared by the caller with MOD-job-runner's `prepareJob`; a job it reports as blocking or
   not fitting is refused with its findings. A kind with the gate point `before-write` is refused, since such a job would
-  wait for its task at the gate; at `before-merge` the work is written, and its resumption needs no task. Fails with
+  wait for its task at the gate; at `before-merge` the work is written, and its resumption needs no task. A kind that
+  takes no instruction is refused with MOD-job-runner's `taskRefusal`, since its task would reach no prompt (UC-049 4a);
+  the findings stand in that order — blocking, not fitting, `before-write`, the task. Fails with
   `WorkflowMissing` for the CI route of a product without the job workflow, with what the host names, and with what the
   Bridge client names; nothing is queued when the record's commit fails, and a start that the server refuses after the
   commit ends the job's record as failed with the server's reason. A secret the run lacks ends it `not run`, naming the
@@ -358,6 +361,7 @@ through MOD-browser-store, it reads `browser`, and writes it where it is not set
 - `MOD-job-runner.runJob`, `MOD-job-runner.provenanceLines`, `MOD-job-runner.Driver`, `MOD-job-runner.Prepared`,
   `MOD-job-runner.JobContext`, `MOD-job-runner.JobResult`, `MOD-job-runner.Strategies`, `MOD-job-runner.WriteOutcome` —
   running a job in the tab, the drivers it builds, and the writer it offers.
+- `MOD-job-runner.taskRefusal` — the refusal of a hand-over whose kind takes no instruction.
 - `MOD-job-runner.driverPrompt` — the prepared prompt, current draft and canonical findings sent once through the
   Bridge; tab callers do not pre-render this context for an endpoint or Bridge driver.
 - `MOD-job-ledger.startRecord`, `MOD-job-ledger.appendToRecord`, `MOD-job-ledger.newJobId`, `MOD-job-ledger.JobStart`,

@@ -480,14 +480,14 @@ test("TST-377012: UC-019 8 a follow-up instruction repeats steps 5 to 7 and give
 // level: system
 // module: MOD-prompt-bar; MOD-runtimes
 // guards: UC-019; UC-049; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON
-// given: the page of a use case with UC-007 and UC-008 in the product, recording off; the participant answers with a hand-over of the kind derive-use-cases — whose result does not wait for the author, so that the tab does not run it (UC-049 4a.2) — on the requirement A LOAN HAS A DUE DATE with the task HANDED_TASK
+// given: the page of a use case with UC-007 and UC-008 in the product, recording off; the participant answers with a hand-over of the kind converse — the conversation itself handed on, which the tab does not run but spawns as the endpoint's own job (UC-049 4a.2), and which takes the task as its instruction (a kind that takes none is refused, tests/runtimes-hand-over-task.test.mjs) — on the requirement A LOAN HAS A DUE DATE with the task HANDED_TASK
 // input: the author presses Send on MESSAGE — no further click
-// expect: the bar shows Kind: derive-use-cases, Works on: the requirement, the task, and no button Hand over; exactly one job record is written, for the kind derive-use-cases on the requirement with the route "ci hosted", and it holds neither the author's message nor the participant's answer nor the words of the task; exactly one start of agent-m-jobs.yml on main carries the task byte for byte, and no conversation record exists
-const HANDED_TASK = "Add the alternative flow 2b to UC-007: when the service fails, Agent M reports the error and writes nothing.";
+// expect: the bar shows Kind: converse, Works on: the requirement, the task, and no button Hand over; exactly one job record is written, for the kind converse on the requirement with the route "ci hosted", and it holds neither the author's message nor the participant's answer nor the words of the task; exactly one start of agent-m-jobs.yml on main carries the task byte for byte, and no conversation record exists
+const HANDED_TASK = "Go through the use cases that realise A LOAN HAS A DUE DATE and say which alternative flow is missing when the service fails.";
 const MESSAGE = "please run the correction loop for this change on GitHub Actions";
 const ANSWER = "This is work for GitHub Actions, where the correction loop runs.";
 test("TST-377013: UC-019 6b the work the tab does not run is handed to GitHub Actions from the bar, without a further click", async () => {
-  const proposal = { answer: ANSWER, handOver: { kind: "derive-use-cases", works_on: [LOAN], task: HANDED_TASK } };
+  const proposal = { answer: ANSWER, handOver: { kind: "converse", works_on: [LOAN], task: HANDED_TASK } };
   // The register gives the drafter the route "endpoint fixture secret FIXTURE_KEY", which a hand-over takes as "ci hosted"; the product answers its pull requests with [] and records each start of the workflow.
   const rows = read("docs/participants.md").split("\n");
   const register = `${rows.slice(0, rows.findIndex((line) => line.startsWith("|---")) + 1).join("\n")}\n`
@@ -511,11 +511,11 @@ test("TST-377013: UC-019 6b the work the tab does not run is handed to GitHub Ac
     await rest(s);
   } finally { globalThis.setTimeout = setTimer; }
   const hand = one(barOf(s), "section", "hand-over");
-  for (const line of ["Kind: derive-use-cases", `Works on: ${LOAN}`, `Task: ${HANDED_TASK}`]) assert.ok(hand.textContent.includes(line), `${line} in ${hand.textContent}`);
+  for (const line of ["Kind: converse", `Works on: ${LOAN}`, `Task: ${HANDED_TASK}`]) assert.ok(hand.textContent.includes(line), `${line} in ${hand.textContent}`);
   assert.equal(buttonsNamed(barOf(s), "Hand over").length, 0, "no click is asked for");
   const records = recordTexts(s);
   assert.equal(records.length, 1, `one job record: ${statusOf(s).textContent}`);
-  for (const line of ["kind: derive-use-cases", "route: ci hosted", `  - ${LOAN}`]) assert.ok(records[0].includes(line), `${line} in ${records[0]}`);
+  for (const line of ["kind: converse", "route: ci hosted", `  - ${LOAN}`]) assert.ok(records[0].includes(line), `${line} in ${records[0]}`);
   for (const words of [MESSAGE, ANSWER, HANDED_TASK, "correction loop"]) assert.ok(!records[0].includes(words), `the record holds no ${words}`);
   assert.doesNotMatch(records[0], /^conversation:[ \t]*\S/m, "the record names no conversation");
   assert.equal(s.product.writes.length, 1, "one commit: the job record");

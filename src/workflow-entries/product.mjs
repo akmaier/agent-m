@@ -11,7 +11,7 @@
 
 import { appendToRecord, jobCost, jobState, newJobId, recordsNewestFirst, startRecord, takeJob } from "../job-ledger/index.mjs";
 import { kindOf, toolsOf } from "../job-catalogue/index.mjs";
-import { handOverParams, prepareJob, provenanceLines, runJob, withheld } from "../job-runner/index.mjs";
+import { handOverParams, prepareJob, provenanceLines, runJob, taskRefusal, withheld } from "../job-runner/index.mjs";
 import { endpointDriver } from "../endpoint-calls/index.mjs";
 import { agentDriver, installedAgents } from "../agent-processes/index.mjs";
 import { checkoutPrompt } from "../checkout-tools/index.mjs";
@@ -137,6 +137,8 @@ async function handedOver(handOver, context, participant, driver, record) {
   }
   if (kind.name === context.kind.name) return notRun("it is this conversation itself, which a hand-over does not start again");
   if (kind.review !== "person") return notRun("its result does not wait for a person, so it is started from the dashboard, by its start rules, for a holder of its role");
+  const dropped = String(handOver.task ?? "").trim() ? taskRefusal(kind) : null;
+  if (dropped) return notRun(`${dropped.what} [${dropped.rule}]`);
   const planned = worksOn.filter((name) => PLANNED.test(name));
   if (planned.length > 0) return notRun(`it works on ${planned.join(", ")} of the plan, whose start rules are checked where a person starts it`);
   const params = { ...(typeof record.params?.source === "string" ? { source: record.params.source } : {}), ...handOverParams(worksOn, context.product.snapshot),
@@ -213,6 +215,9 @@ async function runJobOf(env, composed, participants, row, handOver = null) {
   let ended = { state: "failed", results: [], draft: null, rounds: [], usage: null, reason: null }, outcome = null, endpoint = null, notes = [];
   try {
     context.kind = await kindOf(record.kind);
+    // A task its kind takes no instruction for would reach no prompt: the job ends failed before the participant is called (MOD-job-runner's taskRefusal).
+    const dropped = handOver ? taskRefusal(context.kind) : null;
+    if (dropped) throw Object.assign(new Error(dropped.what), { name: "NotStartable" });
     endpoint = handOver?.endpoint ? endpointOf(handOver.endpoint) : null;
     // A model endpoint driven by Agent M's own tool loop gets AGENTS.md as text, not as a path in the instance's checkout, which only a coding agent
     // reads (EVERY MODEL READS AGENT M'S AGENTS.MD FIRST).

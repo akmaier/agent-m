@@ -96,16 +96,16 @@ built into MOD-job-runner.
 | `refactor` | UC-024 | write to the repository, run code and tests | `rests-on-accepted` | `instruction?`, `implementation-inputs`, `resource-pins` | | | | `none` · `branch-and-pull-request` | the same |
 | `decide-gate` | UC-034, UC-036 | read the repository | | `gate-inputs` | | | | `none` · `gate-record` | the decision and its reasoning |
 | `set-up-ci` | UC-043, UC-027 | — | | | | | | `none` · `ci-configuration` | — |
-| `propose-tests` | UC-026, UC-043 | read the repository, write to the repository, run code and tests | `rests-on-accepted` | `test-selection`, `chapters-for-tests` | `test-proposals`, `candidate-classes` | | | `person` · `return-draft` | test cases: identifier, level, what each guards, precondition, input, expected result, class |
+| `propose-tests` | UC-026, UC-043 | read the repository, write to the repository, run code and tests | `rests-on-accepted` | `instruction?`, `test-selection`, `chapters-for-tests` | `test-proposals`, `candidate-classes` | | | `person` · `return-draft` | test cases: identifier, level, what each guards, precondition, input, expected result, class |
 | `write-tests` | UC-026, UC-043 | read the repository, write to the repository, run code and tests | `rests-on-accepted` | `instruction?`, `draft`, `test-selection`, `chapters-for-tests`, `resource-pins` | `test-declarations`, `test-proposals` | | | `none` · `branch-and-pull-request` | the agent's report: branch, commits, pull request; each test with its outcome and its counter-proof, or why it was not written |
-| `run-tests` | UC-028, UC-013 | run code and tests | | `commit-and-levels`, `resource-pins` | | | | `none` · `result-record` | the outcomes |
+| `run-tests` | UC-028, UC-013 | run code and tests | | `instruction?`, `commit-and-levels`, `resource-pins` | | | | `none` · `result-record` | the outcomes |
 | `analyse-issue` | UC-012 | draft text | | `issue-context` | | | | `none` · `return-draft` | the class and its reasoning |
 | `fix-bug` | UC-012 | write to the repository, run code and tests | | `instruction?`, `fix-inputs`, `chapters-for-tests`, `resource-pins` | | | | `none` · `branch-and-pull-request` | the agent's report |
 | `propose-issues` | UC-038 | draft text | | `mail-batch` | `people-search` | | | `none` · `return-draft` | one proposal per mail |
 | `rewrite-without-persons` | UC-038 | draft text | | `report-data` | `people-search` | `check-for-persons` × 3 | | `none` · `return-draft` | the rewritten text |
 | `check-for-persons` | UC-038 | draft text | | `draft` | | | | `none` · `return-draft` | findings |
 | `draft-replies` | UC-039 | draft text | | `reply-inputs` | | | | `none` · `mail-drafts` | one reply per mail of a closed issue; or, with the parameter `question` — the person's point to ask —, one question to the reporter of a listed mail of an open issue (UC-039 1a) |
-| `check-resource` | UC-040 | run code and tests | | `resource-check` | | | | `none` · `return-draft` | what answered |
+| `check-resource` | UC-040 | run code and tests | | `instruction?`, `resource-check` | | | | `none` · `return-draft` | what answered |
 | `converse` | UC-049 | draft text | | `page`, `conversation`, `instruction`, `chapters-for-page?` | `document-schema`, `graph-checks` | | | `person` · `proposed-edits` | the answer, the edits the participant proposed, and the hand-over it proposes |
 
 **The tools**, `tools.md`, a register read with MOD-documents. A tool's description and the schema of its arguments are

@@ -351,6 +351,22 @@ test("TST-1360107: a hand-over of a kind that does not wait for a person, or one
   }
 });
 
+// TST-8048007 · level: component · module: MOD-workflow-entries
+// guards: UC-049
+// given: a hosted converse job; the endpoint answers with a hand-over { kind derive-architecture, works_on [UC-001], task "derive it" } — a kind whose result waits for a person, working on no item of the plan, whose recipes do not name `instruction`; known positive: the hand-over to change-use-case of TST-1360103, which takes the task, runs
+// input: onRecordsChanged
+// expect: outcome `done`; only the conversation is sent to the endpoint; the end lists `not run: derive-architecture — ` naming THE HAND-OVER NAMES THE TASK IN ITS WORDS; nothing but the job's own record is written
+test("TST-8048007: a hand-over in a hosted job to a kind that takes no instruction is not run, and the end says why", async () => {
+  await withWorkspace({}, async (w) => {
+    const world = fakeWorld({ converse: answer({ kind: "derive-architecture", works_on: ["UC-001"], task: "derive it" }) }, w);
+    const status = await run(w);
+    assert.equal(status.outcome, "done", status.summary);
+    assert.equal(world.requests.filter((each) => each.address.startsWith("https://llm.example.test/")).length, 1, "only the conversation was sent");
+    assert.match(endOf(w), /not run: derive-architecture — [^\n]*THE HAND-OVER NAMES THE TASK IN ITS WORDS/);
+    assert.deepEqual(touched(w), [`docs/jobs/${JOB}.md`]);
+  });
+});
+
 // ---------------------------------------------------------------- the job whose task travels with its hand-over (the endpoint's own job spawned by the bar)
 
 // TST-1360108 · level: component · module: MOD-workflow-entries
