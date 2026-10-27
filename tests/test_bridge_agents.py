@@ -28,6 +28,13 @@ LOGIN = {
     "opencode": ("models", "echo opencode/big-pickle", ":"),
 }
 
+# What a fixture prints as its answer "ok" to a task, in the output its register row reads (agents.md), per agent.
+ANSWER = {
+    "claude": """echo '{"type":"result","subtype":"success","is_error":false,"result":"ok"}'""",
+    "codex": "echo ok",
+    "opencode": "echo ok",
+}
+
 JS = """
 import { installedAgents, agentDriver } from "__INDEX__";
 import { readFileSync } from "node:fs";
@@ -85,7 +92,7 @@ def fixture_agent(folder: Path, name: str, version: str, logged_in: bool) -> Non
     executable(folder, name, f"""case "$*" in
   '--version') echo '{version}';;
   '{login}') {yes if logged_in else no};;
-  *) printf '%s' "$*" > "{folder}/args"; /usr/bin/env > "{folder}/env"; echo ok;;
+  *) printf '%s' "$*" > "{folder}/args"; /usr/bin/env > "{folder}/env"; {ANSWER[name]};;
 esac""")
 
 

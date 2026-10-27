@@ -44,7 +44,7 @@ function agents(folder, record) {
       process.stdin.setEncoding("utf8");
       for await (const chunk of process.stdin) stdin += chunk;
       appendFileSync(${JSON.stringify(record)}, JSON.stringify({ name: "claude", args, stdin, cwd: process.cwd(), key: process.env.ANTHROPIC_API_KEY ?? null }) + "\\n");
-      process.stdout.write("ok\\n");
+      process.stdout.write(JSON.stringify({ type: "result", subtype: "success", is_error: false, result: "ok", usage: { input_tokens: 3, output_tokens: 1 } }) + "\\n");
     }
   `);
   executable(folder, "codex", `
@@ -114,8 +114,8 @@ test("TST-320321902: public Driver separates local own-login execution from name
     await withEnvironment({ CI: "true", ANTHROPIC_API_KEY: "ci-constructed-key" }, () =>
       withPath(folder, () => driver({ ...CLAUDE, loggedIn: false }, folder, "ANTHROPIC_API_KEY").send({ ...INPUT, workdir: folder })));
     const [local, ci] = readFileSync(record, "utf8").trim().split("\n").map(JSON.parse);
-    assert.deepEqual(local, { name: "claude", args: ["-p"], stdin: INPUT.prompt, cwd: folder, key: null });
-    assert.deepEqual(ci, { name: "claude", args: ["-p"], stdin: INPUT.prompt, cwd: folder, key: "ci-constructed-key" });
+    assert.deepEqual(local, { name: "claude", args: ["-p", "--output-format", "json"], stdin: INPUT.prompt, cwd: folder, key: null });
+    assert.deepEqual(ci, { name: "claude", args: ["-p", "--output-format", "json"], stdin: INPUT.prompt, cwd: folder, key: "ci-constructed-key" });
   } finally { rmSync(folder, { recursive: true, force: true }); }
 });
 

@@ -36,6 +36,14 @@ const fs = process.getBuiltinModule("node:fs");
 
 const script = (folder, name, body) => writeFileSync(join(folder, name), `#!/bin/sh\n${body}\n`, { mode: 0o755 });
 const GATE = "gate", CALLS = "calls";
+// Claude Code's answer to `claude -p --output-format json`: one `result` line, shaped as tests/fixtures/agent-processes/claude-result.json; the values are synthetic.
+const CLAUDE_RESULT = JSON.stringify({ type: "result", subtype: "success", is_error: false, api_error_status: null, duration_ms: 1000, duration_api_ms: 900,
+  num_turns: 1, result: "ok", stop_reason: "end_turn", session_id: "00000000-0000-4000-8000-000000000326", total_cost_usd: 0.001,
+  usage: { input_tokens: 5, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 1, output_tokens_details: { thinking_tokens: 0 },
+    server_tool_use: { web_search_requests: 0, web_fetch_requests: 0 }, service_tier: "standard", cache_creation: { ephemeral_1h_input_tokens: 0, ephemeral_5m_input_tokens: 0 },
+    iterations: [{ input_tokens: 5, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, type: "message" }] },
+  modelUsage: { "fixture-model": { inputTokens: 5, outputTokens: 1, cacheReadInputTokens: 0, cacheCreationInputTokens: 0, costUSD: 0.001 } },
+  permission_denials: [], terminal_reason: "completed", uuid: "00000000-0000-4000-8000-000000000001" });
 // A computer: a folder that is the whole PATH, with the agents given — claude: { loggedIn }, codex, opencode: { gated, fails } — and the
 // working folders of the offered agents.
 function computer({ claude = null, codex = null, opencode = null } = {}) {
@@ -46,7 +54,7 @@ function computer({ claude = null, codex = null, opencode = null } = {}) {
   const log = `printf '%s\\n' "$0 $*" >> ${calls}`;
   const input = `/bin/cat >> ${calls}; printf '\\n' >> ${calls}`;
   if (claude) {
-    script(bin, "claude", `${log}\ncase "$*" in '--version') echo '2.1.300';; 'auth status') ${claude.loggedIn ? "echo '{\"authMethod\":\"claude.ai\"}'" : "exit 1"};; *) ${claude.answers === false ? "exit 2" : "echo ok"};; esac`);
+    script(bin, "claude", `${log}\ncase "$*" in '--version') echo '2.1.300';; 'auth status') ${claude.loggedIn ? "echo '{\"authMethod\":\"claude.ai\"}'" : "exit 1"};; *) ${claude.answers === false ? "exit 2" : `printf '%s\\n' '${CLAUDE_RESULT}'`};; esac`);
   }
   if (codex) script(bin, "codex", `${log}\ncase "$*" in '--version') echo 'codex 1.2.3';; 'login status') echo 'Logged in';; *) echo ok;; esac`);
   if (opencode) {
