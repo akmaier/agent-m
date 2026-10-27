@@ -137,8 +137,7 @@ test("TST-1281001 the CI agent's machine registers every strategy a module build
 
 // TST-1281002 · level: component · module: MOD-prompt-bar
 // guards: ONE DEFINITION, THREE DRIVERS
-// given: the main page (index.html) as start.mjs registers it — its views from its script tag's data-views, loaded with loadView, registered with registerViews, which adds
-//   MOD-prompt-bar's handOverStrategies —, in a program of its own
+// given: the main page (index.html) as start.mjs registers it — its views from its script tag's data-views, loaded with loadView, registered with registerViews, which adds the bar's handOverStrategies —, in a program of its own
 // input: every kind of the catalogue but the mail kinds, which a hand-over of the bar prepares in the tab before it queues the job; for each, every strategy it and its reviewer kind name
 // expect: every such strategy that a module builds is registered; the probe finds a name no module offers unregistered
 test("TST-1281002 the main page registers every strategy a module builds for the kinds a hand-over prepares", () => {
