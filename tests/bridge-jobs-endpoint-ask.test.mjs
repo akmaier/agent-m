@@ -121,11 +121,9 @@ test("an endpoint ask sends the key in the provider's header and in no url", asy
 
 // TST-472086 · level: unit · module: MOD-bridge-jobs
 // guards: A REMOTE INTERFACE NAMES HOW IT FAILS; UC-003
-// given: a model server that refuses the key with 401 and a message that quotes the key; one that cannot be reached (its port closed); one that answers every
-//   request with a rate limit and retry-after-ms 0
+// given: a model server that refuses the key with 401 and a message that quotes the key; one that cannot be reached (its port closed); one that answers every request with a rate limit and retry-after-ms 0
 // input: POST /v1/ask to each; GET until it ends — for the unreachable one, with this test's timers mocked and advanced, since its five retries wait 2 s to 30 s
-// expect: refused: state failed, text and usage null, an error that names "key refused" and the endpoint's words with the key replaced by [key], after one
-//   request; unreachable: failed naming "not reachable"; rate-limited: failed naming "rate limited", after six requests — the request and five retries
+// expect: refused: state failed, text and usage null, an error that names "key refused" and the endpoint's words with the key replaced by [key], after one request; unreachable: failed naming "not reachable"; rate-limited: failed naming "rate limited", after six requests — the request and five retries
 test("a refused key, an unreachable server and a rate limit are failed asks with the endpoint's own words", async (t) => {
   const refusing = await server(() => ({ status: 401, body: { error: { message: `Incorrect API key provided: ${KEY}.` } } }));
   const limited = await server(() => ({ status: 429, headers: { "retry-after-ms": "0" }, body: { error: { message: "Too many requests today." } } }));
