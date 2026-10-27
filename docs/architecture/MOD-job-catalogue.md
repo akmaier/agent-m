@@ -128,8 +128,8 @@ and `hand-over`, since their draft is their answer and a change of them may stil
 that change code or run tests — `implement`, `refactor`, `fix-bug`, `write-tests`, `propose-tests`, `run-tests` and
 `check-resource` — name the seven tools of MOD-checkout-tools, `read`, `write`, `edit`, `bash`, `grep`, `glob` and
 `webfetch`, rows of `tools.md` too, and no `tool_limit`, so that a model endpoint does their work in the job's
-checkout as a coding agent does, with no number of calls that ends it; only a program in Node registers those tools. A tool's capability is besides *use tools*, which a drafter must declare to be offered
-any tool at all.
+checkout as a coding agent does, with no number of calls that ends it; only a program in Node registers those tools. A
+tool's capability is besides *use tools*, which a drafter must declare to be offered any tool at all.
 
 For a kind of `review: person`, the click that lets the result go on is the one its use case names: *Write proposals*
 (UC-005, UC-022), *Save* (UC-023), *Save plan* (UC-045), *Add to backlog* (UC-032) — each through MOD-job-runner's
@@ -207,10 +207,11 @@ decisions, the module files, the further decisions.
 - `KindDefinition` — `{ name: string, serves: string[], participant: "one" | "none", needs: Capability[], resources: "none"
   | "product", preconditions: string[], recipes: { name: string, optional: boolean }[], checks: string[], personDecides:
   string[], reviewer: string | null, reviewers: number, steps: string[], gatePoints: ("before-write" | "before-merge" |
-  "question")[], review: "person" | "none", writer: string, limit: number, tools: string[], toolLimit: number | null,
-  purpose: string, prompt: string, answer: object | null }`: a definition as read, its prompt and the schema of its draft loaded with it; for a kind without a
-  participant, which has neither, `prompt` is `""` and `answer` is `null`; `toolLimit` is `null` where the definition
-  leaves `tool_limit` out.
+  "question")[], review: "person" | "none", writer: string, limit: number, tools: string[], toolLimit: number |
+  null, purpose: string, prompt: string, answer: object | null }`: a definition as read, its prompt and the schema of
+  its draft loaded with it; for a kind without a participant, which has neither, `prompt` is `""` and `answer` is
+  `null`. `toolLimit` is `null` wherever the definition leaves `tool_limit` out, whether or not it names tools; a kind
+  that names no tools has `tools` `[]`, offers none, and its `toolLimit` is never read.
 - `ToolDefinition` — `{ name: string, needs: Capability, description: string, input: object }`: one row of `tools.md`,
   its argument schema read from its JSON.
 - `toolsOf(names: string[]) -> Promise<ToolDefinition[]>` — the named tools, in the order named. Throws `UnknownTool {
