@@ -7,8 +7,10 @@ realises:
 modules:
   - MOD-maintenance-pages
   - MOD-issue-handling
+  - MOD-job-catalogue
 builds_on:
   - ITM-582
+  - ITM-1247
 tests:
   - unit
   - component
@@ -21,19 +23,25 @@ origin:
 
 ## Outcome
 
-UC-012 step 6 and its second postcondition. `backlogItemFrom` and `moveToBacklog` are not built. `itemFromIssue` stands in code no module owns (`docs/assets/work-items.mjs:204`). Once the module is built, a pull request between jobs replaces that code with it.
+UC-012 step 6 and its second postcondition; UC-033 steps 1 to 4. As accepted (the architecture a2fe0994, accepted in 6c0aa1ab):
+on MOD-maintenance-pages' issue route, *Save* runs `change-requirements` with the parameter `issue` (the issue's number) and
+the parameter `source` (the person's own source, which `personSource` finds for the account `personAccount` gives); without a
+source the page shows the steps the precondition `person-source` names. The kind `change-requirements` names the recipe
+`issue-context?` (MOD-job-catalogue), and `issue-context` gives no part to a job without the parameter `issue`
+(MOD-issue-handling). *Move to backlog* prefills the item with `backlogItemFrom(issue, changed, …)`, `changed` being the
+requirement names that `entryView` gives for the entries of the queues whose `issue` names this issue and the chosen product;
+*Add* writes the item, and the issue's comment and label, with `moveToBacklog`, or names the comment to copy when the token may
+not comment.
+
+Not built: `backlogItemFrom`, `moveToBacklog`, *Save* and *Move to backlog* on the issue route; `issue-context` throws without
+`issue` (`src/issue-handling/strategies.mjs:59`); `change-requirements`' `kind.md` names no `issue-context?`.
 
 ## Acceptance
 
-- The change of requirements is drafted against the existing ones with the issue as its origin, and saved as a change queue that names the issue.
-- *Move to backlog* writes the item, and the issue's comment and label.
+- Unit tests naming MOD-issue-handling, MOD-maintenance-pages and MOD-job-catalogue: *Save* starts `change-requirements` with
+  `issue` and the person's `source`, and without a source shows the precondition's steps; `issue-context` gives no part
+  without `issue`; `backlogItemFrom` for a bug and for a change; *Add* writes the item, the comment `item-added` and the label
+  with `moveToBacklog`, or names the comment to copy. Counter-proof: before the change none of these exists.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
-
-**Rests on queue `2026-10-17d` (2026-10-17, po-opus).**
-- akmaier rejected the path this item counts on: code no module owns, changed by a pull request between jobs.
-- Under the draft of queue `2026-10-17d`, the module whose file names that code as taken over changes it in its own
-  implementation job, moving it into the module or removing it. A workflow or a page whose place the platform fixes
-  is named in that module's parts.
-- This item waits for akmaier's acceptance of that draft, and its fix is read again then.
-
-**Read again with the plan (2026-10-17):** `itemFromIssue` in `docs/assets/work-items.mjs` goes with ITM-688. This item builds `backlogItemFrom` and `moveToBacklog` in its own modules, and no pull request between jobs is needed. It no longer waits for queue `2026-10-17d`.
+- Only `src/maintenance-pages/`, `src/issue-handling/`, `src/job-catalogue/kinds/change-requirements/` and the tests that name
+  these modules change.
