@@ -85,11 +85,18 @@ function keyHolderOptions(row, keyHolder) {
     env: Object.fromEntries(Object.entries(row.keyHolder.env ?? {}).map(([name, value]) => [name, render(value)])) };
 }
 
-function started(command, args, workdir, keyVariable, options, ownLoginEnvironment, endpointEnvironment, input = null, keyHolder = null) {
+function started(command, args, workdir, keyVariable, options, ownLoginEnvironment, endpointEnvironment, input = null, keyHolder = null, enclosure = null, writable = [workdir]) {
   return new Promise((resolve) => {
     // Through the key holder the agent inherits no declared key variable; the holder's address and the placeholder are set as its settings below.
-    const environment = keyHolder ? ownLoginEnvironment() : environmentFor(keyVariable, ownLoginEnvironment);
-    if (Object.keys(endpointEnvironment).length) {
+    let environment = keyHolder ? ownLoginEnvironment() : environmentFor(keyVariable, ownLoginEnvironment);
+    if (enclosure) {
+      // Inside an enclosure (ARC-054) the agent receives the enclosure's environment and nothing of the Bridge's; what it is told first, the enclosure's
+      // input, comes before the task.
+      const wrapped = enclosure.wrap(command, args, { workdir, writable });
+      ({ command, args } = wrapped);
+      environment = { ...wrapped.env, ...endpointEnvironment };
+      if (wrapped.input != null) input = `${wrapped.input}${input ?? ""}`;
+    } else if (Object.keys(endpointEnvironment).length) {
       // The child sets only non-secret settings and inherits credentials without copying their values in Agent M.
       args = ["-e", `
         const { spawn } = require("node:child_process");
@@ -147,7 +154,7 @@ function started(command, args, workdir, keyVariable, options, ownLoginEnvironme
  * holder, the agent inherits no declared credential and reaches its provider through that holder, its key variable holding a placeholder (the register's
  * Key holder column).
  */
-export function processDriver(agent, { workdir, keyVariable, endpoint, keyHolder = null }, participant, helpers) {
+export function processDriver(agent, { workdir, keyVariable, endpoint, keyHolder = null, enclosure = null, writable = null }, participant, helpers) {
   return {
     participant,
     async send(input, options = {}) {
@@ -158,8 +165,9 @@ export function processDriver(agent, { workdir, keyVariable, endpoint, keyHolder
       if (!row) throw failure("AgentMissing", "the selected agent is not supported");
       const configured = endpointOptions(row, endpoint, keyVariable);
       const held = keyHolderOptions(row, keyHolder);
+      const folder = input.workdir ?? workdir;
       const result = await started(row.command, [...held.args, ...row.task.args, ...configured.args],
-        input.workdir ?? workdir, keyVariable, options, helpers.ownLoginEnvironment, { ...configured.env, ...held.env }, driverPrompt(input), keyHolder);
+        folder, keyVariable, options, helpers.ownLoginEnvironment, { ...configured.env, ...held.env }, driverPrompt(input), keyHolder, enclosure, writable ?? [folder]);
       if (result.stopError) {
         throw failure("AgentFailed", "the agent process could not be stopped", {
           exitCode: result.stopError.exitCode ?? result.status,

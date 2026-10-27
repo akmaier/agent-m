@@ -148,8 +148,10 @@ every subsystem and both programs, that interprets every kind of job from data**
   without a password, as on the server's runners —; the key stays with the machine's user in a key holder, which adds it
   to each request it forwards to that endpoint, or to the coding agent's provider, and to no other (MOD-endpoint-calls,
   MOD-workflow-entries). A coding agent reaches the holder by its own base-URL setting, a placeholder in its key variable
-  (MOD-agent-processes). The agent's machine keeps no token in its checkouts (MOD-runtimes). The separation is by user,
-  not by what a tool may say: what the model's user can read holds no credential.
+  (MOD-agent-processes). The agent's machine keeps no token in its checkouts (MOD-runtimes). On a Bridge every coding
+  agent runs in an enclosure of the operating system that hides the Bridge's credentials and the computer's git login
+  from it, and the Bridge, not the agent, pushes and opens the pull request (ARC-054). The separation is by user or by
+  the system's enclosure, not by what a tool may say: what the model's side can read holds no credential.
 - **A conversation is a job without a record.** A message of the prompt bar (UC-049) runs as a job in the tab — of the
   kind its page names, with every rule on jobs — and leaves no job record (`A JOB IS RECORDED IN ITS PRODUCT
   REPOSITORY`). Work it cannot do in the tab — running code or tests, changing code, reaching the web — is proposed
@@ -176,7 +178,7 @@ job has, across every product.
 |---|---|
 | MOD-participant-list | `Participant`, `participantSchema`, `eligible`, `differs`, `reachedThrough` |
 | MOD-endpoint-calls | `endpointDriver`, `testEndpoint`, `diagnoseEndpoint` |
-| MOD-agent-processes | `Agent`, `installedAgents`, `agentDriver`, `testAgent` |
+| MOD-agent-processes | `Agent`, `Enclosure`, `installedAgents`, `agentDriver`, `testAgent` |
 | MOD-checkout-tools | `checkoutStrategies`, `checkoutPrompt` |
 | MOD-job-runner | `Strategies`, `JobContext`, `Part`, `Prepared`, `JobResult`, `ToolUse`, `registerStrategies`, `prepareJob`, `runJob`, `writeResult`, `provenanceLines` |
 | MOD-job-catalogue | `kindOf`, `toolsOf` |
@@ -292,7 +294,8 @@ schemas are read by MOD-documents (ARC-048).
 - Where the agent's machine can make the model's user, a model can use its endpoint, and a coding agent its provider,
   through the key holder but cannot read the key; a machine that cannot — not Linux, or neither root nor allowed sudo
   without a password — runs the model as its own user and says so in the run's summary, and a coding agent that cannot be
-  sent to a key holder (opencode without an endpoint) is refused on the model's user's side.
+  sent to a key holder (opencode without an endpoint) is refused on the model's user's side. A coding agent on a Bridge
+  works in its enclosure (ARC-054).
 - A job running in a tab dies with the tab; its record then shows it as ended without record, and it can be retried.
 - Every commit a job makes names the Agent M version, the participant and the model; the artifacts it writes name none
   of them.

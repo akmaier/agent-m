@@ -11,7 +11,7 @@
 
 import { appendToRecord, jobCost, jobState, newJobId, recordsNewestFirst, startRecord, takeJob } from "../job-ledger/index.mjs";
 import { kindOf, toolsOf } from "../job-catalogue/index.mjs";
-import { handOverParams, prepareJob, provenanceLines, runJob, withheld } from "../job-runner/index.mjs";
+import { failedBecause, handOverParams, prepareJob, provenanceLines, runJob, taskRefusal, withheld } from "../job-runner/index.mjs";
 import { endpointDriver } from "../endpoint-calls/index.mjs";
 import { agentDriver, installedAgents } from "../agent-processes/index.mjs";
 import { checkoutPrompt } from "../checkout-tools/index.mjs";
@@ -137,6 +137,8 @@ async function handedOver(handOver, context, participant, driver, record) {
   }
   if (kind.name === context.kind.name) return notRun("it is this conversation itself, which a hand-over does not start again");
   if (kind.review !== "person") return notRun("its result does not wait for a person, so it is started from the dashboard, by its start rules, for a holder of its role");
+  const dropped = String(handOver.task ?? "").trim() ? taskRefusal(kind) : null;
+  if (dropped) return notRun(`${dropped.what} [${dropped.rule}]`);
   const planned = worksOn.filter((name) => PLANNED.test(name));
   if (planned.length > 0) return notRun(`it works on ${planned.join(", ")} of the plan, whose start rules are checked where a person starts it`);
   const params = { ...(typeof record.params?.source === "string" ? { source: record.params.source } : {}), ...handOverParams(worksOn, context.product.snapshot),
@@ -148,6 +150,8 @@ async function handedOver(handOver, context, participant, driver, record) {
       return notRun(prepared.blocking.map((found) => `${found.what} [${found.rule}]`).join("; ") || "the job does not fit its participant");
     }
     const result = await runJob(prepared, { drafter: driver, reviewers: [] }, { attended: false, context: nested });
+    const failed = failedBecause(result);
+    if (failed) return [`failed: ${handOver.kind} — ${failed}`];
     const lines = resultsOf(result.written);
     return lines.length > 0 ? lines : [`${handOver.kind}: no change`];
   } catch (error) {
@@ -213,6 +217,9 @@ async function runJobOf(env, composed, participants, row, handOver = null) {
   let ended = { state: "failed", results: [], draft: null, rounds: [], usage: null, reason: null }, outcome = null, endpoint = null, notes = [];
   try {
     context.kind = await kindOf(record.kind);
+    // A task its kind takes no instruction for would reach no prompt: the job ends failed before the participant is called (MOD-job-runner's taskRefusal).
+    const dropped = handOver ? taskRefusal(context.kind) : null;
+    if (dropped) throw Object.assign(new Error(dropped.what), { name: "NotStartable" });
     endpoint = handOver?.endpoint ? endpointOf(handOver.endpoint) : null;
     // A model endpoint driven by Agent M's own tool loop gets AGENTS.md as text, not as a path in the instance's checkout, which only a coding agent
     // reads (EVERY MODEL READS AGENT M'S AGENTS.MD FIRST).
@@ -246,14 +253,17 @@ async function runJobOf(env, composed, participants, row, handOver = null) {
       const refused = await refusedBranch(product.host, outcome, handOver.task, context.product.snapshot.commit);
       if (refused) throw Object.assign(new Error(`the branch ${refused.branch} is refused: ${refused.where} holds the task of the hand-over.`), { name: "TaskInBranch" });
     }
-    if (handOver) leaveAnswer(env, record.id, answerOf(outcome?.shown ?? result.draft));
+    // An answer that could not be read is left as it was received, where the prompt bar reads the answer; the record keeps only why (A CONVERSATION IS WRITTEN TO A
+    // REPOSITORY ONLY WHEN RECORDING IS ON).
+    if (handOver) leaveAnswer(env, record.id, answerOf(outcome?.shown ?? result.draft ?? result.raw));
+    const failed = failedBecause(result);
     const handedBack = context.kind.writer === "return-draft";
     const made = outcome ? [...outcome.commits, ...(handOver || outcome.pullRequest ? [...outcome.files, ...(outcome.pullRequest ? [outcome.pullRequest] : [])] : [])] : [];
     // A result is one item of the end's list, in which a comma separates items: a comma of a note or a reason becomes a semicolon.
     const listed = [...made, ...[...[...notes, ...(outcome?.notes ?? [])].map((note) => `note: ${note}`), ...passed].map((line) => line.replaceAll(",", ";"))];
-    ended = { state: "done", results: listed.length > 0 ? listed : handedBack ? [] : ["no change"],
-      draft: handOver ? null : handedBack ? (outcome?.shown ?? result.draft) : null, rounds: result.rounds, usage: usageOf(result.usage), reason: null,
-      stoppedBecause: result.stoppedBecause, drafter: result.drafter };
+    ended = { state: failed ? "failed" : "done", results: failed ? [] : listed.length > 0 ? listed : handedBack ? [] : ["no change"],
+      draft: handOver || failed ? null : handedBack ? (outcome?.shown ?? result.draft) : null, rounds: result.rounds, usage: usageOf(result.usage),
+      reason: failed && handOver ? hidden(failed) : failed, stoppedBecause: result.stoppedBecause, drafter: result.drafter };
   } catch (error) {
     let reason = error?.message ?? String(error);
     if (endpoint && error?.name === "EndpointFailed" && error.diagnosis) {
