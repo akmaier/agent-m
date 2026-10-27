@@ -74,15 +74,16 @@ export function jobHandlers({ testEndpoint = nodeTestEndpoint, listModels = node
       return { answer: await testAgent((await installedAgents()).find((agent) => agent.name === wanted.name)) };
     },
     "POST /v1/ask": async ({ body }) => {
-      const entry = { state: "running", text: null, usage: null, error: null }, ask = globalThis.crypto.randomUUID();
+      // Every answer names its calls: those an exchange of a tool loop made, [] for any other request (MOD-bridge-http's route table).
+      const entry = { state: "running", text: null, calls: [], usage: null, error: null }, ask = globalThis.crypto.randomUUID();
       if (body?.endpoint !== undefined && body.exchange !== undefined) {
         if (!validEndpointConfig(body.endpoint) || !Array.isArray(body.exchange?.messages) || !Array.isArray(body.exchange?.tools)) {
           throw failure("invalid-request", "An exchange ask carries a valid endpoint configuration and an exchange of messages and tools, both lists.");
         }
-        const key = body.endpoint.key, exchanging = { state: "running", text: null, calls: [], usage: null, error: null };
-        asks.set(ask, exchanging);
-        endpointExchange(body.endpoint, body.exchange).then(({ text, calls, usage }) => Object.assign(exchanging, { state: "done", text, calls, usage }),
-          (error) => Object.assign(exchanging, { state: "failed", error: endpointReason(error, key) }));
+        const key = body.endpoint.key;
+        asks.set(ask, entry);
+        endpointExchange(body.endpoint, body.exchange).then(({ text, calls, usage }) => Object.assign(entry, { state: "done", text, calls, usage }),
+          (error) => Object.assign(entry, { state: "failed", error: endpointReason(error, key) }));
         return { ask };
       }
       if (body?.endpoint !== undefined) {
