@@ -15,6 +15,7 @@ uses:
   - MOD-documents.readRegister
 provides:
   - Agent
+  - Enclosure
   - installedAgents
   - agentDriver
   - testAgent
@@ -64,21 +65,33 @@ never an argument: it is written to the agent's standard input, so no size of a 
   install: Record<"macos" | "windows" | "linux", string> }`: `login` is the agent's own login step from its row's Login
   check, which the Bridge's window shows for an agent that is not logged in (UC-044 3b); `name` is the Agent of a row of `agents.md`, so that a supported
   agent added is a row added, not a change of this interface (`OPEN FOR EXTENSION, CLOSED FOR CHANGE`).
-- `installedAgents() -> Promise<Agent[]>` — every supported agent, each found on the machine's path with its version, or
-  marked as missing with its vendor's installation page; an installed agent that is not logged in is marked so, and the
-  agent's own login step is named — this module never asks for a password (UC-044). Starts only the commands of the
-  register's Version and Login check columns; changes nothing.
+- `Enclosure` — `{ wrap(command: string, args: string[], at: { workdir: string, writable: string[] }) -> { command:
+  string, args: string[], env: Record<string, string>, input: string | null } }`: what an agent is started inside on a
+  Bridge (ARC-054) — the command that starts `command` with `args` in the enclosure, with `workdir` as its working folder
+  and the folders of `writable` writable, the whole environment it receives, and the text written to its standard input
+  before the agent's own, where the enclosure needs one. The Bridge's MOD-agent-enclosure implements it. Where an
+  enclosure is given, this module starts nothing of an agent outside it and adds nothing to its environment.
+- `installedAgents(options?: { enclosure?: Enclosure, workdir?: string }) -> Promise<Agent[]>` — every supported agent,
+  each found on the machine's path with its version, or marked as missing with its vendor's installation page; an
+  installed agent that is not logged in is marked so, and the agent's own login step is named — this module never asks
+  for a password (UC-044). With an enclosure, both commands run inside it, in `workdir`, so that *installed* and *logged
+  in* are said of the agent as it will run. Starts only the commands of the register's Version and Login check columns;
+  changes nothing.
 - `agentDriver(agent: Agent, options: { workdir: string, keyVariable: string | null, endpoint: { kind:
-  "openai-compatible" | "anthropic", baseUrl: string, model: string } | null }, participant: Participant) -> Driver` — a
+  "openai-compatible" | "anthropic", baseUrl: string, model: string } | null, enclosure?: Enclosure, writable?: string[]
+  }, participant: Participant) -> Driver` — a
   driver whose `send` starts the agent in the working folder and writes `driverPrompt(input)`, its task, to the agent's
   standard input — where `endpoint` is
   given, made to work with that endpoint as the register's Endpoint column says, its key from `keyVariable` — CI does not
   run a model endpoint's work this way: it runs it in Agent M's own loop (MOD-workflow-entries) —; an agent whose
   Endpoint is `—` refuses it with `EndpointUnsupported`, before it starts —, streams its output
-  through `onOutput`, and returns its final answer and the usage it reported, or `null` usage. For a job that works in the
-  folder — implementing, fixing, generating tests —, the agent commits, pushes and opens its pull request itself with the
-  git credentials of its machine — the computer's own login on a Bridge, the person's token from a CI secret in CI
-  (`A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET`) —, and its answer reports what it did. Outside CI, `keyVariable` is `null`: the command carries no
+  through `onOutput`, and returns its final answer and the usage it reported, or `null` usage. With an `enclosure`, the
+  agent is started through its `wrap`, with `workdir` and the folders of `writable` — `[workdir]` where none are given —
+  writable. For a job that works in the
+  folder — implementing, fixing, generating tests —, the agent commits and pushes to its checkout's push address and
+  reports its branch: in CI a repository the writing machine pushes from with the person's token from a CI secret
+  (`A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET`), on a Bridge an outbox the Bridge pushes from with the
+  computer's own login (MOD-bridge-jobs). Outside CI, `keyVariable` is `null`: the command carries no
   key and no key variable. In CI, `keyVariable` names the variable the CI filled from the participant's secret; this
   module never sees or passes the value. An abort of the signal stops the agent and every process it started, before
   anything further is pushed. It throws `AgentMissing`, `EndpointUnsupported`, `AgentNotLoggedIn`, `AgentFailed { exitCode, lastOutput }` and
@@ -87,9 +100,9 @@ never an argument: it is written to the agent's standard input, so no size of a 
   process group of a child started detached, so that every process it started receives it; on Windows it ends the
   child's tree with `taskkill`, whatever the signal. A group that is already gone is no failure. The driver stops an agent
   with it on a cancel; MOD-checkout-tools ends a command's process group with it at the command's timeout.
-- `testAgent(agent: Agent) -> Promise<{ answered: true, version: string } | { answered: false, reason: string }>` — a
-  harmless request, a one-word answer, given on the agent's standard input as a task is, to show that the agent answers
-  with its login (UC-017).
+- `testAgent(agent: Agent, options?: { enclosure?: Enclosure, workdir?: string }) -> Promise<{ answered: true, version:
+  string } | { answered: false, reason: string }>` — a harmless request, a one-word answer, given on the agent's standard
+  input as a task is, to show that the agent answers with its login (UC-017); with an enclosure, inside it.
 
 ## Files
 
