@@ -1006,14 +1006,27 @@ A reviewed file counts as accepted exactly when an approval record names its cur
 also counts as decided when its queue's decision row names the commit that wrote it into the SPEC.
 *Check:* `tests/review-core.test.mjs`
 
+**A PROPOSAL IS REJECTED WITH A REASON** *(PO A. Maier)*
+Beside **Accept**, the dashboard offers **Reject** for every use case, architecture decision and SPEC change entry it
+offers to accept, and writes the rejection only once the person has typed a reason.
+*Check:* `tests/review-core.test.mjs` — an open use case, an architecture decision and a SPEC change entry each offer
+Reject; counter-proof: Reject without a reason writes nothing.
+
+**A REJECTION REMOVES THE PROPOSAL** *(PO A. Maier)*
+A rejection is one commit under the rejecting person's own account, with the reason in its message: a SPEC change
+entry leaves its queue, and a use case or architecture decision returns to the text its most recent approval record
+names, or leaves the working tree when no record names it.
+*Check:* `tests/review-core.test.mjs` — rejecting a changed use case restores its accepted text in one commit whose
+message holds the reason; counter-proof: rejecting a never-accepted one removes the file.
+
 **THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK** *(PO A. Maier)*
 The dashboard writes to a repository only as the direct result of a person's action on it, as a
 commit made with that person's own token.
 *Check:* `tests/review-core.test.mjs`
 
 **WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK** *(PO A. Maier)*
-Without a stored token, accepting and editing open GitHub's web interface with the commit prepared
-as far as GitHub allows.
+Without a stored token, accepting, rejecting and editing open GitHub's web interface with the commit
+prepared as far as GitHub allows.
 *Check:* `tests/review-core.test.mjs`
 
 **EDITS ARE PREPARED ON THE DASHBOARD** *(PO A. Maier)*
