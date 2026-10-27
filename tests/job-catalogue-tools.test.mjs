@@ -119,12 +119,12 @@ test("kindOf — the kinds that change code or run tests offer the tools of the 
   }
 });
 
-// TST-1240001 · level: unit · module: MOD-job-catalogue
+// TST-1240101 · level: unit · module: MOD-job-catalogue
 // guards: ONE DEFINITION, THREE DRIVERS
 // given: the catalogue as shipped; known positive: converse, change-requirements, change-use-case and change-architecture state a tool_limit
 // input: the text of kinds/<name>/kind.md and kindOf(name) for each of the seven kinds that change code or run tests, and kindOf of the four read-and-draft kinds
 // expect: no definition of the seven holds a tool_limit line, and kindOf gives each of them a toolLimit of null, not 200 and not 0; each of the four read-and-draft kinds has a toolLimit of exactly 30
-test("TST-1240001: the code kinds leave tool_limit out and read as null; the read-and-draft kinds keep 30", async () => {
+test("TST-1240101: the code kinds leave tool_limit out and read as null; the read-and-draft kinds keep 30", async () => {
   for (const name of ["converse", "change-requirements", "change-use-case", "change-architecture"]) {
     assert.match(readFileSync(new URL(`../src/job-catalogue/kinds/${name}/kind.md`, import.meta.url), "utf8"), /^tool_limit: 30$/m, `known positive: ${name} states it`);
     assert.equal((await kindOf(name)).toolLimit, 30, name);

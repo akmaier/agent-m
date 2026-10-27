@@ -114,12 +114,12 @@ test("a model endpoint that declares use tools gets the kind's five tools in its
   assert.equal((await offeredIn({ kind: kindOf({ toolLimit: 30 }) })).limit, 30, "the limit is the kind's, not a constant");
 });
 
-// TST-1240002 · level: unit · module: MOD-job-runner
+// TST-1240102 · level: unit · module: MOD-job-runner
 // guards: A PARTICIPANT DECLARES ITS CAPABILITIES
 // given: the kind of TST-486001 with a toolLimit of null; then the same kind with the toolLimit the real catalogue gives the code kind implement; a model endpoint declaring draft text, read the repository and use tools
 // input: runJob with a fixture drafter that keeps the `tools` of its input
 // expect: a ToolUse with the five definitions whose limit is null in both cases — not 200, not 0; known positive: with a toolLimit of 30, the limit is 30
-test("TST-1240002: a kind without a tool limit gives a ToolUse whose limit is null, the code kind implement among them", async () => {
+test("TST-1240102: a kind without a tool limit gives a ToolUse whose limit is null, the code kind implement among them", async () => {
   assert.equal((await offeredIn({ kind: kindOf({ toolLimit: 30 }) })).limit, 30, "known positive: a number is handed on");
   const none = await offeredIn({ kind: kindOf({ toolLimit: null }) });
   assert.deepEqual(none.definitions.map((tool) => tool.name), ALL_FIVE);
