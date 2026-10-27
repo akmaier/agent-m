@@ -30,6 +30,7 @@ uses:
   - MOD-job-runner.prepareJob
   - MOD-job-runner.runJob
   - MOD-job-runner.handOverParams
+  - MOD-job-runner.taskRefusal
   - MOD-job-runner.withheld
   - MOD-job-catalogue.kindOf
   - MOD-job-catalogue.toolsOf
@@ -226,8 +227,9 @@ so; a model's command there reaches what that user can.
   the hand-over works on no item of the backlog or step of the plan: its parameters the job's `source`, those
   MOD-job-runner's `handOverParams` gives for what it works on, and its task as `instruction`; prepared, and run
   unattended, so that its writer writes at once — a change of requirements as an open entry of a new queue, a use case
-  or an architecture file as open; no job writes an approval record. A hand-over of any other kind, or one whose job
-  does not start, is not run, and the job's end names it with why. The end lists every result of both: their commits,
+  or an architecture file as open; no job writes an approval record. A hand-over of any other kind, of a kind that takes
+  no instruction (MOD-job-runner's `taskRefusal`, its rule named), or one whose job does not start, is not run, and the
+  job's end names it with why. The end lists every result of both: their commits,
   their files and pull requests, and their writers' notes. The entry resumes each
   job of this route whose gate is now recorded (`A JOB STOPS AT EVERY GATE`); and computes the next actions of every run
   the change concerns, from the product's facts read once, taking those of this route and queueing those of other routes
@@ -263,7 +265,9 @@ so; a model's command there reaches what that user can.
 - `onDispatch(env: CiEnvironment) -> Promise<EntryStatus>` — on a run started from the CI service's own page with the
   inputs the dashboard named (UC-024): writes the job's start record, those inputs its parameters, and runs it as
   `onRecordsChanged` runs a job. On a run a hand-over started (UC-049 4a), whose input `job` names a queued record whose
-  task travels with the hand-over: takes that job and runs it with the input `task` as its instruction — for a model
+  task travels with the hand-over: takes that job and runs it with the input `task` as its instruction — a job whose kind
+  takes no instruction ends `failed` before its participant is called, its reason the `what` of MOD-job-runner's
+  `taskRefusal`, since the task would reach no prompt —; for a model
   endpoint, the endpoint the input `endpoint` names, with the key from the CI secret the input `secret` names, through
   Agent M's own job runner, MOD-endpoint-calls' `endpointDriver` calling the endpoint, with its tool loop where the
   participant declares *use tools*, as in the tab, its input beginning with Agent M's `AGENTS.md` as text; a job handed
@@ -411,7 +415,8 @@ sections with their decisions and the fetched texts of sources. Reads secrets on
   model endpoint that works in the job's checkout, on the agent's machine.
 - `MOD-job-runner.JobContext`, `registerStrategies`, `prepareJob`, `runJob`, `MOD-job-catalogue.kindOf` — running a job of
   any kind from its record, unattended; `MOD-job-runner.handOverParams` — the parameters of a hand-over run in the same
-  job; `MOD-job-runner.withheld` — whether a restricted source's content in the checkout refuses `bash`;
+  job; `MOD-job-runner.taskRefusal` — a hand-over whose kind takes no instruction, refused;
+  `MOD-job-runner.withheld` — whether a restricted source's content in the checkout refuses `bash`;
   `MOD-job-catalogue.toolsOf` — the capabilities a kind's tools need, for a participant built from `declares`.
 - `MOD-source-register.sourceSchemas`, `registerPaths`, `restrictedPlaces` — the places of the restricted sources a job's
   context carries.
