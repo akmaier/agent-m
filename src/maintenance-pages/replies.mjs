@@ -80,7 +80,7 @@ const MAILBOX_FAILURES = new Set(["DraftChanged", "ConfirmationRefused", "SendRe
 const NOTE_FAILURES = new Set(["TokenRefused", "PermissionMissing", "RateLimited", "Moved", "NotFound", "NotSupported"]);
 const today = () => new Date().toISOString().slice(0, 10);
 
-// Beside Send and Send and wait: that the mailbox's last test found sending not working, with its reason (UC-037 7d). A record without `sending`, or with "works", says nothing; both buttons stay offered.
+// Beside Send and Send and wait, and on the page of the groups where a reply would be sent from: that the mailbox's last test found sending not working, with its reason (UC-037 7d). A record without `sending`, or with "works", says nothing; both buttons stay offered.
 function sendingNotice(store) {
   const sending = readSetting(store, "last-test:mailbox")?.sending;
   if (typeof sending !== "string" || sending === "works") return [];
@@ -366,7 +366,7 @@ async function render(target, context, params = {}) {
     }
     await draw();
   });
-  target.replaceChildren(el("h2", null, "Replies"), el("section", "replies-step-read", el("p", null, read), fold(STEP_TEXT.read)), out);
+  target.replaceChildren(el("h2", null, "Replies"), el("section", "replies-step-read", el("p", null, read), fold(STEP_TEXT.read)), ...(params.issue ? [] : sendingNotice(context.store)), out);
   await draw();
 }
 
