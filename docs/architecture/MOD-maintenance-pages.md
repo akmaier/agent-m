@@ -65,7 +65,6 @@ uses:
   - MOD-source-register.sourceSchemas
   - MOD-source-register.personSource
   - MOD-source-register.personAccount
-  - MOD-source-register.sourceStrategies
   - MOD-participant-list.participantSchema
   - MOD-participant-list.eligible
   - MOD-participant-list.participantsOf
@@ -113,7 +112,7 @@ person reviews it. Its formats are those of the modules it uses.
 ## Interfaces
 
 - `view: View` — its routes, and the strategies its kinds use in the tab — `issueStrategies`, `mailStrategies`,
-  `privacyStrategies`, `specStrategies`, `sourceStrategies`, `routeStrategies`:
+  `privacyStrategies`, `specStrategies`, `routeStrategies`:
   - `issues`, `issue/<number>` — the product's issues; *Analyse* with its run panel and the class proposed with its
     reasoning; the class confirmed or corrected, or the issue rejected with a reason, with `confirmClass`; for a bug, the
     fixing participant — one that can run tests — and its run panel, the job queued on its route; and, before its pull request is merged, for each existing test whose expected result the fix changes, the requirement it now checks correctly with the old and the new expectation side by side (UC-012 5a); for a change, the
@@ -193,8 +192,9 @@ instance's participants and source register.
 - MOD-issue-handling.confirmClass, MOD-issue-handling.backlogItemFrom, MOD-issue-handling.moveToBacklog,
   MOD-issue-handling.closeWithLinks — every decision on an issue.
 - MOD-work-plans.backlogFindings — the item's marks while the person edits it; MOD-spec-changes.queues — the change's
-  queues, those whose `issue` is this issue of this product; MOD-spec-changes.entryView — the requirements each of their
-  entries changes or adds, its `impact`, which the item realises, given to `backlogItemFrom`.
+  queues, those whose `issue` names the number of the issue shown and the address of the product the frame has chosen;
+  MOD-spec-changes.entryView — the requirements each of their entries changes or adds, its `impact`, given to
+  `backlogItemFrom` as `changed`, since an entry's anchor is the heading of a whole section, not a requirement's name.
 - MOD-source-register.sourceSchemas, MOD-source-register.personSource, MOD-source-register.personAccount — the product's
   links file and the instance's register, and in them the person's own source, the parameter `source` of a change.
 - MOD-participant-list.participantSchema, MOD-participant-list.participantsOf, MOD-participant-list.eligible — the
@@ -203,5 +203,4 @@ instance's participants and source register.
   written on the person's click; MOD-job-ledger.newJobId, MOD-runtimes.routesFor, MOD-runtimes.queueJob,
   MOD-runtimes.runOnTab, MOD-runtimes.liveState — running the kinds of this page on their routes.
 - MOD-issue-handling.issueStrategies, MOD-mail-handling.mailStrategies, MOD-personal-data.privacyStrategies,
-  MOD-spec-changes.specStrategies, MOD-source-register.sourceStrategies, MOD-runtimes.routeStrategies — the strategies
-  of its kinds, handed to the frame.
+  MOD-spec-changes.specStrategies, MOD-runtimes.routeStrategies — the strategies of its kinds, handed to the frame.

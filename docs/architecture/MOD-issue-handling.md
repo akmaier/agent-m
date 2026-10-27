@@ -85,7 +85,9 @@ prefills is a document of the item schema of MOD-documents, written by Process (
 - `issueStrategies` — of MOD-job-runner's type `Strategies`:
   - recipe `issue-context` — for analysing an issue, and for drafting the change it asks for: one part with the issue's title, text and comments; parts with the
     requirements the issue names, and the use cases, tests and modules it names together with the requirements the trace
-    graph links to them — each with its text from the snapshot. An issue that names nothing gets the whole SPEC. The
+    graph links to them — each with its text from the snapshot. An issue that names nothing gets the whole SPEC. A job
+    without the parameter `issue` gets no part, as `draft?` gives none without a draft: a change by prompt has no issue,
+    and `analyse-issue` and `fix-bug` are started only from an issue's route, which always gives it. The
     issue's text from a mail is neutral by construction; no mail is ever a part.
   - recipe `fix-inputs` — for fixing a bug: the parts of `issue-context`; the confirmed analysis — the violated
     requirement, whether code or a test is wrong, the modules —; the implementation inputs of those modules from

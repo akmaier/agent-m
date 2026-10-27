@@ -243,7 +243,7 @@ earlier entry of the queue creates it.
     first (UC-005 5a). Each rationale names its origin and the impact list; the commit carries the provenance lines.
     With the job's parameter `issue`, the number of the product's issue the change comes from, each rationale names that
     issue as its origin beside the source, and each queue's index names it in its line `**Issue:**`, with the product's
-    address.
+    address: the rationale states its entry's origin, the index lets `queues` find the queue without reading a rationale.
 
 `Host` and `Snapshot` are MOD-repository-hosts'.
 

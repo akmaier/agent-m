@@ -154,7 +154,7 @@ names that person among its sources (`THE PERSON WHO PROMPTS IS A SOURCE`); its 
 (MOD-spec-changes) keeps a job without one from starting, wherever it runs. A job of `change-requirements` started from
 an issue takes as its parameter `issue` that issue's number, as `analyse-issue` and `fix-bug` do: its recipe
 `issue-context?` gives the issue with what it touches, and its writer names the issue as the origin of the queue it
-writes (UC-012 step 6); without an issue, that part is left out.
+writes (UC-012 step 6); a job without the parameter `issue`, a change by prompt, gets no part of that recipe.
 
 A follow-up asked for on the review pages' route `draft` hands `change-requirements`, `change-use-case` and
 `change-architecture` the conversation's draft as it stands as their `draft`, so that the participant changes that
