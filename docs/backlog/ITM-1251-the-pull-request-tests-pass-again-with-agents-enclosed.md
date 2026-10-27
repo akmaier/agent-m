@@ -3,7 +3,8 @@ id: ITM-1251
 title: The pull-request tests pass again with agents enclosed
 level: module
 realises:
-  - ARC-054
+  - UC-011
+  - NO MODEL READS A CREDENTIAL
 modules:
   - MOD-agent-processes
   - MOD-desktop-shell
