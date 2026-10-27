@@ -263,6 +263,7 @@ test("POST /v1/ask — an agent not offered, one without a working folder and an
     const first = await ask({ agent: "opencode", input: "Draft." });
     assert.equal(typeof first.ask, "string", "known positive");
     await until(() => machine.calls().some((line) => /opencode run/.test(line)), "the first ask to start");
+    await until(async () => (await call(handlers, "GET /v1/ask/{ask}", { params: { ask: first.ask } })).state === "done", "the first ask to be done");
     const before = machine.calls().length;
     for (const body of [{ agent: "codex", input: "Draft." }, { agent: "nobody", input: "Draft." }, { agent: "claude", input: "Draft." },
       { agent: "opencode", input: { prompt: "Draft." } }, { agent: "opencode" }]) {
@@ -270,7 +271,6 @@ test("POST /v1/ask — an agent not offered, one without a working folder and an
     }
     assert.equal(machine.calls().length, before, "no agent was started by a refused ask");
     assert.equal((await rejection(call(handlers, "GET /v1/ask/{ask}", { params: { ask: "nobody-asked" } }))).code, "not-found");
-    await until(async () => (await call(handlers, "GET /v1/ask/{ask}", { params: { ask: first.ask } })).state === "done", "the first ask to be done");
   });
 });
 
