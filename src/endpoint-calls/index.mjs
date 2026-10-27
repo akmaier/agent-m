@@ -124,10 +124,6 @@ function usageOf(usage) {
   return { inputTokens, outputTokens, minutes: null, cost: null };
 }
 
-function answerOf(body, kind) {
-  return kind === "anthropic" ? body?.content?.find((part) => part.type === "text")?.text : body?.choices?.[0]?.message?.content;
-}
-
 // A call whose arguments are not JSON keeps them as `invalid: { text, message }` — the text it sent and why it cannot be read —, for the loop to answer.
 function argumentsOf(call) {
   try {
@@ -196,7 +192,8 @@ export function endpointDriver(config, participant, exchange = endpointExchange,
     const where = typeof window === "undefined" ? "node" : "browser";
     const response = await sentWithRetries(config, driverRequest(config, driverPrompt(input), options.signal), where, options.signal);
     const body = await response.json();
-    return { text: answerOf(body, config.kind), usage: usageOf(body?.usage) };
+    const { text } = exchangeAnswer(body, config.kind);
+    return { text, usage: usageOf(body?.usage) };
   } };
 }
 
