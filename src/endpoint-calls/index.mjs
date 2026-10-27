@@ -2,10 +2,7 @@
 
 import { driverPrompt } from "../job-runner/index.mjs";
 import { toolLoop } from "./loop.mjs";
-import { keyHeaders } from "./keys.mjs";
 import { RETRY_MAX_RETRIES, retryDelay, retryable, wait } from "./retries.mjs";
-
-export { holdKey } from "./keys.mjs";
 
 /**
  * @typedef {{ name: string, kind: "openai-compatible" | "anthropic", baseUrl: string, model: string, key: string | null }} EndpointConfig
@@ -33,6 +30,13 @@ class EndpointFailed extends Error {
 
 function endpointUrl(baseUrl, path) {
   return `${baseUrl.replace(/\/+$/, "")}${path}`;
+}
+
+// The header that carries an endpoint's key on every request this module sends: `x-api-key` on Anthropic, `Authorization: Bearer <key>` on an
+// OpenAI-compatible endpoint; none without a key.
+function keyHeaders(kind, key) {
+  if (key === null || key === undefined) return {};
+  return kind === "anthropic" ? { "x-api-key": key } : { Authorization: `Bearer ${key}` };
 }
 
 function requestFor(config) {
@@ -298,4 +302,45 @@ export function diagnoseEndpoint(error, config, where) {
   }
 
   return { reason: "not reachable", message, routes: [] };
+}
+
+// The headers the key holder does not take over from its caller — those of the connection, those fetch sets itself, every header that carries a key —, and
+// those of the endpoint's answer it does not pass on, since fetch has already decoded the body and the server measures it anew.
+const NOT_FORWARDED = new Set(["host", "connection", "keep-alive", "transfer-encoding", "upgrade", "proxy-connection", "te", "trailer", "content-length",
+  "accept-encoding", "authorization", "x-api-key"]);
+const NOT_ANSWERED = new Set(["connection", "keep-alive", "transfer-encoding", "content-encoding", "content-length"]);
+
+/**
+ * holdKey(config: { kind: "openai-compatible" | "anthropic", baseUrl: string, key: string | null }) -> Promise<{ address: string, close() -> Promise<void> }> — the key
+ * holder (NO MODEL READS A CREDENTIAL): a server on 127.0.0.1 at a free port, `address` being `http://127.0.0.1:<port>`, that sends each request it receives, through
+ * this module's sender of a single request, to the same path below `config.baseUrl` — the method, the body and the caller's headers, without any header that carries a key — with the key in
+ * the header keyHeaders gives, and answers with the endpoint's status, headers and body; a redirect is answered, not followed. A request whose target is not a path
+ * of that endpoint is answered 400 and sent nowhere; one the endpoint does not answer, 502 with the diagnosis's message. Node only: Node's server module is taken
+ * when it is called.
+ */
+export async function holdKey(config) {
+  const origin = new URL(endpointUrl(config.baseUrl, "/")).origin;
+  const server = globalThis.process.getBuiltinModule("node:http").createServer(async (request, response) => {
+    const answer = (status, text) => { response.writeHead(status, { "content-type": "text/plain" }); response.end(text); };
+    const path = request.url.startsWith("/") && !request.url.startsWith("//") ? request.url : null;
+    if (path === null || new URL(endpointUrl(config.baseUrl, path)).origin !== origin) return answer(400, "The key holder forwards only a path of its endpoint.");
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    const headers = { ...Object.fromEntries(Object.entries(request.headers).filter(([name]) => !NOT_FORWARDED.has(name.toLowerCase()))), ...keyHeaders(config.kind, config.key) };
+    let forwarded;
+    try {
+      forwarded = await endpointResponse(config, { url: endpointUrl(config.baseUrl, path), init: { method: request.method, headers, redirect: "manual",
+        body: ["GET", "HEAD"].includes(request.method) ? undefined : Buffer.concat(chunks) } }, "node");
+    } catch (error) {
+      return answer(502, `The endpoint did not answer: ${error?.diagnosis?.message ?? error?.message ?? error}`);
+    }
+    const body = Buffer.from(await forwarded.arrayBuffer());
+    response.writeHead(forwarded.status, Object.fromEntries([...forwarded.headers].filter(([name]) => !NOT_ANSWERED.has(name.toLowerCase()))));
+    response.end(body);
+  });
+  await new Promise((resolve, reject) => { server.once("error", reject); server.listen(0, "127.0.0.1", resolve); });
+  return {
+    address: `http://127.0.0.1:${server.address().port}`,
+    close: () => new Promise((resolve) => { server.closeAllConnections?.(); server.close(() => resolve()); }),
+  };
 }

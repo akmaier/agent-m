@@ -47,7 +47,6 @@ in a browser and in Node, and keeps nothing.
 - `diagnosis.mjs` — telling apart why a call failed.
 - `loop.mjs` — the execution loop and its rules.
 - `retries.mjs` — whether a failed request is sent again, and after how long.
-- `keys.mjs` — the header that carries an endpoint's key, by its kind, and the key holder.
 
 ## Data
 
@@ -68,8 +67,9 @@ address and is never written anywhere (`A CREDENTIAL IS NEVER PLACED IN A URL`, 
 **The key holder** keeps a key out of a program that calls the endpoint: it holds the key, in Node, and forwards each
 request it receives on `127.0.0.1` to the same path below the endpoint's `baseUrl`, adding the key in its kind's header —
 `x-api-key` on Anthropic, `Authorization: Bearer` on an OpenAI-compatible endpoint, the one header every request of this
-module carries it in. A caller's own key headers are dropped; a request whose target is not a path of that endpoint is
-answered 400 and sent nowhere; a redirect is answered, not followed. The program whose requests it forwards — the model's
+module carries it in, and sends each through this module's sender of a single request, so that the key goes only where
+the module sends every request: the configured endpoint. A caller's own key headers are dropped; a request whose target
+is not a path of that endpoint is answered 400 and sent nowhere; a redirect is answered, not followed. The program whose requests it forwards — the model's
 user's side of a hosted job's agent machine (MOD-workflow-entries) — is given the holder's address as the endpoint's
 `baseUrl` and no key (`NO MODEL READS A CREDENTIAL`).
 
