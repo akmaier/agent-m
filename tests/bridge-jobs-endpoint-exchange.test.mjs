@@ -109,6 +109,26 @@ test("an exchange ask of an Anthropic endpoint returns its tool_use block as a c
   } finally { await model.close(); }
 });
 
+// TST-1237003 · level: unit · module: MOD-bridge-jobs
+// guards: UC-049; A RUNTIME IS INTERCHANGEABLE
+// given: an openai-compatible model server that answers its first request with one tool call c1 read_file({ path: "a.md" }) and its second with the text "Done." and no tool call
+// input: POST /v1/ask with { endpoint, exchange } twice; GET until each is done
+// expect: the first done with calls [{ id: "c1", name: "read_file", args: { path: "a.md" } }]; the second done with text "Done." and calls []
+test("an exchange's answer still holds the tool calls it made, and [] where it made none", async () => {
+  let turn = 0;
+  const model = await server(() => (turn++ === 0
+    ? { status: 200, body: { choices: [{ message: { content: "", tool_calls: [{ id: "c1", type: "function", function: { name: "read_file", arguments: JSON.stringify({ path: "a.md" }) } }] } }] } }
+    : { status: 200, body: { choices: [{ message: { content: "Done." } }] } }));
+  try {
+    const handlers = jobHandlers();
+    const exchange = { messages: MESSAGES, tools: TOOLS };
+    const first = await finished(handlers, (await post(handlers, { endpoint: endpointOf(model.base), exchange })).ask);
+    assert.deepEqual([first.state, first.calls], ["done", [{ id: "c1", name: "read_file", args: { path: "a.md" } }]]);
+    const second = await finished(handlers, (await post(handlers, { endpoint: endpointOf(model.base), exchange })).ask);
+    assert.deepEqual([second.state, second.text, second.calls], ["done", "Done.", []]);
+  } finally { await model.close(); }
+});
+
 // TST-497007 · level: unit · module: MOD-bridge-jobs
 // guards: A REMOTE INTERFACE NAMES HOW IT FAILS; UC-049; NO SECRET IN THE REPOSITORY
 // given: a model server that refuses the key with 401 and a message quoting the key; one that cannot be reached; known positive — one that answers
