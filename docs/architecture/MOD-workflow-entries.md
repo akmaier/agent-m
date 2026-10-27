@@ -29,6 +29,7 @@ uses:
   - MOD-job-runner.registerStrategies
   - MOD-job-runner.prepareJob
   - MOD-job-runner.runJob
+  - MOD-job-runner.failedBecause
   - MOD-job-runner.handOverParams
   - MOD-job-runner.taskRefusal
   - MOD-job-runner.withheld
@@ -229,12 +230,15 @@ so; a model's command there reaches what that user can.
   unattended, so that its writer writes at once — a change of requirements as an open entry of a new queue, a use case
   or an architecture file as open; no job writes an approval record. A hand-over of any other kind, of a kind that takes
   no instruction (MOD-job-runner's `taskRefusal`, its rule named), or one whose job does not start, is not run, and the
-  job's end names it with why. The end lists every result of both: their commits,
+  job's end names it with why, as `not run: <kind> — <why>`; one whose run fails by MOD-job-runner's `failedBecause` is
+  listed as `failed: <kind> — <why>`. The end lists every result of both: their commits,
   their files and pull requests, and their writers' notes. The entry resumes each
   job of this route whose gate is now recorded (`A JOB STOPS AT EVERY GATE`); and computes the next actions of every run
   the change concerns, from the product's facts read once, taking those of this route and queueing those of other routes
   by their start records (`A RUN CONTINUES WITHOUT A CLICK BETWEEN ITS JOBS`). Two entries that compute the same action
-  are safe: only one taking lands. A job whose writer committed nothing, since its result equals the current files,
+  are safe: only one taking lands. A job whose run ends by MOD-job-runner's `failedBecause` — an answer that could not be
+  read after the last round — ends `failed`, with no result, that reason and its rounds, and the entry ends `failed`. A
+  job whose writer committed nothing, since its result equals the current files,
   ends done, and its end record and the entry's summary say `no change` (UC-010 4a).
 - `onDoneCheck(env: CiEnvironment) -> Promise<EntryStatus>` — on a pull request of a product opened or updated, run only by
   the Definition-of-Done job of MOD-test-schedule's test configuration, after the run's test jobs and its records job:
@@ -290,7 +294,9 @@ so; a model's command there reaches what that user can.
   messages or pull request text hold the task's words is refused by name, the job then ending failed with nothing
   merged — on the agent's machine, where the branch is not on the server yet, `writeResult` refuses it; it appends the job's end with its commits, files and pull request, and leaves the answer in the run's summary
   and log — in the log between the lines `--- answer of <id> ---` and `--- end of the answer of <id> ---` —, where the
-  prompt bar reads it. An endpoint the run cannot reach ends it `failed`, its summary naming the
+  prompt bar reads it; an answer that could not be read is left there as it was received, and its job's end holds only
+  the reason, since the answer is a message of the conversation (`A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN
+  RECORDING IS ON`). An endpoint the run cannot reach ends it `failed`, its summary naming the
   reason that MOD-endpoint-calls' `diagnoseEndpoint` gives — the diagnosis its `EndpointFailed` carries — and the routes
   that would work — a self-hosted runner, or a Bridge (UC-049 4d).
 - `chooseAgentKey(env: CiEnvironment) -> Promise<EntryStatus>` — before the agent's machine starts, on a machine that
@@ -414,7 +420,8 @@ sections with their decisions and the fetched texts of sources. Reads secrets on
 - `MOD-checkout-tools.checkoutStrategies`, `MOD-checkout-tools.checkoutPrompt` — the tools and the system prompt of a
   model endpoint that works in the job's checkout, on the agent's machine.
 - `MOD-job-runner.JobContext`, `registerStrategies`, `prepareJob`, `runJob`, `MOD-job-catalogue.kindOf` — running a job of
-  any kind from its record, unattended; `MOD-job-runner.handOverParams` — the parameters of a hand-over run in the same
+  any kind from its record, unattended; `MOD-job-runner.failedBecause` — whether a run's job ends failed, and why;
+  `MOD-job-runner.handOverParams` — the parameters of a hand-over run in the same
   job; `MOD-job-runner.taskRefusal` — a hand-over whose kind takes no instruction, refused;
   `MOD-job-runner.withheld` — whether a restricted source's content in the checkout refuses `bash`;
   `MOD-job-catalogue.toolsOf` — the capabilities a kind's tools need, for a participant built from `declares`.

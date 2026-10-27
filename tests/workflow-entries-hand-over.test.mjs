@@ -414,6 +414,33 @@ test("TST-498005: a branch whose commit message or pull request text holds the t
   }
 });
 
+// ---------------------------------------------------------------- an answer that cannot be read
+
+// TST-2026271046 · level: component · module: MOD-workflow-entries
+// guards: UC-049; A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
+// given: as TST-498001, but the endpoint answers, in every round, JSON whose envelope has no `draft` — `{ "answers": [], "said": "kestrel-raw" }` —; known positive: TST-498001, whose endpoint answers a draft, ends `done`
+// input: onDispatch with the task and the endpoint
+// expect: outcome `failed`, its summary naming "the participant's answer could not be read: the answer has no draft"; on main the commit that ends the job is `end <job>: failed`, and the writer's commit is not there; the record's End says `state: failed`, `reason:` that text — MOD-job-runner's failedBecause —, no result, and `stopped because: unusable`; the answer as received, kestrel-raw, is in the run's summary and log, where the prompt bar reads the answer, and in no commit message and no file of the product — while the request the endpoint answered holds it, the known positive of the search; the task is written nowhere
+test("TST-2026271046: a hand-over whose answer has no draft ends failed with the reason, its answer left in the run and not in the record", async () => {
+  const raw = answer(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ answers: [], said: "kestrel-raw" }) } }], usage: { prompt_tokens: 11, completion_tokens: 7 } });
+  await world({ records: [HAND_OVER], endpoint: raw }, async (w) => {
+    const status = await w.dispatch(INPUTS);
+    assert.equal(status.outcome, "failed", status.summary);
+    assert.match(status.summary, /the participant's answer could not be read: the answer has no draft/);
+    assert.equal(w.subjects()[0], `end ${JOB}: failed`);
+    assert.ok(!w.subjects().includes("gate fixture decided"), "the writer did not run");
+    const end = w.originText(`docs/jobs/${JOB}.md`).split(/^## End$/m)[1];
+    assert.match(end, /^state: failed$/m);
+    assert.match(end, /^reason: the participant's answer could not be read: the answer has no draft$/m);
+    assert.match(end, /stopped because: unusable/);
+    assert.ok(w.starts().some((request) => (request.answered ?? "").includes("kestrel-raw")), "known positive: the search finds the answer where the endpoint gave it");
+    assert.ok(readFileSync(w.summary, "utf8").includes("kestrel-raw"), "the run's summary holds the answer as received");
+    assert.ok(w.lines().includes("kestrel-raw"), "the log holds the answer as received");
+    assert.equal(w.everything().includes("kestrel-raw"), false, "no commit message and no file of the product holds the answer");
+    assert.equal(holdsTask(w.everything()), false, "the task is written nowhere");
+  });
+});
+
 // ---------------------------------------------------------------- an endpoint the run cannot reach
 
 // TST-498006 · level: component · module: MOD-workflow-entries

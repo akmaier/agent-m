@@ -7,6 +7,7 @@ follows:
   - ARC-046
 uses:
   - MOD-job-runner.runJob
+  - MOD-job-runner.failedBecause
   - MOD-job-runner.provenanceLines
   - MOD-job-runner.driverPrompt
   - MOD-job-runner.Driver
@@ -253,7 +254,8 @@ pins — the commit the run's checkout of the instance is at —, not the commit
   nothing is appended anywhere: builds the drafter's and the reviewers' drivers from their routes — an
   endpoint's driver from its configuration, `endpointDriver` where its `bridge` is `null` and `bridgeDriver` with the
   endpoint on the Bridge its `bridge` names, and an agent on a Bridge through `bridgeDriver`, each Bridge by its name among
-  `bridges` —, appends a gate reached and the end to the job's record through the host, where it has one, and returns the
+  `bridges` —, appends a gate reached and the end to the job's record through the host, where it has one — `failed`, with
+  no result and MOD-job-runner's `failedBecause` as its reason, where that names one, else `done` —, and returns the
   result for the page to show. Only the driver of an endpoint the tab calls itself is given the kind's tools (MOD-job-runner's
   `ToolUse`) — called directly, or through the Bridge its configuration names, where `bridgeDriver` carries each request of
   the loop as one `ask`. Fails as the
@@ -362,6 +364,7 @@ through MOD-browser-store, it reads `browser`, and writes it where it is not set
   `MOD-job-runner.JobContext`, `MOD-job-runner.JobResult`, `MOD-job-runner.Strategies`, `MOD-job-runner.WriteOutcome` —
   running a job in the tab, the drivers it builds, and the writer it offers.
 - `MOD-job-runner.taskRefusal` — the refusal of a hand-over whose kind takes no instruction.
+- `MOD-job-runner.failedBecause` — whether a job run in the tab ends failed, and why.
 - `MOD-job-runner.driverPrompt` — the prepared prompt, current draft and canonical findings sent once through the
   Bridge; tab callers do not pre-render this context for an endpoint or Bridge driver.
 - `MOD-job-ledger.startRecord`, `MOD-job-ledger.appendToRecord`, `MOD-job-ledger.newJobId`, `MOD-job-ledger.JobStart`,

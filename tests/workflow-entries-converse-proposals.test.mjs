@@ -17,7 +17,7 @@
 // (OpenAI-compatible), which answers by the kind whose prompt it is sent — the converse prompt, or a change kind's —, and the repository server's API — the history of the product, which the
 // writer `open-files` reads, and the pull request the writer `proposed-edits` opens. The jobs run from their records (onRecordsChanged); the last test runs one whose task travels with its
 // hand-over (onDispatch), whose kinds only read and draft text, so that it runs through Agent M's own job runner calling the endpoint, and a fixture `opencode` on the PATH shows it is not started. Where the module files leave a reading open, the test states the one it takes, and the pull request names it:
-//   - A result line of the end is a commit, a file path, a pull request's address, a writer's note as `note: <note>`, or a hand-over not run as `not run: <kind> — <why>`.
+//   - A result line of the end is a commit, a file path, a pull request's address, a writer's note as `note: <note>`, or a hand-over not run as `not run: <kind> — <why>`, or one whose run failed as `failed: <kind> — <why>`.
 //   - "The status of a reviewed file" is MOD-approvals' statuses over the product's default branch; a file the run changed is not accepted.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
@@ -363,6 +363,51 @@ test("TST-8048007: a hand-over in a hosted job to a kind that takes no instructi
     assert.equal(status.outcome, "done", status.summary);
     assert.equal(world.requests.filter((each) => each.address.startsWith("https://llm.example.test/")).length, 1, "only the conversation was sent");
     assert.match(endOf(w), /not run: propose-items — [^\n]*THE HAND-OVER NAMES THE TASK IN ITS WORDS/);
+    assert.deepEqual(touched(w), [`docs/jobs/${JOB}.md`]);
+  });
+});
+
+// ---------------------------------------------------------------- an answer that cannot be read
+
+// TST-2026271044 · level: component · module: MOD-workflow-entries
+// guards: UC-049; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
+// given: a hosted converse job (limit 2) whose endpoint answers the conversation, in every round, JSON whose envelope has no `draft` — `{ "answers": [] }` —; and, as the counter-proof, the same job whose endpoint answers the conversation's draft { answer "Done as you asked." }
+// input: onRecordsChanged for each
+// expect: the first: outcome `failed`, its summary naming "the participant's answer could not be read: the answer has no draft"; the job's end says `state: failed`, `reason:` that text — MOD-job-runner's failedBecause —, lists no result and no `no change`, and its round record says `stopped because: unusable`; nothing but the job's own record is written. The second: outcome `done`, its end `state: done`
+test("TST-2026271044: a hosted job whose answer has no draft ends failed, its reason naming why, not done", async () => {
+  await withWorkspace({}, async (w) => {
+    fakeWorld({}, w);
+    const status = await run(w);
+    assert.equal(status.outcome, "failed", status.summary);
+    assert.match(status.summary, /the participant's answer could not be read: the answer has no draft/);
+    const end = endOf(w);
+    assert.match(end, /^state: failed$/m);
+    assert.match(end, /^reason: the participant's answer could not be read: the answer has no draft$/m);
+    assert.doesNotMatch(end, /no change/);
+    assert.match(end, /stopped because: unusable/);
+    assert.deepEqual(touched(w), [`docs/jobs/${JOB}.md`]);
+  });
+  await withWorkspace({}, async (w) => {
+    fakeWorld({ converse: answer(null) }, w);
+    const status = await run(w);
+    assert.equal(status.outcome, "done", status.summary);
+    assert.match(endOf(w), /^state: done$/m);
+  });
+});
+
+// TST-2026271045 · level: component · module: MOD-workflow-entries
+// guards: UC-049
+// given: a hosted converse job; the endpoint answers the conversation with a hand-over { kind change-requirements, works_on [the requirement], task "say the due date" } and the change of requirements, in every round, with JSON whose envelope has no `draft`; known positive: the same hand-over answered with a candidate is run and its writer's commit listed (TST-1360101)
+// input: onRecordsChanged
+// expect: outcome `done`; the end lists `failed: change-requirements — the participant's answer could not be read: the answer has no draft` and no `change-requirements: no change`; nothing but the job's own record is written
+test("TST-2026271045: a hand-over followed in the hosted job whose answer has no draft is listed as failed with why, not as no change", async () => {
+  await withWorkspace({}, async (w) => {
+    fakeWorld({ converse: answer({ kind: "change-requirements", works_on: [RULE], task: "say the due date" }) }, w);
+    const status = await run(w);
+    assert.equal(status.outcome, "done", status.summary);
+    const end = endOf(w);
+    assert.ok(end.includes("failed: change-requirements — the participant's answer could not be read: the answer has no draft"), end);
+    assert.doesNotMatch(end, /change-requirements: no change/);
     assert.deepEqual(touched(w), [`docs/jobs/${JOB}.md`]);
   });
 });
