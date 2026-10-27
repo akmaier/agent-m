@@ -1,6 +1,6 @@
 // MOD-desktop-shell's private settings file and canonical dashboard-export takeover.
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { hostname } from "node:os";
 import { join } from "node:path";
 import { bridgeApi } from "../bridge-http/index.mjs";
@@ -77,7 +77,14 @@ function canonical(dataFolder, value) {
   return settings;
 }
 
+// The Bridge's per-user data folder is readable and writable by its user only, whether the Bridge created it or found it.
+function ownFolder(dataFolder) {
+  mkdirSync(dataFolder, { recursive: true, mode: 0o700 });
+  chmodSync(dataFolder, 0o700);
+}
+
 export function loadSettings(dataFolder, supplied = {}) {
+  if (existsSync(dataFolder)) ownFolder(dataFolder);
   if (!existsSync(fileOf(dataFolder))) return canonical(dataFolder, supplied);
   return canonical(dataFolder, JSON.parse(readFileSync(fileOf(dataFolder), "utf8")));
 }
@@ -93,7 +100,7 @@ export function setJumpHost(dataFolder, value) {
 
 export function saveSettings(dataFolder, value) {
   const settings = canonical(dataFolder, value);
-  mkdirSync(dataFolder, { recursive: true, mode: 0o700 });
+  ownFolder(dataFolder);
   writeFileSync(fileOf(dataFolder), JSON.stringify(settings), { encoding: "utf8", mode: 0o600 });
   return settings;
 }
