@@ -27,6 +27,10 @@ import * as workPlans from "../work-plans/index.mjs";
 import * as runPlanner from "../run-planner/index.mjs";
 import * as runtimes from "../runtimes/index.mjs";
 import * as reuseFacts from "../reuse-facts/index.mjs";
+import * as resourceList from "../resource-list/index.mjs";
+import * as testSchedule from "../test-schedule/index.mjs";
+import * as resultRecords from "../result-records/index.mjs";
+import * as issueHandling from "../issue-handling/index.mjs";
 import { checkoutStrategies } from "../checkout-tools/index.mjs";
 import { prepareResult } from "./result.mjs";
 
@@ -215,10 +219,14 @@ function originOf(dir, fallback) {
   } catch { return fallback; }
 }
 
-// The strategies the modules that offer them give the job runner, registered once for the program that runs, as the runner asks.
+// The strategies the modules that offer them give the job runner, registered once for the program that runs, as the runner asks: the sets the module file's Uses
+// name, of every kind that may run in CI, that modules build — MOD-product-process' processStrategies joins as the item that builds it adds it. The mail kinds' are not
+// registered: no mail reaches CI.
 const OFFERED = [["MOD-approvals", approvals, "approvalStrategies"], ["MOD-spec-changes", specChanges, "specStrategies"],
   ["MOD-artifact-edits", artifactEdits, "editStrategies"], ["MOD-source-register", sourceRegister, "sourceStrategies"],
-  ["MOD-work-plans", workPlans, "workStrategies"], ["MOD-run-planner", runPlanner, "runStrategies"], ["MOD-runtimes", runtimes, "routeStrategies"], ["MOD-reuse-facts", reuseFacts, "reuseStrategies"]];
+  ["MOD-work-plans", workPlans, "workStrategies"], ["MOD-run-planner", runPlanner, "runStrategies"], ["MOD-runtimes", runtimes, "routeStrategies"], ["MOD-reuse-facts", reuseFacts, "reuseStrategies"],
+  ["MOD-resource-list", resourceList, "resourceStrategies"], ["MOD-test-schedule", testSchedule, "scheduleStrategies"], ["MOD-result-records", resultRecords, "resultStrategies"],
+  ["MOD-issue-handling", issueHandling, "issueStrategies"]];
 let registered = false;
 function registerStrategiesOnce() {
   if (registered) return;
