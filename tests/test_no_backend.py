@@ -246,8 +246,8 @@ def _configured_endpoint_transport(text: str, at: int) -> bool:
 
 
 CHECKOUT_TOOLS = "src/checkout-tools/"
-WEBFETCH = ("its webfetch tool, which runs in Node only, registered by the programs that run jobs (src/workflow-entries/ in CI, or a "
-            "Bridge): no module the site loads in a browser imports src/checkout-tools/")
+WEBFETCH = ("its webfetch tool, which runs in Node only, registered only by the Workflows (src/workflow-entries/, in CI): no module "
+            "the site loads in a browser imports src/checkout-tools/")
 IMPORT_SPECIFIER = re.compile(r"""(?:\bimport|\bexport)\s*(?:[\w$*{}\s,]*?\bfrom\s*)?(["'])(\.{1,2}/[^"'`]+)\1"""
                               r"""|\bimport\(\s*(["'`])(\.{1,2}/[^"'`$]+)\3\s*\)""")
 
@@ -376,8 +376,8 @@ PERMITTED_CHANNELS = {
                                                lambda t, i: t[i:].startswith("fetch(url)") and 'new URL("./skeleton.md", import.meta.url)' in t),
     ("src/endpoint-calls/index.mjs", "fetch"): (2, ENDPOINT_TRANSPORT, _configured_endpoint_transport),
     # A reading taken, not a rule of NO SERVER's own: its check concerns the built site a browser runs (this file's docstring);
-    # MOD-checkout-tools and ARC-046 say webfetch runs in Node only, registered by the programs that run jobs — CI or a Bridge —, never
-    # by the browser; and A PARTICIPANT DECLARES ITS CAPABILITIES grants a participant "reach the web". Its two fetches (the page, and
+    # MOD-checkout-tools, MOD-job-catalogue and ARC-046 say webfetch runs in Node only, registered only by the Workflows — in CI —,
+    # never by the browser; and A PARTICIPANT DECLARES ITS CAPABILITIES grants a participant "reach the web". Its two fetches (the page, and
     # the page again with an honest user agent where Cloudflare challenged the first) are allowed while no module the site loads in a
     # browser imports src/checkout-tools/.
     ("src/checkout-tools/webfetch.mjs", "fetch"): (2, WEBFETCH, _webfetch_in_node_only),
