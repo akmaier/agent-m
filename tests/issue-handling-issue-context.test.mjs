@@ -171,6 +171,8 @@ test("issue-context — an issue the host does not list is IssueNotFound, and a 
   for (const params of [{}, { issue: undefined }, { issue: null }]) {
     assert.deepEqual(await recipe()(contextOf(params), params), [], JSON.stringify(params));
   }
+  // A parameter that is present but no whole number is still a TypeError.
+  await assert.rejects(recipe()(contextOf({ issue: "7" }), { issue: "7" }), TypeError);
 });
 
 // TST-582109 · level: unit · module: MOD-issue-handling
