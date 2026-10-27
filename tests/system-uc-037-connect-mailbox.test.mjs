@@ -394,7 +394,7 @@ test("alternative 7d on the web-API route: reading and sending are shown separat
 // input: Store and test
 // expect: UC-037 7d: "Agent M shows both results separately; reading (UC-038) is possible, sending (UC-039) is not": the reading is shown — INBOX: 4 mails and Reports: 2 mails — and, separately, that sending does not work. FINDING UC037-7d-imap: the Bridge's test (MOD-mail-protocols' testMailbox) throws on the SMTP server's refusal, so the page shows only "the mail server refused the login" and no reading; MOD-mail-routes' interface gives `sending: "works" | string` for this (flow: UC-037 alternative 7d, on the IMAP route)
 test("alternative 7d on the IMAP route: reading and sending are shown separately",
-  { todo: "FINDING UC037-7d-imap — the Bridge's mail test throws when the SMTP login is refused, so the mailbox page shows no reading and no separate sending result (UC-037 7d)" }, async () => {
+  async () => {
   const p = await openDashboard({ smtp: { refuseAuth: true } });
   try {
     await connectAMailbox(p);
