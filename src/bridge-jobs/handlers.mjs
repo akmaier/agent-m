@@ -82,7 +82,8 @@ export function jobHandlers({ testEndpoint = nodeTestEndpoint, listModels = node
         }
         const key = body.endpoint.key;
         asks.set(ask, entry);
-        endpointExchange(body.endpoint, body.exchange).then(({ text, calls, usage }) => Object.assign(entry, { state: "done", text, calls, usage }),
+        // `cut` — the endpoint ended its answer at the output limit — travels with the answer, so that the page's loop continues it as MOD-endpoint-calls does.
+        endpointExchange(body.endpoint, body.exchange).then(({ text, calls, usage, cut }) => Object.assign(entry, { state: "done", text, calls, usage, ...(cut ? { cut: true } : {}) }),
           (error) => Object.assign(entry, { state: "failed", error: endpointReason(error, key) }));
         return { ask };
       }
