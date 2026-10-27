@@ -122,7 +122,8 @@ limit or stops it.
   limit not above the one in force, with nothing written; `RecordEnded` for a run that has ended; `Moved`,
   `TokenRefused`, `PermissionMissing`, `RateLimited`, `Unreachable`.
 - `runStrategies: Strategies` — the strategies this module offers the job runner (ARC-046):
-  - recipe `implementation-inputs` — for a step or item: the file of each of its modules; the decision of their
+  - recipe `implementation-inputs` — for a step or item, or for the modules a job's parameter `modules` names itself, as
+    a bug's fix does (UC-012): the file of each of its modules; the decision of their
     subsystem and the decision that states the system; the SPEC; the interfaces — the `## Interfaces` of their files, not
     the code — of the modules they use; the code in their folders and the tests that name them; the product's coding
     standards file, `AGENTS.md` at its root, if it has one; for a subsystem's integration, the subsystem's decision and the files, code and tests

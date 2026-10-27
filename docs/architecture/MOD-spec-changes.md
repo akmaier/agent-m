@@ -95,7 +95,7 @@ the letter (`b`, `c`, …) distinguishing several queues of one day, absent for 
 
 | File | Schema | Content |
 |---|---|---|
-| `index.md` | `queue-index` | the title line `# SPEC approvals — queue <folder date> · <title>`; free text: the decision taken and the impact analysis as a table of the names it changes or withdraws and what references them; the line `**Zieldatei aller Einträge:** ` with the target in backticks; and the entry table |
+| `index.md` | `queue-index` | the title line `# SPEC approvals — queue <folder date> · <title>`; free text: the decision taken and the impact analysis as a table of the names it changes or withdraws and what references them; for a queue drafted from an issue, the line `**Issue:** #<number> of <product address>`; the line `**Zieldatei aller Einträge:** ` with the target in backticks; and the entry table |
 | `NN-<slug>.md` | — | an entry: the complete section as proposed, from its heading line to its end, nothing else; `NN` two digits |
 | `NN-<slug>.begruendung.md` | `queue-rationale` | the title line `# <section>: <what changes>`, the paragraphs **The change.** and **Why.**, the impact list, and the origin — the source passage and version, a conversation in the prompt bar on the page it names, never a message
 of it (`A CONVERSATION IS WRITTEN TO A REPOSITORY ONLY WHEN RECORDING IS ON`), or the issue —; for a drafted entry also the Agent M version, the participant, the model, the date and the correction rounds |
@@ -127,13 +127,13 @@ earlier entry of the queue creates it.
 
 ## Interfaces
 
-- `Queue` — `{ folder: string, title: string, target: string, entries: Array<{ number: number, file: string,
-  anchor: string, until: string | null, proposal: { path: string, blob: string }, rationale: string,
-  record: string | null, decision: string | null, state: "open" | "approved" | "in SPEC" | "stale" |
-  "waiting for its anchor", createdBy: number | null }> }`, where `createdBy` is the number of the entry whose proposal
-  creates the anchor.
+- `Queue` — `{ folder: string, title: string, target: string, issue: { number: number, product: string } | null,
+  entries: Array<{ number: number, file: string, anchor: string, until: string | null, proposal: { path: string, blob:
+  string }, rationale: string, record: string | null, decision: string | null, state: "open" | "approved" | "in SPEC"
+  | "stale" | "waiting for its anchor", createdBy: number | null }> }`, where `createdBy` is the number of the entry whose proposal
+  creates the anchor, and `issue` the issue its index's line `**Issue:**` names, `null` without that line.
 - `queues(snapshot: Snapshot) -> Promise<Queue[]>` — every queue of a snapshot with every entry and its state, newest
-  first: the entries with their anchors from each queue's `index.md`, its decisions from `entscheidungen.md`, the records
+  first: the entries with their anchors, and the issue it names, from each queue's `index.md`, its decisions from `entscheidungen.md`, the records
   from `docs/approvals/`. Crosses the network through the snapshot, for the files it has not read yet; fails with the
   snapshot's errors — `TokenRefused`, `PermissionMissing`, `RateLimited`, `Unreachable`.
 - `openQueueOf(person: string, date: string, host: Host) -> Promise<string | null>` — the folder of the person's newest
@@ -241,6 +241,9 @@ earlier entry of the queue creates it.
     `entrySections` composes it with the job's `source`. A candidate that points to a source the product does not link
     (`linkedVersion` gives none) is not written, and the outcome's notes name it with that source, as the hint to link it
     first (UC-005 5a). Each rationale names its origin and the impact list; the commit carries the provenance lines.
+    With the job's parameter `issue`, the number of the product's issue the change comes from, each rationale names that
+    issue as its origin beside the source, and each queue's index names it in its line `**Issue:**`, with the product's
+    address.
 
 `Host` and `Snapshot` are MOD-repository-hosts'.
 

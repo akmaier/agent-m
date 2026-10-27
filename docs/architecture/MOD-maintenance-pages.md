@@ -60,7 +60,12 @@ uses:
   - MOD-issue-handling.issueStrategies
   - MOD-work-plans.backlogFindings
   - MOD-spec-changes.queues
+  - MOD-spec-changes.entryView
   - MOD-spec-changes.specStrategies
+  - MOD-source-register.sourceSchemas
+  - MOD-source-register.personSource
+  - MOD-source-register.personAccount
+  - MOD-source-register.sourceStrategies
   - MOD-participant-list.participantSchema
   - MOD-participant-list.eligible
   - MOD-participant-list.participantsOf
@@ -108,13 +113,16 @@ person reviews it. Its formats are those of the modules it uses.
 ## Interfaces
 
 - `view: View` — its routes, and the strategies its kinds use in the tab — `issueStrategies`, `mailStrategies`,
-  `privacyStrategies`, `specStrategies`, `routeStrategies`:
+  `privacyStrategies`, `specStrategies`, `sourceStrategies`, `routeStrategies`:
   - `issues`, `issue/<number>` — the product's issues; *Analyse* with its run panel and the class proposed with its
     reasoning; the class confirmed or corrected, or the issue rejected with a reason, with `confirmClass`; for a bug, the
     fixing participant — one that can run tests — and its run panel, the job queued on its route; and, before its pull request is merged, for each existing test whose expected result the fix changes, the requirement it now checks correctly with the old and the new expectation side by side (UC-012 5a); for a change, the
     change of requirements drafted against the existing ones with the issue as its origin, run attended, its candidates
     shown by class beside the requirements they refer to and every conflict decided by the person, then *Save*, which
-    writes them as a change queue naming the issue; *Move to backlog* with the item prefilled — its fields checked in a
+    writes them as a change queue naming the issue — the job of `change-requirements` given the issue's number as its
+    parameter `issue` and the person's own source as its parameter `source`, which `personSource` names for
+    `personAccount`'s account among the product's links and the instance's register, or, without one, the steps its
+    precondition names —; *Move to backlog* with the item prefilled — its fields checked in a
     form while the person edits them —; *Add*, which writes the item and the issue's comment and label with
     `moveToBacklog`, or names the comment to copy
     when the token may not comment; closing an issue with links once its pull request is merged.
@@ -144,8 +152,8 @@ person reviews it. Its formats are those of the modules it uses.
 
 It writes nothing in a repository itself: every decision is one call of Issues and mail, of the writer of a kind
 through MOD-job-runner, or of the host — an issue's state, its labels, a note offered again. It writes a job's start
-record through MOD-runtimes. It reads the product's issues, snapshot and resources, the mailbox through its route, and the
-instance's participants.
+record through MOD-runtimes. It reads the product's issues, snapshot, resources and links, the mailbox through its route, and the
+instance's participants and source register.
 
 ## Uses
 
@@ -185,11 +193,15 @@ instance's participants.
 - MOD-issue-handling.confirmClass, MOD-issue-handling.backlogItemFrom, MOD-issue-handling.moveToBacklog,
   MOD-issue-handling.closeWithLinks — every decision on an issue.
 - MOD-work-plans.backlogFindings — the item's marks while the person edits it; MOD-spec-changes.queues — the change's
-  queue entries an item realises.
+  queues, those whose `issue` is this issue of this product; MOD-spec-changes.entryView — the requirements each of their
+  entries changes or adds, its `impact`, which the item realises, given to `backlogItemFrom`.
+- MOD-source-register.sourceSchemas, MOD-source-register.personSource, MOD-source-register.personAccount — the product's
+  links file and the instance's register, and in them the person's own source, the parameter `source` of a change.
 - MOD-participant-list.participantSchema, MOD-participant-list.participantsOf, MOD-participant-list.eligible — the
   participants of the register, and who may analyse, fix, propose, rewrite, check or draft.
 - MOD-job-catalogue.kindOf, MOD-job-runner.prepareJob — the run panels; MOD-job-runner.writeResult — the drafted change
   written on the person's click; MOD-job-ledger.newJobId, MOD-runtimes.routesFor, MOD-runtimes.queueJob,
   MOD-runtimes.runOnTab, MOD-runtimes.liveState — running the kinds of this page on their routes.
 - MOD-issue-handling.issueStrategies, MOD-mail-handling.mailStrategies, MOD-personal-data.privacyStrategies,
-  MOD-spec-changes.specStrategies, MOD-runtimes.routeStrategies — the strategies of its kinds, handed to the frame.
+  MOD-spec-changes.specStrategies, MOD-source-register.sourceStrategies, MOD-runtimes.routeStrategies — the strategies
+  of its kinds, handed to the frame.
