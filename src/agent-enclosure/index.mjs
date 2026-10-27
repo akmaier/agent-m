@@ -19,7 +19,8 @@ import { seatbeltProfile } from "./seatbelt.mjs";
 const SANDBOX_EXEC = "/usr/bin/sandbox-exec";
 
 /**
- * @typedef {import("../agent-processes/index.mjs").Enclosure & { home: string,
+ * AgentEnclosure — MOD-agent-processes' Enclosure ({ wrap }) and:
+ * @typedef {{ wrap: Function, home: string,
  *   works(): Promise<{ works: true } | { works: false, reason: string, setup: string }>,
  *   prepare(at: { writable: string[], readable: string[] }): Promise<void>,
  *   setUp(): Promise<{ done: boolean, reason: string | null }>,
