@@ -38,6 +38,7 @@ function rowOf(cells) {
     login: json(cells["Login check"], "Login check"),
     keyVariable: cells["Key variable"] ?? null,
     endpoint: cells.Endpoint == null ? null : json(cells.Endpoint, "Endpoint"),
+    keyHolder: cells["Key holder"] == null || cells["Key holder"] === "—" ? null : json(cells["Key holder"], "Key holder"),
     install: { macos: cells["Install macos"], windows: cells["Install windows"], linux: cells["Install linux"] },
   };
 }
@@ -116,6 +117,16 @@ export function agentDriver(agent, options, participant) {
     usage: usageFor,
     ownLoginEnvironment,
   });
+}
+
+/**
+ * keyProvider(keyVariable: string | null) -> { kind: "openai-compatible" | "anthropic", baseUrl: string } | null — the provider a key in that variable is for: the
+ * Key holder of the supported agent whose Key variable it is, the address to which a key holder forwards that agent's requests (NO MODEL READS A CREDENTIAL); null
+ * where no agent reads its key from that variable or the agent cannot be redirected to a key holder. Pure.
+ */
+export function keyProvider(keyVariable) {
+  const row = rows.find((candidate) => candidate.keyVariable === keyVariable && candidate.keyHolder);
+  return row ? { kind: row.keyHolder.kind, baseUrl: row.keyHolder.baseUrl } : null;
 }
 
 /**

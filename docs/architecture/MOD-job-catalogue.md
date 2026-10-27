@@ -82,7 +82,7 @@ built into MOD-job-runner.
 | Kind | Serves | Participant needs | Preconditions | Recipes | Checks | Reviewers | Steps | Review · writer | Draft it expects |
 |---|---|---|---|---|---|---|---|---|---|
 | `derive-requirements` | UC-005 | draft text | | `source-excerpt`, `spec-with-queues`, `chapters-for-requirements` | `requirement-form`, `candidate-classes` | | | `person` · `queue-entries` | candidates: name, rule, check, what it constrains, source passage — and the source of a rule it points to, where that is not the job's —, class |
-| `change-requirements` | UC-019, UC-012, UC-049 | draft text | `person-source` | `instruction`, `conversation`, `draft?`, `named-requirements`, `spec-with-queues`, `chapters-for-requirements` | `requirement-form`, `candidate-classes` | | | `person` · `queue-entries` | the same |
+| `change-requirements` | UC-019, UC-012, UC-049 | draft text | `person-source` | `instruction`, `conversation`, `draft?`, `issue-context?`, `named-requirements`, `spec-with-queues`, `chapters-for-requirements` | `requirement-form`, `candidate-classes` | | | `person` · `queue-entries` | the same |
 | `derive-use-cases` | UC-007 | draft text | `rests-on-accepted` | `chosen-requirements`, `use-cases`, `chapters-for-requirements` | `document-schema`, `graph-checks`, `candidate-classes` | | | `none` · `open-files` | files |
 | `change-use-case` | UC-019, UC-049 | draft text | | `instruction`, `conversation`, `draft?`, `use-case-with-neighbours`, `chapters-for-requirements` | `document-schema`, `graph-checks`, `identifier-kept` | | | `person` · `open-files` | files |
 | `derive-architecture` | UC-022 | draft text | `architecture-ready` | `whole-spec`, `accepted-use-cases`, `chapters-for-architecture` | `document-schema`, `graph-checks`, `candidate-classes` | `review-architecture` × 1 | `due-diligence` | `person` · `open-files` | files |
@@ -132,8 +132,8 @@ checkout as a coding agent does, with no number of calls that ends it; only the 
 tool's capability is besides *use tools*, which a drafter must declare to be offered any tool at all.
 
 For a kind of `review: person`, the click that lets the result go on is the one its use case names: *Write proposals*
-(UC-005, UC-022), *Save* (UC-023), *Save plan* (UC-045), *Add to backlog* (UC-032) — each through MOD-job-runner's
-`writeResult`, which runs the kind's steps and its writer on the draft as the person left it —, *Save* of a draft of the
+(UC-005, UC-022), *Save* (UC-023), *Save plan* (UC-045), *Add to backlog* (UC-032), *Save* of a change from an issue
+(UC-012) — each through MOD-job-runner's `writeResult`, which runs the kind's steps and its writer on the draft as the person left it —, *Save* of a draft of the
 conversation (UC-019, UC-049), which saves the draft as UC-018 saves an edit, so that the kind's writer writes a change by prompt only
 where nobody attends (UC-019 6b, UC-049 4f) — for `converse`, `proposed-edits` (MOD-job-runner), which writes the
 edits as a pull request —, and *Write tests*
@@ -151,7 +151,10 @@ latter for tests that pass before any code exists (UC-024, UC-034); for `write-t
 A job of `change-requirements` takes as its parameter `source` the own source of the person who starts it — the linked
 register entry that MOD-source-register's `personSource` names for their account —, so that every requirement it drafts
 names that person among its sources (`THE PERSON WHO PROMPTS IS A SOURCE`); its precondition `person-source`
-(MOD-spec-changes) keeps a job without one from starting, wherever it runs.
+(MOD-spec-changes) keeps a job without one from starting, wherever it runs. A job of `change-requirements` started from
+an issue takes as its parameter `issue` that issue's number, as `analyse-issue` and `fix-bug` do: its recipe
+`issue-context?` gives the issue with what it touches, and its writer names the issue as the origin of the queue it
+writes (UC-012 step 6); a job without the parameter `issue`, a change by prompt, gets no part of that recipe.
 
 A follow-up asked for on the review pages' route `draft` hands `change-requirements`, `change-use-case` and
 `change-architecture` the conversation's draft as it stands as their `draft`, so that the participant changes that

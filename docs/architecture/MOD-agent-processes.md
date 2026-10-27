@@ -18,6 +18,7 @@ provides:
   - Enclosure
   - installedAgents
   - agentDriver
+  - keyProvider
   - testAgent
   - stopTree
 ---
@@ -30,7 +31,8 @@ opencode —: which of them are installed on the machine it runs on, with their 
 AGENTS`), and how to run one as a participant: the driver that gives an agent its task in a working folder, streams its
 output, and stops it on a cancel. The agent works with the login it already has on the machine (`A LOCAL AGENT USES THE
 PERSON'S OWN LOGIN`); in CI it reads its key from the environment variable the CI fills from the secret the participant
-names (`A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET`). It runs in Node only — inside the Bridge and in the
+names (`A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET`), or, where CI runs it as the model's own user, reaches
+its provider through the key holder with no key of its own (`NO MODEL READS A CREDENTIAL`). It runs in Node only — inside the Bridge and in the
 Workflows — and keeps nothing but the processes it started.
 
 ## Parts
@@ -54,6 +56,7 @@ Workflows — and keeps nothing but the processes it started.
 | Login check | how it is asked, harmlessly, whether it is logged in, and the agent's own login step (`login`), the command a person runs to log in |
 | Key variable | the environment variable from which it reads a key, used only in CI |
 | Endpoint | how it is made to work with a model endpoint of the kind OpenAI-compatible or Anthropic — the options or settings that name the endpoint's address and model —, or `—` where it cannot |
+| Key holder | the provider a key in its Key variable is for — its kind and address — and the options or settings that send its requests to a key holder in its place, `{keyHolder}`, with a placeholder, `{placeholder}`, as its key (`NO MODEL READS A CREDENTIAL`): Claude Code's `ANTHROPIC_BASE_URL`, Codex's `openai_base_url` given with `-c`; `—` where it cannot be, as opencode, which names no key variable of its own and whose provider Agent M does not know without an endpoint |
 | Install | the vendor's installation page for each platform (`THE BRIDGE GUIDES THE INSTALLATION OF A MISSING AGENT`) |
 
 The exact commands and options are data in this register, not code, so a changed CLI is a changed row. The prompt is
@@ -77,9 +80,13 @@ never an argument: it is written to the agent's standard input, so no size of a 
   for a password (UC-044). With an enclosure, both commands run inside it, in `workdir`, so that *installed* and *logged
   in* are said of the agent as it will run. Starts only the commands of the register's Version and Login check columns;
   changes nothing.
+- `keyProvider(keyVariable: string | null) -> { kind: "openai-compatible" | "anthropic", baseUrl: string } | null` — the
+  provider a key in that variable is for, from the Key holder of the agent whose Key variable it is; `null` where no agent
+  reads its key from it or that agent's Key holder is `—`. A key holder for that provider stands in for it (MOD-workflow-entries,
+  *The model's user*).
 - `agentDriver(agent: Agent, options: { workdir: string, keyVariable: string | null, endpoint: { kind:
-  "openai-compatible" | "anthropic", baseUrl: string, model: string } | null, enclosure?: Enclosure, writable?: string[]
-  }, participant: Participant) -> Driver` — a
+  "openai-compatible" | "anthropic", baseUrl: string, model: string } | null, keyHolder?: string | null, enclosure?:
+  Enclosure, writable?: string[] }, participant: Participant) -> Driver` — a
   driver whose `send` starts the agent in the working folder and writes `driverPrompt(input)`, its task, to the agent's
   standard input — where `endpoint` is
   given, made to work with that endpoint as the register's Endpoint column says, its key from `keyVariable` — CI does not
@@ -93,9 +100,12 @@ never an argument: it is written to the agent's standard input, so no size of a 
   (`A HOSTED JOB WRITES WITH THE PERSON'S TOKEN FROM A CI SECRET`), on a Bridge an outbox the Bridge pushes from with the
   computer's own login (MOD-bridge-jobs). Outside CI, `keyVariable` is `null`: the command carries no
   key and no key variable. In CI, `keyVariable` names the variable the CI filled from the participant's secret; this
-  module never sees or passes the value. An abort of the signal stops the agent and every process it started, before
-  anything further is pushed. It throws `AgentMissing`, `EndpointUnsupported`, `AgentNotLoggedIn`, `AgentFailed { exitCode, lastOutput }` and
-  `Cancelled`.
+  module never sees or passes the value. With `keyHolder`, the address of a key holder on the model's user's side of a
+  CI machine, the agent inherits no declared key variable and is started with its row's Key holder options — its requests
+  go to that address, its key variable holds a placeholder —, so that no key is in its environment; an agent whose Key
+  holder is `—` refuses it with `KeyHolderUnsupported`, before it starts. An abort of the signal stops the agent and every
+  process it started, before anything further is pushed. It throws `AgentMissing`, `EndpointUnsupported`,
+  `KeyHolderUnsupported`, `AgentNotLoggedIn`, `AgentFailed { exitCode, lastOutput }` and `Cancelled`.
 - `stopTree(child: ChildProcess, signal?: string) -> Promise<void>` — sends `signal`, `SIGKILL` where none is given, to the
   process group of a child started detached, so that every process it started receives it; on Windows it ends the
   child's tree with `taskkill`, whatever the signal. A group that is already gone is no failure. The driver stops an agent
