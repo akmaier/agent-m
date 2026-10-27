@@ -136,7 +136,9 @@ person reviews it. Its formats are those of the modules it uses.
     its confirmation repeating recipient and subject; a reply sent but not noted, its note offered again; *No reply*; *Ask
     the reporter* — a question drafted with *Draft question*, the run panel of `draft-replies` with the person's point as
     its parameter `question`, or written by hand — and *Send and wait*; removing the label `waiting-for-reporter`; *Reopen* and *Leave closed* for a mail
-    that arrived in a closed issue's thread; *Close and reply*.
+    that arrived in a closed issue's thread; *Close and reply*. Where the mailbox's last test (`last-test:mailbox`) found
+    that sending does not work — its `sending` other than `"works"` —, the page says so, with the reason, beside *Send*
+    and *Send and wait*, and offers both as before (UC-037 7d).
 
   Each route gives the prompt bar its subject (UC-049 3b): on a route that shows mail, the
   page a participant is given holds the text of a mail, its sender and its attachments only for a participant whose
@@ -161,7 +163,8 @@ instance's participants and source register.
   the dialog of every send, and the form of a backlog item.
 - MOD-markdown-render.renderArtifact, MOD-markdown-render.openEditor — issues, mails and drafts, and their editing.
 - MOD-prompt-bar.Subject — the subject its routes give the prompt bar.
-- MOD-browser-store.readSetting — the mailbox connection, the endpoints' configurations and the Bridges' settings;
+- MOD-browser-store.readSetting — the mailbox connection and its last test, the endpoints' configurations and the
+  Bridges' settings;
   MOD-bridge-client.bridgeAt — a handle for each Bridge, handed to the runtimes.
 - MOD-repository-hosts.parseAddress, MOD-repository-hosts.connect — the hosts of the instance's products, whose issues a
   mail may concern; MOD-repository-hosts.readSnapshot, MOD-repository-hosts.repositoryInfo,
