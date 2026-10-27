@@ -67,7 +67,7 @@ FOR CHANGE`). It runs unchanged in a browser and in Node; it reads only its own 
 | `writer` | a strategy name | what writes the result |
 | `limit` | a number | the default number of correction rounds, fixed before the first round |
 | `tools` | tool names of `tools.md` | the tools its drafter may be offered, each only where the drafter declares its capability (MOD-job-runner's `ToolUse`) |
-| `tool_limit` | a number | the most tool calls of one exchange with the drafter |
+| `tool_limit` | a number, or left out | the most tool calls of one exchange with the drafter; left out, no number of calls ends the exchange |
 
 Its body is one section, `## Purpose`, saying in a paragraph what the kind does. The prompt is data: plain text with
 named places for the parts, never code. The answer's schema is a small JSON description — `type`, `properties`,
@@ -127,8 +127,8 @@ proposes a hand-over in its answer as the tool would hold it; `change-requiremen
 and `hand-over`, since their draft is their answer and a change of them may still be handed to CI (UC-019 6b). The kinds
 that change code or run tests — `implement`, `refactor`, `fix-bug`, `write-tests`, `propose-tests`, `run-tests` and
 `check-resource` — name the seven tools of MOD-checkout-tools, `read`, `write`, `edit`, `bash`, `grep`, `glob` and
-`webfetch`, rows of `tools.md` too, with a `tool_limit` of 200, so that a model endpoint does their work in the job's
-checkout; only a program in Node registers those tools. A tool's capability is besides *use tools*, which a drafter must declare to be offered
+`webfetch`, rows of `tools.md` too, and no `tool_limit`, so that a model endpoint does their work in the job's
+checkout as a coding agent does, with no number of calls that ends it; only a program in Node registers those tools. A tool's capability is besides *use tools*, which a drafter must declare to be offered
 any tool at all.
 
 For a kind of `review: person`, the click that lets the result go on is the one its use case names: *Write proposals*
@@ -207,9 +207,10 @@ decisions, the module files, the further decisions.
 - `KindDefinition` — `{ name: string, serves: string[], participant: "one" | "none", needs: Capability[], resources: "none"
   | "product", preconditions: string[], recipes: { name: string, optional: boolean }[], checks: string[], personDecides:
   string[], reviewer: string | null, reviewers: number, steps: string[], gatePoints: ("before-write" | "before-merge" |
-  "question")[], review: "person" | "none", writer: string, limit: number, tools: string[], toolLimit: number, purpose:
-  string, prompt: string, answer: object | null }`: a definition as read, its prompt and the schema of its draft loaded with it; for a kind without a
-  participant, which has neither, `prompt` is `""` and `answer` is `null`.
+  "question")[], review: "person" | "none", writer: string, limit: number, tools: string[], toolLimit: number | null,
+  purpose: string, prompt: string, answer: object | null }`: a definition as read, its prompt and the schema of its draft loaded with it; for a kind without a
+  participant, which has neither, `prompt` is `""` and `answer` is `null`; `toolLimit` is `null` where the definition
+  leaves `tool_limit` out.
 - `ToolDefinition` — `{ name: string, needs: Capability, description: string, input: object }`: one row of `tools.md`,
   its argument schema read from its JSON.
 - `toolsOf(names: string[]) -> Promise<ToolDefinition[]>` — the named tools, in the order named. Throws `UnknownTool {

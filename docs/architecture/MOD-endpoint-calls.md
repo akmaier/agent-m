@@ -92,12 +92,14 @@ address and is never written anywhere (`A CREDENTIAL IS NEVER PLACED IN A URL`, 
     offered tool's is read as that tool's.
   - **The same call three times in a row** — the same tool with the same arguments — is not carried out the third time;
     its result says so and asks for other arguments or another way.
-  - **The limit.** It makes at most `tools.limit` calls, a refused one counted; at the limit it asks the endpoint once more
-    without offering tools, adding opencode's maximum-steps text, which asks for a summary of what is done and what remains.
+  - **The limit.** Where `tools.limit` is a number, it makes at most that many calls, a refused one counted; at the limit
+    it asks the endpoint once more without offering tools, adding opencode's maximum-steps text, which asks for a summary
+    of what is done and what remains. Where it is `null`, no number of calls ends the loop: it ends when the endpoint
+    answers without a call, or with a cancel through the signal.
   - **The output limit.** Every request of the loop asks for at most 32000 tokens, or, for a participant with a declared
     `context`, at most what the context leaves. An answer the endpoint ended at that limit — finish reason `length`, stop
     reason `max_tokens` — is followed by a message that tells it so and asks it to continue where it stopped or to make
-    smaller edits; the continuation counts as one call of the limit, and the answer returned is the parts joined.
+    smaller edits; the continuation counts as one call of the limit, where there is one, and the answer returned is the parts joined.
   - **A full context.** For a participant with a declared `context`, each message's size estimated as MOD-job-runner's
     `estimate` does: once what the conversation uses leaves less than a quarter of the context, at most 32000 tokens, the
     oldest tool results beyond the newest 40000 tokens of them are replaced by the visible marker `[old tool result

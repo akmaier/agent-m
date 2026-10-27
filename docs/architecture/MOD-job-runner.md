@@ -208,10 +208,10 @@ ONLY WHEN RECORDING IS ON`).
   the first exchange of a job given `refine`, no finding and the draft to change —; for an agent that works in a
   folder, that folder; and `tools`, a `ToolUse` or `null`.
 - `ToolUse` — `{ definitions: { name: string, description: string, input: object }[], call(name: string, args:
-  Record<string, unknown>) -> Promise<string>, limit: number }`: the tools offered to the drafter of this exchange, read
+  Record<string, unknown>) -> Promise<string>, limit: number | null }`: the tools offered to the drafter of this exchange, read
   from MOD-job-catalogue's tools; `call` carries one call out through the tool's strategy, and answers a tool that is not
   offered, or arguments its schema refuses, with a refusal the participant reads; `limit` the most calls of one exchange,
-  the kind's `tool_limit`. The runner gives it only to a drafter that declares *use tools* and is a model endpoint —
+  the kind's `tool_limit`, or `null` where the kind states none. The runner gives it only to a drafter that declares *use tools* and is a model endpoint —
   called directly, or through the Bridge its configuration names, the loop running in the program either way —, offering
   only the tools whose capability the drafter declares, that a program registered — a browser registers none of
   MOD-checkout-tools' —, and that the job's parameter `refuses` does not name — the page's subject's (MOD-prompt-bar), or
