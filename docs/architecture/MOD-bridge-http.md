@@ -50,7 +50,7 @@ routes: ("ci" | "bridge")[] } }`. These fields are the Bridge API's own wire for
 
 | Method and path | Request | Answer | Handler |
 |---|---|---|---|
-| `GET /v1/pair` | — | `{ bridge: { name, version, platform }, origin }` — the Bridge's name, the release it runs or `null`, its platform, and the instance's Pages origin it answers | the server itself |
+| `GET /v1/pair` | — | `{ bridge: { name, version, platform }, origin }` | the server itself |
 | `GET /v1/agents` | — | `{ agents: [{ name, version, ready, loggedIn }], missing: [{ name }] }` — the agents the Bridge offers, and the supported agents missing on its computer | jobs |
 | `POST /v1/jobs` | `{ product, record, commit, task? }` — a job handed over: the product's address, the path of its start record and the commit that holds it, and, for a job whose task travels with the hand-over, that task | `{ accepted }` — the job's identifier | jobs |
 | `GET /v1/jobs` | — | `{ jobs: [{ id, product, kind, agent, state, started, usage }] }` | jobs |
