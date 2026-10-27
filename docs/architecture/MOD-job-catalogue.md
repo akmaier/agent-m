@@ -128,7 +128,7 @@ and `hand-over`, since their draft is their answer and a change of them may stil
 that change code or run tests — `implement`, `refactor`, `fix-bug`, `write-tests`, `propose-tests`, `run-tests` and
 `check-resource` — name the seven tools of MOD-checkout-tools, `read`, `write`, `edit`, `bash`, `grep`, `glob` and
 `webfetch`, rows of `tools.md` too, and no `tool_limit`, so that a model endpoint does their work in the job's
-checkout as a coding agent does, with no number of calls that ends it; only a program in Node registers those tools. A
+checkout as a coding agent does, with no number of calls that ends it; only the Workflows register those tools. A
 tool's capability is besides *use tools*, which a drafter must declare to be offered any tool at all.
 
 For a kind of `review: person`, the click that lets the result go on is the one its use case names: *Write proposals*
