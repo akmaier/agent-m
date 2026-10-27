@@ -136,9 +136,10 @@ person reviews it. Its formats are those of the modules it uses.
     its confirmation repeating recipient and subject; a reply sent but not noted, its note offered again; *No reply*; *Ask
     the reporter* — a question drafted with *Draft question*, the run panel of `draft-replies` with the person's point as
     its parameter `question`, or written by hand — and *Send and wait*; removing the label `waiting-for-reporter`; *Reopen* and *Leave closed* for a mail
-    that arrived in a closed issue's thread; *Close and reply*. Where the mailbox's last test (`last-test:mailbox`) found
-    that sending does not work — its `sending` other than `"works"` —, the page says so, with the reason, beside *Send*
-    and *Send and wait*, and offers both as before (UC-037 7d).
+    that arrived in a closed issue's thread; *Close and reply*. Where the mailbox's last test (`last-test:mailbox`)
+    recorded a `sending` other than `"works"` — present, and naming why sending does not work —, the page says so, with
+    that reason, beside *Send* and *Send and wait*, and offers both as before (UC-037 7d); a record without `sending`
+    says nothing about sending.
 
   Each route gives the prompt bar its subject (UC-049 3b): on a route that shows mail, the
   page a participant is given holds the text of a mail, its sender and its attachments only for a participant whose
