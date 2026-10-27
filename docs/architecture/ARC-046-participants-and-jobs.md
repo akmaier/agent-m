@@ -138,10 +138,10 @@ every subsystem and both programs, that interprets every kind of job from data**
   request of its loop through the Bridge —; a coding agent works with its own tools. A proposed edit and a proposed
   hand-over are held for a person; nothing a tool of the tab does writes to a repository, and a hand-over is queued only
   on the person's click, where Process's start rules let it start (`THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK`). A
-  model endpoint that works in the checkout of a job's product — in CI or on a Bridge — works in that same loop with the
-  tools a coding agent has, ported from opencode: reading, writing and editing files, running commands, searching, and
-  fetching a page (MOD-checkout-tools). Those tools run in Node only, so only the Workflows and the Bridge register them;
-  the tab keeps its tools that only read.
+  model endpoint that works in the checkout of a job's product — in CI — works in that same loop with the tools a coding
+  agent has, ported from opencode: reading, writing and editing files, running commands, searching, and fetching a page
+  (MOD-checkout-tools). Those tools run in Node only, so only the Workflows register them; the tab keeps its tools that
+  only read.
 - **A conversation is a job without a record.** A message of the prompt bar (UC-049) runs as a job in the tab — of the
   kind its page names, with every rule on jobs — and leaves no job record (`A JOB IS RECORDED IN ITS PRODUCT
   REPOSITORY`). Work it cannot do in the tab — running code or tests, changing code, reaching the web — is proposed
@@ -232,8 +232,8 @@ schemas are read by MOD-documents (ARC-048).
 
 - **opencode working with the model endpoint for its work in CI.** Rejected: the job's loop, its tools and their limits
   would be another program's, installed on every runner and stated in none of Agent M's data or tests, while Agent M
-  already runs an endpoint's loop in the tab; one loop with tools ported from what opencode does serves the tab, CI and
-  a Bridge (`ONE DEFINITION, THREE DRIVERS`, `KEEP IT SIMPLE`). A CLI session on a Bridge keeps its own agent.
+  already runs an endpoint's loop in the tab; one loop with tools ported from what opencode does serves the tab and CI
+  (`ONE DEFINITION, THREE DRIVERS`, `KEEP IT SIMPLE`). A CLI session on a Bridge keeps its own agent.
 - **The checkout tools in MOD-job-runner or MOD-endpoint-calls.** Rejected: both run unchanged in a browser, where no
   command can run and no checkout exists; tools that need Node are a module of their own, whose strategies only the
   programs in Node register, as every module offers its strategies.

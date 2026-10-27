@@ -237,8 +237,8 @@ ONLY WHEN RECORDING IS ON`).
   — on a Bridge the instance at the job's `agent_m` commit in the offered agent's working folder (MOD-bridge-jobs), in
   CI the job workflow's checkout of the instance —, from which the instance's `snapshot` is then read; it is `null` in a
   browser. `product.checkout` is the folder of a checkout of the product in which a model endpoint's tools work
-  (MOD-checkout-tools) — in CI the job workflow's checkout of the product, on a Bridge the job's working clone —; absent
-  or `null` where there is none, in a browser always. `connect` opens another repository with the credentials of
+  (MOD-checkout-tools) — in CI the job workflow's checkout of the product —; absent or `null` where there is none, in a
+  browser and on a Bridge always. `connect` opens another repository with the credentials of
   the program — the token in a browser, the CI secret in CI, the computer's login on a Bridge; `places` gives, for every
   restricted source and for the mailbox, the places they allow, and the paths of the product that hold a restricted source's content; `gates` the gates of the product's workflow at this job's
   points, with whether their decisions are recorded.

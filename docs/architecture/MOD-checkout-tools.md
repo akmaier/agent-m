@@ -19,11 +19,11 @@ provides:
 ## Responsibility
 
 It belongs to Participants and jobs (ARC-046). It gives a model endpoint that works in the checkout of a job's product —
-in CI or on a Bridge — the tools a coding agent works with: reading, writing and editing the checkout's files, running
+in CI — the tools a coding agent works with: reading, writing and editing the checkout's files, running
 commands in it, searching it, and fetching a web page; and the prompt that names the endpoint's environment and how it
 uses those tools. Each tool is a strategy of the job runner, which carries a call out when the endpoint makes it in the
 execution loop of MOD-endpoint-calls (Vibe Coding, ch. 11). The tools are ported from opencode, under its MIT licence,
-whose notice every file that ports its code keeps. It runs in Node only: the programs that run such jobs register its
+whose notice every file that ports its code keeps. It runs in Node only: the Workflows register its
 strategies; the browser does not, and keeps the read-only tools of MOD-job-runner. It keeps nothing.
 
 ## Parts
