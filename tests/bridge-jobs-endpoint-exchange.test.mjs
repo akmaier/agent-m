@@ -112,8 +112,7 @@ test("an exchange ask of an Anthropic endpoint returns its tool_use block as a c
 // TST-497007 · level: unit · module: MOD-bridge-jobs
 // guards: A REMOTE INTERFACE NAMES HOW IT FAILS; UC-049; NO SECRET IN THE REPOSITORY
 // given: a model server that refuses the key with 401 and a message quoting the key; one that cannot be reached; known positive — one that answers
-// input: POST /v1/ask with an exchange to each; GET until it ends — for the unreachable one with this test's timers mocked and advanced, since its five
-//   retries wait 2 s to 30 s
+// input: POST /v1/ask with an exchange to each; GET until it ends — for the unreachable one with this test's timers mocked and advanced, since its five retries wait 2 s to 30 s
 // expect: the answering one is done; the refused one is { state: "failed", text: null, calls: [], usage: null } with an error naming "key refused" and the words "Incorrect API key provided: [key]." and not the key, after one request; the unreachable one is failed naming "not reachable"
 test("a refused key or an unreachable server is a failed exchange ask with the endpoint's own words and the key replaced", async (t) => {
   const good = await server(() => ({ status: 200, body: { choices: [{ message: { content: "ok" } }] } }));
