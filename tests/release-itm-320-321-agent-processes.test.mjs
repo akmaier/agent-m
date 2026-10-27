@@ -57,6 +57,7 @@ function agents(folder, record) {
     const args = process.argv.slice(2);
     if (args[0] === "--version") process.stdout.write("1.19.0\\n");
     else if (args[0] === "auth") process.stdout.write("1 credential\\n");
+    else if (args[0] === "models") process.stdout.write("opencode/big-pickle\\n");
     else { process.stdout.write(JSON.stringify({ type: "text", part: { text: "opencode answer" } }) + "\\n"); process.stdout.write(JSON.stringify({ type: "step_finish", part: { tokens: { input: 3, output: 2 } } }) + "\\n"); }
   `);
 }
