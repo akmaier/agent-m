@@ -734,6 +734,13 @@ Each repository token leaves the browser only as the authorisation header of req
 the server that issued it.
 *Check:* `tests/review-core.test.mjs`
 
+**NO MODEL READS A CREDENTIAL** *(PO A. Maier)*
+No token, key or password that Agent M, its Bridge or its CI holds reaches a model: neither in what is sent to it nor
+through a tool it calls, whether that tool reads files, the environment or the processes of the machine it works on.
+*Check:* `tests/checkout-tools-credentials.test.mjs` — in a fixture checkout whose driver holds an endpoint key and whose
+`.git/config` would hold a token, every tool's attempt to read either answers without it; counter-proof: the driver's
+request to its own endpoint still carries the key.
+
 **THE SHARED PAGES ORIGIN IS DISCLOSED** *(PO A. Maier)*
 The settings page states, before a token or key is stored, that every GitHub Pages site under the
 same `<owner>.github.io` domain can read what Agent M stores in the browser.
