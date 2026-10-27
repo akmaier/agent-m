@@ -369,7 +369,7 @@ ONLY WHEN RECORDING IS ON`).
   recipes do not name the built-in recipe `instruction`, since the task would reach none of its prompt: an error on the
   kind's name, line 1, under `THE HAND-OVER NAMES THE TASK IN ITS WORDS` — UC-049 4a's wording, which no requirement of
   the SPEC states —, its `what` naming the kind and UC-049 4a; `null` for a kind that takes the task. The one rule the
-  dashboard's hand-over (MOD-runtimes' `handOverJob`) and a CI run of a hand-over (MOD-workflow-entries' `onDispatch`, and
+  dashboard's hand-over (MOD-runtimes' `handOverJob`, and MOD-prompt-bar for one run in the tab) and a CI run of a hand-over (MOD-workflow-entries' `onDispatch`, and
   a hand-over followed in the same run) apply, so that no task is dropped silently. Pure.
 - `refusedEdit(path: string) -> string | null` — why `propose-edit` refuses a document, naming where it is changed, as
   the table under Data states; `null` for a document it holds; the writer `proposed-edits` reads it too, so that the rule stands once.

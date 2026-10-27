@@ -14,9 +14,7 @@
 // attempt and every started workflow; the global `fetch` keeps every request, and none may be made. The kinds that a hand-over prepares today are the ten whose every strategy handOverStrategies or the
 // job runner holds: change-use-case, change-requirements, derive-requirements, derive-use-cases, derive-architecture, review-architecture, implement, refactor, check-resource and converse. The others
 // (change-architecture, draft-plan, propose-items, close-sprint, decide-gate, set-up-ci, propose-tests, write-tests, run-tests, analyse-issue, fix-bug, propose-issues, rewrite-without-persons,
-// check-for-persons, draft-replies, propose-groups) name a strategy that no module builds yet and are not prepared. Of the ten, derive-requirements, derive-use-cases, derive-architecture
-// and review-architecture take no instruction: a hand-over of them, which always carries a task, is prepared and then refused by MOD-runtimes' handOverJob under
-// THE HAND-OVER NAMES THE TASK IN ITS WORDS (MOD-job-runner's taskRefusal), so that what their preparation shows is that works_on gave every parameter their strategies read. The counter-proof (a planted fault in src/prompt-bar/hand-over.mjs and the test's
+// check-for-persons, draft-replies, propose-groups) name a strategy that no module builds yet and are not prepared. The counter-proof (a planted fault in src/prompt-bar/hand-over.mjs and the test's
 // failing result) is recorded in the pull request.
 
 import test, { afterEach, beforeEach } from "node:test";
@@ -180,7 +178,6 @@ function paramsOfRecord(it) {
   return JSON.parse(section[1]);
 }
 const NEVER_GIVEN = ["source", "resource", "kind", "entry", "part"];
-const TASK_RULE = "THE HAND-OVER NAMES THE TASK IN ITS WORDS";
 const NOTHING_WRITTEN = "no commit was attempted and no workflow was started";
 const nothingWritten = (it) => assert.equal(it.product.attempts.length + it.product.starts.length + it.instance.attempts.length, 0, NOTHING_WRITTEN);
 const neverGiven = (params) => { for (const key of NEVER_GIVEN) assert.ok(!(key in params), `the bar gives no ${key}: ${JSON.stringify(params)}`); };
@@ -250,42 +247,42 @@ test("a hand-over of derive-requirements, which needs a source works_on cannot g
 });
 
 // TST-626005 · level: unit · module: MOD-prompt-bar
-// guards: UC-019; UC-049
+// guards: UC-019
 // given: the product of TST-626001
 // input: queue of derive-use-cases on the requirement EXPORT IS A PDF and the use case UC-001
-// expect: the job is prepared — requirements and useCases are what MOD-approvals' precondition rests-on-accepted and MOD-spec-changes' recipe chosen-requirements read, and no strategy refuses —
-//   and then refused as NotStartable with exactly one finding, under THE HAND-OVER NAMES THE TASK IN ITS WORDS, since derive-use-cases takes no instruction; nothing was queued: no commit, no workflow
-test("a hand-over of derive-use-cases is prepared with the parameters requirements and useCases, and refused for the task it cannot take", async () => {
+// expect: the job is queued and its record's parameters are exactly { requirements: ["EXPORT IS A PDF"], useCases: ["UC-001"], useCase: "UC-001" } — requirements and useCases are what MOD-approvals'
+//   precondition rests-on-accepted and MOD-spec-changes' recipe chosen-requirements read — with none of source, resource, kind, entry and part
+test("a hand-over of derive-use-cases is queued with the parameters requirements and useCases", async () => {
   const it = await handsOver({ kind: "derive-use-cases", works_on: [REQUIREMENT, "UC-001"] });
-  assert.equal(it.refusal?.name, "NotStartable", it.refusal?.message);
-  assert.deepEqual(it.refusal.findings.map((each) => each.rule), [TASK_RULE]);
-  nothingWritten(it);
+  assert.equal(it.refusal, undefined, it.refusal?.message);
+  assert.deepEqual(paramsOfRecord(it), { requirements: [REQUIREMENT], useCases: ["UC-001"], useCase: "UC-001" });
+  neverGiven(paramsOfRecord(it));
 });
 
 // TST-626006 · level: unit · module: MOD-prompt-bar
-// guards: UC-019; UC-049
+// guards: UC-019
 // given: the Scrum product before it has an architecture (no module file); its use cases are accepted
 // input: queue of derive-architecture on the use case UC-001
-// expect: the job is prepared — the kind's strategies (architecture-ready, whole-spec, accepted-use-cases) need none of source, resource, kind, entry and part, and none refuses — and then refused
-//   as NotStartable with exactly one finding, under THE HAND-OVER NAMES THE TASK IN ITS WORDS; nothing was queued
-test("a hand-over of derive-architecture is prepared, its strategies reading no parameter, and refused for the task it cannot take", async () => {
+// expect: the job is queued and its record's parameters are exactly { useCases: ["UC-001"], useCase: "UC-001" }; the kind's strategies (architecture-ready, whole-spec, accepted-use-cases) read none
+//   of them, and need none of source, resource, kind, entry and part, which the record lacks
+test("a hand-over of derive-architecture is queued: its strategies read no parameter", async () => {
   const it = await handsOver({ kind: "derive-architecture", works_on: ["UC-001"] }, scrumFilesWithoutArchitecture());
-  assert.equal(it.refusal?.name, "NotStartable", it.refusal?.message);
-  assert.deepEqual(it.refusal.findings.map((each) => each.rule), [TASK_RULE]);
-  nothingWritten(it);
+  assert.equal(it.refusal, undefined, it.refusal?.message);
+  assert.deepEqual(paramsOfRecord(it), { useCases: ["UC-001"], useCase: "UC-001" });
+  neverGiven(paramsOfRecord(it));
 });
 
 // TST-626007 · level: unit · module: MOD-prompt-bar
-// guards: UC-019; UC-049
+// guards: UC-019
 // given: the product of TST-626001
 // input: queue of review-architecture on the use case UC-001
-// expect: the job is prepared — the kind's strategies read only the draft, which the bar does not give — and then refused as NotStartable with exactly one finding, under THE HAND-OVER NAMES THE
-//   TASK IN ITS WORDS; nothing was queued
-test("a hand-over of review-architecture is prepared, its strategies reading no parameter the bar gives, and refused for the task it cannot take", async () => {
+// expect: the job is queued and its record's parameters are exactly { useCases: ["UC-001"], useCase: "UC-001" }; the kind's strategies read only the draft, which the bar does not give
+test("a hand-over of review-architecture is queued: its strategies read no parameter the bar gives", async () => {
   const it = await handsOver({ kind: "review-architecture", works_on: ["UC-001"] });
-  assert.equal(it.refusal?.name, "NotStartable", it.refusal?.message);
-  assert.deepEqual(it.refusal.findings.map((each) => each.rule), [TASK_RULE]);
-  nothingWritten(it);
+  assert.equal(it.refusal, undefined, it.refusal?.message);
+  assert.deepEqual(paramsOfRecord(it), { useCases: ["UC-001"], useCase: "UC-001" });
+  neverGiven(paramsOfRecord(it));
+  assert.ok(!("draft" in paramsOfRecord(it)));
 });
 
 // TST-626008 · level: unit · module: MOD-prompt-bar

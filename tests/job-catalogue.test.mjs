@@ -33,13 +33,13 @@ const ONE_DEFINITION = "ONE DEFINITION, THREE DRIVERS";
 // needs | preconditions | recipes (a name ending in ? may be left out) | checks | reviewers | steps | review · writer |
 // the draft it expects. A ~ stands where the module file writes a backtick.
 const TABLE_TEXT = `
-| ~derive-requirements~ | UC-005 | draft text | | ~source-excerpt~, ~spec-with-queues~, ~chapters-for-requirements~ | ~requirement-form~, ~candidate-classes~ | | | ~person~ · ~queue-entries~ | candidates: name, rule, check, what it constrains, source passage — and the source of a rule it points to, where that is not the job's —, class |
+| ~derive-requirements~ | UC-005 | draft text | | ~instruction?~, ~source-excerpt~, ~spec-with-queues~, ~chapters-for-requirements~ | ~requirement-form~, ~candidate-classes~ | | | ~person~ · ~queue-entries~ | candidates: name, rule, check, what it constrains, source passage — and the source of a rule it points to, where that is not the job's —, class |
 | ~change-requirements~ | UC-019, UC-012, UC-049 | draft text | ~person-source~ | ~instruction~, ~conversation~, ~draft?~, ~named-requirements~, ~spec-with-queues~, ~chapters-for-requirements~ | ~requirement-form~, ~candidate-classes~ | | | ~person~ · ~queue-entries~ | the same |
-| ~derive-use-cases~ | UC-007 | draft text | ~rests-on-accepted~ | ~chosen-requirements~, ~use-cases~, ~chapters-for-requirements~ | ~document-schema~, ~graph-checks~, ~candidate-classes~ | | | ~none~ · ~open-files~ | files |
+| ~derive-use-cases~ | UC-007 | draft text | ~rests-on-accepted~ | ~instruction?~, ~chosen-requirements~, ~use-cases~, ~chapters-for-requirements~ | ~document-schema~, ~graph-checks~, ~candidate-classes~ | | | ~none~ · ~open-files~ | files |
 | ~change-use-case~ | UC-019, UC-049 | draft text | | ~instruction~, ~conversation~, ~draft?~, ~use-case-with-neighbours~, ~chapters-for-requirements~ | ~document-schema~, ~graph-checks~, ~identifier-kept~ | | | ~person~ · ~open-files~ | files |
-| ~derive-architecture~ | UC-022 | draft text | ~architecture-ready~ | ~whole-spec~, ~accepted-use-cases~, ~chapters-for-architecture~ | ~document-schema~, ~graph-checks~, ~candidate-classes~ | ~review-architecture~ × 1 | ~due-diligence~ | ~person~ · ~open-files~ | files |
+| ~derive-architecture~ | UC-022 | draft text | ~architecture-ready~ | ~instruction?~, ~whole-spec~, ~accepted-use-cases~, ~chapters-for-architecture~ | ~document-schema~, ~graph-checks~, ~candidate-classes~ | ~review-architecture~ × 1 | ~due-diligence~ | ~person~ · ~open-files~ | files |
 | ~change-architecture~ | UC-023, UC-049 | draft text | ~rests-on-accepted~ | ~instruction~, ~conversation~, ~draft?~, ~whole-spec~, ~use-cases~, ~whole-architecture~, ~chapters-for-architecture~ | ~document-schema~, ~graph-checks~, ~identifier-kept~, ~candidate-classes~ | ~review-architecture~ × 1 | ~due-diligence~ | ~person~ · ~open-files~ | files |
-| ~review-architecture~ | UC-022, UC-023 | draft text | | ~whole-spec~, ~accepted-use-cases~, ~draft~, ~chapters-for-architecture~ | | | | ~none~ · ~return-draft~ | findings, each a warning |
+| ~review-architecture~ | UC-022, UC-023 | draft text | | ~instruction?~, ~whole-spec~, ~accepted-use-cases~, ~draft~, ~chapters-for-architecture~ | | | | ~none~ · ~return-draft~ | findings, each a warning |
 | ~propose-groups~ | UC-021 | draft text | | ~items-of-kind~ | ~group-rules~ | | | ~none~ · ~return-draft~ | moves, each a ~GroupMove~ of MOD-group-document |
 | ~draft-plan~ | UC-045 | draft text | ~rests-on-accepted~ | ~architecture-and-model~ | ~plan-checks~ | | | ~person~ · ~plan-steps~ | steps |
 | ~propose-items~ | UC-032 | draft text | ~rests-on-accepted~ | ~backlog-inputs~ | ~backlog-checks~, ~candidate-classes~ | | | ~person~ · ~backlog-items~ | items |
@@ -261,13 +261,13 @@ test("kindOf — a definition at odds with the definition schema, or not named a
 // guards: ONE DEFINITION, THREE DRIVERS
 // given: the module loaded anew with a disk that gives derive-requirements' definition with its recipe source-excerpt written `source-excerpt?` — a part that may be left out with its reason, as the module file's Data says
 // input: kindOf("derive-requirements")
-// expect: its recipes read as source-excerpt that may be left out, then the others as they stand
+// expect: its recipes read as instruction and source-excerpt, each a part that may be left out, then the others as they stand
 test("kindOf — a recipe whose name ends with ? is read as one whose part may be left out", async () => {
   const path = "kinds/derive-requirements/kind.md";
   const real = readFileSync(new URL(path, new URL("../src/job-catalogue/", import.meta.url)), "utf8");
   assert.ok(real.includes("\n  - source-excerpt\n"), "known positive: the definition lists source-excerpt");
   const { module } = await load({ disk: diskWith(path, real.replace("\n  - source-excerpt\n", "\n  - source-excerpt?\n")) });
-  assert.deepEqual((await module.kindOf("derive-requirements")).recipes, [{ name: "source-excerpt", optional: true },
+  assert.deepEqual((await module.kindOf("derive-requirements")).recipes, [{ name: "instruction", optional: true }, { name: "source-excerpt", optional: true },
     { name: "spec-with-queues", optional: false }, { name: "chapters-for-requirements", optional: false }]);
 });
 
