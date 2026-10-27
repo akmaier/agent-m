@@ -90,11 +90,9 @@ test("TST-1241002: a tool name in the wrong case is lower-cased and carried out"
 
 // TST-1241003 · level: unit · module: MOD-endpoint-calls
 // guards: UC-049
-// given: an OpenAI-compatible endpoint that calls read_file on a.md in each of its first three answers, then answers "done"; and one that calls a.md, a.md,
-//   b.md, a.md, then answers "done"
+// given: an OpenAI-compatible endpoint that calls read_file on a.md in each of its first three answers, then answers "done"; and one that calls a.md, a.md, b.md, a.md, then answers "done"
 // input: send with tools of limit 10 to each
-// expect: first: a.md is carried out twice; the third call's tool turn is "refused: read_file was called with the same arguments 3 times in a row; it is not
-//   run again. Change the arguments or take another way."; known positive: second: no call is refused and read_file is carried out four times
+// expect: first: a.md is carried out twice; the third call's tool turn is "refused: read_file was called with the same arguments 3 times in a row; it is not run again. Change the arguments or take another way."; known positive: second: no call is refused and read_file is carried out four times
 test("TST-1241003: the same call three times in a row is refused, not run", async (t) => {
   const log = [];
   const bodies = provider(t, [1, 2, 3].map((n) => openai({ calls: [{ id: `c${n}`, path: "a.md" }] })).concat([openai({ text: "done" })]));
@@ -123,11 +121,9 @@ test("TST-1241004: at the call limit the last request carries opencode's maximum
 
 // TST-1241005 · level: unit · module: MOD-endpoint-calls
 // guards: UC-049
-// given: an OpenAI-compatible endpoint whose first answer is "Part one, " with finish_reason length, then "part two." with finish_reason stop; an Anthropic
-//   endpoint whose first answer is "Half " with stop_reason max_tokens, then "whole." with end_turn
+// given: an OpenAI-compatible endpoint whose first answer is "Part one, " with finish_reason length, then "part two." with finish_reason stop; an Anthropic endpoint whose first answer is "Half " with stop_reason max_tokens, then "whole." with end_turn
 // input: send with tools to each
-// expect: OpenAI: request 2 ends with the assistant's "Part one, " and the user message of the cut; the answer is "Part one, part two."; Anthropic: request 2's
-//   last user turn holds the text of the cut; the answer is "Half whole."; known positive: an answer ended by stop is returned without a further request
+// expect: OpenAI: request 2 ends with the assistant's "Part one, " and the user message of the cut; the answer is "Part one, part two."; Anthropic: request 2's last user turn holds the text of the cut; the answer is "Half whole."; known positive: an answer ended by stop is returned without a further request
 test("TST-1241005: an answer cut off at the output limit is continued", async (t) => {
   const bodies = provider(t, [openai({ text: "Part one, ", finish: "length" }), openai({ text: "part two." })]);
   assert.equal((await endpointDriver(OPENAI, PARTICIPANT).send(input(toolUse()))).text, "Part one, part two.");
@@ -201,11 +197,9 @@ test("TST-1241008: a rate limit and a server error are retried after the time th
 
 // TST-1241009 · level: unit · module: MOD-endpoint-calls
 // guards: UC-049; AN UNSUPPORTED ENDPOINT SAYS SO
-// given: a model server that answers every request 502 "Bad gateway." with retry-after-ms 0; one that answers 400 "This model's maximum context length is 8192
-//   tokens."; one that answers 500 with that same message
+// given: a model server that answers every request 502 "Bad gateway." with retry-after-ms 0; one that answers 400 "This model's maximum context length is 8192 tokens."; one that answers 500 with that same message
 // input: send with tools to each
-// expect: the first fails with EndpointFailed, reason "endpoint error", message "Bad gateway.", after six requests — the request and five retries; the second and
-//   the third fail with reason "too long" after one request each — a context overflow is never retried
+// expect: the first fails with EndpointFailed, reason "endpoint error", message "Bad gateway.", after six requests — the request and five retries; the second and the third fail with reason "too long" after one request each — a context overflow is never retried
 test("TST-1241009: five retries at most, and none for a context overflow", async (t) => {
   const failing = await modelServer(t, () => ({ status: 502, headers: { "retry-after-ms": "0" }, body: { error: { message: "Bad gateway." } } }));
   await assert.rejects(endpointDriver(failing.config, PARTICIPANT).send(input(toolUse())), (error) => error.name === "EndpointFailed"
@@ -240,11 +234,9 @@ test("TST-1241010: a network error is retried after 2 s with up to 25 % jitter",
 
 // TST-1241011 · level: unit · module: MOD-endpoint-calls
 // guards: UC-049
-// given: a participant with a context of 120000 tokens; an endpoint that calls read_file on f1.md … f9.md, one per answer, each file 30000 characters
-//   (10000 tokens as estimated), then answers "done"
+// given: a participant with a context of 120000 tokens; an endpoint that calls read_file on f1.md … f9.md, one per answer, each file 30000 characters (10000 tokens as estimated), then answers "done"
 // input: send with tools of limit 20
-// expect: the tenth request's tool turns for f1 … f5 read "[old tool result cleared]" and those for f6 … f9 their files' text — the newest 40000 tokens kept;
-//   known positive: the ninth request still holds every file's text, the context not yet full
+// expect: the tenth request's tool turns for f1 … f5 read "[old tool result cleared]" and those for f6 … f9 their files' text — the newest 40000 tokens kept; known positive: the ninth request still holds every file's text, the context not yet full
 test("TST-1241011: the oldest tool results are cleared, visibly, when the context fills", async (t) => {
   const files = Object.fromEntries(Array.from({ length: 9 }, (_, i) => [`f${i + 1}.md`, String(i + 1).repeat(30000).slice(0, 30000)]));
   const bodies = provider(t, Array.from({ length: 9 }, (_, i) => openai({ calls: [{ id: `c${i + 1}`, path: `f${i + 1}.md` }] })).concat([openai({ text: "done" })]));

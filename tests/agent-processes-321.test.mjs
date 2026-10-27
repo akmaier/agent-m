@@ -64,7 +64,7 @@ const FAULTS = {
     "return process.env;",
   ],
   "TST-321003": [
-    "process.kill(-child.pid, \"SIGKILL\");",
+    "process.kill(-child.pid, signal);",
     "child.kill(\"SIGTERM\");",
   ],
   "TST-321004": [
