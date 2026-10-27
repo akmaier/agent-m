@@ -22,6 +22,7 @@ provides:
   - listModels
   - modelContext
   - diagnoseEndpoint
+  - holdKey
 ---
 # MOD-endpoint-calls The driver of model endpoints
 
@@ -46,6 +47,7 @@ in a browser and in Node, and keeps nothing.
 - `diagnosis.mjs` — telling apart why a call failed.
 - `loop.mjs` — the execution loop and its rules.
 - `retries.mjs` — whether a failed request is sent again, and after how long.
+- `keys.mjs` — the header that carries an endpoint's key, by its kind, and the key holder.
 
 ## Data
 
@@ -62,6 +64,14 @@ direct call sends it only to the endpoint's own address in the request's authori
 through its Bridge — its test or a job's request —, the browser sends the configuration only in the body of the request
 to that Bridge; the Bridge then sends the key only to the endpoint, in that endpoint request's authorisation header. It never appears in an
 address and is never written anywhere (`A CREDENTIAL IS NEVER PLACED IN A URL`, `NO SECRET IN THE REPOSITORY`).
+
+**The key holder** keeps a key out of a program that calls the endpoint: it holds the key, in Node, and forwards each
+request it receives on `127.0.0.1` to the same path below the endpoint's `baseUrl`, adding the key in its kind's header —
+`x-api-key` on Anthropic, `Authorization: Bearer` on an OpenAI-compatible endpoint, the one header every request of this
+module carries it in. A caller's own key headers are dropped; a request whose target is not a path of that endpoint is
+answered 400 and sent nowhere; a redirect is answered, not followed. The program whose requests it forwards — the model's
+user's side of a hosted job's agent machine (MOD-workflow-entries) — is given the holder's address as the endpoint's
+`baseUrl` and no key (`NO MODEL READS A CREDENTIAL`).
 
 ## Interfaces
 
@@ -149,6 +159,10 @@ address and is never written anywhere (`A CREDENTIAL IS NEVER PLACED IN A URL`, 
   failed call: a call a browser refused for want of a cross-origin permission or of the opt-in header a provider requires
   for calls from a browser, with the routes that would work instead; a refused key; an unknown model; a used-up rate
   limit; an unreachable address.
+- `holdKey({ kind, baseUrl, key }: { kind: "openai-compatible" | "anthropic", baseUrl: string, key: string | null }) ->
+  Promise<{ address: string, close() -> Promise<void> }>` — the key holder, listening at `address`
+  (`http://127.0.0.1:<port>`), as *Data* describes it; the endpoint's status, headers and body are its answer, 502 where
+  the endpoint does not answer. Node only; crosses the network to the endpoint alone.
 
 ## Files
 

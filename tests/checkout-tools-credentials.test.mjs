@@ -83,10 +83,8 @@ async function fakeEndpoint(t) {
 
 // TST-1243002 · level: unit · module: MOD-endpoint-calls
 // guards: NO MODEL READS A CREDENTIAL; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
-// given: a fake endpoint on 127.0.0.1 under the base address <fake>/v1; a key holder for an OpenAI-compatible endpoint there with the key KEY, and one for an Anthropic
-//   endpoint there with the same key
-// input: POST <holder>/chat/completions with the body {"model":"m"} and the header `Authorization: Bearer forged`, which the caller holds no key for; POST
-//   <anthropic holder>/messages with the body {"model":"m"} and no key header
+// given: a fake endpoint on 127.0.0.1 under the base address <fake>/v1; a key holder for an OpenAI-compatible endpoint there with the key KEY, and one for an Anthropic endpoint there with the same key
+// input: POST <holder>/chat/completions with the body {"model":"m"} and the forged header `Authorization: Bearer forged`; POST <anthropic holder>/messages with the body {"model":"m"} and no key header
 // expect: the fake endpoint receives POST /v1/chat/completions with `authorization: Bearer KEY` and the body unchanged, and POST /v1/messages with `x-api-key: KEY` and
 //   no authorization header; each caller gets status 200 and the body {"ok":true}, which holds no key; the holder's address is http://127.0.0.1:<port>; counter-proof
 //   of the check: the request that reaches the endpoint carries the key
@@ -129,8 +127,7 @@ function rawRequest(address, line) {
 // TST-1243003 · level: unit · module: MOD-endpoint-calls
 // guards: NO MODEL READS A CREDENTIAL
 // given: a fake endpoint, and a second fake server `elsewhere`, both on 127.0.0.1; a key holder with the key KEY for the endpoint <fake>/v1
-// input: raw requests to the holder with the request lines `GET http://127.0.0.1:<elsewhere>/steal HTTP/1.1`, `GET //127.0.0.1:<elsewhere>/steal HTTP/1.1` and
-//   `GET @127.0.0.1:<elsewhere>/steal HTTP/1.1`; then `GET /models HTTP/1.1` as the known positive
+// input: raw requests to the holder with the request targets http://127.0.0.1:<elsewhere>/steal, //127.0.0.1:<elsewhere>/steal and @127.0.0.1:<elsewhere>/steal; then /models as the known positive
 // expect: the holder answers each of the three with status 400 and `elsewhere` receives no request; the known positive is answered 200 and reaches the endpoint as
 //   GET /v1/models with the key
 test("TST-1243003: the key holder sends the key to its endpoint only, whatever address a caller names", async (t) => {
@@ -170,8 +167,7 @@ function machine(t, given, inputs) {
 
 // TST-1243004 · level: unit · module: MOD-workflow-entries
 // guards: NO MODEL READS A CREDENTIAL; A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
-// given: the hosted agent's machine above — the key FIXTURE_KEY in its environment, GITHUB_TOKEN and AGENT_M_TOKEN set as a stand-in for any token, the model's user
-//   agent-m-model —, a key holder at http://127.0.0.1:45678, node at /opt/node/bin/node, the committer alice <1+alice@users.noreply.github.com>
+// given: the hosted agent's machine above (the key FIXTURE_KEY in its environment, GITHUB_TOKEN and AGENT_M_TOKEN as stand-ins for any token, the model's user agent-m-model), a key holder at http://127.0.0.1:45678, node at /opt/node/bin/node, the committer alice <1+alice@users.noreply.github.com>
 // input: separates for onDispatch of a hand-over to a model endpoint; modelUserCommands for that machine and its entry onDispatch
 // expect: separates is true; it is false for leaveResult, for a start without `endpoint`, on the writing machine (AGENT_M_PART write), on a route without a model's user
 //   (AGENT_M_MODEL_USER empty) and on the model's user's own side (AGENT_M_KEY_HOLDER set, AGENT_M_MODEL_USER not); the user is made with `useradd --create-home --home-dir
@@ -251,9 +247,7 @@ function linked(t) {
 
 // TST-1243005 · level: unit · module: MOD-checkout-tools
 // guards: NO MODEL READS A CREDENTIAL
-// given: a git checkout holding inside.txt (`FIXTURE_VISIBLE=seen-inside`) and two links a command could make: environ-link to a file outside that holds the key, and
-//   proc-link to a folder outside whose file environ holds it; on Linux also self-link, a link to /proc/self/environ of the process that runs the tools, whose
-//   environment holds the key while the tools run
+// given: a git checkout holding inside.txt (FIXTURE_VISIBLE=seen-inside) and links a command could make: environ-link to a file outside holding the key, proc-link to a folder outside whose file environ holds it, on Linux also self-link to /proc/self/environ of the process running the tools, whose environment then holds the key
 // input: read, write, edit and grep with the path of each link; grep and glob over the whole checkout for `FIXTURE_`
 // expect: read, write, edit and grep of environ-link and of proc-link/environ answer `refused: … is outside the checkout …`; grep over the checkout answers
 //   inside.txt's line (the known positive) and no line that holds the key, naming environ-link (and self-link) as outside the checkout; glob answers paths only; no answer

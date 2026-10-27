@@ -2,7 +2,10 @@
 
 import { driverPrompt } from "../job-runner/index.mjs";
 import { toolLoop } from "./loop.mjs";
+import { keyHeaders } from "./keys.mjs";
 import { RETRY_MAX_RETRIES, retryDelay, retryable, wait } from "./retries.mjs";
+
+export { holdKey } from "./keys.mjs";
 
 /**
  * @typedef {{ name: string, kind: "openai-compatible" | "anthropic", baseUrl: string, model: string, key: string | null }} EndpointConfig
@@ -78,8 +81,8 @@ function providerRequest(config, prompt, { maxTokens = config.kind === "anthropi
       "content-type": "application/json",
       "anthropic-version": "2023-06-01",
       "anthropic-dangerous-direct-browser-access": "true",
+      ...keyHeaders(config.kind, config.key),
     };
-    if (config.key !== null) headers["x-api-key"] = config.key;
     const body = { model: config.model, max_tokens: maxTokens,
       messages: messages ? anthropicMessages(messages) : [{ role: "user", content: prompt }] };
     if (system) body.system = system;
@@ -91,8 +94,7 @@ function providerRequest(config, prompt, { maxTokens = config.kind === "anthropi
     };
   }
 
-  const headers = { "content-type": "application/json" };
-  if (config.key !== null) headers.Authorization = `Bearer ${config.key}`;
+  const headers = { "content-type": "application/json", ...keyHeaders(config.kind, config.key) };
   const history = [...(system ? [{ role: "system", content: system }] : []), ...(messages ? openaiMessages(messages) : [{ role: "user", content: prompt }])];
   const body = maxTokens === null ? { model: config.model, messages: history } : { model: config.model, messages: history, max_tokens: maxTokens };
   if (tools.length) body.tools = tools.map((tool) => ({ type: "function", function: { name: tool.name, description: tool.description, parameters: tool.input } }));
@@ -223,9 +225,8 @@ export async function testEndpoint(config) {
 // configuration has one; config.model is not read. One request, nothing stored; a failure is the diagnosis testEndpoint gives.
 export async function listModels(config) {
   const where = typeof window === "undefined" ? "node" : "browser";
-  const headers = config.kind === "anthropic"
-    ? { "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true", ...(config.key === null ? {} : { "x-api-key": config.key }) }
-    : (config.key === null ? {} : { Authorization: `Bearer ${config.key}` });
+  const headers = { ...(config.kind === "anthropic" ? { "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" } : {}),
+    ...keyHeaders(config.kind, config.key) };
   try {
     const response = await endpointResponse(config, { url: endpointUrl(config.baseUrl, "/models"), init: { method: "GET", headers } }, where);
     if (response.ok) return { models: ((await response.json())?.data ?? []).map((model) => model?.id).filter((id) => typeof id === "string") };
@@ -250,9 +251,8 @@ const contextOf = (entry) => {
 // where the endpoint states none, or a request fails. Nothing is stored.
 export async function modelContext(config) {
   const where = typeof window === "undefined" ? "node" : "browser";
-  const headers = config.kind === "anthropic"
-    ? { "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true", ...(config.key === null ? {} : { "x-api-key": config.key }) }
-    : (config.key === null ? {} : { Authorization: `Bearer ${config.key}` });
+  const headers = { ...(config.kind === "anthropic" ? { "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" } : {}),
+    ...keyHeaders(config.kind, config.key) };
   const listed = async (path) => {
     try {
       const response = await endpointResponse(config, { url: endpointUrl(config.baseUrl, path), init: { method: "GET", headers } }, where);
