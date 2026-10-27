@@ -51,10 +51,7 @@ function computer(t) {
 // guards: NO MODEL READS A CREDENTIAL; A LOCAL AGENT USES THE PERSON'S OWN LOGIN
 // given: the Bridge's environment with PATH, LANG and TERM, a token in GH_TOKEN, a key in ANTHROPIC_API_KEY, an SSH agent, a session bus and the person's HOME
 // input: agentEnvironment for macOS and for Windows, with the agent's home and the identity { name: "Fixture Person", email: "fixture@example.org" }
-// expect: on macOS PATH, LANG and TERM are kept; HOME is the agent's home, XDG_CONFIG_HOME, XDG_DATA_HOME, XDG_CACHE_HOME, XDG_STATE_HOME and TMPDIR lie in it;
-//   GIT_TERMINAL_PROMPT is 0 and the four git identity variables name the identity; GH_TOKEN, ANTHROPIC_API_KEY, SSH_AUTH_SOCK and DBUS_SESSION_BUS_ADDRESS
-//   are absent and no value holds the token; on Windows USERPROFILE, APPDATA, LOCALAPPDATA, TEMP and TMP lie in the account's home and PATH begins with
-//   its own folders of programs; counter-proof: PATH, the one variable passed as it is, is there
+// expect: on macOS PATH, LANG and TERM are kept; HOME is the agent's home, XDG_CONFIG_HOME, XDG_DATA_HOME, XDG_CACHE_HOME, XDG_STATE_HOME and TMPDIR lie in it; GIT_TERMINAL_PROMPT is 0 and the four git identity variables name the identity; GH_TOKEN, ANTHROPIC_API_KEY, SSH_AUTH_SOCK and DBUS_SESSION_BUS_ADDRESS are absent and no value holds the token; on Windows USERPROFILE, APPDATA, LOCALAPPDATA, TEMP and TMP lie in the account's home and PATH begins with its own folders of programs; counter-proof: PATH, the one variable passed as it is, is there
 test("TST-1380001: the agent's environment is chosen, not inherited", () => {
   const env = { PATH: "/usr/bin:/bin", LANG: "de_DE.UTF-8", TERM: "xterm", GH_TOKEN: SECRET, ANTHROPIC_API_KEY: "sk-ant-fixture", SSH_AUTH_SOCK: "/tmp/agent.sock",
     DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/501/bus", HOME: "/Users/person", SystemRoot: "C:\\Windows" };
@@ -82,8 +79,7 @@ test("TST-1380001: the agent's environment is chosen, not inherited", () => {
 // guards: NO MODEL READS A CREDENTIAL
 // given: the person's home /Users/person and the Bridge's data folder /Users/person/Library/Application Support/io.github.acme.agent-m.bridge
 // input: hiddenPaths for macOS and for Linux
-// expect: both hide the data folder and, in the person's home, .ssh, .git-credentials, .config/git/credentials, .netrc, .cache/git/credential,
-//   .git-credential-cache, .config/gh and .config/glab-cli; macOS also Library/Keychains; counter-proof: the person's home itself is not hidden
+// expect: both hide the data folder and, in the person's home, .ssh, .git-credentials, .config/git/credentials, .netrc, .cache/git/credential, .git-credential-cache, .config/gh and .config/glab-cli; macOS also Library/Keychains; counter-proof: the person's home itself is not hidden
 test("TST-1380002: the places that hold the Bridge's and the git login's credentials are hidden", () => {
   const dataFolder = "/Users/person/Library/Application Support/io.github.acme.agent-m.bridge";
   const login = [".ssh", ".git-credentials", ".config/git/credentials", ".netrc", ".cache/git/credential", ".git-credential-cache", ".config/gh", ".config/glab-cli"].map((place) => `/Users/person/${place}`);
@@ -101,9 +97,7 @@ test("TST-1380002: the places that hold the Bridge's and the git login's credent
 // guards: NO MODEL READS A CREDENTIAL
 // given: the writable folders /w/home and /w/jobs/J, the hidden places /d and /h/.ssh, the SSH agent's socket /s/agent "1".sock
 // input: seatbeltProfile
-// expect: the profile allows by default, then denies every write, then allows writing the two folders, /private/tmp and /dev, and only then denies reading
-//   and writing /d and /h/.ssh — a later rule overrides an earlier one —; it refuses the keychain's three services, connections to the socket and to
-//   launchd's SSH agent; the quote in the socket's path is escaped; counter-proof: no rule allows writing the home of the person
+// expect: the profile allows by default, then denies every write, then allows writing the two folders, /private/tmp and /dev, and only then denies reading and writing /d and /h/.ssh — a later rule overrides an earlier one —; it refuses the keychain's three services, connections to the socket and to launchd's SSH agent; the quote in the socket's path is escaped; counter-proof: no rule allows writing the home of the person
 test("TST-1380003: the Seatbelt profile allows writing only where the agent works and hides the credential holders", () => {
   const profile = seatbeltProfile({ writable: ["/w/home", "/w/jobs/J"], hidden: ["/d", "/h/.ssh"], sockets: ['/s/agent "1".sock'] });
   const at = (text) => { const index = profile.indexOf(text); assert.notEqual(index, -1, `the profile holds ${text}:\n${profile}`); return index; };
@@ -123,9 +117,7 @@ test("TST-1380003: the Seatbelt profile allows writing only where the agent work
 // guards: NO MODEL READS A CREDENTIAL
 // given: the writable folders /w/home and /w/jobs/J, the hidden folder /d, the hidden file /h/.netrc, the runtime folder /run/user/1000, the working folder /w/jobs/J
 // input: bubblewrapArgs
-// expect: in this order: --die-with-parent, --new-session, --unshare-pid, the whole file system read-only (--ro-bind / /), a new /dev and /proc, a private /tmp;
-//   the two folders bound writable; the runtime folder and /d replaced by an empty tmpfs and /h/.netrc by /dev/null — each after the binds, so that a
-//   hidden place inside a writable folder stays hidden —; --chdir /w/jobs/J last; counter-proof: no argument binds the person's home writable
+// expect: in this order: --die-with-parent, --new-session, --unshare-pid, the whole file system read-only (--ro-bind / /), a new /dev and /proc, a private /tmp; the two folders bound writable; the runtime folder and /d replaced by an empty tmpfs and /h/.netrc by /dev/null — each after the binds, so that a hidden place inside a writable folder stays hidden —; --chdir /w/jobs/J last; counter-proof: no argument binds the person's home writable
 test("TST-1380004: bubblewrap's arguments bind everything read-only, the work writable, and hide the credential holders after it", () => {
   const args = bubblewrapArgs({ writable: ["/w/home", "/w/jobs/J"], hidden: [{ path: "/d", directory: true }, { path: "/h/.netrc", directory: false }], runtimeDir: "/run/user/1000", workdir: "/w/jobs/J" });
   const joined = args.join(" ");
@@ -143,11 +135,7 @@ test("TST-1380004: bubblewrap's arguments bind everything read-only, the work wr
 // guards: NO MODEL READS A CREDENTIAL
 // given: a Bridge whose data folder holds agent-account.json with the account's password, on Windows
 // input: the account's name, and wrap("claude", ["-p", "--output-format", "json"], { workdir: C:\work\jobs\J, writable: [C:\work\jobs\J] }) of its enclosure
-// expect: the name is agentm- and the first twelve hex digits of the SHA-256 of the data folder's path; the command is powershell.exe running launcher.ps1
-//   with -Account <name>, -Directory C:\work\jobs\J, -Program claude and -Arguments the arguments as base64 JSON; the password reaches the launcher only as
-//   the first line of its input, in no argument and no variable; the environment names the account's profile; launcher.ps1 loads the account's profile,
-//   reads the password from the first line, and puts the program in a job object that ends it with the launcher; setup.ps1 makes a local account whose
-//   password never expires, hidden from the sign-in screen; counter-proof: the input holds the password
+// expect: the name is agentm- and the first twelve hex digits of the SHA-256 of the data folder's path; the command is powershell.exe with -EncodedCommand, whose script is launcher.ps1 followed by one call of Invoke-Launch with -Account <name>, -Directory C:\work\jobs\J, -Program claude and -ArgumentLine the command line `-p --output-format json` in base64; the password reaches the launcher only as the first line of its input, in no argument, not in the script and in no variable; the environment names the account's profile; launcher.ps1 loads the account's profile, reads the password from the first line, and puts the program in a job object that ends it with the launcher; setup.ps1 makes a local account whose password never expires, hidden from the sign-in screen; counter-proof: the input holds the password
 test("TST-1380005: on Windows the agent runs as the Bridge's own account, its password only in the launcher's input", (t) => {
   const machine = computer(t);
   const password = "Fixture-Passw0rd-not-real";
@@ -158,17 +146,18 @@ test("TST-1380005: on Windows the agent runs as the Bridge's own account, its pa
   const enclosure = agentEnclosure({ dataFolder: machine.data, folder: "C:\\work", platform: "win32", env: { PATH: "C:\\Windows\\system32", SystemDrive: "C:" }, personHome: "C:\\Users\\person", identity: { name: null, email: null } });
   const wrapped = enclosure.wrap("claude", ["-p", "--output-format", "json"], { workdir: "C:\\work\\jobs\\J", writable: ["C:\\work\\jobs\\J"] });
   assert.equal(wrapped.command, "powershell.exe");
-  const value = (flag) => wrapped.args[wrapped.args.indexOf(flag) + 1];
-  assert.ok(wrapped.args.includes("-File") && value("-File").endsWith("launcher.ps1"), wrapped.args.join(" "));
-  assert.equal(value("-Account"), name);
-  assert.equal(value("-Directory"), "C:\\work\\jobs\\J");
-  assert.equal(value("-Program"), "claude");
-  assert.deepEqual(JSON.parse(Buffer.from(value("-Arguments"), "base64").toString("utf8")), ["-p", "--output-format", "json"]);
+  assert.equal(wrapped.args.at(-2), "-EncodedCommand", wrapped.args.join(" "));
+  const script = Buffer.from(wrapped.args.at(-1), "base64").toString("utf16le");
+  const launcher = readFileSync(new URL("../src/agent-enclosure/launcher.ps1", import.meta.url), "utf8");
+  assert.ok(script.startsWith(launcher), "the script is the launcher");
+  const call = /^Invoke-Launch -Account '([^']*)' -Directory '([^']*)' -Program '([^']*)' -ArgumentLine '([^']*)'$/m.exec(script);
+  assert.ok(call, script.slice(-400));
+  assert.deepEqual(call.slice(1, 4), [name, "C:\\work\\jobs\\J", "claude"]);
+  assert.equal(Buffer.from(call[4], "base64").toString("utf8"), "-p --output-format json");
   assert.equal(wrapped.input, `${password}\n`, "counter-proof: the launcher's input holds the password");
-  assert.equal(wrapped.args.some((arg) => arg.includes(password)), false, "no argument holds the password");
+  assert.equal(wrapped.args.some((arg) => arg.includes(password)) || script.includes(password), false, "no argument and not the script holds the password");
   assert.equal(Object.values(wrapped.env).some((each) => each.includes(password)), false, "no variable holds the password");
   assert.equal(wrapped.env.USERPROFILE, `C:\\Users\\${name}`);
-  const launcher = readFileSync(new URL("../src/agent-enclosure/launcher.ps1", import.meta.url), "utf8");
   for (const text of ["LoadUserProfile", "ReadLine()", "JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE", "AssignProcessToJobObject", "RedirectStandardInput"]) assert.ok(launcher.includes(text), `launcher.ps1 holds ${text}`);
   const setup = readFileSync(new URL("../src/agent-enclosure/setup.ps1", import.meta.url), "utf8");
   for (const text of ["New-LocalUser", "PasswordNeverExpires", "SpecialAccounts\\UserList"]) assert.ok(setup.includes(text), `setup.ps1 holds ${text}`);
@@ -178,9 +167,7 @@ test("TST-1380005: on Windows the agent runs as the Bridge's own account, its pa
 // guards: NO MODEL READS A CREDENTIAL
 // given: a Linux computer whose PATH holds no bwrap, and a Windows Bridge whose data folder holds no agent-account.json
 // input: works() of each enclosure
-// expect: Linux answers that it does not work, naming bubblewrap in its reason and an administrator installing the package bubblewrap as its one-time step;
-//   Windows answers that it does not work, naming the account in its reason and an administrator confirming that the Bridge makes it as its step;
-//   counter-proof: on macOS, where sandbox-exec is part of the system, works() answers that it works
+// expect: Linux answers that it does not work, naming bubblewrap in its reason and an administrator installing the package bubblewrap as its one-time step; Windows answers that it does not work, naming the account in its reason and an administrator confirming that the Bridge makes it as its step; counter-proof: on macOS, where sandbox-exec is part of the system, works() answers that it works
 test("TST-1380006: an enclosure that cannot work says why and names its one-time step", async (t) => {
   const machine = computer(t);
   const empty = join(machine.root, "empty-bin");
@@ -224,15 +211,9 @@ const ran = (command, args, options) => new Promise((resolve, reject) => {
 
 // TST-1380007 · level: unit · module: MOD-agent-enclosure
 // guards: NO MODEL READS A CREDENTIAL
-// given: on macOS, a fixture computer — the person's home with .ssh/id_fixture, .git-credentials, .config/gh/hosts.yml and .gitconfig, the Bridge's data folder
-//   with its pairing token, an agent's working folder with the clone of the instance and the job's checkout —, a fixture SSH agent socket that answers
-//   "hello", and a Bridge whose environment holds a token in GH_TOKEN and the socket in SSH_AUTH_SOCK
-// input: the probe run in the agent's enclosure — wrap(node, [probe, …], { workdir: the checkout, writable: [the checkout] }) after prepare —, and the same
-//   probe run as a plain child with the Bridge's environment
-// expect: in the enclosure, the pairing token, the SSH key, git's credentials and gh's token cannot be read (EPERM), the person's .gitconfig and the
-//   clone of the instance cannot be written (EPERM), the checkout and the agent's home can, the checkout's README is read, no variable holds the token,
-//   SSH_AUTH_SOCK is not set, HOME is the agent's home, the keychain does not find the public root certificate (44) and the socket refuses (EPERM);
-//   counter-proof: as a plain child each of them is read or written, the variable holds the token, the keychain finds the certificate (0) and the socket answers
+// given: on macOS, a fixture computer — the person's home with .ssh/id_fixture, .git-credentials, .config/gh/hosts.yml and .gitconfig, the Bridge's data folder with its pairing token, an agent's working folder with the clone of the instance and the job's checkout —, a fixture SSH agent socket that answers "hello", and a Bridge whose environment holds a token in GH_TOKEN and the socket in SSH_AUTH_SOCK
+// input: the probe run in the agent's enclosure — wrap(node, [probe, …], { workdir: the checkout, writable: [the checkout] }) after prepare —, and the same probe run as a plain child with the Bridge's environment
+// expect: in the enclosure, the pairing token, the SSH key, git's credentials and gh's token cannot be read (EPERM), the person's .gitconfig and the clone of the instance cannot be written (EPERM), the checkout and the agent's home can, the checkout's README is read, no variable holds the token, SSH_AUTH_SOCK is not set, HOME is the agent's home, the keychain does not find the public root certificate (44) and the socket refuses (EPERM); counter-proof: as a plain child each of them is read or written, the variable holds the token, the keychain finds the certificate (0) and the socket answers
 test("TST-1380007: on macOS an enclosed agent reaches no credential, and the same probe outside it reaches each", async (t) => {
   if (process.platform !== "darwin") { t.skip("Seatbelt runs on macOS only"); return; }
   const machine = computer(t);

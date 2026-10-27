@@ -50,9 +50,7 @@ case "$*" in '--version') echo '2.1.300';; 'auth status') exit 0;; *) /bin/cat >
 // guards: NO MODEL READS A CREDENTIAL; A LOCAL AGENT USES THE PERSON'S OWN LOGIN
 // given: the fixture claude, logged in, the person's variable PERSON_SECRET set in the Bridge's environment, and the recording enclosure
 // input: agentDriver(claude, { workdir, keyVariable: null, endpoint: null, enclosure, writable: [workdir, workdir + ".out.git"] }).send of the prompt "Draft it."
-// expect: the enclosure's wrap is asked once for claude with its task arguments `-p --output-format json`, the working folder and the two writable folders;
-//   the agent runs in the working folder, sees ENCLOSED and not PERSON_SECRET, and reads the enclosure's line before the prompt; the answer is "ok";
-//   counter-proof: the same driver without an enclosure starts the agent with the person's environment, PERSON_SECRET among it
+// expect: the enclosure's wrap is asked once for claude with its task arguments `-p --output-format json`, the working folder and the two writable folders; the agent runs in the working folder, sees ENCLOSED and not PERSON_SECRET, and reads the enclosure's line before the prompt; the answer is "ok"; counter-proof: the same driver without an enclosure starts the agent with the person's environment, PERSON_SECRET among it
 test("TST-1380101: the driver starts the agent through its enclosure, with the enclosure's environment only", async (t) => {
   const m = machine(t);
   const claude = { name: "claude", installed: true, version: "2.1.300", loggedIn: true, login: "claude auth login", install: {} };
@@ -74,9 +72,7 @@ test("TST-1380101: the driver starts the agent through its enclosure, with the e
 // guards: THE BRIDGE FINDS THE INSTALLED AGENTS; A LOCAL AGENT USES THE PERSON'S OWN LOGIN
 // given: the fixture claude on the PATH and no codex or opencode, and the recording enclosure
 // input: installedAgents({ enclosure, workdir }), then testAgent of the claude it found, with the same enclosure
-// expect: claude's version and login check run through the enclosure, in workdir — wrap asked for `claude --version` and `claude auth status` —, and claude
-//   is installed, 2.1.300 and logged in; codex and opencode, whose version command fails in the enclosure, are missing; testAgent asks claude through the
-//   enclosure and is answered; no line of the agent sees PERSON_SECRET; counter-proof: the enclosure was asked for every command the agent ran
+// expect: claude's version and login check run through the enclosure, in workdir — wrap asked for `claude --version` and `claude auth status` —, and claude is installed, 2.1.300 and logged in; codex and opencode, whose version command fails in the enclosure, are missing; testAgent asks claude through the enclosure and is answered; no line of the agent sees PERSON_SECRET; counter-proof: the enclosure was asked for every command the agent ran
 test("TST-1380102: the installed agents and the probe are asked in the enclosure", async (t) => {
   const m = machine(t);
   const agents = await installedAgents({ enclosure: m.enclosure, workdir: m.work });

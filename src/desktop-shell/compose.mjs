@@ -12,18 +12,22 @@ import * as runPlanner from "../run-planner/index.mjs";
 import * as runtimes from "../runtimes/index.mjs";
 import { closeTunnels, ensureKey, openTunnels, tunnelHandlers } from "../tunnels/index.mjs";
 import { loadSettings } from "./settings.mjs";
+import { agentEnclosure } from "../agent-enclosure/index.mjs";
 
 const STRATEGIES = [["MOD-approvals", approvals, "approvalStrategies"], ["MOD-spec-changes", specChanges, "specStrategies"],
   ["MOD-artifact-edits", artifactEdits, "editStrategies"], ["MOD-source-register", sourceRegister, "sourceStrategies"],
   ["MOD-work-plans", workPlans, "workStrategies"], ["MOD-run-planner", runPlanner, "runStrategies"], ["MOD-runtimes", runtimes, "routeStrategies"]];
 let strategiesRegistered = false;
 
-export function composeJobHandlers(settings) {
-  return jobHandlers({ agents: settings.agents ?? [] });
+// The enclosure of each offered agent, by its working folder, for this Bridge's data folder (ARC-054): every process of an agent runs in it.
+export const bridgeEnclosures = (dataFolder) => (folder) => agentEnclosure({ dataFolder, folder });
+
+export function composeJobHandlers(settings, enclosures = null) {
+  return jobHandlers({ agents: settings.agents ?? [], enclosures });
 }
 
-export function composeBridgeHandlers(settings) {
-  return { jobs: composeJobHandlers(settings), mail: mailHandlers(), tunnels: tunnelHandlers };
+export function composeBridgeHandlers(settings, enclosures = null) {
+  return { jobs: composeJobHandlers(settings, enclosures), mail: mailHandlers(), tunnels: tunnelHandlers };
 }
 
 export function bridgeStrategyRegistrations() {
@@ -47,8 +51,8 @@ export function composeWatchConfig(settings, instance, onSkipped) {
   };
 }
 
-export function createBridgeJobRuntime(settings, { instance, paused, startWatching, stopWatching, onSkipped }) {
-  const config = composeWatchConfig(settings, instance, onSkipped);
+export function createBridgeJobRuntime(settings, { instance, paused, startWatching, stopWatching, onSkipped, enclosures = null }) {
+  const config = { ...composeWatchConfig(settings, instance, onSkipped), ...(enclosures ? { enclosures } : {}) };
   let watching = false;
   const start = () => {
     registerBridgeStrategiesOnce();
@@ -67,11 +71,12 @@ export function createBridgeJobRuntime(settings, { instance, paused, startWatchi
 export async function compose({ instance, origin, dataFolder, port = bridgeApi.defaultPort, paused = () => false, version = null }) {
   const settings = loadSettings(dataFolder, port === 0 ? {} : { port });
   const key = await ensureKey(dataFolder);
+  const enclosures = bridgeEnclosures(dataFolder);
   // The pair answer names the Bridge by the settings in force and its release by build.json's version, null for a start without it.
   const bridge = await serveBridge({ host: "127.0.0.1", port: port === 0 ? 0 : settings.port, origin, dataFolder, paused, name: () => settings.name, version },
-    composeBridgeHandlers(settings));
+    composeBridgeHandlers(settings, enclosures));
   await openTunnels(dataFolder, settings.tunnels, Number(new URL(bridge.address).port));
-  const jobs = createBridgeJobRuntime(settings, { instance, paused, startWatching, stopWatching });
+  const jobs = createBridgeJobRuntime(settings, { instance, paused, startWatching, stopWatching, enclosures });
   jobs.start();
   return {
     instance,
@@ -79,6 +84,7 @@ export async function compose({ instance, origin, dataFolder, port = bridgeApi.d
     settings,
     key,
     ...bridge,
+    enclosures,
     pairAnew: (token = null) => pairAnew(dataFolder, token),
     tunnels: () => tunnelHandlers["GET /v1/tunnels"]().then((answer) => answer.tunnels),
     pauseWatching: () => jobs.pause(),

@@ -10,6 +10,7 @@ uses:
   - MOD-agent-enclosure.AgentEnclosure
   - MOD-agent-processes.Enclosure
   - MOD-repository-hosts.PullRequest
+  - MOD-repository-hosts.HostError
   - MOD-bridge-http.bridgeApi
   - MOD-bridge-http.BridgeHandlers
   - MOD-endpoint-calls.EndpointConfig
@@ -79,6 +80,7 @@ process.
 - `watch.mjs` — reading the served products, taking and resuming jobs, advancing runs, sprint ends.
 - `workfolders.mjs` — a working clone per job, its outbox, and the branches published from it.
 - `pull-requests.mjs` — a product's pull requests through the server's command-line client, logged in as the person.
+- `enclosures.mjs` — the working enclosure of an agent, or the refusal to start it, naming why.
 - `probes.mjs` — the harmless requests of the probes.
 - `access.mjs` — whether this computer's own git login reaches the repositories: one fetch of each into an empty
   repository in a temporary folder (`testAccess`).
@@ -208,7 +210,8 @@ clones. Nothing else.
 - `MOD-agent-enclosure.AgentEnclosure` — whether an agent's enclosure works, its preparation before a start, its home;
   `MOD-agent-processes.Enclosure` — the part of it given to the agent's driver, to the list of installed agents and to the
   probe.
-- `MOD-repository-hosts.PullRequest` — the form in which the host of a product on GitHub answers its pull requests.
+- `MOD-repository-hosts.PullRequest`, `MOD-repository-hosts.HostError` — the form in which the host of a product on GitHub
+  answers its pull requests, and `NotSupported` where gh cannot open them.
 - `MOD-repository-hosts.connect`, `MOD-repository-hosts.readSnapshot`, `MOD-repository-hosts.parseAddress` — the served
   products, each connected by its address, through the local clone with the computer's own git login; the instance at
   the commit a declaration or a job's record names, through its clone, which fetches the commit with that login; and the

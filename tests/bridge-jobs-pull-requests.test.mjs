@@ -48,12 +48,8 @@ esac
 // TST-1381101 · level: unit · module: MOD-bridge-jobs
 // guards: UC-011; NO MODEL READS A CREDENTIAL
 // given: a product on GitHub, https://github.com/acme/product-a, and gh logged in on the Bridge's computer
-// input: openPullRequest({ branch: "agent/work", base: "main", title: "JOB-1: implement", body: "the description" }), then
-//   listPullRequests({ branch: "agent/work", state: "all" })
-// expect: gh is run as `pr create --repo acme/product-a --head agent/work --base main --title JOB-1: implement --body-file -` with the body on its standard
-//   input, then `pr view` of the address it printed; the answer is the pull request in MOD-repository-hosts' form — number 7, branch agent/work, base main,
-//   state open, its address and its body —; the list runs `pr list --repo acme/product-a --head agent/work --state all` and answers the merged pull request
-//   with state merged and its merge commit; counter-proof: the body travels on the standard input, in no argument
+// input: openPullRequest({ branch: "agent/work", base: "main", title: "JOB-1: implement", body: "the description" }), then listPullRequests({ branch: "agent/work", state: "all" })
+// expect: gh is run as `pr create --repo acme/product-a --head agent/work --base main --title JOB-1: implement --body-file -` with the body on its standard input, then `pr view` of the address it printed; the answer is the pull request in MOD-repository-hosts' form — number 7, branch agent/work, base main, state open, its address and its body —; the list runs `pr list --repo acme/product-a --head agent/work --state all` and answers the merged pull request with state merged and its merge commit; counter-proof: the body travels on the standard input, in no argument
 test("TST-1381101: the Bridge opens and lists a GitHub product's pull requests with the person's gh", async (t) => {
   const m = computer(t);
   const host = pullRequestsThroughCli("https://github.com/acme/product-a", { cwd: m.root });

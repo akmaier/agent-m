@@ -97,9 +97,11 @@ hidden from the sign-in screen.
 
 MOD-agent-processes' `Enclosure.wrap(command, args, at: { workdir, writable })` returns, for macOS,
 `/usr/bin/sandbox-exec -p <profile> <command> <args>`; for Linux, `bwrap <arguments> -- <command> <args>`; for Windows,
-`powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File launcher.ps1 -Account <name> -Directory <workdir>
--Program <command> -Arguments <args as base64 JSON>`, with `input`, the password's line the launcher reads first, before
-the agent's own input. Every path in a profile or an argument is resolved through its links first, since the system
+`powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand <script>`, the script being
+`launcher.ps1` followed by `Invoke-Launch -Account <name> -Directory <workdir> -Program <command> -ArgumentLine <the
+arguments as one Windows command line, in base64>` — the text is carried in the command, since the Bridge's files lie in
+its app archive, which PowerShell cannot read —, with `input`, the password's line the launcher reads first, before the
+agent's own input; the password stands in no argument, not in the script and in no variable. Every path in a profile or an argument is resolved through its links first, since the system
 matches resolved paths. A path the enclosure must hide that does not exist is left out, since bubblewrap can mount over
 existing paths only; one made later is hidden from the next start on.
 

@@ -121,12 +121,9 @@ test("GET /v1/agents — the offered agents, and the supported agents missing; a
 
 // TST-1381003 · level: unit · module: MOD-bridge-jobs
 // guards: NO MODEL READS A CREDENTIAL; THE BRIDGE FINDS THE INSTALLED AGENTS
-// given: a computer with claude, logged in, offered with its working folder; once a Bridge whose composition gives no enclosures, once one whose enclosure
-//   answers that it does not work, with the reason "bwrap: not found" and the step "an administrator installs the package bubblewrap"
+// given: a computer with claude, logged in, offered with its working folder; once a Bridge whose composition gives no enclosures, once one whose enclosure answers that it does not work, with the reason "bwrap: not found" and the step "an administrator installs the package bubblewrap"
 // input: GET /v1/agents, POST /v1/probes/agent for claude, and POST /v1/ask to claude, on each
-// expect: claude is listed, not ready and not logged in; the probe answers that it did not answer, naming the reason — that no agent is started outside an
-//   enclosure, or the enclosure's reason and step —; the ask fails with the same reason; no task reached claude; counter-proof: TST-472077, with a working
-//   enclosure, lists it ready
+// expect: claude is listed, not ready and not logged in; the probe answers that it did not answer, naming the reason — that no agent is started outside an enclosure, or the enclosure's reason and step —; the ask fails with the same reason; no task reached claude; counter-proof: TST-472077, with a working enclosure, lists it ready
 test("TST-1381003: without a working enclosure an agent is not ready, and neither probe nor ask starts it", async () => {
   const machine = computer({ claude: { loggedIn: true } });
   await onComputer(machine, async () => {

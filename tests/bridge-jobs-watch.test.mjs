@@ -398,13 +398,9 @@ test("quit ends a running job as cancelled, with nothing written after", async (
 
 // TST-1381001 · level: unit · module: MOD-bridge-jobs
 // guards: NO MODEL READS A CREDENTIAL; UC-011
-// given: a queued job of drafter, whose agent commits change.txt on the branch agent/work in its checkout and pushes it to its push address; opencode offered
-//   with a working folder and an enclosure that records what it is asked
+// given: a queued job of drafter, whose agent commits change.txt on the branch agent/work in its checkout and pushes it to its push address; opencode offered with a working folder and an enclosure that records what it is asked
 // input: startWatching; wait for the record's end
-// expect: the agent pushed to <folder>/jobs/<id>.out.git, the outbox, not to the product's address; the origin then holds agent/work at a commit whose
-//   change.txt reads "change", pushed by the Bridge, and its main holds no change.txt; the agent was started through the enclosure, with its checkout as
-//   working folder and exactly the checkout and the outbox writable, after the enclosure was asked whether it works and prepared with them; the record ends
-//   done; the checkout and the outbox are removed; counter-proof: the branch is not on the origin before the job ends
+// expect: the agent pushed to <folder>/jobs/<id>.out.git, the outbox, not to the product's address; the origin then holds agent/work at a commit whose change.txt reads "change", pushed by the Bridge, and its main holds no change.txt; the agent was started through the enclosure, with its checkout as working folder and exactly the checkout and the outbox writable, after the enclosure was asked whether it works and prepared with them; the record ends done; the checkout and the outbox are removed; counter-proof: the branch is not on the origin before the job ends
 test("TST-1381001: the agent pushes into its outbox, and the Bridge pushes its branch to the origin", async () => {
   await world(async (w) => {
     const job = w.queue(PRODUCT_A, JOB(ID(1), "drafter"));
@@ -434,11 +430,9 @@ test("TST-1381001: the agent pushes into its outbox, and the Bridge pushes its b
 
 // TST-1381002 · level: unit · module: MOD-bridge-jobs
 // guards: NO MODEL READS A CREDENTIAL
-// given: two queued jobs of drafter; first a Bridge whose composition gives no enclosures, then one whose enclosure answers that it does not work, with the
-//   reason "bwrap: not found" and the step "an administrator installs the package bubblewrap"
+// given: two queued jobs of drafter; first a Bridge whose composition gives no enclosures, then one whose enclosure answers that it does not work, with the reason "bwrap: not found" and the step "an administrator installs the package bubblewrap"
 // input: startWatching for each in turn; wait for each record's end
-// expect: the first ends failed, its reason saying that no agent is started outside an enclosure; the second ends failed, its reason holding the enclosure's
-//   reason and its step; the agent was started by neither; counter-proof: TST-1381001, where the enclosure works, starts it
+// expect: the first ends failed, its reason saying that no agent is started outside an enclosure; the second ends failed, its reason holding the enclosure's reason and its step; the agent was started by neither; counter-proof: TST-1381001, where the enclosure works, starts it
 test("TST-1381002: without a working enclosure no agent is started, and the job ends failed naming why", async () => {
   await world(async (w) => {
     const first = w.queue(PRODUCT_A, JOB(ID(1), "drafter"));

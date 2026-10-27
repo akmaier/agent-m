@@ -71,10 +71,17 @@ function endpointOptions(row, endpoint, keyVariable) {
   };
 }
 
-function started(command, args, workdir, keyVariable, options, ownLoginEnvironment, endpointEnvironment, input = null) {
+function started(command, args, workdir, keyVariable, options, ownLoginEnvironment, endpointEnvironment, input = null, enclosure = null, writable = [workdir]) {
   return new Promise((resolve) => {
-    const environment = environmentFor(keyVariable, ownLoginEnvironment);
-    if (Object.keys(endpointEnvironment).length) {
+    let environment = environmentFor(keyVariable, ownLoginEnvironment);
+    if (enclosure) {
+      // Inside an enclosure (ARC-054) the agent receives the enclosure's environment and nothing of the Bridge's; what it is told first, the enclosure's
+      // input, comes before the task.
+      const wrapped = enclosure.wrap(command, args, { workdir, writable });
+      ({ command, args } = wrapped);
+      environment = { ...wrapped.env, ...endpointEnvironment };
+      if (wrapped.input != null) input = `${wrapped.input}${input ?? ""}`;
+    } else if (Object.keys(endpointEnvironment).length) {
       // The child sets only non-secret settings and inherits credentials without copying their values in Agent M.
       args = ["-e", `
         const { spawn } = require("node:child_process");
@@ -130,7 +137,7 @@ function started(command, args, workdir, keyVariable, options, ownLoginEnvironme
  * DriverInput. The register supplies command, task and output interpretation; local runs omit every declared credential
  * name before values are copied, while CI inherits its named secret without this module reading its value.
  */
-export function processDriver(agent, { workdir, keyVariable, endpoint }, participant, helpers) {
+export function processDriver(agent, { workdir, keyVariable, endpoint, enclosure = null, writable = null }, participant, helpers) {
   return {
     participant,
     async send(input, options = {}) {
@@ -140,8 +147,9 @@ export function processDriver(agent, { workdir, keyVariable, endpoint }, partici
       const row = helpers.configuration(agent.name);
       if (!row) throw failure("AgentMissing", "the selected agent is not supported");
       const configured = endpointOptions(row, endpoint, keyVariable);
+      const folder = input.workdir ?? workdir;
       const result = await started(row.command, [...row.task.args, ...configured.args],
-        input.workdir ?? workdir, keyVariable, options, helpers.ownLoginEnvironment, configured.env, driverPrompt(input));
+        folder, keyVariable, options, helpers.ownLoginEnvironment, configured.env, driverPrompt(input), enclosure, writable ?? [folder]);
       if (result.stopError) {
         throw failure("AgentFailed", "the agent process could not be stopped", {
           exitCode: result.stopError.exitCode ?? result.status,
