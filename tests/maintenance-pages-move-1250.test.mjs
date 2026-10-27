@@ -15,13 +15,14 @@
 //     the names separated by commas; its one button is "Add"; it is offered only while no error remains (disabled otherwise), and the findings of MOD-work-plans' backlogFindings are shown beside the form as <li class="error">. The identifier the form holds is
 //     provisional: `saveItems` gives the item the next one that no history holds.
 //   - `changed` is every requirement the entries of the queues name as added or changed in `entryView`'s impact, in the order of the queues' entries, once each, for the queues whose `**Issue:**` line names this issue and this product. The analysis is the page's proposal, if
-//     the person ran one: its `violated` the requirement of the SPEC that its reasoning names, its `modules` the modules of the architecture whose folder holds a file it names as wrong; without a proposal both are empty.
+//     the person ran one: the answer of `analyse-issue` names no violated requirement, so that a bug realises nothing until the person names it; its `modules` are the modules of the architecture whose folder holds a file it names as wrong, none without a proposal.
 //   - Add is the person's click on the form's button. It writes through `moveToBacklog`; the page then shows <p class="move-added"> with the item's identifier, or, when the comment was refused for want of the permission, <div class="move-comment"> with <pre class="comment-text">,
 //     the issue's address as <a class="comment-issue"> and <button> "Copy comment".
 
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { PRODUCT_URL, draw } from "./main-page-home-harness.mjs";
+import { withStoredGraph } from "./stored-graph-fake.mjs";
 import { connect, parseAddress } from "../src/repository-hosts/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
 import { buttonsOf, byClass, flush, one, restoreWorld, textOf, trusted, waitFor, walk, world, routeNamed, pages } from "./maintenance-pages-world.mjs";
@@ -31,12 +32,11 @@ for (const [at, strategies] of (pages.view?.strategies ?? []).entries()) {
   try { registerStrategies(`tests/maintenance-pages-move-1250.test.mjs#${at}`, strategies); } catch { /* registered by the page's own view */ }
 }
 
-afterEach(restoreWorld);
-
 const PRODUCT_TOKEN = "github_pat_HOME827PRODUCT0123456789abcdefg";
 const ISSUE_BODY = "The export is cut off after the second page.";
 const issueRecord = (number, labels) => ({ number, title: `Export loses pages ${number}`, body: ISSUE_BODY, state: "open", labels, comments: [] });
-const ISSUES = [issueRecord(5, []), issueRecord(6, ["defect"]), issueRecord(7, ["change"]), issueRecord(8, ["not-reproducible"])];
+// Fresh for each world: the world copies an issue but not its list of comments.
+const issuesOf = () => [issueRecord(5, []), issueRecord(6, ["defect"]), issueRecord(7, ["change"]), issueRecord(8, ["not-reproducible"])];
 const ADDRESS = (number) => `${PRODUCT_URL}/issues/${number}`;
 
 const moduleText = (id, folder) => ["---", `id: ${id}`, `title: ${id}`, `folder: ${folder}`, "realises: []", "follows:", "  - ARC-001", "uses: []", "provides: []", "---", `# ${id} ${id}`, "",
@@ -69,10 +69,18 @@ const PRODUCT_FILES = { ...QUEUES, "docs/architecture/MOD-store.md": moduleText(
 
 const PROPOSAL = { class: "bug", reasoning: "FIRST RULE holds, and the code breaks it: the export drops pages.", wrong: ["src/store/read.mjs", "tests/store.test.mjs"] };
 
-/** The world with the product chosen. */
+afterEach(restoreWorld);
+
+/**
+ * The world with the product chosen. The fake GitHub of the world serves neither the branch trace-cache nor the history of the default branch, so that the product's host is given two answers (the pattern of tests/stored-graph-fake.mjs):
+ * its snapshots serve the graph of their commit as the workflow "main changed" stores it — `entryView` reads the impact of an entry from it and a page never builds one —, and its history, which `saveItems` reads for the identifiers
+ * the history holds, holds no commit.
+ */
 function start(over = {}) {
-  const w = world({ mails: [], issues: ISSUES, answer: () => ({ draft: PROPOSAL, answers: [] }), product: PRODUCT_FILES, ...over });
-  w.context.product = { address: PRODUCT_URL, kind: "github", host: connect(parseAddress(PRODUCT_URL), { token: PRODUCT_TOKEN }), tokenStored: true };
+  const w = world({ mails: [], issues: issuesOf(), answer: () => ({ draft: PROPOSAL, answers: [] }), product: PRODUCT_FILES, ...over });
+  const real = connect(parseAddress(PRODUCT_URL), { token: PRODUCT_TOKEN });
+  const host = { ...real, readSnapshot: async (ref) => withStoredGraph(await real.readSnapshot(ref)), readHistory: async () => [] };
+  w.context.product = { address: PRODUCT_URL, kind: "github", host, tokenStored: true };
   return w;
 }
 const open = (w, number) => {
@@ -82,8 +90,9 @@ const open = (w, number) => {
 const moveOf = (detail) => byClass(detail, "issue-move")[0];
 const fieldOf = (root, key) => walk(walk(root, (node) => node.getAttribute?.("data-key") === key)[0], (node) => node.localName === "input")[0];
 const namesIn = (value) => String(value).split(",").map((name) => name.trim()).filter(Boolean);
-const addedFiles = (w) => w.kept.github.filter((request) => request.method === "POST" && request.path.endsWith("/git/trees")).flatMap((request) => JSON.parse(request.body).tree ?? [])
-  .filter((entry) => typeof entry.content === "string" && entry.path.startsWith("docs/backlog/ITM-"));
+// The world keeps a request for a tree twice (both of its branches note it), so that a file is taken once, by its path and text.
+const addedFiles = (w) => [...new Map(w.kept.github.filter((request) => request.method === "POST" && request.path.endsWith("/git/trees")).flatMap((request) => JSON.parse(request.body).tree ?? [])
+  .filter((entry) => typeof entry.content === "string" && entry.path.startsWith("docs/backlog/ITM-")).map((entry) => [`${entry.path}\n${entry.content}`, entry])).values()];
 const issueOf = (w, number) => w.kept.issues.find((each) => each.number === number);
 
 /** The issue opened and its move section drawn. */
@@ -150,11 +159,10 @@ test("issue — Move to backlog prefills the item with the requirements the issu
 
 // TST-1250202 · level: component · module: MOD-maintenance-pages, MOD-issue-handling
 // guards: A BACKLOG ITEM NAMES WHAT IT REALISES; A BACKLOG ITEM NAMES THE MODULES IT CHANGES; UC-033 2
-// given: the issue 6 labelled defect; the participant's analysis proposes the class bug, its reasoning names FIRST RULE and it names the files src/store/read.mjs and tests/store.test.mjs as wrong; the product holds the modules MOD-store (src/store/) and MOD-pages (src/pages/);
-//   the queues of the product name the issue 6 with a change of SECOND RULE
-// input: the analysis run by a person; Move to backlog by a person; Add by a person
-// expect: the item realises FIRST RULE alone — a bug takes the violated requirement, not the queue's — and changes MOD-store alone, so that Add is enabled at once; Add commits the item with the origin https://github.com/alice/product/issues/6 and comments on and labels issue 6
-test("issue — for a bug the item realises the requirement the analysis names as violated and changes the modules of the files it names as wrong", async () => {
+// given: the issue 6 labelled defect; the participant's analysis proposes the class bug and names the files src/store/read.mjs and tests/store.test.mjs as wrong; the product holds the modules MOD-store (src/store/) and MOD-pages (src/pages/); the queues of the product name the issue 6 with a change of SECOND RULE
+// input: the analysis run by a person; Move to backlog by a person; the requirement FIRST RULE typed; Add by a person
+// expect: the item changes MOD-store alone and realises nothing yet — a bug takes no requirement from the queues, and the analysis names none —, so that Add is disabled with an error that names what it realises; once FIRST RULE is typed Add is enabled and commits the item with the origin https://github.com/alice/product/issues/6, and comments on and labels issue 6
+test("issue — for a bug the item changes the modules of the files the analysis names as wrong, takes no requirement from the queues, and is added once the person names what it realises", async () => {
   const w = start();
   const detail = await open(w, 6);
   await waitFor(() => byClass(detail, "participant").length > 0 && moveOf(detail) !== undefined);
@@ -167,9 +175,14 @@ test("issue — for a bug the item realises the requirement the analysis names a
   await waitFor(() => byClass(detail, "issue-proposal").length > 0 || byClass(detail, "issue-problem").length > 0);
   assert.equal(byClass(detail, "issue-problem").length, 0, textOf(detail));
   const form = await moved(detail);
-  assert.deepEqual(namesIn(fieldOf(form, "realises").value), ["FIRST RULE"]);
+  assert.deepEqual(namesIn(fieldOf(form, "realises").value), []);
   assert.deepEqual(namesIn(fieldOf(form, "modules").value), ["MOD-store"]);
   assert.deepEqual(namesIn(fieldOf(form, "origin").value), [ADDRESS(6)]);
+  assert.equal(buttonsOf(form, "Add")[0].disabled, true, "Add waits for the requirement");
+  assert.match(textOf(byClass(form, "error").find((node) => /realises/i.test(textOf(node)))), /realises/i);
+  fieldOf(form, "realises").value = "FIRST RULE";
+  fieldOf(form, "realises").dispatchEvent(new Event("input"));
+  await waitFor(() => buttonsOf(form, "Add")[0].disabled === false);
   assert.equal(buttonsOf(form, "Add")[0].disabled, false);
 
   await trusted(buttonsOf(form, "Add")[0]);
@@ -179,6 +192,8 @@ test("issue — for a bug the item realises the requirement the analysis names a
   assert.equal(files.length, 1);
   assert.match(files[0].path, /^docs\/backlog\/ITM-\d{3,}-export-loses-pages-6\.md$/);
   assert.ok(files[0].content.includes(ADDRESS(6)));
+  assert.match(files[0].content, /realises:\n {2}- FIRST RULE\n(?! {2}- )/);
+  assert.match(files[0].content, /modules:\n {2}- MOD-store\n(?! {2}- )/);
   assert.equal(issueOf(w, 6).comments.length, 1);
   assert.deepEqual(issueOf(w, 6).labels.sort(), ["backlog", "defect"]);
 });
