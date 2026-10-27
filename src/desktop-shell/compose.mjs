@@ -11,15 +11,11 @@ import * as workPlans from "../work-plans/index.mjs";
 import * as runPlanner from "../run-planner/index.mjs";
 import * as runtimes from "../runtimes/index.mjs";
 import { closeTunnels, ensureKey, openTunnels, tunnelHandlers } from "../tunnels/index.mjs";
-import { checkoutStrategies } from "../checkout-tools/index.mjs";
 import { loadSettings } from "./settings.mjs";
 
 const STRATEGIES = [["MOD-approvals", approvals, "approvalStrategies"], ["MOD-spec-changes", specChanges, "specStrategies"],
   ["MOD-artifact-edits", artifactEdits, "editStrategies"], ["MOD-source-register", sourceRegister, "sourceStrategies"],
-  ["MOD-work-plans", workPlans, "workStrategies"], ["MOD-run-planner", runPlanner, "runStrategies"], ["MOD-runtimes", runtimes, "routeStrategies"],
-  // The tools of MOD-checkout-tools, with which a model endpoint works in a job's checkout, as CI registers them (src/workflow-entries/compose.mjs). A Bridge's jobs run
-  // with the computer's own logins: no CI secret fills a variable here and no endpoint's key is one, so `hidden` names none.
-  ["MOD-checkout-tools", { checkoutStrategies: checkoutStrategies({ hidden: [] }) }, "checkoutStrategies"]];
+  ["MOD-work-plans", workPlans, "workStrategies"], ["MOD-run-planner", runPlanner, "runStrategies"], ["MOD-runtimes", runtimes, "routeStrategies"]];
 let strategiesRegistered = false;
 
 export function composeJobHandlers(settings) {
