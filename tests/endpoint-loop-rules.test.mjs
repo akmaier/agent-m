@@ -273,3 +273,54 @@ test("TST-1241013: a system text is sent as the endpoint's system prompt", async
   assert.equal(bodies[1].system, "You work in a checkout.");
   assert.deepEqual(bodies[1].messages[0], { role: "user", content: "Inspect the fixture." });
 });
+
+// Answers of ten calls each, every call on another path, so that no call repeats: twenty-five of them make 250 calls, more than any limit a kind ever stated.
+const TEN_CALLS = (round) => openai({ calls: Array.from({ length: 10 }, (_, i) => ({ id: `c${round}-${i}`, path: `f${round * 10 + i + 1}.md` })) });
+
+// TST-1240103 · level: unit · module: MOD-endpoint-calls
+// guards: UC-049
+// given: an OpenAI-compatible endpoint that answers 25 times with ten read_file calls each, each on another path — 250 calls —, then answers "done"; tools whose limit is null
+// input: send with tools
+// expect: all 250 calls are carried out, in order, and none is answered with a refusal; there are 26 requests, each offering the tool, and none holds the maximum-steps text; the answer is "done"
+test("TST-1240103: with a null limit no number of calls ends the loop; it ends when the endpoint answers without a call", async (t) => {
+  const log = [];
+  const bodies = provider(t, Array.from({ length: 25 }, (_, round) => TEN_CALLS(round)).concat([openai({ text: "done" })]));
+  const result = await endpointDriver(OPENAI, PARTICIPANT).send(input(toolUse({ limit: null, log })));
+  assert.equal(result.text, "done");
+  assert.deepEqual(log, Array.from({ length: 250 }, (_, i) => `read_file f${i + 1}.md`));
+  assert.equal(bodies.length, 26);
+  assert.equal(bodies.every((body) => Array.isArray(body.tools) && body.tools.length === 1), true, "every request offers the tool");
+  assert.equal(bodies.some((body) => body.messages.some((message) => message.content === MAX_STEPS)), false, "no request holds the maximum-steps text");
+  assert.equal(toolTurns(bodies[25]).some(([, text]) => text.startsWith("refused")), false, "no call is refused");
+});
+
+// TST-1240104 · level: unit · module: MOD-endpoint-calls
+// guards: UC-049
+// given: the endpoint of TST-1240103, whose 21st answer is "summary"; tools whose limit is 200
+// input: send with tools
+// expect: 200 calls are carried out, f1.md to f200.md; request 21 offers no tools and its last message is the maximum-steps text; the answer is "summary" — a number still ends the loop
+test("TST-1240104: with a number the loop still stops at it", async (t) => {
+  const log = [];
+  const bodies = provider(t, Array.from({ length: 20 }, (_, round) => TEN_CALLS(round)).concat([openai({ text: "summary" })]));
+  const result = await endpointDriver(OPENAI, PARTICIPANT).send(input(toolUse({ limit: 200, log })));
+  assert.equal(result.text, "summary");
+  assert.deepEqual(log, Array.from({ length: 200 }, (_, i) => `read_file f${i + 1}.md`));
+  assert.equal(bodies.length, 21);
+  assert.equal("tools" in bodies[20], false);
+  assert.deepEqual(bodies[20].messages.at(-1), { role: "user", content: MAX_STEPS });
+});
+
+// TST-1240105 · level: unit · module: MOD-endpoint-calls
+// guards: UC-049
+// given: an OpenAI-compatible endpoint whose first answer is "Part one, " with finish_reason length, whose second calls read_file on a.md, and whose third answers "done"; tools whose limit is null
+// input: send with tools
+// expect: request 2 still offers the tool and holds no maximum-steps text; read_file is carried out on a.md; the answer is "Part one, done" — the continuation of a cut answer counts against no limit
+test("TST-1240105: with a null limit the continuation of a cut answer ends nothing", async (t) => {
+  const log = [];
+  const bodies = provider(t, [openai({ text: "Part one, ", finish: "length" }), openai({ calls: [{ id: "c1", path: "a.md" }] }), openai({ text: "done" })]);
+  const result = await endpointDriver(OPENAI, PARTICIPANT).send(input(toolUse({ limit: null, log })));
+  assert.equal(Array.isArray(bodies[1].tools) && bodies[1].tools.length, 1, "request 2 offers the tool");
+  assert.equal(bodies[1].messages.some((message) => message.content === MAX_STEPS), false);
+  assert.deepEqual(log, ["read_file a.md"]);
+  assert.equal(result.text, "Part one, done");
+});
