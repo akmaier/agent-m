@@ -1,7 +1,7 @@
 #!/bin/sh
 # Agent M's own test setup — the `setup` of Agent M's schedule, as docs/architecture/MOD-test-schedule.md names it (Parts,
-# *Agent M's own `command` and `setup`*): run in every test job before its tests, in the checkout's root, it installs xvfb and
-# openbox, so that the tests that start Electron find openbox installed and install nothing (their own install stays the
+# *Agent M's own `command` and `setup`*): run in every test job before its tests, in the checkout's root, it installs xvfb, openbox
+# and bubblewrap, so that the tests that start Electron find openbox installed and install nothing (their own install stays the
 # local fallback), and the Bridge app's packages.
 #
 #   sh tests/test-schedule-setup.sh
@@ -35,18 +35,26 @@ if [ -n "${GITHUB_ACTIONS:-}" ]; then
 fi
 
 apt_options="-o Acquire::Retries=1 -o Acquire::http::Timeout=10 -o DPkg::Lock::Timeout=50 -o Dir::Cache::archives=$archives -o Dir::State::lists=$lists"
-if ! sudo apt-get $apt_options install --yes --no-install-recommends --no-download xvfb openbox; then
+if ! sudo apt-get $apt_options install --yes --no-install-recommends --no-download xvfb openbox bubblewrap; then
   # Nothing restored: from the mirror. azure.archive.ubuntu.com sometimes sends one file so slowly that apt neither fails nor
   # tries the next mirror: the first download is bounded, and when it fails archive.ubuntu.com becomes the mirror. The install
   # is not bounded: a kill while dpkg unpacks would leave dpkg interrupted.
   sudo apt-get $apt_options update
-  if ! sudo timeout 15 apt-get $apt_options install --download-only --yes --no-install-recommends xvfb openbox; then
+  if ! sudo timeout 15 apt-get $apt_options install --download-only --yes --no-install-recommends xvfb openbox bubblewrap; then
     echo "http://archive.ubuntu.com/ubuntu/" | sudo tee /etc/apt/apt-mirrors.txt
-    sudo apt-get $apt_options install --download-only --yes --no-install-recommends xvfb openbox
+    sudo apt-get $apt_options install --download-only --yes --no-install-recommends xvfb openbox bubblewrap
   fi
-  sudo apt-get $apt_options install --yes --no-install-recommends xvfb openbox
+  sudo apt-get $apt_options install --yes --no-install-recommends xvfb openbox bubblewrap
 fi
 sudo chmod -R a+rX "$archives" "$lists"
 openbox --version
+
+# The tests that start the Bridge run its agents in its real enclosure (MOD-agent-enclosure, ARC-054), which on Linux is bubblewrap: the package is
+# installed above, and an administrator allows it to make user namespaces, which Ubuntu 23.10 and later refuse to a program without an AppArmor
+# profile — the one-time step the enclosure names. Only on a runner of GitHub Actions; elsewhere the machine stays as it is.
+if [ -n "${GITHUB_ACTIONS:-}" ]; then
+  sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+  bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --die-with-parent -- true || echo "bubblewrap cannot make its namespaces on this runner"
+fi
 
 npm install --prefix src/bridge-build --omit=dev --ignore-scripts
