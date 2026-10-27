@@ -17,12 +17,14 @@
 // (startSprint); MOD-progress-measures derives each team's sprint and its burn-down (progressIn). A model version the instance cannot read is named on the page (modelUnread); the catalogue as it stands now is not used instead.
 // Readings the texts leave open, which this file takes: a requirement named in the SPEC is accepted — the approval statuses MOD-work-plans' itemStates reads hold the reviewed files only, so the route adds the SPEC's
 // requirements to them; the model is the one productFacts gives, found in the catalogue by the file the declaration names; after Start sprint the route draws itself again, and the frame's host serves the snapshot the commit made.
+// The route `sprint/<team>/<n>/close` is not built, so *Give up increment* (UC-041 7b) stands where a closed sprint is shown, in its team's panel here, as *End sprint* does: for each closed sprint of the team whose
+// record holds no `## Increment given up` and that still holds an item (heldItems) — its increment is not merged —, with a reason, written through MOD-work-plans' giveUpIncrement as the person's own commit.
 
 import { artifactSchemas, readDocument } from "../documents/index.mjs";
 import { renderArtifact, renderMermaid } from "../markdown-render/index.mjs";
 import { productFacts, progressIn, storedFacts } from "../progress-measures/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
-import { conflicts, endSprint, heldItems, itemStates, startSprint, startable } from "../work-plans/index.mjs";
+import { conflicts, endSprint, giveUpIncrement, heldItems, itemStates, startSprint, startable } from "../work-plans/index.mjs";
 import { participantSchema, participantsOf } from "../participant-list/index.mjs";
 
 const DECLARATION = "docs/process.md";
@@ -151,6 +153,24 @@ function ownerOf(ctx, team) {
   return list(row?.cells.Participants)[0] ?? "";
 }
 
+// Give up increment (UC-041 7b): each closed sprint of `team` — its record holds `## Review` and no `## Increment given up` — that still holds an item, its increment not merged, with a field for the reason.
+function giveUpPart(ctx, d, team) {
+  const holds = (record) => (heading) => (record.appended ?? []).some((section) => section.heading === heading);
+  return ctx.sprints.filter((record) => SPRINT_FILE.exec(record.path)?.[1] === team && holds(record)("## Review") && !holds(record)("## Increment given up"))
+    .map((record) => {
+      const [, , nn] = SPRINT_FILE.exec(record.path);
+      const name = `${team}/${nn}`;
+      return { record, name, items: d.held.filter((each) => each.sprint === name).map((each) => each.item) };
+    })
+    .filter((each) => each.items.length)
+    .map(({ record, name, items }) => `<div data-increment="${h(name)}"><p>Sprint <b>${h(name)}</b> is closed; its increment${text(record.fields.branch) ? ` on <code>${h(text(record.fields.branch))}</code>` : ""} is not merged,
+        and it holds ${items.map(h).join(", ")}.</p>
+      <p><label>Reason <input data-give-up-reason="${h(name)}"></label> <button class="btn" data-give-up-increment="${h(name)}">Give up increment</button></p>
+      ${explain("<p>A closed sprint holds its done items until its increment is merged into the default branch, so that no other team changes or uses their modules meanwhile (UC-041 7b). " +
+        "<em>Give up increment</em> records, with its reason, that the increment is not merged: the sprint then holds none of its items, its done items stay done, and a change to one of them is a new item.</p>")}</div>`)
+    .join("");
+}
+
 // The items a sprint has left over time: at its start, after each merge of one of its items, in time order, and now — or, for a closed sprint, at its end, the last day of its burn-down, after which no merge counts. An item
 // merged before the sprint's start is done from the start. A merge is labelled with its time, HH:MM in UTC, or MM-DD HH:MM once a merge falls on another day than the start.
 function remainingOverTime(items, mergedAt, start, end = "") {
@@ -208,7 +228,7 @@ function teamPanel(context, ctx, d, team) {
       + `${text(newest.record.fields.end) ? `ended on ${h(text(newest.record.fields.end))}` : "is closed"}.</p>` : `<p class="muted">It has run no sprint yet.</p>`;
     const final = newest && entry?.final && entry.burnDown.length ? chartBlock(team, newest.name, remainingOverTime(entry.items.map((st) => st.item),
       d.mergedAt, text(newest.record.fields.start), entry.burnDown.at(-1).day)) : "";
-    return `<section class="panel" data-team="${h(team)}"><h3>${h(team)} — no running sprint</h3>${last}${final}
+    return `<section class="panel" data-team="${h(team)}"><h3>${h(team)} — no running sprint</h3>${last}${final}${giveUpPart(ctx, d, team)}
       <p>${plan("Plan sprint", true)}</p>${why}</section>`;
   }
   const record = newest.record, f = record.fields;
@@ -230,7 +250,7 @@ function teamPanel(context, ctx, d, team) {
       <dt>Branch</dt><dd>${f.branch ? `<code>${h(text(f.branch))}</code>` : `none: <code>${h(ctx.ref)}</code>`}</dd><dt>Closed by</dt><dd>${h(text(f.closer))}</dd></dl>
     ${wipLine(ctx, d, entry)}
     <div class="table-scroll" tabindex="0"><table class="list"><thead><tr><th>Item</th><th>Title</th><th>State</th><th>Changes</th><th>Uses</th></tr></thead><tbody>${rows}</tbody></table></div>
-    ${chart}
+    ${chart}${giveUpPart(ctx, d, team)}
     <p>${plan("Change the selection", false)}${endable ? ` <button class="btn" data-end-sprint="${h(team)}">End sprint</button>` : ""}</p>${why}</section>`;
 }
 
@@ -392,6 +412,22 @@ async function draw(target, context) {
       const result = await endSprint(context.product.host, sprint, { head: ctx.snapshot.commit, now: new Date(), trailers: [] });
       await draw(target, context);
       target.insertAdjacentHTML?.("afterbegin", `<section class="panel notice flash"><p>Sprint <code>${h(sprint)}</code> is ended — commit ${h(result.commit.slice(0, 7))}.</p></section>`);
+    } catch (failure) {
+      target.insertAdjacentHTML?.("afterbegin", `<section class="panel notice flash"><p class="warn">${h(failure?.message ?? failure)}</p></section>`);
+    }
+  }));
+  target.querySelectorAll("[data-give-up-increment]").forEach((button) => button.addEventListener("click", async (event) => {
+    if (event?.isTrusted === false) return;
+    const sprint = button.dataset?.giveUpIncrement ?? button.getAttribute("data-give-up-increment");
+    const reason = text(target.querySelector(`[data-give-up-reason="${sprint}"]`)?.value).trim();
+    if (!reason) {
+      target.insertAdjacentHTML?.("afterbegin", `<section class="panel notice flash"><p class="warn">Name why the increment of <code>${h(sprint)}</code> is given up.</p></section>`);
+      return;
+    }
+    try {
+      const result = await giveUpIncrement(context.product.host, sprint, reason, { head: ctx.snapshot.commit, trailers: [] });
+      await draw(target, context);
+      target.insertAdjacentHTML?.("afterbegin", `<section class="panel notice flash"><p>The increment of <code>${h(sprint)}</code> is given up — commit ${h(result.commit.slice(0, 7))}.</p></section>`);
     } catch (failure) {
       target.insertAdjacentHTML?.("afterbegin", `<section class="panel notice flash"><p class="warn">${h(failure?.message ?? failure)}</p></section>`);
     }
