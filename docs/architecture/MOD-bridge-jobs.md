@@ -32,6 +32,7 @@ uses:
   - MOD-job-runner.Prepared
   - MOD-job-runner.prepareJob
   - MOD-job-runner.runJob
+  - MOD-job-runner.failedBecause
   - MOD-job-catalogue.kindOf
   - MOD-job-ledger.JobRecord
   - MOD-job-ledger.RecordPart
@@ -151,7 +152,8 @@ settings (MOD-desktop-shell).
   served product through Access's local clone with the computer's own git login, at the
   given interval and after every hand-over: queued jobs whose participant's route names this Bridge and an agent it
   offers are taken — a commit
-  only on the head that was read, so that no other route takes them too — and run; jobs of this Bridge waiting at a gate
+  only on the head that was read, so that no other route takes them too — and run, a run that MOD-job-runner's
+  `failedBecause` fails ending its job `failed` with that reason; jobs of this Bridge waiting at a gate
   whose record now exists are resumed (`A JOB STOPS AT EVERY GATE`); the next actions of every run of a served product
   are computed from the product's facts, those of this route taken and those of other routes queued by their start
   records; a sprint whose close
@@ -223,7 +225,7 @@ clones. Nothing else.
 - `MOD-endpoint-calls.EndpointConfig`, `testEndpoint`, `listModels`, `endpointDriver` — an endpoint's test, its models'
   listing and the requests of a job of the page to a model endpoint.
 - `MOD-job-runner.JobContext`, `Prepared`, `prepareJob`, `runJob`, `MOD-job-catalogue.kindOf` — running a job of any kind
-  from its record, unattended.
+  from its record, unattended; `MOD-job-runner.failedBecause` — whether its job ends failed, and why.
 - `MOD-job-ledger.JobRecord`, `RecordPart`, `takeJob`, `appendToRecord`, `jobState` — taking, resuming and ending jobs in
   their records, a draft handed back in the end; `recordsNewestFirst` — the job records of a served product it looks
   through; `jobCost` — the cost an end records; `newJobId` — the identifier of a sprint's close it starts.

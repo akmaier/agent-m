@@ -10,7 +10,7 @@ import { agentDriver, installedAgents } from "../agent-processes/index.mjs";
 import { readRegister } from "../documents/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
 import { appendToRecord, jobCost, newJobId, recordsNewestFirst, takeJob } from "../job-ledger/index.mjs";
-import { prepareJob, runJob } from "../job-runner/index.mjs";
+import { failedBecause, prepareJob, runJob } from "../job-runner/index.mjs";
 import { participantSchema, participantsOf } from "../participant-list/index.mjs";
 import { productFacts } from "../progress-measures/index.mjs";
 import { queueJob } from "../runtimes/index.mjs";
@@ -265,9 +265,10 @@ function createWatcher(config) {
     const usage = result ? totalUsage(result.usage) : null;
     const written = result?.written;
     const part = { part: "end", at: new Date(), draft: tasks.has(record.id) ? null : written?.shown ?? null, rounds: result?.rounds ?? [], usage, cost: jobCost(usage, participant), log: null };
-    if (failed || result?.stoppedBecause === "unusable") {
+    const unusable = result ? failedBecause(result) : null;
+    if (failed || unusable) {
       Object.assign(part, { state: cancelled ? "cancelled" : "failed", results: [],
-        reason: quit ? QUIT : cancelled ? "the job was cancelled" : failed ? reasonOf(failed) : "the answer could not be read" });
+        reason: quit ? QUIT : cancelled ? "the job was cancelled" : failed ? reasonOf(failed) : unusable, ...(unusable ? { stoppedBecause: result.stoppedBecause } : {}) });
     } else {
       Object.assign(part, { state: "done", results: [...(written?.commits ?? []), ...(written?.files ?? []), ...(written?.pullRequest ? [written.pullRequest] : [])],
         reason: null, stoppedBecause: result.stoppedBecause, forPerson: result.forPerson });

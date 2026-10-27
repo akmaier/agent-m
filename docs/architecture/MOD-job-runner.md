@@ -61,6 +61,7 @@ provides:
   - registerStrategies
   - prepareJob
   - runJob
+  - failedBecause
   - writeResult
   - provenanceLines
   - roundsText
@@ -346,6 +347,12 @@ ONLY WHEN RECORDING IS ON`).
     (`A CANCELLED JOB WRITES NOTHING MORE`).
 
   A driver's failure ends the job and is thrown by name; `Cancelled` when the signal is aborted.
+- `failedBecause(result: JobResult) -> string | null` — why a run that ran to its end ends its job `failed`: for a result
+  stopped `unusable`, `the participant's answer could not be read: <why>`, the why its last round's finding on the answer
+  gives — `the answer has no draft`, `it is not JSON` —; `null` for any other result, which ends its job `done`. The one
+  rule every route that ends a job applies — the tab and the Bridge (MOD-runtimes, MOD-bridge-jobs), CI and a hand-over
+  followed in the same run (MOD-workflow-entries) —, so that no run whose answer could not be read ends done. Its reason
+  names no word of the answer, which only `raw` holds. Pure.
 - `writeResult(prepared: Prepared, draft: unknown, options: { result: JobResult, context: JobContext }) ->
   Promise<WriteOutcome>` — writes a result that waited for a person, on their click — *Write proposals*, *Save*, *Save
   plan*, *Add to backlog*: runs the kind's steps again on the draft as the person left it, since they may have changed

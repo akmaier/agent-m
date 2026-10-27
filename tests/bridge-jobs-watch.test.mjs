@@ -114,14 +114,16 @@ const ID = (n) => `JOB-20261011-090${n}-aaa${n}`;
 
 // The Bridge's computer: a PATH of the fixture agent and the wrappers, the instance (two commits; the record names the first) and the products. The
 // agent answers with its working folder and, once started, waits for the gate file when `gated`; it writes a mark when it ends.
-async function world(run, { gated = false, fails = false, branch = null } = {}) {
+async function world(run, { gated = false, fails = false, branch = null, undrafted = false } = {}) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "agent-m-327-")));
   const bin = join(root, "bin"), calls = join(root, "calls"), gate = join(root, "gate"), finished = join(root, "finished");
   mkdirSync(bin);
   writeFileSync(calls, "");
   script(bin, "git", `exec ${REAL_GIT} "$@"`);
   script(bin, "sleep", `exec ${REAL_SLEEP} "$@"`);
-  const event = JSON.stringify({ type: "text", part: { text: JSON.stringify({ draft: { decision: "passed", reason: "@PWD@" }, answers: [] }) } }).replace("@PWD@", `'"$PWD"'`);
+  // With `undrafted`, the agent answers JSON whose envelope has no draft.
+  const event = JSON.stringify({ type: "text", part: { text: JSON.stringify(undrafted ? { answers: [] } : { draft: { decision: "passed", reason: "@PWD@" }, answers: [] }) } })
+    .replace("@PWD@", `'"$PWD"'`);
   // With `branch`, the agent commits a file on that branch of its checkout and pushes it to its push address, which it records.
   const commits = branch ? `git checkout -q -b ${branch} && printf 'change\\n' > change.txt && git add change.txt && git commit -q -m change && git push -q origin ${branch} && printf 'pushed to %s\\n' "$(git remote get-url --push origin)" >> ${calls}; ` : "";
   script(bin, "opencode", `case "$1" in --version) echo 1.4.0;; auth) echo '1 credentials';; models) echo opencode/big-pickle;;
@@ -346,6 +348,26 @@ test("a job whose agent fails ends failed with the failure's words", async () =>
     assert.equal(w.originText(PRODUCT_A, `docs/gates/${job.id}.md`), "");
     assert.equal(existsSync(join(folder, "jobs", job.id)), false);
   }, { fails: true });
+});
+
+// TST-2026271043 · level: unit · module: MOD-bridge-jobs
+// guards: A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; UC-011
+// given: an agent that answers, in every round, JSON whose envelope has no `draft` — `{ "answers": [] }` —; known positive: the same job whose agent answers a draft ends `done` (TST-472096)
+// input: startWatching; wait for the record's end
+// expect: the job ends `failed` with no results, its reason "the participant's answer could not be read: the answer has no draft" — MOD-job-runner's failedBecause —, its round record saying `stopped because: unusable`; no file of the writer is on the origin
+test("TST-2026271043: a job whose agent answers without a draft ends failed, its reason naming why", async () => {
+  await world(async (w) => {
+    const job = w.queue(PRODUCT_A, JOB(ID(1), "drafter"));
+    watch(w, [{ name: "opencode", folder: w.folder("agent-work") }]);
+    await w.ended(job);
+
+    const record = w.originText(PRODUCT_A, job.path);
+    assert.match(record, /^state: failed$/m);
+    assert.match(record, /^results:$/m);
+    assert.match(record, /^reason: the participant's answer could not be read: the answer has no draft$/m);
+    assert.match(record, /stopped because: unusable/);
+    assert.equal(w.originText(PRODUCT_A, `docs/gates/${job.id}.md`), "");
+  }, { undrafted: true });
 });
 
 // ---------------------------------------------------------------- pause and quit
