@@ -20,7 +20,8 @@
 //   - A created issue of the kind change is followed by <a class="issue-link"> to #issue/number=<n>/product=<address> (UC-038 step 10: the issue's route drafts the change); one of the kind defect has none.
 //   - A refused token (HTTP 401) or a missing permission (403) on Create issue is named with the product, with <a class="token-step"> to the step that stores the token (#add-product); nothing is written.
 //   - Every step is folded with <details class="explain">: reading, the list, the review of a mail, the decisions.
-//   - The route gives the prompt bar a subject whose page holds the `MAIL-` identifiers of the listed mails and no mail text, and which refuses propose-edit and hand-over (MOD-maintenance-pages.md:123-130); ITM-510 extends it for allowed participants.
+//   - The route gives the prompt bar a subject whose page holds the `MAIL-` identifiers of the listed mails and no mail text (MOD-maintenance-pages.md:123-130); ITM-510 extends it for allowed participants. It refuses nothing another page allows: "what the endpoint or CLI
+//     session may do does not depend on the page" (UC-049 :84-86, ITM-1234).
 // The counter-proofs are recorded in the pull request.
 
 import "./site-frame-dom.mjs";
@@ -355,7 +356,7 @@ test("every step of the route carries its folded explanation", async () => {
 // guards: MAIL STAYS IN THE MAILBOX; NO PERSONAL DATA FROM A MAIL ENTERS A REPOSITORY; UC-038
 // given: the page after Read mailbox with one mail
 // input: the route's subject for its parameters, and its paramsFor for a participant
-// expect: the subject is of the kind converse, refuses propose-edit and hand-over, and its page holds the mail's MAIL- identifier and none of the mail's text, sender or subject
+// expect: the subject is of the kind converse, refuses nothing (UC-049 :84-86), and its page holds the mail's MAIL- identifier and none of the mail's text, sender or subject
 test("the route gives the prompt bar a subject that holds a mail's identifier and no text of it", async () => {
   const mail = await mailOf("subject");
   const w = world({ mails: [mail] });
@@ -363,7 +364,7 @@ test("the route gives the prompt bar a subject that holds a mail's identifier an
   const subject = route().subject({}, { page: "main", instance: { repository: INSTANCE }, store: w.store, product: null });
   assert.ok(subject, "a subject");
   assert.equal(subject.kind, undefined, "a subject names no kind: the bar runs converse on every page");
-  assert.deepEqual([...subject.refuses].sort(), ["hand-over", "propose-edit"]);
+  assert.deepEqual([...subject.refuses], [], "the page of mail refuses nothing another page allows");
   const page = String(subject.paramsFor({ name: "any" }).page);
   assert.ok(page.includes(mail.id), "the identifier");
   for (const forbidden of [SECRET_SENTENCE, "Erika", ERIKA.address, "Subject subject"]) assert.equal(page.includes(forbidden), false, forbidden);

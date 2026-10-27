@@ -29,6 +29,7 @@ import { specStrategies } from "../src/spec-changes/index.mjs";
 import { parseSpec } from "../src/spec-document/index.mjs";
 import { subjectOf as traceSubject } from "../src/trace-pages/subject.mjs";
 import { subjectOf as frameSubject } from "../src/site-frame/subject.mjs";
+import { mailSubject } from "../src/maintenance-pages/mail.mjs";
 import { tick, until } from "./prompt-bar.d/until.mjs";
 
 // ---------------------------------------------------------------- the part of a browser's DOM that is used
@@ -142,8 +143,9 @@ const useCasePage = () => ({ key: `use-case/id=UC-007/product=${encodeURICompone
   paramsFor: () => ({ page: "The page shows UC-007 Derive use cases.", useCase: "UC-007", version: "0123456789abcdef0123456789abcdef01234567" }),
   draftRoute: `draft/subject=${encodeURIComponent(`use-case/id=UC-007/product=${encodeURIComponent(PRODUCT_WEB)}`)}`, withhold: null, refuses: [] });
 
-// A page of a product: the instance with its register, a store keeping the endpoint ep1 and the product's token, and the bar started with the subject given.
-function page(subject) {
+// A page of a product: the instance with its register, a store keeping the endpoint ep1 and the product's token, and the bar started with the subject given — or, given a function, with
+// the subject it makes of the page's store.
+function page(given) {
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() });
   Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: new Storage() });
   const store = openStore("alice/agent-m");
@@ -153,6 +155,7 @@ function page(subject) {
   const product = fakeRepo(PRODUCT_WEB, { "SPEC.md": SPEC, ".github/workflows/agent-m-jobs.yml": "name: agent-m-jobs\n" });
   const target = document.createElement("div");
   const gone = [];
+  const subject = typeof given === "function" ? given(store) : given;
   startPromptBar(target, { page: "main", store, instance: { repository: "alice/agent-m", host: instance.host }, product: () => ({ address: PRODUCT_WEB, host: product.host }),
     subject: () => subject, explain: () => document.createElement("details"), go: (route, params) => gone.push({ route, params }) });
   return { store, instance, product, target, gone };
@@ -236,22 +239,22 @@ test("TST-1360003: a hand-over to change-requirements without the person's own s
   assert.deepEqual([...it.instance.attempts, ...it.product.attempts], []);
 });
 
-// TST-1360004 · level: component · module: MOD-prompt-bar · MOD-job-runner
-// guards: UC-049 3b; A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL
-// given: a page whose subject refuses propose-edit and hand-over, as a page of mail does; an endpoint whose answer holds, in its JSON, an edit and a hand-over to change-use-case
+// TST-1360004 · level: component · module: MOD-prompt-bar · MOD-job-runner · MOD-maintenance-pages
+// guards: UC-049
+// given: the page of mail — the subject MOD-maintenance-pages' mailSubject gives, no mail listed —; an endpoint whose answer holds, in its JSON, an edit and a hand-over to change-use-case
 // input: Send "answer the reporter"
-// expect: one request only; no hand-over is shown or carried out, no "Review the draft" is offered, no draft is kept, nothing is written
-test("TST-1360004: on a page that refuses hand-over and propose-edit, an answer that holds them hands nothing on", async () => {
+// expect: the conversation's request comes first; the hand-over is shown with its kind change-use-case, and "Review the draft" is offered — what the endpoint may do does not depend on the page (UC-049 :84-86), and a change is handed on everywhere (:102); counter-proof: on a subject that refuses propose-edit and hand-over, as the page of mail did before ITM-1234, neither is shown
+test("TST-1360004: on the page of mail, an answer that holds an edit and a hand-over is shown and handed on as on every page", async () => {
   endpointAnswers({ answer: "Here is a reply.", edits: [{ path: "docs/x.md", text: "# X\n" }], handOver: { kind: "change-use-case", works_on: ["UC-007"], task: "change it" } });
-  const it = page({ ...useCasePage(), kind: undefined, refuses: ["propose-edit", "hand-over"] });
+  const it = page((store) => mailSubject({ key: "mail", title: "Mail", entries: () => [], store }));
   await drawn(it);
   await sends(it, "answer the reporter");
   for (let turn = 0; turn < 20; turn += 1) await tick();
-  assert.deepEqual(requests.map(kindOfRequest), ["converse"]);
-  assert.equal(byClass(it.target, "hand-over").length, 0);
-  assert.equal(byClass(it.target, "review").length, 0);
-  assert.equal(readTabValue(it.store, "prompt-bar:draft"), null);
-  assert.deepEqual([...it.instance.attempts, ...it.product.attempts], []);
+  assert.equal(kindOfRequest(requests[0]), "converse");
+  assert.ok(textOf(one(it.target, "answer")).includes("Here is a reply."));
+  assert.equal(byClass(it.target, "hand-over").length, 1, "the hand-over is shown");
+  assert.ok(textOf(one(it.target, "hand-over")).includes("Kind: change-use-case"), textOf(one(it.target, "hand-over")));
+  assert.ok(byClass(it.target, "review").length >= 1, "Review the draft is offered");
 });
 
 // TST-1360005 · level: unit · module: MOD-trace-pages; MOD-prompt-bar

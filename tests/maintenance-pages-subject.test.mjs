@@ -1,7 +1,8 @@
 // A page of mail gives the prompt bar only what the mailbox allows (ITM-510) — MOD-maintenance-pages, UC-049 3b, as the accepted text of docs/architecture/MOD-maintenance-pages.md states it (:125-130, blob f21551157732): "Each route gives the prompt bar its
 // subject, of the kind `converse` (UC-049 3b): on a route that shows mail, the page a participant is given holds the text of a mail, its sender and its attachments only for a participant whose processing place the mailbox allows and that does not declare
 // *write to the repository* ..., and only the mail's `MAIL-` identifier for any other; its `refuses` names `propose-edit` and `hand-over` ...; and its `withhold` names, for a message to be recorded, each name, mail address, phone number or account of that
-// mail's people found in it, with `personHits`, and a passage of the mail's own text".
+// mail's people found in it, with `personHits`, and a passage of the mail's own text". What the subject refuses follows the accepted UC-049 instead of that quote (ITM-1234): "what the endpoint
+// or CLI session may do does not depend on the page" (:84-86), and handing a change on is offered "everywhere" (:102) — so a page of mail refuses nothing that another page allows.
 // Run: node --test tests/maintenance-pages-subject.test.mjs
 //
 // Module: MOD-maintenance-pages
@@ -20,6 +21,7 @@ import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { ERIKA, PRODUCT_URL, SECRET, byClass, itemOf, mailOf, one, opened, pages, read, restoreWorld, standard, trusted, waitFor, world } from "./maintenance-pages-world.mjs";
 import { INSTANCE } from "./main-page-home-harness.mjs";
+import { mailSubject } from "../src/maintenance-pages/mail.mjs";
 
 afterEach(restoreWorld);
 
@@ -52,13 +54,13 @@ async function mailRouteRead(f) {
 // guards: THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL; MAIL STAYS IN THE MAILBOX; UC-049
 // given: the route mail after Read mailbox, one mail listed with an attachment; a mailbox that allows the place "this machine"; participants: local-llm (this machine, draft text), cli-writer (this machine, also write to the repository), cloud-llm (a provider in the USA), and a person with no place
 // input: the subject's paramsFor for each
-// expect: for local-llm the page holds the mail's identifier, sender (name and address), subject, date, text and the attachment's name and text; for each of the others only the identifier, none of the rest; the subject is of the kind converse and refuses propose-edit and hand-over
+// expect: for local-llm the page holds the mail's identifier, sender (name and address), subject, date, text and the attachment's name and text; for each of the others only the identifier, none of the rest; the subject is of the kind converse and refuses nothing (UC-049 :84-86)
 test("the page of the route mail holds a mail's text only for a participant at an allowed place that does not write", async () => {
   const f = await mailWorld();
   await mailRouteRead(f);
   const subject = subjectOf("mail", f.w);
   assert.equal(subject.kind, undefined, "a subject names no kind: the bar runs converse on every page");
-  assert.deepEqual([...subject.refuses].sort(), ["hand-over", "propose-edit"]);
+  assert.deepEqual([...subject.refuses], [], "the page of mail refuses nothing another page allows");
   const text = pageFor(subject, LOCAL);
   assert.ok(text.includes(f.fresh.id), "the identifier");
   for (const wanted of ALL_OF_IT) assert.ok(text.includes(wanted), `the page of local-llm holds ${wanted}`);
@@ -74,14 +76,14 @@ test("the page of the route mail holds a mail's text only for a participant at a
 // guards: THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED; A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL; UC-049
 // given: the route replies after Read replies, the mails of issue 4 found in the mailbox
 // input: the subject's paramsFor for local-llm, cli-writer and cloud-llm
-// expect: local-llm's page holds a found mail's identifier, sender and text; the others' pages hold identifiers only; the subject refuses propose-edit and hand-over
+// expect: local-llm's page holds a found mail's identifier, sender and text; the others' pages hold identifiers only; the subject refuses nothing (UC-049 :84-86)
 test("the page of the route replies holds the mails' texts under the same rule", async () => {
   const f = await mailWorld();
   const target = await opened(f.w, {});
   await trusted(one(target, "read-replies"));
   await waitFor(() => byClass(target, "replies-group").length > 0);
   const subject = subjectOf("replies", f.w);
-  assert.deepEqual([...subject.refuses].sort(), ["hand-over", "propose-edit"]);
+  assert.deepEqual([...subject.refuses], [], "the page of mail refuses nothing another page allows");
   const allowed = pageFor(subject, LOCAL);
   assert.ok(allowed.includes(f.mails.plain.id) && allowed.includes("Erika Mustermann") && allowed.includes("Subject plain") && allowed.includes(SECRET), allowed);
   for (const other of [WRITER, FAR, PERSON]) {
@@ -123,4 +125,18 @@ test("before a reading no mail is listed, so the page holds none and nothing is 
   assert.ok(page.includes("Mail"));
   assert.equal(/MAIL-/.test(page), false);
   assert.equal(subject.withhold("Erika Mustermann writes from erika@example.invalid"), null);
+});
+
+// TST-1234001 · level: unit · module: MOD-maintenance-pages
+// guards: UC-049
+// given: the subject a route that shows mail gives the prompt bar, made by MOD-maintenance-pages' mailSubject for the route mail and for the route replies, no mail listed
+// input: the subject's refuses
+// expect: neither propose-edit nor hand-over is refused — what the endpoint may do does not depend on the page (UC-049 :84-86), and a change is handed on everywhere (UC-049 :102); counter-proof: before ITM-1234 the subject refuses both
+test("TST-1234001: the subject of a page of mail refuses neither propose-edit nor hand-over", () => {
+  for (const [key, title] of [["mail", "Mail"], ["replies", "Replies"]]) {
+    const subject = mailSubject({ key, title, entries: () => [], store: null });
+    assert.ok(Array.isArray(subject.refuses), `${key}: the subject names what it refuses`);
+    assert.equal(subject.refuses.includes("propose-edit"), false, `${key}: propose-edit is not refused`);
+    assert.equal(subject.refuses.includes("hand-over"), false, `${key}: hand-over is not refused`);
+  }
 });

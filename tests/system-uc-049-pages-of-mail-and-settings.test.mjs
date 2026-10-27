@@ -77,17 +77,17 @@ test("alternative 3b: the text of a mail is given only to a participant the mail
 });
 
 // TST-513021 · level: system · module: MOD-prompt-bar · MOD-maintenance-pages
-// guards: UC-049; A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL
+// guards: UC-049
 // given: the page of mail as in TST-513020, and local-tools, a participant at "this machine" that can use tools
 // input: a message sent to local-tools on the page of mail
-// expect: the tools the participant is offered are those that read — list-files, read-file, search-files — and not propose-edit and hand-over, so that nothing of a mail can reach a file or a job; (known positive: read-file is among the tools offered) (flow: UC-049 alternative 3b)
-test("alternative 3b: on a page of mail the tools that write are not offered", async () => {
+// expect: the tools the participant is offered are those of every page — list-files, read-file, search-files, propose-edit and hand-over —: what the endpoint may do does not depend on the page (UC-049 main flow (3), :84-86), and handing a change on is offered everywhere (UC-049 main flow (4), :102); (known positive: read-file is among the tools offered) (flow: UC-049 alternative 3b)
+test("alternative 3b: on a page of mail the participant is offered the tools of every page", async () => {
   const p = await mailPage();
   try {
     const request = await ask(p, "local-tools", "Draft a file about this mail.");
     const tools = (request.body.tools ?? []).map((tool) => tool.function?.name);
     assert.ok(tools.includes("read-file"), `known positive: the participant is offered tools (${tools.join(", ")})`);
-    assert.ok(!tools.includes("propose-edit") && !tools.includes("hand-over"), `no writing tool among ${tools.join(", ")}`);
+    for (const name of ["list-files", "search-files", "propose-edit", "hand-over"]) assert.ok(tools.includes(name), `${name} among ${tools.join(", ")}`);
   } finally { await p.stop(); }
 });
 
