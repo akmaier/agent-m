@@ -69,8 +69,8 @@ test("TST-367001: desktop settings become MOD-bridge-jobs watch configuration", 
 // guards: ONE DEFINITION, THREE DRIVERS
 // given: the desktop composition module
 // input: bridgeStrategyRegistrations()
-// expect: the Bridge registers exactly the job strategies already accepted for Bridge-runnable approval, SPEC-change, artifact-edit, source-register, work-plans (workStrategies), run-planner and runtimes (routeStrategies) jobs
-// Planted fault: leaving sourceStrategies, workStrategies, runStrategies or routeStrategies out makes the registration list assertion fail.
+// expect: the Bridge registers exactly the job strategies already accepted for Bridge-runnable approval, SPEC-change, artifact-edit, source-register, work-plans (workStrategies), run-planner and runtimes (routeStrategies) jobs, and the tools of MOD-checkout-tools (checkoutStrategies)
+// Planted fault: leaving sourceStrategies, workStrategies, runStrategies, routeStrategies or checkoutStrategies out makes the registration list assertion fail.
 test("TST-367002: desktop composition names the Bridge-runnable job strategy modules", async () => {
   const root = mkdtempSync(join(tmpdir(), "agent-m-367-strategies-"));
   try {
@@ -84,6 +84,7 @@ test("TST-367002: desktop composition names the Bridge-runnable job strategy mod
       "MOD-work-plans.workStrategies",
       "MOD-run-planner.runStrategies",
       "MOD-runtimes.routeStrategies",
+      "MOD-checkout-tools.checkoutStrategies",
     ]);
   } finally {
     rmSync(root, { recursive: true, force: true });
