@@ -13,8 +13,8 @@
 // label —; AGENT_M_PRODUCT_DIR, the product's checkout; AGENT_M_TOKEN_NAME, the name of the secret that holds the person's Agent M token, and
 // AGENT_M_TOKEN, its value; AGENT_M_KEY_NAMES, the names of the secrets that hold the agents' keys, separated by blanks, each of which the
 // workflow gives the entry as a variable of that name — on the agent's machine only the one at the place AGENT_M_KEY names —; AGENT_M_PART, the machine
-// (`agent` or `write`), and AGENT_M_RESULT_DIR, the folder of the result between them; AGENT_M_MODEL_USER, on the hosted agent's machine, the OS user as which a
-// hand-over to a model endpoint runs; GITHUB_OUTPUT, the file of a step's outputs. The instance is checked out into `instance/` of GITHUB_WORKSPACE, from which
+// (`agent` or `write`), and AGENT_M_RESULT_DIR, the folder of the result between them; AGENT_M_MODEL_USER, on the agent's machine, the OS user as which a model's
+// run works where the machine allows it (model-user.mjs); GITHUB_OUTPUT, the file of a step's outputs. The instance is checked out into `instance/` of GITHUB_WORKSPACE, from which
 // the entry runs.
 
 import { parseAddress, connect } from "../repository-hosts/index.mjs";
@@ -134,13 +134,21 @@ function testsOf(env, more) {
 
 // The machine a job workflow's job is (src/runtimes/workflow/github.yml, gitlab.yml): AGENT_M_PART `agent` or `write`, else null, where it is neither — the plan —; the
 // result's folder, AGENT_M_RESULT_DIR; and, on the agent's machine, the key it was given, AGENT_M_KEY, by its place among AGENT_M_KEY_NAMES from 1, 0 for none; the
-// model's user, AGENT_M_MODEL_USER, as which a hand-over to a model endpoint runs there (model-user.mjs); and, on that user's side, AGENT_M_KEY_HOLDER, the address of
-// the key holder through which it reaches the endpoint.
+// model's user, AGENT_M_MODEL_USER, as which a model's run works there (model-user.mjs); and, on that user's side, AGENT_M_KEY_HOLDER, the address of the key holder
+// through which it reaches the endpoint or the coding agent's provider.
 function partOf(env) {
   const part = ["agent", "write"].includes(env.AGENT_M_PART) ? env.AGENT_M_PART : null;
   const at = /^\d+$/.test(env.AGENT_M_KEY ?? "") ? Number(env.AGENT_M_KEY) : 0;
   return { part, resultDir: part ? env.AGENT_M_RESULT_DIR || null : null, agentKey: part === "agent" ? Object.keys(keysOf(env))[at - 1] ?? null : null,
     modelUser: part === "agent" ? env.AGENT_M_MODEL_USER || null : null, keyHolder: part === "agent" ? env.AGENT_M_KEY_HOLDER || null : null };
+}
+
+/**
+ * keyAvailable(job: CiEnvironment["job"], name: string) -> boolean — whether the run has the key of the secret `name`: its variable holds a value, or, on the model's user's
+ * side (model-user.mjs), the key holder holds it — the machine's key, `agentKey`, whose value that side never has. Pure.
+ */
+export function keyAvailable(job, name) {
+  return Boolean(Object.hasOwn(job.keys, name) && job.keys[name]) || Boolean(job.keyHolder && name === job.agentKey);
 }
 
 // Each key secret's value by its name: AGENT_M_KEY_NAMES lists the names, separated by blanks, and the workflow gives each as a variable of that name.

@@ -25,7 +25,7 @@ import { sprintsToClose } from "../work-plans/index.mjs";
 import { appendResult, parseOutcomes, resultSchema } from "../result-records/index.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
 import { testsOfRow } from "../test-schedule/index.mjs";
-import { composeProduct, composeTestJob, composeTestRun } from "./compose.mjs";
+import { composeProduct, composeTestJob, composeTestRun, keyAvailable } from "./compose.mjs";
 import { packResult, readResult, checkResult, writeBranches, pendingPullRequest } from "./result.mjs";
 
 const fs = globalThis.process?.getBuiltinModule?.("node:fs");
@@ -52,12 +52,13 @@ function usageOf(usages) {
 
 // The driver of a participant for a job: a model endpoint from the endpoint the job's record names, its key the participant's secret; or a coding
 // agent the record names, its key variable that secret's name.
-async function driverOf(participant, params, secretName, key, workdir) {
+// On the model's user's side (model-user.mjs) the agent reaches its provider through the key holder, `keyHolder`, and holds no key.
+async function driverOf(participant, params, secretName, key, workdir, keyHolder = null) {
   if (params.endpoint) return endpointDriver({ ...params.endpoint, key }, participant);
   if (typeof params.agent === "string") {
     const agent = (await installedAgents()).find((each) => each.name === params.agent);
     if (!agent?.installed) throw Object.assign(new Error(`The agent ${params.agent} is not installed on this runner.`), { name: "AgentMissing" });
-    return agentDriver(agent, { workdir, keyVariable: secretName }, participant);
+    return agentDriver(agent, { workdir, keyVariable: secretName, keyHolder }, participant);
   }
   throw Object.assign(new Error("The job's record names no endpoint and no agent for its participant."), { name: "NoDriver" });
 }
@@ -233,7 +234,7 @@ async function runJobOf(env, composed, participants, row, handOver = null) {
     }
     // On the model's user's side of the agent's machine (model-user.mjs) the endpoint is reached through the key holder, which adds the key; this side holds none.
     const config = endpoint ? { name: "hand-over", ...endpoint, ...(job.keyHolder ? { baseUrl: job.keyHolder, key: null } : { key: job.keys[secretName] ?? null }) } : null;
-    const driver = !endpoint ? await driverOf(participant, record.params ?? {}, secretName, job.keys[secretName], instance.checkout)
+    const driver = !endpoint ? await driverOf(participant, record.params ?? {}, secretName, job.keys[secretName], instance.checkout, job.keyHolder)
       : inCheckout ? endpointDriver(config, participant, undefined, { system: await checkoutPrompt({ folder: context.product.checkout, now: env.now }) })
         : endpointDriver(config, participant);
     const result = await runJob(prepared, { drafter: driver, reviewers: [] }, { attended: false, context });
@@ -336,7 +337,7 @@ function missingSecret(env, participants, rows) {
   for (const { record } of rows) {
     const participant = participants.find((each) => each.name === record.participant);
     const secret = CI_ROUTE.exec(participant?.route ?? "")?.[1];
-    if (secret && !env.job.keys[secret]) return `${secret} is missing: the key of ${participant.name} is a secret of this repository, passed to the job as ${secret}. Nothing was written.`;
+    if (secret && !keyAvailable(env.job, secret)) return `${secret} is missing: the key of ${participant.name} is a secret of this repository, passed to the job as ${secret}. Nothing was written.`;
   }
   return null;
 }
@@ -454,7 +455,7 @@ async function runHandOver(env, composed, listed, row, inputs) {
   // variable is read); for any other hand-over, the secret the participant's route names.
   const secret = inputs.endpoint ? (typeof inputs.secret === "string" && inputs.secret ? inputs.secret : null) : SECRET_OF.exec(participant.route ?? "")?.[1];
   // On the model's user's side the key holder holds that key, which it was started with only where the machine had it (model-user.mjs).
-  if (secret && !(inputs.endpoint && env.job.keyHolder) && !(Object.hasOwn(env.job.keys, secret) && env.job.keys[secret])) {
+  if (secret && !(inputs.endpoint && env.job.keyHolder) && !keyAvailable(env.job, secret)) {
     const unnamed = !Object.hasOwn(env.job.keys, secret);
     return notRun(unnamed
       ? `${secret} is missing: the job workflow names no such key, so no secret of that name reaches the run; the job workflow is installed again from Settings, which names the keys of the participants' routes and of this browser's endpoints. Nothing was written.`
