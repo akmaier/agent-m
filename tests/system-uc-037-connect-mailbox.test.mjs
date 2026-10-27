@@ -413,8 +413,7 @@ test("alternative 7d on the IMAP route: reading and sending are shown separately
 // given: the web-API route stored and tested with a sign-in that does not grant Mail.Send, so that the test showed sending does not work
 // input: the page where replies are sent (the route replies of the main page) opened
 // expect: UC-037 7d: "the dashboard says so where a reply would be sent": the page of replies says that sending does not work for this mailbox. FINDING UC037-7d-replies: the result of the mailbox's test keeps no record that sending failed (`last-test:mailbox` holds the outcome working), and the page of replies says nothing about it (flow: UC-037 alternative 7d)
-test("alternative 7d: the dashboard says where a reply would be sent that sending does not work",
-  { todo: "FINDING UC037-7d-replies — after a test that found sending not working, the page of replies does not say so (UC-037 7d)" }, async () => {
+test("alternative 7d: the dashboard says where a reply would be sent that sending does not work", async () => {
   const p = await openDashboard({ signIn: { granted: ["Mail.ReadWrite", "offline_access"] }, views: [settingsView, maintenanceView] });
   try {
     await connectAMailbox(p);
