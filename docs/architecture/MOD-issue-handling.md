@@ -10,6 +10,8 @@ uses:
   - MOD-repository-hosts.setIssueLabels
   - MOD-repository-hosts.setIssueState
   - MOD-repository-hosts.webLinks
+  - MOD-repository-hosts.repositoryInfo
+  - MOD-repository-hosts.readSnapshot
   - MOD-repository-hosts.Snapshot
   - MOD-mail-records.issueLabels
   - MOD-mail-records.noteText
@@ -21,7 +23,6 @@ uses:
   - MOD-trace-graph.tracesTo
   - MOD-run-planner.runStrategies
   - MOD-personal-data.pseudonymisationOf
-  - MOD-documents.loadSchema
   - MOD-documents.artifactSchemas
   - MOD-documents.readDocument
   - MOD-documents.Document
@@ -110,6 +111,8 @@ labels and closes issues in the product's tracker through Access; the item is wr
 
 - `MOD-repository-hosts.commentOnIssue`, `setIssueLabels`, `setIssueState` — the class, the notes and closing, with the
   person's token; `MOD-repository-hosts.webLinks` — the address of the item file in the product's repository;
+  `MOD-repository-hosts.repositoryInfo`, `readSnapshot` — the default branch's head that `moveToBacklog` reads the module
+  files and an existing item from;
   `MOD-repository-hosts.Snapshot` — the files its recipes read.
 - `MOD-mail-records.issueLabels`, `MOD-mail-records.noteText`, `MOD-mail-records.IssueText` — the labels and comments
   Agent M writes on an issue, defined once there.
@@ -119,8 +122,8 @@ labels and closes issues in the product's tracker through Access; the item is wr
 - `MOD-trace-graph.traceGraph`, `MOD-trace-graph.tracesTo` — what links to them.
 - `MOD-run-planner.runStrategies` — the recipe `implementation-inputs`, reused for the modules of a fix.
 - `MOD-personal-data.pseudonymisationOf` — whether the issue's report data was rewritten without persons.
-- `MOD-documents.loadSchema`, `MOD-documents.Document` — the item schema of the prefilled item;
-  `MOD-documents.artifactSchemas`, `MOD-documents.readDocument` — the module files of the architecture that `saveItems`
-  checks the item against, and an existing item that takes this issue as a further origin.
+- `MOD-documents.Document` — the prefilled item; `MOD-documents.artifactSchemas`, `MOD-documents.readDocument` — the
+  item and module schemas, the module files of the architecture that `saveItems` checks the item against, and an existing
+  item that takes this issue as a further origin.
 - `MOD-work-plans.saveItems` — writing the item.
 - `MOD-job-runner.Strategies` — the type of `issueStrategies`.
