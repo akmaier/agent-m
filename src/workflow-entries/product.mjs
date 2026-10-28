@@ -119,13 +119,11 @@ function bashWithheld(context, participant) {
 // What a writer's outcome lists in the job's end: its commits, files and pull request, and its notes.
 const resultsOf = (outcome) => (outcome ? [...outcome.commits, ...outcome.files, ...(outcome.pullRequest ? [outcome.pullRequest] : []), ...outcome.notes.map((note) => `note: ${note}`)] : []);
 
-// An item of the backlog or a step of the plan, by its identifier.
-const PLANNED = /^ITM-\d+$/;
-
-// The hand-over a job's draft holds (UC-049 4f), run in the same run with the same participant and driver where its kind's result waits for a person and it works on no item
-// of the backlog or step of the plan: its parameters the job's source, those handOverParams gives for what it works on, and its task as instruction; run unattended, so that its
-// writer writes at once. -> the lines the job's end lists: what its writer wrote, or `not run: <kind> — <why>`.
-async function handedOver(handOver, context, participant, driver, record) {
+// The hand-over a job's draft holds (UC-049 4f), run in the same run, by its kind's definition, where its kind is not the job's own: its parameters the job's source, those
+// handOverParams gives for what it works on, and its task as instruction; prepared with its kind's preconditions — no start rule of the product's process applies — and run
+// unattended, so that its writer writes at once. `handOn(kind, params)` gives the participant, the driver and the context it runs with, and the notes that go with them.
+// -> the lines the job's end lists: what its writer wrote, or `not run: <kind> — <why>`.
+async function handedOver(handOver, context, record, handOn) {
   const worksOn = [handOver.works_on].flat().filter(Boolean).map(String);
   // One line each, as the record's `results` holds them: a failure's own text may span several, as git's does.
   const notRun = (why) => [`not run: ${handOver.kind} — ${String(why).replace(/\s*\n\s*/g, " ")}`];
@@ -136,15 +134,12 @@ async function handedOver(handOver, context, participant, driver, record) {
     return notRun(error?.message ?? String(error));
   }
   if (kind.name === context.kind.name) return notRun("it is this conversation itself, which a hand-over does not start again");
-  if (kind.review !== "person") return notRun("its result does not wait for a person, so it is started from the dashboard, by its start rules, for a holder of its role");
   const dropped = String(handOver.task ?? "").trim() ? taskRefusal(kind) : null;
   if (dropped) return notRun(`${dropped.what} [${dropped.rule}]`);
-  const planned = worksOn.filter((name) => PLANNED.test(name));
-  if (planned.length > 0) return notRun(`it works on ${planned.join(", ")} of the plan, whose start rules are checked where a person starts it`);
   const params = { ...(typeof record.params?.source === "string" ? { source: record.params.source } : {}), ...handOverParams(worksOn, context.product.snapshot),
     instruction: String(handOver.task ?? "") };
-  const nested = { ...context, kind, params };
   try {
+    const { participant, driver, context: nested, notes } = await handOn(kind, params);
     const prepared = await prepareJob(kind.name, nested, { drafter: participant, reviewers: [], limit: record.limit });
     if (prepared.blocking.length > 0 || prepared.notFitting.length > 0) {
       return notRun(prepared.blocking.map((found) => `${found.what} [${found.rule}]`).join("; ") || "the job does not fit its participant");
@@ -152,8 +147,8 @@ async function handedOver(handOver, context, participant, driver, record) {
     const result = await runJob(prepared, { drafter: driver, reviewers: [] }, { attended: false, context: nested });
     const failed = failedBecause(result);
     if (failed) return [`failed: ${handOver.kind} — ${failed}`];
-    const lines = resultsOf(result.written);
-    return lines.length > 0 ? lines : [`${handOver.kind}: no change`];
+    const written = resultsOf(result.written);
+    return [...notes.map((note) => `note: ${note}`), ...(written.length > 0 ? written : [`${handOver.kind}: no change`])];
   } catch (error) {
     return notRun(error?.message ?? String(error));
   }
@@ -246,8 +241,20 @@ async function runJobOf(env, composed, participants, row, handOver = null) {
         : endpointDriver(config, participant);
     const result = await runJob(prepared, { drafter: driver, reviewers: [] }, { attended: false, context });
     outcome = result.written;
-    // What the participant handed on is run in the same run, and its results join the job's (UC-049 4f).
-    const passed = result.draft?.handOver ? await handedOver(result.draft.handOver, context, participant, driver, record) : [];
+    // What the participant handed on is run in the same run, and its results join the job's (UC-049 4f): with this job's participant and driver, except that a model
+    // endpoint's job of a kind that changes code or runs tests works in the job's checkout with the tools of MOD-checkout-tools and checkoutPrompt, as onDispatch's does,
+    // its participant, where the record declares it, built for that kind.
+    const handOn = async (kind, params) => {
+      const model = config ?? ((record.params ?? {}).endpoint ? { ...record.params.endpoint, key: job.keys[secretName] } : null);
+      if (!model || readsAndDrafts(kind)) return { participant, driver, context: { ...context, kind, params }, notes: [] };
+      const own = record.declares && handOver?.endpoint ? await declaredParticipant({ ...record, kind: kind.name }, { secret: handOver.secret }) : participant;
+      const nested = { ...context, kind, params, product: { ...context.product, checkout: job.productDir ?? instance.checkout } };
+      const why = bashWithheld(nested, own);
+      if (why) nested.params = { ...params, refuses: [...(Array.isArray(params.refuses) ? params.refuses : []), "bash"] };
+      return { participant: own, context: nested, notes: why ? [`bash is not offered: ${why}`] : [],
+        driver: endpointDriver(model, own, undefined, { system: await checkoutPrompt({ folder: nested.product.checkout, now: env.now }) }) };
+    };
+    const passed = result.draft?.handOver ? await handedOver(result.draft.handOver, context, record, handOn) : [];
     // On the agent's machine the branch is not on the server yet: the writing machine refuses a result whose commits or pull request hold the task (result.mjs).
     if (handOver && !composed.result) {
       const refused = await refusedBranch(product.host, outcome, handOver.task, context.product.snapshot.commit);
