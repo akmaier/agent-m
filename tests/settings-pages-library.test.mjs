@@ -61,7 +61,8 @@ const byClass = (root, name) => descendants(root, (node) => (node.className ?? "
 const one = (root, name) => { const found = byClass(root, name); assert.equal(found.length, 1, `exactly one .${name}`); return found[0]; };
 const settle = () => new Promise((resolve) => setTimeout(resolve, 15));
 const fire = async (node, type) => { node.dispatchEvent(new Event(type)); await settle(); };
-const click = (node) => fire(node, "click");
+// A person's click: a browser marks it trusted (`isTrusted`); node marks every Event untrusted, as a script's.
+const click = async (node) => { node.dispatchEvent(Object.defineProperty(new Event("click"), "isTrusted", { value: true })); await settle(); };
 const put = async (node, value, type = "change") => { node.value = value; await fire(node, type); };
 const folded = (root) => byClass(root, "explain");
 const sha = (bytes) => createHash("sha256").update(bytes).digest("hex");

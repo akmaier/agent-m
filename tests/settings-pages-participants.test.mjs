@@ -120,7 +120,8 @@ const byTag = (root, name) => descendants(root, (node) => node.localName === nam
 const one = (root, name) => { const found = byClass(root, name); assert.equal(found.length, 1, `exactly one .${name}`); return found[0]; };
 const settle = () => new Promise((resolve) => setTimeout(resolve, 15));
 const fire = async (node, type) => { node.dispatchEvent(new Event(type)); await settle(); };
-const click = (node) => fire(node, "click");
+// A person's click: a browser marks it trusted (`isTrusted`); node marks every Event untrusted, as a script's.
+const click = async (node) => { node.dispatchEvent(Object.defineProperty(new Event("click"), "isTrusted", { value: true })); await settle(); };
 const put = async (node, value, type = "input") => { node.value = value; await fire(node, type); };
 const saveOf = (root) => byTag(root, "button").filter((button) => button.textContent === "Save").at(-1);
 const rowTextOf = (root) => byTag(one(root, "participants-form-box"), "textarea")[0].value;
