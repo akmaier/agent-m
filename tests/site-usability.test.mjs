@@ -174,6 +174,12 @@ const setUp = async () => {
   await page.evaluate(`document.querySelector("main").insertAdjacentHTML("beforeend",
     '<div id="planted-unrendered" class="unrendered"><p>Diagram error: planted</p><pre><code>flowchart LR</code></pre></div>')`);
   planted.afterDiagram = await page.evaluate(MEASURE(390));
+  // The counter-proof of the closed <details>: two buttons 10 px square in one, first closed — displayed nowhere —, then opened.
+  await page.evaluate(`document.querySelector("main").insertAdjacentHTML("beforeend", '<details id="planted-details"><summary>planted</summary>'
+    + '<p><button style="width:10px;height:10px;padding:0">y</button><button style="width:10px;height:10px;padding:0;margin-left:2px">y</button></p></details>')`);
+  planted.closedDetails = await page.evaluate(MEASURE(390));
+  await page.evaluate(`document.getElementById("planted-details").open = true`);
+  planted.openDetails = await page.evaluate(MEASURE(390));
   console.log(`site-usability ${JSON.stringify([...measured].map(([key, value]) => [key, value.sheets, value.targets.length, value.widths.length]))}`);
 };
 // A failure after the window opened carries the tail of the browser child's stderr (withStderr), which nothing else writes.
@@ -397,6 +403,19 @@ test(`${testId(904, CASES[904].plantedButton)}: a planted button 10 px square fa
 
 test(`${testId(904, CASES[904].plantedSheet)}: a planted embedded style sheet fails the style-sheet check`, () => {
   assert.deepEqual(planted.after.sheets, ["an embedded <style> element"]);
+});
+
+// ---------------------------------------------------------------- a target in a closed <details>
+
+// given: the page of the counter-proofs with two buttons 10 px square, 2 px apart, planted in a <details>; input: the target-size check, with the <details> closed and then opened;
+// expect: closed, no finding names the buttons, since the page displays neither; opened, the check names them. The links in the closed <details> of a route's explanations are
+// no targets either, so that the box the browser still reports for one does not take part in the spacing of the link that stands where the box lies (SPEC EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE).
+test(`${testId(904, CASES[904].closedDetails)}: a button in a closed <details> is no target: the check names none`, () => {
+  assert.equal(planted.closedDetails.targets.some((finding) => finding.includes('"y"')), false, `findings: ${planted.closedDetails.targets.join("; ")}`);
+});
+
+test(`${testId(904, CASES[904].openDetails)}: the same buttons in the opened <details> fail the target-size check`, () => {
+  assert.ok(planted.openDetails.targets.includes('button "y" is 10 x 10 px'), `findings: ${planted.openDetails.targets.join("; ")}`);
 });
 
 // ---------------------------------------------------------------- a diagram that failed

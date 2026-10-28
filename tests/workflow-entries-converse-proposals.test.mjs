@@ -335,14 +335,9 @@ test("TST-1360106: a hosted converse job's edits are written as a pull request, 
 
 // TST-1360107 · level: component · module: MOD-workflow-entries
 // guards: UC-049; NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED
-// What changed: UC-049 4f, as accepted, runs a hand-over of any kind other than the conversation itself in the same run, by that kind's definition; the start rules of the product's process
-//   bind the process's jobs, not the prompt bar's. This test expected the hand-over that works on an item of the backlog not to run; it now expects it to run, and keeps the one that is not run:
-//   the conversation itself handed on.
-// given: a hosted converse job; the product's backlog holds ITM-004, which realises the accepted UC-001 — no process declaration, no sprint, no role assignment —; the endpoint answers with a
-//   hand-over { kind change-use-case, works_on [ITM-004, UC-001] } and the change of the use case with UC-001's new text; and, in a second run, with a hand-over { kind converse, works_on [UC-001] }
+// given: a hosted converse job; the product's backlog holds ITM-004, which realises the accepted UC-001 — no process declaration, no sprint, no role assignment —; the endpoint answers with a hand-over { kind change-use-case, works_on [ITM-004, UC-001] } and the change of the use case with UC-001's new text; and, in a second run, with a hand-over { kind converse, works_on [UC-001] }
 // input: onRecordsChanged for each
-// expect: outcome `done` both times. The first: the prompt of change-use-case was sent, UC-001's file on main is the drafted text, and the end lists the writer's commit and no `not run`.
-//   The second: only the conversation was sent, the end lists `not run: converse — ` naming that it is the conversation itself, and nothing but the job's own record is written
+// expect: outcome `done` both times. The first: the prompt of change-use-case was sent, UC-001's file on main is the drafted text, and the end lists the writer's commit and no `not run`. The second: only the conversation was sent, the end lists `not run: converse — ` naming that it is the conversation itself, and nothing but the job's own record is written
 test("TST-1360107: a hand-over that works on an item of the backlog runs in the hosted job by its kind's definition; the conversation itself handed on does not", async () => {
   const backlog = { "docs/backlog/ITM-004-due-date.md": text("---", "id: ITM-004", "title: Tell the due date", "realises:", "  - UC-001", "modules:", "  - MOD-reader", "origin:",
     "  - the fixture", "---", "# ITM-004 Tell the due date", "", "## Outcome", "", "The member is told the date.", "", "## Acceptance", "", "The date is shown.") };
