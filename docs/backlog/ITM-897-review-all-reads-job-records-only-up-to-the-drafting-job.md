@@ -21,12 +21,13 @@ origin:
 ## Outcome
 
 Review all of the whole architecture reads every job record of the repository (`docs/jobs/`, 372 files in 4 batches at
-`deab7a3b`) to find the job that drafted a file. It goes through `readJobRecords` (`src/review-pages/common.mjs:78-82`) and
-`listJobs`, also when no job drafted it. ITM-875's measurement found this (sprint team1/87, developer-sonnet-d).
+`deab7a3b`) to find the job that drafted a file. It goes through `readJobRecords` (`src/review-pages/common.mjs:86-90`) and
+`listJobs`, also when no job drafted it; the search is `draftingRounds` (`src/review-pages/flow.mjs:104-113`, called at
+`:396`). `docs/jobs/` holds 478 records at `78f10185`, still none of `derive-architecture`. ITM-875's measurement found this (sprint team1/87, developer-sonnet-d).
 
 MOD-job-ledger offers `recordsNewestFirst`: "the job records of a snapshot, newest first …, each read only when its caller
 asks for the next one, so that a caller that looks for a recent job stops reading where it has found it"
-(MOD-job-ledger.md:179-181). MOD-review-pages' Uses do not name it. A draft adds it (MOD-review-pages.md, Uses and the
+(MOD-job-ledger.md:182-186). MOD-review-pages' Uses do not name it. A draft adds it (MOD-review-pages.md, Uses and the
 line on MOD-job-ledger), committed for akmaier with this item.
 
 **A limit, named before the work:** when no job drafted the file, newest first still reads every record. The item's first
@@ -57,7 +58,7 @@ records (`ITM-897-count.mjs`):
 - A version that saves requests needs `recordsNewestFirst` to read in batches of at most 100. That is an interface
   decision of MOD-job-ledger that no accepted text makes. The item is not buildable as specified (sprint 79's agreement)
   and waits for such a draft. The accepted line in MOD-review-pages' Uses stays unbuilt until then.
-- **Also found:** `jobNotes` (`src/review-pages/jobs.mjs:224`, called from `flow.mjs:445` on the file page of a kind with
+- **Also found:** `jobNotes` (`src/review-pages/jobs.mjs:232`, called from `flow.mjs:561` on the file page of a kind with
   drafts) reads every record through `readJobRecords` and `listJobs` too. It collects every job whose end names the file,
   so stopping at the newest cannot help it. It reads in batches and breaks no sentence. It is noted here for the same
   draft.

@@ -26,7 +26,7 @@ origin:
 
 ## Outcome
 
-MOD-implementation-pages.md:178-181: "while the page is open, the run's next actions of this page's route started as the
+MOD-implementation-pages.md:195-198: "while the page is open, the run's next actions of this page's route started as the
 records change; *Stop run*, which cancels every job of the run that has not ended, and then the run itself, through
 `cancelJob`, which records each end; and *Continue* once the person has raised the limit that stopped it." UC-043 6b
 (failed jobs listed first, with **Retry**), 6c and 6d (UC-043.md:145-152).

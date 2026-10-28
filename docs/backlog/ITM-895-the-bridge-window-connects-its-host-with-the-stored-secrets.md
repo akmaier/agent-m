@@ -20,7 +20,7 @@ origin:
 ## Outcome
 
 The Bridge's window connects the instance's host with no token and no `secrets`:
-`src/site-frame/index.mjs:377`, `connect(parseAddress(...))` in `startBridge`. Its comment says the window "connects no
+`src/site-frame/index.mjs:470`, `connect(parseAddress(...))` in `startBridge`. Its comment says the window "connects no
 repository until a view asks its supplied host to do so". Whether a Bridge view can commit through that host is not traced.
 This is a lead, from developer-sonnet-e's work on ITM-882. If any Bridge view commits through it, a stored secret would
 not be refused there (MOD-repository-hosts.md:199).

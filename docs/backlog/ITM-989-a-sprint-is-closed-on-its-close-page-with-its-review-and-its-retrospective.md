@@ -27,16 +27,16 @@ origin:
 
 ## Outcome
 
-MOD-implementation-pages.md:167-169: "`sprint/<team>/<n>/close` — the increment and the items not done, the feedback lines,
+MOD-implementation-pages.md:182-186: "`sprint/<team>/<n>/close` — the increment and the items not done, the feedback lines,
 the unfinished items' decisions, the retrospective with the sprint's numbers as material; *Close sprint* with
 `closeSprint`, offered only with a retrospective entry and a decision for every unfinished item". UC-041 steps 1 to 6 and
 6a (UC-041.md:64-87, :142-143).
 
-The route is not built: `src/implementation-pages/index.mjs:3`. The backlog route (ITM-681) leads to it for the person's
+The route is not built: `src/implementation-pages/index.mjs:4`. The backlog route (ITM-681) leads to it for the person's
 team's running sprint. The page shows `sprintFacts` (ITM-986) and calls `closeSprint`, which already refuses a close
-without a retrospective or with an undecided item (`src/work-plans/saves.mjs:214-223`). The increment carries the folded
+without a retrospective or with an undecided item (`src/work-plans/saves.mjs:222-231`). The increment carries the folded
 *What is this?* of ITM-988. After the close, for an increment not merged, the page offers *Give up increment* with a
-reason, through MOD-work-plans' `giveUpIncrement` (ITM-1232) (MOD-implementation-pages, the same route; UC-041 7b).
+reason, through MOD-work-plans' `giveUpIncrement` (ITM-1232, built in `9c0c927a`, `saves.mjs:260`) (MOD-implementation-pages, the same route; UC-041 7b).
 
 ## Acceptance
 

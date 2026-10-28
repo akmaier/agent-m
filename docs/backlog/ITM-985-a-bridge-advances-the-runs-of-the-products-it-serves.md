@@ -22,9 +22,9 @@ origin:
 
 ## Outcome
 
-MOD-bridge-jobs.md:119-121, `startWatching`: "the next actions of every run of a served product are computed from the
+MOD-bridge-jobs.md:157-159, `startWatching`: "the next actions of every run of a served product are computed from the
 product's facts, those of this route taken and those of other routes queued by their start records". Not built:
-`src/bridge-jobs/watch.mjs:2-3`. On the Bridge's local clone the facts that need server operations are `"unknown"`, so
+`src/bridge-jobs/watch.mjs:2`. On the Bridge's local clone the facts that need server operations are `"unknown"`, so
 `nextActions` gives only resumptions, holds and refusals there (MOD-run-planner.md:102-105).
 
 ## Acceptance

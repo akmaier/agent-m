@@ -23,10 +23,10 @@ origin:
 
 ## Outcome
 
-MOD-workflow-entries.md:147-150, `onRecordsChanged`: "and computes the next actions of every run the change concerns, from
+MOD-workflow-entries.md:235-239, `onRecordsChanged`: "and computes the next actions of every run the change concerns, from
 the product's facts read once, taking those of this route and queueing those of other routes by their start records (`A RUN
 CONTINUES WITHOUT A CLICK BETWEEN ITS JOBS`). Two entries that compute the same action are safe: only one taking lands."
-`src/workflow-entries/product.mjs:3-4`: "The runs' next actions ... are other items'."
+`src/workflow-entries/product.mjs:3`: "The runs' next actions and onPullRequestClosed are other items'."
 
 ## Acceptance
 
