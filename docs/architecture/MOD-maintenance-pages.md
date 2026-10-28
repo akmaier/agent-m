@@ -22,6 +22,7 @@ uses:
   - MOD-repository-hosts.readSnapshot
   - MOD-repository-hosts.repositoryInfo
   - MOD-repository-hosts.listIssues
+  - MOD-repository-hosts.readIssue
   - MOD-repository-hosts.setIssueState
   - MOD-repository-hosts.setIssueLabels
   - MOD-repository-hosts.commentOnIssue
@@ -124,7 +125,9 @@ person reviews it. Its formats are those of the modules it uses.
     precondition names —; *Move to backlog* with the item prefilled — its fields checked in a
     form while the person edits them —; *Add*, which writes the item and the issue's comment and label with
     `moveToBacklog`, or names the comment to copy
-    when the token may not comment; closing an issue with links once its pull request is merged.
+    when the token may not comment; closing an issue with links once its pull request is merged. The list reads the open
+    issues without their comments (`listIssues` with `comments: false`); `issue/<number>` and `replies/<issue>` read
+    their one issue with `readIssue`.
   - `mail` — *Read mailbox*; the mails no issue lists and nobody marked *not an issue*, with sender, subject and date in
     this browser only; the participant for the proposals among those at places the mailbox allows, a place outside the
     EU named as not compliant, and the three checkers; the run panel and *Propose*; per mail, the mail in full beside the
@@ -169,7 +172,8 @@ instance's participants and source register.
   MOD-bridge-client.bridgeAt — a handle for each Bridge, handed to the runtimes.
 - MOD-repository-hosts.parseAddress, MOD-repository-hosts.connect — the hosts of the instance's products, whose issues a
   mail may concern; MOD-repository-hosts.readSnapshot, MOD-repository-hosts.repositoryInfo,
-  MOD-repository-hosts.listIssues — issues and what a job's context needs; MOD-repository-hosts.setIssueState —
+  MOD-repository-hosts.listIssues — issues and what a job's context needs; MOD-repository-hosts.readIssue — the one
+  issue the route `issue` and a reply show; MOD-repository-hosts.setIssueState —
   *Close and reply*, *Reopen*; MOD-repository-hosts.setIssueLabels — the label `waiting-for-reporter` removed;
   MOD-repository-hosts.commentOnIssue — a note offered again; MOD-repository-hosts.webLinks — an issue's page.
 - MOD-job-ledger.recordsNewestFirst, MOD-runtimes.jobTrail — an issue's fix: the newest `fix-bug` job whose `works_on`

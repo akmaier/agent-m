@@ -186,9 +186,17 @@ Its formats are those of the modules it uses.
     target branch, the gates the jobs will meet and who decides them; *Start jobs*, which queues each job on its
     participant's route — handed to a Bridge at once where the route is one; for each pull request its CI runs and
     whether the Definition of Done holds, and *Merge* once it does; where `repositoryInfo` gives `greenToMerge` false,
-    that the server does not enforce "merge only on green", with the page `branchProtection` (UC-024 12a). It reads the
-    product's facts with the scope `work` once, at the head the jobs start on, and derives every item's state and
-    whether it can start from them, not from a stored view.
+    that the server does not enforce "merge only on green", with the page `branchProtection` (UC-024 12a). In a model that
+    works from a backlog, it takes every item's state, hold and what keeps it from a team from the backlog's view of the
+    head (MOD-progress-measures' `storedView`, `asOf` null), and reads besides only the declaration, the declared model's
+    file, the role assignments and the running sprints' records, from which `startable` judges each item; while the
+    head's view is not stored yet, it says so and offers no *Start jobs*, and where the repository stores no view, it
+    derives the same view in the page from the facts of the scope `work`. In a model that plans its work, it reads the
+    facts of the scope `work`, as the route `plan` does. The pull requests it shows are the open ones that name a job
+    (`listPullRequests` with the state `open`), and the records of those jobs, in one batch; whether the Definition of
+    Done holds is the result of the check `agent-m done` among the runs of the head (MOD-workflow-entries'
+    `onDoneCheck`), and no gate record or module file is read for it. A merged pull request is shown on its job's page
+    (MOD-main-page, route `job`).
   - `progress` — the progress in the model's measure — the grid of requirements by phases with the steps of the plan,
     the burn-down of each team's running sprint, or the board's cumulative flow —, the gates passed, pending and not reached, what is
     blocked, who works on what; a cell, card or point leads to the trace page of what is behind it. In a model with
