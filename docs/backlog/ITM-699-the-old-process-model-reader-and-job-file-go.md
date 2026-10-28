@@ -20,9 +20,11 @@ origin:
 
 ## Outcome
 
-`docs/assets/process-model.mjs` repeats MOD-model-catalogue's `modelFindings` and `catalogue`, and
-`docs/assets/jobs/propose-backlog-items/job.json` the kind `propose-items`. Once the old backlog view is gone, both go,
-and `tests/test_backlog_item_fields.py` and `test_artifact_format.py` stop reading the job file.
+`docs/assets/jobs/propose-backlog-items/job.json` repeats the kind `propose-items`. It goes, as MOD-job-catalogue's
+Parts say (`docs/architecture/MOD-job-catalogue.md:45`), and `tests/test_backlog_item_fields.py` (`:13`, `:31`,
+`:192-196`) and `tests/test_artifact_format.py` (`:123`) stop reading it. The old process-model reader,
+`docs/assets/process-model.mjs`, was removed by `4929406eb`; the old backlog view is gone (`docs/assets/dashboard/` holds
+only `built.json`).
 
 It waits for akmaier's acceptance of the module-file draft committed with the plan, which names these files as taken over in the module's Parts.
 

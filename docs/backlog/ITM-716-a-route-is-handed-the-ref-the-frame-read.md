@@ -20,8 +20,8 @@ origin:
 
 ## Outcome
 
-Every route of MOD-review-pages starts with `readPlace` (`src/review-pages/common.mjs:49-60`). It calls
-`host.repositoryInfo()`, a `GET /repos/<repo>`, for the default branch, and then reads the snapshot of that branch.
+Every route of MOD-review-pages starts with `readPlace` (`src/review-pages/common.mjs:123-133`). Through `defaultSnapshot`
+(`:113-116`) it calls `host.repositoryInfo()`, a `GET /repos/<repo>`, for the default branch, and then reads the snapshot of that branch.
 The frame has already read the snapshot of the ref it shows. With a token, `#uc`, `#arc` and `#review/uc` therefore make
 one request more per load than the frame alone.
 

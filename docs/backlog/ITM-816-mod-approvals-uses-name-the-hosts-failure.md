@@ -18,7 +18,7 @@ origin:
 
 ## Outcome
 
-`src/approvals/status.mjs:18` imports `HostError` from MOD-repository-hosts' index. MOD-approvals' file does not name
+`src/approvals/status.mjs:19` imports `HostError` from MOD-repository-hosts' index. MOD-approvals' file does not name
 `MOD-repository-hosts.HostError` among its Uses. The import predates ITM-718. ITM-718 throws one more `HostError("NotFound")`
 with it, a failure `lastAcceptedText` already names.
 
