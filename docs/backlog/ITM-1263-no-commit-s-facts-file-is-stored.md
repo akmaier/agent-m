@@ -18,6 +18,10 @@ tests:
   - component
 origin:
   - akmaier, 2026-10-28: "I think I want the 20 mb facts file gone." … "delete them and make sure they are not built in the future again."
+built_by:
+  - ebb8590f7849ca7c2cd79ff076244d9b1963bc54
+  - 7339b4226ae849689646ac5c97c333b6bff9eac9
+  - 574649f957e7dab94592076bf03b289e1b27f459
 ---
 # ITM-1263 No commit's facts file is stored
 
