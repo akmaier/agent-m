@@ -1,6 +1,6 @@
 // The routes `issues` and `issue/<number>` — a product's issues, their analysis and the class confirmed, corrected or the issue rejected (UC-012 steps 2 to 4, 3a and 4a), as docs/architecture/MOD-maintenance-pages.md states them and ITM-582 builds
-// them: *Analyse* with its run panel and the class proposed with its reasoning; one click confirms the class, corrects it or rejects the issue with a reason, with `confirmClass`. The change of the SPEC (ITM-584) is drafted and saved in a section of the issue's page; the fix of a bug and the move into the backlog are
-// other items'.
+// them: *Analyse* with its run panel and the class proposed with its reasoning; one click confirms the class, corrects it or rejects the issue with a reason, with `confirmClass`. The change of the SPEC (ITM-584) is drafted and saved in a section of the issue's page; the move into the backlog (ITM-1250)
+// is another section of it; the fix of a bug is another item's.
 //
 // Module: MOD-maintenance-pages
 //
@@ -14,10 +14,16 @@
 //   - The change (ITM-584): a section "Change" is shown for an issue whose class is change — by its label, or by the person's click on Change —, built as the analysis is (`runSection`) over the kind `change-requirements`, whose parameters are `issue` and `source`, the
 //     latter the identifier `personSource` gives over the product's links and the instance's register; without one the precondition `person-source` blocks the run panel, which lists its steps. The candidates are listed with their class; Save, the person's click, writes
 //     them with the kind's writer through `writeResult`, as the person left them (the classes the loop gave; a conflict is not composed).
+//   - The move into the backlog (ITM-1250): a section "Move to backlog" is shown for an open issue whose class is bug or change — by its label, or by the person's click on a class —, with the button "Move to backlog" (the person's click). The click reads the product's default branch and draws the
+//     item `backlogItemFrom` prefills as a form of the frame's `schemaForm` over the item schema, whose list-valued keys the form cannot hand over as lists, so that the form's schema types them as one text, the names separated by commas, and the page reads them back as lists. The form holds a provisional identifier,
+//     the next that the paths of the backlog and the plan leave free, which is never written: `saveItems` gives the item the next one that no history holds. The form's one button, "Save", is shown as "Add"; the form offers it only while no error remains, and the findings of `backlogFindings`
+//     over the architecture's module files are shown beside the form. `changed` are the requirements that `entryView`'s impact names as added or changed, in the order of the entries, of the queues whose `**Issue:**` line names this issue and this product; the analysis is the page's proposal, if the person ran one:
+//     the answer of the kind `analyse-issue` holds a class, its reasoning and the files it names as wrong, and no violated requirement, so that `violated` is null and the person names the requirement a bug realises; its `modules` are the modules of the architecture whose folder holds a file it names as
+//     wrong, none without a proposal. Add writes with `moveToBacklog` (no `existing`: an item that takes a second issue is another item's), and the page then shows the identifier added, and, where the comment was refused for want of the permission, the comment's text with the issue's address and a button to copy it.
 //   - The folded explanations are built here, not by the frame's `explain`: explanations.md holds no topic of this page and it is the frame's file (as mail.mjs does).
 
-import { readDocument, readRegister } from "../documents/index.mjs";
-import { IssueClass, confirmClass } from "../issue-handling/index.mjs";
+import { artifactSchemas, documentFindings, loadSchema, readDocument, readRegister } from "../documents/index.mjs";
+import { IssueClass, backlogItemFrom, confirmClass, moveToBacklog } from "../issue-handling/index.mjs";
 import { newJobId } from "../job-ledger/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
 import { prepareJob, writeResult } from "../job-runner/index.mjs";
@@ -25,7 +31,9 @@ import { issueLabels } from "../mail-records/index.mjs";
 import { eligible, participantSchema, participantsOf } from "../participant-list/index.mjs";
 import { personAccount, personSource, sourceSchemas } from "../source-register/index.mjs";
 import { queueJob, runOnTab } from "../runtimes/index.mjs";
-import { runPanel } from "../site-frame/index.mjs";
+import { runPanel, schemaForm } from "../site-frame/index.mjs";
+import { entryView, queues } from "../spec-changes/index.mjs";
+import { backlogFindings } from "../work-plans/index.mjs";
 import { button, connectionsOf, el, failed, fold } from "./mail.mjs";
 
 const REGISTER = "docs/participants.md";
@@ -36,6 +44,7 @@ const STEP_TEXT = {
   list: "The open issues of the chosen product, with the class their label says. Open one to analyse it and to decide its class.",
   analyse: "Analyse asks the participant you choose for the class of this issue — a bug, a change or not reproducible — with its reasoning. The panel states where the participant processes data and exactly what it receives: the issue and the requirements, use cases, tests and modules it names, or the whole SPEC where it names none. The analysis writes nothing to the issue. Book: ch. 14, Evolution Processes and Change Identification.",
   change: "Draft change asks the participant you choose for the changed requirements this issue asks for, against every requirement of the product. The panel states where the participant processes data and exactly what it receives: the issue with what it names, the requirements, the open queues and the chapters of the book. The change is drafted in your own name: the job needs your own source, the register entry of your account that the product links. Save writes the candidates as a change queue under docs/spec-freigaben/ that names this issue; nothing is written before it. A conflict is not written until a person has decided it.",
+  move: "Move to backlog prefills a backlog item from this issue: its title and outcome from the issue, its origin the issue's address, what it realises (for a bug the requirement the analysis names as violated, for a change the requirements the change queues of this issue change or add) and the modules it changes, which you confirm or correct. The form names what fails. Add commits the item under docs/backlog/ of the product, adds a comment naming the item to the issue and gives the issue the label backlog. Where the token may not comment, the item is committed all the same and the comment is shown for you to copy. A change item waits for the acceptance of the requirements it names.",
   decide: "One click decides. A class sets the label defect, change or not-reproducible on the issue and removes the other two. Reject issue closes the issue with the reason you give and changes nothing else. A requirement that is missing is a change, not a bug.",
 };
 
@@ -197,6 +206,113 @@ function changeSection({ context, product, issue }) {
     } });
 }
 
+// ---------------------------------------------------------------- the move into the backlog (UC-033)
+
+const MODULE_FILE = /^docs\/architecture\/MOD-[^/]+\.md$/;
+const ITEM_FILE = /(?:^|\/)(ITM-\d{3,})-[^/]*\.md$/;
+const LIST_KEYS = new Set(["realises", "modules", "tests", "origin", "builds_on", "built_by"]);
+const LIST_FINDING = new RegExp(`^the key (${[...LIST_KEYS].join("|")}) does not fit`);
+const slugOf = (title) => String(title ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "item";
+const namesOf = (value) => (Array.isArray(value) ? value.map(String) : String(value ?? "").split(",").map((part) => part.trim()).filter(Boolean));
+const sameAddress = (a, b) => String(a).replace(/\/+$/, "") === String(b).replace(/\/+$/, "");
+
+// The item schema with its list-valued keys typed as text, which `schemaForm` can hand over (it hands over the text typed), built once.
+let textual = null;
+function formSchema() {
+  if (textual === null) {
+    const real = artifactSchemas().item;
+    const frontMatter = Object.fromEntries(Object.entries(real.frontMatter).map(([key, spec]) => [key, spec.type === "list" ? { type: "text", required: spec.required === true } : spec]));
+    textual = loadSchema(["```json", JSON.stringify({ ...real, frontMatter }), "```"].join("\n"), "MOD-maintenance-pages");
+  }
+  return textual;
+}
+
+// The requirements that the entries of the queues naming this issue of this product add or change, in `entryView`'s impact, in the order of the entries, once each.
+async function changedRequirements(snapshot, number, productAddress) {
+  const names = [];
+  for (const queue of await queues(snapshot)) {
+    if (queue.issue?.number !== number || !sameAddress(queue.issue.product, productAddress)) continue;
+    for (const entry of queue.entries) for (const { name, change } of (await entryView(queue.folder, entry.number, snapshot)).impact) if (change !== "withdrawn") names.push(name);
+  }
+  return [...new Set(names)];
+}
+
+// What the participant's analysis names: the modules whose folder holds a file it names as wrong, none without a proposal. The answer of `analyse-issue` names no violated requirement, so there is none.
+function analysisOf(architecture, proposal) {
+  const wrong = Array.isArray(proposal?.wrong) ? proposal.wrong.map(String) : [];
+  const modules = architecture.filter((one) => typeof one.fields.folder === "string" && wrong.some((file) => file.startsWith(one.fields.folder.replace(/\/?$/, "/")))).map((one) => one.id);
+  return { violated: null, modules };
+}
+
+// The comment to copy where the token may not comment: its text, the issue's address, and a button that puts the text on the clipboard.
+function commentToCopy(comment) {
+  const text = el("pre", "comment-text");
+  text.textContent = comment.text;
+  const where = el("a", "comment-issue", comment.issue);
+  where.setAttribute("href", comment.issue);
+  const copy = button("copy-comment", "Copy comment", async () => { try { await globalThis.navigator?.clipboard?.writeText(comment.text); } catch { /* the text stays shown to be selected */ } });
+  return el("div", "move-comment", el("p", null, "The token may not comment on the issue. Copy this comment and add it to ", where, ":"), text, el("p", "actions", copy));
+}
+
+// The section that moves the issue into the backlog (UC-033): Move to backlog draws the prefilled item as a form, Add writes it. `current()` is the class the issue has now and `proposal()` the participant's proposal, if any, both read when the person clicks.
+function moveSection({ product, issue, current, proposal }) {
+  const stage = el("div", "issue-move-stage");
+  const address = issueAddress(product, issue.number);
+
+  async function drawForm() {
+    stage.replaceChildren();
+    try {
+      const head = await product.host.readSnapshot((await product.host.repositoryInfo()).defaultBranch);
+      const schemas = artifactSchemas();
+      const architecture = await Promise.all(head.paths.filter((path) => MODULE_FILE.test(path)).sort().map(async (path) => readDocument(schemas.module, path, (await head.read(path)) ?? "")));
+      const cls = current();
+      const changed = cls === IssueClass.change ? await changedRequirements(head, issue.number, product.address) : [];
+      const { item } = backlogItemFrom({ ...issue, address }, cls, analysisOf(architecture, proposal()), changed);
+      const taken = head.paths.map((path) => Number(ITEM_FILE.exec(path)?.[1].slice(4) ?? 0));
+      const provisional = `ITM-${String(Math.max(0, ...taken) + 1).padStart(3, "0")}`;
+      const schema = formSchema();
+      const path = `docs/backlog/${provisional}-${slugOf(item.fields.title)}.md`;
+      // A list-valued key without a name is left out, so that its field stands empty and the form names it missing.
+      const fields = Object.fromEntries(Object.entries({ id: provisional, ...item.fields }).map(([key, value]) => [key, LIST_KEYS.has(key) ? namesOf(value).join(", ") : value]).filter(([, value]) => value !== ""));
+      // The file as the form shows it, read as MOD-documents reads a file: `writeDocument` would refuse it while a required key stands empty.
+      const front = Object.entries(fields).map(([key, value]) => `${key}: ${value}`);
+      const opened = readDocument(schema, path, [`---\n${front.join("\n")}\n---\n`, `# ${provisional} ${item.fields.title}\n\n`, ...item.sections.map(({ heading, text }) => `${heading}${text}`)].join(""));
+
+      // The document with its list-valued keys as lists again, for the checks of the item schema and of the backlog and for `moveToBacklog`.
+      const listed = (live) => ({ ...live, fields: Object.fromEntries(Object.entries(live.fields).map(([key, value]) => [key, LIST_KEYS.has(key) ? namesOf(value) : value])) });
+      const problems = el("div", "issue-move-problem");
+      const form = schemaForm(schema, opened, {
+        onSave: async (live) => {
+          problems.replaceChildren();
+          try {
+            const { id: _, ...fieldsNow } = listed(live).fields;
+            const done = await moveToBacklog(product.host, { number: issue.number, address }, { fields: fieldsNow, sections: live.sections.map(({ heading, text }) => ({ heading, text })) }, null);
+            stage.replaceChildren(el("p", "move-added", `Added ${done.item} to the backlog.`), ...(done.comment ? [commentToCopy(done.comment)] : []));
+          } catch (failure) {
+            problems.append(el("p", "issue-problem", `The item could not be added: ${failed(failure)}`));
+          }
+        },
+        extraChecks: (live) => {
+          try {
+            const now = listed(live);
+            return [...documentFindings(schemas.item, now).filter((each) => LIST_FINDING.test(each.what)), ...backlogFindings([now], architecture)].map((each) => ({ ...each, line: 1 }));
+          } catch {
+            return [];
+          }
+        },
+      });
+      // The form's one button is its Save; here it is the person's Add.
+      const add = form.children[form.children.length - 1].getElementsByTagName("button")[0];
+      if (add) add.textContent = "Add";
+      stage.append(form, problems);
+    } catch (problem) {
+      stage.replaceChildren(el("p", "issue-problem", failed(problem)));
+    }
+  }
+
+  return el("section", "issue-move", el("h3", null, "Move to backlog"), fold(STEP_TEXT.move), el("p", "actions", button("move-to-backlog", "Move to backlog", drawForm)), stage);
+}
+
 // The class proposed, with its reasoning and the files it names as wrong.
 function proposalSection(draft) {
   const wrong = Array.isArray(draft.wrong) ? draft.wrong : [];
@@ -231,11 +347,20 @@ async function renderIssue(target, context, params = {}) {
   // The change section is built once and shown while the issue's class is change: by its label, or by the person's click on a class.
   const changeBox = el("div", "issue-change-box");
   let change = null;
+  const currentClass = () => state.outcome?.cls ?? Object.entries(LABEL_OF).find(([, label]) => issue.labels.includes(label))?.[0];
   async function drawChange() {
-    const cls = state.outcome?.cls ?? Object.entries(LABEL_OF).find(([, label]) => issue.labels.includes(label))?.[0];
-    if (cls !== IssueClass.change) { changeBox.replaceChildren(); return; }
+    if (currentClass() !== IssueClass.change) { changeBox.replaceChildren(); return; }
     change ??= changeSection({ context, product, issue });
     changeBox.replaceChildren(await change);
+  }
+  // The move section is built once, and shown while the issue's class is bug or change.
+  const moveBox = el("div", "issue-move-box");
+  let move = null;
+  function drawMove() {
+    const cls = currentClass();
+    if (cls !== IssueClass.bug && cls !== IssueClass.change) { moveBox.replaceChildren(); return; }
+    move ??= moveSection({ product, issue, current: currentClass, proposal: () => state.proposal });
+    moveBox.replaceChildren(move);
   }
 
   // What a click on a class said: confirmed, corrected or, with no proposal, set.
@@ -254,7 +379,7 @@ async function renderIssue(target, context, params = {}) {
       for (const node of controls) node.disabled = true;
       state.problem = null;
       try { await run(); } catch (failure) { state.problem = failed(failure); }
-      if (!state.outcome?.rejected) { drawDecision(); await drawChange(); }
+      if (!state.outcome?.rejected) { drawDecision(); await drawChange(); drawMove(); }
     }
     const classButtons = CLASSES.map(([cls, name, plain]) => {
       const label = state.proposal === null ? plain : cls === state.proposal.class ? `Confirm ${name}` : `Correct to ${name}`;
@@ -289,8 +414,9 @@ async function renderIssue(target, context, params = {}) {
 
   const analysis = await analysisSection({ context, product, issue, onProposal: (draft) => { state.proposal = draft; proposalBox.replaceChildren(proposalSection(draft)); drawDecision(); } });
   drawDecision();
-  out.append(analysis, proposalBox, decision, changeBox);
+  out.append(analysis, proposalBox, decision, changeBox, moveBox);
   await drawChange();
+  drawMove();
 }
 
 export const routes = [
