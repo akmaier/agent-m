@@ -1,7 +1,7 @@
 // product.mjs — the entries of a product's job workflow (MOD-workflow-entries, Parts): ITM-365 builds onRecordsChanged and onDispatch, which take
 // and run the queued jobs of this CI route; ITM-498 adds to onDispatch the job whose task travels with a conversation's hand-over (UC-049 4a), which onRecordsChanged
-// leaves queued. ITM-791 adds to onRecordsChanged the resumption of the jobs of this route whose gate is recorded (A JOB STOPS AT EVERY GATE). The runs' next actions and onPullRequestClosed
-// are other items'. ITM-1032 builds onSchedule: the close of a sprint an agent closes. ITM-1209 adds onTestsFinished, ITM-1210 onDoneCheck and ITM-1215 runTests, which MOD-test-schedule's test configuration runs.
+// leaves queued. ITM-791 adds to onRecordsChanged the resumption of the jobs of this route whose gate is recorded (A JOB STOPS AT EVERY GATE). ITM-583 builds onPullRequestClosed's closing of the issues a merged fix names; the runs' next actions
+// are another item's. ITM-1032 builds onSchedule: the close of a sprint an agent closes. ITM-1209 adds onTestsFinished, ITM-1210 onDoneCheck and ITM-1215 runTests, which MOD-test-schedule's test configuration runs.
 //
 // Module: MOD-workflow-entries
 //
@@ -20,6 +20,7 @@ import { participantSchema, participantsOf } from "../participant-list/index.mjs
 import { readDocument } from "../documents/index.mjs";
 import { productFacts } from "../progress-measures/index.mjs";
 import { doneCheck, recordGateDecision } from "../product-process/index.mjs";
+import { closeWithLinks } from "../issue-handling/index.mjs";
 import { queueJob } from "../runtimes/index.mjs";
 import { sprintsToClose } from "../work-plans/index.mjs";
 import { appendResult, parseOutcomes, resultSchema } from "../result-records/index.mjs";
@@ -923,4 +924,43 @@ export async function onDoneCheck(env) {
     : `The Definition of Done of pull request #${number} (${id}) holds.`;
   if (env.job.summaryFile) fs.appendFileSync(env.job.summaryFile, `## agent-m done\n\n${summary}\n${findings.map((found) => `\n- ${findingLine(found)}`).join("")}\n`);
   return { outcome: failed ? "failed" : "done", summary, findings };
+}
+
+// The product's issue an address names, as MOD-job-ledger's `works_on` holds it — GitHub's /issues/<n>, GitLab's /-/issues/<n> — below the product's own address: its number, else null.
+function issueNumberOf(address, repository) {
+  const match = /^(.*?)\/(?:-\/)?issues\/(\d+)$/.exec(String(address));
+  return match && match[1].replace(/\/+$/, "") === String(repository).replace(/\/+$/, "") ? Number(match[2]) : null;
+}
+
+/**
+ * onPullRequestClosed(env: CiEnvironment) -> Promise<EntryStatus> — run by the job workflow when a pull request of a product is merged or closed (the event's `pull_request.number`): on a merge, the pull request of a `fix-bug` job — the job its title or description names,
+ * as onDoneCheck reads it — closes the issues that job works on, each with MOD-issue-handling's closeWithLinks, its note naming the pull request's address. A pull request closed without a merge, one that names no job, a job that has no record or is of another kind, and a job that works on
+ * no issue of this product write nothing (`nothing to do`). The runs' next actions are another item's. A missing token ends the entry at once as `not run`; an issue that cannot be closed is named, the others are closed all the same, and the entry ends `failed`.
+ */
+export async function onPullRequestClosed(env) {
+  if (!env.job.personToken) return notRun(`${env.job.tokenName} is missing: the person's Agent M token is a secret of this repository, passed to the job as ${env.job.tokenName}. Nothing was written.`);
+  const number = env.event.payload?.pull_request?.number;
+  if (!Number.isInteger(number)) return nothingToDo("The event names no pull request.");
+  const { host } = composeProduct(env).product;
+  const { pullRequest } = await host.pullRequestFacts(number);
+  if (pullRequest.state !== "merged") return nothingToDo(`Pull request #${number} was closed without a merge: no issue is closed.`);
+  const id = JOB_ID.exec(`${pullRequest.title}\n${pullRequest.body}`)?.[0];
+  if (!id) return nothingToDo(`Pull request #${number} names no job.`);
+  let record = null;
+  for await (const each of recordsNewestFirst(await host.readSnapshot("HEAD"))) if (each.id === id) { record = each; break; }
+  if (!record) return nothingToDo(`Pull request #${number} names the job ${id}, which has no record in docs/jobs/.`);
+  if (record.kind !== "fix-bug") return nothingToDo(`Pull request #${number} is of the job ${id} of kind ${record.kind}, which fixes no bug: no issue is closed.`);
+  const issues = (record.worksOn ?? []).map((address) => issueNumberOf(address, env.repository)).filter((each) => each !== null);
+  if (issues.length === 0) return nothingToDo(`The job ${id} works on no issue of this product.`);
+  const closed = [], refused = [];
+  for (const issue of issues) {
+    try {
+      await closeWithLinks(host, issue, { pullRequest: pullRequest.url, commit: pullRequest.mergeCommit ?? null, item: null });
+      closed.push(`#${issue}`);
+    } catch (error) {
+      refused.push(`#${issue}: ${error?.message ?? error}`);
+    }
+  }
+  const summary = [...(closed.length ? [`Pull request #${number} merged: ${closed.join(", ")} closed with ${pullRequest.url}.`] : []), ...(refused.length ? [`Not closed — ${refused.join("; ")}.`] : [])].join(" ");
+  return { outcome: refused.length ? "failed" : "done", summary, findings: [] };
 }
