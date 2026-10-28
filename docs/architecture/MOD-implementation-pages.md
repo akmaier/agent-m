@@ -22,7 +22,6 @@ uses:
   - MOD-repository-hosts.repositoryInfo
   - MOD-repository-hosts.listPullRequests
   - MOD-repository-hosts.pullRequestFacts
-  - MOD-repository-hosts.openPullRequest
   - MOD-repository-hosts.mergePullRequest
   - MOD-repository-hosts.listCiRuns
   - MOD-repository-hosts.commitFiles
@@ -45,30 +44,21 @@ uses:
   - MOD-product-process.workflowOf
   - MOD-product-process.holdsRole
   - MOD-product-process.doneCheck
-  - MOD-product-process.processStrategies
   - MOD-work-plans.planSchemas
   - MOD-work-plans.targetBranch
   - MOD-work-plans.itemStates
   - MOD-work-plans.startable
-  - MOD-work-plans.giveUpIncrement
   - MOD-work-plans.heldItems
   - MOD-work-plans.conflicts
   - MOD-work-plans.planFindings
   - MOD-work-plans.backlogFindings
-  - MOD-work-plans.sprintFacts
   - MOD-work-plans.savePlan
   - MOD-work-plans.saveItems
   - MOD-work-plans.startSprint
   - MOD-work-plans.endSprint
-  - MOD-work-plans.closeSprint
   - MOD-work-plans.workStrategies
-  - MOD-run-planner.runOf
-  - MOD-run-planner.nextActions
-  - MOD-run-planner.raiseLimits
-  - MOD-run-planner.finishRun
   - MOD-trace-graph.storedGraph
   - MOD-trace-graph.latestGraph
-  - MOD-trace-graph.moduleRows
   - MOD-run-planner.runStrategies
   - MOD-progress-measures.productFacts
   - MOD-progress-measures.progressIn
@@ -107,11 +97,11 @@ provides:
 ## Responsibility
 
 It belongs to the Site (ARC-038). Its one responsibility is the menu entry Implementation: how a product is developed,
-who fills its roles, and the process models of the instance; the implementation plan, or the backlog with its sprints and their close;
-starting the jobs of steps or items and a run over a selection; and progress in the model's own measure. It shows what
+who fills its roles, and the process models of the instance; the implementation plan, or the backlog with its sprints;
+starting the jobs of steps or items; and progress in the model's own measure. It shows what
 Process derives and turns each decision into one call of the service that owns it.
 
-It serves UC-002, UC-024, UC-031, UC-032, UC-034, UC-035, UC-041, UC-043, UC-045 and UC-048.
+It serves UC-002, UC-024, UC-031, UC-032, UC-034, UC-035, UC-045 and UC-048.
 
 It runs in a browser, loaded by `docs/index.html` through MOD-site-frame.
 
@@ -121,10 +111,8 @@ It runs in a browser, loaded by `docs/index.html` through MOD-site-frame.
 - `process.mjs` — how the product is developed, and the instance's process models.
 - `roles.mjs` — who fills the roles: the product's role assignments.
 - `plan.mjs` — the implementation plan.
-- `backlog.mjs` — the backlog, each team's last sprint that has ended, the planning of a team's sprint, the board,
-  closing a sprint.
+- `backlog.mjs` — the backlog, each team's last sprint that has ended, the planning of a team's sprint, the board.
 - `implement.mjs` — starting the jobs of steps or items, the merge of a pull request.
-- `run.mjs` — a run over a selection.
 - `progress.mjs` — progress in the model's measure, each team's running sprint, gates, what is blocked, who works on
   what.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
@@ -138,7 +126,7 @@ Its formats are those of the modules it uses.
 ## Interfaces
 
 - `view: View` — its routes, and the strategies its kinds use in the tab — `workStrategies`, `runStrategies`,
-  `processStrategies`, `scheduleStrategies`, `resultStrategies`, `routeStrategies`, `approvalStrategies`:
+  `scheduleStrategies`, `resultStrategies`, `routeStrategies`, `approvalStrategies`:
   - `process` — *How this product is developed*: the five models in their two groups, each with what its `about` holds —
     the risk it manages well, the risk it accepts, an example project it suits, its chapter —, the roles with
     whether a person, an agent or either may hold them, the capabilities each needs and whether one participant fills it
@@ -193,11 +181,6 @@ Its formats are those of the modules it uses.
     route `board` reads the declaration and the declared model's file first, as `plan` does: for a model without a
     work-in-progress limit it says so and reads nothing else; with one, it reads the product's facts with the scope
     `work`, every pull request among them.
-  - `sprint/<team>/<n>/close` — the increment and the items not done, the feedback lines, the unfinished items' decisions, the
-    retrospective with the sprint's numbers as material; *Close sprint* with `closeSprint`, offered only with a
-    retrospective entry and a decision for every unfinished item; *Merge increment* as a pull request whose CI must be
-    green, for a sprint with a branch of its own; after the close, for an increment not merged, *Give up increment* with
-    a reason, through `giveUpIncrement`.
   - `implement` — the steps of the plan or the ready items, each with its state and, if it cannot start, the reasons;
     the participants that hold the implementing role in the item's role assignment and can write and run tests, the attempt limit, who merges, the
     target branch, the gates the jobs will meet and who decides them; *Start jobs*, which queues each job on its
@@ -206,21 +189,13 @@ Its formats are those of the modules it uses.
     that the server does not enforce "merge only on green", with the page `branchProtection` (UC-024 12a). It reads the
     product's facts with the scope `work` once, at the head the jobs start on, and derives every item's state and
     whether it can start from them, not from a stored view.
-  - `run` — the selection with the order and what each waits for as a diagram, the limits — jobs at once, cost,
-    correction rounds —, the plan from the model, *Start run*, which commits the run's record and starts the first
-    actions `nextActions` returns, each on its route; while the page is open, the run's next actions of this page's route
-    started as the records change; *Stop run*, which cancels every job of the run that has not ended, and then the run itself, through `cancelJob`,
-    which records each end; and
-    *Continue* once the person has raised the limit that stopped it; on `finish`, the run's end through `finishRun`, and
-    for a finished run its validation beside its jobs: for each module of the selection what it realises, its code and
-    tests and every gap, by MOD-trace-graph's `moduleRows` at the commit its end names (UC-043).
   - `progress` — the progress in the model's measure — the grid of requirements by phases with the steps of the plan,
     the burn-down of each team's running sprint, or the board's cumulative flow —, the gates passed, pending and not reached, what is
     blocked, who works on what; a cell, card or point leads to the trace page of what is behind it. In a model with
     sprints it shows what goes on now (UC-035): each team's running sprint with its goal, start, end, branch and closer,
     its items with their states and the modules they change and use, and its burn-down; *End sprint* with `endSprint`
-    for a running sprint without a time box, and *Close sprint*, leading to `sprint/<team>/<n>/close`, for one that has
-    ended; a team without a running sprint says so; *Plan sprint* and *Change the selection* lead to `backlog` with
+    for a running sprint without a time box, and, for one that has ended, that its review and retrospective are not
+    recorded yet; a team without a running sprint says so; *Plan sprint* and *Change the selection* lead to `backlog` with
     `plan=<team>`, and a link leads to `backlog`, where every item and each team's last ended sprint stand; what is
     blocked among the items the running sprints hold; who works on what, each current job linked to its page on the job
     dashboard (UC-036). It draws the view stored for the head (MOD-progress-measures' `storedView`) and reads no record,
@@ -235,8 +210,7 @@ It writes, only on a person's click and as that person's commit: the product's `
 under `docs/role-assignments/`, and a model under `docs/process-models/` of the instance, with `saveFile`; the plan,
 items and sprints through MOD-work-plans'
 functions, or, for a drafted plan or drafted items, through the writer of their kind; a job's start record, and the end of a cancelled job, through
-MOD-runtimes; merges of pull requests, and the pull
-request of a sprint branch. It reads the product's snapshot, the views of progress and backlog stored on its branch
+MOD-runtimes; and merges of pull requests. It reads the product's snapshot, the views of progress and backlog stored on its branch
 `overview-cache` (through MOD-progress-measures), its pull requests and CI runs, and the instance's
 participants, process models, source register and `SPEC.md`, whose requirements are the process requirements, and the
 product's `docs/sources.md`.
@@ -253,7 +227,7 @@ product's `docs/sources.md`.
 - MOD-repository-hosts.readSnapshot, MOD-repository-hosts.repositoryInfo — the product, its visibility, and whether
   its server enforces green CI before a merge;
   MOD-repository-hosts.listPullRequests,
-  MOD-repository-hosts.pullRequestFacts, MOD-repository-hosts.openPullRequest, MOD-repository-hosts.mergePullRequest,
+  MOD-repository-hosts.pullRequestFacts, MOD-repository-hosts.mergePullRequest,
   MOD-repository-hosts.listCiRuns — pull requests, their CI and their merge; MOD-repository-hosts.webLinks — the
   server's page for branch protection; MOD-repository-hosts.commitFiles — a removed team's role assignment deleted.
 - MOD-documents.artifactSchemas, MOD-documents.readDocument, MOD-documents.writeDocument, MOD-documents.readRegister —
@@ -268,17 +242,14 @@ product's `docs/sources.md`.
   Done of a pull request; the declaration is checked, and the workflow read, with the instance's SPEC,
   where the process requirements stand, and with the catalogue at the commit the declaration names, read with
   MOD-repository-hosts' `readSnapshot`.
-- MOD-work-plans.planSchemas, MOD-work-plans.itemStates, MOD-work-plans.startable, MOD-work-plans.giveUpIncrement,
+- MOD-work-plans.planSchemas, MOD-work-plans.itemStates, MOD-work-plans.startable,
   MOD-work-plans.planFindings,
-  MOD-work-plans.backlogFindings, MOD-work-plans.sprintFacts, MOD-work-plans.heldItems, MOD-work-plans.conflicts —
+  MOD-work-plans.backlogFindings, MOD-work-plans.heldItems, MOD-work-plans.conflicts —
   plans, backlogs, sprints, their states, and what the teams' sprints hold; MOD-work-plans.targetBranch — the target
   branch the route `implement` shows for each step or item;
   MOD-work-plans.savePlan, MOD-work-plans.saveItems, MOD-work-plans.startSprint,
-  MOD-work-plans.endSprint, MOD-work-plans.closeSprint — every save of a plan, a backlog or a sprint.
-- MOD-run-planner.runOf, MOD-run-planner.nextActions, MOD-run-planner.raiseLimits, MOD-run-planner.finishRun — a run,
-  its next actions, its end, and the
-  limits a person raises to continue it.
-- MOD-trace-graph.storedGraph, MOD-trace-graph.moduleRows — a finished run's validation, at the commit its end names; the
+  MOD-work-plans.endSprint — every save of a plan, a backlog or a sprint.
+- MOD-trace-graph.storedGraph — the
   architecture's subsystems and modules beside the plan, from the graph of the commit shown. Each graph is asked for
   with its commit, so that the graph `onMainChanged` stored for it is read where there is one (MOD-workflow-entries).
   MOD-trace-graph.latestGraph — for the plan, while the graph of the commit shown is not stored yet, the graph stored last,
@@ -306,6 +277,6 @@ product's `docs/sources.md`.
 - MOD-runtimes.routesFor, MOD-runtimes.queueJob, MOD-runtimes.runOnTab, MOD-runtimes.liveState,
   MOD-runtimes.cancelJob, MOD-runtimes.retryJob — starting, following, stopping and retrying jobs on their
   routes, offered for the product's resource needs in its facts.
-- MOD-work-plans.workStrategies, MOD-run-planner.runStrategies, MOD-product-process.processStrategies,
+- MOD-work-plans.workStrategies, MOD-run-planner.runStrategies,
   MOD-test-schedule.scheduleStrategies, MOD-result-records.resultStrategies, MOD-runtimes.routeStrategies,
   MOD-approvals.approvalStrategies — the strategies of its kinds, handed to the frame.

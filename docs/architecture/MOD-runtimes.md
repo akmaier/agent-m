@@ -249,8 +249,8 @@ pins — the commit the run's checkout of the instance is at —, not the commit
   string }>` — commits the job's start record, on the head that was read, as the person's commit; on the tab's route the
   start and its taking are one commit, the taking by `tab <browser>`, `<browser>` this browser's identifier, or
   this tab's own (Data). For a job of a run (`start.run`), the same commit appends a `Job started` part
-  to the run's record, through MOD-job-ledger's `appendToRecord`: two drivers that computed the same action cannot both
-  start it, since the second commit is refused on a head that moved, and its driver computes the run's actions again. The push starts the job workflow on the CI route; a Bridge takes the job when it
+  to the run's record, through MOD-job-ledger's `appendToRecord`: two starts of the same job cannot both
+  land, since the second commit is refused on a head that moved. The push starts the job workflow on the CI route; a Bridge takes the job when it
   next reads the repository, or at once when `bridge` is given and the job is handed over to it. Crosses the network
   through the host, and to the Bridge; fails with what the host names — the branch moved, a refused token, a used-up rate
   limit —, with what the Bridge client names, and with `WorkflowMissing` for the CI route of a product without the job

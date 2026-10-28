@@ -1,5 +1,5 @@
 ---
-id: ITM-1259
+id: ITM-1260
 title: Progress and the backlog draw a view stored for their commit; plan and board look at the model first
 level: module
 realises:
@@ -22,7 +22,7 @@ tests:
 origin:
   - akmaier, 2026-10-28: "We spent a lot of time on how to optimize the other pages. Inspect how it is done before suggesting solutions. A lot of the stuff that is loaded on the new pages right now is actually never looked at. It is unlikely that a user needs all records at once." On the proposal of a stored view per page: "Do it please."
 ---
-# ITM-1259 Progress and the backlog draw a view stored for their commit; plan and board look at the model first
+# ITM-1260 Progress and the backlog draw a view stored for their commit; plan and board look at the model first
 
 **REGISTER**
 

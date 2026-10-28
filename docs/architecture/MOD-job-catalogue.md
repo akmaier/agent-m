@@ -77,7 +77,9 @@ and the drafter's answer to every finding of the last round.
 
 **The kinds.** Each strategy a definition names is offered by the module that owns its knowledge, as its subsystem's
 decision says (ARC-041 to ARC-046); `instruction`, `draft` and `return-draft`, and the checks on the artifact model, are
-built into MOD-job-runner.
+built into MOD-job-runner. The recipe `gate-inputs` and the writer `gate-record` that `decide-gate` names are offered
+by no module: an agent decides a gate in a session of its own and writes the gate record itself (UC-034 step 7), and
+Agent M prepares no job of the kind.
 
 | Kind | Serves | Participant needs | Preconditions | Recipes | Checks | Reviewers | Steps | Review · writer | Draft it expects |
 |---|---|---|---|---|---|---|---|---|---|

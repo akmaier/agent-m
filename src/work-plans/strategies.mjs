@@ -309,7 +309,7 @@ const lower = (value) => String(value ?? "").toLowerCase();
 
 /**
  * The check sprint-record-checks(draft) -> Finding[] — on the draft of a job of the kind `close-sprint`, which has the shape of closeSprint's `close`; every such job is an agent's, so every draft is an
- * agent's review (UC-041 1a). An error, each with its rule, for:
+ * agent's review (UC-041 steps 2 to 6). An error, each with its rule, for:
  * - a review whose `sources` are null or empty (AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM);
  * - a name in `tookPart` whose feedback no feedback line and no source records, and an empty `tookPart` with no feedback line that says that no stakeholder took part (the same rule);
  * - an empty retrospective (A SPRINT ENDS WITH A RETROSPECTIVE);
