@@ -48,11 +48,13 @@ uses:
 provides:
   - Queue
   - queues
+  - queueAt
   - openQueueOf
   - proposeSection
   - saveEntry
   - entrySections
   - entryView
+  - entryImpact
   - acceptEntries
   - applyApproved
   - rejectEntry
@@ -136,6 +138,9 @@ earlier entry of the queue creates it.
   first: the entries with their anchors, and the issue it names, from each queue's `index.md`, its decisions from `entscheidungen.md`, the records
   from `docs/approvals/`. Crosses the network through the snapshot, for the files it has not read yet; fails with the
   snapshot's errors — `TokenRefused`, `PermissionMissing`, `RateLimited`, `Unreachable`.
+- `queueAt(snapshot: Snapshot, folder: string) -> Promise<Queue | null>` — the one queue whose folder is `folder`,
+  `docs/spec-freigaben/<queue>`, as `queues` gives it, read from that queue's files and what its entries name alone;
+  `null` where the snapshot holds no such queue. Crosses the network and fails as `queues`.
 - `openQueueOf(person: string, date: string, host: Host) -> Promise<string | null>` — the folder of the person's newest
   queue of that day that has no entry in SPEC yet, or `null` (`A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE`). The person
   of a queue is the author of the commit that created its index. Crosses the network; fails with the host's errors.
@@ -180,7 +185,12 @@ earlier entry of the queue creates it.
   proposal: { text: string, blob: string }, difference: LineDiff, rationale: string, impact: Array<{ name: string,
   change: "changed" | "withdrawn" | "added", referencedBy: string[] }>, state: string, createdBy: number | null }` —
   what the reviewer sees: the section that holds now beside the proposal, their difference, the rationale and the impact
-  list (`NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT`). `LineDiff` is the result of MOD-text-tools' `lineDiff`.
+  list (`NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT`), the impact list as `entryImpact` gives it. `LineDiff` is the
+  result of MOD-text-tools' `lineDiff`.
+- `entryImpact(queue: string, entry: number, snapshot: Snapshot) -> Promise<Array<{ name: string, change: "changed" |
+  "withdrawn" | "added", referencedBy: string[] }>>` — what one entry changes, withdraws or adds, each requirement with
+  what names it, from the entry's queue, its target and its proposal; it reads no rationale. Crosses the network and
+  fails as `queues`; a name's `referencedBy` comes from the graph stored for the snapshot's commit (MOD-trace-graph).
 - `acceptEntries(host: Host, shown: Array<{ queue: string, entry: number, proposalBlob: string, sectionBlob: string }>,
   person: string, now: Date, sources: { links: Document, register: Document[] }) -> Promise<{ commit: string } | {
   refused: Array<{ queue: string, entry: number, reason: string }> }>` — accepts the entries shown, in one commit under the person's account: for each, in the order of its

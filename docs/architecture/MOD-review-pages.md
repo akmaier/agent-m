@@ -55,6 +55,7 @@ uses:
   - MOD-approvals.approvalSchema
   - MOD-approvals.approvalStrategies
   - MOD-spec-changes.queues
+  - MOD-spec-changes.queueAt
   - MOD-spec-changes.openQueueOf
   - MOD-spec-changes.proposeSection
   - MOD-spec-changes.saveEntry
@@ -63,6 +64,7 @@ uses:
   - MOD-spec-changes.acceptEntries
   - MOD-spec-changes.rejectEntry
   - MOD-spec-changes.specStrategies
+  - MOD-progress-measures.waitingQueues
   - MOD-artifact-edits.saveFile
   - MOD-artifact-edits.keptIdentifier
   - MOD-artifact-edits.saveGroupFile
@@ -222,6 +224,10 @@ ReviewKind = {
     `readFileAt` per file, and calls neither `traceGraph` nor `lastAcceptedText` for them. Where no
     entry fits, it derives both as before. The stored lists are records of the repository, derived from that commit
     alone by `onMainChanged` (MOD-workflow-entries), never kept in the browser.
+  - For a SPEC entry, on `<k>/<id>` and for its subject, the page reads the entry's own queue (`queueAt`, the folder
+    from the entry's identifier), and the other proposals on the same section from the queues MOD-progress-measures'
+    `waitingQueues` gives, with its line `As of <commit>` while they are of an earlier commit; the editor of a
+    requirement reads the other open proposals on its section the same way. Neither reads every queue.
   - `<k>/<id>/edit`, and `requirement/<name>/edit` and `requirements/new` for a requirement — whose subject for the
     prompt bar is the file, or the requirement, as on the file's route — the editor with live
     preview and the descriptor's marks, whose unsaved changes the route's `leave` keeps by the editor's `close` (UC-018
@@ -311,11 +317,13 @@ and `docs/participants.md` of the instance.
   MOD-approvals.acceptanceBlockers, MOD-approvals.fallbackAcceptLink — statuses, the files removed since their acceptance, and acceptance;
   MOD-approvals.rejectShown — rejecting a use case, decision or module file; MOD-approvals.approvalSchema —
   the schema an approval record is read with, on `<k>/history` too.
-- MOD-spec-changes.queues, MOD-spec-changes.openQueueOf, MOD-spec-changes.proposeSection, MOD-spec-changes.saveEntry,
-  MOD-spec-changes.entrySections, MOD-spec-changes.entryView, MOD-spec-changes.acceptEntries — SPEC edits, an open entry
+- MOD-spec-changes.queues, MOD-spec-changes.queueAt, MOD-spec-changes.openQueueOf, MOD-spec-changes.proposeSection,
+  MOD-spec-changes.saveEntry, MOD-spec-changes.entrySections, MOD-spec-changes.entryView, MOD-spec-changes.acceptEntries —
+  the list and *Review all* of SPEC entries, one entry's own queue, SPEC edits, an open entry
   saved in place, the sections a draft of the conversation holds, SPEC entries and their acceptance in the queue's order, with the product's links and
   the instance's register, so that an entry whose requirement names no linked source is named and not accepted;
   MOD-spec-changes.rejectEntry — rejecting an entry.
+- MOD-progress-measures.waitingQueues — the other open proposals beside one entry and beside a requirement's editor.
 - MOD-artifact-edits.saveFile, MOD-artifact-edits.saveGroupFile, MOD-artifact-edits.fallbackEditLinks — saves;
   MOD-artifact-edits.keptIdentifier — a drafted change's identifier restored before the editor opens.
 - MOD-release-evidence.acceptAndRelease — accepting an open release test report.

@@ -137,7 +137,9 @@ formats are those of the modules it uses.
     the observed one, with its log; *Run on this commit* with its run panel, which queues a job of the kind `run-tests`
     on the commit — on the server's CI, or on a participant through its Bridge —, or opens the workflow's page on GitHub
     without a token; for a release candidate, the checklist of user-level tests, whose outcomes the people assigned enter,
-    each appended as a result record.
+    each appended as a result record. `runs/<commit>` reads, of the branch `test-results`, only the records of the commit
+    shown and of the last release's commit, through a snapshot of that branch narrowed to their folders
+    (MOD-repository-hosts' `readSnapshot` with `folders`), and the test files of the commit in batches (`readMany`).
   - `generate` — the accepted requirements, use cases and modules with the levels whose tests already guard each, the
     uncovered ones preselected; the levels chosen; the participants that fill the test-writing role, the implementer left
     out for release tests and said so; the run panel; a job of the kind `propose-tests`, run attended through the

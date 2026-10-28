@@ -154,7 +154,9 @@ Its formats are those of the modules it uses.
     items its sprints hold (UC-048 4b).
   - `models`, `models/<name>` — the instance's process models: the catalogue, *Adapt* and *+ New model* with a form from
     the model's schema, the live diagram, the errors beside their fields, the preview of every accepted requirement in
-    every phase, *Save* only without errors, with `saveFile`.
+    every phase, *Save* only without errors, with `saveFile`. Which products of this browser declare a model, it reads
+    from each product's `docs/process.md` alone, through a snapshot of its default branch narrowed to that file
+    (MOD-repository-hosts' `readSnapshot` with `folders`), never the product's whole tree.
   - `plan` — first the declaration and the declared model's file at the commit the declaration names, read with
     MOD-repository-hosts' `readFileAt`: for a model that works from a backlog, a link to `backlog`, and nothing else is
     read (UC-045 1a); otherwise the architecture's subsystems and modules beside the plan's steps with their derived states and what each

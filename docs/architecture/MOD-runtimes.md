@@ -76,6 +76,7 @@ provides:
   - bridgeDriver
   - resumeJob
   - liveState
+  - liveStates
   - jobLog
   - cancelJob
   - retryJob
@@ -295,6 +296,9 @@ pins — the commit the run's checkout of the instance is at —, not the commit
   `reachable: false` with the reason that its live state and log exist only in that browser's tab (UC-036 1b); one this
   browser took and this tab does not hold gives `known: false`, so that it is *ended without record* (1c); which
   browser is this one, and how a bare `tab` is read, says Data.
+- `liveStates(records: JobRecord[], product: { host: Host }, bridges: Record<string, Bridge>) -> Promise<Map<string,
+  LiveState>>` — `liveState` for each of the records of one repository that have not ended, keyed by job identifier, the
+  runs of the job workflow listed once for all of them; the same states `liveState` gives one by one.
 - `jobLog(record: JobRecord, product: { host: Host }, bridges: Record<string, Bridge>) -> Promise<{ stream:
   AsyncIterable<string> } | { address: string } | { gone: true }>` — the log, streamed from a Bridge or this tab while the
   job runs, the CI run's log by its address, or that the runtime keeps it no longer.
