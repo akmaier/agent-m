@@ -15,7 +15,7 @@ import { INSTANCE, NOW, PRODUCT, PRODUCT_TOKEN, PRODUCT_URL, browser, buildOf, c
 const ROOT = new URL("../", import.meta.url);
 const home = view.routes.find((route) => route.name === "home");
 const JOB = "JOB-20261016-1000-ffff";
-const overviewReads = (net) => net.requests.filter((request) => request.url.includes(`/repos/${PRODUCT}/contents/`) && request.url.includes("ref=overview-cache") && !request.url.includes(".facts.json"));
+const overviewReads = (net) => net.requests.filter((request) => request.url.includes(`/repos/${PRODUCT}/contents/`) && request.url.includes("ref=overview-cache"));
 const requestPaths = (net, from) => net.requests.slice(from).map((request) => new URL(request.url).pathname.replace(/[0-9a-f]{40}$/, "<commit>"));
 
 async function cachedContext(net) {
@@ -35,7 +35,7 @@ async function cachedContext(net) {
     commitFiles: async (change) => { commits.push(change); return { commit: "1".repeat(40), url: "https://example.test/overview" }; },
   }, snapshot, facts);
   const files = commits[0].files;
-  assert.deepEqual(files.map((file) => file.path).sort(), [`${head}.facts.json`, `${head}.json`, "latest.json"]);
+  assert.deepEqual(files.map((file) => file.path).sort(), [`${head}.json`, "latest.json"]);
   net.overviews[PRODUCT] = Object.fromEntries(files.map((file) => [file.path.replace(/\.json$/, ""), file.text]));
   return context;
 }
@@ -55,9 +55,9 @@ test("TST-684001 the real root starts the native main-page view, not the legacy 
 
 // TST-684002 · level: component · module: MOD-main-page
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; THE BUILD IS SHOWN AS IT HAPPENS; UC-046
-// given: the native home route, one kept product with a real ended job plus the overview, stored facts and latest.json its existing producer writes for the product's exact default-branch head; the existing Host fake records requests
+// given: the native home route, one kept product with a real ended job plus the overview and latest.json its existing producer writes for the product's exact default-branch head; the existing Host fake records requests
 // input: home is drawn; its first one-minute poll fires unchanged; then the same job record changes from done to failed and the following poll fires
-// expect: after the public producer has prepared the cache, the initial draw reads its overview alone — not the stored facts, and no job-record source fetch: the overview holds the build's records; the unchanged poll reads only product main commit/tree; the changed poll reads those plus one GraphQL batch containing only that changed job record
+// expect: after the public producer has prepared the cache, the initial draw reads its overview alone — and no job-record source fetch: the overview holds the build's records; the unchanged poll reads only product main commit/tree; the changed poll reads those plus one GraphQL batch containing only that changed job record
 test("TST-684002 the native cached home keeps its initial job facts and polls unchanged and changed job records distinctly", async () => {
   const ended = endedJob({ id: JOB, by: "lab-pc-4", state: "done" });
   const files = smallProduct({ jobs: [ended] });
@@ -70,10 +70,10 @@ test("TST-684002 the native cached home keeps its initial job facts and polls un
     const target = await draw(home, context);
     assert.equal(cardsOf(target).length, 1);
     const initialRequests = net.requests.slice(preparedRequests);
-    assert.equal(initialRequests.filter((request) => request.url.includes("ref=overview-cache")).length, 1, "the overview alone is read after the producer prepared it, not the stored facts");
+    assert.equal(initialRequests.filter((request) => request.url.includes("ref=overview-cache")).length, 1, "the overview alone is read after the producer prepared it");
     assert.equal(overviewReads({ requests: initialRequests }).length, 1);
     const initial = net.server.log.slice(preparedLog);
-    assert.equal(initial.some((entry) => (entry.kind === "file" || entry.kind === "batch") && entry.files.includes(ended.path)), false, "stored facts supply the initial job text");
+    assert.equal(initial.some((entry) => (entry.kind === "file" || entry.kind === "batch") && entry.files.includes(ended.path)), false, "the stored overview supplies the initial job text");
     const before = net.requests.length;
     await timers.fire(NOW + 60000);
     assert.deepEqual(requestPaths(net, before), ["/repos/alice/product/commits/main", "/repos/alice/product/git/trees/<commit>"]);

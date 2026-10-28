@@ -13,8 +13,8 @@
 //
 // What a render reads: the facts of the product, which MOD-progress-measures' productFacts gives with the scope `work` — the declaration docs/process.md, the role assignments under docs/role-assignments/, which name the teams,
 // every team's sprints under docs/backlog/sprints/<team>/, every item under docs/backlog/, the approval statuses (MOD-approvals' statuses, which read no file), every pull request of the product, and the model the declaration names as the
-// instance's catalogue held it at the commit its model_version names; where the facts of the commit are stored they are taken from the store and none of those files is read. Besides: the SPEC, which names the accepted requirements,
-// and, in a product with several teams, the architecture's module files — from the stored facts' lists, or from the files. Of the pull requests those into the default branch or into a sprint's branch count. MOD-work-plans decides
+// instance's catalogue held it at the commit its model_version names. Besides: the SPEC, which names the accepted requirements,
+// and, in a product with several teams, the architecture's module files. Of the pull requests those into the default branch or into a sprint's branch count. MOD-work-plans decides
 // each item's state (itemStates, from the pull requests, the approval statuses and the requirements the SPEC holds), what the sprints hold (heldItems), what keeps an item from a team (conflicts) and how a sprint starts
 // (startSprint); MOD-progress-measures derives each team's sprints and their burn-down (progressIn). A model version the instance cannot read is named on the page (modelUnread); the catalogue as it stands now is not used instead.
 // Readings the texts leave open, which this file takes: a requirement named in the SPEC is accepted — the approval statuses MOD-work-plans' itemStates reads hold the reviewed files only, so the route adds the SPEC's
@@ -22,7 +22,7 @@
 // made; a team's last sprint that has ended is its newest that is closed or past its end, else the one before its running sprint.
 
 import { artifactSchemas, readDocument } from "../documents/index.mjs";
-import { productFacts, progressIn, storedFacts } from "../progress-measures/index.mjs";
+import { productFacts, progressIn } from "../progress-measures/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
 import { conflicts, heldItems, itemStates, startSprint, startable } from "../work-plans/index.mjs";
 import { participantSchema, participantsOf } from "../participant-list/index.mjs";
@@ -51,25 +51,18 @@ const byNumber = (a, b) => numberOf(a) - numberOf(b) || (a < b ? -1 : a > b ? 1 
 
 // ---------------------------------------------------------------- reading
 
-// What the route needs besides the pull requests: the declaration and its model, the teams, their sprints, the items, the modules, and what is accepted. The facts are MOD-progress-measures' productFacts with the scope `work`:
-// where the facts of the commit are stored they are taken from the store and none of the files they come from is read; otherwise the files are read in batches. The requirements and the module files, which Facts does not carry,
-// come from the stored facts' lists, or from the files.
+// What the route needs besides the pull requests: the declaration and its model, the teams, their sprints, the items, the modules, and what is accepted. The facts are MOD-progress-measures' productFacts with the scope `work`,
+// which reads the files in batches. The requirements and the module files, which Facts does not carry, come from the files.
 export async function contextOf(context) {
   const { product, instance } = context;
   // The product's host as productFacts reads it: the branch the page has read, where the caller says which it is (else the default branch the repository reports), and each snapshot read once — the instance's too, where
   // the product is the instance.
   const shots = new Map();
-  // A snapshot that asks the branch of the stored facts once, whoever asks.
-  const once = (snapshot) => {
-    if (typeof snapshot.readOn !== "function") return snapshot;
-    const asked = new Map();
-    return { ...snapshot, readOn: (branch, path) => { const key = `${branch}\n${path}`; if (!asked.has(key)) asked.set(key, snapshot.readOn(branch, path)); return asked.get(key); } };
-  };
   const reading = (host, ref) => {
     const own = Object.create(host);
     const set = (name, value) => Object.defineProperty(own, name, { value, writable: true, configurable: true, enumerable: true });
     if (ref) set("repositoryInfo", async () => ({ defaultBranch: ref }));
-    set("readSnapshot", (at) => { if (!shots.has(at)) shots.set(at, host.readSnapshot(at).then(once)); return shots.get(at); });
+    set("readSnapshot", (at) => { if (!shots.has(at)) shots.set(at, host.readSnapshot(at)); return shots.get(at); });
     return own;
   };
   const ref = product.ref ?? (await product.host.repositoryInfo()).defaultBranch;
@@ -85,9 +78,8 @@ export async function contextOf(context) {
   // The model as the instance held it at the commit the declaration's model_version names (UC-031 step 6a); where that cannot be read, none — and the page says so (modelUnread), never today's catalogue.
   const model = facts.model !== null && typeof facts.model === "object" ? facts.model : null;
   const teams = [...new Set([...assignments.map((a) => ASSIGNMENT_FILE.exec(a.path)?.[1]), ...sprints.map((s) => SPRINT_FILE.exec(s.path)?.[1])].filter(Boolean))];
-  const stored = await storedFacts(snapshot);
   const modulePaths = snapshot.paths.filter((path) => MODULE_FILE.test(path)).sort();
-  const modules = teams.length < 2 ? [] : stored ? stored.modules
+  const modules = teams.length < 2 ? []
     : await Promise.all(modulePaths.map(async (path) => readDocument(artifactSchemas().module, path, (await snapshot.read(path)) ?? "")));
   const newest = new Map();
   for (const record of sprints) {
@@ -95,7 +87,7 @@ export async function contextOf(context) {
     if (!newest.has(team) || Number(nn) > Number(newest.get(team).nn)) newest.set(team, { record, nn, name: `${team}/${nn}` });
   }
   items.sort((a, b) => byNumber(idOf(a), idOf(b)));
-  const requirements = stored ? stored.requirements : [...parseSpec((await snapshot.read("SPEC.md")) ?? "").requirements.keys()];
+  const requirements = [...parseSpec((await snapshot.read("SPEC.md")) ?? "").requirements.keys()];
   const reviewed = facts.statuses;
   const useCases = [...reviewed.values()].filter((entry) => entry.kind === "use-case" && entry.status === "accepted").map((entry) => entry.id);
   return { ref, snapshot, facts, declaration, modelFile, model, modelUnread: facts.modelUnread, assignments, sprints, items, modules, teams, newest, requirements, useCases, reviewed };

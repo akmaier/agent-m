@@ -1,6 +1,6 @@
-// MOD-test-pages' route `schedule` counts the tests from the test declarations stored for the commit (ITM-1119), as the accepted text of docs/architecture/MOD-test-pages.md states it:
-// "each row with the number of the product's tests it holds — the declarations of its level, and for the row of paid services those that call one —, counted from the test declarations stored for
-// the commit shown (MOD-progress-measures' `storedFacts`), or from the test files where none are stored", and `A PAGE LOAD READS THE REPOSITORY IN BATCHES`.
+// MOD-test-pages' route `schedule` counts the tests from the declarations of the test files, as docs/architecture/MOD-test-pages.md states it: "each row with the number of the product's tests it
+// holds — the declarations of its level, and for the row of paid services those that call one —, counted from the declarations of the test files at the commit shown", and `A PAGE LOAD READS THE
+// REPOSITORY IN BATCHES`. No commit's facts file is stored (MOD-progress-measures), so none is asked for.
 // Run: node --test tests/test-pages-schedule-stored-tests.test.mjs
 //
 // Module: MOD-test-pages
@@ -9,8 +9,8 @@
 //
 // The product is a host of this file whose snapshot keeps every call of `read`, `readMany` and `readOn`; the instance's register is the one of tests/test-pages-schedule.test.mjs in short. The product holds 130 test
 // files of one declaration each (so that the read in batches of a hundred is seen). Nothing reaches the network. Where the texts leave a reading open, the test states the one it takes, and the pull request names it:
-//   - The stored facts are the file `<commit>.facts.json` on `overview-cache` in the form MOD-progress-measures stores (stored.mjs), here with the lists the schedule does not read empty and `tests` holding the
-//     declarations of the test files — the shape `storedFacts` reads.
+//   - A facts file planted on `overview-cache` as `<commit>.facts.json`, in the old format 1 with `tests` holding the declarations of the test files, is the counter-proof: the page takes nothing from it
+//     and asks for no `.facts.json`.
 //   - "Read in batches of a hundred" is the snapshot's: the page tells the snapshot every test file with `readMany` before it reads one, and the snapshot fetches them a hundred at a time where its host can.
 //   - The count shown is the cell <td class="tests"> of the row.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
@@ -41,7 +41,7 @@ const REGISTER = "# Participants of this instance\n\n**REGISTER**\n\nThe partici
 const factsText = (commit, extra = {}) => `${JSON.stringify({ format: 1, commit, declaration: null, order: null, items: [], sprints: [], assignments: [], gates: [], modules: [], queues: [], requirements: [],
   tests: Object.entries(FILES).flatMap(([path, text]) => testDeclarations(path, text)), jobs: [], ...extra })}\n`;
 
-// The page, with the product's facts stored as `stored` says (a text, null for none, undefined for a snapshot without readOn); -> { target, calls }.
+// The page, with a facts file planted as `stored` says (a text, null for none, undefined for a snapshot without readOn); -> { target, calls }.
 async function show(stored) {
   const calls = [];
   const snapshot = { commit: COMMIT, paths: Object.keys(FILES), blob: () => "b".repeat(40),
@@ -62,33 +62,22 @@ const walk = (root, match) => { const found = []; (function visit(node) { for (c
 const countsOf = (target) => Object.fromEntries(ROWS.map((row) => [row, Number(walk(walk(target, (node) => node.localName === "tr" && node.getAttribute("data-row") === row)[0], (node) => node.localName === "td" && (node.className ?? "").split(" ").includes("tests"))[0].textContent)]));
 const testFilesRead = (calls) => calls.filter((call) => call.fn === "read" && call.path.startsWith("tests/"));
 
-// TST-1119001 · level: unit · module: MOD-test-pages
-// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-027
-// given: a product of 130 test files whose facts stored for the commit hold their declarations
-// input: the route schedule drawn
-// expect: the counts of the six rows equal those counted from the files (the row paid 10, the other rows 26 each); no test file is read, and none is told to the snapshot; the facts file was asked for once, as overview-cache / <commit>.facts.json
-test("schedule — with the test declarations stored for the commit it reads no test file, and the counts are those of the files", async () => {
-  const { target, calls } = await show(factsText(COMMIT));
-  assert.deepEqual(countsOf(target), EXPECTED);
-  assert.equal(EXPECTED.paid, 10, "known positive: the fixture has paid tests");
-  assert.deepEqual(testFilesRead(calls), []);
-  assert.deepEqual(calls.filter((call) => call.fn === "readMany" && call.paths.some((path) => path.startsWith("tests/"))), []);
-  assert.deepEqual(calls.filter((call) => call.fn === "readOn"), [{ fn: "readOn", branch: "overview-cache", path: `${COMMIT}.facts.json` }]);
-});
-
 // TST-1119002 · level: unit · module: MOD-test-pages
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-027
-// given: the same product with no facts stored (readOn gives nothing), with facts of another commit, with facts of another format's number, and a snapshot with no readOn
+// given: the product of 130 test files with a facts file planted on overview-cache for its commit (old format 1, its `tests` the files' declarations), with none (readOn gives nothing), and a snapshot with no readOn
 // input: the route schedule drawn for each
-// expect: counter-proof: the counts are the same, taken from the files; all 130 test files are told to the snapshot in one readMany before the first of them is read, so that it fetches them in batches of a hundred; and every file is read
-test("schedule — without stored facts the counts are taken from the test files, told to the snapshot first to be read in batches", async () => {
-  const cases = [["none stored", null], ["another commit", factsText("d".repeat(40))], ["another format", factsText(COMMIT, { format: 2 })], ["no readOn", undefined]];
+// expect: the counts are those of the files (the row paid 10, the other rows 26 each); all 130 test files are told to the snapshot in one readMany before the first of them is read, so that it fetches them
+//         in batches of a hundred; every file is read; readOn is asked for no `.facts.json`
+test("schedule — the counts are taken from the test files, told to the snapshot first to be read in batches, and no facts file is asked for", async () => {
+  const cases = [["a facts file planted", factsText(COMMIT)], ["none stored", null], ["no readOn", undefined]];
   for (const [what, stored] of cases) {
     const { target, calls } = await show(stored);
     assert.deepEqual(countsOf(target), EXPECTED, what);
+    assert.equal(EXPECTED.paid, 10, "known positive: the fixture has paid tests");
     const told = calls.findIndex((call) => call.fn === "readMany" && call.paths.length === 130);
     assert.ok(told >= 0, `${what}: the 130 test files are told to the snapshot`);
     assert.equal(calls.findIndex((call) => call.fn === "read" && call.path.startsWith("tests/")) > told, true, `${what}: before the first is read`);
     assert.equal(testFilesRead(calls).length >= 130, true, `${what}: every file is read`);
+    assert.deepEqual(calls.filter((call) => call.fn === "readOn" && call.path.endsWith(".facts.json")), [], `${what}: no facts file is asked for`);
   }
 });
