@@ -83,11 +83,11 @@ const sorted = (list) => [...list].sort();
 const batchesOf = (requests) => requests.filter((r) => r.startsWith("batch "));
 const count = (requests, what) => requests.filter((r) => r === what).length;
 // The head commit the harness's server answers, and the reads of the branches that hold what the workflow "main changed" stored for it — the
-// graph (`stored graph <commit>`, trace-cache), the overview and the facts (overview-cache), the impact lists, and latest.json, which names the overview
+// graph (`stored graph <commit>`, trace-cache), the overview (overview-cache), the impact lists, and latest.json, which names the overview
 // stored last while the head's is not stored yet: each is one request of its own by design (MOD-trace-graph's storedGraph and storedImpacts,
-// MOD-progress-measures' storedOverview, storedFacts and latestOverview), not a file the page shows.
+// MOD-progress-measures' storedOverview and latestOverview), not a file the page shows. No commit's facts file is stored, and none is asked for.
 const HEAD = "c0ffee".padEnd(40, "0");
-const STORED = new RegExp(`^(${HEAD}\\.(json|facts\\.json|impacts\\.json)|latest\\.json)$`);
+const STORED = new RegExp(`^(${HEAD}\\.(json|impacts\\.json)|latest\\.json)$`);
 const shownFiles = (requests) => files(requests).filter((path) => !STORED.test(path));
 // The order of the one read of the repository's information among a load's requests is no part of the rule: it is counted, and left out of the sequence.
 const withoutInfo = (requests) => requests.filter((r) => r !== "repository");
@@ -224,8 +224,7 @@ test("the repository's information is read once for as long as the page is open"
 // input: open #backlog with a token
 // expect: the commit and the tree once, one batch of the 6 files it shows — the declaration, the SPEC, the team's role
 //         assignment and sprint, the 2 items; no approval record, since the statuses come from the records' names (MOD-approvals'
-//         statuses) —; then the facts stored for the commit are asked for (none), and the facts the page takes from MOD-progress-measures'
-//         productFacts are read in batches: the 3 module files, the 3 files of the change queues; then the instance at the commit the declaration's model_version names (the commit, the tree) and the process
+//         statuses) —; then the facts the page takes from MOD-progress-measures' productFacts are read in batches — no facts file is asked for —: the 3 module files, the 3 files of the change queues; then the instance at the commit the declaration's model_version names (the commit, the tree) and the process
 //         model it names in one batch of its own; no use case and no other file by itself
 test("#backlog sends its commit and tree once, one batch of the files it shows, and the process model by one request of its own", async () => {
   const repo = await product({
@@ -241,7 +240,7 @@ test("#backlog sends its commit and tree once, one batch of the files it shows, 
   const srv = await server(repo, [pulls]);
   const page = await openDashboard({ server: srv, hash: "#backlog" });
   assert.match(page.main(), /ITM-001/);
-  assert.deepEqual(withoutInfo(page.requests).filter((r) => !r.startsWith("handler ")), ["commit", "tree", "batch 6", `file ${"c0ffee".padEnd(40, "0")}.facts.json`, "batch 3", "batch 3", "commit", "tree", "batch 1"]);
+  assert.deepEqual(withoutInfo(page.requests).filter((r) => !r.startsWith("handler ")), ["commit", "tree", "batch 6", "batch 3", "batch 3", "commit", "tree", "batch 1"]);
   // The page needs no repository information, and the prompt bar reads through what the load read (instanceSnapshot), asking for none either.
   assert.equal(count(page.requests, "repository"), 0);
   const wave1 = sorted(["docs/process.md", "SPEC.md", "docs/role-assignments/team1.md", "docs/backlog/sprints/team1/01.md",
