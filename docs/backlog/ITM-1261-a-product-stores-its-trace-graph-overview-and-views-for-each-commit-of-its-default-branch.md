@@ -1,5 +1,5 @@
 ---
-id: ITM-1260
+id: ITM-1261
 title: A product stores its trace graph, overview and views for each commit of its default branch
 level: module
 realises:
@@ -12,13 +12,13 @@ modules:
   - MOD-runtimes
   - MOD-workflow-entries
 builds_on:
-  - ITM-1259
+  - ITM-1260
 tests:
   - unit
 origin:
-  - akmaier, 2026-10-28, on ITM-1259's sentence that a product derives the views in the page because `onMainChanged` runs only in the instance: "products should precompute too."
+  - akmaier, 2026-10-28, on ITM-1260's sentence that a product derives the views in the page because `onMainChanged` runs only in the instance: "products should precompute too."
 ---
-# ITM-1260 A product stores its trace graph, overview and views for each commit of its default branch
+# ITM-1261 A product stores its trace graph, overview and views for each commit of its default branch
 
 **REGISTER**
 
