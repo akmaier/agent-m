@@ -1,9 +1,10 @@
-// The Backlog page shows the state of the current process first — each team's running sprint, what it holds, the state of
-// each held item and its burn-down, or that the team runs none, with Plan sprint for it —, then the backlog, each item after
-// the items it builds on, with its state and what keeps it from a team's selection (UC-032 steps 1, 5 and 6; UC-035; the
-// user's order of the page). Plan sprint lists what the team may select; Start sprint commits the team's sprint through
-// MOD-work-plans' startSprint. The page is laid out as #uc and #arc are: a head, panels, list tables, buttons, badges and a
-// folded "What is this?" — no style of its own.
+// The Progress page shows what goes on now — each team's running sprint, what it holds, the state of each held item and its
+// burn-down, or that the team runs none (UC-035) —; the Backlog page shows each team first — its last ended sprint with its final
+// burn-down, with Plan sprint for it —, then the backlog, each item after the items it builds on, with its state and what keeps it
+// from a team's selection (UC-032 steps 1, 5 and 6; the user's order of the page; ITM-1252, which moved the running sprint to
+// #progress). Plan sprint lists what the team may select; Start sprint commits the team's sprint through MOD-work-plans'
+// startSprint. The pages are laid out as #uc and #arc are: a head, panels, list tables, buttons, badges and a folded "What is
+// this?" — no style of its own.
 // Run: node --test tests/dashboard-backlog-teams.test.mjs
 //
 // Module: MOD-implementation-pages
@@ -11,7 +12,8 @@
 // Level: component
 //
 // The real dashboard (the harness's APP_FILE) and the route `backlog` of MOD-implementation-pages run in
-// tests/app-harness.mjs against a GitHub API mock; this file brings a fake of GitHub's pulls API and of "Create a reference".
+// tests/app-harness.mjs against a GitHub API mock; this file brings a fake of GitHub's pulls API — with its sort by the last update —,
+// of its search's total_count, and of "Create a reference".
 // The fixture product works in sprints without a time box, with a work-in-progress limit of 2, and has two teams. team1 runs
 // its sprint 01 since 2026-09-14 on its own branch, with ITM-001 — merged into that branch on 2026-09-15 — and ITM-002, whose
 // pull request is open; team2 closed its sprint 01 and sent ITM-003 back to the backlog. ITM-004 builds on ITM-003; ITM-005
@@ -36,17 +38,24 @@ const linkedSheets = () => [...read("docs/index.html").matchAll(/<link rel="styl
 
 function pr({ number, item, base, created, merged = null }) {
   return { number, title: `${item}: the work of ${item}`, head: { ref: `team/${item}`, sha: "b".repeat(40) }, base: { ref: base },
-    state: merged ? "closed" : "open", created_at: created, merged_at: merged, merge_commit_sha: merged ? "f".repeat(40) : null,
+    state: merged ? "closed" : "open", created_at: created, updated_at: merged ?? created, merged_at: merged, merge_commit_sha: merged ? "f".repeat(40) : null,
     body: "developer-a · fixture-model\n\nWhat the pull request does." };
 }
 function pullsApi(prs) {
   return async (url, init) => {
+    if (url.origin === "https://api.github.com" && url.pathname === "/search/issues") {
+      const query = url.searchParams.get("q") ?? "", since = /updated:>=(\S+)/.exec(query)?.[1];
+      const found = prs.filter((p) => (!query.includes("is:closed") || p.state === "closed") && (!query.includes("is:open") || p.state === "open")
+        && (!since || Date.parse(p.updated_at) >= Date.parse(since)));
+      return new Response(JSON.stringify({ total_count: found.length, incomplete_results: false, items: [] }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
     if (url.origin !== "https://api.github.com" || url.pathname !== `/repos/${REPO}/pulls`) return null;
     if (init.method !== "GET") return new Response("{}", { status: 405 });
     const base = url.searchParams.get("base"), state = url.searchParams.get("state") ?? "open";
     const per = Number(url.searchParams.get("per_page") ?? 30), page = Number(url.searchParams.get("page") ?? 1);
+    const by = url.searchParams.get("sort") === "updated" ? "updated_at" : "created_at";
     const list = prs.filter((p) => !base || p.base.ref === base).filter((p) => state === "all" || p.state === state)
-      .sort((a, b) => b.created_at.localeCompare(a.created_at));
+      .sort((a, b) => b[by].localeCompare(a[by]));
     return new Response(JSON.stringify(list.slice((page - 1) * per, page * per)), { status: 200, headers: { "Content-Type": "application/json" } });
   };
 }
@@ -130,11 +139,13 @@ const CLOSED_PRS = [...PRS,
   pr({ number: 7, item: "ITM-004", base: "main", created: "2026-09-02T11:00:00Z", merged: "2026-09-03T16:40:00Z" }),
   pr({ number: 8, item: "ITM-006", base: "main", created: "2026-09-08T09:00:00Z", merged: "2026-09-10T09:00:00Z" })];
 
-async function backlogPage({ created = [], files = fixtureFiles(), prs = PRS } = {}) {
+async function backlogPage({ created = [], files = fixtureFiles(), prs = PRS, hash = "#backlog" } = {}) {
   const server = await repoServer({ files, handlers: [pullsApi(prs), refsApi(created)] });
-  const page = await openDashboard({ server, hash: "#backlog" });
+  const page = await openDashboard({ server, hash });
   return { server, page, created };
 }
+// The Progress page of the same product: what goes on now (UC-035).
+const progressPage = (options = {}) => backlogPage({ ...options, hash: "#progress" });
 // The HTML of the part that begins with `marker` and ends where the next panel begins.
 function part(html, marker) {
   const at = html.indexOf(marker);
@@ -162,12 +173,12 @@ test("#backlog — the teams' sprints come first, then the backlog, then what no
 // guards: UC-035; EVERY TEAM RUNS SPRINTS OF ITS OWN; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH;
 //         PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: team1's running sprint 01 with ITM-001, merged into its branch on 2026-09-15, and ITM-002, whose pull request is open
-// input: open #backlog
+// input: open #progress
 // expect: team1's panel names its sprint team1/01 and its goal; lists ITM-001 done and ITM-002 in progress, each with the
 //         module it changes; and holds the sprint's burn-down as a Mermaid chart that begins with 2 remaining on its first day
 //         and 1 from the merge on
-test("#backlog — a team's running sprint: its items with their states and modules, and its burn-down", async () => {
-  const { page } = await backlogPage();
+test("#progress — a team's running sprint: its items with their states and modules, and its burn-down", async () => {
+  const { page } = await progressPage();
   const team1 = part(page.main(), 'data-team="team1"');
   assert.match(team1, /team1\/01/);
   assert.match(team1, /Store and show/);
@@ -181,10 +192,10 @@ test("#backlog — a team's running sprint: its items with their states and modu
 // guards: UC-035; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the same-day sprint — team1's sprint 01 starts on 2026-09-14 with three items; ITM-001 is merged at 09:30 UTC and
 //        ITM-005 at 11:45 UTC that day, and ITM-002's pull request is open
-// input: open #backlog
+// input: open #progress
 // expect: team1's chart shows four points — the start, the two merges by their time and now — with 3, 2, 1 and 1 items left
-test("#backlog — a running sprint's chart: the items left at its start, after each merge, and now", async () => {
-  const { page } = await backlogPage({ files: { ...fixtureFiles(), [TEAM1_SPRINT]: SAME_DAY_SPRINT }, prs: SAME_DAY_PRS });
+test("#progress — a running sprint's chart: the items left at its start, after each merge, and now", async () => {
+  const { page } = await progressPage({ files: { ...fixtureFiles(), [TEAM1_SPRINT]: SAME_DAY_SPRINT }, prs: SAME_DAY_PRS });
   const team1 = part(page.main(), 'data-team="team1"');
   assert.match(team1, /<code class="language-mermaid">xychart-beta/);
   assert.match(team1, /x-axis \[&quot;start&quot;, &quot;09:30&quot;, &quot;11:45&quot;, &quot;now&quot;\]/);
@@ -236,10 +247,10 @@ test("#backlog — a team without a running sprint says so, and offers Plan spri
 
 // guards: NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT; UC-032 step 7
 // given: the model's work-in-progress limit of 2; team1's sprint holding ITM-002 in progress
-// input: open #backlog
+// input: open #progress
 // expect: team1's panel says how many of its items are in progress against the limit: 1 of 2
-test("#backlog — a team's panel names its items in progress against the model's limit", async () => {
-  const { page } = await backlogPage();
+test("#progress — a team's panel names its items in progress against the model's limit", async () => {
+  const { page } = await progressPage();
   assert.match(part(page.main(), 'data-team="team1"'), /1 of 2 items in progress/);
 });
 
@@ -369,13 +380,13 @@ test("#backlog — the page is laid out as #uc and #arc are: panels, list tables
 
 // guards: UC-032; UC-035; the user's layout on a phone
 // given: the fixture product, its plan for team2 open
-// input: open #backlog, click Plan sprint for team2
-// expect: each of the page's four tables — team1's sprint, the plan, what the other teams' sprints hold and the backlog —
-//         stands alone in a box whose class a style sheet under src/ that the page links lets scroll sideways
-test("#backlog — every table stands in a box of its own that scrolls sideways", async () => {
+// input: open #backlog, click Plan sprint for team2; and open #progress
+// expect: each of the pages' four tables — team1's sprint on #progress; the plan, what the other teams' sprints hold and the
+//         backlog on #backlog — stands alone in a box whose class a style sheet under src/ that the page links lets scroll sideways
+test("#backlog and #progress — every table stands in a box of its own that scrolls sideways", async () => {
   const { page } = await backlogPage();
   await page.click('[data-plan="team2"]');
-  const html = page.main();
+  const html = page.main() + (await progressPage()).page.main();
   const tables = html.match(/<table\b/g) ?? [];
   assert.equal(tables.length, 4, "known positive: team1's sprint, the plan, the held items and the backlog each show a table");
   const boxes = [...html.matchAll(/<div class="([\w-]+)"(?: tabindex="0")?>\s*<table\b[\s\S]*?<\/table>\s*<\/div>/g)].map(([, name]) => name);
@@ -389,14 +400,14 @@ test("#backlog — every table stands in a box of its own that scrolls sideways"
 
 // guards: UC-035; the user's chart: its text as large as the page's text
 // given: the fixture product, on a page whose body text the browser draws at 17px
-// input: open #backlog
+// input: open #progress
 // expect: team1's chart is configured to draw its title and its axes' labels and titles — five sizes — at 17px, and is
 //         still the same chart
-test("#backlog — the chart's text is as large as the page's body text", async () => {
+test("#progress — the chart's text is as large as the page's body text", async () => {
   const before = globalThis.getComputedStyle;
   globalThis.getComputedStyle = (element) => ({ fontSize: element === globalThis.document?.body ? "17px" : "" });
   try {
-    const { page } = await backlogPage();
+    const { page } = await progressPage();
     const source = unesc(/<code class="language-mermaid">([\s\S]*?)<\/code>/.exec(part(page.main(), 'data-team="team1"'))?.[1] ?? "");
     const config = /^---\n([\s\S]*?)\n---\n/.exec(source)?.[1] ?? "";
     assert.match(config, /xyChart:[\s\S]*xAxis:[\s\S]*yAxis:/, `the chart carries its configuration: ${source}`);
@@ -410,13 +421,13 @@ test("#backlog — the chart's text is as large as the page's body text", async 
 
 // guards: UC-035; the user's chart: its text as large as the page's text, at the width the site keeps the chart at
 // given: the fixture product, on a page whose style keeps the burn-down chart 640px wide
-// input: open #backlog
+// input: open #progress
 // expect: team1's chart is configured to be drawn 640px wide, the width at which the page shows it
-test("#backlog — the chart is drawn as wide as the page keeps it", async () => {
+test("#progress — the chart is drawn as wide as the page keeps it", async () => {
   const before = globalThis.getComputedStyle;
   globalThis.getComputedStyle = () => ({ fontSize: "", getPropertyValue: (name) => (name === "--burn-down-width" ? " 640px" : "") });
   try {
-    const { page } = await backlogPage();
+    const { page } = await progressPage();
     const source = unesc(/<code class="language-mermaid">([\s\S]*?)<\/code>/.exec(part(page.main(), 'data-team="team1"'))?.[1] ?? "");
     assert.match(/^---\n([\s\S]*?)\n---\n/.exec(source)?.[1] ?? "", /^ {2}xyChart:\n {4}width: 640$/m, source);
   } finally {
