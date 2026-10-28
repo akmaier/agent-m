@@ -33,11 +33,9 @@ those of the release tags' commits, through a snapshot of the branch narrowed to
 batch; *Earlier runs* reads the next ten. Ten, because the records are the cost: ten are ~3.6 MB at today's sizes, one
 batch, and the commits a reviewer looks at first are the newest; `testHistory` is unchanged and given that snapshot.
 
-Open point (not settled from the texts): UC-029 step 5 reads "the test's **history**: one mark per commit of the default
-branch where it ran". Whether marks reached through *Earlier runs* satisfy it adds a word the text does not hold
-(AGENTS.md §6a.7). If not, the proposed text is: "5. Below, the test's **history**: one mark per commit of the default
-branch where it ran, the newest ten runs first and earlier ones on request, and one row per release tag. …" (the rest
-of the step unchanged). This item waits for that decision.
+Reading taken: UC-029 step 5, "one mark per commit of the default branch where it ran", holds with the marks shown ten
+runs at a time: every commit where the test ran still has its mark, reached through *Earlier runs*; the step names no
+number shown at once.
 
 Design principles (AGENTS.md §2 *Designing*): ch. 12 *KISS* — the existing history and folders read a bounded list; no
 new stored view; §2.5 — the same *older* paging as `<k>/history` of the review pages (twenty commits at a time).

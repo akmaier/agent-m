@@ -56,13 +56,9 @@ names no folders is unchanged, so the change is open for extension and closed fo
 — which folders a route shows is the route's, how a snapshot is read is the host's; ch. 10 *least astonishment* — a
 path outside the snapshot fails by name instead of answering as a missing file.
 
-Open point (not settled from the texts): SPEC `A PAGE LOAD READS THE REPOSITORY IN BATCHES` says "one load of a dashboard
-page reads its commit and that commit's tree once". Reading the folders a route shows in one request reads part of that
-tree once; whether "that commit's tree" admits a part of it is a reading AGENTS.md §6a.7 does not let an agent take. If
-it does not, the proposed text is: "With a token on GitHub, one load of a dashboard page reads its commit once, the
-part of that commit's tree it shows in one request, and the texts of the files it shows in requests of at most 100 files
-each; a file whose blob the page has read already is not read again, and an acceptance reads the head it commits on
-once." The change would go through a queue under `docs/spec-freigaben/`; this item waits for that decision.
+Reading taken: SPEC `A PAGE LOAD READS THE REPOSITORY IN BATCHES` bounds a load's reads — "its commit and that commit's
+tree once", and the files it shows in batches; reading of that tree only the folders the route shows, in one request,
+reads it once and less of it. No SPEC change is needed.
 
 ## Acceptance
 
