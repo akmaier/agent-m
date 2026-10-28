@@ -189,8 +189,8 @@ async function world({ handOver, implementing = IMPLEMENTS }, run) {
 // input: onDispatch with the inputs job, task, endpoint and secret FIXTURE_KEY
 // expect: outcome `done`; implement's prompt is sent (three requests), each to https://llm.example.test/v1/chat/completions with the model fixture-llm and the key FIXTURE_KEY's value as
 //   its bearer — the job's own endpoint and key —; the first of them offers exactly the seven tools of the checkout and its system prompt names the product's checkout as the working
-//   folder, while the conversation's request offers none; the result's repository holds the branch agent-m/ITM-001 with src/reader/due.mjs, and its main and the product's main are where
-//   they were — nothing merged —; one pull request of agent-m/ITM-001 into main is kept for the writing machine; the job's end lists `pending-pull-request:agent-m/ITM-001` and no
+//   folder, while the conversation's request offers none; the result's repository holds the branch agent-m/ITM-001 with src/reader/due.mjs, which its main — the
+//   job's records only — does not contain, and the product's main is where it was — nothing merged —; one pull request of agent-m/ITM-001 into main is kept for the writing machine; the job's end lists `pending-pull-request:agent-m/ITM-001` and no
 //   `not run: implement`. Before the change, the end said `not run: implement — its result does not wait for a person …` and implement's prompt was never sent.
 test("TST-2026281001: a hand-over of implement in a hosted conversation runs in the same run, in the job's checkout, and its writer writes a pull request it does not merge", async () => {
   await world({ handOver: { kind: "implement", works_on: ["ITM-001"], task: "tell the member the due date" } }, async (w) => {
@@ -208,7 +208,10 @@ test("TST-2026281001: a hand-over of implement in a hosted conversation runs in 
     assert.equal((w.requests[0].body.tools ?? []).length, 0, "the conversation itself works in no checkout");
     assert.ok(w.branchOf(`refs/heads/${BRANCH}`), "the result's repository holds the branch");
     assert.equal(git(w.productDir, "show", `${BRANCH}:src/reader/due.mjs`), "export const due = (day) => day + 14;");
-    assert.equal(w.branchOf("refs/heads/main"), w.base, "the result's main is where it was: nothing is merged");
+    // The result's main holds the job's own records (its taking); the branch is not merged into it.
+    const merged = spawnSync(REAL_GIT, ["--git-dir", w.bare, "merge-base", "--is-ancestor", `refs/heads/${BRANCH}`, "refs/heads/main"]).status === 0;
+    assert.equal(merged, false, "the branch is not merged into the result's main");
+    assert.equal(spawnSync(REAL_GIT, ["--git-dir", w.bare, "cat-file", "-e", "main:src/reader/due.mjs"]).status === 0, false, "the result's main holds no src/reader/due.mjs");
     assert.equal(git(w.origin, "rev-parse", "main"), w.base, "the product's main is where it was");
     assert.deepEqual(w.kept.pullRequests.map((each) => [each.branch, each.base]), [[BRANCH, "main"]], "one pull request is kept for the writing machine");
     assert.ok(w.results().includes(`pending-pull-request:${BRANCH}`), w.results());
