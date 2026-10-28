@@ -133,6 +133,7 @@ It runs in Node, in GitHub Actions or GitLab CI, on hosted or self-hosted runner
 - `model-user.mjs` — the agent's machine split by OS user: a run in which a model works — a hand-over to a model
   endpoint, or a coding agent whose key the machine holds — run as the model's own user, beside the key holder.
 - `instance.mjs` — the entries of the instance's workflows.
+- `main-changed.mjs` — `onMainChanged`, the one entry run alike in the instance and in a product.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
   - `.github/workflows/apply-approvals.yml`, `.github/workflows/fetch-sources.yml`, `.github/workflows/main-changed.yml`, `.github/workflows/release.yml`: named here, since GitHub fixes their place; `apply-approvals.yml` runs `onApprovalsCommitted`, `main-changed.yml` runs `onMainChanged` and `release.yml` runs `onReleaseTagged`, each and nothing else, as this module states.
   - `tests/test_apply_approvals.py`: its header names this module.
@@ -148,7 +149,8 @@ Data), `onRecordsChanged` and `onDispatch` run on the agent's machine, after `ch
 by `leaveResult`, and `writeResult` and the other entries on the writing machine. MOD-test-schedule's test configuration runs
 `runTests` in each of its test jobs, which read no token, and `onTestsFinished` in its job `agent-m records` and
 `onDoneCheck` in its job `agent-m done`, the two that read the token and run no code of the product; on GitLab each file
-is included from the product's `.gitlab-ci.yml`. In the instance, one file under `.github/workflows/` runs each of its
+is included from the product's `.gitlab-ci.yml`. The file MOD-runtimes writes beside the job workflow runs
+`onMainChanged` on every push to the product's default branch. In the instance, one file under `.github/workflows/` runs each of its
 entries — `onApprovalsCommitted` on a push to `docs/approvals/`, `onSourcesCommitted` on a push to `docs/sources/` and
 on dispatch for *Fetch again* (UC-004 7a), `onReleaseTagged` on a release tag, `onMainChanged` on every push to the
 default branch — and does nothing but run it.
@@ -210,7 +212,8 @@ so; a model's command there reaches what that user can.
   on that user's side, the key holder's address (`AGENT_M_KEY_HOLDER`), and the file of a step's outputs — GitHub's `GITHUB_OUTPUT`, on
   GitLab the dotenv file `AGENT_M_OUTPUT` names; a GitLab pipeline started from the page or the API (`web`, `api`) is read
   as a start as GitHub's `workflow_dispatch` is; in the instance, the workflow's own token for the instance
-  repository and the signing secrets of a release; for `runTests`, the variables of MOD-test-schedule's *The variables of
+  repository and the signing secrets of a release; for `onMainChanged` in a product, the workflow's own token on GitHub
+  and the person's token on GitLab, and no key; for `runTests`, the variables of MOD-test-schedule's *The variables of
   a test job*; for `onTestsFinished`, the folder of the run's reports; for `onDoneCheck`, that folder and
   `AGENT_M_EXPECTED`, the rows and numbers of shards of a pull request's run as MOD-test-schedule's generated file names
   them. A secret that is missing ends the entry at once with a status that names it, before anything is written
@@ -365,9 +368,11 @@ so; a model's command there reaches what that user can.
   nothing and ends the entry `failed`, its summary naming the register entry and the failure, which the library shows
   beside the entry with *Fetch again* (UC-004 7a); nothing is guessed (`AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL
   REPOSITORY`).
-- `onMainChanged(env: CiEnvironment) -> Promise<EntryStatus>` — in the instance, on every push to the default branch: what
-  a page would otherwise derive from that commit at the moment it is opened, computed once and stored as records the page
-  reads. It reads the commit's snapshot once.
+- `onMainChanged(env: CiEnvironment) -> Promise<EntryStatus>` — in the instance and in a product alike, on every push to
+  the default branch of the repository it runs in: what a page would otherwise derive from that commit at the moment it is
+  opened, computed once and stored as records the page reads, on that repository's branches. It reads the commit's
+  snapshot once. In a product it reads the instance as the entries of the job workflow do, through the checkout of the
+  instance at the commit its file names, connected as `productFacts`' `instanceAt`.
   - It adds the commit's graph and the impact lists of its decision and module files that are not accepted
     (MOD-trace-graph's `publishGraph`). Each such file comes with the text it was last accepted at and that text's commit:
     MOD-approvals' `statuses` names the files, and `lastAcceptedText` gives each one's text, read once per file here.
@@ -400,7 +405,7 @@ machine pushes —; on the hosted agent's machine copies the checkouts into the 
 files and the summary back from there as that user; reads pull requests and closes issues through the server's API, since the local clone
 does no server operation; in a test job, reads the commit's test files and runs the product's test command, which writes
 the job's report; appends result records to the branch `test-results`; on GitLab, sets the project's pipeline
-schedule. It also reads the instance's process models at the commit the product's declaration names, through the
+schedule; for `onMainChanged`, adds what it stores to the branches `trace-cache` and `overview-cache`. It also reads the instance's process models at the commit the product's declaration names, through the
 checkout of the instance, which fetches that commit. In the instance: reads approval records, change queues, `SPEC.md`
 and `docs/sources/`; writes `SPEC.md`
 sections with their decisions and the fetched texts of sources. Reads secrets only from the environment.

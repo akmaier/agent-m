@@ -58,7 +58,7 @@ After the change, as UC-035, UC-032, UC-045 and the architecture say:
 - MOD-workflow-entries: `onMainChanged` stores the views with the overview and names them in its summary.
 - MOD-implementation-pages: `progress` and `backlog` draw the stored view and read no record, facts or pull request;
   `progress` names no first wave; the as-of line while the head's view is being stored; where the repository stores no
-  view — a product without the instance's workflow — the same view is derived in the page from the scope `work`. *Plan
+  view — a product whose files do not run `onMainChanged` yet (ITM-1260) — the same view is derived in the page from the scope `work`. *Plan
   sprint* and *Cancel* draw from the view read; *Start sprint* and *End sprint* are offered on the head's own view and
   write on its commit. `plan` and `board` read the declaration and the declared model's file (`readFileAt`) first and
   nothing else where they do not apply. `implement` reads the facts of the scope `work` once.

@@ -108,6 +108,8 @@ it in a browser; its writer and its workflow files are used in Node as well.
 - `ci.mjs` — the CI route: queueing, live state, log and cancel through the repository host.
 - `bridge.mjs` — the Bridge route through the Bridge client, and the driver of an agent or an endpoint on a Bridge.
 - `workflow/github.yml`, `workflow/gitlab.yml` — the templates of the job workflow.
+- `workflow/github-main-changed.yml`, `workflow/gitlab-main-changed.yml` — the templates of the file beside it that runs
+  `onMainChanged`.
 - `pull-request.mjs` — the writer `branch-and-pull-request`.
 - `hand-over.mjs` — a conversation's work handed over.
 - `retry.mjs` — a job started again: `retryJob`.
@@ -204,8 +206,21 @@ stands on github.com, is cloned without a token on every machine, since the pers
 
 The file is not the product's test configuration, which starts no run for job records
 (`A JOB RECORD STARTS NO CI RUN`), and it does not check the Definition of Done: the test configuration MOD-test-schedule
-generates does, through `onDoneCheck`. Moving a product to a newer commit of the instance is writing the file again, on
-a person's decision. A job queued on the CI route records, as the Agent M commit it runs at, the commit the product's file
+generates does, through `onDoneCheck`.
+
+**Beside it, the file that stores what the pages read.** On GitHub, `.github/workflows/agent-m-main-changed.yml`; on
+GitLab, `.gitlab/agent-m-main-changed.yml`, which the product's `.gitlab-ci.yml` includes as it includes the job workflow.
+It names the same instance repository and commit as the job workflow, and has one job, on the server's runners: on every
+push to the default branch, on the server's schedule and on a start from the server's own page, it checks out the
+product and the instance at that commit, makes the branches `trace-cache` and `overview-cache` once, as orphan commits,
+where the product has none, and runs MOD-workflow-entries' `onMainChanged`, as the instance's own
+`.github/workflows/main-changed.yml` does. It runs no agent, calls no model and reads no key. It writes with the
+workflow's own token on GitHub (`permissions: contents: write`), whose pushes start no run, and on GitLab, whose job
+token may not push unless the project allows it, with the person's token, the job being of the environment
+`agent-m-write`, as the job that writes is. Until a product's files are written again at a commit that holds this file,
+the product has none, and its pages read what its branches hold, or derive it where they hold nothing.
+
+Moving a product to a newer commit of the instance is writing the files again, on a person's decision. A job queued on the CI route records, as the Agent M commit it runs at, the commit the product's file
 pins — the commit the run's checkout of the instance is at —, not the commit the page that queued it was served from.
 
 ## Interfaces
@@ -311,11 +326,13 @@ pins — the commit the run's checkout of the instance is at —, not the commit
   for no key and one for each of `secrets.keys` in their order, and the job that writes — on GitHub the agent's job of a
   key naming the secret of that key alone and the job that writes naming `secrets.token` and every key; on GitLab the
   agent's job of a key of the environment `agent-m-key-<its name>`, the job that writes of `agent-m-write`, reading the
-  token by the name `secrets.token`, and the plan and the agent's job 0 of none. On GitLab, `gitlabCi` is the product's
+  token by the name `secrets.token`, and the plan and the agent's job 0 of none; and, beside them, the file that runs
+  `onMainChanged`, at the same commit. On GitLab, `gitlabCi` is the product's
   `.gitlab-ci.yml` at the head the caller read, `null` where it has none. The returned `.gitlab-ci.yml` is that text with
   three additions, each made only where it is missing:
   - the inputs `job`, `task` and `endpoint` under its `spec:` header, with the header where the file has none;
-  - the entry `- local: .gitlab/agent-m-jobs.yml` under its `include:`, with the key where the file has none;
+  - the entries `- local: .gitlab/agent-m-jobs.yml` and `- local: .gitlab/agent-m-main-changed.yml` under its
+    `include:`, with the key where the file has none;
   - the inputs that entry passes on.
   Every other line stays as it is. Where the product has no `.gitlab-ci.yml`, the returned one is the whole file.
 - `gitlabVariableScopes(secrets: { token: string, keys: string[] }) -> { name: string, scopes: string[] }[]` — on GitLab,
