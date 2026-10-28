@@ -1,6 +1,6 @@
 // facts.mjs — productFacts: one product's facts, read once from its default branch through its host
 // (docs/architecture/MOD-progress-measures.md, Interfaces: Facts, productFacts; STATUS IS DERIVED FROM THE RECORDS, PROGRESS AND
-// JOB STATE ARE DERIVED, NOT STORED). The scope `build` reads what buildFacts lists; the scope `work` reads what is listed below; the scope `all` adds the requirements, the tests,
+// JOB STATE ARE DERIVED, NOT STORED). The scope `build` reads what buildFacts lists; the scope `work` reads what is listed below, and the scope `now` the same with the running sprints alone and the pull requests open or updated since the earliest of them started; the scope `all` adds the requirements, the tests,
 // the branch `test-results`, the tags, `info`, the history of the declaration (`modelSince`), the schedule, the CI runs and configuration (`ci`) and the resource list (`resourceNeeds`); `graph` stays
 // "unknown" in both, and so does every fact the scope does not read. No job's live state is asked. The files are read ahead through Snapshot.readMany, in batches of a hundred where the host can.
 //
@@ -256,6 +256,19 @@ async function acceptanceStatuses(approvals, items, requirements, snapshot) {
   return context;
 }
 
+// Whether a sprint is closed: its record holds the ## Review its close appends (MOD-work-plans). The scope `now` keeps the others, the running ones.
+const closedSprint = (record) => (record?.appended ?? []).some((section) => section?.heading === "## Review");
+
+// The pull requests of the scope `now`: those open, and those updated on or after the earliest `start` of the running sprints — two listings at once, each bounded —, each once;
+// without a running sprint, the open ones alone. "unknown" where the host cannot list them.
+async function pullRequestsSince(host, sprints) {
+  const since = sprints.map((record) => text(record.fields?.start).slice(0, 10)).filter((day) => /^\d{4}-\d{2}-\d{2}$/.test(day)).sort()[0] ?? null;
+  const [open, updated] = await Promise.all([orUnknown(() => host.listPullRequests({ state: "open" })),
+    since === null ? [] : orUnknown(() => host.listPullRequests({ state: "all", updatedSince: since }))]);
+  if (open === "unknown" || updated === "unknown") return "unknown";
+  return [...new Map([...open, ...updated].map((pullRequest) => [pullRequest.number, pullRequest])).values()];
+}
+
 // The facts the scope `build` reads: what buildInProgress takes and nothing else — the plan or the backlog, the job records and the pull requests —,
 // through the repository's default branch, and what the plan's states depend on: the approval statuses (derived from the tree's paths and blobs, which
 // read no file), the change queues, and the gate records with the declaration, the model and the workflow they are stated against. So a step's
@@ -300,7 +313,7 @@ async function buildFacts(host, instance, instanceAt) {
 
 /**
  * productFacts(host, instance, instanceAt, now, options?) -> Promise<Facts> — with the scope `build`, what buildInProgress takes
- * and nothing else (buildFacts above); with the scope `work`, what
+ * and nothing else (buildFacts above); with the scope `work` — and the scope `now`, with the running sprints alone and the pull requests open or updated since the earliest of them started —, what
  * MOD-progress-measures' file lists for it, read once from the product's default branch through `host`; every other field is
  * "unknown". With the scope `all`, the default, it adds the requirements of SPEC.md, the declarations of the test files, the
  * branch `test-results`, the tags, the repository's information, the date the declared model was declared (modelSince), the schedule, the CI runs and configuration (ci)
@@ -309,12 +322,12 @@ async function buildFacts(host, instance, instanceAt) {
  * @param {object} instance the instance's Snapshot, for its participants and SPEC
  * @param {(commit: string) => Promise<object>} instanceAt the instance's Snapshot at a commit, for the commit a declaration names
  * @param {Date} now unused with the scope `work`
- * @param {{ scope: "all" | "work" | "build" }} [options]
+ * @param {{ scope: "all" | "work" | "build" | "now" }} [options]
  * @returns {Promise<object>}
  */
 export async function productFacts(host, instance, instanceAt, now, options = { scope: "all" }) {
   const scope = options?.scope ?? "all";
-  if (scope !== "all" && scope !== "work" && scope !== "build") throw new TypeError(`a scope is "all", "work" or "build": ${String(scope)}`);
+  if (!["all", "work", "build", "now"].includes(scope)) throw new TypeError(`a scope is "all", "work", "build" or "now": ${String(scope)}`);
   if (scope === "build") return buildFacts(host, instance, instanceAt);
   const all = scope === "all";
 
@@ -323,7 +336,8 @@ export async function productFacts(host, instance, instanceAt, now, options = { 
   const snapshot = await host.readSnapshot(branch);
   const held = await storedFactsWithJobs(snapshot);
   const stored = held?.facts ?? null;
-  const pullRequests = await orUnknown(() => host.listPullRequests());
+  // The scope `now` lists its pull requests once it knows the running sprints (below); every other scope lists them all.
+  let pullRequests = scope === "now" ? null : await orUnknown(() => host.listPullRequests());
   const address = snapshot.repository?.web ?? "";
   const pathsOf = (pattern) => snapshot.paths.filter((path) => pattern.test(path)).sort();
 
@@ -339,7 +353,7 @@ export async function productFacts(host, instance, instanceAt, now, options = { 
     await snapshot.readMany?.(schedulingPaths(snapshot));
   }
   await instance.readMany?.([PARTICIPANTS, ...(snapshot.paths.includes(DECLARATION) ? [INSTANCE_SPEC] : [])].filter((path) => instance.paths?.includes(path)));
-  const [declaration, order, items, sprints, assignments, gates, modules] = stored
+  const [declaration, order, items, everySprint, assignments, gates, modules] = stored
     ? [stored.declaration, stored.order, stored.items, stored.sprints, stored.assignments, stored.gates, stored.modules] : await Promise.all([
     snapshot.paths.includes(DECLARATION) ? readDocument(declarationSchema, DECLARATION, (await snapshot.read(DECLARATION)) ?? "") : null,
     snapshot.paths.includes(ORDER) ? readDocument(planSchemas.planOrder, ORDER, (await snapshot.read(ORDER)) ?? "") : null,
@@ -349,6 +363,9 @@ export async function productFacts(host, instance, instanceAt, now, options = { 
     readAll(snapshot, pathsOf(GATE_RECORD), gateSchema),
     readAll(snapshot, pathsOf(MODULE_FILE), artifactSchemas().module),
   ]);
+  // The scope `now` holds the running sprints alone, and the pull requests open or updated since the earliest of them started.
+  const sprints = scope === "now" ? everySprint.filter((record) => !closedSprint(record)) : everySprint;
+  if (scope === "now") pullRequests = await pullRequestsSince(host, sprints);
   const approvals = statuses(snapshot);
   const changeQueues = stored ? stored.queues : await queues(snapshot);
   const { model, workflow, modelUnread } = await declaredWorkflow(declaration, instance, instanceAt, stored?.model);
@@ -363,12 +380,12 @@ export async function productFacts(host, instance, instanceAt, now, options = { 
   const acceptance = await acceptanceStatuses(approvals, items, knownRequirements, snapshot);
   const planStates = itemStates(itemsByNumber(items), order, { statuses: acceptance, queues: changeQueues, jobs, pullRequests, gates: states, workflow: known });
 
-  // held: the head commits undecidedHeads names are the only ones the default branch is asked about (containsCommit).
+  // held: the head commits undecidedHeads names are the only ones the default branch is asked about (containsCommit), all of them at once.
   const onDefault = new Set();
   if (pullRequests !== "unknown") {
-    for (const head of undecidedHeads(sprints, pullRequests)) {
-      if (await host.containsCommit(branch, head)) onDefault.add(head);
-    }
+    const heads = undecidedHeads(sprints, pullRequests);
+    const contained = await Promise.all(heads.map((head) => host.containsCommit(branch, head)));
+    heads.forEach((head, at) => { if (contained[at]) onDefault.add(head); });
   }
 
   const more = all ? await allFacts(host, snapshot, stored, knownRequirements) : { requirements: "unknown", tags: "unknown", results: "unknown", tests: "unknown" };

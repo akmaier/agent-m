@@ -250,6 +250,64 @@ test("#backlog sends its commit and tree once, one batch of the files it shows, 
   assert.equal(srv.batches.flat().filter((path) => path === "SPEC.md").length, 1, "no file twice");
 });
 
+// A fake of GitHub's pulls API and search, as their pages document them ("List pull requests": state, sort, direction, per_page, page, and the Link header naming the last page;
+// "Search issues and pull requests": total_count): `closed` pull requests closed in August, two open ones, and one merged on 2026-10-21, during the running sprint.
+function pullsAndSearch(closed) {
+  const pull = (number, state, updated, merged = null) => ({ number, title: `ITM-00${number % 2 + 1}: work ${number}`, head: { ref: `work/${number}`, sha: "b".repeat(40) }, base: { ref: "main" },
+    state, created_at: "2026-08-01T00:00:00Z", updated_at: updated, merged_at: merged, merge_commit_sha: merged ? "f".repeat(40) : null, closed_at: state === "closed" ? updated : null, body: "" });
+  const all = [pull(closed + 3, "open", "2026-10-22T09:00:00Z"), pull(closed + 2, "open", "2026-08-15T09:00:00Z"), pull(closed + 1, "closed", "2026-10-21T10:00:00Z", "2026-10-21T10:00:00Z"),
+    ...Array.from({ length: closed }, (_, i) => pull(closed - i, "closed", "2026-08-02T00:00:00Z", i % 3 ? null : "2026-08-02T00:00:00Z"))];
+  const json = (body, headers = {}) => new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json", ...headers } });
+  return (url) => {
+    if (url.origin !== "https://api.github.com") return undefined;
+    const q = url.searchParams;
+    if (url.pathname === "/search/issues") {
+      const query = q.get("q") ?? "", since = /updated:>=(\S+)/.exec(query)?.[1];
+      const found = all.filter((p) => (!query.includes("is:closed") || p.state === "closed") && (!query.includes("is:open") || p.state === "open") && (!since || Date.parse(p.updated_at) >= Date.parse(since)));
+      return json({ total_count: found.length, incomplete_results: false, items: [] });
+    }
+    if (url.pathname !== `/repos/${REPO}/pulls`) return undefined;
+    const state = q.get("state") ?? "open", per = Number(q.get("per_page") ?? 30), page = Number(q.get("page") ?? 1);
+    let list = all.filter((p) => state === "all" || p.state === state);
+    if (q.get("sort") === "updated") list = [...list].sort((a, b) => (q.get("direction") === "asc" ? 1 : -1) * a.updated_at.localeCompare(b.updated_at));
+    const last = Math.max(1, Math.ceil(list.length / per));
+    const at = (n) => { const next = new URL(url); next.searchParams.set("page", String(n)); return next.href; };
+    return json(list.slice((page - 1) * per, page * per), page < last ? { Link: `<${at(page + 1)}>; rel="next", <${at(last)}>; rel="last"` } : {});
+  };
+}
+
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-035
+// given: a product that declares its process model, with one team whose sprint 01 runs since 2026-10-20, two items; its pull requests: two open, one merged on 2026-10-21, and
+//        250 closed in August — and, as a second product, the same with 1,370 closed in August
+// input: open #implementation with a token
+// expect: the route progress is drawn — team1's running sprint team1/01 —; no request of the pulls lists state=all, and every request of closed pull requests is bounded: sorted by
+//         their update, newest first; both products send the same number of requests about pull requests, however many closed ones they hold
+test("#implementation draws progress, and its requests about pull requests are bounded, whatever the number of closed ones", async () => {
+  const sprinting = () => product({
+    "docs/process.md": ["---", "model: fixture-scrum-wip", "model_file: docs/process-models/fixture.md", `model_version: ${"c0ffee".padEnd(40, "0")}`,
+      "---", "# How the fixture product is developed", ""].join("\n"),
+    "docs/process-models/fixture.md": readFileSync(new URL("./fixtures/flow/scrum-wip.md", import.meta.url), "utf8"),
+    "docs/role-assignments/team1.md": "# team1\n\n## Roles\n\n| Role | Participants |\n|---|---|\n| Owner | alice |\n| Builders | dev-a |\n| Checker | dev-a |\n",
+    "docs/backlog/sprints/team1/01.md": "---\nsprint: 1\ngoal: Read\nstart: 2026-10-20\nend:\ncloser: alice\nbranch:\nselection:\n  - ITM-001\n  - ITM-002\n---\n# team1 Sprint 01\n",
+    "docs/backlog/ITM-001-item-1.md": item(1), "docs/backlog/ITM-002-item-2.md": item(2),
+  });
+  const counts = [];
+  for (const closed of [250, 1370]) {
+    const srv = await server(await sprinting(), [pullsAndSearch(closed)]);
+    const page = await openDashboard({ server: srv, hash: "#implementation" });
+    assert.match(page.main(), /data-team="team1"/, `${closed}: the route progress is drawn`);
+    assert.match(page.main(), /team1\/01/);
+    const about = page.requests.filter((r) => r.startsWith("handler GET https://api.github.com/")).map((r) => new URL(r.slice("handler GET ".length)))
+      .filter((url) => url.pathname.endsWith("/pulls") || url.pathname === "/search/issues");
+    assert.ok(about.some((url) => url.pathname.endsWith("/pulls")), "known positive: the pull requests are read");
+    assert.deepEqual(about.filter((url) => url.searchParams.get("state") === "all").map(String), [], `${closed}: no state=all`);
+    assert.deepEqual(about.filter((url) => url.searchParams.get("state") === "closed" && !(url.searchParams.get("sort") === "updated" && url.searchParams.get("direction") === "desc")).map(String), [],
+      `${closed}: every listing of closed pull requests is bounded`);
+    counts.push(about.length);
+  }
+  assert.equal(counts[0], counts[1], `as many requests about pull requests with 1,370 closed ones as with 250: ${counts.join(" and ")}`);
+});
+
 const item = (n) => ["---", `id: ITM-00${n}`, `title: The work of item ${n}`, "level: module", "realises:", "  - RULE ONE", "modules:", "  - MOD-reader",
   "builds_on: []", "tests:", "  - unit", "origin:", "  - RULE ONE", "---", `# ITM-00${n} The work of item ${n}`, "", "## Outcome", "",
   `What item ${n} delivers.`, "", "## Acceptance", "", "- a unit test.", ""].join("\n");

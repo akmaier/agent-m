@@ -1,29 +1,32 @@
-// The route `backlog` — the backlog and the sprints of each team (MOD-implementation-pages, docs/architecture/MOD-implementation-pages.md; Interfaces: backlog; UC-032 steps 1, 5 and 6, UC-033, UC-035): the state of the
-// current process first — each team's running sprint, what it holds, the state of each held item and its burn-down, or that the team runs none —, then the backlog, each item after the items it builds on, with its state and, in
-// a product with several teams, what keeps it from a team's selection, then the accepted requirements and use cases no item realises yet. *Plan sprint*, for one team, lists what the team may select, and beside it every item
-// the other teams' sprints hold, with its sprint and the modules it changes and uses; *Start sprint* commits the team's sprint through MOD-work-plans' startSprint as the person's own commit, on the person's click: the one
-// write of this route. Everything else is read from the product's repository and its pull requests and derived when shown; nothing is stored (PROGRESS AND JOB STATE ARE DERIVED, NOT STORED). Every part explains itself
-// (EVERY STEP EXPLAINS ITSELF). The layout is the one of the review pages: a head, panels, list tables, buttons and badges — no style of its own; each table stands in a box that scrolls sideways where the page is
-// narrower than the table, and the burn-down chart keeps its text the size of the page's body text while it fits its narrow box with fewer visible axis labels — widths and sizes as the site's
-// src/theme/lme.css gives them.
+// The route `backlog` — the backlog and what is done (MOD-implementation-pages, docs/architecture/MOD-implementation-pages.md; Interfaces: backlog; UC-032 steps 1, 5 and 6, UC-033): each
+// team first — its last sprint that has ended, linked to its record, with its final burn-down, or that it has ended none, and whether a sprint of it runs now, which the route
+// `progress` shows —, then the backlog, each item after the items it builds on, with its state and, in a product with several teams, what keeps it from a team's selection, then the
+// accepted requirements and use cases no item realises yet. *Plan sprint*, for one team, lists what the team may select, and beside it every item the other teams' sprints hold, with
+// its sprint and the modules it changes and uses; with the parameter `plan` naming a team — as `progress` links it — the route opens with that team's planning, and a planning opened
+// or cancelled on the page is drawn from what the route has read, without reading it again. *Start sprint* commits the team's sprint through MOD-work-plans' startSprint as the
+// person's own commit, on the person's click: the one write of this route. Everything else is read from the product's repository and its pull requests and derived when shown;
+// nothing is stored (PROGRESS AND JOB STATE ARE DERIVED, NOT STORED). Every part explains itself (EVERY STEP EXPLAINS ITSELF). The layout is the one of the review pages: a head,
+// panels, list tables, buttons and badges — no style of its own; each table stands in a box that scrolls sideways where the page is narrower than the table. The burn-down chart is
+// the route progress's (progress.mjs).
 //
 // Module: MOD-implementation-pages
 //
 // What a render reads: the facts of the product, which MOD-progress-measures' productFacts gives with the scope `work` — the declaration docs/process.md, the role assignments under docs/role-assignments/, which name the teams,
-// every team's sprints under docs/backlog/sprints/<team>/, every item under docs/backlog/, the approval statuses (MOD-approvals' statuses, which read no file), the product's pull requests, and the model the declaration names as the
+// every team's sprints under docs/backlog/sprints/<team>/, every item under docs/backlog/, the approval statuses (MOD-approvals' statuses, which read no file), every pull request of the product, and the model the declaration names as the
 // instance's catalogue held it at the commit its model_version names; where the facts of the commit are stored they are taken from the store and none of those files is read. Besides: the SPEC, which names the accepted requirements,
 // and, in a product with several teams, the architecture's module files — from the stored facts' lists, or from the files. Of the pull requests those into the default branch or into a sprint's branch count. MOD-work-plans decides
 // each item's state (itemStates, from the pull requests, the approval statuses and the requirements the SPEC holds), what the sprints hold (heldItems), what keeps an item from a team (conflicts) and how a sprint starts
-// (startSprint); MOD-progress-measures derives each team's sprint and its burn-down (progressIn). A model version the instance cannot read is named on the page (modelUnread); the catalogue as it stands now is not used instead.
+// (startSprint); MOD-progress-measures derives each team's sprints and their burn-down (progressIn). A model version the instance cannot read is named on the page (modelUnread); the catalogue as it stands now is not used instead.
 // Readings the texts leave open, which this file takes: a requirement named in the SPEC is accepted — the approval statuses MOD-work-plans' itemStates reads hold the reviewed files only, so the route adds the SPEC's
-// requirements to them; the model is the one productFacts gives, found in the catalogue by the file the declaration names; after Start sprint the route draws itself again, and the frame's host serves the snapshot the commit made.
+// requirements to them; the model is the one productFacts gives, found in the catalogue by the file the declaration names; after Start sprint the route reads and draws itself again, and the frame's host serves the snapshot the commit
+// made; a team's last sprint that has ended is its newest that is closed or past its end, else the one before its running sprint.
 
 import { artifactSchemas, readDocument } from "../documents/index.mjs";
-import { renderArtifact, renderMermaid } from "../markdown-render/index.mjs";
 import { productFacts, progressIn, storedFacts } from "../progress-measures/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
-import { conflicts, endSprint, heldItems, itemStates, startSprint, startable } from "../work-plans/index.mjs";
+import { conflicts, heldItems, itemStates, startSprint, startable } from "../work-plans/index.mjs";
 import { participantSchema, participantsOf } from "../participant-list/index.mjs";
+import { chartBlock, drawCharts, mergedAtOf, remainingOverTime } from "./progress.mjs";
 
 const DECLARATION = "docs/process.md";
 const ITEM_FILE = /^docs\/backlog\/(ITM-\d{3,})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
@@ -40,7 +43,7 @@ const list = (value) => (Array.isArray(value) ? value.map(text) : text(value).sp
 const listed = (names) => (names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`);
 const today = () => new Date().toISOString().slice(0, 10);
 const h = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-const explain = (html) => `<details class="explain"><summary>What is this?</summary><div>${html}</div></details>`;
+const whatIsThis = (html) => `<details class="explain"><summary>What is this?</summary><div>${html}</div></details>`;
 const idOf = (doc) => text(doc?.id ?? doc?.fields?.id) || ITEM_FILE.exec(text(doc?.path))?.[1] || "";
 // The items in the order of their numbers (ITM-999 before ITM-1000).
 const numberOf = (id) => Number(/\d+/.exec(id)?.[0] ?? Infinity);
@@ -111,26 +114,28 @@ function statusesOf(ctx) {
   return all;
 }
 
-// What the route derives: the pull requests, each item's state and when a done item was merged, what the sprints hold, each team's sprint.
+// What the route derives: the pull requests, each item's state and when a done item was merged, what the sprints hold, each team's newest sprint, and each team's last sprint that has
+// ended — its newest where that is closed or past its end, else the one before — with its final burn-down.
 export async function derivedOf(context, ctx) {
   const pull = await pullRequestsOf(context, ctx);
   const states = itemStates(ctx.items, null, { statuses: statusesOf(ctx), queues: [], jobs: [], pullRequests: pull, gates: [], workflow: null });
-  const mergedAt = new Map();
-  for (const doc of ctx.items) {
-    const id = idOf(doc);
-    if (states.find((each) => each.item === id)?.state !== "done") continue;
-    const merged = pull.filter((each) => each.state === "merged" && new RegExp(`(?<![A-Za-z0-9])${id}(?![0-9])`, "i").test(`${text(each.branch)} ${text(each.title)}`))
-      .map((each) => each.merged).filter((at) => at && Number.isFinite(Date.parse(at))).sort()[0];
-    if (merged) mergedAt.set(id, new Date(merged).toISOString());
-  }
+  const mergedAt = mergedAtOf(states, pull);
   const held = heldItems(ctx.sprints, ctx.items, ctx.modules, pull);
-  let progress = null;
-  if (ctx.model) {
+  const progressOf = (sprints) => {
+    if (!ctx.model) return null;
     try {
-      progress = progressIn({ model: ctx.model, modelSince: null, assignments: ctx.assignments, sprints: ctx.sprints, plan: { order: null, items: ctx.items, states }, pullRequests: pull }, new Date());
-    } catch { progress = null; }
+      return progressIn({ model: ctx.model, modelSince: null, assignments: ctx.assignments, sprints, plan: { order: null, items: ctx.items, states }, pullRequests: pull }, new Date());
+    } catch { return null; }
+  };
+  const progress = progressOf(ctx.sprints);
+  const runningRecords = new Set(ctx.teams.map((team) => runningOf(ctx, { progress }, team)).filter(Boolean));
+  const ended = progressOf(ctx.sprints.filter((record) => !runningRecords.has(record)));
+  const lastEnded = new Map();
+  for (const record of ctx.sprints.filter((each) => !runningRecords.has(each))) {
+    const [, team, nn] = SPRINT_FILE.exec(record.path);
+    if (!lastEnded.has(team) || Number(nn) > Number(lastEnded.get(team).nn)) lastEnded.set(team, { record, nn, name: `${team}/${nn}` });
   }
-  return { pull, states, mergedAt, held, progress };
+  return { pull, states, mergedAt, held, progress, ended, lastEnded };
 }
 
 // ---------------------------------------------------------------- the parts
@@ -151,87 +156,25 @@ function ownerOf(ctx, team) {
   return list(row?.cells.Participants)[0] ?? "";
 }
 
-// The items a sprint has left over time: at its start, after each merge of one of its items, in time order, and now — or, for a closed sprint, at its end, the last day of its burn-down, after which no merge counts. An item
-// merged before the sprint's start is done from the start. A merge is labelled with its time, HH:MM in UTC, or MM-DD HH:MM once a merge falls on another day than the start.
-function remainingOverTime(items, mergedAt, start, end = "") {
-  const merges = items.map((id) => mergedAt.get(id)).filter(Boolean).sort();
-  const before = merges.filter((at) => at.slice(0, 10) < start).length;
-  const during = merges.filter((at) => at.slice(0, 10) >= start && !(end && at.slice(0, 10) > end));
-  const oneDay = during.every((at) => at.slice(0, 10) === start);
-  const label = (at) => (oneDay ? at.slice(11, 16) : `${at.slice(5, 10)} ${at.slice(11, 16)}`);
-  let remaining = items.length - before;
-  const points = [{ label: "start", remaining }];
-  for (const at of during) points.push({ label: label(at), remaining: --remaining });
-  points.push({ label: end ? "end" : "now", remaining });
-  return points;
-}
-
-// The size of the page's body text, and the width the site keeps the burn-down chart at (src/theme/lme.css), in px, as the browser draws the page; null where nothing is drawn.
-const bodyTextSize = () => parseFloat(globalThis.getComputedStyle?.(globalThis.document?.body)?.fontSize) || null;
-const burnDownWidth = () => parseFloat(globalThis.getComputedStyle?.(globalThis.document?.documentElement)?.getPropertyValue?.("--burn-down-width")) || null;
-const chartWidth = () => Math.min(burnDownWidth() ?? 700, Math.max(1, (globalThis.innerWidth ?? 700) - 72));
-
-// The Mermaid chart of a sprint's items left over time. Given `width`, it is drawn that wide; given `size`, its title and its axes' labels and titles are drawn at `size` px — both by Mermaid's own configuration of the chart.
-function burnDownChart(name, points, { width = null, size = null } = {}) {
-  const most = Math.max(1, ...points.map((point) => point.remaining));
-  const xAxis = `{ labelFontSize: ${size}, titleFontSize: ${size} }`;
-  const yAxis = `{ labelFontSize: ${size}, titleFontSize: ${size} }`;
-  const settings = [...(width ? [`    width: ${width}`] : []), ...(size ? [`    titleFontSize: ${size}`, `    xAxis: ${xAxis}`, `    yAxis: ${yAxis}`] : [])];
-  const config = settings.length ? ["---", "config:", "  xyChart:", ...settings, "---"] : [];
-  return [...config, "xychart-beta", `  title "${name} — items remaining, times in UTC"`, `  x-axis [${points.map((point) => `"${point.label}"`).join(", ")}]`,
-    `  y-axis "Items remaining" 0 --> ${most}`, `  line [${points.map((point) => point.remaining).join(", ")}]`].join("\n");
-}
-
-// How many of a team's sprint's items are in progress, against the model's work-in-progress limit, counted per team (UC-032 step 7: in a model with sprints and a limit, both hold).
-function wipLine(ctx, d, entry) {
-  const wip = ctx.model?.flow?.wip;
-  if (!wip) return "";
-  const busy = entry.items.filter((st) => stateOf(d, st.item).state === "in progress").map((st) => st.item);
-  return `<p>${h(busy.length)} of ${h(wip)} items in progress${busy.length ? `: ${busy.map(h).join(", ")}` : ""}.${busy.length >= wip
-    ? " No further item starts until one of them is merged." : ""}</p>`;
-}
-
-// The chart as the page places it: MOD-markdown-render's rendering of a Mermaid block, which stays its source until drawCharts draws it once the HTML stands in the page.
-const chartBlock = (team, name, points) => `<div class="md" data-burn-down="${h(team)}">${renderArtifact(`\`\`\`mermaid\n${burnDownChart(name, points, { width: burnDownWidth(), size: bodyTextSize() })}\n\`\`\`\n`).innerHTML}</div>`;
-
 function teamPanel(context, ctx, d, team) {
-  const newest = ctx.newest.get(team) ?? null;
-  const entry = d.progress?.sprints.find((each) => each.team === team) ?? null;
+  const running = runningOf(ctx, d, team);
+  const last = d.lastEnded.get(team) ?? null;
+  const entry = last ? d.ended?.sprints.find((each) => each.team === team) ?? null : null;
   const plan = (label, primary) => `<button class="btn${primary ? " primary" : ""}" data-plan="${h(team)}">${h(label)}</button>`;
-  const why = explain("<p>A team plans, starts and closes sprints of its own (UC-032 step 6). While its sprint runs, the sprint holds the " +
+  const why = whatIsThis("<p>A team plans, starts and closes sprints of its own (UC-032 step 6). While its sprint runs, the sprint holds the " +
     "items it selected until their change is in the default branch or they go back to the backlog; no other team selects an item " +
-    "that changes or uses the same modules. The chart counts the selected items not done yet: at the sprint's start, after each " +
-    "merge of one of its items, at the time of that merge in UTC, and now — or, once the sprint is closed, at its end — derived " +
-    "now from the sprint's record and the pull requests the page reads anyway, never stored (book ch. 7 §5).</p>");
-  if (!newest || !entry || entry.final) {
-    const last = newest ? `<p class="muted">Its last sprint, ${fileLink(context, ctx.ref, newest.record.path, `<b>${h(newest.name)}</b>`)}, `
-      + `${text(newest.record.fields.end) ? `ended on ${h(text(newest.record.fields.end))}` : "is closed"}.</p>` : `<p class="muted">It has run no sprint yet.</p>`;
-    const final = newest && entry?.final && entry.burnDown.length ? chartBlock(team, newest.name, remainingOverTime(entry.items.map((st) => st.item),
-      d.mergedAt, text(newest.record.fields.start), entry.burnDown.at(-1).day)) : "";
-    return `<section class="panel" data-team="${h(team)}"><h3>${h(team)} — no running sprint</h3>${last}${final}
-      <p>${plan("Plan sprint", true)}</p>${why}</section>`;
-  }
-  const record = newest.record, f = record.fields;
-  const heldOf = new Map(d.held.filter((each) => each.team === team).map((each) => [each.item, each]));
-  const rows = entry.items.map((st) => {
-    const doc = docOf(ctx, st.item), held = heldOf.get(st.item);
-    const changes = held?.changes ?? list(doc?.fields?.modules);
-    return `<tr data-item="${h(st.item)}"><td data-label="Item">${doc ? fileLink(context, ctx.ref, doc.path, h(st.item)) : h(st.item)}</td><td data-label="Title">${h(doc?.fields?.title ?? "")}</td>
-      <td data-label="State">${stateCell(stateOf(d, st.item))}</td><td class="small" data-label="Changes">${changes.map(h).join(", ") || "—"}</td>
-      <td class="small" data-label="Uses">${(held?.uses ?? []).map(h).join(", ") || "—"}</td></tr>`;
-  }).join("");
-  // Without a time box, and until its record holds `## Ended`, the Product Owner ends the sprint with one click (UC-032 6b).
-  const endable = !text(f.end) && !(record.appended ?? []).some((section) => section.heading === "## Ended");
-  const chart = entry.burnDown.length ? chartBlock(team, newest.name, remainingOverTime(entry.items.map((st) => st.item), d.mergedAt, text(f.start)))
-    : `<p class="muted">No burn-down yet: the sprint starts on ${h(text(f.start))}.</p>`;
-  return `<section class="panel" data-team="${h(team)}"><h3>${h(team)} — sprint ${fileLink(context, ctx.ref, record.path, h(newest.name))}</h3>
-    <dl class="meta"><dt>Goal</dt><dd>${h(text(f.goal))}</dd><dt>Started</dt><dd>${h(text(f.start))}</dd>
-      <dt>Ends</dt><dd>${f.end ? h(text(f.end)) : "when its items are done or the Product Owner ends it — no time box"}</dd>
-      <dt>Branch</dt><dd>${f.branch ? `<code>${h(text(f.branch))}</code>` : `none: <code>${h(ctx.ref)}</code>`}</dd><dt>Closed by</dt><dd>${h(text(f.closer))}</dd></dl>
-    ${wipLine(ctx, d, entry)}
-    <div class="table-scroll" tabindex="0"><table class="list"><thead><tr><th>Item</th><th>Title</th><th>State</th><th>Changes</th><th>Uses</th></tr></thead><tbody>${rows}</tbody></table></div>
-    ${chart}
-    <p>${plan("Change the selection", false)}${endable ? ` <button class="btn" data-end-sprint="${h(team)}">End sprint</button>` : ""}</p>${why}</section>`;
+    "that changes or uses the same modules. What goes on in a running sprint stands on <a href=\"#progress\">Progress</a>. The chart of a " +
+    "team's last sprint that has ended counts its selected items not done yet: at its start, after each merge of one of its items, at " +
+    "the time of that merge in UTC, and at its end — derived now from the sprint's record and the pull requests, never stored (book ch. 7 §5).</p>");
+  const now = running ? `<p>Its sprint <a href="#progress"><b>${h(ctx.newest.get(team).name)}</b></a> runs: what it holds and how far it is stand on Progress.</p>` : "";
+  const lastName = last ? "<b>" + h(last.name) + "</b>" : "";
+  const lastEnd = last && text(last.record.fields.end) ? "ended on " + h(text(last.record.fields.end)) : "is closed";
+  const lastLine = last ? `<p class="muted">Its last sprint, ${fileLink(context, ctx.ref, last.record.path, lastName)}, ${lastEnd}.</p>`
+    : `<p class="muted">${running ? "It has ended no sprint yet." : "It has run no sprint yet."}</p>`;
+  const final = last && entry?.final && entry.burnDown.length ? chartBlock(team, last.name, remainingOverTime(entry.items.map((st) => st.item),
+    d.mergedAt, text(last.record.fields.start), entry.burnDown.at(-1).day)) : "";
+  return `<section class="panel" data-team="${h(team)}"><h3>${h(team)} — ${running ? "a sprint runs" : "no running sprint"}</h3>${now}${lastLine}${final}
+    <p>${running ? plan("Change the selection", false) : plan("Plan sprint", true)}</p>${why}</section>`;
 }
 
 // What keeps an item from a team other than the one whose sprint holds it, one line per team.
@@ -263,7 +206,7 @@ function backlogPanel(context, ctx, d) {
     <p class="muted">${h(d.states.length)} items, each after the items it builds on.</p>
     <div class="table-scroll" tabindex="0"><table class="list"><thead><tr><th>#</th><th>Item</th><th>Title</th><th>Realises</th><th>State</th><th>Held or kept</th></tr></thead>
       <tbody>${rows}</tbody></table></div>
-    ${explain("<p>The backlog is everything the product is meant to do, one Markdown file per item under <code>docs/backlog/</code> " +
+    ${whatIsThis("<p>The backlog is everything the product is meant to do, one Markdown file per item under <code>docs/backlog/</code> " +
       "(UC-032). It keeps no order of its own: each item is listed after the items it builds on, and what is worth doing next is " +
       "decided at sprint planning. A state is never stored: it is derived now from the pull requests that name the item — in their " +
       "branch or their title — and from what is accepted. In a product with several teams, an item a team's sprint holds is held " +
@@ -280,7 +223,7 @@ function uncoveredPanel(ctx) {
     : `${ucs.length ? `<p>${h(ucs.length)} accepted use case${ucs.length === 1 ? "" : "s"}:</p>${names(ucs)}` : ""}`
       + `${reqs.length ? `<p>${h(reqs.length)} accepted requirement${reqs.length === 1 ? "" : "s"}:</p>${names(reqs)}` : ""}`;
   return `<section class="panel" data-part="uncovered"><h3>Accepted, and realised by no item yet</h3>${body}
-    ${explain("<p>Requirements stand in the SPEC once they are accepted; a use case is accepted when an approval record names its " +
+    ${whatIsThis("<p>Requirements stand in the SPEC once they are accepted; a use case is accepted when an approval record names its " +
       "current text. Each should be realised by at least one backlog item, or nobody will build it; the Product Owner adds items " +
       "for the names listed here (UC-032 steps 2–4).</p>")}</section>`;
 }
@@ -317,7 +260,7 @@ function planPanel(context, ctx, d, team) {
       <button class="btn" data-cancel-plan>Cancel</button></p>
     ${token ? "" : `<p class="muted small">Starting a sprint commits to the product's repository: store a token for it first (<a href="#settings">Settings</a>).</p>`}
     <div data-plan-result></div>
-    ${explain("<p>The Product Owner selects the items the team works on in its sprint (UC-032 step 6). An item another team's " +
+    ${whatIsThis("<p>The Product Owner selects the items the team works on in its sprint (UC-032 step 6). An item another team's " +
       "sprint holds, or one that changes or uses a module such an item changes or uses, cannot be selected, and its line names " +
       "why; an item is selected only together with, or after, the items it builds on. <em>Start sprint</em> commits " +
       "<code>docs/backlog/sprints/&lt;team&gt;/&lt;nn&gt;.md</code>, numbered within the team, and creates the sprint's own branch " +
@@ -335,7 +278,7 @@ function heldPanel(context, ctx, d, team) {
   return `<section class="panel" data-part="held"><h3>What the other teams' sprints hold</h3>
     ${others.length ? `<div class="table-scroll" tabindex="0"><table class="list"><thead><tr><th>Item</th><th>Title</th><th>Sprint</th><th>Changes</th><th>Uses</th></tr></thead>
       <tbody>${rows}</tbody></table></div>` : `<p class="muted">No other team's sprint holds an item.</p>`}
-    ${explain("<p>A sprint holds the items it selected from its start until their change is merged into the default branch or " +
+    ${whatIsThis("<p>A sprint holds the items it selected from its start until their change is merged into the default branch or " +
       "they go back to the backlog — after its close too, while its increment waits on its own branch. While another team's " +
       "sprint holds an item, this team selects neither that item nor one that changes a module the item changes or uses, or " +
       "whose modules use a module it changes: each held item is listed with its sprint, the modules it changes and the modules " +
@@ -344,58 +287,49 @@ function heldPanel(context, ctx, d, team) {
 
 // ---------------------------------------------------------------- the route
 
-const planning = new WeakMap(); // the team whose sprint the person plans, per page (its target) — in memory only
-
-async function draw(target, context) {
+// The page read now, with the planning of `team` open (or none).
+async function draw(target, context, team = null) {
   const ctx = await contextOf(context);
   const d = await derivedOf(context, ctx);
+  await paint(target, context, ctx, d, team);
+}
+
+// The page drawn from what was read: a planning opened or cancelled draws it again from `ctx` and `d`, without reading anything.
+async function paint(target, context, ctx, d, team) {
   const { model } = ctx;
   const unread = ctx.modelUnread ? `<p class="warn">The model version <code>${h(ctx.modelUnread.commit)}</code> the declaration names cannot be read from the instance (${h(ctx.modelUnread.error)}), so no process model is shown.</p>` : "";
   const noModel = unread || (!ctx.declaration ? `<p class="warn">This product declares no process model yet: <code>docs/process.md</code> names it (UC-002).</p>`
     : !model ? `<p class="warn">The declaration names the model file <code>${h(ctx.modelFile ?? "—")}</code>, which the catalogue does not hold.</p>` : "");
   const planned = model?.kind === "planned" ? `<p class="warn">This product's model plans its work in advance: there is no backlog (UC-032 1b) — its progress is shown on <a href="#progress">Progress</a>.</p>` : "";
   const sprints = model?.flow?.sprints === true;
+  const planning = sprints && ctx.teams.includes(team) ? team : null;
   const teamsPart = sprints
-    ? (ctx.teams.length ? ctx.teams.map((team) => teamPanel(context, ctx, d, team)).join("")
+    ? (ctx.teams.length ? ctx.teams.map((each) => teamPanel(context, ctx, d, each)).join("")
       : `<section class="panel" data-part="teams"><h3>No team yet</h3><p class="muted">The product's model works in sprints, and no role assignment names a team yet (UC-048).</p>
-        ${explain("<p>Each team of a product has a role assignment under <code>docs/role-assignments/</code>, and plans and runs sprints of its own.</p>")}</section>`)
+        ${whatIsThis("<p>Each team of a product has a role assignment under <code>docs/role-assignments/</code>, and plans and runs sprints of its own.</p>")}</section>`)
     : model ? `<section class="panel" data-part="flow"><h3>Work in progress</h3>
         <p>${h(d.states.filter((each) => each.state === "in progress").length)} item(s) in progress${model.flow?.wip ? ` of a limit of ${h(model.flow.wip)}` : ""}.</p>
-        ${explain("<p>The model works without sprints: a ready item is pulled while fewer items are in progress than the work-in-progress limit allows (book ch. 7 §4; UC-032 step 7).</p>")}</section>` : "";
-  const team = planning.get(target);
+        ${whatIsThis("<p>The model works without sprints: a ready item is pulled while fewer items are in progress than the work-in-progress limit allows (book ch. 7 §4; UC-032 step 7).</p>")}</section>` : "";
   const where = context.product.address;
   target.innerHTML = `
     <section class="head"><h2>Backlog</h2>
-      <p class="muted">${h(where)} · <code>${h(ctx.ref)}</code> · read now from the repository and its pull requests; nothing here is stored.</p>
+      <p class="muted">${h(where)} · <code>${h(ctx.ref)}</code> · read now from the repository and its pull requests; nothing here is stored.${sprints ? ` What goes on now stands on <a href="#progress">Progress</a>.` : ""}</p>
       ${noModel}${planned}
-      ${explain("<p>First the state of the current process: each team's running sprint, what it holds and how far it is; then the " +
-        "backlog with the state of each item; then what is accepted but realised by no item yet. Everything is derived now from the " +
-        "repository and its pull requests.</p>")}</section>
+      ${whatIsThis("<p>First each team: its last sprint that has ended and its final burn-down; then the backlog with the state of each item; " +
+        "then what is accepted but realised by no item yet. Everything is derived now from the repository and its pull requests.</p>")}</section>
     ${teamsPart}
-    ${team && sprints ? planPanel(context, ctx, d, team) : ""}
-    ${team && sprints && ctx.teams.length > 1 ? heldPanel(context, ctx, d, team) : ""}
+    ${planning ? planPanel(context, ctx, d, planning) : ""}
+    ${planning && ctx.teams.length > 1 ? heldPanel(context, ctx, d, planning) : ""}
     ${backlogPanel(context, ctx, d)}
     ${uncoveredPanel(ctx)}`;
   await drawCharts(target);
 
   // Each control is looked up by its own selector — a team's Plan button by its team, an item's tick by its item.
-  const again = () => draw(target, context).catch((failure) => { target.innerHTML = `<p class="warn">${h(failure?.message ?? failure)}</p>`; });
+  const again = (next) => paint(target, context, ctx, d, next).catch((failure) => { target.innerHTML = `<p class="warn">${h(failure?.message ?? failure)}</p>`; });
   for (const name of ctx.teams) {
-    target.querySelectorAll(`[data-plan="${name}"]`).forEach((button) => button.addEventListener("click", () => { planning.set(target, name); again(); }));
+    target.querySelectorAll(`[data-plan="${name}"]`).forEach((button) => button.addEventListener("click", () => again(name)));
   }
-  target.querySelectorAll("[data-cancel-plan]").forEach((button) => button.addEventListener("click", () => { planning.delete(target); again(); }));
-  target.querySelectorAll("[data-end-sprint]").forEach((button) => button.addEventListener("click", async (event) => {
-    if (event?.isTrusted === false) return;
-    const name = button.dataset?.endSprint ?? button.getAttribute("data-end-sprint");
-    const sprint = ctx.newest.get(name)?.name;
-    try {
-      const result = await endSprint(context.product.host, sprint, { head: ctx.snapshot.commit, now: new Date(), trailers: [] });
-      await draw(target, context);
-      target.insertAdjacentHTML?.("afterbegin", `<section class="panel notice flash"><p>Sprint <code>${h(sprint)}</code> is ended — commit ${h(result.commit.slice(0, 7))}.</p></section>`);
-    } catch (failure) {
-      target.insertAdjacentHTML?.("afterbegin", `<section class="panel notice flash"><p class="warn">${h(failure?.message ?? failure)}</p></section>`);
-    }
-  }));
+  target.querySelectorAll("[data-cancel-plan]").forEach((button) => button.addEventListener("click", () => again(null)));
   target.querySelectorAll("[data-start-sprint]").forEach((button) => button.addEventListener("click", async (event) => {
     if (event?.isTrusted === false) return;
     const out = target.querySelector("[data-plan-result]");
@@ -415,7 +349,6 @@ async function draw(target, context) {
     try {
       const result = await startSprint(context.product.host, { team: chosenTeam, goal, start, closer, selection },
         { states: d.states, model, declaration: ctx.declaration, held: d.held, architecture: ctx.modules, running, head: ctx.snapshot.commit, trailers: [] });
-      planning.delete(target);
       await draw(target, context);
       target.insertAdjacentHTML?.("afterbegin", `<section class="panel notice flash"><p>${running ? "The selection of" : "Sprint"} <code>${h(result.path)}</code> ${running ? "is changed" : "is started"} — commit ${h(result.commit.slice(0, 7))}.</p></section>`);
     } catch (failure) {
@@ -426,53 +359,13 @@ async function draw(target, context) {
   }));
 }
 
-const chartDraws = new WeakMap();
-
-function fitChartViewport(chart) {
-  const svg = chart.querySelector?.("svg");
-  if (!svg?.getBBox || !svg.viewBox?.baseVal) return;
-  const bounds = svg.getBBox(), viewport = svg.viewBox.baseVal;
-  const left = Math.min(viewport.x, bounds.x), top = Math.min(viewport.y, bounds.y);
-  const right = Math.max(viewport.x + viewport.width, bounds.x + bounds.width), bottom = Math.max(viewport.y + viewport.height, bounds.y + bounds.height);
-  svg.setAttribute("viewBox", `${left} ${top} ${right - left + 1} ${bottom - top + 1}`);
-}
-
-function reducePhoneAxisLabels(chart) {
-  const labels = chart.querySelectorAll?.(".left-axis .label text") ?? [];
-  [...labels].forEach((label, index) => { if (index % 2) label.setAttribute("display", "none"); });
-}
-
-// Each block is redrawn through MOD-markdown-render when its viewport changes, so its requested width and available label
-// space describe the viewport it is actually shown in.
-async function drawCharts(target) {
-  chartDraws.get(target)?.abort();
-  const charts = [...target.querySelectorAll("pre > code.language-mermaid")].map((code) => ({ element: code.parentNode, source: code.textContent }));
-  const redraw = async () => {
-    const width = chartWidth(), phone = (globalThis.innerWidth ?? width) < 600;
-    for (const entry of charts) {
-      const source = entry.source.replace(/width:\s*\d+/, `width: ${width}`).replace("    width:", phone ? `    height: 250\n    width:` : "    width:");
-      const chart = await renderMermaid(source);
-      chart.setAttribute("tabindex", "0");
-      chart.setAttribute("data-chart-width", String(width));
-      entry.element.replaceWith(chart);
-      fitChartViewport(chart);
-      if (phone) reducePhoneAxisLabels(chart);
-      entry.element = chart;
-    }
-  };
-  await redraw();
-  const controller = new AbortController();
-  chartDraws.set(target, controller);
-  globalThis.addEventListener?.("resize", () => { redraw().catch(() => undefined); }, { signal: controller.signal });
-}
-
 export const route = {
   name: "backlog",
   entry: "implementation",
   title: "Backlog",
 
-  async render(target, context) {
-    await draw(target, context);
+  async render(target, context, params = {}) {
+    await draw(target, context, params?.plan ?? null);
   },
 };
 
@@ -511,7 +404,7 @@ const COLUMNS = ["Backlog", "Doing", "Review", "Done"];
 async function drawBoard(target, context) {
   const ctx = await contextOf(context);
   const d = await derivedOf(context, ctx);
-  const head = (body) => { target.innerHTML = `<section class="head"><h2>Board</h2>${explain("<p>The board shows each item in the column of its derived state. A ready item is pulled only while fewer items are in progress than the work-in-progress limit allows; items in review count as in progress (book ch. 7 §4; UC-032 step 7).</p>")}${body}</section>`; };
+  const head = (body) => { target.innerHTML = `<section class="head"><h2>Board</h2>${whatIsThis("<p>The board shows each item in the column of its derived state. A ready item is pulled only while fewer items are in progress than the work-in-progress limit allows; items in review count as in progress (book ch. 7 §4; UC-032 step 7).</p>")}${body}</section>`; };
   const wip = ctx.model?.flow?.wip;
   if (!ctx.declaration || !ctx.model) { head(`<p class="warn">This product declares no process model yet: <code>docs/process.md</code> names it (UC-002).</p>`); return; }
   if (!wip) { head(`<p>This model has no work-in-progress limit, so there is no board: see <a href="#backlog">the backlog</a>.</p>`); return; }

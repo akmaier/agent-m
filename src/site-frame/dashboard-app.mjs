@@ -755,9 +755,12 @@ function markTab(kind) {
   const entry = route ? entryShownOf(route, routeOf(location.hash).params) : entryOf(kind || "uc");
   document.querySelectorAll(".tabs [data-entry]").forEach((t) => t.classList.toggle("active", t.dataset.entry === entry));
 }
+// The views the menu counts as built: those of built.json and the built-in ones (src/site/views.mjs), and each route a loaded view provides that this app draws with that view —
+// every route of MOD-implementation-pages, so that the entry Implementation leads to its first, `progress`.
+const builtHere = () => new Set([...builtViews(builtFiles), ...implementationPages.routes.map((route) => route.name)]);
 async function renderTabs() {
   const el = document.getElementById("tabs");
-  if (el) el.innerHTML = menuHtml({ built: builtViews(builtFiles), tabs: true }).replaceAll(' role="tab"', "");
+  if (el) el.innerHTML = menuHtml({ built: builtHere(), tabs: true }).replaceAll(' role="tab"', "");
   const [kind, a] = location.hash.replace(/^#/, "").split("/");
   markTab(kind === "review" ? a : kind);
 }
@@ -770,7 +773,7 @@ async function route() {
   const params = routeOf(location.hash).params;
   let unavailableEntry = null;
   if (entry && (a === undefined || (b === undefined && Object.keys(params).length > 0 && Object.keys(params).every((key) => key === "product")))) {
-    const view = stageView(entry, builtViews(builtFiles));
+    const view = stageView(entry, builtHere());
     if (view) kind = view;
     else unavailableEntry = entry;
     a = undefined;
@@ -788,7 +791,10 @@ async function route() {
     }
     loadProducts();
     renderProductSelector();
-    if (state.commit && !a && ["", "uc", "arc", "spec", "backlog", "use-case", "decision", "module"].includes(kind || "")) await readAhead(kind || "");
+    if (state.commit && (!a || kind === "backlog") && ["", "uc", "arc", "spec", "backlog", "use-case", "decision", "module"].includes(kind || "")) await readAhead(kind || "");
+    // A route of a loaded view that names its first wave (Route's `reads`) is given that wave in batches, through the snapshot this load read.
+    const named = loadedRoute(kind);
+    if (state.commit && typeof named?.reads === "function" && implementationPages.routes.includes(named)) await readWave(await named.reads(params, await pinned()));
     const reviewed = reviewTargets(kind, a, b);
     if (reviewed) {
       await renderReviewPages(reviewed, showsSetup(kind, a) ? [setupBanner()] : []);
@@ -893,10 +899,13 @@ async function route() {
     } else if (kind === "backlog") {
       loading += 1;
       try {
-        await implementationPages.routes.find((r) => r.name === "backlog").render(main(), implementationContext(), {});
+        await implementationPages.routes.find((r) => r.name === "backlog").render(main(), implementationContext(), params);
       } finally {
         loading -= 1;
       }
+    } else if (implementationPages.routes.some((r) => r.name === kind)) {
+      // Every other route of MOD-implementation-pages — `progress`, what goes on now, among them — is drawn as the backlog is, on the product shown.
+      await renderProductRoute(implementationPages, kind, params);
     } else if (kind === "bridge") {
       const bridge = settingsPages.routes.find((r) => r.name === "bridge");
       await bridge.render(main(), {
