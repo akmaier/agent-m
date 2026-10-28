@@ -371,7 +371,7 @@ so; a model's command there reaches what that user can.
   - It adds the commit's graph and the impact lists of its decision and module files that are not accepted
     (MOD-trace-graph's `publishGraph`). Each such file comes with the text it was last accepted at and that text's commit:
     MOD-approvals' `statuses` names the files, and `lastAcceptedText` gives each one's text, read once per file here.
-  - It adds the commit's overview, the facts its files alone give and the views of the progress and the backlog page
+  - It adds the commit's overview and the views of the progress and the backlog page
     (MOD-progress-measures' `publishOverview`): what the main page's cards and the specification's waiting entries need —
     the stage shares, what waits, the model, the build with every pull request taken into account and the records of its
     jobs, the change queues not yet in the SPEC —, and what Implementation's progress and backlog show, so that no page

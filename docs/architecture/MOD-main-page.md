@@ -117,8 +117,8 @@ once, when the page is drawn, and never again (UC-046 4b). It stores nothing bet
     While the head's overview is not stored yet, the card reads the overview stored last (MOD-progress-measures'
     `latestOverview`, two requests more) and is drawn from it alone in the same way, saying "As of <its commit's first
     seven characters>: the overview of the newest commit is being stored."; the page never derives what the workflow
-    computes. Only where the branch holds neither, the card reads the scope `all` as before. Without a token and
-    without facts stored for the head (`storedFacts`), that reading costs one request per test file of the default
+    computes. Only where the branch holds neither, the card reads the scope `all` as before. Without a token, that
+    reading costs one request per test file of the default
     branch (MOD-progress-measures' `stageShares`); that cost is accepted. The stored overview is a record of the
     repository, derived from that commit alone by `onMainChanged` (MOD-workflow-entries), never kept in the
     browser. The rows of the build are the same whether the stage bar comes from a stored overview or from the scope `all`.

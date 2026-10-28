@@ -33,7 +33,6 @@ uses:
   - MOD-test-document.testDeclarations
   - MOD-trace-graph.storedGraph
   - MOD-trace-graph.tracesTo
-  - MOD-progress-measures.storedFacts
   - MOD-test-schedule.scheduleSchema
   - MOD-test-schedule.defaultSchedule
   - MOD-test-schedule.scheduleFindings
@@ -118,8 +117,8 @@ formats are those of the modules it uses.
     each key of the front matter; the findings of the schema (`documentFindings`) and of `scheduleFindings` while the
     person edits, and *Save* offered only while no error remains; the book's default marked as such until one is
     saved; each row with the number of the product's tests it holds — the declarations of its level, and
-    for the row of paid services those that call one —, counted from the test declarations stored for the commit shown
-    (MOD-progress-measures' `storedFacts`), or from the test files where none are stored; the release candidate column
+    for the row of paid services those that call one —, counted from the declarations of the test files at the commit
+    shown; the release candidate column
     that cannot be cleared and the commit and pull request columns that
     refuse tests calling a paid service, each with its reason; the nightly time, the test command, the runner per row
     among the participants that can run tests, and for a row on a self-hosted runner the server's runner page with the
@@ -194,7 +193,6 @@ the result records on the branch `test-results`, the product's resources and the
 - MOD-test-document.testDeclarations, MOD-trace-graph.storedGraph, MOD-trace-graph.tracesTo — which levels guard what. A
   graph of a commit's own files is asked for with that commit, so that the graph `onMainChanged` stored for it is read
   where there is one (MOD-workflow-entries).
-- MOD-progress-measures.storedFacts — the test declarations stored for a commit, which the schedule counts.
 - MOD-test-schedule.scheduleSchema, MOD-test-schedule.defaultSchedule, MOD-test-schedule.scheduleFindings,
   MOD-test-schedule.configurationDrift, MOD-test-schedule.secretsNeeded, MOD-test-schedule.occasionsOf — the schedule;
   MOD-test-schedule.proposeSchedule, MOD-test-schedule.applyPipelineSchedule — its save and, on GitLab, its nightly run.
