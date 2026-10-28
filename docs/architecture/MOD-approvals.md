@@ -175,8 +175,10 @@ never written. A decision or module file that a record names and the snapshot no
     file as an artifact keyed by the key of its format;
   - precondition `rests-on-accepted` — an error finding naming every requirement or use case the job's selection names
     that is not accepted, and, when the parameter `architecture` is true, every architecture decision and module file
-    that is not accepted; the requirements and use cases are those of the parameters `requirements` and `useCases`
-    (`NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED`, `ARCHITECTURE IS DESIGNED ONLY AGAINST ACCEPTED USE CASES`);
+    that is not accepted; the requirements and use cases are those of the parameters `requirements` and `useCases`, and
+    those each step of the plan or item of the backlog of the parameters `steps` and `items` names under `realises`, read
+    with MOD-documents' item schema (`NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED`, `ARCHITECTURE IS DESIGNED ONLY
+    AGAINST ACCEPTED USE CASES`);
   - precondition `architecture-ready` — an error finding when a use case is open or changed (naming each) or when the
     product already has an architecture (pointing to UC-023); a warning finding naming every open SPEC change — an
     entry that neither an approval record nor a decision row naming the commit that wrote it into the SPEC decides

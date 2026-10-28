@@ -224,11 +224,15 @@ so; a model's command there reaches what that user can.
   kind's writer writes at once (`A CI AGENT'S DRAFT ENTERS AS OPEN`), and a kind that hands its draft back leaves it in
   the record's end as `draft:`, from which the page shows it and a run starts the job that follows. A job whose draft
   holds a hand-over (MOD-job-runner's `hand-over`, UC-049 4f) is followed in the same run, with the same participant and
-  driver, by a job of the kind it names, where that kind is not the job's own, its result waits for a person (`review: person`) and
-  the hand-over works on no item of the backlog or step of the plan: its parameters the job's `source`, those
-  MOD-job-runner's `handOverParams` gives for what it works on, and its task as `instruction`; prepared, and run
-  unattended, so that its writer writes at once — a change of requirements as an open entry of a new queue, a use case
-  or an architecture file as open; no job writes an approval record. A hand-over of any other kind, of a kind that takes
+  driver, by a job of the kind it names, where that kind is not the job's own: its parameters the job's `source`, those
+  MOD-job-runner's `handOverParams` gives for what it works on, and its task as `instruction`; prepared with that kind's
+  preconditions and no start rule of the product's process, and run unattended, so that its writer writes at once — a
+  change of requirements as an open entry of a new queue, a use case or an architecture file as open, a change of code
+  as a pull request, which it does not merge; no job writes an approval record. A model endpoint's job of a kind that
+  changes code or runs tests works in the job's checkout of the product as `onDispatch` states — the tools of
+  MOD-checkout-tools, the same endpoint with `checkoutPrompt` for that checkout as its system prompt, `bash` refused
+  where a restricted source refuses it —, and where the record holds `declares`, the participant built from it is built
+  for the kind handed on, as `onDispatch` states. A hand-over of the job's own kind, of a kind that takes
   no instruction (MOD-job-runner's `taskRefusal`, its rule named), or one whose job does not start, is not run, and the
   job's end names it with why, as `not run: <kind> — <why>`; one whose run fails by MOD-job-runner's `failedBecause` is
   listed as `failed: <kind> — <why>`. The end lists every result of both: their commits,
