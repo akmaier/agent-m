@@ -39,8 +39,9 @@ would run sprint after sprint of jobs with no inspection and no adaptation.
 
 ## Actors
 
-- **Closer** — the agent the Product Owner assigned the close to when the sprint started (UC-032), from the instance's
-  participants (UC-017). It closes by itself when the sprint ends.
+- **Closer** — the participant the Product Owner assigned the close to when the sprint started (UC-032): the Product
+  Owner themselves by default, another person, or an agent from the instance's participants (UC-017). An agent closes
+  by itself when the sprint ends; a person does the same steps in a session of their own.
 - **Product Owner** — assigns the close and, if the sprint has a branch of its own, decides whether its increment is
   merged into the default branch.
 - **Scrum team** — the Developers (people and agents) and the Scrum Master, who keeps both events
@@ -53,12 +54,12 @@ would run sprint after sprint of jobs with no inspection and no adaptation.
 ## Precondition
 
 - The product's model works in sprints — with or without a time box —, and a sprint of the team is running
-  (UC-032, step 6); its close is assigned to an agent.
+  (UC-032, step 6).
 
 ## Main flow
 
 1. The sprint ends — its end date is reached or, in a sprint without a time box, every selected item is done or the
-   Product Owner has ended it (UC-032, 6b). The closer's job starts by itself — no click.
+   Product Owner has ended it (UC-032, 6b). An agent's close job starts by itself — no click.
 2. **Review of the increment.** The closer derives from the repository:
    - the sprint goal and the selected items;
    - the items that are done — merged, with their Definition of Done met — each with its pull request,
@@ -79,9 +80,9 @@ would run sprint after sprint of jobs with no inspection and no adaptation.
    Definition of Done (UC-002, step 8), a participant's instructions or configuration (UC-017), or *team agreement*
    only. A change to the process model, the Definition of Done or an agent's instructions is written as a proposal that
    a person accepts; nothing of the process changes by itself.
-6. The closer's job commits the review and the retrospective as one Markdown file with the sprint under
+6. The closer commits the review and the retrospective as one Markdown file with the sprint under
    `docs/backlog/sprints/` (UC-032, step 6), the new backlog items from the feedback, and the moved items, under the
-   agent's name, like any job (UC-036). Items that go back to the backlog are no longer held by the sprint; its done
+   closer's name — an agent's like any job (UC-036), a person's as their own input. Items that go back to the backlog are no longer held by the sprint; its done
    items stay held until its increment is merged into the default branch.
 7. If the sprint has a branch of its own, its increment is merged into the default branch through a pull request whose
    CI must be green, once the role the model names for that gate has decided it — the Product Owner, unless the product

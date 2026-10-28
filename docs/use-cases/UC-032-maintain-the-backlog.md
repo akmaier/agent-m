@@ -105,8 +105,8 @@ sprint changes or uses, or uses one that it changes — so the teams' work does 
    marked are shown but cannot be selected; an item is selected only together with, or after, the items it builds on,
    and its job starts once they are done (UC-034). The
    Product Owner sets the sprint goal, the start date and — where the model has a time box — the end
-   date its length gives, the selection, and the agent that closes the
-   sprint (UC-041), and presses
+   date its length gives, the selection, and who closes the
+   sprint — themselves by default, or a participant such as an agent (UC-041) —, and presses
    **Start sprint**: one click. Agent M checks the selection once more against what the other teams' sprints hold
    in the default branch at that moment, and commits the sprint as `docs/backlog/sprints/<team>/<nn>.md`, numbered
    within the team, on the branch `sprint/<team>/<nn>` where sprints have a branch of their own (UC-002). From now on, the team's implementation jobs start only for the items
