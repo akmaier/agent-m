@@ -85,8 +85,6 @@ process.
 - `probes.mjs` — the harmless requests of the probes.
 - `access.mjs` — whether this computer's own git login reaches the repositories: one fetch of each into an empty
   repository in a temporary folder (`testAccess`).
-- **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
-  - `tests/system-uc-011-local-cli-session.test.mjs`, `tests/release-uc-011-local-cli-session.test.mjs`: their headers name this module, through which a job is handed to a local CLI session (UC-011).
 
 ## Data
 
