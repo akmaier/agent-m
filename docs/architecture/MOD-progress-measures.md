@@ -298,10 +298,12 @@ The six stages of the main page, each a share between 0 and 1:
   that produces items, who closes its sprint unless another is named; `lastEnded` the team's last sprint that has ended,
   with its items and their merges, `end` the last day of its final burn-down; `uncovered` the accepted requirements and
   use cases no item realises.
-- `progressView(facts: Facts, now: Date) -> ProgressView` and `backlogView(facts: Facts, now: Date) -> BacklogView` — the
-  views of the facts, derived as `progressIn`, `gateOverview`, `blocked`, `whoWorksOnWhat` and MOD-work-plans'
-  `conflicts` derive. Pure; the same whether `publishOverview` derives them in CI or a page derives them where none is
-  stored.
+- `progressView(facts: Facts, now: Date) -> ProgressView` — the view of the route `progress` of the facts, derived as
+  `progressIn`, `gateOverview`, `blocked`, `whoWorksOnWhat` and MOD-work-plans' `conflicts` derive. Pure; the same
+  whether `publishOverview` derives it in CI or a page derives it where none is stored.
+- `backlogView(facts: Facts, now: Date) -> BacklogView` — the view of the route `backlog` of the facts, derived as
+  `progressView` derives its view. Pure; the same whether `publishOverview` derives it in CI or a page derives it where
+  none is stored.
 - `publishOverview(host: Host, snapshot: Snapshot, facts: Facts) -> Promise<{ commit: string, written: boolean }>` —
   adds `<commit>.json`, `<commit>.facts.json`, `<commit>.progress.json.gz` and `<commit>.backlog.json.gz` to the branch
   `overview-cache` in one commit by `commitFiles`, on the head it read: the overview, the facts and the two views listed
