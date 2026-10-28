@@ -17,7 +17,7 @@
 // Deterministic, no network: the product and the instance are temporary git repositories — each a bare origin, the clone the workflow's
 // checkout stands for, and a seed clone —, laid out as the job workflow lays them out: the workspace holds `product/` and `instance/`. The
 // model endpoint is a fake `fetch` that answers as an OpenAI-compatible endpoint does and records every request. The kind is MOD-job-catalogue's
-// `decide-gate`, whose recipe and writer the module's own strategies do not give yet: the tests register a recipe `gate-inputs` and a writer
+// `decide-gate`, whose recipe and writer no module offers: the tests register a recipe `gate-inputs` and a writer
 // `gate-record` of their own, with the runner's registry, which the entry fills with the strategies of the modules that offer them. The
 // product, the instance and the participant are the small ones this file holds. Where the module file leaves a reading open, the test states
 // the one it takes, and the pull request names it:

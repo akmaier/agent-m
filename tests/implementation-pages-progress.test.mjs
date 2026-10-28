@@ -1,7 +1,7 @@
 // MOD-implementation-pages' route `progress` for a model with sprints (ITM-1252), as the accepted text of docs/architecture/MOD-implementation-pages.md states it: "`progress` — …
 // In a model with sprints it shows what goes on now (UC-035): each team's running sprint with its goal, start, end, branch and closer, its items with their states and the modules
-// they change and use, and its burn-down; *End sprint* with `endSprint` for a running sprint without a time box, and *Close sprint*, leading to `sprint/<team>/<n>/close`, for one
-// that has ended; a team without a running sprint says so; *Plan sprint* and *Change the selection* lead to `backlog` with `plan=<team>`, and a link leads to `backlog`, where every
+// they change and use, and its burn-down; *End sprint* with `endSprint` for a running sprint without a time box, and, for one that has ended, that its review and retrospective
+// are not recorded yet; a team without a running sprint says so; *Plan sprint* and *Change the selection* lead to `backlog` with `plan=<team>`, and a link leads to `backlog`, where every
 // item and each team's last ended sprint stand; what is blocked among the items the running sprints hold; who works on what, each current job linked to its page on the job
 // dashboard (UC-036). It reads the product's facts with MOD-progress-measures' scope `now`, so that no pull request closed before the oldest running sprint started is listed, and
 // draws no final burn-down." — and UC-035 2b and 2d.
@@ -114,5 +114,22 @@ test("#progress — without a running sprint, each team says so and links its pl
       assert.match(part(html, `data-team="${team}"`), new RegExp(`href="#backlog/plan=${team}"`), team);
     }
     assert.doesNotMatch(html, /xychart-beta|data-end-sprint/);
+  } finally { page.done(); }
+});
+
+// TST-1262001 · level: component · module: MOD-implementation-pages
+// guards: UC-041; CLOSING A SPRINT CAN BE ASSIGNED TO A PARTICIPANT
+// given: the same product with team1's sprint 03 ended on 2026-10-24 and not closed
+// input: the route progress's render
+// expect: team1's panel says that its review and retrospective are not recorded yet, offers no link to a route sprint/<team>/<n>/close and no Close sprint, and holds no chart
+test("#progress — an ended sprint says its review and retrospective are not recorded yet, and offers no close page", async () => {
+  const { productFiles, sprint } = await import("./implementation-pages-sprints.mjs");
+  const files = productFiles({ [TEAM1_RUNNING]: sprint({ n: 3, start: "2026-10-20", end: "2026-10-24", goal: "Store and show", selection: ["ITM-001", "ITM-002"] }) });
+  const page = await render("progress", {}, { files });
+  try {
+    const team1 = part(page.html(), 'data-team="team1"');
+    assert.match(team1, /review and retrospective are not recorded yet/, "known positive: the panel is the one of an ended sprint");
+    assert.doesNotMatch(team1, /#sprint\/[^"]*\/close|Close sprint/);
+    assert.doesNotMatch(team1, /xychart-beta/);
   } finally { page.done(); }
 });

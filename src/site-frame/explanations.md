@@ -1019,26 +1019,6 @@ Every job is the same at its core: a coding participant writes failing tests fir
 request is merged once the product's Definition of Done holds. In the book *Vibe Coding*: chapter 6 for the plan-driven
 models, chapter 7 for the agile ones.
 
-## sprint-increment
-
-The increment is the set of done items. An item is done when it is merged and its Definition of Done is met; it is shown with its pull request, the requirements it realises and the tests that guard them. An item that does not meet the Definition of Done is not part of the increment, however close it is: it is shown among the items not done, with its state and the reason. If no item is done, the increment is empty and the review says so.
-
-## sprint-feedback
-
-Feedback is what the people who saw the increment say about it. Enter it as one line per point, each either *new backlog item*, *change to an existing item*, or *noted*. A new backlog item and a change to an existing one are written to the backlog when you close the sprint. If no stakeholder took part, the review says so; a review by an agent names where its feedback came from — issues, mails, job records, test results.
-
-## sprint-unfinished-items
-
-An unfinished item is a selected item that is not done. For each one the Product Owner chooses *back to the backlog* or *into the next sprint*. An item that goes back to the backlog is no longer held by the sprint. The done items stay held until the sprint's increment is merged into the default branch, so that no other team changes or uses their modules meanwhile.
-
-## sprint-retrospective
-
-The retrospective is where the team — people and agents — writes down what went well, what did not, and what it will change in how it works. For each change, the entry names where it goes: the process model ([UC-031](#use-case/id=UC-031)), the product's Definition of Done ([UC-002](#use-case/id=UC-002)), a participant's instructions or configuration ([UC-017](#use-case/id=UC-017)), or *team agreement* only. Agent M offers the numbers of the sprint as material, derived and not typed: jobs failed or retried, time items waited for a person, flaky tests, and cost where it is known. *Close sprint* stays disabled until the retrospective has at least one entry. A change that an agent's retrospective recommends is proposed for a person to accept and not applied by the agent.
-
-## run
-
-A run carries out the product's process model over what you select. You select the steps of the implementation plan — or, in Scrum or Kanban, backlog items — set the limits and press *Start run*: one click. Agent M then generates the CI configuration if the product has none, implements the steps in the plan's order or the items after those they build on, writes the tests, and at the end shows the validation of what was built: what each module realises, its code and tests, and every gap. You are asked only where the model gives a gate to a person, or when a limit is reached. Implementation, tests and CI can also be started each on its own, for one critical step: [UC-024](#use-case/id=UC-024), [UC-026](#use-case/id=UC-026) and [UC-027](#use-case/id=UC-027).
-
 ## test-runs
 
 This page shows what the tests said about the commit named above. Each level counts its passed, failed, flaky and not run tests; opening a level shows the individual tests, including what each guards. **Not run** means no result was recorded for that test on this commit. It does not mean passed.
@@ -1128,18 +1108,6 @@ The tests that call a paid service or a model read their key from the CI's secre
 ## schedule-self-hosted-runner
 
 A row on a self-hosted runner waits until a machine of yours is registered to this repository with the label shown. Open the server's runner page: it shows the command to run on that machine, with a short-lived token of its own, which Agent M never sees. Until a runner with the label is online, the runs of the row stay queued. Book: ch. 12, Test Automation and Continuous Integration.
-
-## run-jobs-at-once
-
-How many jobs the run may have running at the same time. It is preset to the work-in-progress limit of the product's process model, or to 3 where the model sets none. A job that waits for another job or for a gate does not start before it is done, however high the number is; steps that do not depend on each other run side by side up to it.
-
-## run-cost-limit
-
-The most the run may cost. It is counted only from costs the runtimes report: a job whose runtime reports none adds nothing to the count and is shown with its cost unknown. When the limit is reached the run starts no further job, lets the running ones finish, and says that the cost stopped it. You may raise the limit and press *Continue*, which starts the remaining jobs under the same run.
-
-## run-correction-rounds
-
-How many times a draft may go back to its participant to be corrected before it is shown to you with what is left. It is preset to 5 per draft, and it applies to every job of the run that drafts. When the limit is reached the run starts no further job, lets the running ones finish, and says that the rounds stopped it.
 
 ## main-page
 
