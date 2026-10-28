@@ -1,7 +1,7 @@
 // MOD-implementation-pages' route `progress` for a model with sprints (ITM-1252), as the accepted text of docs/architecture/MOD-implementation-pages.md states it: "`progress` — …
 // In a model with sprints it shows what goes on now (UC-035): each team's running sprint with its goal, start, end, branch and closer, its items with their states and the modules
-// they change and use, and its burn-down; *End sprint* with `endSprint` for a running sprint without a time box, and *Close sprint*, leading to `sprint/<team>/<n>/close`, for one
-// that has ended; a team without a running sprint says so; *Plan sprint* and *Change the selection* lead to `backlog` with `plan=<team>`, and a link leads to `backlog`, where every
+// they change and use, and its burn-down; *End sprint* with `endSprint` for a running sprint without a time box, and, for one that has ended, that its review and retrospective
+// are not recorded yet; a team without a running sprint says so; *Plan sprint* and *Change the selection* lead to `backlog` with `plan=<team>`, and a link leads to `backlog`, where every
 // item and each team's last ended sprint stand; what is blocked among the items the running sprints hold; who works on what, each current job linked to its page on the job
 // dashboard (UC-036). It reads the product's facts with MOD-progress-measures' scope `now`, so that no pull request closed before the oldest running sprint started is listed, and
 // draws no final burn-down." — and UC-035 2b and 2d.
