@@ -1,7 +1,8 @@
 // ci.mjs — the CI route (docs/architecture/MOD-runtimes.md, Parts: "ci.mjs — the CI route: queueing, live state, log
 // and cancel through the repository host"). Of it, ITM-253 builds queueing; ITM-535 adds the live state, the log and the cancel of a job taken on CI, through the host
 // (runOfAddress, cancelRun, used by index.mjs). ITM-322 adds jobWorkflowFiles, the files of Agent M's job workflow for a product, from the
-// templates workflow/github.yml and workflow/gitlab.yml, which it reads once, when it is loaded, from the disk, in Node; ITM-532 gives the GitLab files the inputs of a pipeline the API starts.
+// templates workflow/github.yml and workflow/gitlab.yml, which it reads once, when it is loaded; ITM-532 gives the GitLab files the inputs of a pipeline the API starts.
+// ITM-1202 reads them in a browser too, from the module's own address, so that the Settings page's Install writes the files there.
 //
 // Module: MOD-runtimes
 //
@@ -73,13 +74,25 @@ export async function queueOnCi(host, start, head) {
 
 const disk = globalThis.process?.getBuiltinModule?.("node:fs");
 
-// A template, read from the disk, in Node; null in a browser. Reading it there would be a fetch of the module's own data file,
-// which the repository's check NO SERVER (tests/test_no_backend.py) allows only a module it lists, and it does not list this one:
-// a browser gets a failure by name from jobWorkflowFiles, and the rest of the module loads.
-const templateAt = (name) => disk?.readFileSync(new URL(`./workflow/${name}`, import.meta.url), "utf8") ?? null;
+// In a browser: the module's own file, from the address the module itself was loaded from. Throws an Error naming the file
+// and the server's status when it is not served.
+async function ownFile(url) {
+  const answer = await fetch(url);
+  if (!answer.ok) throw new Error(`MOD-runtimes: its ${url.pathname} was not served (${answer.status})`);
+  return answer.text();
+}
 
-// A template is the head of the file, a line that begins `# --- one job`, and the lines of one job, written once for each route.
-const TEMPLATES = { github: templateAt("github.yml"), gitlab: templateAt("gitlab.yml") };
+// A template of the job workflow, workflow/<name>.yml beside this module (MOD-runtimes, Parts), read as the modules that read their
+// own data files do: from the disk in Node, from its own address in a browser, where the page uses the module (ITM-1202).
+const templateAt = (name) => {
+  const url = new URL(`./workflow/${name}.yml`, import.meta.url);
+  return disk ? disk.readFileSync(url, "utf8") : ownFile(url);
+};
+
+// The templates by their names, each read once, as the module is loaded. A template is the head of the file, a line that begins
+// `# --- one job`, and the lines of one job, written once for each route.
+const TEMPLATE_NAMES = ["github", "gitlab"];
+const TEMPLATES = Object.fromEntries(await Promise.all(TEMPLATE_NAMES.map(async (name) => [name, await templateAt(name)])));
 const JOB_MARKER = /^# --- one job.*\n/m;
 // GitHub's template then has, after its route's jobs, a line that begins `# --- the agent's job` and the lines of one agent's job, written once for each key and once for none.
 const AGENT_MARKER = /^# --- the agent's job.*\n/m;
@@ -213,7 +226,7 @@ function mergeGitlabCi(text, names) {
  * runs no agent; on GitLab each id begins `agent-m-`, and what a job receives is decided by its environment (gitlabVariableScopes). `instance.repository` is `owner/name` on github.com and `instance.commit` a
  * 40-digit commit, at which each job checks out the instance. `secrets.token` is the name of the secret that holds the person's
  * Agent M token, `secrets.keys` the names of those that hold the agents' keys: the files name them and hold no value. Pure.
- * The templates are read from the disk, in Node: in a browser it throws an Error that says so. Throws TypeError for a server that is neither, a repository or commit of another form, or a name of a secret or a runner label
+ * The templates are the module's, read as it is loaded: the same files in Node and in a browser. Throws TypeError for a server that is neither, a repository or commit of another form, or a name of a secret or a runner label
  * that is not a plain name.
  * @param {"github" | "gitlab"} server
  * @param {{ repository: string, commit: string }} instance
@@ -231,7 +244,6 @@ export function jobWorkflowFiles(server, instance, secrets, runners, gitlabCi = 
   }
   for (const label of runners) if (!LABEL.test(label)) throw new TypeError(`a runner is named by a plain label: ${JSON.stringify(label)}`);
 
-  if (TEMPLATES[server] === null) throw new Error("MOD-runtimes: the job workflow's templates are read in Node; a browser cannot read them yet");
   const [head, routeJobs] = TEMPLATES[server].split(JOB_MARKER);
   const github = server === "github";
   const common = { repository: instance.repository, commit: instance.commit, token: secrets.token, "key-names": secrets.keys.join(" ") };

@@ -35,14 +35,16 @@
 // (given / input / expect). A name the module does not provide yet is undefined here, so that each test fails by itself. Nothing reaches
 // the network. The counter-proofs are recorded in the pull request.
 //
-// The templates are files beside the module (workflow/github.yml, workflow/gitlab.yml). The repository's check NO SERVER (tests/
-// test_no_backend.py) lets a module fetch its own data files only where it lists the module, and it does not list MOD-runtimes: so
-// the templates are read from the disk, in Node, and in a browser, where there is none, jobWorkflowFiles fails by name — an Error that
-// says the templates are read in Node — and the rest of the module stays usable. The last test shows that, on a copy of the module
-// loaded without the disk.
+// The templates are files beside the module (workflow/github.yml, workflow/gitlab.yml; MOD-runtimes, Parts), and the page uses the
+// module in a browser (MOD-runtimes, Responsibility: "The page uses it in a browser; its writer and its workflow files are used in Node
+// as well"). So the module reads them once, as it is loaded, as the modules that read their own data files do (MOD-test-schedule's
+// templates/ among them): from the disk in Node, from its own address in a browser (ITM-1202); the repository's check NO SERVER (tests/
+// test_no_backend.py) lists MOD-runtimes among those modules. The last two tests load a copy of the module without the disk, as a
+// browser loads it, whose fetch answers the module's own addresses with the real files there, or with 404.
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import * as runtimes from "../src/runtimes/index.mjs";
 import { ciEnvironment } from "../src/workflow-entries/compose.mjs";
 
@@ -343,27 +345,68 @@ test("jobWorkflowFiles — a task with quotes and line breaks is one value, held
 
 // ---------------------------------------------------------------- without a disk
 
-// TST-472728 · level: unit · module: MOD-runtimes
-// guards: AGENT M WORKS WITHOUT A LOCAL INSTALLATION; UC-010
-// given: the module loaded as a browser loads it, where `process.getBuiltinModule` gives no disk — a second copy of ci.mjs, loaded under another address, with that function taken away while it loads — and, as the known positive, the copy loaded as it is
-// input: jobWorkflowFiles on each server, from each copy; and queueJob's other export, RuntimeError, from the copy
-// expect: the copy with the disk gives the files; the copy without it throws an Error, not a TypeError, that says the templates are read in Node, for each server; and the copy loads, so that the rest of the module stays usable
-test("jobWorkflowFiles — in a browser, where the templates cannot be read yet, it fails by name and the module still loads", async () => {
-  const load = async (tag, withDisk) => {
-    const getBuiltinModule = process.getBuiltinModule;
-    if (!withDisk) process.getBuiltinModule = undefined;
-    try {
-      return await import(`../src/runtimes/ci.mjs?${tag}`);
-    } finally {
-      process.getBuiltinModule = getBuiltinModule;
-    }
-  };
-  const withDisk = await load("with-disk", true), without = await load("without-disk", false);
-
-  assert.equal(withDisk.jobWorkflowFiles("github", INSTANCE, SECRETS, RUNNERS).length, 1, "known positive");
-  for (const server of ["github", "gitlab"]) {
-    assert.throws(() => without.jobWorkflowFiles(server, INSTANCE, SECRETS, RUNNERS),
-      (error) => error.constructor === Error && /read in Node/.test(error.message), server);
+// One load of ci.mjs, anew under an address of its own, `ci.mjs?load=<n>`, as tests/product-process.test.mjs loads MOD-product-process:
+// `disk` is what process.getBuiltinModule("node:fs") gives it — undefined, as in a browser —, `fetch` the browser's fetch. Both are put
+// back after the load. -> { module, error, reads } — the module's namespace, or the error its load failed with; and every read of its own
+// templates, as "disk <address>" or "fetch <address>". Only ci.mjs is loaded anew; the modules it imports are this file's.
+const CI_MODULE = new URL("../src/runtimes/ci.mjs", import.meta.url);
+const TEMPLATE_FILES = ["github.yml", "gitlab.yml"].map((name) => new URL(`../src/runtimes/workflow/${name}`, import.meta.url).href);
+let loads = 0;
+async function loadCi({ disk, fetch }) {
+  const saved = { getBuiltinModule: process.getBuiltinModule, fetch: globalThis.fetch };
+  const reads = [];
+  process.getBuiltinModule = (name) => (name === "node:fs" ? disk?.(reads) : saved.getBuiltinModule.call(process, name));
+  globalThis.fetch = fetch ? (url) => { reads.push(`fetch ${url}`); return fetch(url); } : undefined;
+  try {
+    loads += 1;
+    return { module: await import(new URL(`?load=${loads}`, CI_MODULE)), error: null, reads };
+  } catch (error) {
+    return { module: null, error, reads };
+  } finally {
+    process.getBuiltinModule = saved.getBuiltinModule;
+    globalThis.fetch = saved.fetch;
   }
-  assert.equal(typeof without.RuntimeError, "function");
+}
+// A disk that gives the real file's text for a read, noting each read; a browser's fetch that answers each address with the real file there.
+const realDisk = (reads) => ({ readFileSync: (url, encoding) => { reads.push(`disk ${url}`); return readFileSync(url, encoding); } });
+const servedFetch = async (url) => new Response(readFileSync(new URL(url), "utf8"), { status: 200 });
+
+// The product's own .gitlab-ci.yml of the fixture: its include: a list of one entry of its own.
+const OWN_GITLAB_CI = 'include:\n  - local: ".gitlab/own.yml"\n';
+
+// TST-472728 · level: unit · module: MOD-runtimes
+// guards: AGENT M WORKS WITHOUT A LOCAL INSTALLATION; ONE CLICK PER DECISION; UC-010
+// given: ci.mjs loaded anew twice — as in Node, with a disk that gives the real templates, and as a browser loads it, without a disk, whose fetch answers each of the module's own addresses with the text of the real file there; one fixture: the instance alice/agent-m at COMMIT, the secrets AGENT_M_TOKEN, CLAUDE_KEY and OPENAI_KEY, the runner gpu, and on GitLab a product without a .gitlab-ci.yml and one with its own
+// input: jobWorkflowFiles on GitHub, and on GitLab for each .gitlab-ci.yml, from each copy
+// expect: each copy loads and reads workflow/github.yml and workflow/gitlab.yml beside ci.mjs, once each, as it is loaded — the Node copy from the disk, the browser's copy from those addresses with fetch; the files of the browser's copy are deep-equal to those of the Node copy for each server and each .gitlab-ci.yml; the GitHub file is .github/workflows/agent-m-jobs.yml and names the instance's commit
+test("jobWorkflowFiles — in a browser the templates are read from the module's own address, and the files equal those given in Node", async () => {
+  const inNode = await loadCi({ disk: realDisk });
+  const inBrowser = await loadCi({ disk: undefined, fetch: servedFetch });
+  for (const [where, loaded, read] of [["Node", inNode, "disk"], ["browser", inBrowser, "fetch"]]) {
+    assert.equal(loaded.error, null, `${where}: the module loads: ${loaded.error?.message}`);
+    assert.deepEqual(loaded.reads, TEMPLATE_FILES.map((address) => `${read} ${address}`), `${where}: the templates are read once each, as the module is loaded`);
+  }
+  const cases = [["github", undefined], ["gitlab", null], ["gitlab", OWN_GITLAB_CI]];
+  for (const [server, gitlabCi] of cases) {
+    const node = inNode.module.jobWorkflowFiles(server, INSTANCE, SECRETS, RUNNERS, gitlabCi);
+    assert.ok(node.length >= 1, `known positive: Node gives the ${server} files`);
+    assert.deepEqual(inBrowser.module.jobWorkflowFiles(server, INSTANCE, SECRETS, RUNNERS, gitlabCi), node, `${server}, .gitlab-ci.yml ${JSON.stringify(gitlabCi)}`);
+  }
+  const [github] = inBrowser.module.jobWorkflowFiles("github", INSTANCE, SECRETS, RUNNERS);
+  assert.equal(github.path, ".github/workflows/agent-m-jobs.yml");
+  assert.ok(github.text.includes(COMMIT), "the GitHub file names the instance's commit");
+});
+
+// TST-1202101 · level: unit · module: MOD-runtimes
+// guards: AGENT M WORKS WITHOUT A LOCAL INSTALLATION; UC-010
+// given: ci.mjs loaded anew as a browser loads it, without a disk, whose fetch answers every address with 404 Not Found
+// input: the load of the module
+// expect: the module does not load — a template that is not served stops its module, as an own data file that is not served stops the modules that read theirs — and the error names the module, a template workflow/<name>.yml, and 404
+test("jobWorkflowFiles — a template that is not served stops the module, and the error names it and the server's status", async () => {
+  const notServed = await loadCi({ disk: undefined, fetch: async () => new Response("Not Found", { status: 404 }) });
+  assert.ok(notServed.reads.length >= 1 && notServed.reads.every((read) => TEMPLATE_FILES.some((address) => read === `fetch ${address}`)),
+    `only the templates are asked for: ${notServed.reads.join(", ")}`);
+  assert.equal(notServed.module, null, "a template that cannot be read stops the module");
+  assert.ok(notServed.error instanceof Error && /MOD-runtimes/.test(notServed.error.message) && /workflow\/(github|gitlab)\.yml/.test(notServed.error.message)
+    && notServed.error.message.includes("404"), `the error names the module, the template and 404: ${notServed.error?.message}`);
 });
