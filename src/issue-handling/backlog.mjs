@@ -3,8 +3,8 @@
 // Module: MOD-issue-handling
 //
 // Where the module file leaves a reading open, this file states the one it takes:
-//   - `backlogItemFrom` gives `{ item: { fields, sections }, place }`, the form MOD-work-plans' `saveItems` takes: the fields title, level (module), realises, modules, tests (unit) and origin (the issue's address), and the sections ## Outcome (the issue's text,
-//     its comments not among it) and ## Acceptance. `NotClassified` is thrown for every class but bug and change (UC-033, Precondition: "classified as *bug* or *change*"). `place` is returned for the caller and written nowhere: a backlog keeps no order of its own.
+//   - `backlogItemFrom` gives `{ item: { fields, sections } }`, the form MOD-work-plans' `saveItems` takes: the fields title, level (module), realises, modules, tests (unit) and origin (the issue's address), and the sections ## Outcome (the issue's text,
+//     its comments not among it) and ## Acceptance. `NotClassified` is thrown for every class but bug and change (UC-033, Precondition: "classified as *bug* or *change*").
 //   - `moveToBacklog` reads the default branch's head and the module files of the architecture itself, since its interface gives neither. The item is committed by `saveItems` first, then the comment, then the label. The comment is MOD-mail-records'
 //     `noteText("item-added", <item>, <date>, <link>)`; the link is the item file's page on the product's server (`webLinks().file`), since the module knows no instance, and so no address on the dashboard.
 //   - A comment refused for want of the permission (`PermissionMissing`) returns `{ item, comment: { text, issue } }` and sets no label (a token that may not comment may not label); any other failure of the comment or of the label passes unchanged, the item being committed
@@ -28,8 +28,8 @@ const unique = (values) => [...new Set(values)];
 const listOf = (value) => (Array.isArray(value) ? value.map(String) : String(value ?? "").split(",").map((part) => part.trim()).filter(Boolean));
 
 /**
- * backlogItemFrom(issue, cls, analysis, changed) -> { item, place } — the backlog item a person checks before adding it (UC-033 step 2): its title from the issue's title, its outcome from the issue's description, its origin the issue's address, what it
- * realises — for a bug the requirement the analysis names as violated, for a change the requirements `changed` names, each once —, and the modules the analysis names; placed at the top for a bug and at the bottom for a change. Pure.
+ * backlogItemFrom(issue, cls, analysis, changed) -> { item } — the backlog item a person checks before adding it (UC-033 step 2): its title from the issue's title, its outcome from the issue's description, its origin the issue's address, what it
+ * realises — for a bug the requirement the analysis names as violated, for a change the requirements `changed` names, each once —, and the modules the analysis names. Pure; no place is given, since a backlog keeps no order of its own.
  * Errors: NotClassified for a class that is neither bug nor change — no item is offered.
  */
 export function backlogItemFrom(issue, cls, analysis, changed) {
@@ -42,7 +42,6 @@ export function backlogItemFrom(issue, cls, analysis, changed) {
       fields: { title: issue.title, level: "module", realises, modules: unique(analysis?.modules ?? []), tests: ["unit"], origin: [issue.address] },
       sections: [{ heading: "## Outcome", text: `\n${String(issue.body ?? "").trim()}\n\n` }, { heading: "## Acceptance", text: `\n${ACCEPTANCE[cls]}\n` }],
     },
-    place: cls === IssueClass.bug ? "top" : "bottom",
   };
 }
 

@@ -1,6 +1,6 @@
 // An issue is prefilled as a backlog item and moved into the backlog in one decision (ITM-1250) — MOD-issue-handling's `backlogItemFrom` and `moveToBacklog` as the accepted text of docs/architecture/MOD-issue-handling.md states them (:70-82):
 // "`backlogItemFrom(issue, cls, analysis, changed) -> { item, place }` — the backlog item a person checks before adding it (UC-033): its title from the issue's title, its outcome from the issue's description, its origin the issue's address, what it
-// realises — for a bug the requirement the analysis names as violated, for a change the requirements `changed` names — and the modules the analysis names; placed at the top for a bug and at the bottom for a change. Errors: `NotClassified` for an issue
+// realises — for a bug the requirement the analysis names as violated, for a change the requirements `changed` names — and the modules the analysis names. Errors: `NotClassified` for an issue
 // without a class — no item is offered." and "`moveToBacklog(host, issue, item, existing)` — the person's one click *Add* (UC-033): the item written through Process's `saveItems`; then the comment `item-added` on the issue, naming the item and its address,
 // and the label `backlog`, also for a second issue added to an existing item. When the token may not comment, the item is written all the same and the comment's text and the issue's address are returned for the person to copy (UC-033)."
 // UC-033 steps 2 to 4 and 4a, 4b.
@@ -12,9 +12,8 @@
 //
 // The host is a fake of MOD-repository-hosts' Host with the product's files at one head: repositoryInfo (its default branch main), readSnapshot, readHistory, commitFiles, commentOnIssue, setIssueLabels and webLinks, each call recorded; nothing reaches the
 // network. The items are read back with MOD-documents' item schema and checked with MOD-work-plans' backlogFindings. Readings the texts leave open, which the tests state (the pull request names them):
-//   - `backlogItemFrom` gives `{ item: { fields, sections }, place }`, the form `saveItems` takes: the fields title, level (module), realises, modules, tests (unit) and origin (the issue's address), the sections ## Outcome (the issue's text) and ## Acceptance.
+//   - `backlogItemFrom` gives `{ item: { fields, sections } }`, the form `saveItems` takes: the fields title, level (module), realises, modules, tests (unit) and origin (the issue's address), the sections ## Outcome (the issue's text) and ## Acceptance.
 //     `NotClassified` is thrown for every class but bug and change (UC-033 precondition: "classified as *bug* or *change*"); the issue's `comments` are no part of the outcome.
-//   - `place` is returned for the caller and written nowhere: a backlog keeps no order of its own (MOD-work-plans, Responsibility).
 //   - `moveToBacklog` reads the default branch's head and the module files of the architecture itself, since its interface gives neither; the item is committed by `saveItems` first, then the comment, then the label. The comment is MOD-mail-records'
 //     `noteText("item-added", <item>, <date>, <link>)` and the link the item file's page on the product's server (`webLinks().file`), since the module knows no instance and so no address on the dashboard.
 //   - A comment refused for want of the permission (`PermissionMissing`) returns `{ item, comment: { text, issue } }` with the label not set; any other failure of the comment or the label passes unchanged, the item being committed already. With `existing`, the item
@@ -65,11 +64,11 @@ const architectureOf = (files) => Object.entries(files).filter(([path]) => path.
 // given: counter-proof — before the change MOD-issue-handling offers neither backlogItemFrom nor moveToBacklog; a bug issue 57 with a title, a text and a comment; the analysis names the violated requirement EXPORT IS A PDF and the module MOD-export; `changed` names a requirement
 // input: backlogItemFrom(issue, "bug", { violated: "EXPORT IS A PDF", modules: ["MOD-export"] }, ["SOME CHANGED RULE"])
 // expect: both functions are offered; the item's title is the issue's title, its outcome the issue's text without the comment, its origin the issue's address alone; it realises EXPORT IS A PDF alone — `changed` is for a change —, changes MOD-export, is of level module with the tests unit,
-//   and has an ## Acceptance section; the place is the top; MOD-work-plans' backlogFindings finds no error in it
-test("backlogItemFrom — a bug realises the requirement the analysis names as violated, takes its title, outcome and origin from the issue, and is placed at the top", () => {
+//   and has an ## Acceptance section; MOD-work-plans' backlogFindings finds no error in it
+test("backlogItemFrom — a bug realises the requirement the analysis names as violated, takes its title, outcome and origin from the issue", () => {
   assert.equal(typeof handling.backlogItemFrom, "function", "backlogItemFrom is offered");
   assert.equal(typeof handling.moveToBacklog, "function", "moveToBacklog is offered");
-  const { item, place } = handling.backlogItemFrom(ISSUE, "bug", { violated: "EXPORT IS A PDF", modules: ["MOD-export"] }, ["SOME CHANGED RULE"]);
+  const { item } = handling.backlogItemFrom(ISSUE, "bug", { violated: "EXPORT IS A PDF", modules: ["MOD-export"] }, ["SOME CHANGED RULE"]);
   assert.equal(item.fields.title, "Export is not a PDF");
   assert.deepEqual(item.fields.realises, ["EXPORT IS A PDF"]);
   assert.deepEqual(item.fields.modules, ["MOD-export"]);
@@ -78,7 +77,6 @@ test("backlogItemFrom — a bug realises the requirement the analysis names as v
   assert.deepEqual(item.fields.tests, ["unit"]);
   assert.equal(textOfSection(item, "## Outcome").trim(), "The export writes a text file, not a PDF.");
   assert.ok(textOfSection(item, "## Acceptance") !== null && textOfSection(item, "## Acceptance").trim() !== "", "the acceptance has a text");
-  assert.equal(place, "top");
   assert.deepEqual(backlogFindings([item], architectureOf(FILES())).filter((each) => each.kind === "error"), []);
 });
 
@@ -86,12 +84,11 @@ test("backlogItemFrom — a bug realises the requirement the analysis names as v
 // guards: A BACKLOG ITEM NAMES WHAT IT REALISES; EVOLUTION ENTERS THROUGH THE SPECIFICATION; UC-033
 // given: a change issue 57; `changed` names EXPORT IS A PDF twice and EXPORT NAMES ITS PAGES; the analysis names a violated requirement and the module MOD-export
 // input: backlogItemFrom(issue, "change", { violated: "SOME OTHER RULE", modules: ["MOD-export"] }, changed)
-// expect: the item realises EXPORT IS A PDF and EXPORT NAMES ITS PAGES, each once, in the order of `changed`, and not the violated one; its origin is the issue's address; the place is the bottom
-test("backlogItemFrom — a change realises the requirements the queues change, each once, and is placed at the bottom", () => {
-  const { item, place } = handling.backlogItemFrom(ISSUE, "change", { violated: "SOME OTHER RULE", modules: ["MOD-export"] }, ["EXPORT IS A PDF", "EXPORT NAMES ITS PAGES", "EXPORT IS A PDF"]);
+// expect: the item realises EXPORT IS A PDF and EXPORT NAMES ITS PAGES, each once, in the order of `changed`, and not the violated one; its origin is the issue's address
+test("backlogItemFrom — a change realises the requirements the queues change, each once", () => {
+  const { item } = handling.backlogItemFrom(ISSUE, "change", { violated: "SOME OTHER RULE", modules: ["MOD-export"] }, ["EXPORT IS A PDF", "EXPORT NAMES ITS PAGES", "EXPORT IS A PDF"]);
   assert.deepEqual(item.fields.realises, ["EXPORT IS A PDF", "EXPORT NAMES ITS PAGES"]);
   assert.deepEqual(item.fields.origin, [ISSUE.address]);
-  assert.equal(place, "bottom");
 });
 
 // TST-1250103 · level: unit · module: MOD-issue-handling
