@@ -27,13 +27,15 @@ whether its path reads the repository per test, are read at its start (sprint 66
 
 **Read at its start** (team 2's sprint 97, 2026-10-20):
 - The page reaches a fix's pull request only through the route `issues`, which ITM-582 builds (`confirmClass`), and the
-  fix only through ITM-583 (`fix-inputs`' pull request, `closeWithLinks`). Neither is built: `src/issue-handling` does not
-  exist on `main` or on `sprint/team2/97`. So it builds on both.
-- It reads the fix's pull request, its changed files on both sides, and the declarations of the tests among them. Its
-  module's Uses name none of the interfaces that give them. The draft `9d5ea17c` added them, and its revision after review
-  finds the fix's pull request through the job: `MOD-job-ledger.recordsNewestFirst` gives the `fix-bug` job whose
-  `works_on` names the issue, and `MOD-runtimes.jobTrail` gives its branch's pull request. Then come
-  `MOD-repository-hosts.pullRequestFacts`, `MOD-test-document.isTestFile` and `testDeclarations`. It waits for akmaier.
+  fix only through ITM-583 (`fix-inputs`' pull request, `closeWithLinks`). ITM-582 is merged (#1255;
+  `src/issue-handling/classes.mjs`); ITM-583 is not built — no file under `src/` defines `fix-inputs` or `closeWithLinks`.
+  So it waits for ITM-583.
+- It reads the fix's pull request, its changed files on both sides, and the declarations of the tests among them.
+  MOD-maintenance-pages' Uses name the interfaces that give them (`docs/architecture/MOD-maintenance-pages.md:29-80`,
+  `:175-180`): `MOD-job-ledger.recordsNewestFirst` gives the `fix-bug` job whose `works_on` names the issue,
+  `MOD-runtimes.jobTrail` its branch's pull request, then `MOD-repository-hosts.pullRequestFacts`,
+  `MOD-test-document.isTestFile` and `testDeclarations`. No file under `src/maintenance-pages/` shows an old and a new
+  expectation yet.
 
 ## Acceptance
 
