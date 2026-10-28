@@ -66,7 +66,10 @@ its steps are what implementation jobs start for (UC-024).
    - gate records, branches, pull requests and CI runs;
    - the running jobs, from the job dashboard's sources (UC-036).
 2. Agent M computes the progress in the measure the model defines, and draws it as in the table above.
-   Every number is computed now. None is read from a stored status.
+   Every number is computed from what step 1 names; none is read from a status that a person or a page keeps. Where the
+   repository stores what this page shows for its newest commit — computed once, when that commit reached the default
+   branch —, Agent M draws that; while it is being computed, it draws what is stored for an earlier commit and names
+   that commit; where none is stored, it computes the numbers now.
 3. Below the chart, Agent M lists the workflow's gates in order. For each gate it shows:
    - *passed*: who decided, when, and on which text, linked to the gate record;
    - *pending*: what it still needs;
@@ -130,4 +133,5 @@ sequenceDiagram
 
 - The reader has seen the product's progress in its model's own measure, the state of every gate,
   what is blocked, and who works on what.
-- Nothing was written. Everything shown was derived at the moment it was shown.
+- Nothing was written. Everything shown was derived from the repository and the job sources, at the newest commit of
+  the default branch or at the earlier commit the page names.

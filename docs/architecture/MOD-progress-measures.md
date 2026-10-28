@@ -70,6 +70,11 @@ provides:
   - storedOverview
   - latestOverview
   - storedFacts
+  - ProgressView
+  - BacklogView
+  - progressView
+  - backlogView
+  - storedView
   - progressIn
   - stageShares
   - currentStage
@@ -91,7 +96,10 @@ state of every gate, what is blocked and who works on what (UC-035), and, for th
 stage the product is in, the build in progress and what waits for a person (`THE MAIN PAGE SHOWS EACH PRODUCT'S PROGRESS
 BY STAGE`, `WITHOUT A PRODUCT, THE MAIN PAGE SHOWS AGENT M'S OWN PROGRESS`, `THE BUILD IS SHOWN AS IT HAPPENS`). From a
 repository's snapshot and tags alone it derives what waits there for the person's acceptance, for the Site's
-notifications (`A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE`). It runs in the browser and in Node.
+notifications (`A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE`). For the pages of Implementation it derives from
+the same facts the view each shows — what goes on now, and the backlog —, which is stored for a commit beside its overview,
+so that a page reads the view of its commit and no record, fact or pull request behind it. It runs in the browser and in
+Node.
 
 ## Parts
 
@@ -101,12 +109,13 @@ notifications (`A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE`). It runs in t
 - `stages.mjs` — the six stages, the current stage, the build, what waits for a person, what waits for acceptance.
 - `overviews.mjs` — gates, blocked items, who works on what.
 - `stored.mjs` — the facts a commit's files alone give, as a text and back.
+- `views.mjs` — the views of the progress and the backlog page: derived from the facts, as a text and back.
 
 ## Data
 
-It keeps nothing and owns the structure `Facts`, which MOD-run-planner and the pages read. It owns three kinds of file on
-the branch `overview-cache` of a repository, which `publishOverview` writes; the first two it adds and no one changes or
-deletes:
+It keeps nothing and owns the structure `Facts`, which MOD-run-planner and the pages read, and the views `ProgressView`
+and `BacklogView`, which MOD-implementation-pages draws. It owns five kinds of file on the branch `overview-cache` of a
+repository, which `publishOverview` writes; the first four it adds and no one changes or deletes:
 - `<commit>.json`, the overview of that commit that the pages read in place of the files: `{ commit, shares, waiting,
   model, build, queues }` — the stage shares and what waits for a person, as `stageShares` and `waitingForAPerson` give
   them for the facts of that commit; the name of the declared model, or `null`; the build, `{ states, records }`: the
@@ -119,9 +128,13 @@ deletes:
   items, the sprints, the role assignments, the gate records, the module files, the change queues, the requirements, the
   test declarations, the job records, and the declared model as read at the commit the declaration names. A model that
   could not be read is left out, so that a reader reads it again;
+- `<commit>.progress.json.gz` and `<commit>.backlog.json.gz`, the views of that commit that the routes `progress` and
+  `backlog` of MOD-implementation-pages draw in place of the facts: what `progressView` and `backlogView` give for the
+  facts of the scope `all` at that commit, as JSON, gzipped as the trace graph is (MOD-trace-graph). Each holds what its
+  page shows and nothing else: no record's text, no pull request;
 - `latest.json`, `{ commit }`: the commit of the overview stored last, which `publishOverview` writes again with every
-  commit that adds a file of the two above, and which a page reads (`latestOverview`) while the overview of its head is
-  not stored yet.
+  commit that adds a file of the four above, and which a page reads (`latestOverview`, `storedView`) while the overview
+  or the view of its head is not stored yet.
 
 The six stages of the main page, each a share between 0 and 1:
 
@@ -169,17 +182,11 @@ The six stages of the main page, each a share between 0 and 1:
   `pullRequests`, `ci.runs`, `tags` — is `"unknown"` when the host does no server operations; whatever depends on an
   unknown fact is derived as unknown — a share `null`, a state `unknown` — and never guessed.
 - `productFacts(host: Host, instance: Snapshot, instanceAt: (commit: string) -> Promise<Snapshot>, now: Date,
-  options?: { scope: "all" | "work" | "build" | "now" }) -> Promise<Facts>` — with the scope `build`, what
+  options?: { scope: "all" | "work" | "build" }) -> Promise<Facts>` — with the scope `build`, what
   `buildInProgress` takes and nothing else — the plan or the backlog, the job records and the pull requests —; with the scope `work`, it reads only what MOD-work-plans' `itemStates` and `startable` and MOD-product-process'
   `holdsRole` take — the approval statuses, the change queues, the declaration with its model and workflow, the
   participants, the plan or the backlog, the sprints, the role assignments, the gate records with their states, the job
   records without asking their live state, and the pull requests with `held` —, and every other fact is `"unknown"`.
-  With the scope `now`, what the progress page of a model with sprints shows (UC-035), it reads what the scope `work`
-  reads, with two differences: `sprints` are only those whose record holds no `## Review`, the running ones, so that
-  `held` and `progressIn` derive from them alone; and `pullRequests` are those open and those updated on or after the
-  earliest `start` of these sprints, listed with MOD-repository-hosts' `listPullRequests` and its `updatedSince` — none
-  closed before it, and without a running sprint only the open ones. The state of an item no running sprint selects
-  rests on these pull requests alone, and a caller of this scope shows no such item.
   With the scope `all`, the default, it reads everything once: the default branch of the product — through a
   local clone, the branch it has checked out — and what the repository says about it, the approval
   records, the change queues, the declaration with its model and practices as the instance's catalogue held them at the
@@ -267,12 +274,40 @@ The six stages of the main page, each a share between 0 and 1:
   string }>` — what waits for a person in the product: open use cases, open SPEC change entries, gates whose decider is a
   person and that are pending, failed jobs; `path` is the file or record it concerns, from which the page links to where
   it is decided.
+- `ProgressView` — what the route `progress` shows of one commit: `{ commit: string, declared: boolean, modelFile: string
+  | null, modelUnread: { commit: string, error: string } | null, model: { name: string, kind: string, sprints: boolean,
+  wip: number | null, measure: string | null } | null, measure: <progressIn's result> | null, teams: Array<{ team: string,
+  sprint: { name: string, path: string, goal: string, start: string, end: string, branch: string, closer: string, ended:
+  string | null, final: boolean, endable: boolean, items: Array<{ item: string, path: string | null, title: string, state:
+  ItemState, changes: string[], uses: string[] }>, merges: Array<{ item: string, at: string }> } | null }>, gates:
+  <gateOverview's result>, blocked: <blocked's result>, who: <whoWorksOnWhat's result> }`. `teams` are the teams of the
+  role assignments and the sprints, each with its running sprint — its newest whose record holds no `## Review` —, or
+  null; `final` a running sprint whose time box is over or that was ended; `merges` for each done item of the sprint the
+  time of the earliest merged pull request that names it, in its branch or its title, from which the page draws the
+  burn-down; `measure` is `progressIn`'s, in a model with sprints over the running sprints alone; `blocked` the items the
+  running sprints hold, in a model with sprints.
+- `BacklogView` — what the route `backlog` shows of one commit: `{ commit: string, declared: boolean, modelFile: string |
+  null, modelUnread: { commit: string, error: string } | null, model: <as in ProgressView>, teams: Array<{ team: string,
+  owner: string, running: { name: string, path: string, goal: string, closer: string, selection: string[] } | null,
+  lastEnded: { name: string, path: string, start: string, end: string, items: string[], merges: Array<{ item: string, at:
+  string }> } | null }>, rows: Array<{ item: string, path: string, title: string, realises: string[], state: ItemState,
+  held: Held | null, kept: Array<{ team: string, sprint: string, item: string, module: string | null }> }>, uncovered: {
+  requirements: string[], useCases: string[] } }`. `rows` are every item of the backlog, each after the items it builds
+  on, as `itemStates` orders them; `kept` what keeps an item from each team other than the one whose sprint holds it, as
+  MOD-work-plans' `conflicts` gives it; `owner` the first holder, in the team's role assignment, of the role of the phase
+  that produces items, who closes its sprint unless another is named; `lastEnded` the team's last sprint that has ended,
+  with its items and their merges, `end` the last day of its final burn-down; `uncovered` the accepted requirements and
+  use cases no item realises.
+- `progressView(facts: Facts, now: Date) -> ProgressView` and `backlogView(facts: Facts, now: Date) -> BacklogView` — the
+  views of the facts, derived as `progressIn`, `gateOverview`, `blocked`, `whoWorksOnWhat` and MOD-work-plans'
+  `conflicts` derive. Pure; the same whether `publishOverview` derives them in CI or a page derives them where none is
+  stored.
 - `publishOverview(host: Host, snapshot: Snapshot, facts: Facts) -> Promise<{ commit: string, written: boolean }>` —
-  adds `<commit>.json` and `<commit>.facts.json` to the branch `overview-cache` in one commit by `commitFiles`, on the
-  head it read: the overview and the facts listed under Data, from `facts` read with the scope `all` at the snapshot's
-  commit. A file the branch holds already is left as it is; `written` is `false` when
-  it holds both. A commit that adds either also writes `latest.json` naming the snapshot's commit; where it adds
-  neither, `latest.json` is left as it is. Crosses the network; fails as `commitFiles` fails, with `NotFound` naming the branch when the
+  adds `<commit>.json`, `<commit>.facts.json`, `<commit>.progress.json.gz` and `<commit>.backlog.json.gz` to the branch
+  `overview-cache` in one commit by `commitFiles`, on the head it read: the overview, the facts and the two views listed
+  under Data, from `facts` read with the scope `all` at the snapshot's commit. A file the branch holds already is left as
+  it is; `written` is `false` when it holds all four. A commit that adds any also writes `latest.json` naming the
+  snapshot's commit; where it adds none, `latest.json` is left as it is. Crosses the network; fails as `commitFiles` fails, with `NotFound` naming the branch when the
   repository has none.
 - `storedOverview(snapshot: Snapshot) -> Promise<{ shares: Array<{ stage: string, share: number | null, detail: string }>,
   waiting: Array<{ kind: string, id: string, path: string }>, model: string | null, build: { states: ItemState[],
@@ -285,6 +320,12 @@ The six stages of the main page, each a share between 0 and 1:
   overview, as `storedOverview` gives it, read with the snapshot's `readOn` in two requests. What a page shows while
   the overview of its head is not stored yet, never deriving one itself; `null` without `readOn`, or when the branch,
   `latest.json` or the overview it names is missing or holds another format.
+- `storedView(snapshot: Snapshot, page: "progress" | "backlog") -> Promise<{ view: ProgressView | BacklogView, asOf:
+  string | null } | null>` — the page's view of the snapshot's commit, read with the snapshot's `readOn` in one request,
+  and `asOf` null; while that is not stored yet, the view of the commit `latest.json` names, in two requests more, and
+  `asOf` that commit — what a page shows, with the line `As of <asOf, 7 characters>: the view of the newest commit is
+  being stored.`, never deriving one itself. `null` without `readOn`, or where neither is stored or one holds another
+  format. Crosses the network; fails with the host's errors but `NotFound`.
 - `storedFacts(snapshot: Snapshot) -> Promise<{ declaration: Document | null, order: Document | null, items: Document[],
   sprints: Document[], assignments: Document[], gates: Document[], modules: Document[], queues: Queue[], requirements:
   string[], tests: TestDeclaration[], jobs: JobRecord[], model: Model | null | undefined } | null>` — the facts stored
@@ -324,16 +365,16 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
 - Reads, for `waitingForAcceptance`, through the snapshot it is given: `docs/approvals/`, `docs/spec-freigaben/`,
   `docs/use-cases/` and `docs/architecture/`; and, through MOD-release-evidence, the tags, `docs/tests/releases/` and,
   only while a release candidate is pending, `docs/jobs/` back to the first run of a candidate.
-- Reads, for `storedFacts`, `storedOverview` and `latestOverview`, `<commit>.facts.json`, `<commit>.json` and
-  `latest.json` on the branch `overview-cache`.
-- Writes, for `publishOverview`, `<commit>.json` and `<commit>.facts.json` on the branch `overview-cache`, only by
-  adding, and `latest.json` there, in the same commit.
+- Reads, for `storedFacts`, `storedOverview`, `latestOverview` and `storedView`, `<commit>.facts.json`, `<commit>.json`,
+  `<commit>.progress.json.gz`, `<commit>.backlog.json.gz` and `latest.json` on the branch `overview-cache`.
+- Writes, for `publishOverview`, `<commit>.json`, `<commit>.facts.json`, `<commit>.progress.json.gz` and
+  `<commit>.backlog.json.gz` on the branch `overview-cache`, only by adding, and `latest.json` there, in the same commit.
 
 ## Uses
 
 - MOD-work-plans.ItemState, Held, itemStates, heldItems, undecidedHeads, planSchemas — the steps and items, their order, the sprints,
   what they hold, and each one's state; MOD-work-plans.conflicts — what keeps an item from its team's selection, for
-  `blocked`.
+  `blocked` and for the backlog's view.
 - MOD-product-process.Workflow, declarationSchema, productWorkflow, gateSchema, gateStates, roleAssignmentSchema — the
   declared process, its gates and their states, and the role assignments. The workflow is `productWorkflow`'s, read with
   the instance's SPEC, where the process requirements stand.
@@ -358,4 +399,4 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
 - MOD-repository-hosts.Host, Snapshot, RepositoryInfo, PullRequest, CiRun, readSnapshot, readHistory, repositoryInfo,
   listPullRequests, listCiRuns, listTags — the repository's state and the history that dates it; the snapshots
   `instanceAt` gives of the instance at the commit a declaration names; `commitFiles` — `publishOverview`'s one commit
-  to the branch `overview-cache`; `Snapshot.readOn` — the stored facts and overview of a commit, and `latest.json`.
+  to the branch `overview-cache`; `Snapshot.readOn` — the stored facts, overview and views of a commit, and `latest.json`.
