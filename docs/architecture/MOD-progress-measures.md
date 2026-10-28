@@ -72,6 +72,8 @@ provides:
   - BacklogView
   - progressView
   - backlogView
+  - ScheduleView
+  - scheduleView
   - storedView
   - progressIn
   - stageShares
@@ -106,13 +108,14 @@ Node.
 - `measures.mjs` — progress in the model's measure.
 - `stages.mjs` — the six stages, the current stage, the build, what waits for a person, what waits for acceptance.
 - `overviews.mjs` — gates, blocked items, who works on what.
-- `views.mjs` — the views of the progress and the backlog page: derived from the facts, as a text and back.
+- `views.mjs` — the views of the progress, the backlog and the schedule page: derived from the facts, as a text and back.
 
 ## Data
 
 It keeps nothing and owns the structure `Facts`, which MOD-run-planner and the pages read, and the views `ProgressView`
-and `BacklogView`, which MOD-implementation-pages draws. It owns four kinds of file on the branch `overview-cache` of a
-repository, which `publishOverview` writes; the first three it adds and no one changes or deletes:
+and `BacklogView`, which MOD-implementation-pages draws, and `ScheduleView`, which MOD-test-pages draws. It owns five
+kinds of file on the branch `overview-cache` of a repository, which `publishOverview` writes; the first four it adds and
+no one changes or deletes:
 - `<commit>.json`, the overview of that commit that the pages read in place of the files: `{ commit, shares, waiting,
   model, build, queues }` — the stage shares and what waits for a person, as `stageShares` and `waitingForAPerson` give
   them for the facts of that commit; the name of the declared model, or `null`; the build, `{ states, records }`: the
@@ -124,6 +127,9 @@ repository, which `publishOverview` writes; the first three it adds and no one c
   `backlog` of MOD-implementation-pages draw in place of the facts: what `progressView` and `backlogView` give for the
   facts of the scope `all` at that commit, as JSON, gzipped as the trace graph is (MOD-trace-graph). Each holds what its
   page shows and nothing else: no record's text, no pull request;
+- `<commit>.schedule.json.gz`, the view of that commit that the route `schedule` of MOD-test-pages draws in place of
+  the test files: what `scheduleView` gives for the facts of the scope `all` at that commit, as JSON, gzipped as the
+  other views; it holds the counts of the tests and no declaration;
 - `latest.json`, `{ commit }`: the commit of the overview stored last, which `publishOverview` writes again with every
   commit that adds a file of the three above, and which a page reads (`latestOverview`, `storedView`) while the overview
   or the view of its head is not stored yet.
@@ -288,6 +294,12 @@ The six stages of the main page, each a share between 0 and 1:
 - `backlogView(facts: Facts, now: Date) -> BacklogView` — the view of the route `backlog` of the facts, derived as
   `progressView` derives its view. Pure; the same whether `publishOverview` derives it in CI or a page derives it where
   none is stored.
+- `ScheduleView` — what the route `schedule` shows of one commit's tests: `{ commit: string, counts: { unit: number,
+  component: number, system: number, release: number, user: number, paid: number } }`, the number of the test
+  declarations of each level, and of those that call a paid service.
+- `scheduleView(facts: Facts) -> ScheduleView` — the counts of `facts.tests`. Pure; `publishOverview` adds
+  `<commit>.schedule.json.gz` from it, in the same commit as the other views, and a file the branch holds already is left
+  as it is.
 - `publishOverview(host: Host, snapshot: Snapshot, facts: Facts) -> Promise<{ commit: string, written: boolean }>` —
   adds `<commit>.json`, `<commit>.progress.json.gz` and `<commit>.backlog.json.gz` to the branch `overview-cache` in one
   commit by `commitFiles`, on the head it read: the overview and the two views listed under Data, from `facts` read with
@@ -306,7 +318,7 @@ The six stages of the main page, each a share between 0 and 1:
   overview, as `storedOverview` gives it, read with the snapshot's `readOn` in two requests. What a page shows while
   the overview of its head is not stored yet, never deriving one itself; `null` without `readOn`, or when the branch,
   `latest.json` or the overview it names is missing or holds another format.
-- `storedView(snapshot: Snapshot, page: "progress" | "backlog") -> Promise<{ view: ProgressView | BacklogView, asOf:
+- `storedView(snapshot: Snapshot, page: "progress" | "backlog" | "schedule") -> Promise<{ view: ProgressView | BacklogView | ScheduleView, asOf:
   string | null } | null>` — the page's view of the snapshot's commit, read with the snapshot's `readOn` in one request,
   and `asOf` null; while that is not stored yet, the view of the commit `latest.json` names, in two requests more, and
   `asOf` that commit — what a page shows, with the line `As of <asOf, 7 characters>: the view of the newest commit is
@@ -349,6 +361,8 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
   `<commit>.backlog.json.gz` and `latest.json` on the branch `overview-cache`.
 - Writes, for `publishOverview`, `<commit>.json`, `<commit>.progress.json.gz` and `<commit>.backlog.json.gz` on the
   branch `overview-cache`, only by adding, and `latest.json` there, in the same commit.
+- Reads, for `storedView`, and writes, for `publishOverview`, `<commit>.schedule.json.gz` on the branch
+  `overview-cache`, as the other views.
 
 ## Uses
 

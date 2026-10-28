@@ -87,7 +87,9 @@ It runs in a browser — the instance's pages, and the Bridge's window, which is
   `<link rel="modulepreload">` for each module of the static import closure of the page's module script and of the views its
   `data-views` names (a JSON module with `as="json"`), and a `<link rel="preload" as="fetch" crossorigin>` for each file those
   modules fetch as they are evaluated, found by evaluating them in a separate Node process as a browser runs them. A module a
-  route imports only when it is shown is not preloaded, so the main page preloads none of the review pages' views. Run in
+  route imports only when it is shown is not preloaded, so the main page preloads none of the review pages' views; for each
+  route `module`, the block names, as data, the modules and files that route loads beyond the block, which the frame asks
+  for at once when it first imports the route. Run in
   Node: `node src/site-frame/preloads.mjs` writes the blocks; `tests/site-frame-preloads.test.mjs` fails while a page's block
   differs from what it computes. No build stands between the repository and the page: the block is part of the page's text.
 - `menu.mjs` — the eight entries of the menu and the links they lead to, and the button that folds them on a narrow
@@ -156,7 +158,8 @@ It keeps nothing but what is on the screen. It owns these formats:
   title: string, render(target: Element, context: ViewContext,
   params: Record<string, string>) -> Promise<void>, subject?: (params: Record<string, string>, context: ViewContext) ->
   Subject | null, leave?: () -> boolean, unsaved?: () -> boolean,
-  reads?: (params: Record<string, string>, snapshot: Snapshot) -> Promise<string[]> }`. Before the frame shows another route on a change of the address, it asks the
+  reads?: (params: Record<string, string>, snapshot: Snapshot) -> Promise<string[]>, folders?: (params: Record<string,
+  string>) -> string[], module?: () -> Promise<Route> }`. Before the frame shows another route on a change of the address, it asks the
   route shown with `leave`; `false` keeps that route and puts its address back. `unsaved` tells, without asking the
   person anything, whether the route shown holds changes that leaving it would discard; a route that gives none holds none. `reads` names the files the route will read, as paths of the `snapshot` it is given, the repository the route shows as the frame has read it for the page;
   the frame reads them with `readMany` before it calls `render`, a hundred to a batch (`A PAGE LOAD READS THE REPOSITORY IN BATCHES`), and keeps no list of files for any route. A route whose
@@ -174,6 +177,12 @@ It keeps nothing but what is on the screen. It owns these formats:
   no `page`, the frame's default `page` stands beside what it gives. A route that gives none, or whose
   `subject` gives `null` for these parameters, has the frame's default: the route's title, and as the page the route's title, the menu entry of the page shown, the product, and the text the route has drawn, which holds no stored secret, since a stored
   secret is shown only in a hidden field (`A STORED SECRET IS HIDDEN UNTIL SHOWN`).
+  `folders` names the folders of the repository the route shows, for these `params`: the frame reads the snapshot of
+  the page with them (MOD-repository-hosts' `readSnapshot`), so that its paths are the files of those folders; a route
+  that names none is given the whole tree. A route that names `module` is drawn from the route that `module` gives: its
+  `name`, `entry`, `entryShown` and `title` stand in the view module, and the frame imports the rest when the route is
+  first shown, embedded or asked for its subject, after it has asked for every module of it at once (the page's
+  preloads), never level by level.
 - `ViewContext` — what every route is given: `{ page: "main" | "review" | "bridge", instance: { repository: string,
   host: Host }, product: ProductContext | null, store: Store, go(route: string, params?: Record<string, string>) -> void }`
   — `Host` and `Store` as

@@ -28,6 +28,7 @@ uses:
   - MOD-progress-measures.currentStage
   - MOD-progress-measures.buildInProgress
   - MOD-progress-measures.waitingForAPerson
+  - MOD-progress-measures.storedView
   - MOD-progress-measures.storedOverview
   - MOD-progress-measures.latestOverview
   - MOD-product-process.mayDecide
@@ -138,7 +139,13 @@ once, when the page is drawn, and never again (UC-046 4b). It stores nothing bet
     and *Reject* with a reason. *Pass gate* stays unavailable, with the role and its holders named, for a person who does
     not hold the deciding role or did the work the gate checks (`A GATE IS NOT DECIDED BY THE PARTICIPANT WHOSE WORK IT
     CHECKS`). The decision is recorded with `recordGateDecision` under the person's account; the job's route resumes or
-    ends the job when it notices the record (ARC-037).
+    ends the job when it notices the record (ARC-037). *Retry* and *Pass gate* take the states, holds and running
+    sprints of the job's items from the backlog's view of the product's head (MOD-progress-measures' `storedView`, `asOf`
+    null), and read besides only the declaration, the declared model's file and the role assignments; while the head's
+    view is not stored yet, they say so and offer nothing, and where the product stores no view, they read the facts of
+    the scope `work`. The route reads the one record `docs/jobs/<id>.md` — of the product the address names, else of the
+    first repository among the instance and the kept products whose tree holds it — and asks the live state of that job
+    alone; it reads no other job's record.
 
 ## Files
 
@@ -167,7 +174,8 @@ instance repository through their hosts, and the browser's store for the product
 - MOD-progress-measures.productFacts, MOD-progress-measures.stageShares, MOD-progress-measures.currentStage,
   MOD-progress-measures.buildInProgress, MOD-progress-measures.waitingForAPerson — the cards, the workflow and gate
   states of a product, and what waits; MOD-progress-measures.storedOverview — the overview stored for a commit;
-  MOD-progress-measures.latestOverview — the overview stored last, while the head's is not stored yet.
+  MOD-progress-measures.latestOverview — the overview stored last, while the head's is not stored yet;
+  MOD-progress-measures.storedView — the backlog's view of a product's head, for *Retry* and *Pass gate*.
 - MOD-product-process.mayDecide — whether this person may decide the gate a job waits at;
   MOD-product-process.recordGateDecision — the decision.
 - MOD-job-ledger.listJobs, MOD-job-ledger.jobState, MOD-job-ledger.jobCost — the jobs, their states and costs;
