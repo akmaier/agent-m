@@ -1,6 +1,6 @@
 // MOD-prompt-bar, bar.mjs — the bar (docs/architecture/MOD-prompt-bar.md: Parts, Interfaces: startPromptBar, latestDraft, dropDraft, currentJob): the
 // selector, the input, *Send* and *Stop*, the conversation, the answer, and the hand-over a participant proposes: shown with its kind, what it
-// works on, its task, the participant and its route, checked with the product's start rules (hand-over.mjs), queued by *Hand over* and followed
+// works on, its task, the participant and its route (hand-over.mjs), queued as the participant's own job and followed
 // until it has ended (follow.mjs), with *Stop* cancelling it.
 //
 // Module: MOD-prompt-bar
@@ -196,7 +196,8 @@ export function startPromptBar(target, setup) {
     refreshStop();
   }
 
-  // The hand-over the participant proposed: whether the product's start rules let it start and the route it would take; *Hand over* queues it, on a person's click, and the bar follows it.
+  // The hand-over the participant proposed: the route it would take; it is queued as the participant's own job — no start rule of the product's process applies, its kind's own
+  // preconditions refuse it where they find something —, and the bar follows it.
   async function proposeHandOver(section, handOver, participant, subject) {
     const outcome = el("div", "outcome", el("p", "checking", "Checking whether it can start…"));
     section.append(el("p", "proposed", `Participant: ${participant.name} — ${placeOf(participant)}`), outcome);
@@ -207,7 +208,6 @@ export function startPromptBar(target, setup) {
         set.addEventListener("click", () => setup.go("settings"));
         parts.push(set);
       }
-      if (assessment.reasons.length) parts.push(el("ul", "start-reasons", ...assessment.reasons.map((each) => el("li", "reason", each))));
       outcome.replaceChildren(...parts);
     };
     // Queued at once where nothing keeps the work from starting: the person's Send, whose answer proposed it, is the request (UC-049 4a.2).
@@ -239,7 +239,7 @@ export function startPromptBar(target, setup) {
     try {
       const assessment = await assess({ handOver, participant, instance, page: pageOf() });
       render(assessment);
-      if (assessment.reasons.length === 0 && assessment.route !== null) await queueNow(assessment);
+      if (assessment.route !== null) await queueNow(assessment);
     } catch (failure) {
       outcome.replaceChildren(problem(`It could not be checked whether this can start. ${said(failure)}`));
     }
@@ -275,7 +275,7 @@ export function startPromptBar(target, setup) {
   }
 
   // A hand-over the participant proposed, carried out without a further click (UC-049 4a): in this tab where its kind's result waits for the person and the participant can do the
-  // kind — prepared as a message is, its draft kept for *Review the draft* —, else queued where the start rules let it start (proposeHandOver).
+  // kind — prepared as a message is, its draft kept for *Review the draft* —, else queued as the participant's own job (proposeHandOver).
   async function handOn(handOver, participant, subject, conversation, signal) {
     const section = el("section", "hand-over", el("h3", null, "The participant hands this on"),
       el("p", "kind", `Kind: ${handOver.kind}`), el("p", "works-on", `Works on: ${worksOnOf(handOver).join(", ")}`), el("p", "task", `Task: ${handOver.task}`));
