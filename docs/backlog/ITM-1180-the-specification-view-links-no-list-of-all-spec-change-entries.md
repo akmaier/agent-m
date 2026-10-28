@@ -19,13 +19,13 @@ origin:
 ## Outcome
 
 akmaier, on the Requirements page: "Keep as specified." UC-020 step 4 keeps the search and the filters.
-- The view's links are stated in MOD-trace-pages' specification row (MOD-trace-pages.md:111):
+- The view's links are stated in MOD-trace-pages' specification row (MOD-trace-pages.md:131):
   - first, only while an entry of a change queue waits, those entries, each with a link to it;
   - *Edit*, *+ Requirement* and *Arrange*;
   - *History of SPEC changes*.
-- `src/trace-pages/flow.mjs:588` also draws "All SPEC change entries" to `#spec-entry` (ITM-878). No accepted text names
+- `src/trace-pages/flow.mjs:634` also draws "All SPEC change entries" to `#spec-entry` (ITM-878). No accepted text names
   that link, and it goes.
-- `tests/trace-pages-waiting-changes.test.mjs:88-96` pins it, and changes with it.
+- `tests/trace-pages-waiting-changes.test.mjs:89-97` pins it, and changes with it.
 - The page's look is team 1's ITM-1178.
 
 ## Acceptance

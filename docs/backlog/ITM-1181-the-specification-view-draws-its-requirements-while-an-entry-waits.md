@@ -29,15 +29,15 @@ while that holds.
 - a pending-graph comparison gives an empty target only with an open proposal, and releasing that graph restores the
   requirement.
 
-**The path, read on `main`:** `src/trace-pages/flow.mjs:524-541` (`arrangement`) awaits `entryView(...).impact` for each
+**The path, read on `main`:** `src/trace-pages/flow.mjs:549-567` (`arrangement`, awaited at `:915`) awaits `entryView(...).impact` for each
 waiting entry before the tree is drawn. Since `c2e6e5c1` that impact reads the graph stored for the commit (MOD-spec-changes'
 Uses: `MOD-trace-graph.storedGraph`), one read of `<commit>.json.gz`, and builds none; a graph not stored rejects with
-`GraphNotStored`, which `arrangement` takes as no view (`.catch(() => null)`, `flow.mjs:531`). Since `dcf0badd` the
+`GraphNotStored`, which `arrangement` takes as no view (`.catch(() => null)`, `flow.mjs:556`). Since `dcf0badd` the
 route takes the waiting queues from the stored overview.
 
 **First task:** confirm that path as the data-flow path of the empty page, with the run that shows it (AGENTS.md §2),
 before any change.
-- MOD-trace-pages' specification row (MOD-trace-pages.md:111) shows the waiting entries first, and each requirement with
+- MOD-trace-pages' specification row (MOD-trace-pages.md:131) shows the waiting entries first, and each requirement with
   its status, among them *change proposed* and *removal proposed*.
 - So the tree may not wait on what an entry's impact does not need, and a requirement is drawn whatever the impact's
   state.

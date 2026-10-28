@@ -24,14 +24,15 @@ ITM-721 draws the modules view as the table MOD-trace-pages.md:113 states, one r
 `div.table-scroll`. At a phone's width its six columns of paths are wider than the window, so TST-904054 (`#arc`) and
 TST-904072 (`#module`) find it (`tests/site-usability.test.mjs`). `EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE`
 (SPEC.md:935-938) asks that tables be read on a phone without scrolling sideways, from the site's shared style sheets.
-The two findings stand as todos in the `TODAY` map of `tests/site-usability.test.mjs`, naming this item, beside
-`#backlog`'s and `#roles`' (ITM-919).
+The two findings stand as todos in the `TODAY` map of `tests/site-usability.test.mjs:70-72`, naming this item.
 
 **First task:** read whether MOD-site-frame's text gives the shared style sheet a narrow form of a table, in which a row's
 cells stand one under another, each labelled by its column. Read too whether one such rule serves `#backlog` and `#roles`
 as well (*nothing twice*). Where the text does not give it, the item stops for a draft.
 
-**The draft is `3ef0fce2`**, of MOD-site-frame, written at ITM-919's stop. It waits for akmaier.
+**The draft `3ef0fce2`** of MOD-site-frame, written at ITM-919's stop, is accepted: MOD-site-frame.md:106-110 gives the
+narrow form of a table below a phone's width, one rule for every route (approval of blob `866f160f`, `b6c70419`). The
+item is ready.
 
 ## Acceptance
 

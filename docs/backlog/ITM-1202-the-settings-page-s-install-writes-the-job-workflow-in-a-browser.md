@@ -22,9 +22,9 @@ origin:
 ## Outcome
 
 The Settings page's *Install* of Agent M's job workflow calls MOD-runtimes' `jobWorkflowFiles`. In a browser that throws:
-`src/runtimes/ci.mjs:221`, "MOD-runtimes: the job workflow's templates are read in Node; a browser cannot read them yet".
+`src/runtimes/ci.mjs:234`, "MOD-runtimes: the job workflow's templates are read in Node; a browser cannot read them yet".
 - The templates are `src/runtimes/workflow/github.yml` and `gitlab.yml` (MOD-runtimes' Parts). `templateAt`
-  (`ci.mjs:76-79`) reads them from the disk in Node and gives `null` in a browser.
+  (`ci.mjs:79-82`) reads them from the disk in Node and gives `null` in a browser.
 - The comment there gives the reason: a fetch of the module's own data file is allowed by the check NO SERVER
   (`tests/test_no_backend.py`) only for a module it lists, and it does not list MOD-runtimes.
 - So every installed `agent-m-jobs.yml` of the last two days was generated in Node by hand (`5008e0f4`, `709173aa`,

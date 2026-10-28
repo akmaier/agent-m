@@ -26,7 +26,11 @@ the agent can still leak the one key it holds. It names the next steps:
 - a spending limit on that key;
 - a restricted network on the agent's machine.
 
-No sentence of SPEC.md, no use case and no module file states either.
+Since `431e480c` and `bb9d1753` no model reads a credential (`NO MODEL READS A CREDENTIAL`, SPEC.md:737-742, accepted
+2026-10-27): the model's run works as a user of its own beside a key holder that keeps the key and forwards only paths of
+its endpoint (`src/endpoint-calls/index.mjs:307-326`, `src/runtimes/workflow/github.yml:5`). That narrows the leak the
+rationale names; it sets neither a spending limit nor a restricted network. No sentence of SPEC.md, no use case and no
+module file states either.
 
 ## Not ready: a SPEC change for akmaier first
 
