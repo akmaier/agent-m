@@ -116,3 +116,20 @@ test("#progress — without a running sprint, each team says so and links its pl
     assert.doesNotMatch(html, /xychart-beta|data-end-sprint/);
   } finally { page.done(); }
 });
+
+// TST-1262001 · level: component · module: MOD-implementation-pages
+// guards: UC-041; CLOSING A SPRINT CAN BE ASSIGNED TO A PARTICIPANT
+// given: the same product with team1's sprint 03 ended on 2026-10-24 and not closed
+// input: the route progress's render
+// expect: team1's panel says that its review and retrospective are not recorded yet, offers no link to a route sprint/<team>/<n>/close and no Close sprint, and holds no chart
+test("#progress — an ended sprint says its review and retrospective are not recorded yet, and offers no close page", async () => {
+  const { productFiles, sprint } = await import("./implementation-pages-sprints.mjs");
+  const files = productFiles({ [TEAM1_RUNNING]: sprint({ n: 3, start: "2026-10-20", end: "2026-10-24", goal: "Store and show", selection: ["ITM-001", "ITM-002"] }) });
+  const page = await render("progress", {}, { files });
+  try {
+    const team1 = part(page.html(), 'data-team="team1"');
+    assert.match(team1, /review and retrospective are not recorded yet/, "known positive: the panel is the one of an ended sprint");
+    assert.doesNotMatch(team1, /#sprint\/[^"]*\/close|Close sprint/);
+    assert.doesNotMatch(team1, /xychart-beta/);
+  } finally { page.done(); }
+});
