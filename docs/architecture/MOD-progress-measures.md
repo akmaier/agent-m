@@ -68,6 +68,7 @@ provides:
   - publishOverview
   - storedOverview
   - latestOverview
+  - waitingQueues
   - ProgressView
   - BacklogView
   - progressView
@@ -310,14 +311,20 @@ The six stages of the main page, each a share between 0 and 1:
 - `storedOverview(snapshot: Snapshot) -> Promise<{ shares: Array<{ stage: string, share: number | null, detail: string }>,
   waiting: Array<{ kind: string, id: string, path: string }>, model: string | null, build: { states: ItemState[],
   records: Array<{ path: string, text: string }> }, queues: Queue[] } | null>` — the overview stored for the snapshot's
-  commit, as listed under Data, read with the snapshot's `readOn` in one request, once for each snapshot however many
-  callers ask; `null` without `readOn`, or when the branch or the file is missing or holds another format — an overview
+  commit, as listed under Data, read with the snapshot's `readOn` in one request, once for each commit in a page however
+  many snapshots and callers ask, since a commit's overview never changes; `null` without `readOn`, or when the branch or the file is missing or holds another format — an overview
   without the model, the build and the queues among them.
 - `latestOverview(snapshot: Snapshot) -> Promise<{ commit: string, shares, waiting, model, build, queues } | null>` — the
   overview stored last on the branch, whichever commit it is of: the commit `latest.json` names and that commit's
   overview, as `storedOverview` gives it, read with the snapshot's `readOn` in two requests. What a page shows while
   the overview of its head is not stored yet, never deriving one itself; `null` without `readOn`, or when the branch,
   `latest.json` or the overview it names is missing or holds another format.
+- `waitingQueues(snapshot: Snapshot) -> Promise<{ queues: Queue[], asOf: string | null }>` — the change queues with an
+  entry that is not in the SPEC yet, each entry with its state: those of `storedOverview`, and `asOf` null; while that
+  is not stored yet, those of `latestOverview`, and `asOf` its commit; where the repository stores no overview, those
+  MOD-spec-changes' `queues` derives from every queue of the snapshot, and `asOf` null. The one reading of the waiting
+  queues, for the pages and for `waitingForAcceptance`. Crosses the network through the snapshot; fails with the host's
+  errors but `NotFound`.
 - `storedView(snapshot: Snapshot, page: "progress" | "backlog" | "schedule") -> Promise<{ view: ProgressView | BacklogView | ScheduleView, asOf:
   string | null } | null>` — the page's view of the snapshot's commit, read with the snapshot's `readOn` in one request,
   and `asOf` null; while that is not stored yet, the view of the commit `latest.json` names, in two requests more, and
@@ -327,15 +334,15 @@ The six stages of the main page, each a share between 0 and 1:
 - `waitingForAcceptance(host: Host, snapshot: Snapshot) -> Promise<Array<{ kind: "SPEC change" | "use case" |
   "architecture decision" | "module" | "release test report", id: string, path: string, blob: string }>>` — what waits
   for the person's acceptance in one repository, the instance's or a product's, the snapshot being its default branch
-  through `host`, derived from its files, records and tags alone, as `waitingForAPerson` derives open use cases and SPEC
-  changes (`A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE`, `STATUS IS DERIVED FROM THE RECORDS`): every entry of a
-  change queue in the state `open`, `stale` or `waiting for its anchor` (MOD-spec-changes); every use case, architecture
+  through `host`, derived from its files, records, tags and stored overview alone, as `waitingForAPerson` derives open use cases and SPEC
+  changes (`A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE`, `STATUS IS DERIVED FROM THE RECORDS`): every entry of the
+  queues `waitingQueues` gives in the state `open`, `stale` or `waiting for its anchor`; every use case, architecture
   decision and module file whose status is `open` or `changed` (MOD-approvals); and the release test report that waits
   for *Accept and release*, if one does (MOD-release-evidence' `reportsAwaitingAcceptance`). `id` is the identifier an
   approval record names it by — `UC-<nnn>`, `ARC-<nnn>`, `MOD-<slug>`, `spec-<queue>-<NN>` for an entry,
   `release-v<version>` for a report —; `path` is its file — for an entry its proposal, for a report the record of its
-  candidate's complete run —; `blob` is that file's blob. Considers: it reads the snapshot and the tags, not the
-  product's facts, so that a caller that asks every few minutes reads no pull requests, CI runs or test results, and job
+  candidate's complete run —; `blob` is that file's blob. Considers: it reads the snapshot, the tags and the stored
+  overview, not the product's facts, so that a caller that asks every few minutes reads no pull requests, CI runs or test results, and job
   records only while a release candidate is pending, newest first and no further back than the first run of a candidate.
   Crosses the network through the host and the snapshot, for the texts it has not read yet; fails with their errors —
   `TokenRefused`, `PermissionMissing`, `RateLimited`, `Unreachable` —, and with `NotSupported` through a host that does
@@ -354,10 +361,10 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
   `docs/gates/`, `docs/jobs/`, `docs/tests/schedule.md`, the generated configurations, the test files, `docs/resources.md`
   and the branch `test-results`; its pull requests, CI runs and tags; of the instance, `docs/participants.md`, the process models and `SPEC.md`, whose requirements are the process
   requirements, and the process models at the commit the product's declaration names.
-- Reads, for `waitingForAcceptance`, through the snapshot it is given: `docs/approvals/`, `docs/spec-freigaben/`,
-  `docs/use-cases/` and `docs/architecture/`; and, through MOD-release-evidence, the tags, `docs/tests/releases/` and,
+- Reads, for `waitingForAcceptance`, through the snapshot it is given: `docs/approvals/`, `docs/use-cases/` and
+  `docs/architecture/`, and through `waitingQueues` the overview, or `docs/spec-freigaben/` where none is stored; and, through MOD-release-evidence, the tags, `docs/tests/releases/` and,
   only while a release candidate is pending, `docs/jobs/` back to the first run of a candidate.
-- Reads, for `storedOverview`, `latestOverview` and `storedView`, `<commit>.json`, `<commit>.progress.json.gz`,
+- Reads, for `storedOverview`, `latestOverview`, `waitingQueues` and `storedView`, `<commit>.json`, `<commit>.progress.json.gz`,
   `<commit>.backlog.json.gz` and `latest.json` on the branch `overview-cache`.
 - Writes, for `publishOverview`, `<commit>.json`, `<commit>.progress.json.gz` and `<commit>.backlog.json.gz` on the
   branch `overview-cache`, only by adding, and `latest.json` there, in the same commit.

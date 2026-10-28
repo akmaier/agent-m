@@ -38,6 +38,7 @@ uses:
   - MOD-job-ledger.jobCost
   - MOD-runtimes.routesFor
   - MOD-runtimes.liveState
+  - MOD-runtimes.liveStates
   - MOD-runtimes.jobLog
   - MOD-runtimes.cancelJob
   - MOD-runtimes.retryJob
@@ -123,13 +124,19 @@ once, when the page is drawn, and never again (UC-046 4b). It stores nothing bet
     branch (MOD-progress-measures' `stageShares`); that cost is accepted. The stored overview is a record of the
     repository, derived from that commit alone by `onMainChanged` (MOD-workflow-entries), never kept in the
     browser. The rows of the build are the same whether the stage bar comes from a stored overview or from the scope `all`.
+    The instance's snapshot, which the scope `all` takes for the participants and the process models, is read only for
+    a card drawn from that scope, once for all such cards, and for Agent M's own card; while every card has an overview,
+    the route reads none of the instance.
   - `jobs` — first, what waits for a person across the instance, each item linked to the page where it is decided
     (MOD-progress-measures' `waitingForAPerson`, from the instance's own stored overview where there is one); then every
     job of
     every product and of the instance in one list — the job of this tab's conversation in the
     prompt bar among them, which has no record and is shown as this tab's (`currentJob`) —, waiting at a gate first, filtered by product,
     state, participant or runtime; each row with identifier, product, what it works on, kind, participant, where it
-    runs, state, elapsed time and cost where known; a source that cannot be reached is named with its reason.
+    runs, state, elapsed time and cost where known; a source that cannot be reached is named with its reason. The list
+    reads every record, in batches (`listJobs`), since which jobs have not ended — those it shows first — is known only
+    from their records; the live states of the jobs without an end it asks with MOD-runtimes' `liveStates`, which lists a
+    repository's runs of the job workflow once.
   - `job` (`params.id`) — one job: its inputs, its commits and pull request and its CI runs (MOD-runtimes' `jobTrail`), its log while it runs, its
     cost — or *unknown* (`NO COST IS GUESSED`); *Cancel* for a queued, running or waiting job, whose end, cancelled,
     MOD-runtimes' `cancelJob` appends once its runtime confirms, and beside a commit written after the cancel, *Revert*
@@ -181,7 +188,7 @@ instance repository through their hosts, and the browser's store for the product
 - MOD-job-ledger.listJobs, MOD-job-ledger.jobState, MOD-job-ledger.jobCost — the jobs, their states and costs;
   MOD-prompt-bar.currentJob — the job of this tab's conversation; MOD-prompt-bar.Subject — the subject the route `job` gives the prompt bar for the retry of a job that ran in a tab: the job's kind as its page and its inputs as its parameters, so that the conversation hands the retry on to that kind (UC-049 4a);
 - MOD-runtimes.routesFor — the routes a retry may take, for the product's resource needs in its facts;
-  MOD-runtimes.liveState, MOD-runtimes.jobLog,
+  MOD-runtimes.liveState, MOD-runtimes.liveStates, MOD-runtimes.jobLog,
   MOD-runtimes.cancelJob, MOD-runtimes.retryJob — live states, logs, cancel and retry at each job's route, the Bridges
   handed in; MOD-runtimes.jobTrail, MOD-runtimes.revertAfterCancel — a job's commits, pull request and CI runs, and the
   revert of what it wrote after its cancel; MOD-work-plans.startable — whether a retried job's step or item may start.
