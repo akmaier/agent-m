@@ -1,5 +1,5 @@
 ---
-id: ITM-1252
+id: ITM-1256
 title: A change drafted from an issue shows its candidates beside their requirements, and each conflict is decided
 level: module
 realises:
@@ -14,7 +14,7 @@ tests:
 origin:
   - the review of ITM-584 (PR #1379) by reviewer-sonnet: the issue route lists the candidates and writes no conflict, and offers no way to decide one
 ---
-# ITM-1252 A change drafted from an issue shows its candidates beside their requirements, and each conflict is decided
+# ITM-1256 A change drafted from an issue shows its candidates beside their requirements, and each conflict is decided
 
 **REGISTER**
 
