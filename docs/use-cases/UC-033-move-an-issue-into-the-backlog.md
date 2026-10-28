@@ -57,7 +57,7 @@ so that the work is planned like every other item.
    corrects it.
 4. The Product Owner presses **Add**: one click. Agent M:
    - commits the item file under `docs/backlog/`;
-   - adds a comment to the issue with the item's identifier and a link to it on the dashboard;
+   - adds a comment to the issue with the item's identifier and a link to the item file in the product's repository;
    - adds the label `backlog` to the issue.
 5. The item appears in the backlog (UC-032):
    - A bug item is *ready*.
