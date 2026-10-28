@@ -22,11 +22,13 @@ origin:
 
 ## Outcome
 
-`docs/assets/review-core.mjs` repeats MOD-approvals' records and status, MOD-spec-document's sections and
-MOD-text-tools' hashes. Once the review views, the main page's progress and the old trace graph no longer import it, it
-goes.
+`docs/assets/review-core.mjs` repeated MOD-approvals' records and status, MOD-spec-document's sections and
+MOD-text-tools' hashes. It is gone: `790a3584` removed it with its last import, in `src/site-frame/dashboard-app.mjs`,
+and its line in MOD-approvals' Parts.
 
-It waits for akmaier's acceptance of the module-file draft committed with the plan, which names these files as taken over in the module's Parts.
+What is left of the files MOD-approvals' Parts name as taken over: `tests/test_approval_records.py`, "rewritten on this
+module, or removed with the old core" (`docs/architecture/MOD-approvals.md:63`). It still checks the records through
+`record_problems` of `tests/artifact_checks.py:116`, a Python twin, not through MOD-approvals.
 
 ## Acceptance
 
@@ -37,6 +39,6 @@ It waits for akmaier's acceptance of the module-file draft committed with the pl
 
 **Noted at sprint team1/89's end gates.** `tests/release-sprint-02-c-review-core.test.mjs:204` failed once on CI (run
 39127567347, job 117675817449) in its own cleanup: "ENOTEMPTY: directory not empty, rmdir '…/.git/objects/pack'", from
-`rmSync` at `:227`. It looks like a race between the cleanup and git still writing pack files. MOD-approvals.md:58 names the
-file as taken over, so this job, when it rewrites or removes the file, makes its cleanup wait for git or retry.
+`rmSync` at `:227`. It looks like a race between the cleanup and git still writing pack files. The cleanup is now `rmSync` at `:244`,
+which neither waits for git nor retries; MOD-approvals' Parts no longer name this file as taken over.
 

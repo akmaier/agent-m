@@ -22,7 +22,7 @@ origin:
 
 ## Outcome
 
-UC-020 1b: "compares two versions". MOD-trace-graph provides `compareGraphs`, which is not built (`src/trace-graph/index.mjs:10-11`).
+UC-020 1b: "compares two versions". MOD-trace-graph provides `compareGraphs` (`docs/architecture/MOD-trace-graph.md:260`), which is not built: no file under `src/` names it.
 
 **The reading of 2026-10-17 (sprint team1/63): it waits for ITM-599's merge.** It compares in that view.
 `compareGraphs` and `showDifference` are in MOD-trace-pages' Uses. `compareGraphs` is not built, and its rule is stated in
