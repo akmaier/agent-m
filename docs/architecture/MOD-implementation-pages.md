@@ -72,9 +72,12 @@ uses:
   - MOD-run-planner.runStrategies
   - MOD-progress-measures.productFacts
   - MOD-progress-measures.progressIn
-  - MOD-progress-measures.gateOverview
-  - MOD-progress-measures.blocked
-  - MOD-progress-measures.whoWorksOnWhat
+  - MOD-progress-measures.ProgressView
+  - MOD-progress-measures.BacklogView
+  - MOD-progress-measures.progressView
+  - MOD-progress-measures.backlogView
+  - MOD-progress-measures.storedView
+  - MOD-repository-hosts.readFileAt
   - MOD-test-schedule.scheduleStrategies
   - MOD-result-records.resultStrategies
   - MOD-participant-list.participantSchema
@@ -164,21 +167,32 @@ Its formats are those of the modules it uses.
   - `models`, `models/<name>` — the instance's process models: the catalogue, *Adapt* and *+ New model* with a form from
     the model's schema, the live diagram, the errors beside their fields, the preview of every accepted requirement in
     every phase, *Save* only without errors, with `saveFile`.
-  - `plan` — the architecture's subsystems and modules beside the plan's steps with their derived states and what each
+  - `plan` — first the declaration and the declared model's file at the commit the declaration names, read with
+    MOD-repository-hosts' `readFileAt`: for a model that works from a backlog, a link to `backlog`, and nothing else is
+    read (UC-045 1a); otherwise the architecture's subsystems and modules beside the plan's steps with their derived states and what each
     waits for, a step marked where `planFindings` with the history names its module or subsystem changed or removed since
     the step was saved, and a module without a step named (UC-045); *Draft the plan* with its run panel, run in this tab and attended, whose result waits for the planner; the
     draft reviewed in order, reordered, split, merged or edited where its dependencies allow; *Save plan*, which lets the
     drafted plan go on as the planner left it, or writes a plan made by hand with `savePlan`; *+ Step*.
   - `backlog`, `board` — the items, each after the items it builds on, with their derived states, the requirements and
     use cases no item realises; in a model with sprints, for each team its last sprint that has ended, linked to its
-    record, with its final burn-down from `progressIn`; *Propose items* with its run panel, whose drafts wait for the Product Owner, and *Add to
+    record, with its final burn-down; *Propose items* with its run panel, whose drafts wait for the Product Owner, and *Add to
     backlog*, which lets them go on as edited; *+ Item*, an item pointed at a replacing requirement or removed, with
     `saveItems`; in a product with several teams, what the other teams' sprints hold, from `heldItems`, and on each item
     the marks `conflicts` gives; *Plan sprint* and *Start sprint* for the person's team with `startSprint` — with the
     parameter `plan` naming a team, as `progress` links it, the route opens with that team's planning, and a planning
     opened or cancelled on the page is drawn from what the route has read, without reading it again; for a model with a
-    work-in-progress limit, the board and *Pull*, refused at the limit with the items in progress named. It reads the
-    product's facts with the scope `work`, every pull request among them.
+    work-in-progress limit, the board and *Pull*, refused at the limit with the items in progress named. The route
+    `backlog` draws the view stored for the head (MOD-progress-measures' `storedView`) and reads no record, no facts and
+    no pull request: each item, sprint and job links to its own file, which is read only when the person opens it; while
+    the head's view is not stored yet, it draws the view stored last, with the line `storedView` gives, and only where the
+    repository stores no view does it derive the same view in the page (`backlogView`, from the facts of the scope
+    `work`). *Plan sprint* and *Cancel* draw from the view read. *Start sprint* is offered on the head's own view only:
+    on the click it reads the declaration, the declared model, the module files and the team's running sprint at the
+    view's commit, and hands them with the view's states and holds to `startSprint`, which writes on that commit. The
+    route `board` reads the declaration and the declared model's file first, as `plan` does: for a model without a
+    work-in-progress limit it says so and reads nothing else; with one, it reads the product's facts with the scope
+    `work`, every pull request among them.
   - `sprint/<team>/<n>/close` — the increment and the items not done, the feedback lines, the unfinished items' decisions, the
     retrospective with the sprint's numbers as material; *Close sprint* with `closeSprint`, offered only with a
     retrospective entry and a decision for every unfinished item; *Merge increment* as a pull request whose CI must be
@@ -189,7 +203,9 @@ Its formats are those of the modules it uses.
     target branch, the gates the jobs will meet and who decides them; *Start jobs*, which queues each job on its
     participant's route — handed to a Bridge at once where the route is one; for each pull request its CI runs and
     whether the Definition of Done holds, and *Merge* once it does; where `repositoryInfo` gives `greenToMerge` false,
-    that the server does not enforce "merge only on green", with the page `branchProtection` (UC-024 12a).
+    that the server does not enforce "merge only on green", with the page `branchProtection` (UC-024 12a). It reads the
+    product's facts with the scope `work` once, at the head the jobs start on, and derives every item's state and
+    whether it can start from them, not from a stored view.
   - `run` — the selection with the order and what each waits for as a diagram, the limits — jobs at once, cost,
     correction rounds —, the plan from the model, *Start run*, which commits the run's record and starts the first
     actions `nextActions` returns, each on its route; while the page is open, the run's next actions of this page's route
@@ -207,8 +223,11 @@ Its formats are those of the modules it uses.
     ended; a team without a running sprint says so; *Plan sprint* and *Change the selection* lead to `backlog` with
     `plan=<team>`, and a link leads to `backlog`, where every item and each team's last ended sprint stand; what is
     blocked among the items the running sprints hold; who works on what, each current job linked to its page on the job
-    dashboard (UC-036). It reads the product's facts with MOD-progress-measures' scope `now`, so that no pull request
-    closed before the oldest running sprint started is listed, and draws no final burn-down.
+    dashboard (UC-036). It draws the view stored for the head (MOD-progress-measures' `storedView`) and reads no record,
+    no facts and no pull request, and it names no first wave (`reads`); while the head's view is not stored yet, it draws
+    the view stored last, with the line `storedView` gives, and only where the repository stores no view does it derive
+    the same view in the page (`progressView`, from the facts of the scope `work`). *End sprint* is offered on the head's
+    own view only, and writes on its commit. It draws no final burn-down.
 
 ## Files
 
@@ -217,7 +236,8 @@ under `docs/role-assignments/`, and a model under `docs/process-models/` of the 
 items and sprints through MOD-work-plans'
 functions, or, for a drafted plan or drafted items, through the writer of their kind; a job's start record, and the end of a cancelled job, through
 MOD-runtimes; merges of pull requests, and the pull
-request of a sprint branch. It reads the product's snapshot, its pull requests and CI runs, and the instance's
+request of a sprint branch. It reads the product's snapshot, the views of progress and backlog stored on its branch
+`overview-cache` (through MOD-progress-measures), its pull requests and CI runs, and the instance's
 participants, process models, source register and `SPEC.md`, whose requirements are the process requirements, and the
 product's `docs/sources.md`.
 
@@ -264,8 +284,12 @@ product's `docs/sources.md`.
   MOD-trace-graph.latestGraph — for the plan, while the graph of the commit shown is not stored yet, the graph stored last,
   with that function's line above the page; the steps, their states and the statuses of the architecture files stay the
   commit's own.
-- MOD-progress-measures.productFacts, MOD-progress-measures.progressIn, MOD-progress-measures.gateOverview,
-  MOD-progress-measures.blocked, MOD-progress-measures.whoWorksOnWhat — the product's facts and its progress.
+- MOD-progress-measures.productFacts, MOD-progress-measures.progressIn — the product's facts and its progress, for the
+  routes that act on the head; MOD-progress-measures.ProgressView, BacklogView, progressView, backlogView, storedView —
+  what `progress` and `backlog` draw: the view stored for a commit, or, where the repository stores none, the same view
+  derived in the page.
+- MOD-repository-hosts.readFileAt — the declared model's file at the commit the declaration names, which `plan` and
+  `board` read before anything else.
 - MOD-participant-list.participantSchema, MOD-participant-list.participantsOf, MOD-participant-list.eligible — the
   participants a role or a job may have.
 - MOD-source-register.sourceSchemas, restrictedPlaces — the product's links to its sources and the linked entries of the
@@ -273,9 +297,9 @@ product's `docs/sources.md`.
   source permits, against which the route `implement` judges the participants it offers: a participant whose place a
   linked source forbids is offered only where the job needs none of that source's content, and the content is named
   (UC-024 5b).
-- MOD-spec-document.parseSpec — the names of the requirements the product's SPEC holds, which the route `backlog` lists
-  where no item realises them; the facts of the scope `work` carry none, so the route takes them from the facts stored
-  for the commit and, where none are stored, reads the SPEC and parses it with `parseSpec`.
+- MOD-spec-document.parseSpec — where the repository stores no view, the names of the requirements the product's SPEC
+  holds, which the backlog's view derived in the page lists where no item realises them; the facts of the scope `work`
+  carry none, so the route reads the SPEC and parses it with `parseSpec`.
 - MOD-job-catalogue.kindOf — a kind's purpose and whether its result waits for a person; MOD-job-runner.prepareJob — the
   run panels; MOD-job-runner.writeResult — a drafted plan or drafted items written on the person's click.
 - MOD-job-ledger.newJobId, MOD-job-ledger.listJobs, MOD-job-ledger.jobState — the jobs a page starts and follows;

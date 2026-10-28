@@ -229,9 +229,9 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
 - `openPullRequest(request: { branch: string, base: string, title: string, body: string, draft?: boolean }) ->
   Promise<PullRequest>` — crosses the network; fails with `TokenRefused`, `PermissionMissing`, `RateLimited`, `Unreachable`,
   `NotSupported`.
-- `listPullRequests(filter: { state?: "open" | "merged" | "closed" | "all", branch?: string, updatedSince?: string })
-  -> Promise<PullRequest[]>` — with `updatedSince`, a date, only the pull requests last updated on or after it. The pages
-  of a listing are asked for at once, once the server has said how many there are, never one after the other. Crosses
+- `listPullRequests(filter: { state?: "open" | "merged" | "closed" | "all", branch?: string })
+  -> Promise<PullRequest[]>` — the pages of a listing are asked for at once, once the server has said how many there
+  are, never one after the other. Crosses
   the network; fails as `readSnapshot`.
 - `containsCommit(ref: string, commit: string) -> Promise<boolean>` — whether the history of a branch or a tag holds the
   commit: on GitHub and GitLab through the server's comparison of the two, in a clone with `git merge-base
