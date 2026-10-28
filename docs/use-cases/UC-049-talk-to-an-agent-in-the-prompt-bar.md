@@ -17,6 +17,9 @@ realises:
   - A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
   - A PARTICIPANT DECLARES ITS CAPABILITIES
   - THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE
+  - A REQUEST IN THE PROMPT BAR IS DONE AS A DEVIATION FROM THE PROCESS
+  - A DEVIATION FROM THE PROCESS DECIDES NOTHING
+  - A DEVIATION FROM THE PROCESS NAMES WHO ASKED FOR IT
   - A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
   - RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
   - THE PLACES A MAILBOX'S MAIL MAY GO ARE CONFIGURED
@@ -158,19 +161,23 @@ sequenceDiagram
   the hand-over goes on without a further click. Nothing it starts accepts anything; only an approval record accepts.
   1. Where the kind's result waits for the author and the endpoint or CLI session can do the kind — a kind other than
      the conversation itself —, it runs in this tab at once, on the page's context. Its draft is shown as UC-019 describes, and the author saves it (step 6).
-  2. Any other kind is spawned as a job; the conversation itself handed on is the endpoint's own job. For a kind of the product's workflow, the hand-over names a participant of the
-     instance's list that holds the kind's role (UC-017), and the job goes to that participant, never to the endpoint
-     itself; where the product's start rules keep it from starting, the conversation names the reasons and nothing is
-     queued. For any other kind, the job is the endpoint's own, and its configuration names the CI secret that holds
-     its key (UC-003).
-  3. Agent M commits the record of a job in the product repository that names who does it, the page and the commit it
-     read, and none of the conversation's messages; it starts the product's job workflow (UC-010) with the task as the
-     workflow's input. The agent in the workflow reaches the endpoint with the key from that CI secret, and writes with
+  2. Any other kind is spawned as a job of the endpoint or CLI session itself — the conversation itself handed on among
+     them —, as the author's deviation from the product's process: no plan or backlog it must come from, no sprint's
+     selection, no work-in-progress limit, no role assignment and no gate holds it back, and it goes to no participant
+     of the instance's list. What it works on keeps its own rules: every requirement and use case an item names is
+     accepted, a change of code names the modules it changes, and the kind's own preconditions hold. A kind that decides
+     a gate or closes a sprint is not spawned. Where one of these keeps it from starting, the conversation names why and
+     nothing is queued. An endpoint's configuration names the CI secret that holds its key (UC-003).
+  3. Agent M commits the record of a job in the product repository that names who does it, the deviation with the
+     author who asked for it, the page and the commit it read, and none of the conversation's messages; it starts the
+     product's job workflow (UC-010) with the task as the workflow's input. The agent in the workflow reaches the endpoint with the key from that CI secret, and writes with
      the author's token from a CI secret.
   4. The prompt bar says *waiting for GitHub Actions* with the run's address and its state, until the run has ended.
   5. The run's answer appears in the conversation, with what it wrote, as the job's record lists it: a change of
      requirements as an open entry of a SPEC change queue, a use case or an architecture file committed as open, an
-     edit of another document or a change of code as a pull request. In most cases that ends the conversation.
+     edit of another document or a change of code as a pull request into the default branch, which the job does not
+     merge: a person merges it once its CI is green and the Definition of Done holds. In most cases that ends the
+     conversation.
 - **4b. The tab is closed or loses its connection** while the endpoint or CLI session works. The conversation is gone. A
   run in GitHub Actions, or an agent on a Bridge, ends with what it has committed; the job's record shows it (UC-036).
 - **4c. The product has no job workflow or no CI secrets yet.** Nothing is handed over; the conversation says what is
@@ -181,11 +188,16 @@ sequenceDiagram
   processing place. The tool refuses and says why; it continues without it.
 - **4f. The conversation runs on GitHub Actions** — the endpoint's own job, which the bar spawns for an endpoint that
   runs only there. Nobody attends the run, so what the endpoint proposes is written at once, as proposals: an edit of a
-  document as a pull request; a hand-over whose kind's result waits for a person, other than the conversation itself, and which works on no item of the
-  backlog or step of the plan, runs in the same run, by that kind's definition, and its writer writes as 4a.5 says. A
-  hand-over of any other kind is not run there, since its start rules and its role are decided where a person starts
-  it; the record says so. The job's record lists every result. The review pages show what was written for acceptance
-  (UC-006, UC-008), each architecture file with its impact list.
+  document as a pull request; a hand-over of a kind other than the conversation itself runs in the same run, by that
+  kind's definition, as the author's deviation (4a.2) — a change of code in the run's checkout of the product —, and
+  its writer writes as 4a.5 says. A hand-over that 4a.2 keeps from starting is not run; the record says why. The job's
+  record lists every result. The review pages show what was written for acceptance (UC-006, UC-008), each architecture
+  file with its impact list.
+- **4g. A team's sprint holds the item the hand-over works on** (UC-032, step 6). The job runs all the same, as the
+  author's deviation; it is no job of the team. Its pull request goes into the default branch, not into the sprint's
+  branch. While it runs, the item is *in progress* and counts towards that team's work-in-progress limit (UC-032,
+  step 7). A job of the team on the same item goes on; the pull request a person merges first makes the item *done* and
+  ends the sprint's hold on it (UC-032, 6d), and the person closes the other.
 - **5a. The author presses Stop.** The loop in the tab ends and nothing is written; a run in GitHub Actions is cancelled
   and commits nothing more (UC-036).
 - **6a. The author discards a proposed edit.** Nothing is written.
@@ -208,6 +220,8 @@ sequenceDiagram
 - With recording off, no message of the conversation was written to a repository; with it on, every message the SPEC
   allows to be written is in the conversation record of the repository of its page. Beyond that, only what the author
   saved, or what a handed-over run committed, was written — as open artifacts, queue entries or pull requests.
-- Nothing was accepted by the endpoint, the CLI session or a job they started: none of them writes an approval record.
+- Nothing was accepted or decided by the endpoint, the CLI session or a job they started: none of them writes an approval
+  record, decides a gate, closes a sprint or merges a pull request.
+- Every job the bar spawned names, in its record, the deviation and the author who asked for it.
 - Every message went only to the endpoint or CLI session named above the prompt bar, with the processing place shown
   there.
