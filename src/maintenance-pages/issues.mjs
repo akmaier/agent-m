@@ -37,6 +37,7 @@ import { eligible, participantSchema, participantsOf } from "../participant-list
 import { personAccount, personSource, sourceSchemas } from "../source-register/index.mjs";
 import { jobTrail, queueJob, routesFor, runOnTab } from "../runtimes/index.mjs";
 import { reachableBy, resourceSchema } from "../resource-list/index.mjs";
+import { recordRoute } from "../prompt-bar/hand-over.mjs";
 import { runPanel, schemaForm } from "../site-frame/index.mjs";
 import { entryView, queues } from "../spec-changes/index.mjs";
 import { backlogFindings } from "../work-plans/index.mjs";
@@ -62,9 +63,6 @@ const CLASSES = [[IssueClass.bug, "bug", "Bug"], [IssueClass.change, "change", "
 const nameOf = (cls) => CLASSES.find(([value]) => value === cls)?.[1] ?? cls;
 const LABEL_OF = { [IssueClass.bug]: issueLabels.defect, [IssueClass.change]: issueLabels.change, [IssueClass.notReproducible]: issueLabels.notReproducible };
 const classOfLabels = (labels) => Object.values(LABEL_OF).find((label) => labels.includes(label)) ?? NOT_CLASSIFIED;
-
-// The route as a job's record writes it (MOD-job-ledger): `tab`, `ci hosted`, `ci runner:<label>` or `bridge <name>`.
-const recordRoute = (route) => (route.kind === "tab" ? "tab" : route.kind === "ci" ? (route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`) : `bridge ${route.bridge}`);
 
 // The issue's address, which the job's record names it by (MOD-job-ledger: works_on holds an issue's address): GitHub's /issues/<n>, GitLab's /-/issues/<n>.
 const issueAddress = (product, number) => `${product.address.replace(/\/$/, "")}${product.kind === "gitlab" ? "/-" : ""}/issues/${number}`;
