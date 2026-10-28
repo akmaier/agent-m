@@ -55,14 +55,15 @@ file names; it reads the person's token and the participant's key only from the 
 
 Running in a product's CI: taking and running the queued jobs of CI routes, resuming them after their gate, recording the decision of gates a CI check decides, running a test job's share
 of the product's tests with its own command, recording each test run's outcomes, checking pull requests against the
-Definition of Done, and the events in time — a sprint's end. Running in the instance's CI: applying approved
+Definition of Done, and the events in time — a sprint's end. Running in the CI of a product and of the instance alike: storing,
+for each commit of the default branch, what its pages read. Running in the instance's CI: applying approved
 changes of the instance's own SPEC, fetching legal texts, building and publishing the Bridge.
 
 ### The interface it offers
 
 | Module | Entry points CI runs |
 |---|---|
-| MOD-workflow-entries | in a product: `onRecordsChanged`, `onDoneCheck`, `onPullRequestClosed`, `onCheckCompleted`, `runTests`, `onTestsFinished`, `onSchedule`, `onDispatch`; in the instance: `onApprovalsCommitted`, `onSourcesCommitted`, `onReleaseTagged` |
+| MOD-workflow-entries | in a product: `onRecordsChanged`, `onDoneCheck`, `onPullRequestClosed`, `onCheckCompleted`, `runTests`, `onTestsFinished`, `onSchedule`, `onDispatch`; in the instance: `onApprovalsCommitted`, `onSourcesCommitted`, `onReleaseTagged`; in both: `onMainChanged` |
 
 Every entry reads its event, its secrets and the repository it runs in from the CI's environment, does its work through
 the shared modules and ends with a status CI shows; it keeps nothing between runs.
