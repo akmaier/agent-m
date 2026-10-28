@@ -1,6 +1,6 @@
 // The route `progress` — what goes on now (MOD-implementation-pages, docs/architecture/MOD-implementation-pages.md; Interfaces: progress; UC-035): in a model with sprints, each
 // team's running sprint with its goal, start, end, branch and closer, its items with their states and the modules they change and use, and its burn-down; *End sprint* for a running
-// sprint without a time box, the one write of this route, on the person's click; *Close sprint* for one that has ended; a team without a running sprint says so, and links its
+// sprint without a time box, the one write of this route, on the person's click; for one that has ended, that its review and retrospective are not recorded yet; a team without a running sprint says so, and links its
 // planning and the backlog; then the workflow's gates, what is blocked among the items the running sprints hold, and who works on what, each current job linked to its page on the
 // job dashboard. For a model without sprints it links the plan, the board or the backlog and names its measure as not drawn here yet. Everything is derived when shown from the
 // product's facts with MOD-progress-measures' scope `now` — the running sprints, and the pull requests open or updated since the oldest of them started —; nothing is stored
@@ -10,7 +10,7 @@
 // Module: MOD-implementation-pages
 //
 // Readings the texts leave open, which this file takes: a running sprint whose time box is over, or that the Product Owner ended, and whose close is not recorded yet has ended: its
-// panel offers Close sprint and draws no chart (the route draws no final burn-down); a job's page on the job dashboard is MOD-main-page's route `job` on the main page, which the
+// panel says so and draws no chart (the route draws no final burn-down); a job's page on the job dashboard is MOD-main-page's route `job` on the main page, which the
 // review pages reach at ../index.html; the item states and the burn-down are those of the facts of the scope `now`, which give each item of a running sprint its state.
 
 import { renderArtifact, renderMermaid } from "../markdown-render/index.mjs";
@@ -195,9 +195,8 @@ function teamPanel(context, ctx, team) {
       <td class="small" data-label="Uses">${(held?.uses ?? []).map(h).join(", ") || "—"}</td></tr>`;
   }).join("");
   const ended = text(f.end) || text((record.appended ?? []).find((section) => section.heading === "## Ended")?.fields?.at);
-  // A sprint whose time box is over, or that the Product Owner ended, waits for its close: Close sprint, and no chart (UC-032 6b).
-  const close = entry.final ? `<p class="muted">It ended on ${h(ended)}; its review and retrospective are not recorded yet.</p>
-    <p><a class="btn primary" href="#sprint/${encodeURIComponent(team)}/${encodeURIComponent(running.nn)}/close">Close sprint</a></p>` : "";
+  // A sprint whose time box is over, or that the Product Owner ended, waits for its closer, who closes it in a session of their own (UC-041): no chart (UC-032 6b).
+  const close = entry.final ? `<p class="muted">It ended on ${h(ended)}; its review and retrospective are not recorded yet.</p>` : "";
   const endable = !entry.final && !text(f.end) && !(record.appended ?? []).some((section) => section.heading === "## Ended");
   const chart = entry.final ? "" : entry.burnDown.length ? chartBlock(team, running.name, remainingOverTime(entry.items.map((st) => st.item), mergedAtOf(ctx.states, ctx.facts.pullRequests), text(f.start)))
     : `<p class="muted">No burn-down yet: the sprint starts on ${h(text(f.start))}.</p>`;
