@@ -9,10 +9,6 @@ modules:
   - MOD-run-planner
   - MOD-workflow-entries
 builds_on:
-  - ITM-982
-  - ITM-984
-  - ITM-985
-  - ITM-1035
 tests:
   - system
   - release

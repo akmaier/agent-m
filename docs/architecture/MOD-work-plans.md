@@ -248,13 +248,13 @@ assignment is the one of the team whose sprint holds it, and the product's one i
   not go well" | "change", goes: "process model" | "Definition of Done" | "a participant's instructions" | "team
   agreement" | null }>, newItems: Document[] }, context: { facts: ReturnType<typeof sprintFacts>, architecture:
   Document[], head: string, trailers: string[] }) -> Promise<{ commit: string, written: string[] }>` —
-  **Close sprint** (UC-041 step 6): appends `## Review` — the increment and the items not done from `facts`, the feedback,
+  the close of a sprint by its agent, through the writer `sprint-record` (UC-041 step 6): appends `## Review` — the increment and the items not done from `facts`, the feedback,
   who took part, for an agent the sources of its feedback —, `## Unfinished items` and `## Retrospective` to the sprint's
   file; adds the feedback's new items to the backlog as `saveItems` does, and records for each unfinished item whether it
   goes back to the backlog or into the team's next sprint; all in one commit. Errors: `NotFound { path }` for a sprint with no record, `RetrospectiveMissing` (UC-041 6a), `Undecided { items }` for an unfinished item
   without a decision, `AlreadyClosed`, `ItemsRefused { findings }`, and the host's.
 - `giveUpIncrement(host: Host, sprint: string, reason: string, context: { head: string, trailers: string[] }) -> Promise<{
-  commit: string }>` — the Product Owner's *Give up increment* for a closed sprint whose branch was not merged: appends
+  commit: string }>` — the Product Owner giving up the increment of a closed sprint whose branch was not merged: appends
   `## Increment given up` with the date, the person and the reason, in one commit; the sprint then holds none of its items
   (UC-041 7b). Errors: `NotFound { path }`, `NotClosed` for a sprint without `## Review`, `Merged` for a sprint whose
   branch's pull request is merged, and the host's.

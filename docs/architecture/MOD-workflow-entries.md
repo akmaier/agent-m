@@ -45,9 +45,6 @@ uses:
   - MOD-progress-measures.productFacts
   - MOD-runtimes.queueJob
   - MOD-runtimes.routeStrategies
-  - MOD-run-planner.runOf
-  - MOD-run-planner.nextActions
-  - MOD-run-planner.finishRun
   - MOD-run-planner.runStrategies
   - MOD-product-process.declarationSchema
   - MOD-product-process.productWorkflow
@@ -55,7 +52,6 @@ uses:
   - MOD-product-process.gateStates
   - MOD-product-process.doneCheck
   - MOD-product-process.recordGateDecision
-  - MOD-product-process.processStrategies
   - MOD-work-plans.sprintFacts
   - MOD-work-plans.workStrategies
   - MOD-issue-handling.closeWithLinks
@@ -222,7 +218,7 @@ so; a model's command there reaches what that user can.
   a model endpoint, the participant's key from its secret — a coding agent whose key a key holder can hold, as the model's
   user, through the holder (*The model's user*) —, appending its records. No person attends a job in CI: its
   kind's writer writes at once (`A CI AGENT'S DRAFT ENTERS AS OPEN`), and a kind that hands its draft back leaves it in
-  the record's end as `draft:`, from which the page shows it and a run starts the job that follows. A job whose draft
+  the record's end as `draft:`, from which the page shows it. A job whose draft
   holds a hand-over (MOD-job-runner's `hand-over`, UC-049 4f) is followed in the same run, with the same participant and
   driver, by a job of the kind it names, where that kind is not the job's own: its parameters the job's `source`, those
   MOD-job-runner's `handOverParams` gives for what it works on, and its task as `instruction`; prepared with that kind's
@@ -237,10 +233,7 @@ so; a model's command there reaches what that user can.
   job's end names it with why, as `not run: <kind> — <why>`; one whose run fails by MOD-job-runner's `failedBecause` is
   listed as `failed: <kind> — <why>`. The end lists every result of both: their commits,
   their files and pull requests, and their writers' notes. The entry resumes each
-  job of this route whose gate is now recorded (`A JOB STOPS AT EVERY GATE`); and computes the next actions of every run
-  the change concerns, from the product's facts read once, taking those of this route and queueing those of other routes
-  by their start records (`A RUN CONTINUES WITHOUT A CLICK BETWEEN ITS JOBS`). Two entries that compute the same action
-  are safe: only one taking lands. A job whose run ends by MOD-job-runner's `failedBecause` — an answer that could not be
+  job of this route whose gate is now recorded (`A JOB STOPS AT EVERY GATE`). A job whose run ends by MOD-job-runner's `failedBecause` — an answer that could not be
   read after the last round — ends `failed`, with no result, that reason and its rounds, and the entry ends `failed`. A
   job whose writer committed nothing, since its result equals the current files,
   ends done, and its end record and the entry's summary say `no change` (UC-010 4a).
@@ -260,8 +253,7 @@ so; a model's command there reaches what that user can.
   written by `agent-m records`, which runs no code of the product.
 - `onPullRequestClosed(env: CiEnvironment) -> Promise<EntryStatus>` — run by the job workflow when a pull request of a
   product is merged or closed: on a merge, the issues it names closed with links, and, on a GitLab server, when it is the
-  pull request that set up a run's CI, the project's pipeline schedule of the nightly run set from the merged schedule;
-  merged or closed, the next actions of the runs it concerns, as `onRecordsChanged` computes them.
+  pull request that set up a run's CI, the project's pipeline schedule of the nightly run set from the merged schedule.
 - `onCheckCompleted(env: CiEnvironment) -> Promise<EntryStatus>` — on a completed CI check that a gate of the product's
   workflow names as its decider: the gate's record — decided by that check, passed or not, on which commit (`A GATE NAMES
   WHO DECIDES IT`, `THE GATE IS RECORDED`) —, written through Process's `recordGateDecision`, whose push resumes the
@@ -434,10 +426,8 @@ sections with their decisions and the fetched texts of sources. Reads secrets on
   context carries.
 - `MOD-job-ledger.JobRecord`, `RecordPart`, `newJobId`, `startRecord`, `takeJob`, `appendToRecord`, `jobState` — the
   records of the jobs it takes, their parameters, and their ends with a draft handed back.
-- `MOD-runtimes.queueJob` — queueing the actions of other routes.
-- `MOD-progress-measures.productFacts` — the product's facts, read once per entry, from which the next actions of its
-  runs are computed.
-- `MOD-run-planner.runOf`, `nextActions`, `finishRun` — the runs, their next actions, and a run's end on `finish`.
+- `MOD-runtimes.queueJob` — queueing the close of a sprint an agent closes, in `onSchedule`.
+- `MOD-progress-measures.productFacts` — the product's facts, read once per entry.
 - `MOD-trace-graph.publishGraph`, `MOD-approvals.statuses`, `lastAcceptedText`, `MOD-progress-measures.publishOverview` —
   the records `onMainChanged` stores for each commit of the default branch.
 - `MOD-product-process.declarationSchema`, `productWorkflow`, `gateSchema`, `gateStates`, `doneCheck` — the workflow,
@@ -457,6 +447,6 @@ sections with their decisions and the fetched texts of sources. Reads secrets on
 - The strategies registered with the runner: `MOD-approvals.approvalStrategies`, `MOD-spec-changes.specStrategies`,
   `MOD-artifact-edits.editStrategies`, `MOD-source-register.sourceStrategies`, `MOD-reuse-facts.reuseStrategies`,
   `MOD-resource-list.resourceStrategies`, `MOD-work-plans.workStrategies`, `MOD-run-planner.runStrategies`,
-  `MOD-product-process.processStrategies`, `MOD-test-schedule.scheduleStrategies`,
+  `MOD-test-schedule.scheduleStrategies`,
   `MOD-result-records.resultStrategies`, `MOD-issue-handling.issueStrategies`, `MOD-runtimes.routeStrategies`. The
   strategies of the mail kinds are not registered: no mail reaches CI.

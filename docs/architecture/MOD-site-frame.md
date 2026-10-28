@@ -241,7 +241,7 @@ It keeps nothing but what is on the screen. It owns these formats:
   from the `holds` and `fitting` of its `notFitting` entry (UC-019 4a); a part left
   out, with its reason; the findings that keep the job from starting; the limit of correction rounds fixed for it. *Run*
   is offered only when nothing keeps the job from starting and everything fits; pressing it is the decision and calls
-  `onRun`. What the panel of a use case names besides — the route, the gates the jobs will meet, a run's limits — the
+  `onRun`. What the panel of a use case names besides — the route, the gates the jobs will meet — the
   view shows beside it.
 - `confirmDecision(decision: { title: string, lines: string[], confirm: string, reason?: boolean }) -> Promise<{ confirmed:
   boolean, reason: string | null }>` — the one dialog of a decision: what will happen, in the given lines; with `reason`,

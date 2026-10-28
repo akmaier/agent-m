@@ -89,7 +89,7 @@ provides:
 
 ## Responsibility
 
-It belongs to Process (ARC-042). It gathers, once per page or per evaluation of a run, every fact of one product that
+It belongs to Process (ARC-042). It gathers, once per page or per entry that reads them, every fact of one product that
 progress depends on, and derives from them — never from a stored status (`PROGRESS AND JOB STATE ARE DERIVED, NOT
 STORED`) — the product's progress in the measure its model names (`PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE`), the
 state of every gate, what is blocked and who works on what (UC-035), and, for the main page, the bar of six stages, the
@@ -220,7 +220,7 @@ The six stages of the main page, each a share between 0 and 1:
     none are stored for the commit, it reads the files, and that is no failure.
   - It also accepts a host that does no server operations, such as a Bridge's local clone, whose functions for the pull
     requests, the CI runs, the tags and the repository's information refuse with `NotSupported`: those facts are then
-    `"unknown"`, and merges and CI results are advanced by the Workflows' entries and the page.
+    `"unknown"`.
   - It asks no job's live state: the rows of `jobs` give the state of the record. A caller that asks the live states —
     from the CI service, from the Bridges and from this tab, through MOD-runtimes' `liveState` — derives the rows again with `listJobs`; a
     runtime that does not answer leaves its jobs as their records say, marked as not reachable (UC-035 1b), and progress is

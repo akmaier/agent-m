@@ -174,16 +174,14 @@ parts that would otherwise be near copies of each other in one place:
 | Template method, with descriptors | a page per kind of reviewed artifact, and a page per view over the trace graph. One review page and one trace page each run their flow once; a kind or a view adds only its descriptor. | MOD-review-pages, MOD-trace-pages (ARC-038) |
 
 The repository is also how the drivers coordinate without a server: a job is queued by committing its start record; the
-driver whose route the job names takes it by a commit that succeeds only on the head it read; and whenever a record
-changes, a driver that notices it computes the next actions of the runs concerned from the records, and starts those
-that are its own (process view). Nothing is kept anywhere else, so any driver can take over where another stopped.
+driver whose route the job names takes it by a commit that succeeds only on the head it read (process view). Nothing is kept anywhere else, so any driver can take over where another stopped.
 
 ### Subsystems
 
 | Subsystem | Decision | Responsibility | What it offers the subsystems above it |
 |---|---|---|---|
 | Site | ARC-038 | the pages people use: the main page at the root and the review pages under `docs/`; the menu in the order of the process; the Pattern Recognition Lab's look; one review page and one trace page for every kind and view; Markdown and Mermaid rendered safely; editors, forms, run panels, explanations; the browser's notifications of what waits for acceptance | its frame and renderer, which the Bridge's window uses |
-| Workflows | ARC-039 | the CI driver: the entries of Agent M's job workflow in each product repository — queued jobs, runs, gates decided by CI checks, the Definition-of-Done check, events in time —, of the test configuration generated from its schedule — a test job's share of the tests, each run's result record, the Definition-of-Done check —, and of the instance's own workflows | workflow entries, run by CI |
+| Workflows | ARC-039 | the CI driver: the entries of Agent M's job workflow in each product repository — queued jobs, gates decided by CI checks, the Definition-of-Done check, events in time —, of the test configuration generated from its schedule — a test job's share of the tests, each run's result record, the Definition-of-Done check —, and of the instance's own workflows | workflow entries, run by CI |
 | Bridge | ARC-040 | the desktop app on a person's computer: its local API, the jobs of coding agents on that computer, IMAP and SMTP, SSH tunnels, its window, its signed releases | the Bridge API, over HTTP, to the page and to the Bridge client |
 | Specification and design | ARC-041 | the change control of every reviewed artifact — requirements, use cases, the architecture, release test reports —: statuses from approval records, acceptance, change queues, saves | statuses, acceptance, proposals, saves, and the recipes and writers its artifacts' job kinds use |
 | Process | ARC-042 | how each product is developed and how its work is organised: process models and the product's declaration, gates and the Definition of Done, implementation plans and backlogs, runs, progress | workflows and gate states, item states and startability, the next actions of a run, progress and stage shares, and the recipes and writers of its job kinds |
@@ -424,22 +422,16 @@ sequenceDiagram
   end
 ```
 
-**A run and a gate.** A run is a job that names its jobs. Whenever a record changes — a job ended, a gate was recorded, a
-pull request was merged — a driver that notices it computes the run's next actions from the records alone and starts
-those of its own route. A job that reaches a gate appends that it waits there and stops; it resumes once the gate's
-decider has recorded the decision (`A JOB STOPS AT EVERY GATE`, `A RUN CONTINUES WITHOUT A CLICK BETWEEN ITS JOBS`).
+**A run and a gate.** A run is a job that names its jobs; the agent that carries it out starts each of them, and each
+names the run. A job that reaches a gate appends that it waits there and stops; it resumes once the gate's decider has
+recorded the decision, and the driver of its route notices the gate record (`A JOB STOPS AT EVERY GATE`).
 
 ```mermaid
 sequenceDiagram
   participant R as Repository server
-  participant W as A driver that notices the change
-  participant P as Process
+  participant W as The driver of the job's route
   participant J as Participants and jobs
   actor D as Gate decider
-  R-->>W: a record changed
-  W->>P: the next actions of the run, from the records
-  P-->>W: jobs to start or resume, and on which route
-  W->>R: start records for its own route
   Note over W,J: a job that reaches a gate appends it and stops
   D->>R: the gate record, from a person, an agent or a CI check
   R-->>W: the gate record
@@ -629,9 +621,9 @@ the strategies it uses are named with the subsystem that offers them.
 | UC-038 | Issues and mail reads the mailbox through its route, names mails by identifier and matches threads; the runner runs the kind that proposes issues and the kind that rewrites report data, each text checked by Issues and mail's search for the mail's people and the rewriting by three checking participants; issues are created or extended through Access on the person's click. |
 | UC-039 | Issues and mail derives the replies due from the issues and the mailbox; the runner runs the kind that drafts replies; Issues and mail stores them in the mailbox's Drafts folder, sends each only with the person's confirmation, and notes it in the issue through Access. |
 | UC-040 | Site's form, from Sources and resources' resource schema, keeps the entry; pins and facts are read through Access and the Hugging Face Hub; a resource is checked through the Bridge client, or by a check kind on a runner; the entry is committed through Access. |
-| UC-041 | Process derives the sprint's increment and numbers and records the review and the retrospective; an agent's close is a kind that the Workflows or a Bridge start when the sprint ends; merging the sprint branch is a pull request through Access. |
+| UC-041 | An agent's close is a kind that the Workflows or a Bridge start when the sprint ends; Process derives the sprint's increment and numbers and records the review and the retrospective; the sprint branch is merged through a pull request on the repository server. |
 | UC-042 | Site lists every setting: Access's browser store tests, clears, exports and imports the browser's; each repository setting is edited in a form from its owner's schema and committed through Access — the instance's switch of recording conversations after its notice names the public repositories Access reports. |
-| UC-043 | Process's run planner turns the selection into a run and its next actions — CI first, then the steps in the order of the interfaces, then the tests, then the validation —; Participants and jobs starts them; the Workflows and the Bridge keep the run going while no tab is open. |
+| UC-043 | A run is a job record of Participants and jobs that names its jobs, which the agent carrying it out starts in the model's order — CI first, then the steps in the order of the interfaces, then the tests —; Process's run planner reads a run from its record, computes its next actions and gives an implementation job its inputs; the validation is the Artifact model's module view (UC-025). |
 | UC-044 | Site offers the signed file of the Bridge's release and pairs it through Access; the Bridge's window, drawn with the Site's frame, lists the agents Participants and jobs finds, shows its token and opens its own tunnels. |
 | UC-045 | The runner runs the planning kind with Process's recipe of the architecture and the model; Process checks the draft against the module order the Artifact model derives; the plan is committed through Access. |
 | UC-046 | Site's main page reads the instance's or each product's snapshot through Access; Process derives the stage shares, the build in progress and what waits for a person, with the job states of Participants and jobs. |
