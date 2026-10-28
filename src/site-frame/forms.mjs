@@ -186,7 +186,9 @@ export function schemaForm(schema, opened, { onSave, extraChecks = () => [] }) {
   }
   show();
 
-  save.addEventListener("click", async () => {
+  // Answers only a click the browser marks as a person's (THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK).
+  save.addEventListener("click", async (event) => {
+    if (event?.isTrusted !== true || save.disabled) return;
     save.disabled = true;
     try {
       await onSave(documentNow());
