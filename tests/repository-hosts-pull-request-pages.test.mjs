@@ -105,8 +105,7 @@ test("listPullRequests on GitHub — page 1, then every other page at once", asy
 
 // TST-1252002 · level: unit · module: MOD-repository-hosts
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-035
-// given: the same repository, of whose pull requests 4 are updated on or after 2026-10-20 — 1 of the 3 open ones (1369) and 3 closed ones (1000 merged, 999 and 7 closed) —;
-//        and, as a second repository, one with 2,740 pull requests and the same 4 updated since
+// given: the same repository, of whose pull requests 4 are updated on or after 2026-10-20 — 1 of the 3 open ones (1369) and 3 closed ones (1000 merged, 999 and 7 closed) —; and, as a second repository, one with 2,740 pull requests and the same 4 updated since
 // input: listPullRequests({ updatedSince: "2026-10-20" }) on each
 // expect: those 4 and no other, each with its state — 1369 open, 1000 merged, 999 and 7 closed —; no request with state=all, and no request of closed pull requests that
 //         is not sorted by their update, newest first; the same number of requests for both repositories, however many pull requests each holds

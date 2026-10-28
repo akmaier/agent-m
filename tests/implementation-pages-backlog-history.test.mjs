@@ -23,8 +23,7 @@ const Q = '(?:&quot;|")';
 
 // TST-1252301 · level: component · module: MOD-implementation-pages
 // guards: UC-032 step 1; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
-// given: five items — ITM-001 merged, ITM-002 with an open pull request, ITM-003 merged during team2's sprint 02, ITM-004 and ITM-005 with none; team2's sprint 02, from 2026-10-06 to
-//        2026-10-12, closed with ITM-003 merged on 2026-10-08 at 10:15 UTC
+// given: five items — ITM-001 merged, ITM-002 with an open pull request, ITM-003 merged during team2's sprint 02, ITM-004 and ITM-005 with none; team2's sprint 02, from 2026-10-06 to 2026-10-12, closed with ITM-003 merged on 2026-10-08 at 10:15 UTC
 // input: the route backlog's render, with every pull request
 // expect: a row for every item with its state — ITM-001 done, ITM-002 in progress, ITM-003 done, ITM-004 and ITM-005 ready —; team2's panel names its last sprint team2/02, linked to
 //         its record, with its final burn-down — start, the merge on 10-08 at 10:15, end: 1, 0 and 0 left —; the listing of the pull requests is not bounded

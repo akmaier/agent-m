@@ -386,7 +386,7 @@ test("#backlog — the page is laid out as #uc and #arc are: panels, list tables
 test("#backlog and #progress — every table stands in a box of its own that scrolls sideways", async () => {
   const { page } = await backlogPage();
   await page.click('[data-plan="team2"]');
-  const html = page.main() + (await progressPage()).page.main();
+  const html = page.main() + part((await progressPage()).page.main(), 'data-team="team1"');
   const tables = html.match(/<table\b/g) ?? [];
   assert.equal(tables.length, 4, "known positive: team1's sprint, the plan, the held items and the backlog each show a table");
   const boxes = [...html.matchAll(/<div class="([\w-]+)"(?: tabindex="0")?>\s*<table\b[\s\S]*?<\/table>\s*<\/div>/g)].map(([, name]) => name);
