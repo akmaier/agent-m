@@ -20,7 +20,6 @@ import { statuses } from "../approvals/index.mjs";
 import { queues } from "../spec-changes/index.mjs";
 import { reportsAwaitingAcceptance } from "../release-evidence/index.mjs";
 import { resultsAt } from "../result-records/index.mjs";
-import { factsPath, factsText } from "./stored.mjs";
 
 // The human-readable kind MOD-progress-measures' waitingForAcceptance names a reviewed file by (Interfaces), keyed by
 // MOD-approvals' own kind (approval-record.schema.md). A kind with no entry here — release-report — names no
@@ -263,10 +262,10 @@ async function storedBuild(snapshot, facts) {
 const undecidedQueues = (facts) => (Array.isArray(facts.queues) ? facts.queues : []).filter((queue) => queue.entries.some((entry) => entry.state !== "in SPEC"));
 
 /**
- * publishOverview(host, snapshot, facts) -> Promise<{ commit: string, written: boolean }> — adds `<commit>.json` and `<commit>.facts.json` to the branch `overview-cache` by commitFiles, in one commit on the head
- * it read: the stage shares, what waits for a person, the declared model's name, the build (storedBuild) and the change queues with an entry not in the SPEC yet from `facts`, and the facts the commit's files
- * alone give (stored.mjs), `facts` being read with the scope `all` at the snapshot's commit. A file the branch holds already is left as it is, and the other is added; `written` is false when the branch holds
- * both. Crosses the network; fails as commitFiles fails, and with the host's NotFound where the repository has no such branch.
+ * publishOverview(host, snapshot, facts) -> Promise<{ commit: string, written: boolean }> — adds `<commit>.json` to the branch `overview-cache` by commitFiles, in one commit on the head it read: the stage
+ * shares, what waits for a person, the declared model's name, the build (storedBuild) and the change queues with an entry not in the SPEC yet from `facts`, `facts` being read with the scope `all` at the
+ * snapshot's commit. A file the branch holds already is left as it is; `written` is false when the branch holds it. Crosses the network; fails as commitFiles fails, and with the host's NotFound where the
+ * repository has no such branch.
  * @param {object} host MOD-repository-hosts' Host @param {object} snapshot the product's snapshot @param {object} facts
  */
 export async function publishOverview(host, snapshot, facts) {
@@ -280,7 +279,6 @@ export async function publishOverview(host, snapshot, facts) {
     files.push({ path: `${commit}.json`, text: `${JSON.stringify(overview)}
 ` });
   }
-  if (!branch.paths.includes(factsPath(commit))) files.push({ path: factsPath(commit), text: await factsText(snapshot, facts) });
   // latest.json names the commit of the overview stored last, which a page shows while its head's own is not stored yet (latestOverview).
   if (files.length > 0) files.push({ path: LATEST, text: `${JSON.stringify({ commit })}\n` });
   if (files.length === 0) return { commit, written: false };
