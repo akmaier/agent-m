@@ -209,7 +209,9 @@ It keeps nothing but what is on the screen. It owns these formats:
   which say there when an entry is not built yet, so that the main page loads none of their views. With `product`, the
   address of a product this browser keeps, each `href` that is not null ends in `/product=` and the address percent-encoded,
   the form `chosenProduct` reads back; without it, or with null, it is the entry's alone. The entry Requirements leads
-  to MOD-trace-pages' view `specification`; the list of SPEC change entries and their history are opened from it.
+  to MOD-trace-pages' view `specification`; the list of SPEC change entries and their history are opened from it. The
+  entry Implementation leads to MOD-implementation-pages' route `progress`, what goes on now; the backlog is opened from
+  it.
 - `instanceOf(location: { hostname: string, pathname: string }) -> string` — the instance repository `owner/name` from
   the Pages address the page is served from (`AN INSTANCE IS A FORK OF AGENT M`), read with MOD-identifiers'
   `instanceOfPagesAddress`; on any other host, the upstream instance named in the frame's data.
