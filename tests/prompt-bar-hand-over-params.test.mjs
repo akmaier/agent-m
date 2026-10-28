@@ -186,12 +186,12 @@ const neverGiven = (params) => { for (const key of NEVER_GIVEN) assert.ok(!(key 
 
 // TST-626001 · level: unit · module: MOD-prompt-bar
 // guards: UC-019
-// given: the Scrum product, whose use cases UC-001 and UC-002 are accepted and realise EXPORT IS A PDF; dev-ci, a Developer of team1 with the CI secret KEY_A, route ci hosted; known positive: the start rules let ITM-004 start (assess gives no reason for a hand-over of ITM-004)
+// given: the Scrum product, whose use cases UC-001 and UC-002 are accepted and realise EXPORT IS A PDF; dev-ci, a Developer of team1 with the CI secret KEY_A, route ci hosted; known positive: a hand-over of implement on ITM-004 is queued
 // input: queue of the hand-over { kind: "change-use-case", works_on: ["UC-001"], task }
 // expect: the job is queued (one commit, one started workflow) and its record's parameters are exactly { useCases: ["UC-001"], useCase: "UC-001" } — `useCase` is what MOD-approvals' recipe use-case-with-neighbours reads —, with none of source, resource, kind, entry and part; no request was made
 test("a hand-over of change-use-case on one use case is queued with the parameter useCase beside useCases", async () => {
   const positive = await handsOver({ kind: "implement", works_on: ["ITM-004"] });
-  assert.deepEqual(positive.assessment.reasons, [], "known positive: ITM-004 may start");
+  assert.equal(positive.refusal, undefined, "known positive: ITM-004 is queued");
   const it = await handsOver({ kind: "change-use-case", works_on: ["UC-001"] });
   assert.equal(it.refusal, undefined, it.refusal?.message);
   assert.deepEqual(paramsOfRecord(it), { useCases: ["UC-001"], useCase: "UC-001" });
