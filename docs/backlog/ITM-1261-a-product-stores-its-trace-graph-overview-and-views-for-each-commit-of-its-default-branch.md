@@ -11,12 +11,15 @@ realises:
 modules:
   - MOD-runtimes
   - MOD-workflow-entries
+  - MOD-trace-graph
 builds_on:
   - ITM-1260
+  - ITM-1202
 tests:
   - unit
 origin:
   - akmaier, 2026-10-28, on ITM-1260's sentence that a product derives the views in the page because `onMainChanged` runs only in the instance: "products should precompute too."
+  - akmaier, 2026-10-28: a product that has not written the new file yet gets no graph built in the page; its trace pages say how to get it, through *Install* on its Settings page (ITM-1202 first)
 ---
 # ITM-1261 A product stores its trace graph, overview and views for each commit of its default branch
 
@@ -56,5 +59,9 @@ where they hold nothing.
 - Unit tests naming MOD-workflow-entries: in a fixture product with a fixture instance checkout, `onMainChanged` adds the
   graph to the product's `trace-cache` and the overview and views to its `overview-cache`; run again, `nothing to do`.
   Counter-proof: before the change the entry has no product route.
+- A unit test naming MOD-trace-graph: where a product's `trace-cache` holds no graph and the product's files do not run
+  `onMainChanged`, `GraphNotStored` reads "This product's graph is not stored yet: press *Install* on its Settings page."; in the
+  instance, and in a product whose files run it, it names the workflow "main changed" as now. Counter-proof: before the change
+  the product's text names the instance's workflow.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
-- Only `src/runtimes/`, `src/workflow-entries/` and the tests that name these modules change.
+- Only `src/runtimes/`, `src/workflow-entries/`, `src/trace-graph/` and the tests that name these modules change.
