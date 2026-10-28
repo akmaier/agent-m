@@ -51,7 +51,7 @@ gate records, 478 job records, 56 module files, two teams):
 After the change, as UC-035, UC-032, UC-045 and the architecture say:
 
 - MOD-progress-measures: `progressView` and `backlogView` derive what the two routes show from the facts;
-  `publishOverview` adds `<commit>.progress.json.gz` and `<commit>.backlog.json.gz` beside the overview and the facts, in
+  `publishOverview` adds `<commit>.progress.json.gz` and `<commit>.backlog.json.gz` beside the overview, in
   the same commit, with `latest.json`; `storedView` reads the head's view, or, while it is not stored, the view
   `latest.json` names with its commit. The scope `now` is withdrawn, and with it the pull requests listed since a date.
   The page's `mergedAtOf` (`progress.mjs:45`) moves into the views, as the merges of a sprint's items.
@@ -61,18 +61,15 @@ After the change, as UC-035, UC-032, UC-045 and the architecture say:
   view — a product whose files do not run `onMainChanged` yet (ITM-1261) — the same view is derived in the page from the scope `work`. *Plan
   sprint* and *Cancel* draw from the view read; *Start sprint* and *End sprint* are offered on the head's own view and
   write on its commit. `plan` and `board` read the declaration and the declared model's file (`readFileAt`) first and
-  nothing else where they do not apply. `implement` reads the facts of the scope `work` once.
+  nothing else where they do not apply. `implement` reads the facts of the scope `work` once, from the files.
 - MOD-repository-hosts: `listPullRequests` loses `updatedSince` and the GitHub adapter's search for it
   (`src/repository-hosts/github.mjs:509-532`); the pages of a listing are still asked for at once, since `implement`, the
   board of a model with a limit, the job page and `onMainChanged` list every pull request.
 - MOD-site-frame: the live page's wave for `backlog` (`dashboard-app.mjs:348-352`) is removed; the frame keeps no list of
   files for any route.
 
-`<commit>.facts.json` stays: no page that only shows progress reads it after this item. Its readers are then `implement`
-and the job page's *Retry* and *Pass gate* (MOD-main-page, `src/main-page/jobs.mjs:338`, `:440`), which act on the head
-and derive from its facts with the pull requests listed then, and the test schedule's counts (MOD-test-pages,
-`src/test-pages/schedule.mjs:86`), which take only the test declarations' levels. Reducing it to what they read is not
-part of this item.
+No commit's facts file is stored (ITM-1262): the facts behind a view are read from the files, by CI where it stores the
+view, and in the page only where no view is stored.
 
 ## Acceptance
 
@@ -106,7 +103,7 @@ Tests written first, each red on the commit that holds only them:
   declaration and the model's file and nothing else — no `pulls`, no `overview-cache`, no `trace-cache`. Counter-proof: a
   fixture whose model has a limit draws the board.
 - `tests/load-per-view.test.mjs` (MOD-site-frame, component): `#backlog` sends its commit and tree once and no batch of
-  files; `#implement` reads `.facts.json` at most once.
+  files and no `.facts.json`.
 - `tests/repository-hosts-pull-request-pages.test.mjs` keeps its case of the pages asked at once and drops `updatedSince`;
   `tests/progress-measures-scope-now.test.mjs` is removed with the scope it tests.
 
@@ -118,7 +115,7 @@ Measurable outcome, at review on the live page for the instance, in the browser'
 | `#progress` | 33 batches (17.2 MB), the facts file (~20 MB), 2 listings of pull requests | 1 file of `overview-cache`, under 16 KB (3 while the head's view is being stored); no `pulls`, no `.facts.json`, no batch |
 | `#backlog` | 13 batches (6.0 MB), the facts file (~20 MB), every pull request (14 pages) | 1 file of `overview-cache`, ~72 KB gzipped (~420 KB of JSON, ~70 bytes gzipped more for each further item); no `pulls`, no `.facts.json`, no batch |
 | `#plan`, `#board` (Scrum, no limit) | the facts file (~20 MB), every pull request | the declaration and the model's file; nothing else |
-| `#implement` | the facts file twice (~40 MB) | the facts file once |
+| `#implement` | the facts file twice (~40 MB) | no facts file (ITM-1262) |
 
 Every route still reads its commit and the commit's tree once; that tree, of 6,861 files, is not changed here.
 
