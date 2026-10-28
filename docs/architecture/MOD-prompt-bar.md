@@ -46,7 +46,6 @@ uses:
   - MOD-resource-list.resourceStrategies
   - MOD-work-plans.workStrategies
   - MOD-run-planner.runStrategies
-  - MOD-product-process.processStrategies
   - MOD-test-schedule.scheduleStrategies
   - MOD-result-records.resultStrategies
   - MOD-issue-handling.issueStrategies
@@ -333,7 +332,7 @@ records under `docs/conversations/`. It keeps the conversation in the tab's valu
   kind takes no instruction, refused.
 - MOD-approvals.approvalStrategies, MOD-spec-changes.specStrategies, MOD-artifact-edits.editStrategies,
   MOD-source-register.sourceStrategies, MOD-reuse-facts.reuseStrategies, MOD-resource-list.resourceStrategies,
-  MOD-work-plans.workStrategies, MOD-run-planner.runStrategies, MOD-product-process.processStrategies,
+  MOD-work-plans.workStrategies, MOD-run-planner.runStrategies,
   MOD-test-schedule.scheduleStrategies, MOD-result-records.resultStrategies, MOD-issue-handling.issueStrategies,
   MOD-runtimes.routeStrategies — the sets of `handOverStrategies`.
 - MOD-source-register.registerPaths, MOD-source-register.sourceSchemas — the entries of the instance's register, read from
