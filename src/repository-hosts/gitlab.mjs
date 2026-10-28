@@ -120,6 +120,27 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
     }
     return out;
   };
+  // Every item of a list the server pages, its pages asked for at once: page 1 first, then, once its X-Total-Pages header says how many there are ("Pagination", docs.gitlab.com/api/rest/),
+  // every other page together, the items in the order of the pages, each once. A server that leaves the header out — GitLab does for more than 10,000 — is read on page after page, as
+  // everyPage reads.
+  const allPages = async (url, options = {}, key = (item) => JSON.stringify(item)) => {
+    const at = (page) => `${url}${url.includes("?") ? "&" : "?"}per_page=${PAGE}&page=${page}`;
+    const first = await call("GET", at(1), options);
+    const items = await json(first, address.origin);
+    const total = Number(first.headers.get("x-total-pages") ?? 0);
+    const known = new Set();
+    const once = (list) => list.filter((item) => !known.has(key(item)) && known.add(key(item)));
+    if (total > 1) {
+      const rest = await Promise.all(Array.from({ length: Math.min(total, MAX_PAGES) - 1 }, (_, i) => read(at(i + 2), options)));
+      return once([...items, ...rest.flat()]);
+    }
+    const out = once(items);
+    for (let page = 2, got = items; total !== 1 && got.length >= PAGE && page <= MAX_PAGES; page++) {
+      got = once(await read(at(page), options));
+      out.push(...got);
+    }
+    return out;
+  };
   // The newest pipeline of a commit ("List project pipelines": sha, order_by id, sort desc), or null.
   const pipelineOf = async (sha) => (await read(`${api}/pipelines?sha=${sha}&order_by=id&sort=desc&per_page=1`, { what: `${address.web} at ${sha}` }))[0] ?? null;
 
@@ -407,10 +428,12 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
       return [...new Set(jobs.flatMap((job) => job.tag_list ?? []))];
     },
 
-    // The merge requests ("List project merge requests": state opened, closed, merged or all, source_branch, 100 to a page, read page by page).
-    async listPullRequests({ state = "all", branch } = {}) {
+    // The merge requests ("List project merge requests": state opened, closed, merged or all, source_branch, updated_after — "updated on or after the given time" —, 100 to a page, the
+    // pages asked for at once).
+    async listPullRequests({ state = "all", branch, updatedSince } = {}) {
       const ask = state === "open" ? "opened" : state;
-      const listed = await everyPage(`${api}/merge_requests?state=${ask}${branch ? `&source_branch=${encodeURIComponent(branch)}` : ""}`, {}, (m) => m.iid);
+      const after = updatedSince === undefined ? "" : `&updated_after=${encodeURIComponent(new Date(Date.parse(updatedSince)).toISOString())}`;
+      const listed = await allPages(`${api}/merge_requests?state=${ask}${branch ? `&source_branch=${encodeURIComponent(branch)}` : ""}${after}`, {}, (m) => m.iid);
       return listed.map(pullOf).filter((p) => state === "all" || p.state === state);
     },
 

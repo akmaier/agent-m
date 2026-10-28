@@ -116,6 +116,8 @@ function refuseSecrets(files, secrets) {
 }
 
 const PR_STATES = ["open", "merged", "closed", "all"];
+// A date of listPullRequests' updatedSince: YYYY-MM-DD, or an ISO 8601 time on that date.
+const DATE = /^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/;
 
 // The commits of a pull request oldest first: a commit comes after its parents that are among them, and among those ready, the earlier date, then the server's order, comes first.
 function oldestFirst(commits) {
@@ -485,12 +487,16 @@ export function connect(address, credentials = {}) {
     },
 
     // listPullRequests(filter) -> PullRequest[] — the pull requests of GitHub or the merge requests of GitLab, every page, optionally only those of a state (open, merged, closed, all — the
-    // default) or of a source branch. Crosses the network; fails as readSnapshot — a failure is never an empty list. Through a clone, the server's answer where a token is given, else NotSupported.
+    // default), of a source branch, or last updated on or after a date (updatedSince, "YYYY-MM-DD" or an ISO 8601 time). The pages of a listing are asked for at once, once the server has
+    // said how many there are. Crosses the network; fails as readSnapshot — a failure is never an empty list. Through a clone, the server's answer where a token is given, else NotSupported.
     async listPullRequests(filter = {}) {
-      const { state = "all", branch } = filter ?? {};
+      const { state = "all", branch, updatedSince } = filter ?? {};
       if (!PR_STATES.includes(state)) throw new TypeError(`a pull request's state is one of ${PR_STATES.join(", ")}: ${String(state)}`);
       if (branch !== undefined && (typeof branch !== "string" || !branch.trim())) throw new TypeError("a branch is a name");
-      return adapter.listPullRequests({ state, branch });
+      if (updatedSince !== undefined && !(typeof updatedSince === "string" && DATE.test(updatedSince) && Number.isFinite(Date.parse(updatedSince)))) {
+        throw new TypeError(`updatedSince is a date, YYYY-MM-DD or an ISO 8601 time: ${String(updatedSince)}`);
+      }
+      return adapter.listPullRequests({ state, branch, ...(updatedSince === undefined ? {} : { updatedSince }) });
     },
 
     // containsCommit(branch, commit) -> boolean — whether the branch's history holds the commit: through the server's comparison of the two, in a clone with
