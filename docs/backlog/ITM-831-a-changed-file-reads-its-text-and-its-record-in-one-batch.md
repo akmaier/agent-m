@@ -19,7 +19,11 @@ origin:
 
 ## Outcome
 
-On a changed file's page, `lastAcceptedText` reads the file and its approval record's text as two single reads. Batching
+On a changed file's page, `lastAcceptedText` reads the file and its approval record's text as two single reads
+(`src/approvals/status.mjs:142-171`: the record at `:155`, the file at the record's commit at `:166`). Since `58c93ec2`
+(ITM-942) a decision or module file takes its last accepted text from the impact entry stored for the commit, with one
+`readFileAt` (`src/review-pages/stored.mjs:15-23`); `lastAcceptedText` stays the way for every other kind and for such a
+file without a fitting stored entry (`src/review-pages/flow.mjs:367-368`). Batching
 them needs the record's path from MOD-approvals, and no interface gives it. So a draft of `MOD-approvals.md` for akmaier
 comes first. The lead was seen in fixtures only, and the start counts it at this repository's size.
 

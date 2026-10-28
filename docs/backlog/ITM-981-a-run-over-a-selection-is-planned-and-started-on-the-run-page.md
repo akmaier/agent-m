@@ -26,10 +26,10 @@ origin:
 
 ## Outcome
 
-MOD-implementation-pages.md:176-178: "`run` — the selection with the order and what each waits for as a diagram, the limits
+MOD-implementation-pages.md:193-195: "`run` — the selection with the order and what each waits for as a diagram, the limits
 — jobs at once, cost, correction rounds —, the plan from the model, *Start run*, which commits the run's record and starts
 the first actions `nextActions` returns, each on its route". UC-043 steps 1 to 5 (UC-043.md:76-87) and 1a, 1b, 1d, 3a, 3b.
-The route is not built (`src/implementation-pages/index.mjs:3`).
+The route is not built (`src/implementation-pages/index.mjs:4`; the routes it serves, `:21`).
 
 ## Acceptance
 

@@ -23,12 +23,12 @@ origin:
 
 ## Outcome
 
-MOD-run-planner.md:98-101: `nextActions` "returns `hold` with the limit named when the cost reported so far reaches the cost
+MOD-run-planner.md:100-104: `nextActions` "returns `hold` with the limit named when the cost reported so far reaches the cost
 limit, or a job of the run stopped at the rounds limit with findings left: no further job starts, the running ones finish,
-and the run waits for a person to raise the limit (`raiseLimits`) or stop it (UC-043 6c)." MOD-run-planner.md:108-114,
+and the run waits for a person to raise the limit (`raiseLimits`) or stop it (UC-043 6c)." MOD-run-planner.md:117-122,
 `raiseLimits(host, run, limits, context) -> Promise<{ commit }>`: appends `## Limits raised` through MOD-job-ledger's
 `appendToRecord` and commits it on the head read; `NotRaised { limit }` for a limit not above the one in force,
-`RecordEnded` for an ended run. Neither is built (`src/run-planner/index.mjs:2`).
+`RecordEnded` for an ended run. Neither is built (`src/run-planner/index.mjs:3`, `src/run-planner/next.mjs:4`).
 
 ## Acceptance
 

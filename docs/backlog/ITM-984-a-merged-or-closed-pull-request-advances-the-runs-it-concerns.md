@@ -21,9 +21,10 @@ origin:
 
 ## Outcome
 
-MOD-workflow-entries.md:157-160, `onPullRequestClosed`: "run by the job workflow when a pull request of a product is merged
+MOD-workflow-entries.md:257-260, `onPullRequestClosed`: "run by the job workflow when a pull request of a product is merged
 or closed: ... merged or closed, the next actions of the runs it concerns, as `onRecordsChanged` computes them." Not built
-(`src/workflow-entries/product.mjs:3-4`). This item builds the runs' part. Closing the issues it names and the GitLab
+(`src/workflow-entries/product.mjs:3`); the job workflows already call it (`src/runtimes/workflow/github.yml:109`,
+`gitlab.yml:83`), but `src/workflow-entries/main.mjs:14-16` names no such entry. This item builds the runs' part. Closing the issues it names and the GitLab
 pipeline schedule are other use cases' and are left out.
 
 ## Acceptance
