@@ -54,7 +54,11 @@ the participant's place (`src/job-runner/prepare.mjs:34-45`, `:70`). A gate's ar
 path must carry its source, which MOD-job-runner's `sourcesOf` gives (MOD-job-runner.md:313-315). `sourcesOf` is not
 built (ITM-632), and MOD-product-process.md does not name it in its uses. The draft for akmaier adds it. This item waits
 for that acceptance and for ITM-632, as ITM-615 and ITM-618 did at sprint team1/61.
+- **On main now:** `sourcesOf` is built (`src/job-runner/tools.mjs:79`, `b4d8b4722`), and MOD-product-process.md names it
+  in its uses (`:39`, `:243`). `processStrategies` is not built:
+  `src/product-process/` holds no `strategies.mjs` (MOD-product-process.md:86), and a `decide-gate` job's `gate-inputs` and
+  `gate-record` are registered nowhere (the probe of `tests/places-prepare-every-offered-kind.test.mjs` finds them built by no module).
 - **Read at its start:** no item adds `processStrategies` to the composers' strategy lists
-  (`src/workflow-entries/compose.mjs:129-131`, `src/desktop-shell/compose.mjs:16-18`, `src/prompt-bar/hand-over.mjs:43`).
+  (`src/workflow-entries/compose.mjs:233-237`, `src/desktop-shell/compose.mjs:22-26`, `src/prompt-bar/hand-over.mjs:50-51`).
   Whether this item or another registers it is read against those modules' texts when it starts.
 
