@@ -485,14 +485,12 @@ test("a hand-over to a Bridge is queued by one commit and handed to the Bridge w
   assert.deepEqual(it.net.stray, []);
 });
 
+// What changed: the product used to change its sprint's selection, a start rule of the process that no longer applies to the bar (UC-049 4a.2, as accepted); it now changes what ITM-004 rests on, which the kind's own precondition checks.
 // TST-505011 · level: component · module: MOD-prompt-bar
 // guards: NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
-// What changed: the product used to change its sprint's selection, a start rule of the process that no longer applies to the bar (UC-049 4a.2, as accepted); it now changes what ITM-004
-//   rests on, which the kind's own precondition checks.
 // given: the product of TST-505001; before the person's Send, the text of UC-001, which ITM-004 realises, changes, so that no approval record names it any more
 // input: Send, whose answer proposes the hand-over of ITM-004
-// expect: the hand-over is checked against the product as it stands when the answer comes: the page says "Nothing was queued." with the finding that names UC-001 and NOTHING IS IMPLEMENTED
-//   BEFORE IT IS ACCEPTED, nothing is queued, and nothing was written
+// expect: the hand-over is checked against the product as it stands when the answer comes: the page says "Nothing was queued." with the finding that names UC-001 and NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED, nothing is queued, and nothing was written
 test("the hand-over is checked against the product as it stands when the answer comes", async () => {
   const it = open();
   it.product.edit(UC1, () => "# UC-001 store, changed\n");
@@ -709,10 +707,9 @@ test("a hand-over refused for a missing job workflow links the route settings, a
   assert.equal(writesOf(it), 0, NOTHING_WRITTEN);
 });
 
+// What changed: the refusal for another reason was a start rule's (ITM-005, which no sprint selects), which no longer applies to the bar (UC-049 4a.2, as accepted); it is now the kind's own precondition's (ITM-003, whose use case UC-002 is not accepted).
 // TST-1037002 · level: component · module: MOD-prompt-bar
 // guards: UC-049
-// What changed: the refusal for another reason was a start rule's (ITM-005, which no sprint selects), which no longer applies to the bar (UC-049 4a.2, as accepted); it is now the kind's own
-//   precondition's (ITM-003, whose use case UC-002 is not accepted).
 // given: known positive TST-1037001; a hand-over of ITM-003, whose use case is not accepted, on a product with the job workflow; tab-only, whose only route is this tab, on a product without it; the allowed hand-over
 // input: Send, each
 // expect: no link to settings in any of them; ITM-003's says "Nothing was queued."
