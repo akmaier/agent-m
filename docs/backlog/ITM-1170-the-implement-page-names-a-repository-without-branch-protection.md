@@ -22,16 +22,17 @@ origin:
 
 UC-024 12a: "The repository has no branch protection. Agent M says that the server does not enforce 'merge only on
 green' …, with the server's page for it" (`docs/use-cases/UC-024-*.md:225`).
-- MOD-implementation-pages' Uses name `webLinks` for "the server's page for branch protection"
-  (MOD-implementation-pages.md:222-223).
-- MOD-repository-hosts gives neither:
-  - `RepositoryInfo` (MOD-repository-hosts.md:145-147) has no field telling whether the default branch is protected;
-  - `WebLinks` (:153-160) has no page for it.
 - ITM-734 left 12a unbuilt rather than guess.
-
-So this item begins with a draft of MOD-repository-hosts for akmaier. It gives whether the default branch is protected,
-on GitHub and on GitLab, and the server's page for its protection. Then the implement page names an unprotected repository
-with that page.
+- The accepted texts now give it (approvals of MOD-repository-hosts blob `97901d8e` and MOD-implementation-pages blob
+  `656ce73f`, `b6c70419`):
+  - `RepositoryInfo.greenToMerge` (MOD-repository-hosts.md:148-153): whether the server refuses a merge into the default
+    branch until its required checks have passed — on GitHub a branch protection or a ruleset, on GitLab "pipelines must
+    succeed" —, `null` where the token may not read it;
+  - `WebLinks.branchProtection` (:163-169), the page on which that rule is set;
+  - the route `implement` (MOD-implementation-pages.md:191-192): where `greenToMerge` is false, it says that the server
+    does not enforce "merge only on green", with the page `branchProtection`.
+- The code has none of it: `src/repository-hosts/` and `src/implementation-pages/` name neither `greenToMerge` nor
+  `branchProtection`.
 
 ## Acceptance
 

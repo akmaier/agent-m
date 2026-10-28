@@ -20,11 +20,11 @@ origin:
 ## Outcome
 
 Since `c2e6e5c1` the graph of a commit is stored gzipped, as `<commit>.json.gz` on the branch `trace-cache`.
-- MOD-trace-graph's Data (`docs/architecture/MOD-trace-graph.md:86-89`), `storedGraph` (`:187-192`) and `publishGraph`
-  (`:228`) name `<commit>.json.gz`.
+- MOD-trace-graph's Data (`docs/architecture/MOD-trace-graph.md:85`), `storedGraph` (`:187`) and `publishGraph`
+  (`:236`) name `<commit>.json.gz`.
 - The code reads and writes only that file: `fileOf` (`src/trace-graph/stored.mjs:47`), read by `traceGraph` at
   `src/trace-graph/build.mjs:189`.
-- `traceGraph`'s own line (`MOD-trace-graph.md:177-179`) still says it first "reads `<commit>.json` on the branch
+- `traceGraph`'s own line (`MOD-trace-graph.md:176-177`) still says it first "reads `<commit>.json` on the branch
   `trace-cache` once".
 
 So the module file says two things of one file.

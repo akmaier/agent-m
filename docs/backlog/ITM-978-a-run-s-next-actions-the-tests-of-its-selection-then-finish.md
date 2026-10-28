@@ -22,11 +22,11 @@ origin:
 
 ## Outcome
 
-MOD-run-planner.md:95-98: "once the selected plan steps are implemented, start `propose-tests` for them at every level the
+MOD-run-planner.md:97-100: "once the selected plan steps are implemented, start `propose-tests` for them at every level the
 product's schedule names — its rows but `paid` (`facts.schedule`) —, and when that job has ended, `write-tests` with the
 cases its record's `## End` holds under `draft:` — no person attends a run —, the selection and the levels, the release
 level on a participant other than the implementer (a backlog item's job includes its tests); then `finish`."
-MOD-participant-list's `differs` gives the other participant (MOD-run-planner.md:144-145).
+MOD-participant-list's `differs` gives the other participant (MOD-run-planner.md:24, :157).
 
 ## Acceptance
 

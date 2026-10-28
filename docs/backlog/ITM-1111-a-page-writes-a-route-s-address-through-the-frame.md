@@ -28,8 +28,9 @@ holds a second copy of the frame's format (AGENTS.md §2, principle 2), and find
 ## Not ready: a draft for akmaier
 
 The draft `a7fa3d01` was reviewed, and was withdrawn in `391cf759` so that the security fix's uses draft `7377eaa2` is
-the only draft on MOD-site-frame.md. It is committed again once akmaier has decided `7377eaa2`; `git show a7fa3d01`
-holds its text.
+the only draft on MOD-site-frame.md. akmaier has since accepted MOD-site-frame with that draft in it (`b6c70419`), so the
+draft can be committed again for akmaier; `git show a7fa3d01` holds its text. `MOD-site-frame.md:178` still gives the
+`ViewContext` only `go`, and the replies page writes its issue link by hand (`src/maintenance-pages/replies.mjs:307`).
 
 The draft gives the `ViewContext` the address of a route with its parameters, as `go` would go there. MOD-maintenance-pages'
 links take it from there.
@@ -41,8 +42,8 @@ links take it from there.
 
 **A second caller (team 2's sprint 100, po-opus-b).** ITM-684's live main page links its waits, its card's token setting
 and *+ Add product* into `docs/index.html`.
-- Until the frame gives a route's address, it writes the `docs/index.html#<route>/<params>` form itself, a second copy of
-  the frame's writer (MOD-site-frame.md:158).
+- *+ Add product* now goes through `context.go("add-product")` (`src/main-page/home.mjs:121`). The link *Get your own*
+  is still made by hand, from the settings entry's address `menuOf` gives, its end replaced (`home.mjs:117`).
 - This item's draft, when it is committed again, also gives the address of a review page's route on the main page, so
   that the copy goes.
 

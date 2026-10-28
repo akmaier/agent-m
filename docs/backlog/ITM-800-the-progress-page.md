@@ -11,7 +11,6 @@ realises:
 modules:
   - MOD-implementation-pages
 builds_on:
-  - ITM-794
   - ITM-795
   - ITM-796
   - ITM-797
@@ -34,6 +33,9 @@ item builds it as the module's file states it, from `productFacts` read once: th
 `renderMermaid`; the gates from `gateOverview`; *Blocked* from `blocked`; *Who works on what* from
 `whoWorksOnWhat`, linking each job; a cell, card or point leading to the trace page of what is behind it. Each chart and
 panel carries a folded *What is this?*. Nothing is written.
+
+ITM-1252, open, builds the route `progress` for a model with sprints; this item's V-model and Kanban measures stay
+with it.
 
 ## Acceptance
 

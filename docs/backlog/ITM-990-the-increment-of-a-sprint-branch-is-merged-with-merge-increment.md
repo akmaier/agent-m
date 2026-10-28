@@ -23,13 +23,13 @@ origin:
 
 ## Outcome
 
-MOD-implementation-pages.md:169-170: "*Merge increment* as a pull request whose CI must be green, for a sprint with a
+MOD-implementation-pages.md:184-185: "*Merge increment* as a pull request whose CI must be green, for a sprint with a
 branch of its own". UC-041 step 7 (UC-041.md:88-91), 7a (UC-041.md:144-145) and 7c (UC-041.md:150-153): the sprint branch is
 merged through a pull request whose CI must be green; with red CI it is not merged and the failing tests are shown; when
 another team's increment came first the pull request is brought up to date, and a conflict names its files.
 
-The host functions are built: `openPullRequest` and `mergePullRequest` (`src/repository-hosts/github.mjs:360`, `:368`),
-`listCiRuns`. No page opens a pull request of a sprint branch.
+The host functions are built: `openPullRequest` and `mergePullRequest` (`src/repository-hosts/github.mjs:498`, `:506`),
+`listCiRuns` (`:451`). No page opens a pull request of a sprint branch.
 
 ## Acceptance
 

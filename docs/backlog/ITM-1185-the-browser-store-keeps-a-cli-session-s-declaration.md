@@ -19,7 +19,7 @@ origin:
 
 ## Outcome
 
-The accepted catalogue (`docs/architecture/MOD-browser-store.md:70-71`) adds:
+The accepted catalogue (`docs/architecture/MOD-browser-store.md:71-72`) adds:
 - the key family `session:<bridge>:<agent>`, holding `{ place, context, model, capabilities }`, not secret;
 - to `endpoint:<name>`, the fields `place`, `context` and `secret?`.
 

@@ -49,7 +49,7 @@ reads, but no record history or commit order. Approval filenames contain only th
 reading a record's body supplies its full forty-digit blob and file path, but does not identify which record is most
 recent. Neither filename/hash order nor snapshot iteration order supplies that missing chronology.
 
-The existing path in `src/approvals/status.mjs:131` demonstrates the required information: `lastAcceptedText(id, host)`
+The existing path in `src/approvals/status.mjs:142` demonstrates the required information: `lastAcceptedText(id, host)`
 reads the default snapshot, calls `host.readHistory` for the records, selects the most recently committed record,
 then reads its `file` and full `blob`. The accepted `removedFiles(snapshot)` input cannot follow that history path.
 UC-023's whole-architecture outcome and the Acceptance above remain unchanged; a guessed record would not satisfy them.

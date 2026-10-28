@@ -18,13 +18,13 @@ origin:
 
 ## Outcome
 
-MOD-work-plans.md's Uses reads: "MOD-trace-graph.traceGraph, moduleOrder, coverageGaps — the order of modules by their
+MOD-work-plans.md's Uses reads (MOD-work-plans.md:310): "MOD-trace-graph.traceGraph, moduleOrder, coverageGaps — the order of modules by their
 uses, and what no item realises".
-- `coverageGaps` (`src/trace-graph/derive.mjs:157`, MOD-trace-graph.md:201) gives the requirements no use case, module or
+- `coverageGaps` (`src/trace-graph/derive.mjs:156`, MOD-trace-graph.md:219) gives the requirements no use case, module or
   test realises or guards, the use cases that realise no requirement, and the unknown names. It gives nothing about items.
 - The recipe `backlog-inputs` (ITM-615, #1318) computes "those no item realises yet" from the existing items' `realises`.
-- No code of MOD-work-plans calls `coverageGaps` for it. Whether any calls `traceGraph` and `moduleOrder` is read when the
-  draft is written.
+- No code of MOD-work-plans calls `coverageGaps` for it. `traceGraph` is called (`src/work-plans/checks.mjs:140`,
+  `src/work-plans/strategies.mjs:51`); whether `moduleOrder` is, is read when the draft is written.
 
 ## Not ready: a draft for akmaier
 

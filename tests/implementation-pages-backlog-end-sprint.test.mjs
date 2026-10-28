@@ -1,6 +1,7 @@
-// MOD-implementation-pages' route `backlog` ends a sprint (ITM-783), as the accepted text of docs/architecture/MOD-implementation-pages.md states it: "`backlog`, `board` — … *Plan sprint* and *Start sprint* for the
-// person's team with `startSprint`, *End sprint* with `endSprint`", and UC-032 6b: "in a sprint without one [a time box], when every selected item is done or the Product Owner presses **End sprint**, one click,
-// which records the end with the sprint". MOD-work-plans' endSprint appends `## Ended` to a sprint without a time box and refuses (NotEndable) a sprint with one or one ended already.
+// MOD-implementation-pages ends a sprint (ITM-783), on the route `progress` since ITM-1252, as the accepted text of docs/architecture/MOD-implementation-pages.md states it: "`progress` — … In a model with
+// sprints it shows what goes on now (UC-035): each team's running sprint …; *End sprint* with `endSprint` for a running sprint without a time box", and UC-032 6b: "in a sprint without one [a time box], when
+// every selected item is done or the Product Owner presses **End sprint**, one click, which records the end with the sprint". MOD-work-plans' endSprint appends `## Ended` to a sprint without a time box and
+// refuses (NotEndable) a sprint with one or one ended already.
 // Run: node --test tests/implementation-pages-backlog-end-sprint.test.mjs
 //
 // Module: MOD-implementation-pages
@@ -19,7 +20,7 @@ import { readFileSync } from "node:fs";
 
 import "./site-frame-dom.mjs";
 const { view } = await import("../src/implementation-pages/index.mjs");
-const route = view.routes.find((candidate) => candidate.name === "backlog");
+const route = view.routes.find((candidate) => candidate.name === "progress");
 
 const matches = (element, selector) => {
   const attribute = /^\[([a-z-]+)(?:="([^"]*)")?\]$/.exec(selector);
@@ -98,9 +99,9 @@ const endButtons = (target, team) => found(target, `[data-end-sprint="${team}"]`
 // TST-783001 · level: unit · module: MOD-implementation-pages
 // guards: UC-032
 // given: team1's sprint 01 runs without a time box; team2's sprint 01 has ended on its date (2026-09-07)
-// input: the route backlog's render
+// input: the route progress's render
 // expect: team1's panel offers End sprint (one button, data-end-sprint="team1"); team2's panel, with no running sprint, offers none
-test("the backlog page offers End sprint for a running sprint without a time box", async () => {
+test("the progress page offers End sprint for a running sprint without a time box", async () => {
   const { target } = await render();
   assert.equal(endButtons(target, "team1").length, 1);
   assert.equal(found(target, "[data-end-sprint]").length, 1, "known positive: only team1's button stands on the page");
@@ -110,9 +111,9 @@ test("the backlog page offers End sprint for a running sprint without a time box
 // TST-783002 · level: unit · module: MOD-implementation-pages
 // guards: UC-032
 // given: team1's running sprint has a time box (end: 2099-12-31); and, as a second page, one without a time box whose record already holds `## Ended` of today (so that the sprint still runs: it is final from the day after)
-// input: the route backlog's render, both ways
+// input: the route progress's render, both ways
 // expect: neither page offers End sprint (the counter-proof of TST-783001)
-test("the backlog page offers no End sprint for a sprint with a time box or one already ended", async () => {
+test("the progress page offers no End sprint for a sprint with a time box or one already ended", async () => {
   const boxed = await render({ [TEAM1]: sprint({ start: "2026-09-14", end: "2099-12-31", goal: "Store", selection: ["ITM-001"] }) });
   assert.equal(found(boxed.target, '[data-team="team1"]').length, 1, "known positive: team1's panel is drawn");
   assert.equal(found(boxed.target, "[data-end-sprint]").length, 0, "a time box ends on its date");

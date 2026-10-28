@@ -25,13 +25,13 @@ origin:
 
 MOD-job-ledger's `appendToRecord` writes an End that keeps every note of the job's writer as the writer wrote it — a
 note naming a use case and a requirement's name with a comma among them, as UC-007 4a's note does —, and its reader
-gives the notes back the same. Today the route writes the notes as items of the End's `results:` line (ITM-319,
-`note: …`), whose items MOD-documents separates by commas, so a note with a comma is refused, after the writer's files
-are committed: the job stays without its End.
+gives the notes back the same.
 
-MOD-job-ledger's file names no place for a writer's notes in the End — `results:` holds "commits, files, pull request,
-issues" —, and a line's list cannot hold a comma. The item waits for akmaier's acceptance of a change of that file
-naming where an End keeps its notes; until then it does not start.
+The code does so on `main` without a text that states it: commit `9ab15a19` writes an End's notes as a field `notes` of
+JSON (`src/job-ledger/index.mjs:510`) and reads them back (`:315`), and `tests/job-ledger-append.test.mjs:110` checks a
+note with commas and quotes. MOD-job-ledger's file names no notes — the End holds `results:` "commits, files, pull
+request, issues" (`docs/architecture/MOD-job-ledger.md:98`, `:151`). What is missing is akmaier's acceptance of a change
+of that file naming where an End keeps its notes; until then the item stays open.
 
 ## Acceptance
 

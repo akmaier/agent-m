@@ -25,15 +25,15 @@ origin:
 Since `35f3485d` and `fd01d2ee` the bar offers first this browser's endpoints that declare a place, a context and a model
 (`endpointsOffered`, `endpointLacks`), and an endpoint that names a CI secret and no Bridge spawns its own job (*Spawn
 job*). Beside them it still reads the instance's participant list and offers the participants this browser reaches
-(`src/prompt-bar/bar.mjs:448-451`), as MOD-prompt-bar.md says, "until the offer of CLI sessions is built". It offers no
-CLI session, and where none can do the kind its link goes to `participants` (`bar.mjs:415-416`). The accepted text,
-`docs/architecture/MOD-prompt-bar.md:180-196` and :219-224, says instead:
+(`src/prompt-bar/bar.mjs:501-505`), as MOD-prompt-bar.md:211-213 says, "until the offer of CLI sessions is built". It offers no
+CLI session, and where none can do the kind its link goes to `participants` (`bar.mjs:457-462`). The accepted text,
+`docs/architecture/MOD-prompt-bar.md:194-211`, says instead:
 - It first reads this browser's configuration, and reads no participant list for the offer (UC-049 1).
 - It offers each `endpoint:<name>` and each CLI session a stored Bridge offers (`testBridge`) whose configuration
   declares a place, a context and a model. One lacking any of them is not offered (1b), and with none it draws nothing
   (1a).
-- It hands each to the job runner in MOD-participant-list's `Participant` shape, as :187-192 builds it:
-  - for an endpoint, the route is `endpoint <name>`, with ` secret <NAME>`;
+- It hands each to the job runner in MOD-participant-list's `Participant` shape:
+  - for an endpoint, the route is `endpoint <name>`, with ` secret <NAME>` (MOD-prompt-bar.md:201-205);
   - for a CLI session, it is `bridge <bridge> agent <agent>`.
 - Where none can do the kind, its link goes to the route `endpoints` (UC-019 3a).
 - A hand-over of a kind of the product's workflow goes only to a participant of the instance's list that the hand-over
@@ -41,7 +41,7 @@ CLI session, and where none can do the kind its link goes to `participants` (`ba
 
 ## Acceptance
 
-- `tests/prompt-bar-endpoints.test.mjs` is written. It is the check SPEC.md:417-421 names for THE PROMPT BAR'S
+- `tests/prompt-bar-endpoints.test.mjs` is written. It is the check SPEC.md:413-419 names for THE PROMPT BAR'S
   ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE, and holds the cases and the counter-proof that check names.
 - **The system findings close:** TST-377016 (UC019-S14) and TST-377017 (UC019-S15) in
   `tests/system-uc-019-change-by-prompt.test.mjs` lose their `todo` and pass.

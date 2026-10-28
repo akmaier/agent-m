@@ -55,7 +55,7 @@ const PHONE_MENU_EXPECTED = {
   ],
   review: [
     ["requirements", "#spec", false], ["use-cases", "#uc", false], ["architecture", "#arc", false],
-    ["implementation", "#backlog", false], ["tests", "#schedule", false], ["releases", "#release", false],
+    ["implementation", "#progress", false], ["tests", "#schedule", false], ["releases", "#release", false],
     ["maintenance", "#mail", false], ["settings", "#settings", false],
   ],
 };
