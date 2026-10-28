@@ -68,7 +68,7 @@ After the change, as UC-035, UC-032, UC-045 and the architecture say:
 - MOD-site-frame: the live page's wave for `backlog` (`dashboard-app.mjs:348-352`) is removed; the frame keeps no list of
   files for any route.
 
-No commit's facts file is stored (ITM-1262): the facts behind a view are read from the files, by CI where it stores the
+No commit's facts file is stored (ITM-1263): the facts behind a view are read from the files, by CI where it stores the
 view, and in the page only where no view is stored.
 
 ## Acceptance
@@ -115,7 +115,7 @@ Measurable outcome, at review on the live page for the instance, in the browser'
 | `#progress` | 33 batches (17.2 MB), the facts file (~20 MB), 2 listings of pull requests | 1 file of `overview-cache`, under 16 KB (3 while the head's view is being stored); no `pulls`, no `.facts.json`, no batch |
 | `#backlog` | 13 batches (6.0 MB), the facts file (~20 MB), every pull request (14 pages) | 1 file of `overview-cache`, ~72 KB gzipped (~420 KB of JSON, ~70 bytes gzipped more for each further item); no `pulls`, no `.facts.json`, no batch |
 | `#plan`, `#board` (Scrum, no limit) | the facts file (~20 MB), every pull request | the declaration and the model's file; nothing else |
-| `#implement` | the facts file twice (~40 MB) | no facts file (ITM-1262) |
+| `#implement` | the facts file twice (~40 MB) | no facts file (ITM-1263) |
 
 Every route still reads its commit and the commit's tree once; that tree, of 6,861 files, is not changed here.
 

@@ -1,5 +1,5 @@
 ---
-id: ITM-1262
+id: ITM-1263
 title: No commit's facts file is stored
 level: module
 realises:
@@ -19,7 +19,7 @@ tests:
 origin:
   - akmaier, 2026-10-28: "I think I want the 20 mb facts file gone." … "delete them and make sure they are not built in the future again."
 ---
-# ITM-1262 No commit's facts file is stored
+# ITM-1263 No commit's facts file is stored
 
 **REGISTER**
 
