@@ -118,10 +118,12 @@ It runs in a browser, loaded by `docs/index.html` through MOD-site-frame.
 - `process.mjs` — how the product is developed, and the instance's process models.
 - `roles.mjs` — who fills the roles: the product's role assignments.
 - `plan.mjs` — the implementation plan.
-- `backlog.mjs` — the backlog, the sprints of each team, the board, closing a sprint.
+- `backlog.mjs` — the backlog, each team's last sprint that has ended, the planning of a team's sprint, the board,
+  closing a sprint.
 - `implement.mjs` — starting the jobs of steps or items, the merge of a pull request.
 - `run.mjs` — a run over a selection.
-- `progress.mjs` — progress in the model's measure, gates, what is blocked, who works on what.
+- `progress.mjs` — progress in the model's measure, each team's running sprint, gates, what is blocked, who works on
+  what.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
   - `tests/dashboard-process-view.test.mjs`, `tests/dashboard-backlog-teams.test.mjs`: their headers name this module.
 
@@ -168,12 +170,15 @@ Its formats are those of the modules it uses.
     draft reviewed in order, reordered, split, merged or edited where its dependencies allow; *Save plan*, which lets the
     drafted plan go on as the planner left it, or writes a plan made by hand with `savePlan`; *+ Step*.
   - `backlog`, `board` — the items, each after the items it builds on, with their derived states, the requirements and
-    use cases no item realises; *Propose items* with its run panel, whose drafts wait for the Product Owner, and *Add to
+    use cases no item realises; in a model with sprints, for each team its last sprint that has ended, linked to its
+    record, with its final burn-down from `progressIn`; *Propose items* with its run panel, whose drafts wait for the Product Owner, and *Add to
     backlog*, which lets them go on as edited; *+ Item*, an item pointed at a replacing requirement or removed, with
     `saveItems`; in a product with several teams, what the other teams' sprints hold, from `heldItems`, and on each item
-    the marks `conflicts` gives; *Plan sprint* and *Start sprint* for the person's team with `startSprint`, *End sprint*
-    with `endSprint`; for a model with a work-in-progress limit, the board and *Pull*, refused at the limit with the items
-    in progress named.
+    the marks `conflicts` gives; *Plan sprint* and *Start sprint* for the person's team with `startSprint` — with the
+    parameter `plan` naming a team, as `progress` links it, the route opens with that team's planning, and a planning
+    opened or cancelled on the page is drawn from what the route has read, without reading it again; for a model with a
+    work-in-progress limit, the board and *Pull*, refused at the limit with the items in progress named. It reads the
+    product's facts with the scope `work`, every pull request among them.
   - `sprint/<team>/<n>/close` — the increment and the items not done, the feedback lines, the unfinished items' decisions, the
     retrospective with the sprint's numbers as material; *Close sprint* with `closeSprint`, offered only with a
     retrospective entry and a decision for every unfinished item; *Merge increment* as a pull request whose CI must be
@@ -195,7 +200,15 @@ Its formats are those of the modules it uses.
     tests and every gap, by MOD-trace-graph's `moduleRows` at the commit its end names (UC-043).
   - `progress` — the progress in the model's measure — the grid of requirements by phases with the steps of the plan,
     the burn-down of each team's running sprint, or the board's cumulative flow —, the gates passed, pending and not reached, what is
-    blocked, who works on what; a cell, card or point leads to the trace page of what is behind it.
+    blocked, who works on what; a cell, card or point leads to the trace page of what is behind it. In a model with
+    sprints it shows what goes on now (UC-035): each team's running sprint with its goal, start, end, branch and closer,
+    its items with their states and the modules they change and use, and its burn-down; *End sprint* with `endSprint`
+    for a running sprint without a time box, and *Close sprint*, leading to `sprint/<team>/<n>/close`, for one that has
+    ended; a team without a running sprint says so; *Plan sprint* and *Change the selection* lead to `backlog` with
+    `plan=<team>`, and a link leads to `backlog`, where every item and each team's last ended sprint stand; what is
+    blocked among the items the running sprints hold; who works on what, each current job linked to its page on the job
+    dashboard (UC-036). It reads the product's facts with MOD-progress-measures' scope `now`, so that no pull request
+    closed before the oldest running sprint started is listed, and draws no final burn-down.
 
 ## Files
 

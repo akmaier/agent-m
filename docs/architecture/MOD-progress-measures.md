@@ -169,12 +169,18 @@ The six stages of the main page, each a share between 0 and 1:
   `pullRequests`, `ci.runs`, `tags` — is `"unknown"` when the host does no server operations; whatever depends on an
   unknown fact is derived as unknown — a share `null`, a state `unknown` — and never guessed.
 - `productFacts(host: Host, instance: Snapshot, instanceAt: (commit: string) -> Promise<Snapshot>, now: Date,
-  options?: { scope: "all" | "work" | "build" }) -> Promise<Facts>` — with the scope `build`, what
+  options?: { scope: "all" | "work" | "build" | "now" }) -> Promise<Facts>` — with the scope `build`, what
   `buildInProgress` takes and nothing else — the plan or the backlog, the job records and the pull requests —; with the scope `work`, what MOD-prompt-bar
   asks before a hand-over that works on an item of the backlog or a step of the plan starts, it reads only what MOD-work-plans' `itemStates` and `startable` and MOD-product-process'
   `holdsRole` take — the approval statuses, the change queues, the declaration with its model and workflow, the
   participants, the plan or the backlog, the sprints, the role assignments, the gate records with their states, the job
   records without asking their live state, and the pull requests with `held` —, and every other fact is `"unknown"`.
+  With the scope `now`, what the progress page of a model with sprints shows (UC-035), it reads what the scope `work`
+  reads, with two differences: `sprints` are only those whose record holds no `## Review`, the running ones, so that
+  `held` and `progressIn` derive from them alone; and `pullRequests` are those open and those updated on or after the
+  earliest `start` of these sprints, listed with MOD-repository-hosts' `listPullRequests` and its `updatedSince` — none
+  closed before it, and without a running sprint only the open ones. The state of an item no running sprint selects
+  rests on these pull requests alone, and a caller of this scope shows no such item.
   With the scope `all`, the default, it reads everything once: the default branch of the product — through a
   local clone, the branch it has checked out — and what the repository says about it, the approval
   records, the change queues, the declaration with its model and practices as the instance's catalogue held them at the
@@ -182,7 +188,7 @@ The six stages of the main page, each a share between 0 and 1:
   instance's participants, the plan or the backlog
   and the sprints, the gate records, the job records, the pull
   requests — and, for the head commits MOD-work-plans' `undecidedHeads` names, whether the default branch contains them,
-  through the host's `containsCommit`, which `held` is computed with —, the CI runs of the head, the tags, the branch `test-results`, the test declarations of the files MOD-test-document's `isTestFile` names and the resource list. It builds no trace graph: `graph` is `"unknown"` in both scopes, and a view that shows traces builds them with MOD-trace-graph's `traceGraph` when it is drawn.
+  through the host's `containsCommit`, asked for all of them at once, which `held` is computed with —, the CI runs of the head, the tags, the branch `test-results`, the test declarations of the files MOD-test-document's `isTestFile` names and the resource list. It builds no trace graph: `graph` is `"unknown"` in both scopes, and a view that shows traces builds them with MOD-trace-graph's `traceGraph` when it is drawn.
   Considers:
   - `instance` is the instance as the caller reads it, for its participants, process models and `SPEC.md`: on a page
     its default branch; in CI the checkout of the instance at the commit of Agent M that runs (MOD-workflow-entries).
