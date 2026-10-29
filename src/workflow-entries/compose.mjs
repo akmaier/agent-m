@@ -107,13 +107,14 @@ function releaseOf(env) {
 }
 
 // A GitLab job (src/runtimes/workflow/gitlab.yml): the service is `gitlab` where GITLAB_CI is `true`; the event is CI_PIPELINE_SOURCE, its payload the inputs the template sets as
-// AGENT_M_INPUT_JOB, AGENT_M_INPUT_TASK, AGENT_M_INPUT_ENDPOINT and AGENT_M_INPUT_SECRET, each held only where it is not empty; the instance is cloned to `../instance` next to the project's checkout.
+// AGENT_M_INPUT_JOB, AGENT_M_INPUT_TASK, AGENT_M_INPUT_ENDPOINT and AGENT_M_INPUT_SECRET, each held only where it is not empty, and, for the entry onPullRequestClosed, the commit the pipeline is of (CI_COMMIT_SHA) with its time (CI_COMMIT_TIMESTAMP); the instance is cloned to `../instance` next to the project's checkout.
 // GitLab has no step summary, and no instance workflow runs on GitLab: there is no summary file and no workflow token. The machine, its result's folder and its key
 // are read as on GitHub (partOf); the plan's output is the dotenv file AGENT_M_OUTPUT names.
 function gitlabEnvironment(entry, env, now) {
   const inputs = Object.fromEntries([["job", env.AGENT_M_INPUT_JOB], ["task", env.AGENT_M_INPUT_TASK], ["endpoint", env.AGENT_M_INPUT_ENDPOINT], ["secret", env.AGENT_M_INPUT_SECRET]].filter(([, value]) => value));
   return {
-    entry, service: "gitlab", event: { name: env.CI_PIPELINE_SOURCE ?? null, payload: { inputs } },
+    entry, service: "gitlab",
+    event: { name: env.CI_PIPELINE_SOURCE ?? null, payload: { inputs, ...(entry === "onPullRequestClosed" ? { commit: { sha: env.CI_COMMIT_SHA ?? null, timestamp: env.CI_COMMIT_TIMESTAMP ?? null } } : {}) } },
     checkout: env.CI_PROJECT_DIR ?? "", repository: env.CI_PROJECT_URL ?? "", branch: env.CI_COMMIT_REF_NAME || null, agentM: { commit: env.CI_COMMIT_SHA ?? null }, token: null, now,
     ...(TEST_ENTRIES.includes(entry) ? { tests: testsOf(env, { runner: env.CI_RUNNER_DESCRIPTION || null, pullRequest: Number(env.CI_MERGE_REQUEST_IID) || null }) } : {}),
     job: {
@@ -267,7 +268,7 @@ export function composeProduct(env) {
   return {
     product: { address: env.repository, host: checkoutHost(env.repository, job.productDir, env.branch, job.personToken, secrets) },
     instance: { address: originOf(job.instanceDir, env.repository),
-      host: checkoutHost(originOf(job.instanceDir, env.repository), job.instanceDir, env.branch, job.personToken, secrets), checkout: job.instanceDir },
+      host: checkoutHost(originOf(job.instanceDir, env.repository), job.instanceDir, env.branch, null, secrets), checkout: job.instanceDir },
   };
 }
 

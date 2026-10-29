@@ -939,17 +939,28 @@ function issueNumberOf(address, repository) {
   return match && match[1].replace(/\/+$/, "") === String(repository).replace(/\/+$/, "") ? Number(match[2]) : null;
 }
 
+// The pull request an event of the job workflow names, as the host reads it, else null. GitHub's event names it (`pull_request.number`). GitLab starts no pipeline for a merge on the merge request itself, but one of the push that merged it, whose commit
+// the environment names (`commit`): it is the merged merge request whose merge commit that is, among those updated since the commit's time.
+async function eventPullRequest(env, host) {
+  const number = env.event.payload?.pull_request?.number;
+  if (Number.isInteger(number)) return (await host.pullRequestFacts(number)).pullRequest;
+  const commit = env.event.payload?.commit;
+  if (env.service !== "gitlab" || !commit?.sha) return null;
+  const merged = await host.listPullRequests({ state: "merged", ...(commit.timestamp ? { updatedSince: commit.timestamp } : {}) });
+  return merged.find((each) => each.mergeCommit === commit.sha) ?? null;
+}
+
 /**
- * onPullRequestClosed(env: CiEnvironment) -> Promise<EntryStatus> — run by the job workflow when a pull request of a product is merged or closed (the event's `pull_request.number`): on a merge, the pull request of a `fix-bug` job — the job its title or description names,
+ * onPullRequestClosed(env: CiEnvironment) -> Promise<EntryStatus> — run by the job workflow when a pull request of a product is merged or closed (GitHub's event names it, `pull_request.number`; on GitLab the pipeline of the push that merged a merge request names the commit, which finds the merge request): on a merge, the pull request of a `fix-bug` job — the job its title or description names,
  * as onDoneCheck reads it — closes the issues that job works on, each with MOD-issue-handling's closeWithLinks, its note naming the pull request's address. A pull request closed without a merge, one that names no job, a job that has no record or is of another kind, and a job that works on
  * no issue of this product write nothing (`nothing to do`). The runs' next actions are another item's. A missing token ends the entry at once as `not run`; an issue that cannot be closed is named, the others are closed all the same, and the entry ends `failed`.
  */
 export async function onPullRequestClosed(env) {
   if (!env.job.personToken) return notRun(`${env.job.tokenName} is missing: the person's Agent M token is a secret of this repository, passed to the job as ${env.job.tokenName}. Nothing was written.`);
-  const number = env.event.payload?.pull_request?.number;
-  if (!Number.isInteger(number)) return nothingToDo("The event names no pull request.");
   const { host } = composeProduct(env).product;
-  const { pullRequest } = await host.pullRequestFacts(number);
+  const pullRequest = await eventPullRequest(env, host);
+  if (!pullRequest) return nothingToDo(env.service === "gitlab" ? "No merge request was merged by the commit of this pipeline." : "The event names no pull request.");
+  const number = pullRequest.number;
   if (pullRequest.state !== "merged") return nothingToDo(`Pull request #${number} was closed without a merge: no issue is closed.`);
   const id = JOB_ID.exec(`${pullRequest.title}\n${pullRequest.body}`)?.[0];
   if (!id) return nothingToDo(`Pull request #${number} names no job.`);

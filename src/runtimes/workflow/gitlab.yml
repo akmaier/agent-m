@@ -78,7 +78,8 @@ spec:
       when: always
       variables:
         AGENT_M_ENTRY: writeResult
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    # GitLab starts no pipeline for the merge of a merge request on the merge request: it starts the push pipeline of the target branch, whose commit the entry finds the merged merge request by.
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
       variables:
         AGENT_M_ENTRY: onPullRequestClosed
     - if: '$CI_PIPELINE_SOURCE == "pipeline"'
