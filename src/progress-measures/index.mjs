@@ -6,7 +6,7 @@
 //
 // Module: MOD-progress-measures
 
-export { waitingForAcceptance, stageShares, currentStage, buildInProgress, waitingForAPerson, publishOverview, storedOverview, latestOverview } from "./stages.mjs";
+export { waitingForAcceptance, stageShares, currentStage, buildInProgress, waitingForAPerson, publishOverview, storedOverview, latestOverview, waitingQueues } from "./stages.mjs";
 export { progressIn } from "./measures.mjs";
 export { productFacts } from "./facts.mjs";
 export { blocked, gateOverview, whoWorksOnWhat } from "./overviews.mjs";

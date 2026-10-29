@@ -19,7 +19,11 @@
 //     the next that the paths of the backlog and the plan leave free, which is never written: `saveItems` gives the item the next one that no history holds. The form's one button, "Save", is shown as "Add"; the form offers it only while no error remains, and the findings of `backlogFindings`
 //     over the architecture's module files are shown beside the form. `changed` are the requirements that `entryView`'s impact names as added or changed, in the order of the entries, of the queues whose `**Issue:**` line names this issue and this product; the analysis is the page's proposal, if the person ran one:
 //     the answer of the kind `analyse-issue` holds a class, its reasoning and the files it names as wrong, and no violated requirement, so that `violated` is null and the person names the requirement a bug realises; its `modules` are the modules of the architecture whose folder holds a file it names as
-//     wrong, none without a proposal. Add writes with `moveToBacklog` (no `existing`: an item that takes a second issue is another item's), and the page then shows the identifier added, and, where the comment was refused for want of the permission, the comment's text with the issue's address and a button to copy it.
+//     wrong, none without a proposal. Add writes with `moveToBacklog` (no `existing`), and the page then shows the identifier added, and, where the comment was refused for want of the permission or of a token, the comment's text with the issue's address and a button to copy it.
+//   - An existing item (ITM-1254, UC-033 4a): the click on Move to backlog also lists, beside the form, the items of the backlog at the default branch (docs/backlog/ITM-<n>-<slug>.md), each with its identifier, its title and the button "Add to <identifier>" (the person's click), which
+//     writes with `moveToBacklog` given that identifier as `existing` and shows what Add shows.
+//   - An issue not classified yet (ITM-1254, UC-033 1a): where the move would stand, the page says that it is not offered because the issue is not classified, and leads to UC-012, step 2 with the button "UC-012, step 2", which goes to that use case through the context's
+//     `go`, as the fix leads to UC-017. An issue classified as not reproducible is classified, and the page says nothing of the move for it.
 //   - The fix (ITM-583): a section "Fix" is shown for an open issue whose class is bug — by its label, or by the person's click on Bug —, built as the analysis is (`runSection`) over the kind `fix-bug`, whose participants are those of the register that declare what the kind needs
 //     (write to the repository, run code and tests). Without one the section says so and a button UC-017 leads to that use case (UC-012 5b). The job's parameters are `issue`; `violated`, the requirement the person names in <input class="fix-requirement"> (left out when blank); `wrong`, the
 //     files the analysis proposed as wrong; `modules`, those of <input class="fix-modules">, which holds the modules whose folder holds a file the analysis names as wrong when the section is drawn, and which the person corrects; and `route`, the participant's route as the record writes
@@ -53,7 +57,7 @@ const STEP_TEXT = {
   list: "The open issues of the chosen product, with the class their label says. Open one to analyse it and to decide its class.",
   analyse: "Analyse asks the participant you choose for the class of this issue — a bug, a change or not reproducible — with its reasoning. The panel states where the participant processes data and exactly what it receives: the issue and the requirements, use cases, tests and modules it names, or the whole SPEC where it names none. The analysis writes nothing to the issue. Book: ch. 14, Evolution Processes and Change Identification.",
   change: "Draft change asks the participant you choose for the changed requirements this issue asks for, against every requirement of the product. The panel states where the participant processes data and exactly what it receives: the issue with what it names, the requirements, the open queues and the chapters of the book. The change is drafted in your own name: the job needs your own source, the register entry of your account that the product links. Save writes the candidates as a change queue under docs/spec-freigaben/ that names this issue; nothing is written before it. A conflict is not written until a person has decided it.",
-  move: "Move to backlog prefills a backlog item from this issue: its title and outcome from the issue, its origin the issue's address, what it realises (for a bug the requirement the analysis names as violated, for a change the requirements the change queues of this issue change or add) and the modules it changes, which you confirm or correct. The form names what fails. Add commits the item under docs/backlog/ of the product, adds a comment naming the item to the issue and gives the issue the label backlog. Where the token may not comment, the item is committed all the same and the comment is shown for you to copy. A change item waits for the acceptance of the requirements it names.",
+  move: "Move to backlog prefills a backlog item from this issue: its title and outcome from the issue, its origin the issue's address, what it realises (for a bug the requirement the analysis names as violated, for a change the requirements the change queues of this issue change or add) and the modules it changes, which you confirm or correct. The form names what fails. Add commits the item under docs/backlog/ of the product, adds a comment naming the item to the issue and gives the issue the label backlog. Where no token is stored that may comment, the item is committed all the same and the comment is shown for you to copy. Where the issue describes the work of an item already in the backlog, add it to that item instead: the item then names both issues as its origins, and both get the comment. A change item waits for the acceptance of the requirements it names.",
   fix: "Fix hands a confirmed bug to a participant that can run code and tests: a coding agent in CI, on a Bridge or in a sandbox. A model endpoint can analyse an issue but cannot fix it. Run queues the job on the participant's route; the panel states where the participant processes data and exactly what it receives: the issue and what it names, the analysis you confirmed, the code and tests of the modules you name, and the instruction to write a regression test first, with invented data, never the reporter's. The job works on a branch of its own and opens a pull request that links the issue and the requirement it restores; the pull request is merged once the Definition of Done holds, and the issue is then closed with a link to it. Book: ch. 13, Software Testing in the Age of Coding Agents.",
   decide: "One click decides. A class sets the label defect, change or not-reproducible on the issue and removes the other two. Reject issue closes the issue with the reason you give and changes nothing else. A requirement that is missing is a change, not a bug.",
 };
@@ -230,6 +234,7 @@ function changeSection({ context, product, issue }) {
 
 const MODULE_FILE = /^docs\/architecture\/MOD-[^/]+\.md$/;
 const ITEM_FILE = /(?:^|\/)(ITM-\d{3,})-[^/]*\.md$/;
+const BACKLOG_ITEM = /^docs\/backlog\/(ITM-\d{3,})-[^/]*\.md$/;
 const LIST_KEYS = new Set(["realises", "modules", "tests", "origin", "builds_on", "built_by"]);
 const LIST_FINDING = new RegExp(`^the key (${[...LIST_KEYS].join("|")}) does not fit`);
 const slugOf = (title) => String(title ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "item";
@@ -267,6 +272,14 @@ function analysisOf(architecture, proposal) {
   return { violated: null, modules };
 }
 
+// The items of the backlog at a snapshot, by their number, each with its identifier and title: those a further issue may be added to (UC-033 4a).
+async function backlogItems(snapshot) {
+  const paths = snapshot.paths.filter((path) => BACKLOG_ITEM.test(path));
+  await snapshot.readMany?.(paths);
+  const items = await Promise.all(paths.map(async (path) => ({ id: BACKLOG_ITEM.exec(path)[1], title: readDocument(artifactSchemas().item, path, (await snapshot.read(path)) ?? "").fields.title ?? "" })));
+  return items.sort((a, b) => Number(a.id.slice(4)) - Number(b.id.slice(4)));
+}
+
 // The comment to copy where the token may not comment: its text, the issue's address, and a button that puts the text on the clipboard.
 function commentToCopy(comment) {
   const text = el("pre", "comment-text");
@@ -274,7 +287,7 @@ function commentToCopy(comment) {
   const where = el("a", "comment-issue", comment.issue);
   where.setAttribute("href", comment.issue);
   const copy = button("copy-comment", "Copy comment", async () => { try { await globalThis.navigator?.clipboard?.writeText(comment.text); } catch { /* the text stays shown to be selected */ } });
-  return el("div", "move-comment", el("p", null, "The token may not comment on the issue. Copy this comment and add it to ", where, ":"), text, el("p", "actions", copy));
+  return el("div", "move-comment", el("p", null, "No stored token may comment on the issue. Copy this comment and add it to ", where, ":"), text, el("p", "actions", copy));
 }
 
 // The section that moves the issue into the backlog (UC-033): Move to backlog draws the prefilled item as a form, Add writes it. `current()` is the class the issue has now and `proposal()` the participant's proposal, if any, both read when the person clicks.
@@ -304,13 +317,14 @@ function moveSection({ product, issue, current, proposal }) {
       // The document with its list-valued keys as lists again, for the checks of the item schema and of the backlog and for `moveToBacklog`.
       const listed = (live) => ({ ...live, fields: Object.fromEntries(Object.entries(live.fields).map(([key, value]) => [key, LIST_KEYS.has(key) ? namesOf(value) : value])) });
       const problems = el("div", "issue-move-problem");
+      const added = (done, said) => stage.replaceChildren(el("p", "move-added", said), ...(done.comment ? [commentToCopy(done.comment)] : []));
       const form = schemaForm(schema, opened, {
         onSave: async (live) => {
           problems.replaceChildren();
           try {
             const { id: _, ...fieldsNow } = listed(live).fields;
             const done = await moveToBacklog(product.host, { number: issue.number, address }, { fields: fieldsNow, sections: live.sections.map(({ heading, text }) => ({ heading, text })) }, null);
-            stage.replaceChildren(el("p", "move-added", `Added ${done.item} to the backlog.`), ...(done.comment ? [commentToCopy(done.comment)] : []));
+            added(done, `Added ${done.item} to the backlog.`);
           } catch (failure) {
             problems.append(el("p", "issue-problem", `The item could not be added: ${failed(failure)}`));
           }
@@ -327,7 +341,23 @@ function moveSection({ product, issue, current, proposal }) {
       // The form's one button is its Save; here it is the person's Add.
       const add = form.children[form.children.length - 1].getElementsByTagName("button")[0];
       if (add) add.textContent = "Add";
-      stage.append(form, problems);
+      // The items this issue may be added to instead (UC-033 4a): `moveToBacklog` with `existing`, which leaves the prefilled item unused.
+      const existing = (await backlogItems(head)).map(({ id, title }) => {
+        const addTo = button("add-to-existing", `Add to ${id}`, async () => {
+          addTo.disabled = true;
+          problems.replaceChildren();
+          try {
+            added(await moveToBacklog(product.host, { number: issue.number, address }, item, id), `Added this issue to ${id}.`);
+          } catch (failure) {
+            addTo.disabled = false;
+            problems.append(el("p", "issue-problem", `The issue could not be added to ${id}: ${failed(failure)}`));
+          }
+        });
+        const entry = el("li", "existing-item", `${id} ${title} `, addTo);
+        entry.setAttribute("data-item", id);
+        return entry;
+      });
+      stage.append(form, ...(existing.length ? [el("div", "move-existing", el("p", null, "Or add this issue to an item of the backlog that describes the same work:"), el("ul", "existing-items", ...existing))] : []), problems);
     } catch (problem) {
       stage.replaceChildren(el("p", "issue-problem", failed(problem)));
     }
@@ -460,11 +490,19 @@ async function renderIssue(target, context, params = {}) {
     fix ??= fixSection({ context, product, issue, proposal: () => state.proposal });
     fixBox.replaceChildren(await fix);
   }
+  // Where an issue is not classified yet, the move is not offered and the page leads to UC-012, step 2 (UC-033 1a), only through the context's go, as the fix leads to UC-017.
+  function notClassified() {
+    const lead = el("button", "uc-012 btn", "UC-012, step 2");
+    lead.setAttribute("type", "button");
+    lead.addEventListener("click", () => context.go("use-case", { id: "UC-012" }));
+    return el("p", "move-not-offered", "Move to backlog is not offered: this issue is not classified yet as a bug or a change. Analyse it and decide its class — ", lead, ".");
+  }
   // The move section is built once, and shown while the issue's class is bug or change.
   const moveBox = el("div", "issue-move-box");
   let move = null;
   function drawMove() {
     const cls = currentClass();
+    if (cls === undefined) { moveBox.replaceChildren(notClassified()); return; }
     if (cls !== IssueClass.bug && cls !== IssueClass.change) { moveBox.replaceChildren(); return; }
     move ??= moveSection({ product, issue, current: currentClass, proposal: () => state.proposal });
     moveBox.replaceChildren(move);

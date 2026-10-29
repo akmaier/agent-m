@@ -110,8 +110,10 @@ test("UC-006 3b: an entry that marks a requirement withdrawn, keeping its name, 
 });
 
 test("UC-006 3b: an entry whose impact list cannot be read is not offered for acceptance; the page says the read failed", async () => {
-  // The server fails on the batch and on one of the use cases the list reads.
-  const failing = (url) => (url.pathname === "/graphql" || url.pathname.endsWith(`/contents/${UC3}`) ? new Response("{}", { status: 500 }) : undefined);
+  // The server fails on the batch of files' texts — not on the query of the folders' entries (ITM-1266), which the load reads its snapshot with — and on one
+  // of the use cases the list reads.
+  const batch = (url, init) => url.pathname === "/graphql" && /\bf\d+:object\(/.test(JSON.parse(init.body).query);
+  const failing = (url, init) => (batch(url, init) || url.pathname.endsWith(`/contents/${UC3}`) ? new Response("{}", { status: 500 }) : undefined);
   const srv = await repoServer({ files: FILES, handlers: [failing] });
   const page = await openDashboard({ server: srv, hash: `#spec/${QNAME}/01` });
   assert.doesNotMatch(page.main(), /<button class="btn accept"/, "no Accept without the list");

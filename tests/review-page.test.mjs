@@ -159,9 +159,9 @@ test("counter-proof: a file changed between building the page and the click is l
 // input: open #review/arc with a token
 // expect: the three files shown come in one batch of three and none by itself; the graph of the impact list is the one stored for the commit, read once — no
 //         batch of the files a graph reads (MOD-review-pages: "The graph is the one `onMainChanged` stored for the commit shown ..., read through `storedGraph`;
-//         no page builds a graph"); the SPEC, which the page reads for what a file rests on and does not show, at most once; the commit, the tree and the
-//         repository's information once each; no use case and no queue file
-test("request count: the architecture's review page reads the files it shows in one batch, its commit and tree once, the repository's information once, and the stored graph of its impact list once", async (t) => {
+//         no page builds a graph"); the SPEC, which the page reads for what a file rests on and does not show, at most once; the commit, the request for
+//         the folders it reads (ITM-1266) and the repository's information once each, and no git/trees; no use case and no queue file
+test("request count: the architecture's review page reads the files it shows in one batch, its commit and its folders once, the repository's information once, and the stored graph of its impact list once", async (t) => {
   const repo = await product(), caches = fakeCaches();
   const srv = await server(repo);
   const cold = await openDashboard({ server: srv, hash: "#review/arc", caches });
@@ -175,7 +175,8 @@ test("request count: the architecture's review page reads the files it shows in 
   assert.deepEqual(files(cold.requests).filter((p) => p.startsWith("docs/use-cases/") || p.startsWith("docs/spec-freigaben/")), [],
     "no use case and no queue file");
   assert.equal(count(cold.requests, "commit"), 1);
-  assert.equal(count(cold.requests, "tree"), 1);
+  assert.equal(count(cold.requests, "folders"), 1);
+  assert.equal(count(cold.requests, "tree"), 0);
   assert.equal(count(cold.requests, "repository"), 1);
   assert.equal(cold.requests.filter((r) => r.startsWith("batch ")).length, 1, "the files shown in one batch, and no batch of a graph's files");
   const warm = await openDashboard({ server: await server(repo), hash: "#review/arc", caches });

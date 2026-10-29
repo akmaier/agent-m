@@ -91,7 +91,8 @@ test("the dashboard reads the stored graph once for the impact list of an open e
 // expect: the page links UC-001 (known positive) and the opened requirement has no open proposals; opening requests no file of the queue; the artifacts were read, over the whole load, in batch queries, fewer requests than files
 test("the dashboard reads the artifacts in batches when a requirement is opened, and no queue", async () => {
   const graphql = async (url, init) => {
-    if (url.pathname !== "/graphql") return null;
+    // The batch of files' texts alone; the query of the folders' entries a load reads its snapshot with (ITM-1266) is the harness's.
+    if (url.pathname !== "/graphql" || !/\bf\d+:object\(/.test(JSON.parse(init.body).query)) return null;
     const repository = {};
     for (const match of JSON.parse(init.body).query.matchAll(/(f\d+):object\(expression:("(?:[^"\\]|\\.)*")\)/g)) {
       const path = JSON.parse(match[2]).split(":").slice(1).join(":");
