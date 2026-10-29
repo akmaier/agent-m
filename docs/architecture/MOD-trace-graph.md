@@ -189,8 +189,11 @@ identifier, and which register entry an item names is MOD-source-register's to s
   `trace-cache`, its `<commit>.json.gz` read once with the source's `readOn` and unzipped — once for each commit in a page,
   however many views and functions ask for it, since a commit's graph never changes; a graph not stored, or a read that
   failed, is read again at the next call. It never builds the graph and
-  reads no other file; it rejects with `GraphNotStored`, naming the commit and the workflow that stores it, where the
-  source has no `readOn`, `commit` is none, or the branch holds no graph of it. Every page reads a graph only through it,
+  reads no other file; it rejects with `GraphNotStored`, naming the commit and the workflow "main changed" that stores
+  it, and that in a product this workflow runs once Agent M's workflows are written into it — *Install* on the
+  product's Settings page —, where the source has no `readOn`, `commit` is none, or the branch holds no graph of it.
+  It says both in every repository, since telling a product whose files run the workflow from one whose files do not
+  would take a read of those files. Every page reads a graph only through it,
   directly or through `latestGraph`.
 - `latestGraph(source: TextSource, commit: string) -> Promise<{ graph: Graph, line: string | null }>` — the graph stored for
   `commit`, as `storedGraph` gives it, and `line` null; while that is not stored yet, `latest.json` on the branch
