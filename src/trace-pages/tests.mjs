@@ -40,12 +40,12 @@ async function declarationsOf(snapshot) {
   return found;
 }
 
-// The outcome of each test on the commit of the version: resultsAt's, from the branch test-results; none where the branch cannot be read.
+// The outcome of each test on the commit of the version: resultsAt's, from the records of that commit on the branch test-results, read through a snapshot narrowed to their folder; none where the branch cannot be read.
 async function outcomesOf(host, snapshot, declarations) {
   const outcomes = new Map();
   let problem = null;
   try {
-    const results = await host.readSnapshot(RESULTS_BRANCH);
+    const results = await host.readSnapshot(RESULTS_BRANCH, { folders: [`runs/${snapshot.commit}`] });
     const asked = declarations.map((declaration) => ({ id: declaration.id, level: declaration.level ?? "none" }));
     for (const level of await resultsAt(results, snapshot.commit, asked)) for (const test of level.tests) outcomes.set(test.id, test);
   } catch (failure) {
