@@ -16,7 +16,7 @@ import { nextIdentifier } from "../identifiers/index.mjs";
 import { finding } from "../text-tools/index.mjs";
 import { backlogFindings } from "./checks.mjs";
 import { sprintSchema } from "./schemas.mjs";
-import { conflicts, selectionOf } from "./sprints.mjs";
+import { conflicts, list, selectionOf } from "./sprints.mjs";
 
 /** A failure of a save, named as MOD-work-plans' file names it, with the facts it carries. */
 export class WorkPlansError extends Error {
@@ -30,13 +30,13 @@ export class WorkPlansError extends Error {
 // The time box a declaration's ## Branches names; the sprint's records and files.
 const TIME_BOX = "Sprint";
 const SPRINT_FILE = /^docs\/backlog\/sprints\/([^/]+)\/(\d+)\.md$/;
-const ITEM_FILE = /^docs\/backlog\/(ITM-\d{3,})-[^/]+\.md$/;
+// The file of a backlog item, with its identifier: the module's one rule of it, which strategies.mjs takes from here.
+export const ITEM_FILE = /^docs\/backlog\/(ITM-\d{3,})-[^/]+\.md$/;
 const ANY_ITEM_FILE = /(?:^|\/)(ITM-\d{3,})-[^/]*\.md$/;
 const BACKLOG_RULE = "THE BACKLOG LIVES IN THE PRODUCT REPOSITORY";
 const DAY = 86400000;
 
 const text = (value) => (typeof value === "string" ? value : value === null || value === undefined ? "" : String(value));
-const list = (value) => (Array.isArray(value) ? value.map(text) : text(value).split(",").map((part) => part.trim()).filter(Boolean));
 const listed = (names) => (names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`);
 const plusDays = (date, days) => new Date(Date.parse(`${date}T00:00:00Z`) + days * DAY).toISOString().slice(0, 10);
 const slugOf = (title) => text(title).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "item";

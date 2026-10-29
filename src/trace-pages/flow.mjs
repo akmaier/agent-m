@@ -21,7 +21,7 @@ import { hierarchy, parseGroupFile } from "../group-document/index.mjs";
 import { renderArtifact, renderMermaid } from "../markdown-render/index.mjs";
 import { artifactSchemas, readDocument } from "../documents/index.mjs";
 import { statuses } from "../approvals/index.mjs";
-import { entryView } from "../spec-changes/index.mjs";
+import { entryImpact } from "../spec-changes/index.mjs";
 import { affectedRequirements, linkedVersion, sourceSchemas } from "../source-register/index.mjs";
 import { coverageGaps, latestGraph, moduleRows, storedGraph, tracesTo } from "../trace-graph/index.mjs";
 import { waitingQueues } from "../progress-measures/index.mjs";
@@ -549,14 +549,11 @@ function addLinks(spec) {
 async function arrangement(snapshot, spec, waiting, groupText) {
   const status = new Map();
   const added = new Set();
-  // The rationales the impact lists read are named to Snapshot.readMany first, in one batch; a host that cannot batch reads nothing ahead.
-  const rationales = waiting.map(({ entry }) => entry.rationale).filter(Boolean);
-  if (rationales.length) await snapshot.readMany?.(rationales);
-  // The entries' views are read at once; their impacts are then taken in the order of the entries, so that the first entry naming a requirement gives its status.
-  const views = await Promise.all(waiting.map(({ queue, entry }) => entryView(queue.folder, entry.number, snapshot).catch(() => null)));
-  for (const view of views) {
-    if (view === null) continue;
-    for (const { name, change } of view.impact) {
+  // The entries' impacts are read at once, from their proposals and targets and no rationale; they are then taken in the order of the entries, so that the first entry naming a requirement gives its status.
+  const impacts = await Promise.all(waiting.map(({ queue, entry }) => entryImpact(queue.folder, entry.number, snapshot).catch(() => null)));
+  for (const impact of impacts) {
+    if (impact === null) continue;
+    for (const { name, change } of impact) {
       if (change === "added") {
         if (!spec.requirements.has(name)) added.add(name);
       } else if (spec.requirements.has(name) && !status.has(name)) status.set(name, change === "withdrawn" ? "removal proposed" : "change proposed");
@@ -587,7 +584,7 @@ async function countUnrealised(shown, arranged) {
 // in the review pages, by the identifier `spec-<queue folder>-<NN>` MOD-review-pages addresses an entry by. The queues are those the overview stored for the
 // commit holds (MOD-progress-measures' waitingQueues: every queue with an entry not in the SPEC yet), so that no queue file is read; while the head's is not
 // stored yet — the minutes after a push, before the workflow "main changed" stores it — those of the overview stored last; only where no overview was ever stored is every queue of the snapshot read (MOD-spec-changes' queues). A queue that cannot be read gives none. The proposals of the entries found, which their
-// impact lists read (entryView), are named to Snapshot.readMany at once, in one batch; a host that cannot batch reads nothing ahead.
+// impact lists read (entryImpact), are named to Snapshot.readMany at once, in one batch; a host that cannot batch reads nothing ahead.
 async function waitingEntries(snapshot) {
   if (!snapshot.paths.some((path) => path.startsWith("docs/spec-freigaben/"))) return [];
   let all;

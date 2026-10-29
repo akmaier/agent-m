@@ -12,11 +12,9 @@
 // MOD, the modules' code. A reason is a sentence a person reads.
 
 import { holdsRole } from "../product-process/index.mjs";
-import { selectionOf, sprintOf } from "./sprints.mjs";
+import { list, selectionOf, sprintOf } from "./sprints.mjs";
 
 const text = (value) => (typeof value === "string" ? value : value === null || value === undefined ? "" : String(value));
-const list = (value) => (Array.isArray(value) ? value.map(text)
-  : text(value).split(",").map((part) => part.trim()).filter(Boolean));
 const listed = (names) => (names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`);
 const teamOf = (assignment) => text(assignment?.path).split("/").pop().replace(/\.md$/, "") || "the product";
 const fieldsOf = (document) => document?.fields ?? {};
