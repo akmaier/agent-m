@@ -23,10 +23,10 @@ uses:
   - MOD-trace-graph.tracesTo
   - MOD-run-planner.runStrategies
   - MOD-personal-data.pseudonymisationOf
-  - MOD-documents.artifactSchemas
   - MOD-documents.readDocument
   - MOD-documents.Document
   - MOD-work-plans.saveItems
+  - MOD-work-plans.backlogOf
   - MOD-job-runner.Strategies
 provides:
   - confirmClass
@@ -122,8 +122,9 @@ labels and closes issues in the product's tracker through Access; the item is wr
 - `MOD-trace-graph.traceGraph`, `MOD-trace-graph.tracesTo` — what links to them.
 - `MOD-run-planner.runStrategies` — the recipe `implementation-inputs`, reused for the modules of a fix.
 - `MOD-personal-data.pseudonymisationOf` — whether the issue's report data was rewritten without persons.
-- `MOD-documents.Document` — the prefilled item; `MOD-documents.artifactSchemas`, `MOD-documents.readDocument` — the
-  item and module schemas, the module files of the architecture that `saveItems` checks the item against, and an existing
-  item that takes this issue as a further origin.
-- `MOD-work-plans.saveItems` — writing the item.
+- `MOD-documents.Document` — the prefilled item; `MOD-documents.readDocument` — the product's settings, read for
+  `pseudonymisationOf`.
+- `MOD-work-plans.saveItems` — writing the item; `MOD-work-plans.backlogOf` — the module files of the architecture that
+  `saveItems` checks the item against, and an existing item that takes this issue as a further origin, its origins as a
+  list.
 - `MOD-job-runner.Strategies` — the type of `issueStrategies`.
