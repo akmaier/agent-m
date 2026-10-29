@@ -537,13 +537,11 @@ test("opening one use case reads that use case, the history of its record and th
   assert.match(page.main(), /<span class="ddel">- title: Show a status/, "the difference to the text accepted before");
 });
 
+// TST-1294009 · level: component · module: MOD-site-frame
 // guards: AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST
 // given: MOD-reader, accepted in an earlier text, edited since
 // input: open #arc/MOD-reader with a token
-// expect: the difference to its last accepted text, the impact list beside it — the affected modules —, Accept offered with it; the
-//         page first asks for the impact lists stored for the commit, in one request (MOD-review-pages: "the page first reads the impact lists
-//         stored for the commit it shows (MOD-trace-graph's `storedImpacts`, one request)"), builds no graph from the files — no batch is
-//         sent (MOD-review-pages: "no page builds a graph") —, and reads no use case and no queue file
+// expect: the difference to its last accepted text, the impact list beside it with the affected modules, and Accept offered with it; the impact lists stored for the commit asked for in one request, no graph built from the files and no batch sent, and no use case and no queue file read
 test("opening a changed module shows its impact list beside the difference, and offers Accept with it", async () => {
   const repo = await product();
   const srv = await server(repo);
