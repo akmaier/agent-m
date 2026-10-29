@@ -7,6 +7,7 @@ follows:
   - ARC-038
 uses:
   - MOD-site-frame.View
+  - MOD-site-frame.ViewContext
   - MOD-site-frame.chosenProduct
   - MOD-site-frame.instanceOf
   - MOD-site-frame.menuOf
@@ -164,7 +165,8 @@ instance repository through their hosts, and the browser's store for the product
 
 - MOD-site-frame.View — the interface it provides; MOD-site-frame.chosenProduct, MOD-site-frame.instanceOf — the
   product chosen and the instance; MOD-site-frame.menuOf — the page of a stage, for a card's product, and the use cases'
-  page, for the greeting; MOD-site-frame.explain — the folded explanations of the page, its states and runtimes;
+  page, for the greeting; MOD-site-frame.ViewContext — `addressOf`, the address of a route of the review pages that the
+  page links, such as *Get your own Agent M* and the place where a waiting item is decided; MOD-site-frame.explain — the folded explanations of the page, its states and runtimes;
   MOD-site-frame.notice — a refused token, a used-up rate limit, a source not reached; MOD-site-frame.confirmDecision —
   cancel, retry and a gate's decision; MOD-site-frame.productHostFollowingStore — each kept product's host for the
   notification checks, through the product's token and the stored secrets at each call; MOD-site-frame.tokenKeyOf — the key of a product's token setting, whose

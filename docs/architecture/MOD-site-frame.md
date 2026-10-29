@@ -184,13 +184,16 @@ It keeps nothing but what is on the screen. It owns these formats:
   first shown, embedded or asked for its subject, after it has asked for every module of it at once (the page's
   preloads), never level by level.
 - `ViewContext` — what every route is given: `{ page: "main" | "review" | "bridge", instance: { repository: string,
-  host: Host }, product: ProductContext | null, store: Store, go(route: string, params?: Record<string, string>) -> void }`
+  host: Host }, product: ProductContext | null, store: Store, go(route: string, params?: Record<string, string>) ->
+  void, addressOf(route: string, params?: Record<string, string>) -> string }`
   — `Host` and `Store` as
   MOD-repository-hosts and MOD-browser-store define them; `ProductContext` is `{ address: string, kind: "github" |
   "gitlab", host: Host, tokenStored: boolean }`, `tokenStored` telling whether this browser keeps the product's own
   token, so that a view hands `readProblem` the fact without reading the store's keys itself. `go` writes the chosen
   product into the address unless `params` names a `product`; the empty `product` names the instance itself, and the
-  address then holds none.
+  address then holds none. `addressOf` gives the address `go` would go to, with the same product, as a link's target;
+  for a route that no view of this page loads, the address of that route on the review pages, as `menuOf` leads the main
+  page's entries there. A route writes no address of its own.
 - `PageSetup` — `{ page: "main" | "review" | "bridge", views: View[] }`.
 - `startPage(setup: PageSetup) -> Promise<void>` — draws the header, the menu, whose links carry the chosen product as
   `menuOf` gives them and in which the entry of the page shown is marked, and the product selector, shows the notices, connects the instance and the chosen product, and renders the route the fragment names, again on every
