@@ -29,7 +29,7 @@ const { view } = await import("../src/review-pages/index.mjs");
 const entryRoute = view.routes.find((candidate) => candidate.name === "spec-entry");
 const editRoute = view.routes.find((candidate) => candidate.name === "requirement");
 
-const TICK = "`";
+const TICK = "\u0060";
 const SPEC_DIR = "docs/spec-freigaben/";
 const ANCHOR = "## 1. Section";
 const MINE = "2026-10-20_mine", OTHER = "2026-10-19_other";
