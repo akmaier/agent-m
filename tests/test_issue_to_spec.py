@@ -1,7 +1,8 @@
-# Module: MOD-issue-handling
+# Module: MOD-issue-handling; MOD-maintenance-pages; MOD-spec-changes
 # Guards: UC-012; EVOLUTION ENTERS THROUGH THE SPECIFICATION
 # Level: release
-"""SPEC section 14 - the check named tests/test_issue_to_spec.py, for the requirement EVOLUTION ENTERS THROUGH THE SPECIFICATION.
+"""SPEC section 9 - the check named tests/test_issue_to_spec.py, for the requirement EVOLUTION ENTERS THROUGH THE SPECIFICATION:
+"An issue that changes behaviour - on GitHub or on the product's GitLab server - becomes a specification change first and a code change second."
 
 The cases live in tests/test_issue_to_spec.md. This file only loads them and asks node to open the real page of an issue (route `issue` of
 MOD-maintenance-pages, over MOD-issue-handling, MOD-job-runner, MOD-spec-changes and MOD-repository-hosts) in the world of
@@ -9,8 +10,15 @@ tests/maintenance-pages-world.mjs: a fake GitHub holding the issues of the produ
 model endpoint that answers with the candidates of the case. A case's steps are the person's clicks (`class`: the class of the issue; `draft`: a
 participant, a name, Run, Save). The check then states what the product's repository holds and what the page offers: the writes made to the issue, the
 paths committed to the product, the files of a queue and the issue it names, the kinds of the jobs that were started, and which sections of the page
-are shown. A path committed outside docs/ is code or a test; a fault planted in the code the check reads (a draft written outside the queue, a Fix
-offered for a change) is found by these needles.
+are shown. A path committed outside docs/ is code, a test or SPEC.md itself.
+
+The sentence is read through UC-012 (step 6 and its postcondition): "[Agent M] writes them as a queue under `docs/spec-freigaben/` naming the issue"
+and "A change is in the specification before any code implements it, and the accepted entry names the issue it came from." The check covers the
+side of that order that precedes the acceptance of the queue: the change leaves the issue as a queue and nothing else is committed, and no fix is
+offered for it. That no code job starts for a requirement not yet accepted is NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED (tests/test_job_preconditions.py).
+
+On a GitLab server only the class of the issue is checked (TST-1152003, the real GitLab adapter over a fake fetch): the repository holds no fake of
+GitLab's commit API, so the queue written for a change is not checked on GitLab.
 
 Written for ITM-1152 by a participant who built none of the behaviour it checks (RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER).
 """
@@ -25,6 +33,7 @@ DATA = Path(__file__).with_suffix(".md")
 ROOT = Path(__file__).resolve().parents[1]
 FIRST = "EVOLUTION ENTERS THROUGH THE SPECIFICATION - a change is written as a queue naming the issue"
 SECOND = "EVOLUTION ENTERS THROUGH THE SPECIFICATION - the code is not changed by a change"
+GITLAB = "EVOLUTION ENTERS THROUGH THE SPECIFICATION - on a GitLab server"
 
 # The adapter. `input`: `issues` (the number and the labels of each issue of the product), `issue` (the number of the page opened), `steps` (`class`: a click on
 # Change or Bug; `draft`: the participant drafts the change and the person saves it), `candidates` (what the participant answers). The value is what the case may state:
@@ -107,6 +116,27 @@ restoreWorld();
 return out;
 """
 
+# The class of an issue on a GitLab server. `input`: `issue` (its number), `cls` (the class the person clicks). The value is what the case may state:
+# `writes` (every request that is not a read, as "METHOD path body", the project's prefix left out), `requests` (how many requests the fake server received).
+GITLAB_WORLD = r"""
+const url = (path) => `file://${ROOT}/${path}`;
+const issueHandling = await import(url("src/issue-handling/index.mjs"));
+const hosts = await import(url("src/repository-hosts/index.mjs"));
+const WEB = "https://gitlab.example.org/space/release-tool", PREFIX = "/api/v4/projects/space%2Frelease-tool";
+const requests = [];
+globalThis.fetch = async (target, init = {}) => {
+  const where = new URL(String(target));
+  const method = String(init.method ?? "GET").toUpperCase();
+  requests.push({ method, path: where.pathname + where.search, body: init.body ?? null });
+  const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+  if (where.origin === "https://gitlab.example.org" && where.pathname === `${PREFIX}/issues/${input.issue}` && method === "PUT") return json(200, { iid: input.issue });
+  return json(404, { message: "404 Not found" });
+};
+const host = hosts.connect(hosts.parseAddress(WEB), { token: "glpat-SPACEreleaseTOOL0123456789" });
+await issueHandling.confirmClass(host, input.issue, input.cls, null);
+return { writes: requests.filter((request) => request.method !== "GET").map((request) => `${request.method} ${request.path.replace(PREFIX, "")} ${request.body}`), requests: requests.length };
+"""
+
 
 def cases(section: str, data: Path = DATA) -> list[dict]:
     text = data.read_text(encoding="utf-8")
@@ -120,34 +150,45 @@ def cases(section: str, data: Path = DATA) -> list[dict]:
     return found
 
 
-def run_world(argument: dict) -> dict:
-    return js(f"const input = {json.dumps(argument)}; const ROOT = {json.dumps(str(ROOT))};\n{WORLD}")
+def run_world(argument: dict, world: str = WORLD) -> dict:
+    return js(f"const input = {json.dumps(argument)}; const ROOT = {json.dumps(str(ROOT))};\n{world}")
 
 
-def check(test: unittest.TestCase, section: str) -> None:
+def check(test: unittest.TestCase, section: str, world: str = WORLD) -> None:
     for loaded in cases(section):
         with test.subTest(case=loaded["name"]):
-            got = run_world(loaded["case"]["input"])
+            got = run_world(loaded["case"]["input"], world)
             wanted = loaded["case"]["expected"]
             test.assertEqual({key: got.get(key) for key in wanted}, wanted)
 
 
 class TestIssueToSpec(unittest.TestCase):
-    # TST-115201 · level: release · module: MOD-issue-handling
+    # TST-1152001 · level: release · module: MOD-issue-handling, MOD-maintenance-pages, MOD-spec-changes
     # guards: EVOLUTION ENTERS THROUGH THE SPECIFICATION; UC-012
-    # given: the cases under "a change is written as a queue naming the issue" in the Markdown file beside this one: an issue classed as a change, with a participant that answers a new requirement and a conflict, and a person who saves the draft
+    # given: the cases under "a change is written as a queue naming the issue" in the Markdown file beside this one: an issue classed as a change, with a participant that answers a new requirement, and a person who saves the draft
     # input: each case's steps, carried out on the real page of the issue over the fake GitHub and the fake endpoint
-    # expect: the class is only a label on the issue; the saved draft is a queue under docs/spec-freigaben/ whose index names the issue and the product, and holds the new requirement and not the conflict; the issue stays open
+    # expect: the saved draft is a queue under docs/spec-freigaben/ whose index names the issue and the product and holds the new requirement; the only job started is of the kind change-requirements; nothing is committed outside docs/; the issue stays open and offers no fix
+    # Planted fault: an index line that names no issue fails queueNames; an extra file src/export/index.mjs in the queue's commit fails outsideDocs; the fix offered for a change fails fixSection.
     def test_a_change_is_written_as_a_queue_naming_the_issue(self):
         check(self, FIRST)
 
-    # TST-115202 · level: release · module: MOD-issue-handling
+    # TST-1152002 · level: release · module: MOD-issue-handling, MOD-maintenance-pages
     # guards: EVOLUTION ENTERS THROUGH THE SPECIFICATION; UC-012
-    # given: the cases under "the code is not changed by a change": the issue classed as a change, classed and drafted, and an issue classed as a bug as the known positive
-    # input: each case's steps, carried out on the real page of the issue
-    # expect: for a change nothing is committed outside docs/, no job of the kind fix-bug is started and the page offers the section that drafts the change and not the one that fixes; for a bug the page offers the fix and not the change
+    # given: the cases under "the code is not changed by a change": an issue without a class, and an issue labelled defect as the known positive of the sections
+    # input: the person's click on Change on the first; the page of the second
+    # expect: after the click the issue carries the label change and no other class, nothing is committed, the page offers the draft of the change and no fix; the issue labelled defect offers the fix and not the draft
+    # Planted fault: the change class mapped to the label defect fails labels; the fix offered for a change fails fixSection; the draft offered for a bug fails changeSection; the draft withheld from a change fails changeSection.
     def test_the_code_is_not_changed_by_a_change(self):
         check(self, SECOND)
+
+    # TST-1152003 · level: release · module: MOD-issue-handling, MOD-repository-hosts
+    # guards: EVOLUTION ENTERS THROUGH THE SPECIFICATION; UC-012
+    # given: the case under "on a GitLab server": a product on a GitLab server, whose issue 7 is classed by the person's click
+    # input: confirmClass with the class change on the real GitLab adapter over a fake fetch
+    # expect: the one request is a PUT on the issue that adds the label change and removes defect and not-reproducible; nothing else is requested, so no commit, branch or merge request is made
+    # Planted fault: the change class mapped to the label defect fails writes.
+    def test_on_a_gitlab_server_the_class_of_a_change_is_only_a_label(self):
+        check(self, GITLAB, GITLAB_WORLD)
 
 
 if __name__ == "__main__":
