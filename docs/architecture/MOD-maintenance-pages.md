@@ -71,6 +71,7 @@ uses:
   - MOD-source-register.sourceSchemas
   - MOD-source-register.personSource
   - MOD-source-register.personAccount
+  - MOD-source-register.sourceStrategies
   - MOD-participant-list.participantSchema
   - MOD-participant-list.eligible
   - MOD-participant-list.participantsOf
@@ -118,7 +119,7 @@ person reviews it. Its formats are those of the modules it uses.
 ## Interfaces
 
 - `view: View` — its routes, and the strategies its kinds use in the tab — `issueStrategies`, `mailStrategies`,
-  `privacyStrategies`, `specStrategies`, `routeStrategies`:
+  `privacyStrategies`, `specStrategies`, `sourceStrategies`, `routeStrategies`:
   - `issues`, `issue/<number>` — the product's issues; *Analyse* with its run panel and the class proposed with its
     reasoning; the class confirmed or corrected, or the issue rejected with a reason, with `confirmClass`; for a bug, the
     fixing participant — one that can run tests — and its run panel, the job queued on its route; and, before its pull request is merged, for each existing test whose expected result the fix changes, the requirement it now checks correctly with the old and the new expectation side by side (UC-012 5a); for a change, the
@@ -219,4 +220,5 @@ instance's participants and source register.
   written on the person's click; MOD-job-ledger.newJobId, MOD-runtimes.routesFor, MOD-runtimes.queueJob,
   MOD-runtimes.runOnTab, MOD-runtimes.liveState — running the kinds of this page on their routes.
 - MOD-issue-handling.issueStrategies, MOD-mail-handling.mailStrategies, MOD-personal-data.privacyStrategies,
-  MOD-spec-changes.specStrategies, MOD-runtimes.routeStrategies — the strategies of its kinds, handed to the frame.
+  MOD-spec-changes.specStrategies, MOD-source-register.sourceStrategies, MOD-runtimes.routeStrategies — the strategies of
+  its kinds, handed to the frame.
