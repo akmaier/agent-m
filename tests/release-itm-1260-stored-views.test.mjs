@@ -255,6 +255,7 @@ async function publish(held = {}, { files = productFiles() } = {}) {
 }
 const unzipped = (bytes) => JSON.parse(gunzipSync(Buffer.from(bytes)).toString("utf8"));
 const VIEWS = [`${COMMIT}.progress.json.gz`, `${COMMIT}.backlog.json.gz`];
+const SCHEDULE = `${COMMIT}.schedule.json.gz`;
 
 // ================================================================== the tests
 
@@ -287,14 +288,14 @@ test("TST-1260401 publishOverview adds the overview, the two views and latest.js
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-035
 // given: a branch overview-cache that holds ccc…c.json and ccc…c.progress.json.gz, with marker bytes, and latest.json naming 0c0c…0c, but not ccc…c.backlog.json.gz
 // input: publishOverview(host, snapshot, facts) for the commit ccc…c
-// expect: { written: true } by one commit that holds ccc…c.backlog.json.gz and latest.json naming ccc…c, and neither ccc…c.json nor ccc…c.progress.json.gz; the two files the branch held stay as they were
+// expect: { written: true } by one commit that holds ccc…c.backlog.json.gz, ccc…c.schedule.json.gz and latest.json naming ccc…c, and neither ccc…c.json nor ccc…c.progress.json.gz; the two files the branch held stay as they were
 // Planted fault: publishOverview writing a file the branch holds already (the `branch.paths.includes` guard of the overview or of a view left out in src/progress-measures/stages.mjs) puts that file in the commit and the marker bytes are replaced, and the case fails.
 test("TST-1260402 publishOverview leaves a file the branch holds, and adds the one that is missing with latest.json", async () => {
   const held = { [`${COMMIT}.json`]: "{\"marker\":\"overview\"}\n", [VIEWS[0]]: new Uint8Array([1, 2, 3]), "latest.json": `${JSON.stringify({ commit: C0 })}\n` };
   const { overview, commits, result } = await publish(held);
   assert.deepEqual(result, { commit: COMMIT, written: true });
   assert.equal(commits.length, 1);
-  assert.deepEqual(commits[0].files.map((file) => file.path).sort(), sorted([VIEWS[1], "latest.json"]));
+  assert.deepEqual(commits[0].files.map((file) => file.path).sort(), sorted([VIEWS[1], SCHEDULE, "latest.json"]));
   assert.equal(JSON.parse(overview["latest.json"]).commit, COMMIT);
   assert.equal(overview[`${COMMIT}.json`], held[`${COMMIT}.json`], "the overview is as it was");
   assert.deepEqual([...overview[VIEWS[0]]], [1, 2, 3], "the progress view is as it was");
@@ -303,12 +304,12 @@ test("TST-1260402 publishOverview leaves a file the branch holds, and adds the o
 
 // TST-1260403 · level: release · module: MOD-progress-measures
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-035
-// given: a branch overview-cache that holds ccc…c.json and both views of ccc…c, and a latest.json naming 0c0c…0c
+// given: a branch overview-cache that holds ccc…c.json, both views of ccc…c and its schedule view, and a latest.json naming 0c0c…0c
 // input: publishOverview(host, snapshot, facts) for the commit ccc…c
 // expect: { written: false }, no commit, and latest.json still names 0c0c…0c
 // Planted fault: publishOverview writing latest.json whenever it runs (the `files.length > 0` guard of latest.json in src/progress-measures/stages.mjs left out) commits it and fails the case.
-test("TST-1260403 publishOverview where the branch holds all three files writes nothing, latest.json included", async () => {
-  const held = { [`${COMMIT}.json`]: "{\"marker\":\"overview\"}\n", [VIEWS[0]]: new Uint8Array([1]), [VIEWS[1]]: new Uint8Array([2]), "latest.json": `${JSON.stringify({ commit: C0 })}\n` };
+test("TST-1260403 publishOverview where the branch holds all four files writes nothing, latest.json included", async () => {
+  const held = { [`${COMMIT}.json`]: "{\"marker\":\"overview\"}\n", [VIEWS[0]]: new Uint8Array([1]), [VIEWS[1]]: new Uint8Array([2]), [SCHEDULE]: new Uint8Array([3]), "latest.json": `${JSON.stringify({ commit: C0 })}\n` };
   const { overview, commits, result } = await publish(held);
   assert.deepEqual(result, { commit: COMMIT, written: false });
   assert.deepEqual(commits, []);
