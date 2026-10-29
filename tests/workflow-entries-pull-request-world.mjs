@@ -106,7 +106,8 @@ export async function onPullRequestClosed(w, server, { token = TOKEN, payload = 
 // ---------------------------------------------------------------- the same on GitLab
 
 export const GITLAB = "https://gitlab.example.test/alice/thesis-tool";
-export const PUSHED_AT = "2026-10-28T09:50:00+00:00";
+export const GITLAB_TOKEN = "glpat-ALICEagentMtoken0123456789";
+export const PUSHED_AT ="2026-10-28T09:50:00+00:00";
 
 /**
  * fakeGitLab({ mergeRequests, refuse }) — a fake of GitLab's REST API for the project alice/thesis-tool: "List project merge requests" answers `mergeRequests` (each { iid, title, description, source_branch, sha, merge_commit_sha, squash_commit_sha }, as GitLab names them, state
@@ -135,9 +136,9 @@ export function fakeGitLab({ mergeRequests = [], refuse = [] } = {}) {
 
 /**
  * onMergeRequestMerged(w, server, { token, sha, timestamp, source }) — the entry onPullRequestClosed, run in the job that writes of the job workflow on GitLab (src/runtimes/workflow/gitlab.yml) for the pipeline of a push to the default branch, as GitLab names it: CI_COMMIT_SHA
- * `sha`, CI_COMMIT_TIMESTAMP `timestamp`, CI_PIPELINE_SOURCE `source`; with `server`'s fetch in place of the network, none where it is null. The person's token is TOKEN, none where `token` is null.
+ * `sha`, CI_COMMIT_TIMESTAMP `timestamp`, CI_PIPELINE_SOURCE `source`; with `server`'s fetch in place of the network, none where it is null. The person's token is GITLAB_TOKEN, none where `token` is null.
  */
-export async function onMergeRequestMerged(w, server, { token = TOKEN, sha = MERGE, timestamp = PUSHED_AT, source = "push" } = {}) {
+export async function onMergeRequestMerged(w, server, { token = GITLAB_TOKEN, sha = MERGE, timestamp = PUSHED_AT, source = "push" } = {}) {
   const real = globalThis.fetch;
   globalThis.fetch = server ? server.fetch : async () => { throw new Error("no request may be made"); };
   try {

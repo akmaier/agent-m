@@ -17,7 +17,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { startRecord } from "../src/job-ledger/index.mjs";
 import { ciEnvironment } from "../src/workflow-entries/compose.mjs";
-import { GITLAB, PUSHED_AT, TOKEN, MERGE, HEAD, NOW, fakeGitLab, onMergeRequestMerged, withCheckout as checkout } from "./workflow-entries-pull-request-world.mjs";
+import { GITLAB, GITLAB_TOKEN, PUSHED_AT, MERGE, HEAD, NOW, fakeGitLab, onMergeRequestMerged, withCheckout as checkout } from "./workflow-entries-pull-request-world.mjs";
 
 const FIX = "JOB-20261028-0900-a1b2", OTHER = "JOB-20261028-0904-e5f6";
 const record = (id, kind, worksOn) => startRecord({ id, kind, worksOn, participant: "ci-bot", model: "fixture-llm", route: "ci hosted", run: null, retries: null, startedBy: "alice", start: new Date("2026-10-28T08:00:00Z"),
@@ -47,7 +47,7 @@ test("onPullRequestClosed on GitLab — the merge that CI_COMMIT_SHA names close
     assert.equal(Date.parse(asked.query.updated_after), Date.parse(PUSHED_AT));
     assert.deepEqual(server.writes(), [["POST", "/issues/12/notes", { body: `Closed with ${GITLAB}/-/merge_requests/7.` }], ["PUT", "/issues/12", { state_event: "close" }],
       ["POST", "/issues/13/notes", { body: `Closed with ${GITLAB}/-/merge_requests/7.` }], ["PUT", "/issues/13", { state_event: "close" }]]);
-    for (const each of server.requests) assert.equal(each.authorization, TOKEN, `${each.method} ${each.path} carried the person's token`);
+    for (const each of server.requests) assert.equal(each.authorization, GITLAB_TOKEN, `${each.method} ${each.path} carried the person's token`);
   });
 });
 
