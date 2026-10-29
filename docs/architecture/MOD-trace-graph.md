@@ -190,10 +190,11 @@ identifier, and which register entry an item names is MOD-source-register's to s
   however many views and functions ask for it, since a commit's graph never changes; a graph not stored, or a read that
   failed, is read again at the next call. It never builds the graph and
   reads no other file; it rejects with `GraphNotStored`, naming the commit and the workflow "main changed" that stores
-  it, and that in a product this workflow runs once Agent M's workflows are written into it — *Install* on the
-  product's Settings page —, where the source has no `readOn`, `commit` is none, or the branch holds no graph of it.
-  It says both in every repository, since telling a product whose files run the workflow from one whose files do not
-  would take a read of those files. Every page reads a graph only through it,
+  it on every push to the default branch, and saying that a product whose Agent M workflows do not hold that workflow
+  yet gets it by *Install* on its Settings page, where the source has no `readOn`, `commit` is none, or the branch
+  holds no graph of it. The text is the same in every repository and true in each — the instance, a product that runs
+  the workflow, a product that does not —, since telling them apart would take a read of the repository's workflow
+  files. Every page reads a graph only through it,
   directly or through `latestGraph`.
 - `latestGraph(source: TextSource, commit: string) -> Promise<{ graph: Graph, line: string | null }>` — the graph stored for
   `commit`, as `storedGraph` gives it, and `line` null; while that is not stored yet, `latest.json` on the branch
