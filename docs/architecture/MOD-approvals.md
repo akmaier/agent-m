@@ -9,6 +9,7 @@ uses:
   - MOD-artifact-edits.fallbackEditLinks
   - MOD-repository-hosts.Host
   - MOD-repository-hosts.Snapshot
+  - MOD-repository-hosts.HostError
   - MOD-repository-hosts.readSnapshot
   - MOD-repository-hosts.readHistory
   - MOD-repository-hosts.commitFiles
@@ -198,6 +199,8 @@ never written. A decision or module file that a record names and the snapshot no
 
 - MOD-repository-hosts.Host, Snapshot, readSnapshot, readHistory — the files of a commit, the head before a commit, the
   order of records and an earlier text of a file.
+- MOD-repository-hosts.HostError — the failure `NotFound` that `lastAcceptedText` throws when the file did not hold, or did
+  not give, the text its most recent record names.
 - MOD-repository-hosts.commitFiles — the acceptance commit and the rejection commit on an expected head.
 - MOD-artifact-edits.fallbackEditLinks — GitHub's pages for the files of a rejection without a token.
 - MOD-repository-hosts.webLinks — GitHub's new-file page without a token.
