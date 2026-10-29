@@ -215,10 +215,10 @@ function mailItem(entry, due, box, host, extra) {
   return item;
 }
 
-// What the notes of an issue say of its mails: those added after the last question (new), and those added after the issue was closed (arrived).
+// What the notes of an issue say of its mails: those added after the last question (new), and those added after the issue was closed (arrived). The issue is read by its number with its comments (readIssue).
 async function arrivalsOf(host, due) {
-  const found = (await host.listIssues({ state: "all" })).find((each) => each.number === due.issue);
-  const notes = found ? notesOf({ number: found.number, body: found.body, comments: found.comments.map((comment) => ({ body: comment.body, createdAt: comment.date })) }) : [];
+  const found = await host.readIssue(due.issue);
+  const notes = notesOf({ number: found.number, body: found.body, comments: found.comments.map((comment) => ({ body: comment.body, createdAt: comment.date })) });
   const after = (kind) => notes.slice(notes.findLastIndex((note) => note.kind === kind) + 1).filter((note) => note.kind === "mail-added").map((note) => note.subject);
   const closed = notes.findLastIndex((note) => note.kind === "closed-with");
   return { fresh: new Set(notes.findLastIndex((note) => note.kind === "question-sent") < 0 ? [] : after("question-sent")),

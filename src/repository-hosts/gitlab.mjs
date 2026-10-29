@@ -5,7 +5,7 @@
 // Module: MOD-repository-hosts
 //
 // Private to the module: index.mjs builds the host from what this returns — repositoryInfo(), snapshot(ref),
-// readFile(commit, path), history(path, { ref, limit, changes }), listTags(), issueCounts(), commitFiles(change), createTag(name, commit),
+// readFile(commit, path), history(path, { ref, limit, changes }), listTags(), issueCounts(), listIssues(filter), readIssue(number), commitFiles(change), createTag(name, commit),
 // createBranch(name, from), startWorkflow(workflow, ref, inputs), setPipelineSchedule(schedule), listCiRuns(filter), cancelCiRun(id), jobLogs(id), jobLabels(id), listPullRequests(filter), openPullRequest(request), pullRequestFacts(number) — and adds what both adapters share.
 
 import { HostError, send, json, refusal } from "./failures.mjs";
@@ -141,6 +141,16 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
     }
     return out;
   };
+  // The comments of an issue ("List project issue notes", 100 to a page, page by page; the system notes, which GitLab writes for its own changes, are not comments), none asked for where its count of notes is 0.
+  const commentsOf = async (i) => {
+    const comments = [];
+    for (let page = 1; i.user_notes_count !== 0 && page <= MAX_PAGES; page++) {
+      const items = await read(`${api}/issues/${i.iid}/notes?per_page=${PAGE}&page=${page}`);
+      comments.push(...items.filter((n) => !n.system).map((n) => ({ author: n.author?.username ?? "", body: n.body ?? "", date: n.created_at })));
+      if (items.length < PAGE) break;
+    }
+    return comments;
+  };
   // The newest pipeline of a commit ("List project pipelines": sha, order_by id, sort desc), or null.
   const pipelineOf = async (sha) => (await read(`${api}/pipelines?sha=${sha}&order_by=id&sort=desc&per_page=1`, { what: `${address.web} at ${sha}` }))[0] ?? null;
 
@@ -206,8 +216,8 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
     },
 
     // The issues of a state, labels and search text ("List project issues": state opened, closed or all; labels; search; per_page 100, page by page). Each issue that may have comments is given them
-    // ("List project issue notes": the system notes, which GitLab writes for its own changes, are not comments).
-    async listIssues({ state, labels, search }) {
+    // (commentsOf), unless `comments` is false: then no note is asked for and each issue's comments are empty.
+    async listIssues({ state, labels, search, comments: withComments }) {
       const found = [];
       for (let page = 1; page <= MAX_PAGES; page++) {
         const items = await read(`${api}/issues?${new URLSearchParams({ state: state === "open" ? "opened" : state, per_page: String(PAGE), page: String(page),
@@ -216,16 +226,14 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
         if (items.length < PAGE) break;
       }
       const issues = [];
-      for (const i of found) {
-        const comments = [];
-        for (let page = 1; i.user_notes_count !== 0 && page <= MAX_PAGES; page++) {
-          const items = await read(`${api}/issues/${i.iid}/notes?per_page=${PAGE}&page=${page}`);
-          comments.push(...items.filter((n) => !n.system).map((n) => ({ author: n.author?.username ?? "", body: n.body ?? "", date: n.created_at })));
-          if (items.length < PAGE) break;
-        }
-        issues.push(issueOf(i, comments));
-      }
+      for (const i of found) issues.push(issueOf(i, withComments ? await commentsOf(i) : []));
       return issues;
+    },
+
+    // One issue ("Get a single project issue") with its comments. An iid no issue has — a merge request's among them, whose iids are counted apart — is answered 404: NotFound.
+    async readIssue(number) {
+      const i = await read(`${api}/issues/${number}`, { what: `issue #${number} of ${address.web}` });
+      return issueOf(i, await commentsOf(i));
     },
 
     // A comment on an issue ("Create new issue note").

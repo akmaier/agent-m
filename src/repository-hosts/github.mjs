@@ -4,7 +4,7 @@
 // Module: MOD-repository-hosts
 //
 // Private to the module: index.mjs builds the host from what this returns — repositoryInfo(), snapshot(ref, folders),
-// readFile(commit, path), history(path, { ref, limit, changes }), listTags(), issueCounts(), commitFiles(change), createTag(name, commit),
+// readFile(commit, path), history(path, { ref, limit, changes }), listTags(), issueCounts(), listIssues(filter), readIssue(number), commitFiles(change), createTag(name, commit),
 // createBranch(name, from), startWorkflow(workflow, ref, inputs), setCiSecret(name, value), listCiRuns(filter), cancelCiRun(id), jobLogs(id), jobLabels(id), listPullRequests(filter), openPullRequest(request), pullRequestFacts(number) — and adds what both adapters share.
 
 import { HostError, send, json, refusal } from "./failures.mjs";
@@ -240,6 +240,16 @@ export function githubAdapter(address, { token, tokenName }, links) {
     }
     return [...items, ...more];
   };
+  // The comments of an issue as the server lists it ("List issue comments", 100 to a page, page by page), none asked for where its count of comments is 0.
+  const commentsOf = async (i) => {
+    const comments = [];
+    for (let page = 1; i.comments > 0 && page <= MAX_PAGES; page++) {
+      const items = await read(`${repo}/issues/${i.number}/comments?per_page=${PAGE}&page=${page}`);
+      comments.push(...items.map((c) => ({ author: c.user?.login ?? "", body: c.body ?? "", date: c.created_at })));
+      if (items.length < PAGE) break;
+    }
+    return comments;
+  };
   // The checks of a commit: its check runs, then the latest commit status of each context ("List commit statuses for a reference" lists the latest first).
   const checksOf = async (sha) => {
     const options = { what: `${address.web} at ${sha}` };
@@ -338,8 +348,9 @@ export function githubAdapter(address, { token, tokenName }, links) {
     },
 
     // The issues of a state and labels ("List repository issues": state, labels as a comma-separated text, per_page 100, page by page), or those a text finds ("Search issues and pull requests" with
-    // repo:, is:issue, state: and label: qualifiers). The issue list holds pull requests too, each with a pull_request key: they are not issues. Each issue that has comments is given them ("List issue comments").
-    async listIssues({ state, labels, search }) {
+    // repo:, is:issue, state: and label: qualifiers). The issue list holds pull requests too, each with a pull_request key: they are not issues. Each issue that has comments is given them ("List issue comments"),
+    // unless `comments` is false: then no comment is asked for and each issue's comments are empty.
+    async listIssues({ state, labels, search, comments: withComments }) {
       const found = [];
       for (let page = 1; page <= MAX_PAGES; page++) {
         const items = search
@@ -349,16 +360,17 @@ export function githubAdapter(address, { token, tokenName }, links) {
         if (items.length < PAGE) break;
       }
       const issues = [];
-      for (const i of found.filter((each) => !each.pull_request)) {
-        const comments = [];
-        for (let page = 1; i.comments > 0 && page <= MAX_PAGES; page++) {
-          const items = await read(`${repo}/issues/${i.number}/comments?per_page=${PAGE}&page=${page}`);
-          comments.push(...items.map((c) => ({ author: c.user?.login ?? "", body: c.body ?? "", date: c.created_at })));
-          if (items.length < PAGE) break;
-        }
-        issues.push(issueOf(i, comments));
-      }
+      for (const i of found.filter((each) => !each.pull_request)) issues.push(issueOf(i, withComments ? await commentsOf(i) : []));
       return issues;
+    },
+
+    // One issue ("Get an issue") with its comments. GitHub answers a pull request's number too, with a pull_request key: that is no issue, NotFound, as a number nothing has (404) or a deleted issue (410).
+    async readIssue(number) {
+      const what = `issue #${number} of ${address.web}`;
+      const notFound = () => { throw new HostError("NotFound", { what }, `${what} was not found.`); };
+      const i = await read(`${repo}/issues/${number}`, { what, on: { 410: notFound } });
+      if (i.pull_request) notFound();
+      return issueOf(i, await commentsOf(i));
     },
 
     // A comment on an issue ("Create an issue comment").
