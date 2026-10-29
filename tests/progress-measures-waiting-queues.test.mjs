@@ -82,7 +82,7 @@ test("waitingQueues — the head's stored overview gives the waiting queue in on
 // guards: OPEN PROPOSALS ARE SHOWN IN THE BROWSER; UC-020
 // given: 66 queues of which one waits; overview-cache holds only the overview of c0 and latest.json naming c0
 // input: waitingQueues(snapshot of HEAD)
-// expect: c0's queues and asOf c0; no queue file read
+// expect: c0's queues and asOf c0; no queue file read; counter-proof: a waitingQueues that leaves out the overview stored last gives asOf null and reads the queue files, and fails
 test("waitingQueues — while the head's overview is not stored, those stored last are given with their commit", async () => {
   const files = repositoryFiles();
   const held = await undecided(files);
@@ -112,7 +112,7 @@ test("waitingQueues — where the repository stores no overview, every queue is 
 // guards: A PERSON IS TOLD WHAT WAITS FOR THEIR ACCEPTANCE; UC-047
 // given: 66 queues of which one waits, in the three states of the repository: the head's overview stored, only c0's stored, no overview-cache
 // input: waitingForAcceptance(host, snapshot) for each
-// expect: the same SPEC change in all three (the entry of the waiting queue); with the head's overview, no file under docs/spec-freigaben/ is read
+// expect: the same SPEC change in all three (the entry of the waiting queue); with the head's overview, no file under docs/spec-freigaben/ is read; counter-proof: a waitingForAcceptance that reads every queue itself reads the 132 files with the head's overview stored, and fails
 test("waitingForAcceptance — gives the same SPEC changes from the stored overview, the one stored last and every queue", async () => {
   const files = repositoryFiles();
   const held = await undecided(files);
