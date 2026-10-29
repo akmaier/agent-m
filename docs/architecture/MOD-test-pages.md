@@ -30,6 +30,7 @@ uses:
   - MOD-documents.readDocument
   - MOD-documents.documentFindings
   - MOD-documents.readRegister
+  - MOD-test-document.isTestFile
   - MOD-test-document.testDeclarations
   - MOD-trace-graph.storedGraph
   - MOD-trace-graph.tracesTo
@@ -121,8 +122,8 @@ formats are those of the modules it uses.
     saved; each row with the number of the product's tests it holds, as MOD-progress-measures' `ScheduleView` counts
     them: the counts stored for the commit shown (`storedView` with the page `schedule`, with its as-of line while the
     head's are not stored yet), or, where the repository stores none, `scheduleView` of the snapshot shown and the
-    declarations of its test files, given as the `Facts` `{ snapshot, tests }`, since it counts `facts.tests` — the route
-    keeps no rule of its own for what a row counts; the release candidate column
+    declarations of its test files (`{ snapshot, tests }`) — the route keeps no rule of its own for what a row
+    counts; the release candidate column
     that cannot be cleared and the commit and pull request columns that
     refuse tests calling a paid service, each with its reason; the nightly time, the test command, the runner per row
     among the participants that can run tests, and for a row on a self-hosted runner the server's runner page with the
@@ -201,7 +202,7 @@ the result records on the branch `test-results`, the product's resources and the
   where there is one (MOD-workflow-entries).
 - MOD-progress-measures.storedView — the counts of the tests stored for a commit, which the schedule shows;
   MOD-progress-measures.scheduleView — the same counts of the commit shown, from its test files' declarations, where the
-  repository stores none.
+  repository stores none; MOD-test-document.isTestFile — which of the commit's files those are.
 - MOD-test-schedule.scheduleSchema, MOD-test-schedule.defaultSchedule, MOD-test-schedule.scheduleFindings,
   MOD-test-schedule.configurationDrift, MOD-test-schedule.secretsNeeded, MOD-test-schedule.occasionsOf — the schedule;
   MOD-test-schedule.proposeSchedule, MOD-test-schedule.applyPipelineSchedule — its save and, on GitLab, its nightly run.
