@@ -41,6 +41,7 @@ decision." akmaier has made that decision. The files are written again with MOD-
   older commit is readable (PR #1400, run 40820852823).
 - A test of the committed file against the generator at the checkout is also not wanted. It would fail on every change of
   the templates, while the pin moves only "on a person's decision" (MOD-runtimes.md:224).
-- After the merge into `main`, the next pull request closed runs `onPullRequestClosed` without "There is no entry". The
-  run is named at the sprint's review.
+- After the merge of the sprint into `main`, the next pull request closed runs `onPullRequestClosed` without "There is no
+  entry". The run is named in a section of the sprint's record after the merge. It can only come after the sprint's
+  review and merge gates, so it is no condition of them. A run that still fails is a new item.
 - Only the workflow files `jobWorkflowFiles` gives change. No code of `src/runtimes/` and no test changes.
