@@ -131,9 +131,8 @@ once, when the page is drawn, and never again (UC-046 4b). It stores nothing bet
     the route reads none of the instance.
   - `jobs` — first, what waits for a person across the instance — in the instance itself and in each product this
     browser keeps —, each item linked to the page where it is decided, each repository read as a card of `home` reads
-    it: the `waiting` of the overview stored for its default branch's head, else of the overview stored last, with its
-    line "As of <commit>", else MOD-progress-measures' `waitingForAPerson` of its facts of the scope `all`; a repository
-    that cannot be read is named with its reason, and one with nothing waiting adds no entry; then every
+    what waits in it, above, with its as-of line where the card has one; a repository that cannot be read is named with
+    its reason, and one with nothing waiting adds no entry; then every
     job of
     every product and of the instance in one list — the job of this tab's conversation in the
     prompt bar among them, which has no record and is shown as this tab's (`currentJob`) —, waiting at a gate first, filtered by product,
