@@ -33,7 +33,14 @@ of the named files in one request, and no whole tree (MOD-repository-hosts.md:19
 
 After the change: `lastAcceptedText` reads the older commit as `readSnapshot(last.commit, { folders: [<the file's
 path>] })`, reads the file from that snapshot, and fails as now when the text's blob is not the one the record names.
-MOD-approvals' text is unchanged. Its interface reads "the history of the records and of the file through the host",
+MOD-approvals' text is unchanged.
+
+The review pages call it with the host the frame gives every route, `pagesHost()` (`src/site-frame/dashboard-app.mjs:656-662`).
+Its `readSnapshot` takes the `ref` alone and calls `real.readSnapshot(ref)`, so it drops `folders` and the older tree is still
+read. MOD-site-frame.md:186-190 gives a route `host: Host`, "`Host` … as MOD-repository-hosts … define[s] them", and that
+`readSnapshot` takes `options?: { folders }` (MOD-repository-hosts.md:196). So the wrapper's dropped options are a defect left
+by ITM-1266, mended here: the wrapper hands `options` on to the real host, and returns the load's snapshot only for the
+load's `ref` with no `folders` named, as now. Its interface reads "the history of the records and of the file through the host",
 and its Uses name `MOD-repository-hosts.readSnapshot` (MOD-approvals.md:12, :199).
 
 Reading taken (AGENTS.md §6a.6): `readFileAt` would read the file in one request, but MOD-approvals' Uses do not name
@@ -59,6 +66,8 @@ Measurable outcome: with a token, a changed use case, decision or module, opened
 (~309 KB gzipped less at Agent M's size); *Review all* saves the same for each changed file it shows.
 
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
-- Only `src/approvals/` and the tests that name MOD-approvals change, and, of MOD-site-frame, only the cases of
+- Only `src/approvals/` and the tests that name MOD-approvals change. Of MOD-site-frame, only `pagesHost`'s `readSnapshot`
+  in `src/site-frame/dashboard-app.mjs` changes, which hands `options` on as above, and the cases of
   `tests/load-per-view.test.mjs` and `tests/review-page.test.mjs` that count the reads of a changed file's last accepted
-  text. No code of MOD-site-frame changes.
+  text. A unit or component test names MOD-site-frame and shows the options reaching the real host; counter-proof: the
+  wrapper as it stands drops them.
