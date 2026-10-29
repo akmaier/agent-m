@@ -32,6 +32,7 @@ provides:
   - statusOf
   - statuses
   - removedFiles
+  - recordPaths
   - lastAcceptedText
   - acceptShown
   - acceptanceBlockers
@@ -124,6 +125,10 @@ never written. A decision or module file that a record names and the snapshot no
   `statuses`; `path` and `lastBlob` are the `file` and `blob` of the most recent record of the identifier, "most recent" as `lastAcceptedText`
   orders records, by the commits that added them, read through the host's history only for the identifiers of removed files. Crosses the
   network; fails with the host's errors.
+- `recordPaths(id: string, paths: string[]) -> string[]` — the paths among `paths` that are approval records of the
+  identifier `id`, by the path the schema `approval-record` gives them, so that a page names them to its snapshot's
+  `readMany` in the same batch as the file it shows, and `lastAcceptedText` then finds their texts read. Pure; reads
+  nothing.
 - `lastAcceptedText(id: string, host: Host) -> Promise<{ text: string, blob: string, path: string } | null>` — the text
   named by the most recent approval record of an identifier, also when the file has been renamed since; `null` when no
   record names it. A record whose content names another blob than its name, or a file of another identifier, counts as

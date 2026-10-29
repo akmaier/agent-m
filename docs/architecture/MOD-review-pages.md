@@ -48,6 +48,7 @@ uses:
   - MOD-approvals.statuses
   - MOD-approvals.removedFiles
   - MOD-approvals.statusOf
+  - MOD-approvals.recordPaths
   - MOD-approvals.lastAcceptedText
   - MOD-approvals.acceptShown
   - MOD-approvals.acceptanceBlockers
@@ -323,6 +324,7 @@ and `docs/participants.md` of the instance.
   `SPEC.md` while the head's graph is not stored and shows no earlier graph.
 - MOD-approvals.statuses, MOD-approvals.removedFiles, MOD-approvals.statusOf, MOD-approvals.lastAcceptedText, MOD-approvals.acceptShown,
   MOD-approvals.acceptanceBlockers, MOD-approvals.fallbackAcceptLink — statuses, the files removed since their acceptance, and acceptance;
+  MOD-approvals.recordPaths — the records of a changed file's identifier, read in one batch with the file it shows;
   MOD-approvals.rejectShown — rejecting a use case, decision or module file; MOD-approvals.approvalSchema —
   the schema an approval record is read with, on `<k>/history` too.
 - MOD-spec-changes.queues, MOD-spec-changes.queueAt, MOD-spec-changes.openQueueOf, MOD-spec-changes.proposeSection,
