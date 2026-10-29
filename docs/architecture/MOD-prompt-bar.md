@@ -78,6 +78,7 @@ provides:
   - recordingSchema
   - recordingOf
   - handOverStrategies
+  - barFiles
   - endpointLacks
   - endpointsOffered
   - spawnEndpointJob
@@ -298,6 +299,10 @@ and sends nothing while the job does not
   page's form.
 - `recordingOf(instance: Snapshot) -> Promise<boolean>` — whether the instance records conversations; `false` for a missing
   file or key.
+- `barFiles: string[]` — the paths of the instance's files the bar reads, `docs/participants.md` and
+  `docs/conversation-recording.md`: on a page that shows the instance itself, it reads them through the page's snapshot,
+  so the frame adds them to the route's folders; on a product's page, through the instance's own snapshot. The one list
+  of them.
 - `handOverStrategies: Strategies[]` — the strategy sets a hand-over of the bar is prepared with in the tab, which it
   hands to the frame as a view hands the strategies of its kinds. These are the sets the job workflow registers in CI
   (MOD-workflow-entries, Uses), since a handed-over job runs on CI or on a Bridge.
