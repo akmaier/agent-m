@@ -200,9 +200,12 @@ assignment is the one of the team whose sprint holds it, and the product's one i
 - `listField(value: string | string[] | null | undefined) -> string[]` — a list field of an item, or a field a person
   types a list into, as its values: a list as it stands, a text split at its commas, each value trimmed, empty ones left
   out. Pure.
-- `backlogFindings(items: Document[], architecture: Document[]) -> Finding[]` — an item that realises nothing; that names
-  no module the architecture describes; that builds on an item that does not exist, or on one that builds on it in turn;
-  and, as a warning, an item that restates an existing one.
+- `backlogFindings(items: Document[], architecture: Document[]) -> Finding[]` — an item that realises nothing (`A BACKLOG
+  ITEM NAMES WHAT IT REALISES`); that names no module, or a module the architecture does not describe, each such module
+  named (`A BACKLOG ITEM NAMES THE MODULES IT CHANGES`); that builds on an item that does not exist, or that stands in a
+  circle of `builds_on` of any length, the circle's items named in their order; and, as a warning, an item that restates
+  an existing one. A realised name that is neither a requirement nor a use case, a missing origin, and the item's path and
+  front matter are MOD-documents' findings of the item schema, not repeated here.
 - `sprintFacts(sprint: Document, facts: { items: Document[], tests: Array<{ id: string, guards: string[] }>, states:
   ItemState[], jobs: JobRow[], results: Snapshot, pullRequests: PullRequest[], issues: Issue[] }) -> { increment: Array<{ item: string, pullRequest: string, realises: string[],
   tests: string[] }>, notDone: ItemState[], numbers: { failedJobs: number, retriedJobs: number, correctionRounds: number,
