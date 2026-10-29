@@ -68,6 +68,9 @@ uses:
   - MOD-spec-changes.queues
   - MOD-spec-changes.entryView
   - MOD-spec-changes.specStrategies
+  - MOD-source-register.sourceSchemas
+  - MOD-source-register.personSource
+  - MOD-source-register.personAccount
   - MOD-participant-list.participantSchema
   - MOD-participant-list.eligible
   - MOD-participant-list.participantsOf
@@ -208,6 +211,8 @@ instance's participants and source register.
   queues, those whose `issue` names the number of the issue shown and the address of the product the frame has chosen;
   MOD-spec-changes.entryView — the requirements each of their entries changes or adds, its `impact`, given to
   `backlogItemFrom` as `changed`, since an entry's anchor is the heading of a whole section, not a requirement's name.
+- MOD-source-register.sourceSchemas, MOD-source-register.personSource, MOD-source-register.personAccount — the product's
+  links file and the instance's register, and in them the person's own source, the parameter `source` of a change.
 - MOD-participant-list.participantSchema, MOD-participant-list.participantsOf, MOD-participant-list.eligible — the
   participants of the register, and who may analyse, fix, propose, rewrite, check or draft.
 - MOD-job-catalogue.kindOf, MOD-job-runner.prepareJob — the run panels; MOD-job-runner.writeResult — the drafted change

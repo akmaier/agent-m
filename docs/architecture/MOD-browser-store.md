@@ -119,8 +119,9 @@ it the file cannot be read, and the passphrase cannot be recovered.
   MOD-repository-hosts' `RepositoryAddress` names them — the kind of server, the server's origin, the repository's or
   project's path: `github-token:<path>` on GitHub, `gitlab-token:<host of origin>/<path>` on a GitLab server, the host
   read here from `origin`, so that no caller derives it. It parses no address and reads nothing, so that this module uses no
-  other (ARC-047); it is the one place that rule stands, for this module's conversion of older keys and for every
-  module above it.
+  other (ARC-047); it is the one place that rule stands, for every module above it and for this module's conversion of
+  older keys, which reads the product's address an older entry holds into the three parts itself — a reading of that
+  old format, which only the conversion knows — and then makes the key with `tokenKeyOf`.
 - `writeSetting(store: Store, key: SettingKey, value: unknown) -> void` — stores a value under a key of the catalogue.
   Throws `UnknownSetting` for any other key and `StorageUnavailable`. It sets no cookie and puts nothing into an address.
   A notice the person must read first — for the mailbox password, the shared Pages origin — is shown by the page; the
