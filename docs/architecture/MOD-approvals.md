@@ -12,6 +12,7 @@ uses:
   - MOD-repository-hosts.HostError
   - MOD-repository-hosts.readSnapshot
   - MOD-repository-hosts.readHistory
+  - MOD-repository-hosts.readFileAt
   - MOD-repository-hosts.commitFiles
   - MOD-repository-hosts.webLinks
   - MOD-documents.Schema
@@ -197,8 +198,9 @@ never written. A decision or module file that a record names and the snapshot no
 
 ## Uses
 
-- MOD-repository-hosts.Host, Snapshot, readSnapshot, readHistory — the files of a commit, the head before a commit, the
-  order of records and an earlier text of a file.
+- MOD-repository-hosts.Host, Snapshot, readSnapshot, readHistory — the files of a commit, the head before a commit and
+  the order of records; MOD-repository-hosts.readFileAt — the text a file had at the commit that added its most recent
+  record, read for `lastAcceptedText` in one request.
 - MOD-repository-hosts.HostError — the failure `NotFound` that `lastAcceptedText` throws when the file did not hold, or did
   not give, the text its most recent record names.
 - MOD-repository-hosts.commitFiles — the acceptance commit and the rejection commit on an expected head.
