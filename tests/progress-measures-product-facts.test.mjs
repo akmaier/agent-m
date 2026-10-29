@@ -979,7 +979,7 @@ test("TST-1175001 productFacts gives itemStates the accepted SPEC requirements w
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the fixture product with a SPEC rule, a test file and a job record, read with the scope "all" at the commit ccc…c; a branch overview-cache that holds no file for it
 // input: publishOverview(host, snapshot, facts)
-// expect: { commit, written: true }; one commitFiles whose files are exactly `ccc…c.json`, the two views of the commit (ITM-1260) and latest.json — no path ends in `.facts.json`; counter-proof: the overview
+// expect: { commit, written: true }; one commitFiles whose files are exactly `ccc…c.json`, the three views of the commit (ITM-1260, ITM-1265) and latest.json — no path ends in `.facts.json`; counter-proof: the overview
 //         `ccc…c.json` and latest.json are still added
 test("TST-1117009 publishOverview adds no <commit>.facts.json, and still adds <commit>.json and latest.json", async () => {
   const facts = await allFacts(storedFiles());
@@ -988,7 +988,7 @@ test("TST-1117009 publishOverview adds no <commit>.facts.json, and still adds <c
   assert.equal(host.commits.length, 1);
   const paths = host.commits[0].files.map((file) => file.path);
   assert.deepEqual(paths.filter((path) => path.endsWith(".facts.json")), [], "no facts file is added");
-  assert.deepEqual(paths, [`${COMMIT}.json`, `${COMMIT}.progress.json.gz`, `${COMMIT}.backlog.json.gz`, "latest.json"], "counter-proof: the overview and latest.json are added");
+  assert.deepEqual(paths, [`${COMMIT}.json`, `${COMMIT}.progress.json.gz`, `${COMMIT}.backlog.json.gz`, `${COMMIT}.schedule.json.gz`, "latest.json"], "counter-proof: the overview and latest.json are added");
 });
 
 // TST-1117010 · level: unit · module: MOD-progress-measures

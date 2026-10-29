@@ -40,8 +40,7 @@ const snapshot = { commit: COMMIT, paths: [], blob: () => null, read: async () =
 
 // TST-1265001 · level: unit · module: MOD-progress-measures
 // guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT; UC-027
-// given: facts at the commit ccc…c whose tests hold two unit declarations, one system declaration that calls the paid service "the oracle" and one release declaration; and the same
-//        tests with a fifth declaration of the level "integration", which calls no paid service
+// given: facts at the commit ccc…c whose tests hold two unit declarations, one system declaration that calls the paid service "the oracle" and one release declaration; and the same tests with a fifth declaration of the level "integration", which calls no paid service
 // input: scheduleView(facts) of each
 // expect: both give { commit: "ccc…c", counts: { unit: 2, component: 0, system: 1, release: 1, user: 0, paid: 1 } }: the declaration of the unknown level is counted in no row
 test("scheduleView counts the declarations of each level and those that call a paid service, and a declaration of an unknown level in no row", () => {
@@ -54,8 +53,7 @@ test("scheduleView counts the declarations of each level and those that call a p
 
 // TST-1265002 · level: unit · module: MOD-progress-measures
 // guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT; A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-027
-// given: the facts of TST-1265001 (four tests); a branch overview-cache that holds nothing for ccc…c; one that holds ccc…c.json and the views of the progress and the backlog but not the
-//        schedule's; and one that holds all four files of ccc…c
+// given: the facts of TST-1265001 (four tests); a branch overview-cache that holds nothing for ccc…c; one that holds ccc…c.json and the views of the progress and the backlog but not the schedule's; and one that holds all four files of ccc…c
 // input: publishOverview(host, snapshot, facts) to each
 // expect: the first: { written: true } by one commit that holds ccc…c.json, ccc…c.progress.json.gz, ccc…c.backlog.json.gz, ccc…c.schedule.json.gz and latest.json, the schedule's file
 //         gzipped JSON equal to scheduleView of the facts; the second: { written: true } by one commit that holds ccc…c.schedule.json.gz and latest.json and no other file; the third:
