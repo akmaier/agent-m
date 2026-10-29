@@ -100,7 +100,7 @@ test("jobWorkflowFiles — the file of GitHub, and the file of GitLab with the s
 // guards: UC-010
 // given: the two files for the instance, the secrets and the runner above
 // input: the triggers and the steps of the GitHub file; the rules of each job of the GitLab file
-// expect: GitHub — a push that changes docs/jobs/ or docs/gates/, a pull request closed, a check run completed, a schedule once a day, and a start by hand with the job's identifier as its input; the entries that run an agent — push onRecordsChanged, dispatch onDispatch — in each agent's job, each once, after the plan, which runs only on a dispatch or a push to the default branch; the entries that run none — pull request onPullRequestClosed, check onCheckCompleted, schedule onSchedule — and writeResult, on a dispatch or a push to the default branch, in the job that writes, each once; every step that runs an entry runs `node src/workflow-entries/main.mjs <entry>` on its event. GitLab — the plan and each agent's job have a rule for a push to the default branch that changes docs/jobs/ or docs/gates/ and one for a start from the page or the API, the agent's jobs setting AGENT_M_ENTRY to onRecordsChanged and onDispatch; the job that writes has the push rule, then merge_request_event, pipeline and schedule, then the start, setting writeResult, onPullRequestClosed, onCheckCompleted, onSchedule and writeResult; the plan's script runs chooseAgentKey, every other job's the entry its rule sets
+// expect: GitHub — a push that changes docs/jobs/ or docs/gates/, a pull request closed, a check run completed, a schedule once a day, and a start by hand with the job's identifier as its input; the entries that run an agent — push onRecordsChanged, dispatch onDispatch — in each agent's job, each once, after the plan, which runs only on a dispatch or a push to the default branch; the entries that run none — pull request onPullRequestClosed, check onCheckCompleted, schedule onSchedule — and writeResult, on a dispatch or a push to the default branch, in the job that writes, each once; every step that runs an entry runs `node src/workflow-entries/main.mjs <entry>` on its event. GitLab — the plan and each agent's job have a rule for a push to the default branch that changes docs/jobs/ or docs/gates/ and one for a start from the page or the API, the agent's jobs setting AGENT_M_ENTRY to onRecordsChanged and onDispatch; the job that writes has the push rule, a second push rule for any push to the default branch, then pipeline and schedule, then the start, setting writeResult, onPullRequestClosed, onCheckCompleted, onSchedule and writeResult; the plan's script runs chooseAgentKey, every other job's the entry its rule sets
 test("jobWorkflowFiles — each event starts its entry, on GitHub and on GitLab", () => {
   const github = workflow("github");
   assert.match(github, /\n  push:\n(?:.*\n)*?    paths:\n(?:.*\n)*?      - ["']?docs\/jobs\/\*\*["']?\n(?:.*\n)*?      - ["']?docs\/gates\/\*\*["']?\n/);
@@ -128,12 +128,33 @@ test("jobWorkflowFiles — each event starts its entry, on GitHub and on GitLab"
   for (const job of gitlab) {
     const kind = job.id.endsWith("-plan") ? "plan" : /-agent-\d+$/.test(job.id) ? "agent" : "write";
     const sources = { plan: [PUSH, STARTED], agent: [PUSH, STARTED],
-      write: [PUSH, '$CI_PIPELINE_SOURCE == "merge_request_event"', '$CI_PIPELINE_SOURCE == "pipeline"', '$CI_PIPELINE_SOURCE == "schedule"', STARTED] }[kind];
+      write: [PUSH, PUSH, '$CI_PIPELINE_SOURCE == "pipeline"', '$CI_PIPELINE_SOURCE == "schedule"', STARTED] }[kind];
     const entries = { plan: [], agent: ["onRecordsChanged", "onDispatch"], write: ["writeResult", "onPullRequestClosed", "onCheckCompleted", "onSchedule", "writeResult"] }[kind];
     assert.deepEqual(rulesOf(job).map((rule) => /^    - if: '(.*)'\n/.exec(rule)[1]), sources, `${job.id}: a rule for each event it runs on`);
     assert.deepEqual(rulesOf(job).flatMap((rule) => [...rule.matchAll(/AGENT_M_ENTRY: (\w+)/g)].map((m) => m[1])), entries, `${job.id}: the entry of each rule`);
     assert.match(rulesOf(job)[0], /changes:\n\s+- docs\/jobs\/\*\*\/\*\n\s+- docs\/gates\/\*\*\/\*/, `${job.id}: the push rule for a change of the records`);
     assert.ok(job.text.includes(kind === "plan" ? `${MAIN} chooseAgentKey` : `${MAIN} "$AGENT_M_ENTRY"`), `${job.id}: the script runs the entry`);
+  }
+});
+
+// TST-1259001 · level: unit · module: MOD-runtimes
+// guards: GITLAB PRODUCTS ARE SUPPORTED; UC-012
+// given: the GitLab file for the instance, the secrets and the runner above; MOD-runtimes' table: the job workflow runs `onPullRequestClosed` on "a pull or merge request closed or merged"
+// input: the rules of each route's job that writes
+// expect: no rule runs on `merge_request_event`, a pipeline of an open merge request, which is not its merge; the rule that sets onPullRequestClosed is a push to the default branch with no `changes:`, the pipeline that GitLab starts on the target branch when a merge request is merged, and it comes after the rule that sets writeResult for a push that changes docs/jobs/ or docs/gates/; counter-proof: the plan's and the agent's jobs have no such rule
+test("jobWorkflowFiles — on GitLab the job that writes runs onPullRequestClosed on the push that merges a merge request, not on a merge request's own pipeline", () => {
+  const PUSH = '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH';
+  for (const job of gitlabJobs(workflow("gitlab"))) {
+    const rules = rulesOf(job);
+    const closing = rules.filter((rule) => rule.includes("AGENT_M_ENTRY: onPullRequestClosed"));
+    if (!/-(?:plan|agent-\d+)$/.test(job.id)) {
+      assert.ok(!job.text.includes("merge_request_event"), `${job.id}: no rule runs on a merge request's own pipeline`);
+      assert.equal(closing.length, 1, job.id);
+      assert.ok(closing[0].startsWith(`    - if: '${PUSH}'\n`), `${job.id}: ${closing[0]}`);
+      assert.ok(!closing[0].includes("changes:"), `${job.id}: any push to the default branch`);
+      const entries = rules.flatMap((rule) => [...rule.matchAll(/AGENT_M_ENTRY: (\w+)/g)].map((m) => m[1]));
+      assert.ok(entries.indexOf("writeResult") < entries.indexOf("onPullRequestClosed"), `${job.id}: the records' push rule comes first`);
+    } else assert.equal(closing.length, 0, `counter-proof: ${job.id} runs no such entry`);
   }
 });
 

@@ -102,3 +102,47 @@ export async function onPullRequestClosed(w, server, { token = TOKEN, payload = 
       AGENT_M_PRODUCT_DIR: w.product, AGENT_M_TOKEN_NAME: "AGENT_M_TOKEN", ...(token ? { AGENT_M_TOKEN: token } : {}) }, { now: NOW });
   } finally { globalThis.fetch = real; }
 }
+
+// ---------------------------------------------------------------- the same on GitLab
+
+export const GITLAB = "https://gitlab.example.test/alice/thesis-tool";
+export const PUSHED_AT = "2026-10-28T09:50:00+00:00";
+
+/**
+ * fakeGitLab({ mergeRequests, refuse }) — a fake of GitLab's REST API for the project alice/thesis-tool: "List project merge requests" answers `mergeRequests` (each { iid, title, description, source_branch, sha, merge_commit_sha, squash_commit_sha }, as GitLab names them, state
+ * `merged`) on its first page, and the notes on, and the state of, the issues are written as GitLab takes them (POST …/issues/:iid/notes, PUT …/issues/:iid with state_event); it keeps every request with the PRIVATE-TOKEN it carried; the note on an issue number in `refuse` is
+ * refused with 403. -> { fetch, requests, writes() }, as fakeGitHub's.
+ */
+export function fakeGitLab({ mergeRequests = [], refuse = [] } = {}) {
+  const api = "/api/v4/projects/alice%2Fthesis-tool";
+  const answer = (status, value) => new Response(JSON.stringify(value), { status, headers: { "content-type": "application/json" } });
+  const requests = [];
+  const fetch = async (address, init = {}) => {
+    const url = new URL(String(address)), method = String(init.method ?? "GET").toUpperCase(), path = url.pathname.replace(api, ""), page = Number(url.searchParams.get("page") ?? "1");
+    if (url.origin !== "https://gitlab.example.test" || !url.pathname.startsWith(api)) throw new TypeError(`fetch failed: ${address}`);
+    requests.push({ method, path, query: Object.fromEntries(url.searchParams), body: init.body ? JSON.parse(init.body) : null, authorization: new Headers(init.headers ?? {}).get("private-token") });
+    if (method === "GET" && path === "/merge_requests") {
+      return answer(200, page === 1 ? mergeRequests.map((each) => ({ state: "merged", target_branch: "main", merge_commit_sha: null, squash_commit_sha: null, merged_at: "2026-10-28T09:50:00Z",
+        created_at: "2026-10-28T09:10:00Z", closed_at: null, draft: false, web_url: `${GITLAB}/-/merge_requests/${each.iid}`, ...each })) : []);
+    }
+    const issue = /^\/issues\/(\d+)(\/notes)?$/.exec(path);
+    if (issue && method === "POST" && issue[2]) return refuse.includes(Number(issue[1])) ? answer(403, { message: "403 Forbidden" }) : answer(201, { id: 1 });
+    if (issue && method === "PUT" && !issue[2]) return answer(200, { iid: Number(issue[1]), state: "closed" });
+    throw new TypeError(`fetch failed: the fake GitLab does not serve ${method} ${path}`);
+  };
+  return { fetch, requests, writes: () => requests.filter((each) => each.method !== "GET").map(({ method, path, body: sent }) => [method, path, sent]) };
+}
+
+/**
+ * onMergeRequestMerged(w, server, { token, sha, timestamp, source }) — the entry onPullRequestClosed, run in the job that writes of the job workflow on GitLab (src/runtimes/workflow/gitlab.yml) for the pipeline of a push to the default branch, as GitLab names it: CI_COMMIT_SHA
+ * `sha`, CI_COMMIT_TIMESTAMP `timestamp`, CI_PIPELINE_SOURCE `source`; with `server`'s fetch in place of the network, none where it is null. The person's token is TOKEN, none where `token` is null.
+ */
+export async function onMergeRequestMerged(w, server, { token = TOKEN, sha = MERGE, timestamp = PUSHED_AT, source = "push" } = {}) {
+  const real = globalThis.fetch;
+  globalThis.fetch = server ? server.fetch : async () => { throw new Error("no request may be made"); };
+  try {
+    return await runEntry("onPullRequestClosed", { GITLAB_CI: "true", CI_PIPELINE_SOURCE: source, CI_PROJECT_DIR: w.product, CI_PROJECT_URL: GITLAB, CI_COMMIT_REF_NAME: "main", CI_COMMIT_SHA: sha, CI_COMMIT_TIMESTAMP: timestamp,
+      CI_PIPELINE_URL: `${GITLAB}/-/pipelines/4711`, GITLAB_USER_LOGIN: "alice", AGENT_M_RUNNER: "hosted", AGENT_M_PART: "write", AGENT_M_PRODUCT_DIR: w.product, AGENT_M_TOKEN_NAME: "AGENT_M_TOKEN",
+      ...(token ? { AGENT_M_TOKEN: token } : {}) }, { now: NOW });
+  } finally { globalThis.fetch = real; }
+}
