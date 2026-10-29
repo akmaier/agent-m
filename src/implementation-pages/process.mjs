@@ -396,7 +396,7 @@ function lostArtifacts(before, after) {
 
 // ---- The route `models` — the instance's process models (UC-031 steps 1 and 2b). It lists the catalogue of the instance's snapshot: the shipped
 // models, then the instance's own, each with its kind of work, the products of this browser whose declaration names it (each address of the
-// setting `products` connected with MOD-site-frame's `chosenProduct`, its `docs/process.md` read with that product's host; an address that
+// setting `products` connected with MOD-site-frame's `chosenProduct`, its `docs/process.md` read with that product's host through a snapshot narrowed to that file; an address that
 // cannot be read is shown with its reason) and the catalogue's findings for it. A shipped model offers *Adapt*, an instance's model *Edit*,
 // the page *+ New model*; they lead to `#models/name=<name>`, `+ New model` to `#models/name=` (the frame reads only `key=value` parts).
 
@@ -414,7 +414,7 @@ async function declarationsOf(context) {
     try {
       const product = await chosenProduct({ store, fragment: `#models/product=${encodeURIComponent(address)}` });
       const { defaultBranch } = await product.host.repositoryInfo();
-      const declaration = await (await product.host.readSnapshot(defaultBranch)).read(DECLARATION_PATH);
+      const declaration = await (await product.host.readSnapshot(defaultBranch, { folders: [DECLARATION_PATH] })).read(DECLARATION_PATH);
       const modelFile = declaration == null ? null : String(readDocument(declarationSchema, DECLARATION_PATH, declaration).fields.model_file ?? "");
       return { address, modelFile };
     } catch (failure) {
