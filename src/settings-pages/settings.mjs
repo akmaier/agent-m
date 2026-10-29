@@ -888,6 +888,43 @@ function remoteSessionLine(target, context, info) {
   );
 }
 
+// A CLI session a Bridge offers, kept under `session:<bridge>:<agent>` (MOD-browser-store): its line shows the label and no value; Test asks the Bridge `<bridge>` whether it still offers `<agent>`.
+function sessionLine(target, context, info) {
+  if (!info.key.startsWith("session:") || !readSetting(context.store, info.key)) return null;
+  const rest = info.key.slice("session:".length);
+  const bridgeName = rest.slice(0, rest.lastIndexOf(":")), agent = rest.slice(rest.lastIndexOf(":") + 1);
+  const test = el("button", "settings-session-test btn", "Test");
+  const change = el("button", "settings-session-change btn", "Change");
+  const clear = el("button", "settings-session-clear btn", "Clear");
+  const result = el("p", "settings-session-result");
+  const status = el("p", "settings-session-status", stateText(info.lastTest));
+  change.addEventListener("click", () => context.go("bridge", { name: bridgeName }));
+  test.addEventListener("click", async () => {
+    let lastTest;
+    try {
+      const entry = readSetting(context.store, `bridge:${bridgeName}`);
+      if (!entry || typeof entry !== "object") throw new Error(`This browser does not keep a Bridge named ${bridgeName}. Pair it on the Bridge page.`);
+      const settings = settingsOf({ name: bridgeName, ...entry }, readSetting(context.store, "jump-host"));
+      result.textContent = `Asking ${bridgeName} at ${settings.address} for its agents…`;
+      const answer = await testBridge(bridgeAt(settings));
+      const offered = (answer.agents ?? []).some((candidate) => candidate.name === agent);
+      lastTest = { at: new Date().toISOString(), outcome: offered ? "working" : "refused" };
+      result.textContent = offered ? `✓ ${bridgeName} still offers ${agent}.` : `✗ ${bridgeName} answers, but does not offer ${agent}.`;
+    } catch (error) {
+      lastTest = { at: new Date().toISOString(), outcome: "refused" };
+      result.textContent = `✗ ${bridgeTestFailure(error)}`;
+    }
+    writeSetting(context.store, `last-test:${info.key}`, lastTest);
+    status.textContent = stateText(lastTest);
+  });
+  clear.addEventListener("click", async () => {
+    clearSetting(context.store, info.key);
+    clearSetting(context.store, `last-test:${info.key}`);
+    await route.render(target, context, {});
+  });
+  return el("section", "settings-session panel", el("h3", null, info.label), status, el("p", null, test, " ", change, " ", clear), result);
+}
+
 function ciRoute(text) {
   const route = String(text ?? "").trim();
   const current = /^ci\s+(hosted|runner:(\S+))\s+secret\s+(\S+)$/.exec(route);
@@ -1320,6 +1357,7 @@ export const route = {
     const bridge = bridgeLine(target, inPlace);
     const jumpHost = jumpHostLine(target, inPlace);
     const remoteSessions = listSettings(context.store).map((info) => remoteSessionLine(target, inPlace, info)).filter(Boolean);
+    const sessions = listSettings(context.store).map((info) => sessionLine(target, inPlace, info)).filter(Boolean);
     const namedBridges = listSettings(context.store).filter((info) => info.key.startsWith("bridge:"))
       .map((info) => bridgeNamedLine(target, inPlace, info)).filter(Boolean);
     const general = el("section", "settings-tab-panel",
@@ -1343,7 +1381,7 @@ export const route = {
       el("h3", null, "Endpoints & Agents · this browser"),
       configurationControls(inPlace), form,
       ...(bridge ? [bridge] : []), ...namedBridges, ...(jumpHost ? [jumpHost] : []),
-      ...remoteSessions,
+      ...remoteSessions, ...sessions,
       mailboxSetting(inPlace),
       endpoints);
     const usability = el("section", "settings-tab-panel",
