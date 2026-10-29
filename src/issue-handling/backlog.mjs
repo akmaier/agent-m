@@ -7,7 +7,8 @@
 //     its comments not among it) and ## Acceptance. `NotClassified` is thrown for every class but bug and change (UC-033, Precondition: "classified as *bug* or *change*").
 //   - `moveToBacklog` reads the default branch's head and the module files of the architecture itself, since its interface gives neither. The item is committed by `saveItems` first, then the comment, then the label. The comment is MOD-mail-records'
 //     `noteText("item-added", <item>, <date>, <link>)`; the link is the item file's page on the product's server (`webLinks().file`), since the module knows no instance, and so no address on the dashboard.
-//   - A comment refused for want of the permission (`PermissionMissing`) returns `{ item, comment: { text, issue } }` and sets no label (a token that may not comment may not label); any other failure of the comment or of the label passes unchanged, the item being committed
+//   - A comment refused for want of the permission (`PermissionMissing`), or for want of a token (`NotSupported`, which MOD-repository-hosts' commentOnIssue gives only without a token, before any request), returns `{ item, comment: { text, issue } }` and sets no
+//     label (a token that may not comment may not label): UC-033 4b names both, "No token for the issue tracker is stored, or the token may not comment". Any other failure of the comment or of the label passes unchanged, the item being committed
 //     already. With `existing`, the item of that identifier is rewritten with the issue's address added to its origins, and the `item` given is not used; an identifier the backlog lacks is `NotFound { path }`, with nothing written.
 
 import { artifactSchemas, readDocument } from "../documents/index.mjs";
@@ -48,7 +49,7 @@ export function backlogItemFrom(issue, cls, analysis, changed) {
 /**
  * moveToBacklog(host, issue, item, existing) -> Promise<{ item: string, comment: { text: string, issue: string } | null }> — the person's one click *Add* (UC-033 step 4): the item — the one backlogItemFrom prefilled and the person checked, or, when `existing` names
  * an item, that item with this issue added to its origins — written through MOD-work-plans' saveItems; then the comment `item-added` on the issue, naming the item and its address, and the label `backlog`. When the token may not comment, the item is written all the
- * same and the comment's text and the issue's address are returned for the person to copy (UC-033 4b). Crosses the network. Errors: saveItems' own — nothing is written then —, NotFound for an `existing` the backlog lacks, and the host's.
+ * same and the comment's text and the issue's address are returned for the person to copy (UC-033 4b) — as they are when no token is stored. Crosses the network. Errors: saveItems' own — nothing is written then —, NotFound for an `existing` the backlog lacks, and the host's.
  */
 export async function moveToBacklog(host, issue, item, existing) {
   const { defaultBranch } = await host.repositoryInfo();
@@ -72,7 +73,7 @@ export async function moveToBacklog(host, issue, item, existing) {
   try {
     await host.commentOnIssue(issue.number, text);
   } catch (refused) {
-    if (refused?.name !== "PermissionMissing") throw refused;
+    if (refused?.name !== "PermissionMissing" && refused?.name !== "NotSupported") throw refused;
     return { item: identifier, comment: { text, issue: issue.address } };
   }
   await host.setIssueLabels(issue.number, { add: [issueLabels.backlog] });

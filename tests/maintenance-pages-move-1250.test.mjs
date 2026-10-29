@@ -251,3 +251,80 @@ test("issue — when the token may not comment the item is written and the page 
   assert.deepEqual(issueOf(w, 7).comments, []);
   assert.deepEqual(issueOf(w, 7).labels, ["change"]);
 });
+
+// ---------------------------------------------------------------- ITM-1254: UC-033 1a and 4a on the issue's page
+// Readings the texts leave open, which these tests state (the pull request names them):
+//   - 1a: for an open issue whose class is none yet (no label defect, change or not-reproducible), the place of the move says why it is not offered, <p class="move-not-offered">, and leads to UC-012 with <button class="uc-012"> "UC-012, step 2", which goes, on a
+//     click, to that use case (the context's `go("use-case", { id: "UC-012" })`), as the fix leads to UC-017. An issue classified as not reproducible is classified, so 1a does not apply to it.
+//   - 4a: the click on Move to backlog also lists, beside the form, the items of the backlog at the default branch (docs/backlog/ITM-<n>-<slug>.md), each <li class="existing-item" data-item="<identifier>"> with its identifier and title and <button> "Add to <identifier>";
+//     the person's click on it writes through `moveToBacklog` with `existing` the identifier, and the page shows <p class="move-added"> with that identifier, or the comment to copy as Add does.
+
+const EXISTING_ITEM = "docs/backlog/ITM-001-export-keeps-every-page.md";
+const EXISTING_TEXT = ["---", "id: ITM-001", "title: Export keeps every page", "level: module", "realises:", "  - FIRST RULE", "modules:", "  - MOD-store", "tests:", "  - unit", "origin:", `  - ${ADDRESS(12)}`, "---",
+  "# ITM-001 Export keeps every page", "", "## Outcome", "", "Every page is exported.", "", "## Acceptance", "", "- A unit test.", ""].join("\n");
+
+// TST-1254201 · level: component · module: MOD-maintenance-pages
+// guards: EVOLUTION ENTERS THROUGH THE SPECIFICATION; UC-033 1a
+// given: known positive first — the issue 6 labelled defect offers Move to backlog; the issue 5 without a class; the issue 8 labelled not-reproducible
+// input: the route issue for 6, 8 and 5; on 5 the lead to UC-012 clicked by a person, then the person's click on Bug
+// expect: 6 offers Move to backlog and no lead; 8 offers neither; 5 offers no Move to backlog but says why — the issue is not classified — and leads to UC-012, step 2, whose click goes to the use case UC-012 and before which nothing goes; after the click on Bug, Move to
+//   backlog is offered and the lead is gone
+test("issue — an issue not classified yet is not offered Move to backlog and is led to UC-012, step 2 (UC-033 1a)", async () => {
+  const w = start();
+  const six = await opened(w, 6);
+  assert.equal(buttonsOf(moveOf(six), "Move to backlog").length, 1, "known positive: a bug is offered the move");
+  assert.equal(byClass(six, "uc-012").length, 0);
+  const eight = await open(w, 8);
+  await waitFor(() => byClass(eight, "issue-analysis").length > 0);
+  await flush();
+  assert.equal(buttonsOf(eight, "Move to backlog").length, 0);
+  assert.equal(byClass(eight, "uc-012").length, 0, "an issue classified as not reproducible is classified");
+  const five = await open(w, 5);
+  await waitFor(() => byClass(five, "set-class").length > 0 && byClass(five, "uc-012").length > 0);
+  assert.equal(buttonsOf(five, "Move to backlog").length, 0);
+  assert.match(textOf(one(five, "move-not-offered") ?? { textContent: "" }), /not classified/i);
+  const lead = one(five, "uc-012");
+  assert.ok(lead, "the lead to UC-012 is offered");
+  assert.equal(textOf(lead), "UC-012, step 2");
+  assert.deepEqual(w.context.went, [], "nothing goes before the click");
+  await trusted(lead);
+  assert.deepEqual(w.context.went, [["use-case", { id: "UC-012" }]]);
+  await trusted(byClass(five, "set-class").find((node) => node.getAttribute("data-class") === "bug"));
+  await waitFor(() => buttonsOf(five, "Move to backlog").length === 1);
+  assert.equal(buttonsOf(five, "Move to backlog").length, 1);
+  assert.equal(byClass(five, "uc-012").length, 0);
+});
+
+// TST-1254202 · level: component · module: MOD-maintenance-pages, MOD-issue-handling, MOD-work-plans
+// guards: EVERY ARTIFACT NAMES ITS ORIGIN; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-033 4a
+// given: known positive first (TST-1250201: Add writes a new item); the backlog holds ITM-001 "Export keeps every page" whose origin is the issue 12; the issue 7 labelled change describes the same work
+// input: the route issue 7; Move to backlog by a person; "Add to ITM-001" clicked by a script, then by a person
+// expect: beside the form the backlog's item ITM-001 is offered with its title; the script's click writes nothing; the person's click commits one file, docs/backlog/ITM-001-export-keeps-every-page.md, whose origins are the issue 12 and then the issue 7 and whose
+//   title is unchanged, and no new item; the issue 7 receives one comment, the note item-added naming ITM-001, and the label backlog; the page shows ITM-001 as added
+test("issue — Move to backlog offers the backlog's items, and Add to an existing item adds the issue to its origins (UC-033 4a)", async () => {
+  const w = start({ product: { ...PRODUCT_FILES, [EXISTING_ITEM]: EXISTING_TEXT } });
+  const detail = await opened(w, 7);
+  await moved(detail);
+  await waitFor(() => byClass(moveOf(detail), "existing-item").length > 0);
+  // The world's product holds the item ITM-0900 too (tests/main-page-home-harness.mjs, smallProduct), which is offered as well.
+  const offered = byClass(moveOf(detail), "existing-item");
+  assert.deepEqual(offered.map((node) => node.getAttribute("data-item")), ["ITM-001", "ITM-0900"]);
+  assert.match(textOf(offered[0]), /ITM-001.*Export keeps every page/);
+  const add = buttonsOf(offered[0], "Add to ITM-001")[0];
+  assert.ok(add, "Add to ITM-001 is offered");
+  add.dispatchEvent(new Event("click"));
+  await flush();
+  assert.deepEqual(addedFiles(w), [], "a click by a script writes nothing");
+
+  await trusted(add);
+  await waitFor(() => byClass(moveOf(detail), "move-added").length > 0 || byClass(moveOf(detail), "issue-problem").length > 0);
+  assert.equal(byClass(moveOf(detail), "issue-problem").length, 0, textOf(moveOf(detail)));
+  const files = addedFiles(w);
+  assert.deepEqual(files.map((file) => file.path), [EXISTING_ITEM]);
+  assert.match(files[0].content, new RegExp(`origin:\\n {2}- ${ADDRESS(12)}\\n {2}- ${ADDRESS(7)}\\n`));
+  assert.ok(files[0].content.includes("title: Export keeps every page"), files[0].content);
+  assert.equal(issueOf(w, 7).comments.length, 1);
+  assert.match(issueOf(w, 7).comments[0], /^Backlog item `ITM-001` added: .*docs\/backlog\/ITM-001-export-keeps-every-page\.md/);
+  assert.deepEqual(issueOf(w, 7).labels.sort(), ["backlog", "change"]);
+  assert.ok(textOf(one(moveOf(detail), "move-added")).includes("ITM-001"));
+});
