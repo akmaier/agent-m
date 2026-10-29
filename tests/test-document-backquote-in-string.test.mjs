@@ -63,7 +63,7 @@ test("an escaped quote does not end the string that holds the backquote — MOD-
 
 // TST-1285005 · level: unit · module: MOD-test-document
 // guards: A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS
-// given: a file whose line opens a template string that spans lines and holds a comment-shaped declaration, and a quote before the backquote on a later line, `const T = "a" + `x`;`
+// given: a file whose line opens a template string that spans lines and holds a comment-shaped declaration, then a line `const U = "a" + `x`;` whose backquotes are balanced
 // input: that file's text
 // expect: the declaration inside the template string is not read; the declaration after the closed template string is
 test("a backquote outside any quoted string still opens a template string — MOD-test-document", () => {
