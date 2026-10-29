@@ -153,9 +153,11 @@ by: tab <identifier>
 - `JobRecord` — the record as read: the fields of `JobStart`, its `path`, and `taken`, `gates` (each reached, with the
   record that resumed it), `question`, `jobs` (the jobs a run started), `limitsRaised` (every raise of a run's limits, oldest
   first) and `end` as appended, each `null` or empty while absent.
-- `LiveState` — `{ reachable: boolean, reason: string | null, known: boolean, running: boolean, cancelling: boolean, log:
-  string | null, usage: Usage | null, writtenAfterCancel: string[] }`: what a job's runtime reports while it has not ended,
-  given by MOD-runtimes.
+- `LiveState` — `{ reachable: boolean, reason: string | null, limit: { limit: "account" | "network" | "search",
+  resetsAt: string | null } | null, known: boolean, running: boolean, cancelling: boolean, log: string | null, usage:
+  Usage | null, writtenAfterCancel: string[] }`: what a job's runtime reports while it has not ended, given by
+  MOD-runtimes; `limit`, with `reachable` false, is a used-up rate limit of the repository's server that kept the runtime
+  from being asked, as MOD-repository-hosts' `RateLimited` names it, and `null` otherwise.
 - `JobState` — `"queued" | "running" | "cancelling" | "waiting at a gate" | "done" | "failed" | "cancelled" | "ended
   without record"`: the seven states of `ONE DASHBOARD SHOWS EVERY JOB`, `cancelling` shown within `running`.
 - `Cost` — `{ known: true, amount: number, currency: string, basis: "reported" | "usage at the declared price" } | {

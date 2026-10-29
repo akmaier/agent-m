@@ -37,6 +37,7 @@ uses:
   - MOD-job-ledger.listJobs
   - MOD-job-ledger.jobState
   - MOD-job-ledger.jobCost
+  - MOD-job-ledger.LiveState
   - MOD-runtimes.routesFor
   - MOD-runtimes.liveState
   - MOD-runtimes.liveStates
@@ -140,7 +141,8 @@ once, when the page is drawn, and never again (UC-046 4b). It stores nothing bet
     runs, state, elapsed time and cost where known; a source that cannot be reached is named with its reason. The list
     reads every record, in batches (`listJobs`), since which jobs have not ended — those it shows first — is known only
     from their records; the live states of the jobs without an end it asks with MOD-runtimes' `liveStates`, which lists a
-    repository's runs of the job workflow once.
+    repository's runs of the job workflow once; a state whose `limit` names a used-up rate limit is shown with that limit
+    and the time it resets, never as a runtime not reached (`A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN`).
   - `job` (`params.id`) — one job: its inputs, its commits and pull request and its CI runs (MOD-runtimes' `jobTrail`), its log while it runs, its
     cost — or *unknown* (`NO COST IS GUESSED`); *Cancel* for a queued, running or waiting job, whose end, cancelled,
     MOD-runtimes' `cancelJob` appends once its runtime confirms, and beside a commit written after the cancel, *Revert*
@@ -191,6 +193,7 @@ instance repository through their hosts, and the browser's store for the product
 - MOD-product-process.mayDecide — whether this person may decide the gate a job waits at;
   MOD-product-process.recordGateDecision — the decision.
 - MOD-job-ledger.listJobs, MOD-job-ledger.jobState, MOD-job-ledger.jobCost — the jobs, their states and costs;
+  MOD-job-ledger.LiveState — a live state's `reachable`, `reason` and `limit`, shown on `jobs`;
   MOD-prompt-bar.currentJob — the job of this tab's conversation; MOD-prompt-bar.Subject — the subject the route `job` gives the prompt bar for the retry of a job that ran in a tab: the job's kind as its page and its inputs as its parameters, so that the conversation hands the retry on to that kind (UC-049 4a);
 - MOD-runtimes.routesFor — the routes a retry may take, for the product's resource needs in its facts;
   MOD-runtimes.liveState, MOD-runtimes.liveStates, MOD-runtimes.jobLog,
