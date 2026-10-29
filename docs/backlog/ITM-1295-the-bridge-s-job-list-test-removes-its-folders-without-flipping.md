@@ -33,3 +33,6 @@ process.
 - The pull request names the process that writes into the folder at the cleanup, with the data-flow path to it.
 - The test's expected results are unchanged, and its cleanup removes its folders on every run of one commit.
 - Only the test, its helpers and, where the cause lies in MOD-bridge-jobs, `src/bridge-jobs/` change.
+- **Tests of other modules this Outcome changes: none.** `tests/bridge-jobs-list.test.mjs` names MOD-bridge-jobs.
+- It removes no test.
+- It also flipped in run 40848846291, attempts 1 and 2.

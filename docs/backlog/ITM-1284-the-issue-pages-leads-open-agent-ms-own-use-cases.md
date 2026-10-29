@@ -32,3 +32,14 @@ use case.
 - On a product's issue page, each lead's fragment names no product and the use case's identifier; a case fails on the
   lead without `product: ""`.
 - Only `src/maintenance-pages/` and its tests change.
+- **The function it needs is named in MOD-maintenance-pages' Uses:** `MOD-site-frame.View`, whose `go` takes the empty
+  `product`, which "names the instance itself" (MOD-site-frame.md:192).
+- **Two existing expectations of MOD-maintenance-pages change, in the tests-only commit:**
+  - `tests/maintenance-pages-move-1250.test.mjs:291`, the lead to UC-012;
+  - `tests/maintenance-pages-fix-583.test.mjs:143`, the lead to UC-017.
+  - Each changes to `["use-case", { id: …, product: "" }]`.
+- **Tests of other modules this Outcome changes: none.**
+  - The search was for the leads (`uc-012`, `uc-017`, `go("use-case"`, `id: "UC-01[27]"`) over `tests/`. Its known
+    positive is `maintenance-pages-move-1250`.
+  - `release-itm-1254-issue-move` and `system-uc-012-fix-a-bug` assert no `go` of a lead.
+- It removes no test.

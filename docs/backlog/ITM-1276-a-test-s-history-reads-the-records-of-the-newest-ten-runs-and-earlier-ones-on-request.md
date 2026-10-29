@@ -54,3 +54,18 @@ Measurable outcome, on the live page: opening a test reads ~10 records (~3.6 MB)
 
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - Only `src/trace-pages/` and the tests that name MOD-trace-pages change.
+- **The functions the Outcome needs are named in MOD-trace-pages' Uses:**
+  - `MOD-repository-hosts.readHistory`, `readSnapshot` and `listTags` (MOD-trace-pages.md:19-22);
+  - `MOD-result-records.testHistory`.
+- **Tests of other modules this Outcome changes: none.**
+  - The tests that draw a test's detail are `trace-pages-test-detail`, `trace-pages-test-history-logs` and
+    `release-itm-1275-history-log-on-open`, all of MOD-trace-pages.
+  - The tests of MOD-result-records call `testHistory`, which does not change.
+  - The search was for `key: "tests"` with a row, `trace/tests/` and `testHistory`. Its known positive is
+    `trace-pages-test-detail`.
+- **The harness.** `tests/trace-pages-harness.mjs` (MOD-trace-pages) gives `readHistory` of the default branch only. It
+  gains the history of the branch `test-results`, with each commit's changes.
+  - `release-itm-1275-history-log-on-open` is a release test, and it passes unchanged.
+  - Where it cannot pass unchanged, the item stops, since a release test is changed only by a participant who
+    implemented none of it.
+- It removes no test.

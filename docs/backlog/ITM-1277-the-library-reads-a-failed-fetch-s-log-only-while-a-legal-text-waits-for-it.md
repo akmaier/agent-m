@@ -33,6 +33,16 @@ started by a push — a run on a push fetches every text then waiting (`.github/
 Design principle (AGENTS.md §2 *Designing*): akmaier — what is read is what the page shows; ch. 12 *KISS* — a bound
 from the workflow's own trigger, no stored state.
 
+## Not ready: a draft for akmaier
+
+The Outcome reads the runs of the fetch workflow and their logs, with `MOD-repository-hosts.listCiRuns` and `ciRunLog`.
+MOD-settings-pages' Uses (MOD-settings-pages.md:29-38, and its Uses section) name neither. The code already calls
+both (`src/settings-pages/library.mjs:106-112`). That is the gap TST-106805 does not catch, since it checks the module
+before the dot (sprint 111's ruling on ITM-1268).
+
+So a draft of MOD-settings-pages.md names the two among its Uses, each with what it is read for. This item is built
+once the draft is accepted.
+
 ## Acceptance
 
 Tests written first, each red on the commit that holds only them:

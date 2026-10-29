@@ -45,3 +45,14 @@ asks one live state instead of one for each job without an end.
 
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - Only `src/main-page/` and the tests that name MOD-main-page change.
+- **The functions the Outcome needs are named in MOD-main-page's Uses** (MOD-main-page.md:24, :36-37, :40):
+  - `MOD-repository-hosts.readSnapshot`, its `folders` narrowed to `docs/jobs/<id>.md`;
+  - `MOD-job-ledger.listJobs` and `jobState`;
+  - `MOD-runtimes.liveState`.
+  - The text gives the route this behaviour (MOD-main-page.md:153-155).
+- **Tests of other modules this Outcome changes: none.**
+  - The tests that draw the route `job` are `main-page-job`, `-job-gate`, `-job-retry`, `-job-cancel`, `-job-trail`,
+    `-job-revert` and `main-page-jobs`, all of MOD-main-page.
+  - `implementation-pages-progress` only links to `#job/id=…`.
+  - The search was for `#job/`, `name === "job"` and `"job")` over `tests/`. Its known positive is `main-page-job`.
+- It removes no test.
