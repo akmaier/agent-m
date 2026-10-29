@@ -98,7 +98,7 @@ test("registerStrategies — a name registered twice is refused as DuplicateStra
       && error.owners.includes("owner-one") && error.owners.includes("owner-two"));
 });
 
-// TST-472335 · level: component · module: MOD-job-runner
+// TST-1302007 · level: component · module: MOD-job-runner
 // guards: THE CATALOGUE IS DATA
 // given: a recipe registered under a name of this file's own by one owner, as a Bridge composed in the page's process registers MOD-approvals' strategies
 // input: registerStrategies of the very same recipe under the same name by a second owner, as a view hands the same set

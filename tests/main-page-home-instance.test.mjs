@@ -50,12 +50,12 @@ async function drawn(stored) {
   return draw(home, browser({ products: [PRODUCT_URL, OTHER_URL], tokens: { [PRODUCT]: PRODUCT_TOKEN, [OTHER]: OTHER_TOKEN } }));
 }
 
-// TST-1281001 · level: component · module: MOD-main-page
+// TST-1302010 · level: component · module: MOD-main-page
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-046
 // given: this browser keeps alice/product and bob/other, each with its own token, and the instance alice/agent-m with the instance's token; each product's branch overview-cache holds the overview of its head (six stored stages; ITM-0900 in progress with the job JOB-20261016-1000-ffff, which the Bridge lab-pc-4 lists as running); the instance holds its participant list
 // input: the route home drawn; every request counted by the repository it names
 // expect: two cards, each with the six stored stages ("Requirements 100 % stored requirements" … "Release 0 % stored release") and the build row ["ITM-0900", the job, "dev-cli", "running", "2h 0m 0s"]; known positive: requests to alice/product were made; not one request names alice/agent-m — no repository, no commit and no tree of the instance — and none is a batch (POST /graphql); counter-proof: with bob/other's overview left out, its card is derived from its files ("Use cases 50 % 1 of 2 accepted") and the instance is read once — its repository, the commit of main and its tree, ["", "/commits/main", "/git/trees/<the instance's head>"] —; with neither overview, the instance is read once for both cards, the same three requests; and with no product kept, Agent M's own card, whose repository the instance is, reads the instance's repository, the commit of main and its tree once each
-test("TST-1281001 while every card has a stored overview the route home reads none of the instance; a card drawn from the scope all, or Agent M's own, reads it once", async () => {
+test("TST-1302010 while every card has a stored overview the route home reads none of the instance; a card drawn from the scope all, or Agent M's own, reads it once", async () => {
   const both = await drawn([PRODUCT, OTHER]);
   const cards = cardsOf(both);
   assert.equal(cards.length, 2);
