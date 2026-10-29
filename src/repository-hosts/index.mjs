@@ -1,5 +1,5 @@
 // The repository hosts — one interface to a repository on GitHub or on a GitLab server: parseAddress, connect, and the host it
-// returns, with repositoryInfo, readSnapshot, readHistory, listTags, issueCounts, commitFiles, createTag, listReleaseAssets, createBranch, startWorkflow, setCiSecret, setPipelineSchedule, ciVariableScopes, listCiRuns,
+// returns, with repositoryInfo, readSnapshot, readHistory, listTags, issueCounts, listIssues, readIssue, commitFiles, createTag, listReleaseAssets, createBranch, startWorkflow, setCiSecret, setPipelineSchedule, ciVariableScopes, listCiRuns,
 // cancelCiRun, ciRunLog, ciRunLabels and webLinks. Every function of a host that reaches a server says so and names how it fails, as a HostError (A REMOTE INTERFACE
 // NAMES HOW IT FAILS).
 //
@@ -167,6 +167,7 @@ function throughClone(repository, folder, rest) {
     listTags: rest ? (...a) => rest.listTags(...a) : without("the tags"),
     issueCounts: rest ? (...a) => rest.issueCounts(...a) : without("the issue counts"),
     listIssues: rest ? (...a) => rest.listIssues(...a) : without("the issues"),
+    readIssue: rest ? (...a) => rest.readIssue(...a) : without("an issue"),
     commentOnIssue: rest ? (...a) => rest.commentOnIssue(...a) : without("a comment on an issue"),
     setIssueLabels: rest ? (...a) => rest.setIssueLabels(...a) : without("the labels of an issue"),
     setIssueState: rest ? (...a) => rest.setIssueState(...a) : without("the state of an issue"),
@@ -362,14 +363,22 @@ export function connect(address, credentials = {}) {
     issueCounts: () => adapter.issueCounts(),
 
     // listIssues(filter) -> Issue[] — the issues of the repository, each with its comments: those of a state (open unless the filter says closed or all), carrying every label of `labels`, and, with `search`, found
-    // by the server's own search; pull requests are no issues. Every page is read. Crosses the network; fails as readSnapshot, and with NotSupported through a clone without a token. A filter that is not
-    // { state?: "open" | "closed" | "all", labels?: texts, search?: text } is a TypeError.
+    // by the server's own search; pull requests are no issues. Every page is read. With `comments: false` no comment is asked for and each issue's comments are empty. Crosses the network; fails as readSnapshot, and
+    // with NotSupported through a clone without a token. A filter that is not { state?: "open" | "closed" | "all", labels?: texts, search?: text, comments?: boolean } is a TypeError.
     async listIssues(filter = {}) {
-      const { state = "open", labels = [], search } = filter ?? {};
+      const { state = "open", labels = [], search, comments = true } = filter ?? {};
       if (!["open", "closed", "all"].includes(state)) throw new TypeError(`listIssues lists open, closed or all issues, not ${state}`);
       if (!isTexts(labels)) throw new TypeError("listIssues gives the labels as a list of texts");
       if (search !== undefined && (typeof search !== "string" || !search.trim())) throw new TypeError("listIssues gives the search as a text");
-      return adapter.listIssues({ state, labels: [...labels], search });
+      if (typeof comments !== "boolean") throw new TypeError("listIssues is told whether to read the comments with true or false");
+      return adapter.listIssues({ state, labels: [...labels], search, comments });
+    },
+
+    // readIssue(number) -> Issue — one issue with its comments, in one request and one per page of its comments. Crosses the network; fails as listIssues, and with NotFound for a number the repository has no
+    // issue of — a pull request's number among them. A number that is no positive whole number is a TypeError.
+    async readIssue(number) {
+      issueNumber(number);
+      return adapter.readIssue(number);
     },
 
     // commentOnIssue(number, body) -> void — a comment on an issue, with the person's token. Crosses the network; fails with TokenRefused, PermissionMissing, RateLimited, Unreachable, and NotSupported without
