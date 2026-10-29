@@ -102,3 +102,15 @@ moves is known only once the routes are split into stand-ins: a stand-in of the 
   every test of the seven modules and of each module whose code calls a changed function. It names here each case that
   fails only with the patch. A release test among them is changed by a participant who implemented none of the item.
 - Then the tests-only commit follows, with those changed expectations, red there.
+
+## Not ready: a draft for akmaier
+
+MOD-site-frame's `Route` has `render` as a member every route has (MOD-site-frame.md:156-162). A stand-in in `View.routes`
+must therefore still render, and its `subject`, `leave` and `unsaved` must answer before its file is loaded.
+- No module states the one function that writes such a stand-in. Writing it in each of the six views would keep one rule
+  in six copies.
+- The draft gives MOD-site-frame that function, and each view's Uses name it. It also states what `leave` and `unsaved`
+  answer for a route not yet loaded.
+- The item names the time of its CI job against the two-minute limit before it is selected again. The patch of sprint
+  team1/120 took `tests/site-frame-preloads.test.mjs` from 2.5 s to 28 s alone.
+- The ruling and the patch's measurements stand in `docs/backlog/sprints/team1/120.md`, "ITM-1267's stop".
