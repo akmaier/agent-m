@@ -545,11 +545,12 @@ function addLinks(spec) {
 }
 
 // The group file at the version drawn (its text, `groupText`, read beside the SPEC), set against the items it arranges: the requirements of the SPEC and those an open entry would add. `status` names what an
-// open entry would do to a requirement of the SPEC (the first entry that names it); `added` the names an entry would add.
+// open entry would do to a requirement of the SPEC (the newest queue's entry that names it); `added` the names an entry would add.
 async function arrangement(snapshot, spec, waiting, groupText) {
   const status = new Map();
   const added = new Set();
-  // The entries' impacts are read at once, from their proposals and targets and no rationale; they are then taken in the order of the entries, so that the first entry naming a requirement gives its status.
+  // The entries' impacts are read at once, from their proposals and targets and no rationale; they are then taken in the order `waitingQueues` lists them, the newest queue's entries first, so that the newest queue's entry naming a requirement gives its one mark; the other entries naming it
+  // stand in the list of waiting entries (waitingSection) with their own status and link.
   const impacts = await Promise.all(waiting.map(({ queue, entry }) => entryImpact(queue.folder, entry.number, snapshot).catch(() => null)));
   for (const impact of impacts) {
     if (impact === null) continue;
