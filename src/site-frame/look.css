@@ -122,7 +122,7 @@ main { max-width: 1240px; margin: 0 auto; padding: 1.2rem 16px 3rem; }
 .names li { margin: .15rem 0; }
 .choices li { margin: .3rem 0; }
 
-/* A status's badge: the class b-<status>; an accepted and a superseded one in colours that meet the shared WCAG check. */
+/* A status's badge: the class b-<status>; an accepted, a superseded and a waiting-for-its-anchor one in colours that meet the shared WCAG check. */
 .badge { display: inline-block; font-size: .75rem; font-weight: 600; padding: .1rem .5rem; border-radius: 999px; white-space: nowrap; }
 .b-open { color: var(--open); background: var(--open-bg); }
 .b-applied { color: var(--ok); background: var(--ok-bg); }
@@ -130,6 +130,7 @@ main { max-width: 1240px; margin: 0 auto; padding: 1.2rem 16px 3rem; }
 .b-stale { color: var(--bad); background: var(--bad-bg); }
 body .b-accepted { color: #155724; background: #d4edda; }
 body .b-superseded { color: #5c4300; background: #fff3cd; }
+body .b-waiting-for-its-anchor { color: #3b2a7a; background: #e6e0f7; }
 
 .cols { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 1.2rem; align-items: start; }
 .side { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
