@@ -11,9 +11,9 @@
 // Level: unit
 //
 // The facts are those of tests/progress-measures-facts.mjs, every field unread or empty; the host is a fake of this file's own that records each commitFiles, and the snapshots'
-// readOn serve the files the test gives, counted. Where the texts leave a reading open, the test states the one it takes: the Acceptance of ITM-1260 says "the four files of the
-// commit and latest.json", and the module file names three files of the commit and latest.json, four files in all — this test follows the module file. Each test states its
-// input and its expected result before it runs (given / input / expect).
+// readOn serve the files the test gives, counted. Where the texts leave a reading open, the test states the one it takes: the module file names three files of the commit in
+// publishOverview's entry, and scheduleView's entry adds the fourth, the schedule's view, "in the same commit as the other views" (ITM-1265) — the commit holds the four files of
+// the commit and latest.json, and `written` is false where the branch holds all four. Each test states its input and its expected result before it runs (given / input / expect).
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -23,7 +23,7 @@ import { COMMIT, facts } from "./progress-measures-facts.mjs";
 
 const C0 = "0c".repeat(20);
 const BRANCH_HEAD = "0".repeat(40);
-const VIEWS = [`${COMMIT}.json`, `${COMMIT}.progress.json.gz`, `${COMMIT}.backlog.json.gz`];
+const VIEWS = [`${COMMIT}.json`, `${COMMIT}.progress.json.gz`, `${COMMIT}.backlog.json.gz`, `${COMMIT}.schedule.json.gz`];
 
 function hostOver(paths) {
   const commits = [];
@@ -34,11 +34,12 @@ const fileOf = (commits, path) => commits[0].files.find((file) => file.path === 
 
 // TST-1260011 · level: unit · module: MOD-progress-measures
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
-// given: facts with every field unread or empty at the commit ccc…c; a branch overview-cache that holds nothing for it, and one that holds all three of its files
+// given: facts with every field unread or empty at the commit ccc…c; a branch overview-cache that holds nothing for it, and one that holds all four of its files
 // input: publishOverview(host, snapshot, facts) to each
-// expect: the first: { written: true }, one commit on overview-cache at the head it read holding exactly ccc…c.json, ccc…c.progress.json.gz, ccc…c.backlog.json.gz and latest.json,
+// expect: the first: { written: true }, one commit on overview-cache at the head it read holding exactly ccc…c.json, ccc…c.progress.json.gz, ccc…c.backlog.json.gz,
+//         ccc…c.schedule.json.gz (ITM-1265) and latest.json,
 //         the two views gzipped JSON equal to progressView and backlogView of the facts, latest.json naming ccc…c; the second: { written: false } and no commit
-test("publishOverview adds the overview and the two views of the commit and latest.json in one commit, and nothing where the branch holds all three", async () => {
+test("publishOverview adds the overview and the views of the commit and latest.json in one commit, and nothing where the branch holds all four", async () => {
   const given = facts();
   const empty = hostOver([]);
   assert.deepEqual(await measures.publishOverview(empty, snapshot, given), { commit: COMMIT, written: true });
