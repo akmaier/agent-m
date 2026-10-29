@@ -5,10 +5,9 @@
 // Guards: A FINDING READS LIKE A COMPILER MESSAGE
 // Level: unit
 //
-// The form is built over the real item schema of MOD-documents and an item of the backlog, read as MOD-documents reads the file. The small DOM of tests/site-frame-dom.mjs stands for the browser. documentFindings names a
-// required key the document lacks on line 1, the line of no field, with the correction "give the key <key> a value"; the reading, named in the pull request: such a finding stands beside the field of the key its correction
-// names, where the schema has that key; a finding naming a key the schema does not know has no field and stays at the end of the form. Each test states its input and its expected result before it runs. Nothing reaches the
-// network.
+// The form is built over the real item schema of MOD-documents and an item of the backlog, read as MOD-documents reads the file. The small DOM of tests/site-frame-dom.mjs stands for the browser. The form places a finding
+// by its line alone, the line it concerns (A FINDING READS LIKE A COMPILER MESSAGE), and reads no wording of its what or fix (ITM-1290, Acceptance). A finding on a line that no field holds — a key the schema does not
+// know, or line 1 — stands at the end of the form. Each test states its input and its expected result before it runs. Nothing reaches the network.
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -34,10 +33,12 @@ const typeInto = async (input, text) => { input.value = text; input.dispatchEven
 const PATH = "docs/backlog/ITM-001-export-keeps-every-page.md";
 const ITEM = ["---", "id: ITM-001", "title: Export keeps every page", "level: module", "realises:", "  - FIRST RULE", "modules:", "  - MOD-store", "tests:", "  - unit", "origin:",
   "  - https://github.com/alice/product/issues/7", "---", "# ITM-001 Export keeps every page", "", "## Outcome", "", "Every page is exported.", "", "## Acceptance", "", "- A unit test.", ""].join("\n");
-const formOver = (extraChecks) => {
+const formOver = (extraChecks, text = ITEM) => {
   const schema = artifactSchemas().item;
-  return schemaForm(schema, readDocument(schema, PATH, ITEM), { onSave: async () => {}, extraChecks });
+  return schemaForm(schema, readDocument(schema, PATH, text), { onSave: async () => {}, extraChecks });
 };
+// The same item with a key the item schema does not know, after its last key.
+const WITH_COLOUR = ITEM.replace("  - https://github.com/alice/product/issues/7\n", "  - https://github.com/alice/product/issues/7\ncolour: blue\n");
 
 // TST-1290001 · level: unit · module: MOD-site-frame
 // guards: A FINDING READS LIKE A COMPILER MESSAGE
@@ -57,15 +58,15 @@ test("schemaForm — a finding on a required key the document lacks stands besid
 
 // TST-1290002 · level: unit · module: MOD-site-frame
 // guards: A FINDING READS LIKE A COMPILER MESSAGE
-// given: a form over the valid item ITM-001 whose extraChecks gives, on line 1, one finding whose correction is "give the key colour a value", a key the item schema does not know, and one whose correction is "give the key title a value"
+// given: a form over the item ITM-001 with the key colour, which the item schema does not know, and an extraChecks that gives one warning on line 1 whose correction reads "give the key title a value"
 // input: the form is built, nothing typed
-// expect: the finding on colour stands at the end of the form and beside no field; the finding on title stands beside the field title (the known positive of the same placing)
-test("schemaForm — a finding on a key the schema does not know stays at the end of the form", () => {
-  const extra = (key) => ({ artifact: "ITM-001", line: 1, kind: "warning", rule: "A FINDING READS LIKE A COMPILER MESSAGE", what: `the key ${key} is asked for by the caller`, fix: `give the key ${key} a value` });
-  const form = formOver(() => [extra("colour"), extra("title")]);
+// expect: known positive — documentFindings' finding "the key colour is not a key of the format item" stands at the end of the form, beside no field; the warning on line 1 stands at the end too, not beside the field title, since no field holds line 1 and its words are not read. Counter-proof: a form that reads the key out of a fix shows the warning beside title
+test("schemaForm — a finding on a line no field holds stays at the end of the form, whatever its words name", () => {
+  const warning = { artifact: "ITM-001", line: 1, kind: "warning", rule: "A FINDING READS LIKE A COMPILER MESSAGE", what: "the caller asks for a title", fix: "give the key title a value" };
+  const form = formOver(() => [warning], WITH_COLOUR);
   const end = endOf(form);
-  assert.ok(end.some((text) => text.includes("the key colour is asked for")), end.join("\n"));
-  assert.ok(!byTag(form, "li").some((text) => text.textContent.includes("the key colour") && !end.includes(text.textContent)), "colour stands beside no field");
-  assert.ok(besideOf(form, "title").some((text) => text.includes("the key title is asked for")), besideOf(form, "title").join("\n"));
-  assert.ok(!end.some((text) => text.includes("the key title")), end.join("\n"));
+  assert.ok(end.some((text) => text.includes("the key colour is not a key of the format item")), `known positive: ${end.join("\n")}`);
+  assert.ok(!byTag(form, "li").some((each) => each.textContent.includes("the key colour") && !end.includes(each.textContent)), "colour stands beside no field");
+  assert.ok(end.some((text) => text.includes("the caller asks for a title")), `at the end: ${end.join("\n")}; beside title: ${besideOf(form, "title").join("\n")}`);
+  assert.deepEqual(besideOf(form, "title"), [], "nothing beside the field title");
 });
