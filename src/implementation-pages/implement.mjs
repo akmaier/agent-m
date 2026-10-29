@@ -11,8 +11,8 @@
 // ONE CLICK PER DECISION. A render writes nothing and sends nothing: *Start jobs* and *Merge* are the writes, each on a person's click. Readings the texts leave open, which this file takes:
 //   - In a model that works from a backlog, the items, their states, their holds and the teams' running sprints are those of the backlog's view of the head (backlog.mjs' viewOf: MOD-progress-measures' storedView,
 //     else the view derived in the page from the facts of the scope `work`). Besides it the route reads, at the view's commit and in one batch, the declaration, the role assignments and the running sprints' records,
-//     and the workflow the declaration declares with MOD-product-process' productWorkflow, from the declared model's file at the commit the declaration names; the instance's SPEC is not read for it, so a gate a
-//     process requirement adds names no source here. While the head's view is not stored yet, the route draws the items with their states from the view stored last, with the line naming its commit, and offers no
+//     and the workflow the declaration declares with MOD-product-process' workflowOf, from the declared model's file at the commit the declaration names (plan.mjs' declaredModelOf) and the files of the practices it
+//     names at that commit, as the route `process` builds it; the instance's SPEC is not read for it, so a gate a process requirement adds keeps its source null (`addedBy.source`), which this route does not show. While the head's view is not stored yet, the route draws the items with their states from the view stored last, with the line naming its commit, and offers no
 //     *Start jobs*. In a model that plans its work, the steps are those of the facts of the scope `work`, as the route `plan` reads them.
 //   - An item is listed in every state but done; the startable ones are ticked, the others carry their reasons and cannot be ticked.
 //   - The implementing roles are those of the phases that produce MOD; the item's role assignment is its team's — the team whose running sprint selects it —, else the product's first.
@@ -29,13 +29,15 @@ import { listJobs, newJobId } from "../job-ledger/index.mjs";
 import { prepareJob } from "../job-runner/index.mjs";
 import { eligible } from "../participant-list/index.mjs";
 import { readDocument } from "../documents/index.mjs";
-import { declarationSchema, holdsRole, productWorkflow, roleAssignmentSchema } from "../product-process/index.mjs";
+import { catalogue, modelSchema } from "../model-catalogue/index.mjs";
+import { declarationSchema, holdsRole, roleAssignmentSchema, workflowOf } from "../product-process/index.mjs";
 import { productFacts } from "../progress-measures/index.mjs";
 import { queueJob, routesFor } from "../runtimes/index.mjs";
 import { explain as frameExplain } from "../site-frame/index.mjs";
 import { restrictedPlaces, sourceSchemas } from "../source-register/index.mjs";
 import { planSchemas, startable } from "../work-plans/index.mjs";
 import { contextOf, participantsIn, viewOf } from "./backlog.mjs";
+import { declaredModelOf } from "./plan.mjs";
 import { asOfLine } from "./progress.mjs";
 
 const WORKFLOWS = [".github/workflows/agent-m-jobs.yml", ".gitlab/agent-m-jobs.yml"];
@@ -346,8 +348,25 @@ async function drawPulls(target, context, snapshot) {
   }
 }
 
+// The workflow the declaration declares, built with workflowOf as the route `process` builds it: the declared model from its file at the commit the declaration names (declaredModelOf), and the
+// practices the declaration names, each read from its file at that commit with the instance's readFileAt. The instance's SPEC is given as "": a gate a process requirement adds keeps `addedBy.source`
+// null, which neither startable nor this route reads. Null where the model cannot be read or the catalogue holds none at `model_file`.
+async function declaredWorkflowOf(context, declaration) {
+  const { model } = await declaredModelOf(context, declaration);
+  if (model === null || model === "unknown") return null;
+  const version = String(declaration.fields?.model_version ?? "");
+  const names = workflowOf(declaration, model, [], "").practices;
+  const none = { paths: [], read: async () => null, readMany: async () => {}, blob: () => null };
+  const named = (await catalogue(none)).practices.filter((practice) => names.includes(practice.name));
+  const practices = (await Promise.all(named.map(async (practice) => {
+    const held = (await context.instance.host.readFileAt(practice.path, [version])).get(version) ?? null;
+    return held === null ? null : readDocument(modelSchema.practice, practice.path, held);
+  }))).filter(Boolean);
+  return workflowOf(declaration, model, practices, "");
+}
+
 // What `startable` takes besides the view, read at the view's commit: the declaration, the role assignments and the running sprints' records in one batch, and the workflow the declaration
-// declares, from the declared model's file at the commit it names (MOD-product-process' productWorkflow). -> { declaration, assignments, sprints: Map(path -> record), workflow }
+// declares (declaredWorkflowOf). -> { declaration, assignments, sprints: Map(path -> record), workflow }
 async function judgedBy(context, snapshot, view) {
   const assignmentPaths = snapshot.paths.filter((path) => ASSIGNMENT_FILE.test(path)).sort();
   const sprintPaths = view.teams.map((team) => team.running?.path).filter((path) => path && snapshot.paths.includes(path));
@@ -356,8 +375,7 @@ async function judgedBy(context, snapshot, view) {
   const declaration = declared === null ? null : readDocument(declarationSchema, DECLARATION, declared);
   const assignments = await Promise.all(assignmentPaths.map(async (path) => readDocument(roleAssignmentSchema, path, (await snapshot.read(path)) ?? "")));
   const sprints = new Map(await Promise.all(sprintPaths.map(async (path) => [path, readDocument(planSchemas.sprint, path, (await snapshot.read(path)) ?? "")])));
-  const instance = context.instance.host;
-  const workflow = declaration === null ? null : await productWorkflow(declaration, (commit) => instance.readSnapshot(commit), "");
+  const workflow = declaration === null ? null : await declaredWorkflowOf(context, declaration);
   return { declaration, assignments, sprints, workflow };
 }
 
