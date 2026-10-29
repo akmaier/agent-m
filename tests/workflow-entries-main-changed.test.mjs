@@ -285,7 +285,8 @@ test("onMainChanged hands publishGraph exactly the files not accepted, each with
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the instance of the first impact test, whose branch overview-cache holds only its first commit
 // input: onMainChanged
-// expect: one new commit on overview-cache, on the head it read, that adds exactly "<commit>.json" and the views "<commit>.backlog.json.gz" and "<commit>.progress.json.gz" (ITM-1260) — no
+// expect: one new commit on overview-cache, on the head it read, that adds exactly "<commit>.json" and the views "<commit>.backlog.json.gz", "<commit>.progress.json.gz" (ITM-1260) and
+//         "<commit>.schedule.json.gz" (ITM-1265) — no
 //         "<commit>.facts.json" — and writes "latest.json" naming the commit; the summary names the overview and the views; storedOverview-shaped content: { commit, shares, waiting } of main's commit, the six stages in their order; the origin's main is untouched
 test("onMainChanged adds the overview of the commit to overview-cache once", async () => {
   await withInstance({ commits: await impactCommits() }, async (f) => {
@@ -295,7 +296,7 @@ test("onMainChanged adds the overview of the commit to overview-cache once", asy
     assert.match(status.summary, new RegExp(`Added the overview and the views of progress and backlog of ${f.head} to overview-cache\\.`), "the summary names the overview and the views");
     const after = overviewHead(f);
     assert.equal(git(f.origin, "rev-parse", `${after}^`), before);
-    assert.deepEqual(git(f.origin, "diff", "--name-only", before, after).split("\n"), [`${f.head}.backlog.json.gz`, `${f.head}.json`, `${f.head}.progress.json.gz`, "latest.json"]);
+    assert.deepEqual(git(f.origin, "diff", "--name-only", before, after).split("\n"), [`${f.head}.backlog.json.gz`, `${f.head}.json`, `${f.head}.progress.json.gz`, `${f.head}.schedule.json.gz`, "latest.json"]);
     assert.equal(JSON.parse(git(f.origin, "show", `${after}:latest.json`)).commit, f.head, "latest.json names the commit");
     const overview = JSON.parse(git(f.origin, "show", `${after}:${f.head}.json`));
     assert.equal(overview.commit, f.head);

@@ -173,7 +173,8 @@ test("an opened test shows one mark per commit it ran on and one row per release
 // guards: UC-029; TEST RESULTS ARE KEPT IN THE REPOSITORY
 // given: TST-801 failed in an early result record whose run is https://example.test/actions/runs/701 and passed in the release record whose run is https://example.test/actions/runs/702; WebLinks' run URLs match both ids; ciRunLog gives null for 701 and a kept log for 702
 // input: TST-801 opened through the public trace route
-// expect: the early mark still reads "ccccccc failed", and only its log link reads "no longer available" at …/actions/runs/701; the release mark links its log at …/actions/runs/702 with the text "log"
+// expect: drawn, the early mark reads "ccccccc failed" with its log link at …/actions/runs/701 reading "log", and the release mark's link at …/actions/runs/702 reads "log"; once the early link is opened (clicked), only it reads
+//         "no longer available" (still at …/actions/runs/701) and the mark still reads "ccccccc failed"; the release link, opened, still reads "log"
 test("TST-1168001 trace detail keeps an outcome when its run log is unavailable and links a kept log", async () => {
   const unavailable = "https://example.test/actions/runs/701";
   const kept = "https://example.test/actions/runs/702";
@@ -185,9 +186,18 @@ test("TST-1168001 trace detail keeps an outcome when its run log is unavailable 
   const marks = withClass(await render(hostOf({ results, logs: { 702: "the kept log" } }), "TST-801"), "test-history-commit");
   assert.match(marks[0].textContent, /^ccccccc failed\b/, "the recorded outcome stays readable");
   const unavailableLink = find(marks[0], (node) => node.localName === "a")[0];
+  const keptLink = find(marks[1], (node) => node.localName === "a")[0];
+  assert.equal(unavailableLink.textContent, "log", "the link reads log until it is opened");
+  assert.equal(unavailableLink.getAttribute("href"), unavailable);
+  assert.equal(keptLink.textContent, "log");
+  assert.equal(keptLink.getAttribute("href"), kept);
+  unavailableLink.dispatchEvent(new Event("click"));
+  await until(() => unavailableLink.textContent !== "log");
   assert.equal(unavailableLink.textContent, "no longer available");
   assert.equal(unavailableLink.getAttribute("href"), unavailable);
-  const keptLink = find(marks[1], (node) => node.localName === "a")[0];
+  assert.match(marks[0].textContent, /^ccccccc failed\b/, "the recorded outcome stays readable");
+  keptLink.dispatchEvent(new Event("click"));
+  await new Promise((resolve) => setTimeout(resolve, 30));
   assert.equal(keptLink.textContent, "log");
   assert.equal(keptLink.getAttribute("href"), kept);
 });

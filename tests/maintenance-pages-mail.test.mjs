@@ -8,7 +8,7 @@
 // Level: component
 //
 // The document is the small DOM of tests/site-frame-dom.mjs. The real MOD-mail-routes (the Bridge route), MOD-mail-handling, MOD-mail-records, MOD-personal-data, MOD-repository-hosts (GitHub), MOD-bridge-client and MOD-browser-store
-// run as they are; only `fetch` is faked, by this file: the Bridge on the loopback answers the mail operation `read` (POST /v1/mail/read) with the mails given, and GitHub's REST API for alice/product answers the issues, their
+// run as they are; only `fetch` is faked, by this file: the Bridge on the loopback answers the mail operation `read` (POST /v1/mail/read) with the mails given, and GitHub's REST API for alice/product answers the issues — listed and one by one —, their
 // comments, the creation of an issue and of a comment, keeping what it is given. The store is a Map-backed localStorage that holds the mailbox connection, the Bridge, the product and its token. Nothing leaves the process.
 // Readings the texts leave open, which the tests state (the pull request names them):
 //   - The page: <button class="read-mailbox"> "Read mailbox"; <p class="mail-decided"> (how many were left out); <ul class="mail-attached"> of <li class="mail-attached-item"> with <a class="issue-link"> to the address the frame writes for the issue, #issue/number=<n>/product=<address>; <ul class="mail-list"> of
@@ -99,7 +99,12 @@ function world({ mails, issues = [], bridge = null, refuse = null, marked = null
     if (url.host !== "api.github.com") throw new Error(`no request leaves the fixtures: ${url.href}`);
     sent.push({ method, path: url.pathname, body: init.body ?? null });
     const base = `/repos/${PRODUCT}`;
-    if (method === "GET" && url.pathname === `${base}/issues`) return json(github.issues.map((issue) => ({ number: issue.number, title: issue.title, body: issue.body, state: issue.state, labels: issue.labels, comments: issue.comments.length, html_url: `${PRODUCT_URL}/issues/${issue.number}` })));
+    // An issue as GitHub's "List repository issues" and "Get an issue" answer it: its comments by their count.
+    const issueJson = (issue) => ({ number: issue.number, title: issue.title, body: issue.body, state: issue.state, labels: issue.labels, comments: issue.comments.length, html_url: `${PRODUCT_URL}/issues/${issue.number}` });
+    if (method === "GET" && url.pathname === `${base}/issues`) return json(github.issues.map(issueJson));
+    const single = /^\/repos\/alice\/product\/issues\/(\d+)$/.exec(url.pathname);
+    const found = single && github.issues.find((issue) => issue.number === Number(single[1]));
+    if (method === "GET" && found) return json(issueJson(found));
     const comments = /^\/repos\/alice\/product\/issues\/(\d+)\/comments$/.exec(url.pathname);
     if (method === "GET" && comments) return json((github.issues.find((issue) => issue.number === Number(comments[1]))?.comments ?? []).map((comment) => ({ user: { login: "dev" }, body: comment.body, created_at: "2026-10-18T09:00:00Z" })));
     if (method === "POST" && comments) { github.issues.find((issue) => issue.number === Number(comments[1])).comments.push({ body: JSON.parse(init.body).body }); return json({ id: 1 }, 201); }

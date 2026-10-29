@@ -1,6 +1,6 @@
 // The detail of an opened test of the tests view, `trace/tests/<TST>` (UC-029 steps 4, 5 and 5a): the test as it declares itself — level, guarded identifiers, precondition, input and expected result —, when the schedule runs it,
 // its counter-proof record and the participant that wrote the test, a link to its code, and its history: one mark per commit that ran it, one row per release tag, a flaky commit marked, a model-dependent test's rate
-// per release as a line with its runs, and, for a test that was removed, the commit that removed it. Each part is read when the detail is drawn, from the version shown and the branch `test-results`; a part that cannot
+// per release as a line with its runs, and, for a test that was removed, the commit that removed it. Each part is read when the detail is drawn (a run's log only when the person opens its link), from the version shown and the branch `test-results`; a part that cannot
 // be read is named in a line and leaves the others. It writes nothing.
 //
 // Module: MOD-trace-pages
@@ -85,7 +85,8 @@ function runIdOf(host, address) {
   return id && host.webLinks().run(id) === address ? id : null;
 }
 
-// The run-log link of one history mark, or none where none of its contributing records names a host run.
+// The run-log link of one history mark, or none where none of its contributing records names a host run. It leads to the run's page and reads "log"; whether the server still keeps the log is asked
+// when the person opens it (a click), with ciRunLog for that run alone, and a run whose log the server gives as null then reads "no longer available". A failed asking leaves the link as it was.
 async function historyLogLink(host, results, commit, declaration) {
   const levels = await resultsAt(results, commit, [{ id: declaration.id, level: declaration.level }]);
   const recordPaths = levels.flatMap((level) => level.tests).find((test) => test.id === declaration.id)?.records ?? [];
@@ -95,8 +96,14 @@ async function historyLogLink(host, results, commit, declaration) {
     const address = readDocument(resultSchema.run, path, text).fields.run;
     const id = runIdOf(host, address);
     if (id == null) continue;
-    const link = el("a", "test-history-log", (await host.ciRunLog(id)) == null ? "no longer available" : "log");
+    const link = el("a", "test-history-log", "log");
     link.setAttribute("href", address);
+    link.setAttribute("target", "_blank");
+    link.setAttribute("rel", "noopener noreferrer");
+    let asked = null;
+    link.addEventListener("click", () => {
+      asked ??= host.ciRunLog(id).then((log) => { if (log == null) link.textContent = "no longer available"; }, () => { asked = null; });
+    });
     return link;
   }
   return null;

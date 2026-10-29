@@ -7,6 +7,7 @@
 // Readings the texts leave open, which this file takes (the pull request names them):
 //   - The product is the one the frame has chosen (`context.product`); without one the page says so and reads nothing. The routes are `issues` (in the menu entry maintenance) and `issue` (out of the menu), whose parameter `number` is the issue's: `#issue/number=<n>`.
 //   - `issues` lists the open issues with the class their label says (defect, change or not-reproducible, else "not classified"); an issue's link goes, on a person's click, to the route `issue` with its number.
+//     The list reads the open issues without their comments (`listIssues` with `comments: false`); `issue` reads its one issue with `readIssue` (ITM-1270): a number that is no issue of the product is not in it.
 //   - `issue` shows the issue's text and class; for an open issue, the analysis and the decision. The participants offered are those of the instance's register that declare draft text, each with its place; the issue holds no mail, so no place is barred.
 //     The run panel is that of the kind `analyse-issue` over the issue; Run is the person's click and the job runs in this tab, its start record committed to the product and naming the issue and no text of it. The analysis writes nothing to the issue.
 //   - The decision's buttons are "Bug", "Change" and "Not reproducible" before a proposal and "Confirm <class>" for the class proposed and "Correct to <class>" for another after it; a click is the person's or does nothing. A class needs no analysis first.
@@ -83,7 +84,7 @@ async function renderList(target, context) {
   const { product } = context;
   if (!product) { out.append(noProduct("issues-problem")); return; }
   try {
-    const open = await product.host.listIssues({ state: "open" });
+    const open = await product.host.listIssues({ state: "open", comments: false });
     if (open.length === 0) { out.append(el("p", "issues-empty", "This product has no open issue."), fold(STEP_TEXT.list)); return; }
     out.append(el("ul", "issue-list", ...open.map((issue) => {
       const anchor = el("a", "issue-link", `#${issue.number} ${issue.title}`);
@@ -465,12 +466,15 @@ async function renderIssue(target, context, params = {}) {
   target.replaceChildren(el("h2", null, "Issue"), out);
   const { product } = context;
   if (!product) { out.append(noProduct("issue-problem")); return; }
-  let issue;
+  let issue = null;
   try {
-    issue = (await product.host.listIssues({ state: "all" })).find((each) => String(each.number) === String(params.number));
+    const number = Number(params.number);
+    if (Number.isInteger(number) && number > 0) issue = await product.host.readIssue(number);
   } catch (failure) {
-    out.append(el("p", "issue-problem", `The issue could not be read: ${failed(failure)}`));
-    return;
+    if (failure?.name !== "NotFound") {
+      out.append(el("p", "issue-problem", `The issue could not be read: ${failed(failure)}`));
+      return;
+    }
   }
   if (!issue) { out.append(el("p", "issue-problem", `Issue ${params.number} is not in this product.`)); return; }
 
