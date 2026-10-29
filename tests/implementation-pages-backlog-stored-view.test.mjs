@@ -51,7 +51,7 @@ test("#backlog draws the head's stored view, with one read of overview-cache and
 });
 
 // TST-1260202 · level: component · module: MOD-implementation-pages
-// guards: ONE CLICK PER DECISION; UC-032 step 6
+// guards: ONE CLICK PER DECISION; UC-032
 // given: the page drawn from the head's stored view
 // input: the person's clicks on Plan sprint of team2, then on Cancel
 // expect: the planning of team2 opens and closes again; neither click sends a request
@@ -68,7 +68,7 @@ test("#backlog — Plan sprint and Cancel draw from the view read and send no re
 });
 
 // TST-1260203 · level: component · module: MOD-implementation-pages
-// guards: ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-032 step 6
+// guards: ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-032
 // given: the page drawn from the head's stored view; team1's sprint 03 runs with ITM-001 and ITM-002
 // input: Change the selection of team1, ITM-005 ticked besides, a goal and the closer alice given, Start sprint
 // expect: the click reads the declaration, the model's file, the two module files and team1's running sprint docs/backlog/sprints/team1/03.md; one commit is written, changing

@@ -23,7 +23,7 @@ const MODEL = "docs/process-models/fixture.md";
 const files = (fixture) => productFiles({ "docs/process.md": DECLARATION_AT_HEAD, [MODEL]: readFileSync(new URL(`./fixtures/flow/${fixture}.md`, import.meta.url), "utf8") });
 
 // TST-1260301 · level: component · module: MOD-implementation-pages
-// guards: UC-045 1a; UC-032; A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// guards: UC-045; UC-032; A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: a product whose declared model is Scrum without a work-in-progress limit
 // input: the routes plan and board, each rendered
 // expect: plan links #backlog; board says there is no board and links #backlog; each sends, beyond the commit and the tree, the read of docs/process.md and one batch holding the
@@ -45,7 +45,7 @@ for (const name of ["plan", "board"]) {
 }
 
 // TST-1260302 · level: component · module: MOD-implementation-pages
-// guards: UC-032 step 7
+// guards: UC-032
 // given: a product whose declared model is Scrum with a work-in-progress limit of 2
 // input: the route board's render
 // expect: the board is drawn — its columns Backlog, Doing, Review and Done, and the limit of 2 —, read with the product's facts, the pull requests among them

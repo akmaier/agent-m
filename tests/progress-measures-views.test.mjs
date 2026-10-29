@@ -141,16 +141,14 @@ test("backlogView gives every item with its state, hold and what keeps it, each 
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the same facts, whose job record holds the marker MARKER-OF-A-JOB-RECORD-1260 in its body and whose pull requests each hold a body "the body of #<n>"
 // input: progressView and backlogView, as JSON
-// expect: ITM-004, which no sprint selects, stands nowhere in progressView's text, and ITM-003, of team2's closed sprint, among no team's sprint items; neither text holds the
-//         marker or a pull request's body — counter-proof: the record's text, which the facts' snapshot reads, holds the marker
+// expect: ITM-003 and ITM-004, which no running sprint selects, stand nowhere in progressView's text; neither text holds the marker or a pull request's body — counter-proof: the
+//         record's text, which the facts' snapshot reads, holds the marker
 test("the views hold no item outside the running sprints in progress, and no record's text or pull request", async () => {
   const facts = await factsOf();
   assert.match(await facts.snapshot.read(`docs/jobs/${JOB}.md`), new RegExp(MARKER), "known positive: the record holds the marker");
-  const view = measures.progressView(facts, NOW);
-  const progress = JSON.stringify(view);
+  const progress = JSON.stringify(measures.progressView(facts, NOW));
   const backlog = JSON.stringify(measures.backlogView(facts, NOW));
-  assert.ok(!progress.includes("ITM-004"), "ITM-004 is not in progressView");
-  assert.deepEqual(view.teams.flatMap((team) => team.sprint?.items.map((each) => each.item) ?? []), ["ITM-001", "ITM-002"]);
+  for (const outside of ["ITM-003", "ITM-004"]) assert.ok(!progress.includes(outside), `${outside} is not in progressView`);
   for (const [name, text] of [["progress", progress], ["backlog", backlog]]) {
     assert.ok(!text.includes(MARKER), `${name}: no record's text`);
     assert.ok(!text.includes("the body of #"), `${name}: no pull request`);
