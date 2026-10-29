@@ -1,6 +1,6 @@
 // The fixture of the tests of MOD-implementation-pages' routes `progress` and `backlog` over a product with sprints (ITM-1252) — a helper, no test of its own. A small
-// Scrum-with-limit product of two teams held in memory behind a host of this file's own that answers MOD-repository-hosts' interface — listPullRequests by the state asked and,
-// with `updatedSince`, only those updated on or after it —, records every call, and applies a commit to its files; the process model is the instance's, read from a second host.
+// Scrum-with-limit product of two teams held in memory behind a host of this file's own that answers MOD-repository-hosts' interface — listPullRequests by the state asked —,
+// records every call, and applies a commit to its files; the process model is the instance's, read from a second host.
 // A route is rendered into a fixture DOM, with the listeners of its click events kept by element, so that a test presses a button as a person does. Nothing reaches the network.
 //
 // Module: MOD-implementation-pages
@@ -13,7 +13,13 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
+import { gzipSync } from "node:zlib";
+
 import "./site-frame-dom.mjs";
+import { REPO, TOKEN, repoServer } from "./app-harness.mjs";
+import { connect, parseAddress } from "../src/repository-hosts/index.mjs";
+import * as measures from "../src/progress-measures/index.mjs";
+import { parseSpec } from "../src/spec-document/index.mjs";
 
 export const ADDRESS = "https://github.com/acme/product";
 export const COMMIT = "c".repeat(40);
@@ -51,7 +57,7 @@ export function productFiles(overrides = {}) {
   };
 }
 
-// A pull request with the date it was last updated, which the host's listPullRequests filters by.
+// A pull request with the date it was last updated, as GitHub gives it.
 const pr = (number, id, state, opened, merged = null) => ({ number, title: `${id}: the work of ${id}`, branch: `work/${id}`, base: "main", head: String(number).repeat(40).slice(0, 40), state, draft: false,
   url: `${ADDRESS}/pull/${number}`, opened, merged, closed: merged, body: "", updated: merged ?? opened, mergeCommit: merged ? "f".repeat(40) : null });
 export const PULL_REQUESTS = [pr(1, "ITM-001", "merged", "2026-10-20T09:00:00Z", "2026-10-21T10:00:00Z"), pr(2, "ITM-002", "open", "2026-10-21T12:00:00Z"),
@@ -69,8 +75,8 @@ export function hostOf(files, { pullRequests = PULL_REQUESTS, calls = [], commit
     async readSnapshot(ref) { calls.push(["readSnapshot", ref]); return snapshot(); },
     async listPullRequests(...filter) {
       calls.push(["listPullRequests", ...filter]);
-      const { state = "all", updatedSince } = filter[0] ?? {};
-      return pullRequests.filter((p) => (state === "all" || p.state === state) && (!updatedSince || Date.parse(p.updated) >= Date.parse(updatedSince)));
+      const { state = "all" } = filter[0] ?? {};
+      return pullRequests.filter((p) => state === "all" || p.state === state);
     },
     async containsCommit(...args) { calls.push(["containsCommit", ...args]); return false; },
     async commitFiles(change) { calls.push(["commitFiles"]); commits.push(change); for (const file of change.files) files[file.path] = file.text; return { commit: "d".repeat(40), url: "https://example.org/d" }; },
@@ -128,3 +134,64 @@ export function part(html, marker) {
   return html.slice(at, next < 0 ? undefined : next);
 }
 export const row = (html, item) => { const at = html.indexOf(`data-item="${item}"`); return at < 0 ? "" : html.slice(at, html.indexOf("</tr>", at)); };
+
+// ---------------------------------------------------------------- the same product over a counting fake of GitHub (ITM-1260)
+//
+// The fixture's files served by tests/app-harness.mjs' repoServer, a fake of GitHub's API that counts every request, through the real MOD-repository-hosts host connected
+// with a token; the product is the instance itself, at the commit COMMIT. `overview` holds the files of the branch overview-cache by path, served through the contents API
+// (`?ref=overview-cache`) and counted as `handler GET …`; a file it does not hold is answered 404. The pull requests are those above, in GitHub's form, at /pulls.
+
+export const GITHUB_ADDRESS = `https://github.com/${REPO}`;
+// The declaration of the product over GitHub: its model_version is the head, which the instance — the same repository — holds.
+export const DECLARATION_AT_HEAD = DECLARATION.replace("a".repeat(40), COMMIT);
+
+const githubPull = (p) => ({ number: p.number, title: p.title, head: { ref: p.branch, sha: p.head }, base: { ref: p.base }, state: p.state === "open" ? "open" : "closed",
+  merged_at: p.merged, merge_commit_sha: p.mergeCommit, created_at: p.opened, updated_at: p.updated, closed_at: p.closed, draft: false, html_url: p.url, body: p.body });
+
+// The view of `page` — "progress" or "backlog" — of `files` at `commit`, as the workflow stores it: progressView or backlogView of the product's facts (here the scope `work`
+// over the in-memory host above, with the SPEC's requirements), as gzipped JSON.
+export async function storedViewBytes(page, files, commit = COMMIT) {
+  const host = hostOf({ ...files });
+  const snapshot = await host.readSnapshot("main");
+  const facts = await measures.productFacts(host, snapshot, () => host.readSnapshot("main"), new Date(), { scope: "work" });
+  const requirements = [...parseSpec(files["SPEC.md"] ?? "").requirements.keys()];
+  const view = page === "progress" ? measures.progressView(facts, new Date()) : measures.backlogView({ ...facts, requirements }, new Date());
+  return new Uint8Array(gzipSync(JSON.stringify({ ...view, commit })));
+}
+
+export async function renderOverGitHub(name, params = {}, { files = productFiles({ "docs/process.md": DECLARATION_AT_HEAD }), overview = {}, pullRequests = PULL_REQUESTS } = {}) {
+  const route = view.routes.find((candidate) => candidate.name === name);
+  const json = (body) => new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+  const cache = (url) => {
+    if (url.origin !== "https://api.github.com" || url.searchParams.get("ref") !== "overview-cache") return undefined;
+    const path = decodeURIComponent(url.pathname.slice(`/repos/${REPO}/contents/`.length));
+    return Object.hasOwn(overview, path) ? new Response(overview[path], { status: 200 }) : new Response('{"message":"Not Found"}', { status: 404 });
+  };
+  const pulls = (url) => (url.origin === "https://api.github.com" && url.pathname === `/repos/${REPO}/pulls` ? json(pullRequests.map(githubPull)) : undefined);
+  const srv = await repoServer({ files, handlers: [cache, pulls], head: COMMIT });
+  const real = globalThis.fetch;
+  globalThis.fetch = srv.fetch;
+  const host = connect(parseAddress(GITHUB_ADDRESS), { token: TOKEN });
+  const handlers = [];
+  const Element = globalThis.window.Element, add = Element.prototype.addEventListener;
+  Element.prototype.addEventListener = function (type, listener, ...rest) { if (type === "click") handlers.push([this, listener]); return add.call(this, type, listener, ...rest); };
+  globalThis.mermaid = { initialize() {}, mermaidAPI: { getDiagramFromText: async () => ({ db: { getVertices: () => ({}) } }) }, run: async () => {} };
+  const target = globalThis.document.createElement("div");
+  globalThis.document.body.append(target);
+  const context = { page: "review", instance: { repository: REPO, host }, product: { address: GITHUB_ADDRESS, kind: "github", host, tokenStored: true, ref: "main" }, store: {}, go() {} };
+  const done = () => { Element.prototype.addEventListener = add; delete globalThis.mermaid; globalThis.fetch = real; };
+  try { await route.render(target, context, params); } catch (failure) { done(); throw failure; }
+  const press = async (element) => {
+    const listener = handlers.filter(([at]) => at === element).at(-1)?.[1];
+    if (typeof listener !== "function") throw new Error("the element has no click listener");
+    await listener({ isTrusted: true });
+    await new Promise((resolve) => setTimeout(resolve, 30));
+  };
+  return { target, srv, route, press, done, html: () => target.innerHTML };
+}
+
+// The requests of a page about the branch overview-cache, about pull requests, for a facts file, and the batches of files.
+export const cacheReads = (requests) => requests.filter((r) => r.startsWith("handler GET ") && r.includes("ref=overview-cache"));
+export const pullsReads = (requests) => requests.filter((r) => /\/pulls\b|\/search\/issues/.test(r));
+export const factsReads = (requests) => requests.filter((r) => r.includes(".facts.json"));
+export const batchReads = (requests) => requests.filter((r) => r.startsWith("batch "));

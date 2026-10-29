@@ -75,7 +75,9 @@ function snapshotOf(files, calls, stored, others = {}) {
 const INSTANCE = "# Participants\n\n**REGISTER**\n\nThe people and agents of the fixture instance.\n\n| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |\n|---|---|---|---|---|---|---|---|\n";
 function contextOf(snapshot) {
   const host = (shot) => ({ async repositoryInfo() { return { defaultBranch: "main", visibility: "public", canWrite: true, archived: false, description: "" }; },
-    async readSnapshot() { return shot; }, async listPullRequests() { return []; }, async containsCommit() { return false; } });
+    async readSnapshot() { return shot; }, async listPullRequests() { return []; }, async containsCommit() { return false; },
+    // The file at each commit, as the one snapshot holds it (MOD-repository-hosts' readFileAt), for the declared model the route reads first (ITM-1260).
+    async readFileAt(path, commits) { const held = await shot.read(path); return new Map(commits.map((commit) => [commit, held])); } });
   const instance = { ...snapshotOf({ "SPEC.md": "# Instance\n", "docs/participants.md": INSTANCE }, [], null), repository: { server: "github", path: "acme/agent-m", web: "https://github.com/acme/agent-m" } };
   return { product: { address: ADDRESS, host: host(snapshot) }, instance: { host: host(instance) } };
 }

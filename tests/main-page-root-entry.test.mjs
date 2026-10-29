@@ -35,8 +35,9 @@ async function cachedContext(net) {
     commitFiles: async (change) => { commits.push(change); return { commit: "1".repeat(40), url: "https://example.test/overview" }; },
   }, snapshot, facts);
   const files = commits[0].files;
-  assert.deepEqual(files.map((file) => file.path).sort(), [`${head}.json`, "latest.json"]);
-  net.overviews[PRODUCT] = Object.fromEntries(files.map((file) => [file.path.replace(/\.json$/, ""), file.text]));
+  // The overview, the views of the progress and the backlog page (ITM-1260) and latest.json; the main page reads the two .json files.
+  assert.deepEqual(files.map((file) => file.path).sort(), [`${head}.backlog.json.gz`, `${head}.json`, `${head}.progress.json.gz`, "latest.json"]);
+  net.overviews[PRODUCT] = Object.fromEntries(files.filter((file) => file.path.endsWith(".json")).map((file) => [file.path.replace(/\.json$/, ""), file.text]));
   return context;
 }
 

@@ -49,8 +49,8 @@ export async function onApprovalsCommitted(env) {
  * onMainChanged(env: CiEnvironment) -> Promise<EntryStatus> — in the instance, on every push to the default branch: on the commit's snapshot, read once,
  * adds the commit's graph and the impact lists of its decision and module files that are not accepted to the branch trace-cache through MOD-trace-graph's
  * publishGraph — each such file with the text it was last accepted at (MOD-approvals' lastAcceptedText, read once for the file) and that text's commit, which
- * is the commit that added the approval record naming the text —, and the commit's overview of the main page to the branch overview-cache through
- * MOD-progress-measures' publishOverview, from the facts of the scope `all`. A file a branch holds already is left as it is (`nothing to do`). A missing
+ * is the commit that added the approval record naming the text —, and the commit's overview of the main page with the views of the progress and the backlog page
+ * to the branch overview-cache through MOD-progress-measures' publishOverview, from the facts of the scope `all`, naming both in its summary. A file a branch holds already is left as it is (`nothing to do`). A missing
  * token ends the entry at once as `not run`; a failure — a branch missing, or moved meanwhile, so that the run can be made again — leaves the other record
  * written and ends the entry `failed`, naming it. The pages then derive what is missing as before, so nothing is wrong, only slower.
  */
@@ -76,7 +76,8 @@ export async function onMainChanged(env) {
     const facts = await productFacts(same, snapshot, (at) => host.readSnapshot(at), env.now, { scope: "all" });
     const overview = await publishOverview(host, snapshot, facts);
     written ||= overview.written;
-    done.push(overview.written ? `Added the overview of ${commit} to overview-cache.` : `overview-cache holds the overview of ${commit} already.`);
+    done.push(overview.written ? `Added the overview and the views of progress and backlog of ${commit} to overview-cache.`
+      : `overview-cache holds the overview and the views of progress and backlog of ${commit} already.`);
   } catch (error) {
     failed.push(`The overview of ${commit} was not added to overview-cache: ${error?.message ?? error}${moved(error)}`);
   }

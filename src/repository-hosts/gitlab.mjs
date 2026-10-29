@@ -428,12 +428,10 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
       return [...new Set(jobs.flatMap((job) => job.tag_list ?? []))];
     },
 
-    // The merge requests ("List project merge requests": state opened, closed, merged or all, source_branch, updated_after — "updated on or after the given time" —, 100 to a page, the
-    // pages asked for at once).
-    async listPullRequests({ state = "all", branch, updatedSince } = {}) {
+    // The merge requests ("List project merge requests": state opened, closed, merged or all, source_branch, 100 to a page, the pages asked for at once).
+    async listPullRequests({ state = "all", branch } = {}) {
       const ask = state === "open" ? "opened" : state;
-      const after = updatedSince === undefined ? "" : `&updated_after=${encodeURIComponent(new Date(Date.parse(updatedSince)).toISOString())}`;
-      const listed = await allPages(`${api}/merge_requests?state=${ask}${branch ? `&source_branch=${encodeURIComponent(branch)}` : ""}${after}`, {}, (m) => m.iid);
+      const listed = await allPages(`${api}/merge_requests?state=${ask}${branch ? `&source_branch=${encodeURIComponent(branch)}` : ""}`, {}, (m) => m.iid);
       return listed.map(pullOf).filter((p) => state === "all" || p.state === state);
     },
 
