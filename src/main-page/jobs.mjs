@@ -19,9 +19,11 @@ import { parseAddress } from "../repository-hosts/index.mjs";
 import { chosenProduct, confirmDecision, explain, tokenKeyOf } from "../site-frame/index.mjs";
 import { listJobs } from "../job-ledger/index.mjs";
 import { cancelJob, liveState, jobLog, jobTrail, retryJob, revertAfterCancel, routesFor } from "../runtimes/index.mjs";
-import { productFacts } from "../progress-measures/index.mjs";
+import { productFacts, storedView } from "../progress-measures/index.mjs";
 import { startable } from "../work-plans/index.mjs";
-import { mayDecide, recordGateDecision } from "../product-process/index.mjs";
+import { declarationSchema, mayDecide, productWorkflow, recordGateDecision, roleAssignmentSchema } from "../product-process/index.mjs";
+import { readDocument } from "../documents/index.mjs";
+import { participantSchema, participantsOf } from "../participant-list/index.mjs";
 import { currentJob } from "../prompt-bar/index.mjs";
 import { el, clock } from "./cards.mjs";
 
@@ -173,7 +175,8 @@ async function everyJob(context) {
   const bridges = bridgesOf(first, context.store);
   const hostOf = new Map(readable.map((source) => [source.address, source.host]));
   const lives = markCancelling(await liveStatesOf(first, hostOf, bridges));
-  return { jobRows: await listJobs(products, lives), lives, bridges, hostOf, unreadable: sources.filter((source) => source.reason) };
+  const snapshotOf = new Map(readable.map((source) => [source.address, source.snapshot]));
+  return { jobRows: await listJobs(products, lives), lives, bridges, hostOf, snapshotOf, unreadable: sources.filter((source) => source.reason) };
 }
 const unreadableList = (unreadable) => (unreadable.length ? [el("ul", "unreadable", ...unreadable.map((source) => el("li", "source", `${source.address}: ${source.reason}`)))] : []);
 
@@ -291,7 +294,7 @@ async function renderJob(target, context, params, note = null) {
 // ---------------------------------------------------------------- Retry (UC-036 step 7, 1c, 7a)
 //
 // Where the texts leave a reading open, this file takes the one it names:
-//   - The participants offered are those for which MOD-work-plans' startable admits every plan item the job works on (the product's facts of the scope `work`, as the prompt bar reads them); for a job on no plan item, the job's own participant.
+//   - The participants offered are those for which MOD-work-plans' startable admits every plan item the job works on (judgedBy: the backlog's view of the product's head, else the facts of the scope `work`); for a job on no plan item, the job's own participant.
 //     The team's role assignment and sprint are those whose sprint holds the item, else the one assignment of a product without sprints. Where none is admitted, the reasons are shown and nothing is queued (7a).
 //   - The routes offered are those routesFor gives the chosen participant that are available, no resource need being passed (the scope `work` reads none), as the record writes them.
 //   - The same check comes first for a job that ran in a tab and a job whose task travelled with its hand-over: where no participant is admitted, they are offered neither Retry nor the prompt bar.
@@ -310,6 +313,41 @@ function subjectOf(params) {
     paramsFor: () => ({ page: `Retry of the job ${params.id}, a job of the kind ${params.retry}: to retry it, hand it on to ${params.retry} with the same inputs.`,
       ...structuredClone(RETRY_PARAMS.get(params.id) ?? {}) }), draftRoute: null, withhold: null, refuses: [] };
 }
+
+// ---------------------------------------------------------------- what Retry and Pass gate judge a job's items by
+//
+// The backlog's view of the product's head (MOD-progress-measures' storedView): its items' states and holds, and its teams' running sprints, each as a record of its path and its
+// selection, which is what MOD-work-plans' startable reads of a sprint. Besides it, read from the head in one batch, the declaration and the role assignments, and the workflow the
+// declaration declares (MOD-product-process' productWorkflow, from the declared model's file at the commit it names, the instance's SPEC not read for it); the participants are those
+// of the instance's list, in the instance's snapshot the page has read. While the head's view is not stored yet: { asOf }, and nothing is judged. Where the product stores no view:
+// the facts of the scope `work`. -> { facts } in the shape of the facts of the scope `work` that Retry and Pass gate read, or { asOf }.
+const DECLARATION = "docs/process.md";
+const REGISTER = "docs/participants.md";
+const ASSIGNMENT_FILE = /^docs\/role-assignments\/[^/]+\.md$/;
+async function judgedBy(context, held, read) {
+  const host = read.hostOf.get(held.product), snapshot = read.snapshotOf.get(held.product);
+  const instanceHost = context.instance.host;
+  const stored = await storedView(snapshot, "backlog");
+  if (stored?.asOf) return { asOf: stored.asOf };
+  if (stored === null) {
+    const instance = await instanceHost.readSnapshot((await instanceHost.repositoryInfo()).defaultBranch);
+    return { facts: await productFacts(host, instance, (commit) => instanceHost.readSnapshot(commit), new Date(), { scope: "work" }) };
+  }
+  const { view } = stored;
+  const assignmentPaths = snapshot.paths.filter((path) => ASSIGNMENT_FILE.test(path)).sort();
+  await snapshot.readMany?.([DECLARATION, ...assignmentPaths].filter((path) => snapshot.paths.includes(path)));
+  const declared = await snapshot.read(DECLARATION);
+  const declaration = declared === null ? null : readDocument(declarationSchema, DECLARATION, declared);
+  const assignments = await Promise.all(assignmentPaths.map(async (path) => readDocument(roleAssignmentSchema, path, (await snapshot.read(path)) ?? "")));
+  const workflow = declaration === null ? null : await productWorkflow(declaration, (commit) => instanceHost.readSnapshot(commit), "");
+  const instance = read.snapshotOf.get(parseAddress(`https://github.com/${context.instance.repository}`).web) ?? await instanceHost.readSnapshot((await instanceHost.repositoryInfo()).defaultBranch);
+  const register = await instance.read(REGISTER);
+  return { facts: { snapshot, workflow, assignments, participants: register === null ? [] : participantsOf(readDocument(participantSchema(), REGISTER, register)),
+    plan: { states: view.rows.map((row) => row.state) }, held: view.rows.map((row) => row.held).filter(Boolean),
+    sprints: view.teams.filter((team) => team.running).map((team) => ({ path: team.running.path, fields: { selection: team.running.selection } })) } };
+}
+// What the page says while the head's view is being stored.
+const beingStored = (asOf, what) => `${what} is judged on the backlog's view of the product's newest commit, which is being stored (the view stored last is of ${asOf.slice(0, 7)}): open the page again in a moment.`;
 
 function teamOf(item, facts, workflow) {
   const held = facts.held.find((each) => each.item === item);
@@ -333,9 +371,12 @@ async function retryControls(context, held, read) {
   const host = read.hostOf.get(held.product);
   let facts, visibility;
   try {
-    const instanceHost = context.instance.host;
-    const snapshot = await instanceHost.readSnapshot((await instanceHost.repositoryInfo()).defaultBranch);
-    facts = await productFacts(host, snapshot, (commit) => instanceHost.readSnapshot(commit), new Date(), { scope: "work" });
+    const judged = await judgedBy(context, held, read);
+    if (judged.asOf) {
+      box.append(el("p", "retry-waiting", beingStored(judged.asOf, "Whether this job can be retried")));
+      return box;
+    }
+    facts = judged.facts;
     visibility = (await host.repositoryInfo()).visibility;
   } catch (failure) {
     box.append(el("p", "warn retry-unreadable", `Retry could not be prepared: ${String(failure?.message ?? failure)}`));
@@ -435,9 +476,12 @@ async function gateDecision(context, held, read, gate) {
   const host = read.hostOf.get(held.product);
   let facts;
   try {
-    const instanceHost = context.instance.host;
-    const snapshot = await instanceHost.readSnapshot((await instanceHost.repositoryInfo()).defaultBranch);
-    facts = await productFacts(host, snapshot, (commit) => instanceHost.readSnapshot(commit), new Date(), { scope: "work" });
+    const judged = await judgedBy(context, held, read);
+    if (judged.asOf) {
+      box.append(el("p", "gate-waiting", beingStored(judged.asOf, "Who may decide this gate")));
+      return box;
+    }
+    facts = judged.facts;
   } catch (failure) {
     box.append(el("p", "warn gate-unreadable", `The gate could not be read: ${String(failure?.message ?? failure)}`));
     return box;

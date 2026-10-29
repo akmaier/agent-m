@@ -9,39 +9,45 @@
 //
 // NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT; A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; A JOB GOES ONLY TO A HOLDER OF ITS ROLE; THE PAGE NAMES WHERE IT SENDS;
 // ONE CLICK PER DECISION. A render writes nothing and sends nothing: *Start jobs* and *Merge* are the writes, each on a person's click. Readings the texts leave open, which this file takes:
-//   - The items and their states are those of backlog.mjs' contextOf and derivedOf, over the facts of the scope `work` this route reads once; the workflow is theirs.
+//   - In a model that works from a backlog, the items, their states, their holds and the teams' running sprints are those of the backlog's view of the head (backlog.mjs' viewOf: MOD-progress-measures' storedView,
+//     else the view derived in the page from the facts of the scope `work`). Besides it the route reads, at the view's commit and in one batch, the declaration, the role assignments and the running sprints' records,
+//     and the workflow the declaration declares with MOD-product-process' productWorkflow, from the declared model's file at the commit the declaration names; the instance's SPEC is not read for it, so a gate a
+//     process requirement adds names no source here. While the head's view is not stored yet, the route draws the items with their states from the view stored last, with the line naming its commit, and offers no
+//     *Start jobs*. In a model that plans its work, the steps are those of the facts of the scope `work`, as the route `plan` reads them.
 //   - An item is listed in every state but done; the startable ones are ticked, the others carry their reasons and cannot be ticked.
-//   - The implementing roles are those of the phases that produce MOD; the item's role assignment is its team's — the team whose newest running sprint selects it —, else the product's first.
+//   - The implementing roles are those of the phases that produce MOD; the item's role assignment is its team's — the team whose running sprint selects it —, else the product's first.
 //   - Who merges is the parameter `merges` (`agent` or `person`) of the job's `## Parameters`, chosen when the jobs are started; acting on it is the merge's.
 //   - What is sent where is drawn from prepareJob's destinations and parts, in the page's own list, with no second Run: *Start jobs* is the one click.
-//   - A pull request is of a job the page started when its description has the line `Job: <id>` (MOD-runtimes' writer writes it) and `<id>` is a record of kind implement or refactor under docs/jobs/. For it the page shows
-//     the CI runs of the first commit and of the head, and whether the Definition of Done holds: doneCheck over pullRequestFacts, given the modules of the items or steps the job works on. *Merge* is offered for an open pull
-//     request that is no draft and for which doneCheck finds nothing, and calls mergePullRequest on the head the page read. A merged pull request is shown as done.
+//   - A pull request is of a job the page started when its description has the line `Job: <id>` (MOD-runtimes' writer writes it) and `<id>` is a record of kind implement or refactor under docs/jobs/. The page lists the
+//     open pull requests only and reads the records they name, in one batch; for each it shows the CI runs of the first commit and of the head, and whether the Definition of Done holds: the result of the head's check
+//     `agent-m done` among the checks pullRequestFacts gives, linked. *Merge* is offered for a pull request that is no draft and whose head passed that check, and calls mergePullRequest on the head the page read.
 
 import { readSetting } from "../browser-store/index.mjs";
 import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
-import { newJobId } from "../job-ledger/index.mjs";
+import { listJobs, newJobId } from "../job-ledger/index.mjs";
 import { prepareJob } from "../job-runner/index.mjs";
-import { eligible, participantSchema, participantsOf } from "../participant-list/index.mjs";
-import { artifactSchemas, readDocument } from "../documents/index.mjs";
-import { doneCheck, holdsRole } from "../product-process/index.mjs";
+import { eligible } from "../participant-list/index.mjs";
+import { readDocument } from "../documents/index.mjs";
+import { declarationSchema, holdsRole, productWorkflow, roleAssignmentSchema } from "../product-process/index.mjs";
 import { productFacts } from "../progress-measures/index.mjs";
 import { queueJob, routesFor } from "../runtimes/index.mjs";
 import { explain as frameExplain } from "../site-frame/index.mjs";
 import { restrictedPlaces, sourceSchemas } from "../source-register/index.mjs";
-import { startable } from "../work-plans/index.mjs";
-import { assignmentOf, contextOf, derivedOf, participantsIn } from "./backlog.mjs";
+import { planSchemas, startable } from "../work-plans/index.mjs";
+import { contextOf, participantsIn, viewOf } from "./backlog.mjs";
+import { asOfLine } from "./progress.mjs";
 
-const REGISTER = "docs/participants.md";
 const WORKFLOWS = [".github/workflows/agent-m-jobs.yml", ".gitlab/agent-m-jobs.yml"];
+const DECLARATION = "docs/process.md";
 const ASSIGNMENT_FILE = /^docs\/role-assignments\/([^/]+)\.md$/;
 const JOB_FILE = /^docs\/jobs\/(JOB-[^/]+)\.md$/;
+// The kinds of job that implement, whose pull requests the page shows, and the check of the product's CI whose result is whether the Definition of Done holds (MOD-workflow-entries' onDoneCheck).
+const IMPLEMENTING = new Set(["implement", "refactor"]);
+const DONE_CHECK = "agent-m done";
 
 const text = (value) => (typeof value === "string" ? value : value === null || value === undefined ? "" : String(value));
-const list = (value) => (Array.isArray(value) ? value.map(text) : text(value).split(",").map((part) => part.trim()).filter(Boolean));
 const h = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-const idOf = (doc) => text(doc?.id ?? doc?.fields?.id);
 const explain = (html) => `<details class="explain"><summary>What is this?</summary><div>${html}</div></details>`;
 const recordRoute = (route) => (route.kind === "tab" ? "tab" : route.kind === "ci" ? (route.runner === "hosted" ? "ci hosted" : `ci runner:${route.runner}`) : `bridge ${route.bridge}`);
 
@@ -271,15 +277,35 @@ async function runsOf(host, commit) {
   return runs.length ? runs.map((run) => `<a href="${h(run.url)}">run ${h(run.id)}</a> ${h(run.state)}`).join(", ") : "no run listed";
 }
 
-// The pull requests of the jobs this page started (UC-024 steps 11 to 13): each with its branch, the CI runs of its first (tests-only) commit and of its head, and, while it is open, whether the Definition of Done
-// holds, naming each condition that does not, and *Merge* once it does, on the head read. A pull request that cannot be read is named, not left out.
-async function drawPulls(target, context, facts) {
+// Whether the Definition of Done holds on a pull request's head: the result of the check `agent-m done` among its checks, linked to its run.
+function doneLine(checks) {
+  const done = (checks ?? []).find((check) => check.name === DONE_CHECK) ?? null;
+  const run = done ? `<a href="${h(done.url)}">${h(DONE_CHECK)}</a>` : "";
+  if (done?.state === "success") return { holds: true, html: `<p data-done data-holds="true">The Definition of Done holds: ${run} passed on the head.</p>` };
+  return { holds: false, html: done ? `<p class="warn" data-done data-holds="false">The Definition of Done does not hold: ${run} is ${h(done.state)} on the head.</p>`
+    : `<p class="warn" data-done data-holds="false">The Definition of Done is not checked on the head yet: no run of ${h(DONE_CHECK)} is listed.</p>` };
+}
+
+// The open pull requests of the jobs this page started (UC-024 steps 11 to 13): the open pull requests are listed, the records of the jobs they name read in one batch from `snapshot`; each pull request of a job
+// that implements is shown with its branch, the CI runs of its first (tests-only) commit and of its head, whether the Definition of Done holds, and *Merge* once it does, on the head read. A pull request that cannot be
+// read is named, not left out. A merged one stands on its job's page (MOD-main-page, route `job`).
+async function drawPulls(target, context, snapshot) {
   const host = context.product.host;
-  if (facts.pullRequests === "unknown" || !Array.isArray(facts.jobs)) return;
-  const jobs = new Map(facts.jobs.map((row) => row.record).filter((record) => record.kind === "implement" || record.kind === "refactor").map((record) => [record.id, record]));
-  const own = facts.pullRequests.map((pull) => ({ pull, job: jobs.get(/^Job: (\S+)/m.exec(pull.body ?? "")?.[1]) })).filter((each) => each.job);
+  let open;
+  try {
+    open = await host.listPullRequests({ state: "open" });
+  } catch (failure) {
+    if (failure?.name === "NotSupported") return;
+    throw failure;
+  }
+  const named = open.map((pull) => ({ pull, id: /^Job: (\S+)/m.exec(pull.body ?? "")?.[1] })).filter((each) => each.id);
+  const paths = [...new Set(named.map((each) => `docs/jobs/${each.id}.md`))].filter((path) => snapshot.paths.includes(path));
+  if (paths.length === 0) return;
+  await snapshot.readMany?.(paths);
+  const records = (await listJobs([{ address: snapshot.repository?.web ?? context.product.address, snapshot: { ...snapshot, paths } }], new Map())).map((row) => row.record);
+  const jobs = new Map(records.filter((record) => IMPLEMENTING.has(record.kind)).map((record) => [record.id, record]));
+  const own = named.map(({ pull, id }) => ({ pull, job: jobs.get(id) })).filter((each) => each.job);
   if (own.length === 0) return;
-  const workflow = facts.workflow !== "unknown" ? facts.workflow : null;
   const parts = [], mergeable = [];
   for (const { pull, job } of own) {
     try {
@@ -288,19 +314,11 @@ async function drawPulls(target, context, facts) {
       const ci = `<ul><li data-ci="first">${first === last ? "The only commit" : "The first commit, with the tests only,"} <code>${h(first?.sha.slice(0, 7) ?? "none")}</code>: ${await runsOf(host, first?.sha)}</li>
         ${first === last ? "" : `<li data-ci="last">The head <code>${h(last?.sha.slice(0, 7) ?? "none")}</code>: ${await runsOf(host, last?.sha)}</li>`}</ul>`;
       const shown = `<h4>#${h(pull.number)} ${h(pull.title)}</h4><p class="small">Job ${h(job.id)}; branch <code>${h(pull.branch)}</code> into <code>${h(pull.base)}</code>; head <code>${h(read.pullRequest.head.slice(0, 7))}</code>.</p>${ci}`;
-      if (pull.state !== "open") {
-        parts.push(`<div data-pull="${h(pull.number)}" data-state="${h(pull.state)}">${shown}<p>${pull.state === "merged" ? `Done: merged as <code>${h((pull.mergeCommit ?? "").slice(0, 7))}</code>.` : "Closed without a merge."}</p></div>`);
-        continue;
-      }
-      const names = job.worksOn.flatMap((name) => list(facts.plan.items.find((item) => idOf(item) === name)?.fields?.modules));
-      const modules = await Promise.all(names.map(async (name) => readDocument(artifactSchemas().module, `docs/architecture/${name}.md`, (await facts.snapshot.read(`docs/architecture/${name}.md`)) ?? "")));
-      const findings = workflow ? await doneCheck(read, workflow, modules, facts.gates, { kind: job.kind, modules: names }) : null;
-      const offered = findings !== null && findings.length === 0 && !pull.draft;
+      const done = doneLine(read.checks);
+      const offered = done.holds && !pull.draft;
       if (offered) mergeable.push({ number: pull.number, head: read.pullRequest.head });
       parts.push(`<div data-pull="${h(pull.number)}" data-state="open">${shown}
-        ${findings === null ? `<p class="warn" data-done data-holds="false">The product's workflow cannot be read, so the Definition of Done cannot be checked.</p>`
-          : findings.length === 0 ? `<p data-done data-holds="true">The Definition of Done holds.</p>`
-          : `<p class="warn" data-done data-holds="false">The Definition of Done does not hold:</p><ul data-findings>${findings.map((each) => `<li>${h(each.what)}</li>`).join("")}</ul>`}
+        ${done.html}
         ${pull.draft ? `<p class="warn">The pull request is a draft.</p>` : ""}
         ${offered ? `<p><button type="button" data-merge-pull="${h(pull.number)}">Merge</button></p>` : ""}<p data-merge-result></p></div>`);
     } catch (failure) {
@@ -310,7 +328,7 @@ async function drawPulls(target, context, facts) {
   const section = document.createElement("section");
   section.className = "panel";
   section.setAttribute("data-pulls", "");
-  section.innerHTML = `<h3>Pull requests of the jobs</h3>${explain("<p>CI runs the tests on every push, and the Definition of Done is checked on the pull request. <em>Merge</em> is offered once both hold, and merges only while the head is the one shown (UC-024 steps 11 to 13).</p>")}${parts.join("")}`;
+  section.innerHTML = `<h3>Pull requests of the jobs</h3>${explain(`<p>CI runs the tests on every push, and its check <code>${h(DONE_CHECK)}</code> decides on the head whether the pull request meets the product's Definition of Done. <em>Merge</em> is offered once it passed, and merges only while the head is the one shown (UC-024 steps 11 to 13). A merged pull request stands on its job's page.</p>`)}${parts.join("")}`;
   target.append(section);
   for (const { number, head } of mergeable) {
     const button = section.querySelector(`[data-merge-pull="${number}"]`);
@@ -328,44 +346,83 @@ async function drawPulls(target, context, facts) {
   }
 }
 
+// What `startable` takes besides the view, read at the view's commit: the declaration, the role assignments and the running sprints' records in one batch, and the workflow the declaration
+// declares, from the declared model's file at the commit it names (MOD-product-process' productWorkflow). -> { declaration, assignments, sprints: Map(path -> record), workflow }
+async function judgedBy(context, snapshot, view) {
+  const assignmentPaths = snapshot.paths.filter((path) => ASSIGNMENT_FILE.test(path)).sort();
+  const sprintPaths = view.teams.map((team) => team.running?.path).filter((path) => path && snapshot.paths.includes(path));
+  await snapshot.readMany?.([DECLARATION, ...assignmentPaths, ...sprintPaths].filter((path) => snapshot.paths.includes(path)));
+  const declared = await snapshot.read(DECLARATION);
+  const declaration = declared === null ? null : readDocument(declarationSchema, DECLARATION, declared);
+  const assignments = await Promise.all(assignmentPaths.map(async (path) => readDocument(roleAssignmentSchema, path, (await snapshot.read(path)) ?? "")));
+  const sprints = new Map(await Promise.all(sprintPaths.map(async (path) => [path, readDocument(planSchemas.sprint, path, (await snapshot.read(path)) ?? "")])));
+  const instance = context.instance.host;
+  const workflow = declaration === null ? null : await productWorkflow(declaration, (commit) => instance.readSnapshot(commit), "");
+  return { declaration, assignments, sprints, workflow };
+}
+
+// The role assignment and the running sprint of an item: its team's — the team whose running sprint selects it —, else the product's first assignment with its team's running sprint.
+function placeOf(view, judged, id) {
+  const selecting = view.teams.find((team) => team.running?.selection.includes(id)) ?? null;
+  const first = judged.assignments[0] ?? null;
+  const team = selecting?.team ?? (first ? ASSIGNMENT_FILE.exec(first.path)?.[1] : null) ?? null;
+  const assignment = selecting ? judged.assignments.find((each) => ASSIGNMENT_FILE.exec(each.path)?.[1] === team) ?? null : first;
+  const running = view.teams.find((each) => each.team === team)?.running ?? null;
+  return { team, assignment, sprint: running ? judged.sprints.get(running.path) ?? null : null };
+}
+
 async function draw(target, context, params) {
   const { product, instance } = context;
-  const instanceSnapshot = await instance.host.readSnapshot((await instance.host.repositoryInfo()).defaultBranch);
-  const facts = await productFacts(product.host, instanceSnapshot, (commit) => instance.host.readSnapshot(commit), new Date(), { scope: "work" });
-  const workflow = facts.workflow !== "unknown" ? facts.workflow : null;
-  const participants = await participantsIn(context);
-  if (facts.declaration === null || facts.model === null || facts.model === "unknown") {
-    headOf(target, `<p class="warn" data-missing>${facts.declaration === null ? "No process model is declared for this product" : "The declared process model could not be read"}, so there is nothing to start. <a href="#process">Declare or open the process</a>; the plan or the backlog follows it (<a href="#plan">plan</a>, <a href="#backlog">backlog</a>).</p>`);
+  const backlog = await viewOf(context);
+  const { view, snapshot } = backlog;
+  if (!view.declared || view.modelUnread || !view.model) {
+    headOf(target, `<p class="warn" data-missing>${!view.declared ? "No process model is declared for this product" : "The declared process model could not be read"}, so there is nothing to start. <a href="#process">Declare or open the process</a>; the plan or the backlog follows it (<a href="#plan">plan</a>, <a href="#backlog">backlog</a>).</p>`);
     return;
   }
-  const ctx = await contextOf(context, facts);
-  if (facts.model.kind !== "pulled") { await drawPlan(target, context, facts, ctx, participants, workflow, await machineryFor(context, ctx, instanceSnapshot, participants)); await drawPulls(target, context, facts); return; }
-  const d = await derivedOf(context, ctx);
-  const head = (body) => headOf(target, `<p data-backlog-link>This model works from a backlog: <a href="#backlog">open the backlog</a>.</p>${body}`);
-  if (ctx.declaration === null || ctx.model === null) {
+  const instanceSnapshot = await instance.host.readSnapshot((await instance.host.repositoryInfo()).defaultBranch);
+  const participants = await participantsIn(context);
+  if (view.model.kind !== "pulled") {
+    const facts = backlog.facts ?? await productFacts(product.host, instanceSnapshot, (commit) => instance.host.readSnapshot(commit), new Date(), { scope: "work" });
+    const ctx = await contextOf(context, facts);
+    await drawPlan(target, context, facts, ctx, participants, facts.workflow !== "unknown" ? facts.workflow : null, await machineryFor(context, ctx, instanceSnapshot, participants));
+    await drawPulls(target, context, facts.snapshot);
+    return;
+  }
+  const head = (body) => headOf(target, `<p data-backlog-link>This model works from a backlog: <a href="#backlog">open the backlog</a>.</p>${backlog.asOf ? asOfLine(backlog.asOf) : ""}${body}`);
+  const asked = text(params?.sprint);
+  const chosenSprint = asked ? view.teams.map((team) => team.running).find((running) => running?.path.endsWith(`/${asked}.md`)) ?? null : null;
+  const items = view.rows.filter((row) => (chosenSprint ? chosenSprint.selection.includes(row.item) : true)).filter((row) => row.state.state !== "done");
+
+  // While the head's view is being stored, the items stand with their states as the view stored last gives them, and no job is started from it.
+  if (backlog.asOf) {
+    head(items.length === 0 ? `<p>No item is waiting to be implemented.</p>` : `<table class="list"><thead><tr><th>Item</th><th>State</th></tr></thead><tbody>${items.map((row) => `
+      <tr data-item="${h(row.item)}" data-state="${h(row.state.state)}"><td>${h(row.item)}</td><td><span class="badge">${h(row.state.state)}</span></td></tr>`).join("")}</tbody></table>
+      <p class="muted small">Jobs are started on the view of the newest commit, which is being stored: open the page again in a moment.</p>`);
+    await drawPulls(target, context, snapshot);
+    return;
+  }
+  const judged = await judgedBy(context, snapshot, view);
+  const { workflow } = judged;
+  if (judged.declaration === null || workflow === null) {
     head(`<p class="warn">No process model is declared for this product, so there is nothing to implement from. <a href="#process">Declare one</a>.</p>`);
     return;
   }
+  const states = view.rows.map((row) => row.state);
+  const held = view.rows.map((row) => row.held).filter(Boolean);
   const definition = await kindOf("implement");
   const info = await product.host.repositoryInfo();
-  const productInfo = { visibility: info.visibility, jobWorkflow: WORKFLOWS.some((path) => ctx.snapshot.paths.includes(path)) };
-  const asked = text(params?.sprint);
-  const chosenSprint = asked ? ctx.sprints.find((record) => record.path.endsWith(`/${asked}.md`)) : null;
-  const selection = chosenSprint ? new Set(list(chosenSprint.appended?.filter((section) => section.heading === "## Selection").at(-1)?.fields?.selection ?? chosenSprint.fields.selection)) : null;
-  const items = ctx.items.map(idOf).filter((id) => (selection ? selection.has(id) : true))
-    .filter((id) => (d.states.find((state) => state.item === id)?.state ?? "unknown") !== "done");
+  const productInfo = { visibility: info.visibility, jobWorkflow: WORKFLOWS.some((path) => snapshot.paths.includes(path)) };
 
-  const places = { ...(await placesOf(instanceSnapshot, ctx.snapshot.repository?.web ?? product.address)), mailbox: null };
+  const places = { ...(await placesOf(instanceSnapshot, snapshot.repository?.web ?? product.address)), mailbox: null };
   const now = () => new Date();
-  const jobContextFor = (id, merges) => ({ kind: definition, params: { items: [id], merges }, product: { address: ctx.snapshot.repository?.web ?? product.address, snapshot: ctx.snapshot, host: product.host },
+  const jobContextFor = (id, merges) => ({ kind: definition, params: { items: [id], merges }, product: { address: snapshot.repository?.web ?? product.address, snapshot, host: product.host },
     instance: { snapshot: instanceSnapshot, host: instance.host, checkout: null }, connect: async () => product.host, participants, places, gates: [], person: personOf(context),
     now: now(), agentM: { version: instanceSnapshot.commit ?? "unknown", commit: instanceSnapshot.commit ?? "unknown" }, jobId: null });
   const prepareFor = (id, merges) => (participant) => prepareJob("implement", jobContextFor(id, merges), { drafter: participant, reviewers: [] });
   const rows = [];
-  for (const id of items) {
-    const state = d.states.find((each) => each.item === id) ?? { item: id, state: "unknown" };
-    const { assignment, sprint, team } = assignmentOf(ctx, d, id);
-    const verdict = startable(id, d.states, { workflow, assignment, sprint, held: d.held, wip: ctx.model?.flow?.wip ?? null, participants });
+  for (const { item: id, state } of items) {
+    const { assignment, sprint, team } = placeOf(view, judged, id);
+    const verdict = startable(id, states, { workflow, assignment, sprint, held, wip: workflow.model?.flow?.wip ?? null, participants });
     const roles = implementingRoles(workflow);
     const holding = verdict.startable
       ? eligible(participants.filter((participant) => assignment && roles.some((role) => holdsRole(assignment, participant.name, role.name))), { capabilities: definition.needs }).eligible : [];
@@ -391,7 +448,7 @@ async function draw(target, context, params) {
   head(body);
 
   // What is sent where, for the participant chosen on each startable row: the job is prepared, nothing is sent.
-  const taken = new Set(ctx.snapshot.paths.map((path) => JOB_FILE.exec(path)?.[1]).filter(Boolean));
+  const taken = new Set(snapshot.paths.map((path) => JOB_FILE.exec(path)?.[1]).filter(Boolean));
   const choice = (id) => target.querySelector(`[data-participant-of="${id}"]`)?.value;
   const merges = (id) => target.querySelector(`[data-merges-of="${id}"]`)?.value ?? "agent";
   const drawSent = async (row) => {
@@ -432,7 +489,7 @@ async function draw(target, context, params) {
     }
     out.innerHTML = `<ul>${lines.join("")}</ul>`;
   });
-  await drawPulls(target, context, facts);
+  await drawPulls(target, context, snapshot);
 }
 
 export const route = {

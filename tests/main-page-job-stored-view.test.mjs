@@ -129,8 +129,7 @@ test("TST-1264101 Retry takes the job's item from the head's stored view: the ho
 
 // TST-1264102 · level: component · module: MOD-main-page
 // guards: A JOB STOPS AT EVERY GATE; A PAGE LOAD READS THE REPOSITORY IN BATCHES; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-036
-// given: the job of dev-cli waiting at the gate Review → Done of the kanban model, decided by Reviewer; the person carol, a holder of Reviewer; overview-cache holding the backlog view of the
-//        product's head
+// given: the job of dev-cli waiting at the gate Review → Done of the kanban model, decided by Reviewer; the person carol, a holder of Reviewer; overview-cache holding the backlog view of the product's head
 // input: the route job drawn
 // expect: the gate part shows what the gate checks and Pass gate and Reject enabled, as TST-801001 expects; the page reads one file of overview-cache, no file under docs/gates/, and under
 //         docs/jobs/ only the job's own record
