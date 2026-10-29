@@ -542,8 +542,8 @@ test("TST-847009 Agent M's own card is read again through the instance's host, 2
 // guards: THE BUILD IS SHOWN AS IT HAPPENS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-046
 // given: the product with two jobs, JOB-20261016-1000-aaaa and JOB-20261016-1000-bbbb, taken by CI runs (https://github.com/alice/product/actions/runs/101 and …/102) and not ended; the job workflow's run list, one page, holds run 101 in progress and run 102 completed with success
 // input: the route home drawn; the timer fired at 12:01 UTC, the requests since the draw listed
-// expect: 4 requests in all — the commit, the tree and, for each of the two jobs, one request of the job workflow's run list (/repos/alice/product/actions/workflows/agent-m-jobs.yml/runs); where no job is taken by a CI run (TST-847002), the reading sends no such request
-test("TST-847010 a job taken by a CI run that has not ended costs one request of the run list for each job, in each reading", async () => {
+// expect: 3 requests in all — the commit, the tree and, for the two jobs together, one request of the job workflow's run list (/repos/alice/product/actions/workflows/agent-m-jobs.yml/runs), since MOD-runtimes' liveStates lists a repository's runs once (ITM-1280); where no job is taken by a CI run (TST-847002), the reading sends no such request
+test("TST-847010 the jobs taken by CI runs that have not ended cost one request of the run list for their repository, in each reading", async () => {
   const run = (id, status, conclusion) => ({ id, status, conclusion, html_url: `https://github.com/alice/product/actions/runs/${id}`, path: ".github/workflows/agent-m-jobs.yml", head_sha: "a".repeat(40), event: "push" });
   const jobs = [runningJob({ id: "JOB-20261016-1000-aaaa", by: "https://github.com/alice/product/actions/runs/101" }), runningJob({ id: "JOB-20261016-1000-bbbb", by: "https://github.com/alice/product/actions/runs/102" })];
   net = network({ [PRODUCT]: smallProduct({ jobs }), [INSTANCE]: instanceFiles() });
@@ -553,7 +553,7 @@ test("TST-847010 a job taken by a CI run that has not ended costs one request of
   const sent = net.requests.length;
   await timers.fire(at("12:01"));
   assert.deepEqual(net.requests.slice(sent).map(addressOf), ["/repos/alice/product/commits/main", "/repos/alice/product/git/trees/<commit>",
-    "/repos/alice/product/actions/workflows/agent-m-jobs.yml/runs", "/repos/alice/product/actions/workflows/agent-m-jobs.yml/runs"]);
+    "/repos/alice/product/actions/workflows/agent-m-jobs.yml/runs"]);
 });
 
 // TST-847011 · level: unit · module: MOD-main-page
