@@ -20,7 +20,7 @@ import { statuses } from "../approvals/index.mjs";
 import { queues } from "../spec-changes/index.mjs";
 import { reportsAwaitingAcceptance } from "../release-evidence/index.mjs";
 import { resultsAt } from "../result-records/index.mjs";
-import { LATEST, OVERVIEW_BRANCH, backlogView, gzipped, latestCommit, progressView, viewFile } from "./views.mjs";
+import { LATEST, OVERVIEW_BRANCH, backlogView, gzipped, latestCommit, progressView, scheduleView, viewFile } from "./views.mjs";
 
 // The human-readable kind MOD-progress-measures' waitingForAcceptance names a reviewed file by (Interfaces), keyed by
 // MOD-approvals' own kind (approval-record.schema.md). A kind with no entry here — release-report — names no
@@ -260,10 +260,11 @@ async function storedBuild(snapshot, facts) {
 const undecidedQueues = (facts) => (Array.isArray(facts.queues) ? facts.queues : []).filter((queue) => queue.entries.some((entry) => entry.state !== "in SPEC"));
 
 /**
- * publishOverview(host, snapshot, facts) -> Promise<{ commit: string, written: boolean }> — adds `<commit>.json`, `<commit>.progress.json.gz` and `<commit>.backlog.json.gz` to the branch `overview-cache` by
- * commitFiles, in one commit on the head it read: the stage shares, what waits for a person, the declared model's name, the build (storedBuild) and the change queues with an entry not in the SPEC yet from
- * `facts`, and the views of the progress and the backlog page (views.mjs), gzipped, `facts` being read with the scope `all` at the snapshot's commit. A file the branch holds already is left as it is;
- * `written` is false when the branch holds all three. Crosses the network; fails as commitFiles fails, and with the host's NotFound where the repository has no such branch.
+ * publishOverview(host, snapshot, facts) -> Promise<{ commit: string, written: boolean }> — adds `<commit>.json`, `<commit>.progress.json.gz`, `<commit>.backlog.json.gz` and
+ * `<commit>.schedule.json.gz` to the branch `overview-cache` by commitFiles, in one commit on the head it read: the stage shares, what waits for a person, the declared model's name, the build
+ * (storedBuild) and the change queues with an entry not in the SPEC yet from `facts`, and the views of the progress, the backlog and the schedule page (views.mjs), gzipped, `facts` being read with the
+ * scope `all` at the snapshot's commit. A file the branch holds already is left as it is; `written` is false when the branch holds all four — scheduleView's entry adds the schedule's view to the
+ * files of publishOverview, "in the same commit as the other views". Crosses the network; fails as commitFiles fails, and with the host's NotFound where the repository has no such branch.
  * @param {object} host MOD-repository-hosts' Host @param {object} snapshot the product's snapshot @param {object} facts
  */
 export async function publishOverview(host, snapshot, facts) {
@@ -278,7 +279,7 @@ export async function publishOverview(host, snapshot, facts) {
 ` });
   }
   const now = new Date();
-  for (const [page, view] of [["progress", progressView], ["backlog", backlogView]]) {
+  for (const [page, view] of [["progress", progressView], ["backlog", backlogView], ["schedule", scheduleView]]) {
     const path = viewFile(commit, page);
     if (!branch.paths.includes(path)) files.push({ path, bytes: await gzipped(JSON.stringify(view(facts, now))) });
   }

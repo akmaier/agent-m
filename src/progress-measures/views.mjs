@@ -1,7 +1,8 @@
-// views.mjs — the views of the routes `progress` and `backlog` of MOD-implementation-pages (MOD-progress-measures, Interfaces: ProgressView, BacklogView, progressView,
-// backlogView, storedView; Data: `<commit>.progress.json.gz`, `<commit>.backlog.json.gz`, `latest.json`): derived from a product's Facts, pure, the same whether
-// publishOverview derives them in CI or a page derives them where none is stored; and read back from the branch `overview-cache`. A view holds what its page shows and nothing
-// else: no record's text, no pull request (PROGRESS AND JOB STATE ARE DERIVED, NOT STORED).
+// views.mjs — the views of the routes `progress` and `backlog` of MOD-implementation-pages and of the route `schedule` of MOD-test-pages (MOD-progress-measures, Interfaces:
+// ProgressView, BacklogView, ScheduleView, progressView, backlogView, scheduleView, storedView; Data: `<commit>.progress.json.gz`, `<commit>.backlog.json.gz`,
+// `<commit>.schedule.json.gz`, `latest.json`): derived from a product's Facts, pure, the same whether publishOverview derives them in CI or a page derives them where none is
+// stored; and read back from the branch `overview-cache`. A view holds what its page shows and nothing else: no record's text, no pull request, no test's declaration
+// (PROGRESS AND JOB STATE ARE DERIVED, NOT STORED).
 //
 // Module: MOD-progress-measures
 //
@@ -15,6 +16,8 @@
 //     given only in a product with several teams; its `team` is the team the item is kept from, its `module` null for the hold of the item itself.
 //   - A done item's merge is the earliest merged pull request that names it, in its branch or its title, as an ISO time.
 //   - The views are gzipped with the platform's CompressionStream, as the trace graph is (MOD-trace-graph).
+//   - In the ScheduleView, a declaration counts under its level where that is one of the five, and under `paid` where it calls a paid service; a declaration of another level
+//     that calls none counts under no row. scheduleView refuses facts whose tests are not read (TypeError): a count is never guessed.
 
 import { conflicts } from "../work-plans/index.mjs";
 import { progressIn } from "./measures.mjs";
@@ -26,8 +29,11 @@ export const OVERVIEW_BRANCH = "overview-cache";
 export const LATEST = "latest.json";
 /** The file of a page's view of a commit (Data). */
 export const viewFile = (commit, page) => `${commit}.${page}.json.gz`;
-// The field each page's view holds as a list, by which a view of another format is told apart.
-const LISTED = { progress: "teams", backlog: "rows" };
+// The rows of the ScheduleView's counts: the five levels and the tests that call a paid service.
+const COUNTED = ["unit", "component", "system", "release", "user", "paid"];
+// What each page's view holds, by which a view of another format is told apart: a list of the progress's teams or the backlog's rows, the schedule's count of every row.
+const FORMAT = { progress: (view) => Array.isArray(view.teams), backlog: (view) => Array.isArray(view.rows),
+  schedule: (view) => COUNTED.every((row) => Number.isInteger(view.counts?.[row])) };
 
 const SPRINT = /^docs\/backlog\/sprints\/([^/]+)\/(\d+)\.md$/;
 const ASSIGNMENT = /^docs\/role-assignments\/([^/]+)\.md$/;
@@ -175,6 +181,21 @@ export function backlogView(facts, now) {
   };
 }
 
+/**
+ * scheduleView(facts: Facts) -> ScheduleView — what the route `schedule` shows of the facts' commit (Interfaces): { commit, counts }, the number of the test declarations of each
+ * level, and of those that call a paid service. Pure.
+ * @param {object} facts
+ */
+export function scheduleView(facts) {
+  if (!Array.isArray(facts.tests)) throw new TypeError("scheduleView counts the tests of facts read with the scope all");
+  const counts = Object.fromEntries(COUNTED.map((row) => [row, 0]));
+  for (const declaration of facts.tests) {
+    if (declaration.level !== "paid" && Object.hasOwn(counts, declaration.level)) counts[declaration.level] += 1;
+    if (declaration.paid) counts.paid += 1;
+  }
+  return { commit: facts.snapshot.commit, counts };
+}
+
 // ---------------------------------------------------------------- stored
 
 const through = (bytes, stream) => new Response(new Blob([bytes]).stream().pipeThrough(stream));
@@ -209,17 +230,17 @@ async function readView(readOn, commit, page) {
   if (!(bytes instanceof Uint8Array)) return null;
   let held;
   try { held = JSON.parse(await gunzipped(bytes)); } catch { return null; }
-  return held !== null && typeof held === "object" && held.commit === commit && Array.isArray(held[LISTED[page]]) ? held : null;
+  return held !== null && typeof held === "object" && held.commit === commit && FORMAT[page](held) ? held : null;
 }
 
 /**
- * storedView(snapshot: Snapshot, page: "progress" | "backlog") -> Promise<{ view, asOf: string | null } | null> — the page's view of the snapshot's commit, in one request,
+ * storedView(snapshot: Snapshot, page: "progress" | "backlog" | "schedule") -> Promise<{ view, asOf: string | null } | null> — the page's view of the snapshot's commit, in one request,
  * and asOf null; while that is not stored yet, the view of the commit latest.json names, in two requests more, and asOf that commit; null without readOn, or where neither is
  * stored or one holds another format. Fails with the host's errors but NotFound.
- * @param {object} snapshot @param {"progress" | "backlog"} page
+ * @param {object} snapshot @param {"progress" | "backlog" | "schedule"} page
  */
 export async function storedView(snapshot, page) {
-  if (!Object.hasOwn(LISTED, page)) throw new TypeError(`a stored view is the progress's or the backlog's: ${String(page)}`);
+  if (!Object.hasOwn(FORMAT, page)) throw new TypeError(`a stored view is the progress's, the backlog's or the schedule's: ${String(page)}`);
   if (typeof snapshot?.readOn !== "function" || typeof snapshot.commit !== "string") return null;
   const own = await readView(snapshot.readOn, snapshot.commit, page);
   if (own) return { view: own, asOf: null };
