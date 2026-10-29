@@ -33,5 +33,9 @@ identifier" (MOD-test-document.md:60). The entries name UC-033.
 - The reader reads the file with no finding, shown against a known positive.
 - No expected result changes, and CI is green on every commit (refactoring).
 - Only `tests/maintenance-pages-move-1250.test.mjs` changes.
-- Tests of other modules this Outcome changes: none.
+- Tests of other modules this Outcome changes: none. The run, with the five entries written as `UC-033` on `main` at
+  `59d5f7ee2`, took the two tests that name this file by its path (`maintenance-pages-move-lists`,
+  `release-itm-1254-issue-move`), `test-document-one-line`, and the Python checks of the test corpus
+  (`test_references`, `test_test_battery`, `test_origin_links`, `test_test_levels`, `test_identifiers`,
+  `test_identifier_stability`, `test_expected_results_stated`): no case fails that does not fail without the change.
 - It removes no test.

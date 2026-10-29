@@ -33,6 +33,8 @@ that it reads the job records (MOD-review-pages.md:280), not how, so it does not
 - `tests/review-pages-use-cases.test.mjs`' TST-680211 counts one call of `readMany` naming every job record, as it did
   before ITM-1280, in the tests-only commit. It is red there, with the two calls.
 - Only `src/review-pages/` and the tests that name MOD-review-pages change.
-- Tests of other modules this Outcome changes: to be named before selection, from a run of every test of the modules
-  whose code calls `readJobRecords` or `listJobs`.
+- Tests of other modules this Outcome changes: none. The run, with the change applied on `main` at `59d5f7ee2`, took
+  every test that names MOD-review-pages, MOD-site-frame (whose `dashboard-app.mjs` calls the review routes),
+  `src/review-pages/common.mjs`, `flow.mjs` or `jobs.mjs`, or `readMany`: 246 files. No case fails that does not fail
+  without the change. TST-680211 passes with the change as it stands, since it asks for at least one call.
 - It removes no test.

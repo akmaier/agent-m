@@ -22,7 +22,7 @@ origin:
 ITM-1180 took the link "All SPEC change entries", of the class `spec-entries-link`, out of the specification view
 (`src/trace-pages/flow.mjs`). The frame's style sheet still names that class among the requirements page's links
 (`src/site-frame/look.css:76`). No page draws it any more: a search of `src/` and `tests/` for `spec-entries-link`
-finds only that line.
+finds that line, and in `tests/` only `release-itm-1180-spec-view-links`, which asserts that no anchor has the class.
 
 After the change, `look.css:76` no longer names `spec-entries-link`, and the other classes of the rule stay.
 
@@ -31,5 +31,7 @@ After the change, `look.css:76` no longer names `spec-entries-link`, and the oth
 - Only `src/site-frame/look.css` changes, by that one class name.
 - No expected result of any test changes, and CI is green on every commit (refactoring).
 - Tests of other modules this Outcome changes: none. The search was every file under `src/` and `tests/` naming
-  `spec-entries-link`, read to its end.
+  `spec-entries-link`, read to its end. The run, with the change applied on `main` at `59d5f7ee2`, took every test that
+  names a style sheet of the site (17 files) and the release test above, with `site-usability` and
+  `site-accessibility`: no case fails.
 - It removes no test.

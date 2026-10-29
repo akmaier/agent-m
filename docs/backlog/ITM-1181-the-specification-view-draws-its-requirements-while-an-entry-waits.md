@@ -29,11 +29,17 @@ while that holds.
 - a pending-graph comparison gives an empty target only with an open proposal, and releasing that graph restores the
   requirement.
 
-**The path, read on `main`:** `src/trace-pages/flow.mjs:549-567` (`arrangement`, awaited at `:915`) awaits `entryView(...).impact` for each
-waiting entry before the tree is drawn. Since `c2e6e5c1` that impact reads the graph stored for the commit (MOD-spec-changes'
+**The path, read on `main`:** `src/trace-pages/flow.mjs:549-566` (`arrangement`, awaited at `:911`) awaits
+`entryImpact(...)` (`:554`, MOD-trace-pages' Uses: `MOD-spec-changes.entryImpact`) for each waiting entry before the tree
+is drawn. Since `c2e6e5c1` that impact reads the graph stored for the commit (MOD-spec-changes'
 Uses: `MOD-trace-graph.storedGraph`), one read of `<commit>.json.gz`, and builds none; a graph not stored rejects with
-`GraphNotStored`, which `arrangement` takes as no view (`.catch(() => null)`, `flow.mjs:556`). Since `dcf0badd` the
+`GraphNotStored`, which `arrangement` takes as no impact (`.catch(() => null)`, `flow.mjs:554`). Since `dcf0badd` the
 route takes the waiting queues from the stored overview.
+
+On fixtures, the specification view already draws its requirements with open entries and marks them: the cases of
+`trace-pages-newest-queue-marks`, `system-itm-597-spec-traces`, `release-itm-1274-entry-impact-without-rationale` and
+`release-itm-1301-newest-queue-marks` pass on `main` at `59d5f7ee2` (11 of 11). None of them holds the queue
+`2026-10-22_edits-of-akmaier`.
 
 **First task:** confirm that path as the data-flow path of the empty page, with the run that shows it (AGENTS.md §2),
 before any change.
@@ -53,3 +59,6 @@ before any change.
 - The queue `2026-10-22_edits-of-akmaier`, restored from `git show 1eea71a3^`, no longer empties the page. That is shown
   on a fixture, not on `main`.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+- Tests of other modules this Outcome changes: none can be named before the first task, since what is to be built is
+  not known until then. Where the first task finds a change to build, the item stops before its tests-only commit,
+  names the change, and the Product Owner names here the tests it changes, from a run with that change applied.
