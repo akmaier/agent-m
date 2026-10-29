@@ -6,6 +6,7 @@ realises:
   - UC-020
 modules:
   - MOD-trace-pages
+  - MOD-test-document
 builds_on:
 tests:
   - unit
@@ -43,6 +44,16 @@ akmaier, on the Requirements page: "Keep as specified." UC-020 step 4 keeps the 
   - With it, two more fail, both of MOD-trace-pages, and both change in the tests-only commit:
     - TST-878003 (`trace-pages-waiting-changes:89-97`), the link's text and address;
     - TST-360002 (`trace-pages-edit-links:110`), which counts ten anchors on the view and becomes nine.
-- **Tests of other modules this Outcome changes: none**, by that run. The `#spec-entry` links that MOD-review-pages'
+- **One release test of another module changes, by a participant who implemented none of this item:**
+  `tests/release-itm-1285-backquote-in-string-real-files.test.mjs`, TST-1285301 (MOD-test-document, level `release`).
+  - It reads `tests/trace-pages-waiting-changes.test.mjs` as data, and pins the lines of its six declarations
+    (`:67-69`). The tests-only commit adds three lines above TST-878004 to 006.
+  - It changes in a commit of its own on the item's branch. The lines it expects are those of the file's
+    declaration-first lines, as the file's own oracle `firstLinesOf` finds them (`:43`), in place of the six numbers.
+    The identifiers, their order, and every other assertion stay.
+  - The item names MOD-test-document for that one test, and no code of it changes.
+- **Tests of other modules this Outcome changes: none besides**, by that run and by a search for every test file that
+  names `trace-pages-waiting-changes` or `trace-pages-edit-links` as a path. Of these, `release-itm-1272` and
+  `trace-pages-arrange-link` name them in a comment only. The `#spec-entry` links that MOD-review-pages'
   tests count are the review pages' own.
 - It removes no test.
