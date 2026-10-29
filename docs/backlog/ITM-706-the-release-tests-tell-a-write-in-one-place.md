@@ -36,5 +36,9 @@ It is written by a participant who builds none of ITM-574, since the files are s
 - One function of `tests/app-harness.mjs` tells a write. The two files use it, and none keeps a copy.
 - Their expected results are unchanged, and each passes on the base and on ITM-574's head.
 - Its counter-proof: a planted write in a page fails each of them.
+- **The planning run** (sprint team1/122, on `main` at `0e928b61b`). A stand-in exported the rule, the batch of reads
+  excepted, from `tests/app-harness.mjs` beside its other exports, and the two files took it in place of their copies.
+  The 84 files that import `tests/app-harness.mjs` give 536 pass, 0 fail and 4 todos, with and without it. So no other
+  test changes.
 
 `tests/app-harness.mjs` is headed `Module: MOD-site-frame` (`:11`), and both test files `Module: MOD-trace-pages`.
