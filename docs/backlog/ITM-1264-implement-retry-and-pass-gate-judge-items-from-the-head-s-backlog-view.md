@@ -1,6 +1,6 @@
 ---
 id: ITM-1264
-title: Implement, Retry and Pass gate judge their items from the head's backlog view
+title: Implement judges its items from the head's backlog view
 level: module
 realises:
   - UC-024
@@ -10,7 +10,6 @@ realises:
   - PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 modules:
   - MOD-implementation-pages
-  - MOD-main-page
 builds_on:
   - ITM-1260
   - ITM-1263
@@ -19,7 +18,7 @@ tests:
 origin:
   - akmaier, 2026-10-28: "A lot of the stuff that is loaded on the new pages right now is actually never looked at. It is unlikely that a user needs all records at once." Then: "Please follow up. I want all pages fixed this way." And: "I think I want the 20 mb facts file gone."
 ---
-# ITM-1264 Implement, Retry and Pass gate judge their items from the head's backlog view
+# ITM-1264 Implement judges its items from the head's backlog view
 
 **REGISTER**
 
@@ -36,9 +35,6 @@ every pull request (14 pages).
   each `pullRequestFacts` and the runs of its first commit and its head: three requests each, for each of the 109
   implement records' pull requests. For an open one it reads the module files of its items and hands `doneCheck` every
   gate record (`facts.gates`, 1,476 files), of which `doneCheck` keeps those whose `on` names the pull request.
-- *Retry* (`src/main-page/jobs.mjs:338`) and *Pass gate* (`jobs.mjs:440`) on the job page: read the whole scope `work`
-  to judge one or two items — `facts.plan.states`, `facts.held`, `facts.assignments`, `facts.sprints`,
-  `facts.participants`, `facts.workflow` and `facts.snapshot`.
 
 What they use is what ITM-1260's `BacklogView` of the head holds — each item's state, its hold and what keeps it from a
 team, the teams' running sprints with their selection —, plus the declaration, the model's file, the role assignments
@@ -47,7 +43,7 @@ The Definition of Done of a pull request is already checked once, in CI, by the 
 (`src/workflow-entries/product.mjs:908`, `onDoneCheck`), whose result is among the runs of the head that the page
 lists.
 
-After the change, as MOD-implementation-pages and MOD-main-page say:
+After the change, as MOD-implementation-pages says:
 
 - `implement`, in a model that works from a backlog, reads the head's backlog view (`storedView`, `asOf` null), the
   declaration, the model's file, the role assignments and the running sprints' records, in one batch; while the head's
@@ -57,9 +53,6 @@ After the change, as MOD-implementation-pages and MOD-main-page say:
   name in one batch, and shows for each the runs of its first commit and its head; the Definition of Done is the
   result of the run `agent-m done` on the head, linked; no gate record or module file is read. A merged one is shown
   on its job's page (route `job`, `jobTrail`), as UC-024 step 13 asks of the dashboard.
-- *Retry* and *Pass gate* read the product's head backlog view, the declaration, the model's file and the role
-  assignments; while the head's view is not stored yet they say so and offer nothing; where the product stores no
-  view they read the scope `work`.
 
 Design principles (AGENTS.md §2 *Designing*): §2.2 *nothing twice* — the Definition of Done is decided once, by
 `onDoneCheck` in CI, and the page shows that decision instead of computing it again from every gate record; the items'
@@ -80,7 +73,7 @@ than it shows; the column *Item* names the item that changes it, `—` where non
 | start page, rereading (`src/main-page/reread.mjs`) | every 60 s per card a snapshot, the changed records, live states | job states | no | — |
 | `jobs` (`src/main-page/jobs.mjs:168-177`) | every record under `docs/jobs/` of every repository, one request each, and a listing of the job workflow's runs for each unended CI job | every job | the records are shown; the reads are not batched and the run listing is repeated per job | — |
 | `job` (`jobs.mjs:255-262`) | all of `jobs`' reading, then trail, log | one job | yes: every record of every repository for one | ITM-1269 |
-| `job`, *Retry*, *Pass gate* (`jobs.mjs:338`, `:440`) | the scope `work`: 3,246 files, every pull request | holders, routes, the gate | yes | ITM-1264 |
+| `job`, *Retry*, *Pass gate* (`jobs.mjs:338`, `:440`) | the scope `work`: 3,246 files, every pull request | holders, routes, the gate | yes | ITM-1305 |
 | `#uc`, `#use-case`, `#arc`, `#decision`, `#module` (`dashboard-app.mjs:324-333`) | every file of the kind in one wave; statuses from record names (`src/approvals/status.mjs:63-82`) | id, title, status | mild: the body of each file for its title | — |
 | one changed use case or module (`src/review-pages/flow.mjs:544-561`) | the file; `lastAcceptedText` with an older commit's whole tree; for an open file every job record (`jobNotes`) | the difference, the notes | yes | ITM-1268, ITM-1271 |
 | `#review/arc` (`flow.mjs:104-113`, `:343-421`) | the open files, their last accepted texts, every job record (`draftingRounds`) | every open file, the drafting rounds | the job records | ITM-1268, ITM-1271 |
@@ -117,10 +110,6 @@ Tests written first, each red on the commit that holds only them:
   head's run `agent-m done` failed offers no *Merge* and links that run; with the run green, *Merge* is offered.
   Counter-proofs: with only c0's view stored, the as-of line and no *Start jobs*; with no branch `overview-cache`, the
   rows derived from the scope `work` are the same.
-- `tests/main-page-job-stored-view.test.mjs` (MOD-main-page, component): the page of a failed job offers *Retry* with
-  the holders `tests/main-page-job-retry.test.mjs` expects, and that of a job waiting at a gate *Pass gate* for the
-  role's holder as `tests/main-page-job-gate.test.mjs` expects, each reading one file of `overview-cache` and no file under `docs/gates/` or `docs/jobs/` other than
-  the job's own record. Counter-proof: with the head's view not stored, neither is offered and the page says why.
 
 Measurable outcome, on the live page of the instance in the browser's network panel (numbers expected from Agent M's
 head, 1,233 items, 1,476 gate records, 478 job records, 109 of kind implement):
@@ -128,12 +117,17 @@ head, 1,233 items, 1,476 gate records, 478 job records, 109 of kind implement):
 | Route | Today, without the facts file | After |
 |---|---|---|
 | `#implement` | 33 batches (17.2 MB), every pull request (14 pages), 3 requests for each job pull request ever opened | 1 file of `overview-cache` (~72 KB gzipped), 1 batch (~6 files), 1 page of open pull requests, 1 batch of their job records, 3 requests for each open job pull request |
-| job page, *Retry* / *Pass gate* | 33 batches (17.2 MB), every pull request (14 pages) | 1 file of `overview-cache`, 1 batch (~4 files) |
 
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
-- Only the folders of the two modules and the tests that name them change.
+- Only `src/implementation-pages/` and the tests that name MOD-implementation-pages change.
+- `implement` builds the declared workflow with MOD-product-process' `workflowOf`, which MOD-implementation-pages' Uses
+  name, from the declared model's file it reads, as `process` does (`src/implementation-pages/process.mjs:237-242`), and
+  not with `productWorkflow`, which its Uses do not name. Where that needs a function its Uses do not name, the item
+  stops and names it.
+- *Retry* and *Pass gate* on the job page are ITM-1305's: reading them from the head's view needs functions
+  MOD-main-page's Uses do not name.
 - Tests of other modules this Outcome changes: none.
-  - The tests that draw `#implement` or the job page name MOD-implementation-pages or MOD-main-page.
+  - The tests that draw `#implement` name MOD-implementation-pages.
   - `dashboard-notifications` and `dashboard-notifications-wiring` (MOD-notifications) and `site-frame-preloads`
     (MOD-site-frame) load the two modules for other routes, and do not change.
   - `load-per-view`'s `#implementation` case is progress's, not `#implement`'s.
