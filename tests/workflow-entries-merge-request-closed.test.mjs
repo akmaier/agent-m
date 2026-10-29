@@ -9,7 +9,7 @@
 //
 // Deterministic, no network: the checkout is laid out as in the GitHub tests (tests/workflow-entries-pull-request-world.mjs), the merge requests and the issues come from a fake of GitLab's REST API, which `fetch` is replaced with. The readings, named in the pull request:
 //   - GitLab starts no pipeline on the merge request for its merge: it starts a pipeline of the push to the target branch, whose CI_COMMIT_SHA is the commit the merge left ("Predefined CI/CD variables", docs.gitlab.com). The merge request the entry takes is
-//     the merged one whose merge commit is that commit — the host's `mergeCommit`, which on GitLab is the merge commit, else the squash commit, else the head of a fast-forward merge —, among those the server lists as updated since CI_COMMIT_TIMESTAMP.
+//     the merged one whose merge commit is that commit — the host's `mergeCommit`, which on GitLab is the merge commit, else the squash commit, else the head of a fast-forward merge —, among the merged ones the server lists (the listing bounds no date, ITM-1260).
 //   - Everything after the merge request is found is the entry's as for GitHub: the job its title or description names, the issues below the product's own address (`/-/issues/<n>` on GitLab), closeWithLinks.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
@@ -33,7 +33,7 @@ const MR6 = { iid: 6, title: `${OTHER}: fix-bug`, description: `Job: ${OTHER}`, 
 // guards: GITLAB PRODUCTS ARE SUPPORTED; UC-012
 // given: GitLab's environment of the pipeline of the push that merged the merge request !7 — CI_COMMIT_SHA its merge commit, CI_COMMIT_TIMESTAMP the time of that commit —; !7's title and description name the job JOB-20261028-0900-a1b2 of kind fix-bug, which works on the issues 12 and 13 of this product, on a requirement and on an issue of another project; the server lists !6, merged by another commit, and !7; the person's token
 // input: onPullRequestClosed on that environment
-// expect: outcome `done`, the summary naming #12, #13 and the merge request's address; the server was asked for the merged merge requests updated after the commit's time; it was written to four times, in this order, with the person's token: the note "Closed with <the merge request's address>." on issue 12 and 12 closed, the same for 13; nothing for the other project's issue 3 and nothing for the issue 99 of !6's job
+// expect: outcome `done`, the summary naming #12, #13 and the merge request's address; the server was asked for the merged merge requests; it was written to four times, in this order, with the person's token: the note "Closed with <the merge request's address>." on issue 12 and 12 closed, the same for 13; nothing for the other project's issue 3 and nothing for the issue 99 of !6's job
 test("onPullRequestClosed on GitLab — the merge that CI_COMMIT_SHA names closes the issues its merge request's job works on, each with a note naming the merge request", async () => {
   await withCheckout(async (w) => {
     const server = fakeGitLab({ mergeRequests: [MR6, MR7] });
@@ -44,7 +44,6 @@ test("onPullRequestClosed on GitLab — the merge that CI_COMMIT_SHA names close
     assert.ok(status.summary.includes(`${GITLAB}/-/merge_requests/7`), status.summary);
     const [asked] = server.requests.filter((each) => each.path === "/merge_requests");
     assert.equal(asked.query.state, "merged");
-    assert.equal(Date.parse(asked.query.updated_after), Date.parse(PUSHED_AT));
     assert.deepEqual(server.writes(), [["POST", "/issues/12/notes", { body: `Closed with ${GITLAB}/-/merge_requests/7.` }], ["PUT", "/issues/12", { state_event: "close" }],
       ["POST", "/issues/13/notes", { body: `Closed with ${GITLAB}/-/merge_requests/7.` }], ["PUT", "/issues/13", { state_event: "close" }]]);
     for (const each of server.requests) assert.equal(each.authorization, GITLAB_TOKEN, `${each.method} ${each.path} carried the person's token`);

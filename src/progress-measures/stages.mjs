@@ -20,6 +20,7 @@ import { statuses } from "../approvals/index.mjs";
 import { queues } from "../spec-changes/index.mjs";
 import { reportsAwaitingAcceptance } from "../release-evidence/index.mjs";
 import { resultsAt } from "../result-records/index.mjs";
+import { LATEST, OVERVIEW_BRANCH, backlogView, gzipped, latestCommit, progressView, viewFile } from "./views.mjs";
 
 // The human-readable kind MOD-progress-measures' waitingForAcceptance names a reviewed file by (Interfaces), keyed by
 // MOD-approvals' own kind (approval-record.schema.md). A kind with no entry here — release-report — names no
@@ -242,9 +243,6 @@ export async function waitingForAcceptance(host, snapshot) {
 
 // ---------------------------------------------------------------- the overview of a commit, stored
 
-// The branch that holds the overviews, one `<commit>.json` for each commit of the default branch (MOD-progress-measures, Data).
-const OVERVIEW_BRANCH = "overview-cache";
-
 // The name of the declared model a card names, or null where none was read.
 const modelName = (facts) => (typeof facts.model?.name === "string" ? facts.model.name : null);
 
@@ -262,10 +260,10 @@ async function storedBuild(snapshot, facts) {
 const undecidedQueues = (facts) => (Array.isArray(facts.queues) ? facts.queues : []).filter((queue) => queue.entries.some((entry) => entry.state !== "in SPEC"));
 
 /**
- * publishOverview(host, snapshot, facts) -> Promise<{ commit: string, written: boolean }> — adds `<commit>.json` to the branch `overview-cache` by commitFiles, in one commit on the head it read: the stage
- * shares, what waits for a person, the declared model's name, the build (storedBuild) and the change queues with an entry not in the SPEC yet from `facts`, `facts` being read with the scope `all` at the
- * snapshot's commit. A file the branch holds already is left as it is; `written` is false when the branch holds it. Crosses the network; fails as commitFiles fails, and with the host's NotFound where the
- * repository has no such branch.
+ * publishOverview(host, snapshot, facts) -> Promise<{ commit: string, written: boolean }> — adds `<commit>.json`, `<commit>.progress.json.gz` and `<commit>.backlog.json.gz` to the branch `overview-cache` by
+ * commitFiles, in one commit on the head it read: the stage shares, what waits for a person, the declared model's name, the build (storedBuild) and the change queues with an entry not in the SPEC yet from
+ * `facts`, and the views of the progress and the backlog page (views.mjs), gzipped, `facts` being read with the scope `all` at the snapshot's commit. A file the branch holds already is left as it is;
+ * `written` is false when the branch holds all three. Crosses the network; fails as commitFiles fails, and with the host's NotFound where the repository has no such branch.
  * @param {object} host MOD-repository-hosts' Host @param {object} snapshot the product's snapshot @param {object} facts
  */
 export async function publishOverview(host, snapshot, facts) {
@@ -278,6 +276,11 @@ export async function publishOverview(host, snapshot, facts) {
       queues: undecidedQueues(facts) };
     files.push({ path: `${commit}.json`, text: `${JSON.stringify(overview)}
 ` });
+  }
+  const now = new Date();
+  for (const [page, view] of [["progress", progressView], ["backlog", backlogView]]) {
+    const path = viewFile(commit, page);
+    if (!branch.paths.includes(path)) files.push({ path, bytes: await gzipped(JSON.stringify(view(facts, now))) });
   }
   // latest.json names the commit of the overview stored last, which a page shows while its head's own is not stored yet (latestOverview).
   if (files.length > 0) files.push({ path: LATEST, text: `${JSON.stringify({ commit })}\n` });
@@ -312,8 +315,6 @@ export function storedOverview(snapshot) {
   return kept.get(commit);
 }
 
-const LATEST = "latest.json";
-
 /**
  * latestOverview(snapshot) -> Promise<{ commit, shares, waiting, model, build, queues } | null> — the overview stored last on the branch, whichever commit it is of, as the file
  * latest.json names it: what a page shows while the overview of its head is not stored yet, never deriving one itself. Null where the branch, `latest` or that overview is missing.
@@ -321,11 +322,8 @@ const LATEST = "latest.json";
  */
 export async function latestOverview(snapshot) {
   if (typeof snapshot?.readOn !== "function") return null;
-  let named;
-  try { named = await snapshot.readOn(OVERVIEW_BRANCH, LATEST); } catch (error) { if (error?.name === "NotFound") return null; throw error; }
-  let commit = "";
-  try { commit = typeof named === "string" ? String(JSON.parse(named)?.commit ?? "") : ""; } catch { return null; }
-  if (!/^[0-9a-f]{40}$/.test(commit)) return null;
+  const commit = await latestCommit(snapshot.readOn);
+  if (commit === null) return null;
   const held = await readOverview({ readOn: snapshot.readOn, commit });
   return held && { commit, ...held };
 }

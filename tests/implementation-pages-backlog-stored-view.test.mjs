@@ -70,7 +70,7 @@ test("#backlog — Plan sprint and Cancel draw from the view read and send no re
 // TST-1260203 · level: component · module: MOD-implementation-pages
 // guards: ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-032 step 6
 // given: the page drawn from the head's stored view; team1's sprint 03 runs with ITM-001 and ITM-002
-// input: Change the selection of team1, ITM-005 ticked besides, a goal given, Start sprint
+// input: Change the selection of team1, ITM-005 ticked besides, a goal and the closer alice given, Start sprint
 // expect: the click reads the declaration, the model's file, the two module files and team1's running sprint docs/backlog/sprints/team1/03.md; one commit is written, changing
 //         that sprint's record with a ## Selection naming ITM-005, on the head ccc…c the view is of
 test("#backlog — Start sprint on the head's view reads the declaration, the model, the module files and the running sprint, and commits on the view's commit", async () => {
@@ -79,6 +79,7 @@ test("#backlog — Start sprint on the head's view reads the declaration, the mo
     await page.press(found(page.target, '[data-plan="team1"]')[0]);
     found(page.target, '[data-select-item="ITM-005"]')[0].checked = true;
     found(page.target, "[data-sprint-goal]")[0].value = "Store, show and news";
+    found(page.target, "[data-sprint-closer]")[0].value = "alice";
     const at = page.srv.requests.length, batchesAt = page.srv.batches.length;
     await page.press(found(page.target, '[data-start-sprint="team1"]')[0]);
     const read = readSince(page.srv, at, batchesAt);

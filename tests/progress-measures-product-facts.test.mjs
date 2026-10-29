@@ -979,7 +979,8 @@ test("TST-1175001 productFacts gives itemStates the accepted SPEC requirements w
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the fixture product with a SPEC rule, a test file and a job record, read with the scope "all" at the commit ccc…c; a branch overview-cache that holds no file for it
 // input: publishOverview(host, snapshot, facts)
-// expect: { commit, written: true }; one commitFiles whose files are exactly `ccc…c.json` and latest.json — no path ends in `.facts.json`; counter-proof: the overview `ccc…c.json` and latest.json are still added
+// expect: { commit, written: true }; one commitFiles whose files are exactly `ccc…c.json`, the two views of the commit (ITM-1260) and latest.json — no path ends in `.facts.json`; counter-proof: the overview
+//         `ccc…c.json` and latest.json are still added
 test("TST-1117009 publishOverview adds no <commit>.facts.json, and still adds <commit>.json and latest.json", async () => {
   const facts = await allFacts(storedFiles());
   const host = overviewHost(overviewBranch());
@@ -987,17 +988,17 @@ test("TST-1117009 publishOverview adds no <commit>.facts.json, and still adds <c
   assert.equal(host.commits.length, 1);
   const paths = host.commits[0].files.map((file) => file.path);
   assert.deepEqual(paths.filter((path) => path.endsWith(".facts.json")), [], "no facts file is added");
-  assert.deepEqual(paths, [`${COMMIT}.json`, "latest.json"], "counter-proof: the overview and latest.json are added");
+  assert.deepEqual(paths, [`${COMMIT}.json`, `${COMMIT}.progress.json.gz`, `${COMMIT}.backlog.json.gz`, "latest.json"], "counter-proof: the overview and latest.json are added");
 });
 
 // TST-1117010 · level: unit · module: MOD-progress-measures
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the fixture product whose default branch's snapshot has a readOn that counts every call and serves, on overview-cache, a facts file of the old format 1 that lists nothing; and the same product without readOn
-// input: productFacts with the scope "all", "work", "build" and "now" for each
+// input: productFacts with the scope "all", "work" and "build" for each (the scope "now" is withdrawn, ITM-1260)
 // expect: in each scope, readOn is asked for no path ending in `.facts.json` and `read` reads none; the facts equal those of the product without readOn (the snapshot aside), the four backlog items among them, so the
 //         planted file is not taken; known positive: the counter records a readOn of `ccc…c.facts.json` when one is made
 test("TST-1117010 productFacts asks for no <commit>.facts.json in any scope, and reads its facts from the files", async () => {
-  for (const scope of ["all", "work", "build", "now"]) {
+  for (const scope of ["all", "work", "build"]) {
     const counted = plantedOn(storedFiles());
     const plain = fixture({ files: storedFiles() });
     const got = await productFacts(counted.host, counted.instance, counted.instanceAt, NOW, { scope });

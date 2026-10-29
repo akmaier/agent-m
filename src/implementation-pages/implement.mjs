@@ -9,7 +9,7 @@
 //
 // NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; NO JOB STARTS ABOVE THE WORK-IN-PROGRESS LIMIT; A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; A JOB GOES ONLY TO A HOLDER OF ITS ROLE; THE PAGE NAMES WHERE IT SENDS;
 // ONE CLICK PER DECISION. A render writes nothing and sends nothing: *Start jobs* and *Merge* are the writes, each on a person's click. Readings the texts leave open, which this file takes:
-//   - The items and their states are those of the route `backlog` (its contextOf and derivedOf); the workflow is productFacts' with the scope `work`.
+//   - The items and their states are those of backlog.mjs' contextOf and derivedOf, over the facts of the scope `work` this route reads once; the workflow is theirs.
 //   - An item is listed in every state but done; the startable ones are ticked, the others carry their reasons and cannot be ticked.
 //   - The implementing roles are those of the phases that produce MOD; the item's role assignment is its team's — the team whose newest running sprint selects it —, else the product's first.
 //   - Who merges is the parameter `merges` (`agent` or `person`) of the job's `## Parameters`, chosen when the jobs are started; acting on it is the merge's.
@@ -338,7 +338,7 @@ async function draw(target, context, params) {
     headOf(target, `<p class="warn" data-missing>${facts.declaration === null ? "No process model is declared for this product" : "The declared process model could not be read"}, so there is nothing to start. <a href="#process">Declare or open the process</a>; the plan or the backlog follows it (<a href="#plan">plan</a>, <a href="#backlog">backlog</a>).</p>`);
     return;
   }
-  const ctx = await contextOf(context);
+  const ctx = await contextOf(context, facts);
   if (facts.model.kind !== "pulled") { await drawPlan(target, context, facts, ctx, participants, workflow, await machineryFor(context, ctx, instanceSnapshot, participants)); await drawPulls(target, context, facts); return; }
   const d = await derivedOf(context, ctx);
   const head = (body) => headOf(target, `<p data-backlog-link>This model works from a backlog: <a href="#backlog">open the backlog</a>.</p>${body}`);

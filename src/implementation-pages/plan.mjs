@@ -8,6 +8,10 @@
 //
 // Module: MOD-implementation-pages
 //
+// It reads the declaration and the declared model's file first (modelFirst), the file at the commit the declaration names through the instance's readFileAt: for a model that
+// works from a backlog it links the backlog and reads nothing else (UC-045 1a). The route `board` reads them the same way, through modelFirst. The model is the catalogue's
+// reading of that file (MOD-model-catalogue's catalogue over the one file); a commit the instance cannot read, or a version that is no commit identifier, leaves the model unknown.
+//
 // The steps and their states are those MOD-progress-measures' productFacts gives with the scope `work`: it reads the plan (docs/plan/,
 // in the order of docs/plan/order.md), the approval statuses, the job records and the pull requests and derives each state with
 // MOD-work-plans' itemStates; no state is stored. The architecture comes from MOD-trace-graph's latestGraph — the graph stored for the commit, or, while that is not
@@ -19,6 +23,8 @@ import { renderMermaid } from "../markdown-render/index.mjs";
 import { productFacts } from "../progress-measures/index.mjs";
 import { latestGraph } from "../trace-graph/index.mjs";
 import { artifactSchemas, readDocument } from "../documents/index.mjs";
+import { catalogue } from "../model-catalogue/index.mjs";
+import { declarationSchema } from "../product-process/index.mjs";
 import { planFindings } from "../work-plans/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 
@@ -38,6 +44,42 @@ const placeOf = (root, attribute) => {
   return null;
 };
 const REVIEWED = new Set(["architecture-decision", "module"]);
+const DECLARATION = "docs/process.md";
+// The failures with which the instance cannot read the commit a declaration names.
+const UNREADABLE = new Set(["NotFound", "TokenRefused", "PermissionMissing", "Unreachable"]);
+
+/**
+ * The declared model as the instance held it at the commit the declaration's model_version names, its file read with the instance host's readFileAt and read as the catalogue
+ * reads a model: { model: Model | null | "unknown", unread: { commit, error } | null } — null for a file the catalogue does not hold, "unknown" where the commit cannot be read.
+ * @param {object} context the route's ViewContext @param {object | null} declaration the product's docs/process.md as a document
+ */
+export async function declaredModelOf(context, declaration) {
+  if (declaration === null) return { model: null, unread: null };
+  const file = String(declaration.fields?.model_file ?? ""), version = String(declaration.fields?.model_version ?? "");
+  if (!/^[0-9a-f]{40}$/.test(version)) return { model: "unknown", unread: { commit: version, error: "NotFound" } };
+  let held;
+  try {
+    held = (await context.instance.host.readFileAt(file, [version])).get(version) ?? null;
+  } catch (error) {
+    if (!UNREADABLE.has(error?.name)) throw error;
+    return { model: "unknown", unread: { commit: version, error: error.name } };
+  }
+  const at = { paths: held === null ? [] : [file], read: async (path) => (path === file ? held : null), readMany: async () => {}, blob: () => null };
+  return { model: (await catalogue(at)).models.find((each) => each.path === file) ?? null, unread: null };
+}
+
+/**
+ * What `plan` and `board` read first: the product's snapshot at the branch shown, its declaration and the declared model (declaredModelOf) -> { ref, snapshot, declaration, model }.
+ * @param {object} context the route's ViewContext
+ */
+export async function modelFirst(context) {
+  const { product } = context;
+  const ref = product.ref ?? (await product.host.repositoryInfo()).defaultBranch;
+  const snapshot = await product.host.readSnapshot(ref);
+  const declared = await snapshot.read(DECLARATION);
+  const declaration = declared === null ? null : readDocument(declarationSchema, DECLARATION, declared);
+  return { ref, snapshot, declaration, ...(await declaredModelOf(context, declaration)) };
+}
 const ASSEMBLES = "AN IMPLEMENTATION PLAN ASSEMBLES THE SYSTEM FROM ITS MODULES";
 
 // The findings of the plan against the architecture as it stands (planFindings with the history of the host): of them those that mark a step whose module or subsystem file was changed or
@@ -96,23 +138,23 @@ export const route = {
 
   async render(target, context) {
     const { instance, product } = context;
-    const instanceInfo = await instance.host.repositoryInfo();
-    const instanceSnapshot = await instance.host.readSnapshot(instanceInfo.defaultBranch);
-    const facts = await productFacts(product.host, instanceSnapshot, (commit) => instance.host.readSnapshot(commit), new Date(), { scope: "work" });
     const note = (html) => { target.innerHTML = `<section class="panel"><h2>Plan</h2>${html}</section>`; };
-
-    if (facts.declaration === null) {
+    const first = await modelFirst(context);
+    if (first.declaration === null) {
       note(`<p class="warn">No process model is declared for this product, so there is no plan to show. <a href="#process">Declare one</a>.</p>`);
       return;
     }
-    if (facts.model === null || facts.model === "unknown") {
+    if (first.model === null || first.model === "unknown") {
       note(`<p class="warn">The declared process model could not be read, so there is no plan to show. <a href="#process">Open the declaration</a>.</p>`);
       return;
     }
-    if (facts.model.kind === "pulled") {
-      note(`<p>This product's model, ${h(facts.model.name)}, works from a backlog and has no implementation plan. <a href="#backlog">Open the backlog</a>.</p>`);
+    if (first.model.kind === "pulled") {
+      note(`<p>This product's model, ${h(first.model.name)}, works from a backlog and has no implementation plan. <a href="#backlog">Open the backlog</a>.</p>`);
       return;
     }
+    const instanceInfo = await instance.host.repositoryInfo();
+    const instanceSnapshot = await instance.host.readSnapshot(instanceInfo.defaultBranch);
+    const facts = await productFacts(product.host, instanceSnapshot, (commit) => instance.host.readSnapshot(commit), new Date(), { scope: "work" });
 
     const open = [...facts.statuses].filter(([, entry]) => REVIEWED.has(entry.kind) && entry.status !== "accepted").sort(([a], [b]) => (a < b ? -1 : 1));
     if (open.length > 0) {

@@ -64,8 +64,7 @@ const zipped = (value) => new Uint8Array(gzipSync(JSON.stringify(value)));
 
 // TST-1260012 · level: unit · module: MOD-progress-measures
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; A PAGE LOAD READS THE REPOSITORY IN BATCHES
-// given: overview-cache holding ccc…c's progress view; one holding no view of ccc…c, latest.json naming 0c0c…0c and 0c0c…0c's progress view; one holding nothing; and one whose ccc…c
-//        backlog view is JSON of another format (no rows), with no latest.json
+// given: overview-cache holding ccc…c's progress view; one holding no view of ccc…c, latest.json naming 0c0c…0c and 0c0c…0c's progress view; one holding nothing; and one whose ccc…c backlog view is JSON of another format (no rows), with no latest.json
 // input: storedView(snapshot, "progress") on the first three, storedView(snapshot, "backlog") on the last
 // expect: the first: the view and asOf null, by one readOn of ccc…c.progress.json.gz as bytes; the second: 0c0c…0c's view and asOf 0c0c…0c, by three readOns — ccc…c's view,
 //         latest.json, 0c0c…0c's view —; the third: null; the last: null
