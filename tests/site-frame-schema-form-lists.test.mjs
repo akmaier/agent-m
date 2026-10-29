@@ -67,8 +67,7 @@ test("schemaForm — a list key typed in its field reaches onSave as a list", as
 // guards: A BACKLOG ITEM NAMES THE MODULES IT CHANGES; UC-033
 // given: known positive first — the same form shows no finding beside the field modules and offers Save
 // input: the person types "MOD-store, store" into the field modules; then empties it
-// expect: the finding of documentFindings on the item "store" — `the key modules does not fit: "store" is not an identifier` — stands beside the field modules, no finding says the value is not a list, and Save is not offered; the field
-//   emptied leaves the key out, and the form shows the finding that modules is required — at its end, where the frame shows a finding on a key the document lacks. Counter-proof: before the change the finding beside the field is that "MOD-store, store" is not a list
+// expect: the finding of documentFindings on the item "store" — `the key modules does not fit: "store" is not an identifier` — stands beside the field modules, no finding says the value is not a list, and Save is not offered; the field emptied leaves the key out, and the form shows the finding that modules is required — beside the field modules, where the frame shows a finding on a key the document lacks (ITM-1290). Counter-proof: before the change the finding beside the field is that "MOD-store, store" is not a list
 test("schemaForm — a finding on an item of a list key is shown beside its field", async () => {
   const form = formOver([]);
   assert.deepEqual(besideOf(form, "modules"), [], "known positive: nothing beside the field");
