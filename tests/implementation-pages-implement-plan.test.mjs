@@ -92,6 +92,8 @@ function snapshotOf(files, web, commits) {
 async function render(files) {
   const commits = [];
   const hostOf = (shot) => ({ async repositoryInfo() { return { defaultBranch: "main", visibility: "public", canWrite: true, archived: false, description: "" }; }, async readSnapshot() { return shot; },
+    // The file at each commit, as the one snapshot holds it (MOD-repository-hosts' readFileAt), for the declared model the route reads (ITM-1264).
+    async readFileAt(path, at) { const held = await shot.read(path); return new Map(at.map((commit) => [commit, held])); },
     async listPullRequests() { return []; }, async containsCommit() { return false; }, async commitFiles(change) { commits.push(change); throw new Error("a render writes nothing"); } });
   const product = snapshotOf(files, ADDRESS), instance = snapshotOf({ "SPEC.md": "# Instance\n", "docs/participants.md": REGISTER }, "https://github.com/acme/agent-m");
   const context = { page: "review", instance: { repository: "acme/agent-m", host: hostOf(instance) }, product: { address: ADDRESS, kind: "github", host: hostOf(product), tokenStored: true }, store: {}, go() {} };

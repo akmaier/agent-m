@@ -126,16 +126,18 @@ const reasonOf = (st) => (st.state === "waiting for acceptance" ? `not accepted:
 const stateCell = (st) => `${badge(st.state)}${st.reason ? ` <span class="muted small">${h(reasonOf(st))}</span>` : ""}`;
 
 // The view the route draws: the one stored for the head, else the one stored last with its commit (asOf), else the one derived in the page from the facts of the scope `work`
-// and the requirements of the SPEC. -> { ref, view, asOf }
-async function viewOf(context) {
+// and the requirements of the SPEC — the route `implement` draws from it too. -> { ref, snapshot, view, asOf, facts }: the snapshot of the head; the facts where the view was
+// derived, else null.
+export async function viewOf(context) {
   const { product } = context;
   const ref = product.ref ?? (await product.host.repositoryInfo()).defaultBranch;
   const shots = new Map([[ref, product.host.readSnapshot(ref)]]);
-  const stored = await storedView(await shots.get(ref), "backlog");
-  if (stored) return { ref, view: stored.view, asOf: stored.asOf };
+  const snapshot = await shots.get(ref);
+  const stored = await storedView(snapshot, "backlog");
+  if (stored) return { ref, snapshot, view: stored.view, asOf: stored.asOf, facts: null };
   const { facts } = await workFacts({ ...context, product: { ...product, ref } }, null, shots);
   const requirements = [...parseSpec((await facts.snapshot.read("SPEC.md")) ?? "").requirements.keys()];
-  return { ref, view: backlogView({ ...facts, requirements }, new Date()), asOf: null };
+  return { ref, snapshot, view: backlogView({ ...facts, requirements }, new Date()), asOf: null, facts };
 }
 
 const teamOf = (ctx, team) => ctx.view.teams.find((each) => each.team === team) ?? null;
