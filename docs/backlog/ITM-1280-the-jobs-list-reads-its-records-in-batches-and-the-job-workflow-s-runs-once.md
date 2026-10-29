@@ -10,6 +10,7 @@ modules:
   - MOD-job-ledger
   - MOD-runtimes
   - MOD-main-page
+  - MOD-review-pages
 builds_on: []
 tests:
   - unit
@@ -78,6 +79,16 @@ lists the job workflow's runs once (2 pages) instead of once per unended job (up
   - The release test is changed by developer-sonnet-l, in a commit of its own on the item's branch.
   - `liveStates` changes the listing of the job workflow's runs on `#jobs`. Its counts stand in `main-page-jobs`, which
     is named above.
-- **Tests of other modules this Outcome changes: none**, by that run. The tests of MOD-implementation-pages,
+- **One test of another module changes:** `tests/review-pages-use-cases.test.mjs` (MOD-review-pages), TST-680211
+  (`:572-579`).
+  - It counts one call of `readMany` naming the job records. MOD-review-pages' `readJobRecords`
+    (`src/review-pages/common.mjs:89-93`) names them, and `listJobs` now names them again, so there are two calls.
+  - The host's `readMany` asks only for blobs it does not hold yet (`src/repository-hosts/index.mjs:268-273`), so the
+    second call sends no request.
+  - The expectation becomes: at least one call, and every call names every job record and nothing else. Its `expect:`
+    says so, and every other assertion stays.
+  - It is changed by developer-opus-f in a commit of its own on the item's branch.
+  - The item names MOD-review-pages for that one test, and no code of it changes.
+- **Tests of other modules this Outcome changes: none besides**, by that run. The tests of MOD-implementation-pages,
   MOD-review-pages, MOD-progress-measures, MOD-prompt-bar and MOD-runtimes that call `listJobs` pass with the change.
 - It removes no test.
