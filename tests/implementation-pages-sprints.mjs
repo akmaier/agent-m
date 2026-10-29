@@ -139,7 +139,8 @@ export const row = (html, item) => { const at = html.indexOf(`data-item="${item}
 //
 // The fixture's files served by tests/app-harness.mjs' repoServer, a fake of GitHub's API that counts every request, through the real MOD-repository-hosts host connected
 // with a token; the product is the instance itself, at the commit COMMIT. `overview` holds the files of the branch overview-cache by path, served through the contents API
-// (`?ref=overview-cache`) and counted as `handler GET …`; a file it does not hold is answered 404. The pull requests are those above, in GitHub's form, at /pulls.
+// (`?ref=overview-cache`) and counted as `handler GET …`; a file it does not hold is answered 404. The pull requests are those above, in GitHub's form, at /pulls; a test's own
+// handlers, `server`, answer what else it asks of the server, as repoServer's handlers do.
 
 export const GITHUB_ADDRESS = `https://github.com/${REPO}`;
 // The declaration of the product over GitHub: its model_version is the head, which the instance — the same repository — holds.
@@ -149,9 +150,9 @@ const githubPull = (p) => ({ number: p.number, title: p.title, head: { ref: p.br
   merged_at: p.merged, merge_commit_sha: p.mergeCommit, created_at: p.opened, updated_at: p.updated, closed_at: p.closed, draft: false, html_url: p.url, body: p.body });
 
 // The view of `page` — "progress" or "backlog" — of `files` at `commit`, as the workflow stores it: progressView or backlogView of the product's facts (here the scope `work`
-// over the in-memory host above, with the SPEC's requirements), as gzipped JSON.
-export async function storedViewBytes(page, files, commit = COMMIT) {
-  const host = hostOf({ ...files });
+// over the in-memory host above, with the SPEC's requirements, and the pull requests given), as gzipped JSON.
+export async function storedViewBytes(page, files, commit = COMMIT, pullRequests = PULL_REQUESTS) {
+  const host = hostOf({ ...files }, { pullRequests });
   const snapshot = await host.readSnapshot("main");
   const facts = await measures.productFacts(host, snapshot, () => host.readSnapshot("main"), new Date(), { scope: "work" });
   const requirements = [...parseSpec(files["SPEC.md"] ?? "").requirements.keys()];
@@ -159,7 +160,7 @@ export async function storedViewBytes(page, files, commit = COMMIT) {
   return new Uint8Array(gzipSync(JSON.stringify({ ...view, commit })));
 }
 
-export async function renderOverGitHub(name, params = {}, { files = productFiles({ "docs/process.md": DECLARATION_AT_HEAD }), overview = {}, pullRequests = PULL_REQUESTS } = {}) {
+export async function renderOverGitHub(name, params = {}, { files = productFiles({ "docs/process.md": DECLARATION_AT_HEAD }), overview = {}, pullRequests = PULL_REQUESTS, server = [] } = {}) {
   const route = view.routes.find((candidate) => candidate.name === name);
   const json = (body) => new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
   const cache = (url) => {
@@ -168,7 +169,7 @@ export async function renderOverGitHub(name, params = {}, { files = productFiles
     return Object.hasOwn(overview, path) ? new Response(overview[path], { status: 200 }) : new Response('{"message":"Not Found"}', { status: 404 });
   };
   const pulls = (url) => (url.origin === "https://api.github.com" && url.pathname === `/repos/${REPO}/pulls` ? json(pullRequests.map(githubPull)) : undefined);
-  const srv = await repoServer({ files, handlers: [cache, pulls], head: COMMIT });
+  const srv = await repoServer({ files, handlers: [cache, pulls, ...server], head: COMMIT });
   const real = globalThis.fetch;
   globalThis.fetch = srv.fetch;
   const host = connect(parseAddress(GITHUB_ADDRESS), { token: TOKEN });
