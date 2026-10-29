@@ -7,6 +7,7 @@ realises:
   - THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE
 modules:
   - MOD-browser-store
+  - MOD-settings-pages
 builds_on:
 tests:
   - unit
@@ -43,5 +44,12 @@ the export do not carry it.
   its `settingInfo`, from the catalogue alone: 191 test files that name MOD-browser-store or one of its functions, and the
   tests of MOD-settings-pages and MOD-prompt-bar. No case fails that does not fail without it. No test of another module
   changes.
+- A stored `session:<bridge>:<agent>` setting has its line on the page `settings`, as every key the store writes does
+  (`EVERY SETTING IS REACHED FROM ONE PAGE`, SPEC.md:649-653; MOD-settings-pages.md:147-150, "one line per setting with its
+  state", and "a browser setting has *Test*, *Change* and *Clear*"). The line is titled with the setting's label and
+  shows no value. *Test* tests the Bridge `<bridge>` with `MOD-bridge-client.testBridge` and says whether it still offers
+  `<agent>`; *Change* opens the route `bridge`, where a CLI session is set up (MOD-settings-pages.md:252-256); *Clear*
+  clears the setting. `tests/test_settings_page.py` (MOD-settings-pages) gains `session:sample` in `PLACES` and `STORED`,
+  and the line in `TestedAndCleared`'s titles, in a commit of tests of its own, red there, before the line is drawn.
 - The setting's `setUpIn` is the page of the use case that sets it up (MOD-browser-store.md:49-50): UC-044, where a Bridge
   is paired, as UC-049 names it for a CLI session.
