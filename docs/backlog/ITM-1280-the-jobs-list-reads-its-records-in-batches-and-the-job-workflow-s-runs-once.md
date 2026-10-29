@@ -56,3 +56,28 @@ lists the job workflow's runs once (2 pages) instead of once per unended job (up
 
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - Only the folders of the three modules and the tests that name them change.
+- **The functions the Outcome needs are named in the Uses of the modules that call them:**
+  - MOD-main-page's names `MOD-runtimes.liveStates` (MOD-main-page.md:41, :138);
+  - MOD-runtimes provides `liveStates` (MOD-runtimes.md:79, :299);
+  - MOD-job-ledger names `readSnapshot` and `Snapshot` (MOD-job-ledger.md:181: the records of a snapshot "are named to
+    its `readMany` first").
+- **The search for every count and expectation the Outcome changes was a run, not a text search.** On
+  `sprint/team1/116` at `b96d0ae8`, `listJobs` was made to name the records to `readMany` first. The 135 test files that
+  name `listJobs`, `liveState`, `#jobs`, `agent-m-jobs.yml`, `job-ledger` or `main-page` were run with and without that
+  change.
+  - Without it, 1,044 of 1,053 pass and 1 fails, which fails the same way with it.
+  - With it, 21 more fail, all of MOD-main-page:
+    - `main-page-jobs` (TST-509001 to 006, TST-970001 to 003, TST-866002);
+    - `main-page-job-one-record` (TST-1269001, 002);
+    - `main-page-home` (TST-943002, 005, 007);
+    - `main-page-root-entry` (TST-684002);
+    - `main-page-home-instance` (TST-1281001);
+    - `release-itm-1269-job-page-reads-its-own-job` (TST-1269301 to 304).
+  - The Developer names, for each, whether its expectation changes or its fake of the host answers the batch. Both stand
+    in the tests-only commit.
+  - The release test is changed by developer-sonnet-l, in a commit of its own on the item's branch.
+  - `liveStates` changes the listing of the job workflow's runs on `#jobs`. Its counts stand in `main-page-jobs`, which
+    is named above.
+- **Tests of other modules this Outcome changes: none**, by that run. The tests of MOD-implementation-pages,
+  MOD-review-pages, MOD-progress-measures, MOD-prompt-bar and MOD-runtimes that call `listJobs` pass with the change.
+- It removes no test.

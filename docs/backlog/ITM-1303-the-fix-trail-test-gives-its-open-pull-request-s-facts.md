@@ -31,4 +31,6 @@ page draws no problem.
   besides its present expectations. Counter-proof: the fixture as it stands draws the problem, and fails it.
 - No other expected result changes.
 - Only `tests/maintenance-pages-fix-583.test.mjs` changes.
-- Tests of other modules this Outcome changes: none.
+- Tests of other modules this Outcome changes: none. It changes one fixture and adds one assertion to one test, and no
+  code.
+- It removes no test.
