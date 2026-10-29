@@ -9,7 +9,7 @@
 // (start.run, MOD-job-ledger's appendToRecord). ITM-319 builds queueJob's tab route and runOnTab (tab.mjs); ITM-325 its Bridge route and bridgeDriver (bridge.mjs).
 // ITM-535 builds liveState, jobLog and cancelJob for the CI route, the tab's route and a job no runtime has taken; ITM-545 for a job taken on a Bridge, through MOD-bridge-client's bridgeJobs, bridgeJobLog and cancelOnBridge (bridge.mjs).
 // ITM-495 builds handOverJob (hand-over.mjs) and the inputs task and endpoint of the GitHub template; ITM-973 builds retryJob (retry.mjs).
-// ITM-567 builds routeStrategies (pull-request.mjs): the writer branch-and-pull-request. ITM-790 builds resumeJob.
+// ITM-567 builds routeStrategies (pull-request.mjs): the writer branch-and-pull-request. ITM-790 builds resumeJob. ITM-1280 builds liveStates: one listing of a repository's job workflow runs for all its records.
 //
 // Module: MOD-runtimes
 //
@@ -17,7 +17,7 @@
 // index.mjs. ci.mjs is private to it, besides the RuntimeError it re-exports here.
 
 import { appendToRecord } from "../job-ledger/index.mjs";
-import { cancelRun, queueOnCi, runOfAddress } from "./ci.mjs";
+import { cancelRun, jobWorkflowRuns, queueOnCi, runOfAddress } from "./ci.mjs";
 import { abortOnTab, endOnTab, heldOnTab, queueOnTab, requireWaitingOnTab, tookOnTab } from "./tab.mjs";
 import { retryJob as retryWith } from "./retry.mjs";
 import { bridgeNamed, cancelBridgeJob, followBridgeLog, handOverAgain, listedOnBridge, queueOnBridge } from "./bridge.mjs";
@@ -103,7 +103,25 @@ function takenOn(record) {
  * (bridgeJobs), running while its state is `running`, with its usage, and unknown where the Bridge lists none. A failure of the host, a Bridge missing from `bridges` and a Bridge that does not answer give
  * `reachable: false` and the reason (the client's, for a Bridge), never an error. `writtenAfterCancel` holds, for a job that ended cancelled, the commits of the branch named after the job dated after the cancel (trail.mjs), and is empty for any other.
  */
-export async function liveState(record, product, bridges) {
+export function liveState(record, product, bridges) {
+  return stateOf(record, product, bridges, () => undefined);
+}
+
+/**
+ * liveStates(records, product, bridges) -> Promise<Map<string, LiveState>> — liveState for each of the records of one repository that have not ended, keyed by the job's identifier in the order of the records
+ * (MOD-runtimes, Interfaces): the runs of the job workflow are listed once for all of them, when the first record taken on CI asks for them, and not at all where none is; the same states liveState gives one
+ * by one, a failed listing included — each record taken on CI is then `reachable: false` with its reason.
+ */
+export async function liveStates(records, product, bridges) {
+  const open = records.filter((record) => !record.end);
+  let listed;
+  const runs = () => (listed ??= jobWorkflowRuns(product.host));
+  const states = await Promise.all(open.map((record) => stateOf(record, product, bridges, runs)));
+  return new Map(open.map((record, at) => [record.id, states[at]]));
+}
+
+// The live state of one record (liveState); `runs()` gives the listing of the job workflow's runs a CI record is found in — undefined, where each record lists them for itself.
+async function stateOf(record, product, bridges, runs) {
   // A job that ended cancelled has no runtime to ask: what its branch got after the cancel is what is reported (UC-036 6a).
   if (record.end?.state === "cancelled") {
     try {
@@ -128,7 +146,7 @@ export async function liveState(record, product, bridges) {
       }
     default:
       try {
-        const run = await runOfAddress(product.host, record.taken.by);
+        const run = await runOfAddress(product.host, record.taken.by, runs());
         if (!run) return { ...UNKNOWN };
         return { ...UNKNOWN, known: true, running: ["queued", "running", "waiting"].includes(run.state), log: run.url };
       } catch (error) {
