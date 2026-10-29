@@ -183,7 +183,7 @@ conversation's draft, the main page the conversation's job, and the settings pag
 
 | Module | Functions other modules use |
 |---|---|
-| MOD-site-frame | the types `View`, `Route`, `ViewContext` and `PageSetup`; `startPage`, `embedRoute`, `menuOf`, `instanceOf`, `chosenProduct`, `explain`, `runPanel`, `confirmDecision`, `notice`, `schemaForm` |
+| MOD-site-frame | the types `View`, `Route`, `ViewContext` and `PageSetup`; `startPage`, `embedRoute`, `standIn`, `menuOf`, `instanceOf`, `chosenProduct`, `explain`, `runPanel`, `confirmDecision`, `notice`, `schemaForm` |
 | MOD-markdown-render | `renderArtifact`, `renderMermaid`, `openEditor`, `showDifference` |
 | MOD-notifications | `NotificationState`, `watchForAcceptance`, `notificationState`, `switchOn`, `testNotification`, `switchOff` |
 | MOD-prompt-bar | `Subject`, `Message`, `ConversationDraft`, `startPromptBar`, `latestDraft`, `currentJob`, `recordingSchema`, `recordingOf` |
