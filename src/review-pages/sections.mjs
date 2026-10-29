@@ -9,6 +9,7 @@
 import { renderArtifact, showDifference } from "../markdown-render/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { storedGraph, architectureImpact } from "../trace-graph/index.mjs";
+import { asOfLine } from "./common.mjs";
 
 function el(name, className, ...children) {
   const node = document.createElement(name);
@@ -94,8 +95,9 @@ export function roundsSection(rounds, stopped = null) {
 }
 
 // A SPEC change entry's sections, drawn from its view as MOD-spec-changes gives it: the section that holds now, the proposal, their difference, the
-// rationale, the impact list, the other open proposals on the same section — [{ id, state }] — and the queue's order — [{ number, anchor, state }].
-export function entrySections(view, others, order, hrefOf) {
+// rationale, the impact list, the other open proposals on the same section — [{ id, state }], with the line As of while they are of the earlier commit `asOf` — and the queue's
+// order — [{ number, anchor, state }].
+export function entrySections(view, others, order, hrefOf, asOf = null) {
   const impact = el("ul", "impact");
   for (const each of view.impact) impact.append(el("li", null, `${each.name} — ${each.change}${each.referencedBy.length ? `, named by ${each.referencedBy.join(", ")}` : ""}`));
   const otherList = el("ul", "others");
@@ -112,7 +114,7 @@ export function entrySections(view, others, order, hrefOf) {
     el("section", "difference", el("h3", null, "Difference"), showDifference(view.current?.text ?? "", view.proposal.text)),
     el("section", "rationale", el("h3", null, "Why"), renderArtifact(view.rationale)),
     el("section", "impact-list", el("h3", null, "Impact list"), impact),
-    el("section", "others-list", el("h3", null, "Other open proposals on this section"), otherList),
+    el("section", "others-list", el("h3", null, "Other open proposals on this section"), ...[asOfLine(asOf)].filter(Boolean), otherList),
     el("section", "queue-order", el("h3", null, "The queue's order"), orderList),
   ];
 }

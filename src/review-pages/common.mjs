@@ -14,6 +14,9 @@ export const refusalText = (failure) => `${failure.name}: ${failure.message}${fa
 
 export const TOKEN_STEP = "#add";
 
+// The line above the other proposals while they are of an earlier commit than the page's (MOD-progress-measures' waitingQueues, `asOf`), or null when they are of its own.
+export const asOfLine = (asOf) => (asOf ? el("p", "muted as-of", `As of ${asOf.slice(0, 7)}: the overview of the newest commit is being stored.`) : null);
+
 export function el(name, className, ...children) {
   const node = document.createElement(name);
   if (className) node.className = className;
