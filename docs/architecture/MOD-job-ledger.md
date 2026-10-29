@@ -183,9 +183,11 @@ by: tab <identifier>
   snapshot are named to its `readMany` first, so that they are read in batches. A record that cannot be read
   is listed with what could be read and the reason.
 - `recordsNewestFirst(snapshot: Snapshot) -> AsyncIterable<JobRecord>` — the job records of a snapshot, newest first by
-  the start their paths name, each read only when its caller asks for the next one, so that a caller that looks for a
-  recent job stops reading where it has found it. Crosses the network through the snapshot, for the records it has not
-  read yet; the iteration fails with the snapshot's errors — `TokenRefused`, `PermissionMissing`, `RateLimited`,
+  the start their paths name, read in batches as its caller goes on: when the caller asks for a record not read yet, the
+  next hundred records in that order are named to the snapshot's `readMany` together, and given one by one, so that a
+  caller that looks for a recent job stops reading at the batch where it has found it, and one that reads every record
+  sends no more requests than a batched read of all (`A PAGE LOAD READS THE REPOSITORY IN BATCHES`). Crosses the
+  network through the snapshot, for the records it has not read yet; the iteration fails with the snapshot's errors — `TokenRefused`, `PermissionMissing`, `RateLimited`,
   `Unreachable`.
 - `jobCost(usage: Usage | null, participant: Participant) -> Cost` — the cost the runtime reported; otherwise the
   reported tokens at the participant's declared price; otherwise unknown, with the usage — never zero, never an estimate.
