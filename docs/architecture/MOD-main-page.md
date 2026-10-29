@@ -33,6 +33,12 @@ uses:
   - MOD-progress-measures.latestOverview
   - MOD-product-process.mayDecide
   - MOD-product-process.recordGateDecision
+  - MOD-product-process.declarationSchema
+  - MOD-product-process.roleAssignmentSchema
+  - MOD-product-process.productWorkflow
+  - MOD-participant-list.participantSchema
+  - MOD-participant-list.participantsOf
+  - MOD-documents.readDocument
   - MOD-job-ledger.listJobs
   - MOD-job-ledger.jobState
   - MOD-job-ledger.jobCost
@@ -184,7 +190,13 @@ instance repository through their hosts, and the browser's store for the product
   MOD-progress-measures.latestOverview — the overview stored last, while the head's is not stored yet;
   MOD-progress-measures.storedView — the backlog's view of a product's head, for *Retry* and *Pass gate*.
 - MOD-product-process.mayDecide — whether this person may decide the gate a job waits at;
-  MOD-product-process.recordGateDecision — the decision.
+  MOD-product-process.recordGateDecision — the decision; MOD-product-process.declarationSchema,
+  MOD-product-process.roleAssignmentSchema — the declaration and the role assignments of the product's head, read by
+  their schemas for *Retry* and *Pass gate*; MOD-product-process.productWorkflow — the workflow the declaration declares,
+  its roles and gates, for the same two.
+- MOD-participant-list.participantSchema, MOD-participant-list.participantsOf — the instance's participants, among whom
+  *Retry* offers a holder of the job's role; MOD-documents.readDocument — the declaration, the role assignments and the
+  participant list, each read by its schema.
 - MOD-job-ledger.listJobs, MOD-job-ledger.jobState, MOD-job-ledger.jobCost — the jobs, their states and costs;
   MOD-prompt-bar.currentJob — the job of this tab's conversation; MOD-prompt-bar.Subject — the subject the route `job` gives the prompt bar for the retry of a job that ran in a tab: the job's kind as its page and its inputs as its parameters, so that the conversation hands the retry on to that kind (UC-049 4a);
 - MOD-runtimes.routesFor — the routes a retry may take, for the product's resource needs in its facts;
