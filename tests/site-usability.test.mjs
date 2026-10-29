@@ -67,10 +67,7 @@ const CLAUSES = [
 
 // What the pages do today that the check names: route -> clause -> the finding, as measured in the controlled Electron at a phone's width
 // (at a desktop's width every route passes). Each is a todo until the module of its route fixes it; each fix is an item of that module.
-const TODAY = {
-  "#arc": { widths: "the table of the modules is wider than a phone's window (src/trace-pages/flow.mjs, MOD-trace-pages); ITM-1159, The architecture and modules views fit a phone" },
-  "#module": { widths: "the table of the modules is wider than a phone's window (src/trace-pages/flow.mjs, MOD-trace-pages); ITM-1159, The architecture and modules views fit a phone" },
-};
+const TODAY = {};
 
 // ---------------------------------------------------------------- drawing
 
