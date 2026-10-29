@@ -125,7 +125,7 @@ stages of the main page, and what waits for a person's acceptance.
 |---|---|
 | MOD-model-catalogue | `catalogue`, `modelSchema`, `modelFindings`, `planGrid`, `modelDiagram` |
 | MOD-product-process | `declarationSchema`, `declarationFindings`, `roleAssignmentSchema`, `roleAssignmentFindings`, `workflowOf`, `holdsRole`, `gateSchema`, `gateStates`, `mayDecide`, `recordGateDecision`, `doneCheck` |
-| MOD-work-plans | `planSchemas`, `itemStates`, `startable`, `planFindings`, `backlogFindings`, `backlogOf`, `listField`, `sprintFacts`, `heldItems`, `conflicts`, `savePlan`, `saveItems`, `startSprint`, `endSprint`, `closeSprint`, `workStrategies` |
+| MOD-work-plans | `planSchemas`, `itemStates`, `startable`, `planFindings`, `backlogFindings`, `backlogOf`, `moduleFiles`, `listField`, `sprintFacts`, `heldItems`, `conflicts`, `savePlan`, `saveItems`, `startSprint`, `endSprint`, `closeSprint`, `workStrategies` |
 | MOD-run-planner | `runOf`, `nextActions`, `runStrategies` |
 | MOD-progress-measures | `productFacts`, `progressIn`, `stageShares`, `currentStage`, `gateOverview`, `blocked`, `whoWorksOnWhat`, `buildInProgress`, `waitingForAPerson`, `waitingForAcceptance` |
 

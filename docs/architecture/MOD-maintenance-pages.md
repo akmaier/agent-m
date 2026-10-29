@@ -63,6 +63,7 @@ uses:
   - MOD-issue-handling.issueStrategies
   - MOD-work-plans.backlogFindings
   - MOD-work-plans.backlogOf
+  - MOD-work-plans.moduleFiles
   - MOD-work-plans.listField
   - MOD-spec-changes.queues
   - MOD-spec-changes.entryView
@@ -202,8 +203,8 @@ instance's participants and source register.
 - MOD-issue-handling.confirmClass, MOD-issue-handling.backlogItemFrom, MOD-issue-handling.moveToBacklog,
   MOD-issue-handling.closeWithLinks — every decision on an issue.
 - MOD-work-plans.backlogFindings — the item's marks while the person edits it; MOD-work-plans.backlogOf — the items a
-  further issue may be added to and the drafted item's `builds_on` is checked against, and the module files the item is
-  marked against; MOD-work-plans.listField — the modules the person types into the item's form, as a list; MOD-spec-changes.queues — the change's
+  further issue may be added to and the drafted item's `builds_on` is checked against; MOD-work-plans.moduleFiles — the
+  module files the item is marked against and the analysis names modules from; MOD-work-plans.listField — the modules the person types into the item's form, as a list; MOD-spec-changes.queues — the change's
   queues, those whose `issue` names the number of the issue shown and the address of the product the frame has chosen;
   MOD-spec-changes.entryView — the requirements each of their entries changes or adds, its `impact`, given to
   `backlogItemFrom` as `changed`, since an entry's anchor is the heading of a whole section, not a requirement's name.

@@ -28,6 +28,7 @@ uses:
   - MOD-documents.Document
   - MOD-work-plans.saveItems
   - MOD-work-plans.backlogOf
+  - MOD-work-plans.moduleFiles
   - MOD-job-runner.Strategies
 provides:
   - confirmClass
@@ -129,7 +130,7 @@ labels and closes issues in the product's tracker through Access; the item is wr
 - `MOD-personal-data.pseudonymisationOf` — whether the issue's report data was rewritten without persons.
 - `MOD-documents.Document` — the prefilled item; `MOD-documents.readDocument` — the product's settings, read for
   `pseudonymisationOf`.
-- `MOD-work-plans.saveItems` — writing the item; `MOD-work-plans.backlogOf` — the module files of the architecture that
-  `saveItems` checks the item against, and an existing item that takes this issue as a further origin, its origins as a
-  list.
+- `MOD-work-plans.saveItems` — writing the item; `MOD-work-plans.moduleFiles` — the module files of the architecture that
+  `saveItems` checks the item against; `MOD-work-plans.backlogOf` — an existing item that takes this issue as a further
+  origin, its origins as a list.
 - `MOD-job-runner.Strategies` — the type of `issueStrategies`.

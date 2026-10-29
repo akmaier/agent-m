@@ -67,6 +67,7 @@ provides:
   - planFindings
   - backlogFindings
   - backlogOf
+  - moduleFiles
   - listField
   - sprintFacts
   - sprintsToClose
@@ -191,12 +192,15 @@ assignment is the one of the team whose sprint holds it, and the product's one i
   with the graph it asked for with its commit —; `graphFindings` then runs on it and `source` is read for no
   graph. Without `graph`, the graph is built from `source`, as above. Crosses the network through `source` for the
   files it has not read; fails with its errors.
-- `backlogOf(snapshot: Snapshot) -> Promise<{ items: Array<{ id: string, path: string, title: string, document: Document
-  }>, architecture: Document[] }>` — the backlog at a snapshot, for a module that adds to it: its items under
-  `docs/backlog/`, in the order of their identifiers, each read with MOD-documents' item schema, its list fields given as
-  lists as `listField` reads them; and the module files of the architecture read with the module schema, the
-  `architecture` that `saveItems` and `backlogFindings` take. The files are named to the snapshot's `readMany` first, so
-  that they are read in batches. Crosses the network through the snapshot; fails with its errors.
+- `backlogOf(snapshot: Snapshot) -> Promise<Array<{ id: string, path: string, title: string, document: Document }>>` —
+  the backlog's items at a snapshot, under `docs/backlog/`, in the order of their identifiers, each read with
+  MOD-documents' item schema, its list fields given as lists as `listField` reads them. The files are named to the
+  snapshot's `readMany` first, so that they are read in batches. Crosses the network through the snapshot; fails with
+  its errors.
+- `moduleFiles(snapshot: Snapshot) -> Promise<Document[]>` — the module files of the architecture at a snapshot, read
+  with MOD-documents' module schema in batches as `backlogOf` reads: the `architecture` that `saveItems` and
+  `backlogFindings` take. Apart from `backlogOf`, so that a caller that needs only these reads no item. Crosses the
+  network through the snapshot; fails with its errors.
 - `listField(value: string | string[] | null | undefined) -> string[]` — a list field of an item, or a field a person
   types a list into, as its values: a list as it stands, a text split at its commas, each value trimmed, empty ones left
   out. Pure.
