@@ -45,6 +45,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import * as runtimes from "../src/runtimes/index.mjs";
 import { ciEnvironment } from "../src/workflow-entries/compose.mjs";
 
@@ -100,7 +101,7 @@ test("jobWorkflowFiles — the file of GitHub, and the file of GitLab with the s
 // guards: UC-010
 // given: the two files for the instance, the secrets and the runner above
 // input: the triggers and the steps of the GitHub file; the rules of each job of the GitLab file
-// expect: GitHub — a push that changes docs/jobs/ or docs/gates/, a pull request closed, a check run completed, a schedule once a day, and a start by hand with the job's identifier as its input; the entries that run an agent — push onRecordsChanged, dispatch onDispatch — in each agent's job, each once, after the plan, which runs only on a dispatch or a push to the default branch; the entries that run none — pull request onPullRequestClosed, check onCheckCompleted, schedule onSchedule — and writeResult, on a dispatch or a push to the default branch, in the job that writes, each once; every step that runs an entry runs `node src/workflow-entries/main.mjs <entry>` on its event. GitLab — the plan and each agent's job have a rule for a push to the default branch that changes docs/jobs/ or docs/gates/ and one for a start from the page or the API, the agent's jobs setting AGENT_M_ENTRY to onRecordsChanged and onDispatch; the job that writes has the push rule, a second push rule for any push to the default branch, then pipeline and schedule, then the start, setting writeResult, onPullRequestClosed, onCheckCompleted, onSchedule and writeResult; the plan's script runs chooseAgentKey, every other job's the entry its rule sets
+// expect: GitHub — a push that changes docs/jobs/ or docs/gates/, a pull request closed, a check run completed, a schedule once a day, and a start by hand with the job's identifier as its input; the entries that run an agent — push onRecordsChanged, dispatch onDispatch — in each agent's job, each once, after the plan, which runs only on a dispatch or a push to the default branch; the entries that run none — pull request onPullRequestClosed, check onCheckCompleted, schedule onSchedule — and writeResult, on a dispatch or a push to the default branch, in the job that writes, each once; every step that runs an entry runs `node src/workflow-entries/main.mjs <entry>` on its event. GitLab — the plan and each agent's job have a rule for a push to the default branch that changes docs/jobs/ or docs/gates/ and one for a start from the page or the API, the agent's jobs setting AGENT_M_ENTRY to onRecordsChanged and onDispatch; the job that writes has the push rule, a second push rule for a push of any branch, then pipeline and schedule, then the start, setting writeResult, onPullRequestClosed, onCheckCompleted, onSchedule and writeResult; the plan's script runs chooseAgentKey, every other job's the entry its rule sets
 test("jobWorkflowFiles — each event starts its entry, on GitHub and on GitLab", () => {
   const github = workflow("github");
   assert.match(github, /\n  push:\n(?:.*\n)*?    paths:\n(?:.*\n)*?      - ["']?docs\/jobs\/\*\*["']?\n(?:.*\n)*?      - ["']?docs\/gates\/\*\*["']?\n/);
@@ -128,7 +129,7 @@ test("jobWorkflowFiles — each event starts its entry, on GitHub and on GitLab"
   for (const job of gitlab) {
     const kind = job.id.endsWith("-plan") ? "plan" : /-agent-\d+$/.test(job.id) ? "agent" : "write";
     const sources = { plan: [PUSH, STARTED], agent: [PUSH, STARTED],
-      write: [PUSH, PUSH, '$CI_PIPELINE_SOURCE == "pipeline"', '$CI_PIPELINE_SOURCE == "schedule"', STARTED] }[kind];
+      write: [PUSH, '$CI_PIPELINE_SOURCE == "push"', '$CI_PIPELINE_SOURCE == "pipeline"', '$CI_PIPELINE_SOURCE == "schedule"', STARTED] }[kind];
     const entries = { plan: [], agent: ["onRecordsChanged", "onDispatch"], write: ["writeResult", "onPullRequestClosed", "onCheckCompleted", "onSchedule", "writeResult"] }[kind];
     assert.deepEqual(rulesOf(job).map((rule) => /^    - if: '(.*)'\n/.exec(rule)[1]), sources, `${job.id}: a rule for each event it runs on`);
     assert.deepEqual(rulesOf(job).flatMap((rule) => [...rule.matchAll(/AGENT_M_ENTRY: (\w+)/g)].map((m) => m[1])), entries, `${job.id}: the entry of each rule`);
@@ -141,21 +142,67 @@ test("jobWorkflowFiles — each event starts its entry, on GitHub and on GitLab"
 // guards: GITLAB PRODUCTS ARE SUPPORTED; UC-012
 // given: the GitLab file for the instance, the secrets and the runner above; MOD-runtimes' table: the job workflow runs `onPullRequestClosed` on "a pull or merge request closed or merged"
 // input: the rules of each route's job that writes
-// expect: no rule runs on `merge_request_event`, a pipeline of an open merge request, which is not its merge; the rule that sets onPullRequestClosed is a push to the default branch with no `changes:`, the pipeline that GitLab starts on the target branch when a merge request is merged, and it comes after the rule that sets writeResult for a push that changes docs/jobs/ or docs/gates/; counter-proof: the plan's and the agent's jobs have no such rule
+// expect: no rule runs on `merge_request_event`, a pipeline of an open merge request, which is not its merge; the rule that sets onPullRequestClosed is a push of any branch with no `changes:`, the pipeline that GitLab starts on the target branch, whichever it is, when a merge request is merged, and it comes after the rule that sets writeResult for a push to the default branch that changes docs/jobs/ or docs/gates/; counter-proof: the plan's and the agent's jobs have no such rule
 test("jobWorkflowFiles — on GitLab the job that writes runs onPullRequestClosed on the push that merges a merge request, not on a merge request's own pipeline", () => {
-  const PUSH = '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH';
+  const PUSH = '$CI_PIPELINE_SOURCE == "push"';
   for (const job of gitlabJobs(workflow("gitlab"))) {
     const rules = rulesOf(job);
     const closing = rules.filter((rule) => rule.includes("AGENT_M_ENTRY: onPullRequestClosed"));
     if (!/-(?:plan|agent-\d+)$/.test(job.id)) {
       assert.ok(!job.text.includes("merge_request_event"), `${job.id}: no rule runs on a merge request's own pipeline`);
       assert.equal(closing.length, 1, job.id);
-      assert.ok(closing[0].startsWith(`    - if: '${PUSH}'\n`), `${job.id}: ${closing[0]}`);
-      assert.ok(!closing[0].includes("changes:"), `${job.id}: any push to the default branch`);
+      assert.ok(closing[0].startsWith(`    - if: '${PUSH}'\n`), `${job.id}: a push of any branch: ${closing[0]}`);
+      assert.ok(!closing[0].includes("changes:"), `${job.id}: any push, whatever it changes`);
       const entries = rules.flatMap((rule) => [...rule.matchAll(/AGENT_M_ENTRY: (\w+)/g)].map((m) => m[1]));
       assert.ok(entries.indexOf("writeResult") < entries.indexOf("onPullRequestClosed"), `${job.id}: the records' push rule comes first`);
     } else assert.equal(closing.length, 0, `counter-proof: ${job.id} runs no such entry`);
   }
+});
+
+// GitLab's start of a pipeline, read from the generated file ("rules:", docs.gitlab.com): a job is in the pipeline when one of its rules holds — its `if:`, and, where it
+// has `changes:`, a changed path below one of them —, and the first rule that holds sets its variables. The `if:` expressions of the file are comparisons with `==`,
+// joined by `&&` and `||`. What the job then runs is its script's lines that run an entry, run by `sh` with those variables and with `node` standing in for Node, which
+// only names the entry it is given; nothing else of the script runs, and nothing reaches the network.
+const valueOf = (side, variables) => (side.startsWith("$") ? variables[side.slice(1)] ?? null : JSON.parse(side));
+const holds = (expression, variables) => expression.split("||").some((any) => any.split("&&").every((comparison) => {
+  const [left, right] = comparison.split("==").map((side) => side.trim());
+  return valueOf(left, variables) === valueOf(right, variables);
+}));
+const changesOf = (rule) => [...(/\n      changes:\n((?:        - .*\n?)+)/.exec(rule)?.[1] ?? "").matchAll(/- (.+)/g)].map((match) => match[1]);
+const below = (glob, path) => path.startsWith(glob.replace(/\*\*\/\*$/, ""));
+/** The jobs of the GitLab file GitLab starts for a pipeline of these variables whose push changed these paths, each with the entries its script runs: [{ id, entries }]. */
+function pipelineOf(text, variables, changed) {
+  return gitlabJobs(text).flatMap((job) => {
+    const rule = rulesOf(job).find((each) => holds(/^    - if: '(.*)'\n/.exec(each)[1], variables)
+      && (changesOf(each).length === 0 || changed.some((path) => changesOf(each).some((glob) => below(glob, path)))));
+    if (!rule) return [];
+    const set = Object.fromEntries([...rule.matchAll(/^ {8}(AGENT_M_[A-Z_]+): (\S+)$/gm)].map((match) => [match[1], match[2]]));
+    const lines = job.text.slice(job.text.indexOf("\n  script:\n")).split("\n").filter((line) => /^    - .*main\.mjs/.test(line)).map((line) => line.slice(6));
+    const run = spawnSync("sh", ["-c", `node() { printf '%s\\n' "$2"; }\n${lines.join("\n")}`], { env: { PATH: process.env.PATH, ...variables, ...set }, encoding: "utf8" });
+    return [{ id: job.id, entries: run.stdout.split("\n").filter(Boolean) }];
+  });
+}
+const PIPELINE = (source, branch) => ({ CI_PIPELINE_SOURCE: source, CI_COMMIT_BRANCH: branch, CI_DEFAULT_BRANCH: "main", CI_PROJECT_DIR: "/builds/product" });
+
+// TST-1289001 · level: unit · module: MOD-runtimes
+// guards: GITLAB PRODUCTS ARE SUPPORTED; UC-012
+// given: the GitLab file for the instance, the secrets and the runner gpu above; MOD-runtimes' table: `onPullRequestClosed` for "a pull or merge request closed or merged"; GitLab starts, for the merge of a merge request, the push pipeline of its target branch, and of a push the first rule of a job that holds sets its variables; the default branch main
+// input: the pipeline of (1) the push to main that merges a merge request whose commit changes docs/jobs/JOB-20261029-0900-a1b2.md and src/store/read.mjs, (2) the push to sprint/team1/120 that merges one into that sprint branch, changing src/store/read.mjs; known positive: (3) a push to main that changes src/store/read.mjs; counter-proofs: (4) a merge request's own pipeline (merge_request_event) and (5) the schedule
+// expect: (1) each route's job that writes runs writeResult and then onPullRequestClosed; (2) only the jobs that write start, agent-m-hosted and agent-m-runner-gpu, each running onPullRequestClosed and nothing else; (3) the same two jobs, each running onPullRequestClosed once; (4) no job starts; (5) the jobs that write run onSchedule alone
+test("jobWorkflowFiles — on GitLab every merged merge request runs onPullRequestClosed, one whose commit changes the records and one into another branch than the default one", () => {
+  const text = workflow("gitlab");
+  const writing = (pipeline) => pipeline.filter((job) => !/-(?:plan|agent-\d+)$/.test(job.id));
+  const WRITE_JOBS = ["agent-m-hosted", "agent-m-runner-gpu"];
+
+  const records = pipelineOf(text, PIPELINE("push", "main"), ["docs/jobs/JOB-20261029-0900-a1b2.md", "src/store/read.mjs"]);
+  assert.deepEqual(writing(records), WRITE_JOBS.map((id) => ({ id, entries: ["writeResult", "onPullRequestClosed"] })), "(1) a merge whose commit changes docs/jobs/ runs both entries");
+
+  const sprint = pipelineOf(text, PIPELINE("push", "sprint/team1/120"), ["src/store/read.mjs"]);
+  assert.deepEqual(sprint, WRITE_JOBS.map((id) => ({ id, entries: ["onPullRequestClosed"] })), "(2) a merge into a sprint branch runs onPullRequestClosed");
+
+  assert.deepEqual(pipelineOf(text, PIPELINE("push", "main"), ["src/store/read.mjs"]), WRITE_JOBS.map((id) => ({ id, entries: ["onPullRequestClosed"] })), "(3) known positive: a merge into main");
+  assert.deepEqual(pipelineOf(text, { ...PIPELINE("merge_request_event", null), CI_MERGE_REQUEST_IID: "7" }, ["src/store/read.mjs"]), [], "(4) an open merge request's pipeline starts no job");
+  assert.deepEqual(writing(pipelineOf(text, PIPELINE("schedule", "main"), [])), WRITE_JOBS.map((id) => ({ id, entries: ["onSchedule"] })), "(5) the schedule closes no merge request");
 });
 
 // ---------------------------------------------------------------- the routes
