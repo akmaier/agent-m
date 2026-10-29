@@ -298,7 +298,10 @@ The six stages of the main page, each a share between 0 and 1:
 - `ScheduleView` — what the route `schedule` shows of one commit's tests: `{ commit: string, counts: { unit: number,
   component: number, system: number, release: number, user: number, paid: number } }`, the number of the test
   declarations of each level, and of those that call a paid service.
-- `scheduleView(facts: Facts) -> ScheduleView` — the counts of `facts.tests`. Pure; `publishOverview` adds
+- `scheduleView(facts: { snapshot: Snapshot, tests: TestDeclaration[] | "unknown" }) -> ScheduleView` — the counts of
+  `facts.tests`, of the commit of `facts.snapshot`: of `Facts` it takes these two parts only, so that a caller holding a
+  snapshot and the declarations of its test files gives them without the other facts. Throws a `TypeError` where
+  `facts.tests` is `"unknown"`: a count is never guessed. Pure; `publishOverview` adds
   `<commit>.schedule.json.gz` from it, in the same commit as the other views, and a file the branch holds already is left
   as it is.
 - `publishOverview(host: Host, snapshot: Snapshot, facts: Facts) -> Promise<{ commit: string, written: boolean }>` —

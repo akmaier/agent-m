@@ -10,6 +10,7 @@ uses:
   - MOD-repository-hosts.readSnapshot
   - MOD-repository-hosts.commitFiles
   - MOD-repository-hosts.pullRequestFacts
+  - MOD-repository-hosts.listPullRequests
   - MOD-repository-hosts.readHistory
   - MOD-documents.readDocument
   - MOD-documents.readRegister
@@ -406,7 +407,10 @@ sections with their decisions and the fetched texts of sources. Reads secrets on
 
 - `MOD-repository-hosts.connect`, `readSnapshot`, `commitFiles` — the repository the entry runs in, through the local
   clone with the token from the secret; `pullRequestFacts` — the facts the Definition-of-Done check weighs, through the
-  server's API with the same token; `readHistory` — the commit messages of a branch a hand-over's run pushed without a
+  server's API with the same token; `listPullRequests` — the open or merged pull request a branch of a result has
+  already, taken by `writeResult` in place of a new one, and, on a GitLab server, the merged merge request whose merge
+  commit the push names, for `onPullRequestClosed`;
+  `readHistory` — the commit messages of a branch a hand-over's run pushed without a
   pull request, so that a branch holding the task's words is refused whether or not a pull request was opened. In a product's job workflow, also the instance at the commit a declaration names,
   through the checkout of the instance, which fetches it with its own credentials.
 - `MOD-documents.readDocument`, `readRegister`, `writeDocument` and `MOD-participant-list.participantSchema` — the

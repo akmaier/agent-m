@@ -19,8 +19,6 @@ uses:
   - MOD-trace-graph.graphFindings
   - MOD-trace-graph.TextSource
   - MOD-trace-graph.systemDecisions
-  - MOD-trace-graph.moduleOrder
-  - MOD-trace-graph.coverageGaps
   - MOD-documents.Schema
   - MOD-documents.Document
   - MOD-documents.loadSchema
@@ -307,7 +305,7 @@ assignment is the one of the team whose sprint holds it, and the product's one i
 - MOD-trace-graph.systemDecisions — the decisions of the system and of its subsystems, for `architecture-and-model`.
 - MOD-trace-graph.graphFindings, TextSource — the findings of a drafted plan's steps that the graph's checks give, on a
   source of the product's files with the drafted steps in place.
-- MOD-trace-graph.traceGraph, moduleOrder, coverageGaps — the order of modules by their uses, and what no item realises.
+- MOD-trace-graph.traceGraph — the graph of the product's files, which `systemDecisions` and `graphFindings` are given.
 - MOD-documents.Schema, Document, loadSchema, readDocument, writeDocument, appendSection, classifyCandidates,
   artifactSchemas — the files by their schemas, the item schema, the appended sprint sections, and items that restate
   existing ones.

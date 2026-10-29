@@ -33,6 +33,12 @@ uses:
   - MOD-progress-measures.latestOverview
   - MOD-product-process.mayDecide
   - MOD-product-process.recordGateDecision
+  - MOD-product-process.declarationSchema
+  - MOD-product-process.roleAssignmentSchema
+  - MOD-product-process.productWorkflow
+  - MOD-participant-list.participantSchema
+  - MOD-participant-list.participantsOf
+  - MOD-documents.readDocument
   - MOD-job-ledger.listJobs
   - MOD-job-ledger.jobState
   - MOD-job-ledger.jobCost
@@ -148,8 +154,10 @@ once, when the page is drawn, and never again (UC-046 4b). It stores nothing bet
     CHECKS`). The decision is recorded with `recordGateDecision` under the person's account; the job's route resumes or
     ends the job when it notices the record (ARC-037). *Retry* and *Pass gate* take the states, holds and running
     sprints of the job's items from the backlog's view of the product's head (MOD-progress-measures' `storedView`, `asOf`
-    null), and read besides only the declaration, the declared model's file and the role assignments; while the head's
-    view is not stored yet, they say so and offer nothing, and where the product stores no view, they read the facts of
+    null), and read besides only the product's declaration and role assignments, the workflow `productWorkflow` gives
+    for that declaration from the instance at the commit it names, and the instance's participant list; while the head's
+    view is not stored yet, or that workflow cannot be read, they say so and offer nothing,
+    and where the product stores no view, they read the facts of
     the scope `work`. The route reads the one record `docs/jobs/<id>.md` — of the product the address names, else of the
     first repository among the instance and the kept products whose tree holds it — and asks the live state of that job
     alone; it reads no other job's record.
@@ -184,7 +192,14 @@ instance repository through their hosts, and the browser's store for the product
   MOD-progress-measures.latestOverview — the overview stored last, while the head's is not stored yet;
   MOD-progress-measures.storedView — the backlog's view of a product's head, for *Retry* and *Pass gate*.
 - MOD-product-process.mayDecide — whether this person may decide the gate a job waits at;
-  MOD-product-process.recordGateDecision — the decision.
+  MOD-product-process.recordGateDecision — the decision; MOD-product-process.declarationSchema,
+  MOD-product-process.roleAssignmentSchema — the declaration and the role assignments of the product's head, read by
+  their schemas for *Retry* and *Pass gate*; MOD-product-process.productWorkflow — the workflow the declaration declares,
+  its roles and gates, for the same two, given the instance's host's `readSnapshot` as `instanceAt` and the empty text as
+  `instanceSpec`, since the two read a gate's name and decider and not the source of a gate a requirement adds.
+- MOD-participant-list.participantSchema, MOD-participant-list.participantsOf — the instance's participants, among whom
+  *Retry* offers a holder of the job's role; MOD-documents.readDocument — the declaration, the role assignments and the
+  participant list, each read by its schema.
 - MOD-job-ledger.listJobs, MOD-job-ledger.jobState, MOD-job-ledger.jobCost — the jobs, their states and costs;
   MOD-prompt-bar.currentJob — the job of this tab's conversation; MOD-prompt-bar.Subject — the subject the route `job` gives the prompt bar for the retry of a job that ran in a tab: the job's kind as its page and its inputs as its parameters, so that the conversation hands the retry on to that kind (UC-049 4a);
 - MOD-runtimes.routesFor — the routes a retry may take, for the product's resource needs in its facts;
