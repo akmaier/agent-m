@@ -11,6 +11,9 @@ modules:
   - MOD-repository-hosts
   - MOD-site-frame
   - MOD-review-pages
+  - MOD-notifications
+  - MOD-settings-pages
+  - MOD-trace-pages
 builds_on: []
 tests:
   - unit
@@ -84,4 +87,6 @@ Measurable outcome, on the live page of the instance in the browser's network pa
 The sizes are of the REST tree's entries; GraphQL entries carry no `url` and are smaller.
 
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
-- Only the folders of the three modules and the tests that name them change.
+- Only the folders of MOD-repository-hosts, MOD-site-frame and MOD-review-pages and the tests that name them change, and,
+  of MOD-notifications, MOD-settings-pages and MOD-trace-pages, only the fakes of their tests that GitHub's query of the
+  folders' entries reaches: a read sent as POST to `/graphql`. No code of those three modules changes.
