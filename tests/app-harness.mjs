@@ -81,6 +81,12 @@ export async function repoServer({ files: given, history = [], dates = {}, repo 
         what = at === files ? `file ${path}` : `era file ${path}`;
         return path in at ? new Response(at[path], { status: 200 }) : new Response("404: Not Found", { status: 404 });
       }
+      // A read without a token of a file of another branch (raw host, /<repo>/<branch>/<path>) that the fake does not hold is answered 404, as GitHub answers it — such as
+      // the branch overview-cache, which the fake holds no file of.
+      if (url.origin === "https://raw.githubusercontent.com" && method === "GET" && p.startsWith(`/${repo}/`)) {
+        what = `raw ${p}`;
+        return new Response("404: Not Found", { status: 404 });
+      }
       if (url.origin !== "https://api.github.com") return new Response("{}", { status: 500 });
       if (head === null && (p === `${api}/commits` || p.startsWith(`${api}/commits/`) || p.startsWith(`${api}/git/`))) {
         what = `empty ${method} ${p}`;
