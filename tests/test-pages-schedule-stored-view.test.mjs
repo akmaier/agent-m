@@ -101,13 +101,15 @@ test("schedule — while the head's counts are not stored, the counts stored las
 });
 
 // TST-1265006 · level: component · module: MOD-test-pages
-// guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT; UC-027
+// guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT; A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-027
 // given: a repository without the branch overview-cache
 // input: the route schedule's render
-// expect: the rows show the counts of the test files, 3, 1, 2, 2, 1 and 0; both test files are read; no line "As of"
+// expect: the rows show the counts of the test files, 3, 1, 2, 2, 1 and 0; both test files are read; both test files are read in a batch, and none by itself; no line "As of"
 test("schedule — where the repository stores no view, the counts are taken from the test files", async () => {
   const { target, srv } = await show(null);
   assert.deepEqual(countsOf(target), EXPECTED);
   assert.deepEqual([...new Set(testFileReads(srv))].sort(), ["tests/a.test.mjs", "tests/b.test.mjs"], "known positive: the test files are read");
+  assert.deepEqual([...new Set(srv.batches.flat().filter((path) => path.startsWith("tests/")))].sort(), ["tests/a.test.mjs", "tests/b.test.mjs"], "both test files are read in a batch");
+  assert.deepEqual(srv.requests.filter((request) => request.startsWith("file tests/")), [], "no test file is read by itself");
   assert.doesNotMatch(target.textContent, /As of/);
 });
