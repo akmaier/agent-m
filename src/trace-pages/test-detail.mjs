@@ -15,6 +15,9 @@ import { resultSchema, resultsAt, testHistory } from "../result-records/index.mj
 const COUNTER_PROOFS = "docs/tests/counter-proofs/";
 const SCHEDULE_PATH = "docs/tests/schedule.md";
 const RESULTS_BRANCH = "test-results";
+// How many commits of the branch `test-results` a page of the history reads, and the record files it names: `runs/<commit>/<file>.md`.
+const HISTORY_PAGE = 10;
+const RECORD = /^runs\/([^/]+)\/[^/]+\.md$/;
 // How many commits of a test file's history are read first for the commit that removed a test; the reading doubles until the commit is found or the history ends.
 const FIRST_PAGE = 30;
 
@@ -109,17 +112,69 @@ async function historyLogLink(host, results, commit, declaration) {
   return null;
 }
 
-// The history through testHistory: the commits that ran the test, the release tags, their optional run logs, and the rate of a model-dependent test per release.
+// One page of the branch `test-results`: the record files that the ten commits from `ref` on added (newest commit first; `readHistory` with their changes), the commits those records belong to, and `next`, the parent of the
+// page's last commit where the history goes on (the ref of the next page, as the review pages' history is paged), else null. The page's snapshot of the branch is narrowed (`folders`) to those records and to `folders`, the
+// folders of the release tags' commits, and all it holds is fetched in one batch.
+async function runsPage(host, ref, folders = []) {
+  const entries = await host.readHistory(null, { ref, limit: HISTORY_PAGE, changes: true });
+  const records = entries.flatMap(({ changes }) => changes.filter(({ change, path }) => change === "added" && RECORD.test(path)).map(({ path }) => path));
+  const commits = [...new Set(records.map((path) => RECORD.exec(path)[1]))];
+  const next = entries.length === HISTORY_PAGE ? entries.at(-1).parents[0] ?? null : null;
+  if (!records.length && !folders.length) return { results: { paths: [], read: async () => null }, commits, next };
+  const results = await host.readSnapshot(RESULTS_BRANCH, { folders: [...records, ...folders] });
+  await results.readMany?.(results.paths);
+  return { results, commits, next };
+}
+
+// The history through testHistory: the commits of the newest ten runs of the branch `test-results` that ran the test, with their optional run logs, the rate of a model-dependent test per release and the release tags'
+// outcomes; *Earlier runs* adds the marks of the next ten runs below.
 async function historyPart(host, id, declaration) {
   try {
-    const results = await host.readSnapshot(RESULTS_BRANCH);
     const tags = (await host.listTags()).map(({ name, commit }) => ({ tag: name, commit }));
-    const { commits, releases } = await testHistory(results, id, tags);
+    const first = await runsPage(host, RESULTS_BRANCH, tags.map(({ commit }) => `runs/${commit}`));
+    const list = el("ul", "test-history-commits");
+    const slot = el("div", "test-history-more");
+    const shown = new Set();
+    // The marks of one page, in the order of its commits, a commit already marked by an earlier page left out; the release tags' outcomes are the first page's.
+    const addMarks = async (page, releaseTags) => {
+      const { commits, releases } = await testHistory(page.results, id, releaseTags);
+      const outcomes = new Map(commits.map(({ commit, outcome }) => [commit, outcome]));
+      const marks = page.commits.filter((commit) => outcomes.has(commit) && !shown.has(commit));
+      const logs = new Map(await Promise.all(marks.map(async (commit) => [commit, await historyLogLink(host, page.results, commit, declaration)])));
+      for (const commit of marks) {
+        shown.add(commit);
+        const outcome = outcomes.get(commit);
+        list.append(el("li", `test-history-commit${outcome === "flaky" ? " test-history-flaky" : ""}`, `${short(commit)} ${outcome}`, ...(logs.get(commit) ? [" ", logs.get(commit)] : [])));
+      }
+      return releases;
+    };
+    const releases = await addMarks(first, tags);
+    const offer = (next) => {
+      slot.replaceChildren();
+      if (!next) return;
+      const button = el("button", "test-history-earlier", "Earlier runs");
+      button.setAttribute("type", "button");
+      let reading = false;
+      button.addEventListener("click", async () => {
+        if (reading) return;
+        reading = true;
+        try {
+          const page = await runsPage(host, next);
+          await addMarks(page, []);
+          offer(page.next);
+        } catch (failure) {
+          reading = false;
+          slot.append(problemLine("The earlier runs", failure));
+        }
+      });
+      slot.append(button);
+    };
+    offer(first.next);
     const rates = releases.filter((release) => release.runs);
-    const logs = new Map(await Promise.all(commits.map(async ({ commit }) => [commit, await historyLogLink(host, results, commit, declaration)])));
     return el("section", "test-history",
       el("h3", null, "History"),
-      el("ul", "test-history-commits", ...commits.map(({ commit, outcome }) => el("li", `test-history-commit${outcome === "flaky" ? " test-history-flaky" : ""}`, `${short(commit)} ${outcome}`, ...(logs.get(commit) ? [" ", logs.get(commit)] : [])))),
+      list,
+      slot,
       el("ul", "test-history-releases", ...releases.map(({ tag, outcome }) => el("li", "test-history-release", `${tag} ${outcome}`))),
       ...(rates.length ? [el("ul", "test-rate-line", ...rates.map(({ tag, runs }) => el("li", "test-rate-point", `${tag}: ${runs}`)))] : []));
   } catch (failure) {

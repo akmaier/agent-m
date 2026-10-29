@@ -14,7 +14,7 @@
 //     by commas, prefilled with the modules whose folder holds a file the analysis names as wrong); once a participant and a name are given, the run panel of the kind fix-bug. Run is the person's click.
 //   - Run queues the job on the participant's route — a start record under docs/jobs/ committed to the product — and runs nothing in the tab; the page then shows <p class="job-queued">. The job's parameters are `issue`, `violated` (the requirement typed, left out when blank), `wrong`
 //     (the files the analysis proposed), `modules` and `route` (as the record writes the route). A route that is not available — here a product without the job workflow — is named with its reason and nothing is written.
-//   - Without a participant that declares what the kind needs, the section says so, <p class="issue-no-fixer">, and offers <button class="uc-017"> that goes, on a click, to the use case UC-017 (the context's `go("use-case", { id: "UC-017" })`); it offers no run panel.
+//   - Without a participant that declares what the kind needs, the section says so, <p class="issue-no-fixer">, and offers <button class="uc-017"> that goes, on a click, to Agent M's own use case UC-017 (the context's `go("use-case", { id: "UC-017", product: "" })`, the empty product naming the instance itself); it offers no run panel.
 //   - After the section, <div class="issue-fix-trail"> names the newest job of the kind fix-bug whose works_on names the issue's address (<p class="fix-job">) and the pull request of the branch named after the job (<a class="fix-pull-request">, <p class="fix-pull"> with its state);
 //     once it is merged, <button class="close-with-links"> "Close with links" — the person's click — closes the issue with closeWithLinks: the note "Closed with <the pull request's address>." and the state closed.
 
@@ -124,7 +124,7 @@ test("issue — Fix offers the participants that can run tests, shows their run 
 // guards: UC-012; A PARTICIPANT DECLARES ITS CAPABILITIES
 // given: known positive first (TST-583201's world offers ci-bot); a register that lists only the model endpoint local-llm, which declares draft text
 // input: the route issue 6; the button UC-017 clicked
-// expect: the section says that no participant that can run code and tests is configured and that a model endpoint cannot fix; it offers no participant, no name field and no run panel; the click goes to the use case UC-017 (the context's go), and before it nothing goes; nothing is written
+// expect: the section says that no participant that can run code and tests is configured and that a model endpoint cannot fix; it offers no participant, no name field and no run panel; the click goes to Agent M's own use case UC-017 (the context's go with the empty product), and before it nothing goes; nothing is written
 test("issue — without a participant that can run tests the page says so and leads to UC-017 (UC-012 5b)", async () => {
   assert.deepEqual(byClass(await ready(start()), "fix-participant").length, 1, "known positive");
   restoreWorld();
@@ -140,7 +140,7 @@ test("issue — without a participant that can run tests the page says so and le
   assert.deepEqual(w.context.went, [], "nothing goes before the click");
   lead.dispatchEvent(new Event("click"));
   await flush();
-  assert.deepEqual(w.context.went, [["use-case", { id: "UC-017" }]]);
+  assert.deepEqual(w.context.went, [["use-case", { id: "UC-017", product: "" }]]);
   assert.deepEqual(jobFiles(w), []);
 });
 

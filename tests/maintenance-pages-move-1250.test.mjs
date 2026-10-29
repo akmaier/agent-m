@@ -255,7 +255,7 @@ test("issue — when the token may not comment the item is written and the page 
 // ---------------------------------------------------------------- ITM-1254: UC-033 1a and 4a on the issue's page
 // Readings the texts leave open, which these tests state (the pull request names them):
 //   - 1a: for an open issue whose class is none yet (no label defect, change or not-reproducible), the place of the move says why it is not offered, <p class="move-not-offered">, and leads to UC-012 with <button class="uc-012"> "UC-012, step 2", which goes, on a
-//     click, to that use case (the context's `go("use-case", { id: "UC-012" })`), as the fix leads to UC-017. An issue classified as not reproducible is classified, so 1a does not apply to it.
+//     click, to Agent M's own use case (the context's `go("use-case", { id: "UC-012", product: "" })`, the empty product naming the instance itself), as the fix leads to UC-017. An issue classified as not reproducible is classified, so 1a does not apply to it.
 //   - 4a: the click on Move to backlog also lists, beside the form, the items of the backlog at the default branch (docs/backlog/ITM-<n>-<slug>.md), each <li class="existing-item" data-item="<identifier>"> with its identifier and title and <button> "Add to <identifier>";
 //     the person's click on it writes through `moveToBacklog` with `existing` the identifier, and the page shows <p class="move-added"> with that identifier, or the comment to copy as Add does.
 
@@ -267,7 +267,7 @@ const EXISTING_TEXT = ["---", "id: ITM-001", "title: Export keeps every page", "
 // guards: EVOLUTION ENTERS THROUGH THE SPECIFICATION; UC-033 1a
 // given: known positive first — the issue 6 labelled defect offers Move to backlog; the issue 5 without a class; the issue 8 labelled not-reproducible
 // input: the route issue for 6, 8 and 5; on 5 the lead to UC-012 clicked by a person, then the person's click on Bug
-// expect: 6 offers Move to backlog and no lead; 8 offers neither; 5 offers no Move to backlog but says why — the issue is not classified — and leads to UC-012, step 2, whose click goes to the use case UC-012 and before which nothing goes; after the click on Bug, Move to
+// expect: 6 offers Move to backlog and no lead; 8 offers neither; 5 offers no Move to backlog but says why — the issue is not classified — and leads to UC-012, step 2, whose click goes to Agent M's own use case UC-012 — the empty product — and before which nothing goes; after the click on Bug, Move to
 //   backlog is offered and the lead is gone
 test("issue — an issue not classified yet is not offered Move to backlog and is led to UC-012, step 2 (UC-033 1a)", async () => {
   const w = start();
@@ -288,7 +288,7 @@ test("issue — an issue not classified yet is not offered Move to backlog and i
   assert.equal(textOf(lead), "UC-012, step 2");
   assert.deepEqual(w.context.went, [], "nothing goes before the click");
   await trusted(lead);
-  assert.deepEqual(w.context.went, [["use-case", { id: "UC-012" }]]);
+  assert.deepEqual(w.context.went, [["use-case", { id: "UC-012", product: "" }]]);
   await trusted(byClass(five, "set-class").find((node) => node.getAttribute("data-class") === "bug"));
   await waitFor(() => buttonsOf(five, "Move to backlog").length === 1);
   assert.equal(buttonsOf(five, "Move to backlog").length, 1);
