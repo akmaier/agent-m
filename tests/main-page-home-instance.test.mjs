@@ -59,7 +59,7 @@ async function drawn(stored) {
 //   known positive: requests to alice/product were made; not one request names alice/agent-m — no repository, no commit and no tree of the instance — and none is a batch (POST /graphql);
 //   counter-proof: with bob/other's overview left out, its card is derived from its files ("Use cases 50 % 1 of 2 accepted") and the instance is read once — its repository, the commit of main and its
 //   tree, ["", "/commits/main", "/git/trees/<the instance's head>"] —; with neither overview, the instance is read once for both cards, the same three requests; and with no product kept, Agent M's own
-//   card reads the instance once, the same three requests
+//   card, whose repository the instance is, reads the instance's repository, the commit of main and its tree once each
 test("TST-1281001 while every card has a stored overview the route home reads none of the instance; a card drawn from the scope all, or Agent M's own, reads it once", async () => {
   const both = await drawn([PRODUCT, OTHER]);
   const cards = cardsOf(both);
@@ -91,5 +91,7 @@ test("TST-1281001 while every card has a stored overview the route home reads no
   const own = cardsOf(await draw(home, browser({ products: [] })));
   assert.equal(own.length, 1);
   assert.deepEqual(buildOf(own[0]), [ROW]);
-  assert.deepEqual(requestsTo(INSTANCE), READ_ONCE);
+  // The instance is the card's own repository here, whose overview, pull requests and tags the card reads besides: its commit and tree are each read once.
+  const ownReads = requestsTo(INSTANCE);
+  assert.deepEqual(READ_ONCE.map((path) => ownReads.filter((read) => read === path).length), [1, 1, 1]);
 });

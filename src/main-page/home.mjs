@@ -73,8 +73,23 @@ async function withLiveStates(host, store, address, snapshot, rows) {
   return listJobs([{ address, snapshot }], lives);
 }
 
+// The instance's commit and tree, read when a card first needs them — a card drawn from the scope `all`, which takes the participants and the process models from them, or Agent M's own card — and
+// once for all such cards; while every card has an overview, nothing of the instance is read (MOD-main-page, Interfaces: `home`). A failure is the reason of each card that needed them.
+function instanceOnce(instance) {
+  let held = null;
+  return () => (held ??= (async () => {
+    try {
+      const info = await instance.host.repositoryInfo();
+      return { info, snapshot: await instance.host.readSnapshot(info.defaultBranch) };
+    } catch (failure) {
+      throw new Error(`Agent M's own repository could not be read: ${reasonOf(failure)}`);
+    }
+  })());
+}
+
 // One source's facts where no overview is stored: everything (the scope `all`), with the jobs' rows derived again with the live states.
-async function factsOf(host, { store, instanceSnapshot, instanceAt }) {
+async function factsOf(host, { store, instance, instanceAt }) {
+  const { snapshot: instanceSnapshot } = await instance();
   const facts = await productFacts(host, instanceSnapshot, instanceAt, new Date(), { scope: "all" });
   return { ...facts, jobs: await withLiveStates(host, store, facts.address, facts.snapshot, facts.jobs) };
 }
@@ -90,8 +105,10 @@ async function buildOf(host, store, snapshot, stored) {
   return { address, snapshot: records, plan: { states: stored.build.states }, jobs: await withLiveStates(host, store, address, records, rows) };
 }
 
-async function cardOf(source, reading, go, known = null) {
+async function cardOf(source, reading, go) {
   try {
+    // Agent M's own card is the instance: read through the instance's commit and tree, which the scope `all` of the card shares.
+    const known = source.own === true ? await reading.instance() : null;
     const raw = known === null ? source.host : { ...source.host, repositoryInfo: () => Promise.resolve(known.info),
       readSnapshot: (ref) => (ref === known.snapshot.ref ? Promise.resolve(known.snapshot) : source.host.readSnapshot(ref)) };
     const host = once(raw);
@@ -123,20 +140,11 @@ async function render(target, context) {
   const waiting = el("section", "waits", el("h2", null, "What waits for a person"), el("p", "muted", "Reading…"));
   target.replaceChildren(greet, cards, ...adding, waiting);
 
-  let reading, info;
-  try {
-    info = await instance.host.repositoryInfo();
-    reading = { store: context.store, instanceSnapshot: await instance.host.readSnapshot(info.defaultBranch), instanceAt: (commit) => instance.host.readSnapshot(commit) };
-  } catch (failure) {
-    const reason = `Agent M's own repository could not be read: ${reasonOf(failure)}`;
-    cards.replaceChildren(...sources.map((source) => errorCard({ ...source, reason, go: context.go })));
-    target.replaceChildren(greet, cards, ...adding, waitsList([], { several: false, go: context.go }));
-    return;
-  }
+  const reading = { store: context.store, instance: instanceOnce(instance), instanceAt: (commit) => instance.host.readSnapshot(commit) };
   const waits = [], held = [];
   await Promise.all(sources.map(async (source, at) => {
     if (source.reason !== undefined) return;
-    const result = await cardOf(source, reading, context.go, source.own === true ? { info, snapshot: reading.instanceSnapshot } : null);
+    const result = await cardOf(source, reading, context.go);
     nodes[at] = result.card;
     waits[at] = result.waits;
     held[at] = result.held;
