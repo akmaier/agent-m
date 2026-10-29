@@ -21,6 +21,9 @@
 // ITM-1225: every folded explanation is the frame's `explain` of a topic of explanations.md — a level, an occasion, a field of the front matter, the secrets
 // and a self-hosted runner —; the page builds no fold of its own.
 //
+// ITM-1265: each row's number of tests is taken from the counts stored for the commit shown (MOD-progress-measures' storedView with the page `schedule`), with the line
+// storedView names while the head's are not stored yet; the test files are read and counted only where the repository stores no view.
+//
 // Module: MOD-test-pages
 
 import { scheduleSchema, defaultSchedule, scheduleFindings, secretsNeeded, configurationDrift, occasionsOf, proposeSchedule, applyPipelineSchedule } from "../test-schedule/index.mjs";
@@ -30,6 +33,7 @@ import { explain } from "../site-frame/index.mjs";
 import { participantSchema, participantsOf, eligible } from "../participant-list/index.mjs";
 import { resourceSchema } from "../resource-list/index.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
+import { storedView } from "../progress-measures/index.mjs";
 
 const TITLE = "Schedule";
 const SCHEDULE_PATH = "docs/tests/schedule.md";
@@ -78,8 +82,12 @@ function refusal(row, column) {
   return null;
 }
 
-// How many tests each row holds: the row of a level counts the declarations of that level, the row paid those that name a paid service, so a paid test counts under both.
+// How many tests each row holds, -> { counts, asOf }: the counts stored for the snapshot's commit, or, while those are not stored yet, the counts stored last with their commit
+// (asOf); where the repository stores none, counted from the test files — the row of a level counts the declarations of that level, the row paid those that name a paid
+// service, so a paid test counts under both.
 async function testCounts(snapshot) {
+  const stored = await storedView(snapshot, "schedule");
+  if (stored) return { counts: stored.view.counts, asOf: stored.asOf };
   const counts = Object.fromEntries(ROWS.map((row) => [row, 0]));
   // The test files are told to the snapshot first, to be read in batches, and counted.
   const paths = snapshot.paths.filter(isTestFile);
@@ -89,7 +97,7 @@ async function testCounts(snapshot) {
     if (declaration.level in counts) counts[declaration.level] += 1;
     if (declaration.paid) counts.paid += 1;
   }
-  return counts;
+  return { counts, asOf: null };
 }
 
 // A row's runner field, named for a screen reader by its row and its column (THE SITE SERVES A SCREEN READER).
@@ -405,7 +413,7 @@ async function render(target, context) {
   const instanceHost = context.instance.host;
   const [snapshot, instance] = await Promise.all([host.readSnapshot((await host.repositoryInfo()).defaultBranch),
     instanceHost.readSnapshot((await instanceHost.repositoryInfo()).defaultBranch)]);
-  const [saved, resourcesText, participantsText, counts] = await Promise.all([snapshot.read(SCHEDULE_PATH), snapshot.read(RESOURCES_PATH),
+  const [saved, resourcesText, participantsText, { counts, asOf }] = await Promise.all([snapshot.read(SCHEDULE_PATH), snapshot.read(RESOURCES_PATH),
     instance.read(PARTICIPANTS_PATH), testCounts(snapshot)]);
   const schedule = saved === null || saved === undefined ? defaultSchedule() : readDocument(scheduleSchema, SCHEDULE_PATH, saved);
   const participants = readDocument(participantSchema(), PARTICIPANTS_PATH, participantsText);
@@ -451,6 +459,7 @@ async function render(target, context) {
       "read now from the repository; nothing is written before Save, which opens a pull request.") }),
     el("section", "panel levels-step", el("h3", null, "The levels, what each checks, and when each runs"),
       ...(schedule.default ? [el("p", "default-schedule", "This is the book's default schedule, not yet saved for this product.")] : []),
+      ...(asOf ? [el("p", "as-of", `As of ${asOf.slice(0, 7)}: the view of the newest commit is being stored.`)] : []),
       form, proposal, ...runners),
     secretsBlock(secrets, links.secrets), ...configured);
 }
