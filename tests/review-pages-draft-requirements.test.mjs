@@ -187,7 +187,7 @@ async function panelFor(target, participant = "drafter-a") {
 
 // ---------------------------------------------------------------- assertions
 
-// TST-361001 - level: unit - module: MOD-review-pages
+// TST-361001 · level: unit · module: MOD-review-pages
 // guards: UC-005; THE PAGE NAMES WHERE IT SENDS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; EVERY STEP EXPLAINS ITSELF
 // given: a product that links SRC-policy version 2026-10-01, whose version has main.md and appendix.md
 // input: the SPEC change list, then #spec-entry/id=draft
@@ -213,8 +213,8 @@ test("spec-entry/draft - linked source, part, files and participant are shown be
   assert.equal(requests.length, 0);
 });
 
-// TST-361002 - level: unit - module: MOD-review-pages
-// guards: UC-005 (steps 1 to 3, alternative flow 2a); THE PAGE NAMES WHERE IT SENDS; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY; ONE CLICK PER DECISION
+// TST-361002 · level: unit · module: MOD-review-pages
+// guards: UC-005; THE PAGE NAMES WHERE IT SENDS; NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY; ONE CLICK PER DECISION
 // given: a two-file linked source, the person leaves main.md checked and clears appendix.md
 // input: Show the run panel, once with drafter-a and once with small-d
 // expect: the panel names derive-requirements' destination and the selected file, the existing requirements count, and chapter 8; small-d is named as unable to hold the context and Run is not offered; nothing is sent
@@ -246,8 +246,8 @@ test("spec-entry/draft - the run panel sends fewer source files and refuses a pa
   assert.equal(requests.length, 0);
 });
 
-// TST-361003 - level: unit - module: MOD-review-pages
-// guards: UC-005 (steps 5 to 8, alternative flows 5a, 7a); A CONFLICT IS DECIDED BY A PERSON; THE MODEL'S CLASSIFICATION IS MEASURED, NOT TRUSTED; A GENERATED ARTIFACT IS A PROPOSAL; THE ROUNDS ARE COUNTED AND SHOWN
+// TST-361003 · level: unit · module: MOD-review-pages
+// guards: UC-005; A CONFLICT IS DECIDED BY A PERSON; THE MODEL'S CLASSIFICATION IS MEASURED, NOT TRUSTED; A GENERATED ARTIFACT IS A PROPOSAL; THE ROUNDS ARE COUNTED AND SHOWN
 // given: the endpoint returns new, change, duplicate, conflict and unlinked-source candidates
 // input: Run; move the new candidate to duplicate of A BOOK IS SHELVED; decide the conflict as a change of A BOOK IS SHELVED (A LOAN HAS A DUE DATE is changed by THE DUE DATE IS SHOWN already: a second change of it is refused); Write proposals
 // expect: candidates are grouped by class and editable; the unlinked source is listed apart; the written queue contains the moved duplicate and decided conflict, and no entry for the unlinked candidate
@@ -290,8 +290,8 @@ test("spec-entry/draft - candidates are reviewed, classes changed, conflicts dec
   assert.doesNotMatch(written, /AN EXTERNAL RULE IS NAMED/);
 });
 
-// TST-361004 - level: unit - module: MOD-review-pages
-// guards: UC-005 (step 8); A CONFLICT IS DECIDED BY A PERSON
+// TST-361004 · level: unit · module: MOD-review-pages
+// guards: UC-005; A CONFLICT IS DECIDED BY A PERSON
 // given: the endpoint returns a conflict and the person does not change its class
 // input: Run, then Write proposals
 // expect: the undecided conflict stays out of the written queue
@@ -315,8 +315,8 @@ test("spec-entry/draft - an undecided conflict is not written", async () => {
   assert.doesNotMatch(written, /THE DUE DATE MAY BE HIDDEN/);
 });
 
-// TST-361005 - level: unit - module: MOD-review-pages
-// guards: UC-005 (alternative flow 1a); ONE CLICK PER DECISION
+// TST-361005 · level: unit · module: MOD-review-pages
+// guards: UC-005; ONE CLICK PER DECISION
 // given: the source register records a wrong SHA-256 for main.md
 // input: Show the run panel
 // expect: the hash mismatch is named; no Run exists and nothing is sent
