@@ -7,6 +7,7 @@ realises:
   - A PAGE LOAD READS THE REPOSITORY IN BATCHES
 modules:
   - MOD-approvals
+  - MOD-site-frame
 builds_on: []
 tests:
   - unit
@@ -51,4 +52,5 @@ Measurable outcome: a changed use case, decision or module, opened on the live p
 older tree (~309 KB gzipped less at Agent M's size); *Review all* saves the same for each changed file it shows.
 
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
-- Only `src/approvals/` and the tests that name MOD-approvals change.
+- Only `src/approvals/` and the tests that name MOD-approvals change, and, of MOD-site-frame, only the cases of
+  `tests/load-per-view.test.mjs` that count the reads of a changed file's last accepted text. No code of MOD-site-frame changes.
