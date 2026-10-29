@@ -625,5 +625,14 @@ export function reviewRoute(kind) {
   // The frame asks this before the tab closes: whether the editor of the page drawn last holds unsaved changes, without asking anyone.
   const unsaved = () => editor !== null && editor.unsaved();
 
-  return { name: kind.route, entry: kind.entry, title: kind.title, render, subject: (params, context) => subjectOf(kind, params, context), leave, unsaved };
+  // The folders of the repository the page these `params` address reads (MOD-site-frame's Route `folders`), from the descriptor's `folders`: the list,
+  // Review all and one file name theirs; drafting, the history and an editor name none — null —, and the frame gives them the whole tree.
+  const folders = (params) => {
+    if (params.edit || params.id === DRAFT || params.id === HISTORY) return null;
+    if (!params.id) return kind.folders.list;
+    return params.id === REVIEW_ALL ? kind.folders.all : kind.folders.file;
+  };
+
+  return { name: kind.route, entry: kind.entry, title: kind.title, render, subject: (params, context) => subjectOf(kind, params, context), leave, unsaved,
+    ...(kind.folders ? { folders } : {}) };
 }

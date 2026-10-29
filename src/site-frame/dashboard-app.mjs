@@ -289,18 +289,58 @@ function once(key, f) {
   return memo.get(key);
 }
 
-async function loadSnapshot() {
+// The folders and files of the tree the load's snapshot holds (MOD-repository-hosts' readSnapshot with `folders`), or null for the whole tree.
+let snapshotFolders = null;
+const withFolders = (folders) => (folders ? { folders } : undefined);
+// The load's snapshot and what it holds, as the views take them: the pinned commit, the tree of its paths with their blobs.
+function hold(snap, activeHost, folders) {
+  snapshot = snap;
+  snapshotHost = activeHost;
+  snapshotFolders = folders;
+  state.commit = snap.commit;
+  state.tree = snap.paths.map((path) => ({ path, sha: snap.blob(path) }));
+  state.byPath = new Map(state.tree.map((e) => [e.path, e]));
+}
+
+// The branch read anew, with the folders of the route shown — the ones the load's snapshot holds, unless the route asks for others.
+async function loadSnapshot(folders = snapshotFolders) {
   const before = state.commit;
   const activeHost = currentHost();
   // GITLAB PRODUCTS ARE SUPPORTED: its default branch unless ?ref= names one, resolved to one commit.
   if (GITLAB && !T.refGiven) T.ref = (await activeHost.repositoryInfo()).defaultBranch || T.ref;
-  const snap = await activeHost.readSnapshot(T.ref);
-  snapshot = snap;
-  snapshotHost = activeHost;
-  state.commit = snap.commit;
-  state.tree = snap.paths.map((path) => ({ path, sha: snap.blob(path) }));
-  state.byPath = new Map(state.tree.map((e) => [e.path, e]));
+  hold(await activeHost.readSnapshot(T.ref, withFolders(folders)), activeHost, folders);
   if (state.commit !== before) memo = new Map();
+}
+
+// Whether a snapshot of `held` holds every folder and file of `wanted`: the whole tree holds all; a list holds a path inside one of its folders.
+const holds = (held, wanted) => held === null
+  || (wanted !== null && wanted.every((path) => held.some((folder) => path === folder || path.startsWith(`${folder}/`))));
+
+// The folders the page reads of the tree for the address shown (MOD-site-frame's Route `folders`): those its review routes name — #uc, #arc and
+// #review are MOD-review-pages' routes, the start page its use cases —; for #spec, the frame's own: the SPEC, the product's links file and the
+// register, the change queues, the approval records and the group files. Any other address, and a route that names none, reads the whole tree
+// (null). On the instance's own page the two files of the instance the prompt bar reads when it is drawn stand beside them (MOD-prompt-bar,
+// Files), so that the bar reads through the load's snapshot.
+const SPEC_FOLDERS = ["SPEC.md", "docs/sources.md", "docs/sources", "docs/spec-freigaben", "docs/approvals", "docs/groups"];
+const BAR_FILES = ["docs/participants.md", "docs/conversation-recording.md"];
+function foldersOf(kind, a, b) {
+  const targets = reviewTargets(kind || "uc", a, b);
+  if (targets === null) return null;
+  const named = targets.length ? targets.map(({ name, params }) => reviewPages.routes.find((route) => route.name === name)?.folders?.(params) ?? null) : [SPEC_FOLDERS];
+  if (named.includes(null)) return null;
+  return [...new Set([...named.flat(), ...(isInstanceShown() ? BAR_FILES : [])])];
+}
+const isInstanceShown = () => {
+  const address = parseAddress(T.product.address);
+  return address.server === "github" && address.path === T.instance;
+};
+
+// The load's snapshot holds the folders of the route shown: where it does not, the pinned commit is read again with them — the commit, never
+// the branch, so that the page shows one commit. The texts read already are kept by the host, by their blobs.
+async function holdFolders(folders) {
+  if (holds(snapshotFolders, folders)) return;
+  const activeHost = currentHost();
+  hold(await activeHost.readSnapshot(state.commit, withFolders(folders)), activeHost, folders);
 }
 
 // A page load reads the files a route shows in batches, ahead of the reads of the views (Snapshot.readMany): each route's
@@ -368,7 +408,7 @@ const paths = (re) => state.tree.filter((e) => re.test(e.path));
 async function pinned() {
   const activeHost = currentHost();
   if (snapshotHost !== activeHost) {
-    snapshot = await activeHost.readSnapshot(state.commit);
+    snapshot = await activeHost.readSnapshot(state.commit, withFolders(snapshotFolders));
     snapshotHost = activeHost;
   }
   return snapshot;
@@ -765,9 +805,9 @@ async function renderTabs() {
   markTab(kind === "review" ? a : kind);
 }
 
-async function route() {
-  routeSeq += 1;
-  shownContext = null;
+// What the address's fragment shows: its view or route (`kind`) and the parts after it; a menu entry named alone is its first built view, or,
+// where it has none, the entry that is not built yet (`unavailableEntry`).
+function addressShown() {
   let [kind, a, b] = location.hash.replace(/^#/, "").split("/");
   const entry = MENU.find((candidate) => candidate.key === kind);
   const params = routeOf(location.hash).params;
@@ -779,6 +819,13 @@ async function route() {
     a = undefined;
     b = undefined;
   }
+  return { kind, a, b, params, unavailableEntry };
+}
+
+async function route() {
+  routeSeq += 1;
+  shownContext = null;
+  const { kind, a, b, params, unavailableEntry } = addressShown();
   markTab(kind === "review" ? a : kind);
   // The views of the repository read what they show first.
   if (state.commit && ["", "uc", "arc", "spec", "review"].includes(kind || "")) main().innerHTML = `<p class="muted">Reading…</p>`;
@@ -791,6 +838,8 @@ async function route() {
     }
     loadProducts();
     renderProductSelector();
+    // The snapshot holds the folders the route shows (MOD-site-frame's Route `folders`); a route that names none is given the whole tree.
+    if (state.commit && !unavailableEntry) await holdFolders(foldersOf(kind, a, b));
     if (state.commit && (!a || kind === "backlog") && ["", "uc", "arc", "spec", "backlog", "use-case", "decision", "module"].includes(kind || "")) await readAhead(kind || "");
     // A route of a loaded view that names its first wave (Route's `reads`) is given that wave in batches, through the snapshot this load read.
     const named = loadedRoute(kind);
@@ -973,7 +1022,8 @@ async function start() {
     route();
   }
   try {
-    await loadSnapshot();
+    const { kind, a, b, unavailableEntry } = addressShown();
+    await loadSnapshot(unavailableEntry ? null : foldersOf(kind, a, b));
     document.getElementById("repo-line").innerHTML =
       `<a href="${h(T.product.address)}" target="_blank" rel="noopener">${h(GITLAB ? T.product.address : T.repo)}</a> · ${h(T.ref)} · <code>${h(state.commit.slice(0, 12))}</code>`;
   } catch (e) {
@@ -997,7 +1047,7 @@ function startBar() {
   foot.className = "site-frame-prompt-bar";
   document.body.append(foot);
   const barStore = openStore(T.instance);
-  const isInstance = () => { const address = parseAddress(T.product.address); return address.server === "github" && address.path === T.instance; };
+  const isInstance = isInstanceShown;
   attachPromptBar(foot, { page: "review", store: barStore,
     // The instance shown is read through the app's own host, which holds what this load read; another instance through the host that follows the store.
     instance: { repository: T.instance, host: isInstance() ? pagesHost() : instanceHostFollowingStore({ store: barStore, address: parseAddress(`https://github.com/${T.instance}`) }) },

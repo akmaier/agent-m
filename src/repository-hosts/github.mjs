@@ -3,7 +3,7 @@
 //
 // Module: MOD-repository-hosts
 //
-// Private to the module: index.mjs builds the host from what this returns — repositoryInfo(), snapshot(ref),
+// Private to the module: index.mjs builds the host from what this returns — repositoryInfo(), snapshot(ref, folders),
 // readFile(commit, path), history(path, { ref, limit, changes }), listTags(), issueCounts(), commitFiles(change), createTag(name, commit),
 // createBranch(name, from), startWorkflow(workflow, ref, inputs), setCiSecret(name, value), listCiRuns(filter), cancelCiRun(id), jobLogs(id), jobLabels(id), listPullRequests(filter), openPullRequest(request), pullRequestFacts(number) — and adds what both adapters share.
 
@@ -123,9 +123,9 @@ export function githubAdapter(address, { token, tokenName }, links) {
   // The blobs of many objects ("<commit>:<path>") in one request of GitHub's GraphQL API ("repository.object(expression:)" on a Blob; one aliased field for each, a call without connections costing 1 point):
   // the token alone reaches it. -> an array in the order given: { text, isTruncated } where the object is a blob, null where it is none. A used-up limit is told by the headers of the answer, which GraphQL gives
   // also on its 200 with the error type RATE_LIMITED.
-  const blobsOf = async (expressions) => {
-    const query = `query($owner:String!,$name:String!){repository(owner:$owner,name:$name){${expressions.map((e, i) =>
-      `f${i}:object(expression:${JSON.stringify(e)}){...on Blob{text isTruncated}}`).join(" ")}}}`;
+  // One query of the repository's objects (the aliased fields `fields`, one for each object) in one request of the GraphQL API -> its answer.
+  const objectsOf = async (fields) => {
+    const query = `query($owner:String!,$name:String!){repository(owner:$owner,name:$name){${fields.join(" ")}}}`;
     const [owner, name] = address.path.split("/");
     const answer = await call("POST", GRAPHQL, { body: { query, variables: { owner, name } }, write: false, permission: "Contents", what: address.web });
     const said = await json(answer, API);
@@ -133,8 +133,50 @@ export function githubAdapter(address, { token, tokenName }, links) {
       throw await refusal(new Response(null, { status: 403, headers: { ...Object.fromEntries(answer.headers), "x-ratelimit-remaining": "0" } }),
         { ...context, write: false });
     }
-    const found = said?.data?.repository;
+    return said;
+  };
+  const blobsOf = async (expressions) => {
+    const found = (await objectsOf(expressions.map((e, i) => `f${i}:object(expression:${JSON.stringify(e)}){...on Blob{text isTruncated}}`)))?.data?.repository;
     return expressions.map((_, i) => found?.[`f${i}`] ?? null);
+  };
+
+  // The files at every depth of the named folders, and the named files, of one commit -> Map(path -> blob SHA), from GitHub's GraphQL API:
+  // "repository.object(expression: "<commit>:<path>")" on a Tree gives its `entries`, each with its `name`, `type` and `oid`, and a tree entry's
+  // `object` its own entries; on a Blob its `oid`. One aliased field for each path, TREE_DEPTH levels of entries nested in it, all in one request;
+  // a folder deeper than that is asked for again, with the others of its depth, in one request more. A path the commit does not hold gives nothing.
+  // An answer that names errors and gives no repository did not serve the request: Unreachable, with its messages.
+  const TREE_DEPTH = 6;
+  const levels = (depth) => `name type oid${depth > 1 ? ` object{...on Tree{entries{${levels(depth - 1)}}}}` : ""}`;
+  const entriesOf = async (commit, named) => {
+    const blobs = new Map();
+    for (let asked = named; asked.length;) {
+      const deeper = [];
+      const walk = (folder, entries) => {
+        for (const entry of entries ?? []) {
+          const path = `${folder}/${entry.name}`;
+          if (entry.type === "blob") blobs.set(path, entry.oid);
+          else if (entry.type === "tree") { if (Array.isArray(entry.object?.entries)) walk(path, entry.object.entries); else deeper.push(path); }
+        }
+      };
+      for (let at = 0; at < asked.length; at += BATCH) {
+        const batch = asked.slice(at, at + BATCH);
+        const said = await objectsOf(batch.map((path, i) =>
+          `e${i}:object(expression:${JSON.stringify(`${commit}:${path}`)}){...on Blob{oid} ...on Tree{entries{${levels(TREE_DEPTH)}}}}`));
+        const found = said?.data?.repository;
+        if (!found) {
+          const reason = `GitHub did not give the folders of ${address.web} at ${commit}: ${(said?.errors ?? []).map((e) => e?.message).filter(Boolean).join("; ") || "no answer"}`;
+          throw new HostError("Unreachable", { reason }, reason);
+        }
+        batch.forEach((path, i) => {
+          const object = found[`e${i}`];
+          if (!object) return;
+          if (Array.isArray(object.entries)) walk(path, object.entries);
+          else if (typeof object.oid === "string") blobs.set(path, object.oid);
+        });
+      }
+      asked = deeper;
+    }
+    return blobs;
   };
 
   // A branch's reference: read at git/ref/heads/…, moved at git/refs/heads/… ("Get a reference", "Update a reference").
@@ -216,14 +258,22 @@ export function githubAdapter(address, { token, tokenName }, links) {
         canWrite: Boolean(token) && r.permissions?.push === true, archived: r.archived === true, description: r.description ?? "" };
     },
 
-    // The branch, tag or commit resolved to one commit, then that commit's tree: every file, by its blob SHA.
-    async snapshot(name) {
+    // The branch, tag or commit resolved to one commit, then that commit's tree: every file, by its blob SHA. With `folders` and a token, only the
+    // files of those folders and the files named, from GraphQL's entries in one request (entriesOf); without a token the whole tree, which
+    // index.mjs narrows. GitHub gives the recursive tree truncated above 100,000 entries or 7 MB ("Get a tree": `truncated`): such a tree is no
+    // list of every file, and is refused with Unreachable, naming it.
+    async snapshot(name, folders = null) {
       const what = `${address.web} at ${name}`;
       const notFound = () => { throw new HostError("NotFound", { what }, `${what} was not found.`); };
       const c = await read(`${repo}/commits/${encodeURIComponent(name)}`, { what, on: { 422: notFound, 409: emptyOr({ what }) } });
       // An empty repository is a snapshot without a commit and without a file (MOD-repository-hosts Snapshot).
       if (c === EMPTY) return { commit: null, blobs: new Map() };
+      if (folders && token) return { commit: c.sha, blobs: await entriesOf(c.sha, folders) };
       const t = await read(`${repo}/git/trees/${c.sha}?recursive=1`, { what });
+      if (t.truncated) {
+        const reason = `GitHub truncated the tree of ${what} (${c.sha}): it lists only part of the files of a tree that large; read the folders the page shows instead.`;
+        throw new HostError("Unreachable", { reason }, reason);
+      }
       return { commit: c.sha, blobs: new Map(t.tree.filter((e) => e.type === "blob").map((e) => [e.path, e.sha])) };
     },
 

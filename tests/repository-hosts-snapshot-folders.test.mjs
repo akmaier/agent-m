@@ -27,7 +27,7 @@ const blobSha = (t) => createHash("sha1").update(`blob ${Buffer.byteLength(t)}\0
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 const failure = (p) => Promise.resolve(p).then(() => null, (e) => e);
 
-// The repository at COMMIT: two use cases, one of them a folder deep, two records, the SPEC, a job record, a README, and a source six folders deep.
+// The repository at COMMIT: two use cases, one of them a folder deep, two records, the SPEC, a job record, a README, and a source seven folders deep.
 const FILES = {
   "README.md": "# Reader\n",
   "SPEC.md": "# SPEC\n",
@@ -36,7 +36,7 @@ const FILES = {
   "docs/approvals/UC-001-0123456789ab.md": "kind: use-case\n",
   "docs/approvals/README.md": "# Records\n",
   "docs/jobs/JOB-1.md": "# JOB-1\n",
-  "docs/sources/SRC-a/v1/part/one/two/three.md": "# deep\n",
+  "docs/sources/SRC-a/v1/part/one/two/three/four.md": "# deep\n",
 };
 
 async function using(fetchFn, run) {
@@ -136,14 +136,14 @@ test("a read outside the folders fails with OutsideSnapshot, naming the path", a
 
 // TST-1266003 · level: unit · module: MOD-repository-hosts
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
-// given: the fake GitHub, whose source docs/sources/SRC-a/v1/part/one/two/three.md lies six folders below docs/sources
+// given: the fake GitHub, whose source docs/sources/SRC-a/v1/part/one/two/three/four.md lies seven folders below docs/sources, deeper than one query of entries nests
 // input: readSnapshot("main", { folders: ["docs/sources"] }) with a token
 // expect: the snapshot holds that file with its blob; no request of git/trees is sent
 test("readSnapshot with folders finds a file at every depth of a folder", async () => {
   const fake = fakeGitHub();
   await using(fake.fetch, async () => {
     const snapshot = await connect(ADDRESS, { token: TOKEN }).readSnapshot("main", { folders: ["docs/sources"] });
-    const deep = "docs/sources/SRC-a/v1/part/one/two/three.md";
+    const deep = "docs/sources/SRC-a/v1/part/one/two/three/four.md";
     assert.deepEqual(snapshot.paths, [deep]);
     assert.equal(snapshot.blob(deep), blobSha(FILES[deep]));
     assert.deepEqual(asked(fake.requests).filter((r) => r.includes("/git/trees/")), []);

@@ -109,10 +109,10 @@ const FOLDERS = {
 
 // ---------------------------------------------------------------- the start page, #arc, #spec, #backlog: the Check
 
+// TST-1266101 · level: component · module: MOD-site-frame
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the fixture product — two use cases, one of them with a record of an earlier text
 // input: open the start page with a token
-// TST-1266101 · level: component · module: MOD-site-frame
 // expect: the commit once, one request for the entries of its folders — docs/use-cases, docs/approvals, docs/groups and the bar's two files — and no
 //         git/trees, then one batch of the 2 files it shows, the repository's information once (wherever in the load), and no file by
 //         itself; both use cases listed with their status — UC-001 accepted, UC-002 changed since acceptance — read from the names of
@@ -130,10 +130,10 @@ test("the start page sends its commit, one request for its folders and one batch
   assert.deepEqual(srv.batches.map(sorted), [sorted([UC1, UC2])]);
 });
 
+// TST-1266102 · level: component · module: MOD-site-frame
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the fixture product, whose architecture files decide #arc
 // input: open #arc with a token
-// TST-1266102 · level: component · module: MOD-site-frame
 // expect: the commit once, one request for its folders — docs/architecture, docs/approvals, docs/groups and the bar's two files — and no git/trees,
 //         then one batch of the 4 architecture files, the repository's information once, and no use
 //         case, no queue file, no file by itself; then, for the table and the gaps of the modules view (ITM-721), the graph of the commit: the
@@ -216,10 +216,10 @@ test("#spec: the links file and the register's entries are read in the first wav
   assert.deepEqual(shownFiles(page.requests), [], "no file by itself");
 });
 
+// TST-1266103 · level: component · module: MOD-site-frame
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the fixture product
 // input: open #spec with a token
-// TST-1266103 · level: component · module: MOD-site-frame
 // expect: the whole load — the specification route's reads included — sends its commit once and one request for its folders — SPEC.md,
 //         docs/sources.md, docs/sources, docs/spec-freigaben, docs/approvals, docs/groups and the bar's two files —, no git/trees, reads the
 //         repository's information once, and reads no file by itself
@@ -336,14 +336,16 @@ const item = (n) => ["---", `id: ITM-00${n}`, `title: The work of item ${n}`, "l
   "builds_on: []", "tests:", "  - unit", "origin:", "  - RULE ONE", "---", `# ITM-00${n} The work of item ${n}`, "", "## Outcome", "",
   `What item ${n} delivers.`, "", "## Acceptance", "", "- a unit test.", ""].join("\n");
 
+// TST-1266110 · level: component · module: MOD-site-frame
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: a start page that shows 207 use cases
 // input: open the start page with a token
-// expect: 3 batches in all, never more than 100 files in one: batch 100, batch 100, batch 7, and the repository's information once
+// expect: the commit and the request for its folders, then 3 batches in all, never more than 100 files in one: batch 100, batch 100, batch 7, and the
+//         repository's information once
 test("a page that shows more than a hundred files sends one batch for every hundred of them", async () => {
   const repo = await product(extraUseCases(100, 205)), srv = await server(repo);
   const page = await openDashboard({ server: srv });
-  assert.deepEqual(withoutInfo(page.requests), ["commit", "tree", "batch 100", "batch 100", "batch 7"]);
+  assert.deepEqual(withoutInfo(page.requests), ["commit", "folders", "batch 100", "batch 100", "batch 7"]);
   assert.equal(count(page.requests, "repository"), 1);
   assert.equal(new Set(srv.batches.flat()).size, 207, "each of the 207 files once");
 });
@@ -382,12 +384,12 @@ test("an acceptance of three files reads its head once", async () => {
   assert.deepEqual(before.filter((r) => r.startsWith("file ") || r.startsWith("batch ")), ["file SPEC.md"], before.join(" | "));
 });
 
+// TST-1266104 · level: component · module: MOD-site-frame
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: three use cases waiting for acceptance — UC-002 changed, UC-003 and UC-004 open
 // input: open #review/uc with a token
 // expect: the three use cases come in one batch of three and none by itself; the only file read by itself is the record of UC-002's last accepted
 //         text, which MOD-approvals reads; the commit and the request for the folders of the use cases once each, and no git/trees
-// TST-1266104 · level: component · module: MOD-site-frame
 test("#review/uc: the files it shows come in one batch", async () => {
   const repo = await product({ "docs/use-cases/UC-003-third.md": useCase("003", "Third"), "docs/use-cases/UC-004-fourth.md": useCase("004", "Fourth") });
   const srv = await server(repo);
@@ -415,10 +417,10 @@ test("#review/uc without a token: each file is read by itself, which sends more 
   assert.ok(without.requests.length > withToken.requests.length, `${without.requests.length} against ${withToken.requests.length}`);
 });
 
+// TST-1266105 · level: component · module: MOD-site-frame
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the fixture product, whose UC-001 is accepted
 // input: open #uc/UC-001 and #arc/ARC-001 with a token — a route that shows one accepted file
-// TST-1266105 · level: component · module: MOD-site-frame
 // expect: the commit, the request for its folders and the repository's information, and the one file by its own request — a batch of one file is no
 //         fewer requests —; no git/trees
 test("#uc/<id> and #arc/<id> of an accepted file read that one file by itself", async () => {
@@ -442,11 +444,10 @@ const STORED_GRAPH = `stored graph ${"c0ffee".padEnd(40, "0")}`;
 const SHOWN = { "#use-case": [UC1, UC2], "#decision": [ARC, ARC2, ARC3], "#module": MODULES };
 const withDecisions = () => product({ [ARC2]: decision("002"), [ARC3]: decision("003") });
 
-// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
-// given: the fixture product with two use cases (UC-001, UC-002), three decisions (ARC-001, ARC-002, ARC-003) and three module files
-//        (MOD-page, MOD-reader, MOD-review)
-// input: open #use-case (then #decision, then #module) with a token
 // TST-1266106 · level: component · module: MOD-site-frame
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: the fixture product with two use cases (UC-001, UC-002), three decisions (ARC-001, ARC-002, ARC-003) and three module files (MOD-page, MOD-reader, MOD-review)
+// input: open #use-case (then #decision, then #module) with a token
 // expect: the commit and the request for its folders once, no git/trees, one batch of exactly the files of its own kind — 2 files for #use-case, 3 for #decision, 3 for
 //         #module —, the repository's information once, and no file by itself; #module also shows the modules view (ITM-721), which reads the
 //         graph of the commit: the graph stored for it, by at most one request — the modules view may ask for it after the page has settled, so the
@@ -480,10 +481,10 @@ test("#use-case, #decision and #module without a token: each file is read by its
   }
 });
 
+// TST-1266107 · level: component · module: MOD-site-frame
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: UC-001 and MOD-page, each with a record that names its current text
 // input: open #use-case/id=UC-001 and #module/id=MOD-page with a token — a route that shows one accepted file
-// TST-1266107 · level: component · module: MOD-site-frame
 // expect: the commit, the request for its folders and the repository's information, and the one file by its own request — a batch of one file is no
 //         fewer requests —; no git/trees
 test("#use-case/id= and #module/id= of an accepted file read that one file by itself", async () => {
@@ -498,13 +499,13 @@ test("#use-case/id= and #module/id= of an accepted file read that one file by it
 
 // ---------------------------------------------------------------- one view, what it reads
 
+// TST-1266108 · level: component · module: MOD-site-frame
 // guards: A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT
 // given: UC-002, accepted in an earlier text, edited since
 // input: open #uc/UC-002 with a token
 // expect: the file once, the record's history once and the text the record names as the repository stood when the record was added —
 //         that commit's tree and that file —, each once; the head's commit and the request for its folders once, no git/trees of the head; the
 //         page shows the difference to the text accepted before
-// TST-1266108 · level: component · module: MOD-site-frame
 test("opening one use case reads that use case, the history of its record and the text the record names — no other file", async () => {
   const repo = await product();
   const page = await openDashboard({ server: await server(repo), hash: "#uc/UC-002" });
