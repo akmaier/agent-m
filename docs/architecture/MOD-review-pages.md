@@ -7,6 +7,7 @@ follows:
   - ARC-038
 uses:
   - MOD-site-frame.View
+  - MOD-site-frame.ViewContext
   - MOD-site-frame.chosenProduct
   - MOD-site-frame.explain
   - MOD-site-frame.notice
@@ -287,13 +288,16 @@ and `docs/participants.md` of the instance.
 ## Uses
 
 - MOD-site-frame.View, MOD-site-frame.chosenProduct, MOD-site-frame.explain, MOD-site-frame.notice, MOD-site-frame.readProblem,
-  MOD-site-frame.runPanel, MOD-site-frame.confirmDecision — the frame's parts of every route.
+  MOD-site-frame.runPanel, MOD-site-frame.confirmDecision — the frame's parts of every route; MOD-site-frame.ViewContext —
+  the `ref` the frame read the repository shown at.
 - MOD-markdown-render.renderArtifact, MOD-markdown-render.openEditor, MOD-markdown-render.showDifference — files,
   editors, differences.
 - MOD-browser-store.readSetting — the endpoints' configurations and the Bridges' settings a job in the tab needs;
   MOD-bridge-client.bridgeAt — a handle for each Bridge, handed to the runtimes.
-- MOD-repository-hosts.readSnapshot, MOD-repository-hosts.repositoryInfo, MOD-repository-hosts.webLinks — the
-  product's files, whether the person may write and the repository's visibility, GitHub's own pages;
+- MOD-repository-hosts.readSnapshot — the product's files, at the `ref` its `ViewContext` hands it, so that no route
+  asks for the default branch on load; MOD-repository-hosts.repositoryInfo — whether the person may write and the
+  repository's visibility, asked only where a write, a draft or the offer of a job's routes needs them;
+  MOD-repository-hosts.webLinks — GitHub's own pages;
   MOD-repository-hosts.readHistory — on `<k>/history` only, the commits that added the approval records under
   `docs/approvals/`, each with its author and date.
 - MOD-text-tools.blobSha — the blob of each text as it was shown, which an acceptance names (`AN APPROVAL NAMES THE EXACT
