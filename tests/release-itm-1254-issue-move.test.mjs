@@ -131,7 +131,7 @@ test("TST-1254301 two issues describing the same work end as one item with both 
 // guards: EVOLUTION ENTERS THROUGH THE SPECIFICATION; UC-033
 // given: UC-033 alternative flow 1a. known positive first — the issue 6 labelled defect is offered Move to backlog and no lead; the issue 5 has no class; a participant that proposes the class bug for it
 // input: the issue 5 opened; Analyse run by a person (the proposal bug); the lead clicked by a person; the person's click on Bug
-// expect: before and after the analysis the issue 5 offers no Move to backlog and says it is not classified, leading to "UC-012, step 2" — a proposal is no class —; the lead goes once, to the route "use-case" with the use case UC-012, and that route is one the review pages serve; after the person's click on Bug, Move to backlog is offered and the lead is gone
+// expect: before and after the analysis the issue 5 offers no Move to backlog and says it is not classified, leading to "UC-012, step 2" — a proposal is no class —; the lead goes once, to the route "use-case" with the use case UC-012 of the instance itself (the empty product), and that route is one the review pages serve; after the person's click on Bug, Move to backlog is offered and the lead is gone
 // Planted fault: the class a participant proposes counted as the issue's class and the move redrawn at the proposal (`state.proposal?.class` in currentClass and `drawMove()` in onProposal, src/maintenance-pages/issues.mjs) offers Move to backlog after the analysis, and the case fails on "a proposal is no class".
 // Planted fault: the lead going to a route that is no route (`context.go("use-cases", …)`) fails the assertion on what went; MOD-review-pages' USE_CASES naming its route "use-cases" (src/review-pages/kinds.mjs) fails the assertion that the review pages serve the route the lead names.
 test("TST-1254302 an issue the person has not classified is led to UC-012 step 2 whatever a participant proposes, by a route the review pages serve", async () => {
@@ -158,7 +158,7 @@ test("TST-1254302 an issue the person has not classified is led to UC-012 step 2
 
   assert.deepEqual(w.context.went, []);
   await trusted(one(five, "uc-012"));
-  assert.deepEqual(w.context.went, [["use-case", { id: "UC-012" }]]);
+  assert.deepEqual(w.context.went, [["use-case", { id: "UC-012", product: "" }]]);
   assert.ok(reviewPages.routes.some((served) => served.name === w.context.went[0][0]), `the review pages serve the route ${w.context.went[0][0]}`);
 
   await trusted(byClass(five, "set-class").find((node) => node.getAttribute("data-class") === "bug"));
