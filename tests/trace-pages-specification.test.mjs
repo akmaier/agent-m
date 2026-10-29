@@ -728,3 +728,31 @@ test("a failed read of the specification view is named by readProblem with the c
   assert.doesNotMatch(unknown.text, /private or does not exist/);
   assert.equal(unknown.links, 0);
 });
+
+// The marks of the waiting entries without their rationales (ITM-1274): MOD-trace-pages — "of each entry waiting its proposal and what it changes, never its rationale" (Files) — and
+// MOD-spec-changes' `entryImpact`, "it reads no rationale". The fixture is TRACE_FILES with a third queue and a rationale for each of the three entries that wait; the finders are those of the cases above.
+const THIRD_SECTION = ["## Third section", "", "**DELTA RULE** *(Vibe Coding)*", "Delta rule.", "*Check:* at review.", ""].join("\n");
+const rationaleOf = (folder) => [`# Section: a change of ${folder}`, "", "**The change.** A change.", "", "**Why.** To be read on the entry's own page.", ""].join("\n");
+const WAITING_FILES = {
+  ...TRACE_FILES,
+  ...queue("2026-10-10_delta", "delta", "## Third section", THIRD_SECTION),
+  ...Object.fromEntries(["2026-10-09_alpha", "2026-10-09b_alpha-again", "2026-10-10_delta"].map((folder) => [`docs/spec-freigaben/${folder}/01-entry.begruendung.md`, rationaleOf(folder)])),
+};
+const statusRows = (target) => find(target, (node) => node.localName === "tr" && find(node, (cell) => cell.className === "requirement-status").length === 1)
+  .map((row) => [find(row, (node) => node.localName === "button")[0]?.textContent ?? row.firstChild.firstChild.textContent, find(row, (node) => node.className === "requirement-status")[0].textContent]);
+const rationaleAsked = (log) => [...log.reads, ...log.manys.flat()].filter((path) => path.endsWith(".begruendung.md"));
+
+// TST-1274003 · level: component · module: MOD-trace-pages
+// guards: UC-020; OPEN PROPOSALS ARE SHOWN IN THE BROWSER
+// given: the fixture product on the default branch main with three entries that wait — 2026-10-09_alpha changes ALPHA RULE and withdraws BETA RULE, 2026-10-09b_alpha-again changes ALPHA RULE, 2026-10-10_delta adds DELTA RULE — each with a rationale in the tree; the entry decided in 2026-10-08_done waits no longer
+// input: the route rendered at main (known positive: the log of the Host shows the proposals of the three entries named to readMany or read)
+// expect: the marks as the page gives them today: ALPHA RULE change proposed, BETA RULE removal proposed, GAMMA RULE in SPEC, DELTA RULE proposed; and no path ending in .begruendung.md was asked of read or readMany, while the three proposals were
+test("TST-1274003 the specification marks each requirement a waiting entry changes, withdraws or adds, and asks for no rationale", async () => {
+  const productHost = treeHost({ trees: { main: WAITING_FILES } });
+  const target = await render(productHost, mainParams);
+  const proposals = ["2026-10-09_alpha", "2026-10-09b_alpha-again", "2026-10-10_delta"].map((folder) => `docs/spec-freigaben/${folder}/01-entry.md`);
+  const asked = [...productHost.log.reads, ...productHost.log.manys.flat()];
+  for (const proposal of proposals) assert.equal(asked.includes(proposal), true, `known positive: the log shows the proposal ${proposal}`);
+  assert.deepEqual(Object.fromEntries(statusRows(target)), { "ALPHA RULE": "change proposed", "BETA RULE": "removal proposed", "GAMMA RULE": "in SPEC", "DELTA RULE": "proposed" });
+  assert.deepEqual(rationaleAsked(productHost.log), []);
+});
