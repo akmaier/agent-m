@@ -107,7 +107,7 @@ test("TST-360002 + Requirement stands once for each SPEC section, beside the tre
   assert.equal(list.length, 1, "one list holds them");
   assert.deepEqual(find(list[0], (node) => node.localName === "li").map((item) => item.textContent), ["1. Lending + Requirement", "2. Membership + Requirement"]);
   assert.equal(find(list[0], (node) => node.localName === "a" && node.className.includes("requirement-new")).length, 2);
-  assert.equal(find(target, (node) => node.localName === "a").length, 10, "four Edit, two + Requirement, the Gaps link, the links to all SPEC change entries and to their history and Arrange, nothing else");
+  assert.equal(find(target, (node) => node.localName === "a").length, 9, "four Edit, two + Requirement, the Gaps link, the links to the history of SPEC changes and Arrange, nothing else");
 });
 
 // TST-360003 · level: unit · module: MOD-trace-pages

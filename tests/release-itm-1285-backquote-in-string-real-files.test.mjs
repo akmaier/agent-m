@@ -53,7 +53,7 @@ const TICK_LINE = 'const TICK = "`";';
 // guards: A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS
 // given: tests/trace-pages-waiting-changes.test.mjs as it stands, whose line 25 is `const TICK = "`";` (the file the item names) and whose six declarations TST-878001 to TST-878006 all come after it; known positive first — the same file with that line made a real template opener reads none of them
 // input: the file's path and text given to testDeclarations
-// expect: the six declarations are read, in order, at the lines of their first lines (52, 72, 85, 101, 112, 142), each with level unit, module MOD-trace-pages, at least one guarded name, and a given, an input and an expect
+// expect: the six declarations are read, in order, at the lines that the file's own first-line oracle firstLinesOf finds, each with level unit, module MOD-trace-pages, at least one guarded name, and a given, an input and an expect
 // Planted fault: the reader counting every unescaped backquote as before the item (the `quote` tracking of templateOpenAfter in src/test-document/declarations.mjs left out) reads none of them, and the case fails on the line count.
 test("TST-1285301 the file the item names keeps all six declarations that come after its quoted backquote", () => {
   const text = read(WAITING);
@@ -64,9 +64,9 @@ test("TST-1285301 the file the item names keeps all six declarations that come a
   assert.deepEqual(testDeclarations(pathOf(WAITING), lost), [], "known positive: a backquote that does open a template string hides every declaration after it");
 
   const read1 = testDeclarations(pathOf(WAITING), text);
-  assert.deepEqual(read1.map((d) => [d.id, d.line]), [
-    ["TST-878001", 52], ["TST-878002", 72], ["TST-878003", 85], ["TST-878004", 101], ["TST-878005", 112], ["TST-878006", 142],
-  ]);
+  const expected = firstLinesOf(text);
+  assert.deepEqual(expected.map(([id]) => id), ["TST-878001", "TST-878002", "TST-878003", "TST-878004", "TST-878005", "TST-878006"], "the oracle finds the six identifiers, in order");
+  assert.deepEqual(read1.map((d) => [d.id, d.line]), expected);
   for (const d of read1) {
     assert.equal(d.level, "unit", d.id);
     assert.equal(d.module, "MOD-trace-pages", d.id);

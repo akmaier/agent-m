@@ -40,6 +40,7 @@ jobs:
           path: |
             /home/runner/apt-archives
             /home/runner/apt-lists
+            /home/runner/agent-m-electron-44/node_modules/electron
           key: ${{ steps.key.outputs.key }}
       - name: Set up the tests
         if: steps.cache.outputs.cache-hit != 'true'
@@ -81,6 +82,7 @@ jobs:
           path: |
             /home/runner/apt-archives
             /home/runner/apt-lists
+            /home/runner/agent-m-electron-44/node_modules/electron
           key: ${{ needs.agent-m-setup.outputs.key }}
       - name: Set up the tests
         run: |
@@ -130,6 +132,7 @@ jobs:
           path: |
             /home/runner/apt-archives
             /home/runner/apt-lists
+            /home/runner/agent-m-electron-44/node_modules/electron
           key: ${{ needs.agent-m-setup.outputs.key }}
       - name: Set up the tests
         run: |
@@ -179,6 +182,7 @@ jobs:
           path: |
             /home/runner/apt-archives
             /home/runner/apt-lists
+            /home/runner/agent-m-electron-44/node_modules/electron
           key: ${{ needs.agent-m-setup.outputs.key }}
       - name: Set up the tests
         run: |
@@ -228,6 +232,7 @@ jobs:
           path: |
             /home/runner/apt-archives
             /home/runner/apt-lists
+            /home/runner/agent-m-electron-44/node_modules/electron
           key: ${{ needs.agent-m-setup.outputs.key }}
       - name: Set up the tests
         run: |
@@ -278,6 +283,7 @@ jobs:
           path: |
             /home/runner/apt-archives
             /home/runner/apt-lists
+            /home/runner/agent-m-electron-44/node_modules/electron
           key: ${{ needs.agent-m-setup.outputs.key }}
       - name: Set up the tests
         run: |
@@ -327,6 +333,7 @@ jobs:
           path: |
             /home/runner/apt-archives
             /home/runner/apt-lists
+            /home/runner/agent-m-electron-44/node_modules/electron
           key: ${{ needs.agent-m-setup.outputs.key }}
       - name: Set up the tests
         run: |
@@ -376,6 +383,7 @@ jobs:
           path: |
             /home/runner/apt-archives
             /home/runner/apt-lists
+            /home/runner/agent-m-electron-44/node_modules/electron
           key: ${{ needs.agent-m-setup.outputs.key }}
       - name: Set up the tests
         run: |
@@ -425,6 +433,7 @@ jobs:
           path: |
             /home/runner/apt-archives
             /home/runner/apt-lists
+            /home/runner/agent-m-electron-44/node_modules/electron
           key: ${{ needs.agent-m-setup.outputs.key }}
       - name: Set up the tests
         run: |
@@ -475,6 +484,7 @@ jobs:
           path: |
             /home/runner/apt-archives
             /home/runner/apt-lists
+            /home/runner/agent-m-electron-44/node_modules/electron
           key: ${{ needs.agent-m-setup.outputs.key }}
       - name: Set up the tests
         run: |
@@ -524,6 +534,7 @@ jobs:
           path: |
             /home/runner/apt-archives
             /home/runner/apt-lists
+            /home/runner/agent-m-electron-44/node_modules/electron
           key: ${{ needs.agent-m-setup.outputs.key }}
       - name: Set up the tests
         run: |
@@ -573,6 +584,7 @@ jobs:
           path: |
             /home/runner/apt-archives
             /home/runner/apt-lists
+            /home/runner/agent-m-electron-44/node_modules/electron
           key: ${{ needs.agent-m-setup.outputs.key }}
       - name: Set up the tests
         run: |
@@ -622,6 +634,7 @@ jobs:
           path: |
             /home/runner/apt-archives
             /home/runner/apt-lists
+            /home/runner/agent-m-electron-44/node_modules/electron
           key: ${{ needs.agent-m-setup.outputs.key }}
       - name: Set up the tests
         run: |
@@ -671,6 +684,7 @@ jobs:
           path: |
             /home/runner/apt-archives
             /home/runner/apt-lists
+            /home/runner/agent-m-electron-44/node_modules/electron
           key: ${{ needs.agent-m-setup.outputs.key }}
       - name: Set up the tests
         run: |
@@ -720,6 +734,7 @@ jobs:
           path: |
             /home/runner/apt-archives
             /home/runner/apt-lists
+            /home/runner/agent-m-electron-44/node_modules/electron
           key: ${{ needs.agent-m-setup.outputs.key }}
       - name: Set up the tests
         run: |
@@ -769,6 +784,7 @@ jobs:
           path: |
             /home/runner/apt-archives
             /home/runner/apt-lists
+            /home/runner/agent-m-electron-44/node_modules/electron
           key: ${{ needs.agent-m-setup.outputs.key }}
       - name: Set up the tests
         run: |
@@ -819,6 +835,7 @@ jobs:
           path: |
             /home/runner/apt-archives
             /home/runner/apt-lists
+            /home/runner/agent-m-electron-44/node_modules/electron
           key: ${{ needs.agent-m-setup.outputs.key }}
       - name: Set up the tests
         run: |
@@ -868,6 +885,7 @@ jobs:
           path: |
             /home/runner/apt-archives
             /home/runner/apt-lists
+            /home/runner/agent-m-electron-44/node_modules/electron
           key: ${{ needs.agent-m-setup.outputs.key }}
       - name: Set up the tests
         run: |
@@ -917,6 +935,7 @@ jobs:
           path: |
             /home/runner/apt-archives
             /home/runner/apt-lists
+            /home/runner/agent-m-electron-44/node_modules/electron
           key: ${{ needs.agent-m-setup.outputs.key }}
       - name: Set up the tests
         run: |
@@ -966,6 +985,7 @@ jobs:
           path: |
             /home/runner/apt-archives
             /home/runner/apt-lists
+            /home/runner/agent-m-electron-44/node_modules/electron
           key: ${{ needs.agent-m-setup.outputs.key }}
       - name: Set up the tests
         run: |
@@ -1015,6 +1035,7 @@ jobs:
           path: |
             /home/runner/apt-archives
             /home/runner/apt-lists
+            /home/runner/agent-m-electron-44/node_modules/electron
           key: ${{ needs.agent-m-setup.outputs.key }}
       - name: Set up the tests
         run: |
@@ -1064,6 +1085,7 @@ jobs:
           path: |
             /home/runner/apt-archives
             /home/runner/apt-lists
+            /home/runner/agent-m-electron-44/node_modules/electron
           key: ${{ needs.agent-m-setup.outputs.key }}
       - name: Set up the tests
         run: |

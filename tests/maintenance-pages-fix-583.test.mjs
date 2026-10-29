@@ -242,6 +242,14 @@ function withPulls(pulls) {
       const found = url.searchParams.get("page") === "1" || url.searchParams.get("page") === null ? pulls[branch] ?? [] : [];
       return new Response(JSON.stringify(found), { status: 200, headers: { "content-type": "application/json" } });
     }
+    // The facts of a listed pull request (pullRequestFacts): the request itself, with no commit, no changed file, no review and no check.
+    const facts = new RegExp(`^/repos/${PRODUCT}/(?:pulls/(\\d+)(?:/(commits|files|reviews))?|commits/[0-9a-f]{40}/(check-runs|statuses))$`).exec(url.pathname);
+    if (url.host === "api.github.com" && facts) {
+      const [, number, list, check] = facts;
+      const found = Object.values(pulls).flat().find((each) => String(each.number) === number);
+      if (number && !found) return new Response(JSON.stringify({ message: "Not Found" }), { status: 404, headers: { "content-type": "application/json" } });
+      return new Response(JSON.stringify(number && !list ? found : check === "check-runs" ? { check_runs: [] } : []), { status: 200, headers: { "content-type": "application/json" } });
+    }
     if (url.host === "api.github.com" && url.pathname === `/repos/${PRODUCT}/commits` && url.searchParams.get("sha") === FIX_JOB) return new Response(JSON.stringify({ message: "Not Found" }), { status: 404, headers: { "content-type": "application/json" } });
     return inner(input, init);
   };
@@ -287,14 +295,15 @@ test("issue — the fix's pull request is named, and once it is merged Close wit
 
 // TST-583207 · level: component · module: MOD-maintenance-pages
 // guards: UC-012
-// given: the fix job of the issue 6 and an open pull request #9 for its branch; and the server's merged pull request of TST-583206 as known positive
+// given: the fix job of the issue 6 and an open pull request #9 for its branch, which the fake host gives its facts (the request, and no commit, changed file, review or check); and the server's merged pull request of TST-583206 as known positive
 // input: the route issue 6
-// expect: the trail links the pull request as open and offers no Close with links; the issue is not closed
+// expect: the trail links the pull request as open, draws no issue-problem, and offers no Close with links; the issue is not closed
 test("issue — a fix whose pull request is not merged yet is not closed", async () => {
   const w = withPulls({ [FIX_JOB]: [pull("open", false)] });
   const detail = await open(w, 6);
-  await waitFor(() => byClass(detail, "fix-pull").length > 0 || byClass(detail, "issue-problem").length > 0);
+  await waitFor(() => byClass(detail, "fix-no-expectation").length > 0 || byClass(detail, "issue-problem").length > 0);
   assert.match(textOf(one(detail, "fix-pull")), /pull request #9 is open/);
   assert.deepEqual(buttonsOf(detail, "Close with links"), []);
+  assert.equal(byClass(detail, "issue-problem").length, 0, textOf(one(detail, "issue-problem") ?? detail));
   assert.equal(issueOf(w, 6).state, "open");
 });
