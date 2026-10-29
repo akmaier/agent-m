@@ -48,6 +48,18 @@ named. No retry of the install is added. The task stops and names the missing se
 the module files do not hold, such as a step of the generated CI configuration (THE CI CONFIGURATION IS GENERATED FROM
 THE SCHEDULE).
 
+## Where the fix lies
+
+Agent M's schedule already installs what the tests need before they run:
+- its `setup` (`tests/test-schedule-setup.sh`, MOD-test-schedule) installs xvfb and openbox, "so that the tests that start
+  Electron find openbox installed and install nothing (their own install stays the local fallback)";
+- its `cache` keeps what the setup fetched, in the generated workflow's `actions/cache` steps
+  (`.github/workflows/agent-m-tests.yml:37-46`).
+
+Electron is not among what the setup installs. So the first place to look is the schedule's `setup` and `cache`, which
+belong to MOD-test-schedule, a module this item does not name yet. Before the item is selected, it names MOD-test-schedule
+and the files it would change, and its Acceptance names the tests of other modules that change.
+
 ## Acceptance
 
 - The pull request names where Electron is acquired after the change, with the data-flow path from there to each of

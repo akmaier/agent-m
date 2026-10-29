@@ -45,8 +45,20 @@ Tests written first, each red on the commit that holds only them:
 - The first commit holds only the tests, and CI is red on it.
 - **The functions it needs are named in MOD-trace-pages' Uses:** `MOD-repository-hosts.readSnapshot`
   (MOD-trace-pages.md:19), and `MOD-result-records.resultsAt`.
-- **A changed expectation of the module's own tests, in the tests-only commit:**
-  `tests/trace-pages-test-history-newest.test.mjs`, TST-1276004, asserts that the whole tree of the branch is read once,
-  "for the outcomes of the tests tree". It becomes none.
-- Tests of other modules this Outcome changes: none known; to be named before selection.
+- **Changed expectations of the module's own tests, in the tests-only commit:**
+  - `tests/trace-pages-test-history-newest.test.mjs` asserts that the whole tree of the branch is read once, "for the
+    outcomes of the tests tree": TST-1276002 (`:130`) and TST-1276003 (`:141`). Each becomes none, and its comment
+    (`:20`, `:68`, `:137`) says so.
+- **One release test changes, by a participant who implemented none of this item:**
+  `tests/release-itm-1276-test-history-ten-at-a-time.test.mjs:121`, TST-1276302, "the whole tree of the branch is read
+  once, for the tests tree's latest outcomes". It becomes none.
+  - It is changed in a commit of its own on the item's branch.
+  - Its header names MOD-trace-pages, and its level is `release` (RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER).
+- **Tests of other modules this Outcome changes: none.**
+  - The search was every test file under `tests/` that names `key: "tests"`, `outcomesOf`, `trace/tests` or
+    `test-results`, on `sprint/team1/115` at `7f221301`, read to its end: 54 files.
+  - Of these, only the two files above and the harness assert on the whole tree of `test-results` for the tests tree.
+  - `release-itm-1279`, `test-pages-runs-reads` and `release-itm-1264` count the reads of their own routes, which this
+    item does not change.
+  - Its known positive is `trace-pages-test-history-newest`.
 - It removes no test.

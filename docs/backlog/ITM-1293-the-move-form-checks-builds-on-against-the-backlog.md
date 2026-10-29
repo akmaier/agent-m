@@ -30,3 +30,14 @@ beside the drafted one, so a named item that the backlog holds gives no mark.
 - A unit case types an existing item into `builds_on` and finds no mark, and types an item the backlog lacks and finds
   one; the first fails on the code as it stands.
 - Only `src/maintenance-pages/` and its tests change.
+- **The function it needs is named in MOD-maintenance-pages' Uses:** `MOD-work-plans.backlogFindings`. The backlog's items
+  are those the page already reads for *Add* (ITM-1254).
+- **Tests of other modules this Outcome changes: none.**
+  - The search was every test file under `tests/` that names `backlogFindings`, `builds_on` with the issue page, or
+    `ITM-0900`, on `sprint/team1/115` at `7f221301`, read to its end.
+  - It finds the move form's tests `maintenance-pages-move-lists`, `-move-1250` and `release-itm-1254-issue-move`, all of
+    MOD-maintenance-pages. None types a `builds_on`.
+  - It also finds MOD-work-plans' and MOD-issue-handling's own tests of `backlogFindings`. Those call it directly and do
+    not change.
+  - Its known positive is `maintenance-pages-move-lists`.
+- It removes no test.
