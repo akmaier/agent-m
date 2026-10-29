@@ -54,7 +54,7 @@ PLACES = {
     "github-token": "GitHub token", "products": "Products", "notifications": "Notifications", "notified": "Notifications",
     "bridge": "Bridge", "jump-host": "Jump host", "mailbox": "Mailbox", "browser": "Browser identifier", "not-an-issue": "Mails marked not an issue",
     "github-token:sample": "GitHub token: sample", "gitlab-token:sample": "GitLab token: sample", "endpoint:sample": "Endpoint: sample",
-    "bridge:sample": "Bridge: sample", "remote-session:sample": "Remote session: sample",
+    "bridge:sample": "Bridge: sample", "remote-session:sample": "Remote session: sample", "session:sample": "CLI session: sample",
     "last-test:sample": "GitHub token", "acknowledged:sample": "GitHub token", "resource-key:sample": "Resource key: sample",
 }
 STORED = {
@@ -64,6 +64,7 @@ STORED = {
     "github-token:sample": TOKEN, "gitlab-token:sample": TOKEN,
     "endpoint:sample": {"url": "https://m.example/v1", "kind": "openai-compatible", "model": "m", "key": "k", "throughBridge": False},
     "bridge:sample": {"address": "http://localhost:8765", "token": "labtok"}, "remote-session:sample": {"port": 20001, "token": BRIDGE_SECRET},
+    "session:sample": {"place": "this computer", "context": 200000, "model": "claude-opus-5", "capabilities": ["read the repository"]},
     "last-test:sample": {"at": "2026-09-29T10:00:00.000Z", "outcome": "working"}, "acknowledged:sample": "2026-09-01",
     "resource-key:sample": {"value": "hub_KEY0123456789", "stored": "2026-09-01T00:00:00.000Z"},
 }
@@ -136,10 +137,10 @@ class TestedAndCleared(unittest.TestCase):
         buttons = {title: b for title, b in r}
         clears = ("Clear", "Disconnect", "Switch off")
         for title in ("GitHub token", "Products", "GitHub token: sample", "GitLab token: sample", "Jump host", "Remote session: sample",
-                      "Bridge: sample", "Endpoint: sample", "Mailbox", "Notifications"):
+                      "Bridge: sample", "Endpoint: sample", "CLI session: sample", "Mailbox", "Notifications"):
             self.assertTrue(any(c in buttons[title] for c in clears), f"{title} can be cleared")
         for title in ("GitHub token", "GitHub token: sample", "GitLab token: sample", "Jump host", "Remote session: sample",
-                      "Bridge: sample", "Endpoint: sample", "Mailbox", "Notifications"):
+                      "Bridge: sample", "Endpoint: sample", "CLI session: sample", "Mailbox", "Notifications"):
             self.assertIn("Test", buttons[title], f"{title} can be tested")
         self.assertIn("Test", buttons["Managed products"], "each product address is tested where the list is shown")
 
