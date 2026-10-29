@@ -725,8 +725,10 @@ async function moduleFilesOf(snapshot) {
 }
 
 // The table of the modules (UC-025 step 3), one row for each module of moduleRows: its subsystem and that decision's review status, the requirements it realises each in the SPEC or not, its file with its review status,
-// its code and its tests; the name opens the row onto the module's file and folder (step 6). The table stands in the site's scroll box, so that on a phone it scrolls sideways in a box of its own and the page keeps its
-// margins; the box is reached by the keyboard and named, as it scrolls.
+// its code and its tests; the name opens the row onto the module's file and folder (step 6). Each cell of a module's row carries its column's title in `data-label`, by which the frame's
+// narrow form of a table labels it below a phone's width, where each row stands as a block. The table stands in the site's scroll box, which scrolls a wide table sideways on a wider
+// screen; the box is reached by the keyboard and named, as it scrolls.
+const MODULE_COLUMNS = ["Module", "Subsystem", "Realises", "File", "Code", "Tests"];
 function modulesTable(rows, graph, reviewOf, snapshot) {
   const statusOf = (path) => REVIEW[reviewOf.get(path)?.status] ?? "open";
   const list = (items) => el("ul", null, ...items.map((text) => el("li", null, text)));
@@ -736,8 +738,10 @@ function modulesTable(rows, graph, reviewOf, snapshot) {
     name.type = "button";
     const subsystem = row.subsystem === null ? "none" : `${row.subsystem} — ${statusOf(graph.nodes.get(row.subsystem)?.path)}`;
     const realises = row.realises.map((each) => `${each} — ${graph.nodes.get(each)?.kind === "requirement" ? "in SPEC" : "not in the SPEC"}`);
-    const tr = el("tr", "module-row", el("td", "module-name-cell", name), el("td", "module-subsystem", subsystem), el("td", "module-realises", list(realises)),
-      el("td", "module-file", `${row.describedBy} — ${statusOf(row.describedBy)}`), el("td", "module-code", list(row.code)), el("td", "module-tests", list(row.tests)));
+    const cells = [el("td", "module-name-cell", name), el("td", "module-subsystem", subsystem), el("td", "module-realises", list(realises)),
+      el("td", "module-file", `${row.describedBy} — ${statusOf(row.describedBy)}`), el("td", "module-code", list(row.code)), el("td", "module-tests", list(row.tests))];
+    cells.forEach((td, at) => td.setAttribute("data-label", MODULE_COLUMNS[at]));
+    const tr = el("tr", "module-row", ...cells);
     tr.setAttribute("data-module", row.module);
     let opened = null;
     name.addEventListener("click", async () => {
@@ -757,7 +761,7 @@ function modulesTable(rows, graph, reviewOf, snapshot) {
     });
     body.append(tr);
   }
-  const head = el("tr", null, ...["Module", "Subsystem", "Realises", "File", "Code", "Tests"].map((title) => el("th", null, title)));
+  const head = el("tr", null, ...MODULE_COLUMNS.map((title) => el("th", null, title)));
   const box = el("div", "table-scroll", el("table", "list", el("thead", null, head), body));
   box.setAttribute("tabindex", "0");
   box.setAttribute("role", "region");
