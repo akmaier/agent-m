@@ -51,6 +51,8 @@ provides:
   - systemDecisions
   - graphText
   - graphFromText
+  - gzipped
+  - gunzipped
   - publishGraph
   - storedImpacts
 ---
@@ -231,6 +233,11 @@ identifier, and which register entry an item names is MOD-source-register's to s
   graph was built for.
 - `graphFromText(text: string, commit: string) -> Graph | null` — the graph the text holds, or `null` for a text that is
   no `graphText` or names a commit other than `commit`. Reads nothing.
+- `gzipped(text: string) -> Promise<Uint8Array>` — a text as the bytes of its UTF-8 gzipped, through the platform's
+  `CompressionStream`, the same in a browser and in Node: the form of `<commit>.json.gz`, and of every other file stored
+  "gzipped as the trace graph is". Reads nothing.
+- `gunzipped(bytes: Uint8Array) -> Promise<string>` — the text `gzipped` gave, back. Rejects with the platform's error
+  where the bytes are no gzip. Reads nothing.
 - `publishGraph(host: Host, snapshot: Snapshot, changed?: Array<{ path: string, before: { commit: string, text: string }
   | null }>) -> Promise<{ commit: string, written: boolean }>` — builds the graph of the snapshot's commit from its files
   and adds `<commit>.json.gz`, the graph's text gzipped, to the branch `trace-cache` by `commitFiles`, on the head it read,
