@@ -93,3 +93,12 @@ it.
 
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - Only the folders of the seven modules, the entry page `docs/index.html` and the tests that name them change.
+
+**The tests it changes are named from a run of the built change** (sprint team1/120's planning). Which tests the change
+moves is known only once the routes are split into stand-ins: a stand-in of the Product Owner would be the item itself.
+- The item builds the change on its branch first and commits none of it. It stops before its tests-only commit, names the
+  change, and hands the Product Owner the patch.
+- The Product Owner runs, with the patch applied and without it, every test that reads a changed file by its path and
+  every test of the seven modules and of each module whose code calls a changed function. It names here each case that
+  fails only with the patch. A release test among them is changed by a participant who implemented none of the item.
+- Then the tests-only commit follows, with those changed expectations, red there.

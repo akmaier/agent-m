@@ -30,4 +30,9 @@ no fake of GitLab's commit API. A case saves a change from an issue on a GitLab 
 
 - The case runs on a fake GitLab server, through the GitLab adapter as the page uses it, and is shown to fail on a fault
   planted in the GitLab branch of the queue write.
-- It is not written by the implementer of the behaviour it checks.
+- It is not written by the implementer of the behaviour it checks. The GitLab branch of the queue write came with ITM-341,
+  394, 593 and 1247 (`git log -- src/spec-changes/propose.mjs`): developer-sonnet-a, developer-sonnet-b and the
+  coordinator's session. None of team 1's developers of sprint team1/120 implemented it.
+- Only `tests/test_issue_to_spec.py` and its data file `tests/test_issue_to_spec.md` change; no test reads either by its
+  path. A fake of GitLab's commit API stands in the test file. CI is green on every commit, and the planted fault is
+  recorded in the pull request.
