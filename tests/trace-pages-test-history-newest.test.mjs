@@ -64,9 +64,9 @@ async function render(host, expected) {
 }
 const click = async (button, done) => { button.dispatchEvent(new Event("click")); await until(done); await new Promise((resolve) => setTimeout(resolve, 30)); };
 const ofResults = (host) => host.log.histories.filter(([, options]) => options?.ref === "test-results" || /^[0-9a-f]{40}$/.test(options?.ref ?? ""));
-const narrowedOfResults = (host) => host.log.narrowed.filter(([ref]) => ref === "test-results");
+const narrowedOfResults = (host) => host.log.narrowed.filter(([ref, folders]) => ref === "test-results" && folders !== null);
 // The snapshots of the branch read without folders: the tests tree reads one for the outcomes on the latest commit (src/trace-pages/tests.mjs, not the history of a test), and the history reads none.
-const wholeTrees = (host) => narrowedOfResults(host).filter(([, folders]) => folders === null);
+const wholeTrees = (host) => host.log.narrowed.filter(([ref, folders]) => ref === "test-results" && folders === null);
 const manyOfRecords = (host) => host.log.manys.filter((paths) => paths.every((path) => path.startsWith("runs/")));
 
 // TST-1276001 · level: component · module: MOD-trace-pages
@@ -139,7 +139,7 @@ test("the records of runs not asked for are not read, and the history reads no w
   const host = hostOf();
   const target = await render(host, 10);
   assert.equal(wholeTrees(host).length, 1, "the whole tree of the branch is read once, for the outcomes of the tests tree, and not for the history");
-  assert.equal(narrowedOfResults(host).length, 2, "known positive: the history's own snapshot of the branch is narrowed");
+  assert.equal(narrowedOfResults(host).length, 1, "known positive: the history's own snapshot of the branch is narrowed");
   const readRuns = () => new Set(host.log.reads.filter((path) => path.startsWith("runs/")));
   const first = [30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 12].map((n) => pathOf(n));
   assert.deepEqual([...readRuns()].sort(), first.sort());
