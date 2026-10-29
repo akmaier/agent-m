@@ -350,9 +350,6 @@ async function holdFolders(folders) {
 const USE_CASE_PATH = /^docs\/use-cases\/UC-\d{3}-[^/]+\.md$/;
 const QUEUE_INDEX_PATH = /^docs\/spec-freigaben\/[^/]+\/index\.md$/;
 const QUEUE_HEAD_PATH = /^docs\/spec-freigaben\/[^/]+\/(?:index|entscheidungen)\.md$/;
-const ITEM_PATH = /^docs\/backlog\/ITM-\d{3,}-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
-const SPRINT_PATH = /^docs\/backlog\/sprints\/([^/]+)\/\d+\.md$/;
-const ASSIGNMENT_PATH = /^docs\/role-assignments\/([^/]+)\.md$/;
 const MODULE_PATH = /^docs\/architecture\/MOD-[^/]+\.md$/;
 const DECISION_PATH = /^docs\/architecture\/ARC-\d{3}-[^/]+\.md$/;
 const pathsOf = (...res) => state.tree.map((e) => e.path).filter((p) => res.some((re) => re.test(p)));
@@ -385,10 +382,6 @@ async function readAhead(kind) {
     } else {
       await readWave(pathsOf(QUEUE_HEAD_PATH));
     }
-  } else if (kind === "backlog") {
-    // The module files are read for a product with more than one team (the route backlog of MOD-implementation-pages reads them).
-    const teams = new Set([...pathsOf(ASSIGNMENT_PATH).map((p) => ASSIGNMENT_PATH.exec(p)[1]), ...pathsOf(SPRINT_PATH).map((p) => SPRINT_PATH.exec(p)[1])]);
-    await readWave(["docs/process.md", "SPEC.md", ...pathsOf(ITEM_PATH, SPRINT_PATH, ASSIGNMENT_PATH), ...(teams.size > 1 ? pathsOf(MODULE_PATH) : [])]);
   }
 }
 
@@ -840,7 +833,7 @@ async function route() {
     renderProductSelector();
     // The snapshot holds the folders the route shows (MOD-site-frame's Route `folders`); a route that names none is given the whole tree.
     if (state.commit && !unavailableEntry) await holdFolders(foldersOf(kind, a, b));
-    if (state.commit && (!a || kind === "backlog") && ["", "uc", "arc", "spec", "backlog", "use-case", "decision", "module"].includes(kind || "")) await readAhead(kind || "");
+    if (state.commit && !a && ["", "uc", "arc", "spec", "use-case", "decision", "module"].includes(kind || "")) await readAhead(kind || "");
     // A route of a loaded view that names its first wave (Route's `reads`) is given that wave in batches, through the snapshot this load read.
     const named = loadedRoute(kind);
     if (state.commit && typeof named?.reads === "function" && implementationPages.routes.includes(named)) await readWave(await named.reads(params, await pinned()));

@@ -556,29 +556,12 @@ export function githubAdapter(address, { token, tokenName }, links) {
     },
 
     // The pull requests ("List pull requests": state open, closed or all — a merged one is a closed one with a merged_at —, head `<owner>:<branch>`, 100 to a page, the pages asked for
-    // at once). With updatedSince the list has no such filter: the open ones are listed newest update first and kept from the date on; of the closed ones, the search ("Search issues
-    // and pull requests", `is:pr is:closed updated:>=<date>`, whose total_count alone is read) says how many were updated since, and as many pages of the closed ones, newest update
-    // first, are asked for at once, keeping those updated on or after the date — so that no state=all is listed and no page is asked after another.
-    async listPullRequests({ state = "all", branch, updatedSince } = {}) {
+    // at once).
+    async listPullRequests({ state = "all", branch } = {}) {
       const keep = (p) => state === "all" || state === "open" || p.state === state;
       const head = branch ? `&head=${encodeURIComponent(`${address.path.split("/")[0]}:${branch}`)}` : "";
-      if (updatedSince === undefined) {
-        const ask = state === "open" ? "open" : state === "all" ? "all" : "closed";
-        return (await allPages(`${repo}/pulls?state=${ask}${head}`)).map(pullOf).filter(keep);
-      }
-      const since = Date.parse(updatedSince);
-      const fresh = (p) => Date.parse(p.updated_at) >= since;
-      const open = async () => (await allPages(`${repo}/pulls?state=open&sort=updated&direction=desc${head}`)).filter(fresh);
-      const closed = async () => {
-        const query = new URLSearchParams({ q: `repo:${address.path} is:pr is:closed updated:>=${updatedSince}${branch ? ` head:${branch}` : ""}`, per_page: "1" });
-        const count = (await read(`${SEARCH}?${query}`, { search: true })).total_count ?? 0;
-        const pages = Math.min(Math.ceil(count / PAGE), MAX_PAGES);
-        const listed = await Promise.all(Array.from({ length: pages }, (_, i) =>
-          read(`${repo}/pulls?state=closed&sort=updated&direction=desc${head}&per_page=${PAGE}&page=${i + 1}`)));
-        return listed.flat().filter(fresh);
-      };
-      const lists = await Promise.all([state === "open" || state === "all" ? open() : [], state === "open" ? [] : closed()]);
-      return lists.flat().map(pullOf).filter(keep);
+      const ask = state === "open" ? "open" : state === "all" ? "all" : "closed";
+      return (await allPages(`${repo}/pulls?state=${ask}${head}`)).map(pullOf).filter(keep);
     },
 
     // Opens a pull request ("Create a pull request": POST …/pulls, body title, head, base, body, draft; 201 with the pull request, read with pullOf as listPullRequests reads it). Every refusal is the host's own

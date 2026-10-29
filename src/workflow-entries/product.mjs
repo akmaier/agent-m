@@ -940,13 +940,13 @@ function issueNumberOf(address, repository) {
 }
 
 // The pull request an event of the job workflow names, as the host reads it, else null. GitHub's event names it (`pull_request.number`). GitLab starts no pipeline for a merge on the merge request itself, but one of the push that merged it, whose commit
-// the environment names (`commit`): it is the merged merge request whose merge commit that is, among those updated since the commit's time.
+// the environment names (`commit`): it is the merged merge request whose merge commit that is, among the merged ones.
 async function eventPullRequest(env, host) {
   const number = env.event.payload?.pull_request?.number;
   if (Number.isInteger(number)) return (await host.pullRequestFacts(number)).pullRequest;
   const commit = env.event.payload?.commit;
   if (env.service !== "gitlab" || !commit?.sha) return null;
-  const merged = await host.listPullRequests({ state: "merged", ...(commit.timestamp ? { updatedSince: commit.timestamp } : {}) });
+  const merged = await host.listPullRequests({ state: "merged" });
   return merged.find((each) => each.mergeCommit === commit.sha) ?? null;
 }
 

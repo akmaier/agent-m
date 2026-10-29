@@ -3,8 +3,8 @@
 // they change and use, and its burn-down; *End sprint* with `endSprint` for a running sprint without a time box, and, for one that has ended, that its review and retrospective
 // are not recorded yet; a team without a running sprint says so; *Plan sprint* and *Change the selection* lead to `backlog` with `plan=<team>`, and a link leads to `backlog`, where every
 // item and each team's last ended sprint stand; what is blocked among the items the running sprints hold; who works on what, each current job linked to its page on the job
-// dashboard (UC-036). It reads the product's facts with MOD-progress-measures' scope `now`, so that no pull request closed before the oldest running sprint started is listed, and
-// draws no final burn-down." — and UC-035 2b and 2d.
+// dashboard (UC-036). … It draws no final burn-down." — and UC-035 2b and 2d. These cases render the route over a host that stores no view, so that the route derives the view
+// in the page (ITM-1260); what the route reads where a view is stored is tests/implementation-pages-progress-stored-view.test.mjs'.
 // Run: node --test tests/implementation-pages-progress.test.mjs
 //
 // Module: MOD-implementation-pages
@@ -64,20 +64,6 @@ test("#progress — the gates, what is blocked, and who works on what with each 
     assert.match(who, /dev-a/);
     assert.match(who, new RegExp(`<a href="[^"]*#job/id=${JOB}[^"]*">${JOB}</a>`));
     assert.match(part(html, 'data-team="team1"'), /href="#backlog\/plan=team1"/);
-  } finally { page.done(); }
-});
-
-// TST-1252203 · level: component · module: MOD-implementation-pages
-// guards: UC-035; A PAGE LOAD READS THE REPOSITORY IN BATCHES
-// given: the same product, whose pull requests 3 and 4 were merged in September and early October, before team1's sprint 03 started
-// input: the route progress's render, and the calls of the product's host
-// expect: every listing of the pull requests is bounded — { state: "open" } or one with updatedSince 2026-10-20 —, none lists them all
-test("#progress — the pull requests are read with the scope now: open, and updated since the running sprint started", async () => {
-  const page = await render("progress");
-  try {
-    const listings = page.host.calls.filter((call) => call[0] === "listPullRequests").map((call) => call[1] ?? {});
-    assert.ok(listings.length > 0, "known positive: the page reads the pull requests");
-    assert.deepEqual(listings.filter((filter) => filter.state !== "open" && filter.updatedSince !== "2026-10-20"), [], JSON.stringify(listings));
   } finally { page.done(); }
 });
 

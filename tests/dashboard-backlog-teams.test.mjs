@@ -224,13 +224,14 @@ test("#backlog — a team's closed sprint: its final chart from start through ea
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the fixture product, whose pull requests fit into one page of GitHub's pulls API
 // input: open #backlog
-// expect: the load lists the pull requests in one request, and makes 8 requests in all — the commit, the tree, the batch of its 16 files, the pull requests (no commit's facts file is stored, so none is asked for), then the
-//         instance at the commit its declaration's model_version names (the commit, the tree and one batch) and the one question whether the default branch holds the head of a sprint's pull request: the merge
-//         times come from the pull requests the page reads anyway (A PAGE LOAD READS THE REPOSITORY IN BATCHES); the prompt bar reads through what the load read and adds no request
-test("#backlog — the chart's merges cost no request: one listing of the pull requests, and 8 requests in all", async () => {
+// expect: the load lists the pull requests in one request, and makes 11 requests in all — the commit, the tree, the backlog's view of the commit and latest.json on overview-cache, which the fake holds
+//         none of (so the page derives the view itself, ITM-1260), the pull requests (no commit's facts file is stored, so none is asked for), the batches of the files the facts and the SPEC come from, then
+//         the instance at the commit its declaration's model_version names (the commit, the tree and one batch) and the one question whether the default branch holds the head of a sprint's pull request: the
+//         merge times come from the pull requests the page reads anyway (A PAGE LOAD READS THE REPOSITORY IN BATCHES); the prompt bar reads through what the load read and adds no request
+test("#backlog — the chart's merges cost no request: one listing of the pull requests, and 11 requests in all", async () => {
   const { page } = await backlogPage();
   assert.equal(page.requests.filter((r) => /\/pulls(?:\?|\/|$)/.test(r)).length, 1, page.requests.join(" | "));
-  assert.equal(page.requests.length, 8, page.requests.join(" | "));
+  assert.equal(page.requests.length, 11, page.requests.join(" | "));
 });
 
 // guards: UC-032 step 6; UC-035
