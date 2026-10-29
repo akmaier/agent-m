@@ -174,8 +174,8 @@ test("#arc/<id>: a module that names what is not accepted says so, and is not of
 // expect: no overview is stored for the commit, so the app reads, as MOD-site-frame states it ("the change queues stored for the commit, read
 //         beside the first wave of `#spec` …; where no overview is stored, the index and decisions of every queue are read, then the proposals of
 //         those still open"), in three waves, each one request: the SPEC — 1 file —, then the queues' heads — 3 files, the two queues' index files
-//         being the same blob —, then the proposals of the open queue — 1 file —. The open entry's rationale is not read (ITM-1274: the impact list of the open entry is made from its proposal and target, MOD-spec-changes' entryImpact, "it reads no rationale"); the impact list of the open entry (the statuses of the specification view, UC-020 step 3)
-//         is made from the stored graph and from nothing else; the graph that impact list is made from is the
+//         being the same blob —, then the proposals of the open queue — 1 file —. The open entry's rationale is not read (ITM-1274: the impact list of the open entry is made from its proposal and target, MOD-spec-changes' entryImpact, "it reads no rationale"); the graph gives that impact list (the statuses of the specification view, UC-020 step 3)
+//         only its referencedBy (MOD-spec-changes), and that graph is the
 //         stored one, and no batch of its artifacts is sent (MOD-trace-graph: "A page never builds the graph"); no file twice, the accepted queue's
 //         proposal not at all, and no file by itself. The open entry stands under "SPEC changes waiting for acceptance" as a link with its state
 //         open; the written one does not.
