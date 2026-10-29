@@ -51,6 +51,8 @@ provides:
   - systemDecisions
   - graphText
   - graphFromText
+  - gzipped
+  - gunzipped
   - publishGraph
   - storedImpacts
 ---
@@ -188,8 +190,12 @@ identifier, and which register entry an item names is MOD-source-register's to s
   `trace-cache`, its `<commit>.json.gz` read once with the source's `readOn` and unzipped — once for each commit in a page,
   however many views and functions ask for it, since a commit's graph never changes; a graph not stored, or a read that
   failed, is read again at the next call. It never builds the graph and
-  reads no other file; it rejects with `GraphNotStored`, naming the commit and the workflow that stores it, where the
-  source has no `readOn`, `commit` is none, or the branch holds no graph of it. Every page reads a graph only through it,
+  reads no other file; it rejects with `GraphNotStored`, naming the commit and the workflow "main changed" that stores
+  it on every push to the default branch, and saying that a product whose Agent M workflows do not hold that workflow
+  yet gets it by *Install* on its Settings page, where the source has no `readOn`, `commit` is none, or the branch
+  holds no graph of it. The text is the same in every repository and true in each — the instance, a product that runs
+  the workflow, a product that does not —, since telling them apart would take a read of the repository's workflow
+  files. Every page reads a graph only through it,
   directly or through `latestGraph`.
 - `latestGraph(source: TextSource, commit: string) -> Promise<{ graph: Graph, line: string | null }>` — the graph stored for
   `commit`, as `storedGraph` gives it, and `line` null; while that is not stored yet, `latest.json` on the branch
@@ -232,6 +238,11 @@ identifier, and which register entry an item names is MOD-source-register's to s
   graph was built for.
 - `graphFromText(text: string, commit: string) -> Graph | null` — the graph the text holds, or `null` for a text that is
   no `graphText` or names a commit other than `commit`. Reads nothing.
+- `gzipped(text: string) -> Promise<Uint8Array>` — a text as the bytes of its UTF-8 gzipped, through the platform's
+  `CompressionStream`, the same in a browser and in Node: the form of `<commit>.json.gz`, and of every other file stored
+  "gzipped as the trace graph is". Reads nothing.
+- `gunzipped(bytes: Uint8Array) -> Promise<string>` — the text `gzipped` gave, back. Rejects with the platform's error
+  where the bytes are no gzip. Reads nothing.
 - `publishGraph(host: Host, snapshot: Snapshot, changed?: Array<{ path: string, before: { commit: string, text: string }
   | null }>) -> Promise<{ commit: string, written: boolean }>` — builds the graph of the snapshot's commit from its files
   and adds `<commit>.json.gz`, the graph's text gzipped, to the branch `trace-cache` by `commitFiles`, on the head it read,

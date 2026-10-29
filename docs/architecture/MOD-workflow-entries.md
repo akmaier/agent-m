@@ -6,6 +6,8 @@ realises:
 follows:
   - ARC-039
 uses:
+  - MOD-repository-hosts.parseAddress
+  - MOD-repository-hosts.openPullRequest
   - MOD-repository-hosts.connect
   - MOD-repository-hosts.readSnapshot
   - MOD-repository-hosts.commitFiles
@@ -413,6 +415,9 @@ sections with their decisions and the fetched texts of sources. Reads secrets on
   `readHistory` — the commit messages of a branch a hand-over's run pushed without a
   pull request, so that a branch holding the task's words is refused whether or not a pull request was opened. In a product's job workflow, also the instance at the commit a declaration names,
   through the checkout of the instance, which fetches it with its own credentials.
+- `MOD-repository-hosts.parseAddress` — the address of the repository an entry runs in, and of the instance's checkout,
+  read before it is connected; `MOD-repository-hosts.openPullRequest` — each pull request of a result's branch that
+  `writeResult` opens, where the branch has none open or merged.
 - `MOD-documents.readDocument`, `readRegister`, `writeDocument` and `MOD-participant-list.participantSchema` — the
   declaration, the participants, the register entries.
 - `MOD-text-tools.Finding` — the findings an entry reports.

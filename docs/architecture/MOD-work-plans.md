@@ -64,6 +64,9 @@ provides:
   - conflicts
   - planFindings
   - backlogFindings
+  - backlogOf
+  - moduleFiles
+  - listField
   - sprintFacts
   - sprintsToClose
   - targetBranch
@@ -187,9 +190,24 @@ assignment is the one of the team whose sprint holds it, and the product's one i
   with the graph it asked for with its commit —; `graphFindings` then runs on it and `source` is read for no
   graph. Without `graph`, the graph is built from `source`, as above. Crosses the network through `source` for the
   files it has not read; fails with its errors.
-- `backlogFindings(items: Document[], architecture: Document[]) -> Finding[]` — an item that realises nothing; that names
-  no module the architecture describes; that builds on an item that does not exist, or on one that builds on it in turn;
-  and, as a warning, an item that restates an existing one.
+- `backlogOf(snapshot: Snapshot) -> Promise<Array<{ id: string, path: string, title: string, document: Document }>>` —
+  the backlog's items at a snapshot, under `docs/backlog/`, in the order of their identifiers, each read with
+  MOD-documents' item schema, its list fields given as lists as `listField` reads them. The files are named to the
+  snapshot's `readMany` first, so that they are read in batches. Crosses the network through the snapshot; fails with
+  its errors.
+- `moduleFiles(snapshot: Snapshot) -> Promise<Document[]>` — the module files of the architecture at a snapshot, read
+  with MOD-documents' module schema in batches as `backlogOf` reads: the `architecture` that `saveItems` and
+  `backlogFindings` take. Apart from `backlogOf`, so that a caller that needs only these reads no item. Crosses the
+  network through the snapshot; fails with its errors.
+- `listField(value: string | string[] | null | undefined) -> string[]` — a list field of an item, or a field a person
+  types a list into, as its values: a list as it stands, a text split at its commas, each value trimmed, empty ones left
+  out. Pure.
+- `backlogFindings(items: Document[], architecture: Document[]) -> Finding[]` — an item that realises nothing (`A BACKLOG
+  ITEM NAMES WHAT IT REALISES`); that names no module, or a module the architecture does not describe, each such module
+  named (`A BACKLOG ITEM NAMES THE MODULES IT CHANGES`); that builds on an item that does not exist, or that stands in a
+  circle of `builds_on` of any length, the circle's items named in their order; and, as a warning, an item that restates
+  an existing one. A realised name that is neither a requirement nor a use case, a missing origin, and the item's path and
+  front matter are MOD-documents' findings of the item schema, not repeated here.
 - `sprintFacts(sprint: Document, facts: { items: Document[], tests: Array<{ id: string, guards: string[] }>, states:
   ItemState[], jobs: JobRow[], results: Snapshot, pullRequests: PullRequest[], issues: Issue[] }) -> { increment: Array<{ item: string, pullRequest: string, realises: string[],
   tests: string[] }>, notDone: ItemState[], numbers: { failedJobs: number, retriedJobs: number, correctionRounds: number,

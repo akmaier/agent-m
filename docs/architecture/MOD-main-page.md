@@ -7,6 +7,7 @@ follows:
   - ARC-038
 uses:
   - MOD-site-frame.View
+  - MOD-site-frame.ViewContext
   - MOD-site-frame.chosenProduct
   - MOD-site-frame.instanceOf
   - MOD-site-frame.menuOf
@@ -14,9 +15,9 @@ uses:
   - MOD-site-frame.notice
   - MOD-site-frame.confirmDecision
   - MOD-site-frame.productHostFollowingStore
-  - MOD-site-frame.tokenKeyOf
   - MOD-notifications.watchForAcceptance
   - MOD-browser-store.readSetting
+  - MOD-browser-store.tokenKeyOf
   - MOD-bridge-client.bridgeAt
   - MOD-bridge-client.settingsOf
   - MOD-repository-hosts.parseAddress
@@ -42,6 +43,7 @@ uses:
   - MOD-job-ledger.listJobs
   - MOD-job-ledger.jobState
   - MOD-job-ledger.jobCost
+  - MOD-job-ledger.LiveState
   - MOD-runtimes.routesFor
   - MOD-runtimes.liveState
   - MOD-runtimes.liveStates
@@ -133,8 +135,10 @@ once, when the page is drawn, and never again (UC-046 4b). It stores nothing bet
     The instance's snapshot, which the scope `all` takes for the participants and the process models, is read only for
     a card drawn from that scope, once for all such cards, and for Agent M's own card; while every card has an overview,
     the route reads none of the instance.
-  - `jobs` — first, what waits for a person across the instance, each item linked to the page where it is decided
-    (MOD-progress-measures' `waitingForAPerson`, from the instance's own stored overview where there is one); then every
+  - `jobs` — first, what waits for a person across the instance — in the instance itself and in each product this
+    browser keeps —, each item linked to the page where it is decided, each repository read as a card of `home` reads
+    what waits in it, above, with its as-of line where the card has one; a repository that cannot be read is named with
+    its reason, and one with nothing waiting adds no entry; then every
     job of
     every product and of the instance in one list — the job of this tab's conversation in the
     prompt bar among them, which has no record and is shown as this tab's (`currentJob`) —, waiting at a gate first, filtered by product,
@@ -142,7 +146,8 @@ once, when the page is drawn, and never again (UC-046 4b). It stores nothing bet
     runs, state, elapsed time and cost where known; a source that cannot be reached is named with its reason. The list
     reads every record, in batches (`listJobs`), since which jobs have not ended — those it shows first — is known only
     from their records; the live states of the jobs without an end it asks with MOD-runtimes' `liveStates`, which lists a
-    repository's runs of the job workflow once.
+    repository's runs of the job workflow once; a state whose `limit` names a used-up rate limit is shown with that limit
+    and the time it resets, never as a runtime not reached (`A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN`).
   - `job` (`params.id`) — one job: its inputs, its commits and pull request and its CI runs (MOD-runtimes' `jobTrail`), its log while it runs, its
     cost — or *unknown* (`NO COST IS GUESSED`); *Cancel* for a queued, running or waiting job, whose end, cancelled,
     MOD-runtimes' `cancelJob` appends once its runtime confirms, and beside a commit written after the cancel, *Revert*
@@ -172,14 +177,16 @@ instance repository through their hosts, and the browser's store for the product
 
 - MOD-site-frame.View — the interface it provides; MOD-site-frame.chosenProduct, MOD-site-frame.instanceOf — the
   product chosen and the instance; MOD-site-frame.menuOf — the page of a stage, for a card's product, and the use cases'
-  page, for the greeting; MOD-site-frame.explain — the folded explanations of the page, its states and runtimes;
+  page, for the greeting; MOD-site-frame.ViewContext — `addressOf`, the address of a route of the review pages that the
+  page links, such as *Get your own Agent M* and the place where a waiting item is decided; MOD-site-frame.explain — the folded explanations of the page, its states and runtimes;
   MOD-site-frame.notice — a refused token, a used-up rate limit, a source not reached; MOD-site-frame.confirmDecision —
   cancel, retry and a gate's decision; MOD-site-frame.productHostFollowingStore — each kept product's host for the
-  notification checks, through the product's token and the stored secrets at each call; MOD-site-frame.tokenKeyOf — the key of a product's token setting, whose
-  name is the person who decides a gate on the job's page.
+  notification checks, through the product's token and the stored secrets at each call.
 - MOD-notifications.watchForAcceptance — the checks of what waits for acceptance, which the page starts with the instance's
   host, the product hosts and its writing of a review-pages address.
-- MOD-browser-store.readSetting — the products this browser keeps, their tokens, the Bridges' settings.
+- MOD-browser-store.readSetting — the products this browser keeps, their tokens, the Bridges' settings;
+  MOD-browser-store.tokenKeyOf — the key of a product's token setting, whose name is the person who decides a gate on the
+  job's page.
 - MOD-bridge-client.bridgeAt, MOD-bridge-client.settingsOf — a handle for each Bridge this browser keeps, including one
   reached through the jump host, whose address `settingsOf` gives.
 - MOD-repository-hosts.parseAddress, MOD-repository-hosts.connect — each product's host;
@@ -201,6 +208,7 @@ instance repository through their hosts, and the browser's store for the product
   *Retry* offers a holder of the job's role; MOD-documents.readDocument — the declaration, the role assignments and the
   participant list, each read by its schema.
 - MOD-job-ledger.listJobs, MOD-job-ledger.jobState, MOD-job-ledger.jobCost — the jobs, their states and costs;
+  MOD-job-ledger.LiveState — a live state's `reachable`, `reason` and `limit`, shown on `jobs`;
   MOD-prompt-bar.currentJob — the job of this tab's conversation; MOD-prompt-bar.Subject — the subject the route `job` gives the prompt bar for the retry of a job that ran in a tab: the job's kind as its page and its inputs as its parameters, so that the conversation hands the retry on to that kind (UC-049 4a);
 - MOD-runtimes.routesFor — the routes a retry may take, for the product's resource needs in its facts;
   MOD-runtimes.liveState, MOD-runtimes.liveStates, MOD-runtimes.jobLog,

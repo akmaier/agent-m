@@ -36,6 +36,8 @@ uses:
   - MOD-trace-graph.Graph
   - MOD-trace-graph.traceGraph
   - MOD-trace-graph.tracesTo
+  - MOD-trace-graph.gzipped
+  - MOD-trace-graph.gunzipped
   - MOD-job-ledger.JobRow
   - MOD-job-ledger.listJobs
   - MOD-runtimes.jobWorkflowFiles
@@ -393,6 +395,8 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
 - MOD-release-evidence.reportsAwaitingAcceptance — the release test report that waits for acceptance, if one does.
 - MOD-test-document.TestDeclaration, testDeclarations, isTestFile, MOD-trace-graph.Graph, traceGraph, tracesTo — which
   tests guard which requirement, which files are test files, and the traces behind a cell of the grid.
+- MOD-trace-graph.gzipped, gunzipped — the views it stores on the branch `overview-cache` and reads back, gzipped as the
+  trace graph is; the module keeps no gzip of its own.
 - MOD-job-ledger.JobRow, listJobs — the product's jobs with their states, elapsed times and costs.
 - MOD-runtimes.jobWorkflowFiles, ResourceNeed — the paths of the job workflow, and the type of a resource need.
 - MOD-resource-list.resourceSchema, reachableBy — the product's resources and the routes that reach them.

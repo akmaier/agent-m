@@ -33,6 +33,7 @@ uses:
   - MOD-job-catalogue.KindDefinition
   - MOD-repository-hosts.Snapshot
   - MOD-repository-hosts.Host
+  - MOD-repository-hosts.HostError
   - MOD-repository-hosts.readSnapshot
   - MOD-repository-hosts.commitFiles
   - MOD-repository-hosts.listCiRuns
@@ -289,7 +290,8 @@ pins — the commit the run's checkout of the instance is at —, not the commit
 - `liveState(record: JobRecord, product: { host: Host }, bridges: Record<string, Bridge>) -> Promise<LiveState>` — asks the
   runtime that holds a job that has not ended: the CI service's runs of the job workflow for the job, through the host;
   the list of jobs of the Bridge its record names, among `bridges`; this tab.
-  A runtime that cannot be reached gives `reachable: false` and its reason, never an error; a commit the job's branch got
+  A runtime that cannot be reached gives `reachable: false` and its reason, never an error, and a listing of runs refused
+  for a used-up rate limit gives `reachable: false` with that limit as `limit`, never as an unreachable runtime; a commit the job's branch got
   after a cancel is reported in `writtenAfterCancel` (UC-036): the commits of the branch named after the job, read with the
   host's `readHistory` (`changes: false`), whose date is after the record's `## End` of state `cancelled`. A job of the tab
   route that another browser took — its `## Taken` names another browser than this one (Data; MOD-job-ledger) — gives
@@ -298,7 +300,8 @@ pins — the commit the run's checkout of the instance is at —, not the commit
   browser is this one, and how a bare `tab` is read, says Data.
 - `liveStates(records: JobRecord[], product: { host: Host }, bridges: Record<string, Bridge>) -> Promise<Map<string,
   LiveState>>` — `liveState` for each of the records of one repository that have not ended, keyed by job identifier, the
-  runs of the job workflow listed once for all of them; the same states `liveState` gives one by one.
+  runs of the job workflow listed once for all of them; the same states `liveState` gives one by one, never an error, and a
+  used-up rate limit of that one listing given as `limit` in the state of each job it served.
 - `jobLog(record: JobRecord, product: { host: Host }, bridges: Record<string, Bridge>) -> Promise<{ stream:
   AsyncIterable<string> } | { address: string } | { gone: true }>` — the log, streamed from a Bridge or this tab while the
   job runs, the CI run's log by its address, or that the runtime keeps it no longer.
@@ -398,6 +401,7 @@ through MOD-browser-store, it reads `browser`, and writes it where it is not set
 - `MOD-repository-hosts.Host`, `MOD-repository-hosts.readSnapshot`, `MOD-repository-hosts.commitFiles`,
   `MOD-repository-hosts.listCiRuns`, `MOD-repository-hosts.cancelCiRun`, `MOD-repository-hosts.ciRunLog`,
   `MOD-repository-hosts.openPullRequest`, `MOD-repository-hosts.listPullRequests` — the CI route and the pull request;
+  `MOD-repository-hosts.HostError` — a listing of runs refused as `RateLimited`, given as a live state's `limit`;
   `MOD-repository-hosts.readHistory`, `MOD-repository-hosts.readFileAt` — a job's branch, the commits written after its
   cancel, and the texts a revert restores;
   `MOD-repository-hosts.repositoryInfo` — the default branch; `MOD-work-plans.targetBranch`,
