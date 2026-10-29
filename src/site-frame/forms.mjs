@@ -3,10 +3,12 @@
 //
 // Module: MOD-site-frame
 //
-// One field per key of the schema's front matter, holding the key's value as one line of text, and one per section the
-// schema names by its heading, whose text is edited in MOD-markdown-render's editor. The document the form hands over is
-// the one it was given, with the person's edits: the keys in the schema's order, a key whose field is left empty left out
-// — a value of front matter is its text, trimmed —; a section that did not stand joins once its field holds text, in its
+// One field per key of the schema's front matter, holding the key's value as one line of text — a list's items separated by
+// commas, as MOD-documents writes a list on one line —, and one per section the schema names by its heading, whose text is
+// edited in MOD-markdown-render's editor. The document the form hands over is the one it was given, with the person's edits:
+// the keys in the schema's order, a key whose field is left empty left out — a value of front matter is its text, trimmed;
+// that of a key the schema types as a list is the list of the parts of its text between commas, each trimmed, an empty
+// part left out —; a section that did not stand joins once its field holds text, in its
 // place in the schema's order; a section the person edited holds the text typed, ending in a line end so that the heading
 // after it keeps a line of its own. Every other part — the sections the schema does not name, the title, the body the
 // document was read from, the rows of every section not edited — is handed over as it was given.
@@ -18,8 +20,8 @@
 // no field — a key or a section the document lacks, which documentFindings names on line 1 — is shown at the end of the
 // form. An editor asks for its marks on each edit of its own text; the rest of the form is shown again on every edit.
 //
-// Not built, since UC-002's declaration needs none of them: the options secretKeys and readOnly; a key whose value is a
-// list or a number, which a field shows as text and hands over as the text typed; the section under a document's title.
+// Not built, since no caller needs them: the options secretKeys and readOnly; a key whose value is a number, which a field
+// shows as text and hands over as the text typed; the section under a document's title.
 // The editor of a section brings a Save of its own; it hands nothing over, since the form's one Save does.
 
 import { documentFindings, readDocument } from "../documents/index.mjs";
@@ -151,9 +153,12 @@ export function schemaForm(schema, opened, { onSave, extraChecks = () => [] }) {
   const form = element("div", "schema-form");
   for (const key of keys) {
     const input = element("input");
-    input.value = String(values[key] ?? "");
+    const isList = schema.frontMatter[key].type === "list";
+    input.value = Array.isArray(values[key]) ? values[key].join(", ") : String(values[key] ?? "");
     input.addEventListener("input", () => {
-      values[key] = input.value.trim() === "" ? undefined : input.value.trim();
+      const typed = input.value.trim();
+      const items = typed.split(",").map((part) => part.trim()).filter(Boolean);
+      values[key] = isList ? (items.length ? items : undefined) : typed || undefined;
       show();
     });
     const list = element("ul", "findings");

@@ -68,7 +68,7 @@ test("schemaForm — a list key typed in its field reaches onSave as a list", as
 // given: known positive first — the same form shows no finding beside the field modules and offers Save
 // input: the person types "MOD-store, store" into the field modules; then empties it
 // expect: the finding of documentFindings on the item "store" — `the key modules does not fit: "store" is not an identifier` — stands beside the field modules, no finding says the value is not a list, and Save is not offered; the field
-//   emptied leaves the key out, and the finding that modules is required stands beside the field. Counter-proof: before the change the finding beside the field is that "MOD-store, store" is not a list
+//   emptied leaves the key out, and the form shows the finding that modules is required — at its end, where the frame shows a finding on a key the document lacks. Counter-proof: before the change the finding beside the field is that "MOD-store, store" is not a list
 test("schemaForm — a finding on an item of a list key is shown beside its field", async () => {
   const form = formOver([]);
   assert.deepEqual(besideOf(form, "modules"), [], "known positive: nothing beside the field");
@@ -79,6 +79,7 @@ test("schemaForm — a finding on an item of a list key is shown beside its fiel
   assert.ok(!beside.some((text) => text.includes("is not a list")), beside.join("\n"));
   assert.equal(saveOf(form).disabled, true, "Save is not offered while the error remains");
   await typeInto(inputOf(form, "modules"), "  ");
-  assert.ok(besideOf(form, "modules").some((text) => text.includes("the key modules is required, and left out")), besideOf(form, "modules").join("\n"));
+  const all = byTag(form, "li").map((each) => each.textContent);
+  assert.ok(all.some((text) => text.includes("the key modules is required, and left out")), all.join("\n"));
   assert.equal(saveOf(form).disabled, true);
 });
