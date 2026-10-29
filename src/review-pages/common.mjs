@@ -84,14 +84,6 @@ export async function openGithubEditor(page) {
   try { globalThis.open?.(page.url, "_blank", "noopener"); } catch { /* the link is on the page */ }
 }
 
-// The job records of a snapshot, asked for in one batch before MOD-job-ledger reads them one by one (A PAGE LOAD READS THE REPOSITORY IN BATCHES):
-// the reads that follow find their texts held. Where a batch cannot be made, they are read one by one as before.
-export async function readJobRecords(snapshot) {
-  const paths = snapshot.paths.filter((path) => /^docs\/jobs\/JOB-[^/]+\.md$/.test(path));
-  if (!paths.length) return;
-  try { await snapshot.readMany?.(paths); } catch { /* read one by one */ }
-}
-
 // The token this browser stores for the page's product — its own, never the instance's (A GITHUB PRODUCT USES A TOKEN OF ITS OWN) —,
 // or, on the page that shows the instance itself, the instance's.
 export function storedToken(context) {
