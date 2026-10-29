@@ -625,11 +625,10 @@ function waitingSection(waiting) {
   return el("section", "spec-waiting head", el("h2", null, "SPEC changes waiting for acceptance"), el("table", "list", head, el("tbody", null, ...rows)));
 }
 
-// The links from the specification to the review pages' lists of the SPEC change entries and of their history, and to the arrangement of the requirements
+// The links from the specification to the review pages' history of the SPEC change entries and to the arrangement of the requirements
 // (`#arrange/kind=requirements`: the route arrange reads its group kind as the parameter `kind`), on the default branch only.
 function specChangeLinks() {
-  return el("p", "spec-change-links", reviewLink("spec-entries-link", "All SPEC change entries", "spec-entry", {}),
-    " ", reviewLink("spec-history-link", "History of SPEC changes", "spec-entry", { id: "history" }),
+  return el("p", "spec-change-links", reviewLink("spec-history-link", "History of SPEC changes", "spec-entry", { id: "history" }),
     " ", reviewLink("arrange-link", "Arrange", "arrange", { kind: "requirements" }));
 }
 
