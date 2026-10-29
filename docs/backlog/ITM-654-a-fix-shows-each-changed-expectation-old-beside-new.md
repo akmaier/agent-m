@@ -41,3 +41,8 @@ whether its path reads the repository per test, are read at its start (sprint 66
 
 - Before a fix's pull request is merged, each existing test whose expected result it changes is shown with its requirement, the old and the new expectation side by side.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+- Tests of other modules this Outcome changes: none. Every test that draws the issue route names MOD-maintenance-pages
+  in its header: the `maintenance-pages-*` tests, `system-uc-012-fix-a-bug`, `test_issue_to_spec.py`, and the release
+  tests `release-itm-1254-issue-move` and `release-itm-1257-move-form-lists`. A release test among them is changed only
+  by a participant who implemented none of this item.
+- Only `src/maintenance-pages/` and the tests that name MOD-maintenance-pages change.

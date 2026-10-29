@@ -32,3 +32,4 @@ the newest queue's, as `waitingQueues` lists them, and a unit test pins it.
   queue's mark planted fails it.
 - The comment at `arrangement` says the same. No behaviour changes.
 - Only `src/trace-pages/` and the tests that name MOD-trace-pages change.
+- Tests of other modules this Outcome changes: none. No behaviour changes.

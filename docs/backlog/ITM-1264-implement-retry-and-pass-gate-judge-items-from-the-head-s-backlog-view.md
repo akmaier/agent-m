@@ -132,3 +132,8 @@ head, 1,233 items, 1,476 gate records, 478 job records, 109 of kind implement):
 
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - Only the folders of the two modules and the tests that name them change.
+- Tests of other modules this Outcome changes: none.
+  - The tests that draw `#implement` or the job page name MOD-implementation-pages or MOD-main-page.
+  - `dashboard-notifications` and `dashboard-notifications-wiring` (MOD-notifications) and `site-frame-preloads`
+    (MOD-site-frame) load the two modules for other routes, and do not change.
+  - `load-per-view`'s `#implementation` case is progress's, not `#implement`'s.

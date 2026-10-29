@@ -48,3 +48,4 @@ Each `guards` entry then names the requirement or use case it means.
   reads each file with no finding, shown against a known positive.
 - No expected result of a test changes, and CI is green on every commit (refactoring).
 - Only the five test files change.
+- Tests of other modules this Outcome changes: none beyond the five files, each named by one of the item's modules.
