@@ -132,6 +132,17 @@ function oldestFirst(commits) {
   return out;
 }
 
+// The folders readSnapshot is given -> the paths named, each once and without a trailing slash, or null where none are given (the whole tree).
+// Each is a path in the repository — no leading slash, no empty, "." or ".." part —, and at least one is named.
+function foldersOf(folders) {
+  if (folders === undefined || folders === null) return null;
+  const named = Array.isArray(folders) ? folders.map((folder) => (typeof folder === "string" ? folder.replace(/\/+$/, "") : folder)) : null;
+  if (!named?.length || named.some((p) => typeof p !== "string" || !p || p.startsWith("/") || p.split("/").some((s) => s === "" || s === "." || s === ".."))) {
+    throw new TypeError("readSnapshot's folders are a list of paths of folders or files in the repository");
+  }
+  return [...new Set(named)];
+}
+
 // The failures readSnapshot itself knows and readMany passes on; any other failure of a batch request reads nothing ahead.
 const KNOWN_FAILURES = new Set(["TokenRefused", "PermissionMissing", "RateLimited", "Unreachable"]);
 
@@ -233,17 +244,30 @@ export function connect(address, credentials = {}) {
     // fails with NotFound, TokenRefused, PermissionMissing, RateLimited, Unreachable.
     repositoryInfo: () => adapter.repositoryInfo(),
 
-    // readSnapshot(ref) -> Snapshot { repository, ref, commit, paths, read(path), readMany(paths), blob(path) } — the repository at one commit.
-    // Crosses the network, and so does read(path); fail with NotFound, TokenRefused, PermissionMissing, RateLimited, Unreachable.
-    async readSnapshot(ref) {
+    // readSnapshot(ref, { folders }) -> Snapshot { repository, ref, commit, paths, read(path), readMany(paths), blob(path) } — the repository at one commit.
+    // With `folders` — paths of folders or files —, its paths are only the files at every depth of those folders and the files named: on GitHub with a
+    // token from the entries of all of them in one request, elsewhere from the whole tree, narrowed. A read, a blob or a readMany of a path outside them
+    // fails with OutsideSnapshot { path }, never as if the file did not exist. Crosses the network, and so does read(path); fail with NotFound,
+    // TokenRefused, PermissionMissing, RateLimited, Unreachable. A folders list that is not a list of paths in the repository is a TypeError.
+    async readSnapshot(ref, options = {}) {
       if (typeof ref !== "string" || !ref.trim()) throw new TypeError("readSnapshot names a branch, a tag or a commit");
-      const { commit, blobs } = await adapter.snapshot(ref);
+      const named = foldersOf(options?.folders);
+      const { commit, blobs: listed } = await adapter.snapshot(ref, named);
+      const inside = (path) => named === null || named.some((folder) => path === folder || String(path).startsWith(`${folder}/`));
+      const blobs = named === null ? listed : new Map([...listed].filter(([path]) => inside(path)));
+      const outside = (path) => new HostError("OutsideSnapshot", { path }, `${path} lies outside what this snapshot of ${repository.web} at ${ref} ` +
+        `holds — ${named.join(", ")}: read the snapshot with the folders it is read from.`);
       return Object.freeze({
         repository, ref, commit, paths: Object.freeze([...blobs.keys()]),
-        blob: (path) => blobs.get(path) ?? null,
+        blob: (path) => {
+          if (!inside(path)) throw outside(path);
+          return blobs.get(path) ?? null;
+        },
         // Fetches many files' texts ahead of their reads where the adapter has a batch request (GitHub, with a token); otherwise
         // nothing. A failure readSnapshot knows is passed on; any other failure of a batch leaves its files to their own reads.
         async readMany(paths) {
+          const away = paths.find((path) => !inside(path));
+          if (away !== undefined) throw outside(away);
           if (!adapter.readFiles || commit === null) return;
           const wanted = new Map();
           for (const path of paths) {
@@ -273,6 +297,7 @@ export function connect(address, credentials = {}) {
           }
         },
         read(path) {
+          if (!inside(path)) return Promise.reject(outside(path));
           const sha = blobs.get(path);
           if (!sha) return Promise.resolve(null);
           if (!texts.has(sha)) {
