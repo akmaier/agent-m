@@ -10,11 +10,12 @@
 
 import { renderArtifact } from "../markdown-render/index.mjs";
 import { parseSpec, renamedRequirements, requirementFindings, sectionText } from "../spec-document/index.mjs";
-import { proposeSection, queues } from "../spec-changes/index.mjs";
+import { proposeSection } from "../spec-changes/index.mjs";
+import { waitingQueues } from "../progress-measures/index.mjs";
 import { blobSha } from "../text-tools/index.mjs";
 import { requirementImpact, storedGraph } from "../trace-graph/index.mjs";
 import { explain, readProblem } from "../site-frame/index.mjs";
-import { el, link, openEditor, parseServer, tokenStep } from "./common.mjs";
+import { asOfLine, el, link, openEditor, parseServer, tokenStep } from "./common.mjs";
 import { fallbackPages } from "./file-edit.mjs";
 import { entryId } from "./spec-entries.mjs";
 
@@ -51,10 +52,11 @@ export async function showEdit(where, kind, params) {
     target.append(renderArtifact(section), el("p", "problem", "A GitLab product is written with the project's own token. ", tokenStep(context)));
     return;
   }
-  let graph, all;
+  // The other open proposals on the section come from the waiting queues (MOD-progress-measures' waitingQueues), with the line As of while they are of an earlier commit.
+  let graph, all, asOf;
   try {
     graph = await storedGraph(snapshot, snapshot.commit);
-    all = await queues(snapshot);
+    ({ queues: all, asOf } = await waitingQueues(snapshot));
   } catch (failure) {
     target.append(readProblem(failure, Boolean(token)));
     return;
@@ -108,6 +110,6 @@ export async function showEdit(where, kind, params) {
     }
   }
 
-  target.append(el("h3", null, "Other open proposals on this section"), others, editorBox, el("h3", null, "Why"), why, el("h3", null, "Impact list"), rename, impact, saved);
+  target.append(el("h3", null, "Other open proposals on this section"), ...[asOfLine(asOf)].filter(Boolean), others, editorBox, el("h3", null, "Why"), why, el("h3", null, "Impact list"), rename, impact, saved);
   return openEditor(editorBox, initial, { marks, save });
 }

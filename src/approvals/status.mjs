@@ -159,7 +159,7 @@ export async function lastAcceptedText(id, host) {
     break;
   }
   if (last === null) return null;
-  const then = await host.readSnapshot(last.commit);
+  const then = await host.readSnapshot(last.commit, { folders: [file] });
   if (then.blob(file) !== blob) {
     throw new HostError("NotFound", { what: file }, `${file} did not hold the text ${last.path} names when the record was added`);
   }

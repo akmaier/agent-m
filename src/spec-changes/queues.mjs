@@ -318,8 +318,8 @@ export async function queuesAt(snapshot, bases) {
 }
 
 /**
- * queueAt(snapshot, base) -> Promise<Queue | null> — the one queue whose folder is `base`, as queuesAt gives it. For entryView, which
- * needs one queue and not all of them.
+ * queueAt(snapshot, base) -> Promise<Queue | null> — the one queue whose folder is `base`, docs/spec-freigaben/<queue>, as queues gives it, read from that
+ * queue's files and what its entries name alone; null where the snapshot holds no such queue (MOD-spec-changes, Interfaces).
  * @param {{ paths: string[], read: (path: string) => Promise<string | null>, blob: (path: string) => string | null }} snapshot
  * @param {string} base
  * @returns {Promise<Queue | null>}

@@ -98,8 +98,22 @@ export function testDeclarations(path, text) {
   return p.endsWith(".md") ? markdownDeclarations(p, t) : commentDeclarations(p, t);
 }
 
-// The backquotes of a line that are not escaped: an odd number opens or closes a template string that spans lines.
-const backticks = (line) => (line.match(/(?<!\\)`/g) ?? []).length;
+// Whether a template string is still open at the end of `line`, given whether one is open at its start. An unescaped backquote
+// opens or closes one; outside a template string, a backquote inside a `"…"` or `'…'` literal (an escaped quote read as part of
+// it) or after `//` opens none. The reader is no JavaScript parser: a literal ends at its line's end at the latest.
+function templateOpenAfter(line, open) {
+  let quote = null;
+  for (let i = 0; i < line.length; i += 1) {
+    const c = line[i];
+    if (c === "\\") { i += 1; continue; }
+    if (open) { if (c === "`") open = false; continue; }
+    if (quote !== null) { if (c === quote) quote = null; continue; }
+    if (c === "`") open = true;
+    else if (c === '"' || c === "'") quote = c;
+    else if (c === "/" && line[i + 1] === "/") break;
+  }
+  return open;
+}
 
 // testDeclarations for any file read by its comment lines (every language but Markdown). A comment-shaped line inside a
 // template string spanning lines is no comment line, and starts no declaration. A declaration before a loop header
@@ -116,12 +130,12 @@ function commentDeclarations(path, text) {
   for (let i = 0; i < lines.length; i += 1) {
     if (inString) {
       // a line inside a string literal that spans lines (a template string): no comment line of the file, whatever it holds
-      if (backticks(lines[i]) % 2 === 1) inString = false;
+      inString = templateOpenAfter(lines[i], true);
       continue;
     }
     const content = commentContent(lines[i]);
     if (content === null) {
-      inString = backticks(lines[i]) % 2 === 1;
+      inString = templateOpenAfter(lines[i], false);
       if (untitled.length && LOOP_HEADER.test(lines[i])) { current = null; continue; } // the test case is the loop's body
       for (const waiting of untitled) waiting.title = titleOn(lines[i]);
       untitled = [];

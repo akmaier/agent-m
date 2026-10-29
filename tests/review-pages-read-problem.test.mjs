@@ -77,7 +77,9 @@ const SITES = [
 const GRAPH_NOT_STORED = (commit) => `the trace graph of ${commit.slice(0, 12)} is not stored yet — the workflow "main changed" builds it on every push to the default branch; ` +
   "reload once its run has finished";
 const GRAPH_SITES = [
-  { site: "flow.mjs", route: "spec-entry", params: { id: ENTRY_ID }, product: { graphMissing: true }, requests: 11 },
+  // The entry's own queue is read alone (queueAt) for the page and for its subject; with no overview stored, the other proposals come from every queue (waitingQueues), which
+  // reads the one queue of the fixture a third time on this Host, whose read keeps no text (a snapshot of MOD-repository-hosts answers it from the texts it holds).
+  { site: "flow.mjs", route: "spec-entry", params: { id: ENTRY_ID }, product: { graphMissing: true }, requests: 14 },
   { site: "edit.mjs", route: "requirement", params: { name: LOAN }, product: { graphMissing: true }, requests: 8 },
   { site: "entry-edit.mjs", route: "spec-entry", params: { id: ENTRY_ID, edit: "1" }, product: { graphMissing: true }, requests: 20 },
   { site: "jobs.mjs showDraft", route: "use-case", params: { id: "draft" }, product: { graphMissing: true }, requests: 2 },

@@ -19,7 +19,7 @@ import { productFiles, fakeGitHub, openPage, byClass, ENTRY_ID, TOKEN } from "./
 // given: the product of 1,332 files in which UC-002, the only artifact that names "A WRITE RULE", is the last file of the tree; the branch trace-cache holds the graph the workflow "main changed" stored for the commit (a page reads that graph and never builds one — MOD-trace-graph)
 // input: open the SPEC-entry page of entry 07, which changes "A WRITE RULE"
 // expect: the impact list reads "A WRITE RULE — changed, named by UC-002", though the page reads no use case: UC-002 stands in no query and is read on its own by no request; the
-//         graph is read by one request; at most 3 queries (the queue's and the entry's files) and at most 7 requests in all, against the 1,336 of one request for each file
+//         graph is read by one request; at most 3 queries (the queue's and the entry's files) and at most 9 requests in all — at most 7 and the two reads of the overview cache (the head's `<head>.json`, then `latest.json`, which the waiting queues are read from) — against the 1,336 of one request for each file
 test("TST-479201: an impact list names an artifact the page never reads, from the stored graph, within 3 queries", async () => {
   const held = productFiles(1332), uc2 = "docs/use-cases/UC-002-write-a-file.md";
   const last = held[uc2];
@@ -33,7 +33,11 @@ test("TST-479201: an impact list names an artifact the page never reads, from th
   assert.deepEqual(fake.contentPaths().filter((path) => path === uc2), [], "UC-002 is read on its own by no request");
   assert.equal(fake.requests.filter((r) => r.url.pathname.endsWith(".json.gz") && r.url.searchParams.get("ref") === "trace-cache").length, 1, "the stored graph, read once");
   assert.ok(fake.graphqlRequests().length <= 3);
-  assert.ok(fake.requests.length <= 7, `${fake.requests.length} requests, at most 7`);
+  const head = fake.requests.find((r) => r.url.pathname.includes("/git/trees/")).url.pathname.split("/").pop();
+  const overview = fake.requests.filter((r) => r.url.searchParams.get("ref") === "overview-cache");
+  assert.deepEqual(overview.map((r) => r.url.pathname.split("/").pop()), [`${head}.json`, "latest.json"], "the overview cache is read twice: the head's file, then latest.json");
+  assert.ok(fake.requests.length - overview.length <= 7, `${fake.requests.length - overview.length} requests besides the overview cache, at most 7`);
+  assert.ok(fake.requests.length <= 9, `${fake.requests.length} requests, at most 9`);
 });
 
 // TST-479202 · level: release · module: MOD-review-pages; MOD-trace-graph; MOD-repository-hosts

@@ -15,7 +15,7 @@
 //     latter the identifier `personSource` gives over the product's links and the instance's register; without one the precondition `person-source` blocks the run panel, which lists its steps. The candidates are listed with their class; Save, the person's click, writes
 //     them with the kind's writer through `writeResult`, as the person left them (the classes the loop gave; a conflict is not composed).
 //   - The move into the backlog (ITM-1250): a section "Move to backlog" is shown for an open issue whose class is bug or change — by its label, or by the person's click on a class —, with the button "Move to backlog" (the person's click). The click reads the product's default branch and draws the
-//     item `backlogItemFrom` prefills as a form of the frame's `schemaForm` over the item schema, whose list-valued keys the form cannot hand over as lists, so that the form's schema types them as one text, the names separated by commas, and the page reads them back as lists. The form holds a provisional identifier,
+//     item `backlogItemFrom` prefills as a form of the frame's `schemaForm` over the item schema, which hands over its list-valued keys as lists. The form holds a provisional identifier,
 //     the next that the paths of the backlog and the plan leave free, which is never written: `saveItems` gives the item the next one that no history holds. The form's one button, "Save", is shown as "Add"; the form offers it only while no error remains, and the findings of `backlogFindings`
 //     over the architecture's module files are shown beside the form. `changed` are the requirements that `entryView`'s impact names as added or changed, in the order of the entries, of the queues whose `**Issue:**` line names this issue and this product; the analysis is the page's proposal, if the person ran one:
 //     the answer of the kind `analyse-issue` holds a class, its reasoning and the files it names as wrong, and no violated requirement, so that `violated` is null and the person names the requirement a bug realises; its `modules` are the modules of the architecture whose folder holds a file it names as
@@ -31,7 +31,7 @@
 //     available is named with its reason and nothing is written. After the section, the newest job of the kind `fix-bug` that works on the issue is named with its pull request (`jobTrail`); once that is merged, "Close with links" — the person's click — closes the issue with `closeWithLinks`.
 //   - The folded explanations are built here, not by the frame's `explain`: explanations.md holds no topic of this page and it is the frame's file (as mail.mjs does).
 
-import { artifactSchemas, documentFindings, loadSchema, readDocument, readRegister } from "../documents/index.mjs";
+import { artifactSchemas, readDocument, readRegister } from "../documents/index.mjs";
 import { IssueClass, backlogItemFrom, closeWithLinks, confirmClass, moveToBacklog } from "../issue-handling/index.mjs";
 import { newJobId, recordsNewestFirst } from "../job-ledger/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
@@ -235,22 +235,9 @@ function changeSection({ context, product, issue }) {
 const MODULE_FILE = /^docs\/architecture\/MOD-[^/]+\.md$/;
 const ITEM_FILE = /(?:^|\/)(ITM-\d{3,})-[^/]*\.md$/;
 const BACKLOG_ITEM = /^docs\/backlog\/(ITM-\d{3,})-[^/]*\.md$/;
-const LIST_KEYS = new Set(["realises", "modules", "tests", "origin", "builds_on", "built_by"]);
-const LIST_FINDING = new RegExp(`^the key (${[...LIST_KEYS].join("|")}) does not fit`);
 const slugOf = (title) => String(title ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "item";
 const namesOf = (value) => (Array.isArray(value) ? value.map(String) : String(value ?? "").split(",").map((part) => part.trim()).filter(Boolean));
 const sameAddress = (a, b) => String(a).replace(/\/+$/, "") === String(b).replace(/\/+$/, "");
-
-// The item schema with its list-valued keys typed as text, which `schemaForm` can hand over (it hands over the text typed), built once.
-let textual = null;
-function formSchema() {
-  if (textual === null) {
-    const real = artifactSchemas().item;
-    const frontMatter = Object.fromEntries(Object.entries(real.frontMatter).map(([key, spec]) => [key, spec.type === "list" ? { type: "text", required: spec.required === true } : spec]));
-    textual = loadSchema(["```json", JSON.stringify({ ...real, frontMatter }), "```"].join("\n"), "MOD-maintenance-pages");
-  }
-  return textual;
-}
 
 // The requirements that the entries of the queues naming this issue of this product add or change, in `entryView`'s impact, in the order of the entries, once each.
 async function changedRequirements(snapshot, number, productAddress) {
@@ -299,44 +286,34 @@ function moveSection({ product, issue, current, proposal }) {
     stage.replaceChildren();
     try {
       const head = await product.host.readSnapshot((await product.host.repositoryInfo()).defaultBranch);
-      const schemas = artifactSchemas();
       const architecture = await architectureOf(head);
       const cls = current();
       const changed = cls === IssueClass.change ? await changedRequirements(head, issue.number, product.address) : [];
       const { item } = backlogItemFrom({ ...issue, address }, cls, analysisOf(architecture, proposal()), changed);
       const taken = head.paths.map((path) => Number(ITEM_FILE.exec(path)?.[1].slice(4) ?? 0));
       const provisional = `ITM-${String(Math.max(0, ...taken) + 1).padStart(3, "0")}`;
-      const schema = formSchema();
+      const schema = artifactSchemas().item;
       const path = `docs/backlog/${provisional}-${slugOf(item.fields.title)}.md`;
       // A list-valued key without a name is left out, so that its field stands empty and the form names it missing.
-      const fields = Object.fromEntries(Object.entries({ id: provisional, ...item.fields }).map(([key, value]) => [key, LIST_KEYS.has(key) ? namesOf(value).join(", ") : value]).filter(([, value]) => value !== ""));
-      // The file as the form shows it, read as MOD-documents reads a file: `writeDocument` would refuse it while a required key stands empty.
-      const front = Object.entries(fields).map(([key, value]) => `${key}: ${value}`);
+      const fields = Object.entries({ id: provisional, ...item.fields }).filter(([, value]) => (Array.isArray(value) ? value.length > 0 : value !== ""));
+      // The file as the form shows it, each item of a list on a line of its own, read as MOD-documents reads a file: `writeDocument` would refuse it while a required key stands empty.
+      const front = fields.map(([key, value]) => (Array.isArray(value) ? [`${key}:`, ...value.map((one) => `  - ${one}`)].join("\n") : `${key}: ${value}`));
       const opened = readDocument(schema, path, [`---\n${front.join("\n")}\n---\n`, `# ${provisional} ${item.fields.title}\n\n`, ...item.sections.map(({ heading, text }) => `${heading}${text}`)].join(""));
 
-      // The document with its list-valued keys as lists again, for the checks of the item schema and of the backlog and for `moveToBacklog`.
-      const listed = (live) => ({ ...live, fields: Object.fromEntries(Object.entries(live.fields).map(([key, value]) => [key, LIST_KEYS.has(key) ? namesOf(value) : value])) });
       const problems = el("div", "issue-move-problem");
       const added = (done, said) => stage.replaceChildren(el("p", "move-added", said), ...(done.comment ? [commentToCopy(done.comment)] : []));
       const form = schemaForm(schema, opened, {
         onSave: async (live) => {
           problems.replaceChildren();
           try {
-            const { id: _, ...fieldsNow } = listed(live).fields;
+            const { id: _, ...fieldsNow } = live.fields;
             const done = await moveToBacklog(product.host, { number: issue.number, address }, { fields: fieldsNow, sections: live.sections.map(({ heading, text }) => ({ heading, text })) }, null);
             added(done, `Added ${done.item} to the backlog.`);
           } catch (failure) {
             problems.append(el("p", "issue-problem", `The item could not be added: ${failed(failure)}`));
           }
         },
-        extraChecks: (live) => {
-          try {
-            const now = listed(live);
-            return [...documentFindings(schemas.item, now).filter((each) => LIST_FINDING.test(each.what)), ...backlogFindings([now], architecture)].map((each) => ({ ...each, line: 1 }));
-          } catch {
-            return [];
-          }
-        },
+        extraChecks: (live) => backlogFindings([live], architecture),
       });
       // The form's one button is its Save; here it is the person's Add.
       const add = form.children[form.children.length - 1].getElementsByTagName("button")[0];
