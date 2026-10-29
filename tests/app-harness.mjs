@@ -407,6 +407,11 @@ export async function settle(server) {
   }
 }
 
+// The requests of a fake server that are writes: every request that is not a GET, except the batch of reads, a POST to GitHub's
+// /graphql, which answers with file texts and changes nothing.
+const BATCH_OF_READS = /^(write|other|handler) POST https:\/\/api\.github\.com\/graphql(\?|$)/;
+export const writeRequests = (server) => server.requests.filter((request) => /^(write|other|handler) (?!GET )/.test(request) && !BATCH_OF_READS.test(request));
+
 // The app: the one place tests and the harness load it from.
 export const APP_FILE = new URL("../src/site-frame/dashboard-app.mjs", import.meta.url);
 
