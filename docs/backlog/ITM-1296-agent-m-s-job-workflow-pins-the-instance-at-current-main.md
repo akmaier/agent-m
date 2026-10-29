@@ -35,10 +35,12 @@ decision." akmaier has made that decision. The files are written again with MOD-
 
 - The committed files are exactly what `jobWorkflowFiles("github", { repository, commit }, secrets, runners)` gives at that
   commit. The pull request names the commit and the call.
-- A unit test naming MOD-runtimes states that every entry the committed `agent-m-jobs.yml` runs is an entry of
-  `src/workflow-entries/main.mjs` at the commit the file pins. It is red on the commit before the move, and green after.
-  Where CI's checkout cannot read the pinned commit, the item stops and names it.
+- No new test. Writing the generated files again at a newer commit changes no code of Agent M. AN IMPLEMENTATION JOB
+  BEGINS WITH A FAILING TEST binds "an implementation job that adds or changes behaviour" (SPEC.md:1462-1464). A test of
+  the entries at the pinned commit cannot run in CI: `.github/workflows/agent-m-tests.yml` checks out one commit, so no
+  older commit is readable (PR #1400, run 40820852823).
+- A test of the committed file against the generator at the checkout is also not wanted. It would fail on every change of
+  the templates, while the pin moves only "on a person's decision" (MOD-runtimes.md:224).
 - After the merge into `main`, the next pull request closed runs `onPullRequestClosed` without "There is no entry". The
   run is named at the sprint's review.
-- Only the workflow files `jobWorkflowFiles` gives and the tests that name MOD-runtimes change. No code of
-  `src/runtimes/` changes.
+- Only the workflow files `jobWorkflowFiles` gives change. No code of `src/runtimes/` and no test changes.
