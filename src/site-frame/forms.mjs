@@ -16,11 +16,13 @@
 // Each section stands on the line it would have in the file written from the document, its rows with it, so that every
 // finding of documentFindings and of the caller's extraChecks falls on the line of one field: a finding on the line of a
 // key is shown beside the key's field, one on a section's heading line beside the section's field, and one on a line of
-// a section's text beside that line in its editor — a mark, counted from the editor's first line. A finding on the line of
-// no field is shown beside the field of the key its correction names in MOD-documents' words for a key left out ("give
-// the key <key> a value") — a key the document lacks, which documentFindings names on line 1 —, where the schema has that
-// key; any other — on a section the document lacks, or on a key the schema does not know — at the end of the form. An
-// editor asks for its marks on each edit of its own text; the rest of the form is shown again on every edit.
+// a section's text beside that line in its editor — a mark, counted from the editor's first line. A finding is placed by
+// its line alone; no wording of it is read. documentFindings checks the document with each key of the schema whose field
+// is empty standing with an empty value, which MOD-documents counts as left out, so that a finding on a key the document
+// lacks falls on that key's own line and is shown beside its field; extraChecks, like onSave, is given the document with
+// such a key left out. A finding on the line of no field — a section the document lacks, a key the schema does not know —
+// is shown at the end of the form. An editor asks for its marks on each edit of its own text; the rest of the form is
+// shown again on every edit.
 //
 // Not built, since no caller needs them: the options secretKeys and readOnly; a key whose value is a number, which a field
 // shows as text and hands over as the text typed; the section under a document's title.
@@ -32,9 +34,6 @@ import { openEditor } from "../markdown-render/index.mjs";
 // What the Save of a section's editor answers.
 const SAVED_WITH_THE_FORM = { kind: "failed",
   reason: "a section is saved with its form — Save at the end of the form hands over the whole document" };
-
-// The correction documentFindings asks for a key left out, which names the key.
-const LEFT_OUT = /^give the key (\S+) a value$/;
 
 // The number of line ends in a text.
 const lineEnds = (text) => text.split("\n").length - 1;
@@ -94,10 +93,14 @@ export function schemaForm(schema, opened, { onSave, extraChecks = () => [] }) {
     && typeof given.path === "string" && given.path.includes(given.id);
   const pathOf = (fields) => (isNew && typeof fields[idKey] === "string" && fields[idKey] ? given.path.replace(given.id, fields[idKey]) : given.path);
 
-  // The document as the person has left the form.
-  function documentNow() {
+  // The document as the person has left the form; with `standing`, each key of the schema whose field is empty stands with
+  // an empty value, on a line of its own, as the document documentFindings checks.
+  function documentNow(standing = false) {
     const fields = {};
-    for (const key of [...keys, ...Object.keys(given.fields)]) if (values[key] !== undefined) fields[key] = values[key];
+    for (const key of [...keys, ...Object.keys(given.fields)]) {
+      if (values[key] !== undefined) fields[key] = values[key];
+      else if (standing && keys.includes(key)) fields[key] = "";
+    }
     const sections = given.sections.map((section) => (edits.has(section.heading) ? editedSection(section.heading, section.line, edits.get(section.heading)) : section));
     for (const [heading, text] of edits) {
       if (sections.some((section) => section.heading === heading)) continue;
@@ -118,28 +121,30 @@ export function schemaForm(schema, opened, { onSave, extraChecks = () => [] }) {
   // Every finding of the document as the person has left the form, each where it is shown: beside a field, as a mark of a
   // section's editor, or at the end of the form.
   function placed() {
-    const now = documentNow();
-    const found = [...documentFindings(schema, now), ...extraChecks(now)];
-    const keyAt = new Map();
-    let line = 2;
-    for (const [key, value] of Object.entries(now.fields)) {
-      keyAt.set(line, key);
-      line += 1 + (Array.isArray(value) ? value.length : 0);
-    }
+    const now = documentNow(), checked = documentNow(true);
     const beside = new Map([...keys, ...headings].map((name) => [name, []]));
     const marks = new Map(headings.map((heading) => [heading, []]));
     const end = [];
-    for (const finding of found) {
-      const key = keyAt.get(finding.line);
-      const section = now.sections.findLast((candidate) => candidate.line <= finding.line);
-      const lacked = LEFT_OUT.exec(finding.fix ?? "")?.[1];
-      if (beside.has(key)) beside.get(key).push(finding);
-      else if (marks.has(section?.heading) && finding.line > section.line) {
-        marks.get(section.heading).push({ ...finding, line: finding.line - section.line });
-      } else if (beside.has(section?.heading)) beside.get(section.heading).push(finding);
-      else if (keys.includes(lacked)) beside.get(lacked).push(finding);
-      else end.push(finding);
+    // Each finding of a document placed by its line, as that document's keys and sections stand.
+    function place(doc, findings) {
+      const keyAt = new Map();
+      let line = 2;
+      for (const [key, value] of Object.entries(doc.fields)) {
+        keyAt.set(line, key);
+        line += 1 + (Array.isArray(value) ? value.length : 0);
+      }
+      for (const finding of findings) {
+        const key = keyAt.get(finding.line);
+        const section = doc.sections.findLast((candidate) => candidate.line <= finding.line);
+        if (beside.has(key)) beside.get(key).push(finding);
+        else if (marks.has(section?.heading) && finding.line > section.line) {
+          marks.get(section.heading).push({ ...finding, line: finding.line - section.line });
+        } else if (beside.has(section?.heading)) beside.get(section.heading).push(finding);
+        else end.push(finding);
+      }
+      return findings;
     }
+    const found = [...place(checked, documentFindings(schema, checked)), ...place(now, extraChecks(now))];
     return { found, beside, marks, end };
   }
 
