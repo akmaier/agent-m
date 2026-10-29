@@ -1,7 +1,7 @@
 // The browser, the repositories and the network of the tests of MOD-main-page's route `home` — a helper, no test of its own. It installs the small browser fixture of
 // tests/site-frame-start.d/dom.mjs (a document, a location, a local storage), opens the store of the instance alice/agent-m with the products and tokens a test gives, and puts a spy in
 // place of `fetch` over the counting fake of GitHub of tests/progress-measures-load.mjs (a helper too): the spy keeps every request with the authorisation it carried, answers the Bridges
-// lab-pc-4 (which lists the job it runs) and lab-pc-5 (which refuses the connection), and passes every other request to the fake. A test changes the files a repository holds with `change`, makes
+// lab-pc-4 (which lists the job it runs) and lab-pc-5 (which refuses the connection), answers GitHub's query of the entries of named files, and passes every other request to the fake. A test changes the files a repository holds with `change`, makes
 // GitHub refuse its API with `refusing` ({ how: "limit" | "limit, no reset time" | "error", repository?: the one repository refused, every one where none is given }), and fires the timers a page sets itself (`timers`) at a clock it names. Nothing reaches the network; nothing sleeps.
 //
 // Module: MOD-main-page
@@ -161,6 +161,7 @@ function headerOf(init, name) {
 /**
  * A fake GitHub serving `repos` ({ "owner/name": { path: text } }), with a spy over it. `bridgeLists` is the job identifier the Bridge lab-pc-4 lists as running (none lists no job); a test may set
  * `net.bridgeLists` later; `net.bridgeUsage` is the usage the Bridge lists for it, and `net.bridgeLog` (async (id, from) -> { lines, next, ended }) answers its log — the Bridge keeps none at first. `net.ciRuns` are the workflow runs (GitHub's answer, one page) that the job workflow's run list gives, none at first.
+ * GitHub's query of the entries of named paths (POST /graphql, with a token) is answered for named files, each such query kept in `net.folderReads` ({ repository, paths }).
  * `requests` keeps every request { url, host, authorization }; `server.log` is the fake's own record of what each request read (tests/progress-measures-load.mjs). install() puts the spy in
  * place of `fetch`; restore() puts the earlier one back.
  */
@@ -169,8 +170,23 @@ export function network(repos, { bridgeLists = null } = {}) {
   const requests = [];
   const real = globalThis.fetch;
   let held = repos, fake = null, spy = null;
+  // GitHub's query of the entries of named paths (repository.object(expression: "<commit>:<path>"), one aliased field e<n> for each), for the named files a snapshot is narrowed to: a file the
+  // repository of that head commit holds is a Blob with its oid, any other path null. Each query is kept in `net.folderReads` as { repository, paths }.
+  const filesNamed = (query) => {
+    const repository = {}, paths = [];
+    let named = null;
+    for (const [, alias, quoted] of query.matchAll(/(e\d+):object\(expression:("(?:[^"\\]|\\.)*")\)/g)) {
+      const expression = JSON.parse(quoted), at = expression.indexOf(":"), path = expression.slice(at + 1);
+      named = Object.keys(held).find((each) => headOf(each) === expression.slice(0, at)) ?? null;
+      paths.push(path);
+      const files = held[named] ?? {};
+      repository[alias] = path in files ? { oid: blobOf(files[path]) } : null;
+    }
+    net.folderReads.push({ repository: named, paths });
+    return { data: { repository } };
+  };
   // `overviews` ({ "owner/name": { "<commit>": text } }): the files `<commit>.json` of the branch `overview-cache` each repository holds, and under the key "latest" its file latest.json; none is held at first.
-  const net = { requests, bridgeLists, bridgeUsage: null, bridgeLog: null, refusing: null, ciRuns: [], overviews: {},
+  const net = { requests, bridgeLists, bridgeUsage: null, bridgeLog: null, refusing: null, ciRuns: [], overviews: {}, folderReads: [],
     // the fake's own record of what each request read: those of every state the repositories have been in
     server: { get log() { return servers.flatMap((server) => server.log); } },
     bridgeAsked: () => requests.filter((request) => request.host === "127.0.0.1:4711").length,
@@ -196,6 +212,7 @@ export function network(repos, { bridgeLists = null } = {}) {
           return new Response("{}", { status: 403, headers: { "content-type": "application/json", "x-ratelimit-remaining": "0", "x-ratelimit-limit": "5000", ...reset } });
         }
         if (url.host === "api.github.com" && /\/actions\/workflows\/[^/]+\/runs$/.test(url.pathname)) return json(200, { workflow_runs: net.ciRuns });
+        if (url.host === "api.github.com" && url.pathname === "/graphql" && /\be\d+:object\(expression:/.test(JSON.parse(init.body).query)) return json(200, filesNamed(JSON.parse(init.body).query));
         return fake(input, init);
       };
       globalThis.fetch = spy;

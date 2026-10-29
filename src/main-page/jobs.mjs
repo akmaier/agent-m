@@ -1,6 +1,6 @@
 // jobs.mjs — the route `jobs` (docs/architecture/MOD-main-page.md, Parts and Interfaces: `jobs`): every job of every product and of the instance in one list, with the job of this
 // tab's conversation among them, waiting at a gate first, filtered by product, state, participant or where it runs; a source that cannot be read is named above the list with its reason.
-// It also draws the route `job`: one job's inputs, log, cost and the gate it waits at (Interfaces: `job`).
+// It also draws the route `job`: one job's inputs, log, cost and the gate it waits at (Interfaces: `job`), from that job's one record and its live state alone.
 //
 // Module: MOD-main-page
 //
@@ -45,12 +45,12 @@ export async function sourcesOf(context, route = "jobs") {
   return [...(listsInstance ? [{ address: own, host: instance.host, own: true }] : []), ...products];
 }
 
-// One source read: its default branch as a snapshot. A source that fails is { address, reason }.
-async function readSource({ address, host, reason }) {
+// One source read: its default branch as a snapshot — narrowed to `folders` where they are given. A source that fails is { address, reason }.
+async function readSource({ address, host, reason }, folders = null) {
   if (reason !== undefined) return { address, reason };
   try {
     const { defaultBranch } = await host.repositoryInfo();
-    return { address, host, snapshot: await host.readSnapshot(defaultBranch) };
+    return { address, host, snapshot: await host.readSnapshot(defaultBranch, folders ? { folders } : {}) };
   } catch (failure) {
     return { address, reason: String(failure?.message ?? failure) };
   }
@@ -164,9 +164,8 @@ function markCancelling(lives) {
   return lives;
 }
 
-// Every job of every source, read once: the JobRows of MOD-job-ledger with the live state each runtime reported, the sources that could not be read, and what a job's log needs.
-async function everyJob(context) {
-  const sources = await Promise.all((await sourcesOf(context)).map(readSource));
+// The JobRows of MOD-job-ledger of the sources given, read once, with the live state each runtime reported; the sources that could not be read; and what a job's log needs.
+async function jobsOf(context, sources) {
   const readable = sources.filter((source) => source.snapshot);
   const products = readable.map(({ address, snapshot }) => ({ address, snapshot }));
   const first = await listJobs(products, new Map());
@@ -174,6 +173,19 @@ async function everyJob(context) {
   const hostOf = new Map(readable.map((source) => [source.address, source.host]));
   const lives = markCancelling(await liveStatesOf(first, hostOf, bridges));
   return { jobRows: await listJobs(products, lives), lives, bridges, hostOf, unreadable: sources.filter((source) => source.reason) };
+}
+
+// Every job of every source (the route `jobs`).
+const everyJob = async (context) => jobsOf(context, await Promise.all((await sourcesOf(context)).map((source) => readSource(source))));
+
+// One job (the route `job`): each source's tree narrowed to the one record docs/jobs/<id>.md — only the product `product` names, where it names one —, and the record of the first source
+// whose tree holds it, in the order of sourcesOf (the instance, then the products as kept). Its live state alone is asked; no other job's record is read.
+async function oneJob(context, id, product) {
+  const path = `docs/jobs/${id}.md`;
+  const named = (await sourcesOf(context)).filter((source) => product === null || source.address === product);
+  const sources = await Promise.all(named.map((source) => readSource(source, [path])));
+  const holder = sources.find((source) => source.snapshot?.paths.includes(path));
+  return jobsOf(context, [...(holder ? [holder] : []), ...sources.filter((source) => source.reason)]);
 }
 const unreadableList = (unreadable) => (unreadable.length ? [el("ul", "unreadable", ...unreadable.map((source) => el("li", "source", `${source.address}: ${source.reason}`)))] : []);
 
@@ -255,10 +267,10 @@ async function drawLog(box, page, row, { hostOf, bridges }) {
 
 async function renderJob(target, context, params, note = null) {
   target.replaceChildren(el("h2", null, "Job"), el("p", "reading", "Reading…"));
-  const read = await everyJob(context);
   let product = params.product ?? null;
   if (product !== null) { try { product = parseAddress(product).web; } catch { /* the address as given */ } }
-  const held = read.jobRows.find(({ record, product: at }) => record.id === params.id && (product === null || at === product));
+  const read = await oneJob(context, params.id, product);
+  const held = read.jobRows.find(({ record }) => record.id === params.id);
   if (held === undefined) {
     target.replaceChildren(el("h2", null, "Job"), ...unreadableList(read.unreadable), el("p", "job-missing", `No job ${params.id} in the instance or in the products this browser keeps.`));
     return;
