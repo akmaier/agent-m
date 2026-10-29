@@ -45,3 +45,5 @@ commits at Agent M's head).
 
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - Only `src/trace-pages/` and the tests that name MOD-trace-pages change.
+- Tests of other modules this Outcome changes: none. The only test that draws a test's detail is
+  `trace-pages-test-detail` (MOD-trace-pages).

@@ -45,3 +45,5 @@ Agent M's size).
 
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - Only `src/implementation-pages/` and the tests that name MOD-implementation-pages change.
+- Tests of other modules this Outcome changes: none. The only test that draws `#models` is
+  `implementation-pages-models` (MOD-implementation-pages).

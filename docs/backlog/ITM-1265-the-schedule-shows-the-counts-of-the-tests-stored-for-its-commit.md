@@ -9,6 +9,8 @@ realises:
 modules:
   - MOD-progress-measures
   - MOD-test-pages
+  - MOD-main-page
+  - MOD-workflow-entries
 builds_on:
   - ITM-1260
   - ITM-1263
@@ -61,4 +63,14 @@ Measurable outcome, on the live page of the instance in the browser's network pa
 | `#schedule` | 16 batches, 1,542 test files (19.3 MB) | 1 file of `overview-cache`, under 1 KB |
 
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
-- Only the folders of the two modules and the tests that name them change.
+- Only `src/progress-measures/`, `src/test-pages/` and the tests that name MOD-progress-measures or MOD-test-pages change,
+  besides the tests of other modules below.
+- Tests of other modules this Outcome changes: the three that pin the files `publishOverview` adds, each only to add
+  `<commit>.schedule.json.gz`. No code of MOD-main-page or MOD-workflow-entries changes.
+  - `tests/main-page-root-entry.test.mjs:39` (MOD-main-page), the setup `cachedContext`;
+  - `tests/workflow-entries-main-changed.test.mjs:298` (MOD-workflow-entries), the files `onMainChanged` adds;
+  - `tests/release-itm-1260-stored-views.test.mjs:265`, `:290` and `:297` (MOD-progress-measures, level `release`).
+    It is changed by a participant who implemented none of this item, in a commit of its own on the item's branch.
+- **Reading taken:** `scheduleView`'s entry gives `publishOverview` the fourth file "in the same commit as the other
+  views" (MOD-progress-measures.md:301-303). So `written` is `false` when the branch holds every file `publishOverview`
+  adds, the schedule's view among them, where its own entry (:304-308) still names three.

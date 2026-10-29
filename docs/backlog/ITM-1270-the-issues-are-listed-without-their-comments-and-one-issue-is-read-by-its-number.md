@@ -52,3 +52,8 @@ every page of every issue the product has had and the comments of each.
 
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - Only the folders of the two modules and the tests that name them change.
+- Tests of other modules this Outcome changes: none.
+  - `listIssues` keeps its default, so its callers in MOD-issue-handling, MOD-mail-handling, MOD-work-plans,
+    MOD-job-catalogue and MOD-artifact-edits, and their tests, do not change.
+  - `site-frame-replies-menu` (MOD-site-frame) draws `#replies/issue=…` and asserts *Read replies* before its click
+    (`:77-82`). The route reads its issue only after that click (`arrivalsOf`, `src/maintenance-pages/replies.mjs:219`).
