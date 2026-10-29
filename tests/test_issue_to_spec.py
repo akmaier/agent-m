@@ -17,10 +17,11 @@ and "A change is in the specification before any code implements it, and the acc
 side of that order that precedes the acceptance of the queue: the change leaves the issue as a queue and nothing else is committed, and no fix is
 offered for it. That no code job starts for a requirement not yet accepted is NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED (tests/test_job_preconditions.py).
 
-On a GitLab server only the class of the issue is checked (TST-1152003, the real GitLab adapter over a fake fetch): the repository holds no fake of
-GitLab's commit API, so the queue written for a change is not checked on GitLab.
+On a GitLab server the class of the issue is checked on the real GitLab adapter over a fake fetch (TST-1152003), and the queue written for a change on the
+real page of the issue, whose product is the real GitLab adapter over a fake GitLab server that serves the project, its tree and files, the issue and GitLab's
+commit API (TST-1283001); that fake stands in this file.
 
-Written for ITM-1152 by a participant who built none of the behaviour it checks (RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER).
+Written for ITM-1152 and ITM-1283 by participants who built none of the behaviour they check (RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER).
 """
 import json
 import re
@@ -34,13 +35,14 @@ ROOT = Path(__file__).resolve().parents[1]
 FIRST = "EVOLUTION ENTERS THROUGH THE SPECIFICATION - a change is written as a queue naming the issue"
 SECOND = "EVOLUTION ENTERS THROUGH THE SPECIFICATION - the code is not changed by a change"
 GITLAB = "EVOLUTION ENTERS THROUGH THE SPECIFICATION - on a GitLab server"
+GITLAB_QUEUE = "EVOLUTION ENTERS THROUGH THE SPECIFICATION - a change is written as a queue on a GitLab server"
 
-# The adapter. `input`: `issues` (the number and the labels of each issue of the product), `issue` (the number of the page opened), `steps` (`class`: a click on
+# The adapter. `input`: `server` (`gitlab` makes the product the project space/release-tool on a fake GitLab server, any other value the product alice/product on the fake GitHub; `issues` then holds the one issue), `issues` (the number and the labels of each issue of the product), `issue` (the number of the page opened), `steps` (`class`: a click on
 # Change or Bug; `draft`: the participant drafts the change and the person saves it), `candidates` (what the participant answers). The value is what the case may state:
 # `labels` (the labels of the issue at the end), `state` (its state), `issueWrites` (the writes made to the issue, sorted), `committed` (the paths committed to the product,
 # sorted), `outsideDocs` (those that do not lie under docs/), `queueNames` (what each queue index under docs/spec-freigaben/ names as its issue), `queueHolds` (each of the
 # case's `needles`: whether an entry of a queue holds it), `jobKinds` (the kind of each job record committed), `changeSection` and `fixSection` (whether the page shows the section that drafts the change
-# and the one that fixes a bug).
+# and the one that fixes a bug), `unserved` (on a GitLab server, the requests of the project's API that the fake did not serve).
 WORLD = r"""
 const url = (path) => `file://${ROOT}/${path}`;
 await import(url("tests/site-frame-dom.mjs"));
@@ -53,6 +55,7 @@ for (const [at, strategies] of (pages.view?.strategies ?? []).entries()) {
   try { runner.registerStrategies(`tests/test_issue_to_spec.py#${at}`, strategies); } catch { /* registered by the page's own view */ }
 }
 const { readFileSync, readdirSync } = await import("node:fs");
+const { createHash } = await import("node:crypto");
 
 const PRODUCT_TOKEN = "github_pat_HOME827PRODUCT0123456789abcdefg";
 const ISSUE_BODY = "FIRST RULE says nothing about page counts: the export is cut off after the second page.";
@@ -66,10 +69,67 @@ const onDisk = (path) => readFileSync(`${ROOT}/${path}`, "utf8");
 const BOOK = { "docs/sources/SRC-vibe-coding.md": onDisk("docs/sources/SRC-vibe-coding.md"),
   ...Object.fromEntries(readdirSync(`${ROOT}/${BOOK_FOLDER}`).map((name) => [BOOK_FOLDER + name, onDisk(BOOK_FOLDER + name)])) };
 
+// A fake GitLab server holding the product `space/release-tool` (its files and its one issue) in front of the fetch of the world: the project, a branch and its head, a commit's tree and raw files, the issue,
+// and GitLab's "Create a commit with multiple files and actions", which applies its create, update and delete actions and moves the head. Every other request is passed on, and every request the project's
+// API receives that this fake does not serve is kept in `unserved`, answered 404. `written()` is every file a commit created or updated, with its text; `issueWrites()` every request that is not a read and names an issue.
+const GITLAB_TOKEN = "glpat-SPACEreleaseTOOL0123456789";
+function gitlabServer(files, held) {
+  const WEB = "https://gitlab.example.org/space/release-tool", PREFIX = "/api/v4/projects/space%2Frelease-tool";
+  const sha1 = (text) => createHash("sha1").update(text).digest("hex");
+  const blobOf = (text) => createHash("sha1").update(`blob ${Buffer.byteLength(text)}\0`).update(text).digest("hex");
+  const states = new Map();
+  let head = sha1("space/release-tool@0");
+  states.set(head, { ...files });
+  const posted = [], unserved = [], issueWrites = [];
+  const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+  const inner = globalThis.fetch;
+  globalThis.fetch = async (input, init = {}) => {
+    const where = new URL(typeof input === "object" && !(input instanceof URL) ? input.url : String(input));
+    if (where.origin !== "https://gitlab.example.org" || !where.pathname.startsWith(PREFIX)) return inner(input, init);
+    const method = String(init.method ?? "GET").toUpperCase();
+    const rest = where.pathname.slice(PREFIX.length);
+    const at = (ref) => states.get(ref) ?? null;
+    if (method !== "GET" && rest.startsWith("/issues/")) issueWrites.push(`${method} ${rest}`);
+    if (method === "GET" && rest === "") return json({ visibility: "private", default_branch: "main", archived: false, description: "", permissions: { project_access: { access_level: 40 } } });
+    if (method === "GET" && rest.startsWith("/repository/commits/")) return json({ id: head });
+    if (method === "GET" && rest === "/repository/branches/main") return json({ commit: { id: head } });
+    if (method === "GET" && rest === "/repository/tree") {
+      const state = at(where.searchParams.get("ref"));
+      return json(state && where.searchParams.get("page") === "1" ? Object.entries(state).map(([path, text]) => ({ type: "blob", path, id: blobOf(text) })) : []);
+    }
+    const file = /^\/repository\/files\/([^/]+?)(\/raw)?$/.exec(rest);
+    if (method === "GET" && file) {
+      const text = at(where.searchParams.get("ref"))?.[decodeURIComponent(file[1])];
+      if (text === undefined) return json({ message: "404 File Not Found" }, 404);
+      return file[2] ? new Response(text, { status: 200 }) : json({ last_commit_id: where.searchParams.get("ref") });
+    }
+    if (method === "POST" && rest === "/repository/commits") {
+      const given = JSON.parse(init.body);
+      const next = { ...at(head) };
+      for (const action of given.actions) {
+        if (action.action === "delete") delete next[action.file_path];
+        else next[action.file_path] = action.content;
+        if (action.action !== "delete") posted.push({ path: action.file_path, content: action.content });
+      }
+      head = sha1(`${head}:${given.commit_message}`);
+      states.set(head, next);
+      return json({ id: head, web_url: `${WEB}/-/commit/${head}` }, 201);
+    }
+    const issueJson = { iid: held.number, title: held.title, description: held.body, state: "opened", labels: held.labels, web_url: `${WEB}/-/issues/${held.number}`, user_notes_count: 0 };
+    if (method === "GET" && rest === `/issues/${held.number}`) return json(issueJson);
+    if (method === "GET" && rest === "/issues") return json(["opened", "all"].includes(where.searchParams.get("state")) ? [issueJson] : []);
+    unserved.push(`${method} ${rest}`);
+    return json({ message: "404 Not found" }, 404);
+  };
+  return { web: WEB, written: () => posted, issue: () => ({ labels: held.labels, state: held.state }), issueWrites: () => issueWrites.sort(), unserved: () => unserved };
+}
+
 const issues = input.issues.map(({ number, labels }) => ({ number, title: `Export loses pages ${number}`, body: ISSUE_BODY, state: "open", labels, comments: [] }));
 const w = worldOf.world({ mails: [], issues, answer: () => ({ draft: { candidates: input.candidates }, answers: [] }),
   product: { "docs/sources.md": LINKS }, instance: { ...BOOK, [`docs/sources/${SOURCE}.md`]: PERSON_SOURCE } });
 w.context.product = { address: harness.PRODUCT_URL, kind: "github", host: hosts.connect(hosts.parseAddress(harness.PRODUCT_URL), { token: PRODUCT_TOKEN }), tokenStored: true };
+const gitlab = input.server === "gitlab" ? gitlabServer({ ...harness.smallProduct(), "docs/sources.md": LINKS }, issues.find((each) => each.number === input.issue)) : null;
+if (gitlab) w.context.product = { address: gitlab.web, kind: "gitlab", host: hosts.connect(hosts.parseAddress(gitlab.web), { token: GITLAB_TOKEN }), tokenStored: true };
 
 const detail = await harness.draw(routeNamed("issue"), w.context, { number: String(input.issue) });
 await waitFor(() => byClass(detail, "issue-analysis").length > 0);
@@ -96,14 +156,14 @@ for (const step of input.steps) {
 await flush();
 
 const trees = w.kept.github.filter((request) => request.method === "POST" && request.path.endsWith("/git/trees")).flatMap((request) => JSON.parse(request.body).tree ?? []).filter((entry) => typeof entry.content === "string");
-const files = [...new Map(trees.map((entry) => [entry.path, entry])).values()];
+const files = [...new Map((gitlab ? gitlab.written() : trees).map((entry) => [entry.path, entry])).values()];
 const committed = files.map((entry) => entry.path).sort();
-const issue = w.kept.issues.find((each) => each.number === input.issue);
+const issue = gitlab ? gitlab.issue() : w.kept.issues.find((each) => each.number === input.issue);
 const queueIndexes = files.filter((entry) => /^docs\/spec-freigaben\/[^/]+\/index\.md$/.test(entry.path));
 const out = {
   labels: issue.labels,
   state: issue.state,
-  issueWrites: w.kept.github.filter((request) => request.method !== "GET" && request.path.includes("/issues/")).map((request) => `${request.method} ${request.path.replace("/repos/alice/product", "")}`).sort(),
+  issueWrites: gitlab ? gitlab.issueWrites() : w.kept.github.filter((request) => request.method !== "GET" && request.path.includes("/issues/")).map((request) => `${request.method} ${request.path.replace("/repos/alice/product", "")}`).sort(),
   committed,
   outsideDocs: committed.filter((path) => !path.startsWith("docs/")),
   queueNames: queueIndexes.map((entry) => /^\*\*Issue:\*\* (.*)$/m.exec(entry.content)?.[1] ?? null),
@@ -111,6 +171,7 @@ const out = {
   jobKinds: files.filter((entry) => /^docs\/jobs\/JOB-.*\.md$/.test(entry.path)).map((entry) => /^kind: (.*)$/m.exec(entry.content)?.[1] ?? null),
   changeSection: byClass(detail, "issue-change").length > 0,
   fixSection: byClass(detail, "issue-fix").length + byClass(detail, "issue-no-fixer").length > 0,
+  unserved: gitlab ? gitlab.unserved() : [],
 };
 restoreWorld();
 return out;
@@ -189,6 +250,15 @@ class TestIssueToSpec(unittest.TestCase):
     # Planted fault: the change class mapped to the label defect fails writes.
     def test_on_a_gitlab_server_the_class_of_a_change_is_only_a_label(self):
         check(self, GITLAB, GITLAB_WORLD)
+
+    # TST-1283001 · level: release · module: MOD-issue-handling, MOD-maintenance-pages, MOD-spec-changes
+    # guards: EVOLUTION ENTERS THROUGH THE SPECIFICATION; UC-012
+    # given: the case under "a change is written as a queue on a GitLab server": a product on a GitLab server whose issue 7 is labelled change, a participant that answers a new requirement, and a person who saves the draft
+    # input: the steps of the case, carried out on the real page of the issue, whose product is the real GitLab adapter over a fake GitLab server that serves the project, its tree and files, the issue and GitLab's commit API
+    # expect: the saved draft is a queue under docs/spec-freigaben/ whose index names the issue and the product's GitLab address and holds the new requirement; the only job started is of the kind change-requirements; nothing is committed outside docs/; no write is made to the issue; every request the fake received was one it serves
+    # Planted fault: the files under docs/spec-freigaben/ left out of the actions of GitLab's commitFiles fail queueNames and queueHolds; a file src/export/index.mjs added to those actions fails outsideDocs.
+    def test_a_change_is_written_as_a_queue_on_a_gitlab_server(self):
+        check(self, GITLAB_QUEUE)
 
 
 if __name__ == "__main__":
