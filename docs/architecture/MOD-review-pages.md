@@ -255,7 +255,11 @@ ReviewKind = {
     each file with `saveFile` after its owner's schema found no error. A draft handed to CI or a Bridge arrives as an
     open file, a queue entry or a pull request instead.
   - `<k>/draft` — drafting: for use cases, the requirements to cover — by default those no use case realises —; for
-    requirements, the linked source and, to send less, the files of its version to work on (UC-005 2a); for the
+    requirements, the linked source and, to send less, the files of its version to work on (UC-005 2a), or, opened with
+    the parameter `issue`, the change of requirements drafted from that issue of the product shown (UC-012 step 6) — the
+    job of `change-requirements` given the issue's number as `issue` and the person's own source as `source`, as for a
+    change asked for in the prompt bar, its result shown and written as a derivation's below, a change queue naming the
+    issue; the issue route shows this route inside itself through the frame's `embedRoute`; for the
     architecture, what the derivation covers, its preconditions,
     the drafting and the reviewing participant — a reviewer offered only if it differs from the drafter in participant
     and model —; then the run panel and *Run*. A job the person starts here and waits for runs in this tab, attended: a

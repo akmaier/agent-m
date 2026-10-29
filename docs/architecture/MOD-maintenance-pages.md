@@ -12,6 +12,7 @@ uses:
   - MOD-site-frame.notice
   - MOD-site-frame.runPanel
   - MOD-site-frame.confirmDecision
+  - MOD-site-frame.embedRoute
   - MOD-site-frame.schemaForm
   - MOD-markdown-render.renderArtifact
   - MOD-markdown-render.openEditor
@@ -119,12 +120,11 @@ person reviews it. Its formats are those of the modules it uses.
   - `issues`, `issue/<number>` — the product's issues; *Analyse* with its run panel and the class proposed with its
     reasoning; the class confirmed or corrected, or the issue rejected with a reason, with `confirmClass`; for a bug, the
     fixing participant — one that can run tests — and its run panel, the job queued on its route; and, before its pull request is merged, for each existing test whose expected result the fix changes, the requirement it now checks correctly with the old and the new expectation side by side (UC-012 5a); for a change, the
-    change of requirements drafted against the existing ones with the issue as its origin, run attended, its candidates
-    shown by class beside the requirements they refer to and every conflict decided by the person, then *Save*, which
-    writes them as a change queue naming the issue — the job of `change-requirements` given the issue's number as its
-    parameter `issue` and the person's own source as its parameter `source`, which `personSource` names for
-    `personAccount`'s account among the product's links and the instance's register, or, without one, the steps its
-    precondition names —; *Move to backlog* with the item prefilled — its fields checked in a
+    change of requirements drafted against the existing ones with the issue as its origin: the review pages' drafting of
+    requirements, their route `spec-entry/draft` with the parameter `issue`, shown inside the issue's page through the
+    frame's `embedRoute`, which runs it attended, shows its candidates by class beside the requirements they refer to with
+    every conflict decided by the person, and writes them as a change queue naming the issue; this route keeps no panel
+    of candidates of its own; *Move to backlog* with the item prefilled — its fields checked in a
     form while the person edits them —; *Add*, which writes the item and the issue's comment and label with
     `moveToBacklog`, or names the comment to copy
     when the token may not comment; closing an issue with links once its pull request is merged. The list reads the open
@@ -166,7 +166,8 @@ instance's participants and source register.
 
 - MOD-site-frame.View, MOD-site-frame.chosenProduct, MOD-site-frame.explain, MOD-site-frame.notice,
   MOD-site-frame.runPanel, MOD-site-frame.confirmDecision, MOD-site-frame.schemaForm — the frame's parts, the run panels,
-  the dialog of every send, and the form of a backlog item.
+  the dialog of every send, and the form of a backlog item; MOD-site-frame.embedRoute — the review pages' drafting of a
+  change of requirements, shown on an issue's page without using that view.
 - MOD-markdown-render.renderArtifact, MOD-markdown-render.openEditor — issues, mails and drafts, and their editing.
 - MOD-prompt-bar.Subject — the subject its routes give the prompt bar.
 - MOD-browser-store.readSetting — the mailbox connection and its last test, the endpoints' configurations and the
