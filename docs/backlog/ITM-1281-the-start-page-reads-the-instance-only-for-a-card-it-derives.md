@@ -45,3 +45,19 @@ fewer per load.
 
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - Only `src/main-page/` and the tests that name MOD-main-page change.
+- **The function it needs is named in MOD-main-page's Uses:** `MOD-repository-hosts.readSnapshot`
+  (MOD-main-page.md:24). The text gives the route this behaviour (MOD-main-page.md:127-129): "The instance's snapshot …
+  is read only for a card drawn from that scope, once for all such cards, and for Agent M's own card; while every card
+  has an overview, the route reads none of the instance."
+- **Tests of the module's own that count the instance's reads on `home`, to be checked in the tests-only commit:**
+  - `main-page-home` (`:205-214`, `:453`, `:524`);
+  - `main-page-root-entry`'s TST-684003, Agent M's own card reading the instance once, which the Outcome keeps.
+  - An expectation that changes stands in the tests-only commit.
+- **Tests of other modules this Outcome changes: none.**
+  - The search was every file under `tests/` that loads `main-page-home-harness`, `main-page/index.mjs` or
+    `main-page/home.mjs`, on `main` at `82f63cbf`, read to its end: 35 files.
+  - Of the files of other modules, `release-itm-1272`, `release-itm-1273` and `review-pages-entry-own-queue` count
+    requests. They count those of the product, its `overview-cache` and its queue files, and none of the instance.
+  - MOD-notifications', MOD-maintenance-pages' and MOD-site-frame's files count no request of the instance.
+  - Its known positive is `main-page-root-entry`'s TST-684003.
+- It removes no test.
