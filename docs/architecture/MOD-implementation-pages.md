@@ -7,6 +7,7 @@ follows:
   - ARC-038
 uses:
   - MOD-site-frame.View
+  - MOD-site-frame.ViewContext
   - MOD-site-frame.chosenProduct
   - MOD-site-frame.explain
   - MOD-site-frame.notice
@@ -230,7 +231,8 @@ product's `docs/sources.md`.
 
 - MOD-site-frame.View, MOD-site-frame.chosenProduct, MOD-site-frame.explain, MOD-site-frame.notice,
   MOD-site-frame.runPanel, MOD-site-frame.confirmDecision, MOD-site-frame.schemaForm — the frame's parts, the run panel,
-  and the forms of the declaration, the models, items and sprints.
+  and the forms of the declaration, the models, items and sprints; MOD-site-frame.ViewContext — its `ref`, at which
+  `plan`, `board`, `progress` and `backlog` read the product's repository, as the frame read it.
 - MOD-markdown-render.renderArtifact, MOD-markdown-render.renderMermaid, MOD-markdown-render.showDifference — items,
   diagrams of models, plans and progress, and differences of a drafted plan.
 - MOD-browser-store.readSetting — the endpoints' configurations and the Bridges' settings a job needs;

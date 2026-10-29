@@ -36,6 +36,8 @@ uses:
   - MOD-trace-graph.Graph
   - MOD-trace-graph.traceGraph
   - MOD-trace-graph.tracesTo
+  - MOD-trace-graph.gzipped
+  - MOD-trace-graph.gunzipped
   - MOD-job-ledger.JobRow
   - MOD-job-ledger.listJobs
   - MOD-runtimes.jobWorkflowFiles
@@ -298,7 +300,10 @@ The six stages of the main page, each a share between 0 and 1:
 - `ScheduleView` — what the route `schedule` shows of one commit's tests: `{ commit: string, counts: { unit: number,
   component: number, system: number, release: number, user: number, paid: number } }`, the number of the test
   declarations of each level, and of those that call a paid service.
-- `scheduleView(facts: Facts) -> ScheduleView` — the counts of `facts.tests`. Pure; `publishOverview` adds
+- `scheduleView(facts: { snapshot: Snapshot, tests: TestDeclaration[] | "unknown" }) -> ScheduleView` — the counts of
+  `facts.tests`, of the commit of `facts.snapshot`: of `Facts` it takes these two parts only, so that a caller holding a
+  snapshot and the declarations of its test files gives them without the other facts. Throws a `TypeError` where
+  `facts.tests` is `"unknown"`: a count is never guessed. Pure; `publishOverview` adds
   `<commit>.schedule.json.gz` from it, in the same commit as the other views, and a file the branch holds already is left
   as it is.
 - `publishOverview(host: Host, snapshot: Snapshot, facts: Facts) -> Promise<{ commit: string, written: boolean }>` —
@@ -390,6 +395,8 @@ MOD-spec-changes'; `TestDeclaration` MOD-test-document's; `Graph` MOD-trace-grap
 - MOD-release-evidence.reportsAwaitingAcceptance — the release test report that waits for acceptance, if one does.
 - MOD-test-document.TestDeclaration, testDeclarations, isTestFile, MOD-trace-graph.Graph, traceGraph, tracesTo — which
   tests guard which requirement, which files are test files, and the traces behind a cell of the grid.
+- MOD-trace-graph.gzipped, gunzipped — the views it stores on the branch `overview-cache` and reads back, gzipped as the
+  trace graph is; the module keeps no gzip of its own.
 - MOD-job-ledger.JobRow, listJobs — the product's jobs with their states, elapsed times and costs.
 - MOD-runtimes.jobWorkflowFiles, ResourceNeed — the paths of the job workflow, and the type of a resource need.
 - MOD-resource-list.resourceSchema, reachableBy — the product's resources and the routes that reach them.

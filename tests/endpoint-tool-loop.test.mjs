@@ -70,7 +70,7 @@ const send = (config, tools, options) => endpointDriver(config, PARTICIPANT).sen
 // given: an OpenAI-compatible endpoint that first calls read_file on one.md and two.md in one answer, then answers Final answer.
 // input: send a DriverInput carrying tools with limit 10 whose call returns "ONE" for one.md and "TWO" for two.md
 // expect: text Final answer.; calls in order one.md then two.md, each after request 1 and before request 2; exactly two requests;
-//   request 1 holds the user prompt, the read_file definition and max_tokens 32000; request 2 holds user, assistant with both calls, then tool ONE for call-a and tool TWO for call-b, and max_tokens 32000
+//   request 1 holds the user prompt, the read_file definition, max_tokens 32000 and stream false; request 2 holds user, assistant with both calls, then tool ONE for call-a and tool TWO for call-b, max_tokens 32000 and stream false
 test("TST-488001: OpenAI endpoint works in a tool loop, calls in order, results returned", async (t) => {
   const log = [];
   const bodies = provider(t, "openai", [
@@ -81,7 +81,7 @@ test("TST-488001: OpenAI endpoint works in a tool loop, calls in order, results 
   assert.equal(result.text, "Final answer.");
   assert.deepEqual(log, ["request 1", "call read_file one.md", "call read_file two.md", "request 2"]);
   assert.equal(bodies.length, 2);
-  assert.deepEqual(bodies[0], { model: "fixture-model", max_tokens: 32000, messages: [{ role: "user", content: "Inspect the fixture." }], tools: OPENAI_TOOLS });
+  assert.deepEqual(bodies[0], { model: "fixture-model", max_tokens: 32000, messages: [{ role: "user", content: "Inspect the fixture." }], tools: OPENAI_TOOLS, stream: false });
   assert.deepEqual(bodies[1], { model: "fixture-model", max_tokens: 32000, tools: OPENAI_TOOLS, messages: [
     { role: "user", content: "Inspect the fixture." },
     { role: "assistant", content: "Reading.", tool_calls: [
@@ -90,7 +90,7 @@ test("TST-488001: OpenAI endpoint works in a tool loop, calls in order, results 
     ] },
     { role: "tool", content: "ONE", tool_call_id: "call-a" },
     { role: "tool", content: "TWO", tool_call_id: "call-b" },
-  ] });
+  ], stream: false });
 });
 
 // TST-488002 · level: unit · module: MOD-endpoint-calls
@@ -303,18 +303,18 @@ async function withoutToolsCase(t, config, tools, expectedBody) {
 // guards: UC-049; ONE DEFINITION, THREE DRIVERS
 // given: an OpenAI-compatible endpoint answering Plain answer. with usage 4 in / 2 out; an input whose tools is null
 // input: send
-// expect: one request with body { model, messages: [user prompt] } and no tools key; { text: Plain answer., usage 4 in / 2 out }
+// expect: one request with body { model, messages: [user prompt], stream: false } and no tools key; { text: Plain answer., usage 4 in / 2 out }
 test("TST-488012: input with tools null makes the one request it made before", async (t) => {
-  await withoutToolsCase(t, OPENAI, null, { model: "fixture-model", messages: [{ role: "user", content: "Inspect the fixture." }] });
+  await withoutToolsCase(t, OPENAI, null, { model: "fixture-model", messages: [{ role: "user", content: "Inspect the fixture." }], stream: false });
 });
 
 // TST-488014 · level: unit · module: MOD-endpoint-calls
 // guards: UC-049; ONE DEFINITION, THREE DRIVERS
 // given: an OpenAI-compatible endpoint answering Plain answer. with usage 4 in / 2 out; an input that has no tools property
 // input: send
-// expect: one request with body { model, messages: [user prompt] } and no tools key; { text: Plain answer., usage 4 in / 2 out }
+// expect: one request with body { model, messages: [user prompt], stream: false } and no tools key; { text: Plain answer., usage 4 in / 2 out }
 test("TST-488014: input without a tools property makes the one request it made before", async (t) => {
-  await withoutToolsCase(t, OPENAI, undefined, { model: "fixture-model", messages: [{ role: "user", content: "Inspect the fixture." }] });
+  await withoutToolsCase(t, OPENAI, undefined, { model: "fixture-model", messages: [{ role: "user", content: "Inspect the fixture." }], stream: false });
 });
 
 // TST-488013 · level: unit · module: MOD-endpoint-calls

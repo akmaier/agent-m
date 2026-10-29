@@ -9,6 +9,7 @@ uses:
   - MOD-repository-hosts.commentOnIssue
   - MOD-repository-hosts.setIssueLabels
   - MOD-repository-hosts.setIssueState
+  - MOD-repository-hosts.readIssue
   - MOD-repository-hosts.webLinks
   - MOD-repository-hosts.repositoryInfo
   - MOD-repository-hosts.readSnapshot
@@ -23,10 +24,11 @@ uses:
   - MOD-trace-graph.tracesTo
   - MOD-run-planner.runStrategies
   - MOD-personal-data.pseudonymisationOf
-  - MOD-documents.artifactSchemas
   - MOD-documents.readDocument
   - MOD-documents.Document
   - MOD-work-plans.saveItems
+  - MOD-work-plans.backlogOf
+  - MOD-work-plans.moduleFiles
   - MOD-job-runner.Strategies
 provides:
   - confirmClass
@@ -84,7 +86,10 @@ prefills is a document of the item schema of MOD-documents, written by Process (
   (UC-033). Crosses the network. Errors: `saveItems`' own — nothing is written then —, and Access's.
 - `closeWithLinks(host: Host, issue: number, links: { pullRequest: string | null, commit: string | null, item: string |
   null }) -> Promise<void>` — the comment `closed-with` and the issue closed; run when the pull request of a bug fix or of
-  an item from the issue is merged. Errors: Access's.
+  an item from the issue is merged. It reads the issue first, its state and its comments: an issue that is closed and
+  holds a comment whose text is the `closed-with` note these links give is left as it is, so that an issue is closed
+  and noted once however many routes run the entry one after another. Considers: two runs that read the issue at the
+  same moment, before either writes, both note it. Crosses the network. Errors: Access's.
 - `issueStrategies` — of MOD-job-runner's type `Strategies`:
   - recipe `issue-context` — for analysing an issue, and for drafting the change it asks for: one part with the issue's title, text and comments; parts with the
     requirements the issue names, and the use cases, tests and modules it names together with the requirements the trace
@@ -110,7 +115,8 @@ labels and closes issues in the product's tracker through Access; the item is wr
 ## Uses
 
 - `MOD-repository-hosts.commentOnIssue`, `setIssueLabels`, `setIssueState` — the class, the notes and closing, with the
-  person's token; `MOD-repository-hosts.webLinks` — the address of the item file in the product's repository;
+  person's token; `MOD-repository-hosts.readIssue` — an issue's state and comments, which `closeWithLinks` reads before
+  it notes and closes; `MOD-repository-hosts.webLinks` — the address of the item file in the product's repository;
   `MOD-repository-hosts.repositoryInfo`, `readSnapshot` — the default branch's head that `moveToBacklog` reads the module
   files and an existing item from;
   `MOD-repository-hosts.Snapshot` — the files its recipes read.
@@ -122,8 +128,9 @@ labels and closes issues in the product's tracker through Access; the item is wr
 - `MOD-trace-graph.traceGraph`, `MOD-trace-graph.tracesTo` — what links to them.
 - `MOD-run-planner.runStrategies` — the recipe `implementation-inputs`, reused for the modules of a fix.
 - `MOD-personal-data.pseudonymisationOf` — whether the issue's report data was rewritten without persons.
-- `MOD-documents.Document` — the prefilled item; `MOD-documents.artifactSchemas`, `MOD-documents.readDocument` — the
-  item and module schemas, the module files of the architecture that `saveItems` checks the item against, and an existing
-  item that takes this issue as a further origin.
-- `MOD-work-plans.saveItems` — writing the item.
+- `MOD-documents.Document` — the prefilled item; `MOD-documents.readDocument` — the product's settings, read for
+  `pseudonymisationOf`.
+- `MOD-work-plans.saveItems` — writing the item; `MOD-work-plans.moduleFiles` — the module files of the architecture that
+  `saveItems` checks the item against; `MOD-work-plans.backlogOf` — an existing item that takes this issue as a further
+  origin, its origins as a list.
 - `MOD-job-runner.Strategies` — the type of `issueStrategies`.

@@ -7,6 +7,7 @@ follows:
   - ARC-038
 uses:
   - MOD-site-frame.View
+  - MOD-site-frame.ViewContext
   - MOD-site-frame.chosenProduct
   - MOD-site-frame.explain
   - MOD-site-frame.notice
@@ -18,6 +19,7 @@ uses:
   - MOD-markdown-render.openEditor
   - MOD-markdown-render.showDifference
   - MOD-browser-store.readSetting
+  - MOD-browser-store.tokenKeyOf
   - MOD-bridge-client.bridgeAt
   - MOD-repository-hosts.readSnapshot
   - MOD-repository-hosts.repositoryInfo
@@ -48,6 +50,7 @@ uses:
   - MOD-approvals.statuses
   - MOD-approvals.removedFiles
   - MOD-approvals.statusOf
+  - MOD-approvals.recordPaths
   - MOD-approvals.lastAcceptedText
   - MOD-approvals.acceptShown
   - MOD-approvals.acceptanceBlockers
@@ -73,6 +76,7 @@ uses:
   - MOD-artifact-edits.editStrategies
   - MOD-release-evidence.acceptAndRelease
   - MOD-source-register.sourceSchemas
+  - MOD-source-register.registerPaths
   - MOD-source-register.linkedVersion
   - MOD-source-register.restrictedPlaces
   - MOD-source-register.personSource
@@ -256,7 +260,11 @@ ReviewKind = {
     each file with `saveFile` after its owner's schema found no error. A draft handed to CI or a Bridge arrives as an
     open file, a queue entry or a pull request instead.
   - `<k>/draft` — drafting: for use cases, the requirements to cover — by default those no use case realises —; for
-    requirements, the linked source and, to send less, the files of its version to work on (UC-005 2a); for the
+    requirements, the linked source and, to send less, the files of its version to work on (UC-005 2a), or, opened with
+    the parameter `issue`, the change of requirements drafted from that issue of the product shown (UC-012 step 6) — the
+    job of `change-requirements` given the issue's number as `issue` and the person's own source as `source`, as for a
+    change asked for in the prompt bar, its result shown and written as a derivation's below, a change queue naming the
+    issue; the issue route shows this route inside itself through the frame's `embedRoute`; for the
     architecture, what the derivation covers, its preconditions,
     the drafting and the reviewing participant — a reviewer offered only if it differs from the drafter in participant
     and model —; then the run panel and *Run*. A job the person starts here and waits for runs in this tab, attended: a
@@ -284,13 +292,17 @@ and `docs/participants.md` of the instance.
 ## Uses
 
 - MOD-site-frame.View, MOD-site-frame.chosenProduct, MOD-site-frame.explain, MOD-site-frame.notice, MOD-site-frame.readProblem,
-  MOD-site-frame.runPanel, MOD-site-frame.confirmDecision — the frame's parts of every route.
+  MOD-site-frame.runPanel, MOD-site-frame.confirmDecision — the frame's parts of every route; MOD-site-frame.ViewContext —
+  the `ref` the frame read the repository shown at.
 - MOD-markdown-render.renderArtifact, MOD-markdown-render.openEditor, MOD-markdown-render.showDifference — files,
   editors, differences.
-- MOD-browser-store.readSetting — the endpoints' configurations and the Bridges' settings a job in the tab needs;
+- MOD-browser-store.readSetting — the endpoints' configurations and the Bridges' settings a job in the tab needs, and
+  the token kept for the page's product; MOD-browser-store.tokenKeyOf — the key that token is kept under;
   MOD-bridge-client.bridgeAt — a handle for each Bridge, handed to the runtimes.
-- MOD-repository-hosts.readSnapshot, MOD-repository-hosts.repositoryInfo, MOD-repository-hosts.webLinks — the
-  product's files, whether the person may write and the repository's visibility, GitHub's own pages;
+- MOD-repository-hosts.readSnapshot — the product's files, at the `ref` its `ViewContext` hands it, so that no route
+  asks for the default branch on load; MOD-repository-hosts.repositoryInfo — whether the person may write and the
+  repository's visibility, asked only where a write, a draft or the offer of a job's routes needs them;
+  MOD-repository-hosts.webLinks — GitHub's own pages;
   MOD-repository-hosts.readHistory — on `<k>/history` only, the commits that added the approval records under
   `docs/approvals/`, each with its author and date.
 - MOD-text-tools.blobSha — the blob of each text as it was shown, which an acceptance names (`AN APPROVAL NAMES THE EXACT
@@ -316,6 +328,7 @@ and `docs/participants.md` of the instance.
   `SPEC.md` while the head's graph is not stored and shows no earlier graph.
 - MOD-approvals.statuses, MOD-approvals.removedFiles, MOD-approvals.statusOf, MOD-approvals.lastAcceptedText, MOD-approvals.acceptShown,
   MOD-approvals.acceptanceBlockers, MOD-approvals.fallbackAcceptLink — statuses, the files removed since their acceptance, and acceptance;
+  MOD-approvals.recordPaths — the records of a changed file's identifier, read in one batch with the file it shows;
   MOD-approvals.rejectShown — rejecting a use case, decision or module file; MOD-approvals.approvalSchema —
   the schema an approval record is read with, on `<k>/history` too.
 - MOD-spec-changes.queues, MOD-spec-changes.queueAt, MOD-spec-changes.openQueueOf, MOD-spec-changes.proposeSection,
@@ -329,7 +342,9 @@ and `docs/participants.md` of the instance.
   MOD-artifact-edits.keptIdentifier — a drafted change's identifier restored before the editor opens.
 - MOD-release-evidence.acceptAndRelease — accepting an open release test report.
 - MOD-source-register.sourceSchemas, MOD-source-register.linkedVersion — the product's links file and register, and its
-  linked sources with their parts; MOD-source-register.restrictedPlaces — the `places` of the context of a job it
+  linked sources with their parts; MOD-source-register.registerPaths — the register's entries among the paths of the
+  instance's snapshot, so that the pages keep no rule of their own for which files those are;
+  MOD-source-register.restrictedPlaces — the `places` of the context of a job it
   prepares, over every restricted source of the register and not only the linked ones, so that a drafter's tools refuse a
   restricted source's content at a place it does not permit wherever the product holds it; the offer of participants for
   a job is judged against the places of the sources the product links, which the job's parts can carry, and the module

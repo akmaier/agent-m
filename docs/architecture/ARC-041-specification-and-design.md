@@ -100,7 +100,7 @@ kinds every input their rules demand.
 
 | Module | Functions other subsystems use |
 |---|---|
-| MOD-approvals | `approvalSchema`, `statusOf`, `statuses`, `lastAcceptedText`, `acceptShown`, `acceptanceBlockers`, `fallbackAcceptLink`, `approvalStrategies` |
+| MOD-approvals | `approvalSchema`, `statusOf`, `statuses`, `recordPaths`, `lastAcceptedText`, `acceptShown`, `acceptanceBlockers`, `fallbackAcceptLink`, `approvalStrategies` |
 | MOD-spec-changes | `Queue`, `queues`, `openQueueOf`, `proposeSection`, `saveEntry`, `entrySections`, `entryView`, `acceptEntries`, `applyApproved`, `requirementHistory`, `specStrategies` |
 | MOD-artifact-edits | `saveFile`, `keptIdentifier`, `saveGroupFile`, `fallbackEditLinks`, `reviewLayoutCommit`, `editStrategies` |
 

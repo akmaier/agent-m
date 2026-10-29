@@ -7,11 +7,13 @@ follows:
   - ARC-038
 uses:
   - MOD-site-frame.View
+  - MOD-site-frame.ViewContext
   - MOD-site-frame.chosenProduct
   - MOD-site-frame.explain
   - MOD-site-frame.notice
   - MOD-site-frame.runPanel
   - MOD-site-frame.confirmDecision
+  - MOD-site-frame.embedRoute
   - MOD-site-frame.schemaForm
   - MOD-site-frame.standIn
   - MOD-markdown-render.renderArtifact
@@ -61,12 +63,16 @@ uses:
   - MOD-issue-handling.closeWithLinks
   - MOD-issue-handling.issueStrategies
   - MOD-work-plans.backlogFindings
+  - MOD-work-plans.backlogOf
+  - MOD-work-plans.moduleFiles
+  - MOD-work-plans.listField
   - MOD-spec-changes.queues
   - MOD-spec-changes.entryView
   - MOD-spec-changes.specStrategies
   - MOD-source-register.sourceSchemas
   - MOD-source-register.personSource
   - MOD-source-register.personAccount
+  - MOD-source-register.sourceStrategies
   - MOD-participant-list.participantSchema
   - MOD-participant-list.eligible
   - MOD-participant-list.participantsOf
@@ -114,16 +120,15 @@ person reviews it. Its formats are those of the modules it uses.
 ## Interfaces
 
 - `view: View` — its routes, and the strategies its kinds use in the tab — `issueStrategies`, `mailStrategies`,
-  `privacyStrategies`, `specStrategies`, `routeStrategies`:
+  `privacyStrategies`, `specStrategies`, `sourceStrategies`, `routeStrategies`:
   - `issues`, `issue/<number>` — the product's issues; *Analyse* with its run panel and the class proposed with its
     reasoning; the class confirmed or corrected, or the issue rejected with a reason, with `confirmClass`; for a bug, the
     fixing participant — one that can run tests — and its run panel, the job queued on its route; and, before its pull request is merged, for each existing test whose expected result the fix changes, the requirement it now checks correctly with the old and the new expectation side by side (UC-012 5a); for a change, the
-    change of requirements drafted against the existing ones with the issue as its origin, run attended, its candidates
-    shown by class beside the requirements they refer to and every conflict decided by the person, then *Save*, which
-    writes them as a change queue naming the issue — the job of `change-requirements` given the issue's number as its
-    parameter `issue` and the person's own source as its parameter `source`, which `personSource` names for
-    `personAccount`'s account among the product's links and the instance's register, or, without one, the steps its
-    precondition names —; *Move to backlog* with the item prefilled — its fields checked in a
+    change of requirements drafted against the existing ones with the issue as its origin: the review pages' drafting of
+    requirements, their route `spec-entry/draft` with the parameter `issue`, shown inside the issue's page through the
+    frame's `embedRoute`, which runs it attended, shows its candidates by class beside the requirements they refer to with
+    every conflict decided by the person, and writes them as a change queue naming the issue; this route keeps no panel
+    of candidates of its own; *Move to backlog* with the item prefilled — its fields checked in a
     form while the person edits them —; *Add*, which writes the item and the issue's comment and label with
     `moveToBacklog`, or names the comment to copy
     when the token may not comment; closing an issue with links once its pull request is merged. The list reads the open
@@ -165,7 +170,9 @@ instance's participants and source register.
 
 - MOD-site-frame.View, MOD-site-frame.chosenProduct, MOD-site-frame.explain, MOD-site-frame.notice,
   MOD-site-frame.runPanel, MOD-site-frame.confirmDecision, MOD-site-frame.schemaForm — the frame's parts, the run panels,
-  the dialog of every send, and the form of a backlog item.
+  the dialog of every send, and the form of a backlog item; MOD-site-frame.ViewContext — `addressOf`, the address of
+  every link from one of its routes to another, such as an issue's on `replies`; MOD-site-frame.embedRoute — the review pages' drafting of a
+  change of requirements, shown on an issue's page without using that view.
 - MOD-markdown-render.renderArtifact, MOD-markdown-render.openEditor — issues, mails and drafts, and their editing.
 - MOD-prompt-bar.Subject — the subject its routes give the prompt bar.
 - MOD-browser-store.readSetting — the mailbox connection and its last test, the endpoints' configurations and the
@@ -200,7 +207,9 @@ instance's participants and source register.
   MOD-mail-handling.noReply — every decision on a mail and a reply.
 - MOD-issue-handling.confirmClass, MOD-issue-handling.backlogItemFrom, MOD-issue-handling.moveToBacklog,
   MOD-issue-handling.closeWithLinks — every decision on an issue.
-- MOD-work-plans.backlogFindings — the item's marks while the person edits it; MOD-spec-changes.queues — the change's
+- MOD-work-plans.backlogFindings — the item's marks while the person edits it; MOD-work-plans.backlogOf — the items a
+  further issue may be added to and the drafted item's `builds_on` is checked against; MOD-work-plans.moduleFiles — the
+  module files the item is marked against and the analysis names modules from; MOD-work-plans.listField — the modules the person types into the item's form, as a list; MOD-spec-changes.queues — the change's
   queues, those whose `issue` names the number of the issue shown and the address of the product the frame has chosen;
   MOD-spec-changes.entryView — the requirements each of their entries changes or adds, its `impact`, given to
   `backlogItemFrom` as `changed`, since an entry's anchor is the heading of a whole section, not a requirement's name.
@@ -212,6 +221,7 @@ instance's participants and source register.
   written on the person's click; MOD-job-ledger.newJobId, MOD-runtimes.routesFor, MOD-runtimes.queueJob,
   MOD-runtimes.runOnTab, MOD-runtimes.liveState — running the kinds of this page on their routes.
 - MOD-issue-handling.issueStrategies, MOD-mail-handling.mailStrategies, MOD-personal-data.privacyStrategies,
-  MOD-spec-changes.specStrategies, MOD-runtimes.routeStrategies — the strategies of its kinds, handed to the frame.
+  MOD-spec-changes.specStrategies, MOD-source-register.sourceStrategies, MOD-runtimes.routeStrategies — the strategies of
+  its kinds, handed to the frame.
 - MOD-site-frame.standIn — each route of its `view` whose own file is imported only when the route is first shown,
   embedded or asked for its subject, listed as the frame writes such a route.
