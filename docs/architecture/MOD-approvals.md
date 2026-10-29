@@ -12,6 +12,7 @@ uses:
   - MOD-repository-hosts.readSnapshot
   - MOD-repository-hosts.readHistory
   - MOD-repository-hosts.commitFiles
+  - MOD-repository-hosts.connect
   - MOD-repository-hosts.webLinks
   - MOD-documents.Schema
   - MOD-documents.loadSchema
@@ -200,7 +201,8 @@ never written. A decision or module file that a record names and the snapshot no
   order of records and an earlier text of a file.
 - MOD-repository-hosts.commitFiles — the acceptance commit and the rejection commit on an expected head.
 - MOD-artifact-edits.fallbackEditLinks — GitHub's pages for the files of a rejection without a token.
-- MOD-repository-hosts.webLinks — GitHub's new-file page without a token.
+- MOD-repository-hosts.connect, MOD-repository-hosts.webLinks — GitHub's new-file page without a token, from a host
+  connected without credentials to the snapshot's repository.
 - MOD-documents.Schema, loadSchema, readDocument, writeDocument — reading and writing records by their schema, and reading the
   names a use case or decision declares; MOD-documents.artifactSchemas — the key of each format, for the artifacts a
   recipe's part carries.
