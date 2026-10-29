@@ -18,7 +18,7 @@
 //   - The move into the backlog (ITM-1250): a section "Move to backlog" is shown for an open issue whose class is bug or change — by its label, or by the person's click on a class —, with the button "Move to backlog" (the person's click). The click reads the product's default branch and draws the
 //     item `backlogItemFrom` prefills as a form of the frame's `schemaForm` over the item schema, which hands over its list-valued keys as lists. The form holds a provisional identifier,
 //     the next that the paths of the backlog and the plan leave free, which is never written: `saveItems` gives the item the next one that no history holds. The form's one button, "Save", is shown as "Add"; the form offers it only while no error remains, and the findings of `backlogFindings`
-//     over the architecture's module files are shown beside the form. `changed` are the requirements that `entryView`'s impact names as added or changed, in the order of the entries, of the queues whose `**Issue:**` line names this issue and this product; the analysis is the page's proposal, if the person ran one:
+//     over the architecture's module files are shown beside the form, found with the backlog's items beside the drafted one and kept for the drafted one alone (ITM-1293). `changed` are the requirements that `entryView`'s impact names as added or changed, in the order of the entries, of the queues whose `**Issue:**` line names this issue and this product; the analysis is the page's proposal, if the person ran one:
 //     the answer of the kind `analyse-issue` holds a class, its reasoning and the files it names as wrong, and no violated requirement, so that `violated` is null and the person names the requirement a bug realises; its `modules` are the modules of the architecture whose folder holds a file it names as
 //     wrong, none without a proposal. Add writes with `moveToBacklog` (no `existing`), and the page then shows the identifier added, and, where the comment was refused for want of the permission or of a token, the comment's text with the issue's address and a button to copy it.
 //   - An existing item (ITM-1254, UC-033 4a): the click on Move to backlog also lists, beside the form, the items of the backlog at the default branch (docs/backlog/ITM-<n>-<slug>.md), each with its identifier, its title and the button "Add to <identifier>" (the person's click), which
@@ -265,11 +265,14 @@ function analysisOf(architecture, proposal) {
   return { violated: null, modules };
 }
 
-// The items of the backlog at a snapshot, by their number, each with its identifier and title: those a further issue may be added to (UC-033 4a).
+// The items of the backlog at a snapshot, by their number, each with its identifier, its title and its document: those a further issue may be added to (UC-033 4a), and those the drafted item's builds_on is checked against (ITM-1293).
 async function backlogItems(snapshot) {
   const paths = snapshot.paths.filter((path) => BACKLOG_ITEM.test(path));
   await snapshot.readMany?.(paths);
-  const items = await Promise.all(paths.map(async (path) => ({ id: BACKLOG_ITEM.exec(path)[1], title: readDocument(artifactSchemas().item, path, (await snapshot.read(path)) ?? "").fields.title ?? "" })));
+  const items = await Promise.all(paths.map(async (path) => {
+    const document = readDocument(artifactSchemas().item, path, (await snapshot.read(path)) ?? "");
+    return { id: BACKLOG_ITEM.exec(path)[1], title: document.fields.title ?? "", document };
+  }));
   return items.sort((a, b) => Number(a.id.slice(4)) - Number(b.id.slice(4)));
 }
 
@@ -308,6 +311,7 @@ function moveSection({ product, issue, current, proposal }) {
 
       const problems = el("div", "issue-move-problem");
       const added = (done, said) => stage.replaceChildren(el("p", "move-added", said), ...(done.comment ? [commentToCopy(done.comment)] : []));
+      const backlog = await backlogItems(head);
       const form = schemaForm(schema, opened, {
         onSave: async (live) => {
           problems.replaceChildren();
@@ -319,13 +323,14 @@ function moveSection({ product, issue, current, proposal }) {
             problems.append(el("p", "issue-problem", `The item could not be added: ${failed(failure)}`));
           }
         },
-        extraChecks: (live) => backlogFindings([live], architecture),
+        // The drafted item is checked beside the backlog's items, so that a builds_on naming one of them is no item that does not exist; the marks are those on the drafted item alone (ITM-1293).
+        extraChecks: (live) => backlogFindings([...backlog.map(({ document }) => document), live], architecture).filter((one) => one.artifact === (live.id || live.path)),
       });
       // The form's one button is its Save; here it is the person's Add.
       const add = form.children[form.children.length - 1].getElementsByTagName("button")[0];
       if (add) add.textContent = "Add";
       // The items this issue may be added to instead (UC-033 4a): `moveToBacklog` with `existing`, which leaves the prefilled item unused.
-      const existing = (await backlogItems(head)).map(({ id, title }) => {
+      const existing = backlog.map(({ id, title }) => {
         const addTo = button("add-to-existing", `Add to ${id}`, async () => {
           addTo.disabled = true;
           problems.replaceChildren();
