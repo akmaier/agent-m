@@ -127,8 +127,9 @@ never written. A decision or module file that a record names and the snapshot no
   network; fails with the host's errors.
 - `recordPaths(id: string, paths: string[]) -> string[]` — the paths among `paths` that are approval records of the
   identifier `id`, by the path the schema `approval-record` gives them, so that a page names them to its snapshot's
-  `readMany` in the same batch as the file it shows, and `lastAcceptedText` then finds their texts read. Pure; reads
-  nothing.
+  `readMany` in the same batch as the file it shows, and `statusOf` and `lastAcceptedText` then find their texts read
+  rather than asking for them in a batch of their own. `statusOf`, `statuses` and `lastAcceptedText` select an
+  identifier's records by the same rule. Pure; reads nothing.
 - `lastAcceptedText(id: string, host: Host) -> Promise<{ text: string, blob: string, path: string } | null>` — the text
   named by the most recent approval record of an identifier, also when the file has been renamed since; `null` when no
   record names it. A record whose content names another blob than its name, or a file of another identifier, counts as
@@ -146,10 +147,11 @@ never written. A decision or module file that a record names and the snapshot no
   MOD-spec-changes, not here. Crosses the network. Errors: `Moved` (the branch moved after it was read — nothing is
   written, the caller shows the newer state), `TokenRefused`, `PermissionMissing` (the caller offers the GitHub route,
   where the commit becomes a pull request), `RateLimited`, `Unreachable`; `NothingToAccept` when every file was left out.
-- `acceptanceBlockers(path: string, snapshot: Snapshot) -> string[]` — the requirements and use cases a reviewed file
-  names (a use case's `realises`, a decision's `forced_by`) that are not accepted: a requirement that is not in the SPEC
-  but only in an open queue, a use case without a record naming its current text. Empty when the file rests only on
-  accepted artifacts (`ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS`).
+- `acceptanceBlockers(path: string, snapshot: Snapshot) -> Promise<string[]>` — the requirements and use cases a reviewed
+  file names (a use case's `realises`, a decision's `forced_by`) that are not accepted: a requirement that is not in the
+  SPEC but only in an open queue, a use case without a record naming its current text, a record counted as `statuses`
+  counts it. Empty when the file rests only on accepted artifacts (`ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS`). Crosses
+  the network through the snapshot — the file, the SPEC and the records; fails with its errors.
 - `fallbackAcceptLink(record: { path: string, text: string }, snapshot: Snapshot) -> { url: string, path: string,
   text: string } | { refused: "gitlab" }` — without a token, GitHub's new-file page prefilled with the record's path and
   the record itself — a link carries nothing else, never the reviewed text (`NO TEXT TRAVELS IN A URL`, `WITHOUT A
