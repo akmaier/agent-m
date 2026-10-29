@@ -148,11 +148,9 @@ const requestsTo = (name) => spy.requests.filter((request) => request.repository
 
 // TST-1278001 · level: component · module: MOD-implementation-pages
 // guards: THE PROCESS MODEL IS DECLARED PER PRODUCT; UC-031
-// given: this browser manages acme/library and acme/atlas, each of which holds docs/process.md beside a README, a source file and, for acme/library, a use case, and
-//   acme/bare, which holds none; a counting fake of GitHub that answers the commit, the whole tree, a file and both batch queries and records every request
+// given: this browser manages acme/library and acme/atlas, each of which holds docs/process.md beside a README, a source file and, for acme/library, a use case, and acme/bare, which holds none; a counting fake of GitHub that answers the commit, the whole tree, a file and both batch queries and records every request
 // input: the route `models` drawn
-// expect: to each of acme/library and acme/atlas the route sends exactly the repository's information, its commit, one POST of the GraphQL API whose query names
-//   docs/process.md, and one read of docs/process.md — no other request, so none of git/trees; known positive: the same fake records a git/trees request when the whole tree is read
+// expect: to each of acme/library and acme/atlas the route sends exactly the repository's information, its commit, one POST of the GraphQL API whose query names docs/process.md, and one read of docs/process.md — no other request, so none of git/trees; known positive: the same fake records a git/trees request when the whole tree is read
 test("TST-1278001 a product that declares a model is read by its commit, one folders request and its docs/process.md alone", async () => {
   const probe = connect(parseAddress(LIBRARY), { token: TOKENS["acme/library"] });
   install();
@@ -173,8 +171,7 @@ test("TST-1278001 a product that declares a model is read by its commit, one fol
 // guards: THE PROCESS MODEL IS DECLARED PER PRODUCT; UC-031
 // given: the same page and fake
 // input: the route `models` drawn
-// expect: scrum lists https://github.com/acme/library; scrum-wip lists https://github.com/acme/atlas; every other model lists no product — which product declares which
-//   model, as TST-778002 states it
+// expect: scrum lists https://github.com/acme/library; scrum-wip lists https://github.com/acme/atlas; every other model lists no product — which product declares which model, as TST-778002 states it
 test("TST-1278002 each model lists the products whose declaration names it, as before", async () => {
   const target = await draw();
   assert.deepEqual(productsOf(modelOf(target, "scrum")), [LIBRARY]);
@@ -186,8 +183,7 @@ test("TST-1278002 each model lists the products whose declaration names it, as b
 // guards: THE PROCESS MODEL IS DECLARED PER PRODUCT; UC-031
 // given: the same page and fake, in which acme/bare holds no docs/process.md
 // input: the route `models` drawn
-// expect: counter-proof of TST-1278002: acme/bare is listed under no model and is not an unreadable product; to acme/bare the route sends the repository's information,
-//   its commit and one folders request, and no read of docs/process.md and no git/trees
+// expect: counter-proof of TST-1278002: acme/bare is listed under no model and is not an unreadable product; to acme/bare the route sends the repository's information, its commit and one folders request, and no read of docs/process.md and no git/trees
 test("TST-1278003 a product without a declaration is shown without a model and no file is read for it", async () => {
   const target = await draw();
   for (const name of ["scrum", "scrum-wip", "waterfall", "v-model", "reuse-oriented", "kanban"]) assert.ok(!productsOf(modelOf(target, name)).includes(BARE), name);
