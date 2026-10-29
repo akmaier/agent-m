@@ -18,7 +18,7 @@ import { isTestFile, testDeclarations } from "../test-document/index.mjs";
 import { systemDecisions, traceGraph } from "../trace-graph/index.mjs";
 import { finding } from "../text-tools/index.mjs";
 import { backlogFindings, planFindings } from "./checks.mjs";
-import { closeSprint, saveItems, WorkPlansError } from "./saves.mjs";
+import { closeSprint, ITEM_FILE, saveItems, WorkPlansError } from "./saves.mjs";
 import { sprintFacts } from "./facts.mjs";
 import { selectionOf as selectionOfRecord } from "./sprints.mjs";
 import { planOrderSchema, sprintSchema } from "./schemas.mjs";
@@ -71,7 +71,6 @@ async function architectureAndModel(context) {
 const SPRINT_NAME = /^[^/\s]+\/\d+$/;
 const ORDER = "docs/plan/order.md";
 const PLAN_STEP = /^docs\/plan\/ITM-\d{3,}-[^/]+\.md$/;
-const BACKLOG_ITEM = /^docs\/backlog\/ITM-\d{3,}-[^/]+\.md$/;
 const GATE_RECORD = /^docs\/gates\/[^/]+\.md$/;
 const CHECKED = /^([^\s@]+)@[0-9a-f]{7,64}$/;
 const day = (value) => String(value ?? "").slice(0, 10);
@@ -120,7 +119,7 @@ async function sprintInputs(context, params) {
   const sprint = readDocument(sprintSchema, path, recordText);
 
   const planned = snapshot.paths.includes(ORDER) || snapshot.paths.some((each) => PLAN_STEP.test(each));
-  const itemPaths = snapshot.paths.filter((each) => (planned ? PLAN_STEP : BACKLOG_ITEM).test(each)).sort();
+  const itemPaths = snapshot.paths.filter((each) => (planned ? PLAN_STEP : ITEM_FILE).test(each)).sort();
   const items = await Promise.all(itemPaths.map(async (each) => readDocument(artifactSchemas().item, each, (await snapshot.read(each)) ?? "")));
   const order = snapshot.paths.includes(ORDER) ? readDocument(planOrderSchema, ORDER, (await snapshot.read(ORDER)) ?? "") : null;
 
@@ -226,6 +225,9 @@ async function planChecks(draft, context) {
 }
 
 const MODULE_FILE = /^docs\/architecture\/MOD-[^/]+\.md$/;
+// The architecture's module files at a snapshot, by path, each read with the module schema: the one read of them that backlog-checks, backlog-items and sprint-record share.
+const moduleFiles = async (snapshot) => Promise.all(snapshot.paths.filter((each) => MODULE_FILE.test(each)).sort()
+  .map(async (each) => readDocument(artifactSchemas().module, each, (await snapshot.read(each)) ?? "")));
 
 /**
  * The check backlog-checks(draft, context) -> Promise<Finding[]> — backlogFindings on the drafted items of a job of the kind `propose-items` (UC-032 step 3). The draft is the answer of the kind,
@@ -239,8 +241,8 @@ async function backlogChecks(draft, context) {
   const schemas = artifactSchemas();
   const documents = (pattern, schema) => Promise.all(snapshot.paths.filter((each) => pattern.test(each)).sort()
     .map(async (each) => readDocument(schema, each, (await snapshot.read(each)) ?? "")));
-  const existing = await documents(BACKLOG_ITEM, schemas.item);
-  const architecture = await documents(MODULE_FILE, schemas.module);
+  const existing = await documents(ITEM_FILE, schemas.item);
+  const architecture = await moduleFiles(snapshot);
   const highest = Math.max(0, ...snapshot.paths.map((each) => Number(ITEM_ID.exec(each)?.[1].slice(4) ?? 0)));
   const drafted = asList(draft?.items).map((each, index) => ({ ...each, id: `ITM-${String(highest + index + 1).padStart(3, "0")}` }));
   const idOfTitle = new Map([...drafted.map((each) => [each.title, each.id]), ...existing.map((each) => [each.fields.title, each.id])]);
@@ -280,7 +282,7 @@ async function backlogInputs(context) {
   const requirements = [...parseSpec((await snapshot.read(SPEC_PATH)) ?? "").requirements.values()];
   const useCases = await Promise.all([...statuses(snapshot)].filter(([, { kind, status }]) => kind === "use-case" && status === "accepted").sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(async ([path, { id }]) => ({ id, path, text: (await snapshot.read(path)) ?? "" })));
-  const items = (await filesOf(BACKLOG_ITEM)).map((file) => ({ ...file, document: readDocument(schemas.item, file.path, file.text) }));
+  const items = (await filesOf(ITEM_FILE)).map((file) => ({ ...file, document: readDocument(schemas.item, file.path, file.text) }));
   const realised = new Set(items.flatMap(({ document }) => asList(document.fields.realises)));
   const unrealised = [...requirements.map(({ name }) => name), ...useCases.map(({ id }) => id)].filter((name) => !realised.has(name));
 
@@ -359,9 +361,7 @@ async function sprintRecord(result, context) {
   const { snapshot, host } = context.product;
   const close = result.draft;
   const { facts } = await sprintInputs(context, { sprint: close?.sprint });
-  const schemas = artifactSchemas();
-  const architecture = await Promise.all(snapshot.paths.filter((each) => ARCHITECTURE_FILE.test(each) && /\/MOD-/.test(each)).sort()
-    .map(async (each) => readDocument(schemas.module, each, (await snapshot.read(each)) ?? "")));
+  const architecture = await moduleFiles(snapshot);
   const trailers = provenanceLines({ agentM: context.agentM, jobId: context.jobId, kind: context.kind.name, participant: result.drafter ?? { name: "none", model: null }, rounds: result.rounds.length });
   const { commit, written } = await closeSprint(host, close, { facts, architecture, head: snapshot.commit, trailers });
   return { commits: [commit], files: written, pullRequest: null, shown: null, notes: [] };
@@ -380,8 +380,7 @@ const TEST_LEVELS = ["unit", "component", "system", "release"];
  */
 async function backlogItems(result, context) {
   const { snapshot, host } = context.product;
-  const schemas = artifactSchemas();
-  const architecture = await Promise.all(snapshot.paths.filter((each) => MODULE_FILE.test(each)).sort().map(async (each) => readDocument(schemas.module, each, (await snapshot.read(each)) ?? "")));
+  const architecture = await moduleFiles(snapshot);
   const followed = (name) => asList(architecture.find((one) => one.id === name)?.fields.follows);
   const refusals = [];
   const items = asList(result.draft?.items).map((entry) => {
