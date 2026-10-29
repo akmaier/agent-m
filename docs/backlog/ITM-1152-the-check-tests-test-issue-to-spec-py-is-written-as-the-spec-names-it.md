@@ -10,7 +10,7 @@ builds_on:
   - ITM-582
   - ITM-584
 tests:
-  - unit
+  - release
 origin:
   - developer-sonnet-g's release tests of UC-038 (ITM-965, pull request #1188, head 2ec69bc7), finding TST-965202
 ---
