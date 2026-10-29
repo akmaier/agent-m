@@ -174,8 +174,9 @@ identifier, and which register entry an item names is MOD-source-register's to s
 - `Comparison` — `{ requirements: { added: string[], changed: string[], removed: string[] }, coverage: { gained: { name:
   string, by: string }[], lost: { name: string, by: string }[] } }`.
 - `traceGraph(source: TextSource, options?: { commit?: string }) -> Promise<Graph>` — first, where `options.commit` is
-  given and the source has `readOn`, reads `<commit>.json` on the branch `trace-cache` once; a text that `graphFromText`
-  restores for that commit is the result, and no file is read. A missing branch or file, a text of another format and a
+  given and the source has `readOn`, reads `<commit>.json.gz` on the branch `trace-cache` once through it and
+  unzips it, as `storedGraph` reads it; a text that `graphFromText` restores for that commit is the result, and no
+  file is read. A missing branch or file, a text of another format and a
   text that names another commit are not failures: the graph is then built as follows. Names to the source's `readMany`,
   where it has one, every file it will read, then reads the repository's artifacts and
   code files as listed under Data and builds the graph, keeping the facts listed there. A file that cannot be read, or not
