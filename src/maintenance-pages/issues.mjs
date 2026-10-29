@@ -1,6 +1,6 @@
 // The routes `issues` and `issue/<number>` — a product's issues, their analysis and the class confirmed, corrected or the issue rejected (UC-012 steps 2 to 4, 3a and 4a), as docs/architecture/MOD-maintenance-pages.md states them and ITM-582 builds
 // them: *Analyse* with its run panel and the class proposed with its reasoning; one click confirms the class, corrects it or rejects the issue with a reason, with `confirmClass`. The change of the SPEC (ITM-584) is drafted and saved in a section of the issue's page; the move into the backlog (ITM-1250)
-// is another section of it; the fix of a bug is another item's.
+// is another section of it; the fix of a bug (ITM-583) is a third.
 //
 // Module: MOD-maintenance-pages
 //
@@ -20,23 +20,32 @@
 //     over the architecture's module files are shown beside the form. `changed` are the requirements that `entryView`'s impact names as added or changed, in the order of the entries, of the queues whose `**Issue:**` line names this issue and this product; the analysis is the page's proposal, if the person ran one:
 //     the answer of the kind `analyse-issue` holds a class, its reasoning and the files it names as wrong, and no violated requirement, so that `violated` is null and the person names the requirement a bug realises; its `modules` are the modules of the architecture whose folder holds a file it names as
 //     wrong, none without a proposal. Add writes with `moveToBacklog` (no `existing`: an item that takes a second issue is another item's), and the page then shows the identifier added, and, where the comment was refused for want of the permission, the comment's text with the issue's address and a button to copy it.
+//   - The fix (ITM-583): a section "Fix" is shown for an open issue whose class is bug — by its label, or by the person's click on Bug —, built as the analysis is (`runSection`) over the kind `fix-bug`, whose participants are those of the register that declare what the kind needs
+//     (write to the repository, run code and tests). Without one the section says so and a button UC-017 leads to that use case (UC-012 5b). The job's parameters are `issue`; `violated`, the requirement the person names in <input class="fix-requirement"> (left out when blank); `wrong`, the
+//     files the analysis proposed as wrong; `modules`, those of <input class="fix-modules">, which holds the modules whose folder holds a file the analysis names as wrong when the section is drawn, and which the person corrects; and `route`, the participant's route as the record writes
+//     it, which the recipe `resource-pins` reads. Run is the person's click and queues the job on the first route `routesFor` offers the participant, over the routes that reach the product's resources: it commits the job's start record and runs nothing in the tab; a route that is not
+//     available is named with its reason and nothing is written. After the section, the newest job of the kind `fix-bug` that works on the issue is named with its pull request (`jobTrail`); once that is merged, "Close with links" — the person's click — closes the issue with `closeWithLinks`.
 //   - The folded explanations are built here, not by the frame's `explain`: explanations.md holds no topic of this page and it is the frame's file (as mail.mjs does).
 
 import { artifactSchemas, documentFindings, loadSchema, readDocument, readRegister } from "../documents/index.mjs";
-import { IssueClass, backlogItemFrom, confirmClass, moveToBacklog } from "../issue-handling/index.mjs";
-import { newJobId } from "../job-ledger/index.mjs";
+import { IssueClass, backlogItemFrom, closeWithLinks, confirmClass, moveToBacklog } from "../issue-handling/index.mjs";
+import { newJobId, recordsNewestFirst } from "../job-ledger/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
 import { prepareJob, writeResult } from "../job-runner/index.mjs";
 import { issueLabels } from "../mail-records/index.mjs";
 import { eligible, participantSchema, participantsOf } from "../participant-list/index.mjs";
 import { personAccount, personSource, sourceSchemas } from "../source-register/index.mjs";
-import { queueJob, runOnTab } from "../runtimes/index.mjs";
+import { jobTrail, queueJob, routesFor, runOnTab } from "../runtimes/index.mjs";
+import { reachableBy, resourceSchema } from "../resource-list/index.mjs";
+import { recordRoute } from "../prompt-bar/hand-over.mjs";
 import { runPanel, schemaForm } from "../site-frame/index.mjs";
 import { entryView, queues } from "../spec-changes/index.mjs";
 import { backlogFindings } from "../work-plans/index.mjs";
 import { button, connectionsOf, el, failed, fold } from "./mail.mjs";
 
 const REGISTER = "docs/participants.md";
+const RESOURCES = "docs/resources.md";
+const WORKFLOWS = [".github/workflows/agent-m-jobs.yml", ".gitlab/agent-m-jobs.yml"];
 const JOB_FILE = /^docs\/jobs\/(JOB-[^/]+)\.md$/;
 const NOT_CLASSIFIED = "not classified";
 
@@ -45,6 +54,7 @@ const STEP_TEXT = {
   analyse: "Analyse asks the participant you choose for the class of this issue — a bug, a change or not reproducible — with its reasoning. The panel states where the participant processes data and exactly what it receives: the issue and the requirements, use cases, tests and modules it names, or the whole SPEC where it names none. The analysis writes nothing to the issue. Book: ch. 14, Evolution Processes and Change Identification.",
   change: "Draft change asks the participant you choose for the changed requirements this issue asks for, against every requirement of the product. The panel states where the participant processes data and exactly what it receives: the issue with what it names, the requirements, the open queues and the chapters of the book. The change is drafted in your own name: the job needs your own source, the register entry of your account that the product links. Save writes the candidates as a change queue under docs/spec-freigaben/ that names this issue; nothing is written before it. A conflict is not written until a person has decided it.",
   move: "Move to backlog prefills a backlog item from this issue: its title and outcome from the issue, its origin the issue's address, what it realises (for a bug the requirement the analysis names as violated, for a change the requirements the change queues of this issue change or add) and the modules it changes, which you confirm or correct. The form names what fails. Add commits the item under docs/backlog/ of the product, adds a comment naming the item to the issue and gives the issue the label backlog. Where the token may not comment, the item is committed all the same and the comment is shown for you to copy. A change item waits for the acceptance of the requirements it names.",
+  fix: "Fix hands a confirmed bug to a participant that can run code and tests: a coding agent in CI, on a Bridge or in a sandbox. A model endpoint can analyse an issue but cannot fix it. Run queues the job on the participant's route; the panel states where the participant processes data and exactly what it receives: the issue and what it names, the analysis you confirmed, the code and tests of the modules you name, and the instruction to write a regression test first, with invented data, never the reporter's. The job works on a branch of its own and opens a pull request that links the issue and the requirement it restores; the pull request is merged once the Definition of Done holds, and the issue is then closed with a link to it. Book: ch. 13, Software Testing in the Age of Coding Agents.",
   decide: "One click decides. A class sets the label defect, change or not-reproducible on the issue and removes the other two. Reject issue closes the issue with the reason you give and changes nothing else. A requirement that is missing is a change, not a bug.",
 };
 
@@ -95,8 +105,11 @@ async function ownSource(product, instanceSnapshot) {
 }
 
 // A job of `kindName` over the issue, started from a section of the page: the participants that can draft text with their places, the name of the person, the run panel and Run. `names` are the class names of the section's parts;
-// `paramsOf(instanceSnapshot)` the job's parameters beyond the issue; `onResult(outcome, run)` is called with what the job returned and what it was run with. The job runs in this tab, attended where its kind says so.
-async function runSection({ context, product, issue, kindName, title, text, names, paramsOf = async () => ({}), onResult, failure }) {
+// `paramsOf(instanceSnapshot, { chosen, participants, head, offer })` the job's parameters beyond the issue; `onResult(outcome, run)` is called with what the job returned and what it was run with. The job runs in this tab, attended where its kind says so.
+// With `route(chosen, participants, head)`, which gives the chosen participant's offer of a route (MOD-runtimes' routesFor) or null, the job is instead queued on that route — Run commits its start record, as the kind of a participant that works in a checkout is started —
+// and `onResult` is not called. `none` draws what stands where no participant is eligible; `extras` are inputs of the section beside the name, each { input, label }, whose change draws the run panel again.
+async function runSection({ context, product, issue, kindName, title, text, names, paramsOf = async () => ({}), onResult, failure, route = null, extras = [],
+  none = () => el("p", "issue-no-participant", "No participant that can draft text is listed in the instance's participants.") }) {
   const section = el("section", names.section, el("h3", null, title), fold(text));
   try {
     const definition = await kindOf(kindName);
@@ -105,7 +118,7 @@ async function runSection({ context, product, issue, kindName, title, text, name
     const register = await instanceSnapshot.read(REGISTER);
     const participants = register == null ? [] : participantsOf(readRegister(participantSchema(), REGISTER, register).document);
     const admitted = eligible(participants, { capabilities: definition.needs }).eligible;
-    if (admitted.length === 0) { section.append(el("p", "issue-no-participant", "No participant that can draft text is listed in the instance's participants.")); return section; }
+    if (admitted.length === 0) { section.append(none()); return section; }
 
     const radios = admitted.map((participant) => {
       const radio = el("input", names.participant);
@@ -130,15 +143,22 @@ async function runSection({ context, product, issue, kindName, title, text, name
         const now = new Date();
         const id = newJobId(now, new Set(head.paths.map((path) => JOB_FILE.exec(path)?.[1]).filter(Boolean)));
         const agentM = { version: instanceSnapshot.commit ?? "unknown", commit: instanceSnapshot.commit ?? "unknown" };
-        const params = { issue: issue.number, ...(await paramsOf(instanceSnapshot)) };
+        const offer = route ? await route(chosen, participants, head) : null;
+        const params = { issue: issue.number, ...(await paramsOf(instanceSnapshot, { chosen, participants, head, offer })) };
         const jobContext = { kind: definition, params, product: { address: product.address, snapshot: head, host: product.host },
           instance: { snapshot: instanceSnapshot, host: instanceHost, checkout: null }, connect: async () => product.host, participants, places: { sources: {}, mailbox: null }, gates: [], person: name, now, agentM, jobId: id };
         const prepared = await prepareJob(kindName, jobContext, { drafter: chosen, reviewers: [] });
         const result = el("div", "issue-run-result");
         stage.append(runPanel(prepared, { onRun: async () => {
           try {
-            const record = { id, kind: kindName, worksOn: [issueAddress(product, issue.number)], participant: chosen.name, model: chosen.model, route: "tab", run: null, retries: null, startedBy: name, start: now, agentM,
+            if (route && (!offer || !offer.available)) throw Object.assign(new Error(offer ? offer.reason : "the participant has no route a job can take"), { name: "RouteUnavailable" });
+            const record = { id, kind: kindName, worksOn: [issueAddress(product, issue.number)], participant: chosen.name, model: chosen.model, route: route ? recordRoute(offer.route) : "tab", run: null, retries: null, startedBy: name, start: now, agentM,
               inputs: prepared.parts.map((part) => part.name), limit: prepared.limit, destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place, parts: each.parts })), params };
+            if (route) {
+              const queued = await queueJob(product.host, record, offer.route, head.commit, connectionsOf(chosen, context.store).bridges[offer.route.bridge]);
+              result.replaceChildren(el("p", "job-queued", `Job ${id} (${queued.path}) is queued on the route ${recordRoute(offer.route)}.`));
+              return;
+            }
             const { path } = await queueJob(product.host, record, { kind: "tab" }, head.commit);
             const outcome = await runOnTab(prepared, jobContext, connectionsOf(chosen, context.store), { host: product.host, record: { ...record, path } });
             await onResult(outcome, { stage, result, prepared, jobContext, chosen });
@@ -150,9 +170,9 @@ async function runSection({ context, product, issue, kindName, title, text, name
         stage.append(el("p", "issue-problem", failed(problem)));
       }
     }
-    for (const input of [...radios.map((each) => each.radio), person]) input.addEventListener("change", refresh);
-    person.addEventListener("input", refresh);
-    section.append(el("ul", "issue-participants", ...radios.map((each) => each.item)), el("label", null, "Your name ", person), stage);
+    for (const input of [...radios.map((each) => each.radio), person, ...extras.map((each) => each.input)]) input.addEventListener("change", refresh);
+    for (const input of [person, ...extras.map((each) => each.input)]) input.addEventListener("input", refresh);
+    section.append(el("ul", "issue-participants", ...radios.map((each) => each.item)), el("label", null, "Your name ", person), ...extras.map((each) => each.label), stage);
   } catch (problem) {
     section.append(el("p", "issue-problem", failed(problem)));
   }
@@ -237,6 +257,9 @@ async function changedRequirements(snapshot, number, productAddress) {
   return [...new Set(names)];
 }
 
+// The module files of the architecture at a snapshot, read with the module schema.
+const architectureOf = async (snapshot) => Promise.all(snapshot.paths.filter((path) => MODULE_FILE.test(path)).sort().map(async (path) => readDocument(artifactSchemas().module, path, (await snapshot.read(path)) ?? "")));
+
 // What the participant's analysis names: the modules whose folder holds a file it names as wrong, none without a proposal. The answer of `analyse-issue` names no violated requirement, so there is none.
 function analysisOf(architecture, proposal) {
   const wrong = Array.isArray(proposal?.wrong) ? proposal.wrong.map(String) : [];
@@ -264,7 +287,7 @@ function moveSection({ product, issue, current, proposal }) {
     try {
       const head = await product.host.readSnapshot((await product.host.repositoryInfo()).defaultBranch);
       const schemas = artifactSchemas();
-      const architecture = await Promise.all(head.paths.filter((path) => MODULE_FILE.test(path)).sort().map(async (path) => readDocument(schemas.module, path, (await head.read(path)) ?? "")));
+      const architecture = await architectureOf(head);
       const cls = current();
       const changed = cls === IssueClass.change ? await changedRequirements(head, issue.number, product.address) : [];
       const { item } = backlogItemFrom({ ...issue, address }, cls, analysisOf(architecture, proposal()), changed);
@@ -313,6 +336,82 @@ function moveSection({ product, issue, current, proposal }) {
   return el("section", "issue-move", el("h3", null, "Move to backlog"), fold(STEP_TEXT.move), el("p", "actions", button("move-to-backlog", "Move to backlog", drawForm)), stage);
 }
 
+// ---------------------------------------------------------------- the fix of a bug (UC-012 step 5, 5b)
+
+// What the fix has become: the newest job of the kind fix-bug that works on the issue, its pull request (MOD-runtimes' jobTrail: the one of the branch named after the job) and, once that is merged, *Close with links*, the person's click.
+async function fixTrail({ product, issue }) {
+  const box = el("div", "issue-fix-trail");
+  try {
+    const address = issueAddress(product, issue.number);
+    const head = await product.host.readSnapshot((await product.host.repositoryInfo()).defaultBranch);
+    let record = null;
+    // The records are fetched ahead in as few requests as the server allows; a record is read only when its turn comes.
+    await head.readMany?.(head.paths.filter((path) => JOB_FILE.test(path)));
+    for await (const each of recordsNewestFirst(head)) if (each.kind === "fix-bug" && (each.worksOn ?? []).includes(address)) { record = each; break; }
+    if (!record) return box;
+    const { pullRequest } = await jobTrail(record, product);
+    box.append(el("p", "fix-job", `The fix is the job ${record.id}.`));
+    if (!pullRequest) { box.append(el("p", "fix-no-pull-request", "It has opened no pull request yet.")); return box; }
+    const where = el("a", "fix-pull-request", `pull request #${pullRequest.number}`);
+    where.setAttribute("href", pullRequest.url);
+    box.append(el("p", "fix-pull", where, ` is ${pullRequest.state}.`));
+    if (pullRequest.state === "merged") {
+      const closed = el("p", "fix-closed");
+      const close = button("close-with-links", "Close with links", async () => {
+        close.disabled = true;
+        try {
+          await closeWithLinks(product.host, issue.number, { pullRequest: pullRequest.url, commit: pullRequest.mergeCommit, item: null });
+          closed.textContent = `The issue is closed with ${pullRequest.url}.`;
+        } catch (problem) {
+          close.disabled = false;
+          closed.replaceChildren(el("span", "issue-problem", `The issue could not be closed: ${failed(problem)}`));
+        }
+      });
+      box.append(el("p", "actions", close), closed);
+    }
+  } catch (problem) {
+    box.append(el("p", "issue-problem", `The fix could not be read: ${failed(problem)}`));
+  }
+  return box;
+}
+
+// The fix of a bug (UC-012 step 5): the participants that can write to the repository and run code and tests, each with where it processes data; the requirement the fix restores and the modules it changes, which the person confirms or corrects; the run panel of the
+// kind `fix-bug`, whose Run queues the job on the participant's route (MOD-runtimes' routesFor, over the routes that reach the product's resources). Without such a participant the page says so and leads to UC-017 (5b).
+async function fixSection({ context, product, issue, proposal }) {
+  const requirement = el("input", "fix-requirement");
+  requirement.setAttribute("placeholder", "Requirement it restores");
+  const modules = el("input", "fix-modules");
+  modules.setAttribute("placeholder", "Modules it changes, separated by commas");
+  try {
+    const head = await product.host.readSnapshot((await product.host.repositoryInfo()).defaultBranch);
+    modules.value = analysisOf(await architectureOf(head), proposal()).modules.join(", ");
+  } catch { /* the field stays empty for the person to fill */ }
+  const none = () => {
+    // It leads to UC-017 only through the context's go, as the frame's button (MOD-test-pages does the same).
+    const lead = el("button", "uc-017 btn", "UC-017");
+    lead.setAttribute("type", "button");
+    lead.addEventListener("click", () => context.go("use-case", { id: "UC-017" }));
+    return el("p", "issue-no-fixer", "No participant that can run code and tests is configured, so this bug cannot be fixed here: a model endpoint may analyse an issue but cannot fix it. Declare such a participant — ", lead, ".");
+  };
+  const route = async (chosen, participants, head) => {
+    const info = await product.host.repositoryInfo();
+    const listed = await head.read(RESOURCES);
+    const needs = typeof listed === "string" ? reachableBy(readRegister(resourceSchema(), RESOURCES, listed).rows.map((row) => ({ name: row.cells.Name, route: row.cells.Route }))) : [];
+    return routesFor(chosen, participants, { visibility: info.visibility, jobWorkflow: WORKFLOWS.some((path) => head.paths.includes(path)) }, needs)[0] ?? null;
+  };
+  const paramsOf = async (_, { offer }) => {
+    const violated = String(requirement.value ?? "").trim();
+    const changed = namesOf(modules.value);
+    const wrong = Array.isArray(proposal()?.wrong) ? proposal().wrong.map(String) : [];
+    return { ...(violated ? { violated } : {}), ...(wrong.length ? { wrong } : {}), ...(changed.length ? { modules: changed } : {}), route: offer ? recordRoute(offer.route) : null };
+  };
+  const section = await runSection({ context, product, issue, kindName: "fix-bug", title: "Fix", text: STEP_TEXT.fix, failure: "The fix could not be started",
+    names: { section: "issue-fix", participant: "fix-participant", person: "fix-person" }, paramsOf, route, none,
+    extras: [{ input: requirement, label: el("label", null, "Requirement it restores ", requirement) }, { input: modules, label: el("label", null, "Modules it changes ", modules) }] });
+  section.append(await fixTrail({ product, issue }));
+  return section;
+}
+
 // The class proposed, with its reasoning and the files it names as wrong.
 function proposalSection(draft) {
   const wrong = Array.isArray(draft.wrong) ? draft.wrong : [];
@@ -353,6 +452,14 @@ async function renderIssue(target, context, params = {}) {
     change ??= changeSection({ context, product, issue });
     changeBox.replaceChildren(await change);
   }
+  // The fix section is built once, and shown while the issue's class is bug.
+  const fixBox = el("div", "issue-fix-box");
+  let fix = null;
+  async function drawFix() {
+    if (currentClass() !== IssueClass.bug) { fixBox.replaceChildren(); return; }
+    fix ??= fixSection({ context, product, issue, proposal: () => state.proposal });
+    fixBox.replaceChildren(await fix);
+  }
   // The move section is built once, and shown while the issue's class is bug or change.
   const moveBox = el("div", "issue-move-box");
   let move = null;
@@ -379,7 +486,7 @@ async function renderIssue(target, context, params = {}) {
       for (const node of controls) node.disabled = true;
       state.problem = null;
       try { await run(); } catch (failure) { state.problem = failed(failure); }
-      if (!state.outcome?.rejected) { drawDecision(); await drawChange(); drawMove(); }
+      if (!state.outcome?.rejected) { drawDecision(); await drawChange(); await drawFix(); drawMove(); }
     }
     const classButtons = CLASSES.map(([cls, name, plain]) => {
       const label = state.proposal === null ? plain : cls === state.proposal.class ? `Confirm ${name}` : `Correct to ${name}`;
@@ -414,8 +521,9 @@ async function renderIssue(target, context, params = {}) {
 
   const analysis = await analysisSection({ context, product, issue, onProposal: (draft) => { state.proposal = draft; proposalBox.replaceChildren(proposalSection(draft)); drawDecision(); } });
   drawDecision();
-  out.append(analysis, proposalBox, decision, changeBox, moveBox);
+  out.append(analysis, proposalBox, decision, changeBox, fixBox, moveBox);
   await drawChange();
+  await drawFix();
   drawMove();
 }
 
