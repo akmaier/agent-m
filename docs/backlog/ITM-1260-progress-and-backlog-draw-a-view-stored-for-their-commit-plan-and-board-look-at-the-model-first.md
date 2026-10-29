@@ -14,6 +14,7 @@ modules:
   - MOD-repository-hosts
   - MOD-workflow-entries
   - MOD-site-frame
+  - MOD-main-page
 builds_on:
   - ITM-1258
 tests:
@@ -123,4 +124,7 @@ Measurable outcome, at review on the live page for the instance, in the browser'
 Every route still reads its commit and the commit's tree once; that tree, of 6,861 files, is not changed here.
 
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
-- Only the folders of the five modules, the files they name as taken over, and the tests that name them change.
+- Only the folders of MOD-progress-measures, MOD-implementation-pages, MOD-repository-hosts, MOD-workflow-entries and
+  MOD-site-frame, the files they name as taken over, and the tests that name them change. Of MOD-main-page, only the
+  shared setup `cachedContext` of `tests/main-page-root-entry.test.mjs` changes: it expects the files `publishOverview`
+  adds (MOD-progress-measures.md:304-309). No code of MOD-main-page changes.
