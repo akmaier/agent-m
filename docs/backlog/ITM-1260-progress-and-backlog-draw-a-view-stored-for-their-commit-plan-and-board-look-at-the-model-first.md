@@ -103,7 +103,10 @@ Tests written first, each red on the commit that holds only them:
   declaration and the model's file and nothing else — no `pulls`, no `overview-cache`, no `trace-cache`. Counter-proof: a
   fixture whose model has a limit draws the board.
 - `tests/load-per-view.test.mjs` (MOD-site-frame, component): `#backlog` sends its commit and tree once and no batch of
-  files and no `.facts.json`.
+  files and no `.facts.json`. Its case "#implementation draws progress, and its requests about pull requests are bounded …"
+  (`:301-336`) now states that, with the head's progress view stored, `#implementation` draws progress (team1's running
+  sprint) and sends no request about pull requests, no `/pulls` and no `/search/issues` (MOD-implementation-pages.md:211-212).
+  Its counter-proof is today's route, which reads them. No other case of the file changes.
 - `tests/repository-hosts-pull-request-pages.test.mjs` keeps its case of the pages asked at once and drops `updatedSince`;
   `tests/progress-measures-scope-now.test.mjs` is removed with the scope it tests.
 
