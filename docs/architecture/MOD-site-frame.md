@@ -181,8 +181,8 @@ It keeps nothing but what is on the screen. It owns these formats:
   `folders` names the folders of the repository the route shows, for these `params`: the frame reads the snapshot of
   the page with them (MOD-repository-hosts' `readSnapshot`), so that its paths are the files of those folders; a route
   that names none is given the whole tree. On a page that shows the instance itself, the frame adds to them the files
-  of MOD-prompt-bar's `barFiles`, which the bar reads through the page's snapshot; it keeps no list of its own, and its
-  other parts add none. A route that names `module` is drawn from the route that `module` gives: its
+  of MOD-prompt-bar's `barFiles`, which the bar reads through the page's snapshot; these are the only files the frame
+  adds to the folders a route names, and it keeps no list of them of its own. A route that names `module` is drawn from the route that `module` gives: its
   `name`, `entry`, `entryShown` and `title` stand in the view module, and the frame imports the rest when the route is
   first shown, embedded or asked for its subject, after it has asked for every module of it at once (the page's
   preloads), never level by level.
