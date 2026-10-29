@@ -70,7 +70,7 @@ async function formOf(w) {
 }
 
 // TST-1257003 · level: unit · module: MOD-maintenance-pages
-// guards: A BACKLOG ITEM NAMES THE MODULES IT CHANGES; UC-033 3
+// guards: A BACKLOG ITEM NAMES THE MODULES IT CHANGES; UC-033
 // given: known positive first — the form of the issue 7 shows its realises FIRST RULE, THIRD RULE and, with no module named, the backlog's finding that the item names no module the architecture describes
 // input: the person types "MOD-store, store" into the field modules
 // expect: the item schema's finding on the item "store" — `the key modules does not fit: "store" is not an identifier` — stands beside the field modules, once in the whole form, and Add is not offered. Counter-proof: before the
@@ -88,7 +88,7 @@ test("issue — the move form is schemaForm over the item schema: a finding on a
 });
 
 // TST-1257004 · level: unit · module: MOD-maintenance-pages
-// guards: A BACKLOG ITEM NAMES WHAT IT REALISES; A BACKLOG ITEM NAMES THE MODULES IT CHANGES; ONE CLICK PER DECISION; UC-033 4
+// guards: A BACKLOG ITEM NAMES WHAT IT REALISES; A BACKLOG ITEM NAMES THE MODULES IT CHANGES; ONE CLICK PER DECISION; UC-033
 // given: the form of the issue 7, whose realises are FIRST RULE and THIRD RULE
 // input: the person types "MOD-store, MOD-pages" into the field modules, and clicks Add
 // expect: no error stands in the form and Add is offered; the click commits one item of the backlog whose realises is the list FIRST RULE, THIRD RULE, whose modules is the list MOD-store, MOD-pages and whose origin is the list of the
