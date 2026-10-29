@@ -31,10 +31,11 @@ const reviewedId = (path) => readDocument(artifactSchemaOf(path), path, "").id;
 
 const FIX = fileURLToPath(new URL("./fixtures/architecture/", import.meta.url));
 const base = {};
+// The fixture keeps its test file as tests/reader.test.js.fixture, so that node --test tests/ does not run it; the walk builds it back under its name.
 (function walk(dir) {
   for (const n of readdirSync(dir)) {
     const p = join(dir, n);
-    if (statSync(p).isDirectory()) walk(p); else base[relative(FIX, p).split("\\").join("/")] = readFileSync(p, "utf8");
+    if (statSync(p).isDirectory()) walk(p); else base[relative(FIX, p).split("\\").join("/").replace(/\.fixture$/, "")] = readFileSync(p, "utf8");
   }
 })(FIX);
 const UC1 = "docs/use-cases/UC-001-read-a-file.md", UC2 = "docs/use-cases/UC-002-show-the-status.md";

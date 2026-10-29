@@ -89,7 +89,7 @@ test("TST-487005: OpenAI empty call list preserves zero and unknown usage separa
     text: "Only text.", calls: [], usage: { inputTokens: 0, outputTokens: null, minutes: null, cost: null },
   });
   assert.equal(calls.length, 1);
-  assert.deepEqual(JSON.parse(calls[0].body), { model: "fixture-model", messages: [{ role: "user", content: "Finish." }] });
+  assert.deepEqual(JSON.parse(calls[0].body), { model: "fixture-model", messages: [{ role: "user", content: "Finish." }], stream: false });
 });
 
 // TST-487006 · level: unit · module: MOD-endpoint-calls

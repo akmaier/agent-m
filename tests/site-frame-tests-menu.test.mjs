@@ -36,7 +36,8 @@ const GONE = ["tests", "tests-schedule", "tests-generate", "tests-browser", "aud
 function fixtureFiles() {
   const FIX = fileURLToPath(new URL("./fixtures/architecture/", import.meta.url));
   const files = {};
-  (function walk(dir) { for (const name of readdirSync(dir)) { const path = join(dir, name); if (statSync(path).isDirectory()) walk(path); else files[relative(FIX, path).split("\\").join("/")] = readFileSync(path, "utf8"); } })(FIX);
+  // The fixture keeps its test file as tests/reader.test.js.fixture, so that node --test tests/ does not run it; the walk builds it back under its name.
+  (function walk(dir) { for (const name of readdirSync(dir)) { const path = join(dir, name); if (statSync(path).isDirectory()) walk(path); else files[relative(FIX, path).split("\\").join("/").replace(/\.fixture$/, "")] = readFileSync(path, "utf8"); } })(FIX);
   return files;
 }
 

@@ -6,7 +6,7 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { TOKEN, openDashboard, repoServer } from "./app-harness.mjs";
+import { TOKEN, openDashboard, repoServer, writeRequests } from "./app-harness.mjs";
 
 const QUEUE = "2026-10-08_wording";
 const OLD = `# Fixture specification
@@ -48,8 +48,6 @@ function files(spec = OLD) {
   };
 }
 
-const writes = (server) => server.requests.filter((request) => /^(write|other|handler) (?!GET )/.test(request));
-
 // CASE ITM-277-SYSTEM-02
 // TST-473080 · level: system · module: MOD-trace-pages
 // guards: UC-020; A REQUIREMENT HAS FOUR FIELDS
@@ -73,6 +71,6 @@ test("#spec reads fresh current SPEC bytes and keeps queue history for empty or 
     const page = await openDashboard({ server, hash: "#spec" });
     assert.match(page.main(), /No current requirements are recorded in SPEC\.md\./, `${label} SPEC states the explicit empty result`);
     assert.match(page.main(), new RegExp(`href="#spec-entry/id=spec-${QUEUE}-01"`), `${label} SPEC preserves the queue history`);
-    assert.equal(writes(server).length, 0, `${label} overview writes nothing`);
+    assert.equal(writeRequests(server).length, 0, `${label} overview writes nothing`);
   }
 });
