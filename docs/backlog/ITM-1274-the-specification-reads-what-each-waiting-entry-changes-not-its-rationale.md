@@ -8,6 +8,7 @@ realises:
 modules:
   - MOD-spec-changes
   - MOD-trace-pages
+  - MOD-site-frame
 builds_on:
   - ITM-1272
 tests:
@@ -49,4 +50,6 @@ Tests written first, each red on the commit that holds only them:
 Measurable outcome: `#spec` reads, per waiting entry, its proposal and target and no rationale (~2.2 KB less each).
 
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
-- Only the folders of the two modules and the tests that name them change.
+- Only the folders of MOD-spec-changes and MOD-trace-pages and the tests that name them change, and, of MOD-site-frame, only
+  the two `#spec` cases of `tests/load-per-view.test.mjs` that count the open entry's rationale, its fourth batch: it is
+  no longer read. No code of MOD-site-frame changes.
