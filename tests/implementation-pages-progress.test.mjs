@@ -50,7 +50,7 @@ test("#progress — each team's running sprint with its items, their states and 
 });
 
 // TST-1252202 · level: component · module: MOD-implementation-pages
-// guards: UC-035 steps 3, 4 and 5; EVERY STEP EXPLAINS ITSELF
+// guards: UC-035; EVERY STEP EXPLAINS ITSELF
 // given: the same product; the job JOB-20261027-0900-a1b2 of dev-a, which has not ended, works on ITM-002
 // input: the route progress's render
 // expect: the gates, what is blocked and who works on what each stand in a panel of their own with a folded "What is this?"; who works on what names dev-a with its job, linked to
@@ -85,7 +85,7 @@ test("#progress — End sprint is one click that writes ## Ended", async () => {
 });
 
 // TST-1252205 · level: component · module: MOD-implementation-pages
-// guards: UC-035 2b
+// guards: UC-035
 // given: the same product with team1's sprint 03 closed too — no team runs a sprint
 // input: the route progress's render
 // expect: each team's panel says it runs no sprint and links #backlog/plan=<team>; the page holds no chart and no End sprint
