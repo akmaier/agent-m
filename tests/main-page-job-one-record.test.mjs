@@ -15,7 +15,9 @@
 // product only (A JOB IDENTIFIER IS NEVER REUSED), so two products may hold the same one.
 //
 // Readings the texts leave open, which the tests state (the pull request names them):
-//   - "reads the one record": a record read is a request for a file under docs/jobs/ — GitHub's contents API with a token —; the trees are read narrowed to that one path, one query of named files each.
+//   - "reads the one record": a record read is a request for a file under docs/jobs/ — GitHub's contents API with a token, or a file under docs/jobs/ that GitHub's batch request of files' texts
+//     (POST /graphql, `f<n>:object(expression: "<commit>:<path>")`) names, of the repository its variables name, since listJobs names the records to the snapshot's readMany (ITM-1280) —; the trees
+//     are read narrowed to that one path, one query of named files each.
 //   - "asks the live state of that job alone": the Bridge lab-pc-4 is asked for its list of jobs (GET /v1/jobs) once.
 //   - Without `product`, the tree of every source is read — the instance's and each kept product's —, and the record of the first of them, in the order instance, then the products as kept, that holds it.
 
@@ -26,7 +28,7 @@ import { startRecord, appendToRecord } from "../src/job-ledger/index.mjs";
 import { INSTANCE, PRODUCT, PRODUCT_URL, PRODUCT_TOKEN, OTHER, OTHER_URL, OTHER_TOKEN, browser, byClass, draw, instanceFiles, network, smallProduct, timers } from "./main-page-home-harness.mjs";
 
 const job = view.routes.find((candidate) => candidate.name === "job");
-let net;
+let net, batched = [];
 afterEach(() => {
   net?.restore();
   timers.restore();
@@ -55,10 +57,25 @@ function open() {
   net = network({ [INSTANCE]: instanceFiles(), [PRODUCT]: smallProduct({ jobs: tenOf("a", "dev-a", inA) }), [OTHER]: smallProduct({ jobs: ofB }), [THIRD]: smallProduct({ jobs: tenOf("c", "dev-c", record("JOB-20261016-1000-c000", "dev-c")) }) },
     { bridgeLists: ID });
   net.install();
+  // The records a batch request of files' texts names, as "<owner>/<name>:<path>", kept before the request goes on to the fake.
+  batched = [];
+  const spy = globalThis.fetch;
+  globalThis.fetch = async (input, init) => {
+    const url = new URL(typeof input === "object" && !(input instanceof URL) ? input.url : String(input));
+    if (url.host === "api.github.com" && url.pathname === "/graphql" && typeof init?.body === "string") {
+      const { query, variables } = JSON.parse(init.body);
+      for (const [, quoted] of query.matchAll(/\bf\d+:object\(expression:("(?:[^"\\]|\\.)*")\)/g)) {
+        const path = JSON.parse(quoted).replace(/^[^:]*:/, "");
+        if (path.startsWith("docs/jobs/")) batched.push(`${variables.owner}/${variables.name}:${path}`);
+      }
+    }
+    return spy(input, init);
+  };
 }
 const context = () => browser({ products: [PRODUCT_URL, OTHER_URL, THIRD_URL], tokens: { [PRODUCT]: PRODUCT_TOKEN, [OTHER]: OTHER_TOKEN, [THIRD]: THIRD_TOKEN } });
-/** The records the page read: each request for a file under docs/jobs/, as "<owner>/<name>:<path>". */
-const recordsRead = () => net.requests.map(({ url }) => /^https:\/\/api\.github\.com\/repos\/([^/]+\/[^/]+)\/contents\/(docs\/jobs\/[^?]+)/.exec(url)).filter(Boolean).map((m) => `${m[1]}:${decodeURIComponent(m[2])}`);
+/** The records the page read: each request for a file under docs/jobs/, and each such file a batch request named, as "<owner>/<name>:<path>". */
+const recordsRead = () => [...net.requests.map(({ url }) => /^https:\/\/api\.github\.com\/repos\/([^/]+\/[^/]+)\/contents\/(docs\/jobs\/[^?]+)/.exec(url)).filter(Boolean).map((m) => `${m[1]}:${decodeURIComponent(m[2])}`),
+  ...batched];
 /** The live states asked: each request for the Bridge lab-pc-4's list of jobs. */
 const liveAsked = () => net.requests.filter(({ url }) => new URL(url).host === "127.0.0.1:4711" && new URL(url).pathname === "/v1/jobs").length;
 const one = (target, name) => byClass(target, name)[0];

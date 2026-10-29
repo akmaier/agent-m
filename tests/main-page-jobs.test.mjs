@@ -21,6 +21,8 @@
 //     the select's value and a `change` event.
 //   - A source that cannot be read is an <li class="source"> of a <ul class="unreadable"> above the list, "<address>: <the reason its host gives>".
 //   - The instance is connected as the product is, with the token `github-token`, from the address https://github.com/<its repository>.
+//   - GitHub's batch request of files' texts (POST /graphql, with a token), which the host sends for the records listJobs names to a snapshot's readMany (ITM-1280), is answered for the repository its
+//     variables name under the same rule of tokens as the API's other reads: the text of each file the repository holds at its head, and for a private repository only with its own token.
 
 import "./site-frame-dom.mjs";
 import test from "node:test";
@@ -118,10 +120,25 @@ function headerOf(init, name) {
   return found ? String(found[1]) : null;
 }
 // GitHub's API as the host reads it: the repository, its default branch's commit, the commit's tree, and a file by its commit — through the API for a private repository (with the token),
-// from the raw host for a public one. A private repository answers 404 to a request without its own token.
+// from the raw host for a public one. A private repository answers 404 to a request without its own token. The batch request of files' texts (POST /graphql) gives, for each aliased
+// `f<n>:object(expression: "<commit>:<path>")`, the file's text where the repository its variables name holds it at that commit, else null; without the repository's own token, no repository.
 function github(request) {
   const { url, authorization } = request;
   const path = decodeURIComponent(url.pathname);
+  if (url.host === "api.github.com" && path === "/graphql" && request.body) {
+    const { query, variables } = JSON.parse(request.body);
+    const name = `${variables?.owner}/${variables?.name}`;
+    const repository = REPOSITORIES[name];
+    if (!repository || (repository.private && authorization !== `Bearer ${TOKENS[name]}`)) {
+      return json(200, { data: { repository: null }, errors: [{ type: "NOT_FOUND", message: "Could not resolve to a Repository" }] });
+    }
+    const answer = {};
+    for (const [, alias, quoted] of query.matchAll(/(f\d+):object\(expression:("(?:[^"\\]|\\.)*")\)/g)) {
+      const expression = JSON.parse(quoted), cut = expression.indexOf(":"), file = expression.slice(cut + 1);
+      answer[alias] = expression.slice(0, cut) === sha(`${name}@main`) && repository.files[file] !== undefined ? { text: repository.files[file], isTruncated: false } : null;
+    }
+    return json(200, { data: { repository: answer } });
+  }
   const api = /^\/repos\/([^/]+\/[^/]+)(\/.*)?$/.exec(path);
   if (url.host === "api.github.com" && api) {
     const [, name, rest = ""] = api;
@@ -144,7 +161,7 @@ function install() {
   spy.unrouted = [];
   globalThis.fetch = async (input, init) => {
     const url = new URL(typeof input === "object" && !(input instanceof URL) ? input.url : String(input));
-    const request = { url, href: url.href, authorization: headerOf(init, "authorization"), pairing: headerOf(init, "x-agent-m-token") };
+    const request = { url, href: url.href, authorization: headerOf(init, "authorization"), pairing: headerOf(init, "x-agent-m-token"), body: typeof init?.body === "string" ? init.body : null };
     spy.requests.push(request);
     if (url.host === "127.0.0.1:4711" && url.pathname === "/v1/jobs") return json(200, { jobs: [{ id: "JOB-20261016-1000-ffff", state: "running", usage: null }] });
     if (url.host === "127.0.0.1:4712") throw new TypeError("connect ECONNREFUSED 127.0.0.1:4712");

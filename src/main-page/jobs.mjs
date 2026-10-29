@@ -9,8 +9,8 @@
 // the host the frame connected for it — the instance's from the ViewContext, a product's by MOD-site-frame's chosenProduct, with its own token and the stored secrets the host refuses to write — and sends no
 // token anywhere else (MOD-repository-hosts). Uses MOD-site-frame, MOD-browser-store, MOD-bridge-client, MOD-repository-hosts, MOD-job-ledger, MOD-runtimes and MOD-prompt-bar only through their index.mjs.
 //
-// How a list is drawn: each source's default branch is read; listJobs reads the records once (without live states) to name the jobs whose record has no end; each of those is asked once with
-// liveState, and listJobs derives the rows again with what was reported — the records are not fetched twice, since a snapshot reads a file once. A Bridge handle is made as the prompt bar and
+// How a list is drawn: each source's default branch is read; listJobs reads the records once, in batches (without live states), to name the jobs whose record has no end; those of each repository
+// are asked with liveStates, once for the repository, and listJobs derives the rows again with what was reported — the records are not fetched twice, since a snapshot reads a file once. A Bridge handle is made as the prompt bar and
 // the review pages make one (settingsOf with the stored jump host, then bridgeAt), since a Bridge kept at a port of the jump host has no address of its own.
 
 import { readSetting } from "../browser-store/index.mjs";
@@ -18,7 +18,7 @@ import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
 import { chosenProduct, confirmDecision, explain, tokenKeyOf } from "../site-frame/index.mjs";
 import { listJobs } from "../job-ledger/index.mjs";
-import { cancelJob, liveState, jobLog, jobTrail, retryJob, revertAfterCancel, routesFor } from "../runtimes/index.mjs";
+import { cancelJob, liveState, liveStates, jobLog, jobTrail, retryJob, revertAfterCancel, routesFor } from "../runtimes/index.mjs";
 import { productFacts } from "../progress-measures/index.mjs";
 import { startable } from "../work-plans/index.mjs";
 import { mayDecide, recordGateDecision } from "../product-process/index.mjs";
@@ -70,12 +70,18 @@ export function bridgesOf(rows, store) {
   return bridges;
 }
 
-// The live state of each job whose record has no end and whose source was read, asked once at its runtime: a Map from the job's identifier. A failure is the state `reachable: false` with its reason.
+// The live state of each job whose record has no end and whose source was read: a Map from the job's identifier. MOD-runtimes' liveStates is asked once for each repository, with the records of
+// that repository, so that it lists the repository's runs of the job workflow once (MOD-main-page, Interfaces: `jobs`). A failure is the state `reachable: false` with its reason, for each job of
+// that repository.
 export async function liveStatesOf(rows, hostOf, bridges) {
   const lives = new Map();
-  await Promise.all(rows.filter((row) => !row.record.end && row.source.reachable).map(async (row) => {
-    try { lives.set(row.record.id, await liveState(row.record, { host: hostOf.get(row.product) }, bridges)); } catch (failure) {
-      lives.set(row.record.id, { reachable: false, reason: String(failure?.message ?? failure), known: false });
+  const byProduct = new Map();
+  for (const row of rows) if (!row.record.end && row.source.reachable) byProduct.set(row.product, [...(byProduct.get(row.product) ?? []), row]);
+  await Promise.all([...byProduct].map(async ([product, held]) => {
+    try {
+      for (const [id, live] of await liveStates(held.map((row) => row.record), { host: hostOf.get(product) }, bridges)) lives.set(id, live);
+    } catch (failure) {
+      for (const row of held) lives.set(row.record.id, { reachable: false, reason: String(failure?.message ?? failure), known: false });
     }
   }));
   return lives;

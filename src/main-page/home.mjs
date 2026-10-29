@@ -7,7 +7,7 @@
 // state: where the repository stores an overview of its head (MOD-progress-measures' storedOverview, computed by the workflow `main changed`), the card is drawn from that overview
 // alone — its stages, its model, what waits, and the build's states with the records of the jobs working on them —, and no pull request, record or other file is read; elsewhere
 // MOD-progress-measures derives them from the facts it gathers once for each product (productFacts, the scope `all`). MOD-job-ledger's listJobs derives the jobs' rows again with the
-// live states their runtimes report, asked once for each of those jobs whose record has no end (MOD-runtimes, as the route `jobs` asks them). It stores nothing. Each product is connected, through jobs.mjs's sourcesOf, by
+// live states their runtimes report for those jobs whose record has no end, asked once for the repository (MOD-runtimes' liveStates, as the route `jobs` asks them). It stores nothing. Each product is connected, through jobs.mjs's sourcesOf, by
 // MOD-site-frame's chosenProduct with the token this browser keeps for it, and the instance with the frame's own host; a token reaches no other server. Once the cards are drawn, reread.mjs reads the
 // jobs' states of the cards again at an interval, while the route is shown, and nothing else.
 //
@@ -99,7 +99,8 @@ async function factsOf(host, { store, instance, instanceAt }) {
 // The snapshot is the head's, its paths narrowed to those records, so that the readings again compare their blobs (reread.mjs).
 async function buildOf(host, store, snapshot, stored) {
   const texts = new Map(stored.build.records.map(({ path, text }) => [path, text]));
-  const records = { ...snapshot, paths: [...texts.keys()], read: (path) => Promise.resolve(texts.get(path) ?? null) };
+  // The texts are held already: its readMany, which listJobs names the records to, reads nothing ahead.
+  const records = { ...snapshot, paths: [...texts.keys()], read: (path) => Promise.resolve(texts.get(path) ?? null), readMany: () => Promise.resolve() };
   const address = snapshot.repository?.web ?? "";
   const rows = await listJobs([{ address, snapshot: records }], new Map());
   return { address, snapshot: records, plan: { states: stored.build.states }, jobs: await withLiveStates(host, store, address, records, rows) };

@@ -289,12 +289,17 @@ export function jobWorkflowFiles(server, instance, secrets, runners, gitlabCi = 
 const JOB_WORKFLOW = "agent-m-jobs.yml";
 
 /**
- * runOfAddress(host, address) -> Promise<CiRun | null> — the run among listCiRuns({ workflow }) whose url is the address a record's `## Taken` holds in `by:` (MOD-job-ledger, Data); null where the server lists
- * none. Crosses the network through the host and fails as it fails.
+ * jobWorkflowRuns(host) -> Promise<CiRun[]> — the runs of the job workflow the server lists (listCiRuns({ workflow })). Crosses the network through the host and fails as it fails.
  */
-export async function runOfAddress(host, address) {
-  const runs = await host.listCiRuns({ workflow: JOB_WORKFLOW });
-  return runs.find((run) => run.url === address) ?? null;
+export const jobWorkflowRuns = (host) => host.listCiRuns({ workflow: JOB_WORKFLOW });
+
+/**
+ * runOfAddress(host, address, runs?) -> Promise<CiRun | null> — the run among the job workflow's runs whose url is the address a record's `## Taken` holds in `by:` (MOD-job-ledger, Data); null where the server
+ * lists none. `runs`, where given, is a listing of jobWorkflowRuns already asked, so that the records of one repository share it (MOD-runtimes' liveStates); otherwise the runs are listed here. Crosses the
+ * network through the host and fails as it fails.
+ */
+export async function runOfAddress(host, address, runs = jobWorkflowRuns(host)) {
+  return (await runs).find((run) => run.url === address) ?? null;
 }
 
 /**
