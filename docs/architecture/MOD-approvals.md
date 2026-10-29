@@ -107,12 +107,17 @@ never written. A decision or module file that a record names and the snapshot no
 
 - `approvalSchema: Schema` — the approval record's schema, for MOD-documents and for the modules that read records
   (MOD-spec-changes, MOD-release-evidence).
-- `statusOf(path: string, blob: string, snapshot: Snapshot) -> "open" | "accepted" | "changed"` — the status of one
-  reviewed file from the records in the same snapshot, matched by the identifier in the file name, so a renamed file
+- `statusOf(path: string, blob: string, snapshot: Snapshot) -> Promise<"open" | "accepted" | "changed">` — the status of
+  one reviewed file from the records in the same snapshot, matched by the identifier in the file name, so a renamed file
   keeps its status. Considers: the blob is the file's current blob in that snapshot; a record whose `kind` does not fit
-  the file's folder is not counted. Errors: `NotReviewed` for a path that is no reviewed file.
-- `statuses(snapshot: Snapshot) -> Map<string, { id: string, kind: string, status: "open" | "accepted" | "changed" }>` —
-  the status of every reviewed file of a snapshot, keyed by path; computed in one pass over `docs/approvals/`.
+  the file's folder is not counted; a record counts only when its text names what its name says — a file of the
+  identifier its name carries, and a `blob` whose first twelve digits its name carries (`AN APPROVAL NAMES THE EXACT
+  TEXT`) —, so the records of the identifier are read. Crosses the network through the snapshot; fails with its errors.
+  Errors: `NotReviewed` for a path that is no reviewed file.
+- `statuses(snapshot: Snapshot) -> Promise<Map<string, { id: string, kind: string, status: "open" | "accepted" |
+  "changed" }>>` — the status of every reviewed file of a snapshot, keyed by path; computed in one pass over
+  `docs/approvals/`, whose records it names to the snapshot's `readMany` first, so that their texts are read in batches,
+  and counts each record as `statusOf` does. Crosses the network through the snapshot; fails with its errors.
 - `removedFiles(snapshot: Snapshot) -> Array<{ id: string, kind: "architecture-decision" | "module", path: string, lastBlob: string }>` — every
   decision or module file that a record names and of whose identifier the snapshot holds no file, and whose removal no record accepts (no record of
   that identifier names the empty text's blob): `path` and `lastBlob` are those of the most recent record of the identifier. It is computed in the
