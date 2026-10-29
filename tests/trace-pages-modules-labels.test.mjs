@@ -46,8 +46,7 @@ const byClass = (root, name, className) => find(root, (node) => node.localName =
 // guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE
 // given: the fixture product at main, with two modules, MOD-page and MOD-review
 // input: Route.render with the key "modules" at main
-// expect: the table of the modules has the column titles Module, Subsystem, Realises, File, Code and Tests, and one row per module, MOD-page then MOD-review;
-//   the six cells of each row carry, in order, the data-label "Module", "Subsystem", "Realises", "File", "Code" and "Tests"
+// expect: column titles Module, Subsystem, Realises, File, Code, Tests; one row per module, MOD-page then MOD-review; the six cells of each row carry, in order, data-label "Module", "Subsystem", "Realises", "File", "Code" and "Tests"
 test("TST-1159001 each cell of the modules table carries its column's title as data-label, one row per module", async () => {
   const target = await render();
   const [table] = find(byClass(target, "section", "modules-table")[0], (node) => node.localName === "table");
