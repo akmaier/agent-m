@@ -38,8 +38,16 @@ use case.
   - `tests/maintenance-pages-move-1250.test.mjs:291`, the lead to UC-012;
   - `tests/maintenance-pages-fix-583.test.mjs:143`, the lead to UC-017.
   - Each changes to `["use-case", { id: …, product: "" }]`.
+- **One release test changes, by a participant who implemented none of this item:**
+  `tests/release-itm-1254-issue-move.test.mjs:161`, TST-1254302.
+  - Its expectation of the lead to UC-012 becomes `["use-case", { id: "UC-012", product: "" }]`.
+  - Its `expect:` (:134) says that the lead goes to the instance's own use case.
+  - It is changed in a commit of its own on the item's branch. Every other assertion stays.
+  - Its header names MOD-maintenance-pages, and its level is `release` (RELEASE TESTS ARE NOT WRITTEN BY THE
+    IMPLEMENTER).
 - **Tests of other modules this Outcome changes: none.**
-  - The search was for the leads (`uc-012`, `uc-017`, `go("use-case"`, `id: "UC-01[27]"`) over `tests/`. Its known
-    positive is `maintenance-pages-move-1250`.
-  - `release-itm-1254-issue-move` and `system-uc-012-fix-a-bug` assert no `go` of a lead.
+  - The search was for every assertion `["use-case", { id: "UC-01[27]"` over `tests/`, read in full. It finds the three
+    above, and `test-pages-generate:567` and `test-pages-run-on-commit:344`. Those two are MOD-test-pages' own leads,
+    which this item does not change.
+  - `system-uc-012-fix-a-bug` asserts no `go` of a lead.
 - It removes no test.
