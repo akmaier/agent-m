@@ -207,8 +207,7 @@ test("moveToBacklog — a failure of the comment or the label other than a missi
 
 // TST-1254101 · level: unit · module: MOD-issue-handling
 // guards: UC-033 4b; ONE CLICK PER DECISION
-// given: known positive first (TST-1250105: a token that may not comment yields the comment to copy); no token for the issue tracker is stored, so that MOD-repository-hosts' commentOnIssue fails NotSupported before any request
-//   (src/repository-hosts/index.mjs, commentOnIssue: "NotSupported without a token, before any request")
+// given: known positive first (TST-1250105: a token that may not comment yields the comment to copy); no token for the issue tracker is stored, so that MOD-repository-hosts' commentOnIssue fails NotSupported before any request, as src/repository-hosts/index.mjs states it
 // input: moveToBacklog for issue 57 on a host that answers NotSupported { what: "commenting on an issue without a token" } to the comment
 // expect: no failure; the item is committed once; the result names ITM-004 and returns the comment's text — the same as would have been written — with the issue's address; no label is set
 test("moveToBacklog — without a token for the issue tracker, the item is written and the comment's text and the issue's address are returned to copy", async () => {

@@ -306,8 +306,9 @@ test("issue — Move to backlog offers the backlog's items, and Add to an existi
   const detail = await opened(w, 7);
   await moved(detail);
   await waitFor(() => byClass(moveOf(detail), "existing-item").length > 0);
+  // The world's product holds the item ITM-0900 too (tests/main-page-home-harness.mjs, smallProduct), which is offered as well.
   const offered = byClass(moveOf(detail), "existing-item");
-  assert.deepEqual(offered.map((node) => node.getAttribute("data-item")), ["ITM-001"]);
+  assert.deepEqual(offered.map((node) => node.getAttribute("data-item")), ["ITM-001", "ITM-0900"]);
   assert.match(textOf(offered[0]), /ITM-001.*Export keeps every page/);
   const add = buttonsOf(offered[0], "Add to ITM-001")[0];
   assert.ok(add, "Add to ITM-001 is offered");
