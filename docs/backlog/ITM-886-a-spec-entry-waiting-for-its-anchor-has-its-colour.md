@@ -32,3 +32,6 @@ changed, stale, accepted and superseded only. The trace page already colours the
   checks it, with a counter-proof.
 - The status rules the routes use come from `look.css` (built by `c358b76c`).
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+- The Product Owner's planning run, on `main` at `ecc7de406`, with a stand-in rule for `b-waiting-for-its-anchor` in
+  `look.css`: 24 test files that name `look.css`, a style sheet, the class or the SPEC entries, `site-usability` and
+  `site-accessibility`. 506 cases pass and 3 todos stay, with and without it. No test of another module changes.

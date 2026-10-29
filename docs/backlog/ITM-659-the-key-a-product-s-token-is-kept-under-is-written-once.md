@@ -32,6 +32,17 @@ Found at ITM-601's stop. Which module gives it once is read at the start against
 - or the frame, through `ProductContext.tokenStored` and the token's name, if the draft committed with ITM-658's cut is
   accepted.
 
+## Not ready: a draft for akmaier
+
+No accepted text gives the key in one place that all four modules may use.
+- MOD-site-frame provides `tokenKeyOf` (MOD-site-frame.md:239). MOD-main-page's Uses name it; MOD-review-pages' and
+  MOD-settings-pages' Uses do not (MOD-review-pages.md:8-15, MOD-settings-pages.md:8-16).
+- MOD-browser-store provides no function for the key, and it cannot use MOD-site-frame, which uses it
+  (`MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE`).
+
+So a draft gives the key once, in MOD-browser-store, whose Data defines it, and names it among the Uses of the three
+modules above it. The item is built once the draft is accepted.
+
 ## Acceptance
 
 - The key is computed in one place, and every module above uses that place.

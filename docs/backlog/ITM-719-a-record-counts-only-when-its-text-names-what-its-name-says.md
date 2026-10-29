@@ -35,6 +35,18 @@ another. It shows whether such a record counts.
 
 The start measures the requests on this repository.
 
+## Not ready: a draft for akmaier
+
+The first task is settled: such a record counts. On `main` at `ecc7de406`, a snapshot holding `UC-001-planted.md` at blob
+`aaaa…` and the record `docs/approvals/UC-001-aaaaaaaaaaaa.md`, whose text names blob `bbbb…`, gives `accepted` from both
+`statuses` and `statusOf`. Known positive: the same record naming `aaaa…` gives `accepted`; without a record, `open`.
+`src/approvals/status.mjs` derives the status from the records' names alone and reads no record's text.
+
+Reading the records' texts needs `Snapshot.read` or `readMany`, which return a `Promise` (MOD-repository-hosts.md:112-113).
+MOD-approvals gives `statuses(snapshot) -> Map<…>` and `statusOf(…) -> "open" | "accepted" | "changed"`, both without a
+`Promise` (MOD-approvals.md:109-114), and six other modules call them. So the check changes the
+types of MOD-approvals' interface: a draft of MOD-approvals for akmaier. The item is built once the draft is accepted.
+
 ## Acceptance
 
 - A record whose text names another file or blob than its name does not make a file accepted. The test pins it.

@@ -39,3 +39,10 @@ item is ready.
 - At a phone's width, `#arc` and `#module` hold no element wider than the window, and their todos go. The views still
   draw a table, one row per module.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+- The Product Owner's planning run, on `main` at `ecc7de406`, with a stand-in that sets each cell's `data-label` to its
+  column's title in `modulesTable` (`src/trace-pages/flow.mjs`), as MOD-site-frame.md:106-110 asks of a route: 270 test
+  files that name MOD-trace-pages, MOD-site-frame, `flow.mjs`, `#arc` or `#module`, `site-*` and `trace-pages-*`. No case
+  fails that does not fail without it; the 4 that fail are Bridge and Electron cases this machine cannot run.
+- In the same run, without the stand-in too, TST-904054 and TST-904072 pass as todos: on `main` the two routes already
+  hold no element wider than a phone's window. So the todos go from `TODAY` in the tests-only commit, and what stays red
+  there is the new case: each cell of the modules table carries the `data-label` of its column.

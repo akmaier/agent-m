@@ -39,3 +39,9 @@ the export do not carry it.
 - Counter-proof: a key outside the catalogue is still refused.
 - Nothing beyond MOD-browser-store.md's catalogue is added.
 - The first commit holds only the tests, and CI is red on it.
+- The Product Owner's planning run, on `main` at `ecc7de406`, with a stand-in that adds the family to `KEY_FAMILIES` and
+  its `settingInfo`, from the catalogue alone: 191 test files that name MOD-browser-store or one of its functions, and the
+  tests of MOD-settings-pages and MOD-prompt-bar. No case fails that does not fail without it. No test of another module
+  changes.
+- The setting's `setUpIn` is the page of the use case that sets it up (MOD-browser-store.md:49-50): UC-044, where a Bridge
+  is paired, as UC-049 names it for a CLI session.

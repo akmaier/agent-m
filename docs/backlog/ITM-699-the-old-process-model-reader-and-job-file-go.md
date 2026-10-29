@@ -7,6 +7,7 @@ realises:
 modules:
   - MOD-model-catalogue
   - MOD-job-catalogue
+  - MOD-work-plans
 builds_on:
   - ITM-681
 tests:
@@ -34,3 +35,11 @@ It waits for akmaier's acceptance of the module-file draft committed with the pl
 - The live dashboard keeps working: the release tests of its pages pass on the item's head.
 - A test of only a removed file goes with it, and the requirement it guarded is kept by a test of the module, named in the pull request.
 - It is declared as refactoring: CI is green on every commit.
+- The Product Owner's planning run, on `main` at `ecc7de406` with `job.json` removed (20 test files that name the file,
+  its folder or `docs/assets`, and `test_coverage_report`): the three cases of `TestTheJobThatDraftsItems` in
+  `tests/test_backlog_item_fields.py` that read `job.json` fail with it gone, and nothing else. That file is MOD-work-plans'
+  test, so the item names MOD-work-plans for it alone; no code of MOD-work-plans changes. The three cases go with the file,
+  with the docstring's sentence on it, and the pull request names the case of `tests/job-catalogue.test.mjs` that keeps
+  guarding the kind `propose-items`. The class's counter-proof case reads no job file and stays.
+- `tests/test_artifact_format.py:123` names the path as a string and reads no file; it passes with the file gone and does
+  not change.

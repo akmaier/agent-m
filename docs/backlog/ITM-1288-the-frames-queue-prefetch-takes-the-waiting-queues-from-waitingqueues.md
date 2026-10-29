@@ -27,6 +27,12 @@ to the overview stored last. That is a second copy of the rule (AGENTS.md §2 pr
 from `waitingQueues`, as the specification and the dashboard's waiting-for-acceptance do; where the module files do not
 name that use, the item stops and names it.
 
+## Not ready: a draft for akmaier
+
+MOD-site-frame's Uses name `MOD-progress-measures.storedOverview` and not `waitingQueues` (MOD-site-frame.md:8-36). So a
+draft names `MOD-progress-measures.waitingQueues` among MOD-site-frame's Uses, for the queues the load prefetches. The item
+is built once the draft is accepted.
+
 ## Acceptance
 
 - The load's request counts in `tests/load-per-view.test.mjs` hold, or fall where the overview stored last is used.
