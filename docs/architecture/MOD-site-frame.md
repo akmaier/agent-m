@@ -33,7 +33,7 @@ uses:
   - MOD-prompt-bar.Subject
   - MOD-prompt-bar.handOverStrategies
   - MOD-source-register.registerPaths
-  - MOD-progress-measures.storedOverview
+  - MOD-progress-measures.waitingQueues
 provides:
   - View
   - Route
@@ -306,6 +306,5 @@ It writes nothing.
 - MOD-source-register.registerPaths — the register's entries among a tree's paths, so that the first wave of a page load names them beside the files its
   route shows and `#spec` reads the register in the same batch as its other files (`A PAGE LOAD READS THE REPOSITORY IN BATCHES`); the frame keeps no copy
   of the register's path.
-- MOD-progress-measures.storedOverview — the change queues stored for the commit, read beside the first wave of `#spec`, so that
-  its second wave names only the files of the queues with an entry not in the SPEC yet; where no overview is stored, the
-  index and decisions of every queue are read, then the proposals of those still open.
+- MOD-progress-measures.waitingQueues — the change queues with an entry not in the SPEC yet, read beside the first wave of
+  `#spec`, so that its second wave names only their files; the frame keeps no rule of its own for which queues those are.
