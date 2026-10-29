@@ -103,9 +103,12 @@ async function entryTexts(fnName, queue, entry, snapshot) {
  * snapshot does not hold is a RangeError.
  */
 export async function entryImpact(queue, entry, snapshot) {
-  const { targetText, heldNow, proposalText } = await entryTexts("entryImpact", queue, entry, snapshot);
-  return impactOf(snapshot, heldNow ?? "", proposalText, heldNow === null && typeof targetText === "string" ? parseSpec(targetText).requirements : null);
+  return impactOfTexts(snapshot, await entryTexts("entryImpact", queue, entry, snapshot));
 }
+
+// The one definition of an entry's impact list, from the texts entryTexts read: entryImpact gives it, and entryView gives it from the texts it has read already, so that no file is read twice.
+const impactOfTexts = (snapshot, { targetText, heldNow, proposalText }) =>
+  impactOf(snapshot, heldNow ?? "", proposalText, heldNow === null && typeof targetText === "string" ? parseSpec(targetText).requirements : null);
 
 /**
  * entryView(queue: string, entry: number, snapshot: Snapshot) -> Promise<{ current: { text: string, blob: string } | null,
@@ -115,14 +118,15 @@ export async function entryImpact(queue, entry, snapshot) {
  * and the impact list as entryImpact gives it (NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT, A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST).
  */
 export async function entryView(queue, entry, snapshot) {
-  const { item, heldNow, proposalText } = await entryTexts("entryView", queue, entry, snapshot);
+  const texts = await entryTexts("entryView", queue, entry, snapshot);
+  const { item, heldNow, proposalText } = texts;
   const rationale = item.rationale ? (await snapshot.read(item.rationale)) ?? "" : "";
   return {
     current: heldNow === null ? null : { text: heldNow, blob: await blobSha(heldNow) },
     proposal: { text: proposalText, blob: item.proposal.blob },
     difference: lineDiff(heldNow ?? "", proposalText),
     rationale,
-    impact: await entryImpact(queue, entry, snapshot),
+    impact: await impactOfTexts(snapshot, texts),
     state: item.state,
     createdBy: item.createdBy,
   };
