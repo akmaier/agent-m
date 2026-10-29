@@ -24,6 +24,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import { gzipSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
 import { blobSha } from "../src/text-tools/index.mjs";
 import { sectionText } from "../src/spec-document/index.mjs";
@@ -245,13 +246,12 @@ test("the repository's information is read once for as long as the page is open"
 });
 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
-// given: a product that declares its process model, with one team, its sprint and two items
+// given: a product that declares its process model, with one team, its sprint and two items; the branch overview-cache holds the backlog view of the head (ITM-1260:
+//        MOD-implementation-pages' route `backlog` "draws the view stored for the head (MOD-progress-measures' `storedView`) and reads no record, no facts and no pull request")
 // input: open #backlog with a token
-// expect: the commit and the tree once, one batch of the 6 files it shows — the declaration, the SPEC, the team's role
-//         assignment and sprint, the 2 items; no approval record, since the statuses come from the records' names (MOD-approvals'
-//         statuses) —; then the facts the page takes from MOD-progress-measures' productFacts are read in batches — no facts file is asked for —: the 3 module files, the 3 files of the change queues; then the instance at the commit the declaration's model_version names (the commit, the tree) and the process
-//         model it names in one batch of its own; no use case and no other file by itself
-test("#backlog sends its commit and tree once, one batch of the files it shows, and the process model by one request of its own", async () => {
+// expect: the commit and the tree once, then one read of the view on overview-cache, and nothing else: no batch of files, no file by itself, no facts file, no pull request;
+//         ITM-001 and ITM-002 listed
+test("#backlog sends its commit and tree once, and reads the view stored for its commit, with no batch of files", async () => {
   const repo = await product({
     "docs/process.md": ["---", "model: fixture-scrum-wip", "model_file: docs/process-models/fixture.md", `model_version: ${"c0ffee".padEnd(40, "0")}`,
       "---", "# How the fixture product is developed", ""].join("\n"),
@@ -262,17 +262,34 @@ test("#backlog sends its commit and tree once, one batch of the files it shows, 
   });
   const pulls = (url) => (url.origin === "https://api.github.com" && url.pathname === `/repos/${REPO}/pulls`
     ? new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } }) : undefined);
-  const srv = await server(repo, [pulls]);
+  const srv = await server(repo, [pulls, storedView("backlog", backlogViewOf(["ITM-001", "ITM-002"]))]);
   const page = await openDashboard({ server: srv, hash: "#backlog" });
   assert.match(page.main(), /ITM-001/);
-  assert.deepEqual(withoutInfo(page.requests).filter((r) => !r.startsWith("handler ")), ["commit", "tree", "batch 6", "batch 3", "batch 3", "commit", "tree", "batch 1"]);
-  // The page needs no repository information, and the prompt bar reads through what the load read (instanceSnapshot), asking for none either.
-  assert.equal(count(page.requests, "repository"), 0);
-  const wave1 = sorted(["docs/process.md", "SPEC.md", "docs/role-assignments/team1.md", "docs/backlog/sprints/team1/01.md",
-    "docs/backlog/ITM-001-item-1.md", "docs/backlog/ITM-002-item-2.md"]);
-  assert.deepEqual(srv.batches.map(sorted).slice(0, 1), [wave1]);
-  assert.equal(srv.batches.flat().filter((path) => path === "SPEC.md").length, 1, "no file twice");
+  assert.match(page.main(), /ITM-002/);
+  assert.deepEqual(withoutInfo(page.requests), ["commit", "tree", `handler GET https://api.github.com/repos/${REPO}/contents/${HEAD}.backlog.json.gz?ref=overview-cache`]);
+  assert.deepEqual(srv.batches, [], "no batch of files");
+  assert.deepEqual(page.requests.filter((r) => r.includes(".facts.json") || /\/pulls\b/.test(r)), []);
 });
+
+// The view of `page` stored for the head on overview-cache, gzipped JSON as MOD-progress-measures' publishOverview stores it, served through the contents API with a token.
+function storedView(page, view) {
+  const bytes = gzipSync(JSON.stringify({ ...view, commit: HEAD }));
+  return (url) => (url.origin === "https://api.github.com" && url.searchParams.get("ref") === "overview-cache" && url.pathname === `/repos/${REPO}/contents/${HEAD}.${page}.json.gz`
+    ? new Response(bytes, { status: 200 }) : undefined);
+}
+const MODEL = { name: "fixture-scrum-wip", kind: "pulled", sprints: true, wip: 2, measure: "remaining items per time box" };
+const stateOf = (item, state) => ({ item, state, reason: null, job: null, pullRequest: null });
+// A BacklogView (MOD-progress-measures' Interfaces) of team1 and the items, each ready.
+const backlogViewOf = (items) => ({ declared: true, modelFile: "docs/process-models/fixture.md", modelUnread: null, model: MODEL,
+  teams: [{ team: "team1", owner: "alice", running: { name: "team1/01", path: "docs/backlog/sprints/team1/01.md", goal: "Read", closer: "alice", selection: ["ITM-001"] }, lastEnded: null }],
+  rows: items.map((item, at) => ({ item, path: `docs/backlog/${item}-item-${at + 1}.md`, title: `The work of item ${at + 1}`, realises: ["RULE ONE"], state: stateOf(item, "ready"), held: null, kept: [] })),
+  uncovered: { requirements: [], useCases: [] } });
+// A ProgressView (MOD-progress-measures' Interfaces) of team1's running sprint team1/01 with the items, each ready.
+const progressViewOf = (items) => ({ declared: true, modelFile: "docs/process-models/fixture.md", modelUnread: null, model: MODEL, measure: null,
+  teams: [{ team: "team1", sprint: { name: "team1/01", path: "docs/backlog/sprints/team1/01.md", goal: "Read", start: "2026-10-20", end: "", branch: "", closer: "alice", ended: null,
+    final: false, endable: true, items: items.map((item, at) => ({ item, path: `docs/backlog/${item}-item-${at + 1}.md`, title: `The work of item ${at + 1}`, state: stateOf(item, "ready"),
+      changes: ["MOD-reader"], uses: [] })), merges: [] } }],
+  gates: [], blocked: [], who: { participants: [], held: [], unreachable: [] } });
 
 // A fake of GitHub's pulls API and search, as their pages document them ("List pull requests": state, sort, direction, per_page, page, and the Link header naming the last page;
 // "Search issues and pull requests": total_count): `closed` pull requests closed in August, two open ones, and one merged on 2026-10-21, during the running sprint.
@@ -302,11 +319,12 @@ function pullsAndSearch(closed) {
 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-035
 // given: a product that declares its process model, with one team whose sprint 01 runs since 2026-10-20, two items; its pull requests: two open, one merged on 2026-10-21, and
-//        250 closed in August — and, as a second product, the same with 1,370 closed in August
-// input: open #implementation with a token
-// expect: the route progress is drawn — team1's running sprint team1/01 —; no request of the pulls lists state=all, and every request of closed pull requests is bounded: sorted by
-//         their update, newest first; both products send the same number of requests about pull requests, however many closed ones they hold
-test("#implementation draws progress, and its requests about pull requests are bounded, whatever the number of closed ones", async () => {
+//        250 closed in August; the branch overview-cache holds the progress view of the head (ITM-1260: MOD-implementation-pages' route `progress` "draws the view stored for the head
+//        … and reads no record, no facts and no pull request")
+// input: open #implementation with a token; and, as the counter-proof, the same without the stored view
+// expect: the route progress is drawn — team1's running sprint team1/01 — and no request about pull requests is sent, no /pulls and no /search/issues; without the stored view the
+//         page derives the view in the page and reads them
+test("#implementation draws progress from the view stored for its commit, and sends no request about pull requests", async () => {
   const sprinting = () => product({
     "docs/process.md": ["---", "model: fixture-scrum-wip", "model_file: docs/process-models/fixture.md", `model_version: ${"c0ffee".padEnd(40, "0")}`,
       "---", "# How the fixture product is developed", ""].join("\n"),
@@ -315,21 +333,15 @@ test("#implementation draws progress, and its requests about pull requests are b
     "docs/backlog/sprints/team1/01.md": "---\nsprint: 1\ngoal: Read\nstart: 2026-10-20\nend:\ncloser: alice\nbranch:\nselection:\n  - ITM-001\n  - ITM-002\n---\n# team1 Sprint 01\n",
     "docs/backlog/ITM-001-item-1.md": item(1), "docs/backlog/ITM-002-item-2.md": item(2),
   });
-  const counts = [];
-  for (const closed of [250, 1370]) {
-    const srv = await server(await sprinting(), [pullsAndSearch(closed)]);
-    const page = await openDashboard({ server: srv, hash: "#implementation" });
-    assert.match(page.main(), /data-team="team1"/, `${closed}: the route progress is drawn`);
-    assert.match(page.main(), /team1\/01/);
-    const about = page.requests.filter((r) => r.startsWith("handler GET https://api.github.com/")).map((r) => new URL(r.slice("handler GET ".length)))
-      .filter((url) => url.pathname.endsWith("/pulls") || url.pathname === "/search/issues");
-    assert.ok(about.some((url) => url.pathname.endsWith("/pulls")), "known positive: the pull requests are read");
-    assert.deepEqual(about.filter((url) => url.searchParams.get("state") === "all").map(String), [], `${closed}: no state=all`);
-    assert.deepEqual(about.filter((url) => url.searchParams.get("state") === "closed" && !(url.searchParams.get("sort") === "updated" && url.searchParams.get("direction") === "desc")).map(String), [],
-      `${closed}: every listing of closed pull requests is bounded`);
-    counts.push(about.length);
-  }
-  assert.equal(counts[0], counts[1], `as many requests about pull requests with 1,370 closed ones as with 250: ${counts.join(" and ")}`);
+  const about = (requests) => requests.filter((r) => r.startsWith("handler GET https://api.github.com/")).map((r) => new URL(r.slice("handler GET ".length)))
+    .filter((url) => url.pathname.endsWith("/pulls") || url.pathname === "/search/issues");
+  const stored = await openDashboard({ server: await server(await sprinting(), [pullsAndSearch(250), storedView("progress", progressViewOf(["ITM-001", "ITM-002"]))]), hash: "#implementation" });
+  assert.match(stored.main(), /data-team="team1"/, "the route progress is drawn");
+  assert.match(stored.main(), /team1\/01/);
+  assert.deepEqual(about(stored.requests).map(String), [], "no request about pull requests");
+  const derived = await openDashboard({ server: await server(await sprinting(), [pullsAndSearch(250)]), hash: "#implementation" });
+  assert.match(derived.main(), /team1\/01/);
+  assert.ok(about(derived.requests).some((url) => url.pathname.endsWith("/pulls")), "counter-proof: without the stored view the page reads the pull requests");
 });
 
 const item = (n) => ["---", `id: ITM-00${n}`, `title: The work of item ${n}`, "level: module", "realises:", "  - RULE ONE", "modules:", "  - MOD-reader",
