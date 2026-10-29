@@ -17,8 +17,10 @@
 // finding of documentFindings and of the caller's extraChecks falls on the line of one field: a finding on the line of a
 // key is shown beside the key's field, one on a section's heading line beside the section's field, and one on a line of
 // a section's text beside that line in its editor — a mark, counted from the editor's first line. A finding on the line of
-// no field — a key or a section the document lacks, which documentFindings names on line 1 — is shown at the end of the
-// form. An editor asks for its marks on each edit of its own text; the rest of the form is shown again on every edit.
+// no field is shown beside the field of the key its correction names in MOD-documents' words for a key left out ("give
+// the key <key> a value") — a key the document lacks, which documentFindings names on line 1 —, where the schema has that
+// key; any other — on a section the document lacks, or on a key the schema does not know — at the end of the form. An
+// editor asks for its marks on each edit of its own text; the rest of the form is shown again on every edit.
 //
 // Not built, since no caller needs them: the options secretKeys and readOnly; a key whose value is a number, which a field
 // shows as text and hands over as the text typed; the section under a document's title.
@@ -30,6 +32,9 @@ import { openEditor } from "../markdown-render/index.mjs";
 // What the Save of a section's editor answers.
 const SAVED_WITH_THE_FORM = { kind: "failed",
   reason: "a section is saved with its form — Save at the end of the form hands over the whole document" };
+
+// The correction documentFindings asks for a key left out, which names the key.
+const LEFT_OUT = /^give the key (\S+) a value$/;
 
 // The number of line ends in a text.
 const lineEnds = (text) => text.split("\n").length - 1;
@@ -127,10 +132,12 @@ export function schemaForm(schema, opened, { onSave, extraChecks = () => [] }) {
     for (const finding of found) {
       const key = keyAt.get(finding.line);
       const section = now.sections.findLast((candidate) => candidate.line <= finding.line);
+      const lacked = LEFT_OUT.exec(finding.fix ?? "")?.[1];
       if (beside.has(key)) beside.get(key).push(finding);
       else if (marks.has(section?.heading) && finding.line > section.line) {
         marks.get(section.heading).push({ ...finding, line: finding.line - section.line });
       } else if (beside.has(section?.heading)) beside.get(section.heading).push(finding);
+      else if (keys.includes(lacked)) beside.get(lacked).push(finding);
       else end.push(finding);
     }
     return { found, beside, marks, end };
