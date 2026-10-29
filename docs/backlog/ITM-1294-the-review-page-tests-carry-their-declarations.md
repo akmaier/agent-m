@@ -29,3 +29,12 @@ tests do — identifier, level, module, guards, given, input, expect — and its
 - The reader finds one declaration per case of `tests/review-page.test.mjs` and for that case of `load-per-view`, with no
   findings; no assertion changes.
 - Only those two test files change.
+- Tests of other modules this Outcome changes: none. The run was made on `main` at `b40c5059d` with nine stand-in
+  declarations, one before each of the eight cases of `review-page` and one before the case of `load-per-view`. The
+  reader then gives 8 declarations in `review-page` (0 before) and 11 in `load-per-view` (10 before), with 0 findings;
+  its known positive, `release-itm-1254-issue-move`, gives 4 and 0.
+  - The run took the two files, the seven tests that name either by its path, `test-document-one-line` and
+    `test-document-declarations`: 81 pass, 0 fail.
+  - It also took the Python checks of the test corpus (`test_references`, `test_test_battery`, `test_origin_links`,
+    `test_test_levels`, `test_identifiers`, `test_identifier_stability`): OK.
+- The new identifiers are free: on `main` no test declares an identifier beginning `TST-1294`.

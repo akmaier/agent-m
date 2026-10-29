@@ -50,6 +50,22 @@ After the change, as MOD-runtimes and MOD-workflow-entries say:
 A product whose files are not written again stays as it is: its pages read what its branches hold, and derive the views
 where they hold nothing.
 
+## Not ready: a draft for akmaier
+
+The third Acceptance asks `GraphNotStored` to read, in a product whose files do not run `onMainChanged`, "This product's
+graph is not stored yet: press *Install* on its Settings page.", and to name the workflow "main changed" elsewhere. To
+tell the two apart, `storedGraph` would have to read the product's workflow files. MOD-trace-graph says that it "reads
+no other file" than `<commit>.json.gz` on `trace-cache`, and "rejects with `GraphNotStored`, naming the commit and the
+workflow that stores it" (MOD-trace-graph.md:186-191). Neither sentence gives the product's text, nor a read that would
+choose it.
+
+Reading the origin's words into `storedGraph` would add a read its text excludes (AGENTS.md §6a.7). So a draft of
+MOD-trace-graph.md says what `GraphNotStored` names in a product whose files do not store the graph, and from what it
+knows that. The item is built once the draft is accepted.
+
+The other parts of the Outcome are given by MOD-runtimes.md:112 and :212-218 and by MOD-workflow-entries.md:132 and
+:363-372.
+
 ## Acceptance
 
 - Unit tests naming MOD-runtimes: for GitHub and GitLab, `jobWorkflowFiles` returns the main-changed file at the

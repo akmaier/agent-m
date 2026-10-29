@@ -27,6 +27,16 @@ The generated job workflow has one writer job per route, on GitHub (`hosted`, `r
 "Closed with" note per route. An issue already closed with links to that pull request is left as it is: it is closed and
 noted once.
 
+## Not ready: a draft for akmaier
+
+Leaving an issue "already closed with links to that pull request" as it is needs the issue's state and comments read
+before the note. `closeWithLinks` writes with `commentOnIssue` and `setIssueState` alone. Neither MOD-issue-handling's
+Uses (MOD-issue-handling.md:110-116) nor MOD-workflow-entries', which calls it (:57, :448), names a read of an issue such as
+`MOD-repository-hosts.readIssue`.
+
+So a draft names that read among the Uses of the module that makes it, with what it is read for. The item is built once
+the draft is accepted.
+
 ## Acceptance
 
 - A unit case runs the entry twice for one merged pull request, as two routes do, and finds one close and one note; it

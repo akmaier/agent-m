@@ -19,6 +19,7 @@ modules:
   - MOD-spec-document
   - MOD-trace-graph
   - MOD-spec-changes
+  - MOD-main-page
 builds_on:
   - ITM-1297
 tests:
@@ -32,7 +33,7 @@ origin:
 
 ## Outcome
 
-MOD-test-document's reader, over every test file under `tests/` (fixtures left out), finds 16 identifiers that two
+MOD-test-document's reader, over every test file under `tests/` (fixtures left out), finds 17 identifiers that two
 declarations hold:
 - TST-1225001 and 1225002: `agent-processes-prompt-delivery`, `site-frame-test-topics`;
 - TST-1206001: `endpoint-tool-loop`, `site-frame-tests-menu`;
@@ -45,7 +46,9 @@ declarations hold:
 - TST-1300001 to 1300003: `prompt-bar-spawn-reads`, `trace-graph-latest`;
 - TST-1300004: `prompt-bar-spawn-reads`, `trace-graph-publish`;
 - TST-472541: `repository-hosts-file-pages`, `repository-hosts-history`;
-- TST-677005: `spec-changes-accept-batched`, `spec-changes-queues-batched`.
+- TST-677005: `spec-changes-accept-batched`, `spec-changes-queues-batched`;
+- TST-1281001: `places-prepare-every-offered-kind` (added in `dbf9956a`), `main-page-home-instance` (added in `e08b9c56`,
+  ITM-1281).
 
 EVERY ARTIFACT HAS AN IDENTIFIER gives each artifact one of its own (SPEC.md:52-54). In each pair, the declaration added
 later, by the version history, takes a new identifier that no current file and no history holds (THE NAME IS THE ID AND IT
@@ -56,5 +59,21 @@ SURVIVES). The earlier one keeps its own.
 - Over every test file under `tests/`, the reader finds no identifier held by two declarations. The pull request names the
   run, and a known positive: a planted second declaration of one identifier is found.
 - Each renumbered declaration is named in the pull request, with its old and new identifier and the commit that added it.
-- Only the declarations' first lines change, and no expected result. CI is green on every commit (refactoring).
+- Only a renumbered identifier changes, wherever its own file names it, and no expected result. That covers the
+  declaration's first line, the test's title where it begins with the identifier (as in `site-frame-test-topics`), and
+  another case's `given:` or counter-proof that names it (as in `prompt-bar-spawn-reads` and `site-frame-tests-menu`).
+  CI is green on every commit (refactoring).
 - Tests of other modules this Outcome changes: only the test files listed above, each named by one of the item's modules.
+- The planning run was made on `main` at `b40c5059d`.
+  - **Before:** a reader over every test file under `tests/`, fixtures and Markdown left out, finds 5,531 identifiers, 17
+    of them held twice.
+  - **With the change applied:** each later file of the list renamed every naming of its identifier to a free one, and
+    `job-runner-prepare` renamed its second declaration. The reader then finds 1 held twice: TST-1281001, then not yet
+    on the list.
+  - **Tests run:** the 20 Node test files that declare the first 16 identifiers, the two that name one of them by its path
+    (`repository-hosts-read-file-at`, `runtimes-tab-endpoint-tools`), `test-document-one-line` and
+    `test-document-declarations`, 191 pass and 0 fail; the Python checks of the test corpus and `test_requirement_fields`
+    are OK.
+  - For TST-1281001, `main-page-home-instance` was renamed alike. It and `release-itm-1281-start-page-instance-reads`,
+    which names it by its path, give 7 pass and 0 fail.
+  - No other file names one of the identifiers, outside records.
