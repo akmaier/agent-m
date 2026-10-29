@@ -64,7 +64,7 @@ function assertViewContext(context) {
   assert.equal(typeof context.go, "function");
 }
 
-// TST-1206001 · level: unit · module: MOD-site-frame
+// TST-1302003 · level: unit · module: MOD-site-frame
 // guards: UC-026; UC-027; UC-028; UC-029; UC-030; THE MENU FOLLOWS THE PROCESS
 // given: the table of the dashboard's views, the list built.json and the menu that follows the process
 // input: the views runs, schedule, generate and trace in DASHBOARD, the views whose files were never built, builtViews(built.json), stageView and entryOf for the entry Tests
@@ -72,7 +72,7 @@ function assertViewContext(context) {
 //   tests-browser and audit are no view of the table; the entry Tests opens schedule, and #runs and #generate belong to it; built.json names no file for any of them
 // Planted fault: leaving the table as it is (tests with the file tests-runs-view.mjs) makes the entry Tests open nothing; the entry's views in the order runs,
 //   schedule, generate make it open runs.
-test("TST-1206001 the test pages' routes and the trace route are built in, and the menu entry Tests opens schedule", () => {
+test("TST-1302003 the test pages' routes and the trace route are built in, and the menu entry Tests opens schedule", () => {
   const built = builtViews(builtFiles);
   for (const [view, useCases] of Object.entries(ROUTES)) {
     const entry = DASHBOARD.find((candidate) => candidate.view === view);
@@ -92,7 +92,7 @@ test("TST-1206001 the test pages' routes and the trace route are built in, and t
 
 // TST-1206002 · level: unit · module: MOD-site-frame
 // guards: UC-028; THE MENU FOLLOWS THE PROCESS
-// given: counter-proof of TST-1206001: the table without the built-in views of the test pages
+// given: counter-proof of TST-1302003: the table without the built-in views of the test pages
 // input: builtViews over the table and over that table, stageView for the entry Tests over each
 // expect: with the table the entry Tests opens schedule; without its built-in views none of runs, schedule, generate is built and the entry Tests opens nothing (the known
 //   negative); the known positive: release is still built, and the entry Releases opens it

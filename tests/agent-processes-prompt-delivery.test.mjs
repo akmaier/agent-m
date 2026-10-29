@@ -60,14 +60,14 @@ const CASES = [
     endpoint: { kind: "anthropic", baseUrl: "https://anthropic.fixture.invalid", model: "fixture-model" } },
 ];
 
-// TST-1225001
+// TST-1302001
 // level: unit
 // module: MOD-agent-processes
 // guards: ONE DEFINITION, THREE DRIVERS; UC-010; UC-011; UC-049
 // given: controlled claude, codex and opencode executables on a fixture-only PATH that record their arguments and their whole standard input; claude also behind an Anthropic endpoint, which starts it through the module's settings wrapper
 // input: public agentDriver.send of a DriverInput whose prompt is 300 KB
 // expect: claude is started as `claude -p --output-format json`, codex as `codex exec -` and opencode as `opencode run --format json`, each with the endpoint's options where one is given; each reads the whole prompt once on its standard input; no argument is longer than 4 KB
-test("TST-1225001: a 300 KB prompt reaches each coding agent whole on its standard input, never as an argument", async (t) => {
+test("TST-1302001: a 300 KB prompt reaches each coding agent whole on its standard input, never as an argument", async (t) => {
   for (const each of CASES) {
     await t.test(each.label ?? each.name, async () => {
       const { root, bin, workdir, record } = fixture(each.name);
@@ -87,14 +87,14 @@ test("TST-1225001: a 300 KB prompt reaches each coding agent whole on its standa
   }
 });
 
-// TST-1225002
+// TST-1302002
 // level: unit
 // module: MOD-agent-processes
 // guards: A REMOTE INTERFACE NAMES HOW IT FAILS; UC-010; UC-011
 // given: a controlled claude executable that never reads its standard input; once it answers and exits 0, once it exits 7
 // input: public agentDriver.send of the 300 KB DriverInput
 // expect: the first send returns the agent's answer; the second throws AgentFailed with exitCode 7; neither fails on the unread input
-test("TST-1225002: an agent that does not read its input is judged by its exit, not by the unread prompt", async (t) => {
+test("TST-1302002: an agent that does not read its input is judged by its exit, not by the unread prompt", async (t) => {
   for (const exitCode of [0, 7]) {
     await t.test(`agent exits ${exitCode}`, async () => {
       const { root, bin, workdir, record } = fixture("claude", { reads: false, exitCode });
