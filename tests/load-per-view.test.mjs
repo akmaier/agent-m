@@ -389,7 +389,8 @@ test("an acceptance of three files reads its head once", async () => {
 // given: three use cases waiting for acceptance — UC-002 changed, UC-003 and UC-004 open
 // input: open #review/uc with a token
 // expect: the three use cases come in one batch of three and none by itself; the only file read by itself is the record of UC-002's last accepted
-//         text, which MOD-approvals reads; the commit and the request for the folders of the use cases once each, and no git/trees
+//         text, which MOD-approvals reads; the commit and the request for the folders of the use cases once each, and no git/trees; the one
+//         more request for folders is UC-002's last accepted text, read from the commit that added its record with `folders` naming the file
 test("#review/uc: the files it shows come in one batch", async () => {
   const repo = await product({ "docs/use-cases/UC-003-third.md": useCase("003", "Third"), "docs/use-cases/UC-004-fourth.md": useCase("004", "Fourth") });
   const srv = await server(repo);
@@ -399,8 +400,9 @@ test("#review/uc: the files it shows come in one batch", async () => {
   assert.deepEqual(srv.batches.map(sorted), [sorted([UC2, "docs/use-cases/UC-003-third.md", "docs/use-cases/UC-004-fourth.md"])]);
   assert.deepEqual(files(page.requests), recordOf(repo, "UC-002"), "only the record of UC-002's last accepted text is read by itself");
   assert.equal(count(page.requests, "commit"), 1);
-  assert.equal(count(page.requests, "folders"), 1);
+  assert.equal(count(page.requests, "folders"), 2, "the use cases' folders, and UC-002's last accepted text");
   assert.equal(count(page.requests, "tree"), 0);
+  assert.deepEqual(page.requests.filter((r) => r.startsWith("era ")), ["era commit", `era file ${UC2}`], "no tree of the older commit");
 });
 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
@@ -503,17 +505,20 @@ test("#use-case/id= and #module/id= of an accepted file read that one file by it
 // guards: A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT
 // given: UC-002, accepted in an earlier text, edited since
 // input: open #uc/UC-002 with a token
-// expect: the file once, the record's history once and the text the record names as the repository stood when the record was added —
-//         that commit's tree and that file —, each once; the head's commit and the request for its folders once, no git/trees of the head; the
+// expect: the file once, the record's history once and the text the record names as the file stood when the record was added — that commit,
+//         one request for its folders naming only the file (the options reach the real host through the frame's wrapper), and that file —,
+//         each once, and no tree of that older commit; the head's commit and the request for its folders once, no git/trees of the head; the
 //         page shows the difference to the text accepted before
-test("opening one use case reads that use case, the history of its record and the text the record names — no other file", async () => {
+test("opening one use case reads that use case, the history of its record and the text the record names — no other file, no older tree", async () => {
   const repo = await product();
-  const page = await openDashboard({ server: await server(repo), hash: "#uc/UC-002" });
+  const srv = await server(repo);
+  const page = await openDashboard({ server: srv, hash: "#uc/UC-002" });
+  assert.deepEqual(srv.folders.at(-1), [UC2], "the older commit is asked for the file alone: the options reach the real host");
   assert.deepEqual(files(page.requests), [...recordOf(repo, "UC-002"), UC2].sort());
   assert.deepEqual(page.requests.filter((r) => r.startsWith("history ")), [`history ${recordOf(repo, "UC-002")[0]}`]);
-  assert.deepEqual(page.requests.filter((r) => r.startsWith("era ")), ["era commit", "era tree", `era file ${UC2}`]);
+  assert.deepEqual(page.requests.filter((r) => r.startsWith("era ")), ["era commit", `era file ${UC2}`], "no tree of the older commit");
   assert.equal(count(page.requests, "commit"), 1);
-  assert.equal(count(page.requests, "folders"), 1);
+  assert.equal(count(page.requests, "folders"), 2, "the head's folders, and the older commit's, naming the file");
   assert.equal(count(page.requests, "tree"), 0);
   assert.match(page.main(), /Show the status/);
   assert.match(page.main(), /<section class="accepted-diff"><h3>Changed since it was last accepted<\/h3>/);

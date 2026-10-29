@@ -653,12 +653,12 @@ function pagesHost() {
   const host = Object.freeze({
     ...Object.fromEntries(Object.entries(real).map(([name, member]) => [name, typeof member === "function" ? noted(member) : member])),
     repositoryInfo: noted(() => (info ??= real.repositoryInfo().catch((e) => { info = null; throw e; }))),
-    readSnapshot: noted(async (ref) => {
-      if (ref === T.ref && snapshot && snapshotHost === real && (loading > 0 || written === snapshot)) {
+    readSnapshot: noted(async (ref, options) => {
+      if (ref === T.ref && !options?.folders && snapshot && snapshotHost === real && (loading > 0 || written === snapshot)) {
         written = null;
         return snapshot;
       }
-      return real.readSnapshot(ref);
+      return real.readSnapshot(ref, options);
     }),
     // The head a commit made is read once, for the app; the page shown again after it takes that read (the next one) and does not read it anew.
     commitFiles: noted(async (change) => {
