@@ -24,7 +24,8 @@ origin:
 The architecture's module files are found and read three times: `MODULE_FILE` and its loading line in
 `src/work-plans/strategies.mjs`, `src/issue-handling/backlog.mjs` and `src/maintenance-pages/issues.mjs`. A list field is
 read twice, `listOf` (`backlog.mjs`) and `namesOf` (`issues.mjs`), and an item's identifier and file have two near-equal
-patterns (`ITEM_IDENTIFIER`, `ITEM_FILE`). Each is defined once, in the module the others already use for the backlog, and
+patterns (`ITEM_IDENTIFIER`, `ITEM_FILE`); ITM-1254 adds a third, `BACKLOG_ITEM` with its reader `backlogItems` in
+`issues.mjs`, beside the same pattern in `src/work-plans/strategies.mjs`. Each is defined once, in the module the others already use for the backlog, and
 used from there; where that needs a function the module files do not name, the item stops and names it.
 
 ## Acceptance
