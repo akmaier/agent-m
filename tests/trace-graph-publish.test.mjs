@@ -54,7 +54,7 @@ function fakeHost({ held = {}, missing = false, moves = false } = {}) {
 // given: a fake host whose branch trace-cache stands at 1111… and holds no file of the commit; a snapshot of the small repository at abcdef…
 // input: publishGraph(host, snapshot)
 // expect: { commit: "abcdef…", written: true }; one commitFiles on branch "trace-cache" with expectedHead "1111…" and one file "abcdef….json.gz" whose bytes (a Uint8Array, no text) gunzip to graphText of the graph built
-//         from the files, which graphFromText restores for that commit, and "latest.json" beside it (TST-1300004); a message that names the commit
+//         from the files, which graphFromText restores for that commit, and "latest.json" beside it (TST-1302015); a message that names the commit
 test("publishGraph adds the graph of the commit to the head of trace-cache it read", async () => {
   const { host, state } = fakeHost();
   const built = await trace.traceGraph({ paths: snapshot.paths, read: snapshot.read }, { commit: COMMIT });
@@ -109,7 +109,7 @@ test("publishGraph fails with NotFound naming the branch when the repository has
   assert.equal(state.commits.length, 0);
 });
 
-// TST-1300004 · level: unit · module: MOD-trace-graph
+// TST-1302015 · level: unit · module: MOD-trace-graph
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: (a) a fake host whose branch trace-cache holds a latest.json naming another commit and no file of abcdef…; (b) a branch that holds abcdef….json.gz already and the same latest.json
 // input: publishGraph(host, snapshot) on each
