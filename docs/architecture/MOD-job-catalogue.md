@@ -38,7 +38,8 @@ FOR CHANGE`). It runs unchanged in a browser and in Node; it reads only its own 
 - `kinds/<name>/kind.md` — a kind's definition.
 - `kinds/<name>/prompt.md` — its prompt, in English, data only; a kind without a participant, such as `set-up-ci`, has
   none.
-- `kinds/<name>/answer.schema.json` — the shape of the draft it expects back; none for a kind without a participant.
+- `answers/<answer>.schema.json` — the shape of a draft a kind expects back, one file for each shape, which every kind
+  that expects that draft names in its definition's `answer_schema`; none for a kind without a participant.
 - `tools.md` — the tools a kind may offer its drafter, as a register: one row per tool.
 - `tools.schema.md` — the schema of that register, in the schema language of MOD-documents.
 - **Taken over, outside this folder** (`CODE OUTSIDE THE ARCHITECTURE IS MOVED INTO IT`; the count in `docs/measurements/2026-10-17_code-outside-every-module.md`). Each file goes as stated, in this module's own implementation jobs:
@@ -65,6 +66,7 @@ FOR CHANGE`). It runs unchanged in a browser and in Node; it reads only its own 
 | `gate_points` | `before-write`, `before-merge`, `question` | where a gate of the product's workflow, or a question to the author, stops a job |
 | `review` | `person` or `none` | `person`: where a person attends the job, its result waits for them — the page shows the draft, they may change it, and only their click lets it go on; `none`: the writer runs as soon as the loop and the steps have ended. Where nobody attends — on CI, on a Bridge that runs the job, in a run — every result is written at once |
 | `writer` | a strategy name | what writes the result |
+| `answer_schema` | the name of an answer schema under `answers/`, or nothing for a kind without a participant | the shape of the draft it expects back; kinds that expect the same draft name the same schema |
 | `limit` | a number | the default number of correction rounds, fixed before the first round |
 | `tools` | tool names of `tools.md` | the tools its drafter may be offered, each only where the drafter declares its capability (MOD-job-runner's `ToolUse`) |
 | `tool_limit` | a number, or left out | the most tool calls of one exchange with the drafter; left out, no number of calls ends the exchange |
@@ -214,7 +216,7 @@ decisions, the module files, the further decisions.
   string[], reviewer: string | null, reviewers: number, steps: string[], gatePoints: ("before-write" | "before-merge" |
   "question")[], review: "person" | "none", writer: string, limit: number, tools: string[], toolLimit: number |
   null, purpose: string, prompt: string, answer: object | null }`: a definition as read, its prompt and the schema of
-  its draft loaded with it; for a kind without a participant, which has neither, `prompt` is `""` and `answer` is
+  its draft — the one its `answer_schema` names under `answers/` — loaded with it; for a kind without a participant, which has neither, `prompt` is `""` and `answer` is
   `null`. `toolLimit` is `null` wherever the definition leaves `tool_limit` out, whether or not it names tools; a kind
   that names no tools has `tools` `[]`, offers none, and its `toolLimit` is never read.
 - `ToolDefinition` — `{ name: string, needs: Capability, description: string, input: object }`: one row of `tools.md`,
@@ -231,7 +233,8 @@ decisions, the module files, the further decisions.
 ## Files
 
 It reads its own data files: `kinds.md`, `kinds.schema.md`, `definition.schema.md`, `tools.md`, `tools.schema.md` and the files of each kind — its
-definition, and, for a kind with a participant, its prompt and the schema of its draft. It writes nothing.
+definition and, for a kind with a participant, its prompt —, and the answer schema under `answers/` each definition
+names. It writes nothing.
 
 ## Uses
 
