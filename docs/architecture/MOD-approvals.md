@@ -118,10 +118,12 @@ never written. A decision or module file that a record names and the snapshot no
   "changed" }>>` — the status of every reviewed file of a snapshot, keyed by path; computed in one pass over
   `docs/approvals/`, whose records it names to the snapshot's `readMany` first, so that their texts are read in batches,
   and counts each record as `statusOf` does. Crosses the network through the snapshot; fails with its errors.
-- `removedFiles(snapshot: Snapshot) -> Array<{ id: string, kind: "architecture-decision" | "module", path: string, lastBlob: string }>` — every
+- `removedFiles(snapshot: Snapshot, host: Host) -> Promise<Array<{ id: string, kind: "architecture-decision" | "module", path: string, lastBlob: string }>>` — every
   decision or module file that a record names and of whose identifier the snapshot holds no file, and whose removal no record accepts (no record of
-  that identifier names the empty text's blob): `path` and `lastBlob` are those of the most recent record of the identifier. It is computed in the
-  same pass over `docs/approvals/` as `statuses`, in the order of the identifiers.
+  that identifier names the empty text's blob), in the order of the identifiers: which they are is found in the pass over `docs/approvals/` of
+  `statuses`; `path` and `lastBlob` are the `file` and `blob` of the most recent record of the identifier, "most recent" as `lastAcceptedText`
+  orders records, by the commits that added them, read through the host's history only for the identifiers of removed files. Crosses the
+  network; fails with the host's errors.
 - `lastAcceptedText(id: string, host: Host) -> Promise<{ text: string, blob: string, path: string } | null>` — the text
   named by the most recent approval record of an identifier, also when the file has been renamed since; `null` when no
   record names it. A record whose content names another blob than its name, or a file of another identifier, counts as
