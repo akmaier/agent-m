@@ -41,6 +41,7 @@ provides:
   - PageSetup
   - startPage
   - embedRoute
+  - standIn
   - menuOf
   - instanceOf
   - chosenProduct
@@ -211,6 +212,15 @@ It keeps nothing but what is on the screen. It owns these formats:
   another view loaded on the same page inside an element of the calling view, so one view can show another's part
   without using it. Error: `RouteNotLoaded` — the route is not on this page; the frame then puts a link to it in
   `target`.
+- `standIn(head: { name: string, entry: Route["entry"], entryShown?: Route["entryShown"], title: string }, module: () ->
+  Promise<Route>) -> Route` — the one way a view lists a route whose own file is imported only when it is needed: a
+  whole `Route` whose `name`, `entry`, `entryShown` and `title` are the head's and whose `module` is the one given. Its
+  `render` imports the route's file through `module` once and calls that route's `render`; its `subject`, `leave` and
+  `unsaved` call that route's once it is imported, and before it give what a route not yet shown gives: `subject` `null`
+  — the frame's default —, `leave` `true` and `unsaved` `false`, since nothing of it is on the screen; its `reads` and
+  `folders` are those of the imported route, which the frame imports before it reads the page's snapshot. The import
+  is asked once however many members call it, and a failed import is asked again at the next call. It reads nothing
+  itself; it fails as `module` fails, when one of its members imports.
 - `menuOf(page: "main" | "review", loaded: string[], product?: string | null) -> MenuEntry[]` — the entries in the order
   of `THE MENU FOLLOWS THE PROCESS`: Requirements, Use cases, Architecture, Implementation, Tests, Releases, then
   Maintenance and Settings; each `{ key, label, href: string | null, title }`; on the review pages `href` null and `title`

@@ -13,6 +13,7 @@ uses:
   - MOD-site-frame.runPanel
   - MOD-site-frame.confirmDecision
   - MOD-site-frame.schemaForm
+  - MOD-site-frame.standIn
   - MOD-markdown-render.renderArtifact
   - MOD-markdown-render.renderMermaid
   - MOD-markdown-render.showDifference
@@ -290,3 +291,5 @@ product's `docs/sources.md`.
 - MOD-work-plans.workStrategies, MOD-run-planner.runStrategies,
   MOD-test-schedule.scheduleStrategies, MOD-result-records.resultStrategies, MOD-runtimes.routeStrategies,
   MOD-approvals.approvalStrategies — the strategies of its kinds, handed to the frame.
+- MOD-site-frame.standIn — each route of its `view` whose own file is imported only when the route is first shown,
+  embedded or asked for its subject, listed as the frame writes such a route.

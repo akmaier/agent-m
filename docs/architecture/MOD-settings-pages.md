@@ -14,6 +14,7 @@ uses:
   - MOD-site-frame.runPanel
   - MOD-site-frame.confirmDecision
   - MOD-site-frame.schemaForm
+  - MOD-site-frame.standIn
   - MOD-markdown-render.renderArtifact
   - MOD-browser-store.openStore
   - MOD-browser-store.readSetting
@@ -339,3 +340,5 @@ reaches.
 - MOD-notifications.NotificationState, MOD-notifications.notificationState, MOD-notifications.switchOn,
   MOD-notifications.testNotification, MOD-notifications.switchOff — the line *Notifications*: its state, *Switch on* in
   the person's click, *Test* and *Switch off*.
+- MOD-site-frame.standIn — each route of its `view` whose own file is imported only when the route is first shown,
+  embedded or asked for its subject, listed as the frame writes such a route.

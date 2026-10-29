@@ -13,6 +13,7 @@ uses:
   - MOD-site-frame.runPanel
   - MOD-site-frame.confirmDecision
   - MOD-site-frame.schemaForm
+  - MOD-site-frame.standIn
   - MOD-markdown-render.renderArtifact
   - MOD-markdown-render.openEditor
   - MOD-browser-store.readSetting
@@ -212,3 +213,5 @@ instance's participants and source register.
   MOD-runtimes.runOnTab, MOD-runtimes.liveState — running the kinds of this page on their routes.
 - MOD-issue-handling.issueStrategies, MOD-mail-handling.mailStrategies, MOD-personal-data.privacyStrategies,
   MOD-spec-changes.specStrategies, MOD-runtimes.routeStrategies — the strategies of its kinds, handed to the frame.
+- MOD-site-frame.standIn — each route of its `view` whose own file is imported only when the route is first shown,
+  embedded or asked for its subject, listed as the frame writes such a route.
