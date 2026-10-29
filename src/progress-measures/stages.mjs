@@ -231,7 +231,7 @@ export function waitingForAPerson(facts) {
  * @returns {Promise<Array<{ kind: string, id: string, path: string, blob: string }>>}
  */
 export async function waitingForAcceptance(host, snapshot) {
-  const specChanges = openSpecChanges(await queues(snapshot));
+  const specChanges = openSpecChanges((await waitingQueues(snapshot)).queues);
   const reviewed = waitingReviewed(statuses(snapshot), REVIEWED_KINDS).map((file) => ({ ...file, blob: snapshot.blob(file.path) }));
   const report = await reportsAwaitingAcceptance(host, snapshot);
   const releaseReport = report ? [{
@@ -286,26 +286,30 @@ export async function publishOverview(host, snapshot, facts) {
   return { commit, written: true };
 }
 
-// The overviews read in this page, by the snapshot they were read for: a commit's overview does not change once it is stored, so the overview of one snapshot is read once
-// however many views ask for it. One that is missing or failed is not kept, and is read again at the next call.
+// The overviews read in this page, by repository and commit: a commit's overview does not change once it is stored, so it is read once however many snapshots of the commit
+// (of one repository, as the host gives them) ask; a snapshot with no object as its repository is kept by itself. One that is missing or failed is not kept, and is read again at the next call.
 const OVERVIEWS = new WeakMap();
 
 const isFile = (value) => value !== null && typeof value === "object" && typeof value.path === "string" && typeof value.text === "string";
 
 /**
  * storedOverview(snapshot) -> Promise<{ shares, waiting, model, build: { states, records }, queues } | null> — the overview stored for the snapshot's commit, read with the
- * snapshot's readOn in one request, once for each snapshot; null where the branch or the file is missing or holds another format (not JSON, another shape, another commit, or an
+ * snapshot's readOn in one request, once for each commit of a repository in a page; null where the branch or the file is missing or holds another format (not JSON, another shape, another commit, or an
  * overview without the model, the build and the queues).
  * @param {object} snapshot
  */
 export function storedOverview(snapshot) {
   if (snapshot === null || typeof snapshot !== "object") return Promise.resolve(null);
-  if (!OVERVIEWS.has(snapshot)) {
+  const scope = snapshot.repository !== null && typeof snapshot.repository === "object" ? snapshot.repository : snapshot;
+  if (!OVERVIEWS.has(scope)) OVERVIEWS.set(scope, new Map());
+  const kept = OVERVIEWS.get(scope);
+  const commit = snapshot.commit;
+  if (!kept.has(commit)) {
     const reading = readOverview(snapshot);
-    OVERVIEWS.set(snapshot, reading);
-    reading.then((held) => { if (held === null) OVERVIEWS.delete(snapshot); }, () => OVERVIEWS.delete(snapshot));
+    kept.set(commit, reading);
+    reading.then((held) => { if (held === null) kept.delete(commit); }, () => kept.delete(commit));
   }
-  return OVERVIEWS.get(snapshot);
+  return kept.get(commit);
 }
 
 const LATEST = "latest.json";
@@ -324,6 +328,20 @@ export async function latestOverview(snapshot) {
   if (!/^[0-9a-f]{40}$/.test(commit)) return null;
   const held = await readOverview({ readOn: snapshot.readOn, commit });
   return held && { commit, ...held };
+}
+
+/**
+ * waitingQueues(snapshot) -> Promise<{ queues, asOf: string | null }> — the change queues with an entry not in the SPEC yet: those of the overview stored for the snapshot's commit, and asOf
+ * null; while that is not stored yet, those of the overview stored last, and asOf its commit; where the repository stores no overview, those MOD-spec-changes' queues derives from every queue
+ * of the snapshot, and asOf null. Fails with the host's errors but NotFound.
+ * @param {object} snapshot
+ */
+export async function waitingQueues(snapshot) {
+  const own = await storedOverview(snapshot);
+  if (own) return { queues: own.queues, asOf: null };
+  const last = await latestOverview(snapshot);
+  if (last) return { queues: last.queues, asOf: last.commit };
+  return { queues: await queues(snapshot), asOf: null };
 }
 
 async function readOverview(snapshot) {
