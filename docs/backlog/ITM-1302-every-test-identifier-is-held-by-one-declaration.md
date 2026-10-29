@@ -52,7 +52,10 @@ declarations hold:
 
 EVERY ARTIFACT HAS AN IDENTIFIER gives each artifact one of its own (SPEC.md:52-54). In each pair, the declaration added
 later, by the version history, takes a new identifier that no current file and no history holds (THE NAME IS THE ID AND IT
-SURVIVES). The earlier one keeps its own.
+SURVIVES). The earlier one keeps its own. One exception applies: where a record names the identifier with one
+declaration, that declaration keeps it and the other takes a new one. A record is never changed, and a counter-proof
+record under `docs/tests/counter-proofs/` is read by its identifier. That is the case for TST-1225001 and 1225002,
+whose records name `agent-processes-prompt-delivery`'s cases (commit `9482a66b`).
 
 ## Acceptance
 
