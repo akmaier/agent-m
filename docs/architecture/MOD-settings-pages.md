@@ -17,6 +17,7 @@ uses:
   - MOD-markdown-render.renderArtifact
   - MOD-browser-store.openStore
   - MOD-browser-store.readSetting
+  - MOD-browser-store.tokenKeyOf
   - MOD-browser-store.writeSetting
   - MOD-browser-store.clearSetting
   - MOD-browser-store.clearEverything
@@ -283,7 +284,8 @@ reaches.
 - MOD-browser-store.openStore, MOD-browser-store.readSetting, MOD-browser-store.writeSetting,
   MOD-browser-store.clearSetting, MOD-browser-store.clearEverything, MOD-browser-store.listSettings,
   MOD-browser-store.exportSettings, MOD-browser-store.importSettings, MOD-browser-store.expiringSoon — every browser
-  setting, its export and import; MOD-browser-store.readExport — the tokens an import file holds, read before the import;
+  setting, its export and import; MOD-browser-store.tokenKeyOf — the key a product's own token is stored and changed
+  under; MOD-browser-store.readExport — the tokens an import file holds, read before the import;
   MOD-browser-store.secretValues — the stored secrets a host it connects refuses to commit
   (`NO SECRET IN THE REPOSITORY`).
 - MOD-repository-hosts.parseAddress, MOD-repository-hosts.connect, MOD-repository-hosts.readSnapshot,

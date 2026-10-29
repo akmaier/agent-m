@@ -18,6 +18,7 @@ uses:
   - MOD-markdown-render.openEditor
   - MOD-markdown-render.showDifference
   - MOD-browser-store.readSetting
+  - MOD-browser-store.tokenKeyOf
   - MOD-bridge-client.bridgeAt
   - MOD-repository-hosts.readSnapshot
   - MOD-repository-hosts.repositoryInfo
@@ -293,7 +294,8 @@ and `docs/participants.md` of the instance.
   the `ref` the frame read the repository shown at.
 - MOD-markdown-render.renderArtifact, MOD-markdown-render.openEditor, MOD-markdown-render.showDifference — files,
   editors, differences.
-- MOD-browser-store.readSetting — the endpoints' configurations and the Bridges' settings a job in the tab needs;
+- MOD-browser-store.readSetting — the endpoints' configurations and the Bridges' settings a job in the tab needs, and
+  the token kept for the page's product; MOD-browser-store.tokenKeyOf — the key that token is kept under;
   MOD-bridge-client.bridgeAt — a handle for each Bridge, handed to the runtimes.
 - MOD-repository-hosts.readSnapshot — the product's files, at the `ref` its `ViewContext` hands it, so that no route
   asks for the default branch on load; MOD-repository-hosts.repositoryInfo — whether the person may write and the

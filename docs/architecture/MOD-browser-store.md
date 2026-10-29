@@ -15,6 +15,7 @@ provides:
   - StoreError
   - openStore
   - readSetting
+  - tokenKeyOf
   - writeSetting
   - clearSetting
   - clearEverything
@@ -113,6 +114,11 @@ it the file cannot be read, and the passphrase cannot be recovered.
   the instance's keys; an old entry is removed once what it holds stands there, and a value the instance keeps already is
   never replaced. Throws `StorageUnavailable`.
 - `readSetting(store: Store, key: SettingKey) -> unknown | null` — the value, or `null` when it is not set.
+- `tokenKeyOf(address: string) -> SettingKey` — the key a product's own token is kept under, from the web address of
+  the product's repository as `products` keeps it: `github-token:<owner>/<repository>` for a repository on
+  `github.com`, `gitlab-token:<server>/<project>` on any other server. It reads nothing and is the one place that rule
+  stands, for this module's conversion of older keys and for every module above it. Throws a `TypeError` for a text that
+  is no address.
 - `writeSetting(store: Store, key: SettingKey, value: unknown) -> void` — stores a value under a key of the catalogue.
   Throws `UnknownSetting` for any other key and `StorageUnavailable`. It sets no cookie and puts nothing into an address.
   A notice the person must read first — for the mailbox password, the shared Pages origin — is shown by the page; the

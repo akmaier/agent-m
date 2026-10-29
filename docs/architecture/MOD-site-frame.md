@@ -10,6 +10,7 @@ uses:
   - MOD-markdown-render.openEditor
   - MOD-browser-store.openStore
   - MOD-browser-store.readSetting
+  - MOD-browser-store.tokenKeyOf
   - MOD-browser-store.expiringSoon
   - MOD-browser-store.secretValues
   - MOD-repository-hosts.parseAddress
@@ -45,7 +46,6 @@ provides:
   - instanceOf
   - chosenProduct
   - productHostFollowingStore
-  - tokenKeyOf
   - explain
   - runPanel
   - confirmDecision
@@ -242,9 +242,6 @@ It keeps nothing but what is on the screen. It owns these formats:
   holds at that call — the connection `chosenProduct` makes —, so that a token cleared or replaced since is not used and a
   commit that holds a stored secret is refused (`A CLEAR IS A REAL CLEAR`, `NO SECRET IN THE REPOSITORY`). One host for
   each product, however often it is asked for. Errors: the `TypeError` of MOD-repository-hosts' `parseAddress` for an entry that is no repository address.
-- `tokenKeyOf(address: RepositoryAddress) -> string` — the key a product's own token is kept under in the browser's store: `github-token:<owner>/<repository>` for a GitHub product,
-  `gitlab-token:<server>/<project>` for a GitLab product (MOD-browser-store, Data). It reads nothing and is the one place that rule stands, for the frame and for the pages that
-  read a product's token setting, such as the name it is stored under.
 - `explain(topic: string, label?: string) -> Element` — the folded *What is this?* of a topic, or the fold under the
   label a use case names for it (such as *Why these?*), from `explanations.md`, rendered by the
   renderer (`EVERY STEP EXPLAINS ITSELF`); used by the site's views and by the Bridge's window. It never throws: for a
@@ -290,6 +287,7 @@ It writes nothing.
 - MOD-markdown-render.renderArtifact — to render the explanations and the live page's Markdown; MOD-markdown-render.openEditor — for a section field
   of a form.
 - MOD-browser-store.openStore, MOD-browser-store.readSetting — the products, tokens and the instance's key;
+  MOD-browser-store.tokenKeyOf — the key a product's own token is read under;
   MOD-browser-store.expiringSoon — the expiry notice; MOD-browser-store.secretValues — handed to every host it connects,
   which refuses a commit that would write one.
 - MOD-repository-hosts.parseAddress, MOD-repository-hosts.connect — to connect the instance and the chosen product,
