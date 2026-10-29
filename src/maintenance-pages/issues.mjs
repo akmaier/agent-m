@@ -24,7 +24,8 @@
 //   - An existing item (ITM-1254, UC-033 4a): the click on Move to backlog also lists, beside the form, the items of the backlog at the default branch (docs/backlog/ITM-<n>-<slug>.md), each with its identifier, its title and the button "Add to <identifier>" (the person's click), which
 //     writes with `moveToBacklog` given that identifier as `existing` and shows what Add shows.
 //   - An issue not classified yet (ITM-1254, UC-033 1a): where the move would stand, the page says that it is not offered because the issue is not classified, and leads to UC-012, step 2 with the button "UC-012, step 2", which goes to that use case through the context's
-//     `go`, as the fix leads to UC-017. An issue classified as not reproducible is classified, and the page says nothing of the move for it.
+//     `go`, as the fix leads to UC-017. Both use cases are Agent M's own, so each lead's `go` names the empty product, which names the instance itself (MOD-site-frame's ViewContext). An issue classified as not reproducible is
+//     classified, and the page says nothing of the move for it.
 //   - The fix (ITM-583): a section "Fix" is shown for an open issue whose class is bug — by its label, or by the person's click on Bug —, built as the analysis is (`runSection`) over the kind `fix-bug`, whose participants are those of the register that declare what the kind needs
 //     (write to the repository, run code and tests). Without one the section says so and a button UC-017 leads to that use case (UC-012 5b). The job's parameters are `issue`; `violated`, the requirement the person names in <input class="fix-requirement"> (left out when blank); `wrong`, the
 //     files the analysis proposed as wrong; `modules`, those of <input class="fix-modules">, which holds the modules whose folder holds a file the analysis names as wrong when the section is drawn, and which the person corrects; and `route`, the participant's route as the record writes
@@ -429,10 +430,10 @@ async function fixSection({ context, product, issue, proposal }) {
     modules.value = analysisOf(await architectureOf(head), proposal()).modules.join(", ");
   } catch { /* the field stays empty for the person to fill */ }
   const none = () => {
-    // It leads to UC-017 only through the context's go, as the frame's button (MOD-test-pages does the same).
+    // It leads to Agent M's own UC-017 only through the context's go, with the empty product, which names the instance itself.
     const lead = el("button", "uc-017 btn", "UC-017");
     lead.setAttribute("type", "button");
-    lead.addEventListener("click", () => context.go("use-case", { id: "UC-017" }));
+    lead.addEventListener("click", () => context.go("use-case", { id: "UC-017", product: "" }));
     return el("p", "issue-no-fixer", "No participant that can run code and tests is configured, so this bug cannot be fixed here: a model endpoint may analyse an issue but cannot fix it. Declare such a participant — ", lead, ".");
   };
   const route = async (chosen, participants, head) => {
@@ -509,7 +510,7 @@ async function renderIssue(target, context, params = {}) {
   function notClassified() {
     const lead = el("button", "uc-012 btn", "UC-012, step 2");
     lead.setAttribute("type", "button");
-    lead.addEventListener("click", () => context.go("use-case", { id: "UC-012" }));
+    lead.addEventListener("click", () => context.go("use-case", { id: "UC-012", product: "" }));
     return el("p", "move-not-offered", "Move to backlog is not offered: this issue is not classified yet as a bug or a change. Analyse it and decide its class — ", lead, ".");
   }
   // The move section is built once, and shown while the issue's class is bug or change.
