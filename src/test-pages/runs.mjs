@@ -345,9 +345,12 @@ async function detail(target, context, commit) {
   const head = testsHead(context, { title: "Runs", shown: "Runs",
     reads: readsAt(context.product.address, commit.slice(0, 7), `and the records of its runs on the branch ${RESULTS_BRANCH}, read now; nothing here is stored.`) });
   head.append(shown);
-  let results;
+  // Of the branch test-results only the records of the commit shown and of the last release's commit are read, through a snapshot narrowed to their folders.
+  let results, tags;
   try {
-    results = await host.readSnapshot(RESULTS_BRANCH);
+    tags = await host.listTags();
+    const lastRelease = lastReleaseOf(tags);
+    results = await host.readSnapshot(RESULTS_BRANCH, { folders: [`runs/${commit}`, ...(lastRelease ? [`runs/${lastRelease}`] : [])] });
   } catch {
     const links = host.webLinks();
     const branch = el("a", null, `Open the branch ${RESULTS_BRANCH} on the server`);
@@ -359,8 +362,11 @@ async function detail(target, context, commit) {
     return;
   }
   const snapshot = await host.readSnapshot(commit);
-  const declarations = (await Promise.all(snapshot.paths.filter(isTestFile).map(async (path) => testDeclarations(path, (await snapshot.read(path)) ?? "")))).flat();
-  const [graph, saved, tags] = await Promise.all([storedGraph(snapshot, commit), snapshot.read(SCHEDULE_PATH), host.listTags()]);
+  // The files the page shows are named to readMany first, so that they are read in batches (A PAGE LOAD READS THE REPOSITORY IN BATCHES).
+  const testPaths = snapshot.paths.filter(isTestFile);
+  await Promise.all([results.readMany(results.paths.filter((path) => path.endsWith(".md"))), snapshot.readMany(testPaths)]);
+  const declarations = (await Promise.all(testPaths.map(async (path) => testDeclarations(path, (await snapshot.read(path)) ?? "")))).flat();
+  const [graph, saved] = await Promise.all([storedGraph(snapshot, commit), snapshot.read(SCHEDULE_PATH)]);
   const schedule = saved == null ? defaultSchedule() : readDocument(scheduleSchema, SCHEDULE_PATH, saved);
   const tests = declarations.map(({ id, level }) => ({ id, level }));
   const [levels, flaky, rates] = await Promise.all([resultsAt(results, commit, tests), flakyTests(results, commit), rateComparison(results, commit, lastReleaseOf(tags))]);
