@@ -133,7 +133,8 @@ test("UC-008 main flow: a use case is shown with its text and diagram; one click
   assert.equal(afterWrite.filter((r) => r === "commit").length, 1, `the new head is read once: ${afterWrite}`);
   assert.equal(made.slice(0, made.indexOf("write tree")).filter((r) => r === "commit").length, 1, `the head is read once before the commit: ${made}`);
   // Under the reviewer's own account: every request of the commit carries the stored token.
-  const commitRequests = srv.seen.filter((r) => r.method !== "GET");
+  // GitHub's GraphQL queries are reads sent as POST — the folders a load reads its snapshot with (ITM-1266) —, no request of the commit.
+  const commitRequests = srv.seen.filter((r) => r.method !== "GET" && r.url !== `${API}/graphql`);
   assert.ok(commitRequests.length === 3 && commitRequests.every((r) => r.auth === `Bearer ${TOKEN}`), JSON.stringify(commitRequests));
   // The page reads the new commit and shows the use case accepted, without an Accept.
   assert.match(page.main(), /<span class="badge b-accepted">accepted<\/span>/);

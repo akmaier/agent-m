@@ -3,7 +3,7 @@
 //
 // The app is the real module, imported fresh for every page load. Around it: a DOM that keeps what the app writes into its
 // elements, localStorage, the Cache Storage (shared between page loads when the test says so), and GitHub's REST API served
-// from a set of files and GitHub's batch request (POST /graphql) — every request counted by what it reads. The git-data endpoints a commit uses (ref, commit, tree, update
+// from a set of files, GitHub's batch request and its query of folders' entries (POST /graphql) — every request counted by what it reads. The git-data endpoints a commit uses (ref, commit, tree, update
 // of the ref, fast-forward only) are served too, and a commit changes the files; a test adds the servers its view talks to as
 // request handlers of its own. A button the app wired is found by its
 // attribute and clicked with an event the test gives — trusted or not. No request leaves this process.
@@ -30,7 +30,7 @@ export async function repoServer({ files: given, history = [], dates = {}, repo 
   const shas = Object.fromEntries(await Promise.all(Object.entries(files).map(async ([p, t]) => [p, await blobSha(t)])));
   const bySha = Object.fromEntries(await Promise.all(history.map(async (t) => [await blobSha(t), t])));
   for (const [p, s] of Object.entries(shas)) bySha[s] = files[p];
-  const requests = [], writes = [], batches = [];
+  const requests = [], writes = [], batches = [], folderReads = [];
   let pending = 0, head = empty ? null : first, seq = 0;
   // The commit that added an approval record: the head, or, for a record that names a text its file no longer holds, an earlier commit
   // whose tree is the head's with that text at the file's path — the history that readHistory lists and the reads at that commit find
@@ -121,6 +121,37 @@ export async function repoServer({ files: given, history = [], dates = {}, repo 
       // GitHub's batch query: many files of one commit in one request, one aliased field for each (repository.object(expression:
       // "<commit>:<path>") on a Blob); a path the commit does not hold answers null. Counted as `batch <n>`, and the paths it names are
       // listed in `batches`.
+      // GitHub's query of the entries of named folders (repository.object(expression: "<commit>:<folder>") on a Tree, its `entries`
+      // with their name, type and oid, and a tree entry's own `entries` as deep as the query nests them; a named file on a Blob, its
+      // oid): one aliased field e<n> for each folder or file. Counted as `folders`, and the paths it names are listed in `folders`.
+      if (method === "POST" && p === "/graphql" && /\be\d+:object\(expression:/.test(JSON.parse(init.body).query)) {
+        what = "folders";
+        const query = JSON.parse(init.body).query;
+        const fields = [...query.matchAll(/(e\d+):object\(expression:("(?:[^"\\]|\\.)*")\)/g)];
+        const repository = {}, named = [];
+        for (const [i, m] of fields.entries()) {
+          const expression = JSON.parse(m[2]), at = expression.indexOf(":"), commit = expression.slice(0, at), path = expression.slice(at + 1);
+          const held = commit === head ? files : eras.get(commit)?.files ?? {};
+          const text = query.slice(m.index, fields[i + 1]?.index ?? query.length);
+          const depth = (text.match(/entries\{/g) ?? []).length;
+          named.push(path);
+          const entriesOf = (folder, left) => {
+            const below = new Map();
+            for (const file of Object.keys(held)) {
+              if (!file.startsWith(`${folder}/`)) continue;
+              const [name, ...rest] = file.slice(folder.length + 1).split("/");
+              if (!below.has(name)) below.set(name, rest.length ? "tree" : "blob");
+            }
+            return [...below].sort().map(([name, type]) => ({ name, type, oid: type === "blob" ? blobShaOf(held[`${folder}/${name}`]) : "t".repeat(40),
+              ...(type === "tree" ? { object: left > 1 ? { entries: entriesOf(`${folder}/${name}`, left - 1) } : null } : {}) }));
+          };
+          if (path in held) repository[m[1]] = { oid: blobShaOf(held[path]) };
+          else if (Object.keys(held).some((file) => file.startsWith(`${path}/`))) repository[m[1]] = { entries: entriesOf(path, depth) };
+          else repository[m[1]] = null;
+        }
+        folderReads.push(named);
+        return json({ data: { repository } });
+      }
       if (method === "POST" && p === "/graphql") {
         const asks = [...JSON.parse(init.body).query.matchAll(/(f\d+):object\(expression:("(?:[^"\\]|\\.)*")\)/g)]
           .map((m) => [m[1], JSON.parse(m[2])]);
@@ -183,7 +214,7 @@ export async function repoServer({ files: given, history = [], dates = {}, repo 
   };
   // Another commit on the branch: `path` gets `text`, and the branch moves on.
   const change = async (path, text) => { await put(path, text); head = next("e"); };
-  return { files, shas, requests, writes, batches, change, fetch: fetchMock, get head() { return head; }, get pending() { return pending; } };
+  return { files, shas, requests, writes, batches, folders: folderReads, change, fetch: fetchMock, get head() { return head; }, get pending() { return pending; } };
 }
 
 // The Cache Storage of a browser, in memory.
