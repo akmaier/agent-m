@@ -172,19 +172,19 @@ test("#arc/<id>: a module that names what is not accepted says so, and is not of
 // input: open #spec with a token
 // expect: no overview is stored for the commit, so the app reads, as MOD-site-frame states it ("the change queues stored for the commit, read
 //         beside the first wave of `#spec` …; where no overview is stored, the index and decisions of every queue are read, then the proposals of
-//         those still open"), in four waves, each one request: the SPEC — 1 file —, then the queues' heads — 3 files, the two queues' index files
-//         being the same blob —, then the proposals of the open queue — 1 file —, then its rationale — 1 file, named to the batch before the impact
-//         list of the open entry reads it (the statuses of the specification view, UC-020 step 3); the graph that impact list is made from is the
+//         those still open"), in three waves, each one request: the SPEC — 1 file —, then the queues' heads — 3 files, the two queues' index files
+//         being the same blob —, then the proposals of the open queue — 1 file —. The open entry's rationale is not read (ITM-1274: the impact list of the open entry is made from its proposal and target, MOD-spec-changes' entryImpact, "it reads no rationale"); the impact list of the open entry (the statuses of the specification view, UC-020 step 3)
+//         is made from the stored graph and from nothing else; the graph that impact list is made from is the
 //         stored one, and no batch of its artifacts is sent (MOD-trace-graph: "A page never builds the graph"); no file twice, the accepted queue's
 //         proposal not at all, and no file by itself. The open entry stands under "SPEC changes waiting for acceptance" as a link with its state
 //         open; the written one does not.
-test("#spec: the app reads the SPEC in one batch, the queues' heads in a second, the open queue's proposals in a third and its rationale in a fourth, and builds no graph", async () => {
+test("#spec: the app reads the SPEC in one batch, the queues' heads in a second, the open queue's proposals in a third, and builds no graph", async () => {
   const repo = await product(), srv = await server(repo);
   const page = await openDashboard({ server: srv, hash: "#spec" });
   const wave1 = ["SPEC.md"], heads = sorted([`${DONE}/entscheidungen.md`, `${DONE}/index.md`, `${OPEN}/entscheidungen.md`]);
-  const wave3 = [`${OPEN}/01-more.md`], wave4 = [`${OPEN}/01-more.begruendung.md`];
-  assert.deepEqual(batchesOf(page.requests), ["batch 1", "batch 3", "batch 1", "batch 1"]);
-  assert.deepEqual(srv.batches.map(sorted), [wave1, heads, wave3, wave4], "no fifth batch: no graph is built from the files");
+  const wave3 = [`${OPEN}/01-more.md`];
+  assert.deepEqual(batchesOf(page.requests), ["batch 1", "batch 3", "batch 1"]);
+  assert.deepEqual(srv.batches.map(sorted), [wave1, heads, wave3], "no fourth batch: no graph is built from the files");
   assert.equal(new Set(srv.batches.flat()).size, srv.batches.flat().length, "no file twice");
   assert.deepEqual(shownFiles(page.requests), [], "the app reads no file by itself");
   const main = page.main();
@@ -198,7 +198,7 @@ test("#spec: the app reads the SPEC in one batch, the queues' heads in a second,
 // input: open #spec with a token
 // expect: the first wave is one batch of 4 files — the SPEC and the links file with the two register entries —, then, no overview being stored,
 //         the queues' heads a second batch of 3 (MOD-site-frame: "where no overview is stored, the index and decisions of every queue are read, then
-//         the proposals of those still open"), the open queue's proposal a third batch of 1, its rationale a fourth batch of 1, and no batch of the
+//         the proposals of those still open"), the open queue's proposal a third batch of 1 — its rationale is not read (ITM-1274) —, and no batch of the
 //         graph's artifacts; no file twice, none by itself; the register is read in no batch of its own
 test("#spec: the links file and the register's entries are read in the first wave, beside the SPEC and the queues' heads", async () => {
   const entry = (id) => ["---", `id: ${id}`, "title: A person", "kind: person", "authority: normative", "licence: may be republished — fixture",
@@ -210,8 +210,8 @@ test("#spec: the links file and the register's entries are read in the first wav
   const page = await openDashboard({ server: srv, hash: "#spec" });
   const wave1 = sorted(["SPEC.md", ...Object.keys(register)]);
   const heads = sorted([`${DONE}/entscheidungen.md`, `${DONE}/index.md`, `${OPEN}/entscheidungen.md`]);
-  assert.deepEqual(batchesOf(page.requests), ["batch 4", "batch 3", "batch 1", "batch 1"]);
-  assert.deepEqual(srv.batches.map(sorted), [wave1, heads, [`${OPEN}/01-more.md`], [`${OPEN}/01-more.begruendung.md`]]);
+  assert.deepEqual(batchesOf(page.requests), ["batch 4", "batch 3", "batch 1"]);
+  assert.deepEqual(srv.batches.map(sorted), [wave1, heads, [`${OPEN}/01-more.md`]]);
   assert.equal(new Set(srv.batches.flat()).size, srv.batches.flat().length, "no file twice");
   assert.deepEqual(shownFiles(page.requests), [], "no file by itself");
 });

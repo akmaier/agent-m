@@ -84,27 +84,45 @@ export async function impactOf(snapshot, before, after, elsewhere = null) {
   }));
 }
 
+// The entry `entry` of the queue `queue` that the snapshot holds, with the target's text, the section or span of the target that holds now (null where the target lacks the anchor or cannot be read) and the
+// proposal's text. `fnName` names the caller in the RangeError for a queue or an entry the snapshot does not hold. It reads no rationale.
+async function entryTexts(fnName, queue, entry, snapshot) {
+  const found = await queueAt(snapshot, queue);
+  const item = found?.entries.find((candidate) => candidate.number === entry);
+  if (!item) throw new RangeError(`${fnName}: the snapshot holds no entry ${entry} of the queue ${queue}`);
+  const targetText = await snapshot.read(item.file);
+  const heldNow = typeof targetText === "string" ? spanText(targetText, item.anchor, item.until) : null;
+  const proposalText = item.proposal.path ? (await snapshot.read(item.proposal.path)) ?? "" : "";
+  return { item, targetText, heldNow, proposalText };
+}
+
+/**
+ * entryImpact(queue: string, entry: number, snapshot: Snapshot) -> Promise<Array<{ name: string, change: "changed" | "withdrawn" | "added",
+ *   referencedBy: string[] }>> — what one entry changes, withdraws or adds, each requirement with what names it, from the entry's queue, its target
+ * and its proposal (MOD-spec-changes, Interfaces); it reads no rationale. Crosses the network and fails as queues does; a queue or an entry the
+ * snapshot does not hold is a RangeError.
+ */
+export async function entryImpact(queue, entry, snapshot) {
+  const { targetText, heldNow, proposalText } = await entryTexts("entryImpact", queue, entry, snapshot);
+  return impactOf(snapshot, heldNow ?? "", proposalText, heldNow === null && typeof targetText === "string" ? parseSpec(targetText).requirements : null);
+}
+
 /**
  * entryView(queue: string, entry: number, snapshot: Snapshot) -> Promise<{ current: { text: string, blob: string } | null,
  *   proposal: { text: string, blob: string }, difference: DiffLine[], rationale: string, impact: Array<{ name: string,
  *   change: "changed" | "withdrawn" | "added", referencedBy: string[] }>, state: string, createdBy: number | null }> — what the
  * reviewer sees (MOD-spec-changes, Interfaces): the section that holds now beside the proposal, their difference, the rationale
- * and the impact list (NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT, A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST).
+ * and the impact list as entryImpact gives it (NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT, A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST).
  */
 export async function entryView(queue, entry, snapshot) {
-  const found = await queueAt(snapshot, queue);
-  const item = found?.entries.find((candidate) => candidate.number === entry);
-  if (!item) throw new RangeError(`entryView: the snapshot holds no entry ${entry} of the queue ${queue}`);
-  const targetText = await snapshot.read(item.file);
-  const heldNow = typeof targetText === "string" ? spanText(targetText, item.anchor, item.until) : null;
-  const proposalText = item.proposal.path ? (await snapshot.read(item.proposal.path)) ?? "" : "";
+  const { item, heldNow, proposalText } = await entryTexts("entryView", queue, entry, snapshot);
   const rationale = item.rationale ? (await snapshot.read(item.rationale)) ?? "" : "";
   return {
     current: heldNow === null ? null : { text: heldNow, blob: await blobSha(heldNow) },
     proposal: { text: proposalText, blob: item.proposal.blob },
     difference: lineDiff(heldNow ?? "", proposalText),
     rationale,
-    impact: await impactOf(snapshot, heldNow ?? "", proposalText, heldNow === null && typeof targetText === "string" ? parseSpec(targetText).requirements : null),
+    impact: await entryImpact(queue, entry, snapshot),
     state: item.state,
     createdBy: item.createdBy,
   };
