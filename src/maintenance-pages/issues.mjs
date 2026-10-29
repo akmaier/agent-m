@@ -29,6 +29,9 @@
 //     files the analysis proposed as wrong; `modules`, those of <input class="fix-modules">, which holds the modules whose folder holds a file the analysis names as wrong when the section is drawn, and which the person corrects; and `route`, the participant's route as the record writes
 //     it, which the recipe `resource-pins` reads. Run is the person's click and queues the job on the first route `routesFor` offers the participant, over the routes that reach the product's resources: it commits the job's start record and runs nothing in the tab; a route that is not
 //     available is named with its reason and nothing is written. After the section, the newest job of the kind `fix-bug` that works on the issue is named with its pull request (`jobTrail`); once that is merged, "Close with links" — the person's click — closes the issue with `closeWithLinks`.
+//   - The fix's changed expectations (ITM-654, UC-012 5a): while that pull request is open, the page reads it with `pullRequestFacts` and, of its files that `isTestFile` names, the text on both sides — two reads per changed test file, through the
+//     facts' `read`, the one way the module's Uses name for these texts. An existing test is a declaration (`testDeclarations`) that stands under the same identifier on both sides; its requirement is what it guards on the head side. Each one whose
+//     `expect` differs is a row of <table class="fix-expectations">: the test, the requirement, the old expectation, the new one. Without such a test the page says so (<p class="fix-no-expectation">); a merged or closed pull request shows no comparison.
 //   - The folded explanations are built here, not by the frame's `explain`: explanations.md holds no topic of this page and it is the frame's file (as mail.mjs does).
 
 import { artifactSchemas, readDocument, readRegister } from "../documents/index.mjs";
@@ -44,6 +47,7 @@ import { reachableBy, resourceSchema } from "../resource-list/index.mjs";
 import { recordRoute } from "../prompt-bar/hand-over.mjs";
 import { runPanel, schemaForm } from "../site-frame/index.mjs";
 import { entryView, queues } from "../spec-changes/index.mjs";
+import { isTestFile, testDeclarations } from "../test-document/index.mjs";
 import { backlogFindings } from "../work-plans/index.mjs";
 import { button, connectionsOf, el, failed, fold } from "./mail.mjs";
 
@@ -345,6 +349,35 @@ function moveSection({ product, issue, current, proposal }) {
 
 // ---------------------------------------------------------------- the fix of a bug (UC-012 step 5, 5b)
 
+// The existing tests whose expected result an open pull request changes (UC-012 5a): of its changed test files, each declaration that stands under the same identifier on both sides with another `expect`, as
+// { id, guards, before, after }, `guards` as the head side declares them.
+async function changedExpectations(facts) {
+  const changed = [];
+  for (const { path } of facts.files.filter((file) => isTestFile(file.path))) {
+    const [base, head] = await Promise.all([facts.read(path, "base"), facts.read(path, "head")]);
+    if (base === null || head === null) continue;
+    const before = new Map(testDeclarations(path, base).map((one) => [one.id, one]));
+    for (const after of testDeclarations(path, head)) {
+      const old = before.get(after.id);
+      if (old && old.expect !== after.expect) changed.push({ id: after.id, guards: after.guards, before: old.expect ?? "", after: after.expect ?? "" });
+    }
+  }
+  return changed;
+}
+
+// The comparison of an open pull request: one row per test whose expected result it changes — the test, the requirement it now checks, the old and the new expectation side by side.
+async function expectationsOf(product, pullRequest) {
+  const changed = await changedExpectations(await product.host.pullRequestFacts(pullRequest.number));
+  if (changed.length === 0) return el("p", "fix-no-expectation", "The fix changes no expected result of an existing test.");
+  const cell = (name, text) => el(name, null, String(text));
+  const rows = changed.map(({ id, guards, before, after }) => {
+    const row = el("tr", null, cell("td", id), cell("td", guards.join("; ")), cell("td", before), cell("td", after));
+    row.setAttribute("data-test", id);
+    return row;
+  });
+  return el("table", "fix-expectations", el("thead", null, el("tr", null, ...["Test", "Requirement", "Old expectation", "New expectation"].map((head) => cell("th", head)))), el("tbody", null, ...rows));
+}
+
 // What the fix has become: the newest job of the kind fix-bug that works on the issue, its pull request (MOD-runtimes' jobTrail: the one of the branch named after the job) and, once that is merged, *Close with links*, the person's click.
 async function fixTrail({ product, issue }) {
   const box = el("div", "issue-fix-trail");
@@ -362,6 +395,7 @@ async function fixTrail({ product, issue }) {
     const where = el("a", "fix-pull-request", `pull request #${pullRequest.number}`);
     where.setAttribute("href", pullRequest.url);
     box.append(el("p", "fix-pull", where, ` is ${pullRequest.state}.`));
+    if (pullRequest.state === "open") box.append(await expectationsOf(product, pullRequest));
     if (pullRequest.state === "merged") {
       const closed = el("p", "fix-closed");
       const close = button("close-with-links", "Close with links", async () => {
