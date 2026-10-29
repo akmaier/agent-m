@@ -114,10 +114,11 @@ it the file cannot be read, and the passphrase cannot be recovered.
   the instance's keys; an old entry is removed once what it holds stands there, and a value the instance keeps already is
   never replaced. Throws `StorageUnavailable`.
 - `readSetting(store: Store, key: SettingKey) -> unknown | null` — the value, or `null` when it is not set.
-- `tokenKeyOf(product: { server: "github" | "gitlab", host: string, path: string }) -> SettingKey` — the key a
-  product's own token is kept under, from the parts of its repository's address the caller already holds — the kind of
-  server, the server's host, the repository's or project's path: `github-token:<path>` on GitHub,
-  `gitlab-token:<host>/<path>` on a GitLab server. It parses no address and reads nothing, so that this module uses no
+- `tokenKeyOf(product: { server: "github" | "gitlab", origin: string, path: string }) -> SettingKey` — the key a
+  product's own token is kept under, from the parts of its repository's address the caller already holds, as
+  MOD-repository-hosts' `RepositoryAddress` names them — the kind of server, the server's origin, the repository's or
+  project's path: `github-token:<path>` on GitHub, `gitlab-token:<host of origin>/<path>` on a GitLab server, the host
+  read here from `origin`, so that no caller derives it. It parses no address and reads nothing, so that this module uses no
   other (ARC-047); it is the one place that rule stands, for this module's conversion of older keys and for every
   module above it.
 - `writeSetting(store: Store, key: SettingKey, value: unknown) -> void` — stores a value under a key of the catalogue.
