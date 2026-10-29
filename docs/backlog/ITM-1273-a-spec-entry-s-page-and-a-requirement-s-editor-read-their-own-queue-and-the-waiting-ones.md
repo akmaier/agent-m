@@ -10,6 +10,7 @@ realises:
 modules:
   - MOD-review-pages
   - MOD-spec-changes
+  - MOD-site-frame
 builds_on:
   - ITM-1272
 tests:
@@ -62,4 +63,8 @@ Measurable outcome, on the live page of the instance: opening one entry or one r
 and one ~20 KB overview (already held after `#spec`) instead of 132 queue files (~96 KB, two batches) read twice over.
 
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
-- Only the folders of the two modules and the tests that name them change.
+- Only the folders of MOD-review-pages and MOD-spec-changes and the tests that name them change, and, of MOD-site-frame,
+  only `tests/app-harness.mjs`'s fake of GitHub's raw host: a read of a branch's file it does not hold is answered 404,
+  as GitHub answers it, and no longer 500. No code of MOD-site-frame changes.
+- A release test whose count of requests changes is changed by a participant who implemented none of this item, in a
+  commit of its own.
