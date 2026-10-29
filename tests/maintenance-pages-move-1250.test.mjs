@@ -158,7 +158,7 @@ test("issue — Move to backlog prefills the item with the requirements the issu
 });
 
 // TST-1250202 · level: component · module: MOD-maintenance-pages, MOD-issue-handling
-// guards: A BACKLOG ITEM NAMES WHAT IT REALISES; A BACKLOG ITEM NAMES THE MODULES IT CHANGES; UC-033 2
+// guards: A BACKLOG ITEM NAMES WHAT IT REALISES; A BACKLOG ITEM NAMES THE MODULES IT CHANGES; UC-033
 // given: the issue 6 labelled defect; the participant's analysis proposes the class bug and names the files src/store/read.mjs and tests/store.test.mjs as wrong; the product holds the modules MOD-store (src/store/) and MOD-pages (src/pages/); the queues of the product name the issue 6 with a change of SECOND RULE
 // input: the analysis run by a person; Move to backlog by a person; the requirement FIRST RULE typed; Add by a person
 // expect: the item changes MOD-store alone and realises nothing yet — a bug takes no requirement from the queues, and the analysis names none —, so that Add is disabled with an error that names what it realises; once FIRST RULE is typed Add is enabled and commits the item with the origin https://github.com/alice/product/issues/6, and comments on and labels issue 6
@@ -199,7 +199,7 @@ test("issue — for a bug the item changes the modules of the files the analysis
 });
 
 // TST-1250203 · level: component · module: MOD-maintenance-pages
-// guards: EVOLUTION ENTERS THROUGH THE SPECIFICATION; UC-033 1a
+// guards: EVOLUTION ENTERS THROUGH THE SPECIFICATION; UC-033
 // given: the issues 5 (no class), 6 (defect), 7 (change) and 8 (not-reproducible)
 // input: the route issue for 6, 7, 8 and 5; on 5 the person's clicks on Bug, on Not reproducible and on Change
 // expect: 6 and 7 offer Move to backlog; 8 does not; 5 does not until the click on Bug, offers it after it, not after the click on Not reproducible, and offers it after the click on Change
@@ -227,7 +227,7 @@ test("issue — Move to backlog is offered for an issue classified as a bug or a
 });
 
 // TST-1250204 · level: component · module: MOD-maintenance-pages, MOD-issue-handling
-// guards: UC-033 4b; ONE CLICK PER DECISION
+// guards: UC-033; ONE CLICK PER DECISION
 // given: known positive first (TST-1250201: the comment is written); the token may not comment (GitHub answers 403 to a comment); the issue 7 and its queue
 // input: Move to backlog, the module typed, Add by a person
 // expect: the item is committed all the same; the page shows no problem and, instead of the added line's comment, the comment's text — the note item-added naming the new identifier — in a pre with the issue's address and a Copy comment button; the issue is not labelled
@@ -264,7 +264,7 @@ const EXISTING_TEXT = ["---", "id: ITM-001", "title: Export keeps every page", "
   "# ITM-001 Export keeps every page", "", "## Outcome", "", "Every page is exported.", "", "## Acceptance", "", "- A unit test.", ""].join("\n");
 
 // TST-1254201 · level: component · module: MOD-maintenance-pages
-// guards: EVOLUTION ENTERS THROUGH THE SPECIFICATION; UC-033 1a
+// guards: EVOLUTION ENTERS THROUGH THE SPECIFICATION; UC-033
 // given: known positive first — the issue 6 labelled defect offers Move to backlog; the issue 5 without a class; the issue 8 labelled not-reproducible
 // input: the route issue for 6, 8 and 5; on 5 the lead to UC-012 clicked by a person, then the person's click on Bug
 // expect: 6 offers Move to backlog and no lead; 8 offers neither; 5 offers no Move to backlog but says why — the issue is not classified — and leads to UC-012, step 2, whose click goes to Agent M's own use case UC-012 — the empty product — and before which nothing goes; after the click on Bug, Move to
@@ -296,7 +296,7 @@ test("issue — an issue not classified yet is not offered Move to backlog and i
 });
 
 // TST-1254202 · level: component · module: MOD-maintenance-pages, MOD-issue-handling, MOD-work-plans
-// guards: EVERY ARTIFACT NAMES ITS ORIGIN; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-033 4a
+// guards: EVERY ARTIFACT NAMES ITS ORIGIN; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-033
 // given: known positive first (TST-1250201: Add writes a new item); the backlog holds ITM-001 "Export keeps every page" whose origin is the issue 12; the issue 7 labelled change describes the same work
 // input: the route issue 7; Move to backlog by a person; "Add to ITM-001" clicked by a script, then by a person
 // expect: beside the form the backlog's item ITM-001 is offered with its title; the script's click writes nothing; the person's click commits one file, docs/backlog/ITM-001-export-keeps-every-page.md, whose origins are the issue 12 and then the issue 7 and whose

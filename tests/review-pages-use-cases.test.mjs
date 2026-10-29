@@ -568,7 +568,7 @@ test("MOD-review-pages use-case — nothing is written without the person's clic
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: a product whose `main` holds the four use cases and three job records under docs/jobs/, a token stored
 // input: the page of UC-041, which is open, rendered; and the page of UC-042, which is accepted
-// expect: the job records, which the notes of the job that wrote the use case are read from, are asked for in batches (Snapshot.readMany): at least one call, every call naming every path of them and nothing else, so that the host, which asks only for blobs it does not hold, reads them in one batch; an accepted use case's page asks for none
+// expect: the job records, which the notes of the job that wrote the use case are read from, are asked for in one batch (Snapshot.readMany) with every path of them and nothing else; an accepted use case's page asks for none
 test("MOD-review-pages use-case/<id> — the job records an open file's notes are read from are read in one batch", async () => {
   assert.ok(route, `the route use-case: ${pages.error?.message}`);
   const jobs = ["JOB-20261001-1000-aaaa", "JOB-20261001-1100-bbbb", "JOB-20261001-1200-cccc"].map((name) => `docs/jobs/${name}.md`);
@@ -576,8 +576,8 @@ test("MOD-review-pages use-case/<id> — the job records an open file's notes ar
   const fake = fakeHost({ steps });
   await show(fake, { id: "UC-041" });
   const batches = fake.calls().filter((call) => call.fn === "readMany");
-  assert.ok(batches.length >= 1, "at least one batch");
-  for (const batch of batches) assert.deepEqual([...batch.paths].sort(), jobs, "every call names every job record, and nothing else");
+  assert.equal(batches.length, 1, "one batch");
+  assert.deepEqual([...batches[0].paths].sort(), jobs, "every job record, and nothing else");
   const accepted = fakeHost({ steps });
   await show(accepted, { id: "UC-042" });
   assert.equal(accepted.calls().filter((call) => call.fn === "readMany").length, 0, "an accepted use case reads no job record");
