@@ -11,7 +11,8 @@
 // Written for the release testing of sprint 115 by a participant who implemented none of ITM-1269 (RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER). It reads the page from the outside: the real route
 // `job` and the real route `jobs` of the main page, drawn over the fixtures of the main page's tests (tests/main-page-home-harness.mjs: the counting fake of GitHub, which answers the query of named
 // files a narrowed tree sends, and the Bridge lab-pc-4, which lists one job as running), with a fixture of its own and not that of tests/main-page-job-one-record.test.mjs. What the page read is counted
-// from the requests the fake received: a record read is a request for a file under docs/jobs/, a tree read narrowed to named files is a query of named files (`net.folderReads`), a live state asked
+// from the requests the fake received: a record read is a request for a file under docs/jobs/ or a file under docs/jobs/ that GitHub's batch request of files' texts (POST /graphql,
+// `f<n>:object(expression: "<commit>:<path>")`) names, of the repository its variables name, since listJobs names the records to the snapshot's readMany (ITM-1280) and the fake answers that batch, a tree read narrowed to named files is a query of named files (`net.folderReads`), a live state asked
 // is a request for the Bridge's list of jobs. Each count is first shown to count: the control is the route `jobs` over the same fixture, which reads more records than one and asks the Bridge, so that a
 // count of one stands for what the page read and not for a counter that sees little. Readings the texts leave open, which the cases state:
 //   - "the first repository among the instance and the kept products whose tree holds it": the order is the one the list shows — the instance, then the products as the browser keeps them.
@@ -27,7 +28,7 @@ import { INSTANCE, PRODUCT, PRODUCT_URL, PRODUCT_TOKEN, OTHER, OTHER_URL, OTHER_
 
 const jobRoute = view.routes.find((candidate) => candidate.name === "job");
 const listRoute = view.routes.find((candidate) => candidate.name === "jobs");
-let net;
+let net, batched = [];
 afterEach(() => {
   net?.restore();
   timers.restore();
@@ -56,10 +57,25 @@ function open(holders) {
   net = network({ [INSTANCE]: { ...instanceFiles(), ...asFiles(jobsOf(INSTANCE, "i")) }, [PRODUCT]: smallProduct({ jobs: jobsOf(PRODUCT, "a") }), [OTHER]: smallProduct({ jobs: jobsOf(OTHER, "b") }),
     [THIRD]: smallProduct({ jobs: jobsOf(THIRD, "c") }) }, { bridgeLists: SHARED });
   net.install();
+  // The records a batch request of files' texts names, as "<owner>/<name>:<path>", kept before the request goes on to the fake.
+  batched = [];
+  const spy = globalThis.fetch;
+  globalThis.fetch = async (input, init) => {
+    const url = new URL(typeof input === "object" && !(input instanceof URL) ? input.url : String(input));
+    if (url.host === "api.github.com" && url.pathname === "/graphql" && typeof init?.body === "string") {
+      const { query, variables } = JSON.parse(init.body);
+      for (const [, quoted] of query.matchAll(/\bf\d+:object\(expression:("(?:[^"\\]|\\.)*")\)/g)) {
+        const path = JSON.parse(quoted).replace(/^[^:]*:/, "");
+        if (path.startsWith("docs/jobs/")) batched.push(`${variables.owner}/${variables.name}:${path}`);
+      }
+    }
+    return spy(input, init);
+  };
 }
 const context = () => browser({ products: [PRODUCT_URL, OTHER_URL, THIRD_URL], tokens: { [PRODUCT]: PRODUCT_TOKEN, [OTHER]: OTHER_TOKEN, [THIRD]: THIRD_TOKEN } });
-/** The records the page read: each request for a file under docs/jobs/, as "<owner>/<name>:<path>". */
-const recordsRead = () => net.requests.map(({ url }) => /^https:\/\/api\.github\.com\/repos\/([^/]+\/[^/]+)\/contents\/(docs\/jobs\/[^?]+)/.exec(url)).filter(Boolean).map((m) => `${m[1]}:${decodeURIComponent(m[2])}`);
+/** The records the page read: each request for a file under docs/jobs/, and each such file a batch request named, as "<owner>/<name>:<path>". */
+const recordsRead = () => [...net.requests.map(({ url }) => /^https:\/\/api\.github\.com\/repos\/([^/]+\/[^/]+)\/contents\/(docs\/jobs\/[^?]+)/.exec(url)).filter(Boolean).map((m) => `${m[1]}:${decodeURIComponent(m[2])}`),
+  ...batched];
 /** The live states asked: each request for the Bridge lab-pc-4's list of jobs. */
 const liveAsked = () => net.requests.filter(({ url }) => new URL(url).host === "127.0.0.1:4711" && new URL(url).pathname === "/v1/jobs").length;
 const factsOf = (target) => byClass(target, "job-facts")[0]?.textContent ?? "";
