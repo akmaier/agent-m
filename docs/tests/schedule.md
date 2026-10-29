@@ -5,6 +5,7 @@ setup: sh tests/test-schedule-setup.sh
 cache:
   - /home/runner/apt-archives
   - /home/runner/apt-lists
+  - /home/runner/agent-m-electron-44/node_modules/electron
 minutes: 2
 ---
 ## Levels
