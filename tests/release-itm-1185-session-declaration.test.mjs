@@ -14,7 +14,7 @@
 //     Bridge) in words, the status "Refused." and the outcome "refused".
 //   - "Clear clears the setting and its last test" is read as the raw entries `session:<bridge>:<agent>` and `last-test:session:<bridge>:<agent>` both gone, the page drawn again without the line, and every other setting kept.
 //   - "malformed names are refused" is read, for the sure part, as a key that is no `session:` followed by a name (a different prefix, a different case, a space before it, or no name); a key `session:<name>` with no agent, which the catalogue's form `session:<bridge>:<agent>` does not
-//     give, is read in a case of its own (TST-1185304), a todo while the store accepts it.
+//     give, is read in a case of its own (TST-1185304).
 //   - The page "shows no value" is read as: no field of the declaration (place, context, model, capabilities) appears anywhere in the page's text, and the line holds no field to type in.
 
 import test from "node:test";
@@ -157,8 +157,7 @@ test("TST-1185303 a key that is no session:<name> is refused, and a refused key 
 // given: a store, and the catalogue's form session:<bridge>:<agent>
 // input: writeSetting of session:lab (no agent), session:lab: (an empty agent) and session::claude (an empty Bridge)
 // expect: each throws UnknownSetting naming the key, since none gives both names of the form
-// Todo: the family the store accepts is /^session:.+$/, so all three are accepted today; the reading (a key of the form needs both names) is the case's, and is for the Product Owner to confirm.
-test("TST-1185304 a session key that lacks its Bridge or its agent is refused", { todo: "the store accepts any session: key; the catalogue's form session:<bridge>:<agent> gives two names" }, () => {
+test("TST-1185304 a session key that lacks its Bridge or its agent is refused", () => {
   freshStorage();
   const opened = freshStore();
   for (const key of ["session:lab", "session:lab:", "session::claude"]) {
