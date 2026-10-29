@@ -845,7 +845,7 @@ test("TST-943004 each card reads its own head's overview, and an overview stored
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; THE BUILD IS SHOWN AS IT HAPPENS; UC-046
 // given: this browser keeps alice/product, whose branch overview-cache holds the overview of its head (ITM-0900 in progress, its running job's record), the job running on the Bridge lab-pc-4; and, for the counter-proof, the same product without an overview
 // input: the route home drawn; every request counted
-// expect: with the overview, no request lists the pull requests (no …/pulls), none is a batch (POST /graphql) and none reads a file of the product other than the overview: the requests to alice/product are exactly its repository, its head's commit, its tree and the overview — 4 —, those to the instance its repository, commit and tree — 3 —, and the Bridge is asked once for the live state of the one job in progress; counter-proof: without the overview the card lists the pull requests (known positive: the count sees …/pulls)
+// expect: with the overview, no request lists the pull requests (no …/pulls), none is a batch (POST /graphql) and none reads a file of the product other than the overview: the requests to alice/product are exactly its repository, its head's commit, its tree and the overview — 4 —, none goes to the instance, since its one card has an overview (ITM-1281), and the Bridge is asked once for the live state of the one job in progress; counter-proof: without the overview the card lists the pull requests (known positive: the count sees …/pulls)
 test("TST-943005 with a stored overview the route home lists no pull request and reads no file: four requests for the card, the live state asked once", async () => {
   const head = headOf(PRODUCT);
   const pulls = () => net.requests.filter((request) => /\/pulls(\?|$)/.test(new URL(request.url).pathname + new URL(request.url).search));
@@ -857,7 +857,7 @@ test("TST-943005 with a stored overview the route home lists no pull request and
   assert.deepEqual(pulls(), []);
   assert.deepEqual(net.requests.filter((request) => request.url.endsWith("/graphql")), []);
   assert.deepEqual(of(PRODUCT), ["", "/commits/main", `/git/trees/${head}`, `/contents/${head}.json`]);
-  assert.deepEqual(of(INSTANCE), ["", "/commits/main", `/git/trees/${headOf(INSTANCE)}`]);
+  assert.deepEqual(of(INSTANCE), []);
   assert.equal(net.bridgeAsked(), 1);
 
   net.restore();
