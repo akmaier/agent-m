@@ -87,7 +87,8 @@ prefills is a document of the item schema of MOD-documents, written by Process (
   null }) -> Promise<void>` — the comment `closed-with` and the issue closed; run when the pull request of a bug fix or of
   an item from the issue is merged. It reads the issue first, its state and its comments: an issue that is closed and
   holds a comment whose text is the `closed-with` note these links give is left as it is, so that an issue is closed
-  and noted once however many routes run the entry. Crosses the network. Errors: Access's.
+  and noted once however many routes run the entry one after another. Considers: two runs that read the issue at the
+  same moment, before either writes, both note it. Crosses the network. Errors: Access's.
 - `issueStrategies` — of MOD-job-runner's type `Strategies`:
   - recipe `issue-context` — for analysing an issue, and for drafting the change it asks for: one part with the issue's title, text and comments; parts with the
     requirements the issue names, and the use cases, tests and modules it names together with the requirements the trace
