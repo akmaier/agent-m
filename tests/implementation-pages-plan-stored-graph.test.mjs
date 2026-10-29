@@ -12,7 +12,7 @@
 // `trace-cache` holds the graph of the commit (MOD-trace-graph's graphText, gzipped as `<commit>.json.gz`) where the test says so. Every call of `read` and `readOn` is kept. Nothing reaches the network. Where the module
 // file leaves a reading open, the test states the one it takes, and the pull request names it:
 //   - That the stored graph is the one the page draws is seen in an architecture node the stored graph holds and the files do not (MOD-stored): the page lists it only if it read the stored graph.
-//   - productFacts first asks `readOn` for the commit's stored facts, `overview-cache` / `<commit>.facts.json`; then the page asks once for the commit's graph, `trace-cache` / `<commit>.json.gz`, whether or not the branch holds it.
+//   - The page asks once for the commit's graph, `trace-cache` / `<commit>.json.gz`, whether or not the branch holds it; productFacts asks for no facts file (none is stored).
 //   - "No file only the graph reads is read" is: tests/sample.test.mjs is read by no one, whether or not a graph is stored. The page's marks come from MOD-work-plans' planFindings, to which the page
 //     hands the graph it holds (ITM-1156), so that it builds none.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
@@ -107,7 +107,7 @@ const asOf = (target) => elements(target, (e) => e.getAttribute("data-graph-as-o
 // guards: UC-045; A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the plan of a V-model product whose accepted architecture has the system ARC-001, the subsystem ARC-002 and MOD-reader, and `trace-cache` holding the graph of the commit
 // input: the route plan's render
-// expect: the page shows the architecture of the stored graph, MOD-stored among it, and reads no file only the graph reads; `readOn` is asked for overview-cache / <commit>.facts.json and, once, for trace-cache / <commit>.json.gz
+// expect: the page shows the architecture of the stored graph, MOD-stored among it, and reads no file only the graph reads; `readOn` is asked once, for trace-cache / <commit>.json.gz, and for nothing on overview-cache
 test("the plan page reads the graph stored for its commit and builds none", async () => {
   const probe = await graphOf(productFiles());
   const { target: shown, calls: asked, failure } = await render(() => probe);
@@ -115,7 +115,7 @@ test("the plan page reads the graph stored for its commit and builds none", asyn
   assert.ok(architecture(shown).includes("MOD-stored"), "the architecture is the stored graph's");
   assert.deepEqual(architecture(shown).filter((id) => id !== "MOD-stored"), ["ARC-001", "ARC-002", "MOD-reader"]);
   assert.equal(asked.filter((call) => call.path === ONLY_THE_GRAPH).length, 0, "no file only the graph reads is read");
-  assert.deepEqual(asked.filter((call) => call.fn === "readOn"), [{ fn: "readOn", branch: "overview-cache", path: `${COMMIT}.facts.json` }, { fn: "readOn", branch: "trace-cache", path: `${COMMIT}.json.gz` }]);
+  assert.deepEqual(asked.filter((call) => call.fn === "readOn"), [{ fn: "readOn", branch: "trace-cache", path: `${COMMIT}.json.gz` }]);
   assert.deepEqual(asOf(shown), [], "the head's own graph is shown, and no line says otherwise");
 });
 
@@ -131,7 +131,7 @@ test("the plan page builds no graph where none is stored, and fails with GraphNo
   assert.deepEqual(architecture(target), []);
   assert.equal(failure?.name, "GraphNotStored");
   assert.match(failure.message, new RegExp(`the trace graph of ${COMMIT.slice(0, 12)} is not stored yet`));
-  assert.deepEqual(calls.filter((call) => call.fn === "readOn"), [{ fn: "readOn", branch: "overview-cache", path: `${COMMIT}.facts.json` }, { fn: "readOn", branch: "trace-cache", path: `${COMMIT}.json.gz` },
+  assert.deepEqual(calls.filter((call) => call.fn === "readOn"), [{ fn: "readOn", branch: "trace-cache", path: `${COMMIT}.json.gz` },
     { fn: "readOn", branch: "trace-cache", path: "latest.json" }]);
   assert.equal(calls.filter((call) => call.path === ONLY_THE_GRAPH).length, 0, "no graph is built from the files");
 });
@@ -141,7 +141,7 @@ test("the plan page builds no graph where none is stored, and fails with GraphNo
 // given: the same product, `trace-cache` holding no graph of the commit, a latest.json naming an earlier commit, and that commit's graph, which holds MOD-earlier (a node the files do not hold)
 // input: the route plan's render
 // expect: no failure; the architecture is the earlier graph's (MOD-earlier listed, MOD-stored not); one line, data-graph-as-of, reads "As of <earlier, 7>: the trace graph of the newest commit, <commit, 7>, is
-//         being stored."; `readOn` asked for overview-cache / <commit>.facts.json, trace-cache / <commit>.json.gz, latest.json and <earlier>.json.gz, once each and nothing else; tests/sample.test.mjs read by no one
+//         being stored."; `readOn` asked for trace-cache / <commit>.json.gz, latest.json and <earlier>.json.gz, once each and nothing else; tests/sample.test.mjs read by no one
 test("the plan page shows the graph stored last, with the line naming both commits, while its commit's graph is not stored", async () => {
   COMMIT = "e".repeat(40);
   const earlier = "f".repeat(40);
@@ -151,7 +151,7 @@ test("the plan page shows the graph stored last, with the line naming both commi
   assert.ok(architecture(target).includes("MOD-earlier"), "the architecture is the earlier graph's");
   assert.equal(architecture(target).includes("MOD-stored"), false);
   assert.deepEqual(asOf(target), [`As of ${earlier.slice(0, 7)}: the trace graph of the newest commit, ${COMMIT.slice(0, 7)}, is being stored.`]);
-  assert.deepEqual(calls.filter((call) => call.fn === "readOn"), [{ fn: "readOn", branch: "overview-cache", path: `${COMMIT}.facts.json` }, { fn: "readOn", branch: "trace-cache", path: `${COMMIT}.json.gz` },
+  assert.deepEqual(calls.filter((call) => call.fn === "readOn"), [{ fn: "readOn", branch: "trace-cache", path: `${COMMIT}.json.gz` },
     { fn: "readOn", branch: "trace-cache", path: "latest.json" }, { fn: "readOn", branch: "trace-cache", path: `${earlier}.json.gz` }]);
   assert.equal(calls.filter((call) => call.path === ONLY_THE_GRAPH).length, 0, "no graph is built from the files");
 });

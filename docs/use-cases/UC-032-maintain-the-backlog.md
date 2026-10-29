@@ -164,7 +164,7 @@ sequenceDiagram
 - **6b. The sprint ends** — at the end of its time box or, in a sprint without one, when every selected
   item is done or the Product Owner presses **End sprint**, one click, which records the end with the
   sprint. The sprint is closed with the review of its increment and the
-  retrospective (UC-041); there the Product Owner also decides, for each unfinished item, whether it
+  retrospective (UC-041); there the closer also decides, for each unfinished item, whether it
   goes back to the backlog or into the next sprint.
 - **7a. The WIP limit is reached.** **Pull** is disabled for the next item, and the panel names the
   items in progress and which of them wait for review. Book ch. 7 §4: with agents, the limit guards

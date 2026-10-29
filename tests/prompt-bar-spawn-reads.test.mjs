@@ -201,6 +201,7 @@ test("a spawn given the instance's snapshot the bar read does not read it again"
 
 // ---------------------------------------------------------------- a hand-over that works on an item, and one that works on none
 
+// What changed: this test expected a hand-over that works on a backlog item to be checked by MOD-work-plans' startable on the product's facts, which listed the pull requests. The start rules of the product's process do not apply to the prompt bar (UC-049 4a.2, as accepted): it now expects the hand-over on ITM-005, which no sprint selects, to read none of the facts.
 // TST-1300003 · level: unit · module: MOD-prompt-bar
 // guards: UC-049
 // given: the Scrum product, whose sprint selects ITM-004 and not ITM-005; dev-ci proposes a hand-over that works on ITM-005

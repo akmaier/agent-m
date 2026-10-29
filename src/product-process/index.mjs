@@ -5,7 +5,7 @@
 // mayDecide, gateStates and recordGateDecision (gates.mjs); doneCheck (done.mjs); and gateSchema, the schema of a gate record docs/gates/<…>.md. A declaration names roles and never a participant; its role assignments fill the roles, and
 // roleAssignmentFindings names a holder lacking a capability its role needs, and warns of a holder at a processing place a
 // linked source does not permit: both through MOD-participant-list's eligible, over the participants its participantsOf
-// gives. processStrategies is not built yet. workflowOf adds a practice's additions only from its explicit model tables: a shipped practice states its
+// gives. workflowOf adds a practice's additions only from its explicit model tables: a shipped practice states its
 // `## Adds` in words only.
 //
 // Module: MOD-product-process

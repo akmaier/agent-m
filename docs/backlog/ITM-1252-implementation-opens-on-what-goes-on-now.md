@@ -18,6 +18,11 @@ tests:
   - component
 origin:
   - akmaier, 2026-10-28: "Implementation should only show on the first page what is currently going on (active sprints and jobs). History should be on a separate page such that we don't have to load for such a long time."
+built_by:
+  - 09ecc46b7e319a63a90b33a5ab9b15c2d89588b8
+  - 2bf8e34775f6c9f936f116911ae616a363c4a451
+  - 79f1cc15c2d8ef37d027da7fd9f4d2efd44a10a2
+  - bb51d7cf3ca6ef7c5da262e1eedab1e6cca88ee5
 ---
 # ITM-1252 Implementation opens on what goes on now; the backlog keeps what is done
 

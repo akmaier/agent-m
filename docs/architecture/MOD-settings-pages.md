@@ -219,7 +219,10 @@ It keeps nothing but the screen and an unsaved form. Its formats are those of th
     or the repository the person names; *+ New version*, refused when its bytes equal an existing version's, the
     products on older versions, *Move* with the requirements affected and the passages changed; *Fetch again* for a
     legal text whose fetch failed, and *+ New version* of a fetched one, each starting the fetch run for that entry
-    (MOD-repository-hosts' `startWorkflow` with the input `source`); for the chosen product, the linked sources with version and part, and removing a link
+    (MOD-repository-hosts' `startWorkflow` with the input `source`). The error a waiting legal text shows (UC-004 7a) is
+    the line naming it in the log of a failed run of the fetch workflow: the logs are read only while a legal text
+    waits without its line, newest failed run first, no further back than the newest successful run started by a push,
+    and none is read while no legal text waits; for the chosen product, the linked sources with version and part, and removing a link
     with the requirements that name the source listed first.
   - `resources`, `resources/instance` — a product's or the instance's resources in a form from the resource schema; the
     pin, licence and maintainer read where they can be; the route; the secret by name only; the processing place;

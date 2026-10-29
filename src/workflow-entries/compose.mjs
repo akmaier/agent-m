@@ -228,8 +228,7 @@ function originOf(dir, fallback) {
 }
 
 // The strategies the modules that offer them give the job runner, registered once for the program that runs, as the runner asks: the sets the module file's Uses
-// name, of every kind that may run in CI, that modules build — MOD-product-process' processStrategies joins as the item that builds it adds it. The mail kinds' are not
-// registered: no mail reaches CI.
+// name, of every kind that may run in CI, that modules build. The mail kinds' are not registered: no mail reaches CI.
 const OFFERED = [["MOD-approvals", approvals, "approvalStrategies"], ["MOD-spec-changes", specChanges, "specStrategies"],
   ["MOD-artifact-edits", artifactEdits, "editStrategies"], ["MOD-source-register", sourceRegister, "sourceStrategies"],
   ["MOD-work-plans", workPlans, "workStrategies"], ["MOD-run-planner", runPlanner, "runStrategies"], ["MOD-runtimes", runtimes, "routeStrategies"], ["MOD-reuse-facts", reuseFacts, "reuseStrategies"],

@@ -28,7 +28,8 @@ on its own (KEIN SPEC-ZUGRIFF AUS PRODUKT-CODE). Three checks:
    browser imports (a reading, stated at its entry below); and the own data files — schemas, models, practices —
    of the modules whose files state that they read them when
    they are loaded: MOD-documents, MOD-model-catalogue, MOD-participant-list, MOD-source-register, MOD-product-process,
-   MOD-site-frame (its explanations.md), MOD-personal-data, MOD-resource-list, MOD-reuse-facts and MOD-prompt-bar,
+   MOD-site-frame (its explanations.md), MOD-personal-data, MOD-resource-list, MOD-reuse-facts, MOD-prompt-bar and MOD-runtimes (its
+   job workflow's templates, the Parts its file names beside it, which the page uses in a browser),
    each at most once in its module's folder, in MOD-spec-document's form: `fetch(url)` in `ownFile(url)`, and every address the
    file builds resolved from a path beginning with `./` against the module's own address; and MOD-source-register's
    official EU publication repository fetch for legal texts, to publications.europa.eu. Every other fetch, XMLHttpRequest,
@@ -407,6 +408,9 @@ PERMITTED_CHANNELS = {
     ("src/result-records/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/job-ledger/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/prompt-bar/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
+    # MOD-runtimes' templates workflow/github.yml and workflow/gitlab.yml (its Parts), which jobWorkflowFiles fills and which "the page uses in a
+    # browser" (its Responsibility): read as the modules above read theirs, as MOD-test-schedule reads its templates/ (ITM-1202).
+    ("src/runtimes/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/site-frame/dashboard-app.mjs", "import()"): (1, "a view file of the dashboard, from its own origin", _own_origin),
     ("src/site-frame/dashboard-app.mjs", "loading element"): (1, "a view's style sheet, from its own origin", _own_origin),
     ("src/site-frame/routing.mjs", "import()"): (1, FRAME_VIEW_IMPORT, _site_frame_view_import),
