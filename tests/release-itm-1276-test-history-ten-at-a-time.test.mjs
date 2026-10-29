@@ -64,7 +64,8 @@ async function render(host, expected) {
 const click = async (target, expected) => { earlierOf(target).dispatchEvent(new Event("click")); await waitFor(() => marksOf(target).length >= expected); };
 /** The histories of the branch `test-results` the page read: from the branch's head, or from a commit of it. */
 const historiesOf = (host) => host.log.histories.filter(([, options]) => options?.ref === "test-results" || /^[0-9a-f]{40}$/.test(options?.ref ?? ""));
-const narrowedOf = (host) => host.log.narrowed.filter(([ref, folders]) => ref === "test-results" && folders !== null);
+// The snapshots of the branch narrowed for the history: the tests tree's own, narrowed to `runs/<version commit>`, is left out.
+const narrowedOf = (host) => host.log.narrowed.filter(([ref, folders]) => ref === "test-results" && folders !== null && !(folders.length === 1 && folders[0] === `runs/${host.commitOf("main")}`));
 const batchesOf = (host) => host.log.manys.filter((paths) => paths.every((path) => path.startsWith("runs/")));
 const readRecords = (host) => host.log.reads.filter((path) => path.startsWith("runs/"));
 const marks = (numbers) => numbers.map((n) => `${shortOf(n)} ${outcomeOf(n)}`);
@@ -73,7 +74,7 @@ const marks = (numbers) => numbers.map((n) => `${shortOf(n)} ${outcomeOf(n)}`);
 // guards: UC-029; EVERY TEST RUN LEAVES A RESULT RECORD
 // given: TST-91, which ran on twenty-five commits of the branch test-results, one record each, the 25th the newest, passing except on every third run; a release tag, v2026.2.0, at the commit of the 5th run; a counting host that refuses a read outside the folders a snapshot was narrowed to
 // input: the detail of TST-91 opened and left alone
-// expect: known positive first — the host noted reads of record files and a batch. One readHistory of the branch (path null, ref test-results, limit 10, with changes); one readSnapshot of it narrowed to the record files of the runs 25 to 16 and the folder of the 5th run's commit, and no other folder; one readMany of those ten files and the tag commit's one; exactly the files of the runs 25 to 16 and 5 read, and none of the runs 15 to 6 and 4 to 1; ten marks, the runs 25 to 16 newest first, with their outcomes; one release row, "v2026.2.0 passed"; the control Earlier runs offered
+// expect: known positive first — the host noted reads of record files and a batch. One readHistory of the branch (path null, ref test-results, limit 10, with changes); one readSnapshot of it for the history, told from the tests tree's own (narrowed to the folder of the version's commit) by its folders, narrowed to the record files of the runs 25 to 16 and the folder of the 5th run's commit, and no other folder; one readMany of those ten files and the tag commit's one; exactly the files of the runs 25 to 16 and 5 read, and none of the runs 15 to 6 and 4 to 1; ten marks, the runs 25 to 16 newest first, with their outcomes; one release row, "v2026.2.0 passed"; the control Earlier runs offered
 // Planted fault: a page that reads more than the newest ten (`limit: HISTORY_PAGE` made `limit: 1000` in runsPage of src/trace-pages/test-detail.mjs) fails the limit; a page that reads no batch (`await results.readMany?.(results.paths)` left out) fails the one batch; a snapshot without the tag's folder, or without folders at all (`readSnapshot(RESULTS_BRANCH)`), fails the folders.
 test("TST-1276301 opening a test of twenty-five runs reads one history, one narrowed snapshot and one batch of the newest ten records and the tag's, and no other", async () => {
   const host = hostOf(runs(25), 5);
@@ -83,7 +84,7 @@ test("TST-1276301 opening a test of twenty-five runs reads one history, one narr
   assert.equal(histories.length, 1, "one history of the branch");
   assert.deepEqual([histories[0][0], histories[0][1].ref, histories[0][1].limit, histories[0][1].changes], [null, "test-results", 10, true]);
   const narrowed = narrowedOf(host);
-  assert.equal(narrowed.length, 1, "one snapshot of the branch, narrowed");
+  assert.equal(narrowed.length, 1, "one snapshot of the branch, narrowed for the history");
   assert.deepEqual([...narrowed[0][1]].sort(), [...range(25, 16).map((n) => pathOf(n)), `runs/${commitOf(5)}`].sort());
   assert.deepEqual(batchesOf(host).map((paths) => [...paths].sort()), [[...range(25, 16), 5].map((n) => pathOf(n)).sort()], "one batch");
   assert.deepEqual([...new Set(readRecords(host))].sort(), [...range(25, 16), 5].map((n) => pathOf(n)).sort(), "no record of a run not asked for is read");
@@ -96,7 +97,7 @@ test("TST-1276301 opening a test of twenty-five runs reads one history, one narr
 // guards: UC-029; EVERY TEST RUN LEAVES A RESULT RECORD
 // given: the product of TST-1276301, opened
 // input: Earlier runs clicked; clicked again
-// expect: after the first click a second readHistory from a commit (not the branch's head; limit 10, with changes), one more snapshot narrowed to exactly the files of the runs 15 to 6, one more batch of those ten, twenty marks (the runs 25 to 6, in that order) and the control still offered; after the second click a third readHistory, a third snapshot narrowed to exactly the files of the runs 5 to 1, a third batch of those five, twenty-five marks in the order of the runs and no control, since the page held fewer than ten; across the three pages the record files read are the twenty-five, and the branch's tree was read whole for nothing of the history
+// expect: after the first click a second readHistory from a commit (not the branch's head; limit 10, with changes), one more snapshot narrowed to exactly the files of the runs 15 to 6, one more batch of those ten, twenty marks (the runs 25 to 6, in that order) and the control still offered; after the second click a third readHistory, a third snapshot narrowed to exactly the files of the runs 5 to 1, a third batch of those five, twenty-five marks in the order of the runs and no control, since the page held fewer than ten; across the three pages the record files read are the twenty-five, and the branch's tree was read whole for nothing
 // Planted fault: a second page read from the branch's head again (`runsPage(host, next)` made `runsPage(host, RESULTS_BRANCH)` in historyPart of src/trace-pages/test-detail.mjs) repeats the newest ten and fails the second history; a control offered after a full page whatever the history holds (`entries.at(-1).commit` in place of `entries.at(-1).parents[0] ?? null` in `next` of runsPage) fails the end of the history.
 test("TST-1276302 Earlier runs reads the next ten and then the last five through one history, one narrowed snapshot and one batch each, and the control ends with the history", async () => {
   const host = hostOf(runs(25), 5);
@@ -118,7 +119,7 @@ test("TST-1276302 Earlier runs reads the next ten and then the last five through
   assert.deepEqual(marksOf(target), marks(range(25, 1)));
   assert.equal(earlierOf(target), undefined, "a page of five ends the history");
   assert.deepEqual([...new Set(readRecords(host))].sort(), range(25, 1).map((n) => pathOf(n)).sort(), "the records read are the twenty-five of the three pages, no other");
-  assert.equal(host.log.narrowed.filter(([ref, folders]) => ref === "test-results" && folders === null).length, 1, "the whole tree of the branch is read once, for the tests tree's latest outcomes, not for the history");
+  assert.equal(host.log.narrowed.filter(([ref, folders]) => ref === "test-results" && folders === null).length, 0, "the whole tree of the branch is read for nothing");
 });
 
 // TST-1276303 · level: release · module: MOD-trace-pages

@@ -17,8 +17,8 @@
 //     `runs/<commit>` of each release tag's commit, and no other; the records the snapshot holds are fetched by one readMany, and a record outside the snapshot is never read.
 //   - "*Earlier runs* reads the next ten": the control reads the ten commits that come after the ten shown (a history read from the parent of the last commit shown, as the review pages' *Older* reads one) with their
 //     changes, one snapshot narrowed to the files they added, one readMany; the marks of the ten are added below the others. The control is offered while the ten read were the last of a history that goes on.
-//   - "no recursive tree of `test-results`" is read of the history of a test: the tests tree drawn beside the detail reads that branch's tree once for the latest outcomes (src/trace-pages/tests.mjs), which the Outcome of
-//     ITM-1276 does not name; the cases count that one reading and none more.
+//   - "no recursive tree of `test-results`" is read of the history of a test and of the tests tree drawn beside the detail: the tests tree reads the branch through a snapshot narrowed to `runs/<commit>` of the version
+//     shown (ITM-1309), which the history's own snapshot is told from by its folders; the cases count no whole tree of the branch at all.
 //   - the marks are the commits those histories name; a release tag's commit that is not among them gives its row among the releases and no mark.
 
 import test from "node:test";
@@ -64,8 +64,12 @@ async function render(host, expected) {
 }
 const click = async (button, done) => { button.dispatchEvent(new Event("click")); await until(done); await new Promise((resolve) => setTimeout(resolve, 30)); };
 const ofResults = (host) => host.log.histories.filter(([, options]) => options?.ref === "test-results" || /^[0-9a-f]{40}$/.test(options?.ref ?? ""));
-const narrowedOfResults = (host) => host.log.narrowed.filter(([ref, folders]) => ref === "test-results" && folders !== null);
-// The snapshots of the branch read without folders: the tests tree reads one for the outcomes on the latest commit (src/trace-pages/tests.mjs, not the history of a test), and the history reads none.
+// The tests tree's snapshot of the branch, narrowed to the folder of the version's commit, and the history's, narrowed to the record files of its commits.
+const treeFoldersOf = (host) => [`runs/${host.commitOf("main")}`];
+const isTreeReading = (host, folders) => folders.length === 1 && folders[0] === treeFoldersOf(host)[0];
+const narrowedOfTree = (host) => host.log.narrowed.filter(([ref, folders]) => ref === "test-results" && folders !== null && isTreeReading(host, folders));
+const narrowedOfResults = (host) => host.log.narrowed.filter(([ref, folders]) => ref === "test-results" && folders !== null && !isTreeReading(host, folders));
+// The snapshots of the branch read without folders: neither the tests tree nor the history reads one.
 const wholeTrees = (host) => host.log.narrowed.filter(([ref, folders]) => ref === "test-results" && folders === null);
 const manyOfRecords = (host) => host.log.manys.filter((paths) => paths.every((path) => path.startsWith("runs/")));
 
@@ -127,18 +131,19 @@ test("Earlier runs reads the next ten runs through one history, one narrowed sna
   await click(earlierOf(target), () => marksOf(target).length >= 30);
   assert.deepEqual(marksOf(target), Array.from({ length: 30 }, (_, at) => `${shortOf(30 - at)} ${outcomeOf(30 - at)}`));
   assert.equal(earlierOf(target), undefined, "the history ends with the first run");
-  assert.equal(wholeTrees(host).length, 1, "only the tests tree's own reading of the latest outcomes reads the whole tree");
+  assert.equal(wholeTrees(host).length, 0, "the branch's tree is never read whole, by the history or by the tests tree");
 });
 
 // TST-1276003 · level: component · module: MOD-trace-pages
 // guards: UC-029
 // given: the fixture of TST-1276001, opened; the harness fails a read of any file outside the folders a snapshot was narrowed to
 // input: the detail of TST-801 opened; Earlier runs clicked
-// expect: of the snapshots of the branch test-results, one read without folders (the tests tree's reading of the latest outcomes) and one narrowed (the history's), also after Earlier runs one more narrowed; the record files read are the ten newest and the tag commit's record, then the next ten, none of the other ten; no line of a history that could not be read
+// expect: of the snapshots of the branch test-results, none read without folders; one narrowed to the folder of the version's commit (the tests tree's reading of the latest outcomes) and one narrowed to the history's record files, also after Earlier runs one more of the history's; the record files read are the ten newest and the tag commit's record, then the next ten, none of the other ten; no line of a history that could not be read
 test("the records of runs not asked for are not read, and the history reads no whole tree of the branch", async () => {
   const host = hostOf();
   const target = await render(host, 10);
-  assert.equal(wholeTrees(host).length, 1, "the whole tree of the branch is read once, for the outcomes of the tests tree, and not for the history");
+  assert.equal(wholeTrees(host).length, 0, "the whole tree of the branch is read for neither the outcomes of the tests tree nor the history");
+  assert.equal(narrowedOfTree(host).length, 1, "known positive: the tests tree's own snapshot of the branch is narrowed to its commit's folder");
   assert.equal(narrowedOfResults(host).length, 1, "known positive: the history's own snapshot of the branch is narrowed");
   const readRuns = () => new Set(host.log.reads.filter((path) => path.startsWith("runs/")));
   const first = [30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 12].map((n) => pathOf(n));
