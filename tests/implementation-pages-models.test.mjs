@@ -94,14 +94,15 @@ function github(url, authorization, body) {
   if (file && files[file[1]] !== undefined) return text(files[file[1]]);
   return json(404, { message: "Not Found" });
 }
-// The batch read of MOD-repository-hosts: one aliased field `f<i>:object(expression:"<commit>:<path>")` for each path, answered with the text of the file in the repository the variables name.
+// The batch reads of MOD-repository-hosts: one aliased field `f<i>:object(expression:"<commit>:<path>")` for each path, answered with the text of the file in the repository the variables name;
+// and, for readSnapshot with `folders` (ITM-1266), `e<i>:object(expression:"<commit>:<path>")`, answered with the oid of the file, or null where the repository holds none.
 function graphql(authorization, { query, variables }) {
   const name = `${variables.owner}/${variables.name}`;
   if (!REPOSITORIES[name] || authorization !== `Bearer ${TOKENS[name]}`) return json(200, { data: { repository: null } });
   const repository = {};
-  for (const [, alias, expression] of query.matchAll(/(f\d+):object\(expression:("[^"]*")\)/g)) {
+  for (const [, alias, expression] of query.matchAll(/([fe]\d+):object\(expression:("[^"]*")\)/g)) {
     const body = REPOSITORIES[name][JSON.parse(expression).split(":").slice(1).join(":")];
-    repository[alias] = body === undefined ? null : { text: body, isTruncated: false };
+    repository[alias] = body === undefined ? null : alias.startsWith("f") ? { text: body, isTruncated: false } : { oid: sha(body) };
   }
   return json(200, { data: { repository } });
 }
