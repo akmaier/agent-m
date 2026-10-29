@@ -23,7 +23,7 @@ import { parseSpec } from "../spec-document/index.mjs";
 import { runPanel, explain, readProblem } from "../site-frame/index.mjs";
 import { coverageGaps, latestGraph, storedGraph } from "../trace-graph/index.mjs";
 import { editedResult, flagged, showCurrent, splitCandidate, splitProblem } from "./candidates.mjs";
-import { defaultSnapshot, el, button, link, readJobRecords, refusalText, tokenStep } from "./common.mjs";
+import { defaultSnapshot, el, button, link, refusalText, tokenStep } from "./common.mjs";
 import { dueDiligenceSection, roundsSection, splitDueDiligence } from "./sections.mjs";
 import { sourcesOf } from "./spec-entries.mjs";
 
@@ -230,7 +230,6 @@ async function presentDraft(outcome, result, run) {
  * drafting job did to a use case it wrote — a realised name it removed, a use case that realises none.
  */
 export async function jobNotes(snapshot, id) {
-  await readJobRecords(snapshot);
   const rows = await listJobs([{ address: snapshot.repository?.web ?? "", snapshot }], new Map());
   return rows.flatMap((row) => row.record.end?.results ?? []).filter((line) => line.startsWith("note: ") && line.includes(id)).map((line) => line.slice("note: ".length));
 }
