@@ -11,8 +11,7 @@
 // Level: system
 //
 // Authored by developer-sonnet-l (ITM-739), who implemented none of ITM-724, ITM-728, ITM-729, ITM-730 or ITM-731.
-// Where the pages and UC-023 disagree the case follows UC-023 and is marked { todo } with the finding it reports (UC023-S2 to UC023-S4); every other case is green. The findings:
-//   UC023-S2  the reviewing participant of a change receives the files the change touches and the SPEC and use cases, not the whole architecture;
+// Where the pages and UC-023 disagree the case follows UC-023 and is marked { todo } with the finding it reports (UC023-S3 to UC023-S4); every other case is green. The findings:
 //   UC023-S3  the prompt bar, the one route to "Describe the change", chooses a deriving participant only: no reviewing participant is chosen and none is asked;
 //   UC023-S4  after Accept no list of the affected modules, each with the plan steps and backlog items that name it, is shown.
 // Each test states its input and its expected values in its own text; none reads an expected result from the SPEC, a use case or an architecture file, but the flow map (TST-739001),
@@ -61,6 +60,7 @@ const FLOW_EVIDENCE = {
   "main-5-accept": { uc: "The reviewer presses **Accept** — one click.", evidence: [[SELF, "TST-739002"]] },
   "main-5-restructuring": { uc: "**Accept all N shown** for all of them in one commit", evidence: [[SELF, "TST-739004"]] },
   "2-changes-under-existing-identifiers": { uc: "The participant returns changes under the existing identifiers", evidence: [[SELF, "TST-739010"]] },
+  "2-checked-as-a-whole": { uc: "a change that concerns more than one module together with the whole architecture", evidence: [[RELEASE_JOB, "TST-739209"]] },
   "1b-split-or-merge": { uc: "**1b. The author splits or merges modules.**", evidence: [[SELF, "TST-739004"]] },
   "2a-new-identifier": { uc: "**2a. The participant proposes a new identifier for something that exists.**", evidence: [[SELF, "TST-739005"]] },
   "4a-breaks": { uc: "marked *breaks*; accepting stays possible", evidence: [[SELF, "TST-739006"]] },
@@ -72,7 +72,6 @@ const FLOW_EVIDENCE = {
 };
 const FLOW_FINDINGS = {
   "2-reviewing-participant": { uc: "the author chooses a deriving and a reviewing participant", finding: "UC023-S3", file: SELF, test: "TST-739011" },
-  "2-checked-as-a-whole": { uc: "a change that concerns more than one module together with the whole architecture", finding: "UC023-S2", file: RELEASE_JOB, test: "TST-739209" },
   "6-affected-modules-with-their-steps": { uc: "Agent M lists the affected modules, each with the steps of the implementation plan or the backlog items that name it.", finding: "UC023-S4", file: SELF, test: "TST-739013" },
 };
 
