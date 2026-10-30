@@ -158,8 +158,7 @@ test("spec-entry/<id> — an open entry offers Edit", async () => {
 // guards: UC-006; A SPEC EDIT IS SAVED AS A PROPOSAL; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the same entry
 // input: the edit page of the entry
-// expect: the editor holds the proposal byte for byte, with a Why field and an impact list that names EXPORT IS A PDF as changed against the section that holds now when the
-//         text is edited; nothing written
+// expect: the editor holds the proposal byte for byte, with a Why field and an impact list that names EXPORT IS A PDF as changed against the section that holds now when the text is edited; nothing written
 test("spec-entry/<id>/edit — the editor opens on the entry's proposal, with a Why field and the impact list; nothing is written", async () => {
   const fake = fakeHost();
   const target = await showEdit(fake, EDIT);
@@ -175,8 +174,7 @@ test("spec-entry/<id>/edit — the editor opens on the entry's proposal, with a 
 // guards: UC-006; UC-018; A SPEC EDIT IS SAVED AS A PROPOSAL; ONE CLICK PER DECISION
 // given: the editor on the open entry, the proposal reworded again, and a Why
 // input: a click on Save
-// expect: one commit holding the entry's own proposal file, byte for byte as edited, and its rationale — no index, no new queue folder —; SPEC.md untouched; the page links the commit
-//         and the entry
+// expect: one commit holding the entry's own proposal file, byte for byte as edited, and its rationale — no index, no new queue folder —; SPEC.md untouched; the page links the commit and the entry
 test("spec-entry/<id>/edit — Save writes the entry in its own queue and makes no new one", async () => {
   const fake = fakeHost();
   const target = await showEdit(fake, EDIT);

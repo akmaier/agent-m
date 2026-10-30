@@ -152,10 +152,7 @@ for (const site of GRAPH_SITES) {
   // guards: UC-008; UC-020
   // given: the review pages over a product whose branch trace-cache holds no graph of the commit shown, with no token stored, and with the product's token stored
   // input: the route and parameters of the table
-  // expect: the page holds one <p class="problem"> whose text is exactly "This page could not be drawn: " and the message of GraphNotStored, "the trace graph of <commit12> is not
-  //   stored yet — …"; no link to store a token, with a token or without; the paragraph is the one readProblem gives for that error. MOD-site-frame's readProblem: "for an error
-  //   that is no host's failure, a fault of the page itself: that this page could not be drawn, with the error's message, and no link to a token" — GraphNotStored is
-  //   MOD-trace-graph's error, not a host's failure.
+  // expect: the page holds one <p class="problem"> whose text is exactly "This page could not be drawn: " and the message of GraphNotStored, "the trace graph of <commit12> is not stored yet — …"; no link to store a token, with a token or without; the paragraph is the one readProblem gives for that error. MOD-site-frame's readProblem: "for an error that is no host's failure, a fault of the page itself: that this page could not be drawn, with the error's message, and no link to a token" — GraphNotStored is MOD-trace-graph's error, not a host's failure.
   test(`${site.site} — a graph that is not stored is named by readProblem: this page could not be drawn, with the message and no link`, async () => {
     for (const token of [false, true]) {
       const { problems, links, commit } = await drawSite(site, token);
@@ -185,8 +182,7 @@ for (const site of GRAPH_SITES) {
 // guards: UC-008; A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the review pages over a product whose branch trace-cache holds no graph of the commit shown, with a token stored
 // input: the route decision/draft
-// expect: no problem paragraph — the page is drawn; its list of what the derivation covers holds the requirement A LOAN… of the head's SPEC.md (li.requirement), and no line of an earlier graph
-//         (p.graph-as-of) — the page shows none. Counter-proof: before this change the same route drew "This page could not be drawn: the trace graph of … is not stored yet" (TST-601015's row for it)
+// expect: no problem paragraph — the page is drawn; its list of what the derivation covers holds the requirement A LOAN… of the head's SPEC.md (li.requirement), and no line of an earlier graph (p.graph-as-of) — the page shows none. Counter-proof: before this change the same route drew "This page could not be drawn: the trace graph of … is not stored yet" (TST-601015's row for it)
 test("jobs.mjs showArchitectureDraft — while the head's graph is not stored, the page lists the head SPEC's requirements and draws", async () => {
   emptyStorage();
   const fake = fakeProduct();

@@ -157,8 +157,7 @@ const merges = (calls) => calls.filter((call) => call[0] === "mergePullRequest")
 // guards: UC-024; CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI; A PULL REQUEST IS MERGED ONLY WHEN THE DEFINITION OF DONE HOLDS; ONE CLICK PER DECISION
 // given: the job JOB-20260916-0900-a1b2 for ITM-005, whose pull request #7 has a red run on its first (tests-only) commit and a green run on its head, whose head passed the check agent-m done, and every changed code file in MOD-store's folder
 // input: the route implement's render; a click a script makes on Merge; then a click of a person
-// expect: the page shows #7 with the red run of the first commit and the green run of the head, each linked to its page, and says the Definition of Done holds, linking the run of agent-m done; Merge is offered; the render and the
-//         script's click merge nothing; the person's click calls mergePullRequest(7) once, on the head shown, and the page says the pull request is merged
+// expect: the page shows #7 with the red run of the first commit and the green run of the head, each linked to its page, and says the Definition of Done holds, linking the run of agent-m done; Merge is offered; the render and the script's click merge nothing; the person's click calls mergePullRequest(7) once, on the head shown, and the page says the pull request is merged
 test("a job's pull request shows its red and green CI runs and that the Definition of Done holds, and Merge merges it on the head shown, on a person's click only", async () => {
   const pull = pullOf({ number: 7, item: "ITM-005", jobId: "JOB-20260916-0900-a1b2", digit: "1" });
   const { target, calls } = await render([pull]);

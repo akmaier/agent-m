@@ -89,8 +89,7 @@ test("schedule — the counts are the view stored for the head, with one read of
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-027
 // given: overview-cache holding no view of the head, latest.json naming 0c0c…0c, and the schedule's view of 0c0c…0c with the counts 7, 6, 5, 4, 3 and 2
 // input: the route schedule's render
-// expect: the line "As of 0c0c0c0: the view of the newest commit is being stored."; the rows unit, component, system, paid, release and user show 7, 6, 5, 4, 3 and 2; three reads of
-//         overview-cache; no test file is read
+// expect: the line "As of 0c0c0c0: the view of the newest commit is being stored."; the rows unit, component, system, paid, release and user show 7, 6, 5, 4, 3 and 2; three reads of overview-cache; no test file is read
 test("schedule — while the head's counts are not stored, the counts stored last are shown with the as-of line", async () => {
   const older = { unit: 7, component: 6, system: 5, paid: 4, release: 3, user: 2 };
   const { target, srv } = await show({ "latest.json": `${JSON.stringify({ commit: C0 })}\n`, [`${C0}.schedule.json.gz`]: stored(C0, older) });

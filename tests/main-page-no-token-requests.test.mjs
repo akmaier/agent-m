@@ -97,9 +97,7 @@ const FIXED = total(SHARED) + total(ONLY_THE_ROUTE);
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-046
 // given: a product of 600 backlog items, 400 job records, SPEC.md and 701 test files, no overview stored for its head, no token stored for it or for the instance; an instance holding its participant list
 // input: the route home drawn on a fresh fake of GitHub
-// expect: it makes 1,715 requests = 600 items + 400 job records + 701 test files + 14 more; the 14 are the product's commit, tree, pull requests, SPEC.md and tags (5), the instance's repository,
-//   commit, tree and participants.md (4), the product's repository, its branch test-results, the stored overview of its head and the file latest.json of its branch overview-cache, which are not there (4),
-//   and the CI runs of its head (1); no request is unattributed, and no facts file is asked for
+// expect: it makes 1,715 requests = 600 items + 400 job records + 701 test files + 14 more; the 14 are the product's commit, tree, pull requests, SPEC.md and tags (5), the instance's repository, commit, tree and participants.md (4), the product's repository, its branch test-results, the stored overview of its head and the file latest.json of its branch overview-cache, which are not there (4), and the CI runs of its head (1); no request is unattributed, and no facts file is asked for
 test("TST-842001 without a token and without a stored overview, the route home makes one request per backlog item, job record and test file, and 14 more", async () => {
   const { counts } = await newPage(TEST_FILES, null);
   assert.deepEqual(counts, { ...SHARED, ...ONLY_THE_ROUTE, "product: backlog item": ITEMS, "product: job record": JOBS, "product: test file": TEST_FILES + 1 });
@@ -139,8 +137,7 @@ test("TST-842003 the route home's 1,715 requests include its test files and fixe
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-046
 // given: the product of TST-842001 with a token stored for it
 // input: the route home drawn
-// expect: the route home makes 32 requests — 19 GraphQL batches of at most a hundred files, which hold the 600 items, 400 job records, 701 test files and SPEC.md, and 13 more: the 9 reads only the route makes, the product's commit, tree, pull requests and tags —,
-//   with no backlog item, job record or test file by itself
+// expect: the route home makes 32 requests — 19 GraphQL batches of at most a hundred files, which hold the 600 items, 400 job records, 701 test files and SPEC.md, and 13 more: the 9 reads only the route makes, the product's commit, tree, pull requests and tags —, with no backlog item, job record or test file by itself
 test("TST-842004 with a token, the route home reads the files in batches of at most a hundred and makes 32 requests", async () => {
   const now = await newPage(TEST_FILES, PRODUCT_TOKEN);
   assert.equal(total(now.counts), 32);

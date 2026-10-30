@@ -40,8 +40,7 @@ async function receiverFixture() {
 // guards: UC-014; THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE
 // given: the real legacy review entry with the views it normally loads
 // input: open #add, then #get-your-own/step=actions, an unserved address, and #add again
-// expect: #add keeps drawing Add a product; get-your-own draws its Actions step; an address no view answers keeps the existing
-// review fallback; and the old #add alias still draws Add a product after that negative control
+// expect: #add keeps drawing Add a product; get-your-own draws its Actions step; an address no view answers keeps the existing review fallback; and the old #add alias still draws Add a product after that negative control
 test("TST-1165003 the legacy review entry serves get-your-own while keeping its add alias and unknown-route fallback", async () => {
   const page = await openDashboard({ server: await repoServer({ files: { "README.md": "# Agent M\n" } }), hash: "#add" });
   assert.match(page.main(), /Add a product/, "#add is the existing positive alias");

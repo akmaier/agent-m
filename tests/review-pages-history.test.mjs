@@ -238,8 +238,7 @@ const RECORDS_OF_USE_CASES = [R.uc42old[0], R.uc43[0], R.uc44[0], R.uc45[0], R.u
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the fixture's five commits that touched docs/approvals and one that did not; a token stored
 // input: one click on the link of the use cases' history: the route use-case drawn with the id history
-// expect: 10 requests — the repository, the commit of its default branch and its tree once each (3); "List commits" once, with the path docs/approvals (1); "Get a commit" once for each of the five
-//   commits (5); the texts of the five use-case records in 1 batch of GraphQL; no file by itself; no request on the raw host
+// expect: 10 requests — the repository, the commit of its default branch and its tree once each (3); "List commits" once, with the path docs/approvals (1); "Get a commit" once for each of the five commits (5); the texts of the five use-case records in 1 batch of GraphQL; no file by itself; no request on the raw host
 test("TST-898005 use-case history with a token — 10 requests: the snapshot, one list of the commits, one for each commit, one batch of the records' texts", async () => {
   const fake = fakeGitHub();
   await draw("use-case", { id: "history" }, fake);
@@ -304,8 +303,7 @@ test("TST-898008 use-case history of a repository without records — no row, no
 // guards: A REMOTE INTERFACE NAMES HOW IT FAILS
 // given: the fixture; the server answers "List commits" with a used-up rate limit
 // input: the route use-case drawn with the id history, no token stored
-// expect: one problem paragraph, the host's failure as the other pages draw a failed read — it says that GitHub's request limit for this network, for requests without a token, is used up —
-//   and no row
+// expect: one problem paragraph, the host's failure as the other pages draw a failed read — it says that GitHub's request limit for this network, for requests without a token, is used up — and no row
 test("TST-898009 use-case history when the list of the commits is refused — the host's failure drawn as a problem, and no row", async () => {
   const { target } = await draw("use-case", { id: "history" }, fakeGitHub({ refuseList: true }), { token: false });
   const problems = problemsOf(target);
@@ -354,8 +352,7 @@ function olderOf(target) {
 // guards: UC-008; STATUS IS DERIVED FROM THE RECORDS
 // given: 45 commits that each added one record — UC-<k> by commit k, but ARC-<k> where k is a multiple of three — beneath a commit of code, with one more commit of code directly older than commit 26
 // input: the route use-case drawn with the id history, a token stored
-// expect: the rows of the twenty newest commits that touched docs/approvals (commits 45 down to 26): the 13 use cases among them, newest first — 44, 43, 41, 40, 38, 37, 35, 34, 32, 31, 29, 28, 26 —
-//   and a link Older; "List commits" asked once, for docs/approvals, from the head, 20 to a page, page 1
+// expect: the rows of the twenty newest commits that touched docs/approvals (commits 45 down to 26): the 13 use cases among them, newest first — 44, 43, 41, 40, 38, 37, 35, 34, 32, 31, 29, 28, 26 — and a link Older; "List commits" asked once, for docs/approvals, from the head, 20 to a page, page 1
 test("TST-898010 use-case history, first page — twenty commits, the rows of the use cases among them, and Older", async () => {
   const fake = fakeGitHub(longHistory(45));
   const { target } = await draw("use-case", { id: "history" }, fake);
@@ -368,8 +365,7 @@ test("TST-898010 use-case history, first page — twenty commits, the rows of th
 // guards: UC-008; STATUS IS DERIVED FROM THE RECORDS
 // given: the same 45 commits; the first page drawn
 // input: the link Older of the first page followed (the route drawn with the parameters of its address)
-// expect: the rows of the next twenty commits that touched docs/approvals (25 down to 6): 25, 23, 22, 20, 19, 17, 16, 14, 13, 11, 10, 8, 7 — and a link Older; "List commits" asked once, for docs/approvals,
-//   from the parent of the last commit shown (commit 26), which is the commit of code directly older than it, 20 to a page, page 1
+// expect: the rows of the next twenty commits that touched docs/approvals (25 down to 6): 25, 23, 22, 20, 19, 17, 16, 14, 13, 11, 10, 8, 7 — and a link Older; "List commits" asked once, for docs/approvals, from the parent of the last commit shown (commit 26), which is the commit of code directly older than it, 20 to a page, page 1
 test("TST-898011 use-case history, Older — the next twenty commits, read from the parent of the last commit shown", async () => {
   const history = longHistory(45);
   const first = await draw("use-case", { id: "history" }, fakeGitHub(history));
@@ -400,9 +396,7 @@ test("TST-898012 use-case history, the last page — the rest of the commits and
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: this repository's size: 236 commits that each added one record (158 use cases', and 78 decisions' where k is a multiple of three) — the 45-commit fixture's rule; the unbounded page of the first version of this item cost 244 and 423 on the real repository
 // input: one click on the history of the use cases, then one on Older, with a token and without
-// expect: a page costs the snapshot (3), one "List commits" (1), "Get a commit" for each of the twenty commits (20) and the texts of the use-case records of the page — with a token 1 GraphQL batch, without
-//   one request each on the raw host. First page (commits 236 to 217: 14 use cases): 25 requests with a token, 38 without. Second page (216 to 197: 13 use cases): 25 with, 37 without. Neither
-//   depends on the 236 commits
+// expect: a page costs the snapshot (3), one "List commits" (1), "Get a commit" for each of the twenty commits (20) and the texts of the use-case records of the page — with a token 1 GraphQL batch, without one request each on the raw host. First page (commits 236 to 217: 14 use cases): 25 requests with a token, 38 without. Second page (216 to 197: 13 use cases): 25 with, 37 without. Neither depends on the 236 commits
 for (const token of [true, false]) {
   test(`TST-898013 use-case history at this repository's size — 20 commits to a page, ${token ? "with" : "without"} a token`, async () => {
     const history = longHistory(236);

@@ -77,8 +77,7 @@ const manyOfRecords = (host) => host.log.manys.filter((paths) => paths.every((pa
 // guards: UC-029; EVERY TEST RUN LEAVES A RESULT RECORD
 // given: a branch test-results of 30 records, one for each of the runs 1 to 30 (the 30th the newest), TST-801 passing on the odd runs and failing on the even ones; one release tag, v2026.1.0, at the commit of the 12th run; a counting Host
 // input: the detail of TST-801 opened
-// expect: one readHistory of the branch (path null, ref test-results, limit 10, with changes); one readSnapshot of the branch, narrowed to the ten record files of the runs 30 to 21 and the folder of the 12th run's commit, no other;
-//         one readMany of those ten files and the tag commit's one record; ten marks, "1e1e1e1 failed" down to "1515151 passed" (the runs 30 to 21), newest first; one row "v2026.1.0 failed" (the 12th run) and no mark for the 12th run
+// expect: one readHistory of the branch (path null, ref test-results, limit 10, with changes); one readSnapshot of the branch, narrowed to the ten record files of the runs 30 to 21 and the folder of the 12th run's commit, no other; one readMany of those ten files and the tag commit's one record; ten marks, "1e1e1e1 failed" down to "1515151 passed" (the runs 30 to 21), newest first; one row "v2026.1.0 failed" (the 12th run) and no mark for the 12th run
 test("opening a test reads one history, one narrowed snapshot and one batch, and shows the marks of the newest ten runs", async () => {
   const host = hostOf();
   const target = await render(host, 10);
@@ -104,9 +103,7 @@ test("opening a test reads one history, one narrowed snapshot and one batch, and
 // guards: UC-029; EVERY TEST RUN LEAVES A RESULT RECORD
 // given: the fixture of TST-1276001, opened
 // input: Earlier runs clicked; clicked again; clicked a third time
-// expect: after the first click, a second readHistory of the branch from the parent of the 21st run's commit (limit 10, with changes), one more snapshot of the branch narrowed to the files of the runs 20 to 11 and nothing else,
-//         one more readMany of those ten files; twenty marks, the runs 30 to 11 in that order, the release row unchanged; the control still offered. After the second click, the runs 10 to 1 are added, thirty marks, and the control
-//         is gone: the history ends. The branch's tree is never read whole.
+// expect: after the first click, a second readHistory of the branch from the parent of the 21st run's commit (limit 10, with changes), one more snapshot of the branch narrowed to the files of the runs 20 to 11 and nothing else, one more readMany of those ten files; twenty marks, the runs 30 to 11 in that order, the release row unchanged; the control still offered. After the second click, the runs 10 to 1 are added, thirty marks, and the control is gone: the history ends. The branch's tree is never read whole.
 test("Earlier runs reads the next ten runs through one history, one narrowed snapshot and one batch, and ends with the history", async () => {
   const host = hostOf();
   const target = await render(host, 10);

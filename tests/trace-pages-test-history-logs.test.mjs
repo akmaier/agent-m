@@ -95,8 +95,7 @@ test("opening a test sends no request for a run's log, however many commits ran 
 // guards: UC-029; EVERY TEST RUN LEAVES A RESULT RECORD
 // given: the detail of TST-1275001, with the logs of the run 903 gone: the server answers 410 for each of its two jobs
 // input: the link of the third mark opened (clicked)
-// expect: exactly the requests of run 903 — GET …/actions/runs/903/jobs, GET …/actions/jobs/9031/logs, GET …/actions/jobs/9032/logs — and no other under …/actions/; the third link then reads "no longer available" and
-//         still points at …/actions/runs/903; the mark's text before it is "3333333 passed", unchanged; the other four links still read "log"
+// expect: exactly the requests of run 903 — GET …/actions/runs/903/jobs, GET …/actions/jobs/9031/logs, GET …/actions/jobs/9032/logs — and no other under …/actions/; the third link then reads "no longer available" and still points at …/actions/runs/903; the mark's text before it is "3333333 passed", unchanged; the other four links still read "log"
 test("opening the third mark's log asks for that run alone, and a run whose logs are gone then reads no longer available", async () => {
   const { requests } = await counting(["903"], async () => {
     const target = await render(hostOf());

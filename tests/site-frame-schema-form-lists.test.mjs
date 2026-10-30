@@ -43,9 +43,7 @@ const formOver = (handed) => {
 // guards: A BACKLOG ITEM NAMES WHAT IT REALISES; A BACKLOG ITEM NAMES THE MODULES IT CHANGES; UC-033
 // given: a form over the valid item ITM-001 of the backlog, whose realises are FIRST RULE and THIRD RULE and whose modules are MOD-store
 // input: the person types "FIRST RULE, SECOND RULE" into the field realises and "MOD-store, MOD-pages" into the field modules, then clicks Save
-// expect: the fields show "FIRST RULE, THIRD RULE" and "MOD-store" before the typing; after it no finding is shown and Save is offered; onSave is called once with the document whose realises is the list ["FIRST RULE", "SECOND RULE"]
-//   and whose modules is the list ["MOD-store", "MOD-pages"], the other list keys as they were given. Counter-proof: before the change the field holds "FIRST RULE,THIRD RULE", and the typed key reaches onSave as the text typed (the
-//   finding "is not a list" beside it keeps Save from being offered)
+// expect: the fields show "FIRST RULE, THIRD RULE" and "MOD-store" before the typing; after it no finding is shown and Save is offered; onSave is called once with the document whose realises is the list ["FIRST RULE", "SECOND RULE"] and whose modules is the list ["MOD-store", "MOD-pages"], the other list keys as they were given. Counter-proof: before the change the field holds "FIRST RULE,THIRD RULE", and the typed key reaches onSave as the text typed (the finding "is not a list" beside it keeps Save from being offered)
 test("schemaForm — a list key typed in its field reaches onSave as a list", async () => {
   const handed = [];
   const form = formOver(handed);

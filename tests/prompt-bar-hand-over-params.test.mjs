@@ -204,8 +204,7 @@ test("a hand-over of change-use-case on one use case is queued with the paramete
 // guards: UC-019
 // given: the product of TST-626001; known positive: the hand-over of change-use-case on UC-001 alone is queued (TST-626001)
 // input: queue of change-use-case on both use cases, ["UC-001", "UC-002"], and on none, ["EXPORT IS A PDF"]
-// expect: both are refused at preparation by the strategy's own error, UseCaseNotFound, whose use case is undefined — the bar names no use case for two of them or for none —; nothing was queued: no commit,
-//   no workflow
+// expect: both are refused at preparation by the strategy's own error, UseCaseNotFound, whose use case is undefined — the bar names no use case for two of them or for none —; nothing was queued: no commit, no workflow
 test("a hand-over of change-use-case on several use cases or on none is refused by UseCaseNotFound and queues nothing", async () => {
   const positive = await handsOver({ kind: "change-use-case", works_on: ["UC-001"] });
   assert.equal(positive.refusal, undefined, "known positive: one use case is queued");
@@ -222,8 +221,7 @@ test("a hand-over of change-use-case on several use cases or on none is refused 
 // guards: UC-019
 // given: the product of TST-626001
 // input: queue of change-requirements on the requirement EXPORT IS A PDF, with no source of the person (works_on cannot give one)
-// expect: refused at preparation by the kind's own precondition person-source (MOD-spec-changes): NotStartable, its finding under THE PERSON WHO PROMPTS IS A SOURCE; nothing was queued — no
-//   commit —; no request was made
+// expect: refused at preparation by the kind's own precondition person-source (MOD-spec-changes): NotStartable, its finding under THE PERSON WHO PROMPTS IS A SOURCE; nothing was queued — no commit —; no request was made
 test("a hand-over of change-requirements without the person's own source is refused by the kind's precondition, and nothing is queued", async () => {
   const it = await handsOver({ kind: "change-requirements", works_on: [REQUIREMENT] });
   assert.equal(it.refusal?.name, "NotStartable", it.refusal?.message);
@@ -236,8 +234,7 @@ test("a hand-over of change-requirements without the person's own source is refu
 // guards: UC-019
 // given: the product of TST-626001, which links no source (it holds no docs/sources.md)
 // input: queue of derive-requirements on the requirement EXPORT IS A PDF
-// expect: refused at preparation by the strategy's own error, NotLinked, whose source is "" — MOD-source-register's recipe source-excerpt reads `source`, which works_on cannot give —; nothing was
-//   queued: no commit, no workflow
+// expect: refused at preparation by the strategy's own error, NotLinked, whose source is "" — MOD-source-register's recipe source-excerpt reads `source`, which works_on cannot give —; nothing was queued: no commit, no workflow
 test("a hand-over of derive-requirements, which needs a source works_on cannot give, is refused by NotLinked and queues nothing", async () => {
   const it = await handsOver({ kind: "derive-requirements", works_on: [REQUIREMENT] });
   assert.equal(it.queued, undefined);
@@ -250,8 +247,7 @@ test("a hand-over of derive-requirements, which needs a source works_on cannot g
 // guards: UC-019
 // given: the product of TST-626001
 // input: queue of derive-use-cases on the requirement EXPORT IS A PDF and the use case UC-001
-// expect: the job is queued and its record's parameters are exactly { requirements: ["EXPORT IS A PDF"], useCases: ["UC-001"], useCase: "UC-001" } — requirements and useCases are what MOD-approvals'
-//   precondition rests-on-accepted and MOD-spec-changes' recipe chosen-requirements read — with none of source, resource, kind, entry and part
+// expect: the job is queued and its record's parameters are exactly { requirements: ["EXPORT IS A PDF"], useCases: ["UC-001"], useCase: "UC-001" } — requirements and useCases are what MOD-approvals' precondition rests-on-accepted and MOD-spec-changes' recipe chosen-requirements read — with none of source, resource, kind, entry and part
 test("a hand-over of derive-use-cases is queued with the parameters requirements and useCases", async () => {
   const it = await handsOver({ kind: "derive-use-cases", works_on: [REQUIREMENT, "UC-001"] });
   assert.equal(it.refusal, undefined, it.refusal?.message);
@@ -263,8 +259,7 @@ test("a hand-over of derive-use-cases is queued with the parameters requirements
 // guards: UC-019
 // given: the Scrum product before it has an architecture (no module file); its use cases are accepted
 // input: queue of derive-architecture on the use case UC-001
-// expect: the job is queued and its record's parameters are exactly { useCases: ["UC-001"], useCase: "UC-001" }; the kind's strategies (architecture-ready, whole-spec, accepted-use-cases) read none
-//   of them, and need none of source, resource, kind, entry and part, which the record lacks
+// expect: the job is queued and its record's parameters are exactly { useCases: ["UC-001"], useCase: "UC-001" }; the kind's strategies (architecture-ready, whole-spec, accepted-use-cases) read none of them, and need none of source, resource, kind, entry and part, which the record lacks
 test("a hand-over of derive-architecture is queued: its strategies read no parameter", async () => {
   const it = await handsOver({ kind: "derive-architecture", works_on: ["UC-001"] }, scrumFilesWithoutArchitecture());
   assert.equal(it.refusal, undefined, it.refusal?.message);
@@ -289,8 +284,7 @@ test("a hand-over of review-architecture is queued: its strategies read no param
 // guards: UC-019
 // given: the Scrum product, whose backlog holds ITM-004 (no docs/plan); it realises UC-001
 // input: queue of implement, and of refactor, on the item ITM-004
-// expect: both are queued and their records' parameters are exactly { items: ["ITM-004"] } — what MOD-run-planner's recipe implementation-inputs reads for a backlog item —, with no steps and none of
-//   source, resource, kind, entry and part
+// expect: both are queued and their records' parameters are exactly { items: ["ITM-004"] } — what MOD-run-planner's recipe implementation-inputs reads for a backlog item —, with no steps and none of source, resource, kind, entry and part
 test("a hand-over of implement or refactor on a backlog item is queued with the parameter items", async () => {
   for (const kind of ["implement", "refactor"]) {
     const it = await handsOver({ kind, works_on: ["ITM-004"] });
@@ -304,8 +298,7 @@ test("a hand-over of implement or refactor on a backlog item is queued with the 
 // guards: UC-019
 // given: a V-model product whose plan holds the step ITM-007 (docs/plan/ITM-007-store.md) and no backlog
 // input: queue of implement, and of refactor, on the step ITM-007
-// expect: both are queued and their records' parameters are exactly { steps: ["ITM-007"] } — what MOD-run-planner's recipe implementation-inputs and MOD-runtimes' writer branch-and-pull-request read
-//   for a plan step —, with no items and none of source, resource, kind, entry and part
+// expect: both are queued and their records' parameters are exactly { steps: ["ITM-007"] } — what MOD-run-planner's recipe implementation-inputs and MOD-runtimes' writer branch-and-pull-request read for a plan step —, with no items and none of source, resource, kind, entry and part
 test("a hand-over of implement or refactor on a plan step is queued with the parameter steps", async () => {
   for (const kind of ["implement", "refactor"]) {
     const it = await handsOver({ kind, works_on: ["ITM-007"] }, vModelFiles());
@@ -333,8 +326,7 @@ test("a hand-over of implement that works on no item or step is refused by NoWor
 // guards: UC-019
 // given: the product of TST-626001, which declares no resource
 // input: queue of check-resource on the name "Cluster"
-// expect: refused at preparation by the strategy's own error, ResourceNotNamed — MOD-resource-list's recipe resource-check reads `resource`, which works_on cannot give —; nothing was queued: no commit,
-//   no workflow
+// expect: refused at preparation by the strategy's own error, ResourceNotNamed — MOD-resource-list's recipe resource-check reads `resource`, which works_on cannot give —; nothing was queued: no commit, no workflow
 test("a hand-over of check-resource, which needs a resource works_on cannot give, is refused by ResourceNotNamed and queues nothing", async () => {
   const it = await handsOver({ kind: "check-resource", works_on: ["Cluster"] });
   assert.equal(it.queued, undefined);
@@ -346,8 +338,7 @@ test("a hand-over of check-resource, which needs a resource works_on cannot give
 // guards: UC-019; UC-049
 // given: the product of TST-626001
 // input: queue of converse on the use case UC-001
-// expect: the job is queued and its record's parameters are exactly { useCases: ["UC-001"], useCase: "UC-001" }; the kind's strategies read `page` and `entry`, which the bar does not give, and the
-//   record lacks them; the job is queued all the same, since a missing page or entry is no error of a recipe
+// expect: the job is queued and its record's parameters are exactly { useCases: ["UC-001"], useCase: "UC-001" }; the kind's strategies read `page` and `entry`, which the bar does not give, and the record lacks them; the job is queued all the same, since a missing page or entry is no error of a recipe
 test("a hand-over of converse is queued without the page and the entry its strategies read", async () => {
   const it = await handsOver({ kind: "converse", works_on: ["UC-001"] });
   assert.equal(it.refusal, undefined, it.refusal?.message);

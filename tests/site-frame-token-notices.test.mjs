@@ -51,8 +51,7 @@ async function start({ tokens = {}, tested = {}, products = [], fragment = "", v
 // guards: A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; UC-042
 // given: the instance's token named "Agent M" whose recorded expiry is 14 days from today
 // input: startPage
-// expect: one notice of kind token-expiring whose text begins "Your GitHub token expires on <that date> (Agent M)." and tells where the new
-//   value is pasted, with a link labelled "Renew" to GitHub's list of tokens
+// expect: one notice of kind token-expiring whose text begins "Your GitHub token expires on <that date> (Agent M)." and tells where the new value is pasted, with a link labelled "Renew" to GitHub's list of tokens
 test("TST-683001 a token that expires in 14 days is named with its date, and its renewal is linked", async () => {
   const page = await start({ tokens: { "github-token": { expires: day(14) } } });
   assert.equal(page.notices.length, 1);
@@ -111,8 +110,7 @@ test("TST-683004 days are counted in whole UTC days, whatever the time of day", 
 // guards: AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED
 // given: the instance's token whose last test is a refusal, with an expiry 5 days away; the same token whose last test worked
 // input: startPage for each
-// expect: the refused one gives one notice of kind token-refused, "The server refused your token Agent M." with the renewal link,
-//   and no token-expiring notice; the one that worked gives the token-expiring notice only
+// expect: the refused one gives one notice of kind token-refused, "The server refused your token Agent M." with the renewal link, and no token-expiring notice; the one that worked gives the token-expiring notice only
 test("TST-683005 a token the server refused is named with its renewal, and a refusal is not shown beside an expiry", async () => {
   const refused = await start({ tokens: { "github-token": { expires: day(5) } }, tested: { "github-token": "refused" } });
   assert.deepEqual(refused.notices.map((n) => n.kind), ["token-refused"]);

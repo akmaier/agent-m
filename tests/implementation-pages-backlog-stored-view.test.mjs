@@ -33,8 +33,7 @@ const readSince = (srv, at, batchesAt) => [...srv.requests.slice(at).filter((r) 
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-032
 // given: overview-cache holding the backlog view of the head ccc…c
 // input: the route backlog's render
-// expect: the backlog lists ITM-001 to ITM-005, ITM-001 done; team1's and team2's panels stand; its requests hold one read of overview-cache, no request about pull requests, none
-//         for a facts file and no batch of files
+// expect: the backlog lists ITM-001 to ITM-005, ITM-001 done; team1's and team2's panels stand; its requests hold one read of overview-cache, no request about pull requests, none for a facts file and no batch of files
 test("#backlog draws the head's stored view, with one read of overview-cache and no pull request, facts file or batch", async () => {
   const page = await renderOverGitHub("backlog", {}, { files: files(), overview: await stored() });
   try {
@@ -71,8 +70,7 @@ test("#backlog — Plan sprint and Cancel draw from the view read and send no re
 // guards: ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-032
 // given: the page drawn from the head's stored view; team1's sprint 03 runs with ITM-001 and ITM-002
 // input: Change the selection of team1, ITM-005 ticked besides, a goal and the closer alice given, Start sprint
-// expect: the click reads the declaration, the model's file, the two module files and team1's running sprint docs/backlog/sprints/team1/03.md; one commit is written, changing
-//         that sprint's record with a ## Selection naming ITM-005, on the head ccc…c the view is of
+// expect: the click reads the declaration, the model's file, the two module files and team1's running sprint docs/backlog/sprints/team1/03.md; one commit is written, changing that sprint's record with a ## Selection naming ITM-005, on the head ccc…c the view is of
 test("#backlog — Start sprint on the head's view reads the declaration, the model, the module files and the running sprint, and commits on the view's commit", async () => {
   const page = await renderOverGitHub("backlog", {}, { files: files(), overview: await stored() });
   try {
@@ -112,8 +110,7 @@ test("#backlog draws the view stored last while the head's is stored, and offers
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-032
 // given: a repository without the branch overview-cache, and the same product with its head's view stored
 // input: the route backlog's render, both ways
-// expect: without the branch, the page derives the view from the facts of the scope `work` — it reads the pull requests — and shows the same backlog panel as the page drawn
-//         from the stored view
+// expect: without the branch, the page derives the view from the facts of the scope `work` — it reads the pull requests — and shows the same backlog panel as the page drawn from the stored view
 test("#backlog derives the same view in the page where the repository stores none", async () => {
   const drawn = async (overview) => {
     const page = await renderOverGitHub("backlog", {}, { files: files(), overview });

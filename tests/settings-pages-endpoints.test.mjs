@@ -71,8 +71,7 @@ function settingsRoute() {
 // guards: UC-003; CONFIGURATION LIVES IN THE BROWSER
 // given: an empty browser store and a constructed successful endpoint answer
 // input: the author fills the public endpoints Route and presses Test
-// expect: the Route stores endpoint:<name> before exactly one short test request, then shows the configured model working; as the endpoint declares no context,
-// the test is followed only by GET /models and GET /model/info, which state none here, and the page says so
+// expect: the Route stores endpoint:<name> before exactly one short test request, then shows the configured model working; as the endpoint declares no context, the test is followed only by GET /models and GET /model/info, which state none here, and the page says so
 test("TST-265001: direct endpoint saves before its one short test", async () => {
   const store = freshStore(), calls = [], oldFetch = globalThis.fetch;
   globalThis.fetch = async (url, init = {}) => {
@@ -235,8 +234,7 @@ test("TST-265010: Settings lists its stored endpoint with a hidden key and Show"
 // guards: A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A CREDENTIAL IS NEVER PLACED IN A URL
 // given: a stored direct endpoint and a constructed successful endpoint answer
 // input: the person presses Test, then Change on the public settings Route
-// expect: Test makes one mapped direct test request without changing the stored record — followed, as no context is declared, only by GET /models and
-// GET /model/info —, and Change opens that named endpoint's form in place
+// expect: Test makes one mapped direct test request without changing the stored record — followed, as no context is declared, only by GET /models and GET /model/info —, and Change opens that named endpoint's form in place
 test("TST-265011: Settings tests a stored direct endpoint and changes its named route", async () => {
   const store = freshStore(), calls = [], navigations = [], oldFetch = globalThis.fetch;
   writeSetting(store, "endpoint:campus", ENDPOINT);

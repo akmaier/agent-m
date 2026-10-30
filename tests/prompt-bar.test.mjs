@@ -419,8 +419,7 @@ test("Send — a message that cannot be recorded is not sent, and the page says 
 // guards: UC-049; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION
 // given: a register whose participant drafter-a is a model endpoint with the CI secret KEY_A in its route and "Anthropic, USA" as its place; an instance that holds Agent M's job workflow; an endpoint whose draft proposes a hand-over { kind: "implement", works_on: ["ITM-504"], task: "Add the bar." }
 // input: Send
-// expect: the page shows "Kind: implement", "Works on: ITM-504", "Task: Add the bar.", "Participant: drafter-a — Anthropic, USA" and "Route: ci hosted", and no button "Hand over": the hand-over goes
-//   on without a further click (UC-049 4a), and is refused at once — "Nothing was queued." — since drafter-a, which drafts text only, cannot do implement; no commit was attempted
+// expect: the page shows "Kind: implement", "Works on: ITM-504", "Task: Add the bar.", "Participant: drafter-a — Anthropic, USA" and "Route: ci hosted", and no button "Hand over": the hand-over goes on without a further click (UC-049 4a), and is refused at once — "Nothing was queued." — since drafter-a, which drafts text only, cannot do implement; no commit was attempted
 test("Send — a hand-over the participant proposes is shown with its kind, what it works on, its task, the participant and its route, and goes on without a click", async () => {
   endpointAnswers(answer("I can hand this on.", { handOver: { kind: "implement", works_on: ["ITM-504"], task: "Add the bar." } }));
   const it = page({ rows: [DRAFTER_CI], instanceFiles: JOB_WORKFLOW });

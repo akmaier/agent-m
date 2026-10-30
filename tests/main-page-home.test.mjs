@@ -345,9 +345,7 @@ test("TST-847001 the page reads the jobs' states again once a minute, and sets n
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-046
 // given: this browser keeps the product alice/product of 600 backlog items and 400 job records, none of them taken or ended, with a token for it and one for the instance (the page of TST-827006 read it in 25 requests)
 // input: the route home drawn; the timer fired at 12:01 UTC, the requests since the draw counted; then one job record, JOB-20261014-0900-0001, given its end on the server and the timer fired at 12:02
-// expect: the first reading sends exactly 2 requests, both to alice/product and both with the product's token — the commit of main and the tree of that commit —, and not one file, batch, pull request, tag or repository
-// request, and none to alice/agent-m; counter-proof: the reading after the record changed sends 3 — the commit, the tree and one batch holding the changed record, docs/jobs/JOB-20261014-0900-0001.md —,
-// and the 399 records that did not change are not read again
+// expect: the first reading sends exactly 2 requests, both to alice/product and both with the product's token — the commit of main and the tree of that commit —, and not one file, batch, pull request, tag or repository request, and none to alice/agent-m; counter-proof: the reading after the record changed sends 3 — the commit, the tree and one batch holding the changed record, docs/jobs/JOB-20261014-0900-0001.md —, and the 399 records that did not change are not read again
 test("TST-847002 with a token, a reading of the jobs' states is the product's commit and tree, 2 requests, and a record that changed costs 1 more", async () => {
   net = network({ [PRODUCT]: productFiles({ items: 600, jobs: 400 }), [INSTANCE]: instanceFiles() });
   net.install();
@@ -393,9 +391,7 @@ test("TST-847003 a card whose repository this browser keeps no token for is not 
 // guards: THE BUILD IS SHOWN AS IT HAPPENS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-046
 // given: the product of TST-827003 (UC-001 accepted, the item ITM-0900, the job JOB-20261016-1000-ffff of dev-cli taken by the Bridge lab-pc-4 and not ended, started at 10:00 UTC), which lab-pc-4 lists as running; the page drawn at 12:00 UTC
 // input: the timer fired at 12:01; the Bridge then listing no job and the timer fired at 12:02; the record then ended as done at 11:00 UTC on the server and the timer fired at 12:03
-// expect: the build holds one row throughout — after the draw ["ITM-0900", JOB, "dev-cli", "running", "2h 0m 0s"]; after 12:01 the same row at "2h 1m 0s", the Bridge asked once more (2 times in all); after 12:02
-// ["ITM-0900", JOB, "dev-cli", "ended without record", "0h 0m 0s"], the Bridge asked a third time; after 12:03 ["ITM-0900", JOB, "dev-cli", "done", "1h 0m 0s"] and the Bridge not asked again (3 in all), since a record
-// that has its end needs no runtime
+// expect: the build holds one row throughout — after the draw ["ITM-0900", JOB, "dev-cli", "running", "2h 0m 0s"]; after 12:01 the same row at "2h 1m 0s", the Bridge asked once more (2 times in all); after 12:02 ["ITM-0900", JOB, "dev-cli", "ended without record", "0h 0m 0s"], the Bridge asked a third time; after 12:03 ["ITM-0900", JOB, "dev-cli", "done", "1h 0m 0s"] and the Bridge not asked again (3 in all), since a record that has its end needs no runtime
 test("TST-847004 the build's row moves with the job's record and its runtime: running, ended without record, done", async () => {
   net = network({ [PRODUCT]: SMALL(), [INSTANCE]: instanceFiles() }, { bridgeLists: JOB });
   net.install();
@@ -422,9 +418,7 @@ test("TST-847004 the build's row moves with the job's record and its runtime: ru
 // guards: THE BUILD IS SHOWN AS IT HAPPENS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-046
 // given: the product of TST-847004 drawn at 12:00 UTC (Use cases 50 % "1 of 2 accepted", "use case: UC-002" waiting); then, on the server, UC-002 accepted and the job ended as done
 // input: the timer fired at 12:01; and, for the counter-proof, the route drawn anew
-// expect: the build's row reads "done"; the six stages are exactly what they were (Use cases still 50 % "1 of 2 accepted") and what waits is still "use case: UC-002"; the reading sent 3 requests — the commit, the
-// tree and one batch holding the job's record, docs/jobs/JOB-20261016-1000-ffff.md — and read no use case and no approval record; counter-proof: the route drawn anew reads Use cases 100 % "2 of 2 accepted" and nothing waits,
-// so that the change was on the server and only the reading left it alone
+// expect: the build's row reads "done"; the six stages are exactly what they were (Use cases still 50 % "1 of 2 accepted") and what waits is still "use case: UC-002"; the reading sent 3 requests — the commit, the tree and one batch holding the job's record, docs/jobs/JOB-20261016-1000-ffff.md — and read no use case and no approval record; counter-proof: the route drawn anew reads Use cases 100 % "2 of 2 accepted" and nothing waits, so that the change was on the server and only the reading left it alone
 test("TST-847005 a reading moves the build's rows and nothing else: the stages and what waits stay as drawn", async () => {
   net = network({ [PRODUCT]: SMALL(), [INSTANCE]: instanceFiles() }, { bridgeLists: JOB });
   net.install();
@@ -476,8 +470,7 @@ test("TST-847006 a reading asks each card that was read, and has a token, for it
 // guards: THE BUILD IS SHOWN AS IT HAPPENS; UC-046
 // given: the page drawn into an element, with a job running; the timer fired once while the cards are in the element
 // input: the frame draws another route into the same element (the cards are no longer in it); the timer set after the first reading is fired
-// expect: the first firing sends 2 requests to GitHub and 1 to the Bridge lab-pc-4 (the job has not ended) and sets the next timer; the second sends none and sets none, so that no reading is made once the route is
-// no longer shown
+// expect: the first firing sends 2 requests to GitHub and 1 to the Bridge lab-pc-4 (the job has not ended) and sets the next timer; the second sends none and sets none, so that no reading is made once the route is no longer shown
 test("TST-847007 the readings stop once the route is no longer the one shown", async () => {
   net = network({ [PRODUCT]: SMALL(), [INSTANCE]: instanceFiles() }, { bridgeLists: JOB });
   net.install();
@@ -499,8 +492,7 @@ test("TST-847007 the readings stop once the route is no longer the one shown", a
 // guards: THE BUILD IS SHOWN AS IT HAPPENS; UC-046
 // given: the page drawn at 12:00 UTC with a job running (row "2h 0m 0s"); GitHub then answers every request of its API with a server error, 500
 // input: the timer fired at 12:01; GitHub then answering again and the timer fired at 12:02
-// expect: after the failure the row still reads ["ITM-0900", JOB, "dev-cli", "running", "2h 0m 0s"], one paragraph reads "The jobs' states could not be read again. alice/product: GitHub answered 500", and one timer
-// waits, of 60000 milliseconds (a failure that is no used-up limit is tried again at the next interval); after the answer the row reads "2h 2m 0s" and no such paragraph is left
+// expect: after the failure the row still reads ["ITM-0900", JOB, "dev-cli", "running", "2h 0m 0s"], one paragraph reads "The jobs' states could not be read again. alice/product: GitHub answered 500", and one timer waits, of 60000 milliseconds (a failure that is no used-up limit is tried again at the next interval); after the answer the row reads "2h 2m 0s" and no such paragraph is left
 test("TST-847008 a reading that fails leaves the cards as drawn, says why, and the next reading is made at the next interval", async () => {
   net = network({ [PRODUCT]: SMALL(), [INSTANCE]: instanceFiles() }, { bridgeLists: JOB });
   net.install();
@@ -521,8 +513,7 @@ test("TST-847008 a reading that fails leaves the cards as drawn, says why, and t
 // guards: WITHOUT A PRODUCT, THE MAIN PAGE SHOWS AGENT M'S OWN PROGRESS; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-046
 // given: this browser keeps no product; the instance alice/agent-m holds the files of the product of TST-847004, whose job lab-pc-4 lists as running; the page drawn at 12:00 UTC
 // input: the timer fired at 12:01 UTC, the requests since the draw listed
-// expect: exactly 2 requests, the commit of main and its tree of alice/agent-m, both with "Bearer <the instance's token>", and none to alice/product; the Bridge lab-pc-4 is asked once more (2 times in all); the row reads
-// ["ITM-0900", JOB, "dev-cli", "running", "2h 1m 0s"]
+// expect: exactly 2 requests, the commit of main and its tree of alice/agent-m, both with "Bearer <the instance's token>", and none to alice/product; the Bridge lab-pc-4 is asked once more (2 times in all); the row reads ["ITM-0900", JOB, "dev-cli", "running", "2h 1m 0s"]
 test("TST-847009 Agent M's own card is read again through the instance's host, 2 requests with the instance's token", async () => {
   net = network({ [INSTANCE]: SMALL(), [PRODUCT]: smallProduct() }, { bridgeLists: JOB });
   net.install();
@@ -560,9 +551,7 @@ test("TST-847010 the jobs taken by CI runs that have not ended cost one request 
 // guards: A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; UC-046
 // given: the page drawn at 12:00 UTC with a job running (row "2h 0m 0s"); GitHub then refuses its API with a used-up limit of the account, which resets at 13:00 UTC (X-RateLimit-Reset 2026-10-16T13:00:00Z)
 // input: the timer fired at 12:01; the limit then given back and the timer fired at 13:00
-// expect: after the refusal the row still reads ["ITM-0900", JOB, "dev-cli", "running", "2h 0m 0s"], one paragraph reads "The jobs' states could not be read again. alice/product: GitHub's request limit for the
-// account these requests are made with is used up; it resets at 2026-10-16T13:00:00.000Z.", and one timer waits, of 3540000 milliseconds — the 59 minutes from 12:01 to the reset at 13:00, not the 60000 of an
-// ordinary interval; the reading at 13:00 sends 2 requests, the row reads "3h 0m 0s", no such paragraph is left, and the next timer is of 60000 milliseconds
+// expect: after the refusal the row still reads ["ITM-0900", JOB, "dev-cli", "running", "2h 0m 0s"], one paragraph reads "The jobs' states could not be read again. alice/product: GitHub's request limit for the account these requests are made with is used up; it resets at 2026-10-16T13:00:00.000Z.", and one timer waits, of 3540000 milliseconds — the 59 minutes from 12:01 to the reset at 13:00, not the 60000 of an ordinary interval; the reading at 13:00 sends 2 requests, the row reads "3h 0m 0s", no such paragraph is left, and the next timer is of 60000 milliseconds
 test("TST-847011 a used-up limit makes the next reading wait until the limit resets, 3,540,000 milliseconds from 12:01 to 13:00", async () => {
   assert.equal(RATE_RESET, Date.parse("2026-10-16T13:00:00Z"));
   net = network({ [PRODUCT]: SMALL(), [INSTANCE]: instanceFiles() }, { bridgeLists: JOB });
@@ -587,9 +576,7 @@ test("TST-847011 a used-up limit makes the next reading wait until the limit res
 // guards: A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; UC-046
 // given: this browser keeps alice/product and bob/other, each with a token of its own; the page drawn at 12:00 UTC; GitHub then refuses requests to alice/product only, with a used-up limit that resets at 13:00 UTC
 // input: the timer fired at 12:01; the timer fired at 12:02, the requests since each firing listed
-// expect: the firing at 12:01 sends 3 requests — the commit of main of alice/product, which is refused, and the commit and the tree of bob/other —, and one timer waits, of 60000 milliseconds, since bob/other's
-// card is due at 12:02 while alice/product's waits for 13:00; the firing at 12:02 sends exactly 2 requests, the commit and the tree of bob/other, none to alice/product; the paragraph naming alice/product's limit is
-// still shown after it
+// expect: the firing at 12:01 sends 3 requests — the commit of main of alice/product, which is refused, and the commit and the tree of bob/other —, and one timer waits, of 60000 milliseconds, since bob/other's card is due at 12:02 while alice/product's waits for 13:00; the firing at 12:02 sends exactly 2 requests, the commit and the tree of bob/other, none to alice/product; the paragraph naming alice/product's limit is still shown after it
 test("TST-847012 a limit used up by one card's token holds back only that card; the other card is read at the ordinary interval", async () => {
   net = network({ [PRODUCT]: smallProduct(), [OTHER]: smallProduct({ accepted: ["UC-002"] }), [INSTANCE]: instanceFiles() });
   net.install();
@@ -611,8 +598,7 @@ test("TST-847012 a limit used up by one card's token holds back only that card; 
 // guards: A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN; UC-046
 // given: the page drawn at 12:00 UTC with a job running; GitHub then refuses its API with a used-up limit of the account and sends no time at which it resets (no X-RateLimit-Reset)
 // input: the timer fired at 12:01
-// expect: one paragraph reads "The jobs' states could not be read again. alice/product: GitHub's request limit for the account these requests are made with is used up; GitHub does not tell this page when it
-// resets.", and one timer waits, of 60000 milliseconds, since no time is known to wait until
+// expect: one paragraph reads "The jobs' states could not be read again. alice/product: GitHub's request limit for the account these requests are made with is used up; GitHub does not tell this page when it resets.", and one timer waits, of 60000 milliseconds, since no time is known to wait until
 test("TST-847013 a used-up limit with no reset time given is tried again at the ordinary interval", async () => {
   net = network({ [PRODUCT]: SMALL(), [INSTANCE]: instanceFiles() }, { bridgeLists: JOB });
   net.install();
@@ -649,8 +635,7 @@ test("TST-858001 while the tab is hidden the page starts no reading and sets no 
 // guards: THE BUILD IS SHOWN AS IT HAPPENS; UC-046
 // given: the page of TST-858001, hidden at 12:00, its timer fired at 12:01 while hidden; the job still running
 // input: the tab shown again at 12:05 UTC (visibilitychange)
-// expect: at once, and with no timer fired, exactly one reading: 2 requests to GitHub — the commit and the tree of alice/product — and 1 to the Bridge; the row reads
-// ["ITM-0900", JOB, "dev-cli", "running", "2h 5m 0s"]; one timer waits again, of 60000 milliseconds
+// expect: at once, and with no timer fired, exactly one reading: 2 requests to GitHub — the commit and the tree of alice/product — and 1 to the Bridge; the row reads ["ITM-0900", JOB, "dev-cli", "running", "2h 5m 0s"]; one timer waits again, of 60000 milliseconds
 test("TST-858002 when the tab is shown again the card whose reading fell due is read at once, once", async () => {
   net = network({ [PRODUCT]: SMALL(), [INSTANCE]: instanceFiles() }, { bridgeLists: JOB });
   net.install();
@@ -762,8 +747,7 @@ const overviewReads = () => net.requests.filter((request) => request.url.include
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; THE MAIN PAGE SHOWS EACH PRODUCT'S PROGRESS BY STAGE; UC-049
 // given: this browser keeps alice/product, whose branch overview-cache holds the overview of its head (six stored stages, UC-077 waiting) and whose backlog holds ITM-0900 with a job running on the Bridge lab-pc-4
 // input: the route home drawn
-// expect: the card's six stages are the stored ones — "Requirements 100 % stored requirements" … "Tests ? stored tests" — and the stage it is in is "Use cases"; what waits reads "use case: UC-077", the stored entry, and not UC-002 that the files hold open;
-// the build row is ["ITM-0900", the job, "dev-cli", "running", "2h 0m 0s"] — the stored record with the live state the Bridge reports; the overview was asked for once, as one request for <head>.json on overview-cache
+// expect: the card's six stages are the stored ones — "Requirements 100 % stored requirements" … "Tests ? stored tests" — and the stage it is in is "Use cases"; what waits reads "use case: UC-077", the stored entry, and not UC-002 that the files hold open; the build row is ["ITM-0900", the job, "dev-cli", "running", "2h 0m 0s"] — the stored record with the live state the Bridge reports; the overview was asked for once, as one request for <head>.json on overview-cache
 test("TST-943001 a card with a stored overview shows its stages, what waits and its build from it", async () => {
   const head = headOf(PRODUCT);
   net = network({ [PRODUCT]: SMALL(), [INSTANCE]: instanceFiles() }, { bridgeLists: JOB });
@@ -783,8 +767,7 @@ test("TST-943001 a card with a stored overview shows its stages, what waits and 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the product of TST-943001 (a use case, an architecture-less tree and a test file among its files); once with the overview of its head stored, once with none
 // input: the route home drawn; the files the fake GitHub served counted
-// expect: with the overview, no file of the product is read at all — not the backlog, not the job record, no use case, decision or test file and not SPEC.md; without one, the card reads the scope all: tests/unit.test.mjs
-// and the backlog are read (known positive: the count sees the files read) and the stages are those the files give ("Use cases 50 % 1 of 2 accepted")
+// expect: with the overview, no file of the product is read at all — not the backlog, not the job record, no use case, decision or test file and not SPEC.md; without one, the card reads the scope all: tests/unit.test.mjs and the backlog are read (known positive: the count sees the files read) and the stages are those the files give ("Use cases 50 % 1 of 2 accepted")
 test("TST-943002 with a stored overview no file of the product is read, and without one the card reads the scope all", async () => {
   const head = headOf(PRODUCT);
   net = network({ [PRODUCT]: SMALL(), [INSTANCE]: instanceFiles() }, { bridgeLists: JOB });
@@ -886,9 +869,7 @@ test("TST-943006 an overview of the format before the build was stored is none: 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; THE MAIN PAGE SHOWS EACH PRODUCT'S PROGRESS BY STAGE; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: alice/product, whose branch overview-cache holds no overview for its head but the overview of an older commit eee…e, and latest.json naming eee…e; the job running on the Bridge lab-pc-4; and, for the counter-proof, the same branch without latest.json
 // input: the route home drawn; every request counted
-// expect: the card's six stages are the stored ones of eee…e, what waits reads "use case: UC-077", the build row is ["ITM-0900", the job, "dev-cli", "running", "2h 0m 0s"], and the card says "As of eeeeeee: the overview of the newest commit is being stored.";
-//   the overview-cache reads are the head's overview, latest.json and eee…e.json in that order; no request lists the pull requests (no …/pulls) and none is a batch (POST /graphql); counter-proof: without latest.json the card has no such note and
-//   lists the pull requests (known positive: the count sees …/pulls)
+// expect: the card's six stages are the stored ones of eee…e, what waits reads "use case: UC-077", the build row is ["ITM-0900", the job, "dev-cli", "running", "2h 0m 0s"], and the card says "As of eeeeeee: the overview of the newest commit is being stored."; the overview-cache reads are the head's overview, latest.json and eee…e.json in that order; no request lists the pull requests (no …/pulls) and none is a batch (POST /graphql); counter-proof: without latest.json the card has no such note and lists the pull requests (known positive: the count sees …/pulls)
 test("TST-943007 while the head's overview is not stored, the card shows the overview latest.json names, says of which commit, and lists no pull request", async () => {
   const head = headOf(PRODUCT), older = "e".repeat(40);
   const pulls = () => net.requests.filter((request) => /\/pulls$/.test(new URL(request.url).pathname));

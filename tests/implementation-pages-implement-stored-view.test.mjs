@@ -130,10 +130,7 @@ const rowOf = (target, item) => rowsOf(target).find((row) => row.item === item);
 // guards: UC-034; A PAGE LOAD READS THE REPOSITORY IN BATCHES; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: overview-cache holding the backlog view of the head ccc…c; the fixture with the job records and the gate record named above, and the open pull requests #7 and #8
 // input: the route implement's render
-// expect: the rows tests/implementation-pages-implement.test.mjs expects — ITM-005 ready and startable; ITM-003 not startable, not selected; ITM-006 not startable, naming RULE NOT ACCEPTED;
-//         ITM-004 not startable, naming ITM-003 —; its requests hold one read of overview-cache; one batch of at most 100 files holds docs/process.md, team1's role assignment and the running
-//         sprint docs/backlog/sprints/team1/01.md; one listing of pull requests, with state=open, and none with state=all; no .facts.json; no file under docs/gates/, no backlog item; of the
-//         job records only those of #7 and #8
+// expect: the rows tests/implementation-pages-implement.test.mjs expects — ITM-005 ready and startable; ITM-003 not startable, not selected; ITM-006 not startable, naming RULE NOT ACCEPTED; ITM-004 not startable, naming ITM-003 —; its requests hold one read of overview-cache; one batch of at most 100 files holds docs/process.md, team1's role assignment and the running sprint docs/backlog/sprints/team1/01.md; one listing of pull requests, with state=open, and none with state=all; no .facts.json; no file under docs/gates/, no backlog item; of the job records only those of #7 and #8
 test("TST-1264001 #implement judges the items from the head's stored view, and reads the declaration, the assignments and the running sprint in one batch, the open pull requests and their jobs", async () => {
   const page = await drawn({ [`${COMMIT}.backlog.json.gz`]: await stored() });
   assert.deepEqual([rowOf(page.target, "ITM-005")?.state, rowOf(page.target, "ITM-005")?.startable], ["ready", "true"], page.html.slice(0, 3000));
@@ -191,8 +188,7 @@ test("TST-1264003 #implement says so while the head's view is being stored, and 
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-034
 // given: the same product without the branch overview-cache, and with its head's view stored
 // input: the route implement's render, both ways
-// expect: without the branch, the page derives the view — it reads the pull requests with state=all — and lists the same rows, with the same states and reasons, as the page drawn from the
-//         stored view; besides, it lists the open pull requests once, with state=open
+// expect: without the branch, the page derives the view — it reads the pull requests with state=all — and lists the same rows, with the same states and reasons, as the page drawn from the stored view; besides, it lists the open pull requests once, with state=open
 test("TST-1264004 #implement derives the same rows in the page where the repository stores no view", async () => {
   const derived = await drawn({});
   const fromStore = await drawn({ [`${COMMIT}.backlog.json.gz`]: await stored() });

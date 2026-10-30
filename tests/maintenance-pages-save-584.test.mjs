@@ -86,8 +86,7 @@ const queueFiles = (w) => writtenFiles(w).filter((entry) => entry.path.startsWit
 // guards: UC-012; EVERY ARTIFACT NAMES ITS ORIGIN; THE PERSON WHO PROMPTS IS A SOURCE; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: known positive first — the issue 7 labelled change; the product links the source SRC-alice, whose register entry in the instance is of the account github.com/alice, the account of the instance's owner; the participant answers a new candidate and a conflict
 // input: the route issue 7; a participant and a name; Run by a person; Save by a script and then by a person
-// expect: the run panel offers Run; the job's first request to the endpoint carries the issue's title and text; the candidates are listed by class, the new one and the conflict; before the person's click nothing is written under docs/spec-freigaben/; after it a queue whose index names
-//   `**Issue:** #7 of https://github.com/alice/product` and whose rationale names the issue and the source SRC-alice; the conflict is not written
+// expect: the run panel offers Run; the job's first request to the endpoint carries the issue's title and text; the candidates are listed by class, the new one and the conflict; before the person's click nothing is written under docs/spec-freigaben/; after it a queue whose index names `**Issue:** #7 of https://github.com/alice/product` and whose rationale names the issue and the source SRC-alice; the conflict is not written
 test("issue — Save runs change-requirements with the issue and the person's source and writes a queue naming the issue", async () => {
   const w = start(WITH_SOURCE);
   const detail = await ready(w);
