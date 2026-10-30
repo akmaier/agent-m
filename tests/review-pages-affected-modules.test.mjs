@@ -25,8 +25,11 @@ import assert from "node:assert/strict";
 import { PRODUCT_FILES, INSTANCE_COMMIT, fakeProduct, draw, byClass, buttonsNamed, fetched, text } from "./review-pages-draft-world.mjs";
 
 const { registerStrategies } = await import("../src/job-runner/index.mjs");
+const { workStrategies } = await import("../src/work-plans/index.mjs");
 const pages = await import("../src/review-pages/index.mjs");
-(pages.view?.strategies ?? []).forEach((strategies, at) => registerStrategies(`tests/review-pages-affected-modules.test.mjs#${at}`, strategies));
+// The strategies as the frame registers them at load, every view's (MOD-site-frame, register.mjs): this view's, and MOD-work-plans' workStrategies, which the view of
+// MOD-implementation-pages hands it and whose check, step and writer the kind check-affected-modules names.
+[...(pages.view?.strategies ?? []), workStrategies].forEach((strategies, at) => registerStrategies(`tests/review-pages-affected-modules.test.mjs#${at}`, strategies));
 
 // The product's declaration of its process model: the shipped model at `model_file`, of the instance at its commit.
 const declaring = (model) => text("---", `model: ${model}`, `model_file: src/model-catalogue/models/${model}.md`, `model_version: ${INSTANCE_COMMIT}`, "---",

@@ -31,7 +31,10 @@ const url = (path) => `file://${ROOT}/${path}`;
 const world = await import(url("tests/review-pages-draft-world.mjs"));
 const { registerStrategies } = await import(url("src/job-runner/index.mjs"));
 const { writeSetting } = await import(url("src/browser-store/index.mjs"));
-world.pages.view.strategies.forEach((strategies, at) => registerStrategies(`tests/test_backlog_from_acceptance.py#${at}`, strategies));
+const { workStrategies } = await import(url("src/work-plans/index.mjs"));
+// The strategies as the frame registers them at load, every view's (MOD-site-frame, register.mjs): MOD-review-pages' view's, and MOD-work-plans' workStrategies, which the
+// view of MOD-implementation-pages hands it.
+[...world.pages.view.strategies, workStrategies].forEach((strategies, at) => registerStrategies(`tests/test_backlog_from_acceptance.py#${at}`, strategies));
 
 const { text, PRODUCT_FILES, MOD_READER, INSTANCE_COMMIT } = world;
 const declaration = text("---", `model: ${input.model}`, `model_file: src/model-catalogue/models/${input.model}.md`, `model_version: ${INSTANCE_COMMIT}`, "---",
