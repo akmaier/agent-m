@@ -40,11 +40,9 @@ The accepted modules state how. Neither is built yet.
 This is UC-023's finding UC023-S3 (TST-739011, `todo`): *Describe the change* from the bar prepares the change with no
 reviewer, so the change is not checked before the author sees it.
 
-**A text for akmaier, which this item does not wait for.** UC-023 still names the reviewing participant "another
-participant, using another model", and step 2 says that "the author chooses a deriving and a reviewing participant".
-After this item, a change described in the bar is reviewed by the deriving participant's own model, and the author
-chooses one participant. The SPEC's exception and the accepted modules decide what is built (NO REVIEWER IS THE
-DRAFTER). Whether UC-023's actor and step 2 say so is akmaier's to settle with a change of the use case.
+UC-023 says the same, accepted at its blob `b36d4f55` (`cebe3653a`).
+- Its reviewing participant is, "for a change described in the prompt bar, the prompt bar's own participant".
+- Its step 2 says "in the prompt bar, the bar's participant derives and reviews the change".
 
 ## Acceptance
 
@@ -72,8 +70,7 @@ DRAFTER). Whether UC-023's actor and step 2 say so is akmaier's to settle with a
     `review-architecture`, before the author sees the draft. No second participant is asked.
   - Its known positive stays: the drafter received the instruction.
   - TST-739001's `FLOW_FINDINGS` entry `2-reviewing-participant` moves to `FLOW_EVIDENCE` with TST-739011 as its
-    evidence. Its passage is UC-023 2's "it is checked as in UC-022 step 6 before the author sees it". The passage "the
-    author chooses a deriving and a reviewing participant" is left to akmaier's text above.
+    evidence. Its passage becomes UC-023 2's "in the prompt bar, the bar's participant derives and reviews the change".
   - These are changed on the item's branch, in a commit of their own, by a participant who implemented none of this
     item.
 - **Shared file.** `tests/test_architecture_review.py` is also changed by ITM-1318. Whichever of the two is merged
