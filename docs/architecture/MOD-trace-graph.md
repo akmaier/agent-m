@@ -203,6 +203,9 @@ identifier, and which register entry an item names is MOD-source-register's to s
   a name in `realises`, `forced_by`, an item's `realises` or a test's `guards` that matches no requirement or use case
   (`A USE CASE REALISES NAMED REQUIREMENTS`, `EVERY ARTIFACT NAMES ITS ORIGIN`); a `uses` edge whose interface the used
   module's node does not provide (`DEVELOP AGAINST INTERFACES`); a cycle among the modules' uses (`MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE`);
+  a test identifier declared at more than one place — the path and line of its node and of its `guards` and `exercises`
+  edges, each the place of the declaration it was read from —, as an error at each place that names the other places by
+  path and line (`THE NAME IS THE ID AND IT SURVIVES`);
   a module designed by no decision or by more than one, or that does not follow the decision that designs it (`A MODULE
   BELONGS TO ONE SUBSYSTEM`); more or fewer than one decision without `refines`, or a decision that does not refine it
   (`ONE DECISION STATES THE WHOLE ARCHITECTURE`); an item that names a module the architecture does not describe (`A
