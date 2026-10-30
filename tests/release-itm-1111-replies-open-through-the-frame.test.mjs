@@ -39,7 +39,7 @@ const issuePage = (p, issue) => waitFor(() => new RegExp(`Issue #${issue} of ali
 // guards: UC-039; THE SITE SERVES A SCREEN READER
 // given: the page started at the route replies over the Microsoft route; the closed issue 4 and the open issues 6 and 8 of alice/product (the last two in one group), each with a mail the mailbox holds; the person has pressed Read replies (before it the route says to read first); known positive first — the fragment #replies/issue=4/product=<encoded address> shown by the frame draws the issue 4
 // input: the person presses the Open of the issue 4; the browser announces the change of the fragment; then back to #replies, Read replies again, and the Open of the issue 6, and again of the issue 8
-// expect: after the first Open the page's fragment is #replies/issue=4/product=https%3A%2F%2Fgithub.com%2Falice%2Fproduct and, once announced, the page shows "Issue #4 of alice/product" with what solved it; after the second the fragment names the issue 6 and the page shows "Issue #6 of alice/product", after the third the issue 8 and "Issue #8 of alice/product"; none Open wrote to the issues or the mailbox
+// expect: after the first Open the page's fragment is #replies/issue=4/product=https%3A%2F%2Fgithub.com%2Falice%2Fproduct and, once announced, the page shows "Issue #4 of alice/product" with what solved it; after the second the fragment names the issue 6 and the page shows "Issue #6 of alice/product", after the third the issue 8 and "Issue #8 of alice/product"; no Open wrote to the issues or the mailbox
 // Planted fault: Open drawn as a link with the address written by hand (`<a href="#replies/issue=…">` in place of the button in groupsOf of src/maintenance-pages/replies.mjs, as before ITM-1111) has no click that goes anywhere through the frame, and the case fails on the page's fragment.
 // Planted fault: Open calling go without the product (`go("replies", { issue: String(each.issue) })` in groupsOf) writes an address without product and the case fails on the fragment.
 // Planted fault: Open of every issue going to the first issue of its group (`each.issue` replaced by `ctx.due[field][0].issue` in the click of groupsOf) shows the issue 6 for the issue 8 and the case fails on the third page.
@@ -79,7 +79,7 @@ test("TST-1111301 the Open of an issue sets the address the frame writes for it,
 
 // TST-1111302 · level: release · module: MOD-maintenance-pages
 // guards: UC-039; THE SITE SERVES A SCREEN READER
-// given: the page of TST-1111301 after Read replies, listing the issues 4 and 6; and the page of the issue 4 after the frame has drawn it
+// given: the page of TST-1111301 after Read replies, listing the issues 4, 6 and 8; and the page of the issue 4 after the frame has drawn it
 // input: every element of both pages is searched for an address that begins #replies, and every Open for its element and its name
 // expect: no element of either page holds such an href; there is one Open for each listed issue, each a <button> of type button, not a link, with the text Open as its name; known positive: the search finds the fragment the frame holds after the Open is pressed
 // Planted fault: Open drawn as a link with the address written by hand (`<a href="#replies/issue=…">`, as before ITM-1111) fails the case on the addresses found and on the element of the Open.
