@@ -81,6 +81,7 @@ uses:
   - MOD-participant-list.participantSchema
   - MOD-participant-list.eligible
   - MOD-participant-list.differs
+  - MOD-product-process.productWorkflow
   - MOD-job-catalogue.kindOf
   - MOD-job-runner.prepareJob
   - MOD-job-runner.writeResult
@@ -218,6 +219,12 @@ ReviewKind = {
     module file that `removedFiles` names, each with its impact list (`architectureImpact` with `after: null`) and the empty
     text as the text shown, so that *Accept all N shown* counts it and records its removal in the same commit
     (`AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST`).
+  - For use cases, in a product whose workflow's model is `pulled`, every *Accept* — of one file, of the ticked ones, or
+    *Accept all N shown* — names beside it the participant that will check which modules each use case changes, chosen as
+    on `<k>/draft`, with the place where it processes data, as `prepareJob` of the kind `check-affected-modules` gives
+    it (`THE PAGE NAMES WHERE IT SENDS`). Once the acceptance's commit is written, the same click runs one job of that
+    kind in this tab for each use case it recorded, naming that use case in its parameters, whose writer commits the
+    items under the person's account (UC-008 step 6). In a `planned` model, none is named and nothing runs.
   - For a changed decision or module file, on `<k>/<id>` and in `<k>/all`, the page first reads the impact lists stored for
     the commit it shows (MOD-trace-graph's `storedImpacts`, one request). Where an entry's blob is the file's blob, the
     page takes the file's impact list from it. It reads the last accepted text at the entry's `before` commit with one
@@ -338,6 +345,7 @@ and `docs/participants.md` of the instance.
   MOD-source-register.sourceStrategies, MOD-reuse-facts.reuseStrategies — the strategies of its kinds, handed to the frame.
 - MOD-participant-list.participantSchema, MOD-participant-list.eligible, MOD-participant-list.differs — who may draft and
   who may review, a reviewer differing from the drafter in participant and model.
+- MOD-product-process.productWorkflow — whether the product's model is planned or pulled, beside a use case's *Accept*.
 - MOD-job-catalogue.kindOf — a kind's purpose and whether its result waits for a person; MOD-job-runner.prepareJob —
   the run panel; MOD-job-runner.writeResult — a result that waited for the person, written on their click;
   MOD-job-runner.provenanceLines — the trailers of a draft of the conversation the person saves.

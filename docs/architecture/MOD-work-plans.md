@@ -107,7 +107,7 @@ in the browser and in Node.
 - `checks.mjs` — the findings of a plan and of a backlog.
 - `sprints.mjs` — the facts of a sprint, the items the sprints hold, and what keeps an item from a team's selection.
 - `saves.mjs` — the commits of a plan, of items and of a sprint.
-- `strategies.mjs` — the recipes, checks and writers of `workStrategies`.
+- `strategies.mjs` — the recipes, checks, step and writers of `workStrategies`.
 
 ## Data
 
@@ -273,6 +273,8 @@ assignment is the one of the team whose sprint holds it, and the product's one i
   - check `plan-checks` — `planFindings` on a drafted plan, with the product's workflow and no `graph`, since its steps
     are drafted; where the product has no workflow, one error finding naming the declared model and its commit;
   - check `backlog-checks` — `backlogFindings` on drafted items;
+  - step `leave-out-named-modules` — leaves out of the drafted items each item for a module that an item not yet done
+    names — one whose state `itemStates` gives is not `done` —, with a finding naming that item and the module;
   - check `sprint-record-checks` — an agent's review that does not name the sources of its feedback, or does not say that
     no stakeholder took part when none did (`AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM`); a retrospective
     without an entry; a change to the process written as applied rather than proposed (`AN AGENT'S RETROSPECTIVE CHANGES

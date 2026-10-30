@@ -93,6 +93,7 @@ Agent M prepares no job of the kind.
 | `propose-groups` | UC-021 | draft text | | `items-of-kind` | `group-rules` | | | `none` · `return-draft` | moves, each a `GroupMove` of MOD-group-document |
 | `draft-plan` | UC-045 | draft text | `rests-on-accepted` | `architecture-and-model` | `plan-checks` | | | `person` · `plan-steps` | steps |
 | `propose-items` | UC-032 | draft text | `rests-on-accepted` | `backlog-inputs` | `backlog-checks`, `candidate-classes` | | | `person` · `backlog-items` | items |
+| `check-affected-modules` | UC-008 | draft text | `rests-on-accepted` | `use-case-with-neighbours`, `whole-architecture` | `backlog-checks` | | `leave-out-named-modules` | `none` · `backlog-items` | items, one for each module whose implementation the accepted use case's text changes, each realising the use case and naming that module |
 | `close-sprint` | UC-041 | draft text, read the repository, write to the repository | | `sprint-facts` | `sprint-record-checks` | | | `none` · `sprint-record` | the review, the retrospective, the proposed changes |
 | `implement` | UC-024, UC-034, UC-043 | write to the repository, run code and tests | `rests-on-accepted` | `instruction?`, `implementation-inputs`, `chapters-for-implementation`, `resource-pins` | | | | `none` · `branch-and-pull-request` | the agent's report: branch, commits, pull request |
 | `refactor` | UC-024 | write to the repository, run code and tests | `rests-on-accepted` | `instruction?`, `implementation-inputs`, `resource-pins` | | | | `none` · `branch-and-pull-request` | the same |
