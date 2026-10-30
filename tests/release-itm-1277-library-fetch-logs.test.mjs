@@ -72,13 +72,14 @@ const readOf = (page, title) => {
 
 // TST-1277301 · level: release · module: MOD-settings-pages
 // guards: UC-004; AN EU LEGAL TEXT IS FETCHED FROM THE OFFICIAL REPOSITORY
-// given: the register of the instance holds an EU legal text with a fetched version and a standard with no version; ten runs of fetch-sources.yml on the branch main, all failed on pushes, the log of each naming the legal text; known positive first — with the same runs and a legal text that has no version (TST-1277302) a log is read
+// given: the register of the instance holds an EU legal text with a fetched version and a standard with no version; ten runs of fetch-sources.yml on the branch main, all failed on pushes, the log of each naming the legal text; known positive first — the page shows the fetched legal text as Fetched. and lists the standard
 // input: a person opens #library
 // expect: the library shows the legal text as Fetched.; the runs of the workflow are listed once and no log of any run is read — not one request for a job's log —, since no legal text waits; the standard with no version is no legal text and shows no fetch state
 // Planted fault: the stop once every waiting text has its line left out (`if (waiting.every((entry) => failures.has(entry.id))) break;` removed in fetchFailures of src/settings-pages/library.mjs), so that the logs are read whatever waits, reads ten logs, and the case fails on the logs read.
 test("TST-1277301 the library reads no log of a failed fetch while no legal text waits", async (t) => {
   const { page, served } = await open(t, { files: register(["SRC-eu-ai", "AI Act text", "regulation", true], ["SRC-iec", "IEC standard", "standard", false]), runs: runsOf(), named: Object.fromEntries(Array.from({ length: 10 }, (_, i) => [i + 1, ["SRC-eu-ai"]])) });
   assert.match(readOf(page, "AI Act text"), /Fetched\./, "known positive: the page shows the fetched text");
+  assert.match(page.main().textContent, /IEC standard/, "known positive: the page lists the standard");
   assert.equal(served.listings, 1, "the runs are listed once");
   assert.deepEqual(served.logsRead, [], "no log is read");
   assert.doesNotMatch(readOf(page, "IEC standard") ?? "", /Fetch failed|Waiting for fetch/, "a standard waits for no fetch");
