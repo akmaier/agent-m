@@ -14,6 +14,7 @@ uses:
   - MOD-site-frame.readProblem
   - MOD-site-frame.runPanel
   - MOD-site-frame.confirmDecision
+  - MOD-site-frame.standIn
   - MOD-markdown-render.renderArtifact
   - MOD-markdown-render.openEditor
   - MOD-markdown-render.showDifference
@@ -365,3 +366,5 @@ and `docs/participants.md` of the instance.
 - MOD-runtimes.routesFor, MOD-runtimes.queueJob, MOD-runtimes.tabContext, MOD-runtimes.runOnTab,
   MOD-runtimes.liveState — the route of a participant, the start record, a drafting job's context and its run in this
   tab attended, and a job followed on its route.
+- MOD-site-frame.standIn — each route of its `view` whose own file is imported only when the route is first shown,
+  embedded or asked for its subject, listed as the frame writes such a route.
