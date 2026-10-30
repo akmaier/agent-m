@@ -45,3 +45,12 @@ The rules the copies keep are those of the artifacts' schemas, which MOD-documen
   `artifactSchemas`, and keep no path rule, list split or item pattern of their own. The existing tests of both modules
   pass unchanged.
 - Only the folders of the two modules and the tests that name them change.
+
+## The reading, checked at sprint team1/127's planning
+
+The reading does not hold for the items' paths. The item schema names two path patterns, `docs/plan/ITM-{nnn}-{slug}.md`
+and `docs/backlog/ITM-{nnn}-{slug}.md` (`src/documents/schemas/item.schema.md:15-23`), so a path matched through the
+schema is a plan step or a backlog item alike; `artifactSchemaOf` gives the item schema for both
+(MOD-documents.md:309-311), and neither module's Uses names it. A module that reads only the backlog's items still
+needs the rule `docs/backlog/` of its own, which the Acceptance says goes. Before selection, the item states how the two
+modules tell a backlog item from a plan step through what their Uses name, or which sentence would let them.

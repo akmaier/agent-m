@@ -45,6 +45,26 @@ page changes: *Accept all N shown* on Review all keeps leaving such a file out a
   `FLOW_FINDINGS` entry `4b-accept-disabled` moves to `FLOW_EVIDENCE` with TST-739012 as its evidence. Both are changed on
   the item's branch, in a commit of their own, by a participant who implemented none of this item.
 - TST-739104 stays as it is: the page "offers no Accept that can be pressed".
+- Two existing cases that assert no button *Accept* at all change their expectation to a disabled *Accept*, in the
+  tests-only commit:
+  - TST-472610 (`tests/review-pages-architecture.test.mjs`, MOD-review-pages): "no Accept" for ARC-004 and MOD-finer;
+  - the case "#arc/<id>: a module that names what is not accepted says so, and is not offered for acceptance"
+    (`tests/load-per-view.test.mjs`, MOD-site-frame, component), which asserts no `<button class="btn accept"`. Its
+    request counts stay as they are.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
-- Only `src/review-pages/` and the tests that name MOD-review-pages change, with the system test named above. The
-  planning run names any other test before selection.
+- Only `src/review-pages/` and the tests named here change.
+
+## The planning run (sprint team1/127)
+
+A stand-in in `offerAcceptance` (`src/review-pages/flow.mjs`) draws, where the file rests on what is not accepted and a
+token is stored, `button("btn accept", "Accept")` with `disabled` set, after the section, and returns as today. Without a
+token nothing is drawn there, as today. It reads nothing more: the names come from the `acceptanceBlockers` call the
+page makes already.
+
+On `main` at `99584273d`, in an export, beside the same 273 files without it (those that name MOD-review-pages, its
+folder, `offerAcceptance`, `acceptanceBlockers`, `rests-on`, MOD-site-frame, `dashboard-app`, `site-usability`,
+`site-accessibility` or `load-per-view`):
+- the two cases above fail only with it;
+- TST-739012 passes with it, its known positive, and TST-739104 and TST-739001 pass on both;
+- `site-usability` timed out in that parallel run; alone, with nothing else running, its 213 cases pass with the
+  stand-in and without it.
