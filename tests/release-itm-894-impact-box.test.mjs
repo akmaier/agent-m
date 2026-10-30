@@ -73,15 +73,23 @@ const PLANT = `(() => { const lines = Array.from({ length: 40 }, (_, n) => "<p>p
 const PLANTED = `(() => ["planted-plain", "planted-box", "planted-untabbable"].map((id) => { const node = document.getElementById(id), style = getComputedStyle(node);
   return { id, tabindex: node.getAttribute("tabindex"), overflowY: style.overflowY, maxHeight: style.maxHeight, scrollHeight: node.scrollHeight, clientHeight: node.clientHeight }; }))()`;
 
-const KEYS = { Tab: { key: "Tab", code: "Tab", windowsVirtualKeyCode: 9 }, End: { key: "End", code: "End", windowsVirtualKeyCode: 35 } };
+const KEYS = { Tab: { key: "Tab", code: "Tab", windowsVirtualKeyCode: 9, nativeVirtualKeyCode: 9 }, End: { key: "End", code: "End", windowsVirtualKeyCode: 35, nativeVirtualKeyCode: 35 } };
+// The window of the check is hidden, and on a runner with a virtual display no window has the focus, so a page takes no key: the page is brought to the front and made to behave as focused, and the focus is
+// asked of the document itself, so that a key that moves nothing says why.
+async function focusPage(page) {
+  await configure(page, "Page.bringToFront", {});
+  await configure(page, "Emulation.setFocusEmulationEnabled", { enabled: true });
+  await page.evaluate("window.focus(); document.hasFocus()");
+}
 async function press(page, name) {
   for (const type of ["rawKeyDown", "keyUp"]) await page.call("Input.dispatchKeyEvent", { type, ...KEYS[name] });
 }
 
 // The places the focus takes in one round of Tab presses from the top of the page: every box (by position), whether the difference box, and the planted ones.
 async function tabRound(page) {
+  await focusPage(page);
   await page.evaluate("document.activeElement?.blur?.(); window.scrollTo(0, 0); 0");
-  const reached = { boxes: new Set(), diff: false, planted: new Set(), moved: false };
+  const reached = { boxes: new Set(), diff: false, planted: new Set(), moved: false, hasFocus: await page.evaluate("document.hasFocus()") };
   let last = null;
   for (let n = 0; n < TAB_PRESSES; n += 1) {
     await press(page, "Tab");
@@ -135,7 +143,7 @@ before(async () => {
     browser = await openWindow(await stageElectron(), `${site.address}/__blank`);
     const page = browser.page;
     await configure(page, "Page.addScriptToEvaluateOnNewDocument", { source: OBSERVE });
-    await configure(page, "Emulation.setFocusEmulationEnabled", { enabled: true });
+    await focusPage(page);
     for (const [name, width] of CONDITIONS) {
       await configure(page, "Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: width < 600 });
       for (const [address] of [...FILE_PAGES, [ALL]]) {
@@ -212,7 +220,7 @@ test("TST-894303 the Tab key reaches the impact list on a file's page and on Rev
     assert.equal(around.planted.has("planted-untabbable"), false, `${name}: counter-proof, the Tab key does not reach a box that scrolls and has no tabindex: ${JSON.stringify([...around.planted])}`);
     for (const [address, shown] of [...FILE_PAGES, [ALL, SHOWN_ON_ALL]]) {
       const round = reached.get(`${name} ${address}`);
-      assert.equal(round.moved, true, `${name}: ${address}: known positive, the focus moved`);
+      assert.equal(round.moved, true, `${name}: ${address}: known positive, the focus moved (document focused: ${round.hasFocus})`);
       assert.equal(round.diff, true, `${name}: ${address}: known positive, the Tab key reaches the difference box`);
       assert.deepEqual([...round.boxes].sort(), Array.from({ length: shown }, (_, index) => index), `${name}: ${address}: the impact lists the Tab key reached`);
     }
