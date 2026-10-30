@@ -202,12 +202,13 @@ function reviewLines(review, facts) {
  * items — which items go back to the backlog and which into the team's next sprint, with the reasons — and ## Retrospective
  * to the record of `close.sprint`, `<team>/<nn>`, in one commit. Refused, with nothing written: AlreadyClosed for a record
  * that holds its ## Review; RetrospectiveMissing without a retrospective entry; Undecided { items } for an item not done
- * without a decision. New items from the feedback are not added yet: they need identifiers that no history holds
- * (MOD-identifiers' nextIdentifier, MOD-repository-hosts' readHistory), and a close with any is refused with NotSupported.
+ * without a decision. The feedback's new items, `close.newItems`, are added to the backlog as saveItems adds them, in the same
+ * commit: each gets an identifier that no history holds, and an error finding of backlogFindings on one of them refuses the
+ * close with ItemsRefused { findings }, nothing written.
  * Crosses the network, through the host; fails also with the host's failures.
  */
 export async function closeSprint(host, close, context) {
-  const { facts, head, trailers = [] } = context;
+  const { facts, architecture = [], head, trailers = [] } = context;
   const name = text(close?.sprint);
   const path = `docs/backlog/sprints/${name}.md`;
   const snapshot = await host.readSnapshot(head);
@@ -229,10 +230,11 @@ export async function closeSprint(host, close, context) {
     throw new WorkPlansError("Undecided", { items: undecided },
       `Decide for ${listed(undecided)} whether ${undecided.length === 1 ? "it goes" : "they go"} back to the backlog or into the next sprint.`);
   }
-  if ((close.newItems ?? []).length) {
-    throw new WorkPlansError("NotSupported", { what: "adding new items at a sprint's close" },
-      "New items from the feedback are not added at a close yet: they need identifiers that no history holds.");
-  }
+  const { defaultBranch } = await host.repositoryInfo();
+  // The backlog is read only for a close that adds items.
+  const items = (close.newItems ?? []).length
+    ? await itemFiles(host, snapshot, { items: close.newItems, removed: [] }, { architecture, head, defaultBranch })
+    : { documents: [], files: [] };
   const goes = (to) => (close.unfinished ?? []).filter((entry) => entry.to === to).map((entry) => entry.item);
   let out = appended(now, "## Review", {}, reviewLines(close.review, facts));
   out = appended(out, "## Unfinished items", { "to the backlog": goes("backlog"), "into the next sprint": goes("next sprint") },
@@ -240,10 +242,9 @@ export async function closeSprint(host, close, context) {
       + ` — ${entry.reason}`));
   out = appended(out, "## Retrospective", {}, (close.retrospective ?? []).map((entry) => `- ${entry.kind}${entry.goes
     ? `, to ${entry.goes}` : ""}: ${entry.text}`));
-  const { defaultBranch } = await host.repositoryInfo();
-  const { commit } = await host.commitFiles({ branch: defaultBranch, expectedHead: head, files: [{ path, text: out }],
+  const { commit } = await host.commitFiles({ branch: defaultBranch, expectedHead: head, files: [{ path, text: out }, ...items.files],
     message: message(`Close sprint ${name}`, trailers) });
-  return { commit, written: [path] };
+  return { commit, written: [path, ...items.documents.map((one) => one.path)] };
 }
 
 // Who gives up an increment: the Product Owner, by the role; the commit, made with the person's token, names the person.
@@ -298,15 +299,27 @@ export async function giveUpIncrement(host, sprint, reason, context) {
  */
 export async function saveItems(host, change, context) {
   const { architecture = [], head, trailers = [] } = context;
+  const removed = change?.removed ?? [];
+  const snapshot = await host.readSnapshot(head);
+  const { defaultBranch } = await host.repositoryInfo();
+  const { documents, files, warnings } = await itemFiles(host, snapshot, change, { architecture, head, defaultBranch });
+  const subject = documents.length ? `Add to the backlog: ${documents.map((one) => one.title).join(", ")}` : `Remove from the backlog: ${removed.join(", ")}`;
+  const { commit } = await host.commitFiles({ branch: defaultBranch, expectedHead: head, files, message: message(subject, trailers) });
+  return { commit, written: documents.map((one) => one.path), warnings };
+}
+
+// The files of a change of the backlog, as saveItems and closeSprint commit them: a `removed` identifier the backlog lacks, or an error finding of backlogFindings on an
+// item of the change, throws ItemsRefused { findings } before anything is written; a new item gets the next identifier after every one the snapshot's paths and the
+// history of `defaultBranch` hold — the history is asked only when an item is new —; `documents` are the items as written, `files` their writes and the deletions of the
+// removed items, `warnings` the warnings of the change's items.
+async function itemFiles(host, snapshot, change, { architecture, head, defaultBranch }) {
   const items = change?.items ?? [], removed = change?.removed ?? [];
   const schema = artifactSchemas().item;
-  const snapshot = await host.readSnapshot(head);
   const held = new Map(snapshot.paths.map((path) => [ITEM_FILE.exec(path)?.[1], path]).filter(([id]) => id));
   const lacking = removed.filter((id) => !held.has(id)).map((id) => finding({ artifact: id, line: 1, kind: "error", rule: BACKLOG_RULE,
     what: `${id} is no item of the backlog at ${head}, so it cannot be removed`, fix: "remove only an item the backlog holds" }));
   if (lacking.length) throw new WorkPlansError("ItemsRefused", { findings: lacking }, `The items are not saved: ${lacking.map((one) => one.what).join("; ")}.`);
 
-  const { defaultBranch } = await host.repositoryInfo();
   const used = new Set(snapshot.paths.map((path) => ANY_ITEM_FILE.exec(path)?.[1]).filter(Boolean));
   if (items.some((each) => !text(each.fields?.id))) {
     for (const entry of await host.readHistory(null, { ref: defaultBranch })) {
@@ -333,7 +346,5 @@ export async function saveItems(host, change, context) {
   if (errors.length) throw new WorkPlansError("ItemsRefused", { findings: errors }, `The items are not saved: ${errors.map((one) => one.what).join("; ")}.`);
 
   const files = [...documents.map((one) => ({ path: one.path, text: writeDocument(schema, one) })), ...removed.map((id) => ({ path: held.get(id), delete: true }))];
-  const subject = documents.length ? `Add to the backlog: ${documents.map((one) => one.title).join(", ")}` : `Remove from the backlog: ${removed.join(", ")}`;
-  const { commit } = await host.commitFiles({ branch: defaultBranch, expectedHead: head, files, message: message(subject, trailers) });
-  return { commit, written: documents.map((one) => one.path), warnings: found.filter((one) => one.kind === "warning") };
+  return { documents, files, warnings: found.filter((one) => one.kind === "warning") };
 }

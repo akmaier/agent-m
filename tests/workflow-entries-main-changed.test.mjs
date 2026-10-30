@@ -285,9 +285,7 @@ test("onMainChanged hands publishGraph exactly the files not accepted, each with
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the instance of the first impact test, whose branch overview-cache holds only its first commit
 // input: onMainChanged
-// expect: one new commit on overview-cache, on the head it read, that adds exactly "<commit>.json" and the views "<commit>.backlog.json.gz", "<commit>.progress.json.gz" (ITM-1260) and
-//         "<commit>.schedule.json.gz" (ITM-1265) — no
-//         "<commit>.facts.json" — and writes "latest.json" naming the commit; the summary names the overview and the views; storedOverview-shaped content: { commit, shares, waiting } of main's commit, the six stages in their order; the origin's main is untouched
+// expect: one new commit on overview-cache, on the head it read, that adds exactly "<commit>.json" and the views "<commit>.backlog.json.gz", "<commit>.progress.json.gz" (ITM-1260) and "<commit>.schedule.json.gz" (ITM-1265) — no "<commit>.facts.json" — and writes "latest.json" naming the commit; the summary names the overview and the views; storedOverview-shaped content: { commit, shares, waiting } of main's commit, the six stages in their order; the origin's main is untouched
 test("onMainChanged adds the overview of the commit to overview-cache once", async () => {
   await withInstance({ commits: await impactCommits() }, async (f) => {
     const before = overviewHead(f);
@@ -342,8 +340,7 @@ test("a failing overview leaves the graph and the impact lists written and ends 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the workflow file .github/workflows/main-changed.yml
 // input: its header comment read
-// expect: it names the overview of the main page of that commit, added to the branch overview-cache, and no facts (no commit's facts file is stored); known positive: it still names the graph and the impact
-//         lists of trace-cache
+// expect: it names the overview of the main page of that commit, added to the branch overview-cache, and no facts (no commit's facts file is stored); known positive: it still names the graph and the impact lists of trace-cache
 test("the header of the workflow main-changed names the overview, and no stored facts", () => {
   const header = readFileSync(new URL("../.github/workflows/main-changed.yml", import.meta.url), "utf8").split("\n").filter((line) => line.startsWith("#")).join(" ").replace(/#\s*/g, " ").replace(/\s+/g, " ");
   assert.match(header, /graph of the pushed commit and the impact lists/);

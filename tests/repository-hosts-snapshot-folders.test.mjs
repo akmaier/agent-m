@@ -96,8 +96,7 @@ const sorted = (list) => [...list].sort();
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
 // given: a fake GitHub holding two use cases (one a folder deep), two records, the SPEC, a job record, a README and a deep source; a host with a token
 // input: readSnapshot("main", { folders: ["docs/use-cases", "docs/approvals", "SPEC.md"] })
-// expect: two requests — the commit (GET …/commits/main) and one POST https://api.github.com/graphql with the token —, no request of git/trees; the
-//         snapshot's paths exactly the two use cases, the two records and SPEC.md, each with its blob SHA
+// expect: two requests — the commit (GET …/commits/main) and one POST https://api.github.com/graphql with the token —, no request of git/trees; the snapshot's paths exactly the two use cases, the two records and SPEC.md, each with its blob SHA
 test("readSnapshot with folders sends the commit and one GraphQL request, and holds exactly the files of those folders", async () => {
   const fake = fakeGitHub();
   await using(fake.fetch, async () => {
@@ -115,8 +114,7 @@ test("readSnapshot with folders sends the commit and one GraphQL request, and ho
 // guards: A REMOTE INTERFACE NAMES HOW IT FAILS
 // given: the snapshot of TST-1266001, of docs/use-cases, docs/approvals and SPEC.md
 // input: read("docs/jobs/JOB-1.md"), blob("docs/jobs/JOB-1.md") and readMany(["docs/jobs/JOB-1.md"]) — a file the commit holds outside them; read of a file inside
-// expect: each fails with OutsideSnapshot naming docs/jobs/JOB-1.md, none answers as if the file did not exist, and no request is sent for them; counter-proof: the
-//         read of docs/use-cases/UC-001-read.md gives its text
+// expect: each fails with OutsideSnapshot naming docs/jobs/JOB-1.md, none answers as if the file did not exist, and no request is sent for them; counter-proof: the read of docs/use-cases/UC-001-read.md gives its text
 test("a read outside the folders fails with OutsideSnapshot, naming the path", async () => {
   const fake = fakeGitHub();
   await using(fake.fetch, async () => {
@@ -154,8 +152,7 @@ test("readSnapshot with folders finds a file at every depth of a folder", async 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the fake GitHub; a host with a token
 // input: readSnapshot("main") — no folders
-// expect: counter-proof of TST-1266001, unchanged: the commit and the recursive tree (GET …/git/trees/<commit>?recursive=1), no GraphQL request, and every
-//         file of the commit among the paths
+// expect: counter-proof of TST-1266001, unchanged: the commit and the recursive tree (GET …/git/trees/<commit>?recursive=1), no GraphQL request, and every file of the commit among the paths
 test("readSnapshot without folders reads the commit and the whole recursive tree, as before", async () => {
   const fake = fakeGitHub();
   await using(fake.fetch, async () => {
@@ -188,8 +185,7 @@ test("readSnapshot refuses a tree GitHub answers as truncated, by name", async (
 // guards: A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; A REMOTE INTERFACE NAMES HOW IT FAILS
 // given: the fake GitHub; a host without a token, which cannot send GitHub's GraphQL request
 // input: readSnapshot("main", { folders: ["docs/use-cases", "SPEC.md"] }), then read("README.md")
-// expect: the whole tree is read (the commit and the recursive tree, no GraphQL request) and narrowed: the paths are the two use cases and SPEC.md; README.md,
-//         outside them, fails with OutsideSnapshot
+// expect: the whole tree is read (the commit and the recursive tree, no GraphQL request) and narrowed: the paths are the two use cases and SPEC.md; README.md, outside them, fails with OutsideSnapshot
 test("without a token readSnapshot with folders reads the whole tree and narrows it", async () => {
   const fake = fakeGitHub();
   await using(fake.fetch, async () => {

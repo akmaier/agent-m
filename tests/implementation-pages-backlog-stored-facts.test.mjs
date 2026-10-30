@@ -118,8 +118,7 @@ const batched = (calls) => calls.filter((call) => call.fn === "readMany").flatMa
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the fixture product with two teams, with a facts file of its commit planted on overview-cache (declaration, items, sprints, role assignments, module files, requirements) and without one
 // input: the route backlog's render, both ways
-// expect: the page is the same HTML, listing the three items and both teams; both ways every file the facts come from is told to `readMany` (the declaration, the three items, the two sprints, the two role
-//         assignments, the two module files) and the SPEC is read; `readOn` is asked for no `.facts.json` either way
+// expect: the page is the same HTML, listing the three items and both teams; both ways every file the facts come from is told to `readMany` (the declaration, the three items, the two sprints, the two role assignments, the two module files) and the SPEC is read; `readOn` is asked for no `.facts.json` either way
 test("the backlog page reads its facts from the files, in batches, and asks for no facts file", async () => {
   const planted = await render((files) => factsFile(files));
   const files = await render(undefined);

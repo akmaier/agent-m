@@ -141,11 +141,13 @@ export function impactSection(impact, graph) {
     modules.append(item);
   }
   if (impact.modules.length === 0) modules.append(el("li", null, "none — no module follows this decision"));
-  return el("section", "change-impact", el("h3", null, "Impact of this change"),
+  const section = el("section", "change-impact", el("h3", null, "Impact of this change"),
     el("p", "small", el("strong", null, "Affected modules")), modules,
     ...(graph === null ? [el("p", "small code-files", `Code files — ${impact.codeFiles.length ? list(impact.codeFiles) : "no code yet"}`), el("p", "small tests", `Tests — ${testsLine(impact.tests)}`)] : []),
     el("p", "small", el("strong", null, "Requirements and use cases"), ` — newly named: ${list(impact.named.added)} · no longer named: ${list(impact.named.removed)}`),
     el("p", "small", el("strong", null, "Items"), ` — ${list(impact.items)}`));
+  section.setAttribute("tabindex", "0"); // the box scrolls (look.css), so a keyboard must reach it
+  return section;
 }
 
 // The impact list of a change to an accepted decision or module (AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST), from the graph of the

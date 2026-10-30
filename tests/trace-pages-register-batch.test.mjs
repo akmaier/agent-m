@@ -85,8 +85,7 @@ const register = (events) => events.filter((event) => event.includes("docs/sourc
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: one Host for the product and the instance, which hands the same Snapshot for main each time; that Snapshot holds SPEC.md, docs/sources.md and two register entries
 // input: the specification route drawn at main, its first group opened, the subject asked for
-// expect: of the calls that name a file of the register, the first is one readMany of docs/sources.md and the two entries, in that order; the three files are then read once each; readMany was called once in all —
-//         the trace graph for the counts of the groups is the stored one, read by one readOn of ("trace-cache", "main.json.gz"), and is not built; known positive: the subject's source is SRC-acme-person
+// expect: of the calls that name a file of the register, the first is one readMany of docs/sources.md and the two entries, in that order; the three files are then read once each; readMany was called once in all — the trace graph for the counts of the groups is the stored one, read by one readOn of ("trace-cache", "main.json.gz"), and is not built; known positive: the subject's source is SRC-acme-person
 test("on the default branch the links file and the register entries are named to readMany together before they are read", async () => {
   const events = [];
   const host = recordingHost({ label: "host", files: { "SPEC.md": SPEC, [GROUP_FILE]: GROUPS, "docs/sources.md": LINKS, ...REGISTER }, events, pinned: true });
@@ -103,8 +102,7 @@ test("on the default branch the links file and the register entries are named to
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: a product Host whose Snapshot holds SPEC.md and docs/sources.md, and an instance Host, another one, whose Snapshot holds the two register entries
 // input: the specification route drawn at main, its first group opened, the subject asked for
-// expect: the instance's Snapshot is told the two entries in one readMany, before it reads them once each; the product's Snapshot is told nothing to readMany — its trace graph is the stored one, one readOn of
-//         ("trace-cache", "main.json.gz") — and reads docs/sources.md once; known positive: the subject's source is SRC-acme-person
+// expect: the instance's Snapshot is told the two entries in one readMany, before it reads them once each; the product's Snapshot is told nothing to readMany — its trace graph is the stored one, one readOn of ("trace-cache", "main.json.gz") — and reads docs/sources.md once; known positive: the subject's source is SRC-acme-person
 test("where the register is another snapshot's, its entries are named to readMany together and the links file is read by itself", async () => {
   const events = [];
   const product = recordingHost({ label: "product", files: { "SPEC.md": SPEC, [GROUP_FILE]: GROUPS, "docs/sources.md": LINKS }, events });

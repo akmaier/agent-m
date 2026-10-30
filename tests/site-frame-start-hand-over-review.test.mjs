@@ -53,11 +53,7 @@ test("TST-572001 start.mjs registers each set once however many views hand it, a
 // guards: UC-049
 // given: the review page of TST-572001, started
 // input: MOD-job-runner's prepareJob for each kind of the catalogue named below, in a context with no snapshot and no participant
-// expect: no kind of derive-requirements, change-requirements, derive-use-cases, change-use-case, derive-architecture,
-//   review-architecture, check-for-persons, check-resource, converse and implement meets an UnknownStrategy (implement's writer
-//   branch-and-pull-request is handed by MOD-runtimes' routeStrategies through the bar's handOverStrategies); draft-plan meets the
-//   UnknownStrategy plan-steps (a writer no set that is handed holds yet; its recipe architecture-and-model and its check plan-checks are handed by MOD-work-plans'
-//   workStrategies) — which shows that the check does detect a missing strategy
+// expect: no kind of derive-requirements, change-requirements, derive-use-cases, change-use-case, derive-architecture, review-architecture, check-for-persons, check-resource, converse and implement meets an UnknownStrategy (implement's writer branch-and-pull-request is handed by MOD-runtimes' routeStrategies through the bar's handOverStrategies); draft-plan meets the UnknownStrategy plan-steps (a writer no set that is handed holds yet; its recipe architecture-and-model and its check plan-checks are handed by MOD-work-plans' workStrategies) — which shows that the check does detect a missing strategy
 test("TST-572002 on a review page every kind whose strategies are all handed is prepared without UnknownStrategy", async () => {
   for (const kind of ["derive-requirements", "change-requirements", "derive-use-cases", "change-use-case", "derive-architecture",
     "review-architecture", "check-for-persons", "check-resource", "converse", "implement"]) {
@@ -70,8 +66,7 @@ test("TST-572002 on a review page every kind whose strategies are all handed is 
 // guards: UC-049
 // given: the registrations of TST-572001, and a review page with the same script tag and fragment
 // input: start.mjs is loaded a second time in the same process (under another query), as TST-531013 loads it
-// expect: the load does not reject: the sets the first load registered under view-approvals-a, view-approvals-b and MOD-prompt-bar are
-//   counted as already registered; and their owners are those of the first load
+// expect: the load does not reject: the sets the first load registered under view-approvals-a, view-approvals-b and MOD-prompt-bar are counted as already registered; and their owners are those of the first load
 test("TST-572003 a second evaluation of start.mjs counts the strategies its own owners registered as already registered", async () => {
   reviewPage();
   await import("../src/site-frame/start.mjs?hand-over-review-again");

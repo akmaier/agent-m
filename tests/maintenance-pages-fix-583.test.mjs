@@ -91,8 +91,7 @@ async function ready(w, number = 6, { participant = "ci-bot", requirement = "" }
 // guards: UC-012; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; THE PAGE NAMES WHERE IT SENDS; ONE CLICK PER DECISION
 // given: known positive first — the issue 6 labelled defect; the register lists the model endpoint local-llm (draft text) and the CI agent ci-bot (write to the repository, run code and tests); the product has the job workflow
 // input: the route issue 6; the participant ci-bot, the name "Reviewer Rae" and the requirement FIRST RULE; Run by a script and then by a person
-// expect: the participants offered are ci-bot alone; the run panel states ci-bot's place and the parts it receives — the issue, the confirmed analysis and the instruction to write the regression test first among them; before the person's click nothing is written and no endpoint is asked;
-//   after it one file docs/jobs/JOB-….md is committed, a record of kind fix-bug working on the issue's address https://github.com/alice/product/issues/6, participant ci-bot, route ci hosted, with the parameters issue 6, violated FIRST RULE and route ci hosted; the page says the job is queued on the route ci hosted; nothing ran in the tab
+// expect: the participants offered are ci-bot alone; the run panel states ci-bot's place and the parts it receives — the issue, the confirmed analysis and the instruction to write the regression test first among them; before the person's click nothing is written and no endpoint is asked; after it one file docs/jobs/JOB-….md is committed, a record of kind fix-bug working on the issue's address https://github.com/alice/product/issues/6, participant ci-bot, route ci hosted, with the parameters issue 6, violated FIRST RULE and route ci hosted; the page says the job is queued on the route ci hosted; nothing ran in the tab
 test("issue — Fix offers the participants that can run tests, shows their run panel, and Run queues a fix-bug job of the issue on the participant's route", async () => {
   const w = start();
   const detail = await ready(w, 6, { requirement: "FIRST RULE" });
@@ -262,8 +261,7 @@ const pull = (state, merged) => ({ number: 9, title: `${FIX_JOB}: fix-bug`, body
 // guards: UC-012; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: known positive first — the fix job of the issue 6 (and another fix job, of the issue 7) is in the product's records, and the server lists no pull request for its branch; then the server lists the merged pull request #9 for the branch JOB-20261028-0900-a1b2
 // input: the route issue 6; then, with the merged pull request, the route issue 6 again; Close with links by a script and then by a person
-// expect: without a pull request the trail names the job and says that it has opened none, with no Close button; with the merged pull request it names the job and links the pull request as merged and offers Close with links; the script's click writes nothing; the person's adds the comment
-//   "Closed with https://github.com/alice/product/pull/9." to the issue 6 and closes it, and the page says so; the issue 7 is untouched
+// expect: without a pull request the trail names the job and says that it has opened none, with no Close button; with the merged pull request it names the job and links the pull request as merged and offers Close with links; the script's click writes nothing; the person's adds the comment "Closed with https://github.com/alice/product/pull/9." to the issue 6 and closes it, and the page says so; the issue 7 is untouched
 test("issue — the fix's pull request is named, and once it is merged Close with links closes the issue with a note naming it", async () => {
   const waiting = withPulls({});
   const first = await open(waiting, 6);

@@ -527,9 +527,7 @@ test("the names that match no requirement and that the listed artifacts also nam
 // guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
 // given: the fixture on the default branch, which holds no group file and two open entries of change queues
 // input: the route drawn; ALPHA RULE opened; BETA RULE opened; ALPHA RULE closed and opened again
-// expect: no file is read for a graph — UC-001's file is never named to readMany nor read; drawing reads the stored graph once, MOD-spec-changes' entryView's, for the impact lists that give the
-//         statuses (UC-020 step 3): one readOn of ("trace-cache", "<main's commit>.json.gz"); the graph of a commit is read once for the page (MOD-trace-graph's storedGraph), so opening ALPHA RULE,
-//         BETA RULE and ALPHA RULE again reads it no more — still one readOn —, and ALPHA RULE lists UC-001 (the graph is there: a known positive)
+// expect: no file is read for a graph — UC-001's file is never named to readMany nor read; drawing reads the stored graph once, MOD-spec-changes' entryView's, for the impact lists that give the statuses (UC-020 step 3): one readOn of ("trace-cache", "<main's commit>.json.gz"); the graph of a commit is read once for the page (MOD-trace-graph's storedGraph), so opening ALPHA RULE, BETA RULE and ALPHA RULE again reads it no more — still one readOn —, and ALPHA RULE lists UC-001 (the graph is there: a known positive)
 test("the view's trace graph is the stored graph of the commit, read once for the page and kept for every opening; no file is read for it", async () => {
   const productHost = mainOnly();
   const target = await render(productHost, mainParams);
@@ -555,8 +553,7 @@ test("the view's trace graph is the stored graph of the commit, read once for th
 // guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
 // given: the fixture, whose branch trace-cache holds no graph of main until the test lets the workflow have stored it
 // input: ALPHA RULE opened, closed, the graph stored, ALPHA RULE opened again
-// expect: the first opening keeps the four fields and says "What traces to this requirement could not be read: This page could not be drawn: the trace graph of <main's commit> is not stored yet" with no list,
-//         and no file is read for a graph (UC-001's file is not read); the second opening reads again and lists UC-001 as "accepted"
+// expect: the first opening keeps the four fields and says "What traces to this requirement could not be read: This page could not be drawn: the trace graph of <main's commit> is not stored yet" with no list, and no file is read for a graph (UC-001's file is not read); the second opening reads again and lists UC-001 as "accepted"
 test("a graph that is not stored is named in place of the traces, the four fields stay, and the next opening reads it again", async () => {
   let notStored = true;
   const productHost = treeHost({ trees: { main: TRACE_FILES }, stored: () => !notStored });

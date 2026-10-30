@@ -115,10 +115,7 @@ const FOLDERS = {
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the fixture product — two use cases, one of them with a record of an earlier text
 // input: open the start page with a token
-// expect: the commit once, one request for the entries of its folders — docs/use-cases, docs/approvals, docs/groups and the bar's two files — and no
-//         git/trees, then one batch of the 2 files it shows, the repository's information once (wherever in the load), and no file by
-//         itself; both use cases listed with their status — UC-001 accepted, UC-002 changed since acceptance — read from the names of
-//         the records, so that no record is read
+// expect: the commit once, one request for the entries of its folders — docs/use-cases, docs/approvals, docs/groups and the bar's two files — and no git/trees, then one batch of the 2 files it shows, the repository's information once (wherever in the load), and no file by itself; both use cases listed with their status — UC-001 accepted, UC-002 changed since acceptance — read from the names of the records, so that no record is read
 test("the start page sends its commit, one request for its folders and one batch of the files it shows", async () => {
   const repo = await product(), srv = await server(repo);
   const page = await openDashboard({ server: srv });
@@ -136,11 +133,7 @@ test("the start page sends its commit, one request for its folders and one batch
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the fixture product, whose architecture files decide #arc
 // input: open #arc with a token
-// expect: the commit once, one request for its folders — docs/architecture, docs/approvals, docs/groups and the bar's two files — and no git/trees,
-//         then one batch of the 4 architecture files, the repository's information once, and no use
-//         case, no queue file, no file by itself; then, for the table and the gaps of the modules view (ITM-721), the graph of the commit: the
-//         graph stored for it, read by one request, and no file of the graph (MOD-trace-graph: "A page never builds the graph: it reads the stored
-//         one through `storedGraph`")
+// expect: the commit once, one request for its folders — docs/architecture, docs/approvals, docs/groups and the bar's two files — and no git/trees, then one batch of the 4 architecture files, the repository's information once, and no use case, no queue file, no file by itself; then, for the table and the gaps of the modules view (ITM-721), the graph of the commit: the graph stored for it, read by one request, and no file of the graph (MOD-trace-graph: "A page never builds the graph: it reads the stored one through `storedGraph`")
 test("#arc sends its commit, one request for its folders and one batch of the files it shows — no use case and no queue file", async () => {
   const repo = await product(), srv = await server(repo);
   const page = await openDashboard({ server: srv, hash: "#arc" });
@@ -222,9 +215,7 @@ test("#spec: the links file and the register's entries are read in the first wav
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the fixture product
 // input: open #spec with a token
-// expect: the whole load — the specification route's reads included — sends its commit once and one request for its folders — SPEC.md,
-//         docs/sources.md, docs/sources, docs/spec-freigaben, docs/approvals, docs/groups and the bar's two files —, no git/trees, reads the
-//         repository's information once, and reads no file by itself
+// expect: the whole load — the specification route's reads included — sends its commit once and one request for its folders — SPEC.md, docs/sources.md, docs/sources, docs/spec-freigaben, docs/approvals, docs/groups and the bar's two files —, no git/trees, reads the repository's information once, and reads no file by itself
 test("#spec: the whole load sends its commit and one request for its folders once, and every file in a batch", async () => {
   const srv = await server(await product());
   const page = await openDashboard({ server: srv, hash: "#spec" });
@@ -353,8 +344,7 @@ const item = (n) => ["---", `id: ITM-00${n}`, `title: The work of item ${n}`, "l
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: a start page that shows 207 use cases
 // input: open the start page with a token
-// expect: the commit and the request for its folders, then 3 batches in all, never more than 100 files in one: batch 100, batch 100, batch 7, and the
-//         repository's information once
+// expect: the commit and the request for its folders, then 3 batches in all, never more than 100 files in one: batch 100, batch 100, batch 7, and the repository's information once
 test("a page that shows more than a hundred files sends one batch for every hundred of them", async () => {
   const repo = await product(extraUseCases(100, 205)), srv = await server(repo);
   const page = await openDashboard({ server: srv });
@@ -401,9 +391,7 @@ test("an acceptance of three files reads its head once", async () => {
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: three use cases waiting for acceptance — UC-002 changed, UC-003 and UC-004 open
 // input: open #review/uc with a token
-// expect: the three use cases come in one batch of three and none by itself; the only file read by itself is the record of UC-002's last accepted
-//         text, which MOD-approvals reads; the commit and the request for the folders of the use cases once each, and no git/trees; the one
-//         more request for folders is UC-002's last accepted text, read from the commit that added its record with `folders` naming the file
+// expect: the three use cases come in one batch of three and none by itself; the only file read by itself is the record of UC-002's last accepted text, which MOD-approvals reads; the commit and the request for the folders of the use cases once each, and no git/trees; the one more request for folders is UC-002's last accepted text, read from the commit that added its record with `folders` naming the file
 test("#review/uc: the files it shows come in one batch", async () => {
   const repo = await product({ "docs/use-cases/UC-003-third.md": useCase("003", "Third"), "docs/use-cases/UC-004-fourth.md": useCase("004", "Fourth") });
   const srv = await server(repo);
@@ -436,8 +424,7 @@ test("#review/uc without a token: each file is read by itself, which sends more 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the fixture product, whose UC-001 is accepted
 // input: open #uc/UC-001 and #arc/ARC-001 with a token — a route that shows one accepted file
-// expect: the commit, the request for its folders and the repository's information, and the one file by its own request — a batch of one file is no
-//         fewer requests —; no git/trees
+// expect: the commit, the request for its folders and the repository's information, and the one file by its own request — a batch of one file is no fewer requests —; no git/trees
 test("#uc/<id> and #arc/<id> of an accepted file read that one file by itself", async () => {
   const repo = await product();
   const use = await openDashboard({ server: await server(repo), hash: "#uc/UC-001" });
@@ -463,10 +450,7 @@ const withDecisions = () => product({ [ARC2]: decision("002"), [ARC3]: decision(
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the fixture product with two use cases (UC-001, UC-002), three decisions (ARC-001, ARC-002, ARC-003) and three module files (MOD-page, MOD-reader, MOD-review)
 // input: open #use-case (then #decision, then #module) with a token
-// expect: the commit and the request for its folders once, no git/trees, one batch of exactly the files of its own kind — 2 files for #use-case, 3 for #decision, 3 for
-//         #module —, the repository's information once, and no file by itself; #module also shows the modules view (ITM-721), which reads the
-//         graph of the commit: the graph stored for it, by at most one request — the modules view may ask for it after the page has settled, so the
-//         read is counted, not placed —, and no file of the graph (MOD-trace-graph: "A page never builds the graph")
+// expect: the commit and the request for its folders once, no git/trees, one batch of exactly the files of its own kind — 2 files for #use-case, 3 for #decision, 3 for #module —, the repository's information once, and no file by itself; #module also shows the modules view (ITM-721), which reads the graph of the commit: the graph stored for it, by at most one request — the modules view may ask for it after the page has settled, so the read is counted, not placed —, and no file of the graph (MOD-trace-graph: "A page never builds the graph")
 for (const [hash, paths] of Object.entries(SHOWN)) {
   test(`${hash} sends its commit and the request for its folders once and one batch of the files it shows`, async () => {
     const srv = await server(await withDecisions());
@@ -500,8 +484,7 @@ test("#use-case, #decision and #module without a token: each file is read by its
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: UC-001 and MOD-page, each with a record that names its current text
 // input: open #use-case/id=UC-001 and #module/id=MOD-page with a token — a route that shows one accepted file
-// expect: the commit, the request for its folders and the repository's information, and the one file by its own request — a batch of one file is no
-//         fewer requests —; no git/trees
+// expect: the commit, the request for its folders and the repository's information, and the one file by its own request — a batch of one file is no fewer requests —; no git/trees
 test("#use-case/id= and #module/id= of an accepted file read that one file by itself", async () => {
   const repo = await product();
   const blob = await blobSha(repo[PAGE]);
@@ -518,10 +501,7 @@ test("#use-case/id= and #module/id= of an accepted file read that one file by it
 // guards: A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT
 // given: UC-002, accepted in an earlier text, edited since
 // input: open #uc/UC-002 with a token
-// expect: the file once, the record's history once and the text the record names as the file stood when the record was added — that commit,
-//         one request for its folders naming only the file (the options reach the real host through the frame's wrapper), and that file —,
-//         each once, and no tree of that older commit; the head's commit and the request for its folders once, no git/trees of the head; the
-//         page shows the difference to the text accepted before
+// expect: the file once, the record's history once and the text the record names as the file stood when the record was added — that commit, one request for its folders naming only the file (the options reach the real host through the frame's wrapper), and that file —, each once, and no tree of that older commit; the head's commit and the request for its folders once, no git/trees of the head; the page shows the difference to the text accepted before
 test("opening one use case reads that use case, the history of its record and the text the record names — no other file, no older tree", async () => {
   const repo = await product();
   const srv = await server(repo);
@@ -562,8 +542,7 @@ test("opening a changed module shows its impact list beside the difference, and 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the fixture product
 // input: open #settings with a token
-// expect: counter-proof of the review pages' folders — #settings names no folders: it sends no request for folders and no batch, and reads the whole
-//         tree as before; no use case, architecture file, record or queue is read
+// expect: counter-proof of the review pages' folders — #settings names no folders: it sends no request for folders and no batch, and reads the whole tree as before; no use case, architecture file, record or queue is read
 test("settings read the product's settings, and no use case, architecture file, record or queue", async () => {
   const page = await openDashboard({ server: await server(await product()), hash: "#settings" });
   assert.deepEqual(files(page.requests), []);

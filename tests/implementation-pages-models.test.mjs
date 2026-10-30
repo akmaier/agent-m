@@ -158,8 +158,7 @@ const NO_TOKEN = "was not found — a private repository is found only with a to
 // guards: THE CATALOGUE IS DATA; UC-031
 // given: the instance acme/agent-m, which holds the models scrum-wip (pulled) and broken-wip (pulled) under docs/process-models/, and the catalogue's five shipped models
 // input: the route `models` drawn
-// expect: the section of the shipped models holds waterfall (planned), v-model (planned), reuse-oriented (planned), scrum (pulled) and kanban (pulled), in the catalogue's order; the section of the
-//   instance's own models holds broken-wip (pulled) and scrum-wip (pulled), in the order of their paths; each model's kind is the text of its kind element
+// expect: the section of the shipped models holds waterfall (planned), v-model (planned), reuse-oriented (planned), scrum (pulled) and kanban (pulled), in the catalogue's order; the section of the instance's own models holds broken-wip (pulled) and scrum-wip (pulled), in the order of their paths; each model's kind is the text of its kind element
 test("TST-778001 the shipped catalogue and the instance's own models are listed, each with its kind of work", async () => {
   const target = await draw();
   const kindOf = (model) => [model.getAttribute("data-model"), byClass(model, "kind")[0].textContent];
@@ -186,8 +185,7 @@ test("TST-778002 each model lists the products of this browser whose declaration
 // guards: UC-031
 // given: the same page
 // input: the route `models` drawn
-// expect: every shipped model's links are exactly ["Adapt"], leading to "#models/name=<name>"; every model of the instance's own has exactly ["Edit"], leading to "#models/name=<name>"; the page
-//   has one link "+ New model"
+// expect: every shipped model's links are exactly ["Adapt"], leading to "#models/name=<name>"; every model of the instance's own has exactly ["Edit"], leading to "#models/name=<name>"; the page has one link "+ New model"
 test("TST-778003 a shipped model offers Adapt only, an instance's model Edit, and the page + New model", async () => {
   const target = await draw();
   for (const name of SHIPPED) {
@@ -203,8 +201,7 @@ test("TST-778003 a shipped model offers Adapt only, an instance's model Edit, an
 // guards: UC-031; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
 // given: this browser manages acme/missing, which no token reaches (a private repository answers 404), beside the products acme/library and acme/atlas it can read
 // input: the route `models` drawn
-// expect: the unreadable list holds exactly "https://github.com/acme/missing: <the host's reason>" — the product's address, a colon, and the not-found text of its host —; scrum still lists acme/library
-//   and scrum-wip still lists acme/atlas
+// expect: the unreadable list holds exactly "https://github.com/acme/missing: <the host's reason>" — the product's address, a colon, and the not-found text of its host —; scrum still lists acme/library and scrum-wip still lists acme/atlas
 test("TST-778004 a product that cannot be connected is shown with its reason and the others are still listed", async () => {
   const target = await draw();
   assert.deepEqual(byClass(target, "source").map((item) => item.textContent), [`${MISSING}: ${MISSING} ${NO_TOKEN}`]);
@@ -251,8 +248,7 @@ test("TST-778006 every part of the page carries a folded What is this?", async (
 // guards: UC-031
 // given: the page drawn, and the frame's routing (MOD-site-frame routeOf), which reads a fragment as a route name and its parameters
 // input: the href of every button of the page, read by routeOf
-// expect: Adapt of v-model gives route "models" with name "v-model"; Edit of scrum-wip gives "models" with name "scrum-wip"; every shipped and own model's button gives its own name; + New model gives
-//   "models" with the empty name ""; known positive: routeOf("#models/name=v-model") gives { name: "models", params: { name: "v-model" } }
+// expect: Adapt of v-model gives route "models" with name "v-model"; Edit of scrum-wip gives "models" with name "scrum-wip"; every shipped and own model's button gives its own name; + New model gives "models" with the empty name ""; known positive: routeOf("#models/name=v-model") gives { name: "models", params: { name: "v-model" } }
 test("TST-778007 each button's address, read by the frame's routing, carries its model's name", async () => {
   assert.deepEqual(routeOf("#models/name=v-model"), { name: "models", params: { name: "v-model" } });
   const target = await draw();

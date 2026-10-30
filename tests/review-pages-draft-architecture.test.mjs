@@ -826,8 +826,7 @@ test("decision/draft - after Check this edit the checked draft is not unsaved", 
 // guards: UC-022; UC-023; DEVELOP AGAINST INTERFACES
 // given: the architecture draft shown after Run (the drafter asked once), the decision's text changed by one added line that breaks no check and that the reviewer finds nothing in
 // input: Check this edit
-// expect: the page begins with the edited draft, as a whole (MOD-runtimes' hook `from`): the first request to the drafter after the check carries the edited sentence (without `from` it is the job's ordinary prompt), the
-//   reviewer checks the draft, and the job has no record: no commit is made
+// expect: the page begins with the edited draft, as a whole (MOD-runtimes' hook `from`): the first request to the drafter after the check carries the edited sentence (without `from` it is the job's ordinary prompt), the reviewer checks the draft, and the job has no record: no commit is made
 test("decision/draft - Check this edit begins with the edited draft and writes no record", async () => {
   const calls = endpointsAndRegistries({ drafts: [architectureDraft({ candidate: "mit-lib", alternative: "missing-lib" })], registry: { [NPM_MIT]: packageData("MIT") } });
   const fake = fakeProduct({ ...READY, LICENSE: "MIT License\n" });

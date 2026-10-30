@@ -283,9 +283,7 @@ const changeButton = (root, name) => {
 // guards: UC-017; PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE; A PARTICIPANT HAS ONE OF FIVE TYPES; A PARTICIPANT DECLARES ITS CAPABILITIES; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
 // given: the public participants Route, an empty instance register, and browser settings with one endpoint and one Bridge
 // input: each of the five participant types is selected, its type-specific fields are filled, and Save is clicked once
-// expect: each type is drafted in MOD-site-frame's schemaForm, then saved as one commit of docs/participants.md with one row
-//   whose type, capability preset, processing place and route match the controls; no endpoint key is committed; the page lists
-//   the saved participant afterwards
+// expect: each type is drafted in MOD-site-frame's schemaForm, then saved as one commit of docs/participants.md with one row whose type, capability preset, processing place and route match the controls; no endpoint key is committed; the page lists the saved participant afterwards
 test("participants — each participant type is added through the schema form and saved in one commit", async (t) => {
   const fixtures = [
     { type: "person", name: "akmaier", fields: { account: "github.com/akmaier" }, place: undefined,
@@ -357,8 +355,7 @@ test("participants — a CLI agent names its Bridge route, and without a model c
 // guards: UC-003; NO SECRET IN THE REPOSITORY
 // given: no model endpoint is configured in this browser
 // input: the author chooses model endpoint, fills the UC-003 endpoint fields in place, and saves the participant
-// expect: the UC-003 fields are visible in the participants route, the endpoint is kept in the browser, and the committed
-//   participant row names the endpoint without committing its key
+// expect: the UC-003 fields are visible in the participants route, the endpoint is kept in the browser, and the committed participant row names the endpoint without committing its key
 test("participants — with no configured endpoint, UC-003 endpoint fields open in place and no key is committed", async (t) => {
   const b = browser(t);
   const page = await b.page();
@@ -408,8 +405,7 @@ test("participants — self-hosted runners are explained, and source place restr
 // guards: UC-017; THE BRIDGE FINDS THE INSTALLED AGENTS; A BRIDGE BEHIND NAT IS REACHED THROUGH A REVERSE TUNNEL
 // given: this browser keeps one direct Bridge and one Bridge reached through the jump host, and each Bridge reports its offered agents
 // input: the author chooses each Bridge on a CLI participant and asks for its agents, then clicks a ready offered agent
-// expect: the route calls testBridge for the chosen Bridge only; ready agents are offered as one-click additions; the clicked
-//   agent fills Agent, Model, Route and the Bridge computer as Processing place; missing or not-ready agents are not added
+// expect: the route calls testBridge for the chosen Bridge only; ready agents are offered as one-click additions; the clicked agent fills Agent, Model, Route and the Bridge computer as Processing place; missing or not-ready agents are not added
 test("participants — offered Bridge agents are listed, and a ready one is added in one click", async (t) => {
   const calls = [];
   withFetch(t, async (url, init = {}) => {
@@ -464,8 +460,7 @@ test("participants — offered Bridge agents are listed, and a ready one is adde
 // guards: UC-017; ONE CLICK PER DECISION; THE BRIDGE FINDS THE INSTALLED AGENTS; A REMOTE INTERFACE NAMES HOW IT FAILS
 // given: a CLI participant row naming a stored Bridge and agent
 // input: Test succeeds once; then, on another page, Test cannot reach the Bridge and the author chooses Save untested
-// expect: probe is called with kind agent and the selected agent; the successful answer is shown; the failure reason is shown,
-//   Save is withheld while the failed test stands, and Save becomes available only after Save untested is clicked
+// expect: probe is called with kind agent and the selected agent; the successful answer is shown; the failure reason is shown, Save is withheld while the failed test stands, and Save becomes available only after Save untested is clicked
 test("participants — Test probes the selected agent, and a failed Bridge test withholds Save until save untested", async (t) => {
   const calls = [];
   withFetch(t, async (url, init = {}) => {
@@ -512,11 +507,6 @@ test("participants — Test probes the selected agent, and a failed Bridge test 
 // given: the browser's product list holds two products whose role assignments name dev-a, and dev-a is in the instance
 // input: the author opens Change for dev-a, then removes write to the repository before saving the changed participant
 // expect: the participants page lists both products and the roles that name dev-a before Save; after the capability is removed, MOD-product-process' roleAssignmentFindings is shown for the assignment that is now invalid, naming the Developers role and the missing write to the repository capability; Save changes only docs/participants.md
-//   participant register with the capabilities a Developer needs
-// input: the author opens Change for dev-a, then removes write to the repository before saving the changed participant
-// expect: the participants page lists both products and the roles that name dev-a before Save; after the capability is
-//   removed, MOD-product-process' roleAssignmentFindings is shown for the assignment that is now invalid, naming the
-//   Developers role and the missing write to the repository capability; Save changes only docs/participants.md
 test("participants — changing a used participant lists product roles and invalid assignments before save", async (t) => {
   const products = fixtureProductHosts();
   const b = browser(t, { files: { [PARTICIPANTS]: USED_PARTICIPANTS, ...instanceProcessFiles() },
@@ -579,8 +569,7 @@ test("participants — a participant no product uses saves without the product-u
 // guards: UC-017; A PARTICIPANT DECLARES WHERE IT PROCESSES DATA
 // given: the public participants Route, an empty register, and a Bridge and an endpoint kept in this browser
 // input: the author chooses each type in turn and has not typed a processing place
-// expect: the place is preset where it can be told — CI agent "GitHub hosted runner", CLI agent "this machine", sandboxed agent
-//   "sandbox" — and is empty for a model endpoint, where Agent M cannot tell, and absent for a person; a preset place is changed by typing
+// expect: the place is preset where it can be told — CI agent "GitHub hosted runner", CLI agent "this machine", sandboxed agent "sandbox" — and is empty for a model endpoint, where Agent M cannot tell, and absent for a person; a preset place is changed by typing
 test("participants — the processing place is preset by type where it can be told, and changeable", async (t) => {
   const b = browser(t, { settings: { "bridge:laptop": { address: "http://127.0.0.1:8787", token: "bridge-token" },
     "endpoint:campus": { url: "https://models.example/v1", kind: "openai-compatible", model: "llama-campus" } } });
@@ -602,8 +591,7 @@ test("participants — the processing place is preset by type where it can be to
 // guards: UC-017; A PARTICIPANT HAS ONE OF FIVE TYPES; NO SECRET IN THE REPOSITORY
 // given: the public participants Route, an empty register, and the CI-agent form with its runner on the server's machines
 // input: the author chooses the self-hosted runner, types the runner's label gpu and the key's secret name MODEL_KEY, saves; and, on another page, leaves the label empty
-// expect: no runner-label field while the runner is the server's own; with the self-hosted runner a runner-label field, the route
-//   preview "ci runner:gpu secret MODEL_KEY" and, after Save, that route in the committed row; with the label empty Save is withheld
+// expect: no runner-label field while the runner is the server's own; with the self-hosted runner a runner-label field, the route preview "ci runner:gpu secret MODEL_KEY" and, after Save, that route in the committed row; with the label empty Save is withheld
 test("participants — a CI agent's route is written in the schema's form, with the runner's label for a self-hosted runner", async (t) => {
   const b = browser(t);
   const page = await b.page();

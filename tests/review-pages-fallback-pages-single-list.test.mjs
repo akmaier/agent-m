@@ -136,8 +136,7 @@ const written = (fake) => fake.writes().filter((change) => change.files.length >
 // guards: UC-018; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
 // given: a GitHub product whose host cannot write and no token stored; the open entry 01 of the sample queue edited in place — the section "1. Lending" with one book standing on "one shelf" — with a Why
 // input: a click on Save
-// expect: nothing committed; a paragraph above the list is exactly "There is no token: GitHub's page opens for each file, and you commit them there."; two pages — the entry's proposal and its rationale —, each
-//   with exactly one text beside its link; the proposal's text is the section as edited, byte for byte; the rationale's text holds the Why; no address holds a word of the text; no page is warned about
+// expect: nothing committed; a paragraph above the list is exactly "There is no token: GitHub's page opens for each file, and you commit them there."; two pages — the entry's proposal and its rationale —, each with exactly one text beside its link; the proposal's text is the section as edited, byte for byte; the rationale's text holds the Why; no address holds a word of the text; no page is warned about
 test("spec-entry/<id>/edit — without a token the entry's pages are fallbackPages' list: the sentence, each file's text, no warning", async () => {
   const { fake, target } = await savedEntry();
   assert.equal(written(fake).length, 0, "nothing committed");
@@ -176,8 +175,7 @@ test("spec-entry/<id>/edit — without a token a file that already differs is wa
 // guards: UC-019; UC-018; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
 // given: a GitHub product whose host cannot write and no token stored; the draft of UC-007 and UC-008, each with an added alternative flow 2b, in their editors
 // input: a click on Save
-// expect: nothing committed; a paragraph above the list is exactly "There is no token: GitHub's page opens for each file, and you commit them there."; two pages — UC-007's file and UC-008's, in this order —,
-//   each with exactly one text beside its link, which is the file as drafted, byte for byte; no address holds a word of the text; no page is warned about
+// expect: nothing committed; a paragraph above the list is exactly "There is no token: GitHub's page opens for each file, and you commit them there."; two pages — UC-007's file and UC-008's, in this order —, each with exactly one text beside its link, which is the file as drafted, byte for byte; no address holds a word of the text; no page is warned about
 test("draft — without a token the pages of a draft of files are fallbackPages' list: the sentence, each file's text, no warning", async () => {
   const { fake, target } = await savedFiles();
   assert.equal(written(fake).length, 0, "nothing committed");
@@ -214,9 +212,7 @@ test("draft — without a token a file of a draft that already differs is warned
 // guards: UC-019; UC-018; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
 // given: a GitHub product whose host cannot write and no token stored; the draft of a change of A LOAN HAS A DUE DATE — its rule gains "and says when it is overdue." — from the source SRC-alice
 // input: a click on Save
-// expect: nothing committed; a paragraph above the list is exactly "There is no token: GitHub's page opens for each file, and you commit them there."; four pages — the queue's index and decisions file, the
-//   entry's proposal and its rationale — of the queue docs/spec-freigaben/<day>_edits-of-anonymous, each with exactly one text beside its link; the proposal's text is the section "## 1. Lending" with the
-//   changed rule; the rationale's text is "Drafted from SRC-alice on the person's instruction."; the index's text names the section; no address holds a word of the text; no page is warned about
+// expect: nothing committed; a paragraph above the list is exactly "There is no token: GitHub's page opens for each file, and you commit them there."; four pages — the queue's index and decisions file, the entry's proposal and its rationale — of the queue docs/spec-freigaben/<day>_edits-of-anonymous, each with exactly one text beside its link; the proposal's text is the section "## 1. Lending" with the changed rule; the rationale's text is "Drafted from SRC-alice on the person's instruction."; the index's text names the section; no address holds a word of the text; no page is warned about
 test("draft — without a token the pages of a draft of requirements are fallbackPages' list: the sentence, each file's text, no warning", async () => {
   const { fake, target } = await savedRequirements();
   assert.equal(written(fake).length, 0, "nothing committed");

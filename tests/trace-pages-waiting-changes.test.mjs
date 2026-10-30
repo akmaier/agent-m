@@ -53,8 +53,7 @@ const text = (node) => node.textContent.replace(/\s+/g, " ");
 // guards: OPEN PROPOSALS ARE SHOWN IN THE BROWSER; UC-006
 // given: the default branch, whose queues hold an open entry (2026-10-09_open, entry 01) and a decided one (2026-10-08_done, entry 01)
 // input: the specification view drawn at main
-// expect: a section "SPEC changes waiting for acceptance" is the first child of the page, before the version choice and the section "Current requirements"; it links #spec-entry/id=spec-2026-10-09_open-01 and
-//         names its status open; the decided entry is not in it (the counter-proof: no link to spec-2026-10-08_done-01 anywhere on the page)
+// expect: a section "SPEC changes waiting for acceptance" is the first child of the page, before the version choice and the section "Current requirements"; it links #spec-entry/id=spec-2026-10-09_open-01 and names its status open; the decided entry is not in it (the counter-proof: no link to spec-2026-10-08_done-01 anywhere on the page)
 test("TST-878001 the open entry is linked first, above the SPEC, and the decided entry is not listed", async () => {
   const { target } = await render(withOpen);
   const waiting = waitingSection(target);
@@ -86,8 +85,7 @@ test("TST-878002 where no entry waits there is no such section", async () => {
 // guards: UC-006; UC-018
 // given: the default branch with an open entry
 // input: the specification view drawn at main, and at the tag v2026.1.0 (a released version)
-// expect: at main the page links "History of SPEC changes" to #spec-entry/id=history and "Arrange" to #arrange/kind=requirements, and has no link "All SPEC change entries" and no
-//         anchor to #spec-entry (the waiting entry's own link goes to #spec-entry/id=…); at the tag it has none of the links and no waiting section
+// expect: at main the page links "History of SPEC changes" to #spec-entry/id=history and "Arrange" to #arrange/kind=requirements, and has no link "All SPEC change entries" and no anchor to #spec-entry (the waiting entry's own link goes to #spec-entry/id=…); at the tag it has none of the links and no waiting section
 test("TST-878003 the history is a link on the default branch's page only, and no link leads to the list of all entries", async () => {
   const { target } = await render(withOpen);
   const link = (label) => anchors(target).find((node) => node.textContent === label);

@@ -75,8 +75,7 @@ function github(total) {
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-032
 // given: a GitHub repository with 1,370 pull requests — 14 pages of 100, the last of 70 —, whose Link header names the last page
 // input: listPullRequests()
-// expect: 14 requests of /pulls with state=all: page 1 first and alone, then pages 2 to 14 together — at least 13 in flight at once —; all 1,370 returned, in the order the
-//         server lists them (1370 first, 1 last), none twice
+// expect: 14 requests of /pulls with state=all: page 1 first and alone, then pages 2 to 14 together — at least 13 in flight at once —; all 1,370 returned, in the order the server lists them (1370 first, 1 last), none twice
 test("listPullRequests on GitHub — page 1, then every other page at once", async () => {
   const host = connect(GITHUB, { token: GH_TOKEN });
   const { result, requests, most } = await serving(github(1370), () => host.listPullRequests());
@@ -114,8 +113,7 @@ function gitlab(total) {
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-032
 // given: a GitLab project with 1,370 merge requests, 14 pages of 100, whose X-Total-Pages says so
 // input: listPullRequests()
-// expect: 14 requests of /merge_requests with state=all: page 1 first and alone, then pages 2 to 14 together — at least 13 in flight at once —; all 1,370 returned, in the
-//         order the server lists them, none twice
+// expect: 14 requests of /merge_requests with state=all: page 1 first and alone, then pages 2 to 14 together — at least 13 in flight at once —; all 1,370 returned, in the order the server lists them, none twice
 test("listPullRequests on GitLab — page 1, then every other page at once", async () => {
   const host = connect(GITLAB, { token: GL_TOKEN });
   const { result, requests, most } = await serving(gitlab(1370), () => host.listPullRequests());

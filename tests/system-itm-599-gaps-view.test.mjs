@@ -88,8 +88,7 @@ test("without a token, the gaps page is drawn from SPEC.md and the stored graph 
 // guards: UC-020; THE TRACEABILITY MATRIX IS DERIVED
 // given: the same product, kept in this browser with its own token
 // input: the address #trace/key=gaps/ref=main/product=<the product> is opened
-// expect: the page shows the same lists and rows as without a token; the product is asked for 6 REST calls (the 4 above, SPEC.md through the contents API and the graph stored on trace-cache through the contents API,
-//         contents/<commit>.json.gz?ref=trace-cache) and for no GraphQL batch — none of the files of the graph (MOD-direct's file, UC-001's, the test's) is asked for — and for no file from the raw host; every request carries the product's token
+// expect: the page shows the same lists and rows as without a token; the product is asked for 6 REST calls (the 4 above, SPEC.md through the contents API and the graph stored on trace-cache through the contents API, contents/<commit>.json.gz?ref=trace-cache) and for no GraphQL batch — none of the files of the graph (MOD-direct's file, UC-001's, the test's) is asked for — and for no file from the raw host; every request carries the product's token
 test("with a token, the gaps page is drawn from SPEC.md and the stored graph through the contents API: six REST calls and no batch", async (t) => {
   const page = await visit(t, GAPS, { token: true });
   assert.deepEqual(lists().map(linesOf), [["DELTA RULE"], ["DELTA RULE"], ["DELTA RULE"], [], []]);
@@ -156,8 +155,7 @@ async function clickAlpha(t, { tokens, link = RELEASE_LINK, repositories = { [RE
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: this browser keeps the product and the instance, each with its own token; the address of the specification at the tag v1.0.0 is opened
 // input: the requirement ALPHA RULE is opened
-// expect: the instance is asked for 3 REST calls (its information, the commit of main, that commit's tree) and 1 GraphQL batch that names the two register entries, and for no file from the raw host; the product is asked for 2 REST calls
-//         (docs/sources.md through the contents API, and the graph stored on trace-cache, contents/<commit>.json.gz?ref=trace-cache) and for no GraphQL batch: UC-001's file, a file of the graph, is not read; every request carries the token of its repository
+// expect: the instance is asked for 3 REST calls (its information, the commit of main, that commit's tree) and 1 GraphQL batch that names the two register entries, and for no file from the raw host; the product is asked for 2 REST calls (docs/sources.md through the contents API, and the graph stored on trace-cache, contents/<commit>.json.gz?ref=trace-cache) and for no GraphQL batch: UC-001's file, a file of the graph, is not read; every request carries the token of its repository
 test("with tokens, an opened requirement at a released version reads the register entries in one GraphQL batch", async (t) => {
   const asked = await clickAlpha(t, { tokens: true });
   assert.deepEqual(counted(asked.instance), { api: 3, graphql: 1, raw: 0 });
@@ -173,8 +171,7 @@ test("with tokens, an opened requirement at a released version reads the registe
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the same, with no token stored
 // input: the requirement ALPHA RULE is opened
-// expect: GitHub's batch query needs a token, so none is sent: the instance is asked for 3 REST calls and the 2 register entries from the raw host, one request each; the product for 2 files from the raw host — docs/sources.md and
-//         the graph stored on the branch trace-cache, <commit>.json.gz — and for no REST call: UC-001's file, a file of the graph, is not read
+// expect: GitHub's batch query needs a token, so none is sent: the instance is asked for 3 REST calls and the 2 register entries from the raw host, one request each; the product for 2 files from the raw host — docs/sources.md and the graph stored on the branch trace-cache, <commit>.json.gz — and for no REST call: UC-001's file, a file of the graph, is not read
 test("without a token, an opened requirement reads each register entry by its own request", async (t) => {
   const asked = await clickAlpha(t, { tokens: false });
   assert.deepEqual(counted(asked.instance), { api: 3, graphql: 0, raw: 2 });

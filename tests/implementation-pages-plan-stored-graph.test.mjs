@@ -125,8 +125,7 @@ test("the plan page reads the graph stored for its commit and builds none", asyn
 // guards: UC-045; A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the same product, `trace-cache` holding no graph of the commit and no latest.json
 // input: the route plan's render
-// expect: no graph is built: tests/sample.test.mjs is read by no one and no architecture is listed; the render fails with GraphNotStored, whose message — "the trace graph of <commit> is not stored yet" — the
-//         frame shows in the page's place (MOD-site-frame's readProblem); `readOn` was asked as in TST-1120001, and once more for trace-cache / latest.json (the counter-proof of TST-1120001)
+// expect: no graph is built: tests/sample.test.mjs is read by no one and no architecture is listed; the render fails with GraphNotStored, whose message — "the trace graph of <commit> is not stored yet" — the frame shows in the page's place (MOD-site-frame's readProblem); `readOn` was asked as in TST-1120001, and once more for trace-cache / latest.json (the counter-proof of TST-1120001)
 test("the plan page builds no graph where none is stored, and fails with GraphNotStored", async () => {
   COMMIT = "d".repeat(40);
   const { target, calls, failure } = await render(() => null);
@@ -142,8 +141,7 @@ test("the plan page builds no graph where none is stored, and fails with GraphNo
 // guards: UC-045; A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the same product, `trace-cache` holding no graph of the commit, a latest.json naming an earlier commit, and that commit's graph, which holds MOD-earlier (a node the files do not hold)
 // input: the route plan's render
-// expect: no failure; the architecture is the earlier graph's (MOD-earlier listed, MOD-stored not); one line, data-graph-as-of, reads "As of <earlier, 7>: the trace graph of the newest commit, <commit, 7>, is
-//         being stored."; `readOn` asked for trace-cache / <commit>.json.gz, latest.json and <earlier>.json.gz, once each and nothing else; tests/sample.test.mjs read by no one
+// expect: no failure; the architecture is the earlier graph's (MOD-earlier listed, MOD-stored not); one line, data-graph-as-of, reads "As of <earlier, 7>: the trace graph of the newest commit, <commit, 7>, is being stored."; `readOn` asked for trace-cache / <commit>.json.gz, latest.json and <earlier>.json.gz, once each and nothing else; tests/sample.test.mjs read by no one
 test("the plan page shows the graph stored last, with the line naming both commits, while its commit's graph is not stored", async () => {
   COMMIT = "e".repeat(40);
   const earlier = "f".repeat(40);

@@ -127,8 +127,7 @@ async function tabJobAtGate(id = START.id) {
 // guards: UC-034; A JOB STOPS AT EVERY GATE; A RUNTIME IS INTERCHANGEABLE
 // given: a job of the tab's route run to a gate before the merge — its writer has run once, its record has a `Gate reached` and no End; a second job of the tab, run to its end with no gate, as the known comparison
 // input: resumeJob(record, GATE, { kind: "tab" }, host, head) with the head read, on the first job
-// expect: it resolves with nothing; the record shows the gate resumed — `gate record:` GATE — and then the End `done` with the writer's results (`commit abc1234`, `file src/x.mjs`, `pull request …/7`, `note: …`), the usage (10 input, 5 output tokens)
-//         and the cost the other job's End holds; the resumption is a commit on the head read, the End the next commit on the head after it; the writer is called no second time and no request goes to the drafter's endpoint
+// expect: it resolves with nothing; the record shows the gate resumed — `gate record:` GATE — and then the End `done` with the writer's results (`commit abc1234`, `file src/x.mjs`, `pull request …/7`, `note: …`), the usage (10 input, 5 output tokens) and the cost the other job's End holds; the resumption is a commit on the head read, the End the next commit on the head after it; the writer is called no second time and no request goes to the drafter's endpoint
 test("resumeJob — in the tab it appends the resumption, then the end the job would have had, from the result the tab kept", async () => {
   assert.equal(typeof runtimes.resumeJob, "function");
   const { fake, result } = await tabJobAtGate();

@@ -120,8 +120,7 @@ test("the Settings routes keep the frame's default subject: the settings and the
 // guards: EVERY STEP EXPLAINS ITSELF; UC-042
 // given: the review page at #settings (the real Settings route), an instance without a switch file, and explanations.md (the data under test, read only to find the topic)
 // input: the Settings page is drawn
-// expect: the line Recording conversations holds one folded explanation — a details of class explain, without the open attribute, with the summary "What is this?" — whose body is
-//   the rendered Markdown of the topic recording-conversations, and not that of the topic prompt-bar (known positive: the two renderings differ)
+// expect: the line Recording conversations holds one folded explanation — a details of class explain, without the open attribute, with the summary "What is this?" — whose body is the rendered Markdown of the topic recording-conversations, and not that of the topic prompt-bar (known positive: the two renderings differ)
 test("the line Recording conversations holds the folded explanation of the topic recording-conversations", async () => {
   const page = await start();
   const line = one(page.body, "settings-recording");

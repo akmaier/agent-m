@@ -63,8 +63,7 @@ const architectureOf = (files) => Object.entries(files).filter(([path]) => path.
 // guards: A BACKLOG ITEM NAMES WHAT IT REALISES; A BACKLOG ITEM NAMES THE MODULES IT CHANGES; EVERY ARTIFACT NAMES ITS ORIGIN; UC-033
 // given: counter-proof — before the change MOD-issue-handling offers neither backlogItemFrom nor moveToBacklog; a bug issue 57 with a title, a text and a comment; the analysis names the violated requirement EXPORT IS A PDF and the module MOD-export; `changed` names a requirement
 // input: backlogItemFrom(issue, "bug", { violated: "EXPORT IS A PDF", modules: ["MOD-export"] }, ["SOME CHANGED RULE"])
-// expect: both functions are offered; the item's title is the issue's title, its outcome the issue's text without the comment, its origin the issue's address alone; it realises EXPORT IS A PDF alone — `changed` is for a change —, changes MOD-export, is of level module with the tests unit,
-//   and has an ## Acceptance section; MOD-work-plans' backlogFindings finds no error in it
+// expect: both functions are offered; the item's title is the issue's title, its outcome the issue's text without the comment, its origin the issue's address alone; it realises EXPORT IS A PDF alone — `changed` is for a change —, changes MOD-export, is of level module with the tests unit, and has an ## Acceptance section; MOD-work-plans' backlogFindings finds no error in it
 test("backlogItemFrom — a bug realises the requirement the analysis names as violated, takes its title, outcome and origin from the issue", () => {
   assert.equal(typeof handling.backlogItemFrom, "function", "backlogItemFrom is offered");
   assert.equal(typeof handling.moveToBacklog, "function", "moveToBacklog is offered");
@@ -107,8 +106,7 @@ test("backlogItemFrom — an issue that is not classified as a bug or a change i
 // guards: THE BACKLOG LIVES IN THE PRODUCT REPOSITORY; EVERY ARTIFACT NAMES ITS ORIGIN; ONE CLICK PER DECISION; UC-033
 // given: a product holding ITM-001 and the modules MOD-export and MOD-store, whose history holds ITM-003 as withdrawn; the change item prefilled for issue 57
 // input: moveToBacklog(host, { number: 57, address }, item, null)
-// expect: exactly one commit on main at the head, of one new file docs/backlog/ITM-004-export-is-not-a-pdf.md (not 002 and not 003) whose origin is the issue's address and which reads back as the item; then one comment on issue 57, MOD-mail-records' item-added note for
-//   ITM-004 with the link to the file on the server; then the label backlog on issue 57; in this order; the result names ITM-004 and no comment to copy
+// expect: exactly one commit on main at the head, of one new file docs/backlog/ITM-004-export-is-not-a-pdf.md (not 002 and not 003) whose origin is the issue's address and which reads back as the item; then one comment on issue 57, MOD-mail-records' item-added note for ITM-004 with the link to the file on the server; then the label backlog on issue 57; in this order; the result names ITM-004 and no comment to copy
 test("moveToBacklog — writes the item through saveItems, then comments on the issue naming it, then labels the issue backlog", async () => {
   const host = hostWith(FILES());
   const { item } = handling.backlogItemFrom(ISSUE, "change", { violated: null, modules: ["MOD-export"] }, ["EXPORT IS A PDF"]);
@@ -168,8 +166,7 @@ test("moveToBacklog — an item saveItems refuses is not written, and the issue 
 // guards: UC-033 4a; EVERY ARTIFACT NAMES ITS ORIGIN
 // given: the backlog holds ITM-001 with the origin of issue 12; a second issue 58 describing the same work
 // input: moveToBacklog(host, issue 58, an item that is not used, "ITM-001"), and then with "ITM-077", which the backlog lacks
-// expect: one commit rewriting docs/backlog/ITM-001-the-first.md alone, whose origins are the address of issue 12 and then the address of issue 58 and whose other fields are as they were; the comment and the label go to issue 58; the result names ITM-001; for ITM-077 NotFound
-//   and nothing written
+// expect: one commit rewriting docs/backlog/ITM-001-the-first.md alone, whose origins are the address of issue 12 and then the address of issue 58 and whose other fields are as they were; the comment and the label go to issue 58; the result names ITM-001; for ITM-077 NotFound and nothing written
 test("moveToBacklog — a second issue added to an existing item joins its origins, and both are named", async () => {
   const host = hostWith(FILES());
   const { item } = handling.backlogItemFrom(ISSUE, "change", { violated: null, modules: ["MOD-export"] }, ["EXPORT IS A PDF"]);

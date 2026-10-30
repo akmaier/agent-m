@@ -25,8 +25,7 @@ const Q = '(?:&quot;|")';
 // guards: UC-032 step 1; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: five items — ITM-001 merged, ITM-002 with an open pull request, ITM-003 merged during team2's sprint 02, ITM-004 and ITM-005 with none; team2's sprint 02, from 2026-10-06 to 2026-10-12, closed with ITM-003 merged on 2026-10-08 at 10:15 UTC
 // input: the route backlog's render, with every pull request
-// expect: a row for every item with its state — ITM-001 done, ITM-002 in progress, ITM-003 done, ITM-004 and ITM-005 ready —; team2's panel names its last sprint team2/02, linked to
-//         its record, with its final burn-down — start, the merge on 10-08 at 10:15, end: 1, 0 and 0 left —; the listing of the pull requests is not bounded
+// expect: a row for every item with its state — ITM-001 done, ITM-002 in progress, ITM-003 done, ITM-004 and ITM-005 ready —; team2's panel names its last sprint team2/02, linked to its record, with its final burn-down — start, the merge on 10-08 at 10:15, end: 1, 0 and 0 left —; the listing of the pull requests is not bounded
 test("#backlog — every item with its state, and each team's last ended sprint with its final burn-down", async () => {
   const page = await render("backlog");
   try {
@@ -50,8 +49,7 @@ test("#backlog — every item with its state, and each team's last ended sprint 
 // guards: UC-032 step 6; SPRINT PLANNING SHOWS WHAT THE OTHER TEAMS' SPRINTS HOLD
 // given: the same product; team1's sprint 03 runs
 // input: the route backlog's render with the parameter plan=team1 (as #backlog/plan=team1), and, as the known negative, without it
-// expect: with it, the page opens with team1's planning — the panel data-plan-team="team1", which changes the selection of team1/03 —, beside what the other teams' sprints hold;
-//         without it, no planning is open
+// expect: with it, the page opens with team1's planning — the panel data-plan-team="team1", which changes the selection of team1/03 —, beside what the other teams' sprints hold; without it, no planning is open
 test("#backlog/plan=team1 opens with team1's planning", async () => {
   const plain = await render("backlog");
   try { assert.equal(plain.target.querySelector("[data-plan-team]"), null, "without plan= no planning is open"); } finally { plain.done(); }

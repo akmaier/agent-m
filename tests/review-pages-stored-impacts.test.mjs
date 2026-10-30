@@ -122,8 +122,7 @@ const fitting = { stored: { blob: blobOf(READER_AFTER) } };
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST; UC-023
 // given: MOD-reader accepted and changed since; the branch trace-cache holds an entry for it whose blob is the file's blob, with an impact list the derivation would not give
 // input: the route module with the id all
-// expect: the stored impact list is shown; the difference is against the text at the entry's before commit; one read of the stored lists, one readFileAt of MOD-reader at before,
-//         no traceGraph read and no lastAcceptedText call
+// expect: the stored impact list is shown; the difference is against the text at the entry's before commit; one read of the stored lists, one readFileAt of MOD-reader at before, no traceGraph read and no lastAcceptedText call
 test("module/all — a fitting stored entry gives the impact list and the text at before, and no graph is read", async () => {
   const fake = fakeProduct(fitting);
   const { target } = await draw(fake, "module", { id: "all" });

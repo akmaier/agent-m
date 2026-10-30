@@ -46,8 +46,7 @@ async function drawn(name) {
 // guards: UC-049; EVERY STEP EXPLAINS ITSELF
 // given: the settings pages of a browser whose register lists one participant
 // input: the participants route and the endpoint route drawn
-// expect: each page holds one sentence that names the prompt bar and says that it appears once a model endpoint, a CLI agent or a sandboxed agent is configured and reachable from this browser; the sentence stands in the page's text, not in a
-//         heading or a field
+// expect: each page holds one sentence that names the prompt bar and says that it appears once a model endpoint, a CLI agent or a sandboxed agent is configured and reachable from this browser; the sentence stands in the page's text, not in a heading or a field
 // Planted fault: leaving it out of either page, or saying only that the prompt bar exists, fails that page.
 test("the participants page and the endpoint configuration say that the prompt bar appears once a participant is configured and reachable", async () => {
   for (const name of ["participants", "endpoints"]) {

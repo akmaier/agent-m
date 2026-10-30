@@ -258,8 +258,7 @@ const assertFolds = (page, actual, expected) => {
 // guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE; UC-046
 // given: the live main entry page at a 390 px phone viewport
 // input: the menu's button clicked once, then again
-// expect: one button named Menu (aria-expanded false, at least 24 x 24 px, controlling the menu) and the menu hidden; after the click aria-expanded
-//   true and the literal eight-entry main-menu contract, every entry visible and no sideways menu scrolling; after the second click folded again
+// expect: one button named Menu (aria-expanded false, at least 24 x 24 px, controlling the menu) and the menu hidden; after the click aria-expanded true and the literal eight-entry main-menu contract, every entry visible and no sideways menu scrolling; after the second click folded again
 test("TST-920001 the main entry page folds its eight process-menu entries behind one Menu button at 390 px", () => {
   assertFolds("main", phoneMenus.main, PHONE_MENU_EXPECTED.main);
 });

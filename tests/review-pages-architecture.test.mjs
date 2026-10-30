@@ -294,8 +294,7 @@ test("MOD-review-pages decision/<id> and module/<id> — a change to an accepted
 // guards: AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST
 // given: MOD-lister changed since acceptance, and a host whose branch trace-cache holds no graph of the commit shown — the page derives the impact list from the stored graph only (MOD-review-pages: "The graph is the one `onMainChanged` stored for the commit shown (MOD-workflow-entries), read through `storedGraph`; no page builds a graph")
 // input: the route module rendered for MOD-lister
-// expect: the page says that the impact list could not be derived, naming the graph not stored, and that the change cannot be accepted without it; no Accept;
-//   counter-proof: the same page on a host that holds the graph offers Accept
+// expect: the page says that the impact list could not be derived, naming the graph not stored, and that the change cannot be accepted without it; no Accept; counter-proof: the same page on a host that holds the graph offers Accept
 test("MOD-review-pages module/<id> — a change whose impact list cannot be derived is not offered for acceptance", async () => {
   const good = await show(fakeHost(), "module", { id: "MOD-lister" });
   assert.equal(byClass(good, "button", "accept").length, 1, "known positive: Accept with the list");

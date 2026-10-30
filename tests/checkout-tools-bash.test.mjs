@@ -41,9 +41,7 @@ test("TST-1240030: the exit code and the combined output are in the text the mod
 // guards: UC-049
 // given: two commands that each start a background sleep of 30 s and write its process id to a file, then wait; the second ignores SIGTERM
 // input: bash of each with timeout 500 ms
-// expect: each text holds "shell tool terminated command after exceeding timeout 500 ms. If this command is expected to take longer and is not waiting for
-//   interactive input, retry with a larger timeout value in milliseconds."; afterwards neither sleep is alive; the second took at least 3 s, the time
-//   SIGTERM is given before SIGKILL; known positive: the first sleep is alive while its command runs
+// expect: each text holds "shell tool terminated command after exceeding timeout 500 ms. If this command is expected to take longer and is not waiting for interactive input, retry with a larger timeout value in milliseconds."; afterwards neither sleep is alive; the second took at least 3 s, the time SIGTERM is given before SIGKILL; known positive: the first sleep is alive while its command runs
 test("TST-1240031: a timeout ends the command's whole process tree, SIGKILL 3 s after SIGTERM", async (t) => {
   const { root, context } = checkout(t);
   const message = "shell tool terminated command after exceeding timeout 500 ms. If this command is expected to take longer and is not waiting for interactive input, retry with a larger timeout value in milliseconds.";
@@ -66,8 +64,7 @@ test("TST-1240031: a timeout ends the command's whole process tree, SIGKILL 3 s 
 // guards: UC-049
 // given: a command that prints the numbers 1 to 3000, one per line
 // input: bash "seq 1 3000"
-// expect: the text begins "...output truncated...\n\nFull output saved to: <file>\n\n" with <file> outside the checkout; it holds the last 2000 lines, "1001" to
-//   "3000", and not the line "1000"; the saved file holds all 3000 lines
+// expect: the text begins "...output truncated...\n\nFull output saved to: <file>\n\n" with <file> outside the checkout; it holds the last 2000 lines, "1001" to "3000", and not the line "1000"; the saved file holds all 3000 lines
 test("TST-1240032: a long output is cut to its tail, the whole saved outside the checkout", async (t) => {
   const { root, context } = checkout(t);
   const text = await bash({ command: "seq 1 3000" }, context);

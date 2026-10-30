@@ -53,8 +53,7 @@ function files(spec = OLD) {
 // guards: UC-020; A REQUIREMENT HAS FOUR FIELDS
 // given: a fresh dashboard load after current SPEC bytes change, then fixtures with an empty and an absent SPEC
 // input: open #spec for each fixture
-// expect: only fresh current text appears, as "in SPEC" or as what the open entry would do to it; the entry's proposed requirement appears by its name, marked not yet placed, as "proposed" and its text does not;
-//         empty and absent SPECs name their empty state while queue history remains usable
+// expect: only fresh current text appears, as "in SPEC" or as what the open entry would do to it; the entry's proposed requirement appears by its name, marked not yet placed, as "proposed" and its text does not; empty and absent SPECs name their empty state while queue history remains usable
 test("#spec reads fresh current SPEC bytes and keeps queue history for empty or absent SPEC", async () => {
   const changing = await repoServer({ files: files() });
   await openDashboard({ server: changing, hash: "#spec" });

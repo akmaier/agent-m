@@ -73,8 +73,7 @@ async function formOf(w) {
 // guards: A BACKLOG ITEM NAMES THE MODULES IT CHANGES; UC-033
 // given: known positive first — the form of the issue 7 shows its realises FIRST RULE, THIRD RULE and, with no module named, the backlog's finding that the item names no module the architecture describes
 // input: the person types "MOD-store, store" into the field modules
-// expect: the item schema's finding on the item "store" — `the key modules does not fit: "store" is not an identifier` — stands beside the field modules, once in the whole form, and Add is not offered. Counter-proof: before the
-//   change the form's schema types modules as text, and the page's second check shows that finding at the end of the form, not beside the field
+// expect: the item schema's finding on the item "store" — `the key modules does not fit: "store" is not an identifier` — stands beside the field modules, once in the whole form, and Add is not offered. Counter-proof: before the change the form's schema types modules as text, and the page's second check shows that finding at the end of the form, not beside the field
 test("issue — the move form is schemaForm over the item schema: a finding on a module stands beside its field, once", async () => {
   const w = start();
   const { form } = await formOf(w);
@@ -91,8 +90,7 @@ test("issue — the move form is schemaForm over the item schema: a finding on a
 // guards: A BACKLOG ITEM NAMES WHAT IT REALISES; A BACKLOG ITEM NAMES THE MODULES IT CHANGES; ONE CLICK PER DECISION; UC-033
 // given: the form of the issue 7, whose realises are FIRST RULE and THIRD RULE
 // input: the person types "MOD-store, MOD-pages" into the field modules, and clicks Add
-// expect: no error stands in the form and Add is offered; the click commits one item of the backlog whose realises is the list FIRST RULE, THIRD RULE, whose modules is the list MOD-store, MOD-pages and whose origin is the list of the
-//   issue's address, each item on a line of its own, as moveToBacklog writes the lists it is handed
+// expect: no error stands in the form and Add is offered; the click commits one item of the backlog whose realises is the list FIRST RULE, THIRD RULE, whose modules is the list MOD-store, MOD-pages and whose origin is the list of the issue's address, each item on a line of its own, as moveToBacklog writes the lists it is handed
 test("issue — Add hands moveToBacklog the lists the form holds", async () => {
   const w = start();
   const { detail, form } = await formOf(w);

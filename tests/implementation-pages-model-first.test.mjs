@@ -26,8 +26,7 @@ const files = (fixture) => productFiles({ "docs/process.md": DECLARATION_AT_HEAD
 // guards: UC-045; UC-032; A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: a product whose declared model is Scrum without a work-in-progress limit
 // input: the routes plan and board, each rendered
-// expect: plan links #backlog; board says there is no board and links #backlog; each sends, beyond the commit and the tree, the read of docs/process.md and one batch holding the
-//         model's file and nothing else — no request about pull requests, none of overview-cache or trace-cache
+// expect: plan links #backlog; board says there is no board and links #backlog; each sends, beyond the commit and the tree, the read of docs/process.md and one batch holding the model's file and nothing else — no request about pull requests, none of overview-cache or trace-cache
 for (const name of ["plan", "board"]) {
   test(`#${name} reads the declaration and the model's file first, and nothing else for Scrum without a limit`, async () => {
     const page = await renderOverGitHub(name, {}, { files: files("scrum") });

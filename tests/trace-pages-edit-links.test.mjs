@@ -93,8 +93,7 @@ test("TST-360001 Edit stands beside each requirement on the default branch and l
 // guards: EDITS ARE PREPARED ON THE DASHBOARD; UC-018
 // given: the same specification on the default branch, whose groups are Lending and Membership
 // input: the route rendered at main
-// expect: + Requirement once for each of the two sections of the SPEC, an anchor to #requirements/section=<the section's heading line, encoded> — "## 1. Lending", "## 2. Membership" —, in a list
-//         beside the tree, in no group of it, each in an item that names its section; none for the requirement before the first section
+// expect: + Requirement once for each of the two sections of the SPEC, an anchor to #requirements/section=<the section's heading line, encoded> — "## 1. Lending", "## 2. Membership" —, in a list beside the tree, in no group of it, each in an item that names its section; none for the requirement before the first section
 test("TST-360002 + Requirement stands once for each SPEC section, beside the tree, and opens requirements/new for that section", async () => {
   const target = await render(host(), "main");
   const groups = find(target, (node) => node.localName === "section" && node.className.includes("spec-group"));
@@ -145,8 +144,7 @@ test("TST-360004 the default branch is the Host's own, and a Host that cannot na
 // guards: EDITS ARE PREPARED ON THE DASHBOARD; UC-019
 // given: the specification of the library on its default branch, with four requirements
 // input: the route rendered at main, then each requirement opened through its requirement-name control
-// expect: each of the four opened requirements shows its detail (a section.requirement-detail headed by its name) and Edit beside its name as the known positive; no opened requirement offers Change by prompt:
-//         no anchor of the class requirement-prompt, no text "Change by prompt" on the page, no anchor whose address ends with /prompt=1
+// expect: each of the four opened requirements shows its detail (a section.requirement-detail headed by its name) and Edit beside its name as the known positive; no opened requirement offers Change by prompt: no anchor of the class requirement-prompt, no text "Change by prompt" on the page, no anchor whose address ends with /prompt=1
 test("TST-399001 an opened requirement offers no Change by prompt", async () => {
   const target = await render(host(), "main");
   const requirements = find(target, (node) => node.localName === "button" && node.className.includes("requirement-name"));
@@ -164,8 +162,7 @@ test("TST-399001 an opened requirement offers no Change by prompt", async () => 
 // guards: EDITS ARE PREPARED ON THE DASHBOARD; UC-019
 // given: the same specification on the default branch, whose Lending group holds LOAN then SHELF and whose Membership group holds CARD
 // input: the route rendered at main, then each group opened through its spec-group-toggle control
-// expect: both groups are opened (their lists no longer hidden) with + Requirement for each section as the known positive; no group offers Change by prompt: no anchor of the class requirement-group-prompt, no text
-//         "Change by prompt", no anchor whose address starts with #requirements/requirements=
+// expect: both groups are opened (their lists no longer hidden) with + Requirement for each section as the known positive; no group offers Change by prompt: no anchor of the class requirement-group-prompt, no text "Change by prompt", no anchor whose address starts with #requirements/requirements=
 test("TST-399002 an opened requirement group offers no Change by prompt", async () => {
   const target = await render(host(), "main");
   find(target, (node) => node.localName === "button" && node.className.includes("spec-group-toggle")).forEach((button) => button.dispatchEvent(new Event("click")));

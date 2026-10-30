@@ -166,8 +166,7 @@ const requestsToModel = () => requests.filter((request) => request.href.includes
 // guards: UC-021; THE PAGE NAMES WHERE IT SENDS; ONE CLICK PER DECISION
 // given: the arrangement of the use cases of a product with four use cases and a group file; the instance's register holds the drafter drafter-a (an endpoint, "this machine") and a person who only reads
 // input: the page is drawn; drafter-a is chosen and Propose groups pressed
-// expect: only drafter-a is offered; the run panel names one destination, drafter-a as drafter at "this machine", receiving the parts "the use-cases" and "docs/groups/use-cases.md", and a Run
-//   button of the panel's own; the model was asked nothing, and nothing was committed
+// expect: only drafter-a is offered; the run panel names one destination, drafter-a as drafter at "this machine", receiving the parts "the use-cases" and "docs/groups/use-cases.md", and a Run button of the panel's own; the model was asked nothing, and nothing was committed
 test("arrange — Propose groups shows what is sent where, and nothing is sent or written before Run", async () => {
   endpointAnswers();
   const fake = fakeProduct();
@@ -188,9 +187,7 @@ test("arrange — Propose groups shows what is sent where, and nothing is sent o
 // guards: UC-021; ONE CLICK PER DECISION
 // given: the same page, the panel shown, and a participant whose answer is three moves: a new group Lending, UC-004 into it, and UC-002 into it
 // input: Run; then Save arrangement
-// expect: after Run the model was asked once and the moves stand as three pending changes — "Add the group “Lending”", "Move UC-004 to “Lending”", "Move UC-002 to “Lending”" — beside the tree,
-//   and the group file is unchanged (the job record is the only thing the job commits: no commit holds docs/groups/use-cases.md); Save arrangement then commits the group file and nothing else, with
-//   UC-004 and UC-002 under Lending
+// expect: after Run the model was asked once and the moves stand as three pending changes — "Add the group “Lending”", "Move UC-004 to “Lending”", "Move UC-002 to “Lending”" — beside the tree, and the group file is unchanged (the job record is the only thing the job commits: no commit holds docs/groups/use-cases.md); Save arrangement then commits the group file and nothing else, with UC-004 and UC-002 under Lending
 test("arrange — Run starts the job in the tab, the moves stand as pending changes, and Save arrangement writes the group file alone", async () => {
   endpointAnswers();
   const fake = fakeProduct();

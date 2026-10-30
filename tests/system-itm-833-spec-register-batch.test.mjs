@@ -35,8 +35,7 @@ const files = (requests) => requests.filter((request) => request.startsWith("fil
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the dashboard with a stored token on the repository of the constants above
 // input: the real #spec drawn
-// expect: 6 requests in all — the commit, the tree, one batch of SPEC.md, docs/sources.md and the two entries, the repository's information, the tag list and, for the mark
-//         source changed (ITM-657), one page of the history of docs/sources.md: the whole cost of the mark where no source moved —, no file by itself, and no file twice; known positive: the page draws the specification
+// expect: 6 requests in all — the commit, the tree, one batch of SPEC.md, docs/sources.md and the two entries, the repository's information, the tag list and, for the mark source changed (ITM-657), one page of the history of docs/sources.md: the whole cost of the mark where no source moved —, no file by itself, and no file twice; known positive: the page draws the specification
 test("with a token #spec reads the SPEC, the links file and the register entries in one batch", async () => {
   const server = await repoServer({ files: FILES });
   const page = await openDashboard({ server, hash: "#spec", token: TOKEN });
@@ -52,8 +51,7 @@ test("with a token #spec reads the SPEC, the links file and the register entries
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the same repository, and a stored token that is not sent
 // input: the real #spec drawn without a token
-// expect: GitHub's batch query needs the token: no batch is sent; SPEC.md and the three files of the register are read by their own requests, once each, 9 requests in all
-//         (the commit, the tree, the four files, the repository's information, the tag list and the one page of the history of docs/sources.md that the mark source changed (ITM-657) adds)
+// expect: GitHub's batch query needs the token: no batch is sent; SPEC.md and the three files of the register are read by their own requests, once each, 9 requests in all (the commit, the tree, the four files, the repository's information, the tag list and the one page of the history of docs/sources.md that the mark source changed (ITM-657) adds)
 test("without a token #spec reads the links file and each register entry by itself", async () => {
   const server = await repoServer({ files: FILES });
   const page = await openDashboard({ server, hash: "#spec", token: null });
