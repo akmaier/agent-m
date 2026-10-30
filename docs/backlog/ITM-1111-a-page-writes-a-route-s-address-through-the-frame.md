@@ -41,3 +41,9 @@ which the frame turns into the address (:191-193), as *+ Add product* does (`con
   holds no address `#replies/…`. The control keeps an accessible name. Counter-proof: a hand-written address fails it.
 - The first commit holds only the tests, and CI is red on it.
 
+**The planning run (sprint team1/124).** A stand-in on `main` at `fb0322f08` draws *Open* as a button of the classes
+`issue-link btn small`, of type `button`, which calls `go("replies", { issue, product })`.
+- 89 files that name MOD-maintenance-pages, its folder, `replies`, `issue-link`, UC-039, `site-usability` or
+  `site-accessibility`: two cases fail only with it, both in `tests/maintenance-pages-replies.test.mjs` (`:40` and `:265`),
+  which read the address of the link. They change in the tests-only commit.
+- No read or request changes. MOD-site-frame's code does not change.

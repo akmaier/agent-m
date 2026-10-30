@@ -36,3 +36,12 @@ on, are its functions" (MOD-repository-hosts.md:111). MOD-approvals' Uses name `
 - A unit case counts one request for the older file and none for its commit or a tree; it fails on the code as
   ITM-1268 leaves it.
 - Only `src/approvals/` and its tests change, and the tests' fakes that the call reaches.
+
+**The planning run (sprint team1/124).** A stand-in on `main` at `fb0322f08` reads the older file with one
+`readFileAt(file, [commit])` and compares its blob.
+- Counted over a fake host: the snapshot at the record's commit and its file become one `readFileAt`; the reads of the
+  head, the history and the record stay.
+- 264 files that name MOD-approvals, `lastAcceptedText`, `readFileAt`, MOD-review-pages, MOD-workflow-entries or
+  `load-per-view`: 45 cases fail only with it, most of them fakes that serve the older commit as a snapshot and no
+  `readFileAt`. Among them tests of MOD-review-pages and the release cases TST-1268301 to TST-1268305. The item
+  names those files before it is selected.

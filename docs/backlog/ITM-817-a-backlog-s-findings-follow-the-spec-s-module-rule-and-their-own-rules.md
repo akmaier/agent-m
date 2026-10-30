@@ -43,3 +43,14 @@ ITM-688 built `backlogFindings` as `docs/architecture/MOD-work-plans.md:192-194`
   circle of three items, each item of it named. Counter-proof: each passes on the code as it stands.
 - The existing findings and their rule names stay as they are.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**The planning run (sprint team1/124), which keeps it from selection.** A stand-in on `main` at `fb0322f08` adds a finding
+for each undescribed module and follows `builds_on` through any number of items.
+- Over this repository's backlog it finds one new error: ITM-474, a done item, names MOD-work-items, which no module file
+  describes. `tests/test_backlog_item_fields.py`'s check of Agent M's own backlog then fails. A done item is not edited
+  (team 2's agreement, `docs/backlog/sprints/team2/105.md`), so which finding a done item may keep is settled before the item
+  is selected.
+- 123 files that name MOD-work-plans, MOD-maintenance-pages, MOD-issue-handling, their folders, `backlogFindings`,
+  `saveItems`, `closeSprint` or `moveToBacklog`: 12 Node cases and 2 Python cases fail only with it. Among them
+  `tests/work-plans-backlog-findings.test.mjs` pins the opposite reading, "a circle of three items has no finding, as the
+  sentence states only the item that builds on it in turn"; the item names that test as one it changes.

@@ -51,3 +51,19 @@ step 2 shows what waits "across the instance", and the instance holds its produc
 - **Tests that pin what waits on the main page change,** and are named at the start (SPEC.md:1442-1445).
 - No new kind of waiting thing and no new route beyond `jobs`.
 - The first commit holds only the tests, and CI is red on it.
+
+**The planning run (sprint team1/124).** A stand-in on `main` at `fb0322f08`: `home` draws the button *Jobs*, which calls
+`go("jobs")`; `jobs` reads, for each source it has read, the overview stored for its head, else the one stored last, else
+the scope `all`, and draws MOD-main-page's `waitsList` above the list.
+- 70 files that name MOD-main-page, `main-page/`, the waits, the routes `home` and `jobs`, UC-036, UC-046, UC-047,
+  `site-usability`, `site-accessibility` or `test_main_page`: 20 Node cases and 1 Python case fail only with it.
+  - What waits moves: `tests/main-page-home.test.mjs` (TST-827004, 827009, 827011, 847005, 943001, 943007),
+    `tests/test_main_page.py` (`test_what_waits_for_a_person_is_listed_with_the_page_where_it_is_decided`), and the route
+    `/` of `tests/site-usability.test.mjs` (TST-904002) and `tests/site-accessibility.test.mjs` (TST-905001).
+  - The reads of `jobs` grow: `tests/main-page-jobs.test.mjs` (TST-509001 to 509006, 970001, 970002) and
+    `tests/main-page-jobs-reads.test.mjs` (TST-1280004) meet the reads of `overview-cache`, and
+    `tests/main-page-jobs-explanations.test.mjs` the section above the list; the release cases TST-1280305 and TST-1280306
+    of `tests/release-itm-1280-jobs-list-batches.test.mjs` are changed by a participant who implemented none of the item.
+- **The reads `jobs` gains,** per repository: one request where its head's overview is stored (MOD-progress-measures'
+  `storedOverview`), two more where only an earlier one is (`latestOverview`), and the scope `all` where none is, as its card
+  on `home` reads it. Each test that counts the reads of `jobs` names them.

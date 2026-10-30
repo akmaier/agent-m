@@ -62,3 +62,12 @@ waiting, as many as it takes to find its line.
 
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - Only `src/settings-pages/` and the tests that name MOD-settings-pages change.
+
+**The planning run (sprint team1/124).** A stand-in on `main` at `fb0322f08` keeps the one listing of the fetch workflow's
+runs, reads them by `started`, newest first, and stops at the first successful run of the event `push` or once every
+waiting text has its line.
+- Ten failed runs: with no legal text waiting, 10 logs before and 0 after; with one waiting whose line is in the newest, 10
+  and 1; with a successful push run third newest and no line, 10 and 2. One listing in each case.
+- 147 files that name MOD-settings-pages, `settings-pages/`, `library.mjs`, `fetch-sources`, `ciRunLog` or the route: no
+  case fails only with it. A first stand-in that also skipped the listing failed two request counts
+  (`settings-pages-library-batches.test.mjs:212`, `settings-pages-library-versions.test.mjs:379`), so the listing stays.
