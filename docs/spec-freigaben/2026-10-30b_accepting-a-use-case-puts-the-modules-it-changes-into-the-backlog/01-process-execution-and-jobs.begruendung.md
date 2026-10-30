@@ -11,8 +11,9 @@ architecture change or of a use case: "I meant UC-008". Today items enter the ba
 
 **Design principles** (AGENTS.md §2):
 - One responsibility per rule: the rule says what an acceptance adds to the backlog; what an item names stays with `A
-  BACKLOG ITEM NAMES WHAT IT REALISES` and `A BACKLOG ITEM NAMES THE MODULES IT CHANGES`; who may judge modules against use
-  cases is entry 01.
+  BACKLOG ITEM NAMES WHAT IT REALISES` and `A BACKLOG ITEM NAMES THE MODULES IT CHANGES`. `NO MODULE IS CHECKED AGAINST
+  THE USE CASES`, which keeps every test from reading the SPEC's or a use case's text, is not touched: the check this
+  rule asks for is a participant's, not a test's.
 - Nothing twice: an item not yet done that names the module already stands for it, so no second one is added.
 - Nothing the SPEC already says: that the items are written under the accepting person's account is `THE DASHBOARD WRITES
   ONLY ON A PERSON'S CLICK`, and that the click's consequences are Agent M's is `ONE CLICK PER DECISION`; neither is

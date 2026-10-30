@@ -8,9 +8,7 @@ model".
 - **01, §11 *Architecture and implementation*.** `NO REVIEWER IS THE DRAFTER` excepts the review of a change described in
   the prompt bar; its check names the exception's counter-proof.
 
-Every other line of the section is carried over byte for byte. The queue
-`2026-10-30b_accepting-a-use-case-puts-the-modules-it-changes-into-the-backlog` replaces the same section (its entry 01):
-whichever of the two is accepted second is stale and is saved again on the section as it then stands.
+Every other line of the section is carried over byte for byte.
 
 **Zieldatei aller Einträge:** `SPEC.md`
 
