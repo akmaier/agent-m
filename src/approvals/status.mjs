@@ -56,8 +56,9 @@ function approvalRecord(path) {
 }
 
 // The blob of the empty text: what the default branch holds of a removed decision or module file, and the blob the record of its removal
-// names (MOD-approvals, Data: blob; MOD-text-tools.blobSha).
-export const EMPTY_BLOB = await blobSha("");
+// names — git's blob of "", as MOD-approvals' Data states it (blob). A constant, not `await blobSha("")` at load: a top-level await would make
+// this module, which is in a cycle with index.mjs, evaluate asynchronously, and change the order in which the modules that import it run.
+export const EMPTY_BLOB = "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391";
 
 // The one pass over docs/approvals/ that statuses and removedFiles share: for each identifier a record names, the first twelve hex digits
 // of every blob its records' names say they approve. Reads no record's text.
