@@ -50,4 +50,11 @@ So one function should give the counts, and the route should call it where no vi
   counting as it stands, which counts that declaration under `paid`.
 - The first commit holds only the tests, and CI is red on it.
 - Only `src/test-pages/` and the tests that name MOD-test-pages change.
-- Tests of other modules this Outcome changes: none known; to be named before selection.
+- Tests of other modules this Outcome changes: none (the planning run below).
+
+**The planning run (sprint team1/125).** A stand-in on `main` at `785019f50` gives `scheduleView` `Facts` whose `snapshot`
+is the route's and whose `tests` are the declarations it reads, every other field `"unknown"` where its type allows it and
+empty where it does not, and shows its `counts`.
+- 84 test files that name MOD-test-pages, MOD-progress-measures, `scheduleView`, `#schedule` or their folders: all 827 Node
+  cases and 19 Python cases pass with it.
+- Reads: none change; the declarations are read as before, once.

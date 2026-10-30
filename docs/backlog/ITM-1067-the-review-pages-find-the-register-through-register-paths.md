@@ -37,3 +37,11 @@ provides.
 - `spec-entries.mjs` finds the register's entries through `registerPaths`, and keeps no path rule of its own. A test shows
   that a file under `docs/sources/` that is no `SRC-` entry is not read as one, with a counter-proof.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**The planning run (sprint team1/125).** A stand-in on `main` at `785019f50` imports `registerPaths` beside
+`sourceSchemas` and calls it in both places that filtered the paths; the local list of paths is named `entryPaths`, so as
+not to hide the import.
+- 183 test files that name MOD-review-pages, MOD-source-register, `spec-entries`, `registerPaths`, `docs/sources/`,
+  `load-per-view` or the folder: no case fails only with it. `trace-graph-import-uses` passes with it.
+- Reads: on `main`, every file under `docs/sources/` is an `SRC-` entry, so the batch is the same; a non-`SRC-` file is
+  read no more.

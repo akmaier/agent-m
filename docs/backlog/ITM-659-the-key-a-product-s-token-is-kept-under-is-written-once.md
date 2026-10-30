@@ -46,3 +46,9 @@ it.
   MOD-browser-store keeps its own.
 - No expected result of a test changes.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+
+**The planning run (sprint team1/125).** A stand-in on `main` at `785019f50` has `storedToken` and `tokenSettingKey` call
+`tokenKeyOf`, imported from MOD-site-frame's index beside what each file imports from it already.
+- 198 test files that name MOD-review-pages, MOD-settings-pages, `tokenSettingKey`, `storedToken`, `tokenKeyOf` or their
+  folders: no case fails only with it. `trace-graph-import-uses` (TST-106805) passes with it.
+- Reads: none change.
