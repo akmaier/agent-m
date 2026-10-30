@@ -10,7 +10,7 @@
 // Deterministic, no network: the checkout is laid out as in the GitHub tests (tests/workflow-entries-pull-request-world.mjs), the merge requests and the issues come from a fake of GitLab's REST API, which `fetch` is replaced with. The readings, named in the pull request:
 //   - GitLab starts no pipeline on the merge request for its merge: it starts a pipeline of the push to the target branch, whose CI_COMMIT_SHA is the commit the merge left ("Predefined CI/CD variables", docs.gitlab.com). The merge request the entry takes is
 //     the merged one whose merge commit is that commit — the host's `mergeCommit`, which on GitLab is the merge commit, else the squash commit, else the head of a fast-forward merge —, among the merged ones the server lists (the listing bounds no date, ITM-1260).
-//   - Everything after the merge request is found is the entry's as for GitHub: the job its title or description names, the issues below the product's own address (`/-/issues/<n>` on GitLab), closeWithLinks.
+//   - Everything after the merge request is found is the entry's as for GitHub: the job its title or description names, the issues below the product's own address (`/-/issues/<n>` on GitLab), closeWithLinks — which reads each issue first and leaves one already closed with its note as it is, so that two routes' writer jobs note it once (ITM-1292).
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
 import test from "node:test";
@@ -91,6 +91,31 @@ test("onPullRequestClosed on GitLab — an issue the server refuses is named and
     const none = await onMergeRequestMerged(w, null, { token: null });
     assert.equal(none.outcome, "not run");
     assert.match(none.summary, /AGENT_M_TOKEN/);
+  });
+});
+
+// TST-1292004 · level: unit · module: MOD-workflow-entries
+// guards: GITLAB PRODUCTS ARE SUPPORTED; UC-012
+// given: the world of TST-1259002, with one fake GitLab whose issues keep what is written to them; known positive first — a fake whose issue 12 is already closed with the note of another merge request, !6
+// input: onPullRequestClosed twice for the pipeline of the push that merged !7, as the writer jobs of the routes `agent-m-hosted` and `agent-m-runner-gpu` each run it; and once against the known positive's fake
+// expect: both runs end `done`; over the two runs the server is written to four times — the note "Closed with <the merge request's address>." on issue 12 and 12 closed, the same for 13 —, all in the first run, and each run reads each issue once (GET /issues/12, GET /issues/13); the known positive notes and closes the issue 12 as well, beside !6's note
+test("onPullRequestClosed on GitLab — two routes that run the entry for one merge note and close each issue once", async () => {
+  await withCheckout(async (w) => {
+    const other = fakeGitLab({ mergeRequests: [MR7], issues: { 12: { state: "closed", comments: [`Closed with ${GITLAB}/-/merge_requests/6.`] } } });
+    assert.equal((await onMergeRequestMerged(w, other)).outcome, "done", "known positive");
+    assert.deepEqual(other.writes().filter(([, path]) => path.startsWith("/issues/12")), [["POST", "/issues/12/notes", { body: `Closed with ${GITLAB}/-/merge_requests/7.` }], ["PUT", "/issues/12", { state_event: "close" }]], "known positive");
+    const server = fakeGitLab({ mergeRequests: [MR6, MR7] });
+    const reads = () => server.requests.filter((each) => each.method === "GET" && /^\/issues\/\d+$/.test(each.path)).map((each) => each.path);
+    const first = await onMergeRequestMerged(w, server);
+    assert.equal(first.outcome, "done", first.summary);
+    const readFirst = reads(), wroteFirst = server.writes().length;
+    const second = await onMergeRequestMerged(w, server);
+    assert.equal(second.outcome, "done", second.summary);
+    assert.deepEqual(server.writes(), [["POST", "/issues/12/notes", { body: `Closed with ${GITLAB}/-/merge_requests/7.` }], ["PUT", "/issues/12", { state_event: "close" }],
+      ["POST", "/issues/13/notes", { body: `Closed with ${GITLAB}/-/merge_requests/7.` }], ["PUT", "/issues/13", { state_event: "close" }]], "one note and one close per issue over the two runs");
+    assert.equal(wroteFirst, 4, "all of them in the first run");
+    assert.deepEqual(readFirst, ["/issues/12", "/issues/13"], "the first run reads each issue once");
+    assert.deepEqual(reads(), ["/issues/12", "/issues/13", "/issues/12", "/issues/13"], "the second run reads each issue once");
   });
 });
 

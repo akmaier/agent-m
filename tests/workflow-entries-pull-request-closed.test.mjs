@@ -13,6 +13,7 @@
 //   - Each issue is closed with MOD-issue-handling's closeWithLinks: the note `Closed with <the pull request's address>.` and then the state `closed`; the person's token from AGENT_M_TOKEN authorises both.
 //   - A pull request that was closed without a merge, one that names no job, one whose job has no record or is of another kind, and one whose job works on no issue of this product write nothing: `nothing to do`. A missing token ends the entry `not run` before any request.
 //   - An issue the server refuses to close does not keep the others from being closed: the entry names it and ends `failed`.
+//   - The job workflow has one writer job per route, each running the entry on the merge (ITM-1292): closeWithLinks reads each issue first, and one already closed with the note it would write is left as it is, so that the issue is noted and closed once.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
 import test from "node:test";
@@ -125,5 +126,30 @@ test("onPullRequestClosed — an issue the server refuses is named, and the othe
     assert.match(status.summary, /Not closed — #12/);
     assert.match(status.summary, /#13 closed/);
     assert.deepEqual(server.writes().map(([method, path]) => `${method} ${path}`), ["POST /issues/12/comments", "POST /issues/13/comments", "PATCH /issues/13"]);
+  });
+});
+
+// TST-1292003 · level: unit · module: MOD-workflow-entries
+// guards: UC-012
+// given: the world of TST-583301, with one fake GitHub whose issues keep what is written to them; known positive first — a fake whose issue 12 is already closed with the note of another pull request, #6
+// input: onPullRequestClosed twice for the merged pull request #7, as the writer jobs of the routes `hosted` and `runner-gpu` each run it on the merge; and once against the known positive's fake
+// expect: both runs end `done`; over the two runs the server is written to four times — the note "Closed with <the pull request's address>." on issue 12 and 12 closed, the same for 13 —, all in the first run, and each run reads each issue once (GET /issues/12, GET /issues/13); the known positive notes and closes the issue 12 as well, beside #6's note
+test("onPullRequestClosed — two routes that run the entry for one merge note and close each issue once", async () => {
+  await withCheckout(async (w) => {
+    const other = fakeGitHub({ issues: { 12: { state: "closed", comments: [`Closed with ${WEB}/pull/6.`] } } });
+    assert.equal((await onPullRequestClosed(w, other)).outcome, "done", "known positive");
+    assert.deepEqual(other.writes().filter(([, path]) => path.startsWith("/issues/12")), [["POST", "/issues/12/comments", { body: `Closed with ${WEB}/pull/7.` }], ["PATCH", "/issues/12", { state: "closed" }]], "known positive");
+    const server = fakeGitHub();
+    const reads = () => server.requests.filter((each) => each.method === "GET" && /^\/issues\/\d+$/.test(each.path)).map((each) => each.path);
+    const first = await onPullRequestClosed(w, server);
+    assert.equal(first.outcome, "done", first.summary);
+    const readFirst = reads(), wroteFirst = server.writes().length;
+    const second = await onPullRequestClosed(w, server);
+    assert.equal(second.outcome, "done", second.summary);
+    assert.deepEqual(server.writes(), [["POST", "/issues/12/comments", { body: `Closed with ${WEB}/pull/7.` }], ["PATCH", "/issues/12", { state: "closed" }],
+      ["POST", "/issues/13/comments", { body: `Closed with ${WEB}/pull/7.` }], ["PATCH", "/issues/13", { state: "closed" }]], "one note and one close per issue over the two runs");
+    assert.equal(wroteFirst, 4, "all of them in the first run");
+    assert.deepEqual(readFirst, ["/issues/12", "/issues/13"], "the first run reads each issue once");
+    assert.deepEqual(reads(), ["/issues/12", "/issues/13", "/issues/12", "/issues/13"], "the second run reads each issue once");
   });
 });
