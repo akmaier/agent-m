@@ -151,12 +151,14 @@ export function impactSection(impact, graph) {
 }
 
 // The impact list of a change to an accepted decision or module (AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST), from the graph of the
-// snapshot shown, the text accepted last and the text shown: { shown } the section to show, or { problem } a paragraph saying why it could not be
-// derived, in which case the change is not offered for acceptance. graphOf() gives the graph, built once for a page.
+// snapshot shown, the text accepted last and the text shown — null for a removed file: { shown } the section to show, or { problem } a paragraph
+// saying why it could not be derived, in which case the change is not offered for acceptance. graphOf() gives the graph, built once for a page. A
+// removed module has no node in the graph, so its folder is not the graph's: the code files and tests of a removal stand in one line each, as for a
+// stored list.
 export async function changeImpact(file, last, body, graphOf) {
   try {
     const graph = await graphOf();
-    const shown = impactSection(architectureImpact(graph, [{ path: file.path, before: last.text, after: body }]), graph);
+    const shown = impactSection(architectureImpact(graph, [{ path: file.path, before: last.text, after: body }]), body === null ? null : graph);
     shown.append(explain("impact-of-a-change"));
     return { shown };
   } catch (failure) {
