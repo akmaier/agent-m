@@ -183,6 +183,7 @@ test("TST-1190305 a repository whose server refuses adds no item to what waits, 
   net.install();
   const page = await draw(jobs, browser(BOTH));
   assert.equal(byClass(page, "waits").length, 1, "known positive: the page is drawn with its section of what waits");
+  assert.equal(byClass(page, "filters").length, 1, "known positive: the list of jobs is drawn");
   assert.deepEqual(waitsOf(page), ["use case: UC-002 · bob/other"]);
   const named = byClass(page, "source").map((node) => node.textContent);
   assert.equal(named.length, 1, "the refused repository is named once");
