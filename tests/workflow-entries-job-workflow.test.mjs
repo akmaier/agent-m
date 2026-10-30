@@ -242,8 +242,7 @@ test("onRecordsChanged — a missing secret ends the entry not run, naming it, w
 // guards: ONE DEFINITION, THREE DRIVERS; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
 // given: the product with a queued job and the workspace of the job workflow
 // input: onRecordsChanged; the recipe of the kind keeps the context the entry gives the runner
-// expect: the context names the product's address and no instance checkout — the job's participant is a model endpoint in Agent M's own tool loop, which reads no
-//   files of a checkout itself (MOD-job-runner: `instance.checkout` is the folder in which the participant works and reads files itself) —, with the instance's snapshot read from the workspace's instance/ folder, holding the participants' register, the job's identifier, the person who started it, Agent M's version and commit as the record names them, and the participants the register lists
+// expect: the context names the product's address and no instance checkout — the job's participant is a model endpoint in Agent M's own tool loop, which reads no files of a checkout itself (MOD-job-runner: `instance.checkout` is the folder in which the participant works and reads files itself) —, with the instance's snapshot read from the workspace's instance/ folder, holding the participants' register, the job's identifier, the person who started it, Agent M's version and commit as the record names them, and the participants the register lists
 test("onRecordsChanged — the job's context of an endpoint in Agent M's own tool loop names no instance checkout", async () => {
   fakeEndpoint();
   seen = null;

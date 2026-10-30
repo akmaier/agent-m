@@ -91,8 +91,7 @@ const commentRequests = (server) => server.requests.filter((r) => /\/issues\/\d+
 // guards: UC-012
 // given: a GitHub repository whose open issue 7 has 101 comments, which the server gives 100 to a page; the same on a GitLab server, the issue 7 with 101 notes of which one is a system note
 // input: readIssue(7) on each; and, on a fresh server of each, listIssues({ state: "all" })
-// expect: GitHub: exactly three requests — GET …/issues/7, then GET …/issues/7/comments page 1 and page 2 —; GitLab: GET …/issues/7, then GET …/issues/7/notes page 1 and page 2; on each the Issue equals the one listIssues gives for number 7,
-//   with 101 comments on GitHub and 100 on GitLab (the system note is none)
+// expect: GitHub: exactly three requests — GET …/issues/7, then GET …/issues/7/comments page 1 and page 2 —; GitLab: GET …/issues/7, then GET …/issues/7/notes page 1 and page 2; on each the Issue equals the one listIssues gives for number 7, with 101 comments on GitHub and 100 on GitLab (the system note is none)
 test("readIssue — reads one issue in one request and its comments in one request per page, and gives the Issue listIssues gives for it", async () => {
   for (const [name, host, server] of [["GitHub", hub, githubServer], ["GitLab", lab, gitlabServer]]) {
     const reading = server();
@@ -111,8 +110,7 @@ test("readIssue — reads one issue in one request and its comments in one reque
 // guards: UC-012
 // given: the same servers: the open issue 7 has 101 comments, the open issue 8 none
 // input: listIssues({ state: "open", comments: false }) on each; then, as the counter-proof, listIssues({ state: "open" }) without `comments` on a fresh server of each
-// expect: with comments: false the issues 7 and 8, each with empty comments, and no request for the comments or notes of any issue — only the pages of the issue list; without `comments` the comments are read as before: two requests
-//   for those of issue 7 (page 1 and 2) and none for issue 8, which has none, and issue 7 carries 101 comments on GitHub and 100 on GitLab
+// expect: with comments: false the issues 7 and 8, each with empty comments, and no request for the comments or notes of any issue — only the pages of the issue list; without `comments` the comments are read as before: two requests for those of issue 7 (page 1 and 2) and none for issue 8, which has none, and issue 7 carries 101 comments on GitHub and 100 on GitLab
 test("listIssues — with comments: false asks for no comment and each issue's comments are empty; without it the comments are read as before", async () => {
   for (const [name, host, server] of [["GitHub", hub, githubServer], ["GitLab", lab, gitlabServer]]) {
     const listing = server();
