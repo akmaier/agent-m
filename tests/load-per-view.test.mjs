@@ -104,7 +104,7 @@ const withoutInfo = (requests) => requests.filter((r) => r !== "repository");
 const BAR = ["docs/conversation-recording.md", "docs/participants.md"];
 // The folders and files each address of the review pages reads of the tree (ITM-1266's Outcome), with the bar's files.
 const FOLDERS = {
-  useCases: sorted(["docs/use-cases", "docs/approvals", "docs/groups", "docs/process.md", ...BAR]),
+  useCases: sorted(["docs/use-cases", "docs/approvals", "docs/groups", "docs/process.md", "SPEC.md", "docs/architecture", "docs/process-models", "AGENTS.md", ...BAR]),
   architecture: sorted(["docs/architecture", "docs/approvals", "docs/groups", ...BAR]),
   spec: sorted(["SPEC.md", "docs/sources.md", "docs/sources", "docs/spec-freigaben", "docs/approvals", "docs/groups", ...BAR]),
 };
@@ -115,7 +115,7 @@ const FOLDERS = {
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the fixture product — two use cases, one of them with a record of an earlier text
 // input: open the start page with a token
-// expect: the commit once, one request for the entries of its folders — docs/use-cases, docs/approvals, docs/groups, docs/process.md and the bar's two files — and no git/trees, then one batch of the 2 files it shows, the repository's information once (wherever in the load), and no file by itself; both use cases listed with their status — UC-001 accepted, UC-002 changed since acceptance — read from the names of the records, so that no record is read
+// expect: the commit once, one request for the entries of its folders — docs/use-cases, docs/approvals, docs/groups, and what an Accept that checks the modules a use case changes reads — docs/process.md, SPEC.md, docs/architecture, docs/process-models and AGENTS.md —, and the bar's two files — and no git/trees, then one batch of the 2 files it shows, the repository's information once (wherever in the load), and no file by itself; both use cases listed with their status — UC-001 accepted, UC-002 changed since acceptance — read from the names of the records, so that no record is read
 test("the start page sends its commit, one request for its folders and one batch of the files it shows", async () => {
   const repo = await product(), srv = await server(repo);
   const page = await openDashboard({ server: srv });
@@ -465,6 +465,34 @@ for (const [hash, paths] of Object.entries(SHOWN)) {
     assert.deepEqual(shownFiles(page.requests), [], "no file by itself");
   });
 }
+
+// The fixture product declaring a model that pulls its work (ITM-1319): the instance's own page, so that its declaration names the model at the commit the page reads,
+// with the model's file and a register whose participant checker-a drafts text from this tab — the participant a page of use cases names beside Accept.
+const PULLED = {
+  "docs/process.md": ["---", "model: fixture-scrum-wip", "model_file: docs/process-models/fixture.md", `model_version: ${HEAD}`, "---", "# How the fixture product is developed", ""].join("\n"),
+  "docs/process-models/fixture.md": readFileSync(new URL("./fixtures/flow/scrum-wip.md", import.meta.url), "utf8"),
+  "docs/participants.md": [...readFileSync(new URL("../docs/participants.md", import.meta.url), "utf8").split("\n").filter((line, at, all) => at <= all.findIndex((each) => each.startsWith("|---"))),
+    "| checker-a | model endpoint | model-a | 200000 | — | draft text | this machine | endpoint ep1 |", ""].join("\n"),
+};
+const perLoad = (requests) => Object.fromEntries(["commit", "tree", "folders", "repository"].map((what) => [what, count(requests, what)]));
+
+// TST-1319007 · level: component · module: MOD-site-frame
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; ACCEPTING A USE CASE PUTS THE MODULES IT CHANGES INTO THE BACKLOG
+// given: the fixture product, once as it is and once declaring in docs/process.md a model that pulls its work (fixture-scrum-wip at the commit the page reads), with the model's file and a register with checker-a
+// input: open #use-case, #use-case/id=UC-002 and #use-case/id=all with a token, each in a load of its own, for both
+// expect: known positive: #use-case of the product as it is sends the base's requests — the commit, the request for its folders, one batch of 2 —; in the pulled product each page names checker-a beside Accept, and sends as many commit, tree, folders and repository requests as the same page of the product as it is: its commit once, no tree beside its folders; docs/process.md and SPEC.md are never read as a file by itself
+test("a page of use cases in a pulled product reads its commit and its folders once, and its declaration and SPEC in batches", async () => {
+  const plainList = await openDashboard({ server: await server(await product()), hash: "#use-case" });
+  assert.deepEqual(withoutInfo(plainList.requests).filter((r) => r !== STORED_GRAPH), ["commit", "folders", "batch 2"], "known positive: the base's requests");
+  for (const hash of ["#use-case", "#use-case/id=UC-002", "#use-case/id=all"]) {
+    const plain = await openDashboard({ server: await server(await product()), hash });
+    const pulled = await openDashboard({ server: await server(await product(PULLED)), hash });
+    assert.match(pulled.main(), /class="participant">checker-a</, `${hash}: checker-a is named beside Accept`);
+    assert.deepEqual(perLoad(pulled.requests), perLoad(plain.requests), `${hash}: the commit, the tree, the folders and the repository's information as often as without the declaration`);
+    assert.equal(perLoad(pulled.requests).commit, 1, `${hash}: the commit once`);
+    for (const path of ["docs/process.md", "SPEC.md"]) assert.equal(count(pulled.requests, `file ${path}`), 0, `${hash}: ${path} is read in a batch`);
+  }
+});
 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the same fixture product, and a stored token that is not sent
