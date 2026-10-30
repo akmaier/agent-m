@@ -50,4 +50,25 @@ What is left is the `bridge` section's CLI sessions.
   still names "a model endpoint, a CLI agent or a sandboxed agent", and `tests/settings-pages-prompt-bar-note.test.mjs`
   (TST-1128001) pins it on both pages; that test follows the accepted text, the explanation standing on the endpoints page
   only.
+- The tests of other cases the change moves, named by the planning run below:
+  - TST-265008 (`tests/settings-pages-endpoints.test.mjs`) counts the endpoints page's folded explanations; it counts one
+    more, the prompt bar's, whose summary is *What is this?* as every other fold of the page.
+  - TST-513025 (`tests/system-uc-049-pages-of-mail-and-settings.test.mjs`, a system test) asks the participants page to name
+    the prompt bar. It follows UC-049 1a as accepted, "The settings page says that it appears once an endpoint is
+    configured or a Bridge offers a CLI session": the endpoints page says it, and the participants page does not. It is
+    changed on the item's branch, in a commit of its own, by a participant who implemented none of this item.
 - The first commit holds only the tests, and CI is red on it.
+
+**The planning run (sprint team1/126).** A stand-in on `main` at `02fb1fe16`:
+- `bridge.mjs` draws, for each Bridge kept under `bridge:<name>`, *Test*, which calls `testBridge` on `settingsOf` of that
+  Bridge and the jump host, and a form for each agent it lists ready: place, context, model and the capabilities, prefilled
+  with a CLI agent's preset when nothing is kept. *Save session* writes `session:<bridge>:<agent>` in the shape of an
+  endpoint's declaration, the context only where it is a whole number of tokens. A line names what the session lacks, in
+  `endpointLacks`' words.
+- `endpoints.mjs` draws `PROMPT_BAR_NOTE`, "The prompt bar appears once an endpoint is configured in this browser or a
+  Bridge it keeps offers a CLI session.", in a fold with the summary *What is this?*. `participants.mjs` no longer draws it.
+- 268 test files that name MOD-settings-pages, its folder, `PROMPT_BAR_NOTE`, `prompt-bar-note`, MOD-site-frame, whose
+  `dashboard-app.mjs` loads the module, `site-usability`, `site-accessibility` or a `session:` key. Three cases fail only
+  with it: TST-1128001, TST-265008 and TST-513025, named above. `trace-graph-import-uses` passes with it.
+- Reads: drawing the route `bridge` sends no request; each *Test* sends the two of `testBridge`, `/v1/pair` and
+  `/v1/agents`.

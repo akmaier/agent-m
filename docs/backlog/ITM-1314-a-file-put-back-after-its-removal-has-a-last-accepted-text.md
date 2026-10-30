@@ -60,4 +60,19 @@ A removal's record names the empty text. So where the most recent record names t
   against the empty text.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - Only `src/approvals/` and the tests that name MOD-approvals change, with the one case of MOD-review-pages named above.
-  The planning run names any other test before selection.
+  The planning run names any other test before selection: it names none.
+
+**The planning run (sprint team1/126).** A stand-in on `main` at `02fb1fe16`:
+- `lastAcceptedText` gives `{ text: "", blob, path: file }` where the most recent record names `EMPTY_BLOB`, before it
+  reads the repository at that record's commit.
+- `rejectShown` deletes the file where the last accepted text is the empty text's, as where no record names one.
+- 452 test files that name MOD-approvals, its folder, `lastAcceptedText`, `rejectShown`, `commitRejection`,
+  `load-per-view`, or a module that imports MOD-approvals or its folder: MOD-review-pages, MOD-workflow-entries,
+  MOD-desktop-shell, MOD-implementation-pages, MOD-progress-measures, MOD-prompt-bar, MOD-release-evidence,
+  MOD-spec-changes, MOD-test-pages, MOD-trace-pages and MOD-work-plans. No case fails only with it.
+  `trace-graph-import-uses` passes with it.
+- Reads, over a counting fake host with a module accepted, removed with an accepted removal, and put back:
+  - the put-back file: six calls and `NotFound` on `main`, five and the empty text with it — the snapshot at the removal
+    record's commit is no longer read;
+  - known positive, a module accepted and then changed: the same six calls and the same text on both.
+  - `rejectShown` of the put-back file: on `main` `NotFound` and no commit; with it one commit that deletes the file.

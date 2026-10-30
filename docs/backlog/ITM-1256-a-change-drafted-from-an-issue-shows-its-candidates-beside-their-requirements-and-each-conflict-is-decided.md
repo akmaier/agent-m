@@ -28,6 +28,22 @@ written, since `queueEntries` composes a conflict only as the person resolved it
 the page offers no decision. The review pages already show candidates by class with the conflicts and their decisions
 (`src/review-pages/jobs.mjs:341-414`, `src/review-pages/candidates.mjs`); the issue route shows the same, not a copy of it.
 
+## The reading of the accepted text
+
+- **What the accepted text gives.** No interface of MOD-review-pages gives candidates by class: it provides `view` only.
+  MOD-maintenance-pages draws them itself, from what its Uses name:
+  - each candidate's class from the result's `classes`, `Classified` of MOD-documents (MOD-job-runner.md:278-283);
+  - the rule of the requirement a candidate refers to from the prepared job's parts, whose `artifacts` give "for a
+    requirement its name and its rule" (MOD-job-runner.md:254-255);
+  - a conflict decided as the class the person gives it, written by `writeResult` with "its `classes` replaced by theirs"
+    (MOD-job-runner.md:356-360), which `entrySections` composes "only as the person resolved it"
+    (MOD-spec-changes.md:178-179).
+- **What it does not give.** A CONFLICT IS DECIDED BY A PERSON (SPEC.md:296-298): "A candidate that contradicts an
+  existing requirement is shown beside it, with both sources and their authority". The sources of the existing
+  requirement stand in its head line in the SPEC. No function MOD-maintenance-pages' Uses name gives them: a part's
+  `artifacts` give the name and the rule, and MOD-maintenance-pages names no MOD-spec-document, which MOD-review-pages
+  names to read them.
+
 ## Acceptance
 
 - Unit tests naming MOD-maintenance-pages, over the issue route with a drafted change: each candidate is shown beside the
