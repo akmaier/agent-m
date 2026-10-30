@@ -5,7 +5,7 @@
 
 import { readSetting } from "../browser-store/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
-import { readProblem } from "../site-frame/index.mjs";
+import { readProblem, tokenKeyOf } from "../site-frame/index.mjs";
 import { openEditor as openMarkdownEditor } from "../markdown-render/index.mjs";
 
 // The panel's words for a refusal it shows: the refusal as MOD-spec-changes states it and, for two candidates that change one requirement (TwoChanges), how to go on — one of them can be
@@ -89,11 +89,8 @@ export async function openGithubEditor(page) {
 export function storedToken(context) {
   const keys = [];
   try {
-    if (context.product) {
-      const address = parseAddress(context.product.address);
-      if (address.server === "gitlab") keys.push(`gitlab-token:${new URL(address.origin).host}/${address.path}`);
-      else keys.push(`github-token:${address.path}`);
-    } else keys.push("github-token");
+    if (context.product) keys.push(tokenKeyOf(parseAddress(context.product.address)));
+    else keys.push("github-token");
     for (const key of keys) {
       const token = readSetting(context.store, key);
       if (token) return { name: token.name ?? "a reviewer" };

@@ -14,7 +14,7 @@ import { queues, queueAt, entryView, acceptEntries, rejectEntry } from "../spec-
 import { waitingQueues } from "../progress-measures/index.mjs";
 import { sectionText } from "../spec-document/index.mjs";
 import { blobSha } from "../text-tools/index.mjs";
-import { sourceSchemas } from "../source-register/index.mjs";
+import { registerPaths, sourceSchemas } from "../source-register/index.mjs";
 import { approvalSchema } from "../approvals/index.mjs";
 import { readDocument, writeDocument } from "../documents/index.mjs";
 import { entrySections } from "./sections.mjs";
@@ -62,8 +62,7 @@ const tickOf = async (queue, item, readOnce) => {
 
 // The files the entry page reads from `snapshot` for its sources: the product's links file and, on a page that shows the instance itself, the register beside it.
 const LINKS = "docs/sources.md";
-const isRegisterEntry = (path) => /^docs\/sources\/[^/]+\.md$/.test(path);
-const sourcePaths = (snapshot, context) => [LINKS, ...(context.product ? [] : snapshot.paths.filter(isRegisterEntry))];
+const sourcePaths = (snapshot, context) => [LINKS, ...(context.product ? [] : registerPaths(snapshot.paths))];
 
 // The product's links and the instance's register, which acceptEntries checks every requirement's source against. A caller that holds the instance's snapshot already
 // passes it as `instanceSnapshot`, and it is not built again; every other caller builds it here.
@@ -78,10 +77,10 @@ export async function sourcesOf({ snapshot, context, instanceSnapshot }) {
     }
   }
   const links = readDocument(linksSchema, LINKS, (await snapshot.read(LINKS)) ?? "");
-  const registerPaths = holder.paths.filter(isRegisterEntry);
+  const entryPaths = registerPaths(holder.paths);
   // A product's register stands in the instance's snapshot, which no read of this page has asked for yet: its files in one batch (on the instance's own page the entry page's batch holds them).
-  if (context.product && registerPaths.length) await holder.readMany?.(registerPaths);
-  const register = await Promise.all(registerPaths
+  if (context.product && entryPaths.length) await holder.readMany?.(entryPaths);
+  const register = await Promise.all(entryPaths
     .map(async (path) => readDocument(entrySchema, path, (await holder.read(path)) ?? "")));
   return { links, register };
 }

@@ -22,7 +22,9 @@
 // and a self-hosted runner —; the page builds no fold of its own.
 //
 // ITM-1265: each row's number of tests is taken from the counts stored for the commit shown (MOD-progress-measures' storedView with the page `schedule`), with the line
-// storedView names while the head's are not stored yet; the test files are read and counted only where the repository stores no view.
+// storedView names while the head's are not stored yet; the test files are read only where the repository stores no view.
+//
+// ITM-1307: where no view is stored, the counts are those scheduleView gives for the declarations the route reads; the route keeps no counting rule of its own.
 //
 // Module: MOD-test-pages
 
@@ -33,7 +35,7 @@ import { explain } from "../site-frame/index.mjs";
 import { participantSchema, participantsOf, eligible } from "../participant-list/index.mjs";
 import { resourceSchema } from "../resource-list/index.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
-import { storedView } from "../progress-measures/index.mjs";
+import { scheduleView, storedView } from "../progress-measures/index.mjs";
 
 const TITLE = "Schedule";
 const SCHEDULE_PATH = "docs/tests/schedule.md";
@@ -82,22 +84,25 @@ function refusal(row, column) {
   return null;
 }
 
+// The Facts of the snapshot whose tests are `tests`, for scheduleView, which reads `tests` and `snapshot`: every other field "unknown" where the type of Facts allows it,
+// and empty where it does not (MOD-progress-measures, Interfaces: Facts).
+const testFacts = (snapshot, tests) => ({
+  address: "", info: "unknown", snapshot, graph: "unknown", requirements: "unknown", statuses: new Map(), queues: [], declaration: null, workflow: "unknown",
+  model: "unknown", modelUnread: null, modelSince: "unknown", participants: [], plan: { order: null, items: [], states: [] }, sprints: [], assignments: [], held: [],
+  gates: [], gateStates: [], jobs: [], pullRequests: "unknown", schedule: "unknown", ci: "unknown", tags: "unknown", results: "unknown", tests,
+  resourceNeeds: "unknown", resultCommits: "unknown", own: false, modules: [],
+});
+
 // How many tests each row holds, -> { counts, asOf }: the counts stored for the snapshot's commit, or, while those are not stored yet, the counts stored last with their commit
-// (asOf); where the repository stores none, counted from the test files — the row of a level counts the declarations of that level, the row paid those that name a paid
-// service, so a paid test counts under both.
+// (asOf); where the repository stores none, the counts MOD-progress-measures' scheduleView gives for the declarations of the test files.
 async function testCounts(snapshot) {
   const stored = await storedView(snapshot, "schedule");
   if (stored) return { counts: stored.view.counts, asOf: stored.asOf };
-  const counts = Object.fromEntries(ROWS.map((row) => [row, 0]));
-  // The test files are told to the snapshot first, to be read in batches, and counted.
+  // The test files are told to the snapshot first, to be read in batches.
   const paths = snapshot.paths.filter(isTestFile);
   await snapshot.readMany?.(paths);
   const declared = (await Promise.all(paths.map(async (path) => testDeclarations(path, (await snapshot.read(path)) ?? "")))).flat();
-  for (const declaration of declared) {
-    if (declaration.level in counts) counts[declaration.level] += 1;
-    if (declaration.paid) counts.paid += 1;
-  }
-  return { counts, asOf: null };
+  return { counts: scheduleView(testFacts(snapshot, declared)).counts, asOf: null };
 }
 
 // A row's runner field, named for a screen reader by its row and its column (THE SITE SERVES A SCREEN READER).
