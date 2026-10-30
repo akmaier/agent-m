@@ -17,10 +17,13 @@ const explain = { list: "accepting", all: "accepting", one: "accepting", changed
 // for a kind whose file names what it rests on, the use cases and the SPEC, which tell what of that is accepted. Every page of the entries of a change
 // queue reads the SPEC, whose sections they would replace, and the product's links file and the register, whose sources their requirements name
 // and an acceptance checks. Drafting, the history and an editor read across the repository: they name no folders, and are given the whole tree.
-// The pages of the use cases also read the product's declaration of its process, whose model tells whether an Accept checks which modules the use cases change (`affected`).
-const READ = { approvals: "docs/approvals", groups: "docs/groups", jobs: "docs/jobs", useCases: "docs/use-cases", spec: "SPEC.md", process: "docs/process.md" };
+// The pages of the use cases also read what an Accept that checks which modules the use cases change (`affected`) reads when the page is drawn, so that the page reads
+// its commit once: the product's declaration of its process, its SPEC and architecture, which the job's parts give; and, on the instance's own page, the instance's
+// catalogue of models — its own and the shipped ones, which MOD-model-catalogue reads at their paths in the instance — and its AGENTS.md, which the job's input begins with.
+const READ = { approvals: "docs/approvals", groups: "docs/groups", jobs: "docs/jobs", useCases: "docs/use-cases", spec: "SPEC.md", process: "docs/process.md",
+  architecture: "docs/architecture", models: "docs/process-models", shipped: "src/model-catalogue", rules: "AGENTS.md" };
 const listOf = (folder) => [folder, READ.approvals, READ.groups];
-const USE_CASE_LIST = [...listOf(READ.useCases), READ.process], ARCHITECTURE_LIST = listOf("docs/architecture");
+const USE_CASE_LIST = [...listOf(READ.useCases), READ.process, READ.spec, READ.architecture, READ.models, READ.shipped, READ.rules], ARCHITECTURE_LIST = listOf(READ.architecture);
 const RESTS_ON = [READ.useCases, READ.spec];
 const SPEC_READS = [READ.spec, ...listOf("docs/spec-freigaben"), "docs/sources.md", "docs/sources"];
 
