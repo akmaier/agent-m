@@ -180,7 +180,7 @@ test("TST-265007: disclosure precedes a hidden endpoint key without repository o
 // guards: THE SHARED PAGES ORIGIN IS DISCLOSED; EVERY STEP EXPLAINS ITSELF
 // given: the public endpoints Route for an instance whose Pages owner is fixture
 // input: the author opens the Route before entering or storing a key
-// expect: the shared-origin disclosure precedes Save and test, and the registered endpoint explanations are folded
+// expect: the shared-origin disclosure precedes Save and test, and the registered endpoint explanations are folded, the explanation of when the prompt bar appears among them (nine folds, each with the summary "What is this?")
 test("TST-265008: endpoint storage is preceded by its Pages-origin notice and folded explanations", async () => {
   const target = await render(freshStore());
   const action = byClass(target, "endpoint-test")[0];
@@ -189,7 +189,7 @@ test("TST-265008: endpoint storage is preceded by its Pages-origin notice and fo
   assert.match(disclosure.textContent, /fixture\.github\.io/);
   assert.ok(ordered.indexOf(disclosure) >= 0 && ordered.indexOf(disclosure) < ordered.indexOf(action), "the shared-origin notice precedes storage");
   const details = byTag(target, "details");
-  assert.equal(details.length, 8, "every endpoint field and action has its registered folded explanation — the place, context and CI secret one together");
+  assert.equal(details.length, 9, "every endpoint field and action has its registered folded explanation — the place, context and CI secret one together — and the prompt bar's");
   assert.ok(details.every((folded) => byTag(folded, "summary").some((summary) => summary.textContent === "What is this?")));
 });
 
