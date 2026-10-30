@@ -15,7 +15,7 @@ import { connect, parseAddress } from "../repository-hosts/index.mjs";
 import { permittedPlaces, sourceSchemas } from "../source-register/index.mjs";
 import { explain, schemaForm } from "../site-frame/index.mjs";
 import { finding } from "../text-tools/index.mjs";
-import { PROMPT_BAR_NOTE, recordTest } from "./endpoints.mjs";
+import { recordTest } from "./endpoints.mjs";
 import { credentialsFor } from "./products.mjs";
 
 const PATH = "docs/participants.md";
@@ -24,10 +24,10 @@ const SOURCE_PATH = /^docs\/sources\/SRC-[^/]+\.md$/;
 const ASSIGNMENT_FILE = /^docs\/role-assignments\/([^/]+)\.md$/;
 const COLUMNS = ["Name", "Type", "Model", "Context", "Price", "Capabilities", "Processing place", "Route"];
 const TYPES = ["person", "model endpoint", "CI agent", "CLI agent", "sandboxed agent"];
-const CAPABILITIES = ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools", "reach the web"];
+export const CAPABILITIES = ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools", "reach the web"];
 const HEADER = `| ${COLUMNS.join(" | ")} |\n|${COLUMNS.map(() => "---|").join("")}`;
 const EMPTY = `# Participants of this instance\n\n${HEADER}\n`;
-const PRESETS = {
+export const PRESETS = {
   person: CAPABILITIES,
   "model endpoint": ["draft text"],
   "CI agent": ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
@@ -748,7 +748,7 @@ export const route = {
     type.addEventListener("change", () => { setType(type.value); rebuild(); });
 
     panel.append(panelTitle, control("Type", type), fieldsBox, formBox, productUseBox, result);
-    target.replaceChildren(el("h2", null, "Participants"), el("p", "muted prompt-bar-note", PROMPT_BAR_NOTE), el("p", null, add), panel, list);
+    target.replaceChildren(el("h2", null, "Participants"), el("p", null, add), panel, list);
 
     // Opened with the parameters `type` and `address` (a resource's *Add as participant*, UC-040 2a): the form of a new participant of that type, with the address where it belongs —
     // the kept endpoint that has this address, else the URL of a new one. Without both, or with a type no participant has, the page is as it is without them.
