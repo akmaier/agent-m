@@ -78,10 +78,10 @@ function emptyStorage(storage) { while (storage.length > 0) storage.removeItem(s
  * address is the location), the product `<owner>/lending-tool` with the SPEC above, the person's source linked unless `linked` is false, and what this browser declares for the bar to offer: the endpoint `drafter` (draft text, at
  * "this machine", through the Bridge release-bridge where `bridge` is set, naming the CI secret `secret` where one is given, none where `drafting` is false) and the CLI session `release-bridge:observer`
  * (read the repository only, at "Anthropic, USA"), which the Bridge release-bridge lists ready. `keepBridge` false keeps no Bridge, `agents` are the names the Bridge lists ready, and `settings` are
- * further settings the store holds (further endpoints, CLI sessions, last tests). The CI agent `ci-drafter` of the instance's list is not offered by the bar. `answers` are the drafting endpoint's replies in
+ * further settings the store holds (further endpoints, CLI sessions, last tests); `bridgeFetch`, where given, answers the requests to the loopback Bridge in place of the fixture Bridge. The CI agent `ci-drafter` of the instance's list is not offered by the bar. `answers` are the drafting endpoint's replies in
  * turn (a value, or a function of the requests so far); `hash` is the fragment the page opens at, none for the specification browser.
  */
-export async function scenario({ owner = "akmaier", linked = true, answers = [draft()], context = 200000, bridge = false, secret = null, drafting = true, keepBridge = true, agents = ["observer"], settings = {}, extraFiles = {}, instanceFiles = {},
+export async function scenario({ owner = "akmaier", linked = true, answers = [draft()], context = 200000, bridge = false, secret = null, drafting = true, keepBridge = true, agents = ["observer"], settings = {}, bridgeFetch = null, extraFiles = {}, instanceFiles = {},
   recording = false, hash = null } = {}) {
   // `bridgeRequests` are the Bridge's asks and their polls; `testRequests` are the two of testBridge that drawing the bar sends to each Bridge the store keeps.
   const repo = `${owner}/lending-tool`, address = `https://github.com/${repo}`, endpointRequests = [], bridgeRequests = [], testRequests = [];
@@ -113,6 +113,8 @@ export async function scenario({ owner = "akmaier", linked = true, answers = [dr
     return { answer: `Handed on to ${kind}.`, handOver: { kind, works_on: [], task } };
   };
   const handler = async (url, init) => {
+    // A controlled Bridge of the test (`bridgeFetch`) answers in place of the fixture below.
+    if (bridgeFetch && url.origin === "http://127.0.0.1:9418") return bridgeFetch(url, init);
     if (url.origin === "https://fixture-endpoint.example.test") {
       const body = JSON.parse(init.body);
       // Every message of the bar is the conversation (MOD-prompt-bar: the one kind `converse`). Where the scenario scripts a change's draft — or a function — for its next
