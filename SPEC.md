@@ -1681,6 +1681,14 @@ Every backlog item names the modules of the architecture that its implementation
 *Check:* `tests/test_backlog_item_fields.py` — an item that names no module, or a module the architecture does not
 describe, is reported; counter-proof: an item naming modules the architecture describes passes.
 
+**ACCEPTING A USE CASE PUTS THE MODULES IT CHANGES INTO THE BACKLOG** *(PO A. Maier)*
+In a model that pulls its work from a backlog, accepting a use case adds one backlog item for each module whose
+implementation its accepted text changes, unless an item not yet done names that module.
+*Check:* `tests/test_backlog_from_acceptance.py` — accepts a fixture use case in a Scrum fixture whose checking fixture
+participant names two modules its text changes. It checks that two items, each naming the use case and one of the modules,
+are committed under the accepting person's account; counter-proof: a module that an item not yet done names gets no item,
+and accepting the same use case in a V-model fixture adds none.
+
 **NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED** *(PO A. Maier)*
 An implementation job starts for a backlog item only when every requirement and use case the item
 names is accepted.
