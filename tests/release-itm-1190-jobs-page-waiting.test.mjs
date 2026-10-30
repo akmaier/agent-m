@@ -187,4 +187,5 @@ test("TST-1190305 a repository whose server refuses adds no item to what waits, 
   const named = byClass(page, "source").map((node) => node.textContent);
   assert.equal(named.length, 1, "the refused repository is named once");
   assert.match(named[0], new RegExp(PRODUCT_URL.replace(/[.\/]/g, "\\$&")));
+  assert.match(named[0], /limit/i, "with its reason");
 });
