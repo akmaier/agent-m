@@ -18,8 +18,7 @@ import { productFiles, fakeGitHub, openPage, byClass, ENTRY_ID, TOKEN } from "./
 // guards: UC-006; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST
 // given: the product of 1,332 files in which UC-002, the only artifact that names "A WRITE RULE", is the last file of the tree; the branch trace-cache holds the graph the workflow "main changed" stored for the commit (a page reads that graph and never builds one — MOD-trace-graph)
 // input: open the SPEC-entry page of entry 07, which changes "A WRITE RULE"
-// expect: the impact list reads "A WRITE RULE — changed, named by UC-002", though the page reads no use case: UC-002 stands in no query and is read on its own by no request; the
-//         graph is read by one request; at most 3 queries (the queue's and the entry's files) and at most 9 requests in all — at most 7 and the two reads of the overview cache (the head's `<head>.json`, then `latest.json`, which the waiting queues are read from) — against the 1,336 of one request for each file
+// expect: the impact list reads "A WRITE RULE — changed, named by UC-002", though the page reads no use case: UC-002 stands in no query and is read on its own by no request; the graph is read by one request; at most 3 queries (the queue's and the entry's files) and at most 9 requests in all — at most 7 and the two reads of the overview cache (the head's `<head>.json`, then `latest.json`, which the waiting queues are read from) — against the 1,336 of one request for each file
 test("TST-479201: an impact list names an artifact the page never reads, from the stored graph, within 3 queries", async () => {
   const held = productFiles(1332), uc2 = "docs/use-cases/UC-002-write-a-file.md";
   const last = held[uc2];
