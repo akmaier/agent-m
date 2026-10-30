@@ -126,15 +126,21 @@ async function tabRound(page) {
 const PREPARE = (index) => `(() => { const box = document.querySelectorAll("main .change-impact")[${index}]; box.scrollIntoView({ block: "center" }); box.scrollTop = 0; return 0; })()`;
 const STATE = (index) => `(() => { const box = document.querySelectorAll("main .change-impact")[${index}]; const rect = box.getBoundingClientRect(); const last = box.lastElementChild.getBoundingClientRect();
   return { scrollTop: box.scrollTop, lastBottom: last.bottom, boxBottom: rect.bottom, x: rect.left + rect.width / 2, y: rect.top + Math.min(rect.height, 200) / 2 }; })()`;
+// Waits for the scroll to land: the box's scrollTop leaves 0 (a scroll Chromium makes on its own thread, smooth, may start after the event was sent), then stays the same across two reads a frame apart.
+// Bounded at 3 s; at the bound the box is read as it stands and the case says it did not scroll.
 const settled = async (page, index) => {
+  const read = async () => (await page.evaluate(STATE(index))).scrollTop;
+  const frame = () => new Promise((resolve) => setTimeout(resolve, 100));
+  const deadline = Date.now() + 3000;
+  while (Date.now() < deadline && (await read()) === 0) await frame();
   let before = -1;
-  return until("the box stops scrolling", async () => {
-    const now = (await page.evaluate(STATE(index))).scrollTop;
-    const done = now === before;
+  while (Date.now() < deadline) {
+    const now = await read();
+    if (now === before) return true;
     before = now;
-    await new Promise((resolve) => setTimeout(resolve, 150));
-    return done;
-  }, 8000);
+    await frame();
+  }
+  return false;
 };
 async function scrollWith(page, index, how) {
   await page.evaluate(PREPARE(index));
