@@ -258,8 +258,8 @@ function applySetting(fields, name, setting) {
   fields.bridge.value = setting?.bridge ?? "";
 }
 
-// What the participants page and this page say of the prompt bar (UC-049 1a): when it appears.
-export const PROMPT_BAR_NOTE = "The prompt bar appears once a model endpoint, a CLI agent or a sandboxed agent is configured and reachable from this browser.";
+// What this page says of the prompt bar (UC-049 1a): when it appears.
+export const PROMPT_BAR_NOTE = "The prompt bar appears once an endpoint is configured in this browser or a Bridge it keeps offers a CLI session.";
 
 export const route = {
   name: "endpoints",
@@ -414,7 +414,7 @@ export const route = {
     target.replaceChildren(
       el("h2", null, "Configure a model endpoint"),
       el("p", "muted", "Store an endpoint in this browser, then make one short test request."),
-      el("p", "muted prompt-bar-note", PROMPT_BAR_NOTE),
+      el("details", "explain", el("summary", null, "What is this?"), el("p", "muted prompt-bar-note", PROMPT_BAR_NOTE)),
       // A stored endpoint names what it lacks for the prompt bar to offer it (UC-049 1b).
       ...(loadedSetting && endpointLacks(loadedSetting).length
         ? [el("p", "notice endpoint-lacks", `The prompt bar does not offer ${requestedName}: it lacks ${endpointLacks(loadedSetting).join(" and ")}. Enter ${endpointLacks(loadedSetting).length === 1 ? "it" : "them"} below and save.`)] : []),

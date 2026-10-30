@@ -158,7 +158,8 @@ function namesWhatItsNameSays(path, fields) {
  * The records of an identifier are those of the default branch whose names carry it (docs/approvals/<id>-<blob12>.md); the
  * most recent is the one whose commit, found in the history of the record, was committed last — the date as the server gives
  * it, in its own offset; two records committed at the same instant are not told apart. The text is read in the repository as
- * it stood at the commit that added that record, where the file still has the path the record names. Crosses the network,
+ * it stood at the commit that added that record, where the file still has the path the record names — except where the record
+ * names the empty text's blob, a removal's (EMPTY_BLOB): the empty text is given then, and no file is read. Crosses the network,
  * through the host; fails with its failures, unchanged — TokenRefused, RateLimited, NotFound, Unreachable —, and with
  * NotFound { what: the file } when the file did not hold the text the record names at the commit that added the record, and
  * when the text the host gave for it is not that text — the blob SHA of the text read (MOD-text-tools.blobSha) is not the
@@ -189,6 +190,8 @@ export async function lastAcceptedText(id, host) {
     break;
   }
   if (last === null) return null;
+  // A removal's record names the empty text: that text is known, and where the record was added no file stands to read.
+  if (blob === EMPTY_BLOB) return { text: "", blob, path: file };
   const then = await host.readSnapshot(last.commit, { folders: [file] });
   if (then.blob(file) !== blob) {
     throw new HostError("NotFound", { what: file }, `${file} did not hold the text ${last.path} names when the record was added`);
