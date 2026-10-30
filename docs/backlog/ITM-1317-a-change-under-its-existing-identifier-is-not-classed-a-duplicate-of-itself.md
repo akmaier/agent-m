@@ -52,5 +52,17 @@ other existing artifact it is compared as today. MOD-job-runner does not change:
   Both are changed on the item's branch, in a commit of their own, by a participant who implemented none of this item.
 - TST-739005 (UC-023 2a: a new identifier for something that exists is sent back) still passes.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
-- Only `src/documents/` and the tests that name MOD-documents change, with the system test named above. The planning run
-  names any other test before selection.
+- Only `src/documents/` and the tests that name MOD-documents change, with the system test named above.
+
+## The planning run (sprint team1/127)
+
+A stand-in in `classifyCandidates`: the merged candidate's first proposal, when it is a change, names the artifact it
+changes, and that artifact is left out of the search for a duplicate; every other existing artifact is compared as today.
+
+On `main` at `d27b1e408`, in an export, every test file of the repository: 1,020 files, 6,351 Node cases and 564 Python
+cases. MOD-documents is imported by most modules, so the tests of every importer are among them. The same files were run
+without the change.
+- No case fails only with it.
+- TST-739010 passes with it, still marked `todo`: that is its known positive. TST-739005 passes on both.
+- The base's own failures are the same with and without it.
+- No other test moves.

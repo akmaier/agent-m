@@ -50,5 +50,26 @@ With this item, `review-architecture` names `whole-architecture` after `accepted
   TST-739001's `FLOW_FINDINGS` entry `2-checked-as-a-whole` moves to `FLOW_EVIDENCE` with TST-739209 as its evidence.
   They are changed on the item's branch, in a commit of their own, by a participant who implemented none of this item.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
-- Only `src/job-catalogue/` and the tests that name MOD-job-catalogue change, with the release and system tests named
-  above. The planning run names any other test before selection.
+- **The tests of other modules the change moves,** from the planning run below. Their fixtures register no strategy
+  `whole-architecture`, so `prepareJob` of `review-architecture` refuses them. Each gains it, empty for a product
+  without an architecture, and keeps what it asserts:
+  - MOD-job-runner: `tests/job-runner-prepare.test.mjs` (4 cases, TST-472335 among them),
+    `tests/job-runner-run.test.mjs` (2) and `tests/job-runner-agents-first.test.mjs` (1);
+  - MOD-spec-changes: `tests/spec-changes-whole-spec.test.mjs` (1);
+  - the release checks `tests/test_architecture_review.py`, its case "a reviewer that is the drafter or uses its model
+    is refused before anything is sent", and `tests/test_correction_loop.py`, whose class set-up fails. These are
+    changed by a participant who implemented none of the item, in the same commit as TST-739209 and 739210.
+  - MOD-job-catalogue's own: `tests/job-catalogue.test.mjs` (1) and `tests/job-catalogue-hand-over-instruction.test.mjs`
+    (2).
+- Only `src/job-catalogue/` and the tests named here change.
+
+## The planning run (sprint team1/127)
+
+A stand-in: `kind.md` names `whole-architecture` after `accepted-use-cases`, and `prompt.md` holds it under "The whole
+architecture as it stands on the default branch", after the accepted use cases.
+
+On `main` at `d27b1e408`, in an export, every test file of the repository: 1,020 files, 6,351 Node cases. The same files
+were run without the change.
+- 11 Node cases in 6 files, and two Python checks, fail only with the change, as listed above.
+- TST-739209 and TST-739210 pass with it, still marked `todo`: their known positive.
+- The base's own failures are the same with and without it.
