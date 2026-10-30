@@ -162,13 +162,13 @@ test("TST-894004: the impact list on the page of a changed module file and of a 
 
 // TST-894005 · level: unit · module: MOD-review-pages
 // guards: AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST; THE SITE SERVES A SCREEN READER; UC-023
-// given: the same repository
+// given: the same repository; Review all of the architecture shows every changed file of the whole architecture, ARC-001 and MOD-reader
 // input: the routes module and decision, each drawn with the id all (Review all)
-// expect: each page draws exactly one section.change-impact (the known positive), and its tabindex is the string "0"
+// expect: Review all draws one section.change-impact for each changed file it shows (the known positive: one on module, two on decision), and each has the tabindex "0"
 test("TST-894005: the impact list on Review all carries tabindex 0", async () => {
-  for (const route of ["module", "decision"]) {
+  for (const [route, shown] of [["module", 1], ["decision", 2]]) {
     const impacts = impactsIn((await draw(fakeProduct(), route, { id: "all" })).target);
-    assert.equal(impacts.length, 1, `known positive: Review all of ${route} draws the impact list of its changed file`);
-    assert.equal(impacts[0].getAttribute("tabindex"), "0", route);
+    assert.equal(impacts.length, shown, `known positive: Review all of ${route} draws the impact list of each changed file it shows`);
+    assert.deepEqual(impacts.map((each) => each.getAttribute("tabindex")), Array(shown).fill("0"), route);
   }
 });
