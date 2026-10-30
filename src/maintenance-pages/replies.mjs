@@ -56,7 +56,6 @@ function el(name, className, ...children) {
   return node;
 }
 const fold = (text) => el("details", "explain", el("summary", null, "What is this?"), el("p", null, text));
-const link = (href, className, text) => { const anchor = el("a", className, text); anchor.setAttribute("href", href); return anchor; };
 // A listener that answers only a click the browser marks as a person's (THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK).
 function button(className, text, listener) {
   const node = el("button", className, text);
@@ -303,10 +302,11 @@ async function draftingSection(due, ctx, redraw, opts = {}) {
 function groupsOf(out, ctx) {
   const sections = GROUPS.map(([key, field, title]) => {
     const list = el("ul", "reply-issues", ...ctx.due[field].map((each) => {
-      const item = el("li", "reply-issue", `#${each.issue} of ${ctx.products.get(each.product)?.name ?? each.product} · ${each.mails.length} mail${each.mails.length === 1 ? "" : "s"} · `,
-        link(`#replies/issue=${each.issue}/product=${encodeURIComponent(each.product)}`, "issue-link", "Open"));
+      const open = el("button", "issue-link btn small", "Open");
+      open.setAttribute("type", "button");
+      open.addEventListener("click", () => ctx.context.go("replies", { issue: String(each.issue), product: each.product }));
+      const item = el("li", "reply-issue", `#${each.issue} of ${ctx.products.get(each.product)?.name ?? each.product} · ${each.mails.length} mail${each.mails.length === 1 ? "" : "s"} · `, open);
       item.setAttribute("data-issue", String(each.issue));
-      item.querySelector?.("a")?.addEventListener("click", (event) => { event?.preventDefault?.(); ctx.context.go("replies", { issue: String(each.issue), product: each.product }); });
       return item;
     }));
     const section = el("section", "replies-group", el("h3", null, title), list);
