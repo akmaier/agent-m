@@ -114,7 +114,7 @@ const CONVERSE = "You answer a person's message about the page they are looking 
 const CHANGE_REQUIREMENTS = "You change requirements of a product";
 const CHANGE_USE_CASE = "You change a use case of a product";
 
-// The model endpoint ep1 behind the global fetch: it answers the drafts given in turn (the last again), and keeps every request.
+// The model endpoint drafter-a behind the global fetch: it answers the drafts given in turn (the last again), and keeps every request.
 let requests = [];
 const realFetch = globalThis.fetch;
 function endpointAnswers(...drafts) {
@@ -144,12 +144,13 @@ const useCasePage = () => ({ key: `use-case/id=UC-007/product=${encodeURICompone
   paramsFor: () => ({ page: "The page shows UC-007 Derive use cases.", useCase: "UC-007", version: "0123456789abcdef0123456789abcdef01234567" }),
   draftRoute: `draft/subject=${encodeURIComponent(`use-case/id=UC-007/product=${encodeURIComponent(PRODUCT_WEB)}`)}`, withhold: null, refuses: [] });
 
-// A page of a product: the instance with its register, a store keeping the endpoint ep1 and the product's token, and the bar started with the subject given.
+// A page of a product: the instance with its register, which the bar does not read for its offer, a store declaring the endpoint drafter-a — its place, context and
+// model, as the bar offers it (UC-049 1) — and the product's token, and the bar started with the subject given.
 function page(subject) {
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: new Storage() });
   Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: new Storage() });
   const store = openStore("alice/agent-m");
-  writeSetting(store, "endpoint:ep1", { kind: "openai-compatible", url: "https://models.example/v1", model: "model-drafter-a", key: "sk-fixture" });
+  writeSetting(store, "endpoint:drafter-a", { kind: "openai-compatible", url: "https://models.example/v1", model: "model-drafter-a", key: "sk-fixture", place: "Anthropic, USA", context: 200000 });
   writeSetting(store, "github-token:alice/thesis-tool", { value: "github_pat_FIXTURE0123456789abcdef", name: "alice", expires: "2027-01-01" });
   const instance = fakeRepo(INSTANCE_WEB, { "docs/participants.md": REGISTER });
   const product = fakeRepo(PRODUCT_WEB, { "SPEC.md": SPEC, ".github/workflows/agent-m-jobs.yml": "name: agent-m-jobs\n" });

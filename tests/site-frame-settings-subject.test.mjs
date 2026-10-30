@@ -65,7 +65,8 @@ function installNetwork() {
 }
 test.afterEach(() => { globalThis.fetch = realFetch; });
 
-// The review page at #settings, in a browser that keeps the endpoint ep1 and the instance's token SECRET.
+// The review page at #settings, in a browser that declares the endpoint drafter-a — its place, context and model, as the bar offers it (UC-049 1) — and the
+// instance's token SECRET.
 async function start() {
   installNetwork();
   seen.length = 0;
@@ -73,7 +74,7 @@ async function start() {
   Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: fixtureStorage() });
   globalThis.setInterval = () => 1;
   const store = openStore("acme/instance");
-  writeSetting(store, "endpoint:ep1", { kind: "openai-compatible", url: "https://models.example/v1", model: "model-drafter-a", key: "sk-fixture" });
+  writeSetting(store, "endpoint:drafter-a", { kind: "openai-compatible", url: "https://models.example/v1", model: "model-drafter-a", key: "sk-fixture", place: "Anthropic, USA", context: 200000 });
   writeSetting(store, "github-token", { value: SECRET, name: "alice", expires: "2030-01-01" });
   await startPage({ page: "review", views: [view], menuViews: [] });
   const body = fixture.document.body;
