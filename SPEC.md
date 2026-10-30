@@ -1408,9 +1408,11 @@ responsibility and interface that the subsystem's decision gives it.
 *Check:* no automatic check; at review.
 
 **NO REVIEWER IS THE DRAFTER** *(PO A. Maier)*
-The reviewing participant of an architecture draft is not the participant that drafted it and does not use its model.
+The reviewing participant of an architecture draft, other than one of a change described in the prompt bar, is not the
+participant that drafted it and does not use its model.
 *Check:* `tests/test_architecture_review.py` — a reviewer that is the drafter, or uses its model, is refused before
-anything is sent; counter-proof: another participant with another model is accepted.
+anything is sent; counter-proof: another participant with another model is accepted, and so is the drafter of a change
+described in the prompt bar.
 
 **A REVIEWER'S FINDING IS A WARNING** *(PO A. Maier)*
 A finding of the reviewing participant of an architecture draft is a warning.
