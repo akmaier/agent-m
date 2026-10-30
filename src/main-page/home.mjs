@@ -1,11 +1,11 @@
 // home.mjs — the route `home` (docs/architecture/MOD-main-page.md, Parts and Interfaces: `home`): one card per product this browser keeps — or Agent M's own card while it keeps none — with
-// its bar of six stages and its build, and below the cards what waits for a person across the instance.
+// its bar of six stages and its build, and below the cards the link *Jobs* to the route `jobs`, where what waits for a person is listed (waits.mjs).
 //
 // Module: MOD-main-page
 //
 // THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT. The page computes no share, no stage and no
 // state: where the repository stores an overview of its head (MOD-progress-measures' storedOverview, computed by the workflow `main changed`), the card is drawn from that overview
-// alone — its stages, its model, what waits, and the build's states with the records of the jobs working on them —, and no pull request, record or other file is read; elsewhere
+// alone — its stages, its model, and the build's states with the records of the jobs working on them —, and no pull request, record or other file is read; elsewhere
 // MOD-progress-measures derives them from the facts it gathers once for each product (productFacts, the scope `all`). MOD-job-ledger's listJobs derives the jobs' rows again with the
 // live states their runtimes report for those jobs whose record has no end, asked once for the repository (MOD-runtimes' liveStates, as the route `jobs` asks them). It stores nothing. Each product is connected, through jobs.mjs's sourcesOf, by
 // MOD-site-frame's chosenProduct with the token this browser keeps for it, and the instance with the frame's own host; a token reaches no other server. Once the cards are drawn, reread.mjs reads the
@@ -14,18 +14,18 @@
 // Readings the module file leaves open, which this file takes:
 //   - The fragment handed to chosenProduct is `#home/product=<the product's address, percent-encoded>`, the form the frame writes for a route with a product.
 //   - A product's name on its card is its repository's path, `owner/name`; Agent M's own card is called Agent M.
-//   - A card whose repository cannot be read says which, with the reason its host gives, and a button to the token's setting; each item that waits has a button to the page where it is decided;
-//     while no product is kept, *+ Add product* stands below Agent M's card. Each calls the ViewContext's `go(route, params)`; no address is written here. The greeting is greeting.mjs's, with
+//   - A card whose repository cannot be read says which, with the reason its host gives, and a button to the token's setting; while no product is kept, *+ Add product* stands below Agent M's
+//     card; the link *Jobs* below the cards is a button too, as *+ Add product* is. Each calls the ViewContext's `go(route, params)`; no address is written here. The greeting is greeting.mjs's, with
 //     *Get your own Agent M* at the address of the route `get-your-own` of the review pages ("docs/index.html#get-your-own"), a link and not a call of go(), since the main page loads no view of the review pages.
 
 import { readSetting } from "../browser-store/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
 import { menuOf } from "../site-frame/index.mjs";
-import { productFacts, stageShares, currentStage, buildInProgress, waitingForAPerson, storedOverview, latestOverview } from "../progress-measures/index.mjs";
+import { productFacts, stageShares, currentStage, buildInProgress } from "../progress-measures/index.mjs";
 import { listJobs } from "../job-ledger/index.mjs";
 import { bridgesOf, liveStatesOf, sourcesOf } from "./jobs.mjs";
 import { el, productCard, readingCard, errorCard } from "./cards.mjs";
-import { waitsList } from "./waits.mjs";
+import { storedOf } from "./waits.mjs";
 import { greeting } from "./greeting.mjs";
 import { readAgain } from "./reread.mjs";
 
@@ -49,18 +49,15 @@ function once(host) {
     readSnapshot: (ref) => { if (!branches.has(ref)) branches.set(ref, host.readSnapshot(ref)); return branches.get(ref); } };
 }
 
-// The head of the host's default branch and the overview stored for it (MOD-progress-measures' storedOverview); while that is not stored yet, the overview stored last
-// (latestOverview), with the commit it is of; null only for a repository that stores none, whose card is then derived as before. A failure of the host here is left to the
+// The head of the host's default branch and the overview stored for it, or while that is not stored yet the overview stored last, with the commit it is of (waits.mjs's storedOf, over
+// MOD-progress-measures' storedOverview and latestOverview); null only for a repository that stores none, whose card is then derived as before. A failure of the host here is left to the
 // scope `all`, which meets it again and gives the card its reason; any other error is a fault of the page.
 const HOST_FAILURES = new Set(["NotFound", "NotSupported", "TokenRefused", "PermissionMissing", "RateLimited", "Unreachable"]);
 async function storedFor(host) {
   try {
     const { defaultBranch } = await host.repositoryInfo();
     const snapshot = await host.readSnapshot(defaultBranch);
-    const own = await storedOverview(snapshot);
-    if (own) return { snapshot, stored: own, asOf: null };
-    const latest = await latestOverview(snapshot);
-    return { snapshot, stored: latest, asOf: latest ? latest.commit : null };
+    return { snapshot, ...(await storedOf(snapshot)) };
   } catch (failure) {
     if (HOST_FAILURES.has(failure?.name)) return { snapshot: null, stored: null, asOf: null };
     throw failure;
@@ -118,10 +115,9 @@ async function cardOf(source, reading, go) {
     const shares = stored ? stored.shares : await stageShares(facts);
     const model = stored ? stored.model : facts.model?.name ?? null, current = currentStage(shares);
     return { card: productCard({ title: source.title, address: source.address, model, shares, current, build: buildInProgress(facts), own: source.own === true, asOf }),
-      held: { source, facts, shares, current, model, asOf },
-      waits: (stored ? stored.waiting : waitingForAPerson(facts)).map((item) => ({ ...item, product: source.title, address: source.address, own: source.own === true })) };
+      held: { source, facts, shares, current, model, asOf } };
   } catch (failure) {
-    return { card: errorCard({ title: source.title, address: source.address, reason: reasonOf(failure), go }), waits: [] };
+    return { card: errorCard({ title: source.title, address: source.address, reason: reasonOf(failure), go }) };
   }
 }
 
@@ -138,20 +134,20 @@ async function render(target, context) {
   add.setAttribute("type", "button");
   add.addEventListener("click", () => context.go("add-product"));
   const adding = sources[0]?.own === true ? [add] : [];
-  const waiting = el("section", "waits", el("h2", null, "What waits for a person"), el("p", "muted", "Reading…"));
-  target.replaceChildren(greet, cards, ...adding, waiting);
+  const jobs = el("button", "jobs-link btn", "Jobs");
+  jobs.setAttribute("type", "button");
+  jobs.addEventListener("click", () => context.go("jobs"));
+  target.replaceChildren(greet, cards, ...adding, el("p", "jobs-entry", jobs));
 
   const reading = { store: context.store, instance: instanceOnce(instance), instanceAt: (commit) => instance.host.readSnapshot(commit) };
-  const waits = [], held = [];
+  const held = [];
   await Promise.all(sources.map(async (source, at) => {
     if (source.reason !== undefined) return;
     const result = await cardOf(source, reading, context.go);
     nodes[at] = result.card;
-    waits[at] = result.waits;
     held[at] = result.held;
     cards.replaceChildren(...nodes);
   }));
-  target.replaceChildren(greet, cards, ...adding, waitsList(waits.flat(), { several: sources.length > 1, go: context.go }));
   readAgain({ target, cards, nodes, held, store: context.store });
 }
 

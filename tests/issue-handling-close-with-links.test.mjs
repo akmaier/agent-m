@@ -11,6 +11,7 @@
 //   - The comment is made before the issue is closed, so that a refused comment leaves the issue open (as `confirmClass` closes a rejected issue).
 //   - An issue that is no positive whole number, and links that give neither a pull request nor a commit, are a TypeError thrown before the host is called.
 //   - The host's failures pass unchanged.
+//   - The issue is read first, with the host's readIssue (ITM-1292): an issue already closed with the very note it would write is left as it is, so that two routes that run the entry for one merge note it once. Another pull request's note, or an issue closed with no note, is noted and closed.
 // The counter-proofs are recorded in the pull request.
 
 import test from "node:test";
@@ -23,14 +24,23 @@ const closeWithLinks = (...given) => {
   return handling.closeWithLinks(...given);
 };
 
-/** A host that keeps its calls; `refuse` names the call that throws the failure given. */
-function hostOf({ refuse = null } = {}) {
-  const calls = [];
+/**
+ * A host that keeps its writes in `calls` and the numbers of the issues it was asked to read in `reads`; `refuse` names the call that throws the failure given. `readIssue` answers the issue as MOD-repository-hosts' `Issue` gives it, with the state and the comments' texts
+ * `issue` names — open with no comment where none is given.
+ */
+function hostOf({ refuse = null, issue = { state: "open", comments: [] } } = {}) {
+  const calls = [], reads = [];
   const call = (name) => async (...given) => {
     calls.push([name, ...given]);
     if (refuse?.call === name) throw refuse.failure;
   };
-  return { calls, host: { commentOnIssue: call("commentOnIssue"), setIssueState: call("setIssueState"), setIssueLabels: call("setIssueLabels") } };
+  const readIssue = async (number) => {
+    reads.push(number);
+    if (refuse?.call === "readIssue") throw refuse.failure;
+    return { number, title: "An issue", body: "", labels: [], state: issue.state, url: `https://github.com/acme/product/issues/${number}`, opened: "2026-10-28T08:00:00Z", closed: issue.state === "closed" ? "2026-10-28T09:50:00Z" : null,
+      comments: issue.comments.map((body) => ({ author: "alice", body, date: "2026-10-28T09:50:00Z" })) };
+  };
+  return { calls, reads, host: { readIssue, commentOnIssue: call("commentOnIssue"), setIssueState: call("setIssueState"), setIssueLabels: call("setIssueLabels") } };
 }
 const PULL = "https://github.com/acme/product/pull/9";
 const COMMIT = "https://github.com/acme/product/commit/0123456789abcdef0123456789abcdef01234567";
@@ -110,4 +120,40 @@ test("closeWithLinks — the host's failure passes unchanged, and a refused comm
   const state = hostOf({ refuse: { call: "setIssueState", failure: REFUSED } });
   await assert.rejects(closeWithLinks(state.host, 7, { pullRequest: PULL, commit: null, item: null }), (error) => error === REFUSED);
   assert.deepEqual(state.calls.map(([name]) => name), ["commentOnIssue", "setIssueState"]);
+});
+
+const OTHER_PULL = "https://github.com/acme/product/pull/8";
+
+// TST-1292001 · level: unit · module: MOD-issue-handling
+// guards: UC-012
+// given: known positive first — the issue 7 closed with the note of another pull request, and closed by hand with no note; then the issue 7 closed with the note "Closed with <the pull request's address>.", and closed with the note naming that pull request and the item ITM-123
+// input: closeWithLinks(host, 7, { pullRequest, commit: null, item: null }) for the first three, closeWithLinks(host, 7, { pullRequest, commit: null, item: "ITM-123" }) for the last
+// expect: each reads the issue 7 once; the two positives each write commentOnIssue(7, "Closed with <the pull request's address>.") and then setIssueState(7, "closed"); the two issues already closed with the note it would write are left as they are: no write
+test("closeWithLinks — an issue already closed with the note it would write is left as it is; another pull request still notes", async () => {
+  const positives = [];
+  for (const comments of [[`Closed with ${OTHER_PULL}.`], []]) {
+    const positive = hostOf({ issue: { state: "closed", comments } });
+    await closeWithLinks(positive.host, 7, { pullRequest: PULL, commit: null, item: null });
+    assert.deepEqual(positive.calls, [["commentOnIssue", 7, `Closed with ${PULL}.`], ["setIssueState", 7, "closed"]], `known positive: ${comments}`);
+    positives.push(positive);
+  }
+  for (const [note, item] of [[`Closed with ${PULL}.`, null], [`Closed with ${PULL}; item \`ITM-123\`.`, "ITM-123"]]) {
+    const { host, calls, reads } = hostOf({ issue: { state: "closed", comments: ["Thanks for the report.", note] } });
+    await closeWithLinks(host, 7, { pullRequest: PULL, commit: null, item });
+    assert.deepEqual(calls, [], note);
+    assert.deepEqual(reads, [7], note);
+  }
+  for (const positive of positives) assert.deepEqual(positive.reads, [7], "each positive read the issue once");
+});
+
+// TST-1292002 · level: unit · module: MOD-issue-handling
+// guards: UC-012
+// given: a host whose readIssue refuses with a TokenRefused
+// input: closeWithLinks(host, 7, { pullRequest, commit: null, item: null })
+// expect: it rejects with that very error, and nothing is written: the issue is read before it is noted
+test("closeWithLinks — the issue is read before anything is written, and a refused read writes nothing", async () => {
+  const { host, calls, reads } = hostOf({ refuse: { call: "readIssue", failure: REFUSED } });
+  await assert.rejects(closeWithLinks(host, 7, { pullRequest: PULL, commit: null, item: null }), (error) => error === REFUSED);
+  assert.deepEqual(reads, [7]);
+  assert.deepEqual(calls, []);
 });

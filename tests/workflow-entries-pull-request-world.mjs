@@ -57,13 +57,15 @@ export async function withCheckout(jobs, run, { repository = "alice/thesis-tool"
 }
 
 /**
- * fakeGitHub({ repository, merged, title, body, branch, refuse }) — a fake of GitHub's REST API serving the pull request #7 of `repository` — merged, or closed without a merge — whose title, description and branch are given, its one commit, and the comments on, and the state of,
- * the issues: it keeps every request with the authorisation it carried; the comment on an issue number in `refuse` is refused with 403. -> { fetch, requests, writes() } — `writes()` the requests that are no read, as [method, path, body].
+ * fakeGitHub({ repository, merged, title, body, branch, refuse, issues }) — a fake of GitHub's REST API serving the pull request #7 of `repository` — merged, or closed without a merge — whose title, description and branch are given, its one commit, and the comments on, and the state of,
+ * the issues: it keeps every request with the authorisation it carried; the comment on an issue number in `refuse` is refused with 403. The issues keep what is written to them, so that a later run reads it ("Get an issue", "List issue comments"): each is open with no comment,
+ * unless `issues` gives it ({ [number]: { state: "open" | "closed", comments: string[] } }). -> { fetch, requests, writes() } — `writes()` the requests that are no read, as [method, path, body].
  */
-export function fakeGitHub({ repository = "alice/thesis-tool", merged = true, title, body, branch, refuse = [] } = {}) {
+export function fakeGitHub({ repository = "alice/thesis-tool", merged = true, title, body, branch, refuse = [], issues = {} } = {}) {
   const web = `https://github.com/${repository}`;
   const answer = (status, value) => new Response(typeof value === "string" ? value : JSON.stringify(value), { status, headers: { "content-type": "application/json" } });
   const requests = [];
+  const kept = issuesOf(issues);
   const fetch = async (address, init = {}) => {
     const url = new URL(String(address)), method = String(init.method ?? "GET").toUpperCase(), path = url.pathname.replace(`/repos/${repository}`, ""), page = Number(url.searchParams.get("page") ?? "1");
     if (url.origin !== "https://api.github.com" || !url.pathname.startsWith(`/repos/${repository}`)) throw new TypeError(`fetch failed: ${address}`);
@@ -80,11 +82,29 @@ export function fakeGitHub({ repository = "alice/thesis-tool", merged = true, ti
     if (method === "GET" && path === `/commits/${HEAD}/statuses`) return paged([]);
     if (method === "GET" && path === `/commits/${HEAD}`) return answer(200, { sha: HEAD, files: page === 1 ? [{ filename: "src/store/index.mjs", status: "modified" }] : [] });
     const issue = /^\/issues\/(\d+)(\/comments)?$/.exec(path);
-    if (issue && method === "POST" && issue[2]) return refuse.includes(Number(issue[1])) ? answer(403, { message: "Resource not accessible by personal access token" }) : answer(201, { id: 1 });
-    if (issue && method === "PATCH" && !issue[2]) return answer(200, { number: Number(issue[1]), state: "closed" });
+    const one = issue && kept(Number(issue[1]));
+    const asGitHub = (number) => ({ number, title: `Issue ${number}`, body: "", labels: [], state: one.state, html_url: `${web}/issues/${number}`, created_at: "2026-10-28T08:00:00Z", closed_at: one.state === "closed" ? "2026-10-28T09:50:00Z" : null,
+      comments: one.comments.length });
+    if (issue && method === "GET" && !issue[2]) return answer(200, asGitHub(Number(issue[1])));
+    if (issue && method === "GET" && issue[2]) return paged(one.comments.map((text) => ({ user: { login: "alice" }, body: text, created_at: "2026-10-28T09:50:00Z" })));
+    if (issue && method === "POST" && issue[2]) {
+      if (refuse.includes(Number(issue[1]))) return answer(403, { message: "Resource not accessible by personal access token" });
+      one.comments.push(JSON.parse(init.body).body);
+      return answer(201, { id: 1 });
+    }
+    if (issue && method === "PATCH" && !issue[2]) { one.state = JSON.parse(init.body).state; return answer(200, asGitHub(Number(issue[1]))); }
     throw new TypeError(`fetch failed: the fake GitHub does not serve ${method} ${path}`);
   };
   return { fetch, requests, writes: () => requests.filter((each) => each.method !== "GET").map(({ method, path, body: sent }) => [method, path, sent]) };
+}
+
+/** issuesOf(given) — the issues of a fake server, by number: those `given` names as given, every other open with no comment; each keeps what is written to it. */
+function issuesOf(given) {
+  const issues = new Map(Object.entries(given).map(([number, { state = "open", comments = [] }]) => [Number(number), { state, comments: [...comments] }]));
+  return (number) => {
+    if (!issues.has(number)) issues.set(number, { state: "open", comments: [] });
+    return issues.get(number);
+  };
 }
 
 /**
@@ -110,14 +130,15 @@ export const GITLAB_TOKEN = "glpat-ALICEagentMtoken0123456789";
 export const PUSHED_AT ="2026-10-28T09:50:00+00:00";
 
 /**
- * fakeGitLab({ mergeRequests, refuse }) — a fake of GitLab's REST API for the project alice/thesis-tool: "List project merge requests" answers `mergeRequests` (each { iid, title, description, source_branch, sha, merge_commit_sha, squash_commit_sha }, as GitLab names them, state
+ * fakeGitLab({ mergeRequests, refuse, issues }) — a fake of GitLab's REST API for the project alice/thesis-tool: "List project merge requests" answers `mergeRequests` (each { iid, title, description, source_branch, sha, merge_commit_sha, squash_commit_sha }, as GitLab names them, state
  * `merged`) on its first page, and the notes on, and the state of, the issues are written as GitLab takes them (POST …/issues/:iid/notes, PUT …/issues/:iid with state_event); it keeps every request with the PRIVATE-TOKEN it carried; the note on an issue number in `refuse` is
- * refused with 403. -> { fetch, requests, writes() }, as fakeGitHub's.
+ * refused with 403. The issues keep what is written to them and are read as GitLab serves them ("Get a single project issue", "List project issue notes"): each is open with no note, unless `issues` gives it, as fakeGitHub's. -> { fetch, requests, writes() }, as fakeGitHub's.
  */
-export function fakeGitLab({ mergeRequests = [], refuse = [] } = {}) {
+export function fakeGitLab({ mergeRequests = [], refuse = [], issues = {} } = {}) {
   const api = "/api/v4/projects/alice%2Fthesis-tool";
   const answer = (status, value) => new Response(JSON.stringify(value), { status, headers: { "content-type": "application/json" } });
   const requests = [];
+  const kept = issuesOf(issues);
   const fetch = async (address, init = {}) => {
     const url = new URL(String(address)), method = String(init.method ?? "GET").toUpperCase(), path = url.pathname.replace(api, ""), page = Number(url.searchParams.get("page") ?? "1");
     if (url.origin !== "https://gitlab.example.test" || !url.pathname.startsWith(api)) throw new TypeError(`fetch failed: ${address}`);
@@ -127,8 +148,20 @@ export function fakeGitLab({ mergeRequests = [], refuse = [] } = {}) {
         created_at: "2026-10-28T09:10:00Z", closed_at: null, draft: false, web_url: `${GITLAB}/-/merge_requests/${each.iid}`, ...each })) : []);
     }
     const issue = /^\/issues\/(\d+)(\/notes)?$/.exec(path);
-    if (issue && method === "POST" && issue[2]) return refuse.includes(Number(issue[1])) ? answer(403, { message: "403 Forbidden" }) : answer(201, { id: 1 });
-    if (issue && method === "PUT" && !issue[2]) return answer(200, { iid: Number(issue[1]), state: "closed" });
+    const one = issue && kept(Number(issue[1]));
+    const asGitLab = (iid) => ({ iid, title: `Issue ${iid}`, description: "", labels: [], state: one.state === "closed" ? "closed" : "opened", web_url: `${GITLAB}/-/issues/${iid}`, created_at: "2026-10-28T08:00:00Z",
+      closed_at: one.state === "closed" ? "2026-10-28T09:50:00Z" : null, user_notes_count: one.comments.length });
+    if (issue && method === "GET" && !issue[2]) return answer(200, asGitLab(Number(issue[1])));
+    if (issue && method === "GET" && issue[2]) return answer(200, page === 1 ? one.comments.map((text) => ({ author: { username: "alice" }, body: text, created_at: "2026-10-28T09:50:00Z", system: false })) : []);
+    if (issue && method === "POST" && issue[2]) {
+      if (refuse.includes(Number(issue[1]))) return answer(403, { message: "403 Forbidden" });
+      one.comments.push(JSON.parse(init.body).body);
+      return answer(201, { id: 1 });
+    }
+    if (issue && method === "PUT" && !issue[2]) {
+      if (JSON.parse(init.body).state_event === "close") one.state = "closed";
+      return answer(200, asGitLab(Number(issue[1])));
+    }
     throw new TypeError(`fetch failed: the fake GitLab does not serve ${method} ${path}`);
   };
   return { fetch, requests, writes: () => requests.filter((each) => each.method !== "GET").map(({ method, path, body: sent }) => [method, path, sent]) };

@@ -19,7 +19,7 @@ import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { view } from "../src/main-page/index.mjs";
 import { startRecord, appendToRecord } from "../src/job-ledger/index.mjs";
-import { INSTANCE, PRODUCT, PRODUCT_URL, PRODUCT_TOKEN, browser, byClass, draw, instanceFiles, network, smallProduct, timers, withEnd } from "./main-page-home-harness.mjs";
+import { INSTANCE, PRODUCT, PRODUCT_URL, PRODUCT_TOKEN, browser, byClass, draw, headOf, instanceFiles, network, smallProduct, timers, withEnd } from "./main-page-home-harness.mjs";
 
 const jobs = view.routes.find((candidate) => candidate.name === "jobs");
 let net;
@@ -60,12 +60,16 @@ function keepBatches() {
 
 // TST-1280004 · level: component · module: MOD-main-page
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; ONE DASHBOARD SHOWS EVERY JOB; UC-036
-// given: the instance alice/agent-m with 30 job records, 2 of them not ended, and the kept product alice/product with 150 job records, 3 of them not ended, every record taken by a CI run of its own; a token for each; the job workflow's runs list none
+// given: the instance alice/agent-m with 30 job records, 2 of them not ended, and the kept product alice/product with 150 job records, 3 of them not ended, every record taken by a CI run of its own; a token for each; the job workflow's runs list none; each repository's branch overview-cache holds the overview of its head, in which nothing waits (what waits stands above the list, ITM-1190)
 // input: the route jobs drawn
-// expect: 180 rows; per repository its batches and no record read by itself — alice/product two batches of 100 and 50 files, alice/agent-m one of 30 —; and per repository one listing of the job workflow's runs (known positive: each repository has jobs taken on CI that have not ended); counter-proof: asking liveState once for each such job lists the runs three times for alice/product and twice for alice/agent-m
-test("TST-1280004 #jobs with two repositories sends per repository its batches of records and one listing of the job workflow's runs", async () => {
+// expect: 180 rows; per repository its batches and no record read by itself — alice/product two batches of 100 and 50 files, alice/agent-m one of 30 —; per repository one listing of the job workflow's runs (known positive: each repository has jobs taken on CI that have not ended); and per repository the one request of what waits, its head's overview <head>.json on overview-cache, and no listing of pull requests; counter-proof: asking liveState once for each such job lists the runs three times for alice/product and twice for alice/agent-m
+test("TST-1280004 #jobs with two repositories sends per repository its batches of records, one listing of the job workflow's runs and one read of its head's overview", async () => {
   net = network({ [INSTANCE]: { ...instanceFiles(), ...Object.fromEntries(records(INSTANCE, "i", 30, 2).map(({ path, text }) => [path, text])) },
     [PRODUCT]: smallProduct({ jobs: records(PRODUCT, "p", 150, 3) }) });
+  for (const repository of [INSTANCE, PRODUCT]) {
+    const commit = headOf(repository);
+    net.overviews[repository] = { [commit]: JSON.stringify({ commit, shares: [], waiting: [], model: null, build: { states: [], records: [] }, queues: [] }) };
+  }
   net.install();
   const batches = keepBatches();
   const target = await draw(jobs, browser({ products: [PRODUCT_URL], tokens: { [PRODUCT]: PRODUCT_TOKEN } }));
@@ -79,4 +83,10 @@ test("TST-1280004 #jobs with two repositories sends per repository its batches o
 
   const listings = (repository) => net.requests.filter(({ url }) => url.startsWith(`https://api.github.com/repos/${repository}/actions/workflows/agent-m-jobs.yml/runs`)).length;
   assert.deepEqual([listings(PRODUCT), listings(INSTANCE)], [1, 1], "one listing of the job workflow's runs per repository");
+
+  const overviews = (repository) => net.requests.filter(({ url }) => url.includes("ref=overview-cache") && url.startsWith(`https://api.github.com/repos/${repository}/`))
+    .map(({ url }) => new URL(url).pathname.replace(`/repos/${repository}/contents/`, ""));
+  assert.deepEqual([overviews(PRODUCT), overviews(INSTANCE)], [[`${headOf(PRODUCT)}.json`], [`${headOf(INSTANCE)}.json`]], "one read of the head's overview per repository");
+  const pulls = net.requests.filter(({ url }) => /\/pulls(\?|$)/.test(url));
+  assert.deepEqual(pulls, [], "no listing of pull requests: what waits is the stored overview's");
 });

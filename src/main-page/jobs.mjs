@@ -1,5 +1,5 @@
-// jobs.mjs — the route `jobs` (docs/architecture/MOD-main-page.md, Parts and Interfaces: `jobs`): every job of every product and of the instance in one list, with the job of this
-// tab's conversation among them, waiting at a gate first, filtered by product, state, participant or where it runs; a source that cannot be read is named above the list with its reason.
+// jobs.mjs — the route `jobs` (docs/architecture/MOD-main-page.md, Parts and Interfaces: `jobs`): first what waits for a person across the instance (waits.mjs), then every job of every product
+// and of the instance in one list, with the job of this tab's conversation among them, waiting at a gate first, filtered by product, state, participant or where it runs; a source that cannot be read is named above the list with its reason.
 // It also draws the route `job`: one job's inputs, log, cost and the gate it waits at (Interfaces: `job`), from that job's one record and its live state alone.
 //
 // Module: MOD-main-page
@@ -9,7 +9,7 @@
 // the host the frame connected for it — the instance's from the ViewContext, a product's by MOD-site-frame's chosenProduct, with its own token and the stored secrets the host refuses to write — and sends no
 // token anywhere else (MOD-repository-hosts). Uses MOD-site-frame, MOD-browser-store, MOD-bridge-client, MOD-repository-hosts, MOD-job-ledger, MOD-runtimes and MOD-prompt-bar only through their index.mjs.
 //
-// How a list is drawn: each source's default branch is read; listJobs reads the records once, in batches (without live states), to name the jobs whose record has no end; those of each repository
+// How a list is drawn: each source's default branch is read; what waits is read for each source after the list's records, through the same snapshot (waits.mjs's waitingOf); listJobs reads the records once, in batches (without live states), to name the jobs whose record has no end; those of each repository
 // are asked with liveStates, once for the repository, and listJobs derives the rows again with what was reported — the records are not fetched twice, since a snapshot reads a file once. A Bridge handle is made as the prompt bar and
 // the review pages make one (settingsOf with the stored jump host, then bridgeAt), since a Bridge kept at a port of the jump host has no address of its own.
 
@@ -24,6 +24,7 @@ import { startable } from "../work-plans/index.mjs";
 import { mayDecide, recordGateDecision } from "../product-process/index.mjs";
 import { currentJob } from "../prompt-bar/index.mjs";
 import { el, clock } from "./cards.mjs";
+import { waitingOf, waitsList } from "./waits.mjs";
 
 // The sources of a route, each with the host the frame connected: the products this browser keeps (the setting `products`), each address that parses once, connected through MOD-site-frame's
 // chosenProduct — with its own token to its own server only and with the stored secrets the host refuses to write —, and the instance's own (the ViewContext's) where the route lists it: always on the
@@ -45,12 +46,13 @@ export async function sourcesOf(context, route = "jobs") {
   return [...(listsInstance ? [{ address: own, host: instance.host, own: true }] : []), ...products];
 }
 
-// One source read: its default branch as a snapshot — narrowed to `folders` where they are given. A source that fails is { address, reason }.
-async function readSource({ address, host, reason }, folders = null) {
+// One source read: its default branch as a snapshot — narrowed to `folders` where they are given —, with the repository's information and whether it is the instance's own. A source that fails is
+// { address, reason }.
+async function readSource({ address, host, reason, own = false }, folders = null) {
   if (reason !== undefined) return { address, reason };
   try {
-    const { defaultBranch } = await host.repositoryInfo();
-    return { address, host, snapshot: await host.readSnapshot(defaultBranch, folders ? { folders } : {}) };
+    const info = await host.repositoryInfo();
+    return { address, host, info, own, snapshot: await host.readSnapshot(info.defaultBranch, folders ? { folders } : {}) };
   } catch (failure) {
     return { address, reason: String(failure?.message ?? failure) };
   }
@@ -181,8 +183,30 @@ async function jobsOf(context, sources) {
   return { jobRows: await listJobs(products, lives), lives, bridges, hostOf, unreadable: sources.filter((source) => source.reason) };
 }
 
-// Every job of every source (the route `jobs`).
-const everyJob = async (context) => jobsOf(context, await Promise.all((await sourcesOf(context)).map((source) => readSource(source))));
+// What waits for a person in each source that was read, in the order of the sources, each item with its product — the instance's own called Agent M, as its card on `home` is — and its address.
+// The instance's snapshot, which the scope `all` takes for the participants and the process models, is the one read for the list. A source whose list cannot be read is { address, reason }.
+async function waitsOf(context, sources) {
+  const instance = sources.find((source) => source.own && source.snapshot)?.snapshot ?? null;
+  const ofInstance = () => { if (instance === null) throw new Error("Agent M's own repository could not be read"); return instance; };
+  const instanceAt = (commit) => context.instance.host.readSnapshot(commit);
+  const items = [], unreadable = [];
+  for (const source of sources.filter((each) => each.snapshot)) {
+    try {
+      const product = source.own ? "Agent M" : parseAddress(source.address).path;
+      items.push(...(await waitingOf(source, ofInstance, instanceAt)).map((item) => ({ ...item, product, address: source.address, own: source.own })));
+    } catch (failure) {
+      unreadable.push({ address: source.address, reason: `what waits could not be read: ${String(failure?.message ?? failure)}` });
+    }
+  }
+  return { items, unreadable };
+}
+
+// Every job of every source, and what waits in each (the route `jobs`).
+async function everyJob(context) {
+  const sources = await Promise.all((await sourcesOf(context)).map((source) => readSource(source)));
+  const read = await jobsOf(context, sources);
+  return { ...read, waits: await waitsOf(context, sources), several: sources.length > 1 };
+}
 
 // One job (the route `job`): each source's tree narrowed to the one record docs/jobs/<id>.md — only the product `product` names, where it names one —, and the record of the first source
 // whose tree holds it, in the order of sourcesOf (the instance, then the products as kept). Its live state alone is asked; no other job's record is read.
@@ -222,8 +246,9 @@ function explanations() {
 
 async function render(target, context) {
   target.replaceChildren(el("h2", null, "Every job"), el("p", "reading", "Reading…"));
-  const { jobRows, lives, unreadable } = await everyJob(context);
-  target.replaceChildren(el("h2", null, "Every job"), ...unreadableList(unreadable), ...drawList(listOf(jobRows, lives), context.go), explanations());
+  const { jobRows, lives, unreadable, waits, several } = await everyJob(context);
+  target.replaceChildren(el("h2", null, "Every job"), ...unreadableList([...unreadable, ...waits.unreadable]), waitsList(waits.items, { several, go: context.go }),
+    ...drawList(listOf(jobRows, lives), context.go), explanations());
 }
 
 /**
