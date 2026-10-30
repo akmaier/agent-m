@@ -224,10 +224,6 @@ A reviewing participant checks every module against its subsystem, by whether it
 responsibility and interface that the subsystem's decision gives it.
 *Check:* no automatic check; at review.
 
-**NO MODULE IS CHECKED AGAINST THE USE CASES** *(PO A. Maier)*
-No module is checked against the use cases.
-*Check:* no automatic check; at review.
-
 **NO REVIEWER IS THE DRAFTER** *(PO A. Maier)*
 The reviewing participant of an architecture draft, other than one of a change described in the prompt bar, is not the
 participant that drafted it and does not use its model.
