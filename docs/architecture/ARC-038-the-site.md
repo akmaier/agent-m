@@ -183,10 +183,10 @@ conversation's draft, the main page the conversation's job, and the settings pag
 
 | Module | Functions other modules use |
 |---|---|
-| MOD-site-frame | the types `View`, `Route`, `ViewContext` and `PageSetup`; `startPage`, `embedRoute`, `standIn`, `menuOf`, `instanceOf`, `chosenProduct`, `explain`, `runPanel`, `confirmDecision`, `notice`, `schemaForm` |
+| MOD-site-frame | the types `View`, `Route`, `ViewContext` and `PageSetup`; `startPage`, `embedRoute`, `menuOf`, `instanceOf`, `chosenProduct`, `explain`, `runPanel`, `confirmDecision`, `notice`, `schemaForm` |
 | MOD-markdown-render | `renderArtifact`, `renderMermaid`, `openEditor`, `showDifference` |
 | MOD-notifications | `NotificationState`, `watchForAcceptance`, `notificationState`, `switchOn`, `testNotification`, `switchOff` |
-| MOD-prompt-bar | `Subject`, `Message`, `ConversationDraft`, `startPromptBar`, `latestDraft`, `currentJob`, `recordingSchema`, `recordingOf`, `barFiles` |
+| MOD-prompt-bar | `Subject`, `Message`, `ConversationDraft`, `startPromptBar`, `latestDraft`, `currentJob`, `recordingSchema`, `recordingOf` |
 
 ### Its modules
 
@@ -253,8 +253,7 @@ and the form of an address stays the frame's alone (`A DATA FORMAT IS DEFINED ON
 the type of their subject and, on the review pages' route `draft`, for the conversation's draft; the main page for the
 conversation's job; the settings page for the recording switch. No view uses another: one view shows another's part
 through the frame's `embedRoute` — the release panel the audit of its candidate, the trace pages' tests browser and
-audit MOD-test-pages' route `tests-views`, the Tests entry's views, and an issue's page the review pages' drafting of a
-change of requirements from that issue.
+audit MOD-test-pages' route `tests-views`, the Tests entry's views.
 
 ## Alternatives
 

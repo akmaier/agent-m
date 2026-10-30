@@ -9,12 +9,9 @@ uses:
   - MOD-artifact-edits.fallbackEditLinks
   - MOD-repository-hosts.Host
   - MOD-repository-hosts.Snapshot
-  - MOD-repository-hosts.HostError
   - MOD-repository-hosts.readSnapshot
   - MOD-repository-hosts.readHistory
-  - MOD-repository-hosts.readFileAt
   - MOD-repository-hosts.commitFiles
-  - MOD-repository-hosts.connect
   - MOD-repository-hosts.webLinks
   - MOD-documents.Schema
   - MOD-documents.loadSchema
@@ -34,7 +31,6 @@ provides:
   - statusOf
   - statuses
   - removedFiles
-  - recordPaths
   - lastAcceptedText
   - acceptShown
   - acceptanceBlockers
@@ -110,28 +106,16 @@ never written. A decision or module file that a record names and the snapshot no
 
 - `approvalSchema: Schema` — the approval record's schema, for MOD-documents and for the modules that read records
   (MOD-spec-changes, MOD-release-evidence).
-- `statusOf(path: string, blob: string, snapshot: Snapshot) -> Promise<"open" | "accepted" | "changed">` — the status of
-  one reviewed file from the records in the same snapshot, matched by the identifier in the file name, so a renamed file
+- `statusOf(path: string, blob: string, snapshot: Snapshot) -> "open" | "accepted" | "changed"` — the status of one
+  reviewed file from the records in the same snapshot, matched by the identifier in the file name, so a renamed file
   keeps its status. Considers: the blob is the file's current blob in that snapshot; a record whose `kind` does not fit
-  the file's folder is not counted; a record counts only when its text names what its name says — a file of the
-  identifier its name carries, and a `blob` whose first twelve digits its name carries (`AN APPROVAL NAMES THE EXACT
-  TEXT`) —, so the records of the identifier are read. Crosses the network through the snapshot; fails with its errors.
-  Errors: `NotReviewed` for a path that is no reviewed file.
-- `statuses(snapshot: Snapshot) -> Promise<Map<string, { id: string, kind: string, status: "open" | "accepted" |
-  "changed" }>>` — the status of every reviewed file of a snapshot, keyed by path; computed in one pass over
-  `docs/approvals/`, whose records it names to the snapshot's `readMany` first, so that their texts are read in batches,
-  and counts each record as `statusOf` does. Crosses the network through the snapshot; fails with its errors.
-- `removedFiles(snapshot: Snapshot, host: Host) -> Promise<Array<{ id: string, kind: "architecture-decision" | "module", path: string, lastBlob: string }>>` — every
+  the file's folder is not counted. Errors: `NotReviewed` for a path that is no reviewed file.
+- `statuses(snapshot: Snapshot) -> Map<string, { id: string, kind: string, status: "open" | "accepted" | "changed" }>` —
+  the status of every reviewed file of a snapshot, keyed by path; computed in one pass over `docs/approvals/`.
+- `removedFiles(snapshot: Snapshot) -> Array<{ id: string, kind: "architecture-decision" | "module", path: string, lastBlob: string }>` — every
   decision or module file that a record names and of whose identifier the snapshot holds no file, and whose removal no record accepts (no record of
-  that identifier names the empty text's blob), in the order of the identifiers: which they are is found in the pass over `docs/approvals/` of
-  `statuses`; `path` and `lastBlob` are the `file` and `blob` of the most recent record of the identifier, "most recent" as `lastAcceptedText`
-  orders records, by the commits that added them, read through the host's history only for the identifiers of removed files. Crosses the
-  network; fails with the host's errors.
-- `recordPaths(id: string, paths: string[]) -> string[]` — the paths among `paths` that are approval records of the
-  identifier `id`, by the path the schema `approval-record` gives them, so that a page names them to its snapshot's
-  `readMany` in the same batch as the file it shows, and `statusOf` and `lastAcceptedText` then find their texts read
-  rather than asking for them in a batch of their own. `statusOf`, `statuses` and `lastAcceptedText` select an
-  identifier's records by the same rule. Pure; reads nothing.
+  that identifier names the empty text's blob): `path` and `lastBlob` are those of the most recent record of the identifier. It is computed in the
+  same pass over `docs/approvals/` as `statuses`, in the order of the identifiers.
 - `lastAcceptedText(id: string, host: Host) -> Promise<{ text: string, blob: string, path: string } | null>` — the text
   named by the most recent approval record of an identifier, also when the file has been renamed since; `null` when no
   record names it. A record whose content names another blob than its name, or a file of another identifier, counts as
@@ -149,11 +133,10 @@ never written. A decision or module file that a record names and the snapshot no
   MOD-spec-changes, not here. Crosses the network. Errors: `Moved` (the branch moved after it was read — nothing is
   written, the caller shows the newer state), `TokenRefused`, `PermissionMissing` (the caller offers the GitHub route,
   where the commit becomes a pull request), `RateLimited`, `Unreachable`; `NothingToAccept` when every file was left out.
-- `acceptanceBlockers(path: string, snapshot: Snapshot) -> Promise<string[]>` — the requirements and use cases a reviewed
-  file names (a use case's `realises`, a decision's `forced_by`) that are not accepted: a requirement that is not in the
-  SPEC but only in an open queue, a use case without a record naming its current text, a record counted as `statuses`
-  counts it. Empty when the file rests only on accepted artifacts (`ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS`). Crosses
-  the network through the snapshot — the file, the SPEC and the records; fails with its errors.
+- `acceptanceBlockers(path: string, snapshot: Snapshot) -> string[]` — the requirements and use cases a reviewed file
+  names (a use case's `realises`, a decision's `forced_by`) that are not accepted: a requirement that is not in the SPEC
+  but only in an open queue, a use case without a record naming its current text. Empty when the file rests only on
+  accepted artifacts (`ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS`).
 - `fallbackAcceptLink(record: { path: string, text: string }, snapshot: Snapshot) -> { url: string, path: string,
   text: string } | { refused: "gitlab" }` — without a token, GitHub's new-file page prefilled with the record's path and
   the record itself — a link carries nothing else, never the reviewed text (`NO TEXT TRAVELS IN A URL`, `WITHOUT A
@@ -213,15 +196,11 @@ never written. A decision or module file that a record names and the snapshot no
 
 ## Uses
 
-- MOD-repository-hosts.Host, Snapshot, readSnapshot, readHistory — the files of a commit, the head before a commit and
-  the order of records; MOD-repository-hosts.readFileAt — the text a file had at the commit that added its most recent
-  record, read for `lastAcceptedText` in one request.
-- MOD-repository-hosts.HostError — the failure `NotFound` that `lastAcceptedText` throws when the file did not hold, or did
-  not give, the text its most recent record names.
+- MOD-repository-hosts.Host, Snapshot, readSnapshot, readHistory — the files of a commit, the head before a commit, the
+  order of records and an earlier text of a file.
 - MOD-repository-hosts.commitFiles — the acceptance commit and the rejection commit on an expected head.
 - MOD-artifact-edits.fallbackEditLinks — GitHub's pages for the files of a rejection without a token.
-- MOD-repository-hosts.connect, MOD-repository-hosts.webLinks — GitHub's new-file page without a token, from a host
-  connected without credentials to the snapshot's repository.
+- MOD-repository-hosts.webLinks — GitHub's new-file page without a token.
 - MOD-documents.Schema, loadSchema, readDocument, writeDocument — reading and writing records by their schema, and reading the
   names a use case or decision declares; MOD-documents.artifactSchemas — the key of each format, for the artifacts a
   recipe's part carries.

@@ -10,7 +10,6 @@ uses:
   - MOD-markdown-render.openEditor
   - MOD-browser-store.openStore
   - MOD-browser-store.readSetting
-  - MOD-browser-store.tokenKeyOf
   - MOD-browser-store.expiringSoon
   - MOD-browser-store.secretValues
   - MOD-repository-hosts.parseAddress
@@ -33,9 +32,8 @@ uses:
   - MOD-prompt-bar.startPromptBar
   - MOD-prompt-bar.Subject
   - MOD-prompt-bar.handOverStrategies
-  - MOD-prompt-bar.barFiles
   - MOD-source-register.registerPaths
-  - MOD-progress-measures.waitingQueues
+  - MOD-progress-measures.storedOverview
 provides:
   - View
   - Route
@@ -43,11 +41,11 @@ provides:
   - PageSetup
   - startPage
   - embedRoute
-  - standIn
   - menuOf
   - instanceOf
   - chosenProduct
   - productHostFollowingStore
+  - tokenKeyOf
   - explain
   - runPanel
   - confirmDecision
@@ -181,27 +179,18 @@ It keeps nothing but what is on the screen. It owns these formats:
   secret is shown only in a hidden field (`A STORED SECRET IS HIDDEN UNTIL SHOWN`).
   `folders` names the folders of the repository the route shows, for these `params`: the frame reads the snapshot of
   the page with them (MOD-repository-hosts' `readSnapshot`), so that its paths are the files of those folders; a route
-  that names none is given the whole tree. On a page that shows the instance itself, the frame adds to them the files
-  of MOD-prompt-bar's `barFiles`, which the bar reads through the page's snapshot; these are the only files the frame
-  adds to the folders a route names, and it keeps no list of them of its own. A route that names `module` is drawn from the route that `module` gives: its
+  that names none is given the whole tree. A route that names `module` is drawn from the route that `module` gives: its
   `name`, `entry`, `entryShown` and `title` stand in the view module, and the frame imports the rest when the route is
   first shown, embedded or asked for its subject, after it has asked for every module of it at once (the page's
   preloads), never level by level.
 - `ViewContext` — what every route is given: `{ page: "main" | "review" | "bridge", instance: { repository: string,
-  host: Host }, product: ProductContext | null, ref: string | null, store: Store, go(route: string, params?: Record<string,
-  string>) -> void, addressOf(route: string, params?: Record<string, string>) -> string }`
+  host: Host }, product: ProductContext | null, store: Store, go(route: string, params?: Record<string, string>) -> void }`
   — `Host` and `Store` as
   MOD-repository-hosts and MOD-browser-store define them; `ProductContext` is `{ address: string, kind: "github" |
   "gitlab", host: Host, tokenStored: boolean }`, `tokenStored` telling whether this browser keeps the product's own
   token, so that a view hands `readProblem` the fact without reading the store's keys itself. `go` writes the chosen
   product into the address unless `params` names a `product`; the empty `product` names the instance itself, and the
-  address then holds none. `ref` is the branch, tag or commit at which the frame read the snapshot of the repository the
-  route shows — the product's, or the instance's where none is chosen —, and `null` in the Bridge's window, which shows
-  no repository; a route reads that repository at `ref` and asks no default branch itself. It is the one place a route
-  is given the ref; `ProductContext` holds none.
-  `addressOf` gives the address `go` would go to, with the same product, as a link's target;
-  for a route that no view of this page loads, the address of that route on the review pages, as `menuOf` leads the main
-  page's entries there. A route writes no address of its own.
+  address then holds none.
 - `PageSetup` — `{ page: "main" | "review" | "bridge", views: View[] }`.
 - `startPage(setup: PageSetup) -> Promise<void>` — draws the header, the menu, whose links carry the chosen product as
   `menuOf` gives them and in which the entry of the page shown is marked, and the product selector, shows the notices, connects the instance and the chosen product, and renders the route the fragment names, again on every
@@ -222,16 +211,6 @@ It keeps nothing but what is on the screen. It owns these formats:
   another view loaded on the same page inside an element of the calling view, so one view can show another's part
   without using it. Error: `RouteNotLoaded` — the route is not on this page; the frame then puts a link to it in
   `target`.
-- `standIn(head: { name: string, entry: Route["entry"], entryShown?: Route["entryShown"], title: string }, module: () ->
-  Promise<Route>) -> Route` — the one way a view lists a route whose own file is imported only when it is needed: a
-  whole `Route` whose `name`, `entry`, `entryShown` and `title` are the head's and whose `module` is the one given. Its
-  `render` imports the route's file through `module` once and calls that route's `render`; its `subject`, `leave` and
-  `unsaved` call that route's once it is imported, and before it give what a route not yet shown gives: `subject` `null`
-  — the frame's default —, `leave` `true` and `unsaved` `false`, since nothing of it is on the screen. It gives no
-  `reads` and no `folders`: for a route that names `module`, the frame imports that route before it reads the page's
-  snapshot for it, and asks the imported route's `reads` and `folders`. The import is asked once however many members
-  call it, and a failed import is asked again at the next call. It reads nothing
-  itself; it fails as `module` fails, when one of its members imports.
 - `menuOf(page: "main" | "review", loaded: string[], product?: string | null) -> MenuEntry[]` — the entries in the order
   of `THE MENU FOLLOWS THE PROCESS`: Requirements, Use cases, Architecture, Implementation, Tests, Releases, then
   Maintenance and Settings; each `{ key, label, href: string | null, title }`; on the review pages `href` null and `title`
@@ -257,6 +236,9 @@ It keeps nothing but what is on the screen. It owns these formats:
   holds at that call — the connection `chosenProduct` makes —, so that a token cleared or replaced since is not used and a
   commit that holds a stored secret is refused (`A CLEAR IS A REAL CLEAR`, `NO SECRET IN THE REPOSITORY`). One host for
   each product, however often it is asked for. Errors: the `TypeError` of MOD-repository-hosts' `parseAddress` for an entry that is no repository address.
+- `tokenKeyOf(address: RepositoryAddress) -> string` — the key a product's own token is kept under in the browser's store: `github-token:<owner>/<repository>` for a GitHub product,
+  `gitlab-token:<server>/<project>` for a GitLab product (MOD-browser-store, Data). It reads nothing and is the one place that rule stands, for the frame and for the pages that
+  read a product's token setting, such as the name it is stored under.
 - `explain(topic: string, label?: string) -> Element` — the folded *What is this?* of a topic, or the fold under the
   label a use case names for it (such as *Why these?*), from `explanations.md`, rendered by the
   renderer (`EVERY STEP EXPLAINS ITSELF`); used by the site's views and by the Bridge's window. It never throws: for a
@@ -302,7 +284,6 @@ It writes nothing.
 - MOD-markdown-render.renderArtifact — to render the explanations and the live page's Markdown; MOD-markdown-render.openEditor — for a section field
   of a form.
 - MOD-browser-store.openStore, MOD-browser-store.readSetting — the products, tokens and the instance's key;
-  MOD-browser-store.tokenKeyOf — the key a product's own token is read under;
   MOD-browser-store.expiringSoon — the expiry notice; MOD-browser-store.secretValues — handed to every host it connects,
   which refuses a commit that would write one.
 - MOD-repository-hosts.parseAddress, MOD-repository-hosts.connect — to connect the instance and the chosen product,
@@ -321,9 +302,10 @@ It writes nothing.
   pages.
 - MOD-prompt-bar.startPromptBar, MOD-prompt-bar.Subject — the prompt bar, started on the main and the review pages, and
   the type of a route's subject; MOD-prompt-bar.handOverStrategies — the strategies a hand-over of the bar is prepared
-  with; MOD-prompt-bar.barFiles — the instance's files the bar reads, added to a route's folders on the instance's page.
+  with.
 - MOD-source-register.registerPaths — the register's entries among a tree's paths, so that the first wave of a page load names them beside the files its
   route shows and `#spec` reads the register in the same batch as its other files (`A PAGE LOAD READS THE REPOSITORY IN BATCHES`); the frame keeps no copy
   of the register's path.
-- MOD-progress-measures.waitingQueues — the change queues with an entry not in the SPEC yet, read beside the first wave of
-  `#spec`, so that its second wave names only their files; the frame keeps no rule of its own for which queues those are.
+- MOD-progress-measures.storedOverview — the change queues stored for the commit, read beside the first wave of `#spec`, so that
+  its second wave names only the files of the queues with an entry not in the SPEC yet; where no overview is stored, the
+  index and decisions of every queue are read, then the proposals of those still open.

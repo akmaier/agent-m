@@ -14,11 +14,9 @@ uses:
   - MOD-site-frame.runPanel
   - MOD-site-frame.confirmDecision
   - MOD-site-frame.schemaForm
-  - MOD-site-frame.standIn
   - MOD-markdown-render.renderArtifact
   - MOD-browser-store.openStore
   - MOD-browser-store.readSetting
-  - MOD-browser-store.tokenKeyOf
   - MOD-browser-store.writeSetting
   - MOD-browser-store.clearSetting
   - MOD-browser-store.clearEverything
@@ -34,8 +32,6 @@ uses:
   - MOD-repository-hosts.repositoryInfo
   - MOD-repository-hosts.commitFiles
   - MOD-repository-hosts.startWorkflow
-  - MOD-repository-hosts.listCiRuns
-  - MOD-repository-hosts.ciRunLog
   - MOD-repository-hosts.setCiSecret
   - MOD-repository-hosts.ciVariableScopes
   - MOD-repository-hosts.listReleaseAssets
@@ -287,16 +283,13 @@ reaches.
 - MOD-browser-store.openStore, MOD-browser-store.readSetting, MOD-browser-store.writeSetting,
   MOD-browser-store.clearSetting, MOD-browser-store.clearEverything, MOD-browser-store.listSettings,
   MOD-browser-store.exportSettings, MOD-browser-store.importSettings, MOD-browser-store.expiringSoon — every browser
-  setting, its export and import; MOD-browser-store.tokenKeyOf — the key a product's own token is stored and changed
-  under; MOD-browser-store.readExport — the tokens an import file holds, read before the import;
+  setting, its export and import; MOD-browser-store.readExport — the tokens an import file holds, read before the import;
   MOD-browser-store.secretValues — the stored secrets a host it connects refuses to commit
   (`NO SECRET IN THE REPOSITORY`).
 - MOD-repository-hosts.parseAddress, MOD-repository-hosts.connect, MOD-repository-hosts.readSnapshot,
   MOD-repository-hosts.repositoryInfo — products and the instance, a token's test, a repository's visibility;
   MOD-repository-hosts.commitFiles — the commit plans of a source's registration or new version, and the job workflow
-  files; MOD-repository-hosts.startWorkflow — *Fetch again*; MOD-repository-hosts.listCiRuns,
-  MOD-repository-hosts.ciRunLog — the runs of the fetch workflow and the logs of its failed runs, from which a legal text
-  that waits shows the line naming its error, read as `library` says; MOD-repository-hosts.listReleaseAssets — the Bridge's files
+  files; MOD-repository-hosts.startWorkflow — *Fetch again*; MOD-repository-hosts.listReleaseAssets — the Bridge's files
   with their sizes and SHA-256; MOD-repository-hosts.webLinks — the server's token, fork, Pages, Actions, secrets and
   access-token pages.
 - MOD-identifiers.pagesAddress — the instance's dashboard address: the page *Open your dashboard* opens in
@@ -346,5 +339,3 @@ reaches.
 - MOD-notifications.NotificationState, MOD-notifications.notificationState, MOD-notifications.switchOn,
   MOD-notifications.testNotification, MOD-notifications.switchOff — the line *Notifications*: its state, *Switch on* in
   the person's click, *Test* and *Switch off*.
-- MOD-site-frame.standIn — each route of its `view` whose own file is imported only when the route is first shown,
-  embedded or asked for its subject, listed as the frame writes such a route.

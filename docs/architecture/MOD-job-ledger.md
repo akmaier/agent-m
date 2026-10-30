@@ -96,7 +96,7 @@ happen, each with `at:` and its own lines:
 | `## Job started` | in a run's record: `job:` the identifier of a job the run started, `kind:`, `works on:` — one part per job, committed together with that job's start record |
 | `## Limits raised` | in a run's record: `by:` the person, and `jobs at once:`, `cost:`, `rounds:` — the limits in force from then on; the start's limits and every earlier part stay as they were |
 | `## End` | `state:` `done`, `failed` or `cancelled`; `results:` commits, files, pull request, issues — or `waits for a person` for a draft its kind leaves to a person's click, whose commit names this job in its provenance lines; `draft:` for a job whose kind hands its draft back and that ran away from the page — on CI, on a Bridge that runs it, in a run —, that draft as one fenced JSON block, from which the page shows it and a run starts the job that follows, such as `write-tests` with the cases of `propose-tests`; the round record of MOD-job-runner — a job whose task travels with the hand-over holds no `draft:`, since its answer is a
-message of the conversation —; `notes:` the notes of the job's writer (MOD-job-runner's `WriteOutcome.notes`) as one JSON array of strings, kept as the writer wrote them, commas and quotes included, and left out where it wrote none; `usage:` as reported; `cost:`; `reason:` for a failed or cancelled job; `log:` the runtime's address of its log, where it keeps one |
+message of the conversation —; `usage:` as reported; `cost:`; `reason:` for a failed or cancelled job; `log:` the runtime's address of its log, where it keeps one |
 
 No part of a record holds a mail's text, sender, reply address or attachment (`MAIL STAYS IN THE MAILBOX`).
 
@@ -148,17 +148,14 @@ by: tab <identifier>
   string } | { part: "question", at: Date, question: string } | { part: "resumed", at: Date, gateRecord: string } | {
   part: "job started", at: Date, job: string, kind: string, worksOn: string[] } | { part: "limits raised", at: Date, by:
   string, limits: { jobsAtOnce: number, cost: number | null, rounds: number } } | {
-  part: "end", at: Date, state: "done" | "failed" | "cancelled", results: string[], notes?: string[], draft: unknown |
-  null, rounds: Round[], usage: Usage | null, cost: Cost, reason: string | null, log: string | null }`; an End read back
-  gives its `notes` as they were appended, and none where it holds none.
+  part: "end", at: Date, state: "done" | "failed" | "cancelled", results: string[], draft: unknown | null, rounds: Round[],
+  usage: Usage | null, cost: Cost, reason: string | null, log: string | null }`.
 - `JobRecord` — the record as read: the fields of `JobStart`, its `path`, and `taken`, `gates` (each reached, with the
   record that resumed it), `question`, `jobs` (the jobs a run started), `limitsRaised` (every raise of a run's limits, oldest
   first) and `end` as appended, each `null` or empty while absent.
-- `LiveState` — `{ reachable: boolean, reason: string | null, limit: { limit: "account" | "network" | "search",
-  resetsAt: string | null } | null, known: boolean, running: boolean, cancelling: boolean, log: string | null, usage:
-  Usage | null, writtenAfterCancel: string[] }`: what a job's runtime reports while it has not ended, given by
-  MOD-runtimes; `limit`, with `reachable` false, is a used-up rate limit of the repository's server that kept the runtime
-  from being asked, as MOD-repository-hosts' `RateLimited` names it, and `null` otherwise.
+- `LiveState` — `{ reachable: boolean, reason: string | null, known: boolean, running: boolean, cancelling: boolean, log:
+  string | null, usage: Usage | null, writtenAfterCancel: string[] }`: what a job's runtime reports while it has not ended,
+  given by MOD-runtimes.
 - `JobState` — `"queued" | "running" | "cancelling" | "waiting at a gate" | "done" | "failed" | "cancelled" | "ended
   without record"`: the seven states of `ONE DASHBOARD SHOWS EVERY JOB`, `cancelling` shown within `running`.
 - `Cost` — `{ known: true, amount: number, currency: string, basis: "reported" | "usage at the declared price" } | {
@@ -184,11 +181,9 @@ by: tab <identifier>
   snapshot are named to its `readMany` first, so that they are read in batches. A record that cannot be read
   is listed with what could be read and the reason.
 - `recordsNewestFirst(snapshot: Snapshot) -> AsyncIterable<JobRecord>` — the job records of a snapshot, newest first by
-  the start their paths name, read in batches as its caller goes on: when the caller asks for a record not read yet, the
-  next hundred records in that order are named to the snapshot's `readMany` together, and given one by one, so that a
-  caller that looks for a recent job stops reading at the batch where it has found it, and one that reads every record
-  sends no more requests than a batched read of all (`A PAGE LOAD READS THE REPOSITORY IN BATCHES`). Crosses the
-  network through the snapshot, for the records it has not read yet; the iteration fails with the snapshot's errors — `TokenRefused`, `PermissionMissing`, `RateLimited`,
+  the start their paths name, each read only when its caller asks for the next one, so that a caller that looks for a
+  recent job stops reading where it has found it. Crosses the network through the snapshot, for the records it has not
+  read yet; the iteration fails with the snapshot's errors — `TokenRefused`, `PermissionMissing`, `RateLimited`,
   `Unreachable`.
 - `jobCost(usage: Usage | null, participant: Participant) -> Cost` — the cost the runtime reported; otherwise the
   reported tokens at the participant's declared price; otherwise unknown, with the usage — never zero, never an estimate.

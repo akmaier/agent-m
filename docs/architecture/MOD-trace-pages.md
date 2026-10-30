@@ -13,7 +13,6 @@ uses:
   - MOD-site-frame.readProblem
   - MOD-site-frame.confirmDecision
   - MOD-site-frame.embedRoute
-  - MOD-site-frame.standIn
   - MOD-markdown-render.renderArtifact
   - MOD-markdown-render.renderMermaid
   - MOD-markdown-render.showDifference
@@ -212,5 +211,3 @@ narrowed to them (`readSnapshot` with `folders`), in one batch; *Earlier runs* r
   (UC-030). The workflow is `productWorkflow` of the declaration at the release, so it is derived from the model the
   product had declared then.
 - MOD-artifact-edits.saveFile — *Commit export*, as the person's own input.
-- MOD-site-frame.standIn — each route of its `view` whose own file is imported only when the route is first shown,
-  embedded or asked for its subject, listed as the frame writes such a route.
