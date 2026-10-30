@@ -75,6 +75,27 @@ UC-023 says the same, accepted at its blob `b36d4f55` (`cebe3653a`).
     item.
 - **Shared file.** `tests/test_architecture_review.py` is also changed by ITM-1318. Whichever of the two is merged
   second makes its change on top of the other's.
+- **Tests the change moves,** from the planning run below: TST-739005
+  (`tests/system-uc-023-modify-the-architecture.test.mjs`, UC-023 2a) counts the endpoint's requests of *Describe the
+  change*, 2 on the base. With the reviewer's part it is asked as the reviewer too, and the count is 7. Its count follows
+  the accepted text, and its known positive stays. It is changed in the same commit as TST-739011, by the same
+  participant.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
-- Before selection: the planning stand-in and its run name the tests of other modules the change moves, among them
-  every test that prepares a hand-over of the bar or calls `prepareJob` with reviewers.
+
+## The planning run (sprint team1/128)
+
+A stand-in:
+- `prepareJob` with `selfReview` asks no reviewer to differ, and gives a blocking finding under NO REVIEWER IS THE
+  DRAFTER when `reviewers` is not the drafter alone.
+- `prepareHandOver` of `src/prompt-bar/send.mjs` reads the kind with `kindOf`, which MOD-prompt-bar's Uses name. For a
+  kind with a reviewer it prepares `{ drafter, reviewers: [drafter], selfReview: true }`; for any other kind and for
+  `converse`, `reviewers: []` as today.
+
+On `main` at `2af740feb`, in an export, every test file of the repository but the six that hang on the planning machine:
+1,008 files, 6,316 Node cases. The same files were run without the change.
+- One Node case fails only with it, TST-739005, above.
+- No Python check moves. `tests/test_architecture_review.py`, `tests/prompt-bar-hand-over.test.mjs`,
+  `tests/prompt-bar-one-kind.test.mjs` and `tests/job-runner-prepare.test.mjs` pass unchanged.
+- TST-739011 still fails as `todo`: its expectation changes with this item, as above.
+- Of the six files that hang there, `system-uc-037-connect-mailbox` draws the bar. It hands nothing over, and it is read
+  on CI.

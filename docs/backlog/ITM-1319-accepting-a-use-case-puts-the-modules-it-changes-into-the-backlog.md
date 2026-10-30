@@ -59,8 +59,8 @@ It is ready. akmaier accepted both texts it waited for:
 - the architecture above: MOD-job-catalogue, MOD-review-pages and MOD-work-plans, each at the blob its file has on `main`
   (`1b539d0fe`).
 
-NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED holds for every text the item names. Its planning stand-in and run are still
-to be made before it is selected (below).
+NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED holds for every text the item names. Its planning stand-in and run are
+below.
 
 ## Acceptance
 
@@ -77,4 +77,42 @@ to be made before it is selected (below).
   - The accepted texts state UC-008 step 6, a use case's *Accept*. UC-023 step 6 keeps its text, and no module states
     it.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
-- Before selection: the planning stand-in and its run name the tests of other modules the change moves.
+- **The tests of other modules the change moves,** from the planning run below. Each keeps what it asserts beside the
+  new value:
+  - MOD-job-catalogue's own: `tests/job-catalogue.test.mjs`, the stated table and its count of 26 kinds, which gain the
+    row of `check-affected-modules` (MOD-job-catalogue.md:96); `tests/job-catalogue-tools.test.mjs`, the count of the
+    kinds that name no tools, 15 on the base.
+  - MOD-site-frame: `tests/load-per-view.test.mjs`, the folders `#use-case` and the start page read, once the pages of
+    use cases read `docs/process.md`, which they must to know the model.
+  - MOD-site-frame: TST-1290001 (`tests/site-frame-preloads.test.mjs`), if the change adds a file to
+    `src/review-pages/`: the entry page's preloads are computed again (`docs/index.html`).
+  - `tests/test_single_definition.py` refuses an answer schema that copies another kind's whole. The kind's own schema is
+    written for its draft, not copied from `propose-items`.
+
+## The planning run (sprint team1/128)
+
+A stand-in, in three modules:
+- MOD-job-catalogue: `kinds/check-affected-modules/` with `kind.md` as the table's row states it, a prompt with a place
+  for each recipe, and a copy of `propose-items`' answer schema; its row in `kinds.md`.
+- MOD-work-plans: the step `leave-out-named-modules` in `workStrategies`. It reads the product's items and pull requests,
+  takes `itemStates`, and leaves out each drafted item for a module that an item not yet done names, with a warning.
+- MOD-review-pages: a new part beside `flow.mjs`. For use cases, with a token, in a product whose `productWorkflow` model
+  is `pulled`, the list's *Accept ticked*, a file's *Accept* and *Accept all N shown* name beside them the first eligible
+  participant with a route to this tab and its place. The stand-in took them from `loadStage`, not from a `prepareJob`
+  at the draw, as the accepted text asks. After the acceptance's commit, one job per use case recorded runs
+  in this tab with `queueJob` and `runOnTab`, its parameter `useCase`. The pages of use cases read `docs/process.md`
+  among their folders.
+
+On `main` at `2af740feb`, in an export, every test file of the repository but the six that hang on the planning machine:
+1,008 files, 6,316 Node cases. The same files were run without the change.
+- Five Node cases and two Python cases fail only with it, as listed above: the two of MOD-job-catalogue, the two of
+  `load-per-view`, TST-1290001, and the two cases of `test_single_definition`, which the copied schema moves.
+- A first run without `docs/process.md` among the folders moved `tests/release-itm-1266-review-folders.test.mjs`
+  instead: the page read outside its folders. With it among them, that file passes.
+- No fixture of the run declares a pulled model on a use case's page. So no case shows the participant named, and the
+  reads the stand-in adds were not counted in such a fixture. By its code, a page of use cases in a pulled product reads
+  `docs/process.md`, the instance at the declaration's `model_version`, the instance's `SPEC.md`, the participant list
+  and `repositoryInfo` once more; after the click, for each use case, the default branch, the job's record and the
+  item's commit. They are counted at the Development gate against a pulled fixture.
+- Of the six files that hang there, `release-uc-003-dashboard-https-bridge` and `system-uc-003-dashboard-bridge` open
+  `#uc`. They are read on CI.

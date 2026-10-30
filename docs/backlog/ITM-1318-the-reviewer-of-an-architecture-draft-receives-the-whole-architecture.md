@@ -63,13 +63,16 @@ With this item, `review-architecture` names `whole-architecture` after `accepted
     (2).
 - Only `src/job-catalogue/` and the tests named here change.
 
-## The planning run (sprint team1/127)
+## The planning run (sprint team1/128)
 
 A stand-in: `kind.md` names `whole-architecture` after `accepted-use-cases`, and `prompt.md` holds it under "The whole
 architecture as it stands on the default branch", after the accepted use cases.
 
-On `main` at `d27b1e408`, in an export, every test file of the repository: 1,020 files, 6,351 Node cases. The same files
-were run without the change.
+On `main` at `2af740feb`, in an export, every test file of the repository but the six that hang on the planning machine:
+1,008 files, 6,316 Node cases. The same files were run without the change.
 - 11 Node cases in 6 files, and two Python checks, fail only with the change, as listed above.
 - TST-739209 and TST-739210 pass with it, still marked `todo`: their known positive.
+- One more case failed in that run, the dpkg case of `tests/test-schedule-dpkg-time.test.mjs`, a timing under the
+  parallel load; alone, its 9 cases pass with the change.
+- None of the six files that hang there names MOD-job-catalogue, `review-architecture` or `prepareJob`.
 - The base's own failures are the same with and without it.
