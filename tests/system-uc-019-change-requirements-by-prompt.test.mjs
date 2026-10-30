@@ -29,7 +29,7 @@ import { CONFLICT, CURRENT_RULE, INSTRUCTION, LOAN, SHELF, SPEC, all, assertProp
 // level: system
 // module: MOD-trace-pages; MOD-site-frame; MOD-prompt-bar
 // guards: UC-019; THE PAGE NAMES WHERE IT SENDS
-// given: the specification browser of the product at its default branch, the register offering drafter (this machine, draft text) and observer (Anthropic, USA, read the repository only)
+// given: the specification browser of the product at its default branch, this browser's configuration offering the endpoint drafter (this machine, draft text) and the CLI session release-bridge:observer (Anthropic, USA, read the repository only)
 // input: unfold Lending, open A LOAN HAS A DUE DATE without naming it in the bar, write the instruction in the bar and press Send with the participant drafter
 // expect: before Send the bar names drafter with its place, the only participant that can do the kind, and not observer, and nothing has been sent; after it the one request to the endpoint holds the instruction and names exactly A LOAN HAS A DUE DATE under "The requirements to change"
 test("TST-418001: the prompt bar on the specification browser names where it sends and takes the open requirement as the target", async () => {

@@ -19,7 +19,8 @@
 // (designs MOD-shelf); the modules MOD-sync (provides push and pull), MOD-desk (uses MOD-sync.pull), MOD-report (uses MOD-sync.push) and MOD-shelf (no code yet); code files in
 // three of the four folders; two tests; a backlog item and a step of the implementation plan that name modules. Every file of it is accepted at the text
 // `ACCEPTED`; `scenario({ now })` puts another text on the default branch for a file (the accepted text stays in the history and in its approval record), `remove` takes a file
-// away, and `extra` adds files. The participants are `drafter` (model-a, endpoint fixture) and `reviewer` (model-b, endpoint fixture-b).
+// away, and `extra` adds files. The participants are this browser's endpoints `drafter` (model-a, at https://fixture-endpoint.example.test) and `reviewer` (model-b, at https://fixture-b.example.test), each declaring
+// the place "this machine" and the scenario's context.
 
 import { afterEach } from "node:test";
 // The tests that use this harness click as a script before they click as a person (THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK), so the
@@ -96,11 +97,13 @@ export async function record(id, kind, path, body) {
 
 // ---------------------------------------------------------------- the participants and the instance
 
+// The bar offers this browser's endpoints that declare a place, a context and a model (UC-049 1) and reads no participant list: the two endpoints the scenario stores below are what it
+// offers. The instance's participant list stays for the draft page of MOD-review-pages, which chooses its deriving and its reviewing participant from the register (jobs.mjs, loadStage).
 const registerHead = readOriginal("docs/participants.md").split("\n");
 const header = registerHead.slice(0, registerHead.findIndex((line) => line.startsWith("|---")) + 1).join("\n");
 const register = (context) => txt(header,
-  `| drafter | model endpoint | model-a | ${context} | - | draft text | this machine | endpoint fixture |`,
-  `| reviewer | model endpoint | model-b | ${context} | - | draft text | this machine | endpoint fixture-b |`);
+  `| drafter | model endpoint | model-a | ${context} | - | draft text | this machine | endpoint drafter |`,
+  `| reviewer | model endpoint | model-b | ${context} | - | draft text | this machine | endpoint reviewer |`);
 
 const FIXTURE_ORIGINS = ["https://api.github.com", "https://raw.githubusercontent.com", "https://fixture-endpoint.example.test", "https://fixture-b.example.test"];
 export const outside = [];
@@ -227,8 +230,8 @@ export async function scenario({ now = {}, remove = [], extra = {}, answers = []
   writeSetting(store, "github-token", { value: "github_pat_FIXTURE_INSTANCE_0123456789", name: "github.com/akmaier", expires: "2027-01-01" });
   if (token) writeSetting(store, `github-token:${repo}`, { value: "github_pat_FIXTURE_PRODUCT_0123456789", name: "github.com/reviewer", expires: "2027-01-01" });
   writeSetting(store, "products", [address]);
-  writeSetting(store, "endpoint:fixture", { url: "https://fixture-endpoint.example.test/v1", kind: "openai-compatible", model: "model-a" });
-  writeSetting(store, "endpoint:fixture-b", { url: "https://fixture-b.example.test/v1", kind: "openai-compatible", model: "model-b" });
+  writeSetting(store, "endpoint:drafter", { url: "https://fixture-endpoint.example.test/v1", kind: "openai-compatible", model: "model-a", place: "this machine", context });
+  writeSetting(store, "endpoint:reviewer", { url: "https://fixture-b.example.test/v1", kind: "openai-compatible", model: "model-b", place: "this machine", context });
   fragment = hash ?? `#decision/product=${encodeURIComponent(address)}`;
   const s = { product, instance, repo, address, store, location, endpointRequests, reviewerRequests, authorized, chapter: readOriginal(`${chapterFolder}10_architectural-design.md`) };
   await startPage({ page: "review", views: [reviewPages], menuViews: [] });
