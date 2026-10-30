@@ -24,8 +24,13 @@ origin:
 `docs/sources/SRC-<slug>.md`. The two copies already differ: the review pages' also take a file whose name does not begin
 with `SRC-`.
 
-**First task:** read whether MOD-review-pages' uses name `MOD-source-register.registerPaths`. If they do not, the item
-begins with a draft for akmaier that names it.
+## The reading of the accepted text
+
+MOD-review-pages' Uses name five functions of MOD-source-register (MOD-review-pages.md:74-78), and not `registerPaths`.
+The accepted check reads a module's Uses at the level of the module: it reports "a code file's `imports` edge to a module
+of which the file's own module names no interface among its `uses`" (MOD-trace-graph.md:212-213; TST-106805, "the module
+before the dot"). So `spec-entries.mjs` may call `registerPaths` (MOD-source-register.md:148), which MOD-source-register
+provides.
 
 ## Acceptance
 

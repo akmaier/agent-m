@@ -33,15 +33,20 @@ started by a push — a run on a push fetches every text then waiting (`.github/
 Design principle (AGENTS.md §2 *Designing*): akmaier — what is read is what the page shows; ch. 12 *KISS* — a bound
 from the workflow's own trigger, no stored state.
 
-## Not ready: a draft for akmaier
+## The reading of the accepted text
 
-The Outcome reads the runs of the fetch workflow and their logs, with `MOD-repository-hosts.listCiRuns` and `ciRunLog`.
-MOD-settings-pages' Uses (MOD-settings-pages.md:29-38, and its Uses section) name neither. The code already calls
-both (`src/settings-pages/library.mjs:106-112`). That is the gap TST-106805 does not catch, since it checks the module
-before the dot (sprint 111's ruling on ITM-1268).
+The Outcome reads the runs of the fetch workflow and their logs with `listCiRuns` and `ciRunLog`, as the code already does
+(`src/settings-pages/library.mjs:106-112`). Both are functions of the Host.
+- MOD-repository-hosts: "`Host` — the object `connect` returns; the functions below, from `readSnapshot` on, are its
+  functions" (MOD-repository-hosts.md:111).
+- MOD-settings-pages' Uses name `MOD-repository-hosts.connect` (MOD-settings-pages.md:30). A module that uses the object
+  `connect` returns calls its functions.
+- MOD-settings-pages.md:222-225 states the Outcome: "the logs are read only while a legal text waits without its line,
+  newest failed run first, no further back than the newest successful run started by a push, and none is read while no
+  legal text waits".
 
-So a draft of MOD-settings-pages.md names the two among its Uses, each with what it is read for. This item is built
-once the draft is accepted.
+So the item changes when the logs are read, not what the module uses. Sprint 111's ruling on ITM-1268 read Host functions
+one by one; the sentence of MOD-repository-hosts above reads them as the functions of one object.
 
 ## Acceptance
 

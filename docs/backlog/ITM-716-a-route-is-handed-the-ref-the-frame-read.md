@@ -28,12 +28,17 @@ one request more per load than the frame alone.
 `repositoryInfo` also gives whether the person may write and the repository's visibility, which the module's text names
 as its reasons to use it. So that read cannot simply go.
 
-If the frame handed a route the ref it read, for example as a field of `ViewContext`, the route would read no default
-branch on load. It would read the repository's information only where a write or a draft needs it. This needs a draft
-of MOD-site-frame's `ViewContext` and MOD-review-pages' text for akmaier, and the item waits for that.
+## The reading of the accepted text
+
+The frame already hands a route the snapshot it read. `Route.reads` is given "the repository the route shows as the frame
+has read it for the page" (MOD-site-frame.md:163), and the frame calls it before `render`.
+- The routes of MOD-review-pages draw from that snapshot, and read no default branch of their own.
+- They ask `repositoryInfo` only where they need what it gives: whether the person may write, or the repository's
+  visibility.
+- No member of `ViewContext` or `Route` changes.
 
 ## Acceptance
 
-- With a token, `#uc`, `#arc` and `#review/uc` send their commit and tree once and their batches, and no repository read
-  on load. `load-per-view.test.mjs` counts it.
+- With a token, `#uc`, `#arc` and `#review/uc` send their commit and tree once and their batches, and no `repositoryInfo`
+  beyond those the page needs for writing or visibility. `load-per-view.test.mjs` counts it.
 - Whether the person may write is still shown where the pages show it today.

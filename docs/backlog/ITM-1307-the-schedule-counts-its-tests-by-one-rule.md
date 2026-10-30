@@ -31,21 +31,21 @@ The two copies already differ. The route adds to `paid` a declaration whose leve
 counts it in no row.
 
 So one function should give the counts, and the route should call it where no view is stored. That function is
-`scheduleView`, given the declarations the route reads. MOD-test-pages' Uses name `MOD-progress-measures.storedView`
-(MOD-test-pages.md:36) and not `scheduleView`. A MODULE INTERFACE IS MINIMAL, and the Uses of each module bound what it
-may call.
+`scheduleView`, given the declarations the route reads.
 
-## Not ready: a draft for akmaier
+## The reading of the accepted text
 
-This item is built once akmaier accepts a draft of MOD-test-pages.md that does two things:
-- names `MOD-progress-measures.scheduleView` among its Uses;
-- says that, where no view is stored, the route counts the test files with it.
-
-The draft also says which argument `scheduleView` is given there, since its interface takes `Facts` (MOD-progress-measures.md:301).
+- MOD-test-pages' Uses name MOD-progress-measures (`storedView`, MOD-test-pages.md:36). The accepted check reads a
+  module's Uses at the level of the module: it reports "a code file's `imports` edge to a module of which the file's own
+  module names no interface among its `uses`" (MOD-trace-graph.md:212-213; TST-106805, "the module before the dot"). So
+  the route may call `scheduleView`, which MOD-progress-measures provides.
+- `scheduleView(facts: Facts)` gives "the counts of `facts.tests`" (MOD-progress-measures.md:301). Where no view is
+  stored, the route gives it `Facts` of its snapshot whose `tests` are the declarations it reads; every other field is
+  `"unknown"` where its type allows it (:151-161), and empty where it does not.
 
 ## Acceptance
 
-- Once the draft is accepted, a unit test of MOD-test-pages: where no view is stored, the route's counts equal
+- A unit test of MOD-test-pages: where no view is stored, the route's counts equal
   `scheduleView`'s for the same declarations, one of them of the level `paid`. Its counter-proof is the route's own
   counting as it stands, which counts that declaration under `paid`.
 - The first commit holds only the tests, and CI is red on it.

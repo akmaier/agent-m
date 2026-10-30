@@ -25,25 +25,19 @@ how an address's fragment is written and read (MOD-site-frame.md:133; `src/site-
 `ViewContext` gives a route `go(route, params)` to navigate (:141), but nothing to write an address as a link. So the page
 holds a second copy of the frame's format (AGENTS.md §2, principle 2), and finding 2 of ITM-969 came from such a copy.
 
-## Not ready: a draft for akmaier
+## The reading of the accepted text
 
-The draft `a7fa3d01` was reviewed, and was withdrawn in `391cf759` so that the security fix's uses draft `7377eaa2` is
-the only draft on MOD-site-frame.md. akmaier has since accepted MOD-site-frame with that draft in it (`b6c70419`), so the
-draft can be committed again for akmaier; `git show a7fa3d01` holds its text. `MOD-site-frame.md:178` still gives the
-`ViewContext` only `go`, and the replies page writes its issue link by hand (`src/maintenance-pages/replies.mjs:307`).
-
-The draft gives the `ViewContext` the address of a route with its parameters, as `go` would go there. MOD-maintenance-pages'
-links take it from there.
+A page writes no route's address at all: it goes there through `ViewContext.go(route, params)` (MOD-site-frame.md:187),
+which the frame turns into the address (:191-193), as *+ Add product* does (`context.go("add-product")`,
+`src/main-page/home.mjs:139`).
+- The replies page's control *Open* calls `go("replies", { issue, product })` and carries no address of its own. It
+  already calls `go` on a click (`src/maintenance-pages/replies.mjs:309`); the hand-written address beside it
+  (`:307`) goes.
+- No member of `ViewContext` changes.
 
 ## Acceptance
 
-- Once the draft is accepted: the replies page's issue link is the frame's address for `replies` with `issue` and `product`.
-  Counter-proof: a hand-written link fails it.
-
-**A second caller (team 2's sprint 100, po-opus-b).** ITM-684's live main page links its waits, its card's token setting
-and *+ Add product* into `docs/index.html`.
-- *+ Add product* now goes through `context.go("add-product")` (`src/main-page/home.mjs:121`). The link *Get your own*
-  is still made by hand, from the settings entry's address `menuOf` gives, its end replaced (`home.mjs:117`).
-- This item's draft, when it is committed again, also gives the address of a review page's route on the main page, so
-  that the copy goes.
+- The replies page's *Open* of an issue goes to `replies` with `issue` and `product` through `go`, and the page's text
+  holds no address `#replies/…`. The control keeps an accessible name. Counter-proof: a hand-written address fails it.
+- The first commit holds only the tests, and CI is red on it.
 

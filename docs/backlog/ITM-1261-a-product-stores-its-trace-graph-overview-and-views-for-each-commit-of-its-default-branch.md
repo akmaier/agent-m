@@ -12,6 +12,7 @@ modules:
   - MOD-runtimes
   - MOD-workflow-entries
   - MOD-trace-graph
+  - MOD-trace-pages
 builds_on:
   - ITM-1260
   - ITM-1202
@@ -50,21 +51,16 @@ After the change, as MOD-runtimes and MOD-workflow-entries say:
 A product whose files are not written again stays as it is: its pages read what its branches hold, and derive the views
 where they hold nothing.
 
-## Not ready: a draft for akmaier
+## The reading of the accepted text
 
-The third Acceptance asks `GraphNotStored` to read, in a product whose files do not run `onMainChanged`, "This product's
-graph is not stored yet: press *Install* on its Settings page.", and to name the workflow "main changed" elsewhere. To
-tell the two apart, `storedGraph` would have to read the product's workflow files. MOD-trace-graph says that it "reads
-no other file" than `<commit>.json.gz` on `trace-cache`, and "rejects with `GraphNotStored`, naming the commit and the
-workflow that stores it" (MOD-trace-graph.md:186-191). Neither sentence gives the product's text, nor a read that would
-choose it.
-
-Reading the origin's words into `storedGraph` would add a read its text excludes (AGENTS.md §6a.7). So a draft of
-MOD-trace-graph.md says what `GraphNotStored` names in a product whose files do not store the graph, and from what it
-knows that. The item is built once the draft is accepted.
-
-The other parts of the Outcome are given by MOD-runtimes.md:112 and :212-218 and by MOD-workflow-entries.md:132 and
-:363-372.
+The Outcome is accepted text: MOD-runtimes.md:112 and :212-218, and MOD-workflow-entries.md:132 and :363-372. The file
+`agent-m-main-changed.yml` and `main-changed.mjs` run alike in the instance and in a product.
+- `storedGraph` stays as MOD-trace-graph states it: it "reads no other file" and "rejects with `GraphNotStored`, naming
+  the commit and the workflow that stores it" (MOD-trace-graph.md:186-191). In a product, after this item, that workflow
+  is the product's own "main changed".
+- The step "press *Install* on its Settings page" is the trace page's wording, where it shows a `GraphNotStored` on a
+  product's page (MOD-trace-pages). It reads nothing more, so it is shown on every product page whose graph is not
+  stored; *Install* writes the files again where they stand.
 
 ## Acceptance
 
@@ -75,9 +71,10 @@ The other parts of the Outcome are given by MOD-runtimes.md:112 and :212-218 and
 - Unit tests naming MOD-workflow-entries: in a fixture product with a fixture instance checkout, `onMainChanged` adds the
   graph to the product's `trace-cache` and the overview and views to its `overview-cache`; run again, `nothing to do`.
   Counter-proof: before the change the entry has no product route.
-- A unit test naming MOD-trace-graph: where a product's `trace-cache` holds no graph and the product's files do not run
-  `onMainChanged`, `GraphNotStored` reads "This product's graph is not stored yet: press *Install* on its Settings page."; in the
-  instance, and in a product whose files run it, it names the workflow "main changed" as now. Counter-proof: before the change
-  the product's text names the instance's workflow.
+- A unit test naming MOD-trace-pages: on a product's page whose `trace-cache` holds no graph, the page shows
+  `GraphNotStored`'s line and "This product's graph is not stored yet: press *Install* on its Settings page."; on the
+  instance's page, `GraphNotStored`'s line alone, naming the workflow "main changed" as now. Counter-proof: before the
+  change the product's page names only the instance's workflow.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
-- Only `src/runtimes/`, `src/workflow-entries/`, `src/trace-graph/` and the tests that name these modules change.
+- Only `src/runtimes/`, `src/workflow-entries/`, `src/trace-graph/`, `src/trace-pages/` and the tests that name these
+  modules change.

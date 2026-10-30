@@ -27,24 +27,22 @@ The key a product's own token is kept under ("MOD-browser-store, Data") is writt
 - MOD-settings-pages' `tokenSettingKey` (`src/settings-pages/products.mjs:116-120`);
 - MOD-browser-store's `tokenKey`, for keys it converts (`src/browser-store/legacy-keys.mjs:59-63`).
 
-Found at ITM-601's stop. Which module gives it once is read at the start against MOD-browser-store's file:
-- MOD-browser-store, whose Data defines the key;
-- or the frame, through `ProductContext.tokenStored` and the token's name, if the draft committed with ITM-658's cut is
-  accepted.
+Found at ITM-601's stop.
 
-## Not ready: a draft for akmaier
+## The reading of the accepted text
 
-No accepted text gives the key in one place that all four modules may use.
-- MOD-site-frame provides `tokenKeyOf` (MOD-site-frame.md:239). MOD-main-page's Uses name it; MOD-review-pages' and
-  MOD-settings-pages' Uses do not (MOD-review-pages.md:8-15, MOD-settings-pages.md:8-16).
-- MOD-browser-store provides no function for the key, and it cannot use MOD-site-frame, which uses it
-  (`MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE`).
-
-So a draft gives the key once, in MOD-browser-store, whose Data defines it, and names it among the Uses of the three
-modules above it. The item is built once the draft is accepted.
+MOD-site-frame's `tokenKeyOf` is the one place (MOD-site-frame.md:239), and MOD-review-pages and MOD-settings-pages call
+it.
+- Both already use MOD-site-frame's interface (MOD-review-pages.md:8-14, MOD-settings-pages.md:8-16). The accepted
+  check reads a module's Uses at the level of the module: it reports "a code file's `imports` edge to a module of which
+  the file's own module names no interface among its `uses`" (MOD-trace-graph.md:212-213; TST-106805, "the module before
+  the dot").
+- MOD-browser-store keeps its own `tokenKey` for the keys it converts. It owns the key's format (its Data), and it cannot
+  use MOD-site-frame, which uses it (`MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE`).
 
 ## Acceptance
 
-- The key is computed in one place, and every module above uses that place.
+- The key is computed by `tokenKeyOf` in MOD-review-pages and MOD-settings-pages, which keep no copy of it;
+  MOD-browser-store keeps its own.
 - No expected result of a test changes.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.

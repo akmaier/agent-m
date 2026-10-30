@@ -5,7 +5,6 @@ level: module
 realises:
   - A BACKLOG ITEM NAMES THE MODULES IT CHANGES
 modules:
-  - MOD-work-plans
   - MOD-issue-handling
   - MOD-maintenance-pages
 builds_on:
@@ -27,19 +26,22 @@ holds:
 - **A list field split:** `listOf` (`backlog.mjs:29`) and `namesOf` (`issues.mjs:239`).
 - **The item's file and identifier:** `backlog.mjs:20`; `issues.mjs:236-237`, `:263` (`BACKLOG_ITEM`, `backlogItems`).
 
-MOD-work-plans' interface offers none of these (MOD-work-plans.md, `provides:`). MOD-issue-handling's Uses name only
-`MOD-work-plans.saveItems` (MOD-issue-handling.md:29), and MOD-maintenance-pages' only `MOD-work-plans.backlogFindings`
-(MOD-maintenance-pages.md:62). DEVELOP AGAINST INTERFACES and A MODULE INTERFACE IS MINIMAL leave no way to share them
-without a change of those module files.
+MOD-work-plans' interface offers none of these (MOD-work-plans.md, `provides:`).
 
-## Not ready: a draft for akmaier
+## The reading of the accepted text
 
-A draft of MOD-work-plans.md, MOD-issue-handling.md and MOD-maintenance-pages.md gives MOD-work-plans the function or
-functions the other two need: the backlog's items, the architecture's module files, and a list field as a list. It names
-them in the Uses of the other two. This item is built once the draft is accepted.
+The rules the copies keep are those of the artifacts' schemas, which MOD-documents owns, and both modules already use it.
+- MOD-issue-handling's Uses name `MOD-documents.artifactSchemas`, `readDocument` and `Document`
+  (MOD-issue-handling.md:26-28); MOD-maintenance-pages' name `artifactSchemas` and `readDocument`
+  (MOD-maintenance-pages.md:31-33).
+- `artifactSchemas` gives the schemas of an item and a module, with their path patterns, and `readDocument` reads a file
+  of such a schema into a `Document`, its list fields read by the schema (MOD-documents.md:267-269, :307-308).
+- So both modules read the items and module files through these, and their hand-written paths, list splits and
+  identifier patterns go. MOD-work-plans gains nothing and does not change.
 
 ## Acceptance
 
-- Once the draft is accepted: the two modules read these through MOD-work-plans' interface, and their own copies go. The
-  existing tests of the three modules pass unchanged.
-- Only the folders of the three modules and the tests that name them change.
+- The two modules read the backlog's items and the module files through MOD-documents' `readDocument` and
+  `artifactSchemas`, and keep no path rule, list split or item pattern of their own. The existing tests of both modules
+  pass unchanged.
+- Only the folders of the two modules and the tests that name them change.

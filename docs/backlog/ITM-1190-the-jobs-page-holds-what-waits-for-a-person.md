@@ -32,24 +32,15 @@ The accepted text, `docs/architecture/MOD-main-page.md`:
 stored, from the overview `latest.json` names (MOD-progress-measures' `latestOverview`), and derives it only where the
 branch `overview-cache` holds neither (MOD-main-page, the route `home`). Moving the list to `jobs` keeps that reading.
 
-**An open reading.** MOD-main-page's `jobs` names "the instance's own stored overview where there is one" and does not name
-`latestOverview`. Whether `jobs` takes the overview stored last while the head's is not stored, as the card does, is read
-at the start; where the text does not give it, the item stops for a draft to akmaier.
-
-## Not ready: a draft for akmaier
+## The reading of the accepted text
 
 MOD-main-page gives the route `jobs` "what waits for a person across the instance … (MOD-progress-measures'
 `waitingForAPerson`, from the instance's own stored overview where there is one)" (MOD-main-page.md:130-131). UC-036
-step 2 shows what waits "across the instance", and the instance holds its products. The texts do not settle three
-things:
-- how `jobs` reads what waits in each product: its stored overview, the one stored last, or its facts;
-- whether `jobs` takes the overview stored last (`latestOverview`) while the head's is not stored yet, as a card of
-  `home` does (MOD-main-page.md:119-121);
-- what it reads where no overview is stored.
-
-Reading "the instance's own stored overview" as every product's would add words the sentence does not hold (AGENTS.md
-§6a.7). So a draft of MOD-main-page.md says how `jobs` reads what waits in the instance and in each product, as the cards
-do. This item is built once the draft is accepted.
+step 2 shows what waits "across the instance", and the instance holds its products.
+- "Across the instance" covers the instance and each product it keeps. The parenthesis gives the instance's own list.
+- Each product's list is read as its card on `home` reads its overview today (MOD-main-page.md:119-121,
+  `src/main-page/home.mjs`): the overview stored for the head, else the one stored last, else `waitingForAPerson` of its
+  facts. So the list moves from `home` to `jobs` with the reading it has now, and no product's list is read in a new way.
 
 ## Acceptance
 

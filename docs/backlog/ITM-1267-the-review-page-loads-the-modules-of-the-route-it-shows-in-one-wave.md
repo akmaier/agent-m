@@ -103,14 +103,26 @@ moves is known only once the routes are split into stand-ins: a stand-in of the 
   fails only with the patch. A release test among them is changed by a participant who implemented none of the item.
 - Then the tests-only commit follows, with those changed expectations, red there.
 
-## Not ready: a draft for akmaier
+## The reading of the accepted text
 
-MOD-site-frame's `Route` has `render` as a member every route has (MOD-site-frame.md:156-162). A stand-in in `View.routes`
-must therefore still render, and its `subject`, `leave` and `unsaved` must answer before its file is loaded.
-- No module states the one function that writes such a stand-in. Writing it in each of the six views would keep one rule
-  in six copies.
-- The draft gives MOD-site-frame that function, and each view's Uses name it. It also states what `leave` and `unsaved`
-  answer for a route not yet loaded.
-- The item names the time of its CI job against the two-minute limit before it is selected again. The patch of sprint
-  team1/120 took `tests/site-frame-preloads.test.mjs` from 2.5 s to 28 s alone.
-- The ruling and the patch's measurements stand in `docs/backlog/sprints/team1/120.md`, "ITM-1267's stop".
+Two sentences of MOD-site-frame hold together.
+- "A route that names `module` is drawn from the route that `module` gives: its `name`, `entry`, `entryShown` and
+  `title` stand in the view module, and the frame imports the rest when the route is first shown, embedded or asked for
+  its subject" (MOD-site-frame.md:181-185).
+- `Route` has `render` as a member every route has; `subject`, `leave`, `unsaved` and `module` are optional
+  (MOD-site-frame.md:155-162).
+
+Sprint team1/120's stop ("ITM-1267's stop", `docs/backlog/sprints/team1/120.md`) found 204 test files failing with a
+stand-in that has no `render`. Those tests render a route of `view.routes`, which uses `Route` as accepted. So the reading
+must keep `render`:
+- Each stand-in carries `render`, and `subject` where its route has one. Each imports the route's file through `module`,
+  once, and calls the route's own. No function of MOD-site-frame writes the stand-ins, and no view's Uses change.
+- `leave` and `unsaved` are given by the route the frame shows, which it has imported by then. A stand-in gives neither,
+  and "a route that gives none holds none" (:162).
+- Sprint 120's stop read these delegations, one in each of the six views, as one rule kept six times. The architecture
+  states the stand-in once, at :181-185; each view writing its own stand-ins is that one rule followed, not a second
+  copy of it.
+
+Before selection, the planning stand-in shows whether this reading answers the type: with it, the tests that render a
+route of `view.routes` keep passing. The time of its CI job is named against the two-minute limit (`A PULL REQUEST'S CI
+RUNS WITHIN TWO MINUTES`): the patch of sprint 120 took `tests/site-frame-preloads.test.mjs` from 2.5 s to 28 s alone.
