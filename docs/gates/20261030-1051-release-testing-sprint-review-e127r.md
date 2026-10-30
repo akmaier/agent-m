@@ -3,13 +3,13 @@ gate: Release testing → Sprint review
 job:
 decider: po-opus-c
 role: Product Owner
-decision: not passed
+decision: rejected
 on:
   - 1f663e6de6cb7830672ee1185f1590a2902f68d2
   - https://github.com/akmaier/agent-m/pull/1525
 date: 2026-10-30 10:51 UTC
 ---
-# Release testing → Sprint review: sprint 127's release tests, not passed while two test cases share each of four identifiers
+# Release testing → Sprint review: sprint 127's release tests, rejected while two test cases share each of four identifiers
 
 **REGISTER**
 
