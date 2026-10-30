@@ -158,8 +158,7 @@ test("TST-677004: queues on a server that serves no /graphql gives the same queu
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-019
 // given: the product of TST-677001, 2 of its 60 queues open, and the reader's token
 // input: the recipe `spec-with-queues` of specStrategies on the snapshot, as a change-requirements job prepares its input
-// expect: the part "SPEC.md with its open queues"; SPEC.md read first, on its own; then only POST https://api.github.com/graphql — 100 and 20 files as `queues` reads them
-//   (SPEC.md, its target, is held already), then the 2 open proposals in one more batch, which holds 1 file since both proposals are the same text —; no proposal read on its own
+// expect: the part "SPEC.md with its open queues"; SPEC.md read first, on its own; then only POST https://api.github.com/graphql — 100 and 20 files as `queues` reads them (SPEC.md, its target, is held already), then the 2 open proposals in one more batch, which holds 1 file since both proposals are the same text —; no proposal read on its own
 test("TST-1302017: spec-with-queues reads the open proposals in one batch, none on its own", async () => {
   const { specStrategies } = await import("../src/spec-changes/index.mjs");
   const fake = fakeGitHub();

@@ -55,8 +55,7 @@ function snapshotOf() {
 // guards: OPEN PROPOSALS ARE SHOWN IN THE BROWSER; STATUS IS DERIVED FROM THE RECORDS; UC-006
 // given: the product above — the queue 2026-03-02_mine (01 open, 02 approved by a record) and the queue 2026-03-01_other
 // input: queueAt(snapshot, "docs/spec-freigaben/2026-03-02_mine"), imported from the module's interface
-// expect: the queue that queues gives for that folder, equal in every field (entry 01 open, entry 02 approved with its record); the paths read are the queue's own files, SPEC.md and the
-//         record — no file of 2026-03-01_other; counter-proof: queues itself reads 2026-03-01_other/index.md (the log sees another queue's read)
+// expect: the queue that queues gives for that folder, equal in every field (entry 01 open, entry 02 approved with its record); the paths read are the queue's own files, SPEC.md and the record — no file of 2026-03-01_other; counter-proof: queues itself reads 2026-03-01_other/index.md (the log sees another queue's read)
 test("queueAt gives the queue queues gives for its folder, reading only its files and what its entries name", async () => {
   assert.equal(typeof changes.queueAt, "function", "queueAt is in MOD-spec-changes' interface");
   const all = snapshotOf();

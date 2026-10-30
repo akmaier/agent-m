@@ -55,9 +55,7 @@ test("scheduleView counts the declarations of each level and those that call a p
 // guards: THE TEST SCHEDULE IS DECLARED PER PRODUCT; A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-027
 // given: the facts of TST-1265001 (four tests); a branch overview-cache that holds nothing for ccc…c; one that holds ccc…c.json and the views of the progress and the backlog but not the schedule's; and one that holds all four files of ccc…c
 // input: publishOverview(host, snapshot, facts) to each
-// expect: the first: { written: true } by one commit that holds ccc…c.json, ccc…c.progress.json.gz, ccc…c.backlog.json.gz, ccc…c.schedule.json.gz and latest.json, the schedule's file
-//         gzipped JSON equal to scheduleView of the facts; the second: { written: true } by one commit that holds ccc…c.schedule.json.gz and latest.json and no other file; the third:
-//         { written: false } and no commit
+// expect: the first: { written: true } by one commit that holds ccc…c.json, ccc…c.progress.json.gz, ccc…c.backlog.json.gz, ccc…c.schedule.json.gz and latest.json, the schedule's file gzipped JSON equal to scheduleView of the facts; the second: { written: true } by one commit that holds ccc…c.schedule.json.gz and latest.json and no other file; the third: { written: false } and no commit
 test("publishOverview adds the schedule's view of the commit in its one commit, and leaves it where the branch holds it", async () => {
   const given = facts({ tests: TESTS });
   const empty = hostOver([]);

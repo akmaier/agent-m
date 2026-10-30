@@ -628,9 +628,7 @@ const COMMIT = "c".repeat(40), OVERVIEW_HEAD = "0".repeat(39) + "1";
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the fixture product with a test file
 // input: productFacts(…, { scope: "build" }); and, as a known positive, the same product with the scope "all"
-// expect: the product's files read are exactly the four backlog items, the job record, the change queue (its index and decisions files, and the SPEC.md they stand against), the declaration docs/process.md and the gate record —
-// no use case, no decision or module file, no test file, no sprint, no role assignment; the host is asked repositoryInfo, readSnapshot("main") and listPullRequests, and nothing else (no tags, no test-results, no containsCommit);
-// instanceAt is asked once, for the commit the declaration names, and the instance's docs/participants.md is not read. The scope "all" reads the test file too
+// expect: the product's files read are exactly the four backlog items, the job record, the change queue (its index and decisions files, and the SPEC.md they stand against), the declaration docs/process.md and the gate record — no use case, no decision or module file, no test file, no sprint, no role assignment; the host is asked repositoryInfo, readSnapshot("main") and listPullRequests, and nothing else (no tags, no test-results, no containsCommit); instanceAt is asked once, for the commit the declaration names, and the instance's docs/participants.md is not read. The scope "all" reads the test file too
 test("TST-940001 productFacts, scope build — reads the plan or backlog, the job records, the pull requests, the change queues and the gate records, and no use case, decision, test or other file", async () => {
   const f = fixture({ files: withTests() });
   const facts = await build(f);
@@ -723,8 +721,7 @@ function gatedFiles() {
 // guards: STATUS IS DERIVED FROM THE RECORDS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: a product with a plan whose step ITM-010 (UC-001 accepted) is in the phase Sprint Review, a job queued for it, and no record of the gate "Development → Sprint Review", which stands before that phase
 // input: productFacts(…, { scope: "build" }) and productFacts(…, { scope: "all" }); buildInProgress of each
-// expect: ITM-010 is "waiting" in both, the reason naming the gate "Development → Sprint Review", decided by Product Owner; buildInProgress gives [] in both — a step a gate holds back is not in the build; with the gate record present
-// (known positive) ITM-010 is "in progress" in both and buildInProgress lists it
+// expect: ITM-010 is "waiting" in both, the reason naming the gate "Development → Sprint Review", decided by Product Owner; buildInProgress gives [] in both — a step a gate holds back is not in the build; with the gate record present (known positive) ITM-010 is "in progress" in both and buildInProgress lists it
 test("TST-940009 a step a gate holds back is not in the build, in the scope build as in the scope all", async () => {
   const both = async (files) => {
     const every = fixture({ files });
@@ -772,11 +769,7 @@ const allFacts = async (files) => { const f = fixture({ files }); return product
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the fixture product read with the scope "all" at the commit ccc…c; a repository whose branch overview-cache holds no file for that commit
 // input: publishOverview(host, snapshot, facts)
-// expect: { commit: "ccc…c", written: true }; exactly one commitFiles, on the branch "overview-cache", expectedHead the branch's head 00…01, five files: `ccc…c.json`, then the views of the progress and the backlog
-// page (ITM-1260; their content is TST-1260011's) and of the schedule page (ITM-1265; its content is TST-1265002's), then latest.json (TST-940010's); `ccc…c.json`'s text is the JSON
-// { commit, shares, waiting, model, build, queues } and a line end — shares the six stages in their order, waiting what waitingForAPerson gives, whose first two entries are UC-002 (open) and the open SPEC change entry;
-// model the name of the facts' model or null; build { states, records } of the steps in progress that a job works on, with those jobs' records as the snapshot reads them; queues the facts' queues with an entry
-// not in the SPEC — and no other file
+// expect: { commit: "ccc…c", written: true }; exactly one commitFiles, on the branch "overview-cache", expectedHead the branch's head 00…01, five files: `ccc…c.json`, then the views of the progress and the backlog page (ITM-1260; their content is TST-1260011's) and of the schedule page (ITM-1265; its content is TST-1265002's), then latest.json (TST-940010's); `ccc…c.json`'s text is the JSON { commit, shares, waiting, model, build, queues } and a line end — shares the six stages in their order, waiting what waitingForAPerson gives, whose first two entries are UC-002 (open) and the open SPEC change entry; model the name of the facts' model or null; build { states, records } of the steps in progress that a job works on, with those jobs' records as the snapshot reads them; queues the facts' queues with an entry not in the SPEC — and no other file
 test("TST-940004 publishOverview adds <commit>.json with the stage shares, what waits, the model, the build and the undecided queues, on the head it read", async () => {
   const facts = await allFacts(withTests());
   const host = overviewHost(overviewBranch());
@@ -859,8 +852,7 @@ test("TST-940007 storedOverview gives null for a missing branch or file and for 
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the fixture product read with the scope "all" at the commit ccc…c; a branch overview-cache that holds no file for it; and one that holds ccc…c.json
 // input: publishOverview to each
-// expect: the first commit holds, last, latest.json whose text is {"commit":"ccc…c"} and a line end; the second — whose branch holds the overview and the three views (ITM-1260, ITM-1265) — sends no commit and gives
-//         written false, so latest.json is written only with an overview's files
+// expect: the first commit holds, last, latest.json whose text is {"commit":"ccc…c"} and a line end; the second — whose branch holds the overview and the three views (ITM-1260, ITM-1265) — sends no commit and gives written false, so latest.json is written only with an overview's files
 test("TST-940010 publishOverview writes latest.json naming its commit with the files it adds, and not when it adds none", async () => {
   const facts = await allFacts(withTests());
   const latest = `${JSON.stringify({ commit: COMMIT })}\n`;
@@ -979,8 +971,7 @@ test("TST-1175001 productFacts gives itemStates the accepted SPEC requirements w
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the fixture product with a SPEC rule, a test file and a job record, read with the scope "all" at the commit ccc…c; a branch overview-cache that holds no file for it
 // input: publishOverview(host, snapshot, facts)
-// expect: { commit, written: true }; one commitFiles whose files are exactly `ccc…c.json`, the three views of the commit (ITM-1260, ITM-1265) and latest.json — no path ends in `.facts.json`; counter-proof: the overview
-//         `ccc…c.json` and latest.json are still added
+// expect: { commit, written: true }; one commitFiles whose files are exactly `ccc…c.json`, the three views of the commit (ITM-1260, ITM-1265) and latest.json — no path ends in `.facts.json`; counter-proof: the overview `ccc…c.json` and latest.json are still added
 test("TST-1117009 publishOverview adds no <commit>.facts.json, and still adds <commit>.json and latest.json", async () => {
   const facts = await allFacts(storedFiles());
   const host = overviewHost(overviewBranch());
@@ -995,8 +986,7 @@ test("TST-1117009 publishOverview adds no <commit>.facts.json, and still adds <c
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the fixture product whose default branch's snapshot has a readOn that counts every call and serves, on overview-cache, a facts file of the old format 1 that lists nothing; and the same product without readOn
 // input: productFacts with the scope "all", "work" and "build" for each (the scope "now" is withdrawn, ITM-1260)
-// expect: in each scope, readOn is asked for no path ending in `.facts.json` and `read` reads none; the facts equal those of the product without readOn (the snapshot aside), the four backlog items among them, so the
-//         planted file is not taken; known positive: the counter records a readOn of `ccc…c.facts.json` when one is made
+// expect: in each scope, readOn is asked for no path ending in `.facts.json` and `read` reads none; the facts equal those of the product without readOn (the snapshot aside), the four backlog items among them, so the planted file is not taken; known positive: the counter records a readOn of `ccc…c.facts.json` when one is made
 test("TST-1117010 productFacts asks for no <commit>.facts.json in any scope, and reads its facts from the files", async () => {
   for (const scope of ["all", "work", "build"]) {
     const counted = plantedOn(storedFiles());

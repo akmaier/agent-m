@@ -53,8 +53,7 @@ function fakeHost({ held = {}, missing = false, moves = false } = {}) {
 // guards: THE TRACEABILITY MATRIX IS DERIVED; A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: a fake host whose branch trace-cache stands at 1111… and holds no file of the commit; a snapshot of the small repository at abcdef…
 // input: publishGraph(host, snapshot)
-// expect: { commit: "abcdef…", written: true }; one commitFiles on branch "trace-cache" with expectedHead "1111…" and one file "abcdef….json.gz" whose bytes (a Uint8Array, no text) gunzip to graphText of the graph built
-//         from the files, which graphFromText restores for that commit, and "latest.json" beside it (TST-1302015); a message that names the commit
+// expect: { commit: "abcdef…", written: true }; one commitFiles on branch "trace-cache" with expectedHead "1111…" and one file "abcdef….json.gz" whose bytes (a Uint8Array, no text) gunzip to graphText of the graph built from the files, which graphFromText restores for that commit, and "latest.json" beside it (TST-1302015); a message that names the commit
 test("publishGraph adds the graph of the commit to the head of trace-cache it read", async () => {
   const { host, state } = fakeHost();
   const built = await trace.traceGraph({ paths: snapshot.paths, read: snapshot.read }, { commit: COMMIT });
@@ -113,8 +112,7 @@ test("publishGraph fails with NotFound naming the branch when the repository has
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: (a) a fake host whose branch trace-cache holds a latest.json naming another commit and no file of abcdef…; (b) a branch that holds abcdef….json.gz already and the same latest.json
 // input: publishGraph(host, snapshot) on each
-// expect: (a) the one commitFiles adds "abcdef….json.gz" and writes "latest.json" as the text {"commit":"abcdef…"} and a line end, in the same commit; (b) no commitFiles: latest.json still names the other
-//         commit — a graph that is not added does not move latest.json (the counter-proof of (a))
+// expect: (a) the one commitFiles adds "abcdef….json.gz" and writes "latest.json" as the text {"commit":"abcdef…"} and a line end, in the same commit; (b) no commitFiles: latest.json still names the other commit — a graph that is not added does not move latest.json (the counter-proof of (a))
 test("publishGraph writes latest.json naming the commit in the commit that adds its graph, and leaves it where it adds nothing", async () => {
   const other = '{"commit":"9999999999999999999999999999999999999999"}\n';
   const adding = fakeHost({ held: { "latest.json": other } });

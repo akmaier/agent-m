@@ -36,9 +36,7 @@ const fileOf = (commits, path) => commits[0].files.find((file) => file.path === 
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: facts with every field unread or empty at the commit ccc…c; a branch overview-cache that holds nothing for it, and one that holds all four of its files
 // input: publishOverview(host, snapshot, facts) to each
-// expect: the first: { written: true }, one commit on overview-cache at the head it read holding exactly ccc…c.json, ccc…c.progress.json.gz, ccc…c.backlog.json.gz,
-//         ccc…c.schedule.json.gz (ITM-1265) and latest.json,
-//         the two views gzipped JSON equal to progressView and backlogView of the facts, latest.json naming ccc…c; the second: { written: false } and no commit
+// expect: the first: { written: true }, one commit on overview-cache at the head it read holding exactly ccc…c.json, ccc…c.progress.json.gz, ccc…c.backlog.json.gz, ccc…c.schedule.json.gz (ITM-1265) and latest.json, the two views gzipped JSON equal to progressView and backlogView of the facts, latest.json naming ccc…c; the second: { written: false } and no commit
 test("publishOverview adds the overview and the views of the commit and latest.json in one commit, and nothing where the branch holds all four", async () => {
   const given = facts();
   const empty = hostOver([]);
@@ -67,8 +65,7 @@ const zipped = (value) => new Uint8Array(gzipSync(JSON.stringify(value)));
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: overview-cache holding ccc…c's progress view; one holding no view of ccc…c, latest.json naming 0c0c…0c and 0c0c…0c's progress view; one holding nothing; and one whose ccc…c backlog view is JSON of another format (no rows), with no latest.json
 // input: storedView(snapshot, "progress") on the first three, storedView(snapshot, "backlog") on the last
-// expect: the first: the view and asOf null, by one readOn of ccc…c.progress.json.gz as bytes; the second: 0c0c…0c's view and asOf 0c0c…0c, by three readOns — ccc…c's view,
-//         latest.json, 0c0c…0c's view —; the third: null; the last: null
+// expect: the first: the view and asOf null, by one readOn of ccc…c.progress.json.gz as bytes; the second: 0c0c…0c's view and asOf 0c0c…0c, by three readOns — ccc…c's view, latest.json, 0c0c…0c's view —; the third: null; the last: null
 test("storedView reads the head's view in one request, the view latest.json names in three, and null where none is stored or one holds another format", async () => {
   const own = { commit: COMMIT, teams: [{ team: "team1", sprint: null }] };
   const head = served({ [`${COMMIT}.progress.json.gz`]: zipped(own) });

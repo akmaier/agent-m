@@ -96,8 +96,7 @@ function jobOf({ close = CLOSE, files = productFiles(), params = { sprint: "team
 // guards: UC-041; A SPRINT ENDS WITH A REVIEW OF ITS INCREMENT; A SPRINT ENDS WITH A RETROSPECTIVE
 // given: the fixture product, the sprint team1/01 (ITM-001 merged, ITM-002 in progress) and a clean close that decides ITM-002 and has a retrospective
 // input: the writer sprint-record
-// expect: one commit on the default branch, at the snapshot's head, of the sprint's record alone; the record keeps what it had and gains `## Review` (the increment ITM-001 merged with pull request 1, ITM-002 not done), `## Unfinished items`
-//         and `## Retrospective`; the outcome names the commit and the file, a pull request is none, nothing is shown
+// expect: one commit on the default branch, at the snapshot's head, of the sprint's record alone; the record keeps what it had and gains `## Review` (the increment ITM-001 merged with pull request 1, ITM-002 not done), `## Unfinished items` and `## Retrospective`; the outcome names the commit and the file, a pull request is none, nothing is shown
 // Planted fault: writing the review without the facts leaves the increment out; committing a second file, or on another head, changes the request.
 test("the writer closes the sprint through closeSprint: one commit of the record, with the facts' increment and the retrospective", async () => {
   const job = jobOf();
@@ -120,8 +119,7 @@ test("the writer closes the sprint through closeSprint: one commit of the record
 // guards: UC-041; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the same product; the recipe sprint-facts run on the same job for the same sprint; a close that decides no unfinished item
 // input: the writer
-// expect: the facts the writer uses are the recipe's: the writer's review names every item of the recipe's increment with its pull request, and it refuses the close with Undecided naming exactly the items the recipe's facts hold as not done
-//         (ITM-002), writing nothing
+// expect: the facts the writer uses are the recipe's: the writer's review names every item of the recipe's increment with its pull request, and it refuses the close with Undecided naming exactly the items the recipe's facts hold as not done (ITM-002), writing nothing
 // Planted fault: facts computed another way (every item of the backlog, or none) change the increment or the refused items.
 test("the facts are the recipe's: the review lists its increment, and Undecided names what the recipe holds as not done", async () => {
   const job = jobOf();
@@ -137,8 +135,7 @@ test("the facts are the recipe's: the review lists its increment, and Undecided 
 // guards: UC-041; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
 // given: the job JOB-20261019-0900-ab12 of the kind close-sprint, drafted by the participant closer-bot of model-x after two rounds, run from Agent M's commit aaaa…
 // input: the writer
-// expect: the commit's message names the sprint and ends with the provenance lines of provenanceLines for this job — the Agent M version and commit, the job, the kind close-sprint, the participant closer-bot, its model and 2 rounds —
-//         so that the closer's name stands in the commit
+// expect: the commit's message names the sprint and ends with the provenance lines of provenanceLines for this job — the Agent M version and commit, the job, the kind close-sprint, the participant closer-bot, its model and 2 rounds — so that the closer's name stands in the commit
 // Planted fault: trailers left out, or those of another job or participant, change the message.
 test("the commit's message carries the job's provenance lines, with the closer's name", async () => {
   const job = jobOf();
@@ -154,8 +151,7 @@ test("the commit's message carries the job's provenance lines, with the closer's
 // guards: UC-041; A SPRINT ENDS WITH A RETROSPECTIVE; AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF
 // given: a close with a proposal for the process model in its retrospective; a close without a retrospective; a sprint whose record already holds `## Review`
 // input: the writer on each
-// expect: the proposal stands in the record as a line of the retrospective ("change, to process model: …") and no other file of the product is written — docs/process.md is not in the commit; the close without a retrospective is refused with
-//         RetrospectiveMissing, the closed sprint with AlreadyClosed, and nothing is committed in either case
+// expect: the proposal stands in the record as a line of the retrospective ("change, to process model: …") and no other file of the product is written — docs/process.md is not in the commit; the close without a retrospective is refused with RetrospectiveMissing, the closed sprint with AlreadyClosed, and nothing is committed in either case
 // Planted fault: writing the proposal into docs/process.md, or committing before the refusal, changes the files or the commits.
 test("a proposal of the retrospective stays a proposal, and a close that closeSprint refuses writes nothing", async () => {
   const proposing = jobOf({ close: { ...CLOSE, retrospective: [{ text: "Add a review gate", kind: "change", goes: "process model" }] } });
