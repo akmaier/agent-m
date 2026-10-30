@@ -83,7 +83,7 @@ test("TST-433801: every requirement UC-037 realises has a release case, and the 
 // guards: UC-037; A MAILBOX IS REACHED THROUGH ITS PROVIDER'S WEB API OR THROUGH THE BRIDGE
 // given: the Bridges lab-pc (this computer) and gpu-box (through the jump host), both the composed Bridge; Microsoft's sign-in service knows contoso-uni.example
 // input: three connections stored and tested in turn: reports@contoso-uni.example on the route the page preselects; me@gmail.com on the route the page preselects, through gpu-box, its servers set to the local mail servers; reports@example.org through lab-pc
-// expect: the Microsoft 365 mailbox is on the route graph and is tested through Microsoft Graph with no request to a Bridge; Gmail's is on the route imap with Gmail's servers preset, and its test goes to gpu-box through the jump host and to no request at lab-pc's address; the other mailbox's test goes to lab-pc's address and not to gpu-box
+// expect: the Microsoft 365 mailbox is on the route graph and is tested through Microsoft Graph with no request to a Bridge but the prompt bar's test of the Bridges it keeps (GET /v1/pair, GET /v1/agents); Gmail's is on the route imap with Gmail's servers preset, and its test goes to gpu-box through the jump host and to no request at lab-pc's address; the other mailbox's test goes to lab-pc's address and not to gpu-box
 test("TST-433802: a Microsoft 365 mailbox is reached through Graph, a Gmail and any other mailbox through the Bridge its connection names", async () => {
   const p = await openDashboard();
   try {
@@ -92,7 +92,10 @@ test("TST-433802: a Microsoft 365 mailbox is reached through Graph, a Gmail and 
     assert.equal(one(page, "mailbox-route").value, "graph");
     assert.match(await storeAndTest(p), /through Microsoft Graph/);
     assert.ok(p.graph.requests.length > 0, "known positive: Graph was asked");
-    assert.deepEqual(p.requests.filter((request) => request.origin === p.bridge.address || request.origin === JUMP), [], "no Bridge was asked for the Microsoft 365 mailbox");
+    // The prompt bar tests each Bridge this browser keeps when a page is drawn (testBridge: GET /v1/pair and GET /v1/agents); any other request to a Bridge would be a mailbox request.
+    await waitFor(() => p.requests.some((request) => (request.origin === p.bridge.address || request.origin === JUMP) && /\/v1\/pair$/.test(request.address)), "the prompt bar tested the Bridges");
+    assert.ok(p.requests.some((request) => (request.origin === p.bridge.address || request.origin === JUMP) && /\/v1\/(pair|agents)$/.test(request.address)), "known positive: the prompt bar tested the Bridges this browser keeps");
+    assert.deepEqual(p.requests.filter((request) => (request.origin === p.bridge.address || request.origin === JUMP) && !/\/v1\/(pair|agents)$/.test(request.address)), [], "no Bridge was asked for the Microsoft 365 mailbox but by the prompt bar's test");
     let mark = p.requests.length;
     await put(one(page, "mailbox-address"), "me@gmail.com");
     assert.deepEqual([one(page, "mailbox-route").value, one(page, "mailbox-imap-host").value, one(page, "mailbox-smtp-host").value], ["imap", "imap.gmail.com", "smtp.gmail.com"]);
