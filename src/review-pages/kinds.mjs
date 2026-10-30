@@ -17,18 +17,23 @@ const explain = { list: "accepting", all: "accepting", one: "accepting", changed
 // for a kind whose file names what it rests on, the use cases and the SPEC, which tell what of that is accepted. Every page of the entries of a change
 // queue reads the SPEC, whose sections they would replace, and the product's links file and the register, whose sources their requirements name
 // and an acceptance checks. Drafting, the history and an editor read across the repository: they name no folders, and are given the whole tree.
-const READ = { approvals: "docs/approvals", groups: "docs/groups", jobs: "docs/jobs", useCases: "docs/use-cases", spec: "SPEC.md" };
+// The pages of the use cases also read what an Accept that checks which modules the use cases change (`affected`) reads when the page is drawn, so that the page reads
+// its commit once: the product's declaration of its process, its SPEC and architecture, which the job's parts give; and, on the instance's own page, the instance's
+// catalogue of models — its own and the shipped ones, which MOD-model-catalogue reads at their paths in the instance — and its AGENTS.md, which the job's input begins with.
+const READ = { approvals: "docs/approvals", groups: "docs/groups", jobs: "docs/jobs", useCases: "docs/use-cases", spec: "SPEC.md", process: "docs/process.md",
+  architecture: "docs/architecture", models: "docs/process-models", shipped: "src/model-catalogue", rules: "AGENTS.md" };
 const listOf = (folder) => [folder, READ.approvals, READ.groups];
-const USE_CASE_LIST = listOf(READ.useCases), ARCHITECTURE_LIST = listOf("docs/architecture");
+const USE_CASE_LIST = [...listOf(READ.useCases), READ.process, READ.spec, READ.architecture, READ.models, READ.shipped, READ.rules], ARCHITECTURE_LIST = listOf(READ.architecture);
 const RESTS_ON = [READ.useCases, READ.spec];
 const SPEC_READS = [READ.spec, ...listOf("docs/spec-freigaben"), "docs/sources.md", "docs/sources"];
 
 // `whole` marks the kind whose Review all is the review page of the whole architecture: the kinds of the files it shows together.
 // `restsOn` marks a kind whose file names what it rests on (a decision its forces, a module what it realises): its page shows the
 // section of what is not accepted yet, and offers no Accept while there is any.
+// `affected` marks the kind whose Accept, in a product whose model pulls its work, has a participant check which modules each file accepted changes (affected-modules.mjs).
 export const USE_CASES = { kind: "use-case", route: "use-case", entry: "use-cases", title: "Use cases", plural: "use cases", noun: "use case",
   heading, explain: { ...explain, draft: { requirements: "requirements-to-cover", participant: "drafting-participant", panel: "run-panel", loop: "correction-loop",
-    written: "drafted-use-cases", ci: "ci-agent-draft" } }, draft: "derive-use-cases", save: "file",
+    written: "drafted-use-cases", ci: "ci-agent-draft" } }, draft: "derive-use-cases", save: "file", affected: true,
   change: { kind: "change-use-case", parameter: "useCase" },
   folders: { list: USE_CASE_LIST, all: USE_CASE_LIST, file: [...USE_CASE_LIST, READ.jobs] } };
 export const DECISIONS = { kind: "architecture-decision", route: "decision", entry: "architecture", title: "Architecture decisions",
