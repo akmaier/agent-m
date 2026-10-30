@@ -65,12 +65,12 @@ const offeredBy = (s) => {
   return all(barOf(s), "span", "participant").map((node) => node.textContent);
 };
 
-// TST-1187101 · level: release · module: MOD-prompt-bar
+// TST-1187201 · level: release · module: MOD-prompt-bar
 // guards: UC-049; THE PAGE NAMES WHERE IT SENDS; THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE
 // given: this browser keeps the Bridge release-bridge, a real Bridge that lists claude, codex and opencode ready and gemini not ready, and declares the sessions claude (place "this machine") and gemini (place "this machine"); known positive first — the Bridge answers a request
 // input: the page opened with the bar, before any message is written
 // expect: known positive — the Bridge received requests, each with the pairing token; drawing the bar sent it exactly GET /v1/pair and GET /v1/agents, and nothing more; the bar's selector names exactly "release-bridge:claude — this machine": the ready agent that is declared, with its place, and neither gemini (declared, not ready) nor codex and opencode (ready, declared nowhere); no message was sent
-test("TST-1187101: UC-049 1 the bar names a declared CLI session of a Bridge that lists it ready, with its place, before Send", async (t) => {
+test("TST-1187201: UC-049 1 the bar names a declared CLI session of a Bridge that lists it ready, with its place, before Send", async (t) => {
   const { s, seen, bridge } = await barOn(t, { "session:release-bridge:claude": session(), "session:release-bridge:gemini": session() });
   assert.ok(seen.length > 0, "known positive: the Bridge was reached");
   assert.deepEqual(seen.map((request) => `${request.method} ${request.path}`), ["GET /v1/pair", "GET /v1/agents"], "drawing the bar sends testBridge's two requests and nothing more");
@@ -79,12 +79,12 @@ test("TST-1187101: UC-049 1 the bar names a declared CLI session of a Bridge tha
   assert.equal(s.endpointRequests.length + s.bridgeRequests.length, 0, "no message was sent");
 });
 
-// TST-1187102 · level: release · module: MOD-prompt-bar
+// TST-1187202 · level: release · module: MOD-prompt-bar
 // guards: UC-049; THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE
-// given: the Bridge of TST-1187101 listing claude, codex and opencode ready; the sessions codex (complete), claude with no place, opencode with a place and a context and no model; then the same with claude's place declared
+// given: the Bridge of TST-1187201 listing claude, codex and opencode ready; the sessions codex (complete), claude with no place, opencode with a place and a context and no model; then the same with claude's place declared
 // input: the page opened with the bar
 // expect: the selector names exactly "release-bridge:codex — this machine": claude, which lacks a place, and opencode, which lacks a model, are not offered and are named nowhere in the bar; counter-proof — with claude's place declared the selector names claude and codex, in the order the Bridge lists them, each with its place
-test("TST-1187102: UC-049 1b a CLI session with no place, or with no model, is not offered; with its place declared it is", async (t) => {
+test("TST-1187202: UC-049 1b a CLI session with no place, or with no model, is not offered; with its place declared it is", async (t) => {
   const lacking = { "session:release-bridge:codex": session({ place: "NHR@FAU, Erlangen" }), "session:release-bridge:claude": session({ place: "" }), "session:release-bridge:opencode": { place: "this machine", context: 200000, capabilities: CAPABILITIES } };
   const { s, seen, close } = await barOn(t, lacking);
   assert.ok(seen.length > 0, "known positive: the Bridge was reached, so the others are lacking and not unlisted");
@@ -96,12 +96,12 @@ test("TST-1187102: UC-049 1b a CLI session with no place, or with no model, is n
   assert.deepEqual(offeredBy(complete.s), ["release-bridge:claude — this machine", "release-bridge:codex — NHR@FAU, Erlangen"], "counter-proof: claude with its place is offered");
 });
 
-// TST-1187103 · level: release · module: MOD-prompt-bar
+// TST-1187203 · level: release · module: MOD-prompt-bar
 // guards: UC-049; THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE
 // given: the instance's participant list holds listed-llm, a CLI agent at "this machine" whose route is the Bridge release-bridge's agent claude, which this browser reaches, and conversation recording is on, so that the draw reads one file of the instance; this browser declares the session release-bridge:codex only
 // input: the page opened with the bar
 // expect: known positive — the instance was asked for docs/conversation-recording.md when the bar was drawn, so that its reads are seen; the instance was never asked for docs/participants.md; the selector names "release-bridge:codex — this machine" alone and nowhere listed-llm
-test("TST-1187103: UC-049 1 the instance's participant list is not read for the bar, and a participant of it is not offered", async (t) => {
+test("TST-1187203: UC-049 1 the instance's participant list is not read for the bar, and a participant of it is not offered", async (t) => {
   const listed = ["# Participants of this instance", "", "**REGISTER**", "", "The participants of the test instance.", "",
     "| Name | Type | Model | Context | Price | Capabilities | Processing place | Route |", "|---|---|---|---|---|---|---|---|",
     "| listed-llm | CLI agent | listed-model | 200000 | — | draft text | this machine | bridge release-bridge agent claude |", ""].join("\n");
@@ -114,12 +114,12 @@ test("TST-1187103: UC-049 1 the instance's participant list is not read for the 
   assert.equal(s.product.writes.length + s.instance.writes.length, 0, "and nothing was written");
 });
 
-// TST-1187104 · level: release · module: MOD-prompt-bar
+// TST-1187204 · level: release · module: MOD-prompt-bar
 // guards: UC-049; UC-019; THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE
 // given: this browser keeps no Bridge and declares the endpoint drafter (place "this machine", context, model) and the endpoint no-place, which declares no place
 // input: the page opened with the bar
 // expect: the selector names exactly "drafter — this machine": the endpoint that lacks its place is not offered and is named nowhere in the bar; with no Bridge stored the draw sent no request to any Bridge; known positive — the endpoint no-place is stored in this browser
-test("TST-1187104: UC-049 1b an endpoint with no place is not offered, and with no Bridge stored drawing the bar sends no Bridge a request", async () => {
+test("TST-1187204: UC-049 1b an endpoint with no place is not offered, and with no Bridge stored drawing the bar sends no Bridge a request", async () => {
   const placeless = { kind: "openai-compatible", url: "https://fixture-endpoint.example.test/v1", model: "no-place-model", context: 200000 };
   const s = await scenario({ keepBridge: false, settings: { "endpoint:no-place": placeless } });
   assert.ok(Array.from({ length: globalThis.localStorage.length }, (_, at) => globalThis.localStorage.key(at)).some((key) => key.endsWith(":endpoint:no-place")), "known positive: the endpoint is stored");
