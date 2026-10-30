@@ -175,6 +175,7 @@ details.explain > div { margin-top: .5rem; padding: .6rem .8rem; background: var
 .reject textarea { display: block; box-sizing: border-box; width: 100%; min-height: 4.5rem; margin-top: .3rem; font: inherit; color: var(--fg);
   background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: .5rem; resize: vertical; }
 .accepted-diff .diff { max-height: 420px; overflow: auto; }
+.change-impact { max-height: 420px; overflow: auto; }
 
 @media (max-width: 599px) {
   .table-scroll { overflow-x: visible; }
