@@ -110,8 +110,7 @@ test("fix-inputs — the confirmed analysis states the violated requirement, the
 // guards: UC-012; AN IMPLEMENTATION JOB BEGINS WITH A FAILING TEST
 // given: the issue 1 and a job whose identifier is JOB-20261028-0900-a1b2; and the same recipe for a job whose identifier is not known and a confirmed analysis that names no requirement
 // input: the recipe with the parameters of TST-583001; then with the parameters issue 1 and modules [MOD-reader] and no job identifier
-// expect: the instruction says to write first a regression test that fails on the reported behaviour, that its fixtures hold invented data and never the reporter's, and to stop and ask if it passes before the change; it names the issue's address, the requirement A GUARDED RULE
-//   and the line `Job: JOB-20261028-0900-a1b2`; with no requirement and no job identifier it names neither (counter-proof)
+// expect: the instruction says to write first a regression test that fails on the reported behaviour, that its fixtures hold invented data and never the reporter's, and to stop and ask if it passes before the change; it names the issue's address, the requirement A GUARDED RULE and the line `Job: JOB-20261028-0900-a1b2`; with no requirement and no job identifier it names neither (counter-proof)
 test("fix-inputs — the instruction is to write the regression test first, with invented data only, and the pull request links the issue and the requirement", async () => {
   const full = textOf(await partsOf({ issue: 1, violated: RULE, wrong: ["src/reader/index.mjs"], modules: ["MOD-reader"] }), "regression test first");
   for (const sentence of [/Write first a regression test that fails on the reported behaviour/, /invented data/, /never the reporter's/, /stop and ask/, /https:\/\/github\.com\/acme\/product\/issues\/1/, new RegExp(RULE), /Job: JOB-20261028-0900-a1b2/]) {

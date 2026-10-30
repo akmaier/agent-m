@@ -106,9 +106,7 @@ const asOf = (target) => byClass(target, "as-of").map((node) => node.textContent
 // guards: OPEN PROPOSALS ARE SHOWN IN THE BROWSER; NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-006
 // given: the product's 66 queues (64 decided; 2026-10-20_mine with 01 in the SPEC and 02 open; 2026-10-19_other with 01 open, all on "## 1. Section"), the overview of the head stored, a token
 // input: the route spec-entry drawn with id=spec-2026-10-20_mine-02 (the page and its subject)
-// expect: the heading "2026-10-20_mine · entry 02", the badge open, the proposal beside the section that holds now, the link Edit to #spec-entry/id=spec-2026-10-20_mine-02/edit=1; among the
-//         other proposals spec-2026-10-19_other-01 and not the decided spec-2026-10-20_mine-01; no line As of; the queue files asked for are 2026-10-20_mine's index.md and entscheidungen.md and
-//         no other queue's; one request for the head's overview
+// expect: the heading "2026-10-20_mine · entry 02", the badge open, the proposal beside the section that holds now, the link Edit to #spec-entry/id=spec-2026-10-20_mine-02/edit=1; among the other proposals spec-2026-10-19_other-01 and not the decided spec-2026-10-20_mine-01; no line As of; the queue files asked for are 2026-10-20_mine's index.md and entscheidungen.md and no other queue's; one request for the head's overview
 test("spec-entry/<id> reads its own queue and one overview, and shows the other queue's open entry on its section", async () => {
   const world = await worldWith("head");
   const target = await drawn(world, entryRoute, { id: ENTRY });
@@ -127,8 +125,7 @@ test("spec-entry/<id> reads its own queue and one overview, and shows the other 
 // guards: OPEN PROPOSALS ARE SHOWN IN THE BROWSER; A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-018
 // given: the product of TST-1273101, the overview of the head stored, a token
 // input: the route requirement drawn with name=FIRST RULE (its editor)
-// expect: the other open proposals on its section are spec-2026-10-20_mine-02 and spec-2026-10-19_other-01, linked; not the decided 01 of 2026-10-20_mine; no line As of; no index.md or
-//         entscheidungen.md of any queue is asked for; one request for the head's overview
+// expect: the other open proposals on its section are spec-2026-10-20_mine-02 and spec-2026-10-19_other-01, linked; not the decided 01 of 2026-10-20_mine; no line As of; no index.md or entscheidungen.md of any queue is asked for; one request for the head's overview
 test("requirement/<name>/edit lists the other proposals from the overview and reads no queue's index", async () => {
   const world = await worldWith("head");
   const target = await drawn(world, editRoute, { name: "FIRST RULE" });
@@ -143,8 +140,7 @@ test("requirement/<name>/edit lists the other proposals from the overview and re
 // guards: OPEN PROPOSALS ARE SHOWN IN THE BROWSER; A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-006; UC-018
 // given: the product of TST-1273101 in two states of its branch overview-cache: only the overview of an older commit c0 stored, with latest.json naming it; no branch at all
 // input: in each state, the route spec-entry drawn with id=spec-2026-10-20_mine-02, and the route requirement drawn with name=FIRST RULE
-// expect: with c0's overview, both pages list spec-2026-10-19_other-01 and each shows the line "As of eeeeeee"; the entry's page asks for no other queue's files than 2026-10-20_mine's; with no
-//         branch, both list it, neither shows an As of line, and the entry's page asks for the index.md of every one of the 66 queues, as every queue is read today
+// expect: with c0's overview, both pages list spec-2026-10-19_other-01 and each shows the line "As of eeeeeee"; the entry's page asks for no other queue's files than 2026-10-20_mine's; with no branch, both list it, neither shows an As of line, and the entry's page asks for the index.md of every one of the 66 queues, as every queue is read today
 test("counter-proofs: with c0's overview only, the line As of; with no overview-cache, every queue as today", async () => {
   const older = await worldWith("older");
   const entryOlder = await drawn(older, entryRoute, { id: ENTRY });

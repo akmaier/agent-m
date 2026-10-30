@@ -398,8 +398,7 @@ const GATE_CHANGE = (name, rule) => candidate(name, { rule, check: "`tests/gate.
 // guards: A CHANGE IS PROPOSED UNDER THE EXISTING NAME; UC-005
 // given: a result with A BETTER NAME and A SECOND NAME, both classed as changes of A SAMPLE RULE of the product; and, to show the same call writing, the result with A BETTER NAME alone
 // input: the writer
-// expect: the one change is written (known positive: one commit to the product); both together reject with an error named TwoChanges, whose requirement is "A SAMPLE RULE" and whose candidates are ["A BETTER NAME", "A SECOND NAME"];
-//   the product's host and the instance's host take no commit
+// expect: the one change is written (known positive: one commit to the product); both together reject with an error named TwoChanges, whose requirement is "A SAMPLE RULE" and whose candidates are ["A BETTER NAME", "A SECOND NAME"]; the product's host and the instance's host take no commit
 test("queue-entries — two changes of one requirement are refused and nothing is written", async () => {
   const known = fixture();
   await writer(resultOf([CHANGE]), known.context);
@@ -414,8 +413,7 @@ test("queue-entries — two changes of one requirement are refused and nothing i
 // guards: A CHANGE IS PROPOSED UNDER THE EXISTING NAME; A REQUIREMENT NAMES WHAT IT CONSTRAINS
 // given: a result with a new requirement of the product and two candidates that constrain the process, each classed as a change of GATES ARE NAMED of the instance; and, to show the same call writing both queues, the result with one of the two
 // input: the writer
-// expect: with one process change the product's host and the instance's host take one commit each (known positive); with both, an error named TwoChanges whose requirement is "GATES ARE NAMED" and whose candidates are
-//   ["A JOB NAMES A GATE", "A JOB LISTS A GATE"], and neither host takes a commit: the product's queue, which could be written, is not written before the instance's refusal
+// expect: with one process change the product's host and the instance's host take one commit each (known positive); with both, an error named TwoChanges whose requirement is "GATES ARE NAMED" and whose candidates are ["A JOB NAMES A GATE", "A JOB LISTS A GATE"], and neither host takes a commit: the product's queue, which could be written, is not written before the instance's refusal
 test("queue-entries — two changes in the instance's SPEC leave the product's queue unwritten too", async () => {
   const first = GATE_CHANGE("A JOB NAMES A GATE", "A job names the gate it stops at.");
   const second = GATE_CHANGE("A JOB LISTS A GATE", "A job lists the gate it stops at.");
@@ -452,8 +450,7 @@ const GATE = candidate("A JOB NAMES A GATE", { rule: "A job names the gate it st
 // guards: A GENERATED ARTIFACT IS A PROPOSAL; A REQUIREMENT NAMES WHAT IT CONSTRAINS
 // given: a result with a new requirement of the product and a candidate that constrains the process; and, to show the same call writing, the same fixture with both hosts present
 // input: the writer, with the instance's host missing, then with the product's host missing, then with the instance's host missing and no candidate that constrains the process
-// expect: with both hosts, two commits, the product's first (known positive); with the instance's host missing, an error named NoHost and no commit to the product's host; with the product's host missing, an error named NoHost and no commit to the instance's host;
-//   with the instance's host missing and nothing for the instance to write, no error and one commit to the product's host
+// expect: with both hosts, two commits, the product's first (known positive); with the instance's host missing, an error named NoHost and no commit to the product's host; with the product's host missing, an error named NoHost and no commit to the instance's host; with the instance's host missing and nothing for the instance to write, no error and one commit to the product's host
 test("queue-entries — a repository without a host refuses before the other is written, and only when it gets a queue", async () => {
   const known = fixture();
   const outcome = await writer(resultOf([NEW, GATE]), known.context);
@@ -492,8 +489,7 @@ test("queue-entries — a commit the server refuses as moved comes after the fir
 // guards: A GENERATED ARTIFACT IS A PROPOSAL
 // given: a result with a new requirement of the product and a candidate that constrains the process, each snapshot and host wrapped to record the paths read and the host calls made
 // input: the writer
-// expect: the product's snapshot is read at SPEC.md twice and the use case once; the instance's at SPEC.md three times and at each of the three files of its open queue once; each host's repositoryInfo is called once; nothing else is read
-//   (the numbers are those of the writer before this change, measured on it)
+// expect: the product's snapshot is read at SPEC.md twice and the use case once; the instance's at SPEC.md three times and at each of the three files of its open queue once; each host's repositoryInfo is called once; nothing else is read (the numbers are those of the writer before this change, measured on it)
 test("queue-entries — the writer reads each file as often as before", async () => {
   const f = fixture();
   const reads = { product: [], instance: [] }, infos = { product: 0, instance: 0 };
@@ -524,8 +520,7 @@ const originOf = (rationale) => /\*\*Origin\.\*\* ([^\n]*)/.exec(rationale)?.[1]
 // guards: EVERY ARTIFACT NAMES ITS ORIGIN; UC-012
 // given: a job whose parameters carry the source SRC-fixture-book and the issue 12, with a new requirement of the product and one that constrains the process
 // input: the writer
-// expect: in both queues each rationale's origin names the source with its passage and "issue #12 of https://github.com/alice/product", and still reads without a finding in the schema queue-rationale;
-//   each index holds the line "**Issue:** #12 of https://github.com/alice/product" above the line "**Zieldatei aller Einträge:**"
+// expect: in both queues each rationale's origin names the source with its passage and "issue #12 of https://github.com/alice/product", and still reads without a finding in the schema queue-rationale; each index holds the line "**Issue:** #12 of https://github.com/alice/product" above the line "**Zieldatei aller Einträge:**"
 test("queue-entries — with the parameter issue, each rationale names the issue as its origin and each index holds the line Issue", async () => {
   const f = fixture();
   f.context.params = { source: "SRC-fixture-book", issue: 12 };

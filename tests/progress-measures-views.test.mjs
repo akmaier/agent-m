@@ -86,10 +86,7 @@ const plain = (value) => JSON.parse(JSON.stringify(value));
 // guards: PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE; UC-035; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: team1's sprint 03 runs since 2026-10-20 with ITM-001 (merged by pull request 1 at 2026-10-21T10:00Z) and ITM-002 (pull request 2 open, job JOB-20261021-0900-a1b2 working on it); team2's sprint 02 is closed; ITM-004 realises UC-099, which is not accepted, and no sprint selects it
 // input: progressView(facts, 2026-10-22T12:00Z)
-// expect: commit ccc…c, declared, the model fixture-scrum-wip with sprints and the limit 2; teams team1 and team2 in this order; team1's sprint team1/03 with its goal, start,
-//         closer, not final and endable, its items ITM-001 done changing MOD-store and ITM-002 in progress changing MOD-pages, and merges [{ item: ITM-001, at:
-//         2026-10-21T10:00:00.000Z }]; team2 with no sprint; gates as gateOverview gives them; blocked those of blocked(facts) among ITM-001 and ITM-002 alone — ITM-004, which
-//         blocked(facts) lists, is not among them —; who as whoWorksOnWhat gives it
+// expect: commit ccc…c, declared, the model fixture-scrum-wip with sprints and the limit 2; teams team1 and team2 in this order; team1's sprint team1/03 with its goal, start, closer, not final and endable, its items ITM-001 done changing MOD-store and ITM-002 in progress changing MOD-pages, and merges [{ item: ITM-001, at: 2026-10-21T10:00:00.000Z }]; team2 with no sprint; gates as gateOverview gives them; blocked those of blocked(facts) among ITM-001 and ITM-002 alone — ITM-004, which blocked(facts) lists, is not among them —; who as whoWorksOnWhat gives it
 test("progressView gives each team's running sprint with its items, their states and modules, and the merges of its done items", async () => {
   const facts = await factsOf();
   const view = measures.progressView(facts, NOW);
@@ -115,10 +112,7 @@ test("progressView gives each team's running sprint with its items, their states
 // guards: UC-032; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES
 // given: the same facts, the SPEC's requirements RULE ONE and RULE TWO among them, and the accepted use case UC-001
 // input: backlogView(facts, 2026-10-22T12:00Z)
-// expect: one row per item in the order of facts.plan.states, each with its path, title, what it realises and the state facts.plan.states gives it; ITM-002 held by team1/03 of
-//         team1 and kept from team2 by team1/03, which holds ITM-002; team1 running team1/03 with its selection ITM-001, ITM-002 and its owner alice, and no sprint that has ended;
-//         team2 running none, its last ended sprint team2/02 from 2026-10-06 with its item ITM-003 and the merge of ITM-003 at 2026-10-08T10:15:00.000Z; uncovered: the requirement
-//         RULE TWO and the use case UC-001
+// expect: one row per item in the order of facts.plan.states, each with its path, title, what it realises and the state facts.plan.states gives it; ITM-002 held by team1/03 of team1 and kept from team2 by team1/03, which holds ITM-002; team1 running team1/03 with its selection ITM-001, ITM-002 and its owner alice, and no sprint that has ended; team2 running none, its last ended sprint team2/02 from 2026-10-06 with its item ITM-003 and the merge of ITM-003 at 2026-10-08T10:15:00.000Z; uncovered: the requirement RULE TWO and the use case UC-001
 test("backlogView gives every item with its state, hold and what keeps it, each team's running and last ended sprint, and what no item realises", async () => {
   const facts = await factsOf();
   const view = measures.backlogView(facts, NOW);
@@ -141,8 +135,7 @@ test("backlogView gives every item with its state, hold and what keeps it, each 
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the same facts, whose job record holds the marker MARKER-OF-A-JOB-RECORD-1260 in its body and whose pull requests each hold a body "the body of #<n>"
 // input: progressView and backlogView, as JSON
-// expect: ITM-003 and ITM-004, which no running sprint selects, stand nowhere in progressView's text; neither text holds the marker or a pull request's body — counter-proof: the
-//         record's text, which the facts' snapshot reads, holds the marker
+// expect: ITM-003 and ITM-004, which no running sprint selects, stand nowhere in progressView's text; neither text holds the marker or a pull request's body — counter-proof: the record's text, which the facts' snapshot reads, holds the marker
 test("the views hold no item outside the running sprints in progress, and no record's text or pull request", async () => {
   const facts = await factsOf();
   assert.match(await facts.snapshot.read(`docs/jobs/${JOB}.md`), new RegExp(MARKER), "known positive: the record holds the marker");

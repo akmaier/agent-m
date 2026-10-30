@@ -96,8 +96,7 @@ test("TST-418003: an ordered group reaches the participant in its order and its 
 // guards: UC-019; THE PERSON WHO PROMPTS IS A SOURCE
 // given: the author's source exists in the instance but the product does not link it
 // input: the page of the requirement A LOAN HAS A DUE DATE, an instruction in the bar and Send
-// expect: the message is the conversation's, which hands the change on; the change of requirements is never sent and nothing is written: the bar says "Nothing was run." and names the two steps,
-//   registering the person (#library) and linking the source to the product (#sources), as the precondition person-source of change-requirements finds them; the bar offers no link, the steps are text
+// expect: the message is the conversation's, which hands the change on; the change of requirements is never sent and nothing is written: the bar says "Nothing was run." and names the two steps, registering the person (#library) and linking the source to the product (#sources), as the precondition person-source of change-requirements finds them; the bar offers no link, the steps are text
 test("TST-418004: a missing personal source stops the change before it is sent and names the steps", async () => {
   const s = await scenario({ linked: false });
   await onRequirementPage(s);

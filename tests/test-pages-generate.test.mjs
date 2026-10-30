@@ -497,8 +497,7 @@ test("generate — the graph is asked for with its commit, so that the graph sto
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-026
 // given: the same product, the branch trace-cache holding no graph of the commit
 // input: the route generate, drawn
-// expect: counter-proof: no graph is built from the files — the page lists no name and shows, in its place, "This page could not be drawn: the trace graph of <commit> is not stored yet …" —, and
-//         readOn was asked once, for trace-cache / <commit>.json.gz
+// expect: counter-proof: no graph is built from the files — the page lists no name and shows, in its place, "This page could not be drawn: the trace graph of <commit> is not stored yet …" —, and readOn was asked once, for trace-cache / <commit>.json.gz
 test("generate — where no graph is stored for the commit, none is built and the page says so", async () => {
   const asked = [];
   const fake = fakeProduct(FILES, { readOn: async (branch, path) => { asked.push([branch, path]); return null; } });

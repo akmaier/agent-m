@@ -114,9 +114,7 @@ async function moved(detail) {
 // guards: A BACKLOG ITEM NAMES WHAT IT REALISES; A BACKLOG ITEM NAMES THE MODULES IT CHANGES; EVERY ARTIFACT NAMES ITS ORIGIN; EVOLUTION ENTERS THROUGH THE SPECIFICATION; ONE CLICK PER DECISION; UC-033
 // given: known positive first — the issue 7 labelled change; the product holds three queues: issue 7 of this product (FIRST RULE changed, THIRD RULE added), issue 7 of another product and issue 6 of this one (each changing SECOND RULE), and the module MOD-store
 // input: the route issue 7; a click on Move to backlog by a script and then by a person; the module MOD-store typed; Add by a person
-// expect: before the person's click no form; after it the item prefilled — the issue's title, the origin https://github.com/alice/product/issues/7, realises FIRST RULE and THIRD RULE and not SECOND RULE, no module —, and Add disabled with an error that names the module;
-//   once MOD-store is typed Add is enabled; the person's click commits one file docs/backlog/ITM-<nnn>-export-loses-pages-7.md whose origin, realises and modules are those, with the issue's text as its outcome; the issue 7 receives one comment, the note item-added
-//   naming that identifier and the file, and the label backlog; the page shows the identifier as added
+// expect: before the person's click no form; after it the item prefilled — the issue's title, the origin https://github.com/alice/product/issues/7, realises FIRST RULE and THIRD RULE and not SECOND RULE, no module —, and Add disabled with an error that names the module; once MOD-store is typed Add is enabled; the person's click commits one file docs/backlog/ITM-<nnn>-export-loses-pages-7.md whose origin, realises and modules are those, with the issue's text as its outcome; the issue 7 receives one comment, the note item-added naming that identifier and the file, and the label backlog; the page shows the identifier as added
 test("issue — Move to backlog prefills the item with the requirements the issue's queues change, and Add writes it, the comment and the label", async () => {
   const w = start();
   const detail = await opened(w, 7);
@@ -267,8 +265,7 @@ const EXISTING_TEXT = ["---", "id: ITM-001", "title: Export keeps every page", "
 // guards: EVOLUTION ENTERS THROUGH THE SPECIFICATION; UC-033
 // given: known positive first — the issue 6 labelled defect offers Move to backlog; the issue 5 without a class; the issue 8 labelled not-reproducible
 // input: the route issue for 6, 8 and 5; on 5 the lead to UC-012 clicked by a person, then the person's click on Bug
-// expect: 6 offers Move to backlog and no lead; 8 offers neither; 5 offers no Move to backlog but says why — the issue is not classified — and leads to UC-012, step 2, whose click goes to Agent M's own use case UC-012 — the empty product — and before which nothing goes; after the click on Bug, Move to
-//   backlog is offered and the lead is gone
+// expect: 6 offers Move to backlog and no lead; 8 offers neither; 5 offers no Move to backlog but says why — the issue is not classified — and leads to UC-012, step 2, whose click goes to Agent M's own use case UC-012 — the empty product — and before which nothing goes; after the click on Bug, Move to backlog is offered and the lead is gone
 test("issue — an issue not classified yet is not offered Move to backlog and is led to UC-012, step 2 (UC-033 1a)", async () => {
   const w = start();
   const six = await opened(w, 6);
@@ -299,8 +296,7 @@ test("issue — an issue not classified yet is not offered Move to backlog and i
 // guards: EVERY ARTIFACT NAMES ITS ORIGIN; ONE CLICK PER DECISION; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-033
 // given: known positive first (TST-1250201: Add writes a new item); the backlog holds ITM-001 "Export keeps every page" whose origin is the issue 12; the issue 7 labelled change describes the same work
 // input: the route issue 7; Move to backlog by a person; "Add to ITM-001" clicked by a script, then by a person
-// expect: beside the form the backlog's item ITM-001 is offered with its title; the script's click writes nothing; the person's click commits one file, docs/backlog/ITM-001-export-keeps-every-page.md, whose origins are the issue 12 and then the issue 7 and whose
-//   title is unchanged, and no new item; the issue 7 receives one comment, the note item-added naming ITM-001, and the label backlog; the page shows ITM-001 as added
+// expect: beside the form the backlog's item ITM-001 is offered with its title; the script's click writes nothing; the person's click commits one file, docs/backlog/ITM-001-export-keeps-every-page.md, whose origins are the issue 12 and then the issue 7 and whose title is unchanged, and no new item; the issue 7 receives one comment, the note item-added naming ITM-001, and the label backlog; the page shows ITM-001 as added
 test("issue — Move to backlog offers the backlog's items, and Add to an existing item adds the issue to its origins (UC-033 4a)", async () => {
   const w = start({ product: { ...PRODUCT_FILES, [EXISTING_ITEM]: EXISTING_TEXT } });
   const detail = await opened(w, 7);

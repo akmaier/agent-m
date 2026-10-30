@@ -123,8 +123,7 @@ const notMail = (kind) => !MAIL_KINDS.includes(kind);
 // guards: ONE DEFINITION, THREE DRIVERS; AGENT M WORKS WITHOUT A LOCAL INSTALLATION
 // given: a product's job workflow on the agent's machine, composed with composeProduct (job.part `agent`, a result folder already prepared), in a program of its own
 // input: every kind of the catalogue but the mail kinds propose-issues, rewrite-without-persons and draft-replies; for each, every strategy it and its reviewer kind name
-// expect: every such strategy that a module builds is registered — none is left out, so that prepareJob refuses no such kind with UnknownStrategy (propose-tests, run-tests, write-tests,
-//   implement, refactor, fix-bug, check-resource, decide-gate and set-up-ci among them); the probe finds a name no module offers unregistered
+// expect: every such strategy that a module builds is registered — none is left out, so that prepareJob refuses no such kind with UnknownStrategy (propose-tests, run-tests, write-tests, implement, refactor, fix-bug, check-resource, decide-gate and set-up-ci among them); the probe finds a name no module offers unregistered
 test("TST-1281001 the CI agent's machine registers every strategy a module builds for the kinds offered in CI", () => {
   const resultDir = mkdtempSync(join(tmpdir(), "agent-m-places-"));
   try {

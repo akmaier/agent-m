@@ -74,8 +74,7 @@ async function formOf(w) {
 // guards: THE BACKLOG LIVES IN THE PRODUCT REPOSITORY; UC-033
 // given: known positive first (TST-1293002: an item the backlog lacks is marked); the form of the issue 7, its realises FIRST RULE, THIRD RULE and its modules MOD-store; the backlog holds the item ITM-0900
 // input: the person types "ITM-0900" into the field builds_on
-// expect: no mark of the form names ITM-0900, no error stands in the form, and Add is offered. Counter-proof: on the code before ITM-1293 the form is checked with the drafted item alone, and shows the error
-//   `the item builds on ITM-0900, which does not exist`, with Add not offered
+// expect: no mark of the form names ITM-0900, no error stands in the form, and Add is offered. Counter-proof: on the code before ITM-1293 the form is checked with the drafted item alone, and shows the error `the item builds on ITM-0900, which does not exist`, with Add not offered
 test("issue — a builds_on that names an item of the backlog gives the move form no mark", async () => {
   const w = start();
   const form = await formOf(w);

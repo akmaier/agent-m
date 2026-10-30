@@ -24,9 +24,7 @@ const files = () => productFiles({ "docs/process.md": DECLARATION_AT_HEAD });
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-035
 // given: overview-cache holding the progress view of the head ccc…c
 // input: the route progress's render
-// expect: team1's panel names team1/03 and its goal, lists ITM-001 done with MOD-store and ITM-002 in progress, holds the burn-down — 2 left at its start, 1 after the merge — and
-//         offers End sprint; team2's panel says it runs no sprint and links #backlog/plan=team2; no row of ITM-003, ITM-004 or ITM-005; its requests hold one read of overview-cache,
-//         no request about pull requests, none for a facts file and no batch of files
+// expect: team1's panel names team1/03 and its goal, lists ITM-001 done with MOD-store and ITM-002 in progress, holds the burn-down — 2 left at its start, 1 after the merge — and offers End sprint; team2's panel says it runs no sprint and links #backlog/plan=team2; no row of ITM-003, ITM-004 or ITM-005; its requests hold one read of overview-cache, no request about pull requests, none for a facts file and no batch of files
 test("#progress draws the head's stored view, with one read of overview-cache and no pull request, facts file or batch", async () => {
   const page = await renderOverGitHub("progress", {}, { files: files(), overview: { [`${COMMIT}.progress.json.gz`]: await storedViewBytes("progress", files()) } });
   try {
@@ -72,8 +70,7 @@ test("#progress draws the view stored last while the head's is stored, with its 
 // guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-035
 // given: a repository without the branch overview-cache, and the same product with its head's view stored
 // input: the route progress's render, both ways
-// expect: without the branch, the page derives the view from the facts of the scope `work` — it reads the pull requests — and shows the same rows of team1 (ITM-001, ITM-002) and
-//         the same panel of team2 as the page drawn from the stored view
+// expect: without the branch, the page derives the view from the facts of the scope `work` — it reads the pull requests — and shows the same rows of team1 (ITM-001, ITM-002) and the same panel of team2 as the page drawn from the stored view
 test("#progress derives the same view in the page where the repository stores none", async () => {
   const drawn = async (overview) => {
     const page = await renderOverGitHub("progress", {}, { files: files(), overview });

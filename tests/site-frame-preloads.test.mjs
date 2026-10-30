@@ -51,8 +51,7 @@ test("TST-1290002 a block missing a line, or missing altogether, is written as p
 // guards: THE PAGES ROOT IS THE REPOSITORY ROOT
 // given: the two entry pages, index.html naming the view main-page and docs/index.html the review pages' views
 // input: pageLoads(page)
-// expect: index.html loads src/main-page/index.mjs, the frame's start.mjs and the explanations the frame fetches, and none of the review
-//   pages' views; docs/index.html loads the review pages' views and the JSON of dashboard-app.mjs as a module
+// expect: index.html loads src/main-page/index.mjs, the frame's start.mjs and the explanations the frame fetches, and none of the review pages' views; docs/index.html loads the review pages' views and the JSON of dashboard-app.mjs as a module
 test("TST-1290003 each page preloads its own views and the files they fetch, and the main page none of the review pages' views", () => {
   const main = pageLoads("index.html");
   assert.ok(main.modules.includes("src/site-frame/start.mjs"));

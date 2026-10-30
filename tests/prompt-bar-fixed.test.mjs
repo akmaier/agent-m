@@ -154,8 +154,7 @@ test("the bar's root element spans the width of the window", async () => {
 // guards: UC-049
 // given: as TST-600034; the endpoint ep1 answers "Done."; the bar's root element is kept
 // input: the route changes — the subject the frame hands over becomes "use-case:UC-008" — and a message "go on" is sent
-// expect: the answer "Done." is shown, `target` still holds the same root element, which is the only element in it, and its style still declares
-// position fixed, bottom 0, left 0 and right 0
+// expect: the answer "Done." is shown, `target` still holds the same root element, which is the only element in it, and its style still declares position fixed, bottom 0, left 0 and right 0
 test("the bar stays fixed when the route changes and a message is sent on the new route", async () => {
   endpointAnswers("Done.");
   const it = await drawnBar();

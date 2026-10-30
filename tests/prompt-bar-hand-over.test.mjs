@@ -297,8 +297,7 @@ async function after(ms) { mock.timers.tick(ms); await settle(); }
 // guards: UC-049; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: a Scrum product of team1 where ITM-004 is ready and selected for team1's sprint, and dev-ci (a model endpoint with the CI secret KEY_A, place "Anthropic, USA") holds the role Developers; the product holds Agent M's job workflow; dev-ci's answer proposes { kind: "implement", works_on: ["ITM-004"], task: TASK }
 // input: Send
-// expect: the proposal shows "Kind: implement", "Works on: ITM-004", the task, "Participant: dev-ci — Anthropic, USA" and "Route: ci hosted", no reason, no button "Hand over", and "Queued as" — it went on
-//   without a further click —: one commit queued the job and one workflow was started; the only request to a model was the message to the endpoint
+// expect: the proposal shows "Kind: implement", "Works on: ITM-004", the task, "Participant: dev-ci — Anthropic, USA" and "Route: ci hosted", no reason, no button "Hand over", and "Queued as" — it went on without a further click —: one commit queued the job and one workflow was started; the only request to a model was the message to the endpoint
 test("a hand-over the participant proposes is shown with its kind, what it works on, its task, the participant with its place and its route, and queued without a click", async () => {
   const it = open();
   await proposes(it, ITEM("ITM-004"));
@@ -340,8 +339,7 @@ test("a hand-over of an item no sprint selects is queued: the sprint's selection
 // guards: NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED; UC-049
 // given: the Scrum product, where ITM-003 is selected and realises the open UC-002, and ITM-006 is selected and builds on ITM-004, which is not done; the answer proposes a hand-over of ITM-003, then of ITM-006
 // input: Send, each
-// expect: for ITM-003 the page says "Nothing was queued." with the finding of implement's precondition rests-on-accepted, naming UC-002 and NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED, and
-//   nothing was written; ITM-006 is queued (one commit, one started workflow) — building on an item not done is a start rule of the process
+// expect: for ITM-003 the page says "Nothing was queued." with the finding of implement's precondition rests-on-accepted, naming UC-002 and NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED, and nothing was written; ITM-006 is queued (one commit, one started workflow) — building on an item not done is a start rule of the process
 test("a hand-over of an item whose use case is not accepted is refused by the kind's precondition; one that builds on an item not done is queued", async () => {
   const unaccepted = open();
   await proposes(unaccepted, ITEM("ITM-003"));

@@ -427,8 +427,7 @@ function fakeHub(routes) {
 // guards: UC-040; DUE DILIGENCE IS FETCHED, NOT RECALLED
 // given: a Hub (a fake of fetch) that holds the model acme/small-model, public, not gated, licence apache-2.0 in its card, at revision 0123…4567
 // input: hubFacts("acme/small-model")
-// expect: exactly three facts, in this order — revision "0123456789abcdef0123456789abcdef01234567", licence "apache-2.0", access "public" —, each with candidate "acme/small-model", ecosystem
-// "huggingface", the address https://huggingface.co/api/models/acme/small-model and the date read (today); one request, to that address, with no Authorization header
+// expect: exactly three facts, in this order — revision "0123456789abcdef0123456789abcdef01234567", licence "apache-2.0", access "public" —, each with candidate "acme/small-model", ecosystem "huggingface", the address https://huggingface.co/api/models/acme/small-model and the date read (today); one request, to that address, with no Authorization header
 test("TST-996001 hubFacts gives a model's revision, licence and access, each with its address and the date read", async () => {
   const hub = fakeHub({ [`${HUB}/api/models/acme/small-model`]: { id: "acme/small-model", sha: SHA, private: false, gated: false, cardData: { license: "apache-2.0" }, tags: ["license:apache-2.0"] } });
   const { answer, days } = await reading(hub.fetch, () => hubFacts("acme/small-model"));
@@ -444,8 +443,7 @@ test("TST-996001 hubFacts gives a model's revision, licence and access, each wit
 // guards: UC-040; DUE DILIGENCE IS FETCHED, NOT RECALLED
 // given: a Hub that holds the dataset acme/corpus, gated by manual approval, whose card declares no licence but whose tags hold license:cc-by-4.0; and the dataset acme/unlicensed, public, with neither
 // input: hubFacts("datasets/acme/corpus"); hubFacts("datasets/acme/unlicensed")
-// expect: the first gives revision, licence "cc-by-4.0" (from the tag) and access "gated (manual)", with the address https://huggingface.co/api/datasets/acme/corpus; the second gives revision and access
-// "public" only — no licence fact, since the Hub declared none and none is filled in
+// expect: the first gives revision, licence "cc-by-4.0" (from the tag) and access "gated (manual)", with the address https://huggingface.co/api/datasets/acme/corpus; the second gives revision and access "public" only — no licence fact, since the Hub declared none and none is filled in
 test("TST-996002 hubFacts reads a dataset from the datasets address, the licence from the tag where the card has none, and invents none", async () => {
   const hub = fakeHub({
     [`${HUB}/api/datasets/acme/corpus`]: { id: "acme/corpus", sha: SHA, private: false, gated: "manual", tags: ["task:x", "license:cc-by-4.0"] },
@@ -487,8 +485,7 @@ test("TST-996004 an identifier the Hub does not know is NotFound with the addres
 // guards: UC-040
 // given: a Hub the browser cannot reach (fetch rejects with "Failed to fetch"); a Hub that answers 500; one that answers 401 for a private resource asked without its key; one that answers 200 with text that is no JSON
 // input: hubFacts("acme/blocked") against each; and, with the key "hf_secret_key", against the unreachable one
-// expect: each rejects with an error named HubBlocked whose reason is a text: "Failed to fetch" for the first, containing 500 for the second, containing 401 for the third, naming the invalid JSON for the fourth;
-// the reason of the keyed call holds the failure and not the key
+// expect: each rejects with an error named HubBlocked whose reason is a text: "Failed to fetch" for the first, containing 500 for the second, containing 401 for the third, naming the invalid JSON for the fourth; the reason of the keyed call holds the failure and not the key
 test("TST-996005 a Hub that does not answer the browser, or answers no success, is HubBlocked with its reason, never with the key", async () => {
   const href = `${HUB}/api/models/acme/blocked`;
   await assert.rejects(usingFetch(fakeHub({ [href]: new TypeError("Failed to fetch") }).fetch, () => hubFacts("acme/blocked")), (error) => error.name === "HubBlocked" && error.reason === "Failed to fetch");

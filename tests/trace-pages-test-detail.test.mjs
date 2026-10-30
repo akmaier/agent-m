@@ -173,8 +173,7 @@ test("an opened test shows one mark per commit it ran on and one row per release
 // guards: UC-029; TEST RESULTS ARE KEPT IN THE REPOSITORY
 // given: TST-801 failed in an early result record whose run is https://example.test/actions/runs/701 and passed in the release record whose run is https://example.test/actions/runs/702; WebLinks' run URLs match both ids; ciRunLog gives null for 701 and a kept log for 702
 // input: TST-801 opened through the public trace route
-// expect: drawn, the early mark reads "ccccccc failed" with its log link at …/actions/runs/701 reading "log", and the release mark's link at …/actions/runs/702 reads "log"; once the early link is opened (clicked), only it reads
-//         "no longer available" (still at …/actions/runs/701) and the mark still reads "ccccccc failed"; the release link, opened, still reads "log"
+// expect: drawn, the early mark reads "ccccccc failed" with its log link at …/actions/runs/701 reading "log", and the release mark's link at …/actions/runs/702 reads "log"; once the early link is opened (clicked), only it reads "no longer available" (still at …/actions/runs/701) and the mark still reads "ccccccc failed"; the release link, opened, still reads "log"
 test("TST-1168001 trace detail keeps an outcome when its run log is unavailable and links a kept log", async () => {
   const unavailable = "https://example.test/actions/runs/701";
   const kept = "https://example.test/actions/runs/702";

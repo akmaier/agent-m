@@ -143,8 +143,7 @@ const writesToGitHub = () => sent.filter((request) => request.method !== "GET");
 // guards: A MAIL ALREADY DECIDED IS NOT PROPOSED AGAIN; A MAIL IN A KNOWN THREAD IS MATCHED WITHOUT A MODEL; READING THE MAILBOX CHANGES NOTHING IN IT; UC-038
 // given: the mailbox holds a new mail, a mail an issue lists, a mail this browser marked, and a reply in the thread of the listed mail
 // input: the route mail drawn; the person's click on Read mailbox
-// expect: drawing reads nothing (no request); the list shows the new mail alone, with sender, subject and date; the page says two mails were left out as decided; the reply is shown under issue #4 with a link to the address the frame writes for issue 4 of alice/product (fragmentOf) and an
-//         issue-link only for it; the Bridge got one request, the read; GitHub received one write, the note that lists the reply on #4
+// expect: drawing reads nothing (no request); the list shows the new mail alone, with sender, subject and date; the page says two mails were left out as decided; the reply is shown under issue #4 with a link to the address the frame writes for issue 4 of alice/product (fragmentOf) and an issue-link only for it; the Bridge got one request, the read; GitHub received one write, the note that lists the reply on #4
 test("Read mailbox lists only the undecided mails, with sender, subject and date, and shows a mail of a known thread under its issue", async () => {
   const fresh = await mailOf("new"), listed = await mailOf("listed"), marked = await mailOf("marked");
   const reply = await mailOf("reply", { inReplyTo: listed.messageId, references: [listed.messageId] });
@@ -172,8 +171,7 @@ test("Read mailbox lists only the undecided mails, with sender, subject and date
 // guards: A MAIL BECOMES AN ISSUE ONLY BY A PERSON'S CLICK; THE PRODUCT ISSUE CARRIES NO PERSONAL DATA; ONE CLICK PER DECISION; UC-038
 // given: one new mail from Erika Mustermann; the proposal is empty (4b)
 // input: the title and the text typed with the sender's name in it; the title and the text edited without the name; a click a script makes on Create issue; the kind change chosen; the person's click on Create issue
-// expect: with the name the hit is listed in .mail-hits and Create issue is disabled; without it no hit and Create issue is enabled; the script's click writes nothing; the person's click creates exactly one issue, labelled change, whose text
-//         ends with the mail's identifier in a Mails line and holds none of the mail's text, sender or address; the page names issue #100, and, the kind being change, links the address the frame writes for issue 100 of alice/product
+// expect: with the name the hit is listed in .mail-hits and Create issue is disabled; without it no hit and Create issue is enabled; the script's click writes nothing; the person's click creates exactly one issue, labelled change, whose text ends with the mail's identifier in a Mails line and holds none of the mail's text, sender or address; the page names issue #100, and, the kind being change, links the address the frame writes for issue 100 of alice/product
 test("Create issue is disabled while the text names the mail's people, and one click then creates one issue with the label and the Mails line", async () => {
   const mail = await mailOf("one");
   const w = world({ mails: [mail] });

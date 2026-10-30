@@ -50,8 +50,7 @@ test("the three groups are drawn, and a closed issue with an unnoted mail is und
 // guards: CLOSING AN ISSUE PREPARES ITS REPLIES; THE SEND DASHBOARD LISTS THE DRAFTS OF LISTED MAILS; A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER; UC-039
 // given: the closed issue 4 and its four mails: found without a draft, found with a draft, not in the mailbox, found with a sender that is no address
 // input: the route replies/<4> drawn after the reading
-// expect: the page shows what solved the issue (the pull request) and that the release is not known; each found mail with reporter, date and subject; the drafted mail shows its draft complete (recipient, subject, body in an editable field, the attachment
-//         with its name and size); the mail not in the mailbox says "not found in the mailbox"; the mail without an address says "not sendable"; no button Send anywhere
+// expect: the page shows what solved the issue (the pull request) and that the release is not known; each found mail with reporter, date and subject; the drafted mail shows its draft complete (recipient, subject, body in an editable field, the attachment with its name and size); the mail not in the mailbox says "not found in the mailbox"; the mail without an address says "not sendable"; no button Send anywhere
 test("the issue shows what solved it and each mail with its draft, a missing mail and a mail that cannot be sent", async () => {
   const { mails, w, target } = await start();
   await read(target);
@@ -173,8 +172,7 @@ test("the run panel names the participant, its place and what it receives", asyn
 // guards: A REPLY DRAFT IS KEPT IN THE MAILBOX'S DRAFTS FOLDER; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; MAIL STAYS IN THE MAILBOX; UC-039
 // given: the run panel of TST-966006 and a model endpoint (the fake runner) that returns one text for the mail without a draft
 // input: the person's click on Run
-// expect: the endpoint is asked once, at ep1; the text is stored as a draft through the mailbox, to that reporter alone, subject Re: its subject, the text above the original quoted; the page then shows that draft; the job's start record names the issue and no mail text or address;
-//         nothing is sent to any other mail
+// expect: the endpoint is asked once, at ep1; the text is stored as a draft through the mailbox, to that reporter alone, subject Re: its subject, the text above the original quoted; the page then shows that draft; the job's start record names the issue and no mail text or address; nothing is sent to any other mail
 test("Run drafts a reply with the participant and stores it as a draft, which the page then shows", async () => {
   const texts = [];
   const { mails, w, target } = await start({ texts });

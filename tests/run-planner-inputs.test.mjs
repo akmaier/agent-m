@@ -92,8 +92,7 @@ const ITM_001 = [
 // guards: UC-024; DEVELOP AGAINST INTERFACES
 // given: the fixture product and a backlog item ITM-001 naming MOD-reader, which uses MOD-writer.write, and MOD-writer
 // input: the recipe with params.items = ["ITM-001"]
-// expect: for MOD-reader its file, the decision it follows (ARC-002), the decision that refines no other (ARC-001), SPEC.md, the interfaces of MOD-writer, its code and the test that names it
-// (tests/reader.test.mjs, not tests/writer.test.mjs or tests/other.test.mjs); then for MOD-writer its file, its two code files and its test; the decisions and the SPEC given once
+// expect: for MOD-reader its file, the decision it follows (ARC-002), the decision that refines no other (ARC-001), SPEC.md, the interfaces of MOD-writer, its code and the test that names it (tests/reader.test.mjs, not tests/writer.test.mjs or tests/other.test.mjs); then for MOD-writer its file, its two code files and its test; the decisions and the SPEC given once
 test("an item with two modules gives, per module, its file, its decisions, the SPEC, the used interfaces, its code and the tests that name it — MOD-run-planner", async () => {
   const parts = await recipe({ items: ["ITM-001"] });
   assert.deepEqual(namesOf(parts), ITM_001);
@@ -107,8 +106,7 @@ test("an item with two modules gives, per module, its file, its decisions, the S
 // guards: UC-024; DEVELOP AGAINST INTERFACES
 // given: the fixture product, where MOD-writer's file has a Responsibility, an Interfaces and a Files section
 // input: the recipe with params.items = ["ITM-001"]
-// expect: the part of MOD-writer's interfaces holds exactly the `## Interfaces` section — its heading and its bullet — and nothing of the Responsibility or the Files; the code of MOD-writer is
-// not part of it
+// expect: the part of MOD-writer's interfaces holds exactly the `## Interfaces` section — its heading and its bullet — and nothing of the Responsibility or the Files; the code of MOD-writer is not part of it
 test("the interfaces of a used module are its ## Interfaces section alone — MOD-run-planner", async () => {
   const parts = await recipe({ items: ["ITM-001"] });
   const interfaces = parts.find((part) => part.name === READER_INTERFACES);
@@ -152,8 +150,7 @@ test("the system step gives the decision that states it, the subsystems' decisio
 // guards: RESTRICTED CONTENT GOES ONLY WHERE ITS SOURCE PERMITS
 // given: the fixture product, and places.contents naming SRC-secret for `src/writer` and for MOD-writer's file, and SRC-other for the one file tests/reader.test.mjs
 // input: the recipe with params.items = ["ITM-001"]
-// expect: the parts under src/writer, MOD-writer's file and its interfaces part carry ["SRC-secret"]; tests/reader.test.mjs carries ["SRC-other"]; every other part carries none; with
-// places.contents empty no part carries any source
+// expect: the parts under src/writer, MOD-writer's file and its interfaces part carry ["SRC-secret"]; tests/reader.test.mjs carries ["SRC-other"]; every other part carries none; with places.contents empty no part carries any source
 test("a part carries a source only where places.contents puts its path under that source — MOD-run-planner", async () => {
   const contents = [{ source: "SRC-secret", paths: ["src/writer", "docs/architecture/MOD-writer.md"] }, { source: "SRC-other", paths: ["tests/reader.test.mjs"] }];
   const parts = await recipe({ items: ["ITM-001"] }, contents);

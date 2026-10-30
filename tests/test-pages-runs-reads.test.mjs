@@ -135,9 +135,7 @@ const sorted = (list) => [...list].sort();
 // guards: UC-028; EVERY TEST RUN LEAVES A RESULT RECORD; A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: a branch test-results that holds the records of 40 commits — two of the commit shown, one of the last release v1.0.0's commit, one of a third commit — and a host that counts its requests
 // input: the route runs rendered for the commit, with a token
-// expect: the branch is read once, narrowed to the folders runs/<commit> and runs/<release commit> — no recursive tree of it —, and the snapshot holds the three records of those two commits and none of the
-//         third commit's; the three records are read in one batch of their own, none by itself, and the third commit's record is read by no request; the rate of TST-9121 reads "17 of 20 runs" beside the
-//         last release's "18 of 20" and "worse than the last release", which only the release's record gives; counter-proof: a read of the whole branch on the same host lists the third commit's record
+// expect: the branch is read once, narrowed to the folders runs/<commit> and runs/<release commit> — no recursive tree of it —, and the snapshot holds the three records of those two commits and none of the third commit's; the three records are read in one batch of their own, none by itself, and the third commit's record is read by no request; the rate of TST-9121 reads "17 of 20 runs" beside the last release's "18 of 20" and "worse than the last release", which only the release's record gives; counter-proof: a read of the whole branch on the same host lists the third commit's record
 test("runs/<commit> reads the branch test-results narrowed to the folders of the commit and of the last release, and their records in one batch", async () => {
   const { page, log } = await load();
   const results = named(log, "test-results");
@@ -160,9 +158,7 @@ test("runs/<commit> reads the branch test-results narrowed to the folders of the
 // guards: UC-028; A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the commit shown holds 150 test files, TST-9000 to TST-9149, and the host counts its requests
 // input: the route runs rendered for the commit, with a token
-// expect: the page shows what tests/test-pages-runs.test.mjs expects of a commit — the line of unit "2 passed, 1 failed, 0 flaky, 117 not run", that of component "2 passed, 0 failed, 0 flaky, 18 not run", that
-//         of release "not run on this commit", and TST-9001 with its expected and observed result and the log "the full log of run 777" —, one row for each of the 150 tests; the commit's tree is read once,
-//         whole; the 150 test files are read in two batches, of 100 and 50 files, and none by itself
+// expect: the page shows what tests/test-pages-runs.test.mjs expects of a commit — the line of unit "2 passed, 1 failed, 0 flaky, 117 not run", that of component "2 passed, 0 failed, 0 flaky, 18 not run", that of release "not run on this commit", and TST-9001 with its expected and observed result and the log "the full log of run 777" —, one row for each of the 150 tests; the commit's tree is read once, whole; the 150 test files are read in two batches, of 100 and 50 files, and none by itself
 test("runs/<commit> reads the 150 test files of the commit in two batches and none by itself", async () => {
   const { page, log } = await load();
   assert.match(textOf(byClass(levelOf(page, "unit"), "summary")[0]), /^2 passed, 1 failed, 0 flaky, 117 not run$/);

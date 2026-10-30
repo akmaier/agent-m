@@ -160,8 +160,7 @@ test("a graph that cannot be read is named in place of the diagram", async () =>
 // guards: UC-025; A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: one Host for main, whose snapshots count every readMany and readOn, with the graph of main stored on trace-cache
 // input: the modules view rendered at main; then the gaps view at main with the same Host
-// expect: after the modules view readMany has been told the four module files once, in one batch, for the diagram, and the stored graph has been read once — one readOn of ("trace-cache", "<main's commit>.json.gz") — for
-//         the table and the gaps (ITM-721); the gaps view of the same version then reads no more: the graph of a commit is read once and kept (ITM-598), so neither readMany nor readOn is called again
+// expect: after the modules view readMany has been told the four module files once, in one batch, for the diagram, and the stored graph has been read once — one readOn of ("trace-cache", "<main's commit>.json.gz") — for the table and the gaps (ITM-721); the gaps view of the same version then reads no more: the graph of a commit is read once and kept (ITM-598), so neither readMany nor readOn is called again
 test("the modules view reads its module files in one batch and the stored graph once; the gaps view of the same version shares it", async () => {
   const productHost = hostOf();
   await render(productHost);

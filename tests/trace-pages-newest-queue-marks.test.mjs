@@ -55,8 +55,7 @@ const listed = (target) => find(find(target, (node) => node.localName === "secti
 // guards: OPEN PROPOSALS ARE SHOWN IN THE BROWSER; UC-020
 // given: the default branch main, whose SPEC holds ALPHA RULE and BETA RULE, and two queues each with one entry that waits — the older (2026-10-09_older) changes ALPHA RULE, the newer (2026-10-10_newer) withdraws it
 // input: the specification view drawn at main
-// expect: ALPHA RULE is marked "removal proposed", the newer queue's mark, and BETA RULE "in SPEC"; the list of waiting entries holds both links, the newer queue's first:
-//         #spec-entry/id=spec-2026-10-10_newer-01, #spec-entry/id=spec-2026-10-09_older-01
+// expect: ALPHA RULE is marked "removal proposed", the newer queue's mark, and BETA RULE "in SPEC"; the list of waiting entries holds both links, the newer queue's first: #spec-entry/id=spec-2026-10-10_newer-01, #spec-entry/id=spec-2026-10-09_older-01
 //         counter-proof: with the entries exchanged (the older withdraws, the newer changes) ALPHA RULE is "change proposed", so the older queue's mark, planted, fails the first expectation
 test("TST-1301001 of two waiting entries that name one requirement the newer queue's gives the mark, and both are listed", async () => {
   const target = await render(files(ALPHA_CHANGED, ALPHA_WITHDRAWN));

@@ -24,8 +24,7 @@ import { render, part, row, TEAM1_RUNNING, JOB } from "./implementation-pages-sp
 // guards: UC-035; PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE; EVERY TEAM RUNS SPRINTS OF ITS OWN
 // given: team1's sprint 03 runs since 2026-10-20 with ITM-001 (merged on 2026-10-21) and ITM-002 (pull request open); team2 closed its sprint 02; ITM-003, ITM-004 and ITM-005 are in no running sprint
 // input: the route progress's render
-// expect: team1's panel names team1/03 and its goal, lists ITM-001 done and ITM-002 in progress, each with the module it changes, holds the sprint's burn-down — 2 left at its start,
-//         1 after the merge — and offers End sprint; team2's panel says it runs no sprint, links #backlog/plan=team2 and #backlog, and holds no chart; no row of ITM-003, ITM-004 or ITM-005 stands on the page
+// expect: team1's panel names team1/03 and its goal, lists ITM-001 done and ITM-002 in progress, each with the module it changes, holds the sprint's burn-down — 2 left at its start, 1 after the merge — and offers End sprint; team2's panel says it runs no sprint, links #backlog/plan=team2 and #backlog, and holds no chart; no row of ITM-003, ITM-004 or ITM-005 stands on the page
 test("#progress — each team's running sprint with its items, their states and its burn-down; a team without one says so and links the backlog", async () => {
   const page = await render("progress");
   try {
@@ -53,8 +52,7 @@ test("#progress — each team's running sprint with its items, their states and 
 // guards: UC-035; EVERY STEP EXPLAINS ITSELF
 // given: the same product; the job JOB-20261027-0900-a1b2 of dev-a, which has not ended, works on ITM-002
 // input: the route progress's render
-// expect: the gates, what is blocked and who works on what each stand in a panel of their own with a folded "What is this?"; who works on what names dev-a with its job, linked to
-//         the job's page on the job dashboard (#job/id=JOB-20261027-0900-a1b2); team1's panel offers Change the selection, leading to #backlog/plan=team1
+// expect: the gates, what is blocked and who works on what each stand in a panel of their own with a folded "What is this?"; who works on what names dev-a with its job, linked to the job's page on the job dashboard (#job/id=JOB-20261027-0900-a1b2); team1's panel offers Change the selection, leading to #backlog/plan=team1
 test("#progress — the gates, what is blocked, and who works on what with each current job linked to its page", async () => {
   const page = await render("progress");
   try {

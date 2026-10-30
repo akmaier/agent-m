@@ -96,8 +96,7 @@ test("TST-684002 the native cached home keeps its initial job facts and polls un
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; THE BUILD IS SHOWN AS IT HAPPENS; UC-046
 // given: the cached native home of TST-684002, then a newer main snapshot that adds one ended job record and then one that removes it
 // input: the next two one-minute polls
-// expect: the readings follow the jobs the card was drawn with alone (MOD-main-page, Data: "the records of the jobs the cards were drawn with, and nothing else"): the added record is not read — the poll
-// reads the product's main commit and tree and nothing else, no GraphQL batch — and the card's build is unchanged; its removal reads no record text either
+// expect: the readings follow the jobs the card was drawn with alone (MOD-main-page, Data: "the records of the jobs the cards were drawn with, and nothing else"): the added record is not read — the poll reads the product's main commit and tree and nothing else, no GraphQL batch — and the card's build is unchanged; its removal reads no record text either
 test("TST-684005 the native cached home reads no job record added after it was drawn, nor one removed", async () => {
   const ended = endedJob({ id: JOB, by: "lab-pc-4", state: "done" });
   const added = endedJob({ id: "JOB-20261016-1001-ffff", by: "lab-pc-4", state: "done" });

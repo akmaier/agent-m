@@ -41,11 +41,7 @@ test("TST-572005 on the main page start.mjs registers its view's set once and th
 // guards: UC-049
 // given: the main page of TST-572005, started
 // input: MOD-job-runner's prepareJob for each kind of the catalogue named below, in a context with no snapshot and no participant
-// expect: no kind of derive-requirements, change-requirements, derive-use-cases, change-use-case, derive-architecture,
-//   review-architecture, check-for-persons, check-resource, converse and implement meets an UnknownStrategy (implement's writer
-//   branch-and-pull-request is handed by MOD-runtimes' routeStrategies through the bar's handOverStrategies); draft-plan meets the
-//   UnknownStrategy plan-steps — its recipe architecture-and-model and its check plan-checks are handed by MOD-work-plans' workStrategies, its writer is the next one
-//   no set hands — which shows that the check does detect a missing strategy
+// expect: no kind of derive-requirements, change-requirements, derive-use-cases, change-use-case, derive-architecture, review-architecture, check-for-persons, check-resource, converse and implement meets an UnknownStrategy (implement's writer branch-and-pull-request is handed by MOD-runtimes' routeStrategies through the bar's handOverStrategies); draft-plan meets the UnknownStrategy plan-steps — its recipe architecture-and-model and its check plan-checks are handed by MOD-work-plans' workStrategies, its writer is the next one no set hands — which shows that the check does detect a missing strategy
 test("TST-572006 on the main page every kind whose strategies are all handed is prepared without UnknownStrategy", async () => {
   for (const kind of ["derive-requirements", "change-requirements", "derive-use-cases", "change-use-case", "derive-architecture",
     "review-architecture", "check-for-persons", "check-resource", "converse", "implement"]) {

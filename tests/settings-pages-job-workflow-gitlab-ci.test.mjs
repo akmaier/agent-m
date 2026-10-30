@@ -110,9 +110,7 @@ const MERGED = 'spec:\n  inputs:\n    job:\n      default: ""\n    task:\n      
 // guards: UC-010; UC-027; GITLAB PRODUCTS ARE SUPPORTED; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: a writable GitLab product whose .gitlab-ci.yml has its own stages, an include list of one entry and a job, and no job workflow
 // input: the person opens Repositories, reads the job workflow line, and clicks Install; then the page is opened on the product as committed
-// expect: the line says not installed and offers Install; Install is one product commit that writes .gitlab/agent-m-jobs.yml and a
-// .gitlab-ci.yml whose text is exactly the product's own text with the header, the entry and its three inputs added and nothing else changed;
-// on the product as committed the line says installed and offers no Install
+// expect: the line says not installed and offers Install; Install is one product commit that writes .gitlab/agent-m-jobs.yml and a .gitlab-ci.yml whose text is exactly the product's own text with the header, the entry and its three inputs added and nothing else changed; on the product as committed the line says installed and offers no Install
 test("TST-548101: Install adds the job workflow to a GitLab product's own .gitlab-ci.yml and keeps its other lines", async () => {
   const writes = [];
   const line = await renderLine(gitlabProduct(writes, { ".gitlab-ci.yml": OWN }));

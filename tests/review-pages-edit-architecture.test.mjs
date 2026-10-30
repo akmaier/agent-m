@@ -183,9 +183,7 @@ test("MOD-review-pages decision/<id>/edit and module/<id>/edit — Save commits 
 // guards: EDITS ARE PREPARED ON THE DASHBOARD; UC-023
 // given: ARC-002 and MOD-writer, open, each opened in the editor; then each committed with a text that breaks a rule across artifacts (ARC-002 forced by a name no requirement has; MOD-writer using an interface MOD-reader does not provide), the graph stored for that commit, and opened in the editor again
 // input: a change that breaks the kind's schema (the title emptied); for the committed broken file, the editor as it opens
-// expect: on the file as it stands no mark names the unknown name or interface; after the schema change a mark at line 3 of the file and Save offered; on the committed
-//   broken file the stored graph's mark of the graph's check at its line, the rule named, Save offered. MOD-review-pages: "no page builds a graph, also not over an
-//   edited text: the editor shows the stored graph's findings of the file, and the edit is checked across artifacts once it is committed."
+// expect: on the file as it stands no mark names the unknown name or interface; after the schema change a mark at line 3 of the file and Save offered; on the committed broken file the stored graph's mark of the graph's check at its line, the rule named, Save offered. MOD-review-pages: "no page builds a graph, also not over an edited text: the editor shows the stored graph's findings of the file, and the edit is checked across artifacts once it is committed."
 test("MOD-review-pages decision/<id>/edit and module/<id>/edit — the schema's marks and the graph's marks are shown, and Save is still offered", async () => {
   for (const { route, open: [id, path, body], graphEdit, graphMark } of CASES) {
     const target = await show(fakeHost(), route, { id, edit: "1" });
