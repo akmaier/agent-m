@@ -40,3 +40,10 @@ the sprint record, with the same checks `saveItems` makes, and drops `NotSupport
 - Counter-proof: writing the items in a second commit fails the one-commit test.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
 - Only `src/work-plans/` and the tests that name MOD-work-plans change.
+- It builds on `closeSprint` and `saveItems` as MOD-work-plans' accepted text states them. The open draft of
+  MOD-work-plans (`backlogOf`, `moduleFiles`, `listField` and the new text of `backlogFindings`) leaves both sentences
+  as they are; nothing of it is built here.
+- The planning run (sprint team1/123), with a stand-in that moves `saveItems`' identifiers, findings and files into one
+  function of `saves.mjs` that `closeSprint` also calls: the 116 test files that name MOD-work-plans, `work-plans/`,
+  `closeSprint`, `saveItems`, the writers `backlog-items` and `sprint-record`, or the two modules that call `saveItems`
+  (MOD-issue-handling, MOD-maintenance-pages). No case fails only with it.
