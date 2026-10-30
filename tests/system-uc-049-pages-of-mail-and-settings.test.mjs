@@ -129,15 +129,20 @@ test("alternative 3c: the context names each setting and whether it is stored", 
 // TST-513025 · level: system · module: MOD-prompt-bar · MOD-settings-pages
 // guards: UC-049; EVERY STEP EXPLAINS ITSELF
 // given: the settings pages of a browser whose register lists one participant
-// input: the page of the participants and the page of the endpoint configuration read
-// expect: UC-049 1a says "The participants page and the endpoint configuration say that it appears once a model endpoint, a CLI agent or a sandboxed agent is configured and reachable from this browser": each of the two pages says that the prompt bar appears then. FINDING: neither page mentions the prompt bar (src/settings-pages/participants.mjs, endpoints.mjs), so this case is red on main until they do (flow: UC-049 alternative 1a)
-test("alternative 1a: the participants page and the endpoint configuration say that the prompt bar appears once a participant is reachable", async () => {
-  for (const route of ["participants", "endpoints"]) {
-    const p = await openReplies({ inbox: [rawMail("n1")], fragment: `#${route}`, views: [maintenance, settings], rows: [LOCAL] });
-    try {
-      await waitFor(() => textOf(p.main()).length > 100);
-      assert.match(textOf(p.main()), /prompt bar/i, `the ${route} page names the prompt bar`);
-      assert.match(textOf(p.main()), /(appears|shown|offered)[^.]*(configured|reachable)|(configured|reachable)[^.]*(appears|shown|offered)/i, `the ${route} page says when it appears`);
-    } finally { await p.stop(); }
-  }
+// input: the page of the endpoint configuration read, and the page of the participants read
+// expect: UC-049 1a says "The settings page says that it appears once an endpoint is configured or a Bridge offers a CLI session": the endpoint configuration carries a folded explanation (details.explain, summary "What is this?") that names the prompt bar and says it appears once an endpoint is configured or a Bridge offers a CLI session; the participants page carries no such sentence
+test("alternative 1a: the endpoint configuration says that the prompt bar appears once an endpoint is configured or a Bridge offers a CLI session", async () => {
+  const said = /prompt bar appears once an endpoint is configured[^.]*Bridge[^.]*offers a CLI session/i;
+  const endpoints = await openReplies({ inbox: [rawMail("n1")], fragment: "#endpoints", views: [maintenance, settings], rows: [LOCAL] });
+  try {
+    await waitFor(() => textOf(endpoints.main()).length > 100);
+    const folded = byClass(endpoints.main(), "explain").filter((node) => node.localName === "details" && /^What is this\?/.test(textOf(node)) && said.test(textOf(node)));
+    assert.equal(folded.length, 1, "the endpoint configuration folds the explanation (details.explain, summary What is this?)");
+    assert.match(textOf(endpoints.main()), said, "and says when the prompt bar appears");
+  } finally { await endpoints.stop(); }
+  const participants = await openReplies({ inbox: [rawMail("n1")], fragment: "#participants", views: [maintenance, settings], rows: [LOCAL] });
+  try {
+    await waitFor(() => textOf(participants.main()).length > 100);
+    assert.doesNotMatch(textOf(participants.main()), said, "the participants page does not carry the sentence");
+  } finally { await participants.stop(); }
 });
