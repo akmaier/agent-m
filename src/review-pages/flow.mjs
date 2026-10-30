@@ -615,6 +615,12 @@ export function reviewRoute(kind) {
         for (const name of open) names.append(el("li", "open-name", name));
         rests.append(el("p", null, `${file.id} can be accepted once everything it names is accepted.`), names);
         target.append(rests);
+        // Accept stays beside the section, disabled and without a listener: a click writes nothing (UC-023 4b).
+        if (token) {
+          const waiting = button("btn accept", "Accept");
+          waiting.disabled = true;
+          target.append(waiting);
+        }
         return;
       }
     }
