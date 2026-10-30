@@ -11,7 +11,7 @@
 //
 // Written for the release testing of sprint 126 by developer-sonnet-l (ITM-739), who implemented none of ITM-724, ITM-728, ITM-729, ITM-730 or ITM-731 (RELEASE TESTS ARE NOT WRITTEN BY THE
 // IMPLEMENTER). The participants are drivers that answer from a list, so that each case states what the participants are sent and what they answer; no request leaves the process.
-// Where the pages and UC-023 disagree the case follows UC-023 and is marked { todo } with the finding (UC023-S2, named in tests/system-uc-023-modify-the-architecture.test.mjs). Readings the
+// Where the pages and UC-023 disagree the case follows UC-023 and is marked { todo } with the finding; no case of this file is now. Readings the
 // texts leave open, which the cases state:
 //   - "the use cases the change concerns are accepted" (UC-023, Precondition) is read as the use cases the job's parameter `useCases` names; the dashboard's prompt bar names none, so a change
 //     it starts is not held back by an open use case (the pull request names this).
@@ -197,9 +197,8 @@ test("TST-739208: UC-023 the derivation rules hold: a decision that restates an 
 // guards: A CHANGE ACROSS MODULES IS CHECKED AS A WHOLE; UC-023
 // given: a described change of two module files, MOD-sync and MOD-desk, with a reviewing participant; the architecture holds six files
 // input: the job is run; the reviewer's input is read
-// expect: the reviewer's input holds the whole text of every one of the six files of the architecture, the two changed ones and the four that the change leaves as they are. FINDING: it holds the files of the draft and the SPEC and the accepted use cases, not the other files (the kind review-architecture names no recipe whole-architecture), so a change is not checked together with the whole architecture
-test("TST-739209: UC-023 a change that concerns two modules is checked by the reviewer together with the whole architecture",
-  { todo: "FINDING UC023-S2 — the kind review-architecture (src/job-catalogue/kinds/review-architecture/kind.md) names the recipes instruction, whole-spec, accepted-use-cases, draft and chapters-for-architecture, not whole-architecture: the reviewer of a change is sent the changed files, not the architecture they change; the check the SPEC names for this requirement (tests/test_architecture_review.py) holds no case that sends a change to two module files" }, async () => {
+// expect: the reviewer's input holds the whole text of every one of the six files of the architecture, the two changed ones and the four that the change leaves as they are.
+test("TST-739209: UC-023 a change that concerns two modules is checked by the reviewer together with the whole architecture", async () => {
   const s = await scenario({});
   const job = await jobOf(s, "change-architecture", { target: "MOD-sync", instruction: "Remove pull" }, { drafter: DRAFTER, reviewers: [REVIEWER] });
   const files = { files: [{ path: SYNC_PATH, text: SYNC.replace("It synchronises the loans.", "It synchronises the loans well."), class: "change", of: "MOD-sync" },
@@ -216,9 +215,8 @@ test("TST-739209: UC-023 a change that concerns two modules is checked by the re
 // guards: THE ARCHITECTURE'S PARTICIPANTS RECEIVE THE WHOLE PROJECT; UC-023
 // given: a described change of ARC-001 with a reviewing participant; the architecture holds six files
 // input: the job is run; the reviewer's input is read
-// expect: the reviewer's input holds the whole SPEC, every accepted use case and every file of the architecture. FINDING: it holds the SPEC and the accepted use cases and the changed file, not the five other files of the architecture (the same finding as TST-739209)
-test("TST-739210: UC-023 the reviewing participant is sent the whole SPEC, the accepted use cases and the whole architecture",
-  { todo: "FINDING UC023-S2 — the reviewer of a change-architecture job is sent the whole SPEC, the accepted use cases and the draft, but the recipe whole-architecture is not among the recipes of review-architecture (src/job-catalogue/kinds/review-architecture/kind.md)" }, async () => {
+// expect: the reviewer's input holds the whole SPEC, every accepted use case and every file of the architecture.
+test("TST-739210: UC-023 the reviewing participant is sent the whole SPEC, the accepted use cases and the whole architecture", async () => {
   const s = await scenario({});
   const job = await jobOf(s, "change-architecture", PARAMS, { drafter: DRAFTER, reviewers: [REVIEWER] });
   const reviewer = driver(REVIEWER, [answer({ findings: [] })]);

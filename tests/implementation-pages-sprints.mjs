@@ -79,7 +79,7 @@ export function hostOf(files, { pullRequests = PULL_REQUESTS, calls = [], commit
       return pullRequests.filter((p) => state === "all" || p.state === state);
     },
     async containsCommit(...args) { calls.push(["containsCommit", ...args]); return false; },
-    async commitFiles(change) { calls.push(["commitFiles"]); commits.push(change); for (const file of change.files) files[file.path] = file.text; return { commit: "d".repeat(40), url: "https://example.org/d" }; },
+    async commitFiles(change) { calls.push(["commitFiles"]); commits.push(change); for (const file of change.files) { if (file.delete) delete files[file.path]; else files[file.path] = file.text; } return { commit: "d".repeat(40), url: "https://example.org/d" }; },
   };
 }
 

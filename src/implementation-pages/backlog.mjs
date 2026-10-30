@@ -182,11 +182,12 @@ function marks(row) {
 function backlogPanel(context, ctx) {
   const rows = ctx.view.rows.map((row, at) => `<tr data-item="${h(row.item)}"><td data-label="#">${h(at + 1)}</td><td data-label="Item">${fileLink(context, ctx.ref, row.path, h(row.item))}</td><td data-label="Title">${h(row.title)}</td>
       <td class="small" data-label="Realises">${row.realises.map((name) => `<code>${h(name)}</code>`).join(" ")}</td>
-      <td data-label="State">${stateCell(row.state)}</td><td class="small" data-label="Held or kept">${marks(row)}</td></tr>`).join("");
+      <td data-label="State">${stateCell(row.state)}${markControls(row)}</td><td class="small" data-label="Held or kept">${marks(row)}</td></tr>`).join("");
   return `<section class="panel" data-part="backlog"><h3>The backlog</h3>
     <p class="muted">${h(ctx.view.rows.length)} items, each after the items it builds on.</p>
     <div class="table-scroll" tabindex="0"><table class="list"><thead><tr><th>#</th><th>Item</th><th>Title</th><th>Realises</th><th>State</th><th>Held or kept</th></tr></thead>
       <tbody>${rows}</tbody></table></div>
+    <div data-mark-result></div>
     <p><button type="button" class="btn" data-add-item>+ Item</button></p><div data-item-form></div>
     ${whatIsThis("<p>The backlog is everything the product is meant to do, one Markdown file per item under <code>docs/backlog/</code> " +
       "(UC-032). It keeps no order of its own: each item is listed after the items it builds on, and what is worth doing next is " +
@@ -194,7 +195,18 @@ function backlogPanel(context, ctx) {
       "branch or their title — and from what is accepted. In a product with several teams, an item a team's sprint holds is held " +
       "by it, and an item that changes or uses a module a held item changes or uses is kept from the other teams until that hold " +
       "ends. <em>+ Item</em> opens a form for an item you write yourself: its title, its outcome, what it realises, the modules it " +
-      "changes and the items it builds on; <em>Add</em> commits it under <code>docs/backlog/</code> as your own input (UC-032 2a).</p>")}</section>`;
+      "changes and the items it builds on; <em>Add</em> commits it under <code>docs/backlog/</code> as your own input (UC-032 2a). A done item " +
+      "whose requirement or use case is withdrawn, changed or not accepted, or whose prerequisite is not done, is marked with that reason; beside it, " +
+      "<em>Point at</em> commits the item with the replacing requirement you name in place of the one withdrawn, and <em>Remove</em> commits its " +
+      "removal. Nothing changes until you press one (UC-032 1a).</p>")}</section>`;
+}
+
+// A done item that carries a reason (UC-032 1a): the field for the replacing requirement, Point at and Remove. Each writes on the person's click only.
+function markControls(row) {
+  if (row.state.state !== "done" || !row.state.reason) return "";
+  const id = h(row.item);
+  return `<div class="small" data-mark-controls><input data-point-to="${id}" aria-label="Replacing requirement of ${id}" placeholder="replacing requirement">
+    <button type="button" class="btn" data-point-at="${id}">Point at</button> <button type="button" class="btn" data-remove-item="${id}">Remove</button></div>`;
 }
 
 function uncoveredPanel(ctx) {
@@ -500,6 +512,31 @@ async function itemForm(place, context) {
   place.replaceChildren(form, result);
 }
 
+// Point at and Remove on a marked row (UC-032 1a): one commit through saveItems on the default branch read at the click. Point at replaces the names among the item's `realises` that
+// its row's reason names — the reason of a done item opens with the requirement or use case it is about, "<name> is …" — with the replacing requirement the person typed, and keeps the others.
+async function decideMark(target, context, id, reason, point) {
+  const out = target.querySelector("[data-mark-result]");
+  const replacing = point ? text(target.querySelector(`[data-point-to="${id}"]`)?.value).trim() : "";
+  if (point && !replacing) { out.innerHTML = `<p class="warn">Name the replacing requirement of ${h(id)}.</p>`; return; }
+  out.innerHTML = `<p class="muted">Writing…</p>`;
+  try {
+    const { head, architecture, items } = await headOf(context.product.host);
+    let change = { items: [], removed: [id] };
+    if (point) {
+      const doc = items.find((one) => idOf(one) === id);
+      if (!doc) throw new Error(`${id} is no item of the backlog at ${head.commit}`);
+      const withdrawn = (name) => reason.split("; ").some((part) => part.startsWith(`${name} is `));
+      const realises = [...new Set([...list(doc.fields.realises).filter((name) => !withdrawn(name)), replacing])];
+      change = { items: [{ fields: { ...doc.fields, realises }, sections: doc.sections.map(({ heading, text: body }) => ({ heading, text: body })) }], removed: [] };
+    }
+    const saved = await saveItems(context.product.host, change, { architecture, head: head.commit, trailers: [] });
+    await draw(target, context);
+    target.insertAdjacentHTML?.("afterbegin", `<section class="panel notice flash"><p>${point ? `${h(id)} now realises ${h(replacing)}` : `${h(id)} is removed from the backlog`} — commit ${h(text(saved.commit).slice(0, 7))}.</p></section>`);
+  } catch (failure) {
+    out.innerHTML = `<p class="warn">${h(id)} is not changed: ${h(failed(failure))}</p>${failure?.findings?.length ? `<ul class="small">${failure.findings.map((one) => `<li>${h(one.what)}</li>`).join("")}</ul>` : ""}`;
+  }
+}
+
 // ---------------------------------------------------------------- the route
 
 // The page read now, with the planning of `team` open (or none).
@@ -547,6 +584,13 @@ async function paint(target, context, ctx, team) {
   });
   onClick("[data-propose-items]", "[data-propose]", (place) => proposeItems(place, context, ctx));
   onClick("[data-add-item]", "[data-item-form]", (place) => itemForm(place, context));
+  for (const [selector, attribute, point] of [["[data-point-at]", "data-point-at", true], ["[data-remove-item]", "data-remove-item", false]]) {
+    target.querySelectorAll(selector).forEach((button) => button.addEventListener("click", (event) => {
+      if (event?.isTrusted !== true) return;
+      const id = button.getAttribute(attribute);
+      return decideMark(target, context, id, text(view.rows.find((each) => each.item === id)?.state.reason), point);
+    }));
+  }
 
   // Each control is looked up by its own selector — a team's Plan button by its team, an item's tick by its item.
   const again = (next) => paint(target, context, ctx, next).catch((failure) => { target.innerHTML = `<p class="warn">${h(failure?.message ?? failure)}</p>`; });
