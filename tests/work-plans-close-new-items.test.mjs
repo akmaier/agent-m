@@ -51,7 +51,7 @@ function hostWith(files = FILES, history = HISTORY) {
     async repositoryInfo() { calls.push(["repositoryInfo"]); return { defaultBranch: "main" }; },
     async readSnapshot(ref) {
       calls.push(["readSnapshot", ref]);
-      return { ref, commit: HEAD, paths: Object.keys(files), blob: (p) => (p in files ? `blob-${p}` : null), read: async (p) => files[p] ?? null };
+      return { ref, commit: HEAD, paths: Object.keys(files), blob: (p) => (p in files ? `blob-${p}` : null), read: async (p) => { calls.push(["read", p]); return files[p] ?? null; } };
     },
     async readHistory(path, options) { calls.push(["readHistory", path, options]); return history; },
     async commitFiles(change) { calls.push(["commitFiles", change]); return { commit: "c".repeat(40), url: "https://example.org/c" }; },
@@ -111,4 +111,26 @@ test("the one-commit check holds for one commit of the record and the items, and
   const files = (...paths) => paths.map((path) => ({ path, text: "x" }));
   assert.equal(inOneCommit([{ files: files(RECORD, COUNT_PATH, WARN_PATH) }], [RECORD, COUNT_PATH, WARN_PATH]), true);
   assert.equal(inOneCommit([{ files: files(RECORD) }, { files: files(COUNT_PATH, WARN_PATH) }], [RECORD, COUNT_PATH, WARN_PATH]), false);
+});
+
+// TST-987004 · level: unit · module: MOD-work-plans
+// guards: UC-041; A SPRINT ENDS WITH A REVIEW OF ITS INCREMENT
+// given: team1's open sprint 01 and a backlog of fifty items besides ITM-001 and ITM-003, on a fake host whose snapshot counts each read; known positive: TST-987001's close with two new items over the same backlog, which reads the item files
+// input: closeSprint(host, a close with newItems [], context at HEAD)
+// expect: one commit of the sprint's record only; the snapshot was asked to read the sprint's record and no item file, and readHistory was not asked; the known positive's close read item files and asked readHistory
+test("closeSprint — a close without new items reads the sprint's record and no item file, and asks no history", async () => {
+  const many = Object.fromEntries(Array.from({ length: 50 }, (_, n) => {
+    const id = `ITM-${String(100 + n).padStart(3, "0")}`;
+    return [`docs/backlog/${id}-work.md`, itemText(id, `Work ${n}`)];
+  }));
+  const itemReads = (host) => host.calls.filter(([what, path]) => what === "read" && path !== RECORD);
+  const known = hostWith({ ...FILES, ...many });
+  await closeSprint(known, close([COUNT, WARN]), { facts: FACTS, architecture: ARCHITECTURE, head: HEAD, trailers: [] });
+  assert.ok(itemReads(known).length > 0 && known.calls.some(([what]) => what === "readHistory"), "known positive: a close with new items reads the items and the history");
+  const host = hostWith({ ...FILES, ...many });
+  const result = await closeSprint(host, close([]), { facts: FACTS, architecture: ARCHITECTURE, head: HEAD, trailers: [] });
+  assert.deepEqual(committed(host).map((c) => c.files.map((f) => f.path)), [[RECORD]]);
+  assert.deepEqual(result.written, [RECORD]);
+  assert.deepEqual(host.calls.filter(([what]) => what === "read").map(([, path]) => path), [RECORD]);
+  assert.equal(host.calls.filter(([what]) => what === "readHistory").length, 0);
 });
