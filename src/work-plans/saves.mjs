@@ -231,7 +231,10 @@ export async function closeSprint(host, close, context) {
       `Decide for ${listed(undecided)} whether ${undecided.length === 1 ? "it goes" : "they go"} back to the backlog or into the next sprint.`);
   }
   const { defaultBranch } = await host.repositoryInfo();
-  const items = await itemFiles(host, snapshot, { items: close.newItems ?? [], removed: [] }, { architecture, head, defaultBranch });
+  // The backlog is read only for a close that adds items.
+  const items = (close.newItems ?? []).length
+    ? await itemFiles(host, snapshot, { items: close.newItems, removed: [] }, { architecture, head, defaultBranch })
+    : { documents: [], files: [] };
   const goes = (to) => (close.unfinished ?? []).filter((entry) => entry.to === to).map((entry) => entry.item);
   let out = appended(now, "## Review", {}, reviewLines(close.review, facts));
   out = appended(out, "## Unfinished items", { "to the backlog": goes("backlog"), "into the next sprint": goes("next sprint") },
