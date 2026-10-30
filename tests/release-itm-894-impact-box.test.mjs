@@ -73,7 +73,15 @@ const PLANT = `(() => { const lines = Array.from({ length: 40 }, (_, n) => "<p>p
 const PLANTED = `(() => ["planted-plain", "planted-box", "planted-untabbable"].map((id) => { const node = document.getElementById(id), style = getComputedStyle(node);
   return { id, tabindex: node.getAttribute("tabindex"), overflowY: style.overflowY, maxHeight: style.maxHeight, scrollHeight: node.scrollHeight, clientHeight: node.clientHeight }; }))()`;
 
-const KEYS = { Tab: { key: "Tab", code: "Tab", windowsVirtualKeyCode: 9, nativeVirtualKeyCode: 9 }, End: { key: "End", code: "End", windowsVirtualKeyCode: 35, nativeVirtualKeyCode: 35 } };
+// The shapes in which a key is sent as the browser's real key events; the first is Puppeteer's (a key without text is a rawKeyDown, its keyUp after it, the Windows key codes), the others are tried
+// only where the first moves nothing in the page (Chromium on Linux takes the native code of the X server, and a key sent with its text): the probe in `chooseKeys` keeps the first that moves the focus.
+const KEY_CODES = { Tab: { key: "Tab", code: "Tab", windows: 9, linux: 23, text: "\t" }, End: { key: "End", code: "End", windows: 35, linux: 115, text: null } };
+const SHAPES = [
+  (k) => [{ type: "rawKeyDown", key: k.key, code: k.code, windowsVirtualKeyCode: k.windows, nativeVirtualKeyCode: k.windows }, { type: "keyUp", key: k.key, code: k.code, windowsVirtualKeyCode: k.windows, nativeVirtualKeyCode: k.windows }],
+  (k) => [{ type: "keyDown", key: k.key, code: k.code, windowsVirtualKeyCode: k.windows, nativeVirtualKeyCode: k.windows, ...(k.text ? { text: k.text, unmodifiedText: k.text } : {}) }, { type: "keyUp", key: k.key, code: k.code, windowsVirtualKeyCode: k.windows, nativeVirtualKeyCode: k.windows }],
+  (k) => [{ type: "rawKeyDown", key: k.key, code: k.code, windowsVirtualKeyCode: k.windows, nativeVirtualKeyCode: k.linux }, { type: "keyUp", key: k.key, code: k.code, windowsVirtualKeyCode: k.windows, nativeVirtualKeyCode: k.linux }],
+];
+let shape = 0;
 // The window of the check is hidden, and on a runner with a virtual display no window has the focus, so a page takes no key: the page is brought to the front and made to behave as focused, and the focus is
 // asked of the document itself, so that a key that moves nothing says why.
 async function focusPage(page) {
@@ -82,14 +90,25 @@ async function focusPage(page) {
   await page.evaluate("window.focus(); document.hasFocus()");
 }
 async function press(page, name) {
-  for (const type of ["rawKeyDown", "keyUp"]) await page.call("Input.dispatchKeyEvent", { type, ...KEYS[name] });
+  for (const event of SHAPES[shape](KEY_CODES[name])) await page.call("Input.dispatchKeyEvent", event);
+}
+// The shape of key event that moves the focus in this browser: Tab is sent from the top of the page in each shape until the focus leaves the body.
+async function chooseKeys(page) {
+  for (let candidate = 0; candidate < SHAPES.length; candidate += 1) {
+    shape = candidate;
+    await page.evaluate("document.activeElement?.blur?.(); window.scrollTo(0, 0); 0");
+    await press(page, "Tab");
+    if ((await page.evaluate("document.activeElement?.tagName ?? 'BODY'")) !== "BODY") return candidate;
+  }
+  shape = 0;
+  return -1;
 }
 
 // The places the focus takes in one round of Tab presses from the top of the page: every box (by position), whether the difference box, and the planted ones.
 async function tabRound(page) {
   await focusPage(page);
   await page.evaluate("document.activeElement?.blur?.(); window.scrollTo(0, 0); 0");
-  const reached = { boxes: new Set(), diff: false, planted: new Set(), moved: false, hasFocus: await page.evaluate("document.hasFocus()") };
+  const reached = { boxes: new Set(), diff: false, planted: new Set(), moved: false, hasFocus: await page.evaluate("document.hasFocus()"), shape };
   let last = null;
   for (let n = 0; n < TAB_PRESSES; n += 1) {
     await press(page, "Tab");
@@ -144,6 +163,8 @@ before(async () => {
     const page = browser.page;
     await configure(page, "Page.addScriptToEvaluateOnNewDocument", { source: OBSERVE });
     await focusPage(page);
+    await show(page, site, "#arc/ARC-001");
+    await chooseKeys(page);
     for (const [name, width] of CONDITIONS) {
       await configure(page, "Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: width < 600 });
       for (const [address] of [...FILE_PAGES, [ALL]]) {
@@ -220,7 +241,7 @@ test("TST-894303 the Tab key reaches the impact list on a file's page and on Rev
     assert.equal(around.planted.has("planted-untabbable"), false, `${name}: counter-proof, the Tab key does not reach a box that scrolls and has no tabindex: ${JSON.stringify([...around.planted])}`);
     for (const [address, shown] of [...FILE_PAGES, [ALL, SHOWN_ON_ALL]]) {
       const round = reached.get(`${name} ${address}`);
-      assert.equal(round.moved, true, `${name}: ${address}: known positive, the focus moved (document focused: ${round.hasFocus})`);
+      assert.equal(round.moved, true, `${name}: ${address}: known positive, the focus moved (document focused: ${round.hasFocus}, key shape ${round.shape})`);
       assert.equal(round.diff, true, `${name}: ${address}: known positive, the Tab key reaches the difference box`);
       assert.deepEqual([...round.boxes].sort(), Array.from({ length: shown }, (_, index) => index), `${name}: ${address}: the impact lists the Tab key reached`);
     }
