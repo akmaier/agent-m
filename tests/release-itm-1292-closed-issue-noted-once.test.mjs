@@ -50,8 +50,8 @@ const holds = (expression, variables) => expression.split("||").some((any) => an
   return valueOf(left, variables) === valueOf(right, variables);
 }));
 /** The jobs of the GitLab file that the pipeline of a push to the default branch (code changed, no record) starts and that run onPullRequestClosed: [{ id, runner }]. The first rule of a job that holds sets its entry. */
-function gitlabWriters() {
-  const variables = { CI_PIPELINE_SOURCE: "push", CI_COMMIT_BRANCH: "main", CI_DEFAULT_BRANCH: "main" };
+function gitlabWriters(source = "push") {
+  const variables = source === "push" ? { CI_PIPELINE_SOURCE: "push", CI_COMMIT_BRANCH: "main", CI_DEFAULT_BRANCH: "main" } : { CI_PIPELINE_SOURCE: source, CI_DEFAULT_BRANCH: "main", CI_MERGE_REQUEST_IID: "7" };
   return jobsOf(fileOf("gitlab")).flatMap((job) => {
     const rules = job.text.slice(0, job.text.indexOf("\n  script:")).split(/\n(?=    - if:)/).slice(1).map((rule) => ({ expression: /^    - if: '(.*)'/.exec(rule)[1], changes: /\n\s+changes:/.test(rule), entry: /AGENT_M_ENTRY: (\w+)/.exec(rule)?.[1] ?? null }));
     const rule = rules.find((each) => holds(each.expression, variables) && !each.changes);
@@ -127,11 +127,12 @@ test("TST-1292301 on GitHub, the two jobs that write of two routes run the entry
 
 // TST-1292302 · level: release · module: MOD-workflow-entries
 // guards: UC-012; GITLAB PRODUCTS ARE SUPPORTED
-// given: UC-012 step 5 on a GitLab product with the default route and the runner gpu; the pipeline of the push to the default branch that merged the merge request !7 of the job JOB-20261030-0900-a1b2 (fix-bug, working on the issues 12 and 13) starts, by the rules of the generated job workflow, one job that writes for each route; both issues open and without a note; known positive first — the rules start no such job for a push to another branch
+// given: UC-012 step 5 on a GitLab product with the default route and the runner gpu; the pipeline of the push to the default branch that merged the merge request !7 of the job JOB-20261030-0900-a1b2 (fix-bug, working on the issues 12 and 13) starts, by the rules of the generated job workflow, one job that writes for each route; both issues open and without a note; known positive first — the rules start no such job for the pipeline of the open merge request itself (source merge_request_event), so that the entry runs on the merge alone
 // input: the entry of each of the two jobs the pipeline starts run in the order of the file, over one fake GitLab that keeps what is written to its issues and lists !7 as merged by the pushed commit
 // expect: both runs end `done`; the issues 12 and 13 each hold, afterwards, state closed and exactly one note, "Closed with <the merge request's address>."; the first run wrote the four writes — a note and a closing for each issue — and the second wrote nothing; every request carried the person's token
 // Planted fault: closeWithLinks not reading the issue first (the early `return` of src/issue-handling/classes.mjs removed) notes and closes both issues once for each route, and the case fails on the notes.
 test("TST-1292302 on GitLab, the two jobs that write of two routes run the entry for one merge and the issues are noted and closed once", async () => {
+  assert.deepEqual(gitlabWriters("merge_request_event"), [], "known positive: the pipeline of the open merge request starts no such job");
   const writers = gitlabWriters();
   assert.deepEqual(writers.map((each) => each.runner), ["hosted", "gpu"], "the pipeline of the push to the default branch starts one job that writes for each route");
 
@@ -151,7 +152,7 @@ test("TST-1292302 on GitLab, the two jobs that write of two routes run the entry
 
 // TST-1292303 · level: release · module: MOD-issue-handling
 // guards: UC-012
-// given: the product and the pull request of TST-1292301; the first job that writes has run and closed and noted the issues 12 and 13; then a person reopens the issue 12 on the issue's page (the closing undone with the person's token), and the issue 13 is left closed; known positive first — an issue closed by hand with no note, and an issue closed with another pull request's note, are each noted and closed by the run
+// given: the product and the pull request of TST-1292301; the first job that writes has run and closed and noted the issues 12 and 13; then a person reopens the issue 12 on the issue's page (the closing undone with the person's token), and the issue 13 is left closed; known positives, checked afterwards in a second product — an issue closed by hand with no note, and an issue closed with another pull request's note, are each noted and closed by the run
 // input: the entry of the second job that writes run for the same merge
 // expect: the issue 13, still closed and noted, is left as it is, with its one note; the issue 12, open again, is noted a second time and closed again, so that it holds two notes and is closed — the reading of the texts named above (an issue is left as it is only while it is closed); the known positives each hold the note of this pull request and are closed
 // Planted fault: the state left out of the check (`current.state === "closed" &&` removed from the line of src/issue-handling/classes.mjs) lets the note alone decide, leaves the reopened issue 12 open, and the case fails on its state and its notes.
