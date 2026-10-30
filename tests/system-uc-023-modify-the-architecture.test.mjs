@@ -11,12 +11,10 @@
 // Level: system
 //
 // Authored by developer-sonnet-l (ITM-739), who implemented none of ITM-724, ITM-728, ITM-729, ITM-730 or ITM-731.
-// Where the pages and UC-023 disagree the case follows UC-023 and is marked { todo } with the finding it reports (UC023-S1 to UC023-S5); every other case is green. The findings:
-//   UC023-S1  a change returned under its existing identifier is refused by `candidate-classes` as a duplicate of itself (a module's key is its id, a decision's its title), so the loop ends with that error left;
+// Where the pages and UC-023 disagree the case follows UC-023 and is marked { todo } with the finding it reports (UC023-S2 to UC023-S4); every other case is green. The findings:
 //   UC023-S2  the reviewing participant of a change receives the files the change touches and the SPEC and use cases, not the whole architecture;
 //   UC023-S3  the prompt bar, the one route to "Describe the change", chooses a deriving participant only: no reviewing participant is chosen and none is asked;
-//   UC023-S4  after Accept no list of the affected modules, each with the plan steps and backlog items that name it, is shown;
-//   UC023-S5  a changed file that rests on a use case that is not accepted offers no Accept at all, where UC-023 says Accept stays disabled.
+//   UC023-S4  after Accept no list of the affected modules, each with the plan steps and backlog items that name it, is shown.
 // Each test states its input and its expected values in its own text; none reads an expected result from the SPEC, a use case or an architecture file, but the flow map (TST-739001),
 // which holds the expected passages itself and checks that UC-023 still says them.
 
@@ -62,19 +60,19 @@ const FLOW_EVIDENCE = {
   "main-4-impact-list": { uc: "**The impact list.** When a reviewer opens a changed decision", evidence: [[SELF, "TST-739002"], [RELEASE, "TST-739101"]] },
   "main-5-accept": { uc: "The reviewer presses **Accept** — one click.", evidence: [[SELF, "TST-739002"]] },
   "main-5-restructuring": { uc: "**Accept all N shown** for all of them in one commit", evidence: [[SELF, "TST-739004"]] },
+  "2-changes-under-existing-identifiers": { uc: "The participant returns changes under the existing identifiers", evidence: [[SELF, "TST-739010"]] },
   "1b-split-or-merge": { uc: "**1b. The author splits or merges modules.**", evidence: [[SELF, "TST-739004"]] },
   "2a-new-identifier": { uc: "**2a. The participant proposes a new identifier for something that exists.**", evidence: [[SELF, "TST-739005"]] },
   "4a-breaks": { uc: "marked *breaks*; accepting stays possible", evidence: [[SELF, "TST-739006"]] },
   "4b-not-accepted": { uc: "**4b. The changed file names a requirement or use case that is not accepted.**", evidence: [[SELF, "TST-739007"]] },
+  "4b-accept-disabled": { uc: "*Accept* stays disabled and names it.", evidence: [[SELF, "TST-739012"]] },
   "4c-no-code-yet": { uc: "The list says \"no code yet\"", evidence: [[SELF, "TST-739008"]] },
   "5a-edit-before-accepting": { uc: "**5a. The reviewer edits before accepting.**", evidence: [[SELF, "TST-739009"]] },
   "postcondition-code-unchanged": { uc: "Code still reflects the old architecture until an implementation job changes it.", evidence: [[SELF, "TST-739002"], [SELF, "TST-739004"]] },
 };
 const FLOW_FINDINGS = {
-  "2-changes-under-existing-identifiers": { uc: "The participant returns changes under the existing identifiers", finding: "UC023-S1", file: SELF, test: "TST-739010" },
   "2-reviewing-participant": { uc: "the author chooses a deriving and a reviewing participant", finding: "UC023-S3", file: SELF, test: "TST-739011" },
   "2-checked-as-a-whole": { uc: "a change that concerns more than one module together with the whole architecture", finding: "UC023-S2", file: RELEASE_JOB, test: "TST-739209" },
-  "4b-accept-disabled": { uc: "*Accept* stays disabled and names it.", finding: "UC023-S5", file: SELF, test: "TST-739012" },
   "6-affected-modules-with-their-steps": { uc: "Agent M lists the affected modules, each with the steps of the implementation plan or the backlog items that name it.", finding: "UC023-S4", file: SELF, test: "TST-739013" },
 };
 
@@ -360,9 +358,8 @@ test("TST-739009: UC-023 5a an edit before accepting is saved as in step 3 and t
 // guards: UC-023; THE DERIVATION RULES HOLD FOR ARCHITECTURE; A CHANGE IS PROPOSED UNDER THE EXISTING NAME
 // given: the drafter answers ARC-001 changed under its own identifier, class change of ARC-001, its title kept; known positive first — the same change with the title changed passes the check
 // input: the author describes the change in the bar, presses Send and then Review the draft
-// expect: known positive — the draft with a new title shows no finding left; the draft that keeps the title shows no finding left either, as UC-023 2 says the participant returns changes under the existing identifiers. FINDING: it shows the error "states the title of the existing ARC-001 and is classed change of ARC-001 — class it as duplicate of ARC-001", since candidate-classes takes a drafted file whose key equals an existing artifact's for a duplicate of it, also where the file is that artifact itself; the key of a module is its id, so no change to a module file can pass
-test("TST-739010: UC-023 2 a change returned under the existing identifier is not refused as a duplicate of itself",
-  { todo: "FINDING UC023-S1 — candidate-classes (src/job-runner/builtins.mjs, classification) classes a drafted file whose key equals an existing artifact's as a duplicate of it by rule and reports an error where the drafter classed it change of that artifact; the key of a decision is its title and of a module its id (src/documents/schemas), so a change that keeps the title, and every change to a module file, ends the loop with that error left" }, async () => {
+// expect: known positive — the draft with a new title shows no finding left; the draft that keeps the title shows no finding left either, as UC-023 2 says the participant returns changes under the existing identifiers.
+test("TST-739010: UC-023 2 a change returned under the existing identifier is not refused as a duplicate of itself", async () => {
   const known = await scenario({ answers: [{ files: [{ path: ARC1_PATH, text: ARC1_RETRY, class: "change", of: "ARC-001" }] }] });
   await onFile(known, "decision", "ARC-001");
   await send(known, "Let the sync retry", { participant: "drafter" });
@@ -395,9 +392,8 @@ test("TST-739011: UC-023 2 the change is checked by a reviewing participant befo
 // guards: UC-023; ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS
 // given: MOD-shelf changed to realise UC-003, which is not accepted; known positive first — the page names UC-003
 // input: the reviewer opens MOD-shelf
-// expect: known positive — the page names UC-003 as what is not accepted; UC-023 4b says Accept stays disabled and names it: a button Accept is on the page and is disabled. FINDING: no Accept is drawn at all (offerAcceptance in src/review-pages/flow.mjs returns after the section of what the file rests on)
-test("TST-739012: UC-023 4b Accept stays on the page, disabled, and names the use case",
-  { todo: "FINDING UC023-S5 — offerAcceptance (src/review-pages/flow.mjs) draws the section \"Rests on what is not accepted\" and returns before Accept: the page offers no Accept at all where UC-023 says Accept stays disabled" }, async () => {
+// expect: known positive — the page names UC-003 as what is not accepted; UC-023 4b says Accept stays disabled and names it: a button Accept is on the page and is disabled
+test("TST-739012: UC-023 4b Accept stays on the page, disabled, and names the use case", async () => {
   const s = await scenario({ now: { [SHELF_PATH]: SHELF_ON_OPEN } });
   await onFile(s, "module", "MOD-shelf");
   assert.deepEqual(all(one(s.target, "section", "rests-on"), "li", "open-name").map((node) => node.textContent), ["UC-003"], "known positive");

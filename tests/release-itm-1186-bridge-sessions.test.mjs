@@ -14,7 +14,8 @@
 //   - "Test" is the button of the Bridge's line; "Save session" the button of an agent's form; the form of an agent is the controls `.bridge-session-place`, `.bridge-session-context`, `.bridge-session-model` and `.bridge-session-capability`.
 //   - "prefilled as for a CLI agent (UC-017)" is read, for the capabilities, as the preset of a CLI agent: draft text, read the repository, write to the repository, run code and tests, use tools; and for the place, context and model as empty (the person declares them).
 //   - "not offered in the prompt bar" is read as a line of the form that says the prompt bar does not offer the agent and names what it lacks.
-//   - What the Bridge sees of a drawn page is the requests it receives: a page that is drawn sends none.
+//   - What the Bridge sees of a drawn page is the requests it receives: the prompt bar of the page tests each Bridge this browser keeps when it is drawn (MOD-prompt-bar: MOD-bridge-client's testBridge, `GET /v1/pair` and `GET /v1/agents`), so a page that
+//     is drawn sends those two and the route itself sends none besides.
 
 import assert from "node:assert/strict";
 import { mkdtemp } from "node:fs/promises";
@@ -58,10 +59,11 @@ const declare = (main, { place, context, model }) => { one(main, ".bridge-sessio
 // guards: UC-049; UC-044; THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE
 // given: this browser keeps the Bridge lab, a real Bridge that lists the agent claude ready and the agent codex not ready; known positive first — the Bridge answers a request
 // input: the route bridge is drawn; the person presses Test on the line of lab
-// expect: known positive — Test reached the Bridge; drawing the page sent the Bridge no request; Test sent exactly /v1/pair and /v1/agents, each with the Bridge's token; the page then holds the form of claude and none for codex; claude's capabilities are the preset of a CLI agent (draft text, read the repository, write to the repository, run code and tests, use tools) and reach the web is not among them; its place, context and model are empty
+// expect: known positive — Test reached the Bridge; drawing the page sent the Bridge exactly the two requests of the prompt bar's test of it, /v1/pair and /v1/agents, and none of the route; Test then sent exactly /v1/pair and /v1/agents, each with the Bridge's token; the page then holds the form of claude and none for codex; claude's capabilities are the preset of a CLI agent (draft text, read the repository, write to the repository, run code and tests, use tools) and reach the web is not among them; its place, context and model are empty
 test("TST-1186301: Test of a Bridge lists the CLI sessions it offers, a form for each ready one, prefilled as for a CLI agent", async (t) => {
   const { seen, server, main } = await dashboard(t);
-  assert.deepEqual(seen, [], "drawing the route sends the Bridge no request");
+  assert.deepEqual(seen.map((request) => request.path), ["/v1/pair", "/v1/agents"], "drawing the page sends the Bridge the prompt bar's two requests, and the route none besides");
+  seen.length = 0;
   await press(server, one(main, ".bridge-kept-test"));
   assert.deepEqual(seen.map((request) => request.path), ["/v1/pair", "/v1/agents"], "known positive: Test reached the Bridge, with the two requests of testBridge");
   assert.ok(seen.every((request) => typeof request.token === "string" && request.token.length > 0), "each carries the Bridge's token");
@@ -75,7 +77,7 @@ test("TST-1186301: Test of a Bridge lists the CLI sessions it offers, a form for
 // guards: CONFIGURATION LIVES IN THE BROWSER; THE PROMPT BAR'S ENDPOINTS AND CLI SESSIONS ARE BOUND AS PARTICIPANTS ARE; UC-049
 // given: the tested Bridge lab with the form of claude, and nothing kept for it
 // input: the person writes place "this machine", context "200000", model "claude-opus-5-5" and presses Save session; then writes the context "12.5" and presses Save session
-// expect: the first save keeps, in this browser's localStorage under session:lab:claude, { place: "this machine", context: 200000, model: "claude-opus-5-5", capabilities: the preset }, the context a number; the second keeps it with no context, since a number of tokens is whole; no other session key is written; the Bridge received no request but the two of Test
+// expect: the first save keeps, in this browser's localStorage under session:lab:claude, { place: "this machine", context: 200000, model: "claude-opus-5-5", capabilities: the preset }, the context a number; the second keeps it with no context, since a number of tokens is whole; no other session key is written; the Bridge received no request but the two of the prompt bar's test when the page was drawn and the two of Test
 test("TST-1186302: Save session keeps the declaration under session:<bridge>:<agent>, the context only as a whole number", async (t) => {
   const { seen, server, main } = await dashboard(t);
   await press(server, one(main, ".bridge-kept-test"));
@@ -87,7 +89,7 @@ test("TST-1186302: Save session keeps the declaration under session:<bridge>:<ag
   assert.deepEqual(stored(sessionKey), { place: "this machine", model: "claude-opus-5-5", capabilities: PRESET });
   const keys = Array.from({ length: globalThis.localStorage.length }, (_, at) => globalThis.localStorage.key(at)).filter((name) => name.includes(":session:"));
   assert.deepEqual(keys, [key(sessionKey)], "no other session is written");
-  assert.deepEqual(seen.map((request) => request.path), ["/v1/pair", "/v1/agents"]);
+  assert.deepEqual(seen.map((request) => request.path), ["/v1/pair", "/v1/agents", "/v1/pair", "/v1/agents"], "the prompt bar's two when the page was drawn, then the two of Test");
 });
 
 // TST-1186303 · level: release · module: MOD-settings-pages

@@ -22,8 +22,6 @@
 //     open pull requests only and reads the records they name, in one batch; for each it shows the CI runs of the first commit and of the head, and whether the Definition of Done holds: the result of the head's check
 //     `agent-m done` among the checks pullRequestFacts gives, linked. *Merge* is offered for a pull request that is no draft and whose head passed that check, and calls mergePullRequest on the head the page read.
 
-import { readSetting } from "../browser-store/index.mjs";
-import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
 import { listJobs, newJobId } from "../job-ledger/index.mjs";
 import { prepareJob } from "../job-runner/index.mjs";
@@ -34,9 +32,8 @@ import { declarationSchema, holdsRole, roleAssignmentSchema, workflowOf } from "
 import { productFacts } from "../progress-measures/index.mjs";
 import { queueJob, routesFor } from "../runtimes/index.mjs";
 import { explain as frameExplain } from "../site-frame/index.mjs";
-import { restrictedPlaces, sourceSchemas } from "../source-register/index.mjs";
 import { planSchemas, startable } from "../work-plans/index.mjs";
-import { contextOf, participantsIn, viewOf } from "./backlog.mjs";
+import { connectionsOf, contextOf, participantsIn, personOf, placesOf, viewOf } from "./backlog.mjs";
 import { declaredModelOf } from "./plan.mjs";
 import { asOfLine } from "./progress.mjs";
 
@@ -59,25 +56,8 @@ const implementingRoles = (workflow) => {
   return (workflow?.roles ?? []).filter((role) => names.has(role.name));
 };
 
-// The person who starts the jobs, by the name of the token stored for the product.
-function personOf(context) {
-  try {
-    const path = new URL(context.product.address).pathname.replace(/^\/|\/$/g, "");
-    const stored = readSetting(context.store, context.product.kind === "gitlab" ? `gitlab-token:${new URL(context.product.address).host}/${path}` : `github-token:${path}`);
-    return stored?.name ?? "the author";
-  } catch { return "the author"; }
-}
-
-// The Bridges and endpoints a participant's route names, as the tab holds them.
-function bridgesOf(participants, store) {
-  const bridges = {};
-  for (const participant of participants) {
-    const name = /^bridge\s+(\S+)\s+agent\s+\S+/.exec(participant.route ?? "")?.[1];
-    const stored = name === undefined ? null : readSetting(store, `bridge:${name}`);
-    if (stored) bridges[name] = bridgeAt(settingsOf({ name, ...stored }, readSetting(store, "jump-host")));
-  }
-  return bridges;
-}
+// The Bridges a participant's route names, as the tab holds them.
+const bridgesOf = (participants, store) => connectionsOf(participants, store).bridges;
 
 // What one startable item shows: the holders that can implement, and for the chosen one what is sent where.
 async function sentFor(prepare, participant) {
@@ -91,14 +71,6 @@ async function sentFor(prepare, participant) {
 function headOf(target, body, note = "Ready backlog items are handed to coding agents, one job per item (UC-034).") {
   target.innerHTML = `<section class="panel head"><h2>Implement</h2><div data-route-explain></div>${explain(`<p>${note}</p>`)}${body}</section>`;
   target.querySelector("[data-route-explain]")?.append(frameExplain("implementation-route"));
-}
-
-// The places the restricted sources permit (JobContext.places.sources and .contents): the entries of the instance's register at its default branch, and MOD-source-register's restrictedPlaces over them for the product.
-async function placesOf(instanceSnapshot, address) {
-  const { entry } = sourceSchemas();
-  const paths = instanceSnapshot.paths.filter((path) => /^docs\/sources\/[^/]+\.md$/.test(path));
-  const register = await Promise.all(paths.map(async (path) => readDocument(entry, path, (await instanceSnapshot.read(path)) ?? "")));
-  return restrictedPlaces(register, address);
 }
 
 // Of the holders of a role, those the job can go to and those a linked source forbids (UC-024 5b): a holder is withheld where preparing the job for it finds that a source whose content the job includes does not permit its place;

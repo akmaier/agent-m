@@ -19,7 +19,7 @@
 //     entry `architecture`; a record is "kind: architecture-decision" or "kind: module".
 //   - The section of what a file rests on is a <section class="rests-on"> with one <li class="open-name"> for each requirement or use
 //     case the file names that is not accepted (MOD-approvals' acceptanceBlockers); it is there only while some are open, and a file
-//     with such a section offers no Accept and no GitHub page. A blocker that appears after the page was built is refused by
+//     with such a section offers an Accept that is disabled, and no GitHub page (UC-023 4b). A blocker that appears after the page was built is refused by
 //     acceptShown and named in the message.
 //   - The rows, the tick, the status badges, the difference and the GitHub fallback are those of the use cases' route, which the
 //     tests of ITM-355 pin; these tests ask them of the new kinds once.
@@ -365,7 +365,7 @@ test("MOD-review-pages decision/<id>/edit and module/<id>/edit — Save commits 
 // guards: ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS; UC-022
 // given: ARC-004, which names UC-002, a use case that is open; MOD-finer, which names a requirement the SPEC does not hold; and, to show a file that names accepted artifacts only, ARC-002
 // input: the routes decision and module rendered for each
-// expect: for ARC-004 a section of what it rests on that is not accepted, naming it and UC-002 and no other; for MOD-finer the same naming A FINE IS CHARGED PER DAY and UC-002, in the order the file names them; no Accept and no GitHub page on either; nothing written; ARC-002 has no such section
+// expect: for ARC-004 a section of what it rests on that is not accepted, naming it and UC-002 and no other; for MOD-finer the same naming A FINE IS CHARGED PER DAY and UC-002, in the order the file names them; on either one button Accept, disabled, and no GitHub page; nothing written; ARC-002 has no such section
 test("MOD-review-pages decision/<id> and module/<id> — a file that names what is not accepted is shown with it named, and not accepted", async () => {
   const fake = fakeHost();
   assert.equal(byClass(await show(fake, "decision", { id: "ARC-002" }), "section", "rests-on").length, 0, "known positive: ARC-002 rests on accepted artifacts");
@@ -376,10 +376,51 @@ test("MOD-review-pages decision/<id> and module/<id> — a file that names what 
     assert.equal(more.length, 0, id);
     assert.ok(section.textContent.includes(id), `${id}: the section names the file`);
     assert.deepEqual(byClass(section, "li", "open-name").map((item) => item.textContent), named, id);
-    assert.equal(byClass(target, "button", "accept").length, 0, `${id}: no Accept`);
+    const accepts = byClass(target, "button", "accept");
+    assert.equal(accepts.length, 1, `${id}: one Accept`);
+    assert.equal(accepts[0].disabled, true, `${id}: Accept is disabled`);
     assert.equal(byClass(target, "a", "github-page").length, 0, `${id}: no GitHub page`);
   }
   assert.equal(fake.writes().length, 0, "nothing written");
+});
+
+// TST-1315001 · level: unit · module: MOD-review-pages
+// guards: ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS; ONE CLICK PER DECISION; UC-023
+// given: ARC-004, open, which names UC-002, a use case that no approval record names; and a token
+// input: the route decision rendered for ARC-004, then a person's click on its Accept; then the same page on a product where a record names UC-002's text, and a person's click on its Accept
+// expect: the section of what it rests on that is not accepted, naming UC-002, and after it one button Accept, disabled; the click commits nothing and the page still shows the section and the disabled Accept; known positive: with the record, no such section and one button Accept, enabled, whose click commits one record naming ARC-004's path and blob at docs/approvals/ARC-004-<blob12>.md on the head that was read
+test("MOD-review-pages decision/<id> — a decision that rests on what is not accepted shows Accept disabled, and a click writes nothing", async () => {
+  const fake = fakeHost();
+  const target = await show(fake, "decision", { id: "ARC-004" });
+  const [section] = byClass(target, "section", "rests-on");
+  assert.ok(section, "the section of what it rests on");
+  assert.deepEqual(byClass(section, "li", "open-name").map((item) => item.textContent), ["UC-002"]);
+  const accepts = byClass(target, "button", "accept");
+  assert.equal(accepts.length, 1, "one Accept");
+  assert.equal(accepts[0].textContent, "Accept");
+  assert.equal(accepts[0].disabled, true, "disabled");
+  const shown = [...target.childNodes];
+  assert.ok(shown.indexOf(section) >= 0 && shown.indexOf(section) < shown.indexOf(accepts[0]), "Accept stands beside the section, after it");
+  click(accepts[0]);
+  for (let turn = 0; turn < 40; turn++) await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(fake.writes().length, 0, "a click on the disabled Accept commits nothing");
+  assert.equal(byClass(target, "section", "rests-on").length, 1, "the page is as it was");
+  assert.equal(byClass(target, "button", "accept")[0]?.disabled, true, "still disabled");
+
+  const accepted = [STEPS[0], { ...STEPS[1], ...Object.fromEntries([recordOf("UC-002", "use-case", "docs/use-cases/UC-002-reserve-a-book.md", UC2)]) }, STEPS[2]];
+  const free = fakeHost({ steps: accepted });
+  const read = free.head();
+  const positive = await show(free, "decision", { id: "ARC-004" });
+  assert.equal(byClass(positive, "section", "rests-on").length, 0, "known positive: UC-002 is named by a record, nothing is open");
+  const [enabled, ...rest] = byClass(positive, "button", "accept");
+  assert.equal(rest.length, 0, "known positive: one Accept");
+  assert.notEqual(enabled.disabled, true, "known positive: Accept is enabled");
+  click(enabled);
+  await until(() => free.writes().length === 1, "the commit of ARC-004");
+  const [{ change }] = free.writes();
+  const [recordPath, recordText] = recordOf("ARC-004", "architecture-decision", A(4, "queue"), ARC4);
+  assert.equal(change.expectedHead, read, "on the head that was read");
+  assert.deepEqual(change.files, [{ path: recordPath, text: recordText }], "one record, naming the blob shown");
 });
 
 // TST-472611 · level: unit · module: MOD-review-pages

@@ -5,8 +5,9 @@
 //
 // Module: MOD-prompt-bar
 //
-// THE PAGE NAMES WHERE IT SENDS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION. Nothing is read from a participant's
-// route, written or sent while the bar is drawn: *Send* is the one click that sends a message, and the one that, with recording on, writes
+// THE PAGE NAMES WHERE IT SENDS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION. Nothing is written or sent to a participant
+// while the bar is drawn — drawing it asks each Bridge this browser keeps only testBridge's two requests, for the CLI sessions it offers (offer.mjs
+// sessionsOffered) —: *Send* is the one click that sends a message, and the one that, with recording on, writes
 // the conversation record first, and the request of whatever its answer hands on; only a click the browser marks as a person's (`isTrusted`)
 // does. The conversation lives in the tab's values (MOD-browser-store): `prompt-bar:conversation`, a list of Messages; `prompt-bar:draft`, the
 // latest ConversationDraft; `prompt-bar:records`, the record each repository's part of the conversation is appended to; and `prompt-bar:job`,
@@ -16,7 +17,7 @@ import { readTabValue, writeTabValue } from "../browser-store/index.mjs";
 import { renderArtifact } from "../markdown-render/index.mjs";
 import { eligible } from "../participant-list/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
-import { endpointsOffered, offeredAmong, placeOf, readParticipants, throughActions } from "./offer.mjs";
+import { endpointsOffered, placeOf, sessionsOffered, throughActions } from "./offer.mjs";
 import { followJob } from "./follow.mjs";
 import { assess, queue, spawnEndpointJob, worksOnOf } from "./hand-over.mjs";
 import { appendToConversation, conversationPath, recordingOf } from "./record.mjs";
@@ -100,9 +101,10 @@ const said = (failure) => `${failure.name ?? "Error"}: ${failure.message}`;
 /**
  * startPromptBar(target: Element, setup: { page: "main" | "review", store: Store, instance: { repository: string, host: Host },
  * product: () -> { address: string, host: Host } | null, subject: () -> Subject, explain: (topic: string) -> Element,
- * go: (route: string, params?: Record<string, string>) -> void }) -> { stop: () -> void } — draws the bar into `target` once the
- * instance's participants are read, and keeps it for the life of the page. With no participant offered it draws nothing and says nothing
- * (UC-049 1a). It crosses the network through the hosts and the participant's route; a failure of either is shown in the bar by name, and
+ * go: (route: string, params?: Record<string, string>) -> void }) -> { stop: () -> void } — draws the bar into `target` once this
+ * browser's endpoints and the CLI sessions its Bridges offer are read, and keeps it for the life of the page; no participant list is read for the
+ * offer. With none offered it draws nothing and says nothing (UC-049 1a). It crosses the network through the hosts, the Bridges this browser keeps
+ * and the participant's route; a failure of either is shown in the bar by name, and
  * nothing is thrown to the caller. `stop` removes the bar and aborts a message that is running.
  */
 export function startPromptBar(target, setup) {
@@ -445,7 +447,7 @@ export function startPromptBar(target, setup) {
   // The participants reached that can do the kind of the subject now (UC-019 2): `eligible` judges them against the `needs` of the kind's
   // definition. The subject is a getter, so the offer is drawn from it whenever the bar is used: when the bar is drawn, when its input or its
   // selector takes focus, and on *Send*. Where some are reached and none can, the bar says so, names what the kind needs and links the route
-  // `participants` (UC-019 3a).
+  // `endpoints` (UC-019 3a).
   async function judge() {
     const kind = await kindOf(BAR_KIND);
     if (state.stopped) return;
@@ -458,9 +460,9 @@ export function startPromptBar(target, setup) {
     if (offered.length === 0) {
       selector = null;
       offeredNames = null;
-      const link = button("participants-link", "Set up participants");
-      link.addEventListener("click", () => setup.go("participants"));
-      chooser.replaceChildren(el("p", "none-able", `No participant of this instance can do ${kind.name}: it needs ${kind.needs.join(", ")}.`), link);
+      const link = button("endpoints-link", "Set up endpoints");
+      link.addEventListener("click", () => setup.go("endpoints"));
+      chooser.replaceChildren(el("p", "none-able", `No endpoint or CLI session of this browser can do ${kind.name}: it needs ${kind.needs.join(", ")}.`), link);
       return;
     }
     const named = (each) => `${each.name} — ${placeOf(each)}`;
@@ -498,11 +500,8 @@ export function startPromptBar(target, setup) {
     // The instance's default branch as the page's own load read it, where the page hands it (setup.instanceSnapshot), else read here.
     const snapshot = (await setup.instanceSnapshot?.()) ?? await defaultSnapshot(instance.host);
     instanceWeb = snapshot.repository.web;
-    // This browser's endpoints first (UC-049 1); then the participants of the instance's list this browser reaches, other than an endpoint offered already.
-    const own = endpointsOffered(store);
-    const ownNames = new Set(own.map((each) => each.name));
-    reached = [...own, ...offeredAmong(await readParticipants(snapshot), store)
-      .filter((each) => !ownNames.has(each.name) && !ownNames.has(/^endpoint\s+(\S+)/.exec(each.route ?? "")?.[1]))];
+    // This browser's configuration (UC-049 1): its endpoints, then the CLI sessions its Bridges offer; no participant list is read for the offer.
+    reached = [...endpointsOffered(store), ...await sessionsOffered(store)];
     if (reached.length === 0 || state.stopped) return;
     await judge();
     if (state.stopped) return;
@@ -565,7 +564,7 @@ export function startPromptBar(target, setup) {
   }
 
   draw().catch((failure) => {
-    if (!state.stopped) target.replaceChildren(problem(`The prompt bar could not read the participants. ${said(failure)}`));
+    if (!state.stopped) target.replaceChildren(problem(`The prompt bar could not be drawn. ${said(failure)}`));
   });
 
   return {
