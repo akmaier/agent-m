@@ -337,6 +337,13 @@ by rule.
         "decidedBy": "participant"
       },
       {
+        "refs": ["docs/architecture/ARC-014-fixed-layout-kept.md"],
+        "from": ["docs/architecture/ARC-014-fixed-layout-kept.md"],
+        "class": "change",
+        "of": "ARC-002",
+        "decidedBy": "participant"
+      },
+      {
         "refs": ["docs/architecture/MOD-reader-copy.md"],
         "from": ["docs/architecture/MOD-reader-copy.md"],
         "class": "duplicate",
@@ -355,13 +362,6 @@ by rule.
         "from": ["docs/architecture/MOD-cache-a.md", "docs/architecture/MOD-cache-b.md"],
         "class": "new",
         "of": null,
-        "decidedBy": "participant"
-      },
-      {
-        "refs": ["docs/architecture/ARC-014-fixed-layout-kept.md"],
-        "from": ["docs/architecture/ARC-014-fixed-layout-kept.md"],
-        "class": "change",
-        "of": "ARC-002",
         "decidedBy": "participant"
       },
       {
