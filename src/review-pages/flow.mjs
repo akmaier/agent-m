@@ -6,7 +6,8 @@
 // STATUS IS DERIVED FROM THE RECORDS (it is read from MOD-approvals only); THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; WITHOUT A
 // TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN. Nothing is written while a page is drawn.
 
-import { statuses, statusOf, lastAcceptedText, acceptShown, acceptanceBlockers, fallbackAcceptLink, approvalSchema, rejectShown } from "../approvals/index.mjs";
+import { statuses, statusOf, removedFiles, lastAcceptedText, acceptShown, acceptanceBlockers, fallbackAcceptLink, approvalSchema, rejectShown } from "../approvals/index.mjs";
+import { blobSha } from "../text-tools/index.mjs";
 import { writeDocument, readDocument, artifactSchemas } from "../documents/index.mjs";
 import { listJobs } from "../job-ledger/index.mjs";
 import { renderArtifact, showDifference } from "../markdown-render/index.mjs";
@@ -338,17 +339,19 @@ export function reviewRoute(kind) {
 
   // Review all: every file not yet accepted in sequence — a changed one as its difference to the last accepted text, a new one in
   // full — and, below them, the acceptance of exactly what is shown. For the architecture it is the page of the whole architecture:
-  // decisions and module files in their order, a further decision with its due diligence, and the rounds of the job that drafted them.
+  // decisions and module files in their order, a further decision with its due diligence, every decision or module file removed since its
+  // acceptance with its impact list, and the rounds of the job that drafted them.
   async function showAll(where) {
     if (service.all) { await showAllEntries(where); return; }
     const { target, snapshot, token, host, context } = where;
     const reviewed = notAccepted(snapshot);
+    const removed = kind.whole ? removedFiles(snapshot) : [];
     const texts = new Map();
     await snapshot.readMany?.(reviewed.map((file) => file.path));
     for (const file of reviewed) texts.set(file.path, (await snapshot.read(file.path)) ?? "");
     const shown = kind.whole ? architectureOrder(reviewed, texts) : reviewed.sort((a, b) => a.id.localeCompare(b.id));
     target.append(el("h2", null, kind.whole ? "Review all — the whole architecture" : `Review all — ${kind.title}`), explain(kind.explain.all));
-    if (shown.length === 0) {
+    if (shown.length === 0 && removed.length === 0) {
       target.append(el("p", "nothing", `Nothing to review: every ${kind.noun} is accepted.`));
       return;
     }
@@ -391,11 +394,34 @@ export function reviewRoute(kind) {
       target.append(section);
       centreFirstChange(section);
     }
+    // A removed decision or module file: its last accepted text against the empty text, which is the text shown, and its impact list; one
+    // lastAcceptedText each, which gives its path. Without its last text or its impact list it is shown and not offered.
+    const empty = removed.length ? await blobSha("") : null;
+    for (const gone of removed) {
+      const diff = el("section", "accepted-diff", el("h4", null, "Removed since it was last accepted"));
+      let last = null;
+      try {
+        last = await lastAcceptedText(gone.id, host);
+        diff.append(last ? showDifference(last.text, "", WHOLE) : el("p", "problem", `No approval record names a text of ${gone.id}.`));
+      } catch (failure) {
+        diff.append(el("p", "problem", failure.message));
+      }
+      const section = el("section", "review-file", el("h3", null, last ? kind.heading(last.text) : gone.id), badge("removed", "removed since acceptance"), diff);
+      section.setAttribute("data-id", gone.id);
+      if (last) {
+        const file = { id: gone.id, kind: gone.kind, path: last.path };
+        const impact = await changeImpact(file, last, null, graphOf);
+        section.append(impact.problem ?? impact.shown);
+        if (!impact.problem) records.push({ file, record: recordOf(file.id, file.kind, file.path, empty), blob: empty });
+      }
+      target.append(section);
+      centreFirstChange(section);
+    }
     if (kind.whole) {
       const rounds = await draftingRounds(where);
       if (rounds) target.append(roundsSection(rounds.rounds, rounds.stopped));
     }
-    const heading = `Accept all ${shown.length} shown`;
+    const heading = `Accept all ${shown.length + removed.length} shown`;
     if (token) {
       const accept = button("btn accept-all", heading);
       accept.addEventListener("click", async () => {
