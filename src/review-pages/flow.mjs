@@ -21,6 +21,7 @@ import { showEdit } from "./edit.mjs";
 import { showEntryEdit } from "./entry-edit.mjs";
 import { showFileEdit } from "./file-edit.mjs";
 import { showDraft, jobNotes } from "./jobs.mjs";
+import { affectedCheck } from "./affected-modules.mjs";
 import { storedOnce, fromStored } from "./stored.mjs";
 import { queueService } from "./spec-entries.mjs";
 import { rejectSection } from "./reject.mjs";
@@ -225,10 +226,23 @@ export function reviewRoute(kind) {
   }
 
   // After a decision: the page again from the repository, and what the decision came to under it.
-  const redraw = async (where, params, message) => {
+  const redraw = async (where, params, message, ...more) => {
     await render(where.target, where.context, params);
-    if (message) where.target.append(message);
+    if (message) where.target.append(message, ...more);
   };
+
+  // For a kind whose Accept has the modules each accepted file changes checked (`affected`): the check of affected-modules.mjs, prepared for the first file the page offers,
+  // whose note stands beside Accept; null where nothing is checked. A check that cannot be prepared is named beside Accept, and the acceptance then runs none.
+  async function checkBeside(where, id) {
+    if (!kind.affected || id === undefined) return null;
+    try {
+      return await affectedCheck(where, id);
+    } catch (failure) {
+      return { note: el("p", "affected-check problem", `Which modules the use cases change cannot be checked: ${failure.name}: ${failure.message}`), run: async () => [] };
+    }
+  }
+  // What the check ran after an acceptance came to, for the files `result` recorded: one paragraph each; none without a check.
+  const checked = async (check, result, snapshot) => (check && result?.recorded?.length ? check.run(result.recorded.map((path) => idOf(path, snapshot))) : []);
 
   async function showList(where) {
     const { target, token, context } = where;
@@ -280,12 +294,13 @@ export function reviewRoute(kind) {
     if (service.reviewAll) target.append(link(`#${kind.route}/id=${REVIEW_ALL}`, "btn primary review-all", `Review all ${service.count ? service.count(groups) : notAccepted(where.snapshot).length} not accepted`));
     if (kind.draft) target.append(link(`#${kind.route}/id=${DRAFT}`, "draft-link", `Draft ${kind.plural}`));
     target.append(explain(kind.explain.list));
+    const check = bar ? await checkBeside(where, waiting[0]?.id) : null;
     if (bar) {
       bar.addEventListener("click", async () => {
         bar.disabled = true;
         try {
           const result = await service.accept(where, [...ticks.values()], token.name);
-          await redraw(where, {}, settled(result, (path) => idOf(path, where.snapshot)));
+          await redraw(where, {}, settled(result, (path) => idOf(path, where.snapshot)), ...await checked(check, result, where.snapshot));
         } catch (failure) {
           bar.disabled = ticks.size === 0;
           target.append(el("p", "result problem", refusedText(failure, (path) => idOf(path, where.snapshot))));
@@ -295,7 +310,7 @@ export function reviewRoute(kind) {
       target.append(el("p", "problem", service.tokenNote, tokenStep(context)));
     }
     target.append(...tables);
-    if (bar) target.append(bar);
+    if (bar) target.append(bar, ...(check ? [check.note] : []));
     if (ARRANGED[kind.kind]) target.append(link(`#arrange/kind=${ARRANGED[kind.kind]}`, "arrange-link", "Arrange"), " ");
     target.append(link(`#${kind.route}/id=${HISTORY}`, "history-link", `History of ${kind.plural}`));
   }
@@ -424,17 +439,18 @@ export function reviewRoute(kind) {
     const heading = `Accept all ${shown.length + removed.length} shown`;
     if (token) {
       const accept = button("btn accept-all", heading);
+      const check = await checkBeside(where, records[0]?.file.id);
       accept.addEventListener("click", async () => {
         accept.disabled = true;
         try {
           const result = await service.accept(where, records.map(({ file, blob }) => ({ path: file.path, blob, ...(asked.has(file.path) && { limitations: asked.get(file.path).reasons() }) })), token.name);
-          await redraw(where, { id: REVIEW_ALL }, acceptedMessage(result, (path) => idOf(path, snapshot)));
+          await redraw(where, { id: REVIEW_ALL }, acceptedMessage(result, (path) => idOf(path, snapshot)), ...await checked(check, result, snapshot));
         } catch (failure) {
           accept.disabled = false;
           target.append(el("p", "result problem", refusedText(failure, (path) => idOf(path, snapshot))));
         }
       });
-      target.append(accept);
+      target.append(accept, ...(check ? [check.note] : []));
     } else if (parseServer(context) === "gitlab") {
       target.append(el("p", "problem", "A GitLab product is written with the project's own token. ", tokenStep(context)));
     } else {
@@ -629,11 +645,12 @@ export function reviewRoute(kind) {
     const offerGitHub = () => offerRecord(target, record, snapshot, where.context);
     if (token) {
       const accept = button("btn accept", "Accept");
+      const check = await checkBeside(where, id);
       accept.addEventListener("click", async () => {
         accept.disabled = true;
         try {
           const done = await service.accept(where, [{ path: file.path, blob, ...(asked && { limitations: asked.reasons() }) }], token.name);
-          await redraw(where, { id }, el("p", "result", `Accepted in commit ${done.commit.slice(0, 7)}.`));
+          await redraw(where, { id }, el("p", "result", `Accepted in commit ${done.commit.slice(0, 7)}.`), ...await checked(check, done, snapshot));
         } catch (failure) {
           accept.disabled = false;
           result.textContent = refusedText(failure, (path) => idOf(path, snapshot));
@@ -641,7 +658,7 @@ export function reviewRoute(kind) {
           if (failure.name === "PermissionMissing") offerGitHub();
         }
       });
-      target.append(accept);
+      target.append(accept, ...(check ? [check.note] : []));
     } else offerGitHub();
   }
 

@@ -1,5 +1,5 @@
-// strategies.mjs — the recipes, checks and writers of `workStrategies` (MOD-work-plans, Parts: strategies.mjs; Interfaces: workStrategies). Of it, this file has the recipes
-// `architecture-and-model` (UC-045 step 2), `backlog-inputs` (UC-032 step 2) and `sprint-facts` (UC-041 step 2), the checks `plan-checks` (UC-045), `backlog-checks` (UC-032 step 3) and `sprint-record-checks` (UC-041 1a) and the writers `backlog-items` (UC-032 4) and `sprint-record` (UC-041 6); the other recipes, checks and writers are not built yet.
+// strategies.mjs — the recipes, checks, step and writers of `workStrategies` (MOD-work-plans, Parts: strategies.mjs; Interfaces: workStrategies). Of it, this file has the recipes
+// `architecture-and-model` (UC-045 step 2), `backlog-inputs` (UC-032 step 2) and `sprint-facts` (UC-041 step 2), the checks `plan-checks` (UC-045), `backlog-checks` (UC-032 step 3) and `sprint-record-checks` (UC-041 1a), the step `leave-out-named-modules` (UC-008 step 6) and the writers `backlog-items` (UC-032 4) and `sprint-record` (UC-041 6); the other recipes, checks and writers are not built yet.
 //
 // Module: MOD-work-plans
 //
@@ -68,6 +68,12 @@ async function architectureAndModel(context) {
   return [...parts.values()];
 }
 
+// The product's pull requests as itemStates takes them: "unknown" without a host, or where the host does no server operations (NotSupported).
+async function pullRequestsOf(host) {
+  if (!host) return "unknown";
+  try { return await host.listPullRequests(); } catch (error) { if (error?.name === "NotSupported") return "unknown"; throw error; }
+}
+
 const SPRINT_NAME = /^[^/\s]+\/\d+$/;
 const ORDER = "docs/plan/order.md";
 const PLAN_STEP = /^docs\/plan\/ITM-\d{3,}-[^/]+\.md$/;
@@ -128,10 +134,7 @@ async function sprintInputs(context, params) {
   const instanceAt = (commit) => (context.instance.host ? context.instance.host.readSnapshot(commit) : Promise.resolve(context.instance.snapshot));
   const workflow = declaration === null ? null : await productWorkflow(declaration, instanceAt, (await context.instance.snapshot.read("SPEC.md")) ?? "");
 
-  const orUnknown = async (read, fallback) => {
-    try { return await read(); } catch (error) { if (error?.name === "NotSupported") return fallback; throw error; }
-  };
-  const pullRequests = host ? await orUnknown(() => host.listPullRequests(), "unknown") : "unknown";
+  const pullRequests = await pullRequestsOf(host);
   const jobs = await listJobs([{ address, snapshot }], new Map());
   const gates = await Promise.all(snapshot.paths.filter((each) => GATE_RECORD.test(each)).sort().map(async (each) => readDocument(gateSchema, each, (await snapshot.read(each)) ?? "")));
   const states = itemStates(items, order, { statuses: statuses(snapshot), queues: await queues(snapshot), jobs, pullRequests, workflow,
@@ -252,6 +255,37 @@ async function backlogChecks(draft, context) {
   const named = (value) => String(value).replace(/ITM-\d{3,}/g, (id) => (titleOf.has(id) ? `the item "${titleOf.get(id)}"` : id));
   return backlogFindings([...existing, ...items], architecture).filter((each) => titleOf.has(each.artifact))
     .map((each) => finding({ artifact: named(each.artifact), line: each.line, kind: each.kind, rule: each.rule, what: named(each.what), fix: named(each.fix) }));
+}
+
+const AFFECTED_RULE = "ACCEPTING A USE CASE PUTS THE MODULES IT CHANGES INTO THE BACKLOG";
+
+/**
+ * The step leave-out-named-modules(draft, context) -> Promise<{ draft, findings }> — of the items a job of the kind `check-affected-modules` drafted (UC-008 step 6), leaves out each item for a
+ * module that an item not yet done names: an item of docs/backlog/ of the job's snapshot whose state `itemStates` gives is not `done`, from the approval statuses, the change queues, the product's
+ * jobs and its pull requests ("unknown" where the host gives none). A drafted item is left out when one of its modules is so named; each item left out gives a warning that names the item not done
+ * and the module. The draft keeps its shape, `{ items: [...] }`, with the items that stay in their order. A draft without items stays as it is.
+ */
+async function leaveOutNamedModules(draft, context) {
+  const { snapshot, host, address } = context.product;
+  const drafted = asList(draft?.items);
+  if (drafted.length === 0) return { draft, findings: [] };
+  const items = await Promise.all(snapshot.paths.filter((each) => ITEM_FILE.test(each)).sort()
+    .map(async (each) => readDocument(artifactSchemas().item, each, (await snapshot.read(each)) ?? "")));
+  const states = itemStates(items, null, { statuses: statuses(snapshot), queues: await queues(snapshot), jobs: await listJobs([{ address, snapshot }], new Map()),
+    pullRequests: await pullRequestsOf(host), gates: [], workflow: null });
+  const notDone = new Set(states.filter((each) => each.state !== "done").map((each) => each.item));
+  const namedBy = new Map();
+  for (const item of items.filter((each) => notDone.has(each.id))) for (const module of asList(item.fields.modules)) if (!namedBy.has(module)) namedBy.set(module, item.id);
+  const findings = [];
+  const kept = drafted.filter((entry) => {
+    const named = asList(entry?.modules).filter((module) => namedBy.has(module));
+    for (const module of named) {
+      findings.push(finding({ artifact: String(entry.title), line: 1, kind: "warning", rule: AFFECTED_RULE, what: `${module} is named by ${namedBy.get(module)}, which is not done`,
+        fix: `the change of ${module} belongs to ${namedBy.get(module)}: no item is added for it` }));
+    }
+    return named.length === 0;
+  });
+  return { draft: { ...draft, items: kept }, findings };
 }
 
 const SPEC_PATH = "SPEC.md";
@@ -376,7 +410,7 @@ const TEST_LEVELS = ["unit", "component", "system", "release"];
  * use cases it realises; `## Outcome` its `outcome`, `## Acceptance` one bullet for each entry of `acceptance`; `builds_on` its `buildsOn`; `class` and `of` are not written, an entry classed duplicate is saved like
  * the others. Its `tests` are the levels its acceptance names as unit, component, system or release tests and its `level` the highest of them (unit: module, component: subsystem, system or release: system); a
  * subsystem's `integrates` is the one decision that all its modules follow. An entry whose acceptance names no level, or whose modules follow no one decision at the level subsystem, is refused with ItemsRefused
- * { findings } and nothing is written. Commits once, to the product's default branch; the outcome names the commit and the files, and holds the warnings of saveItems as notes, one line each: the item, "warning:" and what it says. Throws what saveItems throws.
+ * { findings } and nothing is written. A draft without items writes nothing and its outcome names no commit. Otherwise commits once, to the product's default branch; the outcome names the commit and the files, and holds the warnings of saveItems as notes, one line each: the item, "warning:" and what it says. Throws what saveItems throws.
  */
 async function backlogItems(result, context) {
   const { snapshot, host } = context.product;
@@ -397,10 +431,11 @@ async function backlogItems(result, context) {
       sections: [{ heading: "## Outcome", text: `\n${entry.outcome ?? ""}\n\n` }, { heading: "## Acceptance", text: `\n${acceptance.map((line) => `- ${line}`).join("\n")}\n` }] };
   });
   if (refusals.length) throw new WorkPlansError("ItemsRefused", { findings: refusals }, `The items are not saved: ${refusals.map((one) => `${one.artifact} ${one.what}`).join("; ")}.`);
+  if (items.length === 0) return { commits: [], files: [], pullRequest: null, shown: null, notes: [] };
   const trailers = provenanceLines({ agentM: context.agentM, jobId: context.jobId, kind: context.kind.name, participant: result.drafter ?? { name: "none", model: null }, rounds: result.rounds.length });
   const { commit, written, warnings } = await saveItems(host, { items, removed: [] }, { architecture, head: snapshot.commit, trailers });
   return { commits: [commit], files: written, pullRequest: null, shown: null, notes: warnings.map((one) => `${one.artifact} warning: ${one.what}`) };
 }
 
-/** workStrategies: MOD-job-runner's Partial<Strategies> with the recipes architecture-and-model, backlog-inputs and sprint-facts, the checks plan-checks, backlog-checks and sprint-record-checks and the writers backlog-items and sprint-record, the seven built so far. */
-export const workStrategies = { recipes: { "architecture-and-model": architectureAndModel, "backlog-inputs": backlogInputs, "sprint-facts": sprintFactsRecipe }, checks: { "plan-checks": planChecks, "backlog-checks": backlogChecks, "sprint-record-checks": sprintRecordChecks }, writers: { "backlog-items": backlogItems, "sprint-record": sprintRecord } };
+/** workStrategies: MOD-job-runner's Partial<Strategies> with the recipes architecture-and-model, backlog-inputs and sprint-facts, the checks plan-checks, backlog-checks and sprint-record-checks, the step leave-out-named-modules and the writers backlog-items and sprint-record. */
+export const workStrategies = { recipes: { "architecture-and-model": architectureAndModel, "backlog-inputs": backlogInputs, "sprint-facts": sprintFactsRecipe }, checks: { "plan-checks": planChecks, "backlog-checks": backlogChecks, "sprint-record-checks": sprintRecordChecks }, steps: { "leave-out-named-modules": leaveOutNamedModules }, writers: { "backlog-items": backlogItems, "sprint-record": sprintRecord } };
