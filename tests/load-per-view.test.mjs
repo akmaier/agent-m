@@ -104,7 +104,7 @@ const withoutInfo = (requests) => requests.filter((r) => r !== "repository");
 const BAR = ["docs/conversation-recording.md", "docs/participants.md"];
 // The folders and files each address of the review pages reads of the tree (ITM-1266's Outcome), with the bar's files.
 const FOLDERS = {
-  useCases: sorted(["docs/use-cases", "docs/approvals", "docs/groups", ...BAR]),
+  useCases: sorted(["docs/use-cases", "docs/approvals", "docs/groups", "docs/process.md", ...BAR]),
   architecture: sorted(["docs/architecture", "docs/approvals", "docs/groups", ...BAR]),
   spec: sorted(["SPEC.md", "docs/sources.md", "docs/sources", "docs/spec-freigaben", "docs/approvals", "docs/groups", ...BAR]),
 };
@@ -115,7 +115,7 @@ const FOLDERS = {
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the fixture product — two use cases, one of them with a record of an earlier text
 // input: open the start page with a token
-// expect: the commit once, one request for the entries of its folders — docs/use-cases, docs/approvals, docs/groups and the bar's two files — and no git/trees, then one batch of the 2 files it shows, the repository's information once (wherever in the load), and no file by itself; both use cases listed with their status — UC-001 accepted, UC-002 changed since acceptance — read from the names of the records, so that no record is read
+// expect: the commit once, one request for the entries of its folders — docs/use-cases, docs/approvals, docs/groups, docs/process.md and the bar's two files — and no git/trees, then one batch of the 2 files it shows, the repository's information once (wherever in the load), and no file by itself; both use cases listed with their status — UC-001 accepted, UC-002 changed since acceptance — read from the names of the records, so that no record is read
 test("the start page sends its commit, one request for its folders and one batch of the files it shows", async () => {
   const repo = await product(), srv = await server(repo);
   const page = await openDashboard({ server: srv });
