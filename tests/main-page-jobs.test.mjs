@@ -167,7 +167,8 @@ function github(request) {
   if (url.host === "raw.githubusercontent.com" && raw && REPOSITORIES[raw[1]] && !REPOSITORIES[raw[1]].private && REPOSITORIES[raw[1]].files[raw[2]] !== undefined) return text(REPOSITORIES[raw[1]].files[raw[2]]);
   return null;
 }
-// The Bridge lab-pc-4 answers its list of jobs with the job that runs on it; lab-pc-5's address refuses the connection; the model endpoint ep1 never answers until the request is aborted.
+// The Bridge lab-pc-4 answers its list of jobs with the job that runs on it, and testBridge's two requests, which the prompt bar sends when it is drawn, offering no
+// agent ready; lab-pc-5's address refuses the connection; the model endpoint drafter-a never answers until the request is aborted.
 function install() {
   spy.requests = [];
   spy.unrouted = [];
@@ -176,6 +177,8 @@ function install() {
     const request = { url, href: url.href, authorization: headerOf(init, "authorization"), pairing: headerOf(init, "x-agent-m-token"), body: typeof init?.body === "string" ? init.body : null };
     spy.requests.push(request);
     if (url.host === "127.0.0.1:4711" && url.pathname === "/v1/jobs") return json(200, { jobs: [{ id: "JOB-20261016-1000-ffff", state: "running", usage: null }] });
+    if (url.host === "127.0.0.1:4711" && url.pathname === "/v1/pair") return json(200, { bridge: { name: "lab-pc-4", version: "1.0.0", platform: "linux" }, origin: "https://acme.github.io" });
+    if (url.host === "127.0.0.1:4711" && url.pathname === "/v1/agents") return json(200, { agents: [], missing: [] });
     if (url.host === "127.0.0.1:4712") throw new TypeError("connect ECONNREFUSED 127.0.0.1:4712");
     if (url.host === "models.example") {
       return new Promise((resolve, reject) => init?.signal?.addEventListener("abort", () => reject(Object.assign(new Error("aborted"), { name: "AbortError" }))));
@@ -351,14 +354,14 @@ test("TST-509005 the four filters offer all and the values the rows hold, and ea
 
 // TST-509006 · level: unit · module: MOD-main-page
 // guards: ONE DASHBOARD SHOWS EVERY JOB; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-049
-// given: the same browser and the prompt bar on the page, with one participant drafter-a (the endpoint ep1, which never answers); the clock at 10:57:57 UTC when a message is sent
+// given: the same browser and the prompt bar on the page, with one participant, this browser's endpoint drafter-a, declared with its place, context and model, which never answers; the clock at 10:57:57 UTC when a message is sent
 // input: the route `jobs` drawn at 12:00:00 while the message runs; then Stop pressed and the route drawn again
 // expect: while the message runs the job of this tab is the second row, after the job waiting at a gate and before every other, its cells "this tab's" in place of an identifier, "—" for the product, "" for what it works on, "converse", "drafter-a", "this tab", "running", "1h 2m 3s", "unknown", with no data-id; the seven jobs of the records follow it; once it has ended the list holds the seven rows and no row of this tab
 test("TST-509006 the job of this tab's conversation is listed first among the rows that do not wait at a gate, and is gone once it has ended", async () => {
   install();
   registerStrategies("tests/main-page-jobs.test.mjs", { recipes: { "chapters-for-page": async () => [] } });
   const it = browser();
-  writeSetting(it.store, "endpoint:ep1", { kind: "openai-compatible", url: "https://models.example/v1", model: "model-drafter-a", key: "sk-fixture" });
+  writeSetting(it.store, "endpoint:drafter-a", { kind: "openai-compatible", url: "https://models.example/v1", model: "model-drafter-a", key: "sk-fixture", place: "Anthropic, USA", context: 200000 });
   const foot = document.createElement("div");
   document.body.append(foot);
   const subject = { key: "page:jobs", title: "Every job", kind: "converse", entry: null, paramsFor: () => ({ page: "Every job", target: "jobs" }), draftRoute: null, withhold: null, refuses: [] };
@@ -497,7 +500,7 @@ test("TST-970003 the job of this tab's conversation is the first row of the runn
   install();
   try { registerStrategies("tests/main-page-jobs.test.mjs", { recipes: { "chapters-for-page": async () => [] } }); } catch (failure) { if (failure.name !== "DuplicateStrategy") throw failure; /* TST-509006 registered it */ }
   const it = browser();
-  writeSetting(it.store, "endpoint:ep1", { kind: "openai-compatible", url: "https://models.example/v1", model: "model-drafter-a", key: "sk-fixture" });
+  writeSetting(it.store, "endpoint:drafter-a", { kind: "openai-compatible", url: "https://models.example/v1", model: "model-drafter-a", key: "sk-fixture", place: "Anthropic, USA", context: 200000 });
   const foot = document.createElement("div");
   document.body.append(foot);
   const subject = { key: "page:jobs", title: "Every job", kind: "converse", entry: null, paramsFor: () => ({ page: "Every job", target: "jobs" }), draftRoute: null, withhold: null, refuses: [] };
