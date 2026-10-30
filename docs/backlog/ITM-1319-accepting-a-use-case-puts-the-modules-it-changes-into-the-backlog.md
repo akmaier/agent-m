@@ -28,41 +28,39 @@ The SPEC, §13: "In a model that pulls its work from a backlog, accepting a use 
 whose implementation its accepted text changes, unless an item not yet done names that module." Its check is
 `tests/test_backlog_from_acceptance.py`, which does not exist yet.
 
-UC-008 step 6, in its text on `main`, says the same: "the same click has Agent M check which modules the accepted text
-changes — by the participant that the page named, with its processing place, beside **Accept** — and add one backlog
-item for each of them that no item not yet done names, realising the use case (UC-032), under the reviewer's account."
+UC-008 step 6 says the same: "the same click has Agent M check which modules the accepted text changes — by the
+participant that the page named, with its processing place, beside **Accept** — and add one backlog item for each of
+them that no item not yet done names, realising the use case (UC-032), under the reviewer's account."
 
-No module of the architecture states this:
-- MOD-review-pages' page of a use case names no checking participant beside *Accept*, and starts nothing after it.
-- MOD-job-catalogue has no kind that checks which modules a use case's text changes.
-- MOD-work-plans' writer `backlog-items` writes drafted items through `saveItems` (MOD-work-plans.md:281). No rule
-  leaves out a module that an item not yet done names.
+The accepted architecture states it in three modules. The code builds none of it yet.
+- **MOD-job-catalogue** has the kind `check-affected-modules` (MOD-job-catalogue.md:96).
+  - It serves UC-008, needs *draft text*, and has the precondition `rests-on-accepted`.
+  - Its recipes are `use-case-with-neighbours` and `whole-architecture`, and its check is `backlog-checks`.
+  - Its step is `leave-out-named-modules`, its review `none`, and its writer `backlog-items`.
+  - Its result is one item for each module whose implementation the accepted text changes.
+- **MOD-work-plans** gives the step `leave-out-named-modules`. It leaves out of the drafted items each item for a module
+  that an item not yet done names — one whose state `itemStates` gives is not `done` —, with a finding naming that item
+  and the module.
+- **MOD-review-pages:**
+  - In a product whose workflow's model is `pulled`, every *Accept* of a use case names beside it the participant that
+    will check which modules each use case changes, with its place, as `prepareJob` of `check-affected-modules` gives
+    it. This holds for the *Accept* of one file, of the ticked ones, and *Accept all N shown*.
+  - Once the acceptance's commit is written, the same click runs one job of that kind in this tab for each use case it
+    recorded. Its writer commits the items under the person's account.
+  - In a `planned` model, none is named and nothing runs. The model's kind comes from
+    `MOD-product-process.productWorkflow`, which its Uses now name.
+  - MOD-approvals does not change: the acceptance stays its one commit, and the items follow as a second commit of the
+    same click.
 
 ## Readiness
 
-It is not ready. Two texts come first:
-- **UC-008's current text is open.** No approval record names its blob on `main` (`310103869e`). NOTHING IS IMPLEMENTED
-  BEFORE IT IS ACCEPTED holds for the use case the item names.
-- **The architecture, the smallest draft for akmaier.** Each part names the principle it rests on (AGENTS.md §2,
-  *Designing*).
-  - **MOD-job-catalogue: one row of the table**, a kind that checks a use case:
-    - it serves UC-008, needs *draft text*, and has the precondition `rests-on-accepted`;
-    - its recipes are the accepted use case and the whole architecture, as `whole-architecture` gives them already;
-    - its result is the modules the text changes, as drafted items;
-    - its writer is `backlog-items`, and its review is `none`, since the click on *Accept* is the person's decision
-      (ONE CLICK PER DECISION).
-    - It adds one kind and changes no other (principle 4), and reuses the recipe and the writer that exist (principle 2).
-  - **MOD-work-plans: one sentence for `backlog-items`, or for a check it runs:** a drafted item for a module that an
-    item not yet done names is left out, with that item named. The rule of item states stays in the one module that
-    owns it (principle 1; DON'T REPEAT YOURSELF).
-  - **MOD-review-pages: the use case's page `uc/<id>`.**
-    - In a product whose model works from a backlog, the page names beside *Accept* the participant that will check
-      the modules, with its processing place (THE PAGE NAMES WHERE IT SENDS).
-    - After the acceptance's commit, the same click runs that kind in the tab, and its writer commits the items under
-      the reviewer's account. In a model that plans its work, nothing runs.
-    - The page's interface `view` does not change.
-  - MOD-approvals does not change: the acceptance stays its one commit, and the items follow as a second commit of the
-    same click.
+It is ready. akmaier accepted both texts it waited for:
+- UC-008, at the blob `310103869e` its text has on `main` (`a52aff870`);
+- the architecture above: MOD-job-catalogue, MOD-review-pages and MOD-work-plans, each at the blob its file has on `main`
+  (`1b539d0fe`).
+
+NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED holds for every text the item names. Its planning stand-in and run are still
+to be made before it is selected (below).
 
 ## Acceptance
 
@@ -74,8 +72,9 @@ It is not ready. Two texts come first:
 - Unit cases of the page `uc/<id>`:
   - the checking participant is named with its place beside *Accept* before the click;
   - nothing is sent before the click.
-- UC-023's TST-739013 (UC023-S4) stays as it is. It asks for UC-023 step 6, a list after a decision's *Accept*. Whether
-  that step changes with this requirement is the draft's question, not this item's.
+- UC-023's TST-739013 (UC023-S4) stays as it is, `todo`.
+  - It asks for UC-023 step 6, a list of the affected modules after a decision's *Accept*.
+  - The accepted texts state UC-008 step 6, a use case's *Accept*. UC-023 step 6 keeps its text, and no module states
+    it.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
-- Before selection: UC-008 is accepted, the draft above is accepted, and the planning stand-in and its run name the
-  tests of other modules the change moves.
+- Before selection: the planning stand-in and its run name the tests of other modules the change moves.

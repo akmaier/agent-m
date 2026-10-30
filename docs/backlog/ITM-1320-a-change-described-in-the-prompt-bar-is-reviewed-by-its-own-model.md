@@ -1,0 +1,83 @@
+---
+id: ITM-1320
+title: A change described in the prompt bar is reviewed by its own model
+level: module
+realises:
+  - UC-023
+  - NO REVIEWER IS THE DRAFTER
+  - AN ARCHITECTURE DRAFT IS CHECKED BEFORE A PERSON SEES IT
+modules:
+  - MOD-prompt-bar
+  - MOD-job-runner
+builds_on:
+  - ITM-739
+tests:
+  - unit
+origin:
+  - po-opus-c's gate of ITM-739 (PR #1510), docs/gates/20261030-0753-development-release-testing-c739.md, finding UC023-S3; akmaier's ruling ("The same model"), accepted as the change of NO REVIEWER IS THE DRAFTER (queue docs/spec-freigaben/2026-10-30_a-change-described-in-the-prompt-bar-is-reviewed-by-its-own-model, f2e62ba3c) and in MOD-prompt-bar and MOD-job-runner (1b539d0fe)
+---
+# ITM-1320 A change described in the prompt bar is reviewed by its own model
+
+**REGISTER**
+
+## Outcome
+
+The SPEC, §11: "The reviewing participant of an architecture draft, other than one of a change described in the prompt
+bar, is not the participant that drafted it and does not use its model." Its check, `tests/test_architecture_review.py`,
+names the counter-proof "and so is the drafter of a change described in the prompt bar".
+
+The accepted modules state how. Neither is built yet.
+- **MOD-prompt-bar** (MOD-prompt-bar.md:235-237) prepares a hand-over that runs in this tab with `prepareJob` for its
+  kind. For a kind with reviewers, it adds "the participant itself as its one reviewer and `selfReview` set, since the
+  change is described in the prompt bar".
+  - Today `src/prompt-bar/hand-over.mjs:96` prepares every such hand-over with `reviewers: []`.
+  - So the reviewer kind of `change-architecture` (`reviewers: 1`) never runs.
+- **MOD-job-runner** (MOD-job-runner.md:298-305): `prepareJob` takes `selfReview?: boolean` in its choice. With it,
+  `reviewers` is the drafter alone, and that reviewer is not asked to differ. Only MOD-prompt-bar sets it.
+  - Today `src/job-runner/prepare.mjs:138-141` asks every reviewer to differ from the drafter.
+  - `prepareJob` takes no `selfReview`.
+
+This is UC-023's finding UC023-S3 (TST-739011, `todo`): *Describe the change* from the bar prepares the change with no
+reviewer, so the change is not checked before the author sees it.
+
+**A text for akmaier, which this item does not wait for.** UC-023 still names the reviewing participant "another
+participant, using another model", and step 2 says that "the author chooses a deriving and a reviewing participant".
+After this item, a change described in the bar is reviewed by the deriving participant's own model, and the author
+chooses one participant. The SPEC's exception and the accepted modules decide what is built (NO REVIEWER IS THE
+DRAFTER). Whether UC-023's actor and step 2 say so is akmaier's to settle with a change of the use case.
+
+## Acceptance
+
+- **MOD-job-runner:** `prepareJob(kind, context, { drafter, reviewers, limit?, selfReview? })`.
+  - With `selfReview` and the drafter as the one reviewer, it gives no finding under NO REVIEWER IS THE DRAFTER.
+  - Without `selfReview`, a reviewer that is the drafter or uses its model is refused as today.
+  - With `selfReview` and any reviewer other than the drafter, or more than one, it is refused. `reviewers` is then
+    "the drafter alone".
+  - The types and errors are otherwise unchanged.
+- **MOD-prompt-bar:** a hand-over that runs in this tab, of a kind with reviewers, is prepared with the participant itself
+  as its one reviewer and `selfReview` set.
+  - The reviewer's part runs before the person sees the draft.
+  - A kind without reviewers, and every message of `converse`, is prepared as today, with `reviewers: []`.
+- **Unit cases of each, in the tests-only commit, red there:**
+  - `prepareJob` with `selfReview`, with its counter-proof: the same choice without `selfReview` is refused.
+  - The bar's hand-over of `change-architecture` prepared with the participant as its reviewer. Its counter-proof: a
+    hand-over of a kind without reviewers names none.
+- **`tests/test_architecture_review.py`** gains the counter-proof case the SPEC's check names: "and so is the drafter of a
+  change described in the prompt bar".
+  - The drafter, prepared as its own reviewer with `selfReview`, gives no blocking error.
+  - Its existing case keeps its three reviewers and what it asserts: the drafter itself and a same-model reviewer each
+    give one blocking error, and another model gives none.
+- **TST-739011** (`tests/system-uc-023-modify-the-architecture.test.mjs`) loses its `todo` and passes.
+  - Its expectation follows the accepted text: the deriving participant is asked again, as the reviewer of
+    `review-architecture`, before the author sees the draft. No second participant is asked.
+  - Its known positive stays: the drafter received the instruction.
+  - TST-739001's `FLOW_FINDINGS` entry `2-reviewing-participant` moves to `FLOW_EVIDENCE` with TST-739011 as its
+    evidence. Its passage is UC-023 2's "it is checked as in UC-022 step 6 before the author sees it". The passage "the
+    author chooses a deriving and a reviewing participant" is left to akmaier's text above.
+  - These are changed on the item's branch, in a commit of their own, by a participant who implemented none of this
+    item.
+- **Shared file.** `tests/test_architecture_review.py` is also changed by ITM-1318. Whichever of the two is merged
+  second makes its change on top of the other's.
+- The first commit holds only the tests, and CI is red on it. No stub is committed.
+- Before selection: the planning stand-in and its run name the tests of other modules the change moves, among them
+  every test that prepares a hand-over of the bar or calls `prepareJob` with reviewers.
