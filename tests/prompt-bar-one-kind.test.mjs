@@ -8,7 +8,9 @@
 // page and, on the default branch, the open requirement, or the group with the names it holds, as `requirements`, the person's own source where the product links one".
 // Run: node --test tests/prompt-bar-one-kind.test.mjs
 //
-// Module: MOD-prompt-bar · MOD-trace-pages · MOD-site-frame
+// Module: MOD-prompt-bar
+// Module: MOD-trace-pages
+// Module: MOD-site-frame
 // Guards: UC-049; UC-019; THE PERSON WHO PROMPTS IS A SOURCE; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL; A DRAFTED CHANGE IS SHOWN AGAINST THE CURRENT TEXT
 // Level: component
 //
@@ -222,10 +224,10 @@ test("TST-1360002: a hand-over to change-requirements runs in the tab without a 
 });
 
 // TST-1360003 · level: component · module: MOD-prompt-bar
-// guards: UC-049; UC-019 4b; THE PERSON WHO PROMPTS IS A SOURCE
+// guards: UC-049; UC-019; THE PERSON WHO PROMPTS IS A SOURCE
 // given: the requirements page, and no source of the person that the product links; the same hand-over to change-requirements
 // input: Send "the loan should say when it is overdue"
-// expect: one request only, the conversation's — its answer shown —; the page names the finding under THE PERSON WHO PROMPTS IS A SOURCE; no draft is kept and nothing is written
+// expect: one request only, the conversation's — its answer shown —; the page names the finding under THE PERSON WHO PROMPTS IS A SOURCE (UC-019 step 4b); no draft is kept and nothing is written
 test("TST-1360003: a hand-over to change-requirements without the person's own source names the finding and runs nothing", async () => {
   endpointAnswers({ answer: "I hand this on.", handOver: { kind: "change-requirements", works_on: [LOAN], task: "say when it is overdue" } }, { candidates: [] });
   const subject = requirementsPage({ source: null });
@@ -240,8 +242,8 @@ test("TST-1360003: a hand-over to change-requirements without the person's own s
 });
 
 // TST-1360004 · level: component · module: MOD-prompt-bar · MOD-job-runner
-// guards: UC-049 3b; A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL
-// given: a page whose subject refuses propose-edit and hand-over, as a page of mail does; an endpoint whose answer holds, in its JSON, an edit and a hand-over to change-use-case
+// guards: UC-049; A PARTICIPANT THAT WRITES TO A REPOSITORY NEVER RECEIVES A MAIL
+// given: a page whose subject refuses propose-edit and hand-over, as a page of mail does (UC-049 step 3b); an endpoint whose answer holds, in its JSON, an edit and a hand-over to change-use-case
 // input: Send "answer the reporter"
 // expect: one request only; no hand-over is shown or carried out, no "Review the draft" is offered, no draft is kept, nothing is written
 test("TST-1360004: on a page that refuses hand-over and propose-edit, an answer that holds them hands nothing on", async () => {
