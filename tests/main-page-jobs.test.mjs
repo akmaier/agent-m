@@ -23,6 +23,9 @@
 //   - The instance is connected as the product is, with the token `github-token`, from the address https://github.com/<its repository>.
 //   - GitHub's batch request of files' texts (POST /graphql, with a token), which the host sends for the records listJobs names to a snapshot's readMany (ITM-1280), is answered for the repository its
 //     variables name under the same rule of tokens as the API's other reads: the text of each file the repository holds at its head, and for a private repository only with its own token.
+//   - Above the list the route draws what waits for a person, read for each repository from the overview stored for its head on the branch overview-cache (ITM-1190; its cases are
+//     tests/main-page-jobs-waits.test.mjs). Each repository of these fixtures stores the overview of its head, in which nothing waits, so that what waits costs one request per repository
+//     and these cases read the list alone; the overview is served under the same rule of tokens, through the API for a private repository and from the raw host for a public one.
 
 import "./site-frame-dom.mjs";
 import test from "node:test";
@@ -98,6 +101,9 @@ const REPOSITORIES = {
   "acme/atlas": { private: false, files: { "docs/jobs/JOB-20261013-0700-eeee.md": CANCELLED, "docs/jobs/JOB-20261016-1000-ffff.md": ON_FOUR, "docs/jobs/JOB-20261016-0930-gggg.md": ON_FIVE } },
 };
 const sha = (text) => createHash("sha1").update(text).digest("hex");
+// The overview stored for the head of `name` on its branch overview-cache, in the format MOD-progress-measures' Data names: nothing waits, no build.
+const overviewOf = (name) => JSON.stringify({ commit: sha(`${name}@main`), shares: [], waiting: [], model: null, build: { states: [], records: [] }, queues: [] });
+const OVERVIEW = /^\/contents\/([0-9a-f]{40})\.json$/;
 
 // ---------------------------------------------------------------- the spy: the global fetch
 
@@ -147,10 +153,16 @@ function github(request) {
     if (rest === "") return json(200, { default_branch: "main", visibility: repository.private ? "private" : "public", private: repository.private });
     if (rest === "/commits/main") return json(200, { sha: sha(`${name}@main`) });
     if (rest.startsWith("/git/trees/")) return json(200, { tree: Object.entries(repository.files).map(([file, body]) => ({ type: "blob", path: file, sha: sha(body) })) });
+    if (url.searchParams.get("ref") === "overview-cache") {
+      const stored = OVERVIEW.exec(rest);
+      return stored && stored[1] === sha(`${name}@main`) ? text(overviewOf(name)) : json(404, { message: "Not Found" });
+    }
     const file = /^\/contents\/(.+)$/.exec(rest);
     if (file && repository.files[file[1]] !== undefined) return text(repository.files[file[1]]);
     return json(404, { message: "Not Found" });
   }
+  const cached = /^\/([^/]+\/[^/]+)\/overview-cache\/([0-9a-f]{40})\.json$/.exec(path);
+  if (url.host === "raw.githubusercontent.com" && cached && REPOSITORIES[cached[1]] && !REPOSITORIES[cached[1]].private && cached[2] === sha(`${cached[1]}@main`)) return text(overviewOf(cached[1]));
   const raw = /^\/([^/]+\/[^/]+)\/[0-9a-f]{40}\/(.+)$/.exec(path);
   if (url.host === "raw.githubusercontent.com" && raw && REPOSITORIES[raw[1]] && !REPOSITORIES[raw[1]].private && REPOSITORIES[raw[1]].files[raw[2]] !== undefined) return text(REPOSITORIES[raw[1]].files[raw[2]]);
   return null;

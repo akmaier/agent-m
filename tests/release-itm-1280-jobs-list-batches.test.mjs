@@ -30,7 +30,7 @@ import { bridgeAt } from "../src/bridge-client/index.mjs";
 import { connect, parseAddress } from "../src/repository-hosts/index.mjs";
 import { view } from "../src/main-page/index.mjs";
 import { PRODUCT as PROGRESS_PRODUCT, TOKEN, githubServer, productFiles, summary } from "./progress-measures-load.mjs";
-import { INSTANCE, PRODUCT, PRODUCT_URL, PRODUCT_TOKEN, OTHER, OTHER_URL, OTHER_TOKEN, browser, byClass, draw, instanceFiles, network, smallProduct, timers, withEnd } from "./main-page-home-harness.mjs";
+import { INSTANCE, PRODUCT, PRODUCT_URL, PRODUCT_TOKEN, OTHER, OTHER_URL, OTHER_TOKEN, browser, byClass, draw, headOf, instanceFiles, network, smallProduct, timers, withEnd } from "./main-page-home-harness.mjs";
 
 const jobsRoute = view.routes.find((candidate) => candidate.name === "jobs");
 const homeRoute = view.routes.find((candidate) => candidate.name === "home");
@@ -260,6 +260,10 @@ function listWorld() {
   const product = listOfRecords(PRODUCT, "p", 101, { 0: { by: runUrl(PRODUCT, 1) }, 1: { by: runUrl(PRODUCT, 2) }, 2: { by: runUrl(PRODUCT, 3) }, 3: { by: "lab-pc-4", route: "bridge lab-pc-4" }, 4: { by: null } });
   const other = listOfRecords(OTHER, "o", 5);
   net = network({ [INSTANCE]: { ...instanceFiles(), ...asFiles(instance) }, [PRODUCT]: smallProduct({ jobs: product }), [OTHER]: smallProduct({ jobs: other }) }, { bridgeLists: ID("p", 3) });
+  for (const repository of [INSTANCE, PRODUCT, OTHER]) {
+    const commit = headOf(repository);
+    net.overviews[repository] = { [commit]: JSON.stringify({ commit, shares: [], waiting: [], model: null, build: { states: [], records: [] }, queues: [] }) };
+  }
   net.ciRuns = [run(INSTANCE, 1, "in_progress"), run(INSTANCE, 2, "queued"), run(PRODUCT, 1, "in_progress"), run(PRODUCT, 2, "queued")];
   net.install();
   return keepBatches();
@@ -268,7 +272,7 @@ const context = () => browser({ products: [PRODUCT_URL, OTHER_URL], tokens: { [P
 
 // TST-1280305 · level: release · module: MOD-main-page
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; ONE DASHBOARD SHOWS EVERY JOB; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-036
-// given: the instance alice/agent-m of exactly 100 job records, two of them not ended (taken by runs 1 and 2); alice/product of 101, five of them not ended (runs 1 and 2, run 3 which the fake does not list, one taken by the Bridge lab-pc-4, which lists it as running, and one no route has taken); bob/other of 5 records, all ended; the fake lists runs 1 (in progress) and 2 (queued) of the instance and of alice/product; a token for each repository; known positive first — every row is a job
+// given: the instance alice/agent-m of exactly 100 job records, two of them not ended (taken by runs 1 and 2); alice/product of 101, five of them not ended (runs 1 and 2, run 3 which the fake does not list, one taken by the Bridge lab-pc-4, which lists it as running, and one no route has taken); bob/other of 5 records, all ended; the fake lists runs 1 (in progress) and 2 (queued) of the instance and of alice/product; a token for each repository; each repository's branch overview-cache holds the overview of its head, in which nothing waits (what waits stands above the list, ITM-1190); known positive first — every row is a job
 // input: the route jobs drawn
 // expect: 206 rows; the instance's records are one batch of 100 files, alice/product's two of 100 and 1, bob/other's one of 5, and no record is read by itself; the runs of the job workflow are listed once for alice/agent-m and once for alice/product, and not at all for bob/other, whose jobs have all ended; the Bridge is asked; the rows read running for the instance's and the product's runs 1 and 2 (a queued run is a job the runtime holds), ended without record for the product's run 3, running for the Bridge's job, queued for the job no route has taken, and done for every other
 // Planted fault: the page asking liveState once for each unended job (the `liveStates` call of liveStatesOf in src/main-page/jobs.mjs replaced by one `liveState` per row) lists alice/product's runs three times and the instance's twice, and the case fails on the listings.
@@ -291,7 +295,7 @@ test("TST-1280305 #jobs with a hundred and a hundred and one records sends their
 
 // TST-1280306 · level: release · module: MOD-main-page
 // guards: ONE DASHBOARD SHOWS EVERY JOB; A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-036
-// given: the world of TST-1280305, except that alice/product's server refuses the list of the job workflow's runs with an error (500); known positive first — the instance's two jobs are listed with their states
+// given: the world of TST-1280305, with the same overviews, except that alice/product's server refuses the list of the job workflow's runs with an error (500); known positive first — the instance's two jobs are listed with their states
 // input: the route jobs drawn
 // expect: the instance's jobs read running, as with a listing that succeeds; each of alice/product's jobs taken on CI that has not ended reads its state with "not reachable" and the server's reason, its job taken by the Bridge reads running without it, the job no route has taken reads queued, and every ended job reads done; the page asks for alice/product's runs once, as often as a single liveState does for one job
 // Planted fault: liveStates letting the refusal end the call (the `catch` of the CI case of stateOf rethrowing, in src/runtimes/index.mjs) leaves alice/product's jobs with no state and the case fails on their states.
