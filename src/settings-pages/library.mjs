@@ -102,13 +102,19 @@ function entryView(entry, context) {
     versions.length ? el("ul", null, ...versions) : el("p", null, "No version is recorded yet."), el("p", null, back));
 }
 
+// The error line of each waiting legal text: the logs of the failed runs of the fetch workflow, newest (by `started`) first, are read only while a waiting text lacks its line, and no run is read
+// from the newest successful run that a push started back, since a push fetches every text then waiting. One listing; no log while no legal text waits.
 async function fetchFailures(host, branch, entries) {
   if (typeof host.listCiRuns !== "function" || typeof host.ciRunLog !== "function") return new Map();
   let runs;
   try { runs = await host.listCiRuns({ workflow: FETCH_WORKFLOW, branch }); } catch { return new Map(); }
   const waiting = entries.filter((entry) => isLegalText(entry) && versionsOf(entry).length === 0);
   const failures = new Map();
-  for (const run of runs.filter((each) => each.state === "failure")) {
+  const newestFirst = [...runs].sort((a, b) => String(b.started ?? "").localeCompare(String(a.started ?? "")));
+  for (const run of newestFirst) {
+    if (waiting.every((entry) => failures.has(entry.id))) break;
+    if (run.state === "success" && run.event === "push") break;
+    if (run.state !== "failure") continue;
     const log = await host.ciRunLog(run.id);
     for (const entry of waiting) {
       if (failures.has(entry.id) || !String(log ?? "").includes(entry.id)) continue;
