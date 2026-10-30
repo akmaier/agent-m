@@ -2,7 +2,8 @@
 # Guards: NO REVIEWER IS THE DRAFTER; A CHANGE ACROSS MODULES IS CHECKED AS A WHOLE
 # Level: component
 """SPEC NO REVIEWER IS THE DRAFTER: a reviewer that is the drafter, or uses its model, is refused before anything is sent;
-counter-proof: another participant with another model is accepted.
+counter-proof: another participant with another model is accepted, and so is the drafter of a change described in the prompt
+bar.
 
 SPEC A CHANGE ACROSS MODULES IS CHECKED AS A WHOLE: a change to two module files sends every file of the architecture to the
 reviewer; counter-proof: with the recipe whole-architecture left out of the kind review-architecture, the files the change
@@ -10,7 +11,8 @@ leaves as they are are not sent. That case runs MOD-approvals' and MOD-spec-chan
 
 A job of the catalogue's kind derive-architecture, reviewed by one participant of review-architecture, is prepared with
 MOD-job-runner's prepareJob — which sends nothing — for one drafter and three reviewers in turn: the drafter itself, another
-participant with the drafter's model, and another participant with another model. The strategies the kind names come from
+participant with the drafter's model, and another participant with another model; and once more with the drafter as its own
+reviewer and `selfReview` set, as MOD-prompt-bar prepares a change described in the prompt bar. The strategies the kind names come from
 modules that do not offer them yet, so stand-ins that give one small part each are registered first; a name a module already
 registered keeps its own. Asked through node (tests/jsrun.py).
 """
@@ -44,6 +46,8 @@ for (const [which, reviewer] of Object.entries(reviewers)) {
   const job = await jobRunner.prepareJob("derive-architecture", context, { drafter, reviewers: [reviewer] });
   out[which] = job.blocking.map((f) => [f.kind, f.rule, f.what.includes(reviewer.name)]);
 }
+const own = await jobRunner.prepareJob("derive-architecture", context, { drafter, reviewers: [drafter], selfReview: true });
+out.selfReview = own.blocking.map((f) => [f.kind, f.rule, f.what.includes(drafter.name)]);
 return out;
 """
 
@@ -126,6 +130,16 @@ class ArchitectureReview(unittest.TestCase):
         refused = ["error", "NO REVIEWER IS THE DRAFTER", True]
         self.assertEqual(blocking["itself"], [refused])
         self.assertEqual(blocking["sameModel"], [refused])
+
+    # TST-1320005 · level: component · module: MOD-job-runner
+    # guards: NO REVIEWER IS THE DRAFTER
+    # given: the derive-architecture job of TST-475001, prepared with prepareJob (sends nothing); known positive: the drafter as its own reviewer without selfReview gives one blocking error
+    # input: the drafter as its own one reviewer, with selfReview set, as the prompt bar prepares a change described in it
+    # expect: no blocking error (the counter-proof: the drafter of a change described in the prompt bar is accepted)
+    def test_the_drafter_of_a_change_described_in_the_prompt_bar_is_accepted_as_its_reviewer(self):
+        blocking = js(PREPARE)
+        self.assertEqual(blocking["itself"], [["error", "NO REVIEWER IS THE DRAFTER", True]], "known positive")
+        self.assertEqual(blocking["selfReview"], [], "the drafter of a change described in the prompt bar is accepted")
 
     # TST-1318001 · level: component · module: MOD-job-runner
     # guards: A CHANGE ACROSS MODULES IS CHECKED AS A WHOLE

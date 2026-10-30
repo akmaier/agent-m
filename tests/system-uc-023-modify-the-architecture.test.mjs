@@ -11,8 +11,7 @@
 // Level: system
 //
 // Authored by developer-sonnet-l (ITM-739), who implemented none of ITM-724, ITM-728, ITM-729, ITM-730 or ITM-731.
-// Where the pages and UC-023 disagree the case follows UC-023 and is marked { todo } with the finding it reports (UC023-S3 to UC023-S4); every other case is green. The findings:
-//   UC023-S3  the prompt bar, the one route to "Describe the change", chooses a deriving participant only: no reviewing participant is chosen and none is asked;
+// Where the pages and UC-023 disagree the case follows UC-023 and is marked { todo } with the finding it reports (UC023-S4); every other case is green. The findings:
 //   UC023-S4  after Accept no list of the affected modules, each with the plan steps and backlog items that name it, is shown.
 // Each test states its input and its expected values in its own text; none reads an expected result from the SPEC, a use case or an architecture file, but the flow map (TST-739001),
 // which holds the expected passages itself and checks that UC-023 still says them.
@@ -46,6 +45,12 @@ const modulesOf = (impact) => all(impact, "li", "module").map((item) => [item.ge
   all(item, "p", "code-files")[0].textContent, all(item, "p", "tests")[0].textContent]);
 const linesOfImpact = (impact) => impact.childNodes.filter((node) => node.nodeType === 1 && node.localName === "p" && node.className.split(" ").includes("small")).map((node) => node.textContent);
 const sentTo = (request) => request.body.messages.map((message) => message.content).join("\n");
+// The bar's participant is also the reviewer of a change described in the bar (NO REVIEWER IS THE DRAFTER), so the one endpoint is asked in both parts. A request is the reviewer's
+// when it carries the first sentence of review-architecture's prompt; `drafting(...drafts)` answers it with no finding and the drafter's requests with the drafts in turn.
+const REVIEW_PROMPT = "You review a complete architecture draft against the whole SPEC";
+const asReviewer = (request) => sentTo(request).includes(REVIEW_PROMPT);
+const drafting = (...drafts) => [(requests) => (asReviewer(requests.at(-1)) ? { findings: [] }
+  : drafts[Math.min(requests.filter((request) => !asReviewer(request)).length - 1, drafts.length - 1)])];
 const headingOf = (path) => read(path).split("\n").find((line) => /^# Chapter/.test(line));
 
 // ---------------------------------------------------------------- the flow map
@@ -60,6 +65,7 @@ const FLOW_EVIDENCE = {
   "main-5-accept": { uc: "The reviewer presses **Accept** — one click.", evidence: [[SELF, "TST-739002"]] },
   "main-5-restructuring": { uc: "**Accept all N shown** for all of them in one commit", evidence: [[SELF, "TST-739004"]] },
   "2-changes-under-existing-identifiers": { uc: "The participant returns changes under the existing identifiers", evidence: [[SELF, "TST-739010"]] },
+  "2-reviewing-participant": { uc: "in the prompt bar, the bar's participant derives and reviews the change", evidence: [[SELF, "TST-739011"]] },
   "2-checked-as-a-whole": { uc: "a change that concerns more than one module together with the whole architecture", evidence: [[RELEASE_JOB, "TST-739209"]] },
   "1b-split-or-merge": { uc: "**1b. The author splits or merges modules.**", evidence: [[SELF, "TST-739004"]] },
   "2a-new-identifier": { uc: "**2a. The participant proposes a new identifier for something that exists.**", evidence: [[SELF, "TST-739005"]] },
@@ -71,7 +77,6 @@ const FLOW_EVIDENCE = {
   "postcondition-code-unchanged": { uc: "Code still reflects the old architecture until an implementation job changes it.", evidence: [[SELF, "TST-739002"], [SELF, "TST-739004"]] },
 };
 const FLOW_FINDINGS = {
-  "2-reviewing-participant": { uc: "the author chooses a deriving and a reviewing participant", finding: "UC023-S3", file: SELF, test: "TST-739011" },
   "6-affected-modules-with-their-steps": { uc: "Agent M lists the affected modules, each with the steps of the implementation plan or the backlog items that name it.", finding: "UC023-S4", file: SELF, test: "TST-739013" },
 };
 
@@ -252,13 +257,14 @@ const ARC9_PATH = "docs/architecture/ARC-009-lending-sync.md";
 // guards: UC-023; THE DERIVATION RULES HOLD FOR ARCHITECTURE; EXACT DUPLICATES ARE FOUND WITHOUT A MODEL; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A CHANGE IS PROPOSED UNDER THE EXISTING NAME
 // given: the accepted product; the drafter first answers a new decision ARC-009 with the title of ARC-001 and the class new, then, once told, ARC-001 itself changed
 // input: the author opens ARC-001, describes the change in the bar, presses Send and then Review the draft
-// expect: the second request to the drafter carries the finding that ARC-009 states the title of the existing ARC-001, in the compiler's form; the draft the author sees holds ARC-001 alone, with the change, and no ARC-009; it shows two correction rounds and no finding left; Save commits ARC-001 alone
+// expect: the endpoint is asked four times, twice as the drafter and twice as the reviewer of the change, which the bar's own participant is (UC-023 2: in the prompt bar, the bar's participant derives and reviews the change; the reviewer answers no finding); the second request to the drafter carries the finding that ARC-009 states the title of the existing ARC-001, in the compiler's form; the draft the author sees holds ARC-001 alone, with the change, and no ARC-009; it shows two correction rounds and no finding left; Save commits ARC-001 alone
 test("TST-739005: UC-023 2a a new identifier for something that exists is sent back and the author sees the change under the existing identifier", async () => {
-  const s = await scenario({ answers: [{ files: [{ path: ARC9_PATH, text: asDecision("ARC-009", "Lending is synchronised"), class: "new" }] }, { files: [{ path: ARC1_PATH, text: ARC1_RETRY, class: "change", of: "ARC-001" }] }] });
+  const s = await scenario({ answers: drafting({ files: [{ path: ARC9_PATH, text: asDecision("ARC-009", "Lending is synchronised"), class: "new" }] }, { files: [{ path: ARC1_PATH, text: ARC1_RETRY, class: "change", of: "ARC-001" }] }) });
   await onFile(s, "decision", "ARC-001");
   await send(s, "Let the sync retry", { participant: "drafter" });
-  assert.equal(s.endpointRequests.length, 2, "asked once more");
-  const again = sentTo(s.endpointRequests[1]);
+  const asked = s.endpointRequests.filter((request) => !asReviewer(request)), reviewed = s.endpointRequests.filter(asReviewer);
+  assert.deepEqual([asked.length, reviewed.length], [2, 2], "the drafter is asked once more, and the same participant reviews each round");
+  const again = sentTo(asked[1]);
   assert.ok(again.includes(`${ARC9_PATH}:1: error: "${ARC9_PATH}" states the title of the existing "ARC-001" and is classed new [EXACT DUPLICATES ARE FOUND WITHOUT A MODEL] — class it as duplicate of ARC-001`), again.slice(-1500));
   await review(s);
   assert.equal(all(s.target, "div", "draft").length, 1, "one file is drafted");
@@ -375,16 +381,18 @@ test("TST-739010: UC-023 2 a change returned under the existing identifier is no
 
 // TST-739011 · level: system · module: MOD-review-pages
 // guards: UC-023; AN ARCHITECTURE DRAFT IS CHECKED BEFORE A PERSON SEES IT; NO REVIEWER IS THE DRAFTER
-// given: the participants drafter (model-a) and reviewer (model-b) offered by the bar, a reviewer that answers no finding; known positive first — the drafter is asked
-// input: the author describes a change in the bar, chooses drafter and presses Send
-// expect: known positive — the drafter received the instruction; the reviewing participant is asked as well, before the author sees the draft, as UC-023 2 says the author chooses a deriving and a reviewing participant. FINDING: the bar chooses one participant, prepares the change with no reviewer (src/prompt-bar/send.mjs, prepareIn: `reviewers: []`), and the reviewer is never asked
-test("TST-739011: UC-023 2 the change is checked by a reviewing participant before the author sees it",
-  { todo: "FINDING UC023-S3 — the bar, the one route to Describe the change, offers one participant and prepares the change with reviewers: [] (src/prompt-bar/send.mjs, prepareIn), so the kind's reviewer review-architecture never runs and no reviewing participant is chosen" }, async () => {
-  const s = await scenario({ answers: [{ files: [{ path: ARC1_PATH, text: ARC1_RETRY, class: "change", of: "ARC-001" }] }], reviewerAnswers: [{ findings: [] }] });
+// given: the participants drafter (model-a) and reviewer (model-b) offered by the bar, the drafter's endpoint answering the draft as the deriving participant and no finding as the reviewing one; known positive first — the drafter is asked
+// input: the author describes a change in the bar, chooses drafter and presses Send; the page is read before the draft is opened
+// expect: known positive — the drafter received the instruction; the bar's own model, drafter at model-a, is asked again as the reviewer of review-architecture, with the draft in what it is sent, before the author opens the draft, as UC-023 2 says in the prompt bar the bar's participant derives and reviews the change; no second participant is asked: the endpoint of reviewer (model-b) receives no request
+test("TST-739011: UC-023 2 the change is checked by the bar's own participant as its reviewer before the author sees it", async () => {
+  const s = await scenario({ answers: drafting({ files: [{ path: ARC1_PATH, text: ARC1_RETRY, class: "change", of: "ARC-001" }] }) });
   await onFile(s, "decision", "ARC-001");
   await send(s, "Let the sync retry", { participant: "drafter" });
-  assert.ok(s.endpointRequests.some((request) => sentTo(request).includes("Let the sync retry")), "known positive: the drafter received the instruction");
-  assert.ok(s.reviewerRequests.length >= 1, "the reviewing participant is asked");
+  assert.ok(s.endpointRequests.some((request) => !asReviewer(request) && sentTo(request).includes("Let the sync retry")), "known positive: the drafter received the instruction");
+  const reviewed = s.endpointRequests.filter(asReviewer);
+  assert.ok(reviewed.length >= 1, "the bar's own participant is asked as the reviewer");
+  assert.ok(sentTo(reviewed[0]).includes("which retries"), "with the draft, before the author has opened it");
+  assert.deepEqual(s.reviewerRequests, [], "no second participant is asked");
 });
 
 // TST-739012 · level: system · module: MOD-review-pages
