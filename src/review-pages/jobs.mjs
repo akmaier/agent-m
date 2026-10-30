@@ -55,13 +55,14 @@ export function connectionsOf(participants, store) {
 }
 
 /**
- * loadStage(where, jobKind) -> { definition, participants, instanceSnapshot, product, needs, drafters } — what a page that starts a job of `jobKind` shows before it: the kind, the
- * participants of the instance's register that can do what the kind needs, and what the product allows of a route.
+ * loadStage(where, jobKind, instance?) -> { definition, participants, instanceSnapshot, product, needs, drafters } — what a page that starts a job of `jobKind` shows before it: the kind, the
+ * participants of the instance's register that can do what the kind needs, and what the product allows of a route. `instance`, the instance at its default branch where the page has read it
+ * already, is not read again.
  */
-export async function loadStage(where, jobKind) {
+export async function loadStage(where, jobKind, instance = null) {
   const { snapshot, host, context } = where;
   const definition = await kindOf(jobKind);
-  const instanceSnapshot = context.product ? await defaultSnapshot(context.instance.host) : snapshot;
+  const instanceSnapshot = instance ?? (context.product ? await defaultSnapshot(context.instance.host) : snapshot);
   const register = await instanceSnapshot.read(REGISTER);
   const participants = register === null ? [] : participantsOf(readDocument(participantSchema(), REGISTER, register));
   const info = await host.repositoryInfo();
@@ -185,12 +186,18 @@ export async function panelOf(run) {
   stage.append(explain(kind.explain.draft.panel), panel);
 }
 
-async function execute(run, refine) {
-  const { host, token, snapshot, prepared, id, now, agentM, offer, chosen, params, worksOn } = run;
-  if (!offer || !offer.available) throw Object.assign(new Error(offer ? offer.reason : "the participant has no route of a job"), { name: "RouteUnavailable" });
-  const record = { id, kind: run.jobKind, worksOn, participant: chosen.name, model: chosen.model, route: recordRoute(offer.route), run: null, retries: null,
+/** startRecord(run) -> the start record of the job a run of `preparedRun` prepared, on the route its offer names, for MOD-runtimes' queueJob. */
+export function startRecord(run) {
+  const { token, prepared, id, now, agentM, offer, chosen, params, worksOn } = run;
+  return { id, kind: run.jobKind, worksOn, participant: chosen.name, model: chosen.model, route: recordRoute(offer.route), run: null, retries: null,
     startedBy: token.name, start: now, agentM, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit,
     destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place, parts: each.parts })), params };
+}
+
+async function execute(run, refine) {
+  const { host, snapshot, prepared, offer } = run;
+  if (!offer || !offer.available) throw Object.assign(new Error(offer ? offer.reason : "the participant has no route of a job"), { name: "RouteUnavailable" });
+  const record = startRecord(run);
   const { path } = await queueJob(host, record, offer.route, snapshot.commit);
   if (offer.route.kind !== "tab") return { queued: true, record };
   const acting = [prepared.drafter, ...prepared.reviewers].filter(Boolean);
