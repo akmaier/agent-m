@@ -112,10 +112,10 @@ never written. A decision or module file that a record names and the snapshot no
   the file's folder is not counted. Errors: `NotReviewed` for a path that is no reviewed file.
 - `statuses(snapshot: Snapshot) -> Map<string, { id: string, kind: string, status: "open" | "accepted" | "changed" }>` —
   the status of every reviewed file of a snapshot, keyed by path; computed in one pass over `docs/approvals/`.
-- `removedFiles(snapshot: Snapshot) -> Array<{ id: string, kind: "architecture-decision" | "module", path: string, lastBlob: string }>` — every
-  decision or module file that a record names and of whose identifier the snapshot holds no file, and whose removal no record accepts (no record of
-  that identifier names the empty text's blob): `path` and `lastBlob` are those of the most recent record of the identifier. It is computed in the
-  same pass over `docs/approvals/` as `statuses`, in the order of the identifiers.
+- `removedFiles(snapshot: Snapshot) -> Array<{ id: string, kind: "architecture-decision" | "module" }>` — every decision or module file that a
+  record names and of whose identifier the snapshot holds no file, and whose removal no record accepts (no record of that identifier names the empty
+  text's blob); its path and last accepted text are those `lastAcceptedText` gives for the identifier. It is computed in the same pass over
+  `docs/approvals/` as `statuses`, in the order of the identifiers.
 - `lastAcceptedText(id: string, host: Host) -> Promise<{ text: string, blob: string, path: string } | null>` — the text
   named by the most recent approval record of an identifier, also when the file has been renamed since; `null` when no
   record names it. A record whose content names another blob than its name, or a file of another identifier, counts as
