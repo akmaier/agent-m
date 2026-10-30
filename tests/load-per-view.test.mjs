@@ -149,14 +149,15 @@ test("#arc sends its commit, one request for its folders and one batch of the fi
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; ARCHITECTURE RESTS ON ACCEPTED ARTIFACTS
 // given: MOD-review, which realises UC-002, a use case whose current text is not accepted
 // input: open #arc/MOD-review with a token
-// expect: the page names UC-002 as what it rests on and offers no Accept; the counter-proof is MOD-page, which names nothing open and is
-//         offered for acceptance
-test("#arc/<id>: a module that names what is not accepted says so, and is not offered for acceptance", async () => {
+// expect: the page names UC-002 as what it rests on and offers one Accept, disabled; the counter-proof is MOD-page, which names nothing open and is
+//         offered for acceptance with an Accept that is enabled
+test("#arc/<id>: a module that names what is not accepted says so, and its Accept is disabled", async () => {
   const repo = await product();
   const waiting = await openDashboard({ server: await server(repo), hash: "#arc/MOD-review" });
   assert.match(waiting.main(), /Rests on what is not accepted/);
   assert.match(waiting.main(), /<li class="open-name">UC-002<\/li>/);
-  assert.doesNotMatch(waiting.main(), /<button class="btn accept"/);
+  assert.match(waiting.main(), /<button class="btn accept" type="button" disabled>Accept<\/button>/);
+  assert.equal(waiting.main().match(/<button class="btn accept"/g).length, 1, "one Accept");
   const free = await openDashboard({ server: await server(repo), hash: "#arc/MOD-page" });
   assert.doesNotMatch(free.main(), /Rests on what is not accepted/);
   assert.match(free.main(), /<button class="btn accept" type="button">Accept<\/button>/);
