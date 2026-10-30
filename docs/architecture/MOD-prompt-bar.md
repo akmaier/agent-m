@@ -233,7 +233,8 @@ and sends nothing while the job does not
   hand-over the participant proposed (UC-049 4a) is shown with its kind, what it works on and its task, and goes on at
   once: the person's *Send* was the request, and no further click is asked for. Where the kind is not `converse` itself, its
   `review` is `person` and `eligible` finds the participant able to do it, it runs in this tab, attended, as a message runs, prepared with
-  `prepareJob` for that kind: its parameters are the subject's `paramsFor` less `page`, with what MOD-job-runner's
+  `prepareJob` for that kind — for a kind with reviewers, with the participant itself as its one reviewer and `selfReview`
+  set, since the change is described in the prompt bar (`NO REVIEWER IS THE DRAFTER`) —: its parameters are the subject's `paramsFor` less `page`, with what MOD-job-runner's
   `handOverParams` gives for what it works on, its task as `instruction`, the conversation so far, the subject's
   `entry` and `refuses`; nothing is written, and its result is kept as the `ConversationDraft` of that kind, which
   *Review the draft* leads to (UC-049 4a.1); the person saves it there (UC-019 steps 8, 9). A finding that keeps it from

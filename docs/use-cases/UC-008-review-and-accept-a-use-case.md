@@ -21,6 +21,7 @@ realises:
   - A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT
   - A PROPOSAL IS REJECTED WITH A REASON
   - A REJECTION REMOVES THE PROPOSAL
+  - ACCEPTING A USE CASE PUTS THE MODULES IT CHANGES INTO THE BACKLOG
 ---
 # UC-008 Review and accept a use case
 
@@ -45,6 +46,9 @@ exactly the text they read — by a commit in GitHub.
 4. The dashboard computes the git blob SHA of the text it shows and commits
    `docs/approvals/UC-<nnn>-<sha>.md`, a three-line record, under the reviewer's own account.
 5. The dashboard shows the use case as accepted, because a record now names its current SHA.
+6. In a model that pulls its work from a backlog, the same click has Agent M check which modules the accepted text
+   changes — by the participant that the page named, with its processing place, beside **Accept** — and add one backlog
+   item for each of them that no item not yet done names, realising the use case (UC-032), under the reviewer's account.
 
 ```mermaid
 sequenceDiagram
@@ -57,6 +61,7 @@ sequenceDiagram
     D->>D: blob SHA of the shown text
     D->>G: commit record (reviewer's token)
     D-->>R: status accepted
+    D->>G: backlog items of the modules it changes (reviewer's token)
 ```
 
 ## Alternative flows

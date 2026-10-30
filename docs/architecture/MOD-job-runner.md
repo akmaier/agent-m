@@ -296,11 +296,13 @@ ONLY WHEN RECORDING IS ON`).
   three, rounded up; the size prepareJob gives each part, and the one MOD-endpoint-calls' execution loop bounds its tool
   results by.
 - `prepareJob(kind: string, context: JobContext, choice: { drafter: Participant | null, reviewers: Participant[], limit?:
-  number }) -> Promise<Prepared>` — sends nothing. It reads the kind, evaluates its preconditions, reads Agent M's
+  number, selfReview?: boolean }) -> Promise<Prepared>` — sends nothing. It reads the kind, evaluates its preconditions, reads Agent M's
   `AGENTS.md` once from the instance's snapshot as the job's `rules`, builds the parts from its recipes, estimates their
   sizes — the `rules` counted in every destination's size —, and checks each destination with MOD-participant-list's `eligible`: the
   capabilities the kind needs, the places every part's sources and the mailbox allow, the context against the size, and
-  for a reviewer or checker that it `differs` from the drafter and, for checkers, from each other. Nothing is truncated:
+  for a reviewer or checker that it `differs` from the drafter and, for checkers, from each other — except with
+  `selfReview`, which only MOD-prompt-bar sets, for a change described in the prompt bar: `reviewers` is then the drafter
+  alone, and it is not asked to differ (`NO REVIEWER IS THE DRAFTER`). Nothing is truncated:
   what does not fit is named in `notFitting`, with how many requirements and use cases each destination holds and how many of
   them fit (`NO REQUIREMENT IS LEFT OUT OF THE CONTEXT SILENTLY`, `NOTHING IS LEFT OUT
   OF AN ARCHITECTURE PROMPT SILENTLY`, `NO USE CASE IS LEFT OUT OF A PROMPT SILENTLY`). The limit is fixed here, before
