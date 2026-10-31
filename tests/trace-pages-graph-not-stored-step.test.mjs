@@ -10,13 +10,15 @@
 // Level: unit
 //
 // The route is called through its public Route.render with the Host/Snapshot-shaped fake of tests/trace-pages-harness.mjs, whose trace-cache holds no graph
-// (`stored` false). The instance's page is the one whose product is the instance's repository on github.com, as the dashboard gives it. Readings taken: the
+// (`stored` false). The instance's page is given in the two contexts the dashboard hands the route: on #trace, a product whose address is the instance's
+// repository on github.com; on #spec and #arc (dashboard-app.mjs' renderSpecification and renderComponents), `{ instance: { host }, product: { host } }`
+// with no address, the product's host being the instance's own where the instance is shown. Readings taken: the
 // step is the Acceptance's wording, written as plain text, as the pages name a button ("press Check again"); it stands on the gaps view as on every view that
 // draws from the graph. Each case states its expected texts; none is read from a document. Nothing reaches the network.
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { doc, document, find, treeHost } from "./trace-pages-harness.mjs";
+import { doc, document, find, treeHost, until } from "./trace-pages-harness.mjs";
 
 const { view } = await import("../src/trace-pages/index.mjs");
 const route = view.routes.find((candidate) => candidate.name === "trace");
@@ -63,4 +65,57 @@ test("the instance's own page whose graph is not stored shows GraphNotStored's l
   assert.equal(problems.length, 1);
   assert.match(problems[0], LINE);
   assert.deepEqual(steps, []);
+});
+
+// The context the dashboard hands the route on #spec and #arc: the instance's host, and the product's — the instance's own where the instance is shown.
+const reviewContext = (instanceHost, productHost) => ({ instance: { host: instanceHost }, product: { host: productHost } });
+const stepsIn = (target) => find(target, (node) => node.className === "graph-not-stored-step").map((node) => node.textContent);
+async function modulesOf(context) {
+  const target = document.createElement("div");
+  document.body.append(target);
+  await route.render(target, context, { key: "modules", ref: "main" });
+  return { problems: find(target, (node) => node.className === "traces-problem").map((node) => node.textContent), steps: stepsIn(target) };
+}
+// The specification at main, with ALPHA RULE opened, once what traces to it has been read.
+async function openedOf(context) {
+  const target = document.createElement("div");
+  document.body.append(target);
+  await route.render(target, context, { key: "specification", ref: "main" });
+  find(target, (node) => node.localName === "button" && node.textContent === "ALPHA RULE")[0].dispatchEvent(new Event("click"));
+  await until(() => find(target, (node) => node.className === "traces-problem").length > 0);
+  return { problems: find(target, (node) => node.className === "traces-problem").map((node) => node.textContent), steps: stepsIn(target) };
+}
+
+// TST-1261303 · level: unit · module: MOD-trace-pages
+// guards: UC-020; UC-025
+// given: the modules view as #arc draws it under the architecture — the context { instance: { host }, product: { host } } — of the instance itself, the product's host being the instance's own, whose trace-cache holds no graph of main's commit; and, as the counter-proof, the same context of a product, whose host is another than the instance's
+// input: the route trace with key modules at main, in each context
+// expect: the instance's page shows "The modules could not be read: the trace graph of <commit> is not stored yet — the workflow "main changed" builds it …" alone, with no Install line; counter-proof: the product's page shows that line and "This product's graph is not stored yet: press Install on its Settings page."
+test("#arc of the instance itself shows GraphNotStored's line alone; of a product, the line and the step", async () => {
+  const instanceHost = notStored("arc-instance");
+  const own = await modulesOf(reviewContext(instanceHost, instanceHost));
+  assert.equal(own.problems.length, 1);
+  assert.match(own.problems[0], /^The modules could not be read: the trace graph of [0-9a-f]{12} is not stored yet — the workflow "main changed" builds it/);
+  assert.deepEqual(own.steps, []);
+
+  const product = await modulesOf(reviewContext(notStored("arc-instance-of-product"), notStored("arc-product")));
+  assert.equal(product.problems.length, 1, "counter-proof: the product's page shows the line");
+  assert.deepEqual(product.steps, [STEP], "counter-proof: the product's page shows the step");
+});
+
+// TST-1261304 · level: unit · module: MOD-trace-pages
+// guards: UC-020; A REQUIREMENT SHOWS WHAT TRACES TO IT
+// given: the specification as #spec draws it under the open SPEC changes — the context { instance: { host }, product: { host } } — of the instance itself, whose trace-cache holds no graph of main's commit; and, as the counter-proof, the same context of a product, whose host is another than the instance's
+// input: the route trace with key specification at main, then a click on ALPHA RULE, in each context
+// expect: the opened requirement of the instance says "What traces to this requirement could not be read: …" with GraphNotStored's line, naming the workflow "main changed", and no Install line; counter-proof: the product's opened requirement shows that and "This product's graph is not stored yet: press Install on its Settings page."
+test("#spec of the instance itself shows GraphNotStored's line alone under an opened requirement; of a product, the line and the step", async () => {
+  const instanceHost = notStored("spec-instance");
+  const own = await openedOf(reviewContext(instanceHost, instanceHost));
+  assert.equal(own.problems.length, 1);
+  assert.match(own.problems[0], /^What traces to this requirement could not be read: .*the trace graph of [0-9a-f]{12} is not stored yet — the workflow "main changed" builds it/);
+  assert.deepEqual(own.steps, []);
+
+  const product = await openedOf(reviewContext(notStored("spec-instance-of-product"), notStored("spec-product")));
+  assert.equal(product.problems.length, 1, "counter-proof: the product's opened requirement shows the line");
+  assert.deepEqual(product.steps, [STEP], "counter-proof: the product's page shows the step");
 });
