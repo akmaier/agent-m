@@ -65,6 +65,7 @@ const FLOW_EVIDENCE = {
   "3b-missing-module": { uc: "3b. An item needs a module the architecture does not have.", evidence: [[SELF, "TST-803007"]] },
   "6a-added-during-a-sprint": { uc: "An item is added during a running sprint.", evidence: [[SELF, "TST-803008"]] },
   "6a-checked-against-others": { uc: "An item it adds is checked against what the other teams' sprints hold", evidence: [[SELF, "TST-803014"]] },
+  "6a-shows-what-it-removes-or-adds": { uc: "Changing the sprint selection is a new **Start sprint** decision, and Agent M shows what", evidence: [[SELF, "TST-803014"]] },
   "6b-end-sprint": { uc: "6b. The sprint ends", evidence: [[SELF, "TST-803018"]] },
   "6b-ended-by-the-product-owner": { uc: "which records the end with the sprint.", evidence: [[SELF, "TST-803019"]] },
   "6b-every-item-done": { uc: "when every selected item is done or the Product Owner presses", evidence: [[SELF, "TST-803020"]] },
@@ -77,7 +78,6 @@ const FLOW_EVIDENCE = {
   "1-uncovered-at-the-top": { uc: "The top of the page shows accepted requirements and use cases that no item realises yet.", evidence: [[SELF, "TST-803004"]] },
 };
 const FLOW_FINDINGS = {
-  "6a-shows-what-it-removes-or-adds": { uc: "Changing the sprint selection is a new **Start sprint** decision, and Agent M shows what", finding: "UC032-S4", file: SELF, test: "TST-803014" },
   "6c-names-the-collision": { uc: "is refused and names the sprint, the held item and the module", finding: "UC032-S5", file: SELF, test: "TST-803015" },
   "1b-link-to-the-plan": { uc: "There is no backlog. Agent M links to the implementation plan (UC-045).", finding: "UC032-S6", file: SELF, test: "TST-803024" },
 };
@@ -438,8 +438,7 @@ test("TST-803013: UC-032 6 the Product Owner plans a team's sprint and starts it
 // given: the product of TST-803011 in which team1's sprint team1/02 runs, and team2's sprint team2/01 runs with ITM-010, which changes MOD-news, and no time box
 // input: the Product Owner of team1 presses Change the selection, reads the plan, adds ITM-003, takes ITM-002 out, and presses Start sprint
 // expect: known positive — ITM-007, which changes MOD-news, cannot be selected and the plan names team2/01, ITM-010 and MOD-news; Start sprint makes one commit of team1/02's record alone, which keeps its front matter and appends ## Selection with the new selection, so that the sprint's selection is now ITM-003 and not ITM-002; UC-032 6a says Agent M shows what the new decision removes or adds: the page names ITM-003 as added and ITM-002 as removed. FINDING: it names the file and the commit only
-test("TST-803014: UC-032 6a changing a running sprint's selection is a new Start sprint decision, and Agent M shows what it removes or adds",
-  { todo: "FINDING UC032-S4 — the click handler of Start sprint (src/implementation-pages/backlog.mjs) draws the notice `<path> is changed — commit <sha>`; startSprint's `added` and `removed` are not shown, and a done item (not listed in the plan) is dropped from the selection without a word" }, async () => {
+test("TST-803014: UC-032 6a changing a running sprint's selection is a new Start sprint decision, and Agent M shows what it removes or adds", async () => {
   const sprint2 = sprintText({ n: 1, goal: "News", start: "2026-10-22", closer: "bob", selection: ["ITM-010"], branch: "sprint/team2/01" });
   const files = await product({ files: { [sprintPath("team2", 1)]: sprint2 } });
   const before = files[sprintPath("team1", 2)];
