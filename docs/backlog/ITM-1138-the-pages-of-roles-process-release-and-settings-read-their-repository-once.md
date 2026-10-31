@@ -46,8 +46,10 @@ checks only that the tree is read.
 
 So the fix fits the texts as they stand, and needs no draft:
 - The frame gives these routes the context it gives the review pages: the wrapped host, and `product: null` for the
-  instance.
-- The routes take `product ?? instance` where they now dereference `product.host`.
+  instance. `#settings` alone keeps, for the instance, the product context it is given now, built on the wrapped host
+  (read by the probe build of sprint team1/136: `product: null` there moves UC-042's expectations or MOD-settings-pages'
+  own tests, which this item does not name).
+- The routes take `product ?? instance` where they now dereference `product.host`; `#settings` does not.
 - `paintForm` takes what `pendingCandidate` read.
 - `#settings` is shown before the load's snapshot is read (`dashboard-app.mjs:961-967`), so it waits for it.
 - The frame's wrapper matches `ref === T.ref`, while the routes ask for `info.defaultBranch`. Read first whether the two
@@ -59,7 +61,10 @@ directly.
 ## Acceptance
 
 - `tests/load-per-view.test.mjs` also loads `#roles`, `#process`, `#release` and `#settings`, for the instance and for a
-  product that is another repository. Each sends its commit and tree once. `#process` may additionally read the commit
-  its declaration names, when that is another commit. Counter-proof: a route that connects a host of its own exceeds
-  that count.
+  product that is another repository. Each sends the commit and tree of the repository it shows once (base: 3 for the
+  instance's `#roles`, `#process`, `#settings`, 2 for its `#release`, 2 for each on another product). `#process` may
+  additionally read the commit its declaration names, when that is another commit. The instance's commit, read on a
+  product's page by the prompt bar's own instance host as well, is not counted. Counter-proof: a route that connects a
+  host of its own exceeds that count.
+- No existing expectation changes (the probe build of sprint team1/136).
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
