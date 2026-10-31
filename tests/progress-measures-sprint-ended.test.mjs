@@ -79,13 +79,13 @@ test("progressView takes a sprint the Product Owner ended today as final", async
 // guards: UC-032; A SPRINT ENDS WITH A REVIEW OF ITS INCREMENT
 // given: team1's sprint 01 has no time box and no `## Ended`; both items it selects are merged by 2026-10-21; counter-proof: the same sprint with ITM-002's pull request still open
 // input: progressView(facts, 2026-10-22T12:00Z) of each
-// expect: with both items done the sprint is final and not endable, ended null; with ITM-002 open it is not final and endable
+// expect: with both items done the sprint is final and not endable, ended on 2026-10-21, the day the last was merged (ITM-1332); with ITM-002 open it is not final and endable
 test("progressView takes a sprint without a time box as final when every selected item is done", async () => {
   const open = await sprintOf(sprint({}), ONE_MERGED);
   assert.deepEqual([open.final, open.endable], [false, true], "counter-proof: one item is not done");
   const done = await sprintOf(sprint({}), BOTH_MERGED);
   assert.deepEqual(done.items.map((each) => each.state.state), ["done", "done"], "known positive: both items are done");
-  assert.deepEqual([done.final, done.ended, done.endable], [true, null, false]);
+  assert.deepEqual([done.final, done.ended, done.endable], [true, "2026-10-21", false]); // ITM-1332: the day the last selected item was merged
 });
 
 // TST-1330003 · level: unit · module: MOD-progress-measures
