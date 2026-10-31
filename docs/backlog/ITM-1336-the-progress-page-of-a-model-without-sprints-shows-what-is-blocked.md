@@ -30,5 +30,10 @@ running sprint holds that cannot move —, each with its reason" (`docs/use-case
 
 - A planned and a Kanban fixture product's progress page each hold the panel *Blocked*, listing the items or plan entries
   that `blocked` gives, each with its reason. A product with sprints keeps the panel as it is.
-- The release case TST-800105 loses its `todo`, in a commit of a participant who implemented none of this item.
+- The release case TST-800105 loses its `todo`, in a commit of developer-sonnet-l, who implements none of this item.
+- No other existing expected result changes. The tests that render the route `progress` for a model without sprints are
+  `tests/implementation-pages-progress-measures.test.mjs` (TST-800001 to 800004) and
+  `tests/release-itm-800-progress-page.test.mjs` (TST-800101 to 800105); none asserts the absence of the panel, and
+  TST-800104 asks of every panel a folded "What is this?", which the panel keeps. Every other test of the route renders a
+  product with sprints.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
