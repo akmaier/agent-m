@@ -430,7 +430,7 @@ test("TST-806017 UC-035 3a: a gate whose record names a changed text is passed o
 // given: the product of TST-806017: the record checked ITM-002's file at one blob, and the file now has another
 // input: the reader opens Progress (3a: "shown as passed on an earlier text, with the difference")
 // expect: the row of Building → Checking names the difference: ITM-002's file, the blob checked and the blob now (each by its first 12 characters)
-test("TST-806020 UC-035 3a: a gate passed on an earlier text is shown with the difference", { todo: "FINDING UC035-S7 — the row shows the gate's needs (\"a decision on the current text\") in place of the difference; the difference, which the view carries, is drawn only for a gate that needs nothing" }, async () => {
+test("TST-806020 UC-035 3a: a gate passed on an earlier text is shown with the difference", async () => {
   const { files, checked, now } = changedGate();
   const page = await render("progress", {}, { files });
   try {
