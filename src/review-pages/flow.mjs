@@ -25,7 +25,7 @@ import { affectedCheck } from "./affected-modules.mjs";
 import { storedOnce, fromStored } from "./stored.mjs";
 import { queueService } from "./spec-entries.mjs";
 import { rejectSection } from "./reject.mjs";
-import { reportSections, splitDueDiligence, dueDiligenceSection, roundsSection, stoppedBecause, changeImpact, graphOnce } from "./sections.mjs";
+import { reportSections, splitDueDiligence, dueDiligenceSection, roundsSection, stoppedBecause, changeImpact, graphOnce, affectedModules } from "./sections.mjs";
 
 // What the status approved means (UC-006 4c): the record is committed, the section is not yet written into the SPEC.
 const APPROVED_NOTE = "Approval recorded, not yet written into the SPEC — the apply workflow writes it after an approval committed on GitHub's page; " +
@@ -370,7 +370,8 @@ export function reviewRoute(kind) {
       target.append(el("p", "nothing", `Nothing to review: every ${kind.noun} is accepted.`));
       return;
     }
-    const records = [], graphOf = graphOnce(snapshot), storedOf = storedOnce(snapshot), asked = new Map();
+    // `impacts`: the impact list shown for each file offered, by path, which the page lists by module once Accept has recorded the file (UC-023 step 6).
+    const records = [], graphOf = graphOnce(snapshot), storedOf = storedOnce(snapshot), asked = new Map(), impacts = new Map();
     for (const file of shown) {
       const body = texts.get(file.path);
       const blob = snapshot.blob(file.path);
@@ -389,9 +390,10 @@ export function reviewRoute(kind) {
         }
         section.append(diff, ...renderedFile(file, body, true));
         if (kind.restsOn && last) {
-          const impact = stored ? { shown: stored.shown } : await changeImpact(file, last, body, graphOf);
+          const impact = stored ? { shown: stored.shown, impact: stored.impact } : await changeImpact(file, last, body, graphOf);
           withImpact = !impact.problem;
           section.append(impact.problem ?? impact.shown);
+          if (impact.impact) impacts.set(file.path, impact.impact);
         }
       } else {
         section.append(...renderedFile(file, body, false));
@@ -427,7 +429,7 @@ export function reviewRoute(kind) {
         const file = { id: gone.id, kind: gone.kind, path: last.path };
         const impact = await changeImpact(file, last, null, graphOf);
         section.append(impact.problem ?? impact.shown);
-        if (!impact.problem) records.push({ file, record: recordOf(file.id, file.kind, file.path, empty), blob: empty });
+        if (!impact.problem) { records.push({ file, record: recordOf(file.id, file.kind, file.path, empty), blob: empty }); impacts.set(file.path, impact.impact); }
       }
       target.append(section);
       centreFirstChange(section);
@@ -444,7 +446,8 @@ export function reviewRoute(kind) {
         accept.disabled = true;
         try {
           const result = await service.accept(where, records.map(({ file, blob }) => ({ path: file.path, blob, ...(asked.has(file.path) && { limitations: asked.get(file.path).reasons() }) })), token.name);
-          await redraw(where, { id: REVIEW_ALL }, acceptedMessage(result, (path) => idOf(path, snapshot)), ...await checked(check, result, snapshot));
+          const listed = await affectedModules((result.recorded ?? []).map((path) => impacts.get(path)).filter(Boolean), graphOf);
+          await redraw(where, { id: REVIEW_ALL }, acceptedMessage(result, (path) => idOf(path, snapshot)), ...listed, ...await checked(check, result, snapshot));
         } catch (failure) {
           accept.disabled = false;
           target.append(el("p", "result problem", refusedText(failure, (path) => idOf(path, snapshot))));
@@ -618,10 +621,14 @@ export function reviewRoute(kind) {
     const id = file.id;
     const asked = kind.limitations ? reportSections(body) : null;
     if (asked) target.append(...asked.nodes);
+    // The impact list shown, which the page lists by module once Accept has recorded the file (UC-023 step 6).
+    let shownImpact = null;
+    const graphOf = graphOnce(snapshot);
     if (kind.restsOn && last) {
-      const impact = stored ? { shown: stored.shown } : await changeImpact(file, last, body, graphOnce(snapshot));
+      const impact = stored ? { shown: stored.shown, impact: stored.impact } : await changeImpact(file, last, body, graphOf);
       if (impact.problem) { target.append(impact.problem); return; }
       target.append(impact.shown);
+      shownImpact = impact.impact;
     }
     if (kind.restsOn) {
       const open = await acceptanceBlockers(file.path, snapshot);
@@ -650,7 +657,8 @@ export function reviewRoute(kind) {
         accept.disabled = true;
         try {
           const done = await service.accept(where, [{ path: file.path, blob, ...(asked && { limitations: asked.reasons() }) }], token.name);
-          await redraw(where, { id }, el("p", "result", `Accepted in commit ${done.commit.slice(0, 7)}.`), ...await checked(check, done, snapshot));
+          const listed = shownImpact && done.recorded?.includes(file.path) ? await affectedModules([shownImpact], graphOf) : [];
+          await redraw(where, { id }, el("p", "result", `Accepted in commit ${done.commit.slice(0, 7)}.`), ...listed, ...await checked(check, done, snapshot));
         } catch (failure) {
           accept.disabled = false;
           result.textContent = refusedText(failure, (path) => idOf(path, snapshot));

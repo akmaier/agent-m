@@ -154,15 +154,38 @@ export function impactSection(impact, graph) {
 // snapshot shown, the text accepted last and the text shown — null for a removed file: { shown } the section to show, or { problem } a paragraph
 // saying why it could not be derived, in which case the change is not offered for acceptance. graphOf() gives the graph, built once for a page. A
 // removed module has no node in the graph, so its folder is not the graph's: the code files and tests of a removal stand in one line each, as for a
-// stored list.
+// stored list. `impact` is the ArchitectureImpact shown.
 export async function changeImpact(file, last, body, graphOf) {
   try {
     const graph = await graphOf();
-    const shown = impactSection(architectureImpact(graph, [{ path: file.path, before: last.text, after: body }]), body === null ? null : graph);
+    const impact = architectureImpact(graph, [{ path: file.path, before: last.text, after: body }]);
+    const shown = impactSection(impact, body === null ? null : graph);
     shown.append(explain("impact-of-a-change"));
-    return { shown };
+    return { shown, impact };
   } catch (failure) {
     return { problem: el("p", "problem", `The impact list could not be derived: ${failure.message} — without it, this change cannot be accepted.`) };
   }
 }
 export const graphOnce = (snapshot) => { let graph = null; return () => (graph ??= storedGraph(snapshot, snapshot.commit)); };
+
+// After an acceptance (UC-023 step 6): the modules of the impact lists the page showed for the files the acceptance recorded, in their order, each with the plan steps and
+// backlog items of those lists that name it in the graph of the commit shown — an item names a module, as in the impact list, by its `changes` edge. graphOf() gives that
+// graph (graphOnce). Nothing where no list was shown for a recorded file or the lists name no module; a paragraph saying why where the graph cannot be read.
+export async function affectedModules(impacts, graphOf) {
+  const modules = [...new Set(impacts.flatMap((impact) => impact.modules.map((each) => each.id)))];
+  if (modules.length === 0) return [];
+  const items = [...new Set(impacts.flatMap((impact) => impact.items))];
+  try {
+    const graph = await graphOf();
+    const list = el("ul", "names");
+    for (const id of modules) {
+      const naming = items.filter((each) => graph.edges.some((edge) => edge.via === "changes" && edge.from === each && edge.to === id));
+      const entry = el("li", "module", `${id} — ${naming.length ? naming.join(", ") : "—"}`);
+      entry.setAttribute("data-id", id);
+      list.append(entry);
+    }
+    return [el("section", "affected-modules", el("h3", null, "Affected modules"), list)];
+  } catch (failure) {
+    return [el("p", "problem", `The affected modules cannot be listed: ${failure.message}`)];
+  }
+}
