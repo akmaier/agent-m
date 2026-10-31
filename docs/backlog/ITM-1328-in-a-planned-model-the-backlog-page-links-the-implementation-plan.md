@@ -40,5 +40,12 @@ It is ready. No module text gives the route `backlog` the planned case. The rout
   - Counter-proof: on the base the V-model page draws the backlog.
 - TST-803024's `todo` is taken away on the item's branch, in a commit of its own, by a participant who implemented none of
   the item.
+  Its entry `1b-link-to-the-plan` leaves `FLOW_FINDINGS` of `tests/system-uc-032-maintain-the-backlog.test.mjs` and stands
+  in `FLOW_EVIDENCE` with TST-803024, where TST-803001 needs it.
+- **The existing tests whose expectation this changes:** TST-681008 (`tests/implementation-pages-backlog.test.mjs:301`)
+  asserts that the planned product's warning links `#progress`. Its expectation changes, in the tests-only commit, to a
+  link `#plan`; its `expect` line says so. TST-803024's known positive, the words "plans its work in advance: there is no
+  backlog (UC-032 1b)", stays, and so does the warning's wording. No other test asserts the warning (`grep -rn "plans its
+  work in advance" tests`: these two, and the comment lines of each).
 - The first commit holds only the tests, and CI is red on it for the item's reason.
 - It shares `src/implementation-pages/backlog.mjs` (`paint`) with ITM-1325, ITM-1326 and ITM-1327.
