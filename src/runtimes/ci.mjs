@@ -29,6 +29,8 @@ export class RuntimeError extends Error {
 
 // Agent M's job workflow in a product (MOD-runtimes.md, Data), by the repository's server: one file.
 const WORKFLOW_PATH = { github: ".github/workflows/agent-m-jobs.yml", gitlab: ".gitlab/agent-m-jobs.yml" };
+// Beside it, the file that runs MOD-workflow-entries' onMainChanged (MOD-runtimes.md, Data), from the templates workflow/<server>-main-changed.yml.
+const MAIN_CHANGED_PATH = { github: ".github/workflows/agent-m-main-changed.yml", gitlab: ".gitlab/agent-m-main-changed.yml" };
 
 // commitStart(host, start, head) -> Promise<{ path, commit, defaultBranch, workflow }> — the commit of the CI route
 // (MOD-runtimes' queueJob, Interfaces): the job's start record (MOD-job-ledger's startRecord) at its path, on the head
@@ -91,7 +93,7 @@ const templateAt = (name) => {
 
 // The templates by their names, each read once, as the module is loaded. A template is the head of the file, a line that begins
 // `# --- one job`, and the lines of one job, written once for each route.
-const TEMPLATE_NAMES = ["github", "gitlab"];
+const TEMPLATE_NAMES = ["github", "gitlab", "github-main-changed", "gitlab-main-changed"];
 const TEMPLATES = Object.fromEntries(await Promise.all(TEMPLATE_NAMES.map(async (name) => [name, await templateAt(name)])));
 const JOB_MARKER = /^# --- one job.*\n/m;
 // GitHub's template then has, after its route's jobs, a line that begins `# --- the agent's job` and the lines of one agent's job, written once for each key and once for none.
@@ -123,6 +125,8 @@ const indentOf = (line) => line.length - line.trimStart().length;
 const LIST_ITEM = /^\s*-(\s|$)/;
 // A line that names the job file, as a `local:` value or as a plain string item.
 const NAMES_JOB_FILE = /^\s*(-\s+)?(local:\s*)?["']?\/?\.gitlab\/agent-m-jobs\.yml["']?\s*(#.*)?$/;
+// A line that names the file beside it, which runs onMainChanged, the same way.
+const NAMES_MAIN_CHANGED_FILE = /^\s*(-\s+)?(local:\s*)?["']?\/?\.gitlab\/agent-m-main-changed\.yml["']?\s*(#.*)?$/;
 
 // The sentence that ends a GitlabCiNotList message is the one of its own case: an include:, an inline inputs:, or an entry that is a plain string.
 const INCLUDE_ENDING = "Agent M adds its entry only to an include: that is a list, and rewrites no line of the product's own — make it a list, then install again.";
@@ -173,9 +177,10 @@ function mergeGitlabCi(text, names) {
   // 2. The entry under `include:`: at the end of a list; the key with it at the end of the file where there is none. An entry that names the job file
   // already gains only the inputs it lacks.
   const entry = (pad) => [`${pad}- local: "${WORKFLOW_PATH.gitlab}"`, `${pad}  inputs:`, ...names.flatMap((name) => passed(name, `${pad}    `))];
+  const besideEntry = (pad) => [`${pad}- local: "${MAIN_CHANGED_PATH.gitlab}"`];
   const includeAt = lines.findIndex((line) => /^include:/.test(line));
   if (includeAt === -1) {
-    lines.push("include:", ...entry("  "));
+    lines.push("include:", ...entry("  "), ...besideEntry("  "));
     return `${lines.join("\n")}\n`;
   }
   const rest = lines[includeAt].slice("include:".length).trim();
@@ -208,6 +213,17 @@ function mergeGitlabCi(text, names) {
       lines.splice(last + 1, 0, `${margin}  inputs:`, ...names.flatMap((name) => passed(name, `${margin}    `)));
       changed = true;
     } else changed = appendToBlock(lines, inputsAt, stop, names, passed) || changed;
+  }
+  // 3. The entry of the file beside it, which passes nothing on: at the end of the include: list, where no line of it names that file.
+  let listEnd = includeAt;
+  for (let at = includeAt + 1; at < lines.length; at += 1) {
+    if (isBlank(lines[at])) continue;
+    if (indentOf(lines[at]) === 0 && !LIST_ITEM.test(lines[at])) break;
+    listEnd = at;
+  }
+  if (!lines.slice(includeAt + 1, listEnd + 1).some((line) => NAMES_MAIN_CHANGED_FILE.test(line))) {
+    lines.splice(listEnd + 1, 0, ...besideEntry(margin));
+    changed = true;
   }
   return changed ? `${lines.join("\n")}\n` : text;
 }
@@ -277,9 +293,11 @@ export function jobWorkflowFiles(server, instance, secrets, runners, gitlabCi = 
     const inputs = [...spec.matchAll(/^ {4}([a-z]+):$/gm)].map((match) => match[1]);
     // Where the product has a .gitlab-ci.yml, it is that text with what it lacks added (mergeGitlabCi); where it has none, the whole file.
     if (gitlabCi !== null && typeof gitlabCi !== "string") throw new TypeError("the product's .gitlab-ci.yml is given as its text, or as null where it has none");
-    files.push({ path: ".gitlab-ci.yml", text: gitlabCi === null ? `${spec}include:\n  - local: "${WORKFLOW_PATH.gitlab}"\n    inputs:\n${inputs.map((name) => `      ${name}: $[[ inputs.${name} ]]\n`).join("")}`
+    files.push({ path: ".gitlab-ci.yml", text: gitlabCi === null ? `${spec}include:\n  - local: "${WORKFLOW_PATH.gitlab}"\n    inputs:\n${inputs.map((name) => `      ${name}: $[[ inputs.${name} ]]\n`).join("")}  - local: "${MAIN_CHANGED_PATH.gitlab}"\n`
       : mergeGitlabCi(gitlabCi, inputs) });
   }
+  // Beside them, the file that runs onMainChanged, at the same instance commit (MOD-runtimes, Data): one job, which reads no key.
+  files.push({ path: MAIN_CHANGED_PATH[server], text: fill(TEMPLATES[`${server}-main-changed`], common) });
   return files;
 }
 

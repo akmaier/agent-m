@@ -84,15 +84,16 @@ const rulesOf = (job) => job.text.split(/\n(?=    - if:)/).slice(1);
 // guards: UC-010; AGENT M WORKS WITHOUT A LOCAL INSTALLATION
 // given: an instance alice/agent-m at a commit, two secret names for keys and one for the token, and the runner label gpu
 // input: jobWorkflowFiles("github", …) and jobWorkflowFiles("gitlab", …)
-// expect: for GitHub one file, .github/workflows/agent-m-jobs.yml; for GitLab .gitlab/agent-m-jobs.yml first and then the file the product's .gitlab-ci.yml needs, at the path .gitlab-ci.yml, whose text is exactly: a `spec:` header with `inputs:` job, task and endpoint, each with `default: ""`, then a line `---`, then `include:` of the local file ".gitlab/agent-m-jobs.yml" with `inputs:` job, task and endpoint, each passed as the whole value `$[[ inputs.<name> ]]`; each file's text is not empty
+// expect: for GitHub .github/workflows/agent-m-jobs.yml, then the file beside it, .github/workflows/agent-m-main-changed.yml; for GitLab .gitlab/agent-m-jobs.yml first, then the file the product's .gitlab-ci.yml needs, at the path .gitlab-ci.yml, then the file beside the job workflow, .gitlab/agent-m-main-changed.yml; the .gitlab-ci.yml's text is exactly: a `spec:` header with `inputs:` job, task and endpoint, each with `default: ""`, then a line `---`, then `include:` of the local file ".gitlab/agent-m-jobs.yml" with `inputs:` job, task and endpoint, each passed as the whole value `$[[ inputs.<name> ]]`, and of the local file ".gitlab/agent-m-main-changed.yml"; each file's text is not empty
 test("jobWorkflowFiles — the file of GitHub, and the file of GitLab with the spec and include its .gitlab-ci.yml needs", () => {
   const github = files("github"), gitlab = files("gitlab");
 
-  assert.deepEqual(github.map((file) => file.path), [".github/workflows/agent-m-jobs.yml"]);
-  assert.deepEqual(gitlab.map((file) => file.path), [".gitlab/agent-m-jobs.yml", ".gitlab-ci.yml"]);
+  assert.deepEqual(github.map((file) => file.path), [".github/workflows/agent-m-jobs.yml", ".github/workflows/agent-m-main-changed.yml"]);
+  assert.deepEqual(gitlab.map((file) => file.path), [".gitlab/agent-m-jobs.yml", ".gitlab-ci.yml", ".gitlab/agent-m-main-changed.yml"]);
   for (const file of [...github, ...gitlab]) assert.match(file.text, /\S/, file.path);
   assert.equal(gitlab[1].text, 'spec:\n  inputs:\n    job:\n      default: ""\n    task:\n      default: ""\n    endpoint:\n      default: ""\n    secret:\n      default: ""\n---\n'
-    + 'include:\n  - local: ".gitlab/agent-m-jobs.yml"\n    inputs:\n      job: $[[ inputs.job ]]\n      task: $[[ inputs.task ]]\n      endpoint: $[[ inputs.endpoint ]]\n      secret: $[[ inputs.secret ]]\n');
+    + 'include:\n  - local: ".gitlab/agent-m-jobs.yml"\n    inputs:\n      job: $[[ inputs.job ]]\n      task: $[[ inputs.task ]]\n      endpoint: $[[ inputs.endpoint ]]\n      secret: $[[ inputs.secret ]]\n'
+    + '  - local: ".gitlab/agent-m-main-changed.yml"\n');
 });
 
 // ---------------------------------------------------------------- the events
@@ -418,7 +419,7 @@ test("jobWorkflowFiles — a task with quotes and line breaks is one value, held
 // back after the load. -> { module, error, reads } — the module's namespace, or the error its load failed with; and every read of its own
 // templates, as "disk <address>" or "fetch <address>". Only ci.mjs is loaded anew; the modules it imports are this file's.
 const CI_MODULE = new URL("../src/runtimes/ci.mjs", import.meta.url);
-const TEMPLATE_FILES = ["github.yml", "gitlab.yml"].map((name) => new URL(`../src/runtimes/workflow/${name}`, import.meta.url).href);
+const TEMPLATE_FILES = ["github.yml", "gitlab.yml", "github-main-changed.yml", "gitlab-main-changed.yml"].map((name) => new URL(`../src/runtimes/workflow/${name}`, import.meta.url).href);
 let loads = 0;
 async function loadCi({ disk, fetch }) {
   const saved = { getBuiltinModule: process.getBuiltinModule, fetch: globalThis.fetch };
@@ -446,7 +447,7 @@ const OWN_GITLAB_CI = 'include:\n  - local: ".gitlab/own.yml"\n';
 // guards: AGENT M WORKS WITHOUT A LOCAL INSTALLATION; ONE CLICK PER DECISION; UC-010
 // given: ci.mjs loaded anew twice — as in Node, with a disk that gives the real templates, and as a browser loads it, without a disk, whose fetch answers each of the module's own addresses with the text of the real file there; one fixture: the instance alice/agent-m at COMMIT, the secrets AGENT_M_TOKEN, CLAUDE_KEY and OPENAI_KEY, the runner gpu, and on GitLab a product without a .gitlab-ci.yml and one with its own
 // input: jobWorkflowFiles on GitHub, and on GitLab for each .gitlab-ci.yml, from each copy
-// expect: each copy loads and reads workflow/github.yml and workflow/gitlab.yml beside ci.mjs, once each, as it is loaded — the Node copy from the disk, the browser's copy from those addresses with fetch; the files of the browser's copy are deep-equal to those of the Node copy for each server and each .gitlab-ci.yml; the GitHub file is .github/workflows/agent-m-jobs.yml and names the instance's commit
+// expect: each copy loads and reads workflow/github.yml, workflow/gitlab.yml, workflow/github-main-changed.yml and workflow/gitlab-main-changed.yml beside ci.mjs, once each, as it is loaded — the Node copy from the disk, the browser's copy from those addresses with fetch; the files of the browser's copy are deep-equal to those of the Node copy for each server and each .gitlab-ci.yml; the GitHub file is .github/workflows/agent-m-jobs.yml and names the instance's commit
 test("jobWorkflowFiles — in a browser the templates are read from the module's own address, and the files equal those given in Node", async () => {
   const inNode = await loadCi({ disk: realDisk });
   const inBrowser = await loadCi({ disk: undefined, fetch: servedFetch });

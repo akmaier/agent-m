@@ -121,7 +121,7 @@ async function paintAudit(container, candidate) {
 }
 
 async function paintCandidate(container, context, candidate) {
-  const host = context.product.host;
+  const host = shownOf(context).host;
   container.replaceChildren(
     el("h3", null, `Release candidate ${candidate.tag}`),
     el("p", "muted", `Queued run: ${candidate.run}`),
@@ -148,9 +148,7 @@ async function paintCandidate(container, context, candidate) {
 // The candidate that already waits for the person's decision. reportsAwaitingAcceptance identifies the newest
 // completed candidate without a release report; its recorded run supplies the commit and changelog with which the
 // report was generated. Reading these public records has no write path.
-async function pendingCandidate(host) {
-  const info = await host.repositoryInfo();
-  const snapshot = await host.readSnapshot(info.defaultBranch);
+async function pendingCandidate(host, snapshot) {
   const pending = await reportsAwaitingAcceptance(host, snapshot);
   if (!pending) return null;
   for await (const record of recordsNewestFirst(snapshot)) {
@@ -166,13 +164,15 @@ async function pendingCandidate(host) {
   throw new Error(`The pending release report's recorded run ${pending.record} cannot be read.`);
 }
 
+// The repository the panel shows: the product, or the instance itself where the context names none (MOD-site-frame's ViewContext).
+const shownOf = (context) => context.product ?? context.instance ?? null;
+
 // ---------------------------------------------------------------- the version form: UC-013 step 1-2, 1a and 2a.
 
-async function paintForm(container, context) {
+async function paintForm(container, context, head) {
   container.replaceChildren();
-  const host = context.product.host;
-  const [info, tags] = await Promise.all([host.repositoryInfo(), host.listTags()]);
-  const head = await host.readSnapshot(info.defaultBranch);
+  const host = shownOf(context).host;
+  const tags = await host.listTags();
   const version = nextVersion(tags.map((t) => t.name), "minor", today());
 
   const versionField = el("input", "version");
@@ -220,7 +220,8 @@ export const route = {
   title: "Release",
   async render(target, context, params) {
     target.replaceChildren();
-    if (!context.product?.host) {
+    const shown = shownOf(context);
+    if (!shown?.host) {
       target.append(el("p", "muted", "Choose a product first."));
       return;
     }
@@ -229,9 +230,11 @@ export const route = {
     target.append(body);
     void params;
     try {
-      const candidate = await pendingCandidate(context.product.host);
+      // The product's default branch, read once: the waiting report is looked for in it, and a new candidate starts on its commit.
+      const head = await shown.host.readSnapshot((await shown.host.repositoryInfo()).defaultBranch);
+      const candidate = await pendingCandidate(shown.host, head);
       if (candidate) await paintCandidate(body, context, candidate);
-      else await paintForm(body, context);
+      else await paintForm(body, context, head);
     } catch (e) {
       body.append(el("p", "result", `The pending release report cannot be reopened: ${messageFor(e)}`));
     }

@@ -10,7 +10,8 @@
 import { pathToFileURL } from "node:url";
 import { ciEnvironment } from "./compose.mjs";
 import { runAsModelUser, separates } from "./model-user.mjs";
-import { onApprovalsCommitted, onSourcesCommitted, onMainChanged, onReleaseTagged } from "./instance.mjs";
+import { onApprovalsCommitted, onSourcesCommitted, onReleaseTagged } from "./instance.mjs";
+import { onMainChanged } from "./main-changed.mjs";
 import { onRecordsChanged, onDispatch, onCheckCompleted, onSchedule, chooseAgentKey, leaveResult, writeResult, runTests, onTestsFinished, onDoneCheck, onPullRequestClosed } from "./product.mjs";
 
 const ENTRIES = { onApprovalsCommitted, onSourcesCommitted, onMainChanged, onReleaseTagged, onRecordsChanged, onDispatch, onCheckCompleted, onSchedule,
