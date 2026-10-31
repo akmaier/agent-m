@@ -200,7 +200,7 @@ function gatesPanel(context, ctx) {
   const rows = gates.map((gate) => `<tr><td data-label="Gate">${h(gate.gate)}${gate.addedBy ? ` <span class="muted small">added by ${h(gate.addedBy.requirement)} (${h(gate.addedBy.source)})</span>` : ""}</td>
     <td data-label="State">${badge(gate.state)}</td>
     <td class="small" data-label="Decided">${gate.decided ? `${h(gate.decided.by)}, ${h(gate.decided.date)}, on ${h(gate.decided.on)}${gate.decided.record ? `, ${fileLink(context, ctx.ref, gate.decided.record, "record")}` : ""}` : "—"}</td>
-    <td class="small" data-label="Needs">${h(gate.needs ?? gate.difference ?? "") || "—"}</td></tr>`).join("");
+    <td class="small" data-label="Needs">${h([gate.needs, gate.difference].filter(Boolean).join("; ")) || "—"}</td></tr>`).join("");
   return `<section class="panel" data-part="gates"><h3>Gates</h3>
     ${gates.length ? `<div class="table-scroll" tabindex="0"><table class="list"><thead><tr><th>Gate</th><th>State</th><th>Decided</th><th>Needs</th></tr></thead><tbody>${rows}</tbody></table></div>`
       : `<p class="muted">The workflow names no gate, or it could not be read.</p>`}
