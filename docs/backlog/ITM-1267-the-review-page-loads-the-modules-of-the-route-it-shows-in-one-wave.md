@@ -103,6 +103,31 @@ moves is known only once the routes are split into stand-ins: a stand-in of the 
   fails only with the patch. A release test among them is changed by a participant who implemented none of the item.
 - Then the tests-only commit follows, with those changed expectations, red there.
 
+**Named from the probe of sprint team1/137** (developer-opus-e, not pushed). In each case the old value is a member read
+from the route's head in `view.routes`, and the new one is the same member read from `await route.module()`. That is
+what MOD-site-frame.md:181-185 allows: the frame imports "the rest" of a route when it is first shown, embedded or asked
+for its subject.
+- `tests/review-pages-draft-world.mjs:22`, `routeNamed`, a test helper: it hands the imported route, which carries `leave`
+  and `unsaved`. This changes only how a fixture is prepared, for TST-067101 to TST-067104, TST-067108, TST-067109,
+  TST-067301 to TST-067303, TST-603020 to TST-603023, TST-672020 and TST-672021.
+- `tests/review-pages-draft-architecture.test.mjs:45`: its four cases read the member from the imported route.
+- `tests/review-pages-handed-snapshot.test.mjs:23`: its four cases read `reads` from the imported route.
+- `tests/settings-pages-subject.test.mjs:19`: TST-1127001 to TST-1127005 ask the imported route for `subject`.
+- `tests/test_no_backend.py` (MOD-repository-hosts, NO SERVER), in one commit by developer-sonnet-l, who implements none
+  of the item. `PERMITTED_CHANNELS` gains an entry for each of the six views' `import()` of its own route files: a relative
+  address inside the view's folder, checked by evidence the way `_site_frame_view_import` checks it. These are "the
+  dashboard's own view files" the test's docstring names as a known channel. MOD-site-frame's count for "loading element"
+  goes from 3 to 4, for the `modulepreload` and `preload` links the frame adds. No counter-proof is weakened.
+  `tests/test_release_sprint_02_d.py` runs that check and passes again with it, unchanged.
+- `docs/index.html`: the generator's output of `node src/site-frame/preloads.mjs` (280 to 213 modules in the block).
+  `index.html` does not change.
+- **Each route's head is written once.** `name`, `entry`, `entryShown` and `title` stand in the view module
+  (:181-183), and the route's file takes them from there. It does not repeat them, and no check compares two copies
+  (AGENTS.md §2, principle 2).
+- Measured by the probe, cache disabled, against 1,203 KB gzipped today: `#uc` 802 KB, `#arc` 840, `#backlog` 778,
+  `#mail` 891, `#settings` 946. These replace the expected figures above. `tests/site-frame-preloads.test.mjs` goes from
+  1.5 s to 2.4 s.
+
 ## The reading of the accepted text
 
 Two sentences of MOD-site-frame hold together.
