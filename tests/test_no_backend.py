@@ -45,6 +45,7 @@ every vendored library for request channels.
 
 Only tracked files are read, so a scratch file in a working tree changes nothing. Counter-proofs:
 docs/measurements/2026-10-01_product-rules-repository-checks.md."""
+import json
 import posixpath
 import re
 import subprocess
@@ -133,29 +134,45 @@ def _own_origin(text: str, at: int) -> bool:
 FRAME_ASSET_LOADING = "the frame's own look.css or lettered brand asset, resolved from its module address, or the modulepreload or preload link for the modules and files the page's data names for a route"
 
 
-def _site_frame_asset(text: str, at: int) -> bool:
+def _site_frame_asset(text: str, at: int, files: dict[str, str]) -> bool:
     """MOD-site-frame: its three static header resources are adjacent own files, wired directly to their elements."""
     own = ('const LOOK = new URL("./look.css", import.meta.url).href;',
            'const PRL_LOGO = new URL("./brand/prl-lettered.png", import.meta.url).href;',
            'const PRL_LOGO_DARK = new URL("./brand/prl-lettered-white.png", import.meta.url).href;')
+    if _route_preload_link(text, at, files):
+        return True
     if not all(item in text for item in own):
         return False
     window = text[at:at + 240]
     return ((window.startswith('createElement("link")') and 'look.setAttribute("href", LOOK)' in window)
-            or _route_preload_link(text, at)
             or (window.startswith('createElement("source")') and 'dark.setAttribute("srcset", PRL_LOGO_DARK)' in window)
             or (window.startswith('createElement("img")') and 'logo.setAttribute("src", PRL_LOGO)' in window))
 
 
-def _route_preload_link(text: str, at: int) -> bool:
-    """MOD-site-frame (Parts, preloads.mjs; Interfaces, Route): before it imports a route's own file the frame asks at once for the modules and files the
-    page's data names for that route, as `modulepreload` and `preload` links. The link is created as `link`, its rel is one of the two, and its href is
-    set from an address new URL(...) resolved, with no address of another origin written in the element's lines."""
-    window = text[at:at + 400]
-    return (window.startswith('createElement("link")')
-            and re.search(r'setAttribute\("rel", "(?:modulepreload|preload)"\)|\.rel = "(?:modulepreload|preload)"', window) is not None
-            and re.search(r'setAttribute\("href", new URL\(|\.href = new URL\(', window) is not None
-            and not ADDRESS.search(window))
+ROUTE_PRELOAD_DATA = re.compile(r'<script type="application/json" id="route-preloads">(.*?)</script>', re.S)
+ROUTE_PRELOAD_ATTRIBUTES = ('{ rel: "modulepreload", as: "json" }', '{ rel: "modulepreload" }', '{ rel: "preload", as: "fetch", crossorigin: "" }')
+
+
+def _route_preload_link(text: str, at: int, files: dict[str, str]) -> bool:
+    """MOD-site-frame (Parts, preloads.mjs; Interfaces, Route): before it imports a route's own file the frame asks at once for the modules and
+    files the page's data names for that route. The link is the one preloadLink(href, attributes) creates, once per address: its attributes are
+    those the loop sets, its href is set from preloadLink's own parameter, and every call of preloadLink gives an href of the route's data
+    (`modules` or `files` of routePreloads(...)) and a literal rel of modulepreload or preload. The data the pages hold names only addresses
+    relative to the page (no scheme, no //), so no other origin is asked for."""
+    head = "function preloadLink(href, attributes) {"
+    calls = re.findall(r"preloadLink\(href, (.*)\);$", text, re.M)
+    pages = [data for f, t in files.items() if f.endswith(".html") for data in ROUTE_PRELOAD_DATA.findall(t)]
+    named = [v for page in pages for route in json.loads(page).values() for kind in ("modules", "files") for v in route.get(kind, [])]
+    return (text[at:].startswith('createElement("link");\n  for (const [name, value] of Object.entries(attributes)) link.setAttribute(name, value);\n'
+                                 '  link.setAttribute("href", href);')
+            and text.count(head) == 1 and "linked.has(href)" in text and calls != [] and text.count("preloadLink(") == len(calls) + 1
+            and all(c.startswith(ROUTE_PRELOAD_ATTRIBUTES[1:]) or c.startswith('href.endsWith(".json") ? ' + ROUTE_PRELOAD_ATTRIBUTES[0]) for c in calls)
+            and "for (const href of modules) preloadLink" in text and "for (const href of files) preloadLink" in text
+            and "const { modules, files } = routePreloads(route.name);" in text
+            and all(not re.match(r"[a-z][a-z0-9+.-]*:|//", v, re.I) for v in named))
+
+
+_site_frame_asset.site = True  # its preload-link evidence reads the pages' data
 
 
 FRAME_VIEW_IMPORT = "a view module of the site, loaded from its own origin: viewAddress(slug), resolved as ../<slug>/index.mjs against the module's own address"
@@ -960,14 +977,25 @@ class NoServer(unittest.TestCase):
                     'const look = document.createElement("link"); look.setAttribute("href", LOOK);\n'
                     'const dark = document.createElement("source"); dark.setAttribute("srcset", PRL_LOGO_DARK);\n'
                     'const logo = document.createElement("img"); logo.setAttribute("src", PRL_LOGO);\n'
-                    'const hint = document.createElement("link"); hint.setAttribute("rel", "modulepreload"); hint.setAttribute("href", new URL(module, base).href);\n')
+                    'function preloadLink(href, attributes) {\n  if (linked.has(href)) return;\n  const link = document.createElement("link");\n'
+                    '  for (const [name, value] of Object.entries(attributes)) link.setAttribute(name, value);\n  link.setAttribute("href", href);\n}\n'
+                    'const { modules, files } = routePreloads(route.name);\n'
+                    'for (const href of modules) preloadLink(href, href.endsWith(".json") ? { rel: "modulepreload", as: "json" } : { rel: "modulepreload" });\n'
+                    'for (const href of files) preloadLink(href, { rel: "preload", as: "fetch", crossorigin: "" });\n')
         self.assertEqual(channel_findings({path: accepted}), [])
         wrong_destination = accepted.replace('"./look.css"', '"./elsewhere.css"')
-        self.assertEqual(len(channel_findings({path: wrong_destination})), 4)
+        self.assertEqual(len(channel_findings({path: wrong_destination})), 3)
         foreign = accepted.replace('"./brand/prl-lettered.png"', '"https://tracker.example/logo.png"')
-        self.assertEqual(len(channel_findings({path: foreign})), 5)
-        written_out = accepted.replace('new URL(module, base).href', '"https://tracker.example/x.mjs"')
-        self.assertEqual(channel_findings({path: written_out})[-1], f"{path}:7: loading element: not {FRAME_ASSET_LOADING}")
+        self.assertEqual(len(channel_findings({path: foreign})), 4)
+        # An href written out in the link's lines, an attribute set from elsewhere, or a call that gives another rel (expected: the link at line 9 is found).
+        for changed in (accepted.replace('link.setAttribute("href", href)', 'link.setAttribute("href", "https://tracker.example/x.mjs")'),
+                        accepted.replace("Object.entries(attributes)", "Object.entries(other)"),
+                        accepted.replace('{ rel: "preload", as: "fetch", crossorigin: "" }', '{ rel: "stylesheet" }')):
+            self.assertEqual(channel_findings({path: changed})[-1:], [f"{path}:9: loading element: not {FRAME_ASSET_LOADING}"])
+        # The page's data naming an address of another origin for a route (expected: the link is found; a relative address passes).
+        page = lambda module: {"docs/index.html": '<script type="application/json" id="route-preloads">{"mail":{"modules":["%s"],"files":[]}}</script>' % module}
+        self.assertEqual(channel_findings({path: accepted, **page("../src/mail-routes/index.mjs")}), [])
+        self.assertEqual(channel_findings({path: accepted, **page("https://tracker.example/x.mjs")})[-1:], [f"{path}:9: loading element: not {FRAME_ASSET_LOADING}"])
         indirect = accepted.replace('logo.setAttribute("src", PRL_LOGO)', 'logo.setAttribute("src", target)')
         self.assertEqual(channel_findings({path: indirect})[0], f"{path}:6: loading element: not {FRAME_ASSET_LOADING}")
         extra = accepted + 'const again = document.createElement("img"); again.setAttribute("src", PRL_LOGO);\n'
