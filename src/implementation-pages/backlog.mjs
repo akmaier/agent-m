@@ -282,6 +282,10 @@ function heldPanel(context, ctx, team) {
       "whose interfaces they use, as the modules' files under <code>docs/architecture/</code> name them (UC-032 step 5).</p>")}</section>`;
 }
 
+// What a Start sprint decision adds and removes, as startSprint's result names it (UC-032 6a): " Added: …." and " Removed: …." for each that names an item, nothing otherwise.
+const changes = ({ added = [], removed = [] }) => [["Added", added], ["Removed", removed]]
+  .filter(([, ids]) => ids.length).map(([label, ids]) => ` ${label}: ${ids.map((id) => h(id)).join(", ")}.`).join("");
+
 // What Start sprint hands startSprint besides the view's states and holds, read at the view's commit on the click: the declaration, the declared model, the module files and the
 // team's running sprint.
 async function startInputs(context, ctx, team) {
@@ -620,7 +624,7 @@ async function paint(target, context, ctx, team) {
         { states: view.rows.map((row) => row.state), model: declared, declaration, held: view.rows.map((row) => row.held).filter(Boolean), architecture, running,
           head: view.commit, trailers: [] });
       await draw(target, context);
-      target.insertAdjacentHTML?.("afterbegin", `<section class="panel notice flash"><p>${running ? "The selection of" : "Sprint"} <code>${h(result.path)}</code> ${running ? "is changed" : "is started"} — commit ${h(result.commit.slice(0, 7))}.</p></section>`);
+      target.insertAdjacentHTML?.("afterbegin", `<section class="panel notice flash"><p>${running ? "The selection of" : "Sprint"} <code>${h(result.path)}</code> ${running ? "is changed" : "is started"} — commit ${h(result.commit.slice(0, 7))}.${changes(result)}</p></section>`);
     } catch (failure) {
       out.innerHTML = failure?.name === "SprintRefused"
         ? `<p class="warn">The sprint is not started:</p><ul class="small">${(failure.reasons ?? []).map((reason) => `<li>${h(reason)}</li>`).join("")}</ul>`
