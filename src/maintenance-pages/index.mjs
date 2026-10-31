@@ -11,8 +11,32 @@ import { privacyStrategies } from "../personal-data/index.mjs";
 import { routeStrategies } from "../runtimes/index.mjs";
 import { sourceStrategies } from "../source-register/index.mjs";
 import { specStrategies } from "../spec-changes/index.mjs";
-import { routes as issues } from "./issues.mjs";
-import { route as mail } from "./mail.mjs";
-import { route as replies } from "./replies.mjs";
 
-export const view = { routes: [mail, replies, ...issues], strategies: [mailStrategies, privacyStrategies, issueStrategies, specStrategies, sourceStrategies, routeStrategies] };
+// A route given by its head (MOD-site-frame's Route `module`): its `name`, `entry`, `entryShown` and `title` here, the rest in the route's own
+// file, which `module` imports once, when the frame first shows the route, embeds it or asks it for its subject. Its `render` imports the
+// route and calls the route's own; its `subject`, where the route has one, is the route's own once it is imported, and none before.
+function headed(head, load, { subject = false } = {}) {
+  let full = null;
+  let imported = null;
+  const module = () => (imported ??= load().then((route) => (full = route)));
+  return { ...head, module, render: async (target, context, params) => (await module()).render(target, context, params),
+    ...(subject ? { subject: (params, context) => (full ? full.subject(params, context) : null) } : {}) };
+}
+
+// Each route's head, written here once; the route's own file takes its head from here.
+export const heads = {
+  mail: { name: "mail", entry: "maintenance", title: "Mail" },
+  replies: { name: "replies", entry: "maintenance", title: "Replies" },
+  issues: { name: "issues", entry: "maintenance", title: "Issues" },
+  issue: { name: "issue", entry: null, title: "Issue" },
+};
+
+// The file that holds the routes issues and issue, imported once for both.
+const issuesFile = () => import("./issues.mjs");
+
+const mail = headed(heads.mail, async () => (await import("./mail.mjs")).route, { subject: true });
+const replies = headed(heads.replies, async () => (await import("./replies.mjs")).route, { subject: true });
+const issues = headed(heads.issues, async () => (await issuesFile()).routes.find((route) => route.name === "issues"));
+const issue = headed(heads.issue, async () => (await issuesFile()).routes.find((route) => route.name === "issue"));
+
+export const view = { routes: [mail, replies, issues, issue], strategies: [mailStrategies, privacyStrategies, issueStrategies, specStrategies, sourceStrategies, routeStrategies] };

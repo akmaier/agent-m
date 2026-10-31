@@ -34,6 +34,7 @@ import { descriptorFor } from "./views.mjs";
 import { showTests } from "./tests.mjs";
 import { drawAudit } from "./audit.mjs";
 import { instanceSnapshot, opening, personsSource, subjectOf } from "./subject.mjs";
+import { heads } from "./index.mjs";
 
 const SPEC_PATH = "SPEC.md";
 const GROUP_PATH = "docs/groups/requirements.md";
@@ -926,12 +927,7 @@ async function drawModules(target, context, host, ref, descriptor, earlier = nul
 }
 
 export const route = {
-  name: "trace",
-  entry: "requirements",
-  // The entry of the page shown: the `entry` of the descriptor `key` names — the tests browser and the audit under Tests, the modules view under
-  // Architecture —, null, the route's `entry`, where `key` names none.
-  entryShown: (params = {}) => descriptorFor(params.key)?.entry ?? null,
-  title: "Current requirements",
+  ...heads.trace,
 
   subject: (params, context) => subjectOf({ title: descriptorFor(params.key)?.title ?? route.title, params, context, shown: drawn.get(context) ?? null }),
 

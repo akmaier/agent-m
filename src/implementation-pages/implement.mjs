@@ -36,6 +36,7 @@ import { planSchemas, startable, targetBranch } from "../work-plans/index.mjs";
 import { connectionsOf, contextOf, participantsIn, personOf, placesOf, viewOf } from "./backlog.mjs";
 import { declaredModelOf } from "./plan.mjs";
 import { asOfLine } from "./progress.mjs";
+import { heads } from "./index.mjs";
 
 const WORKFLOWS = [".github/workflows/agent-m-jobs.yml", ".gitlab/agent-m-jobs.yml"];
 const DECLARATION = "docs/process.md";
@@ -483,9 +484,7 @@ async function draw(target, context, params) {
 }
 
 export const route = {
-  name: "implement",
-  entry: "implementation",
-  title: "Implement",
+  ...heads.implement,
   async render(target, context, params = {}) {
     try {
       await draw(target, context, params);

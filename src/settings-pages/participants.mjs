@@ -17,6 +17,7 @@ import { explain, schemaForm } from "../site-frame/index.mjs";
 import { finding } from "../text-tools/index.mjs";
 import { recordTest } from "./endpoints.mjs";
 import { credentialsFor } from "./products.mjs";
+import { heads } from "./index.mjs";
 
 const PATH = "docs/participants.md";
 const DECLARATION = "docs/process.md";
@@ -348,9 +349,7 @@ function control(label, input) {
 }
 
 export const route = {
-  name: "participants",
-  entry: "settings",
-  title: "Participants",
+  ...heads.participants,
   async render(target, context, params = {}) {
     let opened;
     try { opened = await openedRegister(context.instance.host); } catch (error) {

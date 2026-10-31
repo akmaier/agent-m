@@ -27,6 +27,7 @@ import { checkersFor, personHits, pseudonymisationOf, settingsSchemas } from "..
 import { connect, parseAddress } from "../repository-hosts/index.mjs";
 import { queueJob, runOnTab } from "../runtimes/index.mjs";
 import { runPanel } from "../site-frame/index.mjs";
+import { heads } from "./index.mjs";
 
 const REGISTER = "docs/participants.md";
 const SETTINGS = "docs/settings.md";
@@ -430,4 +431,4 @@ export function mailSubject({ key, title, entries, store }) {
 
 const subject = (params, context) => mailSubject({ key: "mail", title: "Mail", entries: () => listed, store: context.store });
 
-export const route = { name: "mail", entry: "maintenance", title: "Mail", render, subject };
+export const route = { ...heads.mail, render, subject };

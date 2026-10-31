@@ -22,6 +22,7 @@ import { renderArtifact, renderMermaid } from "../markdown-render/index.mjs";
 import { productFacts, progressView, storedView } from "../progress-measures/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
 import { endSprint } from "../work-plans/index.mjs";
+import { heads } from "./index.mjs";
 
 
 const BADGE = { ready: "b-open", "in progress": "b-changed", done: "b-accepted", blocked: "b-stale",
@@ -334,9 +335,7 @@ async function draw(target, context) {
 }
 
 export const route = {
-  name: "progress",
-  entry: "implementation",
-  title: "Progress",
+  ...heads.progress,
 
   async render(target, context) {
     await draw(target, context);

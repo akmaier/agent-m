@@ -20,6 +20,7 @@ import { storedGraph } from "../trace-graph/index.mjs";
 import { button, el, handedPlace, link, openGithubEditor, parseServer, readPlace, tokenStep } from "./common.mjs";
 import { fallbackPages } from "./file-edit.mjs";
 import { byClassChecked, loadStage, panelOf, participantList } from "./jobs.mjs";
+import { heads } from "./index.mjs";
 
 const KINDS = {
   requirements: { title: "requirements" },
@@ -340,4 +341,4 @@ async function proposeGroups(where, kind, items, adopt) {
   return box;
 }
 
-export const arrangeRoute = { name: "arrange", entry: null, title: "Arrange", render, reads: place.reads };
+export const arrangeRoute = { ...heads.arrangeRoute, render, reads: place.reads };

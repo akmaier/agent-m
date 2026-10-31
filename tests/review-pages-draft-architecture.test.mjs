@@ -42,7 +42,8 @@ let commitsMade = 0;
 const { openStore, writeSetting } = await import("../src/browser-store/index.mjs");
 const { registerStrategies } = await import("../src/job-runner/index.mjs");
 const pages = await import("../src/review-pages/index.mjs").catch((error) => ({ error }));
-const route = pages.view?.routes.find((candidate) => candidate.name === "decision");
+// The route as the frame shows it: the one its `module` gives, which carries `leave` and `unsaved` (MOD-site-frame's Route).
+const route = await pages.view?.routes.find((candidate) => candidate.name === "decision")?.module();
 (pages.view?.strategies ?? []).forEach((strategies, at) => registerStrategies(`tests/review-pages-draft-architecture.test.mjs#${at}`, strategies));
 // The step due-diligence is registered by no module yet; a stub stands for it, and gives way when a module registers it.
 try { registerStrategies("tests/review-pages-draft-architecture.test.mjs#stub", { steps: { "due-diligence": async (draft) => ({ draft, findings: [] }) } }); } catch { /* registered by a module */ }

@@ -34,6 +34,7 @@ import { recordsNewestFirst } from "../job-ledger/index.mjs";
 import { blobSha } from "../text-tools/index.mjs";
 import { explain, embedRoute } from "../site-frame/index.mjs";
 import { renderArtifact } from "../markdown-render/index.mjs";
+import { heads } from "./index.mjs";
 
 // ---------------------------------------------------------------- small helpers (the module runs in a browser; every
 // element is built with createElement/append, never parsed from an HTML string, as src/settings-pages/products.mjs's
@@ -215,9 +216,7 @@ async function paintForm(container, context, head) {
 }
 
 export const route = {
-  name: "release",
-  entry: "releases",
-  title: "Release",
+  ...heads.release,
   async render(target, context, params) {
     target.replaceChildren();
     const shown = shownOf(context);

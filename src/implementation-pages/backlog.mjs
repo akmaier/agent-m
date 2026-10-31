@@ -40,6 +40,7 @@ import { eligible, participantSchema, participantsOf } from "../participant-list
 import { declarationSchema } from "../product-process/index.mjs";
 import { declaredModelOf, modelFirst } from "./plan.mjs";
 import { asOfLine, chartBlock, drawCharts, mergedAtOf, remainingOverTime, workFacts } from "./progress.mjs";
+import { heads } from "./index.mjs";
 
 const DECLARATION = "docs/process.md";
 const ITEM_FILE = /^docs\/backlog\/(ITM-\d{3,})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
@@ -635,9 +636,7 @@ async function paint(target, context, ctx, team) {
 }
 
 export const route = {
-  name: "backlog",
-  entry: "implementation",
-  title: "Backlog",
+  ...heads.backlog,
 
   async render(target, context, params = {}) {
     await draw(target, context, params?.plan ?? null);
@@ -712,9 +711,7 @@ async function drawBoard(target, context) {
 }
 
 export const boardRoute = {
-  name: "board",
-  entry: "implementation",
-  title: "Board",
+  ...heads.board,
 
   async render(target, context) {
     try {
