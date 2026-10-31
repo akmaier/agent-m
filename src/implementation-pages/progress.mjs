@@ -195,11 +195,11 @@ function teamPanel(context, ctx, { team, sprint }) {
     <p>${sprint.final ? "" : planLink(team, "Change the selection")}${endable ? ` <button class="btn" data-end-sprint="${h(team)}">End sprint</button>` : ""}</p>${WHY_SPRINT}</section>`;
 }
 
-function gatesPanel(ctx) {
+function gatesPanel(context, ctx) {
   const gates = ctx.view.gates;
   const rows = gates.map((gate) => `<tr><td data-label="Gate">${h(gate.gate)}${gate.addedBy ? ` <span class="muted small">added by ${h(gate.addedBy.requirement)} (${h(gate.addedBy.source)})</span>` : ""}</td>
     <td data-label="State">${badge(gate.state)}</td>
-    <td class="small" data-label="Decided">${gate.decided ? `${h(gate.decided.by)}, ${h(gate.decided.date)}, on ${h(gate.decided.on)}` : "—"}</td>
+    <td class="small" data-label="Decided">${gate.decided ? `${h(gate.decided.by)}, ${h(gate.decided.date)}, on ${h(gate.decided.on)}${gate.decided.record ? `, ${fileLink(context, ctx.ref, gate.decided.record, "record")}` : ""}` : "—"}</td>
     <td class="small" data-label="Needs">${h(gate.needs ?? gate.difference ?? "") || "—"}</td></tr>`).join("");
   return `<section class="panel" data-part="gates"><h3>Gates</h3>
     ${gates.length ? `<div class="table-scroll" tabindex="0"><table class="list"><thead><tr><th>Gate</th><th>State</th><th>Decided</th><th>Needs</th></tr></thead><tbody>${rows}</tbody></table></div>`
@@ -317,7 +317,7 @@ async function draw(target, context) {
       ${whatIsThis("<p>What goes on now: each team's running sprint, its items and how far it is; the gates; what is blocked; who works on " +
         "what. Everything is derived from the repository and its pull requests, for the commit shown (UC-035).</p>")}</section>
     ${teamsPart}
-    ${model ? `${gatesPanel(ctx)}${blockedPanel(ctx, sprints)}${whoPanel(context, ctx)}` : ""}`;
+    ${model ? `${gatesPanel(context, ctx)}${blockedPanel(ctx, sprints)}${whoPanel(context, ctx)}` : ""}`;
   await drawCharts(target);
 
   target.querySelectorAll("[data-end-sprint]").forEach((button) => button.addEventListener("click", async (event) => {
