@@ -16,7 +16,7 @@ date: 2026-10-31 20:36 UTC
 ## Reason
 
 ITM-1291 (The last accepted text is read in one request), #1599 into `sprint/team1/140` at `d5799d681`, is rejected
-on one condition.  (SPEC.md:1477-1479) does not hold. The pull request
+on one condition: `AN IMPLEMENTATION JOB CHANGES ONLY ITS MODULES` (SPEC.md:1477-1479) does not hold. The pull request
 changes `tests/review-pages-impact-box.test.mjs`, which names no MOD-approvals (`grep -c`: 0 at the base and 0 at
 the head). It also changes `tests/review-page.test.mjs`, which did not name MOD-approvals at the base (0; it names it
 only in the expectation this pull request adds). Both are MOD-site-frame tests. Known positive: the same count finds
