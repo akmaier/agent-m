@@ -178,7 +178,7 @@ test("TST-806005 UC-035 step 3: the gates in order, passed with who, when and on
 // given: the product of TST-806005, whose gate Building → Checking is passed by the record docs/gates/20261022-0900-building-checking-ab12.md
 // input: the reader opens Progress (step 3: "passed: who decided, when, and on which text, linked to the gate record")
 // expect: the row of Building → Checking holds a link whose address ends with docs/gates/20261022-0900-building-checking-ab12.md
-test("TST-806006 UC-035 step 3: a passed gate is linked to its gate record", { todo: "FINDING UC035-S2 — the row of a passed gate names who, when and on which text but holds no link; the record's path, which the view carries (decided.record), is not drawn" }, async () => {
+test("TST-806006 UC-035 step 3: a passed gate is linked to its gate record", async () => {
   const page = await renderOverGitHub("progress", {}, { files: gatedFiles() });
   try {
     const passed = gateRows(page)[0];
