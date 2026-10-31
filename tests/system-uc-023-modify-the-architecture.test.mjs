@@ -74,10 +74,10 @@ const FLOW_EVIDENCE = {
   "4b-accept-disabled": { uc: "*Accept* stays disabled and names it.", evidence: [[SELF, "TST-739012"]] },
   "4c-no-code-yet": { uc: "The list says \"no code yet\"", evidence: [[SELF, "TST-739008"]] },
   "5a-edit-before-accepting": { uc: "**5a. The reviewer edits before accepting.**", evidence: [[SELF, "TST-739009"]] },
+  "6-affected-modules-with-their-steps": { uc: "Agent M lists the affected modules, each with the steps of the implementation plan or the backlog items that name it.", evidence: [[SELF, "TST-739013"]] },
   "postcondition-code-unchanged": { uc: "Code still reflects the old architecture until an implementation job changes it.", evidence: [[SELF, "TST-739002"], [SELF, "TST-739004"]] },
 };
 const FLOW_FINDINGS = {
-  "6-affected-modules-with-their-steps": { uc: "Agent M lists the affected modules, each with the steps of the implementation plan or the backlog items that name it.", finding: "UC023-S4", file: SELF, test: "TST-739013" },
 };
 
 // TST-739001 · level: system · module: MOD-review-pages
@@ -413,9 +413,8 @@ test("TST-739012: UC-023 4b Accept stays on the page, disabled, and names the us
 // guards: UC-023; AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST
 // given: MOD-sync changed so that it no longer provides pull; ITM-901 (backlog) names MOD-sync and the plan step ITM-902 names MOD-desk; known positive first — before Accept the list names both items
 // input: the reviewer presses Accept on MOD-sync
-// expect: known positive — before Accept the list names "Items — ITM-901, ITM-902"; after Accept the page lists the affected modules, each with the item or plan step that names it: one list entry that names MOD-desk and ITM-902 and not ITM-901, and one that names MOD-sync and ITM-901 and not ITM-902. FINDING: after Accept the page says only that the file was accepted
-test("TST-739013: UC-023 6 after Accept the affected modules are listed, each with the plan steps or backlog items that name it",
-  { todo: "FINDING UC023-S4 — after Accept the file is accepted, and showOne (src/review-pages/flow.mjs) returns before any section; the page lists no affected module with its plan steps or backlog items (the list before Accept holds the items in one line, not per module)" }, async () => {
+// expect: known positive — before Accept the list names "Items — ITM-901, ITM-902"; after Accept the page lists the affected modules, each with the item or plan step that names it: one list entry that names MOD-desk and ITM-902 and not ITM-901, and one that names MOD-sync and ITM-901 and not ITM-902
+test("TST-739013: UC-023 6 after Accept the affected modules are listed, each with the plan steps or backlog items that name it", async () => {
   const s = await scenario({ now: { [SYNC_PATH]: SYNC_WITHOUT_PULL } });
   await onFile(s, "module", "MOD-sync");
   assert.deepEqual(linesOfImpact(impactOf(s)).slice(-1), ["Items — ITM-901, ITM-902"], "known positive");

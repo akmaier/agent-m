@@ -74,9 +74,9 @@ const FLOW_EVIDENCE = {
   "7a-limit-reached": { uc: "7a. The WIP limit is reached.", evidence: [[SELF, "TST-803021"]] },
   "1a-withdrawn": { uc: "A requirement an item realises is withdrawn or changed.", evidence: [[SELF, "TST-803023"]] },
   "1c-agent": { uc: "1c. The Product Owner is an agent.", evidence: [[SELF, "TST-803025"]] },
+  "1-uncovered-at-the-top": { uc: "The top of the page shows accepted requirements and use cases that no item realises yet.", evidence: [[SELF, "TST-803004"]] },
 };
 const FLOW_FINDINGS = {
-  "1-uncovered-at-the-top": { uc: "The top of the page shows accepted requirements and use cases that no item realises yet.", finding: "UC032-S2", file: SELF, test: "TST-803004" },
   "6a-shows-what-it-removes-or-adds": { uc: "Changing the sprint selection is a new **Start sprint** decision, and Agent M shows what", finding: "UC032-S4", file: SELF, test: "TST-803014" },
   "6c-names-the-collision": { uc: "is refused and names the sprint, the held item and the module", finding: "UC032-S5", file: SELF, test: "TST-803015" },
   "1b-link-to-the-plan": { uc: "There is no backlog. Agent M links to the implementation plan (UC-045).", finding: "UC032-S6", file: SELF, test: "TST-803024" },
@@ -165,9 +165,8 @@ test("TST-803003: UC-032 1 in a model with sprints each team shows its last spri
 // guards: UC-032
 // given: the product of TST-803002, whose accepted RULE TWO and accepted UC-001 are realised by no item, and whose RULE ONE, THREE and FOUR are realised
 // input: the Product Owner opens Backlog; the order of the page's parts is read
-// expect: known positive — the part of what no item realises names RULE TWO and UC-001 and not RULE ONE, and offers Propose items for uncovered requirements; UC-032 step 1 says the top of the page shows them: that part stands before the backlog's table. FINDING: it stands after the backlog
-test("TST-803004: UC-032 1 the top of the page shows the accepted requirements and use cases that no item realises yet",
-  { todo: "FINDING UC032-S2 — the route backlog (src/implementation-pages/backlog.mjs, paint) draws its parts as head, teams, plan, held, backlogPanel, uncoveredPanel: the part of what no item realises stands below the table of every item, not at the top" }, async () => {
+// expect: known positive — the part of what no item realises names RULE TWO and UC-001 and not RULE ONE, and offers Propose items for uncovered requirements; UC-032 step 1 says the top of the page shows them: that part stands before the backlog's table
+test("TST-803004: UC-032 1 the top of the page shows the accepted requirements and use cases that no item realises yet", async () => {
   const page = await open("backlog", {}, { files: await product() });
   try {
     const uncovered = part(page.html(), 'data-part="uncovered"');
