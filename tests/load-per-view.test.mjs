@@ -394,19 +394,19 @@ test("an acceptance of three files reads its head once", async () => {
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: three use cases waiting for acceptance — UC-002 changed, UC-003 and UC-004 open
 // input: open #review/uc with a token
-// expect: the three use cases come in one batch of three and none by itself; the only file read by itself is the record of UC-002's last accepted text, which MOD-approvals reads; the commit and the request for the folders of the use cases once each, and no git/trees; the one more request for folders is UC-002's last accepted text, read from the commit that added its record with `folders` naming the file
+// expect: the three use cases come in one batch of three and none by itself, and one batch of one: UC-002's last accepted text, which MOD-approvals reads as one file at the commit that added its record; the only file read by itself is that record; the commit and the request for the folders of the use cases once each, and no git/trees, no commit and no folders of the older commit
 test("#review/uc: the files it shows come in one batch", async () => {
   const repo = await product({ "docs/use-cases/UC-003-third.md": useCase("003", "Third"), "docs/use-cases/UC-004-fourth.md": useCase("004", "Fourth") });
   const srv = await server(repo);
   const page = await openDashboard({ server: srv, hash: "#review/uc" });
   assert.match(page.main(), /Accept all 3 shown/);
-  assert.deepEqual(batchesOf(page.requests), ["batch 3"]);
-  assert.deepEqual(srv.batches.map(sorted), [sorted([UC2, "docs/use-cases/UC-003-third.md", "docs/use-cases/UC-004-fourth.md"])]);
+  assert.deepEqual(batchesOf(page.requests), ["batch 3", "batch 1"]);
+  assert.deepEqual(srv.batches.map(sorted)[0], sorted([UC2, "docs/use-cases/UC-003-third.md", "docs/use-cases/UC-004-fourth.md"]));
   assert.deepEqual(files(page.requests), recordOf(repo, "UC-002"), "only the record of UC-002's last accepted text is read by itself");
   assert.equal(count(page.requests, "commit"), 1);
-  assert.equal(count(page.requests, "folders"), 2, "the use cases' folders, and UC-002's last accepted text");
+  assert.equal(count(page.requests, "folders"), 1, "the use cases' folders");
   assert.equal(count(page.requests, "tree"), 0);
-  assert.deepEqual(page.requests.filter((r) => r.startsWith("era ")), ["era commit", `era file ${UC2}`], "no tree of the older commit");
+  assert.deepEqual(page.requests.filter((r) => r.startsWith("era ")), [], "no commit, no tree and no file of the older commit by itself");
 });
 
 // TST-716005 · level: component · module: MOD-site-frame
@@ -550,17 +550,17 @@ test("#use-case/id= and #module/id= of an accepted file read that one file by it
 // guards: A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT
 // given: UC-002, accepted in an earlier text, edited since
 // input: open #uc/UC-002 with a token
-// expect: the file once, the record's history once and the text the record names as the file stood when the record was added — that commit, one request for its folders naming only the file (the options reach the real host through the frame's wrapper), and that file —, each once, and no tree of that older commit; the head's commit and the request for its folders once, no git/trees of the head; the page shows the difference to the text accepted before
+// expect: the file once, the record's history once and the text the record names as the file stood when the record was added — one request of the batch query for that file at that commit —, each once, and no commit, no folders and no tree of that older commit; the head's commit and the request for its folders once, no git/trees of the head; the page shows the difference to the text accepted before
 test("opening one use case reads that use case, the history of its record and the text the record names — no other file, no older tree", async () => {
   const repo = await product();
   const srv = await server(repo);
   const page = await openDashboard({ server: srv, hash: "#uc/UC-002" });
-  assert.deepEqual(srv.folders.at(-1), [UC2], "the older commit is asked for the file alone: the options reach the real host");
+  assert.deepEqual(srv.batches, [[UC2]], "the older commit is asked for the file alone, in one batch of one");
   assert.deepEqual(files(page.requests), [...recordOf(repo, "UC-002"), UC2].sort());
   assert.deepEqual(page.requests.filter((r) => r.startsWith("history ")), [`history ${recordOf(repo, "UC-002")[0]}`]);
-  assert.deepEqual(page.requests.filter((r) => r.startsWith("era ")), ["era commit", `era file ${UC2}`], "no tree of the older commit");
+  assert.deepEqual(page.requests.filter((r) => r.startsWith("era ")), [], "no commit, no tree and no file of the older commit by itself");
   assert.equal(count(page.requests, "commit"), 1);
-  assert.equal(count(page.requests, "folders"), 2, "the head's folders, and the older commit's, naming the file");
+  assert.equal(count(page.requests, "folders"), 1, "the head's folders");
   assert.equal(count(page.requests, "tree"), 0);
   assert.match(page.main(), /Show the status/);
   assert.match(page.main(), /<section class="accepted-diff"><h3>Changed since it was last accepted<\/h3>/);
@@ -571,7 +571,7 @@ test("opening one use case reads that use case, the history of its record and th
 // guards: AN ARCHITECTURE CHANGE IS NOT ACCEPTED WITHOUT AN IMPACT LIST
 // given: MOD-reader, accepted in an earlier text, edited since
 // input: open #arc/MOD-reader with a token
-// expect: the difference to its last accepted text, the impact list beside it with the affected modules, and Accept offered with it; the impact lists stored for the commit asked for in one request, no graph built from the files and no batch sent, and no use case and no queue file read
+// expect: the difference to its last accepted text, the impact list beside it with the affected modules, and Accept offered with it; the impact lists stored for the commit asked for in one request, no graph built from the files, one batch of one (the last accepted text of the file) and no other, and no use case and no queue file read
 test("opening a changed module shows its impact list beside the difference, and offers Accept with it", async () => {
   const repo = await product();
   const srv = await server(repo);
@@ -584,7 +584,7 @@ test("opening a changed module shows its impact list beside the difference, and 
   assert.deepEqual(under(page.requests, "docs/use-cases/"), []);
   assert.deepEqual(under(page.requests, "docs/spec-freigaben/"), []);
   assert.equal(count(page.requests, `file ${HEAD}.impacts.json`), 1, "the stored impact lists, in one request");
-  assert.deepEqual(batchesOf(page.requests), [], "no graph is built from the files");
+  assert.deepEqual(batchesOf(page.requests), ["batch 1"], "no graph is built from the files: the one batch is the last accepted text of the file");
 });
 
 // TST-1266109 · level: component · module: MOD-site-frame

@@ -12,9 +12,9 @@
 // Guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; AN APPROVAL NAMES THE EXACT TEXT
 // Level: unit
 //
-// The repository server is replaced by a fixture: a fake host with repositoryInfo, readSnapshot and readHistory, every call counted. Its
-// readSnapshot gives the default branch whole; of any other ref it gives only the files of the `folders` it is asked with, and a snapshot of
-// another ref without `folders` is a failure, so that a read of an older commit's whole tree cannot go unnoticed. One history: UC-010 is
+// The repository server is replaced by a fixture: a fake host with repositoryInfo, readSnapshot, readFileAt and readHistory, every call counted. Its
+// readSnapshot gives the default branch whole; a snapshot of any other ref is a failure, so that a read of an older commit's tree cannot go
+// unnoticed; the older text comes through readFileAt. One history: UC-010 is
 // written, accepted by one record, and edited after it. Nothing reaches the network. Each test states its input and its expected result
 // before it runs. The counter-proofs are recorded in the pull request.
 
@@ -69,11 +69,15 @@ function fakeHost({ at } = {}) {
       async readSnapshot(ref, options = {}) {
         calls.push({ fn: "readSnapshot", ref, folders: options?.folders });
         if (ref === "trunk") return snapshotOf(ref, head, null);
-        if (!options?.folders) throw Object.assign(new Error(`the whole tree of ${ref} was read`), { name: "OlderTreeRead" });
-        const found = COMMITS.find((c) => c.commit === ref);
-        const tree = new Map([...found.tree].filter(([path]) => options.folders.includes(path)));
-        if (at !== undefined && options.folders.includes(UC10)) { if (at === null) tree.delete(UC10); else tree.set(UC10, at); }
-        return snapshotOf(ref, { commit: found.commit, tree }, options.folders);
+        throw Object.assign(new Error(`the tree of ${ref} was read`), { name: "OlderTreeRead" });
+      },
+      async readFileAt(path, shas) {
+        calls.push({ fn: "readFileAt", path, shas });
+        return new Map(shas.map((sha) => {
+          const found = COMMITS.find((c) => c.commit === sha);
+          if (at !== undefined && path === UC10) return [sha, at];
+          return [sha, found.tree.get(path) ?? null];
+        }));
       },
       async readHistory(path, { ref = "trunk", limit } = {}) {
         calls.push({ fn: "readHistory", path, ref, limit });
@@ -87,23 +91,22 @@ function fakeHost({ at } = {}) {
 
 // TST-1268001 · level: unit · module: MOD-approvals
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT
-// given: the history above, in which UC-010 is written (V1), accepted by one record, and edited since (V2); a host that counts its calls and fails when the whole tree of any commit but the default branch's is read
+// given: the history above, in which UC-010 is written (V1), accepted by one record, and edited since (V2); a host that counts its calls and fails when the tree of any commit but the default branch's is read
 // input: lastAcceptedText("UC-010", host)
-// expect: { text: V1, blob: the record's, path: UC-010's file } — not V2, the text the file has now; and the calls: repositoryInfo, the head's snapshot, one history (the record), a read of the record, the snapshot of the commit that added the record with `folders` naming only UC-010's file, and a read of UC-010 from it — 6 in all; no snapshot of another ref without `folders`
+// expect: { text: V1, blob: the record's, path: UC-010's file } — not V2, the text the file has now; and the calls: repositoryInfo, the head's snapshot, one history (the record), a read of the record, and one readFileAt of UC-010 at the commit that added the record — 5 in all; no snapshot of another ref
 test("lastAcceptedText — a use case with one record reads the commit that added it with folders naming only the file, and that one file", async () => {
   const fake = fakeHost();
   const found = await lastAcceptedText("UC-010", fake.host);
 
   assert.deepEqual(found, { text: V1, blob: blobOf(V1), path: UC10 });
-  assert.deepEqual(fake.calls.map((call) => call.fn), ["repositoryInfo", "readSnapshot", "readHistory", "read", "readSnapshot", "read"]);
-  assert.deepEqual(fake.calls.filter((call) => call.fn === "readSnapshot").map((call) => [call.ref, call.folders]),
-    [["trunk", undefined], [ADDING, [UC10]]]);
-  assert.deepEqual(fake.calls.at(-1), { fn: "read", path: UC10, ref: ADDING });
+  assert.deepEqual(fake.calls.map((call) => call.fn), ["repositoryInfo", "readSnapshot", "readHistory", "read", "readFileAt"]);
+  assert.deepEqual(fake.calls.filter((call) => call.fn === "readSnapshot").map((call) => [call.ref, call.folders]), [["trunk", undefined]]);
+  assert.deepEqual(fake.calls.at(-1), { fn: "readFileAt", path: UC10, shas: [ADDING] });
 });
 
 // TST-1268002 · level: unit · module: MOD-approvals
 // guards: AN APPROVAL NAMES THE EXACT TEXT; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT
-// given: the history above, and a host whose snapshot of the commit that added the record holds V2 for UC-010, a text of another blob than the one the record names; and, as the known positive, the same history on a host that gives what the file held there
+// given: the history above, and a host whose readFileAt gives V2 for UC-010 at the commit that added the record for UC-010, a text of another blob than the one the record names; and, as the known positive, the same history on a host that gives what the file held there
 // input: lastAcceptedText("UC-010", host) on each
 // expect: the known positive gives V1; the other rejects with NotFound naming the file, and gives no result
 test("lastAcceptedText — a text of another blob than the record names fails with NotFound naming the file", async () => {
@@ -121,7 +124,7 @@ test("lastAcceptedText — a text of another blob than the record names fails wi
 
 // TST-1268003 · level: unit · module: MOD-approvals
 // guards: AN APPROVAL NAMES THE EXACT TEXT; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT
-// given: the history above, and a host whose snapshot of the commit that added the record holds no UC-010 — the file is not there
+// given: the history above, and a host whose readFileAt gives no UC-010 at the commit that added the record — the file is not there
 // input: lastAcceptedText("UC-010", host)
 // expect: it rejects with NotFound naming the file
 test("lastAcceptedText — a file that the commit that added the record does not hold fails with NotFound naming the file", async () => {

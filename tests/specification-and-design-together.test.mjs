@@ -13,7 +13,7 @@
 //
 // Written from ARC-041, the three module files, UC-006, UC-008 and UC-018, not from the code. The product is the small repository
 // this file holds, never Agent M's own SPEC.md. The fake host keeps to MOD-repository-hosts' interface as its module file states it:
-// one repository in memory, default branch `trunk`, a real commit log — repositoryInfo, readSnapshot (the branch or a commit),
+// one repository in memory, default branch `trunk`, a real commit log — repositoryInfo, readSnapshot (the branch or a commit), readFileAt (a file at each of several commits),
 // readHistory (newest first, with the changes of each commit) and commitFiles (all files together, only if the branch still stands
 // at the expected head, else `Moved`) —; every write is recorded; its other functions do not exist, so that a call the modules have
 // no business making fails by itself. Expected values are read off the fixture's own texts: a blob is the SHA-1 of "blob <length>\0"
@@ -118,6 +118,9 @@ function repository(files = PRODUCT) {
         const { commit, tree } = log[at(ref)];
         return withStoredGraph({ repository: ON_GITHUB, ref, commit, paths: [...tree.keys()].sort(),
           read: async (path) => (tree.has(path) ? tree.get(path) : null), blob: (path) => (tree.has(path) ? gitBlob(tree.get(path)) : null) });
+      },
+      async readFileAt(path, shas) {
+        return new Map(shas.map((sha) => [sha, log[at(sha)].tree.get(path) ?? null]));
       },
       async readHistory(path, { ref = "trunk", limit } = {}) {
         const touched = (entry) => path === null || entry.changes.some((change) => change.path === path);
