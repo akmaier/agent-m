@@ -647,6 +647,12 @@ function pagesHost() {
     ...Object.fromEntries(Object.entries(real).map(([name, member]) => [name, typeof member === "function" ? noted(member) : member])),
     repositoryInfo: noted(() => (info ??= real.repositoryInfo().catch((e) => { info = null; throw e; }))),
     readSnapshot: noted(async (ref, options) => {
+      // The page drawn again at the commit its write named (MOD-review-pages): the head that write made, read once below.
+      if (written && ref === written.commit && !options?.folders) {
+        const head = written;
+        written = null;
+        return head;
+      }
       if (ref === T.ref && !options?.folders && snapshot && snapshotHost === real && (loading > 0 || written === snapshot)) {
         written = null;
         return snapshot;
@@ -719,7 +725,10 @@ async function renderReviewPages(targets, lead = []) {
   try {
     if (!targets.length) await renderSpecification(context);
     for (const [at, { name, params }] of targets.entries()) {
-      await reviewPages.routes.find((route) => route.name === name).render(boxes[at], context, params);
+      const shown = reviewPages.routes.find((route) => route.name === name);
+      // The route is handed the snapshot this load read (MOD-site-frame's Route `reads`), before it is rendered.
+      if (snapshot && typeof shown.reads === "function") await readWave(await shown.reads(params, await pinned()));
+      await shown.render(boxes[at], context, params);
       if (name === "module" && !params.id) await renderComponents(context);
     }
   } finally {

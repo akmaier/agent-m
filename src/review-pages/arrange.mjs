@@ -17,7 +17,7 @@ import { fallbackEditLinks, saveGroupFile } from "../artifact-edits/index.mjs";
 import { applyMoves, groupFileText, hierarchy, parseGroupFile } from "../group-document/index.mjs";
 import { explain, readProblem } from "../site-frame/index.mjs";
 import { storedGraph } from "../trace-graph/index.mjs";
-import { button, el, link, openGithubEditor, parseServer, readPlace, tokenStep } from "./common.mjs";
+import { button, el, handedPlace, link, openGithubEditor, parseServer, readPlace, tokenStep } from "./common.mjs";
 import { fallbackPages } from "./file-edit.mjs";
 import { byClassChecked, loadStage, panelOf, participantList } from "./jobs.mjs";
 
@@ -86,13 +86,16 @@ function replay(base, moves) {
 
 // ---------------------------------------------------------------- the page
 
+// The snapshot the frame hands the route's `reads` before it calls `render` (common.mjs handedPlace).
+const place = handedPlace();
+
 async function render(target, context, params) {
   const kind = params?.kind;
   if (!Object.hasOwn(KINDS, kind ?? "")) {
     target.replaceChildren(el("h2", null, "Arrange"), el("p", "problem", `Arrange which kind? Open the arrangement of ${Object.keys(KINDS).join(", ")}: #arrange/kind=<kind>.`));
     return;
   }
-  const where = await readPlace(target, context);
+  const where = await readPlace(target, context, place);
   if (where === null) return;
   try {
     await show(where, kind);
@@ -337,4 +340,4 @@ async function proposeGroups(where, kind, items, adopt) {
   return box;
 }
 
-export const arrangeRoute = { name: "arrange", entry: null, title: "Arrange", render };
+export const arrangeRoute = { name: "arrange", entry: null, title: "Arrange", render, reads: place.reads };
