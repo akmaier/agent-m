@@ -4,8 +4,9 @@ job:
 decider: po-opus-c
 role: Product Owner
 decision: passed
-on: a9d56d22992637f8883226744d6d36116e58cf94
-pull_request: https://github.com/akmaier/agent-m/pull/1568
+on:
+  - a9d56d22992637f8883226744d6d36116e58cf94
+  - https://github.com/akmaier/agent-m/pull/1568
 date: 2026-10-31 12:41 UTC
 ---
 # Development → Release testing: #1568, ITM-600 Two versions are compared in the specification and gaps views

@@ -4,8 +4,9 @@ job:
 decider: po-opus-c
 role: Product Owner
 decision: rejected
-on: 180b2ca4c9c4697a074319125ce92350fab90581
-pull_request: https://github.com/akmaier/agent-m/pull/1571
+on:
+  - 180b2ca4c9c4697a074319125ce92350fab90581
+  - https://github.com/akmaier/agent-m/pull/1571
 date: 2026-10-31 12:54 UTC
 ---
 # Development → Release testing: #1571, ITM-800 The progress page of a product

@@ -4,8 +4,9 @@ job:
 decider: po-opus-c
 role: Product Owner
 decision: passed
-on: 58cb465d1b182c491adb9865d7a0d71a3f9f09e6
-pull_request: https://github.com/akmaier/agent-m/pull/1567
+on:
+  - 58cb465d1b182c491adb9865d7a0d71a3f9f09e6
+  - https://github.com/akmaier/agent-m/pull/1567
 date: 2026-10-31 12:38 UTC
 ---
 # Development → Release testing: #1567, ITM-1171 An item's pull request targets its sprint's branch where the sprint has one

@@ -4,8 +4,9 @@ job:
 decider: po-opus-c
 role: Product Owner
 decision: passed
-on: 3275a79b856210993a9d708e6770d92b5aa6de55
-pull_request: https://github.com/akmaier/agent-m/pull/1566
+on:
+  - 3275a79b856210993a9d708e6770d92b5aa6de55
+  - https://github.com/akmaier/agent-m/pull/1566
 date: 2026-10-31 12:32 UTC
 ---
 # Development → Release testing: #1566, ITM-690 The old review core goes
