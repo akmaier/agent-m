@@ -110,15 +110,16 @@ test("the progress page offers End sprint for a running sprint without a time bo
 
 // TST-783002 · level: unit · module: MOD-implementation-pages
 // guards: UC-032
-// given: team1's running sprint has a time box (end: 2099-12-31); and, as a second page, one without a time box whose record already holds `## Ended` of today (so that the sprint still runs: it is final from the day after)
+// given: team1's running sprint has a time box (end: 2099-12-31); and, as a second page, one without a time box whose record already holds `## Ended` of today (so that the sprint has ended: it is drawn as ended, waiting for its review)
 // input: the route progress's render, both ways
-// expect: neither page offers End sprint (the counter-proof of TST-783001)
+// expect: neither page offers End sprint (the counter-proof of TST-783001); the second page says the sprint ended, that its review and retrospective are not recorded yet, and offers no Change the selection
 test("the progress page offers no End sprint for a sprint with a time box or one already ended", async () => {
   const boxed = await render({ [TEAM1]: sprint({ start: "2026-09-14", end: "2099-12-31", goal: "Store", selection: ["ITM-001"] }) });
   assert.equal(found(boxed.target, '[data-team="team1"]').length, 1, "known positive: team1's panel is drawn");
   assert.equal(found(boxed.target, "[data-end-sprint]").length, 0, "a time box ends on its date");
   const ended = await render({ [TEAM1]: sprint({ start: "2026-09-14", goal: "Store", selection: ["ITM-001"], tail: ["", "## Ended", "", `at: ${new Date().toISOString().slice(0, 10)}`] }) });
-  assert.match(found(ended.target, '[data-team="team1"]')[0].textContent, /Change the selection/, "known positive: team1's sprint still runs on the page");
+  assert.match(found(ended.target, '[data-team="team1"]')[0].textContent, /It ended on \d{4}-\d{2}-\d{2}; its review and retrospective are not recorded yet\./, "known positive: team1's sprint is drawn as ended on the page");
+  assert.doesNotMatch(found(ended.target, '[data-team="team1"]')[0].textContent, /Change the selection/, "an ended sprint's selection is not changed");
   assert.equal(found(ended.target, "[data-end-sprint]").length, 0, "an ended sprint is not ended twice");
 });
 
