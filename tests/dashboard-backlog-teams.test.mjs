@@ -20,7 +20,7 @@
 // changes MOD-store, which ITM-001 changes; ITM-006 realises a requirement that is not accepted. The burn-down of a running
 // sprint runs to today, so only its first days are checked.
 
-import test from "node:test";
+import test, { mock } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join, normalize } from "node:path";
@@ -191,15 +191,19 @@ test("#progress — a team's running sprint: its items with their states and mod
 
 // guards: UC-035; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the same-day sprint — team1's sprint 01 starts on 2026-09-14 with three items; ITM-001 is merged at 09:30 UTC and
-//        ITM-005 at 11:45 UTC that day, and ITM-002's pull request is open
+//        ITM-005 at 11:45 UTC that day, and ITM-002's pull request is open; the page's clock stands at 2026-09-17 12:00 UTC
 // input: open #progress
-// expect: team1's chart shows four points — the start, the two merges by their time and now — with 3, 2, 1 and 1 items left
-test("#progress — a running sprint's chart: the items left at its start, after each merge, and now", async () => {
-  const { page } = await progressPage({ files: { ...fixtureFiles(), [TEAM1_SPRINT]: SAME_DAY_SPRINT }, prs: SAME_DAY_PRS });
-  const team1 = part(page.main(), 'data-team="team1"');
-  assert.match(team1, /<code class="language-mermaid">xychart-beta/);
-  assert.match(team1, /x-axis \[&quot;start&quot;, &quot;09:30&quot;, &quot;11:45&quot;, &quot;now&quot;\]/);
-  assert.match(team1, /line \[3, 2, 1, 1\]/);
+// expect: team1's chart shows one point per day of the sprint, from its start to today — 09-14, 09-15, 09-16 and 09-17 —, each
+//         the items left at that day's end: 1, 1, 1 and 1
+test("#progress — a running sprint's chart: the items left at the end of each day, from its start to today", async () => {
+  mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-09-17T12:00:00Z") });
+  try {
+    const { page } = await progressPage({ files: { ...fixtureFiles(), [TEAM1_SPRINT]: SAME_DAY_SPRINT }, prs: SAME_DAY_PRS });
+    const team1 = part(page.main(), 'data-team="team1"');
+    assert.match(team1, /<code class="language-mermaid">xychart-beta/);
+    assert.match(team1, /x-axis \[&quot;09-14&quot;, &quot;09-15&quot;, &quot;09-16&quot;, &quot;09-17&quot;\]/);
+    assert.match(team1, /line \[1, 1, 1, 1\]/);
+  } finally { mock.timers.reset(); }
 });
 
 // guards: UC-035; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED

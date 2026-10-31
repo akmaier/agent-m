@@ -22,7 +22,7 @@
 //   - 2c: "The chart starts at the change" is read as the first day of the cumulative flow being the day of the change; "earlier progress stays readable in the model it was made under" as
 //     the page saying when the model changed and holding a link, other than to the trace page, to the progress before that day.
 
-import test from "node:test";
+import test, { mock } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -91,14 +91,15 @@ test("TST-806001 UC-035 steps 1 and 2: a Scrum product shows each team's running
 // given: the Scrum product of TST-806001, whose sprint team1/03 started on 2026-10-20
 // input: the reader opens Progress (step 2, the table: "a burn-down of remaining items per day of the sprint")
 // expect: team1's burn-down has one point for each day from 2026-10-20 to today, each labelled by its day
-test("TST-806002 UC-035 step 2: the burn-down counts the remaining items per day of the sprint", { todo: "FINDING UC035-S1 — the burn-down has a point at the sprint's start, one at each merge and one for now (x-axis \"start\", \"10-21 10:00\", \"now\"), not one per day of the sprint" }, async () => {
+test("TST-806002 UC-035 step 2: the burn-down counts the remaining items per day of the sprint", async () => {
+  mock.timers.enable({ apis: ["Date"], now: Date.UTC(2026, 9, 23, 12) });
   const page = await render("progress");
   try {
     const source = plain(found(page.target, "[data-burn-down]")[0]?.innerHTML ?? "");
     const labels = (/x-axis \[([^\]]*)\]/.exec(source)?.[1] ?? "").split(",").map((each) => each.trim().replace(/^"|"$/g, ""));
     assert.ok(labels.length > 1, `known positive: the chart is drawn (${source.slice(0, 80)})`);
     assert.deepEqual(labels, daysFrom("2026-10-20").map((day) => day.slice(5)), "a point for each day of the sprint");
-  } finally { page.done(); }
+  } finally { page.done(); mock.timers.reset(); }
 });
 
 // TST-806003 · level: system · module: MOD-implementation-pages
@@ -178,7 +179,7 @@ test("TST-806005 UC-035 step 3: the gates in order, passed with who, when and on
 // given: the product of TST-806005, whose gate Building → Checking is passed by the record docs/gates/20261022-0900-building-checking-ab12.md
 // input: the reader opens Progress (step 3: "passed: who decided, when, and on which text, linked to the gate record")
 // expect: the row of Building → Checking holds a link whose address ends with docs/gates/20261022-0900-building-checking-ab12.md
-test("TST-806006 UC-035 step 3: a passed gate is linked to its gate record", { todo: "FINDING UC035-S2 — the row of a passed gate names who, when and on which text but holds no link; the record's path, which the view carries (decided.record), is not drawn" }, async () => {
+test("TST-806006 UC-035 step 3: a passed gate is linked to its gate record", async () => {
   const page = await renderOverGitHub("progress", {}, { files: gatedFiles() });
   try {
     const passed = gateRows(page)[0];
@@ -284,7 +285,7 @@ test("TST-806010 UC-035: each chart and panel carries a folded What is this? tha
 // given: the Scrum product of two teams and the Kanban product
 // input: the reader unfolds the explanation of each chart and panel of Progress
 // expect: each explanation points to book ch. 7 or ch. 15
-test("TST-806011 UC-035: each chart's and panel's explanation points to book ch. 7 or ch. 15", { todo: "FINDING UC035-S4 — the explanations of the panels Gates, Blocked and Who works on what point to no chapter of the book (they name UC-035's steps and a requirement); only the sprint's and the measure's do" }, async () => {
+test("TST-806011 UC-035: each chart's and panel's explanation points to book ch. 7 or ch. 15", async () => {
   const scrum = await render("progress");
   const kanban = await render("progress", {}, { files: productFiles({ "docs/process-models/fixture.md": KANBAN }) });
   try {
@@ -430,7 +431,7 @@ test("TST-806017 UC-035 3a: a gate whose record names a changed text is passed o
 // given: the product of TST-806017: the record checked ITM-002's file at one blob, and the file now has another
 // input: the reader opens Progress (3a: "shown as passed on an earlier text, with the difference")
 // expect: the row of Building → Checking names the difference: ITM-002's file, the blob checked and the blob now (each by its first 12 characters)
-test("TST-806020 UC-035 3a: a gate passed on an earlier text is shown with the difference", { todo: "FINDING UC035-S7 — the row shows the gate's needs (\"a decision on the current text\") in place of the difference; the difference, which the view carries, is drawn only for a gate that needs nothing" }, async () => {
+test("TST-806020 UC-035 3a: a gate passed on an earlier text is shown with the difference", async () => {
   const { files, checked, now } = changedGate();
   const page = await render("progress", {}, { files });
   try {

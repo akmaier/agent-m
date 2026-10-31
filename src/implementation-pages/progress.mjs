@@ -14,7 +14,7 @@
 //
 // Readings the texts leave open, which this file takes: a running sprint whose time box is over, or that the Product Owner ended, and whose close is not recorded yet has ended: its
 // panel says so and draws no chart (the route draws no final burn-down); a job's page on the job dashboard is MOD-main-page's route `job` on the main page, which the
-// review pages reach at ../index.html; the burn-down is drawn from the sprint's start and the merges of its done items, as the view holds them; End sprint is offered on the
+// review pages reach at ../index.html; a running sprint's burn-down is drawn from the sprint's start and the merges of its done items, as the view holds them, one point for each day from its start to today in UTC, each the items left at that day's end; End sprint is offered on the
 // head's own view only; the trace page of what is behind a cell, a card or a chart is the route `trace` of the specification at the branch shown, since that route takes no part naming one
 // requirement or item; a chart's points are reached by one link under it; where the view is derived in the page, the requirements are those of the product's SPEC, which the facts of the scope `work` do not carry.
 
@@ -43,18 +43,28 @@ const planLink = (team, label) => `<a class="btn" href="#backlog/plan=${encodeUR
 // When each done item was first merged, as a view holds it ({ item, at }), by item.
 export const mergedAtOf = (merges) => new Map((merges ?? []).map((merge) => [merge.item, merge.at]));
 
-// The items a sprint has left over time: at its start, after each merge of one of its items, in time order, and now — or, for a closed sprint, at its end, the last day of its burn-down, after which no merge counts. An item
-// merged before the sprint's start is done from the start. A merge is labelled with its time, HH:MM in UTC, or MM-DD HH:MM once a merge falls on another day than the start.
-export function remainingOverTime(items, mergedAt, start, end = "") {
+// The items a closed sprint had left over time — its final burn-down: at its start, after each merge of one of its items, in time order, and at its end, the last day of its burn-down, after which no merge counts. An
+// item merged before the sprint's start is done from the start. A merge is labelled with its time, HH:MM in UTC, or MM-DD HH:MM once a merge falls on another day than the start.
+export function remainingOverTime(items, mergedAt, start, end) {
   const merges = items.map((id) => mergedAt.get(id)).filter(Boolean).sort();
   const before = merges.filter((at) => at.slice(0, 10) < start).length;
-  const during = merges.filter((at) => at.slice(0, 10) >= start && !(end && at.slice(0, 10) > end));
+  const during = merges.filter((at) => at.slice(0, 10) >= start && at.slice(0, 10) <= end);
   const oneDay = during.every((at) => at.slice(0, 10) === start);
   const label = (at) => (oneDay ? at.slice(11, 16) : `${at.slice(5, 10)} ${at.slice(11, 16)}`);
   let remaining = items.length - before;
   const points = [{ label: "start", remaining }];
   for (const at of during) points.push({ label: label(at), remaining: --remaining });
-  points.push({ label: end ? "end" : "now", remaining });
+  points.push({ label: "end", remaining });
+  return points;
+}
+
+// The items a running sprint has left at the end of each day, in UTC, from its start to today, each labelled MM-DD. An item merged before the sprint's start is done from the start.
+export function remainingPerDay(items, mergedAt, start, today = new Date().toISOString().slice(0, 10)) {
+  const merged = items.map((id) => mergedAt.get(id)).filter(Boolean).map((at) => at.slice(0, 10));
+  const points = [];
+  for (let day = start; day && day <= today; day = new Date(Date.parse(`${day}T00:00:00Z`) + 86400000).toISOString().slice(0, 10)) {
+    points.push({ label: day.slice(5), remaining: items.length - merged.filter((at) => at <= day).length });
+  }
   return points;
 }
 
@@ -166,8 +176,8 @@ function wipLine(ctx, sprint) {
 
 const WHY_SPRINT = whatIsThis("<p>A team plans, starts and closes sprints of its own (UC-032 step 6). While its sprint runs, the sprint holds the " +
   "items it selected until their change is in the default branch or they go back to the backlog; no other team selects an item " +
-  "that changes or uses the same modules. The chart counts the selected items not done yet: at the sprint's start, after each " +
-  "merge of one of its items, at the time of that merge in UTC, and now — derived from the sprint's record and the pull requests " +
+  "that changes or uses the same modules. The chart counts the selected items not done yet at the end of each day of the sprint, " +
+  "in UTC, from its start to today — derived from the sprint's record and the pull requests " +
   "that name its items, never a stored status. A burn-down that stays flat means that nothing is merged (book ch. 7 §5, ch. 15).</p>");
 
 function teamPanel(context, ctx, { team, sprint }) {
@@ -183,7 +193,7 @@ function teamPanel(context, ctx, { team, sprint }) {
   const close = sprint.final ? `<p class="muted">It ended on ${h(sprint.ended ?? "")}; its review and retrospective are not recorded yet.</p>` : "";
   const endable = sprint.endable && ctx.asOf === null;
   const drawn = (ctx.view.measure?.sprints ?? []).find((each) => each.team === team)?.burnDown?.length > 0;
-  const chart = sprint.final ? "" : drawn ? chartBlock(team, sprint.name, remainingOverTime(sprint.items.map((each) => each.item), mergedAtOf(sprint.merges), sprint.start))
+  const chart = sprint.final ? "" : drawn ? chartBlock(team, sprint.name, remainingPerDay(sprint.items.map((each) => each.item), mergedAtOf(sprint.merges), sprint.start))
     : `<p class="muted">No burn-down yet: the sprint starts on ${h(sprint.start)}.</p>`;
   return `<section class="panel" data-team="${h(team)}"><h3>${h(team)} — sprint ${fileLink(context, ctx.ref, sprint.path, h(sprint.name))}</h3>
     <dl class="meta"><dt>Goal</dt><dd>${h(sprint.goal)}</dd><dt>Started</dt><dd>${h(sprint.start)}</dd>
@@ -195,18 +205,18 @@ function teamPanel(context, ctx, { team, sprint }) {
     <p>${sprint.final ? "" : planLink(team, "Change the selection")}${endable ? ` <button class="btn" data-end-sprint="${h(team)}">End sprint</button>` : ""}</p>${WHY_SPRINT}</section>`;
 }
 
-function gatesPanel(ctx) {
+function gatesPanel(context, ctx) {
   const gates = ctx.view.gates;
   const rows = gates.map((gate) => `<tr><td data-label="Gate">${h(gate.gate)}${gate.addedBy ? ` <span class="muted small">added by ${h(gate.addedBy.requirement)} (${h(gate.addedBy.source)})</span>` : ""}</td>
     <td data-label="State">${badge(gate.state)}</td>
-    <td class="small" data-label="Decided">${gate.decided ? `${h(gate.decided.by)}, ${h(gate.decided.date)}, on ${h(gate.decided.on)}` : "—"}</td>
-    <td class="small" data-label="Needs">${h(gate.needs ?? gate.difference ?? "") || "—"}</td></tr>`).join("");
+    <td class="small" data-label="Decided">${gate.decided ? `${h(gate.decided.by)}, ${h(gate.decided.date)}, on ${h(gate.decided.on)}${gate.decided.record ? `, ${fileLink(context, ctx.ref, gate.decided.record, "record")}` : ""}` : "—"}</td>
+    <td class="small" data-label="Needs">${h([gate.needs, gate.difference].filter(Boolean).join("; ")) || "—"}</td></tr>`).join("");
   return `<section class="panel" data-part="gates"><h3>Gates</h3>
     ${gates.length ? `<div class="table-scroll" tabindex="0"><table class="list"><thead><tr><th>Gate</th><th>State</th><th>Decided</th><th>Needs</th></tr></thead><tbody>${rows}</tbody></table></div>`
       : `<p class="muted">The workflow names no gate, or it could not be read.</p>`}
     ${whatIsThis("<p>The gates of the product's workflow in their order: passed, with who decided, when and on which text; pending, with what it " +
       "still needs; not reached. A gate whose record names a text that has changed since counts as passed on an earlier text only " +
-      "(UC-035 step 3; THE GATE IS RECORDED).</p>")}</section>`;
+      "(UC-035 step 3; THE GATE IS RECORDED; book ch. 15).</p>")}</section>`;
 }
 
 function blockedPanel(ctx, sprints) {
@@ -215,7 +225,7 @@ function blockedPanel(ctx, sprints) {
     ${found.length ? `<ul class="small">${found.map((entry) => `<li data-blocked="${h(entry.item)}"><b>${h(entry.item)}</b> — ${h(entry.reason)}: ${h(entry.detail)}</li>`).join("")}</ul>`
       : `<p class="muted">${sprints ? "No item a running sprint holds is blocked." : "No item or plan entry is blocked."}</p>`}
     ${whatIsThis("<p>Every item or plan entry that cannot move — in a model with sprints, every item a running sprint holds that cannot move —, with its reason: a failed job, a job waiting at a gate, a requirement " +
-      "not yet accepted, the team's work-in-progress limit, or another team's sprint that holds a module it needs (UC-035 step 4).</p>")}</section>`;
+      "not yet accepted, the team's work-in-progress limit, or another team's sprint that holds a module it needs (UC-035 step 4; book ch. 7, ch. 15).</p>")}</section>`;
 }
 
 // The page of a job on the job dashboard: MOD-main-page's route `job`, on the main page; the product named where it is not the instance.
@@ -237,7 +247,7 @@ function whoPanel(context, ctx) {
     ${who.participants.length ? `<div class="table-scroll" tabindex="0"><table class="list"><thead><tr><th>Participant</th><th>Roles</th>${several ? "<th>Teams</th>" : ""}<th>Current jobs</th></tr></thead><tbody>${rows}</tbody></table></div>`
       : `<p class="muted">No role assignment names a participant yet.</p>`}${missing}
     ${whatIsThis("<p>Each participant of the product with its roles — and its team, with several teams — and the jobs it works on now, each " +
-      "linked to its page on the job dashboard, where its log, cost and state stand (UC-035 step 5, UC-036).</p>")}</section>`;
+      "linked to its page on the job dashboard, where its log, cost and state stand (UC-035 step 5, UC-036; book ch. 15).</p>")}</section>`;
 }
 
 // The trace page of what is behind a cell, a card or a chart: the specification at the branch shown, where a requirement's trace opens.
@@ -308,7 +318,7 @@ async function draw(target, context) {
   const teamsPart = !model ? "" : !sprints ? measurePanel(ctx, model)
     : view.teams.length ? view.teams.map((team) => teamPanel(context, ctx, team)).join("")
       : `<section class="panel" data-part="teams"><h3>No team yet</h3><p class="muted">The product's model works in sprints, and no role assignment names a team yet (UC-048).</p>
-        ${whatIsThis("<p>Each team of a product has a role assignment under <code>docs/role-assignments/</code>, and plans and runs sprints of its own.</p>")}</section>`;
+        ${whatIsThis("<p>Each team of a product has a role assignment under <code>docs/role-assignments/</code>, and plans and runs sprints of its own (book ch. 7).</p>")}</section>`;
   target.innerHTML = `
     <section class="head"><h2>Progress</h2>
       <p class="muted">${h(context.product.address)} · <code>${h(ctx.ref)}</code> · what goes on now, derived from the repository and its pull requests; nothing here is a stored status. <a href="#backlog">The backlog</a> keeps every item and each team's last ended sprint.</p>
@@ -317,7 +327,7 @@ async function draw(target, context) {
       ${whatIsThis("<p>What goes on now: each team's running sprint, its items and how far it is; the gates; what is blocked; who works on " +
         "what. Everything is derived from the repository and its pull requests, for the commit shown (UC-035).</p>")}</section>
     ${teamsPart}
-    ${model ? `${gatesPanel(ctx)}${blockedPanel(ctx, sprints)}${whoPanel(context, ctx)}` : ""}`;
+    ${model ? `${gatesPanel(context, ctx)}${blockedPanel(ctx, sprints)}${whoPanel(context, ctx)}` : ""}`;
   await drawCharts(target);
 
   target.querySelectorAll("[data-end-sprint]").forEach((button) => button.addEventListener("click", async (event) => {

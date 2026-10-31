@@ -14,7 +14,7 @@
 // the instance, the same snapshot serves both; the SPEC's requirements count as accepted; the route draws the Mermaid text of a chart as MOD-markdown-render's rendering of a Mermaid block, which the harness of this file
 // does not draw (the fixture DOM lacks replaceWith, which this file adds). The counter-proofs are recorded in the pull request.
 
-import test, { afterEach } from "node:test";
+import test, { afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -198,16 +198,20 @@ test("a team's panel shows its running sprint with its items, their modules and 
 
 // TST-681004 · level: unit · module: MOD-implementation-pages
 // guards: UC-035; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
-// given: the same-day sprint — team1's sprint 01 starts on 2026-09-14 with ITM-001, ITM-002 and ITM-005; ITM-001 is merged at 09:30 UTC that day, ITM-005 at 11:45 UTC, ITM-002's pull request is open; and, in a second product, team2's closed sprint 01 from 2026-09-01 to 2026-09-07 with ITM-003, ITM-004 and ITM-006, merged on 2026-09-02 10:15, 2026-09-03 16:40 and — after the end — 2026-09-10
+// given: the same-day sprint — team1's sprint 01 starts on 2026-09-14 with ITM-001, ITM-002 and ITM-005; ITM-001 is merged at 09:30 UTC that day, ITM-005 at 11:45 UTC, ITM-002's pull request is open, and the page's clock stands at 2026-09-17 12:00 UTC; and, in a second product, team2's closed sprint 01 from 2026-09-01 to 2026-09-07 with ITM-003, ITM-004 and ITM-006, merged on 2026-09-02 10:15, 2026-09-03 16:40 and — after the end — 2026-09-10
 // input: the render of the route progress for the first, of the route backlog for the second
-// expect: team1's chart has four points — the start, the two merges by their time and now — with 3, 2, 1 and 1 items left; team2's final chart has the start, the two merges by their date and time within the sprint, and end — 3, 2, 1 and 1 left —, no merge after its end and no "now"
-test("a running sprint's chart counts the items left at its start, after each merge and now; a closed sprint's chart ends at its end", async () => {
+// expect: team1's chart has one point per day of the sprint, from its start to today — 09-14, 09-15, 09-16 and 09-17 —, each the items left at that day's end: 1, 1, 1 and 1; team2's final chart has the start, the two merges by their date and time within the sprint, and end — 3, 2, 1 and 1 left —, no merge after its end and no "now"
+test("a running sprint's chart counts the items left at the end of each day, from its start to today; a closed sprint's chart ends at its end", async () => {
   const sameDay = { ...fixtureFiles(), [TEAM1_SPRINT]: lines("---", "sprint: 1", "goal: Store and show", "start: 2026-09-14", "end:", "closer: alice", "branch: sprint/team1/01", "selection:", "  - ITM-001", "  - ITM-002", "  - ITM-005", "---", "# team1 Sprint 01") };
-  const same = await render(sameDay, { route: progressRoute, pullRequests: [pr({ number: 1, item: "ITM-001", base: "sprint/team1/01", created: "2026-09-14T08:00:00Z", merged: "2026-09-14T09:30:00Z" }),
-    pr({ number: 2, item: "ITM-002", base: "sprint/team1/01", created: "2026-09-14T08:10:00Z" }), pr({ number: 5, item: "ITM-005", base: "sprint/team1/01", created: "2026-09-14T08:20:00Z", merged: "2026-09-14T11:45:00Z" })] });
+  mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-09-17T12:00:00Z") });
+  let same;
+  try {
+    same = await render(sameDay, { route: progressRoute, pullRequests: [pr({ number: 1, item: "ITM-001", base: "sprint/team1/01", created: "2026-09-14T08:00:00Z", merged: "2026-09-14T09:30:00Z" }),
+      pr({ number: 2, item: "ITM-002", base: "sprint/team1/01", created: "2026-09-14T08:10:00Z" }), pr({ number: 5, item: "ITM-005", base: "sprint/team1/01", created: "2026-09-14T08:20:00Z", merged: "2026-09-14T11:45:00Z" })] });
+  } finally { mock.timers.reset(); }
   const team1 = same.charts.find((each) => each.includes("team1/01"));
-  assert.match(team1, /x-axis \["start", "09:30", "11:45", "now"\]/);
-  assert.match(team1, /line \[3, 2, 1, 1\]/);
+  assert.match(team1, /x-axis \["09-14", "09-15", "09-16", "09-17"\]/);
+  assert.match(team1, /line \[1, 1, 1, 1\]/);
   const closed = { ...fixtureFiles(), [TEAM2_SPRINT]: lines("---", "sprint: 1", "goal: Mail", "start: 2026-09-01", "end: 2026-09-07", "closer: bob", "branch:", "selection:", "  - ITM-003", "  - ITM-004", "  - ITM-006", "---",
     "# team2 Sprint 01", "", "## Review", "", "ITM-003 and ITM-004 are done.", "", "## Unfinished items", "", "to the backlog: ITM-006", "into the next sprint:", "", "ITM-006 waits for its requirement.", "", "## Retrospective", "", "- change: smaller items.") };
   const after = await render(closed, { pullRequests: [...PRS, pr({ number: 6, item: "ITM-003", base: "main", created: "2026-09-01T09:00:00Z", merged: "2026-09-02T10:15:00Z" }),

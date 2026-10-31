@@ -88,14 +88,14 @@ test("TST-806102 the progress page shows the steps of the implementation plan in
 // guards: THE GATE IS RECORDED
 // given: the Scrum product whose record docs/gates/20261022-0900-building-checking-ab12.md, by alice on 2026-10-22 09:00 UTC, passes Building → Checking on ITM-002's file at its current blob
 // input: the reader opens Progress
-// expect: the gate is shown passed, with who decided (alice), when (2026-10-22 09:00 UTC) and on which text (docs/backlog/ITM-002-item-2.md@<its blob>); the gate without a record, Checking → Closing, names no decider
+// expect: the gate is shown passed, with who decided (alice), when (2026-10-22 09:00 UTC) and on which text (docs/backlog/ITM-002-item-2.md@<its blob>), with a link "record" to its gate record; the gate without a record, Checking → Closing, names no decider
 test("TST-806103 a passed gate shows who decided, when, and on which text", async () => {
   const files = productFiles();
   files[GATE_PATH] = gateRecord("Building → Checking", [`${ITEM_2}@${blobOf(files[ITEM_2])}`]);
   const page = await render("progress", {}, { files });
   try {
     const [passed, next] = gateRows(page);
-    assert.equal(passed, `Building → Checking passed alice, 2026-10-22 09:00 UTC, on ${ITEM_2}@${blobOf(files[ITEM_2])} —`);
+    assert.equal(passed, `Building → Checking passed alice, 2026-10-22 09:00 UTC, on ${ITEM_2}@${blobOf(files[ITEM_2])}, record —`);
     assert.doesNotMatch(next, /alice/, "a gate without a record names no decider");
   } finally { page.done(); }
 });
