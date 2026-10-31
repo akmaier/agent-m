@@ -37,19 +37,17 @@ With this item, a test identifier that two declarations hold, in one file or in 
 
 ## Readiness
 
-It waits for a text. A reading that would let it be built was sought first (sprint 123's agreement), and none holds:
-- **MOD-test-document** reads one file's text and checks one declaration (MOD-test-document.md, Responsibility and
-  Interfaces: "its callers give it the texts of test files"). It sees no other file.
-- **MOD-identifiers** "does not know the formats in which identifiers stand" and performs no input or output
-  (MOD-identifiers.md, Responsibility). It sees no declaration.
-- **MOD-trace-graph** reads every test file through MOD-test-document's `testDeclarations` (MOD-trace-graph.md, Uses) and
-  owns "the checks across artifacts, each decided from the graph alone" (`graphFindings`). That makes it the owner.
-  - `graphFindings`' accepted text lists its checks, and a repeated test identifier is not among them.
-  - A check that the interface does not state would change what the function gives its callers.
+It is ready. Its module is MOD-trace-graph, the owner of "the checks across artifacts, each decided from the graph alone"
+(`graphFindings`). It reads every test file through MOD-test-document's `testDeclarations`. Neither MOD-test-document, which
+reads one file, nor MOD-identifiers, which sees no declaration, can see a repeat.
 
-The sentence it needs, in MOD-trace-graph's `graphFindings`: a test identifier that more than one declaration holds, as
-an error at each declaration, under THE NAME IS THE ID AND IT SURVIVES. That sentence is akmaier's to accept. The item is
-ready once an approval record names MOD-trace-graph's text with it.
+MOD-trace-graph's accepted text holds the check in `graphFindings`: "a test identifier declared at more than one place —
+the path and line of its node and of its `guards` and `exercises` edges, each the place of the declaration it was read
+from —, as an error at each place that names the other places by path and line (`THE NAME IS THE ID AND IT SURVIVES`)".
+The approval record `docs/approvals/MOD-trace-graph-034c5a34a59b.md` names that text.
+
+The repository's own test files declare no identifier twice: ITM-1324 is done, and the repeat reading over every test file
+finds none. Its build and planning run are made at the planning that selects it.
 
 ## Acceptance
 
