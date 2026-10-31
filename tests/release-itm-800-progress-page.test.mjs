@@ -106,8 +106,8 @@ test("TST-800104 each chart and panel of the progress page carries a folded expl
 // given: the V-model product, whose model has no sprints, with the item ITM-002 whose job is working on it
 // input: the reader opens Progress
 // expect: UC-035 step 4 — a panel "Blocked" stands on the page, whatever the model's kind, listing every item or plan entry that cannot move, or saying none does
-// FINDING 800-BLOCKED-PLANNED — the page draws the Blocked panel only for a model with sprints (`${sprints ? blockedPanel(ctx) : ""}` in draw of src/implementation-pages/progress.mjs), so the V-model's and Kanban's progress pages have no Blocked panel
-test("TST-800105 a planned or Kanban product's progress page holds the Blocked panel", { todo: "FINDING 800-BLOCKED-PLANNED — the progress page of a model without sprints draws no Blocked panel (UC-035 step 4)" }, async () => {
+// Planted fault: the panel left out for a model without sprints (`${blockedPanel(ctx)}` in draw of src/implementation-pages/progress.mjs replaced by `${sprints ? blockedPanel(ctx) : ""}`) fails the case on "no Blocked panel".
+test("TST-800105 a planned or Kanban product's progress page holds the Blocked panel", async () => {
   for (const files of [vModel(), kanban()]) {
     const page = await render("progress", {}, { files });
     try {

@@ -208,12 +208,12 @@ function gatesPanel(ctx) {
       "(UC-035 step 3; THE GATE IS RECORDED).</p>")}</section>`;
 }
 
-function blockedPanel(ctx) {
+function blockedPanel(ctx, sprints) {
   const found = ctx.view.blocked;
   return `<section class="panel" data-part="blocked"><h3>Blocked</h3>
     ${found.length ? `<ul class="small">${found.map((entry) => `<li data-blocked="${h(entry.item)}"><b>${h(entry.item)}</b> — ${h(entry.reason)}: ${h(entry.detail)}</li>`).join("")}</ul>`
-      : `<p class="muted">No item a running sprint holds is blocked.</p>`}
-    ${whatIsThis("<p>Every item a running sprint holds that cannot move, with its reason: a failed job, a job waiting at a gate, a requirement " +
+      : `<p class="muted">${sprints ? "No item a running sprint holds is blocked." : "No item or plan entry is blocked."}</p>`}
+    ${whatIsThis("<p>Every item or plan entry that cannot move — in a model with sprints, every item a running sprint holds that cannot move —, with its reason: a failed job, a job waiting at a gate, a requirement " +
       "not yet accepted, the team's work-in-progress limit, or another team's sprint that holds a module it needs (UC-035 step 4).</p>")}</section>`;
 }
 
@@ -316,7 +316,7 @@ async function draw(target, context) {
       ${whatIsThis("<p>What goes on now: each team's running sprint, its items and how far it is; the gates; what is blocked; who works on " +
         "what. Everything is derived from the repository and its pull requests, for the commit shown (UC-035).</p>")}</section>
     ${teamsPart}
-    ${model ? `${gatesPanel(ctx)}${sprints ? blockedPanel(ctx) : ""}${whoPanel(context, ctx)}` : ""}`;
+    ${model ? `${gatesPanel(ctx)}${blockedPanel(ctx, sprints)}${whoPanel(context, ctx)}` : ""}`;
   await drawCharts(target);
 
   target.querySelectorAll("[data-end-sprint]").forEach((button) => button.addEventListener("click", async (event) => {
