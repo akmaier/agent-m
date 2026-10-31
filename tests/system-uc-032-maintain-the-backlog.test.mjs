@@ -16,8 +16,6 @@
 //   UC032-S4  step 6a: a changed selection is committed and named by its file; the page does not show what it removes or adds.
 //   UC032-S5  step 6c: Start sprint, pressed after another team committed its sprint, is refused as "main has moved on"; it names no sprint, held item or module and shows no mark anew.
 //   UC032-S6  step 1b: a product whose model plans its work still gets the backlog drawn, and its link leads to Progress, not to the implementation plan.
-//   UC032-S7  step 6b: a sprint the Product Owner ended today is drawn as running until the day after.
-//   UC032-S8  step 6b: a sprint whose every selected item is done is drawn as running, with End sprint offered.
 //   UC032-S9  step 6: Start sprint takes any text as the closer, though it is to be a participant (found in tests/release-uc-032-derived-state-and-sprints.test.mjs, TST-803113).
 // Each test states its input and its expected values in its own text; none reads an expected result from the SPEC, a use case or an architecture file, but the flow map (TST-803001), which holds the expected passages itself
 // and checks that UC-032 still says them. A person's click is the page's own listener called with a trusted event; no input event of the operating system is made. Readings the texts leave open, which the cases state:
@@ -69,6 +67,8 @@ const FLOW_EVIDENCE = {
   "6a-added-during-a-sprint": { uc: "An item is added during a running sprint.", evidence: [[SELF, "TST-803008"]] },
   "6a-checked-against-others": { uc: "An item it adds is checked against what the other teams' sprints hold", evidence: [[SELF, "TST-803014"]] },
   "6b-end-sprint": { uc: "6b. The sprint ends", evidence: [[SELF, "TST-803018"]] },
+  "6b-ended-by-the-product-owner": { uc: "which records the end with the sprint.", evidence: [[SELF, "TST-803019"]] },
+  "6b-every-item-done": { uc: "when every selected item is done or the Product Owner presses", evidence: [[SELF, "TST-803020"]] },
   "6c-refused": { uc: "6c. Another team started a sprint in the meantime.", evidence: [[SELF, "TST-803016"]] },
   "6c-first-holds": { uc: "Whichever sprint is committed first holds its items.", evidence: [[SELF, "TST-803016"]] },
   "6d-no-longer-held": { uc: "6d. Items of another team's sprint are no longer held", evidence: [[SELF, "TST-803017"]] },
@@ -83,9 +83,7 @@ const FLOW_FINDINGS = {
   "6a-shows-what-it-removes-or-adds": { uc: "Changing the sprint selection is a new **Start sprint** decision, and Agent M shows what", finding: "UC032-S4", file: SELF, test: "TST-803014" },
   "6c-names-the-collision": { uc: "is refused and names the sprint, the held item and the module", finding: "UC032-S5", file: SELF, test: "TST-803015" },
   "1b-link-to-the-plan": { uc: "There is no backlog. Agent M links to the implementation plan (UC-045).", finding: "UC032-S6", file: SELF, test: "TST-803024" },
-  "6b-ended-by-the-product-owner": { uc: "which records the end with the sprint.", finding: "UC032-S7", file: SELF, test: "TST-803019" },
   "6-closer-is-a-participant": { uc: "or a participant such as an agent (UC-041)", finding: "UC032-S9", file: RELEASE_CLOSER, test: "TST-803113" },
-  "6b-every-item-done": { uc: "when every selected item is done or the Product Owner presses", finding: "UC032-S8", file: SELF, test: "TST-803020" },
 };
 
 // TST-803001 · level: system · module: MOD-implementation-pages
@@ -628,9 +626,8 @@ test("TST-803018: UC-032 6b a sprint without a time box ends when every item is 
 // guards: UC-032; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the product of TST-803018 in which the Product Owner has pressed End sprint for team1's sprint team1/02 today; known positive first — the record holds ## Ended with today's day and Progress offers no End sprint
 // input: the Product Owner opens Progress
-// expect: known positive — the record holds the end and no End sprint is offered; UC-032 6b says the click records the end with the sprint, which is then closed with its review: Progress says the sprint ended on that day and that its review and retrospective are not recorded yet, and offers no Change the selection. FINDING: the sprint is drawn as running — its burn-down to now and Change the selection — until the day after
-test("TST-803019: UC-032 6b a sprint the Product Owner ended is shown as ended, waiting for its review and retrospective",
-  { todo: "FINDING UC032-S7 — progressIn (src/progress-measures/measures.mjs:116) takes a sprint as final when it holds a ## Review or its end is before today (`end < today`); a sprint ended today by End sprint is drawn as running until the next day, and neither End sprint nor an ended state is shown" }, async () => {
+// expect: known positive — the record holds the end and no End sprint is offered; UC-032 6b says the click records the end with the sprint, which is then closed with its review: Progress says the sprint ended on that day and that its review and retrospective are not recorded yet, and offers no Change the selection.
+test("TST-803019: UC-032 6b a sprint the Product Owner ended is shown as ended, waiting for its review and retrospective", async () => {
   const page = await open("progress", {}, { files: await product() });
   try {
     await page.press(found(page.target, "[data-end-sprint]")[0]);
@@ -649,9 +646,8 @@ test("TST-803019: UC-032 6b a sprint the Product Owner ended is shown as ended, 
 // guards: UC-032; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the product of TST-803018 in which both items team1/02 selected are merged, ITM-002's pull request among them; known positive first — MOD-work-plans' sprintsToClose names the sprint as due because every selected item is done
 // input: the Product Owner opens Progress
-// expect: known positive — sprintsToClose lists team1/02 for its closer alice, because every selected item is done; UC-032 6b says a sprint without a time box ends when every selected item is done: Progress says the sprint ended and that its review and retrospective are not recorded yet, and offers no End sprint. FINDING: it is drawn as running, with End sprint offered
-test("TST-803020: UC-032 6b a sprint without a time box has ended when every selected item is done",
-  { todo: "FINDING UC032-S8 — progressIn (src/progress-measures/measures.mjs:116) takes a sprint as final only with a ## Review or an end before today; a sprint whose every selected item is merged is drawn as running with End sprint offered, while MOD-work-plans' sprintsToClose already names it as due for its closer" }, async () => {
+// expect: known positive — sprintsToClose lists team1/02 for its closer alice, because every selected item is done; UC-032 6b says a sprint without a time box ends when every selected item is done: Progress says the sprint ended and that its review and retrospective are not recorded yet, and offers no End sprint.
+test("TST-803020: UC-032 6b a sprint without a time box has ended when every selected item is done", async () => {
   const { sprints } = documentsOf(await product());
   assert.deepEqual(sprintsToClose(sprints, [{ item: "ITM-001", state: "done" }, { item: "ITM-002", state: "done" }], "2026-10-30"), [{ sprint: "team1/02", closer: "alice", because: "every selected item done" }], "known positive");
   const page = await open("progress", {}, { files: await product(), pulls: { list: [...PULL_REQUESTS.slice(0, 1), pr(2, "ITM-002", "merged", "2026-10-21T12:00:00Z", "2026-10-30T09:00:00Z")] } });
