@@ -80,7 +80,6 @@ const FLOW_FINDINGS = {
   "6a-shows-what-it-removes-or-adds": { uc: "Changing the sprint selection is a new **Start sprint** decision, and Agent M shows what", finding: "UC032-S4", file: SELF, test: "TST-803014" },
   "6c-names-the-collision": { uc: "is refused and names the sprint, the held item and the module", finding: "UC032-S5", file: SELF, test: "TST-803015" },
   "1b-link-to-the-plan": { uc: "There is no backlog. Agent M links to the implementation plan (UC-045).", finding: "UC032-S6", file: SELF, test: "TST-803024" },
-  "6-closer-is-a-participant": { uc: "or a participant such as an agent (UC-041)", finding: "UC032-S9", file: RELEASE_CLOSER, test: "TST-803113" },
 };
 
 // TST-803001 · level: system · module: MOD-implementation-pages
