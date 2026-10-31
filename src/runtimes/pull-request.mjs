@@ -4,11 +4,20 @@
 // Module: MOD-runtimes
 //
 // It reads and writes only through the host of the job's context (`context.product.host`): `readSnapshot` for the branch, `listPullRequests`, `repositoryInfo` and `openPullRequest`
-// for the pull request. The job's own snapshot, `context.product.snapshot`, says what the branch changed and, through MOD-trace-graph's `traceGraph`, which modules the plan steps and backlog items the job names change. Strategies, JobContext, JobResult and WriteOutcome are MOD-job-runner's types.
+// for the pull request. The job's own snapshot, `context.product.snapshot`, says what the branch changed and, through MOD-trace-graph's `traceGraph`, which modules the plan steps and backlog items the job names change.
+// The pull request goes into MOD-work-plans' targetBranch of the first step or item the job names, over the sprint records, the plan's order and the declaration's ## Branches (MOD-product-process' branchesOf) that the
+// job's snapshot holds, read with MOD-documents' readDocument, and the default branch `repositoryInfo` names. Strategies, JobContext, JobResult and WriteOutcome are MOD-job-runner's types.
 
+import { readDocument } from "../documents/index.mjs";
 import { provenanceLines } from "../job-runner/index.mjs";
+import { branchesOf, declarationSchema } from "../product-process/index.mjs";
 import { testDeclarations } from "../test-document/index.mjs";
 import { traceGraph } from "../trace-graph/index.mjs";
+import { planSchemas, targetBranch } from "../work-plans/index.mjs";
+
+const SPRINT = /^docs\/backlog\/sprints\/[^/]+\/[^/]+\.md$/;
+const ORDER = "docs/plan/order.md";
+const DECLARATION = "docs/process.md";
 
 // A failure of the writer's own, by name.
 const failure = (name, message, fields) => Object.assign(new Error(message), { name, ...fields });
@@ -38,6 +47,18 @@ async function modulesOf(snapshot, work) {
   return unique(work.flatMap((name) => graph.edges.filter((edge) => edge.from === name && edge.via === "changes").map((edge) => edge.to)));
 }
 
+// The branch the pull request goes into: targetBranch of the step or item, over the sprint records, the plan's order and the declared branches the job's snapshot holds — each read only where the snapshot
+// holds it —, with the default branch. Without a step or an item, the default branch, and nothing is read.
+async function baseOf(snapshot, item, defaultBranch) {
+  if (item === undefined) return defaultBranch;
+  const has = (path) => snapshot.paths.includes(path);
+  const read = async (schema, path) => readDocument(schema, path, (await snapshot.read(path)) ?? "");
+  const sprints = await Promise.all(snapshot.paths.filter((path) => SPRINT.test(path)).map((path) => read(planSchemas.sprint, path)));
+  const order = has(ORDER) ? await read(planSchemas.planOrder, ORDER) : null;
+  const branches = has(DECLARATION) ? branchesOf(await read(declarationSchema, DECLARATION)) : {};
+  return targetBranch(item, { sprints, order, branches, defaultBranch });
+}
+
 // The description of the pull request: the job, its kind, the plan steps and backlog items it works on, their modules and the requirements the new tests guard, then the provenance lines.
 function describe(result, context, modules, tests) {
   const { steps, items } = context.params ?? {};
@@ -53,7 +74,7 @@ function describe(result, context, modules, tests) {
 
 /**
  * The writer branch-and-pull-request(result, context) -> Promise<WriteOutcome> — reads the branch the participant's answer reports (`result.draft.branch`) through `context.product.host`;
- * with a host of a server's API it opens the pull request into the default branch `repositoryInfo` names, unless the branch has one open or merged, and gives it the description of
+ * with a host of a server's API it opens the pull request into the branch baseOf gives, unless the branch has one open or merged, and gives it the description of
  * `describe`; with a local host — one whose `listPullRequests` throws NotSupported — it opens nothing. It returns the pull request's address, or the one the agent reported. Throws NoBranch
  * for a branch the host does not hold, NoCommits for one with no commit beyond the job's snapshot, and what the host throws.
  */
@@ -84,7 +105,7 @@ async function branchAndPullRequest(result, context) {
 
   const { defaultBranch } = await host.repositoryInfo();
   const work = [...named(context.params?.steps), ...named(context.params?.items)];
-  const opened = await host.openPullRequest({ branch: name, base: defaultBranch, title: `${context.jobId}: ${context.kind.name}${work.length ? ` ${work.join(", ")}` : ""}`,
+  const opened = await host.openPullRequest({ branch: name, base: await baseOf(snapshot, work[0], defaultBranch), title: `${context.jobId}: ${context.kind.name}${work.length ? ` ${work.join(", ")}` : ""}`,
     body: describe(result, context, await modulesOf(snapshot, work), await newTests(branch, snapshot, files)) });
   return outcome(opened.url);
 }

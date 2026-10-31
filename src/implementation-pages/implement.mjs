@@ -32,7 +32,7 @@ import { declarationSchema, holdsRole, roleAssignmentSchema, workflowOf } from "
 import { productFacts } from "../progress-measures/index.mjs";
 import { queueJob, routesFor } from "../runtimes/index.mjs";
 import { explain as frameExplain } from "../site-frame/index.mjs";
-import { planSchemas, startable } from "../work-plans/index.mjs";
+import { planSchemas, startable, targetBranch } from "../work-plans/index.mjs";
 import { connectionsOf, contextOf, participantsIn, personOf, placesOf, viewOf } from "./backlog.mjs";
 import { declaredModelOf } from "./plan.mjs";
 import { asOfLine } from "./progress.mjs";
@@ -158,7 +158,7 @@ async function drawPlan(target, context, facts, ctx, participants, workflow, m) 
   const definitions = { implement: await kindOf("implement"), refactor: await kindOf("refactor") };
   const roles = implementingRoles(workflow);
   const phaseNames = (workflow?.phases ?? []).map((phase) => phase.name);
-  const branchOf = (step, phase) => (workflow?.branches?.[phase] ?? "").replaceAll("<item>", step) || m.defaultBranch;
+  const branchOf = (step) => targetBranch(step, { sprints: facts.sprints ?? [], order: facts.plan.order ?? null, branches: workflow?.branches ?? {}, defaultBranch: m.defaultBranch });
   const gatesOf = (phase) => (workflow?.gates ?? []).filter((gate) => phaseNames.indexOf(gate.from) >= phaseNames.indexOf(phase)).map((gate) => `${h(gate.name)} (decided by ${h(gate.decider)})`);
   const holdersFor = () => eligible(participants.filter((participant) => assignment && roles.some((role) => holdsRole(assignment, participant.name, role.name))), { capabilities: definitions.implement.needs }).eligible;
   const jobBox = target.querySelector("[data-jobs]");
@@ -186,7 +186,7 @@ async function drawPlan(target, context, facts, ctx, participants, workflow, m) 
           <label>Attempt limit <input type="number" data-limit-of="${h(step)}" value="${h(definitions.implement.limit)}"></label>
           <label>Merges <select data-merges-of="${h(step)}"><option value="agent">the coding agent</option><option value="person">a person</option></select></label>
           <label><input type="checkbox" data-refactor-of="${h(step)}"> Refactoring: structure changes, behaviour does not</label>
-          <p class="small" data-branch-of="${h(step)}">Target branch: ${h(branchOf(step, row.phase))}</p>
+          <p class="small" data-branch-of="${h(step)}">Target branch: ${h(branchOf(step))}</p>
           <p class="small" data-gates-of="${h(step)}">${gatesOf(row.phase).length ? `Gates: ${gatesOf(row.phase).join(", ")}.` : "No gate stands after this phase."}</p>
           <div data-sent-of="${h(step)}"></div></div>`;
     }).join("");
@@ -432,7 +432,7 @@ async function draw(target, context, params) {
       ${withheldText(row)}
       <p class="small" data-holders>${row.holders.map((participant) => `${h(participant.name)} processes data at ${h(participant.place ?? "no declared place")}; routes: ${routesFor(participant, participants, productInfo, []).map((offer) => `${h(recordRoute(offer.route))}${offer.available ? "" : " (not available)"}`).join(", ") || "none"}`).join("<br>")}</p>
       <p class="small">Attempt limit: ${h(definition.limit)}. Merges: <select data-merges-of="${h(row.id)}"><option value="agent">the coding agent</option><option value="person">a person</option></select>.
-        Target branch: ${h(text(row.sprint?.fields?.branch) || info.defaultBranch)}. ${gatesText.length ? `Gates: ${gatesText.join(", ")}.` : "No gate stands before the merge."}</p>
+        Target branch: ${h(targetBranch(row.id, { sprints: [...judged.sprints.values()], order: null, branches: workflow.branches ?? {}, defaultBranch: info.defaultBranch }))}. ${gatesText.length ? `Gates: ${gatesText.join(", ")}.` : "No gate stands before the merge."}</p>
       <div data-sent="${h(row.id)}"></div>`) : `<ul data-reasons>${row.verdict.reasons.map((reason) => `<li>${h(reason)}</li>`).join("")}</ul>`}</td></tr>`).join("")}</tbody></table>
     <p><button type="button" data-start-jobs>Start jobs</button></p><div data-start-result></div>`;
   head(body);
