@@ -9,7 +9,7 @@
 // Where the module file leaves a reading open, this file takes the one it names:
 //   - A team's running sprint in the ProgressView is the newest of its sprints whose record holds no `## Review`; `measure` is progressIn's over those sprints alone
 //     and the items they select, so that, in a model with a work-in-progress limit too, no item outside them stands in the view. A sprint's
-//     `name` is `<team>/<nn>`; `ended` is its `end`, else the `at` of its `## Ended`, else null; `final` is progressIn's for the sprint, `endable` a sprint not final without an
+//     `name` is `<team>/<nn>`; `ended` is its `end`, else the `at` of its `## Ended`, else, where every item it selects is done, the day the last of them was merged (the last day of its final burn-down), else null; `final` is progressIn's for the sprint, `endable` a sprint not final without an
 //     end and without `## Ended`. A running sprint's item is { item, path, title, state, changes, uses }: `changes` and `uses` those of its hold, else the item's modules and none.
 //   - In the BacklogView, a team's running sprint is its newest unless progressIn over every sprint names the team's sprint final, as the backlog has always taken it; its
 //     `lastEnded` the newest of the others, `items` and `end` those of progressIn's entry of the team over them — `end` "" where that entry is no final burn-down. `kept` is
@@ -119,7 +119,7 @@ export function progressView(facts, now) {
     });
     const ended = endedSection(record);
     return { team, sprint: { name: newest.name, path: record.path, goal: text(fields.goal), start: text(fields.start), end: text(fields.end), branch: text(fields.branch),
-      closer: text(fields.closer), ended: text(fields.end) || text(ended?.fields?.at) || null, final: entry.final === true,
+      closer: text(fields.closer), ended: text(fields.end) || text(ended?.fields?.at) || (entry.final ? entry.burnDown.at(-1)?.day : null) || null, final: entry.final === true,
       endable: entry.final !== true && !text(fields.end) && ended === null, items, merges: mergesOf(items.map((each) => each.item), mergedAt) } };
   });
   const shown = new Set(teams.flatMap((team) => team.sprint?.items.map((each) => each.item) ?? []));

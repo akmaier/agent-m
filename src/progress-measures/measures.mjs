@@ -113,8 +113,12 @@ function flowOf(model, since, facts, today) {
 // A team's sprint: its items with their states, the remaining items per day from its start to its end — to today while it
 // runs —, and whether that burn-down is final: the sprint is closed (## Review) or MOD-work-plans' sprintsToClose names it as ended. With the pull requests unknown, the burn-down is not guessed: it is empty.
 function teamSprint(team, record, states, pullRequests, today) {
-  const end = text(record.fields?.end) || text(sectionsOf(record, "## Ended")[0]?.fields?.at);
-  const final = sectionsOf(record, "## Review").length > 0 || sprintsToClose([record], states, today).length > 0;
+  const closes = sprintsToClose([record], states, today);
+  const final = sectionsOf(record, "## Review").length > 0 || closes.length > 0;
+  // A sprint ended because every item it selects is done ended on the day the last of them was merged.
+  const byItems = closes.some((each) => each.because === "every selected item done") && pullRequests !== "unknown"
+    ? selectionOn(record, "9999-12-31").map((item) => doneOn(item, pullRequests)).sort().at(-1) : "";
+  const end = text(record.fields?.end) || text(sectionsOf(record, "## Ended")[0]?.fields?.at) || text(byItems);
   const last = end && end < today ? end : today;
   const items = selectionOn(record, "9999-12-31").map((item) => states.find((s) => s?.item === item)
     ?? { item, state: "unknown", reason: null, job: null, pullRequest: null });
