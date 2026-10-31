@@ -47,7 +47,19 @@ from —, as an error at each place that names the other places by path and line
 The approval record `docs/approvals/MOD-trace-graph-034c5a34a59b.md` names that text.
 
 The repository's own test files declare no identifier twice: ITM-1324 is done, and the repeat reading over every test file
-finds none. Its build and planning run are made at the planning that selects it.
+finds none.
+
+**The planning stand-in** (sprint 130's planning, on `main` at `13e66ee14`): `graphFindings` gains a check of its own in
+`checks.mjs`. It collects, for each `TST` node, the places of its node and of its `guards` and `exercises` edges, and gives
+an error at each place that names the others, under THE NAME IS THE ID AND IT SURVIVES. It imports nothing new and changes
+no type.
+- Over every file of `13e66ee14` (7,264 paths, 5,848 test nodes) it gives 0 repeats.
+- Known positive: over `4c27ee9e2`, before ITM-1324, it gives 4 errors, two for each of TST-1290001 and 1290002, each
+  naming the other place.
+- **Callers:** MOD-job-runner's `graph-checks` leaves out what the repository holds already (`notHeld`); `planFindings`
+  keeps only the steps' level and a cycle; the editor of MOD-review-pages keeps the findings of the file it edits. So no
+  caller shows a finding of the repository's own, and none exists.
+- Its planning run is in `team1/130.md`.
 
 ## Acceptance
 

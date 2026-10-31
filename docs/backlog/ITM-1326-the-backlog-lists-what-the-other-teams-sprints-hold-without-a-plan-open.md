@@ -32,8 +32,17 @@ team's planning is open. It is drawn from the view the route reads already, and 
 
 ## Readiness
 
-It is ready. The change stays in `paint` and the parts it draws already. Its build and planning run, with the requests
-of one load counted against the base, are made at the planning that selects it.
+It is ready. The change stays in `paint` and the parts it draws already.
+- **The team.** `heldPanel` names each held item's sprint as `<team>/<nn>` (`Held.sprint`, MOD-work-plans), which names its
+  team. That is the reading this item takes of "its sprint, its team": no column is added, and TST-803012's known
+  positive, which reads the row's five cells, does not move.
+- **Without a plan open,** `heldPanel` is called with no team, so it lists every item a team's sprint holds. With a plan
+  open it lists those of the other teams, as today.
+- **The planning stand-in** (sprint 130's planning, on `main` at `13e66ee14`): `paint` draws `heldPanel` under `sprints &&
+  teams.length > 1` in place of `planning && teams.length > 1`. Nothing else changes.
+  - TST-803012 passes with it, and fails on the base.
+  - **Requests:** `heldPanel` draws from `ctx.view.rows` and sends none. `load-per-view` passes as on the base.
+- Its planning run is in `team1/130.md`.
 
 ## Acceptance
 

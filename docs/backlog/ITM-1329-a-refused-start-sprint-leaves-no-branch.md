@@ -34,7 +34,16 @@ This item does not change it.
 ## Readiness
 
 It is ready. The change stays in `startSprint`. If `createBranch` fails after the record's commit, the caller sees that
-error as today. The planning names how the record then reads.
+error as today.
+- **How the record then reads.** The record stands on the default branch with its `branch` field. `targetBranch` names
+  that branch for the sprint's items while it does not exist yet. Nothing else is written. That is the reading of
+  `startSprint`'s text, which names the branch's creation and the record's commit and no undoing of either.
+- **The planning stand-in** (sprint 130's planning, on `main` at `13e66ee14`): `createBranch(branch, head)` moves after
+  `commitFiles`, from the same `head`. It imports nothing new: `createBranch` and `commitFiles` are MOD-repository-hosts',
+  named in MOD-work-plans' Uses. It changes no type.
+- **Requests.** A start that is written sends the same two writes as today, the commit first. A start refused as `Moved`
+  sends no `createBranch`, one request fewer.
+- Its planning run is in `team1/130.md`.
 
 ## Acceptance
 
