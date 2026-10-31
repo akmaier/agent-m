@@ -35,23 +35,25 @@ const HEADER = 'spec:\n  inputs:\n    job:\n      default: ""\n    task:\n      
 // The entry Agent M adds to an include list whose items stand two spaces in, and the key with it for a file that has none.
 const ENTRY = '  - local: ".gitlab/agent-m-jobs.yml"\n    inputs:\n      job: $[[ inputs.job ]]\n      task: $[[ inputs.task ]]\n      endpoint: $[[ inputs.endpoint ]]\n      secret: $[[ inputs.secret ]]\n';
 const ENTRY_LINES = ENTRY.split("\n").slice(0, -1);
+// The entry of the file beside the job workflow, which runs onMainChanged and is passed nothing (ITM-1261): added to the end of the include list where missing.
+const BESIDE = '  - local: ".gitlab/agent-m-main-changed.yml"\n';
 
 // TST-548001 · level: unit · module: MOD-runtimes
 // guards: UC-010; UC-027
 // given: a product's .gitlab-ci.yml with stages, its own include list of two entries followed by a comment line, and a job
 // input: jobWorkflowFiles("gitlab", …, that text)
-// expect: the text is exactly: the header with the three inputs; every line of the input as it was; the entry with its three inputs as the third item of the include list, straight after the last item and before the comment; and removing the header and the five lines of the entry from the result gives the input again, line for line
+// expect: the text is exactly: the header with the three inputs; every line of the input as it was; the entry with its three inputs as the third item of the include list, straight after the last item, then the entry `- local: ".gitlab/agent-m-main-changed.yml"`, before the comment; and removing the header, the lines of the entry and the line of the entry beside it from the result gives the input again, line for line
 test("jobWorkflowFiles — a product's own .gitlab-ci.yml keeps every line and gains the header, the entry and its inputs", () => {
   const own = 'stages:\n  - build\n  - test\n\ninclude:\n  - local: ".gitlab/agent-m-tests.yml"\n  - template: Security/SAST.gitlab-ci.yml\n# the product\'s own job\nbuild:\n  stage: build\n  script:\n    - make\n';
   const result = merged(own);
 
   assert.equal(result, HEADER
     + 'stages:\n  - build\n  - test\n\ninclude:\n  - local: ".gitlab/agent-m-tests.yml"\n  - template: Security/SAST.gitlab-ci.yml\n'
-    + ENTRY
+    + ENTRY + BESIDE
     + '# the product\'s own job\nbuild:\n  stage: build\n  script:\n    - make\n');
 
   const rest = result.split("\n").slice(HEADER.split("\n").length - 1);
-  const withoutEntry = [...rest.slice(0, rest.indexOf(ENTRY_LINES[0])), ...rest.slice(rest.indexOf(ENTRY_LINES[0]) + ENTRY_LINES.length)];
+  const withoutEntry = [...rest.slice(0, rest.indexOf(ENTRY_LINES[0])), ...rest.slice(rest.indexOf(ENTRY_LINES[0]) + ENTRY_LINES.length + 1)];
   assert.equal(withoutEntry.join("\n"), own, "the input, line for line");
 });
 
@@ -63,32 +65,33 @@ test("jobWorkflowFiles — a product's own .gitlab-ci.yml keeps every line and g
 test("jobWorkflowFiles — running it again on its own result changes nothing", () => {
   const own = 'stages:\n  - build\n\ninclude:\n  - local: ".gitlab/agent-m-tests.yml"\n\nbuild:\n  script:\n    - make\n';
   const once = merged(own);
-  assert.equal(once, HEADER + 'stages:\n  - build\n\ninclude:\n  - local: ".gitlab/agent-m-tests.yml"\n' + ENTRY + '\nbuild:\n  script:\n    - make\n',
+  assert.equal(once, HEADER + 'stages:\n  - build\n\ninclude:\n  - local: ".gitlab/agent-m-tests.yml"\n' + ENTRY + BESIDE + '\nbuild:\n  script:\n    - make\n',
     "the first run adds the header and the entry and keeps the rest");
   assert.equal(merged(once), once);
 
   const noInclude = 'build:\n  script:\n    - make\n';
-  assert.equal(merged(merged(noInclude)), HEADER + 'build:\n  script:\n    - make\n' + 'include:\n' + ENTRY);
+  assert.equal(merged(merged(noInclude)), HEADER + 'build:\n  script:\n    - make\n' + 'include:\n' + ENTRY + BESIDE);
 });
 
 // TST-548003 · level: unit · module: MOD-runtimes
 // guards: UC-010; UC-027
 // given: a product's .gitlab-ci.yml with one job and no include: key
 // input: jobWorkflowFiles("gitlab", …, that text)
-// expect: the text is exactly: the header; the job's lines as they were; then at the end `include:` and the entry with its three inputs
+// expect: the text is exactly: the header; the job's lines as they were; then at the end `include:`, the entry with its three inputs and the entry `- local: ".gitlab/agent-m-main-changed.yml"`
 test("jobWorkflowFiles — a file without include: gets the key and the entry at its end", () => {
-  assert.equal(merged('build:\n  script:\n    - make\n'), HEADER + 'build:\n  script:\n    - make\n' + 'include:\n' + ENTRY);
+  assert.equal(merged('build:\n  script:\n    - make\n'), HEADER + 'build:\n  script:\n    - make\n' + 'include:\n' + ENTRY + BESIDE);
 });
 
 // TST-548004 · level: unit · module: MOD-runtimes
 // guards: UC-010; UC-027
 // given: a product's .gitlab-ci.yml whose include: list stands at the margin (`- local: …` in column 0), with a job after it
 // input: jobWorkflowFiles("gitlab", …, that text)
-// expect: the header; the input's lines; the entry after the last item at the margin's own indentation — `- local: ".gitlab/agent-m-jobs.yml"` in column 0, `inputs:` two spaces in, each input four — and the job after it
+// expect: the header; the input's lines; the entry after the last item at the margin's own indentation — `- local: ".gitlab/agent-m-jobs.yml"` in column 0, `inputs:` two spaces in, each input four —, then `- local: ".gitlab/agent-m-main-changed.yml"` in column 0, and the job after it
 test("jobWorkflowFiles — a list written at the margin gets the entry at the margin", () => {
   assert.equal(merged('include:\n- local: "a.yml"\n\nbuild:\n  script: make\n'), HEADER
     + 'include:\n- local: "a.yml"\n'
     + '- local: ".gitlab/agent-m-jobs.yml"\n  inputs:\n    job: $[[ inputs.job ]]\n    task: $[[ inputs.task ]]\n    endpoint: $[[ inputs.endpoint ]]\n    secret: $[[ inputs.secret ]]\n'
+    + '- local: ".gitlab/agent-m-main-changed.yml"\n'
     + '\nbuild:\n  script: make\n');
 });
 
@@ -96,12 +99,13 @@ test("jobWorkflowFiles — a list written at the margin gets the entry at the ma
 // guards: UC-010; UC-027
 // given: a product's .gitlab-ci.yml whose header already declares the input `stage` and the input `job` with the default "x", and whose include: list already holds the entry for .gitlab/agent-m-jobs.yml passing on `job` only, then a job
 // input: jobWorkflowFiles("gitlab", …, that text)
-// expect: the header keeps `stage` and `job: default "x"` as they are and gains `task` and `endpoint`, each `default: ""`, after `job`, before the `---`; the entry is not added a second time and gains `task` and `endpoint` after its `job` line; every other line is as it was
+// expect: the header keeps `stage` and `job: default "x"` as they are and gains `task` and `endpoint`, each `default: ""`, after `job`, before the `---`; the entry is not added a second time and gains `task` and `endpoint` after its `job` line; the entry `- local: ".gitlab/agent-m-main-changed.yml"` follows it; every other line is as it was
 test("jobWorkflowFiles — a header with other inputs and an entry passing on one input gain only what is missing", () => {
   const own = 'spec:\n  inputs:\n    stage:\n      default: test\n    job:\n      default: "x"\n---\ninclude:\n  - local: ".gitlab/agent-m-jobs.yml"\n    inputs:\n      job: $[[ inputs.job ]]\ntest:\n  script: make\n';
   assert.equal(merged(own),
     'spec:\n  inputs:\n    stage:\n      default: test\n    job:\n      default: "x"\n    task:\n      default: ""\n    endpoint:\n      default: ""\n    secret:\n      default: ""\n---\n'
     + 'include:\n  - local: ".gitlab/agent-m-jobs.yml"\n    inputs:\n      job: $[[ inputs.job ]]\n      task: $[[ inputs.task ]]\n      endpoint: $[[ inputs.endpoint ]]\n      secret: $[[ inputs.secret ]]\n'
+    + BESIDE
     + 'test:\n  script: make\n');
 });
 
@@ -109,12 +113,13 @@ test("jobWorkflowFiles — a header with other inputs and an entry passing on on
 // guards: UC-010; UC-027
 // given: a product's .gitlab-ci.yml with a header declaring no `inputs:` key but another key, and an include: list holding the entry for .gitlab/agent-m-jobs.yml with no `inputs:` under it
 // input: jobWorkflowFiles("gitlab", …, that text)
-// expect: the header gains `  inputs:` with the three inputs, each `default: ""`, after its own key and before the `---`; the entry gains `    inputs:` with the three inputs it passes on, straight after its `local:` line; nothing else changes
+// expect: the header gains `  inputs:` with the three inputs, each `default: ""`, after its own key and before the `---`; the entry gains `    inputs:` with the three inputs it passes on, straight after its `local:` line; the entry `- local: ".gitlab/agent-m-main-changed.yml"` follows it; nothing else changes
 test("jobWorkflowFiles — a header without inputs: and an entry without inputs: gain them", () => {
   const own = 'spec:\n  description: mine\n---\ninclude:\n  - local: ".gitlab/agent-m-jobs.yml"\ntest:\n  script: make\n';
   assert.equal(merged(own),
     'spec:\n  description: mine\n  inputs:\n    job:\n      default: ""\n    task:\n      default: ""\n    endpoint:\n      default: ""\n    secret:\n      default: ""\n---\n'
     + 'include:\n  - local: ".gitlab/agent-m-jobs.yml"\n    inputs:\n      job: $[[ inputs.job ]]\n      task: $[[ inputs.task ]]\n      endpoint: $[[ inputs.endpoint ]]\n      secret: $[[ inputs.secret ]]\n'
+    + BESIDE
     + 'test:\n  script: make\n');
 });
 
@@ -142,9 +147,9 @@ test("jobWorkflowFiles — an include: that is not a list is refused as GitlabCi
 // guards: UC-010; UC-027
 // given: no .gitlab-ci.yml of the product (gitlabCi null, and the parameter left out)
 // input: jobWorkflowFiles("gitlab", …) both ways
-// expect: both give, as the second file, exactly the whole file: the header with the three inputs, then `include:` with the entry and its three inputs; and a text that holds all three additions already is returned unchanged
+// expect: both give, as the second file, exactly the whole file: the header with the three inputs, then `include:` with the entry and its three inputs and the entry `- local: ".gitlab/agent-m-main-changed.yml"`; and a text that holds all three additions already is returned unchanged
 test("jobWorkflowFiles — with no .gitlab-ci.yml it gives the whole file", () => {
-  const whole = HEADER + 'include:\n' + ENTRY;
+  const whole = HEADER + 'include:\n' + ENTRY + BESIDE;
   assert.equal(merged(null), whole);
   assert.equal(jobWorkflowFiles("gitlab", INSTANCE, SECRETS, []).find((file) => file.path === ".gitlab-ci.yml").text, whole);
   assert.equal(merged(whole), whole);
