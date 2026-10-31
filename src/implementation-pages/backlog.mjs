@@ -266,14 +266,15 @@ function planPanel(context, ctx, team) {
       "where the declaration gives one; while the sprint runs, a new selection is added to its record.</p>")}</section>`;
 }
 
-// What the other teams' sprints hold, beside `team`'s plan (UC-032 step 5): each item with its title, the sprint that holds it, the modules it changes and the modules whose interfaces those use.
+// What the other teams' sprints hold, beside the backlog and `team`'s plan (UC-032 step 5): each item with its title, the sprint that holds it — `<team>/<nn>`, which names its team —,
+// the modules it changes and the modules whose interfaces those use. Without a plan open (`team` null), what every team's sprint holds.
 function heldPanel(context, ctx, team) {
   const others = ctx.view.rows.filter((row) => row.held && row.held.team !== team);
   const rows = others.map((row) => `<tr data-held="${h(row.item)}"><td data-label="Item">${fileLink(context, ctx.ref, row.path, h(row.item))}</td><td data-label="Title">${h(row.title)}</td>
       <td data-label="Sprint">${h(row.held.sprint)}</td><td class="small" data-label="Changes">${row.held.changes.map(h).join(", ") || "—"}</td><td class="small" data-label="Uses">${row.held.uses.map(h).join(", ") || "—"}</td></tr>`).join("");
-  return `<section class="panel" data-part="held"><h3>What the other teams' sprints hold</h3>
+  return `<section class="panel" data-part="held"><h3>What the ${team ? "other " : ""}teams' sprints hold</h3>
     ${others.length ? `<div class="table-scroll" tabindex="0"><table class="list"><thead><tr><th>Item</th><th>Title</th><th>Sprint</th><th>Changes</th><th>Uses</th></tr></thead>
-      <tbody>${rows}</tbody></table></div>` : `<p class="muted">No other team's sprint holds an item.</p>`}
+      <tbody>${rows}</tbody></table></div>` : `<p class="muted">No ${team ? "other " : ""}team's sprint holds an item.</p>`}
     ${whatIsThis("<p>A sprint holds the items it selected from its start until their change is merged into the default branch or " +
       "they go back to the backlog — after its close too, while its increment waits on its own branch. While another team's " +
       "sprint holds an item, this team selects neither that item nor one that changes a module the item changes or uses, or " +
@@ -571,7 +572,7 @@ async function paint(target, context, ctx, team) {
         "then what is accepted but realised by no item yet. Everything is derived from the repository and its pull requests, for the commit shown.</p>")}</section>
     ${teamsPart}
     ${planning ? planPanel(context, ctx, planning) : ""}
-    ${planning && teams.length > 1 ? heldPanel(context, ctx, planning) : ""}
+    ${sprints && teams.length > 1 ? heldPanel(context, ctx, planning) : ""}
     ${backlogPanel(context, ctx)}
     ${uncoveredPanel(ctx)}`;
   await drawCharts(target);
