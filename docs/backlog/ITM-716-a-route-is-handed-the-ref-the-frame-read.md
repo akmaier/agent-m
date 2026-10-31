@@ -39,6 +39,22 @@ has read it for the page" (MOD-site-frame.md:163), and the frame calls it before
 
 ## Acceptance
 
-- With a token, `#uc`, `#arc` and `#review/uc` send their commit and tree once and their batches, and no `repositoryInfo`
-  beyond those the page needs for writing or visibility. `load-per-view.test.mjs` counts it.
+- With a token, `#uc`, `#arc` and `#review/uc` send their commit and tree once and their batches, and MOD-review-pages
+  itself asks no `repositoryInfo` beyond those the page needs for writing or visibility. `load-per-view.test.mjs` counts
+  it. The `repositoryInfo` of MOD-trace-pages on `#arc` (`onDefaultBranch`) and of MOD-approvals on `#review/uc`
+  (`lastAcceptedText`) stay: they are not this item's modules.
 - Whether the person may write is still shown where the pages show it today.
+- After a decision written on a page (*Accept*, *Save*, *Reject*), the page is drawn again with the commit the write
+  named (MOD-review-pages.md:206), read through `readSnapshot` at that commit, not through the default branch. The
+  release cases of UC-008 1–5, 3a and UC-006 1–7, 3a, 5a in `tests/release-sprint-01-dashboard-app.test.mjs` (`:408`,
+  `:473`, `:635`, `:650`, `:666`, `:913`) stay green unchanged, and its `:387` count stays.
+- The existing expectations this item changes, each named in the tests-only commit (old → new):
+  - `tests/load-per-view.test.mjs`: `:127` (TST-1266101) repository 1 → 0; `:237` 1 → 0 and `:238` on `#arc` 0 → 1 —
+    the page still reads the repository's information once while it is open; `:353` (TST-1266110) 1 → 0; `:366`
+    1 → 0; `:432`, `:434` (TST-1266105) without "repository"; `:462` (TST-1266106) `#use-case`/`#decision` 1 → 0;
+    `:491` (TST-1319007) the pulled product's `{ repository: 1 }` against the plain one's `{ repository: 0 }`; `:508`
+    `#use-case`/`#decision` 1 → 0; `:522`, `:524` (TST-1266107) without "repository".
+  - `tests/release-itm-1319-page-reads.test.mjs:57` (TST-1319204): the pulled product's repository 0 → 1 against the
+    plain one; this is developer-sonnet-l's commit, as the release test of another item.
+  The pull request names the caller of the `repositoryInfo` the pulled product keeps.
+- The first commit holds only the tests, and CI is red on it. No stub is committed.
