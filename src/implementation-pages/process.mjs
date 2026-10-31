@@ -115,7 +115,9 @@ export const route = {
   title: "How this product is developed",
 
   async render(target, context) {
-    const { instance, product } = context;
+    // The empty product is the instance itself (MOD-site-frame's ViewContext).
+    const { instance } = context;
+    const product = context.product ?? instance;
 
     const [productInfo, instanceInfo] = await Promise.all([product.host.repositoryInfo(), instance.host.repositoryInfo()]);
     const [productSnapshot, instanceSnapshot] = await Promise.all([

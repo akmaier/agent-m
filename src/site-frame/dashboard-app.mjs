@@ -237,6 +237,8 @@ export function deriveTarget({ hostname, pathname, search, hash }) {
 
 // The instance is the fork this page is served from; the product is chosen with ?repo= or ?product= (SPEC §10). Set by start().
 let T, GITLAB, SERVER, store, host, hostAddress, hostToken, snapshot, snapshotHost;
+// The load's first read of the branch, which a route shown before it ends — #settings — waits for.
+let firstLoad = null;
 // `store` is this browser's MOD-browser-store store of the instance (openStore), read by its catalogue's keys.
 // The GitHub token (the instance's key, UC-014): the value of the setting `github-token`.
 const ghToken = () => readSetting(store, "github-token")?.value ?? null;
@@ -716,6 +718,18 @@ async function renderProductRoute(view, name, params) {
   }
 }
 
+// A route drawn with the review pages' context — the app's own host, which hands the snapshot this load read, and no product for the instance itself
+// (MOD-site-frame's ViewContext) —, so that it reads the repository it shows no second time: #roles, #process and #release.
+async function renderLoaded(route, params) {
+  loading += 1;
+  try {
+    shownContext = reviewContext();
+    await route.render(main(), shownContext, params);
+  } finally {
+    loading -= 1;
+  }
+}
+
 // Each route draws into an element of its own in <main>: a route that was left meanwhile draws into an element no longer there.
 async function renderReviewPages(targets, lead = []) {
   const context = reviewContext();
@@ -852,23 +866,27 @@ async function route() {
     } else if (kind === "how") {
       renderHow();
     } else if (kind === "settings") {
+      // The review pages' context — the app's own host, which hands the snapshot this load read —, once the load has read it (A PAGE LOAD READS THE REPOSITORY
+      // IN BATCHES); a load that failed leaves the page to read for itself, so that Settings still opens. For the instance itself the product's section shows the
+      // instance, through that same host.
+      await firstLoad?.catch(() => {});
       const settings = settingsPages.routes.find((r) => r.name === "settings");
-      const settingsStore = openStore(T.instance);
-      const address = parseAddress(T.product.address);
-      await settings.render(main(), {
-        instance: {
-          repository: T.instance,
-          host: connect(parseAddress(`https://github.com/${T.instance}`), { token: ghToken(), secrets: secrets() }),
-        },
-        product: { address: T.product.address, kind: address.server, host: connect(address, { token: token(), secrets: secrets() }) },
-        store: settingsStore,
-        go(route, params = {}) {
-          if (route === "add-product") location.hash = params.address ? `#add/${encodeURIComponent(params.address)}` : "#add";
-          if (route === "endpoints") location.hash = params.name ? `#endpoints/${encodeURIComponent(params.name)}` : "#endpoints";
-          if (route === "bridge") location.hash = "#bridge";
-          if (route === "main") location.search = productHref(productOf(params.product)).slice(1);
-        },
-      }, {});
+      loading += 1;
+      try {
+        const shown = reviewContext();
+        await settings.render(main(), {
+          ...shown,
+          product: shown.product ?? { address: T.product.address, kind: "github", host: shown.instance.host, tokenStored: Boolean(token()) },
+          go(route, params = {}) {
+            if (route === "add-product") location.hash = params.address ? `#add/${encodeURIComponent(params.address)}` : "#add";
+            if (route === "endpoints") location.hash = params.name ? `#endpoints/${encodeURIComponent(params.name)}` : "#endpoints";
+            if (route === "bridge") location.hash = "#bridge";
+            if (route === "main") location.search = productHref(productOf(params.product)).slice(1);
+          },
+        }, {});
+      } finally {
+        loading -= 1;
+      }
     } else if (kind === "add" || kind === "add-product") {
       const addProduct = settingsPages.routes.find((r) => r.name === "add-product");
       await addProduct.render(main(), {
@@ -912,12 +930,7 @@ async function route() {
         },
       }, {});
     } else if (kind === "release") {
-      const releasePanel = testPages.routes.find((r) => r.name === "release");
-      shownContext = {
-        instance: { host: connect(parseAddress(`https://github.com/${T.instance}`), { token: ghToken() }) },
-        product: { host: connect(parseAddress(T.product.address), { token: token() }) },
-      };
-      await releasePanel.render(main(), shownContext, {});
+      await renderLoaded(testPages.routes.find((r) => r.name === "release"), {});
     } else if (kind === "runs" || kind === "schedule" || kind === "generate") {
       await renderProductRoute(testPages, kind, routeOf(location.hash).params);
     } else if (kind === "trace") {
@@ -942,10 +955,8 @@ async function route() {
         },
       }, routeOf(location.hash).params);
     } else if (kind === "process" || kind === "roles") {
-      // The product and the instance, each connected with its own token: the route reads and builds everything the page shows.
       const route = implementationPages.routes.find((r) => r.name === kind);
-      const hosts = { instance: { host: connect(parseAddress(`https://github.com/${T.instance}`), { token: ghToken() }) }, product: { host: connect(parseAddress(T.product.address), { token: token() }) } };
-      await route.render(main(), hosts);
+      await renderLoaded(route, {});
       if (kind === "process") main().insertAdjacentHTML("afterbegin", `<section class="head"><h2>${h(route.title)}</h2></section>`);
     } else if (kind === "backlog") {
       loading += 1;
@@ -1025,7 +1036,8 @@ async function start() {
   }
   try {
     const { kind, a, b, unavailableEntry } = addressShown();
-    await loadSnapshot(unavailableEntry ? null : foldersOf(kind, a, b));
+    firstLoad = loadSnapshot(unavailableEntry ? null : foldersOf(kind, a, b));
+    await firstLoad;
     document.getElementById("repo-line").innerHTML =
       `<a href="${h(T.product.address)}" target="_blank" rel="noopener">${h(GITLAB ? T.product.address : T.repo)}</a> · ${h(T.ref)} · <code>${h(state.commit.slice(0, 12))}</code>`;
   } catch (e) {
