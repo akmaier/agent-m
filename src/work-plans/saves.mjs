@@ -93,7 +93,7 @@ async function refusals(ids, selection, team, { states, held, architecture }, sn
  * null, head: string, trailers: string[] }) -> Promise<{ commit: string, path: string, added: string[], removed: string[] }>
  * — Start sprint, for one team. A new sprint is docs/backlog/sprints/<team>/<nn>.md, with the team's next number; its end the
  * date the model's time box gives from its start, empty without one; its branch the one the declaration gives the time box,
- * its placeholders <team> and <nn> filled, created from the head — empty, and none created, where the declaration gives none.
+ * its placeholders <team> and <nn> filled, created from the head after the record's commit is written — empty, and none created, where the declaration gives none.
  * While `running` runs, the decision is appended to it as ## Selection, at `start`, and `added` and `removed` name what it
  * changes. Each item it selects — of a running sprint, each it adds — is checked first; one waiting for acceptance, one
  * selected without the items it builds on that are not done, or one that `conflicts` names refuses the start with
@@ -128,9 +128,10 @@ export async function startSprint(host, sprint, context) {
   const branch = sprintBranch(declaration, team, nn);
   const record = writeDocument(sprintSchema, { fields: { sprint: Number(nn), goal, start, end: days === null ? "" : plusDays(start, days - 1),
     closer, branch, selection: chosen }, body: `# ${team} Sprint ${nn}\n`, sections: [], appended: [] });
-  if (branch) await host.createBranch(branch, head);
   const { commit } = await host.commitFiles({ branch: defaultBranch, expectedHead: head, files: [{ path, text: record }],
     message: message(`Start sprint ${team}/${nn}: ${goal}`, trailers) });
+  // Created only once the record is committed, from the head that commit was written on: a start refused as Moved leaves no branch.
+  if (branch) await host.createBranch(branch, head);
   return { commit, path, added: chosen, removed: [] };
 }
 
