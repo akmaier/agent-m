@@ -56,5 +56,8 @@ has read it for the page" (MOD-site-frame.md:163), and the frame calls it before
     `#use-case`/`#decision` 1 → 0; `:522`, `:524` (TST-1266107) without "repository".
   - `tests/release-itm-1319-page-reads.test.mjs:57` (TST-1319204): the pulled product's repository 0 → 1 against the
     plain one; this is developer-sonnet-l's commit, as the release test of another item.
+  - `tests/review-pages-release-reports.test.mjs` (header: MOD-review-pages): only how it prepares its fixture changes —
+    the fake host at `:83` also serves the commit its `commitFiles` returns, so that the page drawn again at that commit
+    can be read (TST-910103, `:186`); no expected result changes.
   The pull request names the caller of the `repositoryInfo` the pulled product keeps.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
