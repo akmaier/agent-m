@@ -45,7 +45,7 @@ const filesByThemselves = (requests) => requests.filter((request) => request.sta
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; ACCEPTING A USE CASE PUTS THE MODULES IT CHANGES INTO THE BACKLOG; THE PAGE NAMES WHERE IT SENDS
 // given: the fixture product with a token, once as it is and once declaring a pulled model (fixture-scrum-wip at the commit the page reads) with the model's file and a register with checker-a
 // input: open #use-case, #use-case/id=UC-002 and #use-case/id=all, each in a load of its own, for both products
-// expect: known positive — #use-case of the product as it is reads its commit once, the request for its folders once and one batch of 2 files, and no git tree; in the pulled product each page names checker-a beside Accept, reads its commit once and no tree, and sends as many commit, tree, folders and repository requests as the same page of the product as it is; docs/process.md and SPEC.md are read in batches, none by itself
+// expect: known positive — #use-case of the product as it is reads its commit once, the request for its folders once and one batch of 2 files, and no git tree; in the pulled product each page names checker-a beside Accept, reads its commit once and no tree, and sends as many commit, tree and folders requests as the same page of the product as it is, and one repository request where the product as it is sends none; docs/process.md and SPEC.md are read in batches, none by itself
 test("TST-1319204: a page of use cases in a pulled product reads its commit once, as it does without the declaration, and names the checking participant", async () => {
   const plainList = await openDashboard({ server: await repoServer({ files: base }), hash: "#use-case" });
   assert.deepEqual(plainList.requests.filter((request) => ["commit", "folders", "tree"].includes(request) || request.startsWith("batch ")), ["commit", "folders", "batch 2"], "known positive: the base's requests");
@@ -54,7 +54,8 @@ test("TST-1319204: a page of use cases in a pulled product reads its commit once
     const pulled = await openDashboard({ server: await repoServer({ files: { ...base, ...PULLED } }), hash });
     assert.match(pulled.main(), /class="participant">checker-a</, `${hash}: checker-a is named beside Accept`);
     assert.doesNotMatch(plain.main(), /class="participant"/, `${hash}: the product as it is names none`);
-    assert.deepEqual(perLoad(pulled.requests), perLoad(plain.requests), `${hash}: commit, tree, folders and repository as often as without the declaration`);
+    assert.equal(perLoad(plain.requests).repository, 0, `${hash}: the product as it is asks no repository information`);
+    assert.deepEqual(perLoad(pulled.requests), { ...perLoad(plain.requests), repository: 1 }, `${hash}: commit, tree and folders as often as without the declaration, and the repository information once for the pulled product`);
     assert.equal(perLoad(pulled.requests).commit, 1, `${hash}: the commit once`);
     assert.equal(perLoad(pulled.requests).tree, 0, `${hash}: no tree beside the folders`);
     assert.deepEqual(filesByThemselves(pulled.requests).filter((request) => /docs\/process\.md|SPEC\.md/.test(request)), [], `${hash}: docs/process.md and SPEC.md are read in batches`);
