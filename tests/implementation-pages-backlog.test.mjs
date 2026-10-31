@@ -141,11 +141,11 @@ const row = (html, item) => { const at = html.indexOf(`data-item="${item}"`); re
 // guards: UC-032; UC-035
 // given: the fixture product with both teams named by their role assignments
 // input: the route backlog's render
-// expect: the route is named backlog, under the entry implementation, titled Backlog; the page holds the head, then team1's panel, then team2's, then the backlog, then the names no item realises yet — in that order —, and a folded What is this? in the head
-test("the backlog page shows the teams' sprints first, then the backlog, then what no item realises yet", async () => {
+// expect: the route is named backlog, under the entry implementation, titled Backlog; the page holds the head, then the names no item realises yet, then team1's panel, then team2's, then the backlog — in that order —, and a folded What is this? in the head
+test("the backlog page shows what no item realises yet first, then the teams' sprints, then the backlog", async () => {
   assert.deepEqual([route.name, route.entry, route.title], ["backlog", "implementation", "Backlog"]);
   const { html } = await render(fixtureFiles());
-  const order = ['<section class="head"', 'data-team="team1"', 'data-team="team2"', 'data-part="backlog"', 'data-part="uncovered"'].map((marker) => html.indexOf(marker));
+  const order = ['<section class="head"', 'data-part="uncovered"', 'data-team="team1"', 'data-team="team2"', 'data-part="backlog"'].map((marker) => html.indexOf(marker));
   assert.ok(order.every((at) => at >= 0), String(order));
   assert.deepEqual([...order].sort((a, b) => a - b), order);
   assert.match(part(html, '<section class="head"'), /<details class="explain"><summary>What is this\?<\/summary>/);

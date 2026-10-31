@@ -160,11 +160,11 @@ const row = (html, item) => { const at = html.indexOf(`data-item="${item}"`); re
 // guards: UC-032; UC-035; the user's order of the page
 // given: the fixture product, both teams named by their role assignments
 // input: open #backlog
-// expect: the head, then team1's panel, then team2's, then the backlog, then the names no item realises yet — in that order
-test("#backlog — the teams' sprints come first, then the backlog, then what no item realises yet", async () => {
+// expect: the head, then the names no item realises yet, then team1's panel, then team2's, then the backlog — in that order
+test("#backlog — what no item realises yet comes first, then the teams' sprints, then the backlog", async () => {
   const { page } = await backlogPage();
   const html = page.main();
-  const order = ['<section class="head"', 'data-team="team1"', 'data-team="team2"', 'data-part="backlog"', 'data-part="uncovered"']
+  const order = ['<section class="head"', 'data-part="uncovered"', 'data-team="team1"', 'data-team="team2"', 'data-part="backlog"']
     .map((marker) => html.indexOf(marker));
   assert.ok(order.every((at) => at >= 0), String(order));
   assert.deepEqual([...order].sort((a, b) => a - b), order);
