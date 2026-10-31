@@ -12,7 +12,6 @@
 // Where the pages and UC-032 disagree the case follows UC-032 and is marked { todo } with the finding it reports; every other case is green. The findings:
 //   UC032-S1  step 1: a row of the backlog shows no origin ("where it came from").
 //   UC032-S2  step 1: the accepted requirements and use cases that no item realises yet stand below the backlog, not at the top of the page.
-//   UC032-S3  step 5: what the other teams' sprints hold is listed only once Plan sprint is open, not beside the backlog.
 //   UC032-S4  step 6a: a changed selection is committed and named by its file; the page does not show what it removes or adds.
 //   UC032-S5  step 6c: Start sprint, pressed after another team committed its sprint, is refused as "main has moved on"; it names no sprint, held item or module and shows no mark anew.
 //   UC032-S6  step 1b: a product whose model plans its work still gets the backlog drawn, and its link leads to Progress, not to the implementation plan.
@@ -51,6 +50,7 @@ const FLOW_EVIDENCE = {
   "main-3-drafts": { uc: "Agent M rejects a draft that realises nothing, names no module the architecture describes, or builds on an item that does not exist or that builds on it in turn, and flags a draft that restates an existing item.", evidence: [[SELF, "TST-803007"]] },
   "main-4-add": { uc: "edits or discards drafts and presses", evidence: [[SELF, "TST-803006"], [RELEASE_PROPOSAL, "TST-803106"]] },
   "main-5-marks": { uc: "It marks every item that cannot be selected because of one of them, naming the sprint, the held item and the module", evidence: [[SELF, "TST-803011"]] },
+  "main-5-held-beside-the-backlog": { uc: "Agent M lists beside the backlog every", evidence: [[SELF, "TST-803012"]] },
   "main-5-one-team": { uc: "With one team, there is nothing to list.", evidence: [[SELF, "TST-803011"]] },
   "main-6-selection": { uc: "marked are shown but cannot be selected; an item is selected only together with, or after, the items it builds on", evidence: [[SELF, "TST-803011"], [SELF, "TST-803013"]] },
   "main-6-commit": { uc: "numbered within the team, on the branch `sprint/<team>/<nn>`", evidence: [[SELF, "TST-803013"]] },
@@ -79,7 +79,6 @@ const FLOW_EVIDENCE = {
 const FLOW_FINDINGS = {
   "1-origin": { uc: "where it came from", finding: "UC032-S1", file: SELF, test: "TST-803005" },
   "1-uncovered-at-the-top": { uc: "The top of the page shows accepted requirements and use cases that no item realises yet.", finding: "UC032-S2", file: SELF, test: "TST-803004" },
-  "5-held-beside-the-backlog": { uc: "Agent M lists beside the backlog every", finding: "UC032-S3", file: SELF, test: "TST-803012" },
   "6a-shows-what-it-removes-or-adds": { uc: "Changing the sprint selection is a new **Start sprint** decision, and Agent M shows what", finding: "UC032-S4", file: SELF, test: "TST-803014" },
   "6c-names-the-collision": { uc: "is refused and names the sprint, the held item and the module", finding: "UC032-S5", file: SELF, test: "TST-803015" },
   "1b-link-to-the-plan": { uc: "There is no backlog. Agent M links to the implementation plan (UC-045).", finding: "UC032-S6", file: SELF, test: "TST-803024" },
@@ -400,9 +399,8 @@ test("TST-803011: UC-032 5 and 6 the plan of a team lists every item the other t
 // guards: UC-032; SPRINT PLANNING SHOWS WHAT THE OTHER TEAMS' SPRINTS HOLD
 // given: the product of TST-803011, whose team1 sprint holds ITM-002; known positive first — with Plan sprint open the held item is listed
 // input: the Product Owner opens Backlog, without pressing Plan sprint
-// expect: known positive — Plan sprint lists ITM-002 as held by team1/02, changing MOD-pages and using MOD-store; UC-032 step 5 says Agent M lists beside the backlog every item that another team's sprint holds, each with its sprint, team and modules: the page of the backlog, with no planning open, holds that list. FINDING: it is drawn only beside a team's open plan
-test("TST-803012: UC-032 5 the backlog lists beside it every item that another team's sprint holds",
-  { todo: "FINDING UC032-S3 — heldPanel is drawn by paint (src/implementation-pages/backlog.mjs) only where a plan is open (`planning && teams.length > 1`); the backlog without a plan lists no held item, only a mark on each row" }, async () => {
+// expect: known positive — Plan sprint lists ITM-002 as held by team1/02, changing MOD-pages and using MOD-store; UC-032 step 5 says Agent M lists beside the backlog every item that another team's sprint holds, each with its sprint, team and modules: the page of the backlog, with no planning open, holds that list.
+test("TST-803012: UC-032 5 the backlog lists beside it every item that another team's sprint holds", async () => {
   const page = await open("backlog", {}, { files: await product() });
   try {
     await planOf(page, "team2");
