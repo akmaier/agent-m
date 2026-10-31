@@ -289,7 +289,7 @@ test("items of four digits stand in the order of their numbers, and what no item
 // guards: UC-002; UC-032
 // given: a product that declares no process model; one whose declaration names a model file the catalogue does not hold; one whose model plans its work in advance (a V-model); one whose model works without sprints (Kanban, with a limit of 3)
 // input: the route's render for each
-// expect: the first says the product declares no process model yet and names docs/process.md; the second names the model file that the catalogue does not hold; the third says there is no backlog and links Progress; the fourth shows no team panel and the part Work in progress with its limit
+// expect: the first says the product declares no process model yet and names docs/process.md; the second names the model file that the catalogue does not hold; the third says there is no backlog and links the implementation plan, #plan; the fourth shows no team panel and the part Work in progress with its limit
 test("the page says what is missing or what does not apply: no model, an unknown model file, a planned model, a model without sprints", async () => {
   const withoutDeclaration = fixtureFiles();
   delete withoutDeclaration["docs/process.md"];
@@ -298,7 +298,7 @@ test("the page says what is missing or what does not apply: no model, an unknown
   const unknown = await render({ ...fixtureFiles(), "docs/process.md": DECLARATION.replace("docs/process-models/fixture.md", "docs/process-models/missing.md") });
   assert.match(unknown.html, /names the model file <code>docs\/process-models\/missing\.md<\/code>, which the catalogue does not hold/);
   const planned = await render({ ...fixtureFiles(), "docs/process.md": DECLARATION.replace("model: fixture-scrum-wip", "model: v-model").replace("docs/process-models/fixture.md", "src/model-catalogue/models/v-model.md") });
-  assert.match(planned.html, /plans its work in advance: there is no backlog.*<a href="#progress">Progress<\/a>/s);
+  assert.match(planned.html, /plans its work in advance: there is no backlog.*<a href="#plan">/s);
   const kanban = await render({ ...fixtureFiles(), "docs/process.md": DECLARATION.replace("model: fixture-scrum-wip", "model: kanban").replace("docs/process-models/fixture.md", "src/model-catalogue/models/kanban.md") });
   assert.doesNotMatch(kanban.html, /data-team=/);
   assert.match(kanban.html, /data-part="flow"/);
