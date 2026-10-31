@@ -110,9 +110,11 @@ const problemLine = (what, failure) => el("p", "traces-problem", `${what} could 
 const failedRead = (className, what, failure, context) => el("div", className, `${what} could not be read: `, readProblem(failure, context.product.tokenStored !== false));
 // A product's page whose graph is not stored: after GraphNotStored's line, the step that stores it, since the file that runs onMainChanged is written by Install
 // (MOD-runtimes' jobWorkflowFiles); the instance's own page shows the line alone, its workflow "main changed" being the instance's own. The instance's page is the
-// one whose product is the instance's repository on github.com.
-const ofInstance = (context) => typeof context.instance?.repository === "string"
-  && String(context.product?.address ?? "").replace(/(\.git)?\/*$/, "") === `https://github.com/${context.instance.repository}`;
+// one whose product is the instance's repository on github.com (#trace), or whose product is read through the instance's own host — the context #spec and #arc
+// hand the route, `{ instance: { host }, product: { host } }`, naming no address.
+const ofInstance = (context) => (context.product?.host !== undefined && context.product.host === context.instance?.host)
+  || (typeof context.instance?.repository === "string"
+    && String(context.product?.address ?? "").replace(/(\.git)?\/*$/, "") === `https://github.com/${context.instance.repository}`);
 const notStoredStep = (failure, context) => (failure?.name === "GraphNotStored" && !ofInstance(context)
   ? [el("p", "graph-not-stored-step", "This product's graph is not stored yet: press Install on its Settings page.")] : []);
 const listOf = (items) => el("ul", "trace-list", ...items.map((item) => el("li", null, item)));
