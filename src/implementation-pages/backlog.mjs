@@ -568,13 +568,13 @@ async function paint(target, context, ctx, team) {
       <p class="muted">${h(context.product.address)} · <code>${h(ctx.ref)}</code> · derived from the repository and its pull requests; nothing here is a stored status.${sprints ? ` What goes on now stands on <a href="#progress">Progress</a>.` : ""}</p>
       ${ctx.asOf ? asOfLine(ctx.asOf) : ""}
       ${noModel}${planned}
-      ${whatIsThis("<p>First each team: its last sprint that has ended and its final burn-down; then the backlog with the state of each item; " +
-        "then what is accepted but realised by no item yet. Everything is derived from the repository and its pull requests, for the commit shown.</p>")}</section>
+      ${whatIsThis("<p>First what is accepted but realised by no item yet; then each team: its last sprint that has ended and its final burn-down; " +
+        "then the backlog with the state of each item. Everything is derived from the repository and its pull requests, for the commit shown.</p>")}</section>
+    ${uncoveredPanel(ctx)}
     ${teamsPart}
     ${planning ? planPanel(context, ctx, planning) : ""}
     ${sprints && teams.length > 1 ? heldPanel(context, ctx, planning) : ""}
-    ${backlogPanel(context, ctx)}
-    ${uncoveredPanel(ctx)}`;
+    ${backlogPanel(context, ctx)}`;
   await drawCharts(target);
 
   // Propose items and + Item read only on the person's click (UC-032 steps 2 to 4, 2a).
