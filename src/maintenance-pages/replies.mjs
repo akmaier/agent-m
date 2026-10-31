@@ -35,6 +35,7 @@ import { queueJob, runOnTab } from "../runtimes/index.mjs";
 import { confirmDecision, runPanel } from "../site-frame/index.mjs";
 import { peopleIn } from "../personal-data/index.mjs";
 import { connectionsOf, mailboxOf, mailSubject, productsOf } from "./mail.mjs";
+import { heads } from "./index.mjs";
 
 const REGISTER = "docs/participants.md";
 const JOB_FILE = /^docs\/jobs\/(JOB-[^/]+)\.md$/;
@@ -375,4 +376,4 @@ const shownMails = () => (last ? GROUPS.flatMap(([, field]) => last.due[field]).
   people: peopleIn({ addresses: [mail.from, ...(mail.replyTo ?? []), ...(mail.to ?? []), ...(mail.cc ?? [])], text: mail.text }) })) : []);
 const subject = (params, context) => mailSubject({ key: "replies", title: "Replies", entries: shownMails, store: context.store });
 
-export const route = { name: "replies", entry: "maintenance", title: "Replies", render, subject };
+export const route = { ...heads.replies, render, subject };

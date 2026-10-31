@@ -20,6 +20,7 @@ import { fileDrafts } from "./file-drafts.mjs";
 import { loadStage } from "./jobs.mjs";
 import { requirementsDraft } from "./requirements-draft.mjs";
 import { changeImpact, dueDiligenceSection, graphOnce, roundsSection, splitDueDiligence } from "./sections.mjs";
+import { heads } from "./index.mjs";
 
 // The schema of the kind of reviewed file that owns a path, among those of MOD-documents.
 const OWNERS = [[/^docs\/use-cases\/UC-[^/]+\.md$/, "useCase"], [/^docs\/architecture\/ARC-[^/]+\.md$/, "decision"], [/^docs\/architecture\/MOD-[^/]+\.md$/, "module"]];
@@ -146,4 +147,4 @@ function leave() {
   return closed;
 }
 
-export const draftRoute = { name: "draft", entry: null, title: "The draft of the conversation", render, subject, leave, unsaved: () => held !== null && held.unsaved(), reads: place.reads };
+export const draftRoute = { ...heads.draftRoute, render, subject, leave, unsaved: () => held !== null && held.unsaved(), reads: place.reads };

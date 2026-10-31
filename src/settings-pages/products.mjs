@@ -36,6 +36,7 @@ import { parseAddress, connect } from "../repository-hosts/index.mjs";
 import { reviewLayoutCommit } from "../artifact-edits/index.mjs";
 import { readSetting, secretValues, writeSetting } from "../browser-store/index.mjs";
 import { explain, tokenKeyOf } from "../site-frame/index.mjs";
+import { heads } from "./index.mjs";
 
 export const TOKEN_DAYS = 90;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -484,9 +485,7 @@ function renderSteps(container, context, text) {
 }
 
 export const route = {
-  name: "add-product",
-  entry: "settings",
-  title: "Add a product",
+  ...heads.addProduct,
   // params: unused — add-product takes none (the route's own fragment is just "add-product"); kept for the Route's
   // contract, render(target, context, params).
   async render(target, context, params) {

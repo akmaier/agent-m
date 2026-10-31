@@ -32,6 +32,7 @@ import { queueJob, routesFor, liveState } from "../runtimes/index.mjs";
 import { resourceSchema } from "../resource-list/index.mjs";
 import { runPanel, explain } from "../site-frame/index.mjs";
 import { testsHead, readsAt, column, listTable } from "./look.mjs";
+import { heads } from "./index.mjs";
 
 const SCHEDULE_PATH = "docs/tests/schedule.md";
 const PARTICIPANTS_PATH = "docs/participants.md";
@@ -410,4 +411,4 @@ async function render(target, context, params = {}) {
   chooser(target, context, { history, pulls, tags, branch: info.defaultBranch });
 }
 
-export const route = { name: "runs", entry: "tests", title: "Runs", render };
+export const route = { ...heads.runs, render };

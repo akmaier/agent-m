@@ -42,6 +42,7 @@ import { explain, runPanel, readProblem } from "../site-frame/index.mjs";
 import { reachableBy, resourceSchema } from "../resource-list/index.mjs";
 import { readRegister } from "../documents/index.mjs";
 import { testsHead, readsAt, column, listTable, LEVEL_TOPIC } from "./look.mjs";
+import { heads } from "./index.mjs";
 
 const REGISTER = "docs/participants.md";
 const WORKFLOWS = [".github/workflows/agent-m-jobs.yml", ".gitlab/agent-m-jobs.yml"];
@@ -51,7 +52,7 @@ const LEVELS = ["unit", "component", "system", "release", "user"];
 const FITTING = { requirement: ["release", "user"], UC: ["system"], MOD: ["unit", "component"] };
 const PARAMETER = { requirement: "requirements", UC: "useCases", MOD: "modules" };
 
-const TITLE = "Generate tests";
+const TITLE = heads.generate.title;
 
 function el(name, className, ...children) {
   const node = document.createElement(name);
@@ -390,4 +391,4 @@ async function render(target, context, params = {}) {
   stage.replaceChildren();
 }
 
-export const route = { name: "generate", entry: "tests", title: TITLE, render };
+export const route = { ...heads.generate, render };

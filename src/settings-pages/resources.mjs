@@ -33,6 +33,7 @@ import { checkPlan, namedBy, newerState, readPin, resourceFindings, resourceSche
 import { queueJob, routesFor } from "../runtimes/index.mjs";
 import { explain, runPanel, schemaForm } from "../site-frame/index.mjs";
 import { credentialsFor } from "./products.mjs";
+import { heads } from "./index.mjs";
 
 const PATH = "docs/resources.md";
 const PARTICIPANTS = "docs/participants.md";
@@ -107,9 +108,7 @@ const checksOf = (document_) => {
 };
 
 export const route = {
-  name: "resources",
-  entry: "settings",
-  title: "Resources",
+  ...heads.resources,
   async render(target, context) {
     const product = context.product;
     const place = product ? { host: product.host, label: product.address, address: product.address, ofInstance: false }

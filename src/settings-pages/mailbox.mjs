@@ -26,6 +26,7 @@ import { mailbox, providerLinks, routeFor, signIn } from "../mail-routes/index.m
 import { pagesAddress } from "../identifiers/index.mjs";
 import { participantSchema } from "../participant-list/index.mjs";
 import { explain } from "../site-frame/index.mjs";
+import { heads } from "./index.mjs";
 
 const SECURITY_OF_PORT = { imap: { 993: "tls" }, smtp: { 587: "starttls", 465: "tls" } };
 const MEMBER_STATES = ["Austria", "Belgium", "Bulgaria", "Croatia", "Cyprus", "Czechia", "Czech Republic", "Denmark", "Estonia", "Finland", "France", "Germany",
@@ -238,9 +239,7 @@ export function mailboxLine(context, { changed = () => {} } = {}) {
 }
 
 export const route = {
-  name: "mailbox",
-  entry: "settings",
-  title: "Mailbox",
+  ...heads.mailbox,
   async render(target, context) {
     const store = context.store;
     const owner = String(context.instance?.repository ?? "").split("/")[0];

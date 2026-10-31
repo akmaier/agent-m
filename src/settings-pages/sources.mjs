@@ -28,6 +28,7 @@ import { saveFile } from "../artifact-edits/index.mjs";
 import { affectedRequirements, permittedPlaces, sourceSchemas } from "../source-register/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { readRegisterOf, unquoted, versionHashOf, versionsOf } from "./library.mjs";
+import { heads } from "./index.mjs";
 
 const { links: LINKS } = sourceSchemas();
 const PATH = "docs/sources.md";
@@ -86,9 +87,7 @@ export const linksText = (document_, rows) => writeDocument(LINKS, { ...document
 export const saveLinks = (host, opened, text, trailers = []) => saveFile(host, { path: PATH, text, openedBlob: opened.blob, trailers });
 
 export const route = {
-  name: "sources",
-  entry: "settings",
-  title: "Requirement sources",
+  ...heads.sources,
   async render(target, context) {
     const product = context.product;
     if (!product) {
