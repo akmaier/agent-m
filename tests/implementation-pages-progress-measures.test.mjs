@@ -88,7 +88,7 @@ test("#progress — a model with neither grid, sprints nor flow keeps its link t
 });
 
 // TST-800004 · level: unit · module: MOD-implementation-pages
-// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-035 1a
+// guards: PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-035
 // given: the product's host refuses its snapshot with NotFound, as GitHub does for a private repository that no stored token reaches
 // input: the route progress's render
 // expect: the render rejects with NotFound, for the frame to say that no token reaches the product (readProblem); the page holds no panel of the measure, no gates and no chart
