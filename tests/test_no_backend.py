@@ -130,7 +130,7 @@ def _own_origin(text: str, at: int) -> bool:
     return "new URL(`../../docs/assets/dashboard/" in window and "import.meta.url" in window
 
 
-FRAME_ASSET_LOADING = "the frame's own look.css or lettered brand asset, resolved from its module address"
+FRAME_ASSET_LOADING = "the frame's own look.css or lettered brand asset, resolved from its module address, or the modulepreload or preload link for the modules and files the page's data names for a route"
 
 
 def _site_frame_asset(text: str, at: int) -> bool:
@@ -142,8 +142,20 @@ def _site_frame_asset(text: str, at: int) -> bool:
         return False
     window = text[at:at + 240]
     return ((window.startswith('createElement("link")') and 'look.setAttribute("href", LOOK)' in window)
+            or _route_preload_link(text, at)
             or (window.startswith('createElement("source")') and 'dark.setAttribute("srcset", PRL_LOGO_DARK)' in window)
             or (window.startswith('createElement("img")') and 'logo.setAttribute("src", PRL_LOGO)' in window))
+
+
+def _route_preload_link(text: str, at: int) -> bool:
+    """MOD-site-frame (Parts, preloads.mjs; Interfaces, Route): before it imports a route's own file the frame asks at once for the modules and files the
+    page's data names for that route, as `modulepreload` and `preload` links. The link is created as `link`, its rel is one of the two, and its href is
+    set from an address new URL(...) resolved, with no address of another origin written in the element's lines."""
+    window = text[at:at + 400]
+    return (window.startswith('createElement("link")')
+            and re.search(r'setAttribute\("rel", "(?:modulepreload|preload)"\)|\.rel = "(?:modulepreload|preload)"', window) is not None
+            and re.search(r'setAttribute\("href", new URL\(|\.href = new URL\(', window) is not None
+            and not ADDRESS.search(window))
 
 
 FRAME_VIEW_IMPORT = "a view module of the site, loaded from its own origin: viewAddress(slug), resolved as ../<slug>/index.mjs against the module's own address"
@@ -154,6 +166,21 @@ def _site_frame_view_import(text: str, at: int) -> bool:
     argument of the import() is viewAddress(slug), and the file's one viewAddress resolves ../<slug>/index.mjs against import.meta.url."""
     resolves = re.findall(r"^const viewAddress = \(slug\) => new URL\(`\.\./\$\{slug\}/index\.mjs`, import\.meta\.url\)\.href;$", text, re.M)
     return text[at:].startswith("import(viewAddress(slug))") and len(resolves) == 1 and len(re.findall(r"\bviewAddress\s*=", text)) == 1
+
+
+VIEW_ROUTE_IMPORT = "a route's own file in the view's folder, imported when the route is first shown: a relative address written out, ./<file>.mjs, naming a tracked file of the folder"
+ROUTE_FILE_IMPORT = re.compile(r'import\(\s*"\./((?:[\w-]+/)*[\w-]+\.mjs)"\s*\)')
+
+
+def _view_route_import(folder: str):
+    """MOD-site-frame (Interfaces, Route): a view's route that names `module` is drawn from the route `module` gives, which imports the route's own
+    file when the route is first shown. Like _site_frame_view_import the evidence is the form of the import() and what it resolves to: the argument
+    is a relative address written out in the view's folder (no ../, no other origin), and the file it names is a tracked file of that folder."""
+    def evidence(text: str, at: int, files: dict[str, str]) -> bool:
+        m = ROUTE_FILE_IMPORT.match(text, at)
+        return bool(m) and ".." not in m.group(1).split("/") and folder + m.group(1) in files
+    evidence.site = True  # the evidence reads the folder's files, not the one file alone
+    return evidence
 
 
 MERMAID_LIBRARY_LOADING = "the diagram library beside MOD-markdown-render, resolved from the module address"
@@ -395,7 +422,7 @@ PERMITTED_CHANNELS = {
     ("src/personal-data/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/resource-list/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
     ("src/reuse-facts/", "fetch"): (1, OWN_DATA_FILES, _own_data_file),
-    ("src/site-frame/", "loading element"): (3, FRAME_ASSET_LOADING, _site_frame_asset),  # link, source and img
+    ("src/site-frame/", "loading element"): (4, FRAME_ASSET_LOADING, _site_frame_asset),  # look link, source, img, and the route preload link
     ("src/markdown-render/mermaid.mjs", "loading element"): (1, MERMAID_LIBRARY_LOADING, _mermaid_library_script),
     # MOD-mail-routes' sign-in library: Microsoft's sign-in service is the mail provider's, which NO SERVER permits; its requests are
     # the library's two fetches (GET, POST), its preconnect link and its silent iframe — four, read from the library's file.
@@ -414,6 +441,13 @@ PERMITTED_CHANNELS = {
     ("src/site-frame/dashboard-app.mjs", "import()"): (1, "a view file of the dashboard, from its own origin", _own_origin),
     ("src/site-frame/dashboard-app.mjs", "loading element"): (1, "a view's style sheet, from its own origin", _own_origin),
     ("src/site-frame/routing.mjs", "import()"): (1, FRAME_VIEW_IMPORT, _site_frame_view_import),
+    # The six views' routes import their own files when first shown (MOD-site-frame, Route.module): at most one import() for each route file the view holds.
+    ("src/review-pages/", "import()"): (3, VIEW_ROUTE_IMPORT, _view_route_import("src/review-pages/")),
+    ("src/trace-pages/", "import()"): (1, VIEW_ROUTE_IMPORT, _view_route_import("src/trace-pages/")),
+    ("src/implementation-pages/", "import()"): (6, VIEW_ROUTE_IMPORT, _view_route_import("src/implementation-pages/")),
+    ("src/test-pages/", "import()"): (5, VIEW_ROUTE_IMPORT, _view_route_import("src/test-pages/")),
+    ("src/maintenance-pages/", "import()"): (3, VIEW_ROUTE_IMPORT, _view_route_import("src/maintenance-pages/")),
+    ("src/settings-pages/", "import()"): (11, VIEW_ROUTE_IMPORT, _view_route_import("src/settings-pages/")),
     ("src/trace-graph/code.mjs", "import()"): (1, IMPORT_FORMS, _trace_graph_comment),
     ("src/trace-graph/code.mjs", "@import"): (3, IMPORT_FORMS, _trace_graph_css_form),
     **{("src/markdown-render/vendor/mermaid.min.js", channel): rule for channel, rule in MERMAID_VENDOR_CHANNELS.items()},
@@ -904,6 +938,20 @@ class NoServer(unittest.TestCase):
         self.assertEqual(channel_findings({path: twice}),
                          [f"{path}: import() found 2 times, permitted 1 ({FRAME_VIEW_IMPORT})"])
 
+    def test_counter_proof_a_views_route_import_is_a_relative_file_of_its_own_folder(self):
+        index = "src/settings-pages/index.mjs"
+        files = {index: 'export const route = { name: "bridge", module: () => import("./bridge.mjs") };\n',
+                 "src/settings-pages/bridge.mjs": "export const route = {};\n"}
+        self.assertEqual(channel_findings(files), [])  # expected: no finding
+        # Elsewhere the same import() is found (expected: not a permitted channel in a folder with no entry).
+        self.assertEqual(len(channel_findings({"src/text-tools/index.mjs": files[index], "src/text-tools/bridge.mjs": "x"})), 1)
+        # Another address, a file that is no tracked file of the folder, or a second import() beyond the count (expected: one finding each).
+        for other in ('import("../trace-pages/flow.mjs")', 'import("https://example.org/x.mjs")', "import(path)", 'import("./missing.mjs")'):
+            self.assertEqual(channel_findings({**files, index: files[index].replace('import("./bridge.mjs")', other)})[0:1],
+                             [f"{index}:1: import(): not {VIEW_ROUTE_IMPORT}"])
+        twelve = {**files, index: files[index] * 12}
+        self.assertEqual(channel_findings(twelve), [f"src/settings-pages/: import() found 12 times, permitted at most 11 ({VIEW_ROUTE_IMPORT})"])
+
     def test_counter_proof_only_the_site_frames_own_static_header_assets_load(self):
         path = "src/site-frame/index.mjs"
         accepted = ('const LOOK = new URL("./look.css", import.meta.url).href;\n'
@@ -911,17 +959,20 @@ class NoServer(unittest.TestCase):
                     'const PRL_LOGO_DARK = new URL("./brand/prl-lettered-white.png", import.meta.url).href;\n'
                     'const look = document.createElement("link"); look.setAttribute("href", LOOK);\n'
                     'const dark = document.createElement("source"); dark.setAttribute("srcset", PRL_LOGO_DARK);\n'
-                    'const logo = document.createElement("img"); logo.setAttribute("src", PRL_LOGO);\n')
+                    'const logo = document.createElement("img"); logo.setAttribute("src", PRL_LOGO);\n'
+                    'const hint = document.createElement("link"); hint.setAttribute("rel", "modulepreload"); hint.setAttribute("href", new URL(module, base).href);\n')
         self.assertEqual(channel_findings({path: accepted}), [])
         wrong_destination = accepted.replace('"./look.css"', '"./elsewhere.css"')
-        self.assertEqual(len(channel_findings({path: wrong_destination})), 3)
+        self.assertEqual(len(channel_findings({path: wrong_destination})), 4)
         foreign = accepted.replace('"./brand/prl-lettered.png"', '"https://tracker.example/logo.png"')
-        self.assertEqual(len(channel_findings({path: foreign})), 4)
+        self.assertEqual(len(channel_findings({path: foreign})), 5)
+        written_out = accepted.replace('new URL(module, base).href', '"https://tracker.example/x.mjs"')
+        self.assertEqual(channel_findings({path: written_out})[-1], f"{path}:7: loading element: not {FRAME_ASSET_LOADING}")
         indirect = accepted.replace('logo.setAttribute("src", PRL_LOGO)', 'logo.setAttribute("src", target)')
         self.assertEqual(channel_findings({path: indirect})[0], f"{path}:6: loading element: not {FRAME_ASSET_LOADING}")
         extra = accepted + 'const again = document.createElement("img"); again.setAttribute("src", PRL_LOGO);\n'
         self.assertEqual(channel_findings({path: extra})[-1],
-                         f"src/site-frame/: loading element found 4 times, permitted at most 3 ({FRAME_ASSET_LOADING})")
+                         f"src/site-frame/: loading element found 5 times, permitted at most 4 ({FRAME_ASSET_LOADING})")
 
     def test_counter_proof_a_vendored_librarys_addresses_are_not_the_own_codes(self):
         # MOD-markdown-render's vendored folder is skipped by check 1, as the other vendored folders are; its own code is not.
