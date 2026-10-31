@@ -9,12 +9,8 @@
 // Level: system
 //
 // Authored by developer-sonnet-l (ITM-803), who implemented none of ITM-681, ITM-782, ITM-783, ITM-784 or ITM-1316 and no UC-032 production behaviour.
-// Where the pages and UC-032 disagree the case follows UC-032 and is marked { todo } with the finding it reports; every other case is green. The findings:
-//   UC032-S2  step 1: the accepted requirements and use cases that no item realises yet stand below the backlog, not at the top of the page.
-//   UC032-S4  step 6a: a changed selection is committed and named by its file; the page does not show what it removes or adds.
+// Where the pages and UC-032 disagree the case follows UC-032 and is marked { todo } with the finding it reports; every other case is green. The finding still open:
 //   UC032-S5  step 6c: Start sprint, pressed after another team committed its sprint, is refused as "main has moved on"; it names no sprint, held item or module and shows no mark anew.
-//   UC032-S6  step 1b: a product whose model plans its work still gets the backlog drawn, and its link leads to Progress, not to the implementation plan.
-//   UC032-S9  step 6: Start sprint takes any text as the closer, though it is to be a participant (found in tests/release-uc-032-derived-state-and-sprints.test.mjs, TST-803113).
 // Each test states its input and its expected values in its own text; none reads an expected result from the SPEC, a use case or an architecture file, but the flow map (TST-803001), which holds the expected passages itself
 // and checks that UC-032 still says them. A person's click is the page's own listener called with a trusted event; no input event of the operating system is made. Readings the texts leave open, which the cases state:
 //   - "derived state" is the state a row of the backlog shows; "blocked" is shown for an item whose newest job failed.
