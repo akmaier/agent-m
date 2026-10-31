@@ -231,6 +231,9 @@ ReviewKind = {
     `readFileAt` per file, and calls neither `traceGraph` nor `lastAcceptedText` for them. Where no
     entry fits, it derives both as before. The stored lists are records of the repository, derived from that commit
     alone by `onMainChanged` (MOD-workflow-entries), never kept in the browser.
+  - Once *Accept* has recorded changed or removed decision or module files, the page lists the modules of the impact
+    lists it showed for them, each with the plan steps and backlog items of those lists that name it in the graph of the
+    commit shown (`storedGraph`) (UC-023 step 6).
   - For a SPEC entry, on `<k>/<id>` and for its subject, the page reads the entry's own queue (`queueAt`, the folder
     from the entry's identifier), and the other proposals on the same section from the queues MOD-progress-measures'
     `waitingQueues` gives, with its line `As of <commit>` while they are of an earlier commit; the editor of a
