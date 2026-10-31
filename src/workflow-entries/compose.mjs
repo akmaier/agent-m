@@ -169,6 +169,17 @@ export function composeInstance(env) {
   return { host: connect(parseAddress(env.repository), { token: env.token, clone: env.checkout }) };
 }
 
+/**
+ * composeMainChanged(env: CiEnvironment, token: string) -> { product: Host, instance: Host } — the product as onMainChanged reaches it in the file MOD-runtimes writes
+ * beside the job workflow: its checkout through the local clone, with the token it writes with — the workflow's own on GitHub, the person's on GitLab —, given as a
+ * secret no commit may hold; and the instance's checkout at the commit the file names, through the local clone, which fetches a commit it does not hold from its origin.
+ */
+export function composeMainChanged(env, token) {
+  const { job } = env;
+  return { product: connect(parseAddress(env.repository), { token, clone: job.productDir, secrets: [token] }),
+    instance: connect(parseAddress(originOf(job.instanceDir, env.repository)), { clone: job.instanceDir }) };
+}
+
 // ---------------------------------------------------------------- a product's test configuration
 
 /**

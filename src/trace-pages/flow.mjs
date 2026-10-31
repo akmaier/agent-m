@@ -108,6 +108,13 @@ const REVIEW = { open: "open", accepted: "accepted", changed: "changed since acc
 const problemLine = (what, failure) => el("p", "traces-problem", `${what} could not be read: ${failure?.message ?? failure}`);
 // A failed read of the specification view: what failed, then the frame's problem for the failure. A context that does not say whether a token is stored is read as one that does.
 const failedRead = (className, what, failure, context) => el("div", className, `${what} could not be read: `, readProblem(failure, context.product.tokenStored !== false));
+// A product's page whose graph is not stored: after GraphNotStored's line, the step that stores it, since the file that runs onMainChanged is written by Install
+// (MOD-runtimes' jobWorkflowFiles); the instance's own page shows the line alone, its workflow "main changed" being the instance's own. The instance's page is the
+// one whose product is the instance's repository on github.com.
+const ofInstance = (context) => typeof context.instance?.repository === "string"
+  && String(context.product?.address ?? "").replace(/(\.git)?\/*$/, "") === `https://github.com/${context.instance.repository}`;
+const notStoredStep = (failure, context) => (failure?.name === "GraphNotStored" && !ofInstance(context)
+  ? [el("p", "graph-not-stored-step", "This product's graph is not stored yet: press Install on its Settings page.")] : []);
 const listOf = (items) => el("ul", "trace-list", ...items.map((item) => el("li", null, item)));
 
 // The graph of a commit is read once for the page that holds the browser's store (the Host, where the context has none), whichever page asks and however
@@ -162,7 +169,7 @@ async function showTraces(box, requirement, shown) {
   try {
     graph = await facts.graph();
   } catch (failure) {
-    box.replaceChildren(failedRead("traces-problem", "What traces to this requirement", failure, shown.context));
+    box.replaceChildren(failedRead("traces-problem", "What traces to this requirement", failure, shown.context), ...notStoredStep(failure, shown.context));
     return;
   }
   const traces = tracesTo(graph, requirement.name);
@@ -319,7 +326,7 @@ async function showGaps(box, shown) {
   try {
     graph = await factsOf(shown).graph();
   } catch (failure) {
-    box.replaceChildren(problemLine("The gaps", failure));
+    box.replaceChildren(problemLine("The gaps", failure), ...notStoredStep(failure, shown.context));
     return;
   }
   const found = coverageGaps(graph);
@@ -904,7 +911,7 @@ async function drawModules(target, context, host, ref, descriptor, earlier = nul
     graph = await factsOf(shown).graph();
     files = await moduleFilesOf(shown.snapshot);
   } catch (failure) {
-    place.replaceChildren(problemLine("The modules", failure));
+    place.replaceChildren(problemLine("The modules", failure), ...notStoredStep(failure, context));
     return;
   }
   if (!files.length) {
