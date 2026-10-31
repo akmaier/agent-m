@@ -20,7 +20,8 @@ import { emptyStorage } from "./review-pages-harness.mjs";
 
 const { openStore, writeSetting } = await import("../src/browser-store/index.mjs");
 const pages = await import("../src/review-pages/index.mjs");
-const route = pages.view.routes.find((candidate) => candidate.name === "use-case");
+// The route as the frame shows it: the one its `module` gives, which carries `reads` (MOD-site-frame's Route).
+const route = await pages.view.routes.find((candidate) => candidate.name === "use-case").module();
 
 const text = (...lines) => `${lines.join("\n")}\n`;
 const blobOf = (body) => createHash("sha1").update(`blob ${Buffer.byteLength(body)}\0${body}`).digest("hex");
