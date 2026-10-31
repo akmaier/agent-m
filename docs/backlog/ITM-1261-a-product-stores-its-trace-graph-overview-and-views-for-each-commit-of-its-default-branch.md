@@ -76,5 +76,20 @@ The Outcome is accepted text: MOD-runtimes.md:112 and :212-218, and MOD-workflow
   instance's page, `GraphNotStored`'s line alone, naming the workflow "main changed" as now. Counter-proof: before the
   change the product's page names only the instance's workflow.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+- The existing expectations that change, each because MOD-runtimes.md:212-219 and :328-339 add the main-changed file
+  and its include (found by the probe build of sprint team1/136):
+  - `tests/runtimes-workflow.test.mjs:90-91` (TST-472723): the paths, for GitHub and GitLab, gain
+    `agent-m-main-changed.yml`; `:421` `TEMPLATE_FILES`, used by TST-472728 (`:455`) and TST-1202101 (`:475`), two
+    templates → four.
+  - `tests/runtimes-gitlab-ci-merge.test.mjs` TST-548001 to TST-548006 and TST-548008: each expected `.gitlab-ci.yml`
+    gains the entry `- local: .gitlab/agent-m-main-changed.yml`, added only where missing.
+  - `tests/settings-pages-job-workflow-gitlab-ci.test.mjs:122` (TST-548101): *Install* writes three files, not two, and
+    the merged text gains that entry. Its `Module:` line is MOD-settings-pages, but its header names MOD-runtimes'
+    `jobWorkflowFiles`, whose result it asserts: a test that names one of this item's modules
+    (`AN IMPLEMENTATION JOB CHANGES ONLY ITS MODULES`).
+  - `tests/test_runtime_levels.md:149`, `:174`, `:255`, `:280`: `files` 1 → 2 on GitHub, 2 → 3 on GitLab; and
+    `tests/test_runtime_levels.py:101` joins only the job workflow's files, not `agent-m-main-changed.yml`, for the
+    checks of the SPEC's key and token sentences, whose Check names "the generated job workflow". Every counter-proof
+    there stays and still fails.
 - Only `src/runtimes/`, `src/workflow-entries/`, `src/trace-graph/`, `src/trace-pages/` and the tests that name these
   modules change.
