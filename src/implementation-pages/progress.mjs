@@ -14,7 +14,7 @@
 //
 // Readings the texts leave open, which this file takes: a running sprint whose time box is over, or that the Product Owner ended, and whose close is not recorded yet has ended: its
 // panel says so and draws no chart (the route draws no final burn-down); a job's page on the job dashboard is MOD-main-page's route `job` on the main page, which the
-// review pages reach at ../index.html; the burn-down is drawn from the sprint's start and the merges of its done items, as the view holds them; End sprint is offered on the
+// review pages reach at ../index.html; a running sprint's burn-down is drawn from the sprint's start and the merges of its done items, as the view holds them, one point for each day from its start to today in UTC, each the items left at that day's end; End sprint is offered on the
 // head's own view only; the trace page of what is behind a cell, a card or a chart is the route `trace` of the specification at the branch shown, since that route takes no part naming one
 // requirement or item; a chart's points are reached by one link under it; where the view is derived in the page, the requirements are those of the product's SPEC, which the facts of the scope `work` do not carry.
 
@@ -43,18 +43,28 @@ const planLink = (team, label) => `<a class="btn" href="#backlog/plan=${encodeUR
 // When each done item was first merged, as a view holds it ({ item, at }), by item.
 export const mergedAtOf = (merges) => new Map((merges ?? []).map((merge) => [merge.item, merge.at]));
 
-// The items a sprint has left over time: at its start, after each merge of one of its items, in time order, and now — or, for a closed sprint, at its end, the last day of its burn-down, after which no merge counts. An item
-// merged before the sprint's start is done from the start. A merge is labelled with its time, HH:MM in UTC, or MM-DD HH:MM once a merge falls on another day than the start.
-export function remainingOverTime(items, mergedAt, start, end = "") {
+// The items a closed sprint had left over time — its final burn-down: at its start, after each merge of one of its items, in time order, and at its end, the last day of its burn-down, after which no merge counts. An
+// item merged before the sprint's start is done from the start. A merge is labelled with its time, HH:MM in UTC, or MM-DD HH:MM once a merge falls on another day than the start.
+export function remainingOverTime(items, mergedAt, start, end) {
   const merges = items.map((id) => mergedAt.get(id)).filter(Boolean).sort();
   const before = merges.filter((at) => at.slice(0, 10) < start).length;
-  const during = merges.filter((at) => at.slice(0, 10) >= start && !(end && at.slice(0, 10) > end));
+  const during = merges.filter((at) => at.slice(0, 10) >= start && at.slice(0, 10) <= end);
   const oneDay = during.every((at) => at.slice(0, 10) === start);
   const label = (at) => (oneDay ? at.slice(11, 16) : `${at.slice(5, 10)} ${at.slice(11, 16)}`);
   let remaining = items.length - before;
   const points = [{ label: "start", remaining }];
   for (const at of during) points.push({ label: label(at), remaining: --remaining });
-  points.push({ label: end ? "end" : "now", remaining });
+  points.push({ label: "end", remaining });
+  return points;
+}
+
+// The items a running sprint has left at the end of each day, in UTC, from its start to today, each labelled MM-DD. An item merged before the sprint's start is done from the start.
+export function remainingPerDay(items, mergedAt, start, today = new Date().toISOString().slice(0, 10)) {
+  const merged = items.map((id) => mergedAt.get(id)).filter(Boolean).map((at) => at.slice(0, 10));
+  const points = [];
+  for (let day = start; day && day <= today; day = new Date(Date.parse(`${day}T00:00:00Z`) + 86400000).toISOString().slice(0, 10)) {
+    points.push({ label: day.slice(5), remaining: items.length - merged.filter((at) => at <= day).length });
+  }
   return points;
 }
 
@@ -166,8 +176,8 @@ function wipLine(ctx, sprint) {
 
 const WHY_SPRINT = whatIsThis("<p>A team plans, starts and closes sprints of its own (UC-032 step 6). While its sprint runs, the sprint holds the " +
   "items it selected until their change is in the default branch or they go back to the backlog; no other team selects an item " +
-  "that changes or uses the same modules. The chart counts the selected items not done yet: at the sprint's start, after each " +
-  "merge of one of its items, at the time of that merge in UTC, and now — derived from the sprint's record and the pull requests " +
+  "that changes or uses the same modules. The chart counts the selected items not done yet at the end of each day of the sprint, " +
+  "in UTC, from its start to today — derived from the sprint's record and the pull requests " +
   "that name its items, never a stored status. A burn-down that stays flat means that nothing is merged (book ch. 7 §5, ch. 15).</p>");
 
 function teamPanel(context, ctx, { team, sprint }) {
@@ -183,7 +193,7 @@ function teamPanel(context, ctx, { team, sprint }) {
   const close = sprint.final ? `<p class="muted">It ended on ${h(sprint.ended ?? "")}; its review and retrospective are not recorded yet.</p>` : "";
   const endable = sprint.endable && ctx.asOf === null;
   const drawn = (ctx.view.measure?.sprints ?? []).find((each) => each.team === team)?.burnDown?.length > 0;
-  const chart = sprint.final ? "" : drawn ? chartBlock(team, sprint.name, remainingOverTime(sprint.items.map((each) => each.item), mergedAtOf(sprint.merges), sprint.start))
+  const chart = sprint.final ? "" : drawn ? chartBlock(team, sprint.name, remainingPerDay(sprint.items.map((each) => each.item), mergedAtOf(sprint.merges), sprint.start))
     : `<p class="muted">No burn-down yet: the sprint starts on ${h(sprint.start)}.</p>`;
   return `<section class="panel" data-team="${h(team)}"><h3>${h(team)} — sprint ${fileLink(context, ctx.ref, sprint.path, h(sprint.name))}</h3>
     <dl class="meta"><dt>Goal</dt><dd>${h(sprint.goal)}</dd><dt>Started</dt><dd>${h(sprint.start)}</dd>
