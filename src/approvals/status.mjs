@@ -192,12 +192,11 @@ export async function lastAcceptedText(id, host) {
   if (last === null) return null;
   // A removal's record names the empty text: that text is known, and where the record was added no file stands to read.
   if (blob === EMPTY_BLOB) return { text: "", blob, path: file };
-  const then = await host.readSnapshot(last.commit, { folders: [file] });
-  if (then.blob(file) !== blob) {
+  const text = (await host.readFileAt(file, [last.commit])).get(last.commit);
+  if (typeof text !== "string") {
     throw new HostError("NotFound", { what: file }, `${file} did not hold the text ${last.path} names when the record was added`);
   }
-  const text = await then.read(file);
-  if (typeof text !== "string" || await blobSha(text) !== blob) {
+  if (await blobSha(text) !== blob) {
     throw new HostError("NotFound", { what: file }, `${file} did not give the text ${last.path} names when the record was added`);
   }
   return { text, blob, path: file };
