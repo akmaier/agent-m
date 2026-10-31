@@ -38,6 +38,13 @@ stated with the interface it reads, so that the module does not read sprint reco
 - An implementation job for an item of a sprint with a branch opens its pull request into that branch. Without one, it
   opens into the default branch. A test checks both, with a counter-proof.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
+- **The one existing expected result it changes, named at sprint team1/133's planning:** TST-733002
+  (`tests/implementation-pages-implement-plan-start.test.mjs:162-170`). With the declaration's `test/<item>` for the phase
+  Testing, ITM-012's target branch is `test/<item>` as declared, no longer `test/ITM-012`, since the placeholder goes. The
+  change stands in the tests-only commit.
+- Searched and staying: `Target branch: main` (`tests/implementation-pages-implement.test.mjs:191`, a sprint without a
+  branch) and the base `develop` of `tests/runtimes-pull-request.test.mjs:130` (no sprint record in its snapshot). Where the
+  writer's new reads of the snapshot need it, only how such a test prepares its fixture changes.
 
 **The draft (team 2's sprint 102's close, po-opus-b, reviewed twice by a2fd6f0bd4f5027fd), accepted:** MOD-work-plans.md:203
 (`targetBranch`), MOD-runtimes.md:345 and MOD-implementation-pages.md:254 use it.

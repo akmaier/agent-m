@@ -36,6 +36,12 @@ module, or removed with the old core" (`docs/architecture/MOD-approvals.md:63`).
 - The live dashboard keeps working: the release tests of its pages pass on the item's head.
 - A test of only a removed file goes with it, and the requirement it guarded is kept by a test of the module, named in the pull request.
 - It is declared as refactoring: CI is green on every commit.
+- **Read at sprint team1/133's planning:** `tests/test_approval_records.py` is rewritten in place, not removed, since
+  SPEC.md:998 and :1002 name it as the Check of ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON and AN APPROVAL NAMES THE
+  EXACT TEXT. It checks every record of `docs/approvals/` and its counter-proofs through MOD-approvals' interface (such as `approvalSchema`,
+  with MOD-documents' `documentFindings`, and `statuses`), run in node from the Python file as
+  `tests/test_progress_derived.py` does. No existing expected result changes; `record_problems` stays in
+  `tests/artifact_checks.py`, which this item does not change.
 
 **Noted at sprint team1/89's end gates.** `tests/release-sprint-02-c-review-core.test.mjs:204` failed once on CI (run
 39127567347, job 117675817449) in its own cleanup: "ENOTEMPTY: directory not empty, rmdir '…/.git/objects/pack'", from
