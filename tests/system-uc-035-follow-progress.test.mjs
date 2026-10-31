@@ -284,7 +284,7 @@ test("TST-806010 UC-035: each chart and panel carries a folded What is this? tha
 // given: the Scrum product of two teams and the Kanban product
 // input: the reader unfolds the explanation of each chart and panel of Progress
 // expect: each explanation points to book ch. 7 or ch. 15
-test("TST-806011 UC-035: each chart's and panel's explanation points to book ch. 7 or ch. 15", { todo: "FINDING UC035-S4 — the explanations of the panels Gates, Blocked and Who works on what point to no chapter of the book (they name UC-035's steps and a requirement); only the sprint's and the measure's do" }, async () => {
+test("TST-806011 UC-035: each chart's and panel's explanation points to book ch. 7 or ch. 15", async () => {
   const scrum = await render("progress");
   const kanban = await render("progress", {}, { files: productFiles({ "docs/process-models/fixture.md": KANBAN }) });
   try {

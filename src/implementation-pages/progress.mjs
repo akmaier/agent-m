@@ -206,7 +206,7 @@ function gatesPanel(context, ctx) {
       : `<p class="muted">The workflow names no gate, or it could not be read.</p>`}
     ${whatIsThis("<p>The gates of the product's workflow in their order: passed, with who decided, when and on which text; pending, with what it " +
       "still needs; not reached. A gate whose record names a text that has changed since counts as passed on an earlier text only " +
-      "(UC-035 step 3; THE GATE IS RECORDED).</p>")}</section>`;
+      "(UC-035 step 3; THE GATE IS RECORDED; book ch. 15).</p>")}</section>`;
 }
 
 function blockedPanel(ctx, sprints) {
@@ -215,7 +215,7 @@ function blockedPanel(ctx, sprints) {
     ${found.length ? `<ul class="small">${found.map((entry) => `<li data-blocked="${h(entry.item)}"><b>${h(entry.item)}</b> — ${h(entry.reason)}: ${h(entry.detail)}</li>`).join("")}</ul>`
       : `<p class="muted">${sprints ? "No item a running sprint holds is blocked." : "No item or plan entry is blocked."}</p>`}
     ${whatIsThis("<p>Every item or plan entry that cannot move — in a model with sprints, every item a running sprint holds that cannot move —, with its reason: a failed job, a job waiting at a gate, a requirement " +
-      "not yet accepted, the team's work-in-progress limit, or another team's sprint that holds a module it needs (UC-035 step 4).</p>")}</section>`;
+      "not yet accepted, the team's work-in-progress limit, or another team's sprint that holds a module it needs (UC-035 step 4; book ch. 7, ch. 15).</p>")}</section>`;
 }
 
 // The page of a job on the job dashboard: MOD-main-page's route `job`, on the main page; the product named where it is not the instance.
@@ -237,7 +237,7 @@ function whoPanel(context, ctx) {
     ${who.participants.length ? `<div class="table-scroll" tabindex="0"><table class="list"><thead><tr><th>Participant</th><th>Roles</th>${several ? "<th>Teams</th>" : ""}<th>Current jobs</th></tr></thead><tbody>${rows}</tbody></table></div>`
       : `<p class="muted">No role assignment names a participant yet.</p>`}${missing}
     ${whatIsThis("<p>Each participant of the product with its roles — and its team, with several teams — and the jobs it works on now, each " +
-      "linked to its page on the job dashboard, where its log, cost and state stand (UC-035 step 5, UC-036).</p>")}</section>`;
+      "linked to its page on the job dashboard, where its log, cost and state stand (UC-035 step 5, UC-036; book ch. 15).</p>")}</section>`;
 }
 
 // The trace page of what is behind a cell, a card or a chart: the specification at the branch shown, where a requirement's trace opens.
@@ -308,7 +308,7 @@ async function draw(target, context) {
   const teamsPart = !model ? "" : !sprints ? measurePanel(ctx, model)
     : view.teams.length ? view.teams.map((team) => teamPanel(context, ctx, team)).join("")
       : `<section class="panel" data-part="teams"><h3>No team yet</h3><p class="muted">The product's model works in sprints, and no role assignment names a team yet (UC-048).</p>
-        ${whatIsThis("<p>Each team of a product has a role assignment under <code>docs/role-assignments/</code>, and plans and runs sprints of its own.</p>")}</section>`;
+        ${whatIsThis("<p>Each team of a product has a role assignment under <code>docs/role-assignments/</code>, and plans and runs sprints of its own (book ch. 7).</p>")}</section>`;
   target.innerHTML = `
     <section class="head"><h2>Progress</h2>
       <p class="muted">${h(context.product.address)} · <code>${h(ctx.ref)}</code> · what goes on now, derived from the repository and its pull requests; nothing here is a stored status. <a href="#backlog">The backlog</a> keeps every item and each team's last ended sprint.</p>
