@@ -2,7 +2,8 @@
 // team's running sprint with its goal, start, end, branch and closer, its items with their states and the modules they change and use, and its burn-down; *End sprint* for a running
 // sprint without a time box, the one write of this route, on the person's click; for one that has ended, that its review and retrospective are not recorded yet; a team without a running sprint says so, and links its
 // planning and the backlog; then the workflow's gates, what is blocked among the items the running sprints hold, and who works on what, each current job linked to its page on the
-// job dashboard. For a model without sprints it links the plan, the board or the backlog and names its measure as not drawn here yet. What it draws is MOD-progress-measures'
+// job dashboard. For a model without sprints it draws the model's measure from progressIn of the view: a planned model's grid of requirements by phases with the timeline and the steps of the plan, or the board's cards
+// with the cumulative flow; each cell, card and chart leads to the trace page of the specification; a model for which progressIn gives neither grid, sprints nor flow keeps its link to the backlog. What it draws is MOD-progress-measures'
 // ProgressView of the head, stored for its commit on the branch overview-cache (storedView): the route reads no record, no facts and no pull request, and names no first wave;
 // while the head's view is not stored yet, it draws the view stored last, with the line naming its commit, and only where the repository stores no view does it derive the same
 // view in the page (progressView, from the facts of the scope `work`) — nothing it shows is a stored status (PROGRESS AND JOB STATE ARE DERIVED, NOT STORED). Every part explains
@@ -14,10 +15,12 @@
 // Readings the texts leave open, which this file takes: a running sprint whose time box is over, or that the Product Owner ended, and whose close is not recorded yet has ended: its
 // panel says so and draws no chart (the route draws no final burn-down); a job's page on the job dashboard is MOD-main-page's route `job` on the main page, which the
 // review pages reach at ../index.html; the burn-down is drawn from the sprint's start and the merges of its done items, as the view holds them; End sprint is offered on the
-// head's own view only.
+// head's own view only; the trace page of what is behind a cell, a card or a chart is the route `trace` of the specification at the branch shown, since that route takes no part naming one
+// requirement or item; a chart's points are reached by one link under it; where the view is derived in the page, the requirements are those of the product's SPEC, which the facts of the scope `work` do not carry.
 
 import { renderArtifact, renderMermaid } from "../markdown-render/index.mjs";
 import { productFacts, progressView, storedView } from "../progress-measures/index.mjs";
+import { parseSpec } from "../spec-document/index.mjs";
 import { endSprint } from "../work-plans/index.mjs";
 
 
@@ -142,7 +145,8 @@ async function viewOf(context) {
   const stored = await storedView(await shots.get(ref), "progress");
   if (stored) return { ref, view: stored.view, asOf: stored.asOf };
   const { facts } = await workFacts({ ...context, product: { ...product, ref } }, null, shots);
-  return { ref, view: progressView(facts, new Date()), asOf: null };
+  const requirements = [...parseSpec((await facts.snapshot.read("SPEC.md")) ?? "").requirements.keys()];
+  return { ref, view: progressView({ ...facts, requirements }, new Date()), asOf: null };
 }
 
 // The line above a view stored for another commit than the head.
@@ -235,13 +239,59 @@ function whoPanel(context, ctx) {
       "linked to its page on the job dashboard, where its log, cost and state stand (UC-035 step 5, UC-036).</p>")}</section>`;
 }
 
-// For a model without sprints, where its progress stands instead.
-function elsewhere(model) {
-  const where = model.kind === "planned" ? ["plan", "the implementation plan"] : model.wip ? ["board", "the board"] : ["backlog", "the backlog"];
-  return `<section class="panel" data-part="measure"><h3>${h(model.measure ?? "Progress")}</h3>
-    <p>Progress in this model's measure, ${h(model.measure ?? "its own")}, is not drawn here yet: see <a href="#${where[0]}">${h(where[1])}</a>.</p>
-    ${whatIsThis("<p>Each process model names the measure its progress is shown in: plan entries per phase, remaining items per time box, " +
-      "or items per state over time (UC-035; book ch. 15 §2–3).</p>")}</section>`;
+// The trace page of what is behind a cell, a card or a chart: the specification at the branch shown, where a requirement's trace opens.
+const traceHref = (ref) => `#trace/key=specification/ref=${encodeURIComponent(ref)}`;
+
+const WHY_MEASURE = whatIsThis("<p>Each process model names the measure its progress is shown in: plan entries per phase, remaining items per time box, " +
+  "or items per state over time (UC-035; book ch. 15 §2–3). A cell or a card leads to the trace of what is behind it. A grid cell that stays open " +
+  "means that nothing has been done for that requirement in that phase; a band that widens in the cumulative flow means that items pile up in that state " +
+  "(book ch. 15 §3).</p>");
+
+// A planned model: the grid of requirements by phases, the phases on a timeline with their gates, and the steps of the implementation plan with their states.
+function plannedPanel(ctx, planned) {
+  const phases = [...new Set(planned.grid.entries.map((entry) => entry.phase))];
+  const requirements = [...new Set(planned.grid.entries.map((entry) => entry.requirement))];
+  const cell = (requirement, phase) => {
+    const entry = planned.grid.entries.find((each) => each.requirement === requirement && each.phase === phase);
+    return `<td data-label="${h(phase)}">${entry ? `<a data-cell data-requirement="${h(requirement)}" data-phase="${h(phase)}" class="badge ${BADGE[entry.state] ?? "b-stale"}" href="${h(traceHref(ctx.ref))}">${h(entry.state)}</a>` : "—"}</td>`;
+  };
+  const grid = requirements.length
+    ? `<p class="muted small">${h(planned.grid.count)}</p><div class="table-scroll" tabindex="0"><table class="list"><thead><tr><th>Requirement</th>${phases.map((phase) => `<th>${h(phase)}</th>`).join("")}</tr></thead><tbody>${
+      requirements.map((requirement) => `<tr><td data-label="Requirement">${h(requirement)}</td>${phases.map((phase) => cell(requirement, phase)).join("")}</tr>`).join("")}</tbody></table></div>`
+    : `<p class="muted">No requirement is accepted yet: the plan fills itself as requirements are accepted.</p>`;
+  const timeline = `<ol class="small">${planned.timeline.map((entry) => `<li data-phase-entry="${h(entry.phase)}">${h(entry.phase)}${entry.gate ? ` — gate ${h(entry.gate)}${entry.passed ? `, passed ${h(entry.passed)}` : ""}` : ""}</li>`).join("")}</ol>`;
+  const steps = planned.steps.length
+    ? `<ul class="small">${planned.steps.map((step) => `<li data-step="${h(step.item)}"><b>${h(step.item)}</b> ${stateCell(step)}</li>`).join("")}</ul>` : `<p class="muted">The implementation plan holds no step.</p>`;
+  return `${grid}<h4>Phases</h4>${timeline}<h4>Steps of the plan</h4>${steps}`;
+}
+
+// The cumulative flow of the board: the items in each state at the end of each day, a line for each state that holds an item on some day.
+function flowChart(flow) {
+  const states = flow.cumulative.length ? Object.keys(flow.cumulative[0].counts).filter((name) => flow.cumulative.some((day) => day.counts[name] > 0)) : [];
+  if (!states.length) return "";
+  const most = Math.max(1, ...flow.cumulative.flatMap((day) => states.map((name) => day.counts[name])));
+  const source = ["xychart-beta", `  title "Items per state per day — ${states.join(", ")}"`, `  x-axis [${flow.cumulative.map((day) => `"${day.day.slice(5)}"`).join(", ")}]`,
+    `  y-axis "Items" 0 --> ${most}`, ...states.map((name) => `  line [${flow.cumulative.map((day) => day.counts[name]).join(", ")}]`)].join("\n");
+  return `<div class="md" data-flow-chart>${renderArtifact(`\`\`\`mermaid\n${source}\n\`\`\`\n`).innerHTML}</div>`;
+}
+
+// A model with a work-in-progress limit: the board's cards by column, and the cumulative flow.
+function flowPanel(ctx, flow) {
+  const columns = flow.columns.filter((column) => column.items.length);
+  const board = columns.length ? `<div class="table-scroll" tabindex="0"><table class="list"><thead><tr>${columns.map((column) => `<th>${h(column.name)}</th>`).join("")}</tr></thead><tbody><tr>${
+    columns.map((column) => `<td data-column="${h(column.name)}">${column.items.map((id) => `<a data-card="${h(id)}" class="btn" href="${h(traceHref(ctx.ref))}">${h(id)}</a>`).join(" ")}</td>`).join("")}</tr></tbody></table></div>`
+    : `<p class="muted">The board holds no item.</p>`;
+  const chart = flowChart(flow);
+  return `<p>Work-in-progress limit: ${h(flow.wip)}.</p>${board}${chart ? `${chart}<p class="small"><a data-point href="${h(traceHref(ctx.ref))}">The trace of the items behind the chart</a></p>`
+    : `<p class="muted">No cumulative flow yet: the pull requests are unknown or no day is dated.</p>`}`;
+}
+
+// For a model without sprints: its measure as progressIn of the view gives it; where that is neither a grid, sprints nor a flow, the link to the backlog.
+function measurePanel(ctx, model) {
+  const measure = ctx.view.measure;
+  const body = measure?.planned ? plannedPanel(ctx, measure.planned) : measure?.flow ? flowPanel(ctx, measure.flow)
+    : `<p>Progress in this model's measure, ${h(model.measure ?? "its own")}, stands on <a href="#backlog">the backlog</a>.</p>`;
+  return `<section class="panel" data-part="measure"><h3>${h(model.measure ?? "Progress")}</h3>${body}${WHY_MEASURE}</section>`;
 }
 
 // ---------------------------------------------------------------- the route
@@ -254,7 +304,7 @@ async function draw(target, context) {
   const noModel = unread || (!view.declared ? `<p class="warn">This product declares no process model yet: <code>docs/process.md</code> names it (UC-002).</p>`
     : !model ? `<p class="warn">The declaration names the model file <code>${h(view.modelFile ?? "—")}</code>, which the catalogue does not hold.</p>` : "");
   const sprints = model?.sprints === true;
-  const teamsPart = !model ? "" : !sprints ? elsewhere(model)
+  const teamsPart = !model ? "" : !sprints ? measurePanel(ctx, model)
     : view.teams.length ? view.teams.map((team) => teamPanel(context, ctx, team)).join("")
       : `<section class="panel" data-part="teams"><h3>No team yet</h3><p class="muted">The product's model works in sprints, and no role assignment names a team yet (UC-048).</p>
         ${whatIsThis("<p>Each team of a product has a role assignment under <code>docs/role-assignments/</code>, and plans and runs sprints of its own.</p>")}</section>`;
