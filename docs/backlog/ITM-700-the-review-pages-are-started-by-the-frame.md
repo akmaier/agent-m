@@ -45,3 +45,6 @@ It waits for akmaier's acceptance of the module-file draft committed with the pl
 **Found at ITM-574's gate (2026-10-17, po-opus).** `src/site-frame/dashboard-app.mjs:11` and `docs/index.html:2` still
 read `Module: MOD-dashboard-app`, a module with no file. This item removes the line. No test selects files by it any more
 (`tests/review-core.d/dashboard-app.test.mjs` is headed `Module: MOD-site-frame`).
+
+**Noted at sprint team1/138's probe:** it cannot be built as the accepted texts say; the reasons are in
+`docs/backlog/sprints/team1/138.md` (`## ITM-700 leaves the selection`). Waits for akmaier.
