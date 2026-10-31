@@ -15,7 +15,7 @@ import { acceptAndRelease } from "../release-evidence/index.mjs";
 import { readSetting } from "../browser-store/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
 import { explain, readProblem } from "../site-frame/index.mjs";
-import { el, link, button, badge, parseServer, readPlace, tokenStep } from "./common.mjs";
+import { el, link, button, badge, handedPlace, parseServer, readPlace, tokenStep } from "./common.mjs";
 import { begin as beginSubject, remember as rememberSubject, subjectOf } from "./subjects.mjs";
 import { showEdit } from "./edit.mjs";
 import { showEntryEdit } from "./entry-edit.mjs";
@@ -184,6 +184,8 @@ export function reviewRoute(kind) {
   const notAccepted = (snapshot) => [...reviewedFiles(snapshot)].filter(([, file]) => (kind.whole ?? [kind.kind]).includes(file.kind))
     .map(([path, file]) => ({ path, ...file })).filter((file) => file.status !== "accepted");
 
+  // The snapshot the frame hands the route's `reads` before it calls `render` (common.mjs handedPlace).
+  const place = handedPlace();
   // The editor of the page drawn last, or null where that page opened none: what the route's `leave` asks.
   let editor = null;
   // The render that started last: a render that started earlier and ends later draws into a page the frame has already replaced, and its editor is not the route's.
@@ -193,7 +195,7 @@ export function reviewRoute(kind) {
     const mine = ++latest;
     editor = null;
     beginSubject(context);
-    const where = await readPlace(target, context);
+    const where = await readPlace(target, context, place);
     if (where === null) return;
     // A page that shows its editors later than it is drawn, such as the run of a drafting job, hands them to the route here.
     where.holdEditor = (held) => { if (mine === latest) editor = held; };
@@ -690,5 +692,5 @@ export function reviewRoute(kind) {
   };
 
   return { name: kind.route, entry: kind.entry, title: kind.title, render, subject: (params, context) => subjectOf(kind, params, context), leave, unsaved,
-    ...(kind.folders ? { folders } : {}) };
+    reads: place.reads, ...(kind.folders ? { folders } : {}) };
 }

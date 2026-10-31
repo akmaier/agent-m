@@ -90,7 +90,10 @@ async function fakeHost() {
         const next = { ...commits.get("main") };
         for (const file of change.files) next[file.path] = file.text;
         commits.set("main", next);
-        return { commit: `write-${++serial}` };
+        // The commit the write made is served by its name too, as a host serves a commit (MOD-repository-hosts' readSnapshot at a commit).
+        const commit = `write-${++serial}`;
+        commits.set(commit, next);
+        return { commit };
       },
       async createTag(name, commit) { calls.push({ fn: "createTag", name, commit }); tags.set(name, commit); },
     },

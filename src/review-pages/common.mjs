@@ -108,19 +108,53 @@ export async function defaultSnapshot(host) {
 }
 
 /**
- * readPlace(target, context) — what every route reads before it draws: the host of the page's repository (the product's, else the instance's), the token this
- * browser stores for it, and its default branch now. Returns { host, token, snapshot, context, target } with `target` emptied; a read that fails draws the problem into
- * `target` and returns null.
+ * handedPlace() — what a route keeps of the repository it draws: the snapshot the frame hands its `reads` (MOD-site-frame's Route: "the repository the route
+ * shows as the frame has read it for the page"), which the frame calls before `render`, and the commit a decision written on the page named. `reads` keeps the
+ * snapshot and names no file of its own: the frame's first wave reads them. `take()` gives the render that follows `reads` that snapshot, a render after a write
+ * the commit the write named (MOD-review-pages, `<k>/<id>`: "drawn again with the commit named"), and any other render nothing.
  */
-export async function readPlace(target, context) {
-  const host = (context.product ?? context.instance).host;
+export function handedPlace() {
+  let handed = null, written = null;
+  return {
+    reads: async (_params, snapshot) => { handed = snapshot; written = null; return []; },
+    wrote: (commit, context) => { written = { commit, context }; },
+    take: (context) => {
+      const given = handed ? { snapshot: handed } : written?.context === context ? { commit: written.commit } : null;
+      handed = null;
+      written = null;
+      return given;
+    },
+  };
+}
+
+// The snapshot a route draws from: the one the frame handed it; after a write on the page drawn in `context`, the commit the write named; otherwise — a
+// route the frame did not hand one, or a page drawn again after a decision that wrote nothing — the default branch now.
+async function snapshotOf(host, place, context) {
+  const given = place?.take(context) ?? null;
+  if (given?.snapshot) return given.snapshot;
+  if (given?.commit) return host.readSnapshot(given.commit);
+  return defaultSnapshot(host);
+}
+
+// The page's host as the route's decisions write through it: each commit it makes is the commit the page is drawn again with.
+const notingWrites = (host, place, context) => (place && typeof host.commitFiles === "function"
+  ? { ...host, commitFiles: async (change) => { const made = await host.commitFiles(change); if (made?.commit) place.wrote(made.commit, context); return made; } }
+  : host);
+
+/**
+ * readPlace(target, context, place) — what every route reads before it draws: the host of the page's repository (the product's, else the instance's), the token this
+ * browser stores for it, and the snapshot the route draws from (`place`, handedPlace). Returns { host, token, snapshot, context, target } with `target` emptied; a read
+ * that fails draws the problem into `target` and returns null.
+ */
+export async function readPlace(target, context, place = null) {
+  const shown = (context.product ?? context.instance).host;
+  const host = notingWrites(shown, place, context);
   const token = storedToken(context);
   target.replaceChildren();
   try {
-    return { host, token, snapshot: await defaultSnapshot(host), context, target };
+    return { host, token, snapshot: await snapshotOf(shown, place, context), context, target };
   } catch (failure) {
     target.append(readProblem(failure, Boolean(token)));
     return null;
   }
 }
-
