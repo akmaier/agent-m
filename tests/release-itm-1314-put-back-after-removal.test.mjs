@@ -81,9 +81,10 @@ function fakeProduct() {
       async repositoryInfo() { return { defaultBranch: "main", visibility: "public", canWrite: true, archived: false, description: "" }; },
       async readSnapshot(ref) {
         if (ref === "main") return snapshotAt(head, "main");
-        if (commits.has(ref)) return snapshotAt(ref, ref);
         throw failure("NotFound", `${ref} was not found`);
       },
+      // The older text of a file: one file at each commit asked for, null where the commit holds none (MOD-repository-hosts, readFileAt).
+      async readFileAt(path, shas) { return new Map(shas.map((sha) => [sha, commits.get(sha)?.tree.get(path) ?? null])); },
       async readHistory(path, { ref = "main", limit } = {}) {
         const found = [];
         for (let sha = ref === "main" ? head : ref; sha; sha = commits.get(sha).parent) {
