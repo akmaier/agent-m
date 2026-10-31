@@ -15,8 +15,8 @@
 //   Acceptance): a select `version-compare`, labelled "Compare with", offering "none" first and then every other version of the version choice, in its
 //   order and with its labels; where the choice offers one version alone, nothing to compare with is offered;
 // - "Nothing is read for the comparison before a second version is picked" (ITM-600, Acceptance): neither the second version's snapshot nor its graph;
-// - the older of the two versions is the one that stands later in the version choice, whose tags are newest first, as the tests view's comparison of two
-//   releases takes it (UC-029 step 6);
+// - the older of the two versions is the one that stands later among the tags, which are newest first, as the tests view's comparison of two releases
+//   takes it (UC-029 step 6), and the default branch, which no tag names, is newer than every tag;
 // - "a version whose commit has none stored ... is named with `GraphNotStored`, never built" (ITM-600, Outcome): the comparison says it could not be read,
 //   with storedGraph's message for that commit, and draws no list;
 // - what the comparison shows stands under "Compared with <version>": on the specification three lists, Added, Changed and Removed, and in the tree a mark
@@ -109,15 +109,17 @@ test("TST-600411: the specification compares two versions: the requirements adde
 
 // TST-600412 · level: component · module: MOD-trace-pages
 // guards: UC-020; THE BROWSER SHOWS ANY RELEASED VERSION
-// given: the same product, the specification drawn at the tag v2026.1.0, the older of the two
-// input: Route.render with the key "specification" at v2026.1.0; then "Compare with" set to main
-// expect: version-compare offers none, main labelled "current", and v2025.0.1; under "Compared with main", Added ["GAMMA RULE"], Changed ["ALPHA RULE"], Removed ["DELTA RULE"]; the tree of v2026.1.0 marks ALPHA RULE "changed" and DELTA RULE "removed"
-test("TST-600412: at a release tag the comparison with the default branch takes the tag as the older version", async () => {
-  const target = await render(hostOf(), { key: "specification", ref: "v2026.1.0" });
-  assert.deepEqual(optionsOf(compareOf(target)[0]), [["none", "none"], ["main", "current"], [UNSTORED, UNSTORED]]);
-  compareWith(target, "main");
+// given: the same product with a newer tag v2026.2.0 whose tree is main's, the tags named v2026.2.0, v2026.1.0, v2025.0.1; the specification drawn at the tag v2026.1.0, the older of v2026.1.0 and v2026.2.0
+// input: Route.render with the key "specification" at v2026.1.0; then "Compare with" set to v2026.2.0
+// expect: version-compare offers none, v2026.2.0 and v2025.0.1; under "Compared with v2026.2.0", Added ["GAMMA RULE"], Changed ["ALPHA RULE"], Removed ["DELTA RULE"]; the tree of v2026.1.0 marks ALPHA RULE "changed" and DELTA RULE "removed"
+test("TST-600412: at a release tag the comparison with a newer tag takes the tag drawn as the older version", async () => {
+  const productHost = treeHost({ trees: { main: MAIN, "v2026.2.0": MAIN, "v2026.1.0": TAGGED, [UNSTORED]: TAGGED }, tags: ["v2026.2.0", "v2026.1.0", UNSTORED],
+    stored: (ref) => ref !== UNSTORED });
+  const target = await render(productHost, { key: "specification", ref: "v2026.1.0" });
+  assert.deepEqual(optionsOf(compareOf(target)[0]), [["none", "none"], ["v2026.2.0", "v2026.2.0"], [UNSTORED, UNSTORED]]);
+  compareWith(target, "v2026.2.0");
   await settled(target);
-  assert.deepEqual(heading(target), ["Compared with main"]);
+  assert.deepEqual(heading(target), ["Compared with v2026.2.0"]);
   assert.deepEqual(lists(target), { Added: ["GAMMA RULE"], Changed: ["ALPHA RULE"], Removed: ["DELTA RULE"] });
   assert.deepEqual(marks(target), [["ALPHA RULE", "changed"], ["DELTA RULE", "removed"]]);
 });
