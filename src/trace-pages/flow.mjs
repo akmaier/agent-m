@@ -12,18 +12,21 @@
 // + Requirement once for each section, beside the tree; at any other ref the view says "as of" it and offers neither. Beside the choice a link leads from the specification to the gaps
 // and from the gaps back to the specification, at the ref shown (UC-020 step 7); it reads nothing. At the default branch, while the graph of its head is not stored
 // yet, the specification, the gaps and the modules show the whole version of the commit whose graph MOD-trace-graph's latestGraph gives — that commit's snapshot and
-// files — with latestGraph's line, read-only as at a tag; where the head's graph is stored they read nothing more than it.
+// files — with latestGraph's line, read-only as at a tag; where the head's graph is stored they read nothing more than it. The specification and the gaps offer a
+// second version to compare with (UC-020 1b), read only once it is picked: its snapshot and its stored graph, set against the graph of the version drawn by
+// MOD-trace-graph's compareGraphs — the requirements added, changed and removed, marked in the tree, a changed one opening with its difference, and on the gaps
+// the coverage gained and lost.
 //
 // Module: MOD-trace-pages
 
 import { parseSpec } from "../spec-document/index.mjs";
 import { hierarchy, parseGroupFile } from "../group-document/index.mjs";
-import { renderArtifact, renderMermaid } from "../markdown-render/index.mjs";
+import { renderArtifact, renderMermaid, showDifference } from "../markdown-render/index.mjs";
 import { artifactSchemas, readDocument } from "../documents/index.mjs";
 import { statuses } from "../approvals/index.mjs";
 import { entryImpact } from "../spec-changes/index.mjs";
 import { affectedRequirements, linkedVersion, sourceSchemas } from "../source-register/index.mjs";
-import { coverageGaps, latestGraph, moduleRows, storedGraph, tracesTo } from "../trace-graph/index.mjs";
+import { compareGraphs, coverageGaps, latestGraph, moduleRows, storedGraph, tracesTo } from "../trace-graph/index.mjs";
 import { waitingQueues } from "../progress-measures/index.mjs";
 import { embedRoute, explain, readProblem } from "../site-frame/index.mjs";
 import { componentDiagram } from "./diagram.mjs";
@@ -372,7 +375,7 @@ function requirementRows(requirement, editable, shown, status, mark = []) {
       return;
     }
     const traces = el("div", "requirement-traces", el("p", "traces-reading", "Reading what traces to it…"));
-    const cell = el("td", "panel", requirementDetail(requirement), traces);
+    const cell = el("td", "panel", requirementDetail(requirement), ...differenceOf(shown.compared, requirement.name), traces);
     cell.setAttribute("colspan", "2");
     showTraces(traces, requirement, shown);
     opened.replaceChildren(cell);
@@ -659,10 +662,11 @@ async function tagsOf(host) {
 }
 
 // The choice above the tree: the ref the caller handed, then the tags; the one shown is selected. Without a tag only the handed ref is offered.
-function versionChoice({ shown, handed, current, tags, tagsFailure, choose, other }) {
+function versionChoice({ shown, handed, current, tags, tagsFailure, choose, other, compare = null }) {
   const select = el("select", "version-choice");
   select.setAttribute("aria-label", "Version");
-  for (const [value, text] of [[handed, current ? "current" : handed], ...tags.filter((tag) => tag !== handed).map((tag) => [tag, tag])]) {
+  const versions = [[handed, current ? "current" : handed], ...tags.filter((tag) => tag !== handed).map((tag) => [tag, tag])];
+  for (const [value, text] of versions) {
     const option = el("option", null, text);
     option.value = value;
     select.append(option);
@@ -670,6 +674,8 @@ function versionChoice({ shown, handed, current, tags, tagsFailure, choose, othe
   select.value = shown.chosen ?? shown.ref;
   select.addEventListener("change", () => choose(select.value));
   const choice = el("div", "version-bar", el("label", null, "Version ", select));
+  const comparing = compare && compareChoice(shown, compare.key, versions, compare.box);
+  if (comparing) choice.append(" ", comparing);
   if (other) {
     const across = el("a", other.className, other.text);
     across.setAttribute("href", fragment("trace", { key: other.key, ref: shown.chosen ?? shown.ref }));
@@ -681,6 +687,94 @@ function versionChoice({ shown, handed, current, tags, tagsFailure, choose, othe
   if (shown.asOf) choice.append(earlierLine(shown.asOf));
   else if (!shown.onDefaultBranch) choice.append(el("p", "version-as-of", `as of ${shown.ref}`));
   return choice;
+}
+
+// ---------------------------------------------------------------- comparing two versions (UC-020 1b)
+
+// The four fields of a requirement as the lines its difference is drawn from: Source, Rule and Check, one line each.
+const fieldLines = (requirement) => `Source: ${requirement?.source ?? ""}\nRule: ${requirement?.rule ?? ""}\nCheck: ${requirement?.check ?? ""}`;
+
+// What an opened requirement shows besides its fields while a second version is compared: for a changed one, its difference from the older version to the
+// newer, read from the second version's SPEC once it is first opened; for any other, nothing.
+function differenceOf(compared, name) {
+  if (!compared?.changed.has(name)) return [];
+  const box = el("section", "requirement-difference", el("h4", null, "Difference"), el("p", "traces-reading", "Reading the difference…"));
+  compared.otherSpec().then((other) => {
+    const [before, after] = compared.otherIsEarlier ? [other, compared.spec] : [compared.spec, other];
+    box.replaceChildren(el("h4", null, "Difference"), showDifference(fieldLines(before.requirements.get(name)), fieldLines(after.requirements.get(name))));
+  }).catch((failure) => box.replaceChildren(el("h4", null, "Difference"), problemLine("The difference", failure)));
+  return [box];
+}
+
+const comparedList = (title, items) => el("section", "version-compared-list", el("h4", null, title),
+  items.length ? el("ul", "trace-list", ...items.map((item) => el("li", null, item))) : el("p", "none", "none"));
+
+// Compares the version drawn with `other`, the older of the two being the one standing later among the tags, which are newest first, and a ref no tag names,
+// the default branch, newer than every tag: reads the other's snapshot and its stored graph — a commit whose graph is not stored is named as storedGraph
+// names it —, sets the two graphs against each other with compareGraphs and gives what the view shows of it: on the gaps the coverage gained and lost; on
+// the specification the requirements added, changed and removed, with the mark of each for the tree and what a changed one opens with. "none" empties
+// `box` and gives nothing; the marks drawn before are taken away first.
+async function compareVersions(shown, key, other, box) {
+  for (const mark of shown.comparedMarks ?? []) mark.parentNode?.removeChild(mark);
+  shown.comparedMarks = [];
+  shown.compared = null;
+  if (other === "none") { box.replaceChildren(); return; }
+  box.replaceChildren(el("p", "traces-reading", "Comparing…"));
+  const otherIsEarlier = (shown.tags ?? []).indexOf(other) > (shown.tags ?? []).indexOf(shown.chosen ?? shown.ref);
+  let found, otherSnapshot;
+  try {
+    otherSnapshot = await shown.context.product.host.readSnapshot(other);
+    const [mine, theirs] = await Promise.all([factsOf(shown).graph(), storedGraph(otherSnapshot, otherSnapshot.commit ?? null)]);
+    found = otherIsEarlier ? compareGraphs(theirs, mine) : compareGraphs(mine, theirs);
+  } catch (failure) {
+    return el("p", "version-compared-problem", `The comparison with ${other} could not be read: ${failure?.message ?? failure}`);
+  }
+  const heading = el("h3", null, `Compared with ${other}`);
+  if (key === "gaps") {
+    const line = ({ name, by }) => `${name} — by ${by}`;
+    return el("section", "version-compared", heading, comparedList("Became covered", found.coverage.gained.map(line)),
+      comparedList("Lost its coverage", found.coverage.lost.map(line)));
+  }
+  const { added, changed, removed } = found.requirements;
+  let specRead = null;
+  const compared = { changed: new Set(changed), spec: shown.spec, otherIsEarlier,
+    otherSpec: () => (specRead ??= otherSnapshot.read(SPEC_PATH).then((text) => parseSpec(text ?? "")).catch((failure) => { specRead = null; throw failure; })) };
+  const markOf = new Map([...added.map((name) => [name, "added"]), ...changed.map((name) => [name, "changed"]), ...removed.map((name) => [name, "removed"])]);
+  return { section: el("section", "version-compared", heading, comparedList("Added", added), comparedList("Changed", changed), comparedList("Removed", removed)),
+    compared, markOf };
+}
+
+// The second choice in the version bar, of its own class `version-compare`: "none", then every other version of the version choice; picking one compares
+// it with the version drawn, the later of two picks in a row being what stays.
+function compareChoice(shown, key, versions, box) {
+  const others = versions.filter(([value]) => value !== (shown.chosen ?? shown.ref));
+  if (!others.length) return null;
+  const select = el("select", "version-compare");
+  select.setAttribute("aria-label", "Compare with");
+  for (const [value, text] of [["none", "none"], ...others]) {
+    const option = el("option", null, text);
+    option.value = value;
+    select.append(option);
+  }
+  select.value = "none";
+  let latest = 0;
+  select.addEventListener("change", async () => {
+    const mine = ++latest;
+    const drawn = await compareVersions(shown, key, select.value, box);
+    if (mine !== latest || drawn === undefined) return;
+    if (drawn.section) {
+      box.replaceChildren(drawn.section);
+      shown.compared = drawn.compared;
+      for (const [name, cell] of shown.cells ?? []) {
+        const text = drawn.markOf.get(name);
+        if (!text) continue;
+        const mark = el("span", "requirement-compared", text);
+        cell.append(mark);
+        shown.comparedMarks.push(mark);
+      }
+    } else box.replaceChildren(drawn);
+  });
+  return el("label", null, "Compare with ", select);
 }
 
 // The view each of the two leads to, beside its version choice: the specification to the gaps, and the gaps back to the specification, at the ref shown.
@@ -926,8 +1020,12 @@ export const route = {
       }
       if (mine !== latest) return;
       if (!chosen) current = shown.onDefaultBranch;
+      // The specification and the gaps, once drawn, offer a second version to compare with; what the comparison shows stands below the bar.
+      const compared = el("div", "version-compared-box");
+      const compare = OTHER[descriptor.key] && shown.spec ? { key: descriptor.key, box: compared } : null;
       // The SPEC changes waiting for acceptance stand first, above the version choice, the narrowing and the tree.
-      target.replaceChildren(...(waiting ? [waiting] : []), versionChoice({ shown, handed, current, tags, tagsFailure, choose: (next) => draw(next, true), other: OTHER[descriptor.key] }), body);
+      target.replaceChildren(...(waiting ? [waiting] : []), versionChoice({ shown, handed, current, tags, tagsFailure, choose: (next) => draw(next, true), other: OTHER[descriptor.key], compare }),
+        ...(compare ? [compared] : []), body);
       if (fill) await fill();
     };
     await draw(handed, false);
