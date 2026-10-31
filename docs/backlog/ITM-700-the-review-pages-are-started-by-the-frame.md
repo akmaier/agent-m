@@ -29,8 +29,8 @@ origin:
 
 The final switch. `docs/index.html` loads `start.mjs` with the views of the modules, and the live app moved in by
 ITM-574 goes, with `docs/assets/dashboard/built.json`, `src/site/`, `src/theme/lme.css` and `src/brand/`
-(`docs/assets/style.css` is gone since `c358b76ca`). `stepHtml` (`src/site-frame/dashboard-app.mjs:112`) goes with the
-app (queue `2026-10-17b`). Today `docs/index.html:385` still loads `src/site-frame/dashboard-app.mjs`. The live addresses
+(`docs/assets/style.css` is gone since `c358b76ca`). `stepHtml` (`src/site-frame/dashboard-app.mjs:115`) goes with the
+app (queue `2026-10-17b`). Today `docs/index.html:365` still loads `src/site-frame/dashboard-app.mjs`. The live addresses
 of the old app lead, through the frame's routing, to the routes that took them over.
 
 It waits for akmaier's acceptance of the module-file draft committed with the plan, which names these files as taken over in the module's Parts.
