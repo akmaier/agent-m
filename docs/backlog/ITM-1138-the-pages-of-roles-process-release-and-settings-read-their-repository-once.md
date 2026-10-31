@@ -22,7 +22,7 @@ origin:
 
 ## Outcome
 
-SPEC.md:672: "one load of a dashboard page reads its commit and that commit's tree once". With a token, `#roles`,
+SPEC.md:685: "one load of a dashboard page reads its commit and that commit's tree once". With a token, `#roles`,
 `#process`, `#release` and `#settings` read the same commit and tree three or four times. Their Check
 (`tests/load-per-view.test.mjs`) covers the start page, `#arc`, `#spec` and `#backlog`; its `#settings` case (`:451-456`)
 checks only that the tree is read.
@@ -40,9 +40,9 @@ checks only that the tree is read.
 - A Host keeps no snapshot: MOD-repository-hosts.md:84-85, "It keeps nothing beyond that".
 
 **What the accepted texts already ask.**
-- MOD-site-frame.md:242-243: "the default branch of the repository a route shows, asked once per page, and its snapshot
+- MOD-site-frame.md:292-293: "the default branch of the repository a route shows, asked once per page, and its snapshot
   there".
-- MOD-site-frame.md:145-146: "the empty `product` names the instance itself".
+- MOD-site-frame.md:192: "the empty `product` names the instance itself".
 
 So the fix fits the texts as they stand, and needs no draft:
 - The frame gives these routes the context it gives the review pages: the wrapped host, and `product: null` for the
