@@ -9,12 +9,8 @@
 // Level: system
 //
 // Authored by developer-sonnet-l (ITM-803), who implemented none of ITM-681, ITM-782, ITM-783, ITM-784 or ITM-1316 and no UC-032 production behaviour.
-// Where the pages and UC-032 disagree the case follows UC-032 and is marked { todo } with the finding it reports; every other case is green. The findings:
-//   UC032-S2  step 1: the accepted requirements and use cases that no item realises yet stand below the backlog, not at the top of the page.
-//   UC032-S4  step 6a: a changed selection is committed and named by its file; the page does not show what it removes or adds.
+// Where the pages and UC-032 disagree the case follows UC-032 and is marked { todo } with the finding it reports; every other case is green. The finding still open:
 //   UC032-S5  step 6c: Start sprint, pressed after another team committed its sprint, is refused as "main has moved on"; it names no sprint, held item or module and shows no mark anew.
-//   UC032-S6  step 1b: a product whose model plans its work still gets the backlog drawn, and its link leads to Progress, not to the implementation plan.
-//   UC032-S9  step 6: Start sprint takes any text as the closer, though it is to be a participant (found in tests/release-uc-032-derived-state-and-sprints.test.mjs, TST-803113).
 // Each test states its input and its expected values in its own text; none reads an expected result from the SPEC, a use case or an architecture file, but the flow map (TST-803001), which holds the expected passages itself
 // and checks that UC-032 still says them. A person's click is the page's own listener called with a trusted event; no input event of the operating system is made. Readings the texts leave open, which the cases state:
 //   - "derived state" is the state a row of the backlog shows; "blocked" is shown for an item whose newest job failed.
@@ -65,6 +61,7 @@ const FLOW_EVIDENCE = {
   "3b-missing-module": { uc: "3b. An item needs a module the architecture does not have.", evidence: [[SELF, "TST-803007"]] },
   "6a-added-during-a-sprint": { uc: "An item is added during a running sprint.", evidence: [[SELF, "TST-803008"]] },
   "6a-checked-against-others": { uc: "An item it adds is checked against what the other teams' sprints hold", evidence: [[SELF, "TST-803014"]] },
+  "6a-shows-what-it-removes-or-adds": { uc: "Changing the sprint selection is a new **Start sprint** decision, and Agent M shows what", evidence: [[SELF, "TST-803014"]] },
   "6b-end-sprint": { uc: "6b. The sprint ends", evidence: [[SELF, "TST-803018"]] },
   "6b-ended-by-the-product-owner": { uc: "which records the end with the sprint.", evidence: [[SELF, "TST-803019"]] },
   "6b-every-item-done": { uc: "when every selected item is done or the Product Owner presses", evidence: [[SELF, "TST-803020"]] },
@@ -75,12 +72,10 @@ const FLOW_EVIDENCE = {
   "1a-withdrawn": { uc: "A requirement an item realises is withdrawn or changed.", evidence: [[SELF, "TST-803023"]] },
   "1c-agent": { uc: "1c. The Product Owner is an agent.", evidence: [[SELF, "TST-803025"]] },
   "1-uncovered-at-the-top": { uc: "The top of the page shows accepted requirements and use cases that no item realises yet.", evidence: [[SELF, "TST-803004"]] },
+  "1b-link-to-the-plan": { uc: "There is no backlog. Agent M links to the implementation plan (UC-045).", evidence: [[SELF, "TST-803024"]] },
 };
 const FLOW_FINDINGS = {
-  "6a-shows-what-it-removes-or-adds": { uc: "Changing the sprint selection is a new **Start sprint** decision, and Agent M shows what", finding: "UC032-S4", file: SELF, test: "TST-803014" },
   "6c-names-the-collision": { uc: "is refused and names the sprint, the held item and the module", finding: "UC032-S5", file: SELF, test: "TST-803015" },
-  "1b-link-to-the-plan": { uc: "There is no backlog. Agent M links to the implementation plan (UC-045).", finding: "UC032-S6", file: SELF, test: "TST-803024" },
-  "6-closer-is-a-participant": { uc: "or a participant such as an agent (UC-041)", finding: "UC032-S9", file: RELEASE_CLOSER, test: "TST-803113" },
 };
 
 // TST-803001 · level: system · module: MOD-implementation-pages
@@ -438,9 +433,8 @@ test("TST-803013: UC-032 6 the Product Owner plans a team's sprint and starts it
 // guards: UC-032; A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT; EVERY TEAM RUNS SPRINTS OF ITS OWN
 // given: the product of TST-803011 in which team1's sprint team1/02 runs, and team2's sprint team2/01 runs with ITM-010, which changes MOD-news, and no time box
 // input: the Product Owner of team1 presses Change the selection, reads the plan, adds ITM-003, takes ITM-002 out, and presses Start sprint
-// expect: known positive — ITM-007, which changes MOD-news, cannot be selected and the plan names team2/01, ITM-010 and MOD-news; Start sprint makes one commit of team1/02's record alone, which keeps its front matter and appends ## Selection with the new selection, so that the sprint's selection is now ITM-003 and not ITM-002; UC-032 6a says Agent M shows what the new decision removes or adds: the page names ITM-003 as added and ITM-002 as removed. FINDING: it names the file and the commit only
-test("TST-803014: UC-032 6a changing a running sprint's selection is a new Start sprint decision, and Agent M shows what it removes or adds",
-  { todo: "FINDING UC032-S4 — the click handler of Start sprint (src/implementation-pages/backlog.mjs) draws the notice `<path> is changed — commit <sha>`; startSprint's `added` and `removed` are not shown, and a done item (not listed in the plan) is dropped from the selection without a word" }, async () => {
+// expect: known positive — ITM-007, which changes MOD-news, cannot be selected and the plan names team2/01, ITM-010 and MOD-news; Start sprint makes one commit of team1/02's record alone, which keeps its front matter and appends ## Selection with the new selection, so that the sprint's selection is now ITM-003 and not ITM-002; UC-032 6a says Agent M shows what the new decision removes or adds: the notice names ITM-003 as added and ITM-002 as removed
+test("TST-803014: UC-032 6a changing a running sprint's selection is a new Start sprint decision, and Agent M shows what it removes or adds", async () => {
   const sprint2 = sprintText({ n: 1, goal: "News", start: "2026-10-22", closer: "bob", selection: ["ITM-010"], branch: "sprint/team2/01" });
   const files = await product({ files: { [sprintPath("team2", 1)]: sprint2 } });
   const before = files[sprintPath("team1", 2)];
@@ -747,9 +741,8 @@ test("TST-803023: UC-032 1a an item whose requirement is withdrawn is marked, an
 // guards: UC-032
 // given: a product whose model plans its work in advance; known positive first — the page says that there is no backlog
 // input: the Product Owner opens Backlog
-// expect: known positive — the page says that the model plans its work in advance and that there is no backlog (UC-032 1b); UC-032 1b says there is no backlog and Agent M links to the implementation plan: the page draws no table of backlog items and links the route plan. FINDING: it draws the backlog's table of the files under docs/backlog/ all the same, and its link leads to Progress
-test("TST-803024: UC-032 1b where the model works from a plan there is no backlog, and the page links to the implementation plan",
-  { todo: "FINDING UC032-S6 — the route backlog (src/implementation-pages/backlog.mjs, paint) writes the warning `there is no backlog (UC-032 1b) — its progress is shown on Progress` and goes on to draw the backlog panel and the uncovered panel; the link of the warning is #progress, the route plan is not linked" }, async () => {
+// expect: known positive — the page says that the model plans its work in advance and that there is no backlog (UC-032 1b); UC-032 1b says there is no backlog and Agent M links to the implementation plan: the page draws no table of backlog items and links the route plan.
+test("TST-803024: UC-032 1b where the model works from a plan there is no backlog, and the page links to the implementation plan", async () => {
   const planned = readFileSync(new URL("./fixtures/process-models/planned.md", import.meta.url), "utf8");
   const page = await open("backlog", {}, { files: await product({ model: planned }) });
   try {

@@ -282,6 +282,10 @@ function heldPanel(context, ctx, team) {
       "whose interfaces they use, as the modules' files under <code>docs/architecture/</code> name them (UC-032 step 5).</p>")}</section>`;
 }
 
+// What a Start sprint decision adds and removes, as startSprint's result names it (UC-032 6a): " Added: …." and " Removed: …." for each that names an item, nothing otherwise.
+const changes = ({ added = [], removed = [] }) => [["Added", added], ["Removed", removed]]
+  .filter(([, ids]) => ids.length).map(([label, ids]) => ` ${label}: ${ids.map((id) => h(id)).join(", ")}.`).join("");
+
 // What Start sprint hands startSprint besides the view's states and holds, read at the view's commit on the click: the declaration, the declared model, the module files and the
 // team's running sprint.
 async function startInputs(context, ctx, team) {
@@ -545,14 +549,15 @@ async function draw(target, context, team = null) {
   await paint(target, context, await viewOf(context), team);
 }
 
-// The page drawn from what was read: a planning opened or cancelled draws it again from `ctx`, without reading anything.
+// The page drawn from what was read: a planning opened or cancelled draws it again from `ctx`, without reading anything. For a model that plans its work in advance there is no
+// backlog: the page says so, links the implementation plan and draws nothing else (UC-032 1b).
 async function paint(target, context, ctx, team) {
   const { view } = ctx;
   const { model } = view;
   const unread = view.modelUnread ? `<p class="warn">The model version <code>${h(view.modelUnread.commit)}</code> the declaration names cannot be read from the instance (${h(view.modelUnread.error)}), so no process model is shown.</p>` : "";
   const noModel = unread || (!view.declared ? `<p class="warn">This product declares no process model yet: <code>docs/process.md</code> names it (UC-002).</p>`
     : !model ? `<p class="warn">The declaration names the model file <code>${h(view.modelFile ?? "—")}</code>, which the catalogue does not hold.</p>` : "");
-  const planned = model?.kind === "planned" ? `<p class="warn">This product's model plans its work in advance: there is no backlog (UC-032 1b) — its progress is shown on <a href="#progress">Progress</a>.</p>` : "";
+  const planned = model?.kind === "planned" ? `<p class="warn">This product's model plans its work in advance: there is no backlog (UC-032 1b) — its work follows the <a href="#plan">implementation plan</a> (UC-045).</p>` : "";
   const sprints = model?.sprints === true;
   const teams = view.teams.map((each) => each.team);
   const planning = sprints && teams.includes(team) ? team : null;
@@ -570,11 +575,11 @@ async function paint(target, context, ctx, team) {
       ${noModel}${planned}
       ${whatIsThis("<p>First what is accepted but realised by no item yet; then each team: its last sprint that has ended and its final burn-down; " +
         "then the backlog with the state of each item. Everything is derived from the repository and its pull requests, for the commit shown.</p>")}</section>
-    ${uncoveredPanel(ctx)}
+    ${planned ? "" : `${uncoveredPanel(ctx)}
     ${teamsPart}
     ${planning ? planPanel(context, ctx, planning) : ""}
     ${sprints && teams.length > 1 ? heldPanel(context, ctx, planning) : ""}
-    ${backlogPanel(context, ctx)}`;
+    ${backlogPanel(context, ctx)}`}`;
   await drawCharts(target);
 
   // Propose items and + Item read only on the person's click (UC-032 steps 2 to 4, 2a).
@@ -620,7 +625,7 @@ async function paint(target, context, ctx, team) {
         { states: view.rows.map((row) => row.state), model: declared, declaration, held: view.rows.map((row) => row.held).filter(Boolean), architecture, running,
           head: view.commit, trailers: [] });
       await draw(target, context);
-      target.insertAdjacentHTML?.("afterbegin", `<section class="panel notice flash"><p>${running ? "The selection of" : "Sprint"} <code>${h(result.path)}</code> ${running ? "is changed" : "is started"} — commit ${h(result.commit.slice(0, 7))}.</p></section>`);
+      target.insertAdjacentHTML?.("afterbegin", `<section class="panel notice flash"><p>${running ? "The selection of" : "Sprint"} <code>${h(result.path)}</code> ${running ? "is changed" : "is started"} — commit ${h(result.commit.slice(0, 7))}.${changes(result)}</p></section>`);
     } catch (failure) {
       out.innerHTML = failure?.name === "SprintRefused"
         ? `<p class="warn">The sprint is not started:</p><ul class="small">${(failure.reasons ?? []).map((reason) => `<li>${h(reason)}</li>`).join("")}</ul>`

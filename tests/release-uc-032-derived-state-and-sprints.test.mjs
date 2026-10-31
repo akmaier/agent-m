@@ -123,9 +123,8 @@ test("TST-803112: UC-032 closing a sprint is assigned by the Product Owner to th
 // guards: UC-032; CLOSING A SPRINT CAN BE ASSIGNED TO A PARTICIPANT
 // given: the product of TST-803112; the closer "nobody", a name the instance's register does not list and no role assignment gives a role; known positive first — dev-b, a participant of the product, is accepted
 // input: the Product Owner of team2 plans a sprint with ITM-003 and presses Start sprint with the closer dev-b, and, in a second reading, with the closer nobody
-// expect: known positive — with dev-b one commit writes team2's record; UC-032 step 6 and the SPEC say the Product Owner assigns closing to a participant of the product: with "nobody" Start sprint is refused, names the closer, and writes nothing. FINDING: the sprint is started with the closer "nobody"
-test("TST-803113: UC-032 a sprint's closer is a participant of the product",
-  { todo: "FINDING UC032-S9 — the click handler of Start sprint (src/implementation-pages/backlog.mjs) takes the text typed into the closer's field as it stands (`closer = value(\"[data-sprint-closer]\")`), and startSprint writes it into the record; neither checks it against the participants of the register or the role assignment, so a sprint can be started with a closer no one is" }, async () => {
+// expect: known positive — with dev-b one commit writes team2's record, and its closer is dev-b; akmaier ruled that a closer need not be a participant: with "nobody" Start sprint is accepted, one commit writes team2's record, and its closer is nobody
+test("TST-803113: UC-032 a sprint's closer who is no participant of the product is accepted and the record names them", async () => {
   const start = async (closer) => {
     const page = await open("backlog", {}, { files: await product({ model: MODELS.timeBox }) });
     try {
@@ -142,5 +141,6 @@ test("TST-803113: UC-032 a sprint's closer is a participant of the product",
   assert.equal(known.written, 1, "known positive");
   assert.equal(fieldOf(known.record, "closer"), "dev-b");
   const nobody = await start("nobody");
-  assert.equal(nobody.written, 0, "a closer who is no participant is refused");
+  assert.equal(nobody.written, 1, "a closer who is no participant is accepted: one commit writes the record");
+  assert.equal(fieldOf(nobody.record, "closer"), "nobody", "the record names that closer");
 });

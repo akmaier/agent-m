@@ -73,7 +73,7 @@ test("classifyCandidates — a change whose key equals another existing artifact
 // guards: A CHANGE IS PROPOSED UNDER THE EXISTING NAME; EXACT DUPLICATES ARE FOUND WITHOUT A MODEL
 // given: the existing requirement A REPORT HAS A TITLE with the rule "Every report shows a title."; a candidate under its name with another rule, proposed a change of it; a candidate under its name with its rule in other letters, proposed a change of it; and a candidate under another name with its rule, proposed new
 // input: classifyCandidates of the three with the requirement
-// expect: the requirement changed under its name keeps the class change as before, decided by the participant — also when it restates its own rule, since it is a change of that requirement; the true restatement under another name is still a duplicate of the requirement, decided by rule
+// expect: the requirement changed under its name with another rule keeps the class change, decided by the participant; the one under its name that restates its own rule in other letters is a duplicate of A REPORT HAS A TITLE, decided by rule (ITM-1335); the true restatement under another name is still a duplicate of the requirement, decided by rule
 test("classifyCandidates — a requirement changed under its name keeps its class; a restatement under another name is still a duplicate", () => {
   const name = "A REPORT HAS A TITLE", rule = "Every report shows a title.";
   const requirements = [{ id: name, keys: [name, rule] }];
@@ -82,7 +82,7 @@ test("classifyCandidates — a requirement changed under its name keeps its clas
     [classified(["r1"], ["SRC-a, p. 1"], "change", name, "participant")]);
   assert.deepEqual(
     classifyCandidates([candidate("r2", [name, "  EVERY report  shows a TITLE. "], ["SRC-a, p. 2"], change(name))], requirements),
-    [classified(["r2"], ["SRC-a, p. 2"], "change", name, "participant")]);
+    [classified(["r2"], ["SRC-a, p. 2"], "duplicate", name, "rule")]);
   assert.deepEqual(
     classifyCandidates([candidate("r3", ["EACH REPORT IS TITLED", rule], ["SRC-a, p. 3"])], requirements),
     [classified(["r3"], ["SRC-a, p. 3"], "duplicate", name, "rule")]);
