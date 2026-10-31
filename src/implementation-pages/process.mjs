@@ -42,6 +42,7 @@ import { declarationSchema, declarationFindings, roleAssignmentFindings, roleAss
 import { sourceSchemas } from "../source-register/index.mjs";
 import { showDifference } from "../markdown-render/index.mjs";
 import { saveFile } from "../artifact-edits/index.mjs";
+import { heads } from "./index.mjs";
 
 const DECLARATION_PATH = "docs/process.md";
 const PARTICIPANTS_PATH = "docs/participants.md";
@@ -110,9 +111,7 @@ function setField(form, key, value) {
 }
 
 export const route = {
-  name: "process",
-  entry: "implementation",
-  title: "How this product is developed",
+  ...heads.process,
 
   async render(target, context) {
     // The empty product is the instance itself (MOD-site-frame's ViewContext).
@@ -426,9 +425,7 @@ async function declarationsOf(context) {
 }
 
 export const modelsRoute = {
-  name: "models",
-  entry: "implementation",
-  title: "Process models",
+  ...heads.models,
 
   async render(target, context) {
     const { instance } = context;

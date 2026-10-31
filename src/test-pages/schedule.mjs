@@ -36,8 +36,9 @@ import { participantSchema, participantsOf, eligible } from "../participant-list
 import { resourceSchema } from "../resource-list/index.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
 import { scheduleView, storedView } from "../progress-measures/index.mjs";
+import { heads } from "./index.mjs";
 
-const TITLE = "Schedule";
+const TITLE = heads.schedule.title;
 const SCHEDULE_PATH = "docs/tests/schedule.md";
 const RESOURCES_PATH = "docs/resources.md";
 const PARTICIPANTS_PATH = "docs/participants.md";
@@ -469,4 +470,4 @@ async function render(target, context) {
     secretsBlock(secrets, links.secrets), ...configured);
 }
 
-export const route = { name: "schedule", entry: "tests", title: TITLE, render };
+export const route = { ...heads.schedule, render };

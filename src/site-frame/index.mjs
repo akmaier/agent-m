@@ -19,7 +19,7 @@ import { watchForAcceptance } from "../notifications/index.mjs";
 import { startPromptBar } from "../prompt-bar/index.mjs";
 import { menuOf, labelOf, linkOf, foldMenu } from "./menu.mjs";
 import { siteFooter } from "./footer.mjs";
-import { routeOf, fragmentOf, productOf, chosenProduct, addressWriter, instanceHostFollowingStore, productHostFollowingStore } from "./routing.mjs";
+import { routeOf, fragmentOf, productOf, chosenProduct, addressWriter, instanceHostFollowingStore, productHostFollowingStore, loadRoute } from "./routing.mjs";
 import { subjectOf, entryShownOf } from "./subject.mjs";
 import { notice, noticePlace, showTokenNotices, refusedNotice } from "./notices.mjs";
 
@@ -204,7 +204,10 @@ export function pageStarted(page, routes, context) {
  */
 export async function embedRoute(name, target, params = {}) {
   const route = started?.routes.find((candidate) => candidate.name === name);
-  if (route) return route.render(target, started.context(), params);
+  if (route) {
+    await loadRoute(route);
+    return route.render(target, started.context(), params);
+  }
   const product = started?.context()?.product?.address;
   const fragment = fragmentOf(name, product && !("product" in params) ? { ...params, product } : params);
   const link = document.createElement("a");
@@ -378,8 +381,17 @@ async function startSite({ page, views }) {
       return;
     }
     shownName = route.name;
-    shown = { route, params: routeParams, context, fragment };
-    await readNamedFiles(route, shown.params, context, defaultBranches);
+    // A route that names `module` is imported before it is shown (loadRoute): what it reads, leaves and gives as its subject is the imported route's; the view's route renders it.
+    let loadedRoute;
+    try {
+      loadedRoute = await loadRoute(route);
+    } catch (failure) {
+      shown = { route, params: routeParams, context, fragment };
+      target.replaceChildren(readProblem(failure, product ? product.tokenStored : readSetting(store, "github-token") !== null));
+      return;
+    }
+    shown = { route: loadedRoute, params: routeParams, context, fragment };
+    await readNamedFiles(loadedRoute, shown.params, context, defaultBranches);
     try {
       await route.render(target, context, shown.params);
     } catch (failure) {
@@ -482,18 +494,26 @@ async function startBridge({ page, views }) {
   const defaultBranches = new Map();
   const show = async () => {
     const selected = routeOf(location.hash);
-    const route = routes.find((candidate) => candidate.name === selected.name) ?? first;
-    if (!route) {
+    const named = routes.find((candidate) => candidate.name === selected.name) ?? first;
+    if (!named) {
       target.textContent = "This Bridge page has no view yet.";
       return;
     }
     const context = { page, instance: { repository, host }, product: null, store,
       go: (name, params = {}) => { location.hash = fragmentOf(name, params); } };
+    const params = named.name === selected.name ? selected.params : {};
+    let route = named;
+    try {
+      route = await loadRoute(named);
+    } catch (failure) {
+      shown = { route: named, fragment: location.hash ?? "", context };
+      target.replaceChildren(readProblem(failure, readSetting(store, "github-token") !== null));
+      return;
+    }
     shown = { route, fragment: location.hash ?? "", context };
-    const params = route.name === selected.name ? selected.params : {};
     await readNamedFiles(route, params, context, defaultBranches);
     try {
-      await route.render(target, context, params);
+      await named.render(target, context, params);
     } catch (failure) {
       if (failure?.name === "TokenRefused") refusedNotice(failure);
       else target.replaceChildren(readProblem(failure, readSetting(store, "github-token") !== null));

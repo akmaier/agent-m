@@ -52,6 +52,7 @@ import { entryView, queues } from "../spec-changes/index.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
 import { backlogFindings } from "../work-plans/index.mjs";
 import { button, connectionsOf, el, failed, fold } from "./mail.mjs";
+import { heads } from "./index.mjs";
 
 const REGISTER = "docs/participants.md";
 const RESOURCES = "docs/resources.md";
@@ -587,6 +588,6 @@ async function renderIssue(target, context, params = {}) {
 }
 
 export const routes = [
-  { name: "issues", entry: "maintenance", title: "Issues", render: renderList },
-  { name: "issue", entry: null, title: "Issue", render: renderIssue },
+  { ...heads.issues, render: renderList },
+  { ...heads.issue, render: renderIssue },
 ];

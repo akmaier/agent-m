@@ -20,6 +20,7 @@ import { actionsOffer, bridgeFailureText, contextFromTest, bridgeSettings as end
 import { route as bridgeRoute } from "./bridge.mjs";
 import { mailboxSetting } from "./mailbox.mjs";
 import { settingsSubject } from "./subject.mjs";
+import { heads } from "./index.mjs";
 
 // The Settings page's own context, held by the context its tabs' forms open in.
 const PAGE = Symbol("the Settings page's own context");
@@ -1317,9 +1318,7 @@ function configurationControls(context) {
 }
 
 export const route = {
-  name: "settings",
-  entry: "settings",
-  title: "Settings",
+  ...heads.settings,
   subject: (params, context) => settingsSubject(context, () => drawnOn.get(context)?.textContent ?? ""),
   async render(target, given) {
     drawnOn.set(given, target);

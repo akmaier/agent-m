@@ -6,6 +6,7 @@ import { clearSetting, listSettings, readSetting, writeSetting } from "../browse
 import { endpointLacks } from "../prompt-bar/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { CAPABILITIES, PRESETS } from "./participants.mjs";
+import { heads } from "./index.mjs";
 
 function el(name, className, ...children) {
   const node = document.createElement(name);
@@ -229,9 +230,7 @@ function usableJumpHost(jumpHost) {
 }
 
 export const route = {
-  name: "bridge",
-  entry: "settings",
-  title: "Bridge",
+  ...heads.bridge,
   async render(target, context, params = {}) {
     const address = el("input", "bridge-address");
     const token = el("input", "bridge-token");

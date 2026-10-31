@@ -27,6 +27,7 @@ import { catalogue } from "../model-catalogue/index.mjs";
 import { declarationSchema } from "../product-process/index.mjs";
 import { planFindings } from "../work-plans/index.mjs";
 import { explain } from "../site-frame/index.mjs";
+import { heads } from "./index.mjs";
 
 const h = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const idOf = (document) => String(document?.id ?? document?.fields?.id ?? "");
@@ -132,9 +133,7 @@ function diagramOf(steps) {
 }
 
 export const route = {
-  name: "plan",
-  entry: "implementation",
-  title: "Plan",
+  ...heads.plan,
 
   async render(target, context) {
     const { instance, product } = context;

@@ -7,6 +7,7 @@ import { bridgeAt, probe, settingsOf } from "../bridge-client/index.mjs";
 import { clearSetting, listSettings, readSetting, writeSetting } from "../browser-store/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { endpointLacks, endpointsOffered, followJob, spawnEndpointJob } from "../prompt-bar/index.mjs";
+import { heads } from "./index.mjs";
 
 function el(name, className, ...children) {
   const node = document.createElement(name);
@@ -262,9 +263,7 @@ function applySetting(fields, name, setting) {
 export const PROMPT_BAR_NOTE = "The prompt bar appears once an endpoint is configured in this browser or a Bridge it keeps offers a CLI session.";
 
 export const route = {
-  name: "endpoints",
-  entry: "settings",
-  title: "Model endpoint",
+  ...heads.endpoints,
   async render(target, context, params = {}) {
     const requestedName = typeof params.name === "string" ? params.name : "";
     const loadedSetting = readSetting(context.store, endpointKey(requestedName));
