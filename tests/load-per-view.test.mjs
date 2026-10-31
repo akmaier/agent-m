@@ -30,7 +30,7 @@ import { gzipSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
 import { blobSha } from "../src/text-tools/index.mjs";
 import { sectionText } from "../src/spec-document/index.mjs";
-import { repoServer, fakeCaches, openDashboard, REPO } from "./app-harness.mjs";
+import { repoServer, fakeCaches, openDashboard, REPO, setting } from "./app-harness.mjs";
 import { recordText, approvalPath, reviewedRecord } from "./approval-records.mjs";
 
 // ---------------------------------------------------------------- the product: tests/fixtures/architecture, with records and queues
@@ -598,6 +598,56 @@ test("settings read the product's settings, and no use case, architecture file, 
   assert.deepEqual(batchesOf(page.requests), []);
   assert.equal(count(page.requests, "folders"), 0);
   assert.ok(page.requests.includes("tree"));
+});
+
+// ---------------------------------------------------------------- #roles, #process, #release and #settings: the repository they show, once (ITM-1138)
+
+// The four routes that read the repository they show themselves, beside the instance's files (MOD-implementation-pages, MOD-test-pages, MOD-settings-pages).
+const OWN_READERS = ["#roles", "#process", "#release", "#settings"];
+// A product that is another repository than the instance, on a server of its own; its head differs from the instance's, so that each commit is told apart.
+const OTHER = "alice/product";
+// The page of `hash` over two fake servers, the instance's and the other product's: a request goes to the server of the repository it names — by its path, or, for a
+// request of GitHub's batch API, by the owner and name it is asked with. -> { page, instance, product }, each server with the requests it was sent.
+async function openOnTwo(hash) {
+  const instance = await server(await product());
+  const shown = await repoServer({ files: await product(), history: EARLIER, repo: OTHER, head: "b0ffee".padEnd(40, "0") });
+  const ofProduct = (url, init) => (url.pathname === "/graphql"
+    ? `${JSON.parse(init.body).variables?.owner}/${JSON.parse(init.body).variables?.name}` === OTHER
+    : url.pathname.includes(`/${OTHER}/`) || url.pathname.endsWith(`/${OTHER}`));
+  const both = {
+    get requests() { return instance.requests; },
+    get pending() { return instance.pending + shown.pending; },
+    fetch: (u, init = {}) => (ofProduct(new URL(String(u)), init) ? shown : instance).fetch(u, init),
+  };
+  const page = await openDashboard({ server: both, hash, search: `?repo=${OTHER}`, entries: setting("products", [`https://github.com/${OTHER}`]) });
+  for (let idle = 0; idle < 40; idle += 1) await new Promise((r) => setTimeout(r, 0));
+  return { page, instance, product: shown };
+}
+
+// TST-1138001 · level: component · module: MOD-site-frame
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: the fixture product as the instance itself, with a token; its docs/process.md names no other commit of the instance
+// input: open #roles, #process, #release and #settings, each in a load of its own
+// expect: each load sends the instance's commit once and its tree once — the snapshot the load read, handed to the route through the frame's host — (base: 3 for #roles, #process and #settings, 2 for #release)
+test("#roles, #process, #release and #settings of the instance send its commit and its tree once", async () => {
+  for (const hash of OWN_READERS) {
+    const page = await openDashboard({ server: await server(await product()), hash });
+    assert.equal(count(page.requests, "commit"), 1, `${hash}: the commit once`);
+    assert.equal(count(page.requests, "tree"), 1, `${hash}: the tree once`);
+  }
+});
+
+// TST-1138002 · level: component · module: MOD-site-frame
+// guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
+// given: a product that is another repository than the instance (alice/product, kept in this browser's products), on a server of its own, and the instance on another, with a token
+// input: open #roles, #process, #release and #settings with ?repo=alice/product, each in a load of its own
+// expect: each load sends the product's commit once and its tree once (base: 2 each); the instance's reads are not counted — the prompt bar's own instance host reads the instance's commit on a product's page as well
+test("#roles, #process, #release and #settings of another product send that product's commit and tree once", async () => {
+  for (const hash of OWN_READERS) {
+    const { product: shown } = await openOnTwo(hash);
+    assert.equal(count(shown.requests, "commit"), 1, `${hash}: the product's commit once`);
+    assert.equal(count(shown.requests, "tree"), 1, `${hash}: the product's tree once`);
+  }
 });
 
 // ---------------------------------------------------------------- the texts held during one dashboard load
