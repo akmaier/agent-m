@@ -16,7 +16,8 @@ import { nextIdentifier } from "../identifiers/index.mjs";
 import { finding } from "../text-tools/index.mjs";
 import { backlogFindings } from "./checks.mjs";
 import { sprintSchema } from "./schemas.mjs";
-import { conflicts, list, selectionOf } from "./sprints.mjs";
+import { moduleFiles } from "./strategies.mjs";
+import { conflicts, heldItems, list, selectionOf } from "./sprints.mjs";
 
 /** A failure of a save, named as MOD-work-plans' file names it, with the facts it carries. */
 export class WorkPlansError extends Error {
@@ -61,6 +62,31 @@ function sprintBranch(declaration, team, nn) {
   return pattern ? pattern.replaceAll("<team>", team).replaceAll("<nn>", nn) : "";
 }
 
+// What `conflicts` names for an item, as reasons: the sprint, the held item and the module.
+const conflictReasons = (id, item, team, held, architecture) => conflicts(item, team, held, architecture).map((kept) => (kept.module
+  ? `${id} cannot be selected: ${kept.team}'s sprint ${kept.sprint} holds ${kept.item}, and both concern ${kept.module}.`
+  : `${id} cannot be selected: ${kept.team}'s sprint ${kept.sprint} holds it.`));
+
+// The commit, where the host refuses it as Moved { head }: `held` is read again at that head — heldItems of its sprint records, items and
+// module files and of the product's pull requests — and an item of `ids` that `conflicts` names there refuses the start; otherwise Moved stands.
+async function commitOrRefuse(host, change, { ids, team }) {
+  try {
+    return await host.commitFiles(change);
+  } catch (error) {
+    if (error?.name !== "Moved" || !error.head) throw error;
+    const snapshot = await host.readSnapshot(error.head);
+    const documents = (pattern, schema) => Promise.all(snapshot.paths.filter((path) => pattern.test(path)).sort()
+      .map(async (path) => readDocument(schema, path, (await snapshot.read(path)) ?? "")));
+    const [sprints, items, architecture] = await Promise.all([documents(SPRINT_FILE, sprintSchema), documents(ITEM_FILE, artifactSchemas().item),
+      moduleFiles(snapshot)]);
+    const held = heldItems(sprints, items, architecture, await host.listPullRequests());
+    const reasons = ids.flatMap((id) => items.filter((item) => item.id === id)
+      .flatMap((item) => conflictReasons(id, item, team, held, architecture)));
+    if (reasons.length) throw new WorkPlansError("SprintRefused", { reasons }, `The sprint is not started: ${reasons.join(" ")}`);
+    throw error;
+  }
+}
+
 // Why `ids` cannot be selected for `team`'s sprint together with `selection`: an item the backlog lacks, one waiting for
 // acceptance, one whose building blocks are neither done nor selected with it, or one that `conflicts` names.
 async function refusals(ids, selection, team, { states, held, architecture }, snapshot) {
@@ -78,11 +104,7 @@ async function refusals(ids, selection, team, { states, held, architecture }, sn
       reasons.push(`${id} builds on ${listed(missing)}, which ${missing.length === 1 ? "is" : "are"} not done; select ${missing.length === 1
         ? "it" : "them"} with ${id}, or later.`);
     }
-    for (const kept of conflicts(item, team, held, architecture)) {
-      reasons.push(kept.module
-        ? `${id} cannot be selected: ${kept.team}'s sprint ${kept.sprint} holds ${kept.item}, and both concern ${kept.module}.`
-        : `${id} cannot be selected: ${kept.team}'s sprint ${kept.sprint} holds it.`);
-    }
+    reasons.push(...conflictReasons(id, item, team, held, architecture));
   }
   return reasons;
 }
@@ -117,8 +139,8 @@ export async function startSprint(host, sprint, context) {
     const path = text(running.path);
     const now = await snapshot.read(path);
     const changed = appendSection(sprintSchema, now ?? "", "## Selection", { at: start, selection: chosen });
-    const { commit } = await host.commitFiles({ branch: defaultBranch, expectedHead: head, files: [{ path, text: changed }],
-      message: message(`Change the selection of sprint ${path.replace(/^docs\/backlog\/sprints\/|\.md$/g, "")}`, trailers) });
+    const { commit } = await commitOrRefuse(host, { branch: defaultBranch, expectedHead: head, files: [{ path, text: changed }],
+      message: message(`Change the selection of sprint ${path.replace(/^docs\/backlog\/sprints\/|\.md$/g, "")}`, trailers) }, { ids: added, team });
     return { commit, path, added, removed };
   }
 
@@ -128,8 +150,8 @@ export async function startSprint(host, sprint, context) {
   const branch = sprintBranch(declaration, team, nn);
   const record = writeDocument(sprintSchema, { fields: { sprint: Number(nn), goal, start, end: days === null ? "" : plusDays(start, days - 1),
     closer, branch, selection: chosen }, body: `# ${team} Sprint ${nn}\n`, sections: [], appended: [] });
-  const { commit } = await host.commitFiles({ branch: defaultBranch, expectedHead: head, files: [{ path, text: record }],
-    message: message(`Start sprint ${team}/${nn}: ${goal}`, trailers) });
+  const { commit } = await commitOrRefuse(host, { branch: defaultBranch, expectedHead: head, files: [{ path, text: record }],
+    message: message(`Start sprint ${team}/${nn}: ${goal}`, trailers) }, { ids: chosen, team });
   // Created only once the record is committed, from the head that commit was written on: a start refused as Moved leaves no branch.
   if (branch) await host.createBranch(branch, head);
   return { commit, path, added: chosen, removed: [] };

@@ -47,6 +47,7 @@ function hostWith({ moved = false } = {}) {
     async readSnapshot(ref) {
       return { ref, commit: HEAD, paths: Object.keys(FILES), blob: (p) => (p in FILES ? `blob-${p}` : null), read: async (p) => FILES[p] ?? null };
     },
+    async listPullRequests() { return []; },
     async createBranch(name, from) { calls.push(["createBranch", name, from]); },
     async commitFiles(change) {
       calls.push(["commitFiles", change.branch, change.expectedHead]);
