@@ -47,6 +47,11 @@ It is ready.
 - **What it reads.** Each item's merge is in the facts already (`mergesOf`, the views' `merges`). The view reads nothing
   more.
 - Its build and planning run are made at the planning that selects it.
+- **TST-1330002 changes.** It asserts `ended` null for a sprint ended by its two merged items
+  (`tests/progress-measures-sprint-ended.test.mjs`). That null is the defect the finding ITM-1330-A names, not behaviour
+  the module file gives: the accepted MOD-progress-measures types `ended` as `string | null` and gives no rule for this
+  case. `AN IMPLEMENTATION JOB CHANGES ONLY ITS MODULES` allows "tests that name one of those modules", and TST-1330002
+  names MOD-progress-measures. So the item changes its expected result.
 
 ## Acceptance
 
@@ -54,6 +59,7 @@ It is ready.
   names the later day as `ended` and as `lastEnded.end`, and its burn-down ends there.
   - Known positive: a sprint whose `## Ended` is today names today.
   - Counter-proof: on the base `ended` is null.
+- TST-1330002's expected `ended` changes from null to the day of the later merge, in the tests-only commit.
 - TST-1330104's `todo` is taken away on the item's branch, in a commit of its own, by a participant who implemented none
   of the item.
 - The first commit holds only the tests, and CI is red on it for the item's reason.
