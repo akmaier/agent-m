@@ -16,6 +16,7 @@ import { nextIdentifier } from "../identifiers/index.mjs";
 import { finding } from "../text-tools/index.mjs";
 import { backlogFindings } from "./checks.mjs";
 import { sprintSchema } from "./schemas.mjs";
+import { moduleFiles } from "./strategies.mjs";
 import { conflicts, heldItems, list, selectionOf } from "./sprints.mjs";
 
 /** A failure of a save, named as MOD-work-plans' file names it, with the facts it carries. */
@@ -29,7 +30,6 @@ export class WorkPlansError extends Error {
 
 // The time box a declaration's ## Branches names; the sprint's records and files.
 const TIME_BOX = "Sprint";
-const MODULE_FILE = /^docs\/architecture\/MOD-[^/]+\.md$/;
 const SPRINT_FILE = /^docs\/backlog\/sprints\/([^/]+)\/(\d+)\.md$/;
 // The file of a backlog item, with its identifier: the module's one rule of it, which strategies.mjs takes from here.
 export const ITEM_FILE = /^docs\/backlog\/(ITM-\d{3,})-[^/]+\.md$/;
@@ -78,7 +78,7 @@ async function commitOrRefuse(host, change, { ids, team }) {
     const documents = (pattern, schema) => Promise.all(snapshot.paths.filter((path) => pattern.test(path)).sort()
       .map(async (path) => readDocument(schema, path, (await snapshot.read(path)) ?? "")));
     const [sprints, items, architecture] = await Promise.all([documents(SPRINT_FILE, sprintSchema), documents(ITEM_FILE, artifactSchemas().item),
-      documents(MODULE_FILE, artifactSchemas().module)]);
+      moduleFiles(snapshot)]);
     const held = heldItems(sprints, items, architecture, await host.listPullRequests());
     const reasons = ids.flatMap((id) => items.filter((item) => item.id === id)
       .flatMap((item) => conflictReasons(id, item, team, held, architecture)));

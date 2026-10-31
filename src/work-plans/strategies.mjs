@@ -229,7 +229,7 @@ async function planChecks(draft, context) {
 
 const MODULE_FILE = /^docs\/architecture\/MOD-[^/]+\.md$/;
 // The architecture's module files at a snapshot, by path, each read with the module schema: the one read of them that backlog-checks, backlog-items and sprint-record share.
-const moduleFiles = async (snapshot) => Promise.all(snapshot.paths.filter((each) => MODULE_FILE.test(each)).sort()
+export const moduleFiles = async (snapshot) => Promise.all(snapshot.paths.filter((each) => MODULE_FILE.test(each)).sort()
   .map(async (each) => readDocument(artifactSchemas().module, each, (await snapshot.read(each)) ?? "")));
 
 /**
