@@ -13,6 +13,7 @@ modules:
   - MOD-workflow-entries
   - MOD-trace-graph
   - MOD-trace-pages
+  - MOD-site-frame
 builds_on:
   - ITM-1260
   - ITM-1202
@@ -92,4 +93,7 @@ The Outcome is accepted text: MOD-runtimes.md:112 and :212-218, and MOD-workflow
     checks of the SPEC's key and token sentences, whose Check names "the generated job workflow". Every counter-proof
     there stays and still fails.
 - Only `src/runtimes/`, `src/workflow-entries/`, `src/trace-graph/`, `src/trace-pages/` and the tests that name these
-  modules change.
+  modules change, and, of MOD-site-frame, only the entry pages `index.html` and `docs/index.html`. Each gains the
+  preloads of `src/runtimes/workflow/github-main-changed.yml` and `gitlab-main-changed.yml`, as
+  `node src/site-frame/preloads.mjs` writes them (MOD-site-frame.md:85-93, :125), in one commit of that output alone, so
+  that `tests/site-frame-preloads.test.mjs` (TST-1290001, TST-1290002) holds unchanged.
