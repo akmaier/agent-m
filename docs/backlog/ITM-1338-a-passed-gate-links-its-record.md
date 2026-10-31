@@ -26,7 +26,12 @@ UC-035 step 3: a passed gate shows "who decided, when, and on which text, linked
 ## Acceptance
 
 - The row of each passed gate links its gate record under `docs/gates/`; a pending gate and one not reached have no such link.
-- TST-806006 loses its `todo`, in a commit of a participant who implements none of this item.
+- The row of each gate whose state rests on a record — passed, passed on an earlier text, rejected — links that record,
+  in its *Decided* cell after `on <text>`, with the link text `record`.
+- TST-806006 loses its `todo`, in a commit of developer-sonnet-l, written after the code is pushed.
+- One existing expected result changes: TST-806103 (`tests/release-uc-035-progress.test.mjs:98`), whose row text gains
+  `, record` after `on …@<blob>`. A release test, so developer-sonnet-l changes it, in a tests-only commit before the
+  code.
 - Before selection, the planning reads whether the accepted module files state this; if they do not, the item is a gap of
   the architecture, for akmaier.
 - No other existing expected result changes, unless a probe names it and the accepted text allows it.
