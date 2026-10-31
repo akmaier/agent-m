@@ -105,9 +105,8 @@ test("TST-1330103: UC-032 6b a sprint whose time box ends today is drawn as ende
 // guards: UC-032; UC-035; A SPRINT ENDS WITH A REVIEW OF ITS INCREMENT
 // given: the product of TST-1330102 with both items of team1/02 merged and no End sprint pressed; known positive first — Backlog names the day the sprint ended
 // input: the Product Owner opens Progress and Backlog
-// expect: known positive — Backlog says the sprint ended on a day; Progress says "It ended on" the same day, so that its sentence reads "It ended on <day>; its review and retrospective are not recorded yet". FINDING: Progress says "It ended on ;" with no day
-test("TST-1330104: UC-032 6b Progress names the day a sprint without a time box ended when every selected item was done, the day Backlog names",
-  { todo: "FINDING ITM-1330-A — a sprint taken as final because every selected item is done has no `ended` day in MOD-progress-measures' ProgressView (null), and Progress draws \"It ended on ; its review and retrospective are not recorded yet.\" while Backlog names a day" }, async () => {
+// expect: known positive — Backlog says the sprint ended on a day; Progress says "It ended on" the same day, so that its sentence reads "It ended on <day>; its review and retrospective are not recorded yet"
+test("TST-1330104: UC-032 6b Progress names the day a sprint without a time box ended when every selected item was done, the day Backlog names", async () => {
   const done = await read(await product(), BOTH_MERGED);
   const backlogDay = /ended on (\d{4}-\d{2}-\d{2})/.exec(done.backlog)?.[1];
   assert.ok(backlogDay, `known positive: Backlog names the day: ${done.backlog}`);
