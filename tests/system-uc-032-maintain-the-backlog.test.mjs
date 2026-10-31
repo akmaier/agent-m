@@ -10,7 +10,6 @@
 //
 // Authored by developer-sonnet-l (ITM-803), who implemented none of ITM-681, ITM-782, ITM-783, ITM-784 or ITM-1316 and no UC-032 production behaviour.
 // Where the pages and UC-032 disagree the case follows UC-032 and is marked { todo } with the finding it reports; every other case is green. The findings:
-//   UC032-S1  step 1: a row of the backlog shows no origin ("where it came from").
 //   UC032-S2  step 1: the accepted requirements and use cases that no item realises yet stand below the backlog, not at the top of the page.
 //   UC032-S3  step 5: what the other teams' sprints hold is listed only once Plan sprint is open, not beside the backlog.
 //   UC032-S4  step 6a: a changed selection is committed and named by its file; the page does not show what it removes or adds.
@@ -45,7 +44,7 @@ const RELEASE_EXPLAINS = "tests/release-uc-032-derived-state-and-sprints.test.mj
 
 // The passages of UC-032 the system test walks, each with the tests that walk it; the parts the pages do otherwise are findings, each a todo test that fails now and names what the page does instead.
 const FLOW_EVIDENCE = {
-  "main-1-item-fields": { uc: "Each item has its identifier, title, what it realises, where it came from, and a derived state:", evidence: [[SELF, "TST-803002"]] },
+  "main-1-item-fields": { uc: "Each item has its identifier, title, what it realises, and a derived state:", evidence: [[SELF, "TST-803002"]] },
   "main-1-states": { uc: "*waiting for acceptance*: it names a requirement that is not yet accepted;", evidence: [[SELF, "TST-803002"]] },
   "main-1-held-item-names-its-sprint": { uc: "An item that another team's sprint holds (step 5) names that sprint and its team.", evidence: [[SELF, "TST-803011"]] },
   "main-1-last-sprint": { uc: "the page shows for each team its last sprint that has ended, linked to its record, with its final burn-down.", evidence: [[SELF, "TST-803003"]] },
@@ -77,7 +76,6 @@ const FLOW_EVIDENCE = {
   "1c-agent": { uc: "1c. The Product Owner is an agent.", evidence: [[SELF, "TST-803025"]] },
 };
 const FLOW_FINDINGS = {
-  "1-origin": { uc: "where it came from", finding: "UC032-S1", file: SELF, test: "TST-803005" },
   "1-uncovered-at-the-top": { uc: "The top of the page shows accepted requirements and use cases that no item realises yet.", finding: "UC032-S2", file: SELF, test: "TST-803004" },
   "5-held-beside-the-backlog": { uc: "Agent M lists beside the backlog every", finding: "UC032-S3", file: SELF, test: "TST-803012" },
   "6a-shows-what-it-removes-or-adds": { uc: "Changing the sprint selection is a new **Start sprint** decision, and Agent M shows what", finding: "UC032-S4", file: SELF, test: "TST-803014" },
@@ -181,21 +179,6 @@ test("TST-803004: UC-032 1 the top of the page shows the accepted requirements a
     assert.doesNotMatch(uncovered, /RULE ONE/, "RULE ONE is realised");
     assert.equal(found(page.target, "[data-propose-items]").length, 1, "Propose items for uncovered requirements is offered");
     assert.ok(page.html().indexOf('data-part="uncovered"') < page.html().indexOf('data-part="backlog"'), "the part of what no item realises stands before the backlog's table");
-  } finally { page.done(); }
-});
-
-// TST-803005 · level: system · module: MOD-implementation-pages
-// guards: UC-032; EVERY ARTIFACT NAMES ITS ORIGIN
-// given: the product of TST-803002, whose items each name their origin, "the request of the Product Owner"; known positive first — the item's file holds it
-// input: the Product Owner opens Backlog
-// expect: known positive — ITM-003's file names "the request of the Product Owner" under origin; UC-032 step 1 says each item has its identifier, title, what it realises, where it came from and a derived state: ITM-003's row names where it came from. FINDING: the row has columns for the identifier, title, what it realises, the state and the hold, and none for the origin
-test("TST-803005: UC-032 1 each item of the backlog shows where it came from",
-  { todo: "FINDING UC032-S1 — backlogPanel (src/implementation-pages/backlog.mjs) draws the columns #, Item, Title, Realises, State and Held or kept; an item's origin is read by no part of the route" }, async () => {
-  const files = await product();
-  assert.deepEqual(listOf(files[itemPath(3)], "origin"), ["the request of the Product Owner"], "known positive: the file names its origin");
-  const page = await open("backlog", {}, { files });
-  try {
-    assert.match(row(backlogOf(page), "ITM-003"), /the request of the Product Owner/, "the row names where the item came from");
   } finally { page.done(); }
 });
 

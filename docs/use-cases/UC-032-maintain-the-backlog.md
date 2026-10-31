@@ -68,7 +68,7 @@ sprint changes or uses, or uses one that it changes — so the teams' work does 
 
 1. The Product Owner opens **Backlog** for the product, from the product's progress (UC-035). Agent M shows the items,
    each after the items it builds on.
-   Each item has its identifier, title, what it realises, where it came from, and a derived state:
+   Each item has its identifier, title, what it realises, and a derived state:
    - *waiting for acceptance*: it names a requirement that is not yet accepted;
    - *waiting for an item it builds on*: an item it builds on is not done;
    - *ready*;

@@ -234,7 +234,9 @@ assignment is the one of the team whose sprint holds it, and the product's one i
   from `start`, empty without one; `branch` the one the declaration gives the time box, its placeholders `<team>` and
   `<nn>` filled with the team and its next number, created from the head where it does not exist yet; `docs/backlog/sprints/<team>/<nn>.md` committed with the team's next
   number. `held` is read at the head the commit is written on, and each selected item is checked with `conflicts` (UC-032
-  6c). While a sprint runs, a new start decision is appended to its file as `## Selection`, and `added` and `removed` name
+  6c). Where the host refuses the commit with `Moved { head }`, `held` is read again at that head — `heldItems` of its
+  sprint records, items and module files and of the product's pull requests —, and an item `conflicts` names there refuses
+  the start with `SprintRefused`; otherwise `Moved` stands. While a sprint runs, a new start decision is appended to its file as `## Selection`, and `added` and `removed` name
   what it changes (UC-032 6a). Errors: `SprintRefused { reasons }` — an item waiting for acceptance, one selected without
   the items it builds on that are not done, or one that `conflicts` names, with the sprint, the held item and the module
   —, and the host's.
