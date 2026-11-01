@@ -27,6 +27,8 @@ import {
 const lineOf = (p) => textOf(byClass(p.main(), "settings-mailbox")[0]);
 const partsOf = (p) => one(p.main(), "mailbox-parts").children.filter((item) => typeof item !== "string").map((item) => textOf(item));
 const carries = (request, secret) => JSON.stringify(request).includes(secret);
+// The read-only request repositoryInfo sends with a token for greenToMerge (ITM-1170): a POST to GitHub's GraphQL API whose query asks for refUpdateRule. It writes nothing.
+const greenToMergeQuery = (request) => request.method === "POST" && request.address === "https://api.github.com/graphql" && /refUpdateRule/.test(request.body ?? "");
 const WRITES = /\b(SELECT|STORE|APPEND|EXPUNGE|COPY|MOVE|DELETE|RENAME|CREATE)\b/i;
 // The prompt bar tests each Bridge this browser keeps when a page is drawn (MOD-prompt-bar: testBridge, GET /v1/pair and GET /v1/agents); a request to a Bridge that is no such test is a mailbox request.
 const isBridgeTest = (request) => /\/v1\/(pair|agents)$/.test(request.address);
@@ -439,7 +441,7 @@ test("alternative 7d: the dashboard says where a reply would be sent that sendin
 // guards: UC-037; A CLEAR IS A REAL CLEAR
 // given: a connection on the IMAP route stored and tested; then, in a browser of its own, a connection on the web-API route stored and tested, whose sign-in wrote the library's cache keys
 // input: Disconnect, confirmed once, on each
-// expect: one confirmation is asked, naming the password or the sign-in token; afterwards localStorage holds no mailbox entry, no record of its test, no password, and on the web-API route no sign-in token, refresh token or cache key of the client; the page says nothing is stored and that issues and their mail identifiers are not touched; on the web-API route it links Microsoft's page where the app's access is withdrawn; nothing was written to a repository (flow: UC-037 alternative 8a)
+// expect: one confirmation is asked, naming the password or the sign-in token; afterwards localStorage holds no mailbox entry, no record of its test, no password, and on the web-API route no sign-in token, refresh token or cache key of the client; the page says nothing is stored and that issues and their mail identifiers are not touched; on the web-API route it links Microsoft's page where the app's access is withdrawn; nothing was written to a repository — every request to GitHub that is not a GET is a POST to /graphql whose query asks for refUpdateRule (greenToMerge, ITM-1170) (flow: UC-037 alternative 8a)
 test("alternative 8a: Disconnect asks once and removes the connection with its password or sign-in token from localStorage", async () => {
   for (const route of ["imap", "graph"]) {
     const p = await openDashboard();
@@ -458,7 +460,7 @@ test("alternative 8a: Disconnect asks once and removes the connection with its p
       assert.match(said, /Nothing is stored/);
       assert.match(said, /Issues and their mail identifiers are not touched/);
       if (route === "graph") assert.equal(one(p.main(), "mailbox-withdrawal-link").getAttribute("href"), "https://myapps.microsoft.com");
-      assert.deepEqual(p.requests.filter((request) => request.origin === "https://api.github.com" && request.method !== "GET"), [], "nothing was written to a repository");
+      assert.deepEqual(p.requests.filter((request) => request.origin === "https://api.github.com" && request.method !== "GET" && !greenToMergeQuery(request)), [], "nothing was written to a repository: every request to GitHub that is not a GET is the read-only query for greenToMerge");
     } finally { await p.stop(); }
   }
 });

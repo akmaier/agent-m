@@ -155,7 +155,7 @@ const pathsAsked = (name) => requestsTo(name).filter((request) => request.kind =
 // guards: THE PROCESS MODEL IS DECLARED PER PRODUCT; UC-031
 // given: a browser that manages northwind/ledger, orders, billing, archive and missing, of which ledger, orders and billing hold docs/process.md and archive, of three hundred files, holds none and missing is no repository the server knows; a counting fake of GitHub that records every request with its repository, and records a git/trees request when a product's whole tree is read
 // input: the route models drawn
-// expect: to each of ledger, orders and billing the route sends exactly four requests — the repository's information, the commit, one read of the entries of docs/, the folder of docs/process.md, and one read of docs/process.md — and no whole tree; known positive: the same fake records a git/trees request when the whole tree of ledger is read
+// expect: to each of ledger, orders and billing the route sends exactly five requests — the repository's information with, beside it, the GraphQL request of greenToMerge (ITM-1170), the commit, one read of the entries of docs/, the folder of docs/process.md, and one read of docs/process.md — and no whole tree; known positive: the same fake records a git/trees request when the whole tree of ledger is read
 // Planted fault: a route that reads the product's whole snapshot (`readSnapshot(defaultBranch)` without the folders in declarationsOf of src/implementation-pages/process.mjs) sends git/trees for each of the three and no folders request, and fails the kinds; one that reads the file twice, or the folders twice, fails the counts.
 test("TST-1278301 each product that declares a model is read by its commit, one narrowed request and its docs/process.md alone", async () => {
   const probe = connect(parseAddress(LEDGER), { token: TOKENS["northwind/ledger"] });
@@ -165,7 +165,7 @@ test("TST-1278301 each product that declares a model is read by its commit, one 
 
   await draw();
   for (const name of ["northwind/ledger", "northwind/orders", "northwind/billing"]) {
-    assert.deepEqual(kindsTo(name), ["commit", "file docs/process.md", "folders", "repository"], name);
+    assert.deepEqual(kindsTo(name), ["commit", "file docs/process.md", "folders", "graphql", "repository"], name);
     assert.equal(requestsTo(name).filter((request) => request.kind === "tree").length, 0, `${name}: no git/trees`);
   }
 });
@@ -174,13 +174,13 @@ test("TST-1278301 each product that declares a model is read by its commit, one 
 // guards: THE PROCESS MODEL IS DECLARED PER PRODUCT; UC-031
 // given: the browser and the fake of TST-1278301, in which northwind/archive holds three hundred files and no docs/process.md
 // input: the route models drawn
-// expect: archive is listed under no model and is no unreadable product; to archive the route sends the repository's information, the commit and one read of the entries of docs/, and no read of docs/process.md, no read of any other file and no git/trees
+// expect: archive is listed under no model and is no unreadable product; to archive the route sends the repository's information with the GraphQL request of greenToMerge beside it (ITM-1170), the commit and one read of the entries of docs/, and no read of docs/process.md, no read of any other file and no git/trees
 // Planted fault: a route that reads the file whether or not the narrowed snapshot names it (a `read(DECLARATION_PATH)` after a null blob left in place of the guard of declarationsOf) sends a file request for archive; one that reads archive's whole tree for the 300 files fails the kinds; one that lists archive as unreadable fails the empty list.
 test("TST-1278302 a product without a declaration is shown without a model, and no file and no tree is read for it", async () => {
   const target = await draw();
   for (const name of ["scrum", "scrum-wip", "waterfall", "v-model", "reuse-oriented", "kanban"]) assert.ok(!productsOf(modelOf(target, name)).includes(ARCHIVE), name);
   assert.deepEqual(byClass(target, "unreadable").flatMap((list) => find(list, (node) => node.localName === "li")).map((item) => item.textContent).filter((line) => line.startsWith(ARCHIVE)), [], "archive is no unreadable product");
-  assert.deepEqual(kindsTo("northwind/archive"), ["commit", "folders", "repository"]);
+  assert.deepEqual(kindsTo("northwind/archive"), ["commit", "folders", "graphql", "repository"]);
 });
 
 // TST-1278303 · level: release · module: MOD-implementation-pages

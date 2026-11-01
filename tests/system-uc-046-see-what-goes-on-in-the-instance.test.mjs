@@ -284,7 +284,7 @@ test("TST-1062007: UC-046 3 the stages follow the table: an open change, a faili
 // guards: UC-046; THE MAIN PAGE SHOWS EACH PRODUCT'S PROGRESS BY STAGE; A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the product alice/product whose branch overview-cache holds the overview of its head (six stored stages, ITM-0900 in progress with the job JOB-20261016-1000-ffff and that job's record); then a product whose branch holds only the overview stored last, of the commit aaaaaaa…
 // input: the page opened for each
-// expect: the card shows the six stored stages ("Use cases 25 % stored use cases", …) and the build row ITM-0900, JOB-20261016-1000-ffff, dev-cli, running, 2h 0m 0s; the page asked the product for its repository, the commit and tree of its default branch and that overview, and nothing else (no file, no batch, no pull requests, no tags, no CI runs); known positive — requests to the product were made; for the overview stored last, the card shows the same stages and says "As of aaaaaaa: the overview of the newest commit is being stored.", after two requests more (latest.json and the overview it names); for a product whose branch holds none the card is derived from the files (Use cases 75 %) and the page read files and the pull requests of the product
+// expect: the card shows the six stored stages ("Use cases 25 % stored use cases", …) and the build row ITM-0900, JOB-20261016-1000-ffff, dev-cli, running, 2h 0m 0s; the page asked the product for its repository, the commit and tree of its default branch and that overview, and nothing else (no file, no batch but greenToMerge's GraphQL request beside the repository, which reads no file — ITM-1170 —, no pull requests, no tags, no CI runs); known positive — requests to the product were made; for the overview stored last, the card shows the same stages and says "As of aaaaaaa: the overview of the newest commit is being stored.", after two requests more (latest.json and the overview it names); for a product whose branch holds none the card is derived from the files (Use cases 75 %) and the page read files and the pull requests of the product
 // Planted fault: the overview ignored (the three `stored ?` of cardOf in src/main-page/home.mjs replaced by `false ?`) derives the card from the files, and the case fails at the stored stages and at the files read.
 test("TST-1062008: UC-046 3 a card is drawn from the overview the workflow stored for the head, or the one stored last, and reads nothing else of the product", async () => {
   const commit = headOf(PRODUCT), last = "a".repeat(40);
@@ -300,12 +300,13 @@ test("TST-1062008: UC-046 3 a card is drawn from the overview the workflow store
   assert.ok(asked().api.length > 0, "known positive: the count sees the requests to the product");
   assert.deepEqual(stagesOf(firstCard()), STORED_STAGES);
   assert.deepEqual(buildOf(firstCard()), [["ITM-0900", JOB, "dev-cli", "running", "2h 0m 0s"]]);
-  assert.deepEqual(asked(), { api: ["", "/commits/main", `/git/trees/${commit}`, `/contents/${commit}.json`], files: 0 }, "the repository, its commit and tree and the overview: no pull request and no file");
+  // ITM-1170: `files` counts every POST /graphql with the product's token; the one is greenToMerge's beside the repository, which reads no file.
+  assert.deepEqual(asked(), { api: ["", "/commits/main", `/git/trees/${commit}`, `/contents/${commit}.json`], files: 1 }, "the repository, its commit and tree and the overview: no pull request and no file");
   assert.equal(byClass(firstCard(), "card-as-of").length, 0);
   await open({ repos: await world({ jobs: [RUNNING] }), bridgeLists: JOB, overviews: { [PRODUCT]: { [last]: STORED(last, { build }), latest: `${JSON.stringify({ commit: last })}\n` } } });
   assert.deepEqual(stagesOf(firstCard()), STORED_STAGES);
   assert.deepEqual(byClass(firstCard(), "card-as-of").map((node) => node.textContent), ["As of aaaaaaa: the overview of the newest commit is being stored."]);
-  assert.deepEqual(asked(), { api: ["", "/commits/main", `/git/trees/${commit}`, `/contents/${commit}.json`, "/contents/latest.json", `/contents/${last}.json`], files: 0 }, "and two requests more: latest.json and the overview it names");
+  assert.deepEqual(asked(), { api: ["", "/commits/main", `/git/trees/${commit}`, `/contents/${commit}.json`, "/contents/latest.json", `/contents/${last}.json`], files: 1 }, "and two requests more: latest.json and the overview it names");
   await open({ repos: await world({ jobs: [RUNNING] }), bridgeLists: JOB });
   assert.deepEqual(stagesOf(firstCard())[1], ["Use cases", "75 %", "3 of 4 accepted"], "a branch that holds none: the card is derived from the files");
   assert.ok(asked().files > 0 && asked().api.includes("/pulls"), "and the files and the pull requests are read");

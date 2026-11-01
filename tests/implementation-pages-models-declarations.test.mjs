@@ -148,7 +148,7 @@ const requestsTo = (name) => spy.requests.filter((request) => request.repository
 // guards: THE PROCESS MODEL IS DECLARED PER PRODUCT; UC-031
 // given: this browser manages acme/library and acme/atlas, each of which holds docs/process.md beside a README, a source file and, for acme/library, a use case, and acme/bare, which holds none; a counting fake of GitHub that answers the commit, the whole tree, a file and both batch queries and records every request
 // input: the route `models` drawn
-// expect: to each of acme/library and acme/atlas the route sends exactly the repository's information, its commit, one read of the entries of docs/, the folder of docs/process.md, and one read of docs/process.md — no other request, so no whole tree; known positive: the same fake records a git/trees request when the whole tree is read
+// expect: to each of acme/library and acme/atlas the route sends exactly the repository's information with, beside it, the GraphQL request of greenToMerge (ITM-1170), its commit, one read of the entries of docs/, the folder of docs/process.md, and one read of docs/process.md — no other request, so no whole tree; known positive: the same fake records a git/trees request when the whole tree is read
 test("TST-1278001 a product that declares a model is read by its commit, one folders request and its docs/process.md alone", async () => {
   const probe = connect(parseAddress(LIBRARY), { token: TOKENS["acme/library"] });
   install();
@@ -157,7 +157,7 @@ test("TST-1278001 a product that declares a model is read by its commit, one fol
 
   await draw();
   for (const name of ["acme/library", "acme/atlas"]) {
-    assert.deepEqual(requestsTo(name).map((request) => request.kind).sort(), ["commit", "file docs/process.md", "folders", "repository"].sort(), name);
+    assert.deepEqual(requestsTo(name).map((request) => request.kind).sort(), ["commit", "file docs/process.md", "folders", "graphql", "repository"].sort(), name);
     const folders = requestsTo(name).filter((request) => request.kind === "folders");
     assert.equal(folders.length, 1, `${name}: one folders request`);
     assert.equal(folders[0].query, "docs/", `${name}: the folders request lists the folder of docs/process.md`);
@@ -181,10 +181,10 @@ test("TST-1278002 each model lists the products whose declaration names it, as b
 // guards: THE PROCESS MODEL IS DECLARED PER PRODUCT; UC-031
 // given: the same page and fake, in which acme/bare holds no docs/process.md
 // input: the route `models` drawn
-// expect: counter-proof of TST-1278002: acme/bare is listed under no model and is not an unreadable product; to acme/bare the route sends the repository's information, its commit and one folders request, and no read of docs/process.md and no git/trees
+// expect: counter-proof of TST-1278002: acme/bare is listed under no model and is not an unreadable product; to acme/bare the route sends the repository's information with the GraphQL request of greenToMerge beside it (ITM-1170), its commit and one folders request, and no read of docs/process.md and no git/trees
 test("TST-1278003 a product without a declaration is shown without a model and no file is read for it", async () => {
   const target = await draw();
   for (const name of ["scrum", "scrum-wip", "waterfall", "v-model", "reuse-oriented", "kanban"]) assert.ok(!productsOf(modelOf(target, name)).includes(BARE), name);
   assert.deepEqual(byClass(target, "source"), [], "acme/bare is no unreadable product");
-  assert.deepEqual(requestsTo("acme/bare").map((request) => request.kind).sort(), ["commit", "folders", "repository"].sort());
+  assert.deepEqual(requestsTo("acme/bare").map((request) => request.kind).sort(), ["commit", "folders", "graphql", "repository"].sort());
 });
