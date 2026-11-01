@@ -174,6 +174,8 @@ const modelOf = (target, name) => find(target, (node) => node.getAttribute("data
 const linesOf = (list) => find(list, (node) => node.localName === "li").map((item) => item.textContent);
 const productsOf = (model) => linesOf(byClass(model, "products")[0]);
 const linksOf = (root) => find(root, (node) => node.localName === "a");
+// The requests the spy recorded for a repository, in order of address.
+const readsOf = (name) => spy.requests.filter((href) => href.includes(name)).sort();
 
 const SHIPPED = ["waterfall", "v-model", "reuse-oriented", "scrum", "kanban"];
 const NO_TOKEN = "was not found — a private repository is found only with a token that reaches it.";
@@ -502,15 +504,17 @@ test("TST-779009 + New model first asks for the kind of work, and the form follo
 // guards: A PLAN COVERS THE WHOLE SPECIFICATION; UC-031
 // given: the editor on the adapted v-model (planned, 7 phases); this browser manages acme/library, whose SPEC holds the requirements A LOAN HAS A DUE DATE and A LATE LOAN IS NAMED
 // input: before any pick, the requests sent; then a click on the preview's button for https://github.com/acme/library
-// expect: before the pick, no request reaches acme/library; after it, the count reads "2 requirements × 7 phases = 14 plan entries", and each of the 7 phases lists exactly the two requirements
+// expect: before the pick, the requests that reach acme/library are those the list of the models sends, which reads its declaration alone (TST-1371006), and none more; after it, more requests reach it, and the count reads "2 requirements × 7 phases = 14 plan entries", and each of the 7 phases lists exactly the two requirements
 test("TST-779010 the preview shows every accepted requirement of the product picked once in every phase, with the count", async () => {
+  await draw();
+  const ofList = readsOf("acme/library");
   const { target, click } = await edit("v-model");
-  assert.deepEqual(spy.requests.filter((href) => href.includes("acme/library")), [], "nothing of a product is read before it is picked");
+  assert.deepEqual(readsOf("acme/library"), ofList, "nothing of a product is read before it is picked beyond what the list reads");
   const preview = byClass(target, "plan-preview")[0];
   assert.equal(preview.hidden, false, "a planned model shows the preview");
   await click(find(preview, (node) => node.getAttribute("data-preview-product") === LIBRARY)[0], false);
   await settle(100);
-  assert.ok(spy.requests.some((href) => href.includes("acme/library")), "known positive: the pick reads the product");
+  assert.ok(readsOf("acme/library").length > ofList.length, "known positive: the pick reads the product");
   assert.equal(byClass(preview, "plan-count")[0].textContent, "2 requirements × 7 phases = 14 plan entries");
   const phases = byClass(preview, "plan-phase");
   assert.equal(phases.length, 7);
@@ -626,4 +630,100 @@ test("TST-1354002 Adapt of a planned model shows no Flow control, of a pulled mo
   const vModel = await edit("v-model");
   assert.equal(valueOf(vModel.target, "kind"), "planned");
   assert.equal(sectionOf(vModel.target, "## Flow control") === undefined, true, "a planned model's form has no Flow control");
+});
+
+// ---------------------------------------------------------------- ITM-1371: the editor names the products that declare the model
+// UC-031 6a: "The adapted model is already used by products. Agent M lists them." MOD-implementation-pages (Interfaces: `models`, `models/<name>`): "Which products of this browser declare a
+// model, it reads from each product's `docs/process.md` alone". Readings the item leaves open, which the pull request names:
+//   - "The adapted model" is the model whose file the editor saves: the products listed are those whose declaration names the file the definition would be written to, which
+//     is the file the editor opened for Edit and, for Adapt and + New model, the file of the name typed.
+//   - The editor draws them in a <section class="model-products"> with a <ul class="products"> of one <li> for each address, and an address that cannot be read as the list shows it, in a
+//     <ul class="unreadable"> of <li class="source"> "<address>: <reason>"; the notice after Save holds a <ul class="products"> with the products that declare the file saved.
+const usersIn = (root) => { const list = byClass(root, "products")[0]; return list ? linesOf(list) : []; };
+const usersOfEditor = (target) => usersIn(byClass(target, "model-products")[0]);
+
+// TST-1371001 · level: unit · module: MOD-implementation-pages
+// guards: UC-031
+// given: this browser manages acme/library, whose declaration names the shipped scrum, acme/atlas, whose declaration names the instance's scrum-wip, and acme/bare, which declares none
+// input: the route `models` drawn with name=scrum-wip, as Edit leads to it
+// expect: the editor's <section class="model-products"> lists exactly https://github.com/acme/atlas; known positive: the list of the models names acme/atlas under scrum-wip (TST-778002)
+test("TST-1371001 the editor of a model names the products of this browser that declare it", async () => {
+  const listed = await draw();
+  assert.deepEqual(productsOf(modelOf(listed, "scrum-wip")), [ATLAS], "known positive: the list names acme/atlas under scrum-wip");
+  const { target } = await edit("scrum-wip");
+  assert.equal(byClass(target, "model-products").length, 1, "the section stands");
+  assert.deepEqual(usersOfEditor(target), [ATLAS]);
+});
+
+// TST-1371002 · level: unit · module: MOD-implementation-pages
+// guards: UC-031
+// given: the same browser; the instance's broken-wip, which no product declares
+// input: the route `models` drawn with name=broken-wip
+// expect: the editor's <section class="model-products"> stands and lists no product — neither acme/library, which declares scrum, nor acme/atlas, which declares scrum-wip, nor acme/bare; counter-proof of TST-1371001
+test("TST-1371002 the editor of a model that no product declares names none", async () => {
+  const { target } = await edit("broken-wip", { ...INSTANCE_FILES, "docs/process-models/broken-wip.md": BROKEN });
+  assert.equal(byClass(target, "model-products").length, 1, "known positive: the section stands");
+  assert.deepEqual(usersOfEditor(target), []);
+});
+
+// TST-1371003 · level: unit · module: MOD-implementation-pages
+// guards: UC-031
+// given: the editor on scrum-wip, which acme/atlas declares; and the editor on the adapted v-model, which no product declares
+// input: before any save the notice; then the person's click on Save in each
+// expect: before it the notice of scrum-wip holds no <ul class="products">; after it the notice says "Saved as docs/process-models/scrum-wip.md." and its <ul class="products"> lists exactly https://github.com/acme/atlas; the notice after the save of the adapted v-model says "Saved as docs/process-models/v-model-adapted.md." and lists no product
+test("TST-1371003 the notice after Save names the products that declare the model saved", async () => {
+  const { target, state, click } = await edit("scrum-wip");
+  const notice = byClass(target, "save-notice")[0];
+  assert.deepEqual(byClass(notice, "products"), [], "before the save the notice names no product");
+  await click(saveOf(target));
+  assert.equal(state.commits.length, 1, "known positive: the model is saved");
+  assert.match(notice.textContent, /Saved as docs\/process-models\/scrum-wip\.md\./);
+  assert.deepEqual(usersIn(notice), [ATLAS]);
+  const adapted = await edit("v-model");
+  await adapted.click(saveOf(adapted.target));
+  assert.equal(adapted.state.commits.length, 1, "known positive: the adapted model is saved");
+  const adaptedNotice = byClass(adapted.target, "save-notice")[0];
+  assert.match(adaptedNotice.textContent, /Saved as docs\/process-models\/v-model-adapted\.md\./);
+  assert.deepEqual(usersIn(adaptedNotice), []);
+});
+
+// TST-1371004 · level: unit · module: MOD-implementation-pages
+// guards: UC-031
+// given: the browser of TST-1371001, in which acme/library declares the shipped scrum
+// input: the route `models` drawn with name=scrum, as Adapt leads to it; then the author types the name scrum-wip
+// expect: the copy is saved as scrum-adapted, which no product declares, so the section lists none although acme/library declares scrum; after the name scrum-wip is typed, the file to be written is scrum-wip's and the section lists exactly https://github.com/acme/atlas
+test("TST-1371004 the products listed are those that declare the file the definition would be written to", async () => {
+  const { target } = await edit("scrum");
+  assert.equal(valueOf(target, "name"), "scrum-adapted", "known positive: the copy has a name of its own");
+  assert.deepEqual(usersOfEditor(target), []);
+  const field = fieldOf(target, "name").getElementsByTagName("input")[0];
+  field.value = "scrum-wip";
+  field.dispatchEvent(new Event("input"));
+  await settle();
+  assert.deepEqual(usersOfEditor(target), [ATLAS]);
+});
+
+// TST-1371005 · level: unit · module: MOD-implementation-pages
+// guards: UC-031
+// given: this browser also manages acme/missing, which no token reaches
+// input: the route `models` drawn with name=scrum-wip
+// expect: the editor's section holds the unreadable list with exactly "https://github.com/acme/missing: <the host's reason>", as the list of the models shows it (TST-778004), and still lists acme/atlas
+test("TST-1371005 a product that cannot be read is shown in the editor with its reason, as the list shows it", async () => {
+  const { target } = await edit("scrum-wip");
+  const section = byClass(target, "model-products")[0];
+  assert.deepEqual(byClass(section, "source").map((item) => item.textContent), [`${MISSING}: ${MISSING} ${NO_TOKEN}`]);
+  assert.deepEqual(usersOfEditor(target), [ATLAS]);
+});
+
+// TST-1371006 · level: unit · module: MOD-implementation-pages
+// guards: EVERY PAGE LOADS IN UNDER THREE SECONDS; UC-031
+// given: this browser manages acme/library, acme/atlas and acme/bare; the list of the models drawn first, with the requests it sends to each recorded
+// input: the route `models` drawn with name=scrum-wip, with the requests it sends to each recorded
+// expect: the editor sends to each of acme/library, acme/atlas and acme/bare exactly the requests the list sends, so each product's declaration alone is read once; known positive: the list sends at least one request to each of the three
+test("TST-1371006 the editor reads each product as the list reads it, and no more", async () => {
+  await draw();
+  const ofList = Object.fromEntries(["acme/library", "acme/atlas", "acme/bare"].map((name) => [name, readsOf(name)]));
+  for (const [name, reads] of Object.entries(ofList)) assert.ok(reads.length > 0, `known positive: the list reads ${name}`);
+  await edit("scrum-wip");
+  for (const [name, reads] of Object.entries(ofList)) assert.deepEqual(readsOf(name), reads, name);
 });

@@ -424,6 +424,14 @@ async function declarationsOf(context) {
   }));
 }
 
+// The products among `declarations` whose declaration names the model file `path`, as a list; and the products that could not be read, with their reasons, as a
+// list (null where every one could be). The list of the models and the editor of a model both draw them (UC-031 1 and 6a).
+const productsDeclaring = (declarations, path) => el("ul", "products", ...declarations.filter((declaration) => declaration.modelFile === path).map((declaration) => el("li", null, declaration.address)));
+const unreadableOf = (declarations) => {
+  const unreadable = declarations.filter((declaration) => declaration.reason !== undefined);
+  return unreadable.length ? el("ul", "unreadable", ...unreadable.map((declaration) => el("li", "source", `${declaration.address}: ${declaration.reason}`))) : null;
+};
+
 export const modelsRoute = {
   ...heads.models,
 
@@ -436,11 +444,10 @@ export const modelsRoute = {
       instance.host.readSnapshot(defaultBranch).then((snapshot) => catalogue(snapshot)), declarationsOf(context)]);
 
     const row = (model, button) => {
-      const declaring = declarations.filter((declaration) => declaration.modelFile === model.path);
       const findings = cat.findings[model.path] ?? [];
       const item = el("li", "model", el("h4", null, model.name),
         el("span", "kind", model.kind), explain("model-kind"),
-        el("ul", "products", ...declaring.map((declaration) => el("li", null, declaration.address))), explain("model-products"));
+        productsDeclaring(declarations, model.path), explain("model-products"));
       if (findings.length) {
         item.append(el("ul", "findings", ...findings.map((finding) => el("li", null, `${finding.kind}: ${finding.what}`))), explain("model-findings"));
       }
@@ -457,12 +464,8 @@ export const modelsRoute = {
       el("ul", null, ...cat.models.filter(isOwn).map((model) => row(model, link("Edit", "edit", to(model))))),
       link("+ New model", "new-model", "#models/name="));
 
-    const unreadable = declarations.filter((declaration) => declaration.reason !== undefined);
     const page = el("article", "models-page", el("h2", null, "Process models"));
-    if (unreadable.length) {
-      page.append(el("ul", "unreadable", ...unreadable.map((declaration) => el("li", "source", `${declaration.address}: ${declaration.reason}`))));
-    }
-    page.append(shipped, own);
+    page.append(...[unreadableOf(declarations), shipped, own].filter(Boolean));
     target.replaceChildren(page);
   },
 };
@@ -512,9 +515,11 @@ function adaptedName(name, cat, snapshot) {
 
 async function editor(target, context, name) {
   const { instance, store } = context;
+  const reading = declarationsOf(context); // the products' declarations, read beside the instance's snapshot (UC-031 6a)
   const { defaultBranch } = await instance.host.repositoryInfo();
   const snapshot = await instance.host.readSnapshot(defaultBranch);
   const cat = await catalogue(snapshot);
+  const declarations = await reading;
   const page = el("article", "model-editor");
   target.replaceChildren(page);
 
@@ -568,6 +573,12 @@ async function editor(target, context, name) {
 
     // Where the definition is saved: the file named by the name typed, or, while none is, where it was opened.
     const placed = (document) => ({ ...document, path: document.fields.name ? modelPath(String(document.fields.name)) : opened.path });
+
+    // 6a: the products of this browser that declare the model the definition would be saved as, beside the form; those that could not be read, as the list shows them.
+    // The form's extraChecks draw them when it opens and at every typing.
+    const users = el("div", "model-users");
+    const usersPart = el("section", "model-products", el("h3", null, "Products that declare this model"), explain("model-products"), users);
+    const showUsers = (path) => users.replaceChildren(...[productsDeclaring(declarations, path), unreadableOf(declarations)].filter(Boolean));
 
     // The Model the definition typed is, read by the catalogue itself from a snapshot that holds only that file; null for a definition that
     // cannot be written yet (a required value left out) or that stands at no path of an instance's model.
@@ -630,6 +641,7 @@ async function editor(target, context, name) {
     const form = schemaForm(modelSchema.model, opened, {
       extraChecks: (live) => {
         const document = placed(live);
+        showUsers(document.path);
         follow(document);
         return beyondSchema(document);
       },
@@ -652,7 +664,10 @@ async function editor(target, context, name) {
           return;
         }
         saved.set(document.path, result.blob);
-        notice.replaceChildren(el("p", "saved", `Saved as ${document.path}.`), link("Process models", "back", "#models"));
+        const declaring = declarations.some((declaration) => declaration.modelFile === document.path);
+        notice.replaceChildren(el("p", "saved", `Saved as ${document.path}.`),
+          ...(declaring ? [el("p", "saved-products", "Products that declare it:"), productsDeclaring(declarations, document.path)] : []),
+          link("Process models", "back", "#models"));
       },
     });
     // 2a, "Agent M adapts the form to it": a planned definition's form has no part `## Flow control`, which MOD-model-catalogue gives "for
@@ -661,7 +676,7 @@ async function editor(target, context, name) {
       for (const part of elementsOf(form, (node) => node.getAttribute("data-section") === "## Flow control")) part.remove();
     }
     // Inserted in the same turn schemaForm returns it, so that its queued focus finds it in the page.
-    page.append(el("section", "model-form", explain("model-findings"), form), notice,
+    page.append(usersPart, el("section", "model-form", explain("model-findings"), form), notice,
       el("section", "model-picture", el("h3", null, "Phases, verification pairs and gates"), explain("phases-and-gates"), diagram));
     for (const address of readSetting(store, "products") ?? []) {
       const button = el("button", null, address);
