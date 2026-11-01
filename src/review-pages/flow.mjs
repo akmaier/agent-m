@@ -9,7 +9,6 @@
 import { statuses, statusOf, removedFiles, lastAcceptedText, acceptShown, acceptanceBlockers, fallbackAcceptLink, approvalSchema, rejectShown } from "../approvals/index.mjs";
 import { blobSha } from "../text-tools/index.mjs";
 import { writeDocument, readDocument, artifactSchemas } from "../documents/index.mjs";
-import { listJobs } from "../job-ledger/index.mjs";
 import { renderArtifact, showDifference } from "../markdown-render/index.mjs";
 import { acceptAndRelease } from "../release-evidence/index.mjs";
 import { readSetting } from "../browser-store/index.mjs";
@@ -20,7 +19,7 @@ import { begin as beginSubject, remember as rememberSubject, subjectOf } from ".
 import { showEdit } from "./edit.mjs";
 import { showEntryEdit } from "./entry-edit.mjs";
 import { showFileEdit } from "./file-edit.mjs";
-import { showDraft, jobNotes } from "./jobs.mjs";
+import { showDraft, jobNotes, newestJobRecords } from "./jobs.mjs";
 import { affectedCheck } from "./affected-modules.mjs";
 import { storedOnce, fromStored } from "./stored.mjs";
 import { queueService } from "./spec-entries.mjs";
@@ -105,11 +104,12 @@ function architectureOrder(entries, texts) {
 // the record's `Left:` line states; null where there is no such job.
 async function draftingRounds(where) {
   try {
-    const address = where.context.product?.address ?? where.context.instance.repository;
-    const rows = await listJobs([{ address, snapshot: where.snapshot }], new Map());
-    const row = rows.find((each) => each.record.kind === ARCHITECTURE_JOB && each.record.end);
-    if (!row || !row.record.end.rounds.length) return null;
-    return { rounds: row.record.end.rounds, stopped: stoppedBecause(await where.snapshot.read(row.record.path)) };
+    for await (const record of newestJobRecords(where.snapshot)) {
+      if (record.kind !== ARCHITECTURE_JOB || !record.end) continue;
+      if (!record.end.rounds.length) return null;
+      return { rounds: record.end.rounds, stopped: stoppedBecause(await where.snapshot.read(record.path)) };
+    }
+    return null;
   } catch { return null; }
 }
 
@@ -604,7 +604,7 @@ export function reviewRoute(kind) {
       target.append(link(`#${kind.route}/id=${encodeURIComponent(file.id)}/edit=1`, "edit-link", "Edit"));
     }
     if (kind.draft && file.status !== "accepted") {
-      const notes = await jobNotes(snapshot, file.id);
+      const notes = await jobNotes(snapshot, file.id, file.path);
       if (notes.length) {
         const list = el("ul");
         for (const note of notes) list.append(el("li", null, note));
