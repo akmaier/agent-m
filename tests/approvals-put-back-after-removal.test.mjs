@@ -54,6 +54,10 @@ function counted(host) {
       repositoryInfo: async () => { calls.push({ fn: "repositoryInfo" }); return host.repositoryInfo(); },
       readSnapshot: async (ref, options) => { calls.push({ fn: "readSnapshot", ref }); return snapshotOf(await host.readSnapshot(ref, options), ref); },
       readHistory: async (path, options) => { calls.push({ fn: "readHistory", path }); return host.readHistory(path, options); },
+      readFileAt: async (path, commits) => {
+        calls.push({ fn: "readFileAt", path, commits });
+        return host.readFileAt(path, commits);
+      },
     },
   };
 }
@@ -62,7 +66,7 @@ function counted(host) {
 // guards: A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT; UC-023
 // given: MOD-desk accepted, removed, its removal accepted by a record naming the empty text's blob at docs/architecture/MOD-desk.md where no file stood when that record was added, and put back with another text; known positive: MOD-kept, accepted and changed since, whose most recent record names a text
 // input: lastAcceptedText("MOD-desk", host); lastAcceptedText("MOD-kept", host); each over a host that counts its calls
-// expect: for MOD-desk { text: "", blob: e69de29bb2d1d6434b8b29ae775ad8c2e48c5391, path: docs/architecture/MOD-desk.md } in five calls — repositoryInfo, readSnapshot of main, two readHistory, one read of the newest record —, no readSnapshot of another ref and no read of MOD-desk's file; for MOD-kept its accepted text with its blob and path, read as before in six calls, the snapshot at the record's commit and MOD-kept's file among them
+// expect: for MOD-desk { text: "", blob: e69de29bb2d1d6434b8b29ae775ad8c2e48c5391, path: docs/architecture/MOD-desk.md } in five calls — repositoryInfo, readSnapshot of main, two readHistory, one read of the newest record —, no readSnapshot of another ref and no read of MOD-desk's file; for MOD-kept its accepted text with its blob and path, in five calls, one readFileAt of MOD-kept's file at the record's commit among them and no snapshot of another ref
 test("lastAcceptedText — where the most recent record names the empty text's blob, it gives the empty text and reads no file", async () => {
   const repo = await repository();
   const desk = counted(repo.host);
@@ -74,9 +78,9 @@ test("lastAcceptedText — where the most recent record names the empty text's b
   const kept = counted(repo.host);
   assert.deepEqual(await lastAcceptedText("MOD-kept", kept.host), { text: K1, blob: blobOf(K1), path: KEPT },
     "known positive: a record that names a text is read as before");
-  assert.equal(kept.calls.length, 6);
-  assert.ok(kept.calls.some((call) => call.fn === "readSnapshot" && call.ref !== "main"), "known positive: the snapshot at the record's commit");
-  assert.ok(kept.calls.some((call) => call.fn === "read" && call.path === KEPT), "known positive: the file read there");
+  assert.equal(kept.calls.length, 5);
+  assert.ok(kept.calls.some((call) => call.fn === "readFileAt" && call.path === KEPT), "known positive: the file read at the record's commit");
+  assert.ok(!kept.calls.some((call) => call.fn === "readSnapshot" && call.ref !== "main"), "no snapshot at the record's commit");
 });
 
 // TST-1314002 · level: unit · module: MOD-approvals

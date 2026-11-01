@@ -92,6 +92,7 @@ function fakeProduct() {
         }
         return limit ? found.slice(0, limit) : found;
       },
+      async readFileAt(path, shas) { return new Map(shas.map((sha) => [sha, commits.has(sha) && commits.get(sha).tree.has(path) ? commits.get(sha).tree.get(path) : null])); },
       async commitFiles(change) {
         calls.push({ change: structuredClone(change) });
         if (change.branch !== "main" || change.expectedHead !== head) throw failure("Moved", "the branch moved", { head });

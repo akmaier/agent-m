@@ -179,14 +179,14 @@ test("counter-proof: a file changed between building the page and the click is l
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the fixture product, whose three module files MOD-page, MOD-reader and MOD-review are not accepted
 // input: open #review/arc with a token, and again on a fresh server with the same caches
-// expect: the three files shown come in one batch of three and none by itself; the stored graph of the commit read once, no batch of the files a graph reads; the SPEC at most once; no use case and no queue file; the commit and the repository's information once each, the folders twice (the folders it reads, and MOD-reader's last accepted text), and no git/trees; the second load sends the same requests and shows the same page
+// expect: the three files shown come in one batch of three and none by itself; the stored graph of the commit read once, no batch of the files a graph reads; the SPEC at most once; no use case and no queue file; the commit and the repository's information once each, the folders once, one batch of the three files and one batch of one (MOD-reader's last accepted text, read by MOD-approvals as one file at the commit that added its record), and no git/trees; the second load sends the same requests and shows the same page
 test("request count: the architecture's review page reads the files it shows in one batch, its commit and its folders once, the repository's information once, and the stored graph of its impact list once", async (t) => {
   const repo = await product(), caches = fakeCaches();
   const srv = await server(repo);
   const cold = await openDashboard({ server: srv, hash: "#review/arc", caches });
   assert.deepEqual(files(cold.requests).filter((p) => p.startsWith("docs/architecture/")), [],
     "no file shown is read by itself");
-  assert.equal(srv.batches.length, 1);
+  assert.equal(srv.batches.length, 2, "the files shown, and MOD-reader's last accepted text");
   assert.deepEqual([...srv.batches[0]].sort(), ["docs/architecture/MOD-page.md", "docs/architecture/MOD-reader.md", "docs/architecture/MOD-review.md"],
     "the three files shown, in one batch");
   assert.equal(cold.requests.filter((r) => r.startsWith("stored graph ")).length, 1, "the stored graph of the commit, once");
@@ -194,10 +194,10 @@ test("request count: the architecture's review page reads the files it shows in 
   assert.deepEqual(files(cold.requests).filter((p) => p.startsWith("docs/use-cases/") || p.startsWith("docs/spec-freigaben/")), [],
     "no use case and no queue file");
   assert.equal(count(cold.requests, "commit"), 1);
-  assert.equal(count(cold.requests, "folders"), 2, "the folders it reads, and MOD-reader's last accepted text");
+  assert.equal(count(cold.requests, "folders"), 1, "the folders it reads");
   assert.equal(count(cold.requests, "tree"), 0);
   assert.equal(count(cold.requests, "repository"), 1);
-  assert.equal(cold.requests.filter((r) => r.startsWith("batch ")).length, 1, "the files shown in one batch, and no batch of a graph's files");
+  assert.deepEqual(cold.requests.filter((r) => r.startsWith("batch ")), ["batch 3", "batch 1"], "the files shown in one batch, MOD-reader's last accepted text in one of one, and no batch of a graph's files");
   const warm = await openDashboard({ server: await server(repo), hash: "#review/arc", caches });
   // Each server's head is a commit of its own (the stored graph is kept per commit for a page), so the two loads' requests are compared with the commit named alike.
   const anyCommit = (requests) => requests.map((request) => request.replace(/[0-9a-f]{40}/g, "<commit>"));
