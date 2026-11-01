@@ -367,14 +367,16 @@ test("TST-448210: UC-022 step 8 — the author may change any file, have the cha
 
 // TST-448211 · level: system · module: system
 // guards: UC-022; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; A GENERATED ARTIFACT IS A PROPOSAL; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT; ONE CLICK PER DECISION
-// given: the draft shown after Run, in which the author left the files as drafted
+// given: the draft shown after Run, in which the author added one sentence to the system's decision in its editor
 // input: step 9 the author presses Write proposals; the commits and the files the product holds are read
-// expect: one commit on the default branch main, on the head that was read, writes the four files of the architecture — the drafted ARC-900, ARC-901, ARC-902 given the next free identifiers ARC-001, ARC-002 and ARC-003 in the order drafted, MOD-lending —, the references among them renamed with them; its message ends with the lines naming Agent M's version, the job, the kind derive-architecture, the participant drafter-a, its model model-a and the rounds; no file names the version, the job, the participant or the model; every file reads open
+// expect: one commit on the default branch main, on the head that was read, writes the four files of the architecture — the drafted ARC-900, ARC-901, ARC-902 given the next free identifiers ARC-001, ARC-002 and ARC-003 in the order drafted, MOD-lending —, the system's decision with the author's sentence, the references among them renamed with the identifiers; its message ends with the lines naming Agent M's version, the job, the kind derive-architecture, the participant drafter-a, its model model-a and the rounds; no file names the version, the job, the participant or the model; every file reads open
 test("TST-448211: UC-022 step 9 — Write proposals commits the whole architecture as open files in one commit, whose message names the version, the participant and the model", async () => {
   ready();
   const fake = fakeProduct();
   const head = fake.head();
   const target = await derive(fake);
+  const editor = editorOf(target, ARC_DRAFT);
+  editor.value = editor.value.replace("The system is two folders.", "The system is two folders. The author kept it so.");
   await writeProposals(target);
   assert.match(byClass(target, "p", "written")[0].textContent, /^Written: docs\/architecture\/ARC-001-system\.md, docs\/architecture\/ARC-002-lending\.md, docs\/architecture\/ARC-003-the-loan-package\.md, docs\/architecture\/MOD-lending\.md$/);
   const commits = writes(fake);
@@ -386,6 +388,7 @@ test("TST-448211: UC-022 step 9 — Write proposals commits the whole architectu
   assert.match(commits[0].message, /^draft ARC-001, ARC-002, ARC-003, MOD-lending as open files\n\nAgent-M-Version: .+\nAgent-M-Job: JOB-\d{8}-\d{4}-[0-9a-f]{4}\nAgent-M-Kind: derive-architecture\nAgent-M-Participant: drafter-a\nAgent-M-Model: model-a\nAgent-M-Rounds: 1$/);
   const [system, subsystem, further, module] = commits[0].files.map((file) => file.text);
   assert.match(system, /^---\nid: ARC-001\n/);
+  assert.ok(system.includes("The system is two folders. The author kept it so."), "the file is written as the author left it");
   assert.match(subsystem, /^---\nid: ARC-002\ntitle: Lending\nrefines: ARC-001\n/);
   assert.match(further, /^---\nid: ARC-003\n/);
   assert.match(module, /\nfollows:\n {2}- ARC-002\n/, "the module follows the subsystem's decision under its new identifier");
