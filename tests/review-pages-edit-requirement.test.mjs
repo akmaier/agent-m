@@ -33,6 +33,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { withStoredGraph } from "./stored-graph-fake.mjs";
+import { until as settled } from "./review-pages-wait.mjs";
 
 // Every commit the fakes of this file make is its own: MOD-trace-graph's storedGraph keeps a commit's graph for the page.
 let commitsMade = 0;
@@ -310,6 +311,33 @@ test("requirement/<name> — a save the text changed under is refused, and the e
   assert.equal(fake.writes().length, 0, "nothing written");
   assert.equal(areaOf(target).value, edited, "the edit stays");
   assert.match(byClass(target, "div", "newer")[0].textContent, /returned, or renewed\./);
+});
+
+// TST-1398001 · level: unit · module: MOD-review-pages
+// guards: UC-018; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT
+// given: the editor with an edit ("returned, or renewed.") and a Why; another writer changes the rule on the default branch to "returned on time."; Save is refused and the newer section shown
+// input: the author merges ("returned on time, or renewed."); a third writer changes the rule to "returned on time, at the desk."; Save; the author merges again ("returned on time, at the desk, or renewed."); Save
+// expect: counter-proof: the save after the further change is refused again, nothing written, the newest section beside the edit; then the merged section is written once, as the proposal of one entry
+test("requirement/<name> — after a refused save, the merged section is saved against the newer version", async () => {
+  const fake = fakeHost();
+  const target = await showEdit(fake, NAME(LOAN));
+  const newerShows = (words) => byClass(target, "div", "newer").length > 0 && byClass(target, "div", "newer")[0].textContent.includes(words);
+  type(target, LENDING.replace("returned.", "returned, or renewed."));
+  withWhy(target);
+  fake.land({ "SPEC.md": HEAD + LENDING.replace("returned.", "returned on time.") + READING });
+  click(saveOf(target));
+  await settled(target, () => newerShows("returned on time."), "the newer section");
+  type(target, LENDING.replace("returned.", "returned on time, or renewed."));
+  fake.land({ "SPEC.md": HEAD + LENDING.replace("returned.", "returned on time, at the desk.") + READING });
+  click(saveOf(target));
+  await settled(target, () => newerShows("returned on time, at the desk."), "the newest section");
+  assert.equal(fake.writes().length, 0, "counter-proof: a further change after the refusal refuses the save again");
+  const merged = LENDING.replace("returned.", "returned on time, at the desk, or renewed.");
+  type(target, merged);
+  click(saveOf(target));
+  await settled(target, () => byClass(target, "p", "entry").length === 1 || newerShows("returned on time, at the desk."), "the answer to the save of the merged section");
+  assert.equal(fake.writes().length, 1, "the merged section is written once");
+  assert.deepEqual(proposals(fake).map((file) => file.text), [merged], "the proposal is the merged section");
 });
 
 // ---------------------------------------------------------------- without a token
