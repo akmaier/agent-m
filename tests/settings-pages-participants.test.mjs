@@ -267,6 +267,23 @@ async function save(page) {
   assert.ok(button, "schemaForm exposes Save");
   assert.equal(button.disabled, false, "Save is available");
   await click(button);
+  await untilSaved(page);
+}
+
+// The wait for what a click on Save comes to. The route commits the register with saveFile, which hashes the saved text with
+// crypto.subtle.digest (MOD-text-tools' blobSha) on node's threadpool after the commit; only then does it draw the list and keep an
+// inline endpoint, and last write the paragraph `participants-result` ("Saved.", or why nothing was saved). So no count of turns or
+// milliseconds bounds the click: the wait ends when that paragraph has text, fails by name when it says anything but "Saved.",
+// and the deadline only names a page that never settles.
+const SETTLES_WITHIN_MS = 10_000;
+async function untilSaved(page) {
+  const said = () => one(page, "participants-result").textContent;
+  const deadline = Date.now() + SETTLES_WITHIN_MS;
+  while (said() === "") {
+    if (Date.now() > deadline) assert.fail(`waited for the page to say the participant was saved; it said nothing within ${SETTLES_WITHIN_MS} ms`);
+    await new Promise((resolve) => setTimeout(resolve, 1));
+  }
+  assert.equal(said(), "Saved.", "the page says the participant was saved");
 }
 
 function rowsOf(text) {
