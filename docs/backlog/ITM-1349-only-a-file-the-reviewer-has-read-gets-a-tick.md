@@ -7,6 +7,8 @@ realises:
   - SEVERAL FILES ARE ACCEPTED IN ONE CLICK
 modules:
   - MOD-review-pages
+  - MOD-settings-pages
+  - MOD-site-frame
 builds_on:
   - ITM-372
 tests:
@@ -31,6 +33,22 @@ reviewer was never shown, against `SEVERAL FILES ARE ACCEPTED IN ONE CLICK` ("no
   was shown. A file not shown has no tick.
 - A file that changed after it was shown is left out of *Accept ticked* and named, as UC-008 3d gives it.
 - TST-372212 loses its `todo` in a commit by a participant other than the implementer, written after the code is pushed.
+- The probe names the existing expectations that move. Each ticks a file straight from the list:
+  - unit tests of MOD-review-pages: `review-pages-use-cases`, `-architecture`, `-open-changes-first`,
+    `-accessible-names` and `-spec-entries`;
+  - `tests/dashboard-review-flows.test.mjs:211, :234, :462, :489` (MOD-settings-pages);
+  - `tests/release-sprint-01-dashboard-app.test.mjs:538, :673` and TST-905069 in `tests/site-accessibility.test.mjs:238`
+    (MOD-site-frame);
+  - the system and release cases TST-372211, TST-372306, TST-372312, TST-1319205, TST-1319207 and TST-371003.
+
+  Each now opens the file's page, or `<k>/id=all`, before it ticks. No other assertion changes.
+- The item names MOD-settings-pages and MOD-site-frame for those tests only (`A BACKLOG ITEM NAMES THE MODULES IT
+  CHANGES`). No code of their folders changes.
+- The system and release cases, and TST-372212's `todo`, change in one commit by developer-sonnet-l (`RELEASE TESTS ARE
+  NOT WRITTEN BY THE IMPLEMENTER`). That commit is written from the pushed code and goes onto this pull request's branch
+  before its gate, so CI is green at the gate.
+- Where ITM-1291 or ITM-1170 changes the same test file, whichever pull request merges second rebases onto the sprint
+  branch, runs the moved files again, and its gate reads the rebased head.
 - Before the job starts, its probe reads MOD-review-pages' text on the list's ticks (MOD-review-pages.md:186-188). The
   reading taken: "each with its status and a tick" names the tick the list offers for a file read, as UC-008 3d gives
   it. What was shown is kept on the screen only.
