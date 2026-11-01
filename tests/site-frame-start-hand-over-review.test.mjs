@@ -55,13 +55,13 @@ test("TST-572001 start.mjs registers each set once however many views hand it, a
 // guards: UC-049
 // given: the review page of TST-572001, started
 // input: MOD-job-runner's prepareJob for each kind of the catalogue named below, in a context with no snapshot and no participant
-// expect: no kind of derive-requirements, change-requirements, derive-use-cases, change-use-case, derive-architecture, review-architecture, check-for-persons, check-resource, converse and implement meets an UnknownStrategy (implement's writer branch-and-pull-request is handed by MOD-runtimes' routeStrategies through the bar's handOverStrategies); draft-plan meets the UnknownStrategy plan-steps (a writer no set that is handed holds yet; its recipe architecture-and-model and its check plan-checks are handed by MOD-work-plans' workStrategies) — which shows that the check does detect a missing strategy
+// expect: no kind of derive-requirements, change-requirements, derive-use-cases, change-use-case, derive-architecture, review-architecture, check-for-persons, check-resource, converse, implement and draft-plan meets an UnknownStrategy (implement's writer branch-and-pull-request is handed by MOD-runtimes' routeStrategies through the bar's handOverStrategies; draft-plan's recipe architecture-and-model, check plan-checks and writer plan-steps by MOD-work-plans' workStrategies); decide-gate meets the UnknownStrategy gate-inputs (a recipe no module offers, MOD-job-catalogue) — which shows that the check does detect a missing strategy
 test("TST-572002 on a review page every kind whose strategies are all handed is prepared without UnknownStrategy", async () => {
   for (const kind of ["derive-requirements", "change-requirements", "derive-use-cases", "change-use-case", "derive-architecture",
-    "review-architecture", "check-for-persons", "check-resource", "converse", "implement"]) {
+    "review-architecture", "check-for-persons", "check-resource", "converse", "implement", "draft-plan"]) {
     assert.equal(await unknownStrategyOf(kind), null, `${kind} meets no UnknownStrategy`);
   }
-  assert.equal(await unknownStrategyOf("draft-plan"), "plan-steps");
+  assert.equal(await unknownStrategyOf("decide-gate"), "gate-inputs");
 });
 
 // TST-572003 · level: unit · module: MOD-site-frame
