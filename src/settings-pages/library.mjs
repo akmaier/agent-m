@@ -182,9 +182,14 @@ function tokenNotice(web, host, error) {
 const isRestricted = (licence) => !REPUBLISHABLE.test(String(licence ?? ""));
 const parseWeb = (address) => { try { return parseAddress(address).path; } catch { return address; } };
 
-// What becomes public when a source's entry and `files` are committed: the entry always, a kept file in the instance or in the named repository, a file only hashed nowhere.
-function statementOf(fields, files, instanceRepo) {
+// What becomes public when a source's entry and `files` are committed: the entry always, a kept file in the instance or in the named repository, a file only hashed nowhere; for an EU
+// legal text (`fetched`), the official text the fetch workflow stores in the instance after Save, where its licence permits republishing, and else nothing of it.
+function statementOf(fields, files, instanceRepo, fetched = false) {
   const lines = [`Becomes public: the register entry, always, in the instance repository ${instanceRepo}.`];
+  if (fetched) {
+    lines.push(isRestricted(fields.licence) ? "The official text is not stored in the public instance: the fetch workflow stores a text only where its licence permits republishing."
+      : "Content, public in the instance repository: the official text the fetch workflow downloads from the EU's publication repository after Save.");
+  }
   const names = (list) => list.map((file) => file.name).join(", ");
   const kept = files.filter((file) => !file.onlyHashed), hashed = files.filter((file) => file.onlyHashed);
   if (kept.length) {
@@ -496,7 +501,7 @@ export const route = {
     function checks(document) {
       const { fields } = document;
       remembered = { ...fields };
-      publicStatement.textContent = statementOf(fields, state.files, instanceRepo);
+      publicStatement.textContent = statementOf(fields, state.files, instanceRepo, state.route === "legal-text");
       const found = [];
       const add = (rule, what, fix) => found.push(finding({ artifact: "library", line: 1, kind: "error", rule, what, fix }));
       const names = namesOf(fields, fields.id).map((name) => name.toLowerCase());

@@ -597,6 +597,32 @@ test("library — what becomes public is stated before Save and follows the lice
   assert.match(statement(), /nothing of a\.md is stored/i);
 });
 
+// TST-1362001 · level: unit · module: MOD-settings-pages
+// guards: RESTRICTED CONTENT STAYS OUT OF THE PUBLIC INSTANCE; UC-004
+// given: the EU legal text route with the AI Act's address and a licence that may be republished, then the same with a restricted licence; the documents route with a.md and a licence that may be republished as the counter-proof
+// input: the form filled in, before Save
+// expect: the legal text's statement reads "Becomes public: the register entry, always, in the instance repository alice/agent-m. Content, public in the instance repository: the official text the fetch workflow downloads from the EU's publication repository after Save."; with the restricted licence it names the register entry and says the fetch stores no text in the public instance; the documents route still reads "Becomes public: the register entry, always, in the instance repository alice/agent-m. Content, public in the instance repository: a.md."
+test("library — before an EU legal text is saved, the statement names the official text the fetch stores in the public instance", async (t) => {
+  const b = browser(t);
+  const page = await b.page();
+  await register(page, "legal-text");
+  await put(one(page, "library-legal-address"), "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689");
+  const form = await describe(page, { id: "SRC-ai-act-3", title: "AI Act, third", authority: "normative", licence: "may be republished — EU law" });
+  const statement = () => one(page, "library-public").textContent;
+  assert.equal(statement(), "Becomes public: the register entry, always, in the instance repository alice/agent-m. Content, public in the instance repository: the official text the fetch workflow downloads from the EU's publication repository after Save.");
+  await typeInto(form, "licence", "restricted — terms");
+  assert.match(statement(), /^Becomes public: the register entry, always, in the instance repository alice\/agent-m\./);
+  assert.match(statement(), /official text/);
+  assert.doesNotMatch(statement(), /Content, public in the instance repository/, "a restricted text is not stated as public");
+
+  const c = browser(t);
+  const other = await c.page();
+  await register(other, "documents");
+  await chooseFiles(other, [fileOf("a.md", "# A\n")]);
+  await describe(other, { id: "SRC-x", title: "X", authority: "advisory", licence: "may be republished — CC BY 4.0" });
+  assert.equal(one(other, "library-public").textContent, "Becomes public: the register entry, always, in the instance repository alice/agent-m. Content, public in the instance repository: a.md.", "counter-proof: the documents route's statement is unchanged");
+});
+
 // TST-472761 · level: unit · module: MOD-settings-pages
 // guards: EVERY STEP EXPLAINS ITSELF; UC-004
 // given: the routes' parts and the form
