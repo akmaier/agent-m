@@ -18,7 +18,7 @@
 
 import { appendToRecord } from "../job-ledger/index.mjs";
 import { cancelRun, jobWorkflowRuns, queueOnCi, runOfAddress } from "./ci.mjs";
-import { abortOnTab, endOnTab, heldOnTab, queueOnTab, requireWaitingOnTab, tookOnTab } from "./tab.mjs";
+import { abortOnTab, browserStore, endOnTab, heldOnTab, queueOnTab, requireWaitingOnTab, tookOnTab } from "./tab.mjs";
 import { retryJob as retryWith } from "./retry.mjs";
 import { bridgeNamed, cancelBridgeJob, followBridgeLog, handOverAgain, listedOnBridge, queueOnBridge } from "./bridge.mjs";
 
@@ -54,7 +54,7 @@ export { RuntimeError } from "./ci.mjs";
  * @returns {Promise<{ path: string, commit: string }>}
  */
 export async function queueJob(host, start, route, head, bridge) {
-  if (route.kind === "ci") return queueOnCi(host, start, head);
+  if (route.kind === "ci") return queueOnCi(host, start, head, browserStore());
   if (route.kind === "tab") return queueOnTab(host, start, head);
   if (route.kind === "bridge") return queueOnBridge(host, start, head, bridge);
   throw new Error(`queueJob: the "${route.kind}" route is not built yet (UC-010, UC-011)`);
