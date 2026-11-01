@@ -495,6 +495,26 @@ test("library — a registered source's name leads to its entry, which shows eac
   assert.deepEqual(b.went.at(-1), ["library", {}]);
 });
 
+// TST-1361001 · level: unit · module: MOD-settings-pages
+// guards: A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH; UC-004
+// given: the register of this file: EU AI Act's version 2026-10-01 of 2026-10-01 records act.html with the SHA-256 aaaa…a (64 × a), stored; IEC 62304's version IEC 62304:2006+AMD1:2015 of 2026-10-02 records iec-62304.pdf with the SHA-256 bbbb…b (64 × b), only hashed
+// input: the routes library/source=SRC-eu-ai-act and library/source=SRC-iec-62304
+// expect: each entry lists its one version with its identifier and its date, and under it each file read with its name and the SHA-256 the entry records: act.html with 64 × a, iec-62304.pdf with 64 × b, the file not stored as well; counter-proof: neither entry shows the other's SHA-256
+test("library — a source's entry lists each version with its identifier, its date and the SHA-256 of every file read", async (t) => {
+  const b = browser(t);
+  const [A, B] = ["a".repeat(64), "b".repeat(64)];
+  const stored = await b.page({ source: "SRC-eu-ai-act" });
+  const [act] = byClass(stored, "library-version");
+  assert.match(act.textContent, /^2026-10-01 · 2026-10-01/);
+  assert.match(act.textContent, new RegExp(`act\\.html[^\\n]*${A}`), "act.html with its SHA-256");
+  assert.doesNotMatch(one(stored, "library-entry").textContent, new RegExp(B), "counter-proof: not the other entry's SHA-256");
+  const hashed = await b.page({ source: "SRC-iec-62304" });
+  const [norm] = byClass(hashed, "library-version");
+  assert.match(norm.textContent, /^IEC 62304:2006\+AMD1:2015 · 2026-10-02/);
+  assert.match(norm.textContent, new RegExp(`iec-62304\\.pdf[^\\n]*${B}`), "the file only hashed with its SHA-256");
+  assert.doesNotMatch(one(hashed, "library-entry").textContent, new RegExp(A), "counter-proof: not the other entry's SHA-256");
+});
+
 // TST-472759 · level: unit · module: MOD-settings-pages
 // guards: A LIVING SOURCE IS PINNED; THE INSTANCE KEEPS THE SOURCE REGISTER; UC-004
 // given: the EU legal text route with the AI Act's address; the repository route with a repository pinned to its commit

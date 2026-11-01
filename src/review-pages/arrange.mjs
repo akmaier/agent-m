@@ -207,7 +207,9 @@ async function show(where, kind) {
     renameGo.addEventListener("click", () => { if (rename.value.trim() && rename.value !== group.title) applyOne({ op: "rename", group: here, title: rename.value.trim() }); });
     const lift = button("arrange-lift", "Move content up one level");
     lift.addEventListener("click", () => applyOne({ op: "lift", group: here }));
-    node.append(el("strong", "title", group.title), " ", rename, renameGo, " ", lift, " ", ...moveControls({ group: here }),
+    const remove = button("arrange-delete", "Delete");
+    remove.addEventListener("click", () => applyOne({ op: "delete", group: here }));
+    node.append(el("strong", "title", group.title), " ", rename, renameGo, " ", lift, " ", remove, " ", ...moveControls({ group: here }),
       el("ul", null, ...group.groups.map((child) => groupNode(child, [...here, child.title], m)), ...group.members.map((member) => itemNode(member, markOf(member.id, m)))));
     draggable(node, { group: here });
     dropTarget(node, here);

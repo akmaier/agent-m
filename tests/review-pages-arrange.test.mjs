@@ -338,3 +338,74 @@ test("TST-726008 the lists of use cases, decisions and modules link Arrange to t
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(fake.writes(), []);
 });
+
+// ---------------------------------------------------------------- ITM-1357: Delete and Move content up one level
+
+// The group file of the use cases with a third group, "Later", that holds nothing.
+const GROUPS_WITH_EMPTY = `${GROUPS}- Later\n`;
+const deleteButtons = (node) => find(node, (each) => each.localName === "button" && each.className.split(" ").includes("arrange-delete"));
+const standsInAGroup = (node) => { for (let at = node.parentNode; at; at = at.parentNode) if (at.localName === "li" && at.className.split(" ").includes("arrange-group")) return true; return false; };
+
+// TST-1357001 · level: unit · module: MOD-review-pages
+// guards: UC-021; ARTIFACTS ARE ARRANGED IN NESTED GROUPS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// given: the product with the group file above and a third group "Later" that holds nothing (known positive: the groups Review, Derivation and Later stand)
+// input: the route arrange drawn for the kind use-cases; the Delete of the group Later; Save arrangement
+// expect: each of the three groups offers one button Delete (class arrange-delete); after the click the one pending change is "Delete the empty group “Later”", the tree no longer shows Later, nothing is refused and nothing is written; after Save arrangement one commit on the head that was read holds docs/groups/use-cases.md alone, with the canonical text of the file without Later and with Review and Derivation as they were
+test("TST-1357001 UC-021 2b each group offers Delete, which deletes an empty group as a pending change", async () => {
+  const fake = fakeHost({ files: { ...PRODUCT, [GROUPS_PATH]: GROUPS_WITH_EMPTY } });
+  const read = fake.head();
+  const target = await show(fake, { kind: "use-cases" });
+  assert.deepEqual(byClass(target, "li", "arrange-group").map((node) => node.getAttribute("data-title")), ["Review", "Derivation", "Later"], "known positive: the three groups stand");
+  for (const title of ["Review", "Derivation", "Later"]) assert.deepEqual(deleteButtons(groupOf(target, title)).map((button) => button.textContent), ["Delete"], `${title} offers Delete`);
+  click(deleteButtons(groupOf(target, "Later"))[0]);
+  assert.deepEqual(pending(target), ["Delete the empty group “Later”"]);
+  assert.deepEqual(refused(target), []);
+  assert.equal(groupOf(target, "Later"), undefined);
+  assert.deepEqual(fake.writes(), []);
+  click(saveButton(target));
+  await until(() => fake.writes().length === 1, "the save");
+  const { change } = fake.writes()[0];
+  assert.equal(change.expectedHead, read);
+  assert.deepEqual(change.files.map((file) => file.path), [GROUPS_PATH]);
+  assert.equal(change.files[0].text, text("# Use cases — groups", "", "The hierarchy of the use cases, each member by its identifier.", "", "- Review", "  - UC-001", "  - UC-002", "- Derivation", "  - UC-003", "  - UC-009"));
+});
+
+// TST-1357002 · level: unit · module: MOD-review-pages
+// guards: UC-021; ARTIFACTS ARE ARRANGED IN NESTED GROUPS; AN ITEM HAS ONE PLACE IN ITS HIERARCHY
+// given: the product with the group file above, in which the group Review holds UC-001 and UC-002 (known positive: Review holds both before the click)
+// input: the route arrange drawn for the kind use-cases; the Delete of the group Review
+// expect: the move is refused and listed beside the tree with its reason — "Delete the empty group “Review”: " and then the reason of MOD-group-document's applyMoves, that the group is not empty and what it holds is to be moved out first —, it is no pending change, Review still holds UC-001 and UC-002, and nothing is written
+test("TST-1357002 UC-021 2b Delete of a group that is not empty shows the reason and changes nothing", async () => {
+  const fake = fakeHost({ files: { ...PRODUCT, [GROUPS_PATH]: GROUPS } });
+  const target = await show(fake, { kind: "use-cases" });
+  assert.deepEqual(byClass(groupOf(target, "Review"), "li", "arrange-item").map((node) => node.getAttribute("data-id")), ["UC-001", "UC-002"], "known positive: Review holds two use cases");
+  assert.equal(deleteButtons(groupOf(target, "Review")).length, 1, "Review offers Delete");
+  click(deleteButtons(groupOf(target, "Review"))[0]);
+  assert.equal(refused(target).length, 1);
+  assert.match(refused(target)[0], /^Delete the empty group “Review”: .*not empty; move what it holds out first/);
+  assert.deepEqual(pending(target), []);
+  assert.deepEqual(byClass(groupOf(target, "Review"), "li", "arrange-item").map((node) => node.getAttribute("data-id")), ["UC-001", "UC-002"]);
+  assert.deepEqual(fake.writes(), []);
+});
+
+// TST-1357003 · level: unit · module: MOD-review-pages
+// guards: UC-021; ARTIFACTS ARE ARRANGED IN NESTED GROUPS; AN ITEM HAS ONE PLACE IN ITS HIERARCHY
+// given: the product with the group file above, in which the group Review holds UC-001 and UC-002
+// input: the route arrange drawn for the kind use-cases; "Move content up one level" of Review; the Delete of Review; Save arrangement
+// expect: after the first click the one pending change is "Move the content of “Review” up one level", UC-001 and UC-002 stand at the top level (in no group) and Review stands, empty (known positive: the button arrange-lift is the one the page draws today); after the second the pending changes are that one and "Delete the empty group “Review”", in this order, and Review is gone; the saved file lists UC-001 and UC-002 once each at the top level and Derivation as it was, so that no item is deleted
+test("TST-1357003 UC-021 2b Move content up one level, then Delete, leaves the content in the parent and the group gone", async () => {
+  const fake = fakeHost({ files: { ...PRODUCT, [GROUPS_PATH]: GROUPS } });
+  const target = await show(fake, { kind: "use-cases" });
+  click(byClass(groupOf(target, "Review"), "button", "arrange-lift")[0]);
+  assert.deepEqual(pending(target), ["Move the content of “Review” up one level"]);
+  assert.equal(itemOf(target, "UC-001").some(standsInAGroup) || itemOf(target, "UC-002").some(standsInAGroup), false, "UC-001 and UC-002 stand at the top level");
+  assert.deepEqual(byClass(groupOf(target, "Review"), "li", "arrange-item"), [], "Review stands, empty");
+  assert.equal(deleteButtons(groupOf(target, "Review")).length, 1, "Review offers Delete");
+  click(deleteButtons(groupOf(target, "Review"))[0]);
+  assert.deepEqual(pending(target), ["Move the content of “Review” up one level", "Delete the empty group “Review”"]);
+  assert.equal(groupOf(target, "Review"), undefined);
+  assert.deepEqual(refused(target), []);
+  click(saveButton(target));
+  await until(() => fake.writes().length === 1, "the save");
+  assert.equal(writtenGroupFile(fake)[0].text, text("# Use cases — groups", "", "The hierarchy of the use cases, each member by its identifier.", "", "- UC-001", "- UC-002", "- Derivation", "  - UC-003", "  - UC-009"));
+});
