@@ -67,7 +67,7 @@ def store_test_handler() -> str:
 class MailboxSettingsDisclosure(unittest.TestCase):
     """SPEC §14 mailbox disclosures before a mailbox connection is stored."""
 
-    # TST-532005 - level: release - module: system
+    # TST-532005 · level: release · module: system
     # guards: THE MAILBOX PASSWORD IS STORED ONLY AFTER ITS OWN DISCLOSURE
     # given: MOD-settings-pages' mailbox source, with the IMAP Store and test handler and the password notice text
     # input: the password notice gate and the first write of the mailbox setting on the IMAP path
@@ -90,7 +90,7 @@ class MailboxSettingsDisclosure(unittest.TestCase):
         self.assertLess(body.index("if (!password.value)"), store)
         self.assertIn("Nothing was stored", body[:store])
 
-    # TST-532006 - level: release - module: system
+    # TST-532006 · level: release · module: system
     # guards: A MAILBOX THROUGH THE JUMP HOST IS NAMED AS READABLE THERE
     # given: MOD-settings-pages' mailbox source, with Bridges that may or may not be reached through the jump host
     # input: the jump-host notice, the Bridge selection visibility rule and the first mailbox write on the IMAP path
@@ -113,7 +113,7 @@ class MailboxSettingsDisclosure(unittest.TestCase):
         self.assertLess(body.index("if (bridge.throughJumpHost && !jumpRead.checked)"), store)
         self.assertIn("jumpHostNoted: bridge.throughJumpHost", body)
 
-    # TST-532007 - level: release - module: system
+    # TST-532007 · level: release · module: system
     # guards: A PLACE OUTSIDE THE EU IS NAMED AS NOT COMPLIANT
     # given: MOD-settings-pages' mailbox source and fixture processing places inside and outside the EU
     # input: isOutsideEu for this machine, an EU data centre and a USA provider; the outside-EU notice gate and the first mailbox write
