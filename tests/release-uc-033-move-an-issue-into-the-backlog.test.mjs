@@ -10,9 +10,9 @@
 // Level: release
 //
 // Written for the release testing of sprint 141 by developer-sonnet-j (ITM-804), who implemented none of ITM-582, ITM-583, ITM-584, ITM-617, ITM-1250 and ITM-1256 and no UC-033 production behaviour but ITM-817, MOD-work-plans'
-// `backlogFindings`. RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER: this file therefore holds no case that exercises `backlogFindings` — the report of an item that names no module or a module the architecture does not describe
-// (A BACKLOG ITEM NAMES THE MODULES IT CHANGES), the report of a circle of items that build on one another, and `saveItems`' refusal to write an item with an error finding — which developer-sonnet-l writes, in a commit of its own, from
-// UC-033 step 3. The world is tests/uc-033-harness.mjs. The release team works from the specification and the page: each case ends at what a person reads on the page and at the request a fixture received. Readings the texts leave open,
+// `backlogFindings`, and by developer-sonnet-l, who implemented none of it. RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER: developer-sonnet-j therefore wrote no case that exercises `backlogFindings` — the report of an item that names no
+// module or a module the architecture does not describe (A BACKLOG ITEM NAMES THE MODULES IT CHANGES), the report of a circle of items that build on one another, and `saveItems`' refusal to write an item with an error finding, from UC-033
+// step 3 — and developer-sonnet-l wrote TST-804311 to TST-804313, which do. The world is tests/uc-033-harness.mjs. The release team works from the specification and the page: each case ends at what a person reads on the page and at the request a fixture received. Readings the texts leave open,
 // which the cases state:
 //   - A BACKLOG ITEM NAMES THE MODULES IT CHANGES, read for what this file tests (UC-033 step 2, "modules: the modules of the architecture the fix or the change will touch, as UC-012's analysis and the architecture name them; the Product
 //     Owner confirms or corrects them"): the modules of the architecture whose folder holds a file the analysis names as wrong are prefilled, and what the person types is what is written.
@@ -23,9 +23,11 @@
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
+import { moveToBacklog } from "../src/issue-handling/index.mjs";
 import { testDeclarations } from "../src/test-document/index.mjs";
+import { backlogFindings } from "../src/work-plans/index.mjs";
 import { ADDRESS, EXISTING, PRODUCT_URL, addOf, analysed, buttonsOf, byClass, decided, errorsOf, fieldOf, flush, issueNow, issuesOf, itemFiles, itemOfFile, itemPath, itemText, moveOf, moved, one, openIssue, pressAdd,
-  queueOf, recordWrites, restoreWorld, startWorld, stateOf, textOf, trusted, typed, waitFor, writtenFiles } from "./uc-033-harness.mjs";
+  queueOf, recordWrites, restoreWorld, startWorld, stateOf, textOf, trusted, typed, waitFor, writeLog, writtenFiles } from "./uc-033-harness.mjs";
 import { PRODUCT_TOKEN } from "./uc-012-harness.mjs";
 
 // The map reads files only and draws no page, so that there is no world to put back after it.
@@ -37,11 +39,11 @@ const SELF = "tests/release-uc-033-move-an-issue-into-the-backlog.test.mjs";
 
 // ---------------------------------------------------------------- the map
 
-// Each requirement UC-033 realises, with the release tests of this file that guard it. A BACKLOG ITEM NAMES THE MODULES IT CHANGES holds further cases, which developer-sonnet-l adds (see the header).
+// Each requirement UC-033 realises, with the release tests of this file that guard it. A BACKLOG ITEM NAMES THE MODULES IT CHANGES holds the cases that exercise backlogFindings besides TST-804304 (see the header).
 const EVIDENCE = {
   "THE BACKLOG LIVES IN THE PRODUCT REPOSITORY": [[SELF, "TST-804302"]],
   "A BACKLOG ITEM NAMES WHAT IT REALISES": [[SELF, "TST-804303"]],
-  "A BACKLOG ITEM NAMES THE MODULES IT CHANGES": [[SELF, "TST-804304"]],
+  "A BACKLOG ITEM NAMES THE MODULES IT CHANGES": [[SELF, "TST-804304"], [SELF, "TST-804311"], [SELF, "TST-804312"], [SELF, "TST-804313"]],
   "NOTHING IS IMPLEMENTED BEFORE IT IS ACCEPTED": [[SELF, "TST-804305"]],
   "EVOLUTION ENTERS THROUGH THE SPECIFICATION": [[SELF, "TST-804306"]],
   "EVERY ARTIFACT NAMES ITS ORIGIN": [[SELF, "TST-804307"]],
@@ -366,4 +368,103 @@ test("TST-804310: UC-033 Move to backlog draws and Add writes, each on one click
   assert.equal(second.writes.filter((write) => write.path === "/git/commits").length, 1);
   assert.equal(second.writes.filter((write) => /\/issues\/9\/(comments|labels)$/.test(write.path)).length, 2);
   assert.deepEqual(issueNow(w, 9).labels.sort(), ["backlog", "defect"]);
+});
+
+// ---------------------------------------------------------------- the findings of step 3 that backlogFindings gives
+
+// TST-804311 · level: release · module: system
+// guards: A BACKLOG ITEM NAMES THE MODULES IT CHANGES; UC-033
+// given: the architecture describes MOD-store, MOD-pages and MOD-mail and not MOD-ghost; the open issue 6, a bug; the backlog's ITM-0900 and ITM-800
+// input: the Product Owner presses Move to backlog on issue 6, names FIRST RULE and no module; then names the modules MOD-store and MOD-ghost; then, as the counter-proof, MOD-store and MOD-pages, and presses Add
+// expect: with no module the form reports that the item names no module the architecture describes, Add is disabled; with MOD-store and MOD-ghost it reports that the item names MOD-ghost, which the architecture does not describe, and no other module, Add is disabled; in both nothing is written; the counter-proof item, which names only described modules, has no error, Add is enabled, and Add writes the item with the modules MOD-store and MOD-pages
+test("TST-804311: UC-033 an item that names no module, or a module the architecture does not describe, is reported and not added, and one that names described modules is", async () => {
+  const w = startWorld();
+  const detail = await openIssue(w, 6);
+  const form = await moved(detail);
+  await typed(fieldOf(form, "realises"), "FIRST RULE");
+  assert.match(errorsOf(form), /names no module the architecture describes/, "known positive: the item, as prefilled, names no module and is reported");
+  assert.equal(addOf(form).disabled, true, "an item naming no module is not offered for Add");
+  await typed(fieldOf(form, "modules"), "MOD-store, MOD-ghost");
+  assert.match(errorsOf(form), /names MOD-ghost, which the architecture does not describe/);
+  assert.ok(!errorsOf(form).includes("MOD-store"), "the described module is not reported");
+  assert.equal(addOf(form).disabled, true, "an item naming an undescribed module is not offered for Add");
+  assert.deepEqual(writeLog(w), [], "nothing is written");
+  assert.equal(writtenFiles(w).length, 0);
+
+  await typed(fieldOf(form, "modules"), "MOD-store, MOD-pages");
+  assert.equal(errorsOf(form), "", "counter-proof: an item naming described modules has no error");
+  assert.equal(addOf(form).disabled, false);
+  await pressAdd(detail, form);
+  assert.deepEqual(itemOfFile(itemFiles(w)[0]).fields.modules, ["MOD-store", "MOD-pages"]);
+});
+
+// TST-804312 · level: release · module: system
+// guards: A BACKLOG ITEM NAMES THE MODULES IT CHANGES; UC-033
+// given: the backlog holds ITM-810, which builds on ITM-811, and ITM-811, which builds on ITM-901, the identifier the form offers for the item of issue 6; ITM-0900 and ITM-800 build on nothing; the open issue 6, a bug
+// input: the Product Owner presses Move to backlog on issue 6, names FIRST RULE and MOD-store, and makes the item build on ITM-810, which closes a circle of three items; then, as the counter-proof, on ITM-800; and MOD-work-plans' backlogFindings is given the three items of the circle, and then the same three with ITM-811 building on nothing
+// expect: the form reports that the item builds on ITM-810, which builds on it in turn, naming ITM-901 and ITM-810, Add is disabled and nothing is written; backlogFindings reports each of the three items — ITM-901, ITM-810 and ITM-811 — as an error that names the item it builds on and says that this one builds on it in turn; for the counter-proof the form reports nothing and Add is enabled, and backlogFindings reports no error for the chain with ITM-811 building on nothing
+test("TST-804312: UC-033 a circle of items that build on one another is reported with its items named, and the item is not added", async () => {
+  const link = (id, title, buildsOn) => itemText({ id, title, buildsOn });
+  const circle = { [itemPath("ITM-810", "Ten")]: link("ITM-810", "Ten", ["ITM-811"]), [itemPath("ITM-811", "Eleven")]: link("ITM-811", "Eleven", ["ITM-901"]) };
+  const w = startWorld({ product: circle });
+  const detail = await openIssue(w, 6);
+  const form = await moved(detail);
+  assert.equal(fieldOf(form, "id").value, "ITM-901", "known positive: the form offers the identifier that ITM-811 builds on");
+  await typed(fieldOf(form, "realises"), "FIRST RULE");
+  await typed(fieldOf(form, "modules"), "MOD-store");
+  assert.equal(errorsOf(form), "", "known positive: nothing fails before the item builds on another");
+  await typed(fieldOf(form, "builds_on"), "ITM-810");
+  assert.match(errorsOf(form), /the item builds on ITM-810, which builds on it in turn/);
+  assert.match(errorsOf(form), /remove ITM-901 from the items ITM-810 builds on, or ITM-810 from the items ITM-901 builds on/);
+  assert.equal(addOf(form).disabled, true, "an item in a circle is not offered for Add");
+  assert.deepEqual(writeLog(w), [], "nothing is written");
+  assert.equal(writtenFiles(w).length, 0);
+
+  await typed(fieldOf(form, "builds_on"), EXISTING.id);
+  assert.equal(errorsOf(form), "", "counter-proof: an item that builds on one that does not build on it has no error");
+  assert.equal(addOf(form).disabled, false);
+
+  const item = (id, title, buildsOn) => itemOfFile({ path: itemPath(id, title), content: link(id, title, buildsOn) });
+  const architecture = [{ kind: "module", id: "MOD-store" }];
+  const errors = (items) => backlogFindings(items, architecture).filter((one) => one.kind === "error");
+  const closed = errors([item("ITM-901", "Nine", ["ITM-810"]), item("ITM-810", "Ten", ["ITM-811"]), item("ITM-811", "Eleven", ["ITM-901"])]);
+  assert.deepEqual(closed.map((one) => one.artifact).sort(), ["ITM-810", "ITM-811", "ITM-901"], "each item of the circle is reported");
+  const named = { "ITM-901": "ITM-810", "ITM-810": "ITM-811", "ITM-811": "ITM-901" };
+  for (const [id, on] of Object.entries(named)) {
+    assert.ok(closed.some((one) => one.artifact === id && one.what === `the item builds on ${on}, which builds on it in turn`), `${id} is reported with ${on} named`);
+  }
+  assert.deepEqual(errors([item("ITM-901", "Nine", ["ITM-810"]), item("ITM-810", "Ten", ["ITM-811"]), item("ITM-811", "Eleven", [])]), [], "counter-proof: the chain is no circle");
+});
+
+// TST-804313 · level: release · module: system
+// guards: A BACKLOG ITEM NAMES THE MODULES IT CHANGES; UC-033
+// given: the open issue 6, a bug, labelled defect, with no comment; the architecture describes MOD-store and not MOD-ghost; an item for it that names FIRST RULE, and, forced past the form, no module and then MOD-store and MOD-ghost
+// input: moveToBacklog is called with each of the two items, the page's form not being used; then, as the counter-proof, with the item that names MOD-store
+// expect: each of the two calls throws ItemsRefused, whose findings are errors of A BACKLOG ITEM NAMES THE MODULES IT CHANGES and, for the second, name MOD-ghost; the product's server receives no request that changes something, no file is written, the issue keeps no comment and only its label defect; the counter-proof call returns the item, writes its one file and one commit, and then the issue has the comment that names the item and the label backlog
+test("TST-804313: UC-033 saving an item with an error finding is refused whatever the form showed, and writes nothing, comments nothing and labels nothing", async () => {
+  const w = startWorld();
+  const host = w.context.product.host;
+  const issue = { number: 6, address: ADDRESS(6) };
+  const sections = [{ heading: "## Outcome", text: "\nThe export keeps its first page.\n\n" }, { heading: "## Acceptance", text: "\n- A unit test passes.\n" }];
+  const forced = (modules) => ({ fields: { title: "Export drops the last page", level: "module", realises: ["FIRST RULE"], modules, tests: ["unit"], origin: [ADDRESS(6)] }, sections });
+  const refused = async (modules, named) => {
+    await assert.rejects(moveToBacklog(host, issue, forced(modules), null), (failure) => {
+      assert.equal(failure.name, "ItemsRefused");
+      assert.ok(failure.findings.length > 0 && failure.findings.every((one) => one.kind === "error" && one.rule === "A BACKLOG ITEM NAMES THE MODULES IT CHANGES"), JSON.stringify(failure.findings));
+      assert.ok(failure.findings.some((one) => one.what.includes(named)), `a finding names ${named}`);
+      return true;
+    });
+    assert.deepEqual(writeLog(w), [], "no request that changes something");
+    assert.equal(writtenFiles(w).length, 0);
+    assert.deepEqual(issueNow(w, 6).comments, [], "no comment");
+    assert.deepEqual(issueNow(w, 6).labels, ["defect"], "no label");
+  };
+  await refused([], "names no module");
+  await refused(["MOD-store", "MOD-ghost"], "MOD-ghost");
+
+  const done = await moveToBacklog(host, issue, forced(["MOD-store"]), null);
+  assert.equal(itemFiles(w).length, 1, "counter-proof: the item that names a described module is written");
+  assert.deepEqual(itemOfFile(itemFiles(w)[0]).fields.modules, ["MOD-store"]);
+  assert.deepEqual(issueNow(w, 6).comments, [NOTE(done.item, itemFiles(w)[0].path)]);
+  assert.deepEqual(issueNow(w, 6).labels.sort(), ["backlog", "defect"]);
 });
