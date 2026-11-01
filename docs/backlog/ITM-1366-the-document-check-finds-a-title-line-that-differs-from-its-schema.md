@@ -7,6 +7,7 @@ realises:
   - UC-004
 modules:
   - MOD-documents
+  - MOD-site-frame
 builds_on:
   - ITM-1363
 tests:
@@ -25,6 +26,27 @@ MOD-documents' `documentFindings` gives "every finding the schema can decide", t
 `src/documents/checks.mjs:16-18` states that the title is "not checked yet". So a source entry whose title line is a bare `#` has
 no finding.
 
+## What the probe found, and the readings taken
+
+The probe ran 890 files with the check built.
+- **Forms.** 11 test files move, none of MOD-documents: a form opened on a title line that does not match its `id` and
+  `title` fields shows a title finding the person cannot fix (*+ Item*, the move form, *+ Register source*). MOD-site-frame's
+  `schemaForm` shows "the findings of `documentFindings` … while typing", and checks "a document given without the
+  identifier its schema names … at the path the identifier typed gives it" (MOD-site-frame.md:271-277): it checks the
+  document its typed fields make. The title line is made of fields by the schema's `title` pattern, so `schemaForm` writes
+  it from the pattern and the fields before it checks and hands the document over. That is one place for every form, and
+  no caller changes. The item names MOD-site-frame for it.
+- **ITM-1165** is a backlog item, a register: its title line follows its front matter's `title` under this item.
+- **UC-012** reads `# UC-012 Handle an issue: bug fix or specification change` under the front matter title "Handle an issue
+  — bug fix or specification change" (`docs/use-cases/UC-012-*.md:3`, `:24`). It is an accepted use case: which of the two
+  holds is akmaier's, and any change of it is a use-case change.
+
+## Not ready — for akmaier
+
+The check would fail `tests/test_usecase_fields.py` on UC-012 until one of its two titles changes. The question for akmaier:
+UC-012's title is "Handle an issue — bug fix or specification change" or "Handle an issue: bug fix or specification change".
+Everything else of this item can be built as it stands.
+
 ## Acceptance
 
 - `documentFindings` reports a document whose title line does not fit its schema's `title` pattern, or that lacks the
@@ -33,5 +55,7 @@ no finding.
 - Before the job starts, its probe runs the existing tests that read the repository's documents through
   `documentFindings`, and names every document that would gain a finding. One whose fix the accepted texts allow is fixed
   under this item; any other stops the item for the Product Owner.
+- `schemaForm` hands over, and checks, the document with its title line made from the schema's `title` pattern and the
+  fields; the 11 test files the probe named do not move.
 - No other existing expected result changes, unless a probe names it and the accepted text allows it.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
