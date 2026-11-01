@@ -25,6 +25,8 @@
 //     wrong, none without a proposal. Add writes with `moveToBacklog` (no `existing`), and the page then shows the identifier added, and, where the comment was refused for want of the permission or of a token, the comment's text with the issue's address and a button to copy it.
 //   - An existing item (ITM-1254, UC-033 4a): the click on Move to backlog also lists, beside the form, the items of the backlog at the default branch (docs/backlog/ITM-<n>-<slug>.md), each with its identifier, its title and the button "Add to <identifier>" (the person's click), which
 //     writes with `moveToBacklog` given that identifier as `existing` and shows what Add shows.
+//   - The module files, the items of the backlog and the steps of the plan, and their identifiers, are read through MOD-documents (ITM-1298): a path is one of them where `readDocument` gives it an identifier under the module or the item schema,
+//     whose path patterns those are. The one folder name kept is the backlog's, `docs/backlog/`, the SPEC's own (THE BACKLOG LIVES IN THE PRODUCT REPOSITORY), which tells the backlog's items from the plan's steps of the same schema.
 //   - An issue not classified yet (ITM-1254, UC-033 1a): where the move would stand, the page says that it is not offered because the issue is not classified, and leads to UC-012, step 2 with the button "UC-012, step 2", which goes to that use case through the context's
 //     `go`, as the fix leads to UC-017. Both use cases are Agent M's own, so each lead's `go` names the empty product, which names the instance itself (MOD-site-frame's ViewContext). An issue classified as not reproducible is
 //     classified, and the page says nothing of the move for it.
@@ -267,9 +269,9 @@ function changeSection({ context, product, issue }) {
 
 // ---------------------------------------------------------------- the move into the backlog (UC-033)
 
-const MODULE_FILE = /^docs\/architecture\/MOD-[^/]+\.md$/;
-const ITEM_FILE = /(?:^|\/)(ITM-\d{3,})-[^/]*\.md$/;
-const BACKLOG_ITEM = /^docs\/backlog\/(ITM-\d{3,})-[^/]*\.md$/;
+const BACKLOG = "docs/backlog/";
+// The identifier a path gives under a schema, read from the path alone: null for a file that is none of the schema's.
+const identifierOf = (schema, path) => readDocument(schema, path, "").id;
 const slugOf = (title) => String(title ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "item";
 const namesOf = (value) => (Array.isArray(value) ? value.map(String) : String(value ?? "").split(",").map((part) => part.trim()).filter(Boolean));
 const sameAddress = (a, b) => String(a).replace(/\/+$/, "") === String(b).replace(/\/+$/, "");
@@ -285,7 +287,7 @@ async function changedRequirements(snapshot, number, productAddress) {
 }
 
 // The module files of the architecture at a snapshot, read with the module schema.
-const architectureOf = async (snapshot) => Promise.all(snapshot.paths.filter((path) => MODULE_FILE.test(path)).sort().map(async (path) => readDocument(artifactSchemas().module, path, (await snapshot.read(path)) ?? "")));
+const architectureOf = async (snapshot) => Promise.all(snapshot.paths.filter((path) => identifierOf(artifactSchemas().module, path) !== null).sort().map(async (path) => readDocument(artifactSchemas().module, path, (await snapshot.read(path)) ?? "")));
 
 // What the participant's analysis names: the modules whose folder holds a file it names as wrong, none without a proposal. The answer of `analyse-issue` names no violated requirement, so there is none.
 function analysisOf(architecture, proposal) {
@@ -296,11 +298,12 @@ function analysisOf(architecture, proposal) {
 
 // The items of the backlog at a snapshot, by their number, each with its identifier, its title and its document: those a further issue may be added to (UC-033 4a), and those the drafted item's builds_on is checked against (ITM-1293).
 async function backlogItems(snapshot) {
-  const paths = snapshot.paths.filter((path) => BACKLOG_ITEM.test(path));
+  const schema = artifactSchemas().item;
+  const paths = snapshot.paths.filter((path) => path.startsWith(BACKLOG) && identifierOf(schema, path) !== null);
   await snapshot.readMany?.(paths);
   const items = await Promise.all(paths.map(async (path) => {
-    const document = readDocument(artifactSchemas().item, path, (await snapshot.read(path)) ?? "");
-    return { id: BACKLOG_ITEM.exec(path)[1], title: document.fields.title ?? "", document };
+    const document = readDocument(schema, path, (await snapshot.read(path)) ?? "");
+    return { id: identifierOf(schema, path), title: document.fields.title ?? "", document };
   }));
   return items.sort((a, b) => Number(a.id.slice(4)) - Number(b.id.slice(4)));
 }
@@ -328,10 +331,10 @@ function moveSection({ product, issue, current, proposal }) {
       const cls = current();
       const changed = cls === IssueClass.change ? await changedRequirements(head, issue.number, product.address) : [];
       const { item } = backlogItemFrom({ ...issue, address }, cls, analysisOf(architecture, proposal()), changed);
-      const taken = head.paths.map((path) => Number(ITEM_FILE.exec(path)?.[1].slice(4) ?? 0));
-      const provisional = `ITM-${String(Math.max(0, ...taken) + 1).padStart(3, "0")}`;
       const schema = artifactSchemas().item;
-      const path = `docs/backlog/${provisional}-${slugOf(item.fields.title)}.md`;
+      const taken = head.paths.map((path) => Number(identifierOf(schema, path)?.slice(4) ?? 0));
+      const provisional = `ITM-${String(Math.max(0, ...taken) + 1).padStart(3, "0")}`;
+      const path = `${BACKLOG}${provisional}-${slugOf(item.fields.title)}.md`;
       // A list-valued key without a name is left out, so that its field stands empty and the form names it missing.
       const fields = Object.entries({ id: provisional, ...item.fields }).filter(([, value]) => (Array.isArray(value) ? value.length > 0 : value !== ""));
       // The file as the form shows it, each item of a list on a line of its own, read as MOD-documents reads a file: `writeDocument` would refuse it while a required key stands empty.
