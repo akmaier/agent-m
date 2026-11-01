@@ -27,8 +27,8 @@ with a bare `#`, and `documentFindings` reports nothing for it.
 ## Acceptance
 
 - An entry that the page writes, on every route, has the title line `# <its id> <its title>` of the source schema.
-- Before the job starts, its probe reads whether MOD-documents' text gives `documentFindings` a finding for a title line
-  that differs from its schema's. If it does, the item also names MOD-documents, and a test of that finding is part of the
-  item. If it does not, that is noted in the pull request and not built.
+- MOD-documents' text gives `documentFindings` a finding for the title (MOD-documents.md:276-284), which
+  `src/documents/checks.mjs` does not check yet. That check is ITM-1366, an item of its own; this item changes no file of
+  MOD-documents.
 - No other existing expected result changes, unless a probe names it and the accepted text allows it.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
