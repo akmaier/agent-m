@@ -182,7 +182,7 @@ const type = (target, text) => {
 // guards: STATUS IS DERIVED FROM THE RECORDS; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; EVERY STEP EXPLAINS ITSELF
 // given: a product whose `main` holds four use cases — UC-041 and UC-044 with no record, UC-042 with a record naming its current text, UC-043 with a record naming an earlier text —, and a token stored in this browser
 // input: the route `use-case` rendered with no id; the pages of UC-041 and UC-043 rendered; the list rendered again; and the list for the instance itself, no product chosen
-// expect: a row for each use case with its id as a link to its page, its title and its status — open, accepted, changed since acceptance —; no tick on any row before a page was shown; then a tick on UC-041 and UC-043, whose pages were shown, none on UC-044, which was not, and none on UC-042, which is accepted; the folded "What is this?"; for the instance the same rows; nothing written
+// expect: a row for each use case with its id as a link to its page - "#use-case/id=<id>/product=<the product's address, encoded>" -, its title and its status — open, accepted, changed since acceptance —; no tick on any row before a page was shown; then a tick on UC-041 and UC-043, whose pages were shown, none on UC-044, which was not, and none on UC-042, which is accepted; the folded "What is this?"; for the instance the same rows, linked "#use-case/id=<id>" without a product; nothing written
 test("MOD-review-pages use-case — the list: every use case with its status and a tick", async () => {
   assert.ok(route, `the route use-case: ${pages.error?.message}`);
   const fake = fakeHost();
@@ -196,7 +196,7 @@ test("MOD-review-pages use-case — the list: every use case with its status and
   assert.deepEqual(["UC-041", "UC-042", "UC-043", "UC-044"].map((id) => badgeOf(rowOf(target, id))),
     ["open", "accepted", "changed since acceptance", "open"]);
   assert.match(rowOf(target, "UC-043").textContent, /Return a book/, "its title");
-  assert.equal(find(rowOf(target, "UC-043"), (node) => node.localName === "a")[0].getAttribute("href"), "#use-case/id=UC-043", "a link to its page");
+  assert.equal(find(rowOf(target, "UC-043"), (node) => node.localName === "a")[0].getAttribute("href"), `#use-case/id=UC-043/product=${encodeURIComponent(ON_GITHUB.web)}`, "a link to its page: the file with the product in the address");
   const ticked = (page) => ["UC-041", "UC-042", "UC-043", "UC-044"].filter((id) => byClass(rowOf(page, id), "input", "tick").length);
   assert.deepEqual(ticked(target), [], "no use case has been shown: no tick");
   await show(fake, { id: "UC-041" });
@@ -208,6 +208,7 @@ test("MOD-review-pages use-case — the list: every use case with its status and
   const instance = document.createElement("div");
   await route.render(instance, { ...context, product: null }, {});
   assert.deepEqual(idsIn(whole(instance)), rows, "the instance itself: the same rows");
+  assert.equal(find(rowOf(instance, "UC-043"), (node) => node.localName === "a")[0].getAttribute("href"), "#use-case/id=UC-043", "the instance's list links without a product");
 });
 
 // ---------------------------------------------------------------- one use case

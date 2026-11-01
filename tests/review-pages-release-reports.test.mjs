@@ -138,7 +138,7 @@ const sections = (target) => byClass(target, "section", "review-file");
 // guards: STATUS IS DERIVED FROM THE RECORDS; THE RELEASE TEST REPORT IS ACCEPTED BY A PERSON; UC-030
 // given: a product with two release test reports — v2026.3.0, which an approval record names, and v2026.4.0, which none names — and a token stored
 // input: the route release-report rendered with no id
-// expect: both reports listed, release-v2026.3.0 with the status accepted and release-v2026.4.0 with the status open, each row linking to its page; the link "Review all 1 not accepted"; nothing written
+// expect: both reports listed, release-v2026.3.0 with the status accepted and release-v2026.4.0 with the status open, each row linking to its page with the product in the address ("#release-report/id=<id>/product=<the product's address, encoded>"); the link "Review all 1 not accepted"; nothing written
 test("MOD-review-pages release-report — the list gives both reports with their status", async () => {
   const fake = await fakeHost();
   const target = await show(fake);
@@ -150,7 +150,7 @@ test("MOD-review-pages release-report — the list gives both reports with their
     for (const row of rows.filter((each) => each.getAttribute("data-id") === id)) assert.match(row.textContent, status, `${id} is ${status}`);
   }
   const links = find(target, (node) => node.localName === "a" && /^#release-report\/id=release-v/.test(node.getAttribute("href") ?? "")).map((link) => link.getAttribute("href"));
-  assert.ok(links.includes("#release-report/id=release-v2026.3.0") && links.includes("#release-report/id=release-v2026.4.0"), "each report links to its page");
+  assert.ok(links.includes(`#release-report/id=release-v2026.3.0/product=${encodeURIComponent(ON_GITHUB.web)}`) && links.includes(`#release-report/id=release-v2026.4.0/product=${encodeURIComponent(ON_GITHUB.web)}`), "each report links to its page with the product in the address");
   assert.ok(byClass(target, "a", "review-all")[0]?.textContent.includes("Review all 1 not accepted"), "Review all counts the open report");
   assert.equal(fake.writes().length, 0, "nothing written");
 });

@@ -190,7 +190,7 @@ test("MOD-review-pages view — the routes decision and module join the use case
 // guards: STATUS IS DERIVED FROM THE RECORDS; A MODULE FILE IS REVIEWED AS AN ARCHITECTURE DECISION IS; EVERY STEP EXPLAINS ITSELF
 // given: a product with four decisions — ARC-001 accepted, ARC-003 changed since acceptance, ARC-002 and ARC-004 open — and four module files — MOD-reader accepted, MOD-lister changed, MOD-writer and MOD-finer open —, and a token
 // input: the routes decision and module rendered with no id
-// expect: for the decisions a row for each in the order of the identifiers, with its link to #decision/id=<id>, its title and its status — open, accepted, changed since acceptance — and no tick before a file's page was shown; then, after the pages of ARC-002 and ARC-004 and of MOD-finer and MOD-lister were shown, a tick on those four rows and on no other; for the modules the same under #module/id=<id>; the folded What is this?; nothing written
+// expect: for the decisions a row for each in the order of the identifiers, with its link to #decision/id=<id>/product=<the product's address, encoded>, its title and its status — open, accepted, changed since acceptance — and no tick before a file's page was shown; then, after the pages of ARC-002 and ARC-004 and of MOD-finer and MOD-lister were shown, a tick on those four rows and on no other; for the modules the same under #module/id=<id>/product=<the product's address, encoded>; the folded What is this?; nothing written
 test("MOD-review-pages decision and module — the lists: every file with its status and a tick", async () => {
   const fake = fakeHost();
   const decisions = await show(fake, "decision");
@@ -200,7 +200,7 @@ test("MOD-review-pages decision and module — the lists: every file with its st
   assert.deepEqual(rowsOf(firstPart(decisions)), ["ARC-002", "ARC-003", "ARC-004"], "the open and changed files first");
   assert.deepEqual(rowsOf(whole(decisions)).map((id) => badgeOf(rowOf(decisions, id))), ["accepted", "open", "changed since acceptance", "open"]);
   assert.match(rowOf(decisions, "ARC-003").textContent, /Loans are dated/);
-  assert.equal(find(rowOf(decisions, "ARC-003"), (node) => node.localName === "a")[0].getAttribute("href"), "#decision/id=ARC-003");
+  assert.equal(find(rowOf(decisions, "ARC-003"), (node) => node.localName === "a")[0].getAttribute("href"), `#decision/id=ARC-003/product=${encodeURIComponent(ON_GITHUB.web)}`);
   assert.deepEqual(rowsOf(whole(decisions)).filter((id) => byClass(rowOf(decisions, id), "input", "tick").length), [], "no decision shown: no tick");
   for (const id of ["ARC-002", "ARC-004"]) await show(fake, "decision", { id });
   const decisionsRead = await show(fake, "decision");
@@ -211,7 +211,7 @@ test("MOD-review-pages decision and module — the lists: every file with its st
   assert.deepEqual(rowsOf(firstPart(modules)), ["MOD-finer", "MOD-lister", "MOD-writer"], "the open and changed files first");
   assert.deepEqual(rowsOf(whole(modules)).map((id) => badgeOf(rowOf(modules, id))), ["open", "changed since acceptance", "accepted", "open"]);
   assert.match(rowOf(modules, "MOD-lister").textContent, /Listing books/);
-  assert.equal(find(rowOf(modules, "MOD-lister"), (node) => node.localName === "a")[0].getAttribute("href"), "#module/id=MOD-lister");
+  assert.equal(find(rowOf(modules, "MOD-lister"), (node) => node.localName === "a")[0].getAttribute("href"), `#module/id=MOD-lister/product=${encodeURIComponent(ON_GITHUB.web)}`);
   assert.deepEqual(rowsOf(whole(modules)).filter((id) => byClass(rowOf(modules, id), "input", "tick").length), [], "no module shown: no tick");
   for (const id of ["MOD-finer", "MOD-lister"]) await show(fake, "module", { id });
   const modulesRead = await show(fake, "module");
