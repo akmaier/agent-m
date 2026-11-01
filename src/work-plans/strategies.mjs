@@ -4,7 +4,7 @@
 // Module: MOD-work-plans
 //
 // The recipe reads the product through the job's snapshot, once, as the trace graph of MOD-trace-graph: the graph holds the decisions with what they refine and design, and the modules.
-// It makes no request of its own; the snapshot reads what the host holds. It follows the pattern of MOD-run-planner's `implementation-inputs`, which MOD-work-plans does not use and
+// It makes no request of its own; the snapshot reads what the host holds, and the instance at the declared version is read through the instance's host, as workflowOf reads it. It follows the pattern of MOD-run-planner's `implementation-inputs`, which MOD-work-plans does not use and
 // does not import. Part, JobContext and Strategies are MOD-job-runner's types.
 
 import { statuses } from "../approvals/index.mjs";
@@ -26,6 +26,7 @@ import { itemStates } from "./states.mjs";
 
 const PROCESS = "docs/process.md";
 const PLAN = "docs/plan";
+const WORKFLOW_PART = "phases and gates of the product's workflow";
 
 // A failure of the module's own, by name.
 const failure = (name, message, fields) => Object.assign(new Error(message), { name, ...fields });
@@ -41,10 +42,11 @@ const sourcesFor = (context, path) => unique((context.places.contents ?? []).fil
  * - the decision that states the system (the one that refines no other; each, if the product has several), by identifier;
  * - the subsystems' decisions (those that refine it and design at least one module), by identifier;
  * - every module's file, by identifier;
- * - the process model, `docs/process.md`;
+ * - the process model, `docs/process.md`, and then its phases and gates: one part, "phases and gates of the product's workflow", JSON `{ phases, gates }` of the workflow workflowOf gives
+ *   from that declaration, carrying the sources of `docs/process.md`;
  * - the existing plan, every file under `docs/plan/`, by path.
- * A part is one file, named by its path, whole, given once; it carries the sources of every `context.places.contents` entry that names its path or a folder above it. Throws
- * UnknownWork { id } when the product has no `docs/process.md`.
+ * A file's part is the file, named by its path, whole, given once; it carries the sources of every `context.places.contents` entry that names its path or a folder above it. Throws
+ * UnknownWork { id } when the product has no `docs/process.md`, and UnknownWork { id: <model_file> } when the instance holds no model at the declared `model_file` and `model_version`.
  */
 async function architectureAndModel(context) {
   const snapshot = context.product.snapshot;
@@ -64,6 +66,12 @@ async function architectureAndModel(context) {
   };
   for (const node of [...system, ...subsystems, ...modules]) await give(node.path);
   await give(PROCESS);
+  const { declaration, workflow } = await workflowOf(context);
+  if (workflow === null) {
+    throw failure("UnknownWork", `the product has no workflow: the instance holds no model at ${declaration.fields.model_file} at ${declaration.fields.model_version}, the model and commit it declared`,
+      { id: String(declaration.fields.model_file ?? "") });
+  }
+  parts.set(WORKFLOW_PART, { name: WORKFLOW_PART, text: JSON.stringify({ phases: workflow.phases, gates: workflow.gates }, null, 2), size: 0, sources: sourcesFor(context, PROCESS), required: true });
   for (const path of snapshot.paths.filter((each) => within(each, PLAN)).sort()) await give(path);
   return [...parts.values()];
 }
@@ -175,7 +183,8 @@ const slugOf = (title) => String(title).toLowerCase().replace(/[^a-z0-9]+/g, "-"
 const idOfDocument = (document) => String(document.id ?? document.fields?.id ?? "");
 
 // The product's workflow in a job: productWorkflow of its declaration docs/process.md, with the instance read at the version the declaration names and the instance's SPEC; `declaration` and `workflow`
-// null where the product declares none, `workflow` null where the instance holds no model at the declared file and version. The one reading of it that plan-checks, plan-steps and sprint-facts share.
+// null where the product declares none, `workflow` null where the instance holds no model at the declared file and version. The one reading of it that architecture-and-model, plan-checks, plan-steps and sprint-facts
+// share.
 async function workflowOf(context) {
   const declarationText = await context.product.snapshot.read(PROCESS);
   if (declarationText === null) return { declaration: null, workflow: null };
