@@ -247,7 +247,7 @@ export function moduleRows(graph) {
     return {
       module: module.id,
       subsystem: edgesVia("follows", module.id).map((edge) => edge.to).find((to) => graph.nodes.get(to)?.kind === "ARC") ?? null,
-      realises: unique(edgesVia("realises", module.id).map((edge) => edge.to)),
+      realises: unique(edgesVia("guards").filter((edge) => tests.includes(edge.from) && graph.nodes.get(edge.to)?.kind === "requirement").map((edge) => edge.to)),
       describedBy: module.path,
       code,
       tests,
@@ -266,7 +266,7 @@ export function moduleRows(graph) {
     else if (!designed.has(`${row.subsystem} ${row.module}`)) {
       gap(GAPS.notNamed, row.module, module.path, `${row.module} follows ${row.subsystem}, which does not name it among the modules it designs`);
     }
-    if (!row.realises.some((name) => graph.nodes.get(name)?.kind === "requirement")) gap(GAPS.realisesNothing, row.module, module.path, `${row.module} realises no requirement`);
+    if (row.realises.length === 0) gap(GAPS.realisesNothing, row.module, module.path, `${row.module} realises no requirement`);
     if (row.tests.length === 0) gap(GAPS.noTest, row.module, module.path, `no test exercises ${row.module}`);
     if (row.code.length === 0) gap(GAPS.noCode, row.module, module.path, `${row.module} has no code file in its folder`);
     const outer = module.folder && modules.find((other) => other !== module && other.folder && where(module.folder).startsWith(`${where(other.folder)}/`));

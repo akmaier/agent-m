@@ -1,5 +1,5 @@
-// The commits of a team's sprint: its start, a new start decision while it runs, its end, its close, and its increment given up
-// (docs/architecture/MOD-work-plans.md, Interfaces: startSprint, endSprint, closeSprint, giveUpIncrement; EVERY TEAM RUNS SPRINTS
+// The commits of a team's sprint: its start, a new start decision while it runs, its end, its close, and its increment given up; and the commits of
+// items and of a plan (docs/architecture/MOD-work-plans.md, Interfaces: startSprint, endSprint, closeSprint, giveUpIncrement, saveItems, savePlan; EVERY TEAM RUNS SPRINTS
 // OF ITS OWN, SPRINTS OF DIFFERENT TEAMS CHANGE NO MODULE THE OTHER CHANGES OR USES, A PHASE OR A TIME BOX MAY HAVE A BRANCH OF ITS
 // OWN, A SPRINT ENDS WITH A REVIEW OF ITS INCREMENT, A SPRINT ENDS WITH A RETROSPECTIVE, A SPRINT HOLDS ITS ITEMS UNTIL THEY
 // REACH THE DEFAULT BRANCH). Each save is one commit on the default branch, at the head that was
@@ -14,8 +14,8 @@
 import { appendSection, artifactSchemas, readDocument, writeDocument } from "../documents/index.mjs";
 import { nextIdentifier } from "../identifiers/index.mjs";
 import { finding } from "../text-tools/index.mjs";
-import { backlogFindings } from "./checks.mjs";
-import { sprintSchema } from "./schemas.mjs";
+import { backlogFindings, planFindings } from "./checks.mjs";
+import { planOrderSchema, sprintSchema } from "./schemas.mjs";
 import { moduleFiles } from "./strategies.mjs";
 import { conflicts, heldItems, list, selectionOf } from "./sprints.mjs";
 
@@ -331,6 +331,78 @@ export async function saveItems(host, change, context) {
   return { commit, written: documents.map((one) => one.path), warnings };
 }
 
+// Every ITM- identifier the snapshot's paths hold and, where `fresh` — a new step or item is to get one —, every one the history of `defaultBranch` holds, a withdrawn one among them:
+// the one collection of them that saveItems, closeSprint and savePlan share.
+async function usedIdentifiers(host, snapshot, defaultBranch, fresh) {
+  const used = new Set(snapshot.paths.map((path) => ANY_ITEM_FILE.exec(path)?.[1]).filter(Boolean));
+  if (fresh) {
+    for (const entry of await host.readHistory(null, { ref: defaultBranch })) {
+      for (const { path, from } of entry.changes) for (const each of [path, from]) if (each && ANY_ITEM_FILE.test(each)) used.add(ANY_ITEM_FILE.exec(each)[1]);
+    }
+  }
+  return used;
+}
+
+const PLAN_STEP_FILE = /^docs\/plan\/(ITM-\d{3,})-[^/]+\.md$/;
+const ORDER_FILE = "docs/plan/order.md";
+const PLAN_RULE = "THE IMPLEMENTATION PLAN LIVES IN THE PRODUCT REPOSITORY";
+const IDENTIFIER = /^ITM-\d{3,}$/;
+
+/**
+ * savePlan(host: Host, plan: { steps: Document[], order: Document, removed: string[] }, context: { architecture: Document[], workflow: Workflow, head: string, trailers: string[] }) -> Promise<{ commit: string,
+ * written: string[] }> — Save plan (UC-045). A step has `fields` and `sections` as readDocument gives them; one without an identifier is new and gets the next after every ITM- identifier that the head's paths and
+ * the history of the default branch hold; one whose identifier the plan holds is rewritten in its file. An order row's `Step`, and an entry of a step's `builds_on`, that is no identifier but the title of a step
+ * of the plan becomes that step's identifier. planFindings runs first on the plan as it would stand — the steps of the head that stay, the steps of the change and the order —, on the product's files with them
+ * in place; with an error finding nothing is written and PlanRefused { findings } is thrown, as for a `removed` identifier the plan lacks. The steps and docs/plan/order.md are written and the `removed` steps
+ * deleted in one commit on the default branch at `head`. Crosses the network, through the host; fails also with the host's failures.
+ */
+export async function savePlan(host, plan, context) {
+  const { architecture = [], workflow, head, trailers = [] } = context;
+  const steps = plan?.steps ?? [], removed = plan?.removed ?? [];
+  const refuse = (findings) => { throw new WorkPlansError("PlanRefused", { findings }, `The plan is not saved: ${findings.map((one) => `${one.artifact} ${one.what}`).join("; ")}.`); };
+  const snapshot = await host.readSnapshot(head);
+  const { defaultBranch } = await host.repositoryInfo();
+  const schema = artifactSchemas().item;
+  const held = new Map(snapshot.paths.map((path) => [PLAN_STEP_FILE.exec(path)?.[1], path]).filter(([id]) => id));
+  const lacking = removed.filter((id) => !held.has(id));
+  if (lacking.length) {
+    refuse(lacking.map((id) => finding({ artifact: id, line: 1, kind: "error", rule: PLAN_RULE, what: `${id} is no step of the plan at ${head}, so it cannot be removed`, fix: "remove only a step the plan holds" })));
+  }
+
+  const used = await usedIdentifiers(host, snapshot, defaultBranch, steps.some((each) => !text(each.fields?.id)));
+  const identified = steps.map((each) => {
+    let id = text(each.fields?.id);
+    if (!id) { id = nextIdentifier("ITM", used); used.add(id); }
+    return { each, id, path: held.get(id) ?? `docs/plan/${id}-${slugOf(each.fields?.title)}.md` };
+  });
+  const saved = new Set(identified.map(({ id }) => id));
+  const staying = await Promise.all([...held].filter(([id]) => !removed.includes(id) && !saved.has(id))
+    .map(async ([, path]) => readDocument(schema, path, (await snapshot.read(path)) ?? "")));
+  const titles = new Map([...staying.map((one) => [text(one.fields.title), one.id]), ...identified.map(({ each, id }) => [text(each.fields?.title), id])]);
+  const named = (entry) => (IDENTIFIER.test(text(entry)) ? text(entry) : titles.get(text(entry)) ?? text(entry));
+  const documents = identified.map(({ each, id, path }) => {
+    const buildsOn = list(each.fields?.builds_on).map(named);
+    const { builds_on: _, ...fields } = each.fields ?? {};
+    return { kind: "item", path, id, title: text(fields.title), fields: { ...fields, id, ...(buildsOn.length ? { builds_on: buildsOn } : {}) },
+      body: `# ${id} ${text(fields.title)}\n\n`, sections: each.sections ?? [], appended: [] };
+  });
+  const order = { ...plan.order, path: ORDER_FILE, sections: (plan.order?.sections ?? []).map((section) => (Array.isArray(section.rows)
+    ? { ...section, rows: section.rows.map((row) => ({ ...row, cells: { ...row.cells, Step: named(row.cells?.Step) } })) } : section)) };
+
+  const files = [...documents.map((one) => ({ path: one.path, text: writeDocument(schema, one) })), { path: ORDER_FILE, text: writeDocument(planOrderSchema, order) }];
+  const texts = new Map(files.map((one) => [one.path, one.text]));
+  const gone = new Set(removed.map((id) => held.get(id)));
+  const source = { paths: [...snapshot.paths.filter((path) => !gone.has(path) && !texts.has(path)), ...texts.keys()],
+    read: async (path) => (texts.has(path) ? texts.get(path) : gone.has(path) ? null : snapshot.read(path)) };
+  const errors = (await planFindings(order, [...staying, ...documents], architecture, workflow, source)).filter((one) => one.kind === "error");
+  if (errors.length) refuse(errors);
+
+  const subject = documents.length ? `Save the plan: ${documents.map((one) => one.title).join(", ")}` : `Save the plan: remove ${removed.join(", ")}`;
+  const { commit } = await host.commitFiles({ branch: defaultBranch, expectedHead: head, files: [...files, ...removed.map((id) => ({ path: held.get(id), delete: true }))],
+    message: message(subject, trailers) });
+  return { commit, written: files.map((one) => one.path) };
+}
+
 // The files of a change of the backlog, as saveItems and closeSprint commit them: a `removed` identifier the backlog lacks, or an error finding of backlogFindings on an
 // item of the change, throws ItemsRefused { findings } before anything is written; a new item gets the next identifier after every one the snapshot's paths and the
 // history of `defaultBranch` hold — the history is asked only when an item is new —; `documents` are the items as written, `files` their writes and the deletions of the
@@ -343,12 +415,7 @@ async function itemFiles(host, snapshot, change, { architecture, head, defaultBr
     what: `${id} is no item of the backlog at ${head}, so it cannot be removed`, fix: "remove only an item the backlog holds" }));
   if (lacking.length) throw new WorkPlansError("ItemsRefused", { findings: lacking }, `The items are not saved: ${lacking.map((one) => one.what).join("; ")}.`);
 
-  const used = new Set(snapshot.paths.map((path) => ANY_ITEM_FILE.exec(path)?.[1]).filter(Boolean));
-  if (items.some((each) => !text(each.fields?.id))) {
-    for (const entry of await host.readHistory(null, { ref: defaultBranch })) {
-      for (const { path, from } of entry.changes) for (const each of [path, from]) if (each && ANY_ITEM_FILE.test(each)) used.add(ANY_ITEM_FILE.exec(each)[1]);
-    }
-  }
+  const used = await usedIdentifiers(host, snapshot, defaultBranch, items.some((each) => !text(each.fields?.id)));
   const identified = items.map((each) => {
     let id = text(each.fields?.id);
     if (!id) { id = nextIdentifier("ITM", used); used.add(id); }

@@ -13,7 +13,7 @@
 // no request leaves the process. The expected texts are written in each case; none is read from a document. Readings the cases take, each from the sentence quoted:
 // - "component diagram: one box per module in its subsystem's box, one arrow per use, gaps marked, a missing provider as a box marked *missing*" (MOD-trace-pages,
 //   the modules view): the text handed to Mermaid is the text componentDiagram gives for the modules of the version, a module's subsystem being the first
-//   decision its file follows; the gap marks of moduleRows are not part of this item, so the view gives componentDiagram no gaps;
+//   decision its file follows; the view gives componentDiagram the gaps of moduleRows (ITM-1352), so that each module a gap names is marked; the fixture's four modules have no test, so each has a gap;
 // - "Versions: branch" (the modules view's row of MOD-trace-pages' table): the view offers no choice of version and no tag, and draws the ref the caller hands.
 
 import test from "node:test";
@@ -46,6 +46,7 @@ const MODULE_FILES = [
 ];
 // The diagram of that product, written out: one box per module in the box of its subsystem (the first decision it follows), one arrow per module used, MOD-store
 // (no file) as a box marked missing and MOD-review (which does not provide history) marked missing too.
+const MODULE_GAPS = ["MOD-page", "MOD-review", "MOD-reader", "MOD-notes"].map((artifact) => ({ kind: "module-without-test", artifact }));
 const DIAGRAM = [
   "flowchart LR",
   "  subgraph S_ARC_001[\"ARC-001\"]",
@@ -65,6 +66,11 @@ const DIAGRAM = [
   "  classDef missing stroke-dasharray: 4 3,stroke:#b42318,color:#b42318",
   "  class MOD_review missing",
   "  class MOD_store missing",
+  "  classDef gap stroke-dasharray: 4 3,stroke:#b78105,color:#b78105",
+  "  class MOD_notes gap",
+  "  class MOD_page gap",
+  "  class MOD_reader gap",
+  "  class MOD_review gap",
   "",
 ].join("\n");
 const ADDRESS = "https://github.com/acme/library";
@@ -98,14 +104,14 @@ const hostOf = (files = FILES, extra = {}) => treeHost({ trees: { main: files, "
 // guards: UC-025; MODULE GAPS ARE REPORTED, NOT FORBIDDEN
 // given: the fixture product at main, the default branch: MOD-page (follows ARC-002 then ARC-001) uses two interfaces of MOD-review, which provides status only; MOD-review uses two of MOD-reader and one of MOD-store, which has no file; MOD-reader follows ARC-001 then ARC-003; MOD-notes follows no decision
 // input: Route.render with the key "modules" at main
-// expect: the page is headed "Modules"; Mermaid is handed one diagram, whose text is the text written out above — flowchart LR, ARC-001's box holding MOD-reader and MOD-review, ARC-002's holding MOD-page, MOD-notes outside every box, MOD-store as a box marked missing, five arrows, MOD-review and MOD-store marked missing — and equals componentDiagram of the same modules; the drawn diagram stands in the page
+// expect: the page is headed "Modules"; Mermaid is handed one diagram, whose text is the text written out above — flowchart LR, ARC-001's box holding MOD-reader and MOD-review, ARC-002's holding MOD-page, MOD-notes outside every box, MOD-store as a box marked missing, five arrows, MOD-review and MOD-store marked missing, all four modules marked gap — and equals componentDiagram of the same modules and their four gaps; the drawn diagram stands in the page
 test("the modules page hands Mermaid the component diagram of the product's modules, as componentDiagram draws it", async () => {
-  assert.equal(DIAGRAM, componentDiagram(MODULE_FILES), "known positive: the text written out is componentDiagram's for these modules");
+  assert.equal(DIAGRAM, componentDiagram(MODULE_FILES, MODULE_GAPS), "known positive: the text written out is componentDiagram's for these modules");
   const { target, drawn } = await render(hostOf());
   assert.deepEqual(find(target, (node) => node.localName === "h2").map((node) => node.textContent), ["Modules"]);
   assert.equal(drawn.texts.length, 1);
   assert.equal(drawn.texts[0], DIAGRAM);
-  assert.equal(drawn.texts[0], componentDiagram(MODULE_FILES));
+  assert.equal(drawn.texts[0], componentDiagram(MODULE_FILES, MODULE_GAPS));
   assert.equal(find(target, (node) => node.className === "mermaid").length, 1);
 });
 

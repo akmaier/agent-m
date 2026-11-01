@@ -10,8 +10,6 @@
 //
 // Authored by developer-opus-f (ITM-741), who implemented none of ITM-692, ITM-720, ITM-721, ITM-210, ITM-735 and ITM-736.
 // Where the page and UC-025 disagree the case follows UC-025 and is marked { todo } with the finding it reports; every other case is green. The findings:
-//   UC025-F1  step 5: the component diagram marks no module that has a gap.
-//   UC025-F2  step 3 and 4: a row's "realises" is what the module's file names, not the requirements its tests guard.
 //   UC025-F3  step 6: a gap cannot be followed to the file it concerns.
 // Each test states its input and its expected values in its own text; none reads an expected result from the SPEC, a use case or an architecture file.
 // A person's click is the page's own listener called through the event it dispatches. Readings the texts leave open, which the cases state:
@@ -67,8 +65,8 @@ test("TST-741002: UC-025 step 3 — one row per module: its subsystem, what it r
 // guards: UC-025
 // given: the fixture product, in which MOD-mail's file names RULE ONE under realises and no test exercises MOD-mail; and the same product with tests/mail.test.mjs, which exercises MOD-mail and guards RULE THREE (known positive: MOD-store, whose test guards what its file names, realises RULE ONE)
 // input: the reviewer opens Modules at main, for each of the two
-// expect: UC-025 step 3 "realises — the requirements its tests guard" and step 4 "a module that realises no requirement: no test of it guards one": without the test MOD-mail realises nothing and is listed with the gap realises-nothing; with it MOD-mail realises "RULE THREE — in SPEC" alone and RULE THREE is no requirement-without-module gap. FINDING: the row lists what the module's file names, RULE ONE, in both
-test("TST-741003: UC-025 step 3 and 4 — a module realises the requirements its tests guard", { todo: "FINDING UC025-F2 — moduleRows (src/trace-graph/derive.mjs) takes a row's realises from the module file's own realises edges, so MOD-mail shows RULE ONE, which no test of it guards, with no realises-nothing gap; with a test of MOD-mail guarding RULE THREE, the row still shows RULE ONE and RULE THREE stays a requirement-without-module gap" }, async () => {
+// expect: UC-025 step 3 "realises — the requirements its tests guard" and step 4 "a module that realises no requirement: no test of it guards one": without the test MOD-mail realises nothing and is listed with the gap realises-nothing; with it MOD-mail realises "RULE THREE — in SPEC" alone and RULE THREE is no requirement-without-module gap.
+test("TST-741003: UC-025 step 3 and 4 — a module realises the requirements its tests guard", async () => {
   const known = await open();
   assert.deepEqual(itemsOf(cellOf(known.target, "MOD-store", "module-realises")), ["RULE ONE — in SPEC"], "known positive");
   assert.deepEqual(itemsOf(cellOf(known.target, "MOD-mail", "module-realises")), []);
@@ -111,8 +109,8 @@ test("TST-741005: UC-025 step 5 — the component diagram: one box per module in
 // guards: UC-025
 // given: the fixture product, in which MOD-mail (no test) and MOD-news (no code, not named by its subsystem) have gaps, and MOD-pages and MOD-store none (known positive: the page lists those gaps)
 // input: the reviewer opens Modules at main
-// expect: UC-025 step 5 "modules with a gap are marked": the diagram marks MOD_mail and MOD_news, each with a class line, and marks neither MOD_pages nor MOD_store as a gap. FINDING: the diagram marks no module that has a gap
-test("TST-741006: UC-025 step 5 — the diagram marks the modules that have a gap", { todo: "FINDING UC025-F1 — drawModules (src/trace-pages/flow.mjs) calls componentDiagram(files) without the gaps moduleRows gave, so no module with a gap is marked; only MOD-mail is marked, as missing, for the interface it does not provide (5a)" }, async () => {
+// expect: UC-025 step 5 "modules with a gap are marked": the diagram marks MOD_mail and MOD_news, each with a class line, and marks neither MOD_pages nor MOD_store as a gap.
+test("TST-741006: UC-025 step 5 — the diagram marks the modules that have a gap", async () => {
   const { target, diagrams } = await open();
   assert.ok(gapKinds(target).includes("module-without-test MOD-mail") && gapKinds(target).includes("module-without-code MOD-news"), "known positive");
   const classed = (id) => diagrams[0].split("\n").filter((line) => new RegExp(`^ {2}class ${id} `).test(line)).map((line) => line.trim().split(" ")[2]);
