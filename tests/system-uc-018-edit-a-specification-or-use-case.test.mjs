@@ -569,11 +569,11 @@ test("TST-376218: UC-018 6a another open proposal on the section is named, and t
 
 // TST-376219 · level: system · module: system
 // guards: UC-018; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK
-// given: a token stored that may not write: GitHub reports no push permission and refuses every write with 403 — for the library, and for alice/thesis-tool
+// given: a token stored that may not write: for the library, GitHub reports the push permission and refuses the commit's writes with 403; for alice/thesis-tool it reports no push permission and refuses every write with 403
 // input: the author saves an edit of A LOAN HAS A DUE DATE with a Why; and an edit of UC-041
 // expect: nothing is committed in either; the requirement's page offers GitHub's page for each file of the entry; the use case's page offers GitHub's editor of docs/use-cases/UC-041-check-out-a-book.md with the edited text beside it
 test("TST-376219: UC-018 6b without write access the commit is refused and GitHub's pages are offered", async () => {
-  const w = await specWorld({ denyWrites: true });
+  const w = await specWorld({ refuseWrites: true });
   const target = await w.draw("requirement", { name: LOAN });
   typeInto(target, LENDING.replace("is returned.", "is returned, or renewed."));
   whyOf(target).value = "Renewal.";

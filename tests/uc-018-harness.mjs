@@ -87,13 +87,14 @@ const PRODUCT_HEAD = "5eed00".padEnd(40, "0"), INSTANCE_HEAD = "1a2b3c".padEnd(4
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
 /**
- * specWorld({ token, files, authors, denyWrites }) -> the library on GitHub behind fixture servers, drawn by `draw` (a route of the review pages) or `trace` (the specification view).
- *   token       whether this browser stores the product's token (default true); the instance's own token is stored in every world and is no token of the product.
- *   files       laid over LIBRARY(); a path set to null is left out.
- *   authors     the account of the commit that added a path of `files`, by its path (default: the account seed); GitHub's history of that path names it.
- *   denyWrites  the repository reports no push permission and GitHub refuses every write of a commit with 403, as it refuses a token that may not write.
+ * specWorld({ token, files, authors, denyWrites, refuseWrites }) -> the library on GitHub behind fixture servers, drawn by `draw` (a route of the review pages) or `trace` (the specification view).
+ *   token         whether this browser stores the product's token (default true); the instance's own token is stored in every world and is no token of the product.
+ *   files         laid over LIBRARY(); a path set to null is left out.
+ *   authors       the account of the commit that added a path of `files`, by its path (default: the account seed); GitHub's history of that path names it.
+ *   denyWrites    the repository reports no push permission and GitHub refuses every write of a commit with 403, as it refuses a token that may not write.
+ *   refuseWrites  the repository reports the push permission, and GitHub still refuses every write of a commit with 403: the refusal comes only with the commit.
  */
-export async function specWorld({ token = true, files = {}, authors = {}, denyWrites = false } = {}) {
+export async function specWorld({ token = true, files = {}, authors = {}, denyWrites = false, refuseWrites = false } = {}) {
   const base = { ...LIBRARY(), ...files };
   for (const path of Object.keys(base)) if (base[path] === null) delete base[path];
   const srv = await repoServer({ repo: PRODUCT, files: base, head: PRODUCT_HEAD });
@@ -107,7 +108,7 @@ export async function specWorld({ token = true, files = {}, authors = {}, denyWr
   const productFetch = async (url, init, method) => {
     const isWrite = method !== "GET" && !(method === "POST" && url.pathname === "/graphql");
     if (isWrite) log.push({ method, path: url.pathname, authorization: authorization(init) });
-    if (isWrite && denyWrites) return json({ message: "Resource not accessible by personal access token" }, 403);
+    if (isWrite && (denyWrites || refuseWrites)) return json({ message: "Resource not accessible by personal access token" }, 403);
     if (method === "GET" && url.pathname === api) return json({ private: false, default_branch: "main", permissions: { push: Boolean(authorization(init)) && !denyWrites } });
     // GitHub's "List commits" of a path: the commits that changed it, newest first, each by the account of the token that made it.
     if (method === "GET" && url.pathname === `${api}/commits` && url.searchParams.has("path")) {
