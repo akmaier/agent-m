@@ -8,6 +8,7 @@ realises:
   - UC-031
 modules:
   - MOD-model-catalogue
+  - MOD-implementation-pages
 builds_on:
   - ITM-802
 tests:
@@ -39,5 +40,10 @@ drawn in its own measure. MOD-progress-measures does not change.
 - The implementer's own red unit test shows the finding. TST-802311's expectation changes with it — *Save* is refused with
   that finding, and no product declares the definition — in one commit, with its `todo` removed, by a participant other
   than the implementer, written after the code is pushed.
+- TST-779103 (`tests/release-uc-031-configure-a-process-model.test.mjs`, the one test the probe moved; the item names
+  MOD-implementation-pages for that file only, and changes no code of it) tests UC-031 step 4's flow control. Where it
+  takes Scrum's copy to a work-in-progress limit alone, the copy also takes the measure `items per state over time`, so that
+  the case still tests the flow control and Save stays available. Its other expectations stand. The change is written in the
+  same commit as TST-802311's, by the same participant.
 - No other existing expected result changes, unless a probe names it and the accepted text allows it.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.

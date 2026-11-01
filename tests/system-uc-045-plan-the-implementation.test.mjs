@@ -9,7 +9,7 @@
 // Level: system
 //
 // Authored by developer-sonnet-j (ITM-1061), who implemented none of ITM-614, ITM-1058 and ITM-1059 and no UC-045 production behaviour (RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER).
-// Where the page and UC-045 disagree the case follows UC-045 and is marked { todo } with the finding it reports (UC045-F1 to UC045-F4, named in FLOW_FINDINGS).
+// Where the page and UC-045 disagree the case follows UC-045 and is marked { todo } with the finding it reports (UC045-F3, named in FLOW_FINDINGS).
 // Each test states its input and its expected values in its own text; none reads an expected result from the SPEC, a use case or an architecture file, but the flow map (TST-1061001), which holds the expected passages itself and
 // checks that UC-045 still says them. A person's click is the page's own listener called with a trusted event; a script's click is `page.script`. Readings the texts leave open, which the cases state:
 //   - "its derived state: waiting for a step it depends on, ready, in progress, done" is read as the page's state labels "waiting for an item it builds on", "waiting" (for a gate), "ready", "in progress" and "done".
@@ -43,6 +43,7 @@ const FLOW_EVIDENCE = {
   "main-1-states": { uc: "each with its derived state: *waiting* for a step it depends on, *ready*, *in progress*, *done*", evidence: [[SELF, "TST-1061002"]] },
   "main-1-explain": { uc: "A folded **What is this?** explains the plan with the table above and points", evidence: [[SELF, "TST-1061002"]] },
   "main-2-run-panel": { uc: "The run panel names the drafting participant, where it processes data, and what is sent", evidence: [[SELF, "TST-1061003"]] },
+  "main-2-model": { uc: "the process model with its phases and gates", evidence: [[SELF, "TST-1061004"]] },
   "main-2-run": { uc: "The planner presses **Run** — that click is the decision.", evidence: [[SELF, "TST-1061003"], [SELF, "TST-1061005"]] },
   "main-3-bottom-up": { uc: "The participant drafts the plan from the bottom up", evidence: [[SELF, "TST-1061005"]] },
   "main-3-check": { uc: "Agent M checks the complete draft: a module, a subsystem or the system without a step", evidence: [[SELF, "TST-1061006"], [SELF, "TST-1061007"]] },
@@ -61,12 +62,11 @@ const FLOW_EVIDENCE = {
   "2b-does-not-fit": { uc: "**2b. The input does not fit into the participant's context.**", evidence: [[SELF, "TST-1061017"]] },
   "3a-cycle-names": { uc: "**3a. The modules' interfaces form a cycle.** No order exists; Agent M names the modules of the cycle", evidence: [[SELF, "TST-1061018"]] },
   "3b-left": { uc: "**3b. Findings are left after the last round.**", evidence: [[SELF, "TST-1061020"]] },
+  "3a-cycle-link": { uc: "links to UC-023 to change the architecture", evidence: [[SELF, "TST-1061019"]] },
+  "2a-check-by-hand": { uc: "the check of step 3 runs when they press **Save plan**", evidence: [[SELF, "TST-1061022"]] },
 };
 const FLOW_FINDINGS = {
-  "main-2-model": { uc: "the process model with its phases and gates", finding: "UC045-F1", file: SELF, test: "TST-1061004" },
-  "3a-cycle-link": { uc: "links to UC-023 to change the architecture", finding: "UC045-F2", file: SELF, test: "TST-1061019" },
   "main-3-order": { uc: "then one step for the subsystem's integration", finding: "UC045-F3", file: SELF, test: "TST-1061021" },
-  "2a-check-by-hand": { uc: "the check of step 3 runs when they press **Save plan**", finding: "UC045-F4", file: SELF, test: "TST-1061022" },
 };
 
 // TST-1061001 · level: system · module: system
@@ -163,8 +163,8 @@ test("TST-1061003: UC-045 2 Draft the plan opens a run panel that names the part
 // guards: UC-045
 // given: the planned product without a plan, whose V-model has the phases Concept, Requirements, Design, Implementation, Testing, Validation & Verification and Operation & Maintenance and the gate Design → Implementation; the draft of TST-1061005
 // input: the planner opens the run panel of Draft the plan and presses Run; the request the drafting participant receives is read
-// expect: UC-045 step 2 "the process model with its phases and gates" is sent: the request names the phase Validation & Verification and the gate Design → Implementation, as the model file holds them, so that the participant can name the phase of the model for each step (step 3). FINDING: the request holds docs/process.md, the product's declaration, which names the model and its version and holds no phase and no gate
-test("TST-1061004: UC-045 2 the participant receives the process model with its phases and gates", { todo: "FINDING UC045-F1 — the recipe architecture-and-model (src/work-plans/strategies.mjs:66, give(PROCESS)) sends docs/process.md, the product's declaration: it names `model: v-model` and the commit of `model_version`, and holds no phase and no gate; the phases and gates are in the model's file, which the instance holds at that commit and which workflowOf (src/work-plans/strategies.mjs:179-185) reads for plan-checks but the recipe does not send. UC-045 step 2 and MOD-work-plans' recipe `architecture-and-model` (\"the process model with its phases and gates\") name them, and step 3.4 asks the participant for the phase of the model of each step (MOD-work-plans)" }, async () => {
+// expect: UC-045 step 2 "the process model with its phases and gates" is sent: the request names the phase Validation & Verification and the gate Design → Implementation, as the model file holds them, so that the participant can name the phase of the model for each step (step 3).
+test("TST-1061004: UC-045 2 the participant receives the process model with its phases and gates", async () => {
   const { page, asked } = await drafted(await planned({ plan: false }), DRAFT);
   try {
     assert.equal(asked.length, 1, "known positive: Run sends the request");
@@ -518,8 +518,8 @@ test("TST-1061018: UC-045 3a modules whose interfaces form a cycle are named, an
 // guards: UC-045; MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE
 // given: the product of TST-1061018 and its draft with the finding of the cycle
 // input: the planner reads the page
-// expect: UC-045 3a "No order exists; Agent M names the modules of the cycle and links to UC-023 to change the architecture": the page holds a link to the architecture (#arc) beside the finding of the cycle, where the planner changes the architecture. FINDING: the finding line is text only
-test("TST-1061019: UC-045 3a the page links to the change of the architecture beside the cycle", { todo: "FINDING UC045-F2 — findingLine (src/implementation-pages/plan.mjs:184) draws a finding as `<li>` text and nothing else, and reviewDraft (plan.mjs:298-313) adds no link when a finding names a cycle: the draft of a cycle is shown with its findings and the planner has no way on from the page to change the architecture, as UC-045 3a states (\"links to UC-023 to change the architecture\"; the page's own 1b note links #arc, plan.mjs:392)" }, async () => {
+// expect: UC-045 3a "No order exists; Agent M names the modules of the cycle and links to UC-023 to change the architecture": the page holds a link to the architecture (#arc) beside the finding of the cycle, where the planner changes the architecture
+test("TST-1061019: UC-045 3a the page links to the change of the architecture beside the cycle", async () => {
   const files = await planned({ plan: false, files: architecture({ uses: { "MOD-store": ["MOD-pages.read"], "MOD-pages": ["MOD-store.read"] } }) });
   const { page } = await drafted(files, DRAFT);
   try {
@@ -574,8 +574,8 @@ test("TST-1061021: UC-045 3 a plan that orders the system, or a subsystem's inte
 // guards: UC-045; A PLAN STEP NAMES THE TESTS OF ITS LEVEL; THE MODEL DETERMINES THE PHASES AND THE GATES
 // given: the planned product without a plan; the six steps of DRAFT written by hand with + Step, with the level of the tests of Store left empty; again with the phase of Store left empty; known positive: a step with the level of another step's tests (component for Store) is refused with a finding
 // input: the planner presses Save plan, for each
-// expect: UC-045 2a "the check of step 3 runs when they press Save plan": the plan is refused with a finding that names the step and the rule, "[A PLAN STEP NAMES THE TESTS OF ITS LEVEL]" for the empty level and "[THE MODEL DETERMINES THE PHASES AND THE GATES]" for the empty phase, as the same plan drafted by a participant is; nothing is written. FINDING: the page ends in the errors of the files it cannot write, "TypeError: Cannot read properties of undefined" and "DocumentError: writeDocument: ... column Phase, is required"
-test("TST-1061022: UC-045 2a a step written by hand without the level of its tests or without a phase is refused with a finding, not with an error of the page", { todo: "FINDING UC045-F4 — a drafted step that cannot be written as a file gives the finding of plan-checks (src/work-plans/strategies.mjs:254), but the page's plan written by hand does not: ownStep (src/implementation-pages/plan.mjs:332) calls `one[0].toUpperCase()` on the empty level and saveOwn (plan.mjs:337-348) writes the order's row without a phase, so the page shows `TypeError: Cannot read properties of undefined (reading 'toUpperCase')` and `DocumentError: writeDocument: the row 1 of the table under ## Order, column Phase, is required, and left out` where UC-045 2a runs the check of step 3 (planFindings names a step without the tests of its level and a step in no phase)" }, async () => {
+// expect: UC-045 2a "the check of step 3 runs when they press Save plan": the plan is refused with a finding that names the step and the rule, "[A PLAN STEP NAMES THE TESTS OF ITS LEVEL]" for the empty level and "[THE MODEL DETERMINES THE PHASES AND THE GATES]" for the empty phase, as the same plan drafted by a participant is; nothing is written
+test("TST-1061022: UC-045 2a a step written by hand without the level of its tests or without a phase is refused with a finding, not with an error of the page", async () => {
   const wrong = await byHandSaved(DRAFT.steps.map((step) => (step.title === "Store" ? { ...step, level: "component" } : step)));
   try {
     assert.match(saved(wrong), /\[A PLAN STEP NAMES THE TESTS OF ITS LEVEL\]/, "known positive: a level of another step is a finding");
