@@ -651,7 +651,7 @@ test("TST-448323: UC-022 the architecture enters the default branch directly and
 // guards: ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON; UC-022
 // given: the architecture written open; the page of the whole architecture, with the person's token for the product
 // input: Accept all 4 shown; the commit the product received
-// expect: the acceptance is one commit on the default branch main, on the head that was read, whose message names the accepting person — Agent M · library, the name of the token — and the files accepted, and which adds approval records under docs/approvals/ and nothing else; no pull request is opened
+// expect: the acceptance is one commit on the default branch main, on the head that was read, whose message names the accepting person — Agent M · library, the name of the token — and the files accepted, and which adds approval records under docs/approvals/ and nothing else
 test("TST-448324: UC-022 the acceptance is a commit of the accepting person that adds approval records", async () => {
   const fake = await written();
   const head = fake.head(), before = fake.writes().length;
