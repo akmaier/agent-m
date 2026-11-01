@@ -529,7 +529,7 @@ test("TST-579218: UC-005 postcondition no proposal duplicates an existing requir
 // given: the product, the endpoint's answers and the written queue of TST-579218, whose source SRC-policy is linked at version 2026-10-01
 // input: read the files of the written queue
 // expect: the postcondition: the written files name the source passage (ch. 5), the participant drafter-a and the version 2026-10-01 of the source the candidates were derived from
-test("TST-579219: UC-005 postcondition each proposal names its source passage, the source version and the participant", { todo: "FINDING: the rationale's Origin reads `Source SRC-policy, passages: ch. 5.` and its Provenance names Agent M, the participant, the model and the date (src/spec-changes/propose.mjs:195-196, rationaleOf); no file of the written queue names the version 2026-10-01 of the source, though MOD-spec-changes' Data names \"the source passage and version\" for the origin of a rationale and UC-005's postcondition asks for it. MOD-spec-changes' writer queue-entries" }, async () => {
+test("TST-579219: UC-005 postcondition each proposal names its source passage, the source version and the participant", async () => {
   const w = await world({ answers: { candidates: [candidate("A FINE IS CHARGED", { rule: "A late loan is charged a fine.", passage: "ch. 5" })] } });
   const prepared = await w.prepare({ files: [MAIN_FILE] });
   await w.run(prepared);
