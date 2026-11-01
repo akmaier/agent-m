@@ -736,7 +736,7 @@ test("TST-448327: UC-022 the commit names the version, the participant and the m
 // given: the ready product; a first draft whose system's decision carries a stamp of change, "Changed on 2026-10-01: it was one folder before.", and the complete draft; the mark is one MOD-text-tools finds
 // input: Run; the requests
 // expect: known positive — the stamp is a mark of history, and a draft without it is asked once; the draft with the stamp goes back with a finding of the rule A DOCUMENT HOLDS NO HISTORY that names the stamp, and the decision the person sees holds none
-test("TST-448328: UC-022 a drafted decision that carries a stamp of change goes back", { todo: "FINDING UC022-F6 — documentFindings does not report the marks of history for the schema decision, whose `noHistory` is true: src/documents/checks.mjs has no use of historyMarks (grep of src/documents finds noHistory only in the schema reader, schema-language.mjs:41,441), so a drafted decision with `Changed on 2026-10-01` passes the checks in round 1 and is shown and written, while MOD-documents' accepted text (documentFindings: \"for a `noHistory` schema, each mark of history (`A DOCUMENT HOLDS NO HISTORY`)\") has it found as an error. An item for MOD-documents (checks.mjs)" }, async () => {
+test("TST-448328: UC-022 a drafted decision that carries a stamp of change goes back", async () => {
   const stamped = draftOf();
   stamped.files[0].text = stamped.files[0].text.replace("The system is two folders.", "The system is two folders. Changed on 2026-10-01: it was one folder before.");
   assert.equal(historyMarks(stamped.files[0].text).length, 1, "known positive: the stamp is a mark of history");
