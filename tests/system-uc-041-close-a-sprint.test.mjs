@@ -302,7 +302,7 @@ test("TST-991210: UC-041 6a a draft without a retrospective goes back to its clo
 // guards: UC-041; A SPRINT HOLDS ITS ITEMS UNTIL THEY REACH THE DEFAULT BRANCH
 // given: the product of TST-991202 after closer-bot's close: team1/02 holds ITM-001, merged into its branch, whose pull request 9 into main is open
 // input: the Product Owner gives the increment of team1/02 up with the reason "The branch is stale"
-// expect: known positive — before, team1/02 holds ITM-001; one commit appends ## Increment given up with by Product Owner and the reason; afterwards team1/02 holds no item; ITM-001 is still done on Progress, which shows team1 with no running sprint
+// expect: known positive — before, team1/02 holds ITM-001; one commit appends ## Increment given up with by Product Owner and the reason; afterwards team1/02 holds no item; ITM-001 is still done, the one item of the increment the sprint's facts give
 test("TST-991211: UC-041 7b an increment given up holds none of its items, and its done items stay done", async () => {
   const w = await closeWorld();
   await w.run([CLOSE()]);
