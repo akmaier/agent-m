@@ -11,7 +11,7 @@
 // Level: system
 //
 // Authored by developer-sonnet-j (ITM-738), who implemented none of ITM-722, ITM-723, ITM-726, ITM-727 and ITM-737 and no UC-021 production behaviour.
-// Where the pages and UC-021 disagree the case follows UC-021 and is marked { todo } with the finding it reports (UC021-F1 to UC021-F5, named in FLOW_FINDINGS).
+// Where the pages and UC-021 disagree the case follows UC-021 and is marked { todo } with the finding it reports (UC021-F2 to UC021-F5, named in FLOW_FINDINGS).
 // Each test states its input and its expected values in its own text; none reads an expected result from the SPEC, a use case or an architecture file, but the flow map (TST-738001), which holds the expected passages itself
 // and checks that UC-021 still says them. A person's click is the page's own listener called with a trusted event; a script's click is made by `scripted()`. Readings the texts leave open, which the cases state:
 //   - "an item or a group is moved by dragging it" is read as the drag events of the browser (dragstart on the item, drop on the group or on the tree), as the page listens to them.
@@ -64,9 +64,9 @@ const FLOW_EVIDENCE = {
   "5b-removed-from-spec": { uc: "**5b. A requirement in the group file is removed from the SPEC by an accepted change later.**", evidence: [[SELF, "TST-738019"]] },
   "5c-github": { uc: "*Save arrangement* puts the new group file on the clipboard and opens GitHub's editor at its path", evidence: [[SELF, "TST-738020"]] },
   "5c-gitlab": { uc: "On a GitLab product without a token, there is no save.", evidence: [[SELF, "TST-738021"]] },
+  "main-1-tests-list": { uc: "or in the list of use cases, architecture elements, modules or tests, the author presses **Arrange**", evidence: [[SELF, "TST-738003"]] },
 };
 const FLOW_FINDINGS = {
-  "main-1-tests-list": { uc: "or in the list of use cases, architecture elements, modules or tests, the author presses **Arrange**", finding: "UC021-F1", file: SELF, test: "TST-738003" },
   "main-3-from-group": { uc: "*moved UC-007 from \"Review\" to \"Approval\"*", finding: "UC021-F4", file: SELF, test: "TST-738006" },
   "1b-tests": { uc: "**1b. The author asks a participant to propose an arrangement**", finding: "UC021-F5", file: SELF, test: "TST-738022" },
   "2b-delete": { uc: "**2b. The author deletes a group.**", finding: "UC021-F2", file: SELF, test: "TST-738012" },
@@ -139,13 +139,13 @@ test("TST-738002: UC-021 1 Arrange in the specification browser and in the lists
 // guards: UC-021; ARTIFACTS ARE ARRANGED IN NESTED GROUPS
 // given: the product with its tests TST-101, TST-102 and TST-103 on the default branch; the author's token stored (known positive: the specification browser, and the lists of use cases, decisions and modules, link Arrange)
 // input: the author opens the tests browser (the route trace with the key tests at main)
-// expect: UC-021 step 1 "or in the list of use cases, architecture elements, modules or tests, the author presses Arrange": the tests browser offers one Arrange, a link to #arrange/kind=tests. FINDING: the tests browser draws no Arrange
-test("TST-738003: UC-021 1 the list of tests offers Arrange", { todo: "FINDING UC021-F1 — the tests browser (src/trace-pages/tests.mjs, drawn by flow.mjs) offers no Arrange: only the specification view links #arrange/kind=requirements (src/trace-pages/flow.mjs:656) and the review pages' lists link use cases, decisions and modules (src/review-pages/flow.mjs:326, ARRANGED), so the route arrange/tests (src/review-pages/arrange.mjs:29) is reached by no link; MOD-trace-pages gives the specification view the link and the tests view none (docs/architecture/MOD-trace-pages.md, table row tests) — a new item for MOD-trace-pages" }, async () => {
+// expect: UC-021 step 1 "or in the list of use cases, architecture elements, modules or tests, the author presses Arrange": the tests browser offers one Arrange, a link to #arrange/kind=tests/product=<the product's address, percent-encoded>
+test("TST-738003: UC-021 1 the list of tests offers Arrange", async () => {
   const w = await grouped();
   assert.equal(linksOf(await trace(w)).filter((a) => a.className === "arrange-link").length, 1, "known positive: the specification browser links Arrange");
   const tests = await trace(w, { key: "tests", ref: "main" });
   assert.match(textOf(tests), /TST-101/, "the tests are listed");
-  assert.deepEqual(linksOf(tests).filter((a) => a.textContent === "Arrange").map((a) => a.getAttribute("href")), ["#arrange/kind=tests"]);
+  assert.deepEqual(linksOf(tests).filter((a) => a.textContent === "Arrange").map((a) => a.getAttribute("href")), [`#arrange/kind=tests/product=${encodeURIComponent(w.address)}`]);
 });
 
 // ---------------------------------------------------------------- steps 2 and 3
