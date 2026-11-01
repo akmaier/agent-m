@@ -116,12 +116,19 @@ function find(root, match) {
 }
 const byClass = (root, name, className) => find(root, (node) => node.localName === name && node.className.split(" ").includes(className));
 const click = (node) => node.dispatchEvent(new Event("click"));
-async function until(condition, what) {
-  for (let turn = 0; turn < 400; turn++) {
-    if (condition()) return;
-    await new Promise((resolve) => setImmediate(resolve));
+// The wait for what a click comes to. It ends when `condition` holds, or when the page shows what the click came to: the paragraph of the class
+// `result` that the flow writes after every decision, a commit or a refusal. It fails by name when the page settles without the condition.
+// The click awaits work node does off the event loop (crypto.subtle.digest, through MOD-text-tools' blobSha in acceptAndRelease), so no count
+// of event-loop turns bounds it; the deadline only names a page that never settles.
+const SETTLES_WITHIN_MS = 10_000;
+async function until(page, condition, what) {
+  const deadline = Date.now() + SETTLES_WITHIN_MS;
+  while (!condition()) {
+    const said = byClass(page, "p", "result").map((paragraph) => paragraph.textContent);
+    if (said.length) assert.fail(`waited for ${what}; the page settled with: ${said.join(" ")}`);
+    if (Date.now() > deadline) assert.fail(`waited for ${what}; neither it nor the page's result came within ${SETTLES_WITHIN_MS} ms`);
+    await new Promise((resolve) => setTimeout(resolve, 1));
   }
-  assert.fail(`waited for ${what}`);
 }
 const reasonFields = (root) => byClass(root, "input", "reason");
 const fieldOf = (root, id) => {
@@ -167,7 +174,7 @@ test("MOD-review-pages release-report/release-v<version> — Accept hands both r
   fieldOf(page, FAIL).value = WHY_FAIL;
   fieldOf(page, RATE).value = WHY_RATE;
   click(byClass(page, "button", "accept")[0]);
-  await until(() => fake.calls.some((call) => call.fn === "createTag"), "the tag");
+  await until(page, () => fake.calls.some((call) => call.fn === "createTag"), "the tag");
 
   assert.equal(fake.writes().length, 1, "one commit");
   const approval = approvalOf(fake);
@@ -189,7 +196,7 @@ test("MOD-review-pages release-report/release-v<version> — with one reason emp
   const page = await show(fake, { id: "release-v2026.4.0" });
   fieldOf(page, FAIL).value = WHY_FAIL;
   click(byClass(page, "button", "accept")[0]);
-  await until(() => /needs its reason/.test(page.textContent), "the refusal on the page");
+  await until(page, () => /needs its reason/.test(page.textContent), "the refusal on the page");
 
   assert.equal(fake.calls.length, 0, "no commit and no tag");
   const said = byClass(page, "p", "result").map((paragraph) => paragraph.textContent).join(" ");
@@ -209,7 +216,7 @@ test("MOD-review-pages release-report/release-v<version> — a green report has 
   assert.match(byClass(page, "section", "changelog-entry")[0]?.textContent ?? "", /Ten of ten model runs pass\./);
   assert.equal(reasonFields(page).length, 0, "no reason field");
   click(byClass(page, "button", "accept")[0]);
-  await until(() => fake.calls.some((call) => call.fn === "createTag"), "the tag");
+  await until(page, () => fake.calls.some((call) => call.fn === "createTag"), "the tag");
 
   assert.equal(fake.writes().length, 1, "one commit");
   assert.ok(!/^limitation: \S/m.test(approvalOf(fake).text), "no limitation line that names a test");
@@ -234,7 +241,7 @@ test("MOD-review-pages release-report/all — Accept all N shown hands each repo
   fieldOf(shown, FAIL).value = WHY_FAIL;
   fieldOf(shown, RATE).value = WHY_RATE;
   click(byClass(page, "button", "accept-all")[0]);
-  await until(() => fake.calls.some((call) => call.fn === "createTag"), "the tag");
+  await until(page, () => fake.calls.some((call) => call.fn === "createTag"), "the tag");
 
   assert.deepEqual(approvalOf(fake).text.split("\n").filter((line) => line.startsWith("limitation:")).sort(),
     [`limitation: ${FAIL} — ${WHY_FAIL}`, `limitation: ${RATE} — ${WHY_RATE}`], "one limitation line for each, with its reason");
