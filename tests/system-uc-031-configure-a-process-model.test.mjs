@@ -10,7 +10,7 @@
 // Level: system
 //
 // Authored by developer-sonnet-l (ITM-802), who implemented none of ITM-776, ITM-777, ITM-778, ITM-779 or ITM-780 and no UC-031 production behaviour. Where the pages and UC-031 disagree the case follows UC-031 and is marked
-// `todo` with the finding it reports (UC031-F1, named in FLOW_FINDINGS; UC-031 4a, keeping a draft in the browser, is the finding UC-031-4A that TST-779110 reports and is not reported again). Each test states its input and its
+// `todo` with the finding it reports (UC-031 4a, keeping a draft in the browser, is the finding UC-031-4A that TST-779110 reports and is not reported again). Each test states its input and its
 // expected values in its own text; none reads an expected result from the SPEC, a use case or an architecture file, but the flow map (TST-802201), which holds the expected passages itself and checks that UC-031 still says them.
 // A person's click is the page's own listener called with a trusted event; a script's click is made by `page.script`. Readings the texts leave open, which the cases state:
 //   - "The author opens How products are developed → Process models" is read as the address #models, the route of the menu entry Process models; a click on Adapt, Edit or + New model is read as the address the link leads to.
