@@ -38,6 +38,6 @@ page at once.
 - A job `queueJob` commits on the CI route for a model endpoint names in its record the endpoint's address and model and
   the CI secret of its key, as the start from the server's page gives them (`endpoint`, `secret`). No key is written.
 - Before the job starts, its probe names every page whose queued start moves with it.
-- TST-373211 loses its `todo` in a commit by a participant other than the implementer, written after the code is pushed.
+- TST-373211 also needs the key the entry reads; its `todo` is lifted under ITM-1381.
 - No other existing expected result changes, unless a probe names it and the accepted text allows it.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.
