@@ -9,8 +9,7 @@
 // Level: system
 //
 // Authored by developer-sonnet-j (ITM-372), who implemented none of ITM-333, ITM-334, ITM-342, ITM-355, ITM-356, ITM-358, ITM-1266, ITM-1267, ITM-1319 or ITM-1323 and no UC-008 production behaviour.
-// Where the pages and UC-008 disagree the case follows UC-008 and is marked { todo } with the finding it reports; every other case is green. The finding still open:
-//   UC008-S2  2: "The reviewer opens a use case" — on the frame's review page, the link of a row of the list names no product, so it leads to the instance's page and not to the product's use case.
+// Where the pages and UC-008 disagree the case follows UC-008 and is marked { todo } with the finding it reports; no finding is open.
 // Each test states its input and its expected values in its own text; none reads an expected result from the SPEC, a use case or an architecture file, but the flow map (TST-372201), which holds the expected passages itself
 // and checks that UC-008 still says them. A person's click is the page's own listener called with a trusted event; a script's click is made by `scripted()`; no input event of the operating system is made. Readings the texts
 // leave open, which the cases state:
@@ -45,6 +44,7 @@ const FLOW_EVIDENCE = {
   "1a-private": { uc: "1a. The product repository is private.", evidence: [[SELF, "TST-372205"]] },
   "2a-changed": { uc: "2a. The use case changed since it was last accepted.", evidence: [[SELF, "TST-372206"]] },
   "2a-renamed": { uc: "also when the file was renamed since", evidence: [[SELF, "TST-372206"]] },
+  "main-2-opens-a-use-case-from-the-list": { uc: "The reviewer opens a use case;", evidence: [[SELF, "TST-372216"]] },
   "3a-edit": { uc: "3a. The reviewer wants to change the text.", evidence: [[SELF, "TST-372207"]] },
   "3b-no-token": { uc: "3b. No token is stored.", evidence: [[SELF, "TST-372208"]] },
   "3c-gitlab": { uc: "3c. The product is on a GitLab server and no token for it is stored.", evidence: [[SELF, "TST-372209"]] },
@@ -57,7 +57,6 @@ const FLOW_EVIDENCE = {
   "post-record-and-prose": { uc: "An approval record names the file and the SHA of the accepted text; the commit names who and when.", evidence: [[SELF, "TST-372203"]] },
 };
 const FLOW_FINDINGS = {
-  "main-2-opens-a-use-case-from-the-list": { uc: "The reviewer opens a use case;", finding: "UC008-S2", file: SELF, test: "TST-372216" },
 };
 
 // TST-372201 · level: system · module: system
@@ -500,8 +499,7 @@ test("TST-372215: UC-008 5a a file edited after acceptance is shown as changed s
 // given: the instance's dashboard with the product chosen, on the list of its use cases, which links each use case to its page
 // input: the reviewer follows the link of UC-043 as the browser does, by setting the address to the link's own
 // expect: known positive — the list has a link for UC-043; UC-008 step 2 says the reviewer opens a use case of that product: the page shows UC-043 of the product, "Return a book", with its difference to the last accepted text
-test("TST-372216: UC-008 2 a use case is opened from the list of the product chosen",
-  { todo: "FINDING UC008-S2 — the link of a row (src/review-pages/flow.mjs, showList → rowFor) is `#use-case/id=UC-043`, without the chosen product; the frame (src/site-frame/index.mjs, show → chosenProduct) takes the product from the fragment alone, so following the link draws the instance's page of UC-043 and prints \"No use case UC-043 on the default branch.\"" }, async () => {
+test("TST-372216: UC-008 2 a use case is opened from the list of the product chosen", async () => {
   const w = await world();
   const page = await w.open();
   const link = find(rowOf(page.target, "UC-043"), (node) => node.localName === "a")[0];
