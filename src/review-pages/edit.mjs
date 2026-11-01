@@ -15,7 +15,7 @@ import { waitingQueues } from "../progress-measures/index.mjs";
 import { blobSha } from "../text-tools/index.mjs";
 import { requirementImpact, storedGraph } from "../trace-graph/index.mjs";
 import { explain, readProblem } from "../site-frame/index.mjs";
-import { asOfLine, el, link, reviewLink, openEditor, parseServer, tokenStep } from "./common.mjs";
+import { arrangeLink, asOfLine, el, link, reviewLink, openEditor, parseServer, tokenStep } from "./common.mjs";
 import { fallbackPages } from "./file-edit.mjs";
 import { entryId } from "./spec-entries.mjs";
 
@@ -114,6 +114,8 @@ export async function showEdit(where, kind, params) {
     }
   }
 
-  target.append(el("h3", null, "Other open proposals on this section"), ...[asOfLine(asOf)].filter(Boolean), others, editorBox, el("h3", null, "Why"), why, el("h3", null, "Impact list"), rename, impact, saved);
+  // The editor changes text only, never a group: moving the requirement to another group is the arrangement's (UC-018 3e).
+  target.append(el("h3", null, "Other open proposals on this section"), ...[asOfLine(asOf)].filter(Boolean), others, editorBox, el("h3", null, "Why"), why, el("h3", null, "Impact list"), rename, impact, saved,
+    arrangeLink(context, kind));
   return openEditor(editorBox, initial, { marks, save });
 }

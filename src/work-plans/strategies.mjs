@@ -451,15 +451,21 @@ function sprintRecordChecks(draft) {
 }
 
 /**
- * The writer sprint-record(result, context) -> Promise<WriteOutcome> — an agent's close of the sprint the draft names, through closeSprint (UC-041 step 6): the draft, `result.draft`, is closeSprint's `close`, which
- * sprint-record-checks has checked; `facts` are those of the same sprint as the recipe sprint-facts computes them (its own function); `architecture` the module files of the job's snapshot; `head` the snapshot's
+ * The writer sprint-record(result, context) -> Promise<WriteOutcome> — an agent's close of the sprint the job's parameter `sprint` names, the one the recipe sprint-facts reads, through closeSprint (UC-041 step 6):
+ * the draft, `result.draft`, which sprint-record-checks has checked, is closeSprint's `close` with its `sprint` that of the parameter, whatever the draft holds; `facts` are those of the same sprint as the recipe sprint-facts computes them (its own function); `architecture` the module files of the job's snapshot; `head` the snapshot's
  * commit; `trailers` provenanceLines of the job, the participant's name among them — the closer's. The proposals of the retrospective are written as lines of the sprint's record and nothing else is written.
- * Commits once, to the product's default branch; the outcome names the commit and the record. Throws what closeSprint throws.
+ * A review that sprint-record-checks finds under AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM — no source named, or no statement that no stakeholder took part when none did — is refused with
+ * ReviewRefused { findings }, those findings, and nothing is written: the job runner calls the writer also when nobody attends and its loop ended with the finding open.
+ * Otherwise commits once, to the product's default branch; the outcome names the commit and the record. Throws what closeSprint throws.
  */
 async function sprintRecord(result, context) {
   const { snapshot, host } = context.product;
-  const close = result.draft;
-  const { facts } = await sprintInputs(context, { sprint: close?.sprint });
+  const { name, facts } = await sprintInputs(context, context.params);
+  const close = { ...result.draft, sprint: name };
+  const unnamed = sprintRecordChecks(close).filter((each) => each.rule === REVIEW_RULE);
+  if (unnamed.length) {
+    throw new WorkPlansError("ReviewRefused", { findings: unnamed }, `The review of sprint ${name} is not recorded: ${unnamed.map((each) => each.what).join("; ")}.`);
+  }
   const architecture = await moduleFiles(snapshot);
   const trailers = provenanceLines({ agentM: context.agentM, jobId: context.jobId, kind: context.kind.name, participant: result.drafter ?? { name: "none", model: null }, rounds: result.rounds.length });
   const { commit, written } = await closeSprint(host, close, { facts, architecture, head: snapshot.commit, trailers });
