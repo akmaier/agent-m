@@ -333,7 +333,7 @@ test("TST-373209: UC-010 the main flow — on the workflow's two machines the ag
 // given: the product with the job workflow installed, the instance with the CI agent ci-bot, and the drafting page of the use cases, where the person has chosen ci-bot for the requirement A LOAN HAS A DUE DATE
 // input: the person presses Prepare and reads the run panel
 // expect: known positive — the run panel is the one of ci-bot; it names that the calls are billed per use by the agent's provider
-test("TST-373210: UC-010 precondition — the run panel says that the calls are billed per use", { todo: "FINDING UC010-F2 — the run panel (src/site-frame/run-panel.mjs:20-71, destinationOf and runPanel) states each destination's model, place and the parts sent, and a limit of rounds, and says nothing of what the calls cost; the sentence that they are billed per use by the agent's provider stands only in the folded explanation of the Settings page's job workflow line (src/site-frame/explanations.md:500, job-workflow), while UC-010 (Precondition) says \"the run panel says so\" — an item for MOD-site-frame" }, async () => {
+test("TST-373210: UC-010 precondition — the run panel says that the calls are billed per use", async () => {
   endpoint();
   await world({}, async (w) => {
     await installFast(w);
