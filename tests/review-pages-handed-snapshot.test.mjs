@@ -17,6 +17,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { emptyStorage } from "./review-pages-harness.mjs";
+import { until } from "./review-pages-wait.mjs";
 
 const { openStore, writeSetting } = await import("../src/browser-store/index.mjs");
 const pages = await import("../src/review-pages/index.mjs");
@@ -107,13 +108,6 @@ function find(root, match) {
 }
 const byClass = (root, name, className) => find(root, (node) => node.localName === name && node.className.split(" ").includes(className));
 const click = (node) => node.dispatchEvent(new Event("click"));
-async function until(condition, what) {
-  for (let turn = 0; turn < 400; turn++) {
-    if (condition()) return;
-    await new Promise((resolve) => setImmediate(resolve));
-  }
-  assert.fail(`waited for ${what}`);
-}
 // The reads of the repository the page sent after the write: what it was drawn again from.
 const afterWrite = (fake) => fake.calls.slice(fake.calls.findIndex((call) => call.fn === "commitFiles") + 1).filter((call) => call.fn === "readSnapshot" || call.fn === "repositoryInfo");
 
@@ -141,8 +135,8 @@ test("MOD-review-pages use-case/<id> — after Accept the page is drawn again at
   const fake = fakeHost();
   const target = await shown(fake, { id: "UC-041" });
   click(byClass(target, "button", "accept")[0]);
-  await until(() => fake.writes().length === 1, "the commit");
-  await until(() => byClass(target, "span", "badge")[0]?.textContent === "accepted", "the page to show UC-041 accepted");
+  await until(target, () => fake.writes().length === 1, "the commit");
+  await until(target, () => byClass(target, "span", "badge")[0]?.textContent === "accepted", "the page to show UC-041 accepted");
   assert.deepEqual(afterWrite(fake), [{ fn: "readSnapshot", ref: fake.head() }], "drawn again at the commit the write returned");
 });
 
@@ -158,8 +152,8 @@ test("MOD-review-pages use-case/<id>/edit — after Save the page is drawn again
   area.value = UC41.replace("at the desk.", "at the desk, with a receipt.");
   area.dispatchEvent(new Event("input"));
   click(find(target, (node) => node.localName === "button" && node.textContent === "Save")[0]);
-  await until(() => fake.writes().length === 1, "the commit");
-  await until(() => target.textContent.includes("with a receipt") && find(target, (node) => node.localName === "textarea" && !node.className.split(" ").includes("reject-reason")).length === 0, "the use case shown again");
+  await until(target, () => fake.writes().length === 1, "the commit");
+  await until(target, () => target.textContent.includes("with a receipt") && find(target, (node) => node.localName === "textarea" && !node.className.split(" ").includes("reject-reason")).length === 0, "the use case shown again");
   assert.deepEqual(afterWrite(fake), [{ fn: "readSnapshot", ref: fake.head() }], "drawn again at the commit the write returned");
 });
 
@@ -173,7 +167,7 @@ test("MOD-review-pages use-case/<id> — after Reject the page is drawn again at
   const target = await shown(fake, { id: "UC-041" });
   byClass(target, "textarea", "reject-reason")[0].value = "Not needed.";
   click(byClass(target, "button", "reject")[0]);
-  await until(() => fake.writes().length === 1, "the commit");
-  await until(() => target.textContent.includes(`Rejected in commit ${fake.head().slice(0, 7)}`), "the page drawn again");
+  await until(target, () => fake.writes().length === 1, "the commit");
+  await until(target, () => target.textContent.includes(`Rejected in commit ${fake.head().slice(0, 7)}`), "the page drawn again");
   assert.deepEqual(afterWrite(fake), [{ fn: "readSnapshot", ref: fake.head() }], "drawn again at the commit the write returned");
 });

@@ -26,6 +26,7 @@
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
 import "./site-frame-dom.mjs";
+import { until } from "./review-pages-wait.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -163,13 +164,6 @@ function find(root, match) {
 const byClass = (root, name, className) => find(root, (node) => node.localName === name && node.className.split(" ").includes(className));
 // A person's click: a browser marks it trusted (`isTrusted`); node marks every Event untrusted, as a script's.
 const click = (node) => node.dispatchEvent(Object.defineProperty(new Event("click"), "isTrusted", { value: true }));
-async function until(condition, what) {
-  for (let turn = 0; turn < 400; turn++) {
-    if (condition()) return;
-    await new Promise((resolve) => setImmediate(resolve));
-  }
-  assert.fail(`waited for ${what}`);
-}
 const rowOf = (target, id) => find(target, (node) => node.localName === "tr" && node.getAttribute("data-id") === id)[0];
 const badgeOf = (root) => byClass(root, "span", "badge")[0]?.textContent;
 const rowsOf = (target) => find(target, (node) => node.localName === "tr" && node.getAttribute("data-id")).map((row) => row.getAttribute("data-id"));
@@ -193,7 +187,7 @@ test("MOD-review-pages view — the routes decision and module join the use case
 // guards: STATUS IS DERIVED FROM THE RECORDS; A MODULE FILE IS REVIEWED AS AN ARCHITECTURE DECISION IS; EVERY STEP EXPLAINS ITSELF
 // given: a product with four decisions — ARC-001 accepted, ARC-003 changed since acceptance, ARC-002 and ARC-004 open — and four module files — MOD-reader accepted, MOD-lister changed, MOD-writer and MOD-finer open —, and a token
 // input: the routes decision and module rendered with no id
-// expect: for the decisions a row for each in the order of the identifiers, with its link to #decision/id=<id>/product=<the product's address, encoded>, its title and its status — open, accepted, changed since acceptance — and no tick before a file's page was shown; then, after the pages of ARC-002 and ARC-004 and of MOD-finer and MOD-lister were shown, a tick on those four rows and on no other; for the modules the same under #module/id=<id>/product=<the product's address, encoded>; the folded What is this?; nothing written
+// expect: for the decisions a row for each in the order of the identifiers, with its link to #decision/id=<id>/product=<the product's address, encoded>, its title and its status — open, accepted, changed since acceptance — and a tick on each file not accepted, before and after the pages of ARC-002 and ARC-004 and of MOD-finer and MOD-lister were shown; for the modules the same under #module/id=<id>/product=<the product's address, encoded>; the folded What is this?; nothing written
 test("MOD-review-pages decision and module — the lists: every file with its status and a tick", async () => {
   const fake = fakeHost();
   const decisions = await show(fake, "decision");
@@ -204,10 +198,10 @@ test("MOD-review-pages decision and module — the lists: every file with its st
   assert.deepEqual(rowsOf(whole(decisions)).map((id) => badgeOf(rowOf(decisions, id))), ["accepted", "open", "changed since acceptance", "open"]);
   assert.match(rowOf(decisions, "ARC-003").textContent, /Loans are dated/);
   assert.equal(find(rowOf(decisions, "ARC-003"), (node) => node.localName === "a")[0].getAttribute("href"), `#decision/id=ARC-003/product=${encodeURIComponent(ON_GITHUB.web)}`);
-  assert.deepEqual(rowsOf(whole(decisions)).filter((id) => byClass(rowOf(decisions, id), "input", "tick").length), [], "no decision shown: no tick");
+  assert.deepEqual(rowsOf(whole(decisions)).filter((id) => byClass(rowOf(decisions, id), "input", "tick").length), ["ARC-002", "ARC-003", "ARC-004"], "every decision not accepted has a tick before any is shown");
   for (const id of ["ARC-002", "ARC-004"]) await show(fake, "decision", { id });
   const decisionsRead = await show(fake, "decision");
-  assert.deepEqual(rowsOf(whole(decisionsRead)).filter((id) => byClass(rowOf(decisionsRead, id), "input", "tick").length), ["ARC-002", "ARC-004"], "a tick on the decisions shown");
+  assert.deepEqual(rowsOf(whole(decisionsRead)).filter((id) => byClass(rowOf(decisionsRead, id), "input", "tick").length), ["ARC-002", "ARC-003", "ARC-004"], "still a tick on each decision not accepted, shown or not");
 
   const modules = await show(fake, "module");
   assert.deepEqual(rowsOf(whole(modules)), ["MOD-finer", "MOD-lister", "MOD-reader", "MOD-writer"]);
@@ -215,10 +209,10 @@ test("MOD-review-pages decision and module — the lists: every file with its st
   assert.deepEqual(rowsOf(whole(modules)).map((id) => badgeOf(rowOf(modules, id))), ["open", "changed since acceptance", "accepted", "open"]);
   assert.match(rowOf(modules, "MOD-lister").textContent, /Listing books/);
   assert.equal(find(rowOf(modules, "MOD-lister"), (node) => node.localName === "a")[0].getAttribute("href"), `#module/id=MOD-lister/product=${encodeURIComponent(ON_GITHUB.web)}`);
-  assert.deepEqual(rowsOf(whole(modules)).filter((id) => byClass(rowOf(modules, id), "input", "tick").length), [], "no module shown: no tick");
+  assert.deepEqual(rowsOf(whole(modules)).filter((id) => byClass(rowOf(modules, id), "input", "tick").length), ["MOD-finer", "MOD-lister", "MOD-writer"], "every module not accepted has a tick before any is shown");
   for (const id of ["MOD-finer", "MOD-lister"]) await show(fake, "module", { id });
   const modulesRead = await show(fake, "module");
-  assert.deepEqual(rowsOf(whole(modulesRead)).filter((id) => byClass(rowOf(modulesRead, id), "input", "tick").length), ["MOD-finer", "MOD-lister"], "a tick on the modules shown");
+  assert.deepEqual(rowsOf(whole(modulesRead)).filter((id) => byClass(rowOf(modulesRead, id), "input", "tick").length), ["MOD-finer", "MOD-lister", "MOD-writer"], "still a tick on each module not accepted, shown or not");
   assert.ok(byClass(decisions, "details", "explain").length >= 1 && byClass(modules, "details", "explain").length >= 1, "a folded What is this?");
   assert.equal(fake.writes().length, 0, "nothing written");
 });
@@ -326,14 +320,14 @@ test("MOD-review-pages decision/<id> and module/<id> — Accept writes one recor
     const read = fake.head();
     const target = await show(fake, route, { id });
     click(byClass(target, "button", "accept")[0]);
-    await until(() => fake.writes().length === 1, `the commit of ${id}`);
+    await until(target, () => fake.writes().length === 1, `the commit of ${id}`);
 
     const [{ change }] = fake.writes();
     const [recordPath, recordText] = recordOf(id, kind, path, body);
     assert.equal(change.expectedHead, read, `${id}: on the head that was read`);
     assert.deepEqual(change.files, [{ path: recordPath, text: recordText }], `${id}: one record, naming the blob shown`);
     assert.match(change.message, new RegExp(`Accepted by ${TOKEN.name}`));
-    await until(() => badgeOf(target) === "accepted", `${id} to be shown accepted`);
+    await until(target, () => badgeOf(target) === "accepted", `${id} to be shown accepted`);
     assert.equal(byClass(target, "button", "accept").length, 0);
   }
 });
@@ -360,11 +354,11 @@ test("MOD-review-pages decision/<id>/edit and module/<id>/edit — Save commits 
     for (let turn = 0; turn < 40; turn++) await new Promise((resolve) => setImmediate(resolve));
     assert.equal(fake.writes().length, 0, `${id}: a script's click commits nothing`);
     click(save);
-    await until(() => fake.writes().length === 1, `the commit of ${id}`);
+    await until(target, () => fake.writes().length === 1, `the commit of ${id}`);
     const [{ change }] = fake.writes();
     assert.equal(change.expectedHead, read, `${id}: on the head the editor opened`);
     assert.deepEqual(change.files, [{ path, text: edited }], `${id}: only the file, with the edited text`);
-    await until(() => find(target, (node) => node.localName === "textarea" && !node.className.split(" ").includes("reject-reason")).length === 0 && target.textContent.includes(route === "decision" ? "two small modules" : "to a member"), `${id} to be shown again`);
+    await until(target, () => find(target, (node) => node.localName === "textarea" && !node.className.split(" ").includes("reject-reason")).length === 0 && target.textContent.includes(route === "decision" ? "two small modules" : "to a member"), `${id} to be shown again`);
     assert.equal(badgeOf(target), "open", `${id}: shown again from its page, open`);
     assert.ok(find(target, (node) => node.localName === "a" && (node.getAttribute("href") ?? "").endsWith(`/commit/${fake.head()}`)).length >= 1, `${id}: the commit is linked`);
   }
@@ -425,7 +419,7 @@ test("MOD-review-pages decision/<id> — a decision that rests on what is not ac
   assert.equal(rest.length, 0, "known positive: one Accept");
   assert.notEqual(enabled.disabled, true, "known positive: Accept is enabled");
   click(enabled);
-  await until(() => free.writes().length === 1, "the commit of ARC-004");
+  await until(target, () => free.writes().length === 1, "the commit of ARC-004");
   const [{ change }] = free.writes();
   const [recordPath, recordText] = recordOf("ARC-004", "architecture-decision", A(4, "queue"), ARC4);
   assert.equal(change.expectedHead, read, "on the head that was read");
@@ -442,7 +436,7 @@ test("MOD-review-pages decision/<id> — a requirement that left the SPEC after 
   const target = await show(fake, "decision", { id: "ARC-002" });
   fake.land({ "SPEC.md": text("# Thesis tool — Specification", "", "## Lending") });
   click(byClass(target, "button", "accept")[0]);
-  await until(() => /rests on what is not accepted/.test(target.textContent), "the refusal");
+  await until(target, () => /rests on what is not accepted/.test(target.textContent), "the refusal");
 
   assert.equal(fake.writes().length, 0, "no commit");
   assert.match(target.textContent, /ARC-002: rests on what is not accepted \(A LOAN HAS A DUE DATE\)/);

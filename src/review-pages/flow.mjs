@@ -264,7 +264,8 @@ export function reviewRoute(kind) {
     const tables = [];
     const rowFor = (file, withTick) => {
       const first = el("td");
-      const shown = withTick && token && file.tick ? shownTicksOf(context).get(file.id) : undefined;
+      // Every file not accepted offers a tick (akmaier, 2026-11-01): it names the text this tab showed where the file was opened, else the text the list is drawn from.
+      const shown = withTick && token && file.tick ? (shownTicksOf(context).get(file.id) ?? file.tick) : undefined;
       if (shown) {
         const box = el("input", "tick");
         box.type = "checkbox";

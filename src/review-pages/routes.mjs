@@ -25,7 +25,17 @@ export const heads = {
   arrangeRoute: { name: "arrange", entry: null, title: "Arrange" },
 };
 
-const kindRoute = (kind) => headed({ name: kind.route, entry: kind.entry, title: kind.title }, async () => (await import("./flow.mjs")).reviewRoute(kind), { subject: true });
+// Every kind's route waits on the first import of flow.mjs: a page that shows two kinds at once (#arc: decisions and modules) imports it twice
+// concurrently, and a browser that resolves a second concurrent dynamic import of a module still awaiting its dependencies before that module has run
+// (WebKit) would hand the second route a flow.mjs whose constants are not yet initialised. Each route still imports flow.mjs itself, so that
+// preloads.mjs finds its modules.
+let flow = null;
+const kindRoute = (kind) => headed({ name: kind.route, entry: kind.entry, title: kind.title }, async () => {
+  const imported = import("./flow.mjs");
+  flow ??= imported;
+  await imported;
+  return (await flow).reviewRoute(kind);
+}, { subject: true });
 const draftRoute = headed(heads.draftRoute, async () => (await import("./conversation-draft.mjs")).draftRoute, { subject: true });
 const arrangeRoute = headed(heads.arrangeRoute, async () => (await import("./arrange.mjs")).arrangeRoute);
 

@@ -155,7 +155,7 @@ test("TST-579203: UC-005 1a a file whose hash differs from the recorded one send
 // given: the product, the register and the changed file of TST-579203
 // input: show the run panel
 // expect: 1a: the page says that the content changed and that a new version must be registered (UC-016), in these words or others that name both: the word changed, and a new version to register
-test("TST-579204: UC-005 1a the page says that the content changed and that a new version must be registered", { todo: "FINDING: the page shows the hash mismatch as `This page could not be drawn: <path> has the SHA-256 …, not the … its version records` (MOD-site-frame readProblem, for an error that is no host's failure); no text names that the content changed or that a new version is to be registered (UC-016). MOD-review-pages shows it in its draft route; no accepted module text assigns the words" }, async () => {
+test("TST-579204: UC-005 1a the page says that the content changed and that a new version must be registered", async () => {
   const entries = { ...sourceFiles(), [`docs/sources/${SOURCE}/${VERSION}/${MAIN_FILE}`]: `${MAIN_TEXT}Chapter 3: changed afterwards.\n` };
   const w = await world({ instance: { entries }, answers: { candidates: [] } });
   const prepared = await w.prepare({ files: [MAIN_FILE] });
@@ -529,7 +529,7 @@ test("TST-579218: UC-005 postcondition no proposal duplicates an existing requir
 // given: the product, the endpoint's answers and the written queue of TST-579218, whose source SRC-policy is linked at version 2026-10-01
 // input: read the files of the written queue
 // expect: the postcondition: the written files name the source passage (ch. 5), the participant drafter-a and the version 2026-10-01 of the source the candidates were derived from
-test("TST-579219: UC-005 postcondition each proposal names its source passage, the source version and the participant", { todo: "FINDING: the rationale's Origin reads `Source SRC-policy, passages: ch. 5.` and its Provenance names Agent M, the participant, the model and the date (src/spec-changes/propose.mjs:195-196, rationaleOf); no file of the written queue names the version 2026-10-01 of the source, though MOD-spec-changes' Data names \"the source passage and version\" for the origin of a rationale and UC-005's postcondition asks for it. MOD-spec-changes' writer queue-entries" }, async () => {
+test("TST-579219: UC-005 postcondition each proposal names its source passage, the source version and the participant", async () => {
   const w = await world({ answers: { candidates: [candidate("A FINE IS CHARGED", { rule: "A late loan is charged a fine.", passage: "ch. 5" })] } });
   const prepared = await w.prepare({ files: [MAIN_FILE] });
   await w.run(prepared);

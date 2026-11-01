@@ -21,6 +21,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { withStoredGraph } from "./stored-graph-fake.mjs";
+import { until } from "./review-pages-wait.mjs";
 
 let commitsMade = 0;
 const { openStore, writeSetting } = await import("../src/browser-store/index.mjs");
@@ -122,13 +123,6 @@ function find(root, match) {
 }
 const byClass = (root, name, className) => find(root, (node) => node.localName === name && node.className.split(" ").includes(className));
 const click = (node) => node.dispatchEvent(new Event("click"));
-async function until(condition, what) {
-  for (let turn = 0; turn < 400; turn++) {
-    if (condition()) return;
-    await new Promise((resolve) => setImmediate(resolve));
-  }
-  assert.fail(`waited for ${what}`);
-}
 const badgeOf = (root) => byClass(root, "span", "badge")[0]?.textContent;
 const lines = (root, className) => byClass(root, "span", className).map((node) => node.textContent);
 const diffOf = (root) => byClass(root, "section", "accepted-diff")[0];
@@ -188,12 +182,12 @@ test("TST-1314303: UC-023 rejecting the put-back file deletes it in one commit w
   const fake = fakeProduct();
   const reader = await show(fake, "module", { id: "MOD-reader" });
   await reject(reader, "not wanted");
-  await until(() => fake.writes().length === 1, "MOD-reader's rejection");
+  await until(reader, () => fake.writes().length === 1, "MOD-reader's rejection");
   assert.deepEqual(fake.writes()[0].files, [{ path: P("reader"), text: READER_OLD }], "known positive: the text the record names");
 
   const shelf = await show(fake, "module", { id: "MOD-shelf" });
   await reject(shelf, "it stays removed");
-  await until(() => fake.writes().length === 2, "MOD-shelf's rejection");
+  await until(shelf, () => fake.writes().length === 2, "MOD-shelf's rejection");
   const [, write] = fake.writes();
   assert.deepEqual(write.files, [{ path: P("shelf"), delete: true }], "one file, deleted");
   assert.match(write.message, /^reject MOD-shelf \(Agent M dashboard\)\n\nRejected by Agent M · thesis-tool\.\n\nReason: it stays removed\n$/);

@@ -559,26 +559,38 @@ test("TST-371317: entries of one queue are accepted together in the order of the
 
 // TST-371318 · level: release · module: system
 // guards: SEVERAL FILES ARE ACCEPTED IN ONE CLICK; UC-006
-// given: a product on GitHub whose queue holds the open entries 05 and 07, and the pages of 05 only were shown; the reviewer's token is stored
-// input: the list is drawn and 05 ticked, Accept ticked pressed; apart, Review all is drawn for both entries, another writer changes 07's proposal, and Accept all 2 shown is pressed
-// expect: the list offers a tick for 05 and none for 07, whose page was not shown, and the batch writes one record, 05's, and none for 07; after the change Accept all writes one commit with 05's record only and names 07 as left out because it changed after it was shown; without the change it writes one record for each of the two
-test("TST-371318: several entries are accepted in one click, one record for each entry shown, none for one not shown, and a changed entry is left out and named", async () => {
+// given: a product on GitHub whose queue holds the open entries 05 and 07, and no page of either was shown; the reviewer's token is stored
+// input: the list is drawn and 05 alone ticked, Accept ticked pressed; apart, the list is drawn and both ticked, Accept ticked pressed; apart, Review all is drawn for both entries and Accept all 2 shown is pressed; apart, Review all is drawn, another writer changes 07's proposal, and Accept all 2 shown is pressed
+// expect: known positive — the list offers a tick for 05 and for 07, read or not; with 05 ticked the batch writes one record, 05's, naming 05's proposal blob, and none for 07, which was not ticked; with both ticked it writes one commit with one record for each, each naming its proposal's blob; Accept all writes one record for each of the two shown; counter-proof — after the change Accept all writes one commit with 05's record only and names 07 as left out because it changed after it was shown
+test("TST-371318: several entries are accepted in one click, one record for each entry ticked or shown, none for one not ticked, and a changed entry is left out and named", async () => {
+  const approvals = (commit) => Object.keys(commit.files).filter((path) => path.startsWith("docs/approvals/"));
   const w = await world({ entries: [E05, E07] });
-  await w.draw({ id: entryId(E05) });
   const list = await w.draw({});
-  assert.equal(find(rowOf(list, entryId(E07)), (node) => node.localName === "input").length, 0, "no tick for an entry whose page was not shown");
+  assert.equal(find(rowOf(list, entryId(E05)), (node) => node.localName === "input").length, 1, "a tick for 05, whose page was not shown");
+  assert.equal(find(rowOf(list, entryId(E07)), (node) => node.localName === "input").length, 1, "a tick for 07, whose page was not shown");
   tick(boxOf(list, entryId(E05)));
   click(buttonOf(list, "Accept ticked (1)"));
   await w.quiet();
   assert.equal(w.writes().length, 1);
-  assert.deepEqual(Object.keys(w.writes()[0].files).filter((path) => path.startsWith("docs/approvals/")), [recordPath(E05)]);
+  assert.deepEqual(approvals(w.writes()[0]), [recordPath(E05)], "a record for 05 and none for 07, which was not ticked");
+  assert.match(w.writes()[0].files[recordPath(E05)], new RegExp(`^blob: ${blobOf(E05.proposal)}$`, "m"), "05's record names the text the list read");
+
+  const ticked = await world({ entries: [E05, E07] });
+  const twice = await ticked.draw({});
+  tick(boxOf(twice, entryId(E05)));
+  tick(boxOf(twice, entryId(E07)));
+  click(buttonOf(twice, "Accept ticked (2)"));
+  await ticked.quiet();
+  assert.equal(ticked.writes().length, 1, "one commit");
+  assert.deepEqual(approvals(ticked.writes()[0]).sort(), [recordPath(E05), recordPath(E07)].sort());
+  assert.match(ticked.writes()[0].files[recordPath(E07)], new RegExp(`^blob: ${blobOf(E07.proposal)}$`, "m"), "07's record names the text the list read");
 
   const both = await world({ entries: [E05, E07] });
   const all = await both.draw({ id: "all" });
   click(buttonOf(all, "Accept all 2 shown"));
   await both.quiet();
   assert.equal(both.writes().length, 1);
-  assert.deepEqual(Object.keys(both.writes()[0].files).filter((path) => path.startsWith("docs/approvals/")).sort(), [recordPath(E05), recordPath(E07)].sort());
+  assert.deepEqual(approvals(both.writes()[0]).sort(), [recordPath(E05), recordPath(E07)].sort());
 
   const changed = await world({ entries: [E05, E07] });
   const review = await changed.draw({ id: "all" });
@@ -586,7 +598,7 @@ test("TST-371318: several entries are accepted in one click, one record for each
   click(buttonOf(review, "Accept all 2 shown"));
   await changed.quiet();
   assert.equal(changed.writes().length, 1);
-  assert.deepEqual(Object.keys(changed.writes()[0].files).filter((path) => path.startsWith("docs/approvals/")), [recordPath(E05)]);
+  assert.deepEqual(approvals(changed.writes()[0]), [recordPath(E05)]);
   assert.match(resultOf(review), /spec-2026-03-01_sample-07 was left out: it changed after it was shown\./);
 });
 

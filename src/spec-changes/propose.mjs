@@ -143,6 +143,8 @@ export function entrySections(spec, draft, classes, source) {
 //     and the job as the slug, the folders this call has named counted among those the repository has, so that a product that is its own instance keeps its two queues of the day in the day and the day with b. Its entries are named by their section, and `SPEC.md` is every entry's target. `entscheidungen.md` is written with no decision.
 //   - The impact list of an entry names, for each requirement it changes, the artifacts MOD-trace-graph's requirementImpact finds that name it, or that none does; a new requirement has none.
 //   - Nothing is written to a repository when every section already stands as written; the SPEC is never written.
+//   - The version of the source that a rationale's origin names is the one `linkedVersion` gives for the job's source, the version the product links and the job read: the sentence `Source version: <version>.`
+//     follows the sentence that names the source and its passages. A source the product links at no version is named without one.
 //   - The job's parameter `issue` counts when it is a positive whole number, given as a number or its digits; the issue is the product's, at the context's `product.address`. Each rationale's
 //     origin names it after the source, `issue #<number> of <address>`, and the index of every queue the job writes, the instance's too, holds its line above the target's line. Without it,
 //     nothing names an issue.
@@ -192,7 +194,7 @@ function rationaleOf(section, changes, graph, job) {
     `**The change.** ${changes.map(describeChange).join("; ")}. The rest of the section is carried over byte for byte.`, "",
     `**Why.** Drafted from ${job.source}${job.prompted ? " on the person's instruction" : ""}: ${candidates.join(" · ")}`, "",
     "**Impact list.**", ...impact, "",
-    `**Origin.** Source ${job.source}${passages.length ? `, passages: ${passages.join("; ")}` : ""}${job.issue ? `; issue #${job.issue.number} of ${job.issue.product}` : ""}.${job.prompted ? ` Asked in ${conversationOf(job.page)}.` : ""}`, "",
+    `**Origin.** Source ${job.source}${passages.length ? `, passages: ${passages.join("; ")}` : ""}${job.issue ? `; issue #${job.issue.number} of ${job.issue.product}` : ""}.${job.sourceVersion ? ` Source version: ${job.sourceVersion}.` : ""}${job.prompted ? ` Asked in ${conversationOf(job.page)}.` : ""}`, "",
     `**Provenance.** Agent M ${job.agentM.version}, commit ${job.agentM.commit}; participant ${job.participant.name}; model ${job.participant.model ?? "none"}; ${job.date}; correction rounds: ${job.rounds}.`, ""].join("\n");
 }
 
@@ -221,7 +223,7 @@ export async function queueEntries(result, context) {
   // The sources the product links.
   const { entry: entrySchema, links: linksSchema } = sourceSchemas();
   let linked = null;
-  const isLinked = async (name) => {
+  const linkOf = async (name) => {
     if (linked === null) {
       const linksText = await context.product.snapshot.read("docs/sources.md");
       const register = [];
@@ -229,10 +231,11 @@ export async function queueEntries(result, context) {
         const text = await context.instance.snapshot.read(path);
         if (text !== null) register.push(readDocument(entrySchema, path, text));
       }
-      linked = (item) => linksText !== null && linkedVersion(readDocument(linksSchema, "docs/sources.md", linksText), register, item) !== null;
+      linked = (item) => (linksText === null ? null : linkedVersion(readDocument(linksSchema, "docs/sources.md", linksText), register, item));
     }
     return linked(name);
   };
+  const isLinked = async (name) => (await linkOf(name)) !== null;
   const writable = [];
   for (const candidate of drafted) {
     if (typeof candidate.source === "string" && candidate.source !== "" && !(await isLinked(candidate.source))) {
@@ -242,7 +245,8 @@ export async function queueEntries(result, context) {
 
   const outcome = { commits: [], files: [], pullRequest: null, shown: null, notes };
   const date = context.now.toISOString().slice(0, 10);
-  const job = { source, prompted, page, issue, agentM: context.agentM, participant: result.drafter ?? { name: "none", model: null }, rounds: result.rounds?.length ?? 0, date };
+  const sourceVersion = (await linkOf(source))?.version.version ?? null;
+  const job = { source, sourceVersion, prompted, page, issue, agentM: context.agentM, participant: result.drafter ?? { name: "none", model: null }, rounds: result.rounds?.length ?? 0, date };
   const slug = slugOf([context.kind?.name, context.jobId].filter(Boolean).join("-")) || "candidates";
   // A product that is its own instance may be held in two checkouts, as a hosted job holds it: its process queue is written through the product's
   // host too, the one whose commits the job's result carries.

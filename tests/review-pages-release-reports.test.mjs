@@ -20,6 +20,7 @@
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
 import "./review-pages-harness.mjs";
+import { until } from "./review-pages-wait.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -122,13 +123,6 @@ function find(root, match) {
 }
 const byClass = (root, name, className) => find(root, (node) => node.localName === name && node.className.split(" ").includes(className));
 const click = (node) => node.dispatchEvent(new Event("click"));
-async function until(condition, what) {
-  for (let turn = 0; turn < 400; turn++) {
-    if (condition()) return;
-    await new Promise((resolve) => setImmediate(resolve));
-  }
-  assert.fail(`waited for ${what}`);
-}
 const rowsOf = (target) => find(target, (node) => node.localName === "tr" && node.getAttribute("data-id"));
 const sections = (target) => byClass(target, "section", "review-file");
 
@@ -195,7 +189,7 @@ test("MOD-review-pages release-report/all — shows only the open report, and Ac
   assert.equal(all?.textContent, "Accept all 1 shown");
   assert.equal(fake.writes().length, 0, "nothing written before the click");
   click(all);
-  await until(() => fake.writes().length === 1, "the commit");
+  await until(target, () => fake.writes().length === 1, "the commit");
 
   const blob = blobOf(fake.report);
   const [{ change }] = fake.writes();
@@ -205,7 +199,7 @@ test("MOD-review-pages release-report/all — shows only the open report, and Ac
   assert.match(record.text, new RegExp(`^file: ${OPEN.replaceAll(".", "\\.")}$`, "m"));
   assert.match(record.text, new RegExp(`^blob: ${blob}$`, "m"));
   assert.deepEqual(change.files.map((file) => file.path).filter((path) => path.startsWith("docs/approvals/")), [record.path], "one record");
-  await until(() => fake.calls.some((call) => call.fn === "createTag"), "the tag");
+  await until(target, () => fake.calls.some((call) => call.fn === "createTag"), "the tag");
   assert.deepEqual(fake.calls.filter((call) => call.fn === "createTag").map(({ name, commit }) => [name, commit]), [["v2026.4.0", CANDIDATE]], "the tag on the tested commit");
-  await until(() => sections(target).length === 0 && /Nothing to review/.test(target.textContent), "the page to show nothing left to review");
+  await until(target, () => sections(target).length === 0 && /Nothing to review/.test(target.textContent), "the page to show nothing left to review");
 });
