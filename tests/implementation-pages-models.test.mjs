@@ -568,7 +568,7 @@ const timesIn = (text, needle) => text.split(needle).length - 1;
 // guards: A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED; UC-031
 // given: + New model with the kind planned picked, its name left out; and the adapted v-model, whose last gate the author types without a Condition and whose last transition leads to "Nowhere"
 // input: the findings the form shows: the lists beside its fields and the marks of its sections
-// expect: "the key name is required" stands exactly once among the lists of the new model's form; the marks of Gates hold "the column Condition" exactly once; the marks of Transitions hold "which is no phase of the model" exactly once — a finding of the schema and one beyond it, each shown once
+// expect: "the key name is required" stands exactly once among the lists of the new model's form; the marks of Gates hold "the column Condition is required" exactly once; the marks of Transitions hold "which is no phase of the model" exactly once — a finding of the schema and one beyond it, each shown once
 test("TST-779014 each finding is shown once", async () => {
   const planned = await edit("");
   await planned.click(find(planned.target, (node) => node.getAttribute("data-kind") === "planned")[0], false);
@@ -576,7 +576,7 @@ test("TST-779014 each finding is shown once", async () => {
   assert.equal(timesIn(lists, "the key name is required"), 1);
   const { target } = await edit("v-model");
   await typeSection(target, "## Gates", areaOf(target, "## Gates").replace("| the verification is documented before the release | Reviewer |", "|  | Reviewer |"));
-  assert.equal(timesIn(marksOf(target, "## Gates"), "the column Condition"), 1);
+  assert.equal(timesIn(marksOf(target, "## Gates"), "the column Condition is required"), 1);
   await typeSection(target, "## Transitions", areaOf(target, "## Transitions").replace("| Validation & Verification | Operation & Maintenance | sequence |", "| Validation & Verification | Nowhere | sequence |"));
   assert.equal(timesIn(marksOf(target, "## Transitions"), "which is no phase of the model"), 1);
 });

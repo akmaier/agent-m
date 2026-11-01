@@ -37,7 +37,6 @@ import { explain, schemaForm, chosenProduct } from "../site-frame/index.mjs";
 import { readSetting } from "../browser-store/index.mjs";
 import { readDocument, writeDocument } from "../documents/index.mjs";
 import { catalogue, modelSchema, modelFindings, modelDiagram, planGrid } from "../model-catalogue/index.mjs";
-import { productFacts } from "../progress-measures/index.mjs";
 import { participantSchema } from "../participant-list/index.mjs";
 import { declarationSchema, declarationFindings, roleAssignmentFindings, roleAssignmentSchema, workflowOf } from "../product-process/index.mjs";
 import { sourceSchemas } from "../source-register/index.mjs";
@@ -478,6 +477,11 @@ export const modelsRoute = {
 // file changed meanwhile is not written, and both versions are shown (6b). *Discard* leads back to the list: the draft is kept on the screen only
 // (4a — the module's Uses name no write to the browser's store).
 
+// A finding of the model's schema itself: one about a key, a column, a row, a table's header, a section, the path or an image, as
+// MOD-documents' documentFindings words it. schemaForm shows those already beside their fields, and modelFindings, which holds them
+// too, adds only the rest — the rules the schema cannot express — so that each finding is shown once.
+const SCHEMA_OWN = /^(the (key|column|row|header of the table|section|path|image) |.* is required, and missing$)/;
+
 // The file of the instance's model named `name`.
 const modelPath = (name) => `${INSTANCE_MODELS}${name}.md`;
 
@@ -607,6 +611,8 @@ async function editor(target, context, name) {
       grid.replaceChildren(el("p", null, `Reading the accepted requirements of ${address} …`));
       try {
         const product = await chosenProduct({ store, fragment: `#models/product=${encodeURIComponent(address)}` });
+        // MOD-progress-measures is imported only here, on the first pick: the routes `models` and `process` load nothing of it before.
+        const { productFacts } = await import("../progress-measures/index.mjs");
         const facts = await productFacts(product.host, snapshot, (commit) => instance.host.readSnapshot(commit), new Date(), { scope: "all" });
         chosen = Array.isArray(facts.requirements) ? { address, requirements: facts.requirements }
           : { address, reason: "its accepted requirements cannot be read." };
@@ -620,7 +626,7 @@ async function editor(target, context, name) {
       extraChecks: (live) => {
         const document = placed(live);
         follow(document);
-        return modelFindings(document);
+        return modelFindings(document).filter((found) => !SCHEMA_OWN.test(found.what));
       },
       onSave: async (live) => {
         const document = placed(live);
