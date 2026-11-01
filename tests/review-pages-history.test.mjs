@@ -171,7 +171,7 @@ const problemsOf = (target) => elements(target).filter((node) => node.localName 
 // guards: UC-008; UC-023
 // given: the default branch of the fixture; a token stored, or none
 // input: the routes use-case, decision, module and spec-entry drawn as the list
-// expect: on each, with and without a token, the last element of the page is a link whose address is #<route>/id=history
+// expect: on each, with and without a token, the last element of the page is a link whose address is #<route>/id=history/product=<the product's address, percent-encoded>
 for (const token of [true, false]) {
   test(`TST-898001 the list of each kind ends with a link to its history, ${token ? "with" : "without"} a token`, async () => {
     const ends = {};
@@ -180,8 +180,7 @@ for (const token of [true, false]) {
       const last = target.children.at(-1);
       ends[route] = [last.localName, last.getAttribute("href")];
     }
-    assert.deepEqual(ends, { "use-case": ["a", "#use-case/id=history"], decision: ["a", "#decision/id=history"], module: ["a", "#module/id=history"],
-      "spec-entry": ["a", "#spec-entry/id=history"] });
+    assert.deepEqual(ends, Object.fromEntries(["use-case", "decision", "module", "spec-entry"].map((route) => [route, ["a", `#${route}/id=history/product=${encodeURIComponent(ADDRESS)}`]])));
   });
 }
 

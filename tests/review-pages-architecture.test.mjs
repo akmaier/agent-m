@@ -481,6 +481,6 @@ test("MOD-review-pages module/<id> — a module file that does not exist is said
   const target = await show(fakeHost(), "module", { id: "MOD-nothing" });
 
   assert.match(target.textContent, /No module file MOD-nothing on the default branch/);
-  assert.equal(find(target, (node) => node.localName === "a" && node.getAttribute("href") === "#module").length, 1);
+  assert.equal(find(target, (node) => node.localName === "a" && node.getAttribute("href") === `#module/product=${encodeURIComponent(ON_GITHUB.web)}`).length, 1);
   assert.equal(byClass(target, "button", "accept").length, 0);
 });

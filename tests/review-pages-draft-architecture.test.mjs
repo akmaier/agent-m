@@ -351,7 +351,7 @@ test("decision/draft — the derivation covers every requirement and every use c
 // guards: ARCHITECTURE IS DESIGNED ONLY AGAINST ACCEPTED USE CASES; UC-022
 // given: a product whose use case UC-002 is open (no approval record), UC-001 accepted
 // input: the page; then the choice of drafter-a and reviewer-b and the run panel
-// expect: an error finding naming UC-002 and not UC-001, with a link Review UC-002 to #use-case/id=UC-002; the run panel offers no Run and lists the finding as blocking; nothing sent
+// expect: an error finding naming UC-002 and not UC-001, with a link Review UC-002 to #use-case/id=UC-002/product=<the product's address, percent-encoded>; the run panel offers no Run and lists the finding as blocking; nothing sent
 test("decision/draft — an open use case is named with the link to its review, and nothing is derived", async () => {
   endpointsAnswer();
   const files = { ...READY };
@@ -363,8 +363,8 @@ test("decision/draft — an open use case is named with the link to its review, 
   assert.ok(finding.className.split(" ").includes("error"));
   assert.match(finding.textContent, /UC-002/);
   assert.ok(!/UC-001/.test(finding.textContent), "the accepted use case is not named");
-  assert.equal(linksTo(target, "#use-case/id=UC-002").length, 1);
-  assert.equal(linksTo(target, "#use-case/id=UC-001").length, 0);
+  assert.equal(linksTo(target, `#use-case/id=UC-002/product=${encodeURIComponent(ON_GITHUB.web)}`).length, 1);
+  assert.equal(linksTo(target, `#use-case/id=UC-001/product=${encodeURIComponent(ON_GITHUB.web)}`).length, 0);
   const panel = await panelFor(target, "drafter-a", "reviewer-b");
   assert.equal(runButtons(panel).length, 0, "no Run");
   assert.match(byClass(panel, "li", "blocking")[0].textContent, /UC-002/);
@@ -375,7 +375,7 @@ test("decision/draft — an open use case is named with the link to its review, 
 // guards: THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE; UC-022
 // given: a product whose use cases are accepted and whose change queue holds an entry no record decides
 // input: the page; then the choice of drafter-a and reviewer-b and the run panel
-// expect: a warning finding naming the entry's proposal, with a link to #spec-entry to decide it first; the run panel still offers Run — the SPEC change is the person's choice, not a block
+// expect: a warning finding naming the entry's proposal, with a link to #spec-entry/product=<the product's address, percent-encoded> to decide it first; the run panel still offers Run — the SPEC change is the person's choice, not a block
 test("decision/draft — an open SPEC change is named with the choice to decide it first, and Run is still offered", async () => {
   endpointsAnswer();
   const entry = `${QUEUE}/01-a-rule.md`;
@@ -386,7 +386,7 @@ test("decision/draft — an open SPEC change is named with the choice to decide 
   assert.ok(finding, "a finding is shown");
   assert.ok(finding.className.split(" ").includes("warning"));
   assert.ok(finding.textContent.includes(entry), finding.textContent);
-  assert.equal(linksTo(target, "#spec-entry").length, 1);
+  assert.equal(linksTo(target, `#spec-entry/product=${encodeURIComponent(ON_GITHUB.web)}`).length, 1);
   const panel = await panelFor(target, "drafter-a", "reviewer-b");
   assert.equal(runButtons(panel).length, 1, "Run is offered");
   assert.equal(requests.length, 0, "nothing sent");
@@ -396,7 +396,7 @@ test("decision/draft — an open SPEC change is named with the choice to decide 
 // guards: THE FIRST ARCHITECTURE IS DESIGNED AS A WHOLE; UC-022
 // given: a product that holds an architecture decision already, ARC-001
 // input: the page; then the run panel
-// expect: an error finding saying the product has an architecture, with a link naming UC-023 to #decision; the run panel offers no Run
+// expect: an error finding saying the product has an architecture, with a link naming UC-023 to #decision/product=<the product's address, percent-encoded>; the run panel offers no Run
 test("decision/draft — an existing architecture leads to UC-023, and no first architecture is drafted beside it", async () => {
   endpointsAnswer();
   const fake = fakeProduct({ ...READY, [ARC_PATH]: text("---", "id: ARC-001", "title: The whole system", "---", "# ARC-001 The whole system") });
@@ -405,7 +405,7 @@ test("decision/draft — an existing architecture leads to UC-023, and no first 
   assert.ok(finding, "a finding is shown");
   assert.ok(finding.className.split(" ").includes("error"));
   assert.match(finding.textContent, /architecture already/);
-  const leading = linksTo(target, "#decision");
+  const leading = linksTo(target, `#decision/product=${encodeURIComponent(ON_GITHUB.web)}`);
   assert.ok(leading.some((each) => /UC-023/.test(each.textContent)), "a link names UC-023");
   const panel = await panelFor(target, "drafter-a", "reviewer-b");
   assert.equal(runButtons(panel).length, 0, "no Run");

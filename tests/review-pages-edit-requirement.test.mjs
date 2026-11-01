@@ -196,7 +196,7 @@ test("requirement/<name> — Save writes the edited section as an entry and link
   const hrefs = find(entry, (node) => node.localName === "a").map((node) => node.getAttribute("href"));
   assert.ok(hrefs.includes(`https://github.com/alice/thesis-tool/commit/${fake.head()}`), `the commit: ${hrefs}`);
   assert.ok(change.files.find((file) => file.path.endsWith("/index.md")).text.includes(TOKEN.name), "the queue is the person's");
-  assert.ok(hrefs.some((href) => /^#spec-entry\/id=spec-[^/]+-01$/.test(href)), `the entry: ${hrefs}`);
+  assert.ok(hrefs.some((href) => /^#spec-entry\/id=spec-[^/]+-01\/product=/.test(href)), `the entry: ${hrefs}`);
 });
 
 // TST-472629 · level: unit · module: MOD-review-pages
@@ -280,7 +280,7 @@ test("requirement/<name> — another open proposal on the same section is named"
   const target = await showEdit(fake, NAME(LOAN));
   const others = byClass(target, "ul", "others")[0];
   assert.match(others.textContent, /spec-2026-03-01_sample-01/);
-  assert.equal(find(others, (node) => node.localName === "a")[0].getAttribute("href"), "#spec-entry/id=spec-2026-03-01_sample-01");
+  assert.equal(find(others, (node) => node.localName === "a")[0].getAttribute("href"), `#spec-entry/id=spec-2026-03-01_sample-01/product=${encodeURIComponent(GITHUB.web)}`);
   assert.doesNotMatch(others.textContent, /sample-02/, "another section is not the same");
   assert.doesNotMatch(others.textContent, /sample-03/, "an entry in the SPEC is no proposal");
   type(target, LENDING.replace("returned.", "returned, or renewed."));
