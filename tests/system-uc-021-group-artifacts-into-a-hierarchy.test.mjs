@@ -11,7 +11,7 @@
 // Level: system
 //
 // Authored by developer-sonnet-j (ITM-738), who implemented none of ITM-722, ITM-723, ITM-726, ITM-727 and ITM-737 and no UC-021 production behaviour.
-// Where the pages and UC-021 disagree the case follows UC-021 and is marked { todo } with the finding it reports (UC021-F2, UC021-F3 and UC021-F5, named in FLOW_FINDINGS).
+// Where the pages and UC-021 disagree the case follows UC-021 and is marked { todo } with the finding it reports (UC021-F3 and UC021-F5, named in FLOW_FINDINGS).
 // Each test states its input and its expected values in its own text; none reads an expected result from the SPEC, a use case or an architecture file, but the flow map (TST-738001), which holds the expected passages itself
 // and checks that UC-021 still says them. A person's click is the page's own listener called with a trusted event; a script's click is made by `scripted()`. Readings the texts leave open, which the cases state:
 //   - "an item or a group is moved by dragging it" is read as the drag events of the browser (dragstart on the item, drop on the group or on the tree), as the page listens to them.
@@ -66,10 +66,10 @@ const FLOW_EVIDENCE = {
   "5c-gitlab": { uc: "On a GitLab product without a token, there is no save.", evidence: [[SELF, "TST-738021"]] },
   "main-1-tests-list": { uc: "or in the list of use cases, architecture elements, modules or tests, the author presses **Arrange**", evidence: [[SELF, "TST-738003"]] },
   "main-3-from-group": { uc: "*moved UC-007 from \"Review\" to \"Approval\"*", evidence: [[SELF, "TST-738006"]] },
+  "2b-delete": { uc: "**2b. The author deletes a group.**", evidence: [[SELF, "TST-738012"]] },
 };
 const FLOW_FINDINGS = {
   "1b-tests": { uc: "**1b. The author asks a participant to propose an arrangement**", finding: "UC021-F5", file: SELF, test: "TST-738022" },
-  "2b-delete": { uc: "**2b. The author deletes a group.**", finding: "UC021-F2", file: SELF, test: "TST-738012" },
   "3a-unknown-remove": { uc: "the author removes it or leaves it", finding: "UC021-F3", file: SELF, test: "TST-738015" },
 };
 
@@ -370,8 +370,8 @@ test("TST-738011: UC-021 2b only an empty group is deleted: otherwise its conten
 // guards: UC-021
 // given: the arrangement of the use cases (Review: UC-041, UC-042; Derivation: UC-043, UC-099), in which the author moved the content of Review up one level, so that Review is empty (known positive: the group Review stands, empty, in the tree)
 // input: the author looks for the control that deletes the empty group Review, and presses it; Save arrangement
-// expect: UC-021 2b "The author deletes a group. Only an empty group can be deleted": the group Review offers a button named Delete (or Remove); pressed, it is the pending change "Delete the empty group “Review”"; the saved file no longer lists Review. FINDING: no control deletes a group
-test("TST-738012: UC-021 2b the author deletes an empty group", { todo: "FINDING UC021-F2 — groupNode (src/review-pages/arrange.mjs:200-215) draws Rename, Move content up one level and Move to … for a group and no control that deletes it: the move { op: \"delete\" } of MOD-group-document (src/group-document/moves.mjs, `delete`) and its wording in describe() (arrange.mjs:70) are never made by the page, so an author cannot delete an empty group; the sentence of MOD-review-pages names `new and renamed groups` and `moves` for the route (docs/architecture/MOD-review-pages.md, arrange/<group kind>) — an item for MOD-review-pages" }, async () => {
+// expect: UC-021 2b "The author deletes a group. Only an empty group can be deleted": the group Review offers a button named Delete (or Remove); pressed, it is the pending change "Delete the empty group “Review”"; the saved file no longer lists Review
+test("TST-738012: UC-021 2b the author deletes an empty group", async () => {
   const w = await grouped(withUseCaseGroups);
   const t = await arrangement(w, "use-cases");
   click(byClass(groupOf(t, "Review"), "button", "arrange-lift")[0]);
