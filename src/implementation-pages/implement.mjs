@@ -21,6 +21,7 @@
 //   - A pull request is of a job the page started when its description has the line `Job: <id>` (MOD-runtimes' writer writes it) and `<id>` is a record of kind implement or refactor under docs/jobs/. The page lists the
 //     open pull requests only and reads the records they name, in one batch; for each it shows the CI runs of the first commit and of the head, and whether the Definition of Done holds: the result of the head's check
 //     `agent-m done` among the checks pullRequestFacts gives, linked. *Merge* is offered for a pull request that is no draft and whose head passed that check, and calls mergePullRequest on the head the page read.
+//   - Where the repositoryInfo the page reads gives greenToMerge false, the head of the page says that the server does not enforce "merge only on green" and links webLinks' branchProtection (UC-024 12a).
 
 import { kindOf } from "../job-catalogue/index.mjs";
 import { listJobs, newJobId } from "../job-ledger/index.mjs";
@@ -242,8 +243,22 @@ const isTicked = (box) => box !== null && box !== undefined && (box.checked === 
 async function machineryFor(context, ctx, instanceSnapshot, participants) {
   const info = await context.product.host.repositoryInfo();
   const places = { ...(await placesOf(instanceSnapshot, ctx.snapshot.repository?.web ?? context.product.address)), mailbox: null };
-  return { context, ctx, instanceSnapshot, participants, places, defaultBranch: info.defaultBranch, productInfo: { visibility: info.visibility, jobWorkflow: WORKFLOWS.some((path) => ctx.snapshot.paths.includes(path)) },
+  return { context, ctx, instanceSnapshot, participants, places, info, defaultBranch: info.defaultBranch, productInfo: { visibility: info.visibility, jobWorkflow: WORKFLOWS.some((path) => ctx.snapshot.paths.includes(path)) },
     taken: new Set(ctx.snapshot.paths.map((path) => JOB_FILE.exec(path)?.[1]).filter(Boolean)) };
+}
+
+// UC-024 12a: where repositoryInfo gives greenToMerge false — the server merges into the default branch without waiting for its required checks —, the head of the page says so and links the server's page on which
+// that rule is set (MOD-repository-hosts' WebLinks `branchProtection`). Where it is true, or null because the token may not read the rule, nothing is said. No request is made: `info` is the answer the page read.
+function noteGreenToMerge(target, info, host) {
+  if (info?.greenToMerge !== false) return;
+  const page = typeof host?.webLinks === "function" ? host.webLinks()?.branchProtection ?? null : null;
+  const note = document.createElement("p");
+  note.className = "warn";
+  note.setAttribute("data-green-to-merge", "");
+  note.innerHTML = `The server does not enforce "merge only on green": it lets a pull request into the default branch before its checks have passed.${page ? ` <a href="${h(page)}">Require the checks on the server's page for branch protection</a>.` : ""} Agent M still merges a job's pull request only once its CI is green and the Definition of Done holds.`;
+  const head = target.querySelector("section");
+  if (head) head.append(note);
+  else target.append(note);
 }
 
 // The runs of one commit, each as a link to its page with its state; "no run listed" where the server lists none.
@@ -375,7 +390,9 @@ async function draw(target, context, params) {
   if (view.model.kind !== "pulled") {
     const facts = backlog.facts ?? await productFacts(product.host, instanceSnapshot, (commit) => instance.host.readSnapshot(commit), new Date(), { scope: "work" });
     const ctx = await contextOf(context, facts);
-    await drawPlan(target, context, facts, ctx, participants, facts.workflow !== "unknown" ? facts.workflow : null, await machineryFor(context, ctx, instanceSnapshot, participants));
+    const m = await machineryFor(context, ctx, instanceSnapshot, participants);
+    await drawPlan(target, context, facts, ctx, participants, facts.workflow !== "unknown" ? facts.workflow : null, m);
+    noteGreenToMerge(target, m.info, product.host);
     await drawPulls(target, context, facts.snapshot);
     return;
   }
@@ -437,6 +454,7 @@ async function draw(target, context, params) {
       <div data-sent="${h(row.id)}"></div>`) : `<ul data-reasons>${row.verdict.reasons.map((reason) => `<li>${h(reason)}</li>`).join("")}</ul>`}</td></tr>`).join("")}</tbody></table>
     <p><button type="button" data-start-jobs>Start jobs</button></p><div data-start-result></div>`;
   head(body);
+  noteGreenToMerge(target, info, product.host);
 
   // What is sent where, for the participant chosen on each startable row: the job is prepared, nothing is sent.
   const taken = new Set(snapshot.paths.map((path) => JOB_FILE.exec(path)?.[1]).filter(Boolean));
