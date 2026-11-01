@@ -105,7 +105,7 @@ test("TST-738001: UC-021 system coverage names the main flow and every alternati
 // guards: UC-021; ARTIFACTS ARE ARRANGED IN NESTED GROUPS; AN UNGROUPED ITEM IS SHOWN AT THE TOP LEVEL
 // given: the product with a group file of the use cases (Review: UC-041, UC-042; Derivation: UC-043, UC-099 which matches no use case; UC-044 in no group) and one of the requirements (Lending, holding Loans: A LOAN HAS A DUE DATE, and A LOAN CAN BE EXTENDED ONCE; the other two requirements in no group); the author's token for the product is stored
 // input: the author opens the specification browser and presses Arrange; then the list of use cases, of architecture decisions and of modules, and presses Arrange in each
-// expect: the links lead to #arrange/kind=requirements, #arrange/kind=use-cases, #arrange/kind=architecture and #arrange/kind=modules; the page of use cases shows two groups, Review (UC-041, UC-042) and Derivation (UC-043, UC-099), with UC-044 once at the top level; the page of the requirements shows Lending with Loans nested in it; every item of each kind stands once; nothing is written
+// expect: the link of the specification browser leads to #arrange/kind=requirements, and the links of the lists of a product's page to #arrange/kind=use-cases, #arrange/kind=architecture and #arrange/kind=modules, each ending in /product=<the product's address, percent-encoded> (ITM-1355); the page of use cases shows two groups, Review (UC-041, UC-042) and Derivation (UC-043, UC-099), with UC-044 once at the top level; the page of the requirements shows Lending with Loans nested in it; every item of each kind stands once; nothing is written
 test("TST-738002: UC-021 1 Arrange in the specification browser and in the lists opens the hierarchy of that kind, nested, with every item in one place", async () => {
   const requirements = groupFile("requirements", ...group("Lending", `${BOOK_RETURN}`), "  - Loans", `    - ${LOAN_DATE}`, `    - ${LOAN_EXTENSION}`);
   const w = await grouped({ files: { [US]: USE_CASE_GROUPS, [GROUP_PATH("requirements")]: requirements } });
@@ -116,10 +116,10 @@ test("TST-738002: UC-021 1 Arrange in the specification browser and in the lists
   for (const [route, kind] of [["use-case", "use-cases"], ["decision", "architecture"], ["module", "modules"]]) {
     await page.go(withProduct(`#${route}`, w.address));
     const arrange = linksOf(page.target).filter((a) => a.textContent === "Arrange");
-    assert.deepEqual(arrange.map((a) => a.getAttribute("href")), [`#arrange/kind=${kind}`], route);
+    assert.deepEqual(arrange.map((a) => a.getAttribute("href")), [`#arrange/kind=${kind}/product=${encodeURIComponent(w.address)}`], route);
     hrefs[kind] = arrange[0].getAttribute("href");
   }
-  await page.go(withProduct(hrefs["use-cases"], w.address));
+  await page.go(hrefs["use-cases"]);
   assert.match(textOf(page.target), /^Arrange the use cases/);
   assert.deepEqual(byClass(page.target, "li", "arrange-group").map((node) => node.getAttribute("data-title")), ["Review", "Derivation"]);
   assert.deepEqual(membersOf(groupOf(page.target, "Review")), ["UC-041", "UC-042"]);
