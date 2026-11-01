@@ -26,9 +26,14 @@ export function splitDueDiligence(body) {
   return { rest: body.slice(0, found.index) + body.slice(found.index + found[0].length), section: found[1] };
 }
 
-// The due-diligence section as drawn on the review page: the candidates side by side in the table the decision holds.
+// The due-diligence section as drawn on the review page: the candidates side by side in the table the decision holds, with the folded explanation of a due
+// diligence; below the table, while a row's column of compatibility says other than `yes` (MOD-reuse-facts) — a licence missing, unknown or restrictive
+// (UC-022 7c) —, the folded explanation of what a licence permits, once. The rows themselves stay as the table holds them.
+const COMPATIBLE_COLUMN = /^Compatible/;
 export function dueDiligenceSection(section) {
-  return el("section", "due-diligence", el("h4", null, "Due diligence"), renderArtifact(section));
+  const table = renderArtifact(section);
+  const undecided = [...table.getElementsByTagName("td")].some((cell) => COMPATIBLE_COLUMN.test(cell.getAttribute("data-label") ?? "") && cell.textContent.trim() !== "yes");
+  return el("section", "due-diligence", el("h4", null, "Due diligence"), explain("due-diligence"), table, ...(undecided ? [explain("licence-permits")] : []));
 }
 
 // The text of a section of a report, under its heading `## <heading>`, or null where the report has none.

@@ -40,7 +40,8 @@ export const DECISIONS = { kind: "architecture-decision", route: "decision", ent
   plural: "architecture decisions", noun: "architecture decision", heading, restsOn: true, whole: ["architecture-decision", "module"], draft: "derive-architecture", save: "file",
   change: { kind: "change-architecture", parameter: "target" },
   folders: { list: ARCHITECTURE_LIST, all: [...ARCHITECTURE_LIST, ...RESTS_ON, READ.jobs], file: [...ARCHITECTURE_LIST, ...RESTS_ON, READ.jobs] },
-  explain: { ...explain, draft: { whole: "what-is-an-architecture", participant: "drafting-participant", reviewer: "architecture-reviewer", panel: "run-panel", ci: "ci-agent-draft" } } };
+  explain: { ...explain, draft: { whole: "what-is-an-architecture", participant: "drafting-participant", reviewer: "architecture-reviewer", panel: "run-panel",
+    loop: "architecture-reviewer", ci: "ci-agent-draft" } } };
 export const MODULES = { kind: "module", route: "module", entry: "architecture", title: "Module files", plural: "module files",
   noun: "module file", heading, explain, restsOn: true, save: "file", change: { kind: "change-architecture", parameter: "target" },
   folders: { list: ARCHITECTURE_LIST, all: [...ARCHITECTURE_LIST, ...RESTS_ON], file: [...ARCHITECTURE_LIST, ...RESTS_ON] } };
