@@ -79,6 +79,7 @@ const FLOW_EVIDENCE = {
   "4a-no-token": { uc: "**4a. No token is stored (GitHub).**", evidence: [[SELF, "TST-376214"], [UC008, "TST-372208"], [REQ_PAGES, "TST-592002"]] },
   "4b-gitlab": { uc: "**4b. The product is on GitLab and no token for it is stored.**", evidence: [[SELF, "TST-376215"]] },
   "5a-changed": { uc: "**5a. The file or the SPEC section changed since step 2.** Nothing is written. The editor keeps the author's text and shows the newer version beside it", evidence: [[SELF, "TST-376216"]] },
+  "5a-again": { uc: "the comparison is now against the newer SHA", evidence: [[SELF, "TST-376217"]] },
   "6a-other": { uc: "**6a. Another open proposal already replaces the same SPEC section.**", evidence: [[SELF, "TST-376218"], [REQ, "TST-472632"]] },
   "6b-no-write": { uc: "**6b. The author has no write access.**", evidence: [[SELF, "TST-376219"], [USE_CASES, "TST-358005"]] },
   "7a-leave": { uc: "**7a. The author leaves the editor with unsaved changes.**", evidence: [[SELF, "TST-376220"], [LEAVE, "TST-603020"]] },
@@ -86,7 +87,6 @@ const FLOW_EVIDENCE = {
 // The passages the dashboard does otherwise: the finding, its case, and the module it points to.
 const FLOW_FINDINGS = {
   "main-6-open-queue": { uc: "Agent M adds an entry to the author's open queue of today", finding: "UC018-F1", file: SELF, test: "TST-376206", module: "MOD-review-pages" },
-  "5a-again": { uc: "the comparison is now against the newer SHA", finding: "UC018-F2", file: SELF, test: "TST-376217", module: "MOD-review-pages" },
   "3e-link": { uc: "A link opens the arrangement (UC-021)", finding: "UC018-F3", file: SELF, test: "TST-376213", module: "MOD-review-pages" },
 };
 
@@ -518,8 +518,8 @@ test("TST-376216: UC-018 5a a save on a text that changed meanwhile writes nothi
 // guards: UC-018; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE
 // given: the situation of TST-376216 after the refused save: the editor of A LOAN HAS A DUE DATE shows the newer section ("… returned on time."); and of UC-041 the newer text ("at the front desk.")
 // input: the author merges by hand ("… returned on time, or renewed.", "at the front desk, with a receipt.") and presses Save again
-// expect: 5a "the comparison is now against the newer SHA": each save commits once, the merged section as an entry, the merged use case as the file; FINDING UC018-F2 (MOD-review-pages): the editors keep the blob first opened, so the second save is refused again
-test("TST-376217: UC-018 5a after a refused save, the save of the merged text compares with the newer version and is written", { todo: "FINDING UC018-F2 (MOD-review-pages): edit.mjs and file-edit.mjs keep the blob the editor was opened on (openedBlob), so a save after a refusal is compared with it again and refused" }, async () => {
+// expect: 5a "the comparison is now against the newer SHA": each save commits once, the merged section as an entry, the merged use case as the file
+test("TST-376217: UC-018 5a after a refused save, the save of the merged text compares with the newer version and is written", async () => {
   const w = await specWorld();
   const target = await w.draw("requirement", { name: LOAN });
   typeInto(target, LENDING.replace("is returned.", "is returned, or renewed."));
