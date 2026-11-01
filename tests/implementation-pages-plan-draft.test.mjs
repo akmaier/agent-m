@@ -5,7 +5,8 @@
 // Run: node --test tests/implementation-pages-plan-draft.test.mjs
 //
 // Module: MOD-implementation-pages
-// Guards: UC-045; A GENERATED ARTIFACT IS A PROPOSAL; THE PAGE NAMES WHERE IT SENDS; ONE CLICK PER DECISION; A RUN FOLLOWS THE MODULES' INTERFACES; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// Guards: UC-045; A GENERATED ARTIFACT IS A PROPOSAL; THE PAGE NAMES WHERE IT SENDS; ONE CLICK PER DECISION; A RUN FOLLOWS THE MODULES' INTERFACES; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK;
+// A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; EVERY ARTIFACT HAS AN IDENTIFIER; AN IMPLEMENTATION PLAN ASSEMBLES THE SYSTEM FROM ITS MODULES
 // Level: unit
 //
 // The product is a V-model fixture held in memory behind a host of this file's own that keeps the commits it is given; the instance is a second host holding AGENTS.md, the participants' register and
@@ -19,6 +20,13 @@
 //   - "Where its dependencies allow" is read as the finding MOD-work-plans' planFindings gives on the order: a change of the order after which a module stands before one whose interface it uses is
 //     refused, the draft stays as it was, and the finding is shown as `<li class="error">` in `[data-draft-refused]`.
 //   - Split puts a copy of the step after it, titled "<title> (2)"; Merge with next makes the step and the next one step: the first's title, the modules of both, what either comes after.
+// The plan written by hand (ITM-1059), as the same text states the route — "*Save plan*, which ... writes a plan made by hand with `savePlan`; *+ Step*" —, its Uses "MOD-work-plans.savePlan ...
+// — every save of a plan", MOD-work-plans' savePlan ("`planFindings` first, and with an error finding nothing is written ... `trailers` are a job's provenance lines, empty for a person's own
+// input"), and UC-045 2a ("They add steps with **+ Step**, each naming what it implements or integrates; the check of step 3 runs when they press **Save plan**, and the plan is committed as their
+// own input"). Readings the texts leave open:
+//   - *+ Step* is a `button` of type `button` with the class `btn` and the attribute `data-add-step`, beside *Draft the plan*. The person's click adds an empty step, in a box as a drafted step has,
+//     with the same fields, moves and diagram; where no plan is being edited, it opens one written by hand. A click by a script adds nothing.
+//   - A plan written by hand adds its steps to the plan of the default branch read at the click: its steps follow that plan's in the order, and no step of it is removed.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
 import test, { afterEach } from "node:test";
@@ -299,4 +307,102 @@ test("a step is split into two and merged with the next again", async () => {
   await click(one(stepBox(page, "Reader"), "[data-step-merge]"));
   assert.deepEqual(titles(page), ["Reader", "Loose", "Writer", "Sub", "Whole"]);
   assert.equal(one(stepBox(page, "Reader"), '[data-step-field="implements"]').value, "MOD-reader");
+});
+
+// ---------------------------------------------------------------- the plan written by hand (ITM-1059)
+
+// The person's + Step for each step, each named as the draft DRAFT names it, its fields typed into the box + Step added last.
+async function byHand(page, steps) {
+  for (const step of steps) {
+    const before = all(page.target, "[data-draft-step]").length;
+    await click(one(page.target, "[data-add-step]"));
+    await waitFor(() => all(page.target, "[data-draft-step]").length > before);
+    const box = all(page.target, "[data-draft-step]").at(-1);
+    for (const key of ["title", "implements", "level", "phase", "after"]) {
+      await type(one(box, `[data-step-field="${key}"]`), Array.isArray(step[key]) ? step[key].join(", ") : step[key]);
+    }
+  }
+}
+
+// TST-1059001 · level: unit · module: MOD-implementation-pages
+// guards: UC-045; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; EVERY ARTIFACT HAS AN IDENTIFIER; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
+// given: the V-model fixture without a plan, its architecture accepted (TST-1058001)
+// input: a click by a script on + Step; then the person's + Step five times, typing the steps of DRAFT — Reader (MOD-reader), Loose (MOD-loose), Writer (MOD-writer, after Reader), Sub (ARC-002, after Writer), Whole (system, after Sub and Loose) —; then the person's click on Save plan
+// expect: the page holds <button type="button" class="btn" data-add-step> "+ Step"; the script's click adds no step; the person's click adds one empty box with the fields title, implements, level, phase and after; the last diagram is the flowchart of TST-1058002; no job is prepared — AGENTS.md is not read, whereas Draft the plan reads it (known positive, TST-1058001) —; Save plan writes one commit of six files: five docs/plan/ITM-<n>-<slug>.md, each with an identifier `id: ITM-<n>` of its own, and docs/plan/order.md naming those five identifiers in the typed order with their phases; the commit's message carries no provenance line (no line opens with "Agent-M-"); the page names the files
+// Planted fault (counter-proof): saving the plan written by hand through writeResult and the writer plan-steps writes the provenance lines Agent-M-Kind and Agent-M-Participant and fails; a step written without its identifier fails.
+test("steps added with + Step are saved as the planner's own input, one file per step and the order, with no provenance", async () => {
+  const page = await render();
+  const add = one(page.target, "[data-add-step]");
+  assert.ok(add, "the page offers + Step");
+  assert.deepEqual([add.localName, add.getAttribute("type"), add.getAttribute("class"), textOf(add)], ["button", "button", "btn", "+ Step"]);
+  await click(add, false);
+  assert.equal(all(page.target, "[data-draft-step]").length, 0, "a script's click adds no step");
+  await click(add);
+  await waitFor(() => all(page.target, "[data-draft-step]").length > 0);
+  const first = all(page.target, "[data-draft-step]");
+  assert.equal(first.length, 1, "the person's click adds one step");
+  for (const key of ["title", "implements", "level", "phase", "after"]) assert.equal(one(first[0], `[data-step-field="${key}"]`)?.value, "", `the new step's ${key} is empty`);
+  for (const key of ["title", "implements", "level", "phase", "after"]) await type(one(first[0], `[data-step-field="${key}"]`), [DRAFT.steps[0][key]].flat().join(", "));
+  await byHand(page, DRAFT.steps.slice(1));
+  assert.deepEqual(titles(page), ["Reader", "Loose", "Writer", "Sub", "Whole"]);
+  assert.deepEqual(page.drawn.at(-1), ["flowchart TD", '  S1["1. Reader"]', '  S2["2. Loose"]', '  S3["3. Writer"]', '  S4["4. Sub"]', '  S5["5. Whole"]',
+    "  S1 --> S3", "  S3 --> S4", "  S4 --> S5", "  S2 --> S5"].join("\n"));
+  assert.ok(!page.calls.includes("read AGENTS.md"), "a plan written by hand prepares no job");
+  assert.deepEqual(planCommits(page), [], "nothing is written before Save plan");
+  await click(buttons(page.target, "Save plan")[0]);
+  await waitFor(() => all(page.target, "[data-plan-saved]").some((node) => textOf(node)));
+  const written = planCommits(page);
+  assert.equal(written.length, 1, textOf(page.target));
+  const steps = written[0].files.filter((file) => file.path !== "docs/plan/order.md");
+  assert.equal(steps.length, 5, written[0].files.map((file) => file.path).join(", "));
+  const idOfTitle = {};
+  for (const file of steps) {
+    const [, id] = /^docs\/plan\/(ITM-\d{3,})-[a-z0-9-]+\.md$/.exec(file.path) ?? [];
+    assert.ok(id, file.path);
+    assert.match(file.text, new RegExp(`^---\\nid: ${id}\\n`), `${file.path} carries its identifier`);
+    idOfTitle[/\ntitle: (.*)\n/.exec(file.text)?.[1]] = id;
+  }
+  assert.equal(new Set(Object.values(idOfTitle)).size, 5, "each step has an identifier of its own");
+  const order = written[0].files.find((file) => file.path === "docs/plan/order.md");
+  assert.ok(order, "docs/plan/order.md is written");
+  const rows = [...order.text.matchAll(/^\| (ITM-\d{3,}) \| ([^|]+?) \|$/gm)].map((row) => [row[1], row[2]]);
+  assert.deepEqual(rows, [[idOfTitle.Reader, "Implementation"], [idOfTitle.Loose, "Implementation"], [idOfTitle.Writer, "Implementation"], [idOfTitle.Sub, "Testing"], [idOfTitle.Whole, "Testing"]]);
+  assert.doesNotMatch(String(written[0].message), /^Agent-M-/m, "the commit carries no provenance line");
+  const shown = textOf(one(page.target, "[data-plan-saved]"));
+  for (const file of written[0].files) assert.ok(shown.includes(file.path), file.path);
+});
+
+// TST-1059002 · level: unit · module: MOD-implementation-pages
+// guards: UC-045; AN IMPLEMENTATION PLAN ASSEMBLES THE SYSTEM FROM ITS MODULES; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
+// given: the V-model fixture without a plan; the planner adds by hand Reader (MOD-reader), Writer (MOD-writer, after Reader), Sub (ARC-002, after Writer) and Whole (system, after Sub) — no step for MOD-loose
+// input: the person's click on Save plan
+// expect: nothing is written — the host is asked for no commit —; the page says the plan is not saved and shows the error "MOD-loose has no step"; the steps stay as typed and Save plan is offered again; the same plan with Loose added is written (known positive, TST-1059001)
+// Planted fault: a save that commits without planFindings, or one that refuses without naming the finding, fails.
+test("a plan written by hand without a step for one module is refused, its finding shown, and nothing written", async () => {
+  const page = await render();
+  await byHand(page, [DRAFT.steps[0], DRAFT.steps[2], DRAFT.steps[3], { ...DRAFT.steps[4], after: ["Sub"] }]);
+  await click(buttons(page.target, "Save plan")[0]);
+  await waitFor(() => /not saved/.test(textOf(one(page.target, "[data-plan-saved]"))));
+  assert.ok(!page.calls.includes("commitFiles"), "nothing is written");
+  const result = one(page.target, "[data-plan-saved]");
+  assert.match(textOf(result), /not saved/);
+  assert.match(classed(result, "error").map(textOf).join(" "), /MOD-loose has no step/);
+  assert.deepEqual(titles(page), ["Reader", "Writer", "Sub", "Whole"], "the steps stay as typed");
+  assert.equal(buttons(page.target, "Save plan")[0].disabled, false, "Save plan is offered again");
+});
+
+// TST-1059003 · level: unit · module: MOD-implementation-pages
+// guards: UC-045; A RUN FOLLOWS THE MODULES' INTERFACES
+// given: the V-model fixture; the planner adds by hand Reader (MOD-reader), Loose (MOD-loose) and Writer (MOD-writer, after Reader)
+// input: Up on Loose (known positive); then Up on Writer, which would put MOD-writer before MOD-reader
+// expect: after Up on Loose the order is Loose, Reader, Writer; Up on Writer is refused: the order stays Loose, Reader, Writer and [data-draft-refused] shows an error "MOD-writer is ordered before MOD-reader, whose interface it uses"
+// Planted fault: steps written by hand that are moved without the drafted steps' check of the order fail.
+test("steps written by hand are moved with the drafted steps' check of the order", async () => {
+  const page = await render();
+  await byHand(page, DRAFT.steps.slice(0, 3));
+  await click(one(stepBox(page, "Loose"), "[data-step-up]"));
+  assert.deepEqual(titles(page), ["Loose", "Reader", "Writer"], "known positive: Loose moves up");
+  await click(one(stepBox(page, "Writer"), "[data-step-up]"));
+  assert.deepEqual(titles(page), ["Loose", "Reader", "Writer"], "the move is refused: the order stays");
+  assert.match(classed(one(page.target, "[data-draft-refused]"), "error").map(textOf).join(" "), /MOD-writer is ordered before MOD-reader, whose interface it uses/);
 });
