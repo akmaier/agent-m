@@ -744,8 +744,10 @@ async function renderReviewPages(targets, lead = []) {
       const imported = await loadRoute(shown);
       // The route is handed the snapshot this load read (MOD-site-frame's Route `reads`), before it is rendered.
       if (snapshot && typeof imported.reads === "function") await readWave(await imported.reads(params, await pinned()));
+      // The component diagram under the lists of the architecture is drawn beside them, not after them: its box stands below theirs.
+      const components = name === "module" && !params.id ? renderComponents(context) : null;
       await shown.render(boxes[at], context, params);
-      if (name === "module" && !params.id) await renderComponents(context);
+      await components;
     }
   } finally {
     loading -= 1;

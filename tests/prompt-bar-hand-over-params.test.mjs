@@ -22,7 +22,9 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { openStore, writeSetting } from "../src/browser-store/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
-import { handOverStrategies } from "../src/prompt-bar/index.mjs";
+import { loadHandOverStrategies } from "../src/prompt-bar/index.mjs";
+
+const handOverStrategies = await loadHandOverStrategies();
 import { assess, queue } from "../src/prompt-bar/hand-over.mjs";
 import { readParticipants } from "../src/prompt-bar/offer.mjs";
 import { defaultSnapshot } from "../src/prompt-bar/send.mjs";

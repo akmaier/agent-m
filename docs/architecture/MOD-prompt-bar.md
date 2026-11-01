@@ -77,7 +77,7 @@ provides:
   - currentJob
   - recordingSchema
   - recordingOf
-  - handOverStrategies
+  - loadHandOverStrategies
   - endpointLacks
   - endpointsOffered
   - spawnEndpointJob
@@ -299,8 +299,9 @@ and sends nothing while the job does not
   page's form.
 - `recordingOf(instance: Snapshot) -> Promise<boolean>` — whether the instance records conversations; `false` for a missing
   file or key.
-- `handOverStrategies: Strategies[]` — the strategy sets a hand-over of the bar is prepared with in the tab, which it
-  hands to the frame as a view hands the strategies of its kinds. These are the sets the job workflow registers in CI
+- `loadHandOverStrategies() -> Promise<Strategies[]>` — the strategy sets a hand-over of the bar is prepared with in the
+  tab, imported when first asked for, which it hands to the frame as a view hands the strategies of its kinds; a page that
+  draws the bar imports none of their modules, nor those of sending, handing over and following a job before the person acts. These are the sets the job workflow registers in CI
   (MOD-workflow-entries, Uses), since a handed-over job runs on CI or on a Bridge.
 
 `Store` is MOD-browser-store's; `Host` and `Snapshot` are MOD-repository-hosts'; `Schema` is MOD-documents'.
@@ -328,14 +329,14 @@ records under `docs/conversations/`. It keeps the conversation in the tab's valu
   offer and `routesFor` read; MOD-participant-list.eligible, MOD-job-catalogue.kindOf — which of the
   offered can do `converse`, and whether the participant can do a handed-over kind in this tab.
 - MOD-job-runner.prepareJob, MOD-job-runner.Prepared, MOD-job-runner.JobResult — a message prepared and checked to fit,
-  and its result; MOD-job-runner.Strategies — the type of `handOverStrategies`; MOD-job-runner.handOverParams — the
+  and its result; MOD-job-runner.Strategies — the type of what `loadHandOverStrategies` gives; MOD-job-runner.handOverParams — the
   parameters a hand-over's job takes for what it works on; MOD-job-runner.taskRefusal — a hand-over run in this tab whose
   kind takes no instruction, refused.
 - MOD-approvals.approvalStrategies, MOD-spec-changes.specStrategies, MOD-artifact-edits.editStrategies,
   MOD-source-register.sourceStrategies, MOD-reuse-facts.reuseStrategies, MOD-resource-list.resourceStrategies,
   MOD-work-plans.workStrategies, MOD-run-planner.runStrategies,
   MOD-test-schedule.scheduleStrategies, MOD-result-records.resultStrategies, MOD-issue-handling.issueStrategies,
-  MOD-runtimes.routeStrategies — the sets of `handOverStrategies`.
+  MOD-runtimes.routeStrategies — the sets `loadHandOverStrategies` gives.
 - MOD-source-register.registerPaths, MOD-source-register.sourceSchemas — the entries of the instance's register, read from
   its snapshot; MOD-source-register.restrictedPlaces — over every one of them, whether or not the product links it, the
   places of the restricted sources that a message's or a hand-over's job is given (MOD-job-runner's `JobContext.places`),

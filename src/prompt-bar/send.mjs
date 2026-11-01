@@ -15,7 +15,7 @@ import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
 import { handOverParams, prepareJob, taskRefusal } from "../job-runner/index.mjs";
 import { runOnTab, tabContext } from "../runtimes/index.mjs";
-import { readParticipants } from "./offer.mjs";
+import { BAR_KIND, readParticipants } from "./offer.mjs";
 import { readDocument } from "../documents/index.mjs";
 import { registerPaths, restrictedPlaces, sourceSchemas } from "../source-register/index.mjs";
 import { recordingOf } from "./record.mjs";
@@ -83,8 +83,7 @@ export function prepareMessage({ subject, participant, instruction, conversation
     { participant, store, instance, product });
 }
 
-/** The one kind every message of the bar runs, on every page (MOD-prompt-bar, Responsibility; UC-049 step 3). */
-export const BAR_KIND = "converse";
+export { BAR_KIND };
 
 /**
  * prepareHandOver({ handOver, subject, participant, conversation, store, instance, product }) -> Promise<Ready> — a hand-over { kind, works_on, task } prepared to run in this

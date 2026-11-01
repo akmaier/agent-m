@@ -17,11 +17,24 @@ import { readTabValue, writeTabValue } from "../browser-store/index.mjs";
 import { renderArtifact } from "../markdown-render/index.mjs";
 import { eligible } from "../participant-list/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
-import { endpointsOffered, placeOf, sessionsOffered, throughActions } from "./offer.mjs";
-import { followJob } from "./follow.mjs";
-import { assess, queue, spawnEndpointJob, worksOnOf } from "./hand-over.mjs";
+import { BAR_KIND, endpointsOffered, placeOf, sessionsOffered, throughActions } from "./offer.mjs";
 import { SWITCH, appendToConversation, conversationPath, recordingOf } from "./record.mjs";
-import { BAR_KIND, defaultSnapshot, personOf, prepareHandOver, prepareMessage, runMessage, shown, whyNot } from "./send.mjs";
+
+// The bar's parts for acting — preparing and sending (send.mjs), handing over (hand-over.mjs) — imported when the person first acts, so that
+// drawing the bar loads none of their modules. Every action prepares through send.mjs first, so that `sending` is held where it is read.
+let sending = null, handing = null;
+const sendPart = async () => (sending ??= await import("./send.mjs"));
+const handPart = async () => (handing ??= await import("./hand-over.mjs"));
+
+/**
+ * followJob(options) -> { stop: () => void, cancel: () => Promise<void> } — follow.mjs' followJob, imported when the bar first follows a job: the
+ * follower at once, whose stop and cancel are passed on once it is imported.
+ */
+export function followJob(options) {
+  let follower = null, stopped = false;
+  const ready = import("./follow.mjs").then(({ followJob: follow }) => { if (!stopped) follower = follow(options); });
+  return { stop: () => { stopped = true; follower?.stop(); }, cancel: async () => { await ready; await follower?.cancel(); } };
+}
 
 const CONVERSATION = "prompt-bar:conversation";
 const DRAFT = "prompt-bar:draft";
@@ -221,7 +234,7 @@ export function startPromptBar(target, setup) {
         const source = subject.paramsFor(participant).source;
         const fresh = assessment;
         const conversation = (await recordingOf(fresh.instanceSnapshot)) ? (readTabValue(store, RECORDS) ?? {})[page.address]?.path ?? null : null;
-        const queued = await queue({ handOver, participant, assessment: fresh, store, instance, page, ofProduct: setup.product() !== null, conversation, source });
+        const queued = await (await handPart()).queue({ handOver, participant, assessment: fresh, store, instance, page, ofProduct: setup.product() !== null, conversation, source });
         outcome.append(el("p", "queued", `Queued as ${queued.id}.`));
         keepJob({ id: queued.id, address: page.address });
         follow({ id: queued.id, address: page.address });
@@ -235,11 +248,11 @@ export function startPromptBar(target, setup) {
       } catch (failure) {
         const findings = failure?.name === "NotStartable" && Array.isArray(failure.findings) ? failure.findings : [];
         outcome.append(problem(findings.length > 0 ? "Nothing was queued." : `Nothing was queued. ${said(failure)}`),
-          ...(findings.length > 0 ? [el("ul", "reasons", ...findings.map((each) => el("li", "reason", shown(each))))] : []));
+          ...(findings.length > 0 ? [el("ul", "reasons", ...findings.map((each) => el("li", "reason", sending.shown(each))))] : []));
       }
     }
     try {
-      const assessment = await assess({ handOver, participant, instance, page: pageOf() });
+      const assessment = await (await handPart()).assess({ handOver, participant, instance, page: pageOf() });
       render(assessment);
       if (assessment.route !== null) await queueNow(assessment);
     } catch (failure) {
@@ -257,7 +270,7 @@ export function startPromptBar(target, setup) {
     const text = typeof draft.answer === "string" ? draft.answer : "";
     const left = [...result.remaining, ...result.forPerson];
     const parts = [el("p", "rounds", `Rounds: ${result.rounds.length}`)];
-    if (left.length) parts.push(el("ul", "left", ...left.map((each) => el("li", "finding", shown(each)))));
+    if (left.length) parts.push(el("ul", "left", ...left.map((each) => el("li", "finding", sending.shown(each)))));
     // The edits the participant proposed are a draft, which the review pages show against the current text.
     if (Array.isArray(draft.edits) && draft.edits.length > 0) parts.push(reviewButton(subject, ready.prepared.kind.name, participant, ready.prepared.params, result));
     status.append(...parts);
@@ -279,6 +292,7 @@ export function startPromptBar(target, setup) {
   // A hand-over the participant proposed, carried out without a further click (UC-049 4a): in this tab where its kind's result waits for the person and the participant can do the
   // kind — prepared as a message is, its draft kept for *Review the draft* —, else queued as the participant's own job (proposeHandOver).
   async function handOn(handOver, participant, subject, conversation, signal) {
+    const { worksOnOf } = await handPart();
     const section = el("section", "hand-over", el("h3", null, "The participant hands this on"),
       el("p", "kind", `Kind: ${handOver.kind}`), el("p", "works-on", `Works on: ${worksOnOf(handOver).join(", ")}`), el("p", "task", `Task: ${handOver.task}`));
     status.append(section);
@@ -296,25 +310,25 @@ export function startPromptBar(target, setup) {
     }
     let ready;
     try {
-      ready = await prepareHandOver({ handOver, subject, participant, conversation, store, instance, product: setup.product() });
+      ready = await (await sendPart()).prepareHandOver({ handOver, subject, participant, conversation, store, instance, product: setup.product() });
     } catch (failure) {
       section.append(problem(`Nothing was run. ${said(failure)}`));
       return;
     }
-    const reasons = whyNot(ready.prepared, offered);
+    const reasons = sending.whyNot(ready.prepared, offered);
     if (reasons.length) {
       section.append(problem("Nothing was run."), el("ul", "reasons", ...reasons.map((reason) => el("li", "reason", reason))));
       return;
     }
     section.append(el("p", "running", `Running ${handOver.kind} in this tab…`));
     running = { kind: handOver.kind, participant: participant.name, started: new Date() };
-    const result = await runMessage(ready, { signal });
+    const result = await sending.runMessage(ready, { signal });
     if (result.stoppedBecause === "unusable" || !result.draft) {
       section.append(problem("The answer could not be read. Nothing was changed."), el("details", "raw", el("summary", null, "The answer as received"), el("pre", null, result.raw ?? "")));
       return;
     }
     const left = [...result.remaining, ...result.forPerson];
-    section.append(el("p", "rounds", `Rounds: ${result.rounds.length}`), ...(left.length ? [el("ul", "left", ...left.map((each) => el("li", "finding", shown(each))))] : []),
+    section.append(el("p", "rounds", `Rounds: ${result.rounds.length}`), ...(left.length ? [el("ul", "left", ...left.map((each) => el("li", "finding", sending.shown(each))))] : []),
       reviewButton(subject, handOver.kind, participant, ready.prepared.params, result));
   }
 
@@ -335,13 +349,13 @@ export function startPromptBar(target, setup) {
       const earlier = conversationOf(store);
       let ready;
       try {
-        ready = await prepareMessage({ subject, participant, instruction, conversation: earlier, store, instance, product: setup.product() });
+        ready = await (await sendPart()).prepareMessage({ subject, participant, instruction, conversation: earlier, store, instance, product: setup.product() });
       } catch (failure) {
         show(problem(`Nothing was sent. ${said(failure)}`));
         return;
       }
       showRecording(ready.recording);
-      const reasons = whyNot(ready.prepared, offered);
+      const reasons = sending.whyNot(ready.prepared, offered);
       if (reasons.length) {
         show(problem("Nothing was sent."), el("ul", "reasons", ...reasons.map((reason) => el("li", "reason", reason))));
         return;
@@ -366,7 +380,7 @@ export function startPromptBar(target, setup) {
       input.value = "";
       running = { kind: BAR_KIND, participant: participant.name, started: new Date() };
       stop.disabled = false;
-      const result = await runMessage(ready, { signal: controller.signal });
+      const result = await sending.runMessage(ready, { signal: controller.signal });
       const answered = showAnswer(result, ready, subject, participant);
       if (answered !== null) {
         keep([...conversationOf(store), { at: new Date(), from: "participant", who: participant.name, text: answered, subject: subject.key }]);
@@ -402,15 +416,15 @@ export function startPromptBar(target, setup) {
     try {
       const subject = setup.subject();
       const page = pageOf();
-      const instanceSnapshot = await defaultSnapshot(instance.host);
+      const instanceSnapshot = await (await sendPart()).defaultSnapshot(instance.host);
       const recordingOn = await recordingOf(instanceSnapshot);
       showRecording(recordingOn);
       let source;
       try { source = subject.paramsFor(participant).source; } catch (failure) { show(problem(`Nothing was spawned. ${said(failure)}`)); return; }
-      const who = personOf(store, instanceSnapshot, false) ?? "person";
+      const who = sending.personOf(store, instanceSnapshot, false) ?? "person";
       if (recordingOn) await record(page, who, { at: new Date(), who, page: subject.title, text: instruction, withheld: subject.withhold?.(instruction) ?? undefined });
       const conversationPath = recordingOn ? (readTabValue(store, RECORDS) ?? {})[page.address]?.path ?? null : null;
-      const spawned = await spawnEndpointJob({ kind: BAR_KIND, task: instruction, participant, store, instance, page, ofProduct: setup.product() !== null,
+      const spawned = await (await handPart()).spawnEndpointJob({ kind: BAR_KIND, task: instruction, participant, store, instance, page, ofProduct: setup.product() !== null,
         conversation: conversationPath, source, instanceSnapshot });
       if (spawned.refused) {
         const parts = [problem(`Nothing was spawned: ${spawned.refused}.`)];
@@ -431,7 +445,7 @@ export function startPromptBar(target, setup) {
     } catch (failure) {
       const findings = failure?.name === "NotStartable" && Array.isArray(failure.findings) ? failure.findings : [];
       show(problem(findings.length > 0 ? "Nothing was spawned." : `Nothing was spawned. ${said(failure)}`),
-        ...(findings.length > 0 ? [el("ul", "reasons", ...findings.map((each) => el("li", "reason", shown(each))))] : []));
+        ...(findings.length > 0 ? [el("ul", "reasons", ...findings.map((each) => el("li", "reason", sending.shown(each))))] : []));
     } finally {
       state.spawning = false;
       send.disabled = false;

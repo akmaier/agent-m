@@ -20,7 +20,9 @@ import assert from "node:assert/strict";
 import { click, until } from "./review-pages-draft-world.mjs";
 import { barOf, all, one, readOriginal, rest, trustedClick } from "./uc-019-prompt-bar-harness.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
-import { handOverStrategies } from "../src/prompt-bar/index.mjs";
+import { loadHandOverStrategies } from "../src/prompt-bar/index.mjs";
+
+const handOverStrategies = await loadHandOverStrategies();
 
 const PARTICIPANTS = readOriginal("docs/participants.md").split("\n");
 const HEADER = PARTICIPANTS.slice(0, PARTICIPANTS.findIndex((line) => line.startsWith("|---")) + 1).join("\n");

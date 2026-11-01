@@ -18,6 +18,9 @@ import { participantSchema, participantsOf, reachedThrough } from "../participan
 const REGISTER = "docs/participants.md";
 const OFFERED_TYPES = new Set(["model endpoint", "CLI agent", "sandboxed agent"]);
 
+/** The one kind every message of the bar runs, on every page (MOD-prompt-bar, Responsibility; UC-049 step 3). */
+export const BAR_KIND = "converse";
+
 /**
  * readParticipants(snapshot: Snapshot) -> Promise<Participant[]> — the participants of the instance's register at that snapshot, in its
  * order; none for an instance without the register.

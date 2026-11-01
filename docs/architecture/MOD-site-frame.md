@@ -31,7 +31,7 @@ uses:
   - MOD-notifications.watchForAcceptance
   - MOD-prompt-bar.startPromptBar
   - MOD-prompt-bar.Subject
-  - MOD-prompt-bar.handOverStrategies
+  - MOD-prompt-bar.loadHandOverStrategies
   - MOD-source-register.registerPaths
   - MOD-progress-measures.storedOverview
 provides:
@@ -74,9 +74,9 @@ It runs in a browser — the instance's pages, and the Bridge's window, which is
 - `index.mjs` — the interface.
 - `start.mjs` — the script both entry pages load: it reads the page's setup from its own script tag, loads the named
   view modules (`routes.mjs` of each view's folder) from their folders, registers their strategies and MOD-prompt-bar's
-  `handOverStrategies` with `register.mjs`, and calls `startPage`. This is where the entry pages register strategies (ARC-038).
+  hand-over strategies (`loadHandOverStrategies`) with `register.mjs`, and calls `startPage`. This is where the entry pages register strategies (ARC-038).
 - `register.mjs` — `registerViews`: every strategy set of a page's views, under its view's slug, and then
-  MOD-prompt-bar's `handOverStrategies` under `MOD-prompt-bar`, each set once per load — a view's `strategies` at load,
+  MOD-prompt-bar's hand-over strategies (`loadHandOverStrategies`) under `MOD-prompt-bar`, each set once per load — a view's `strategies` at load,
   its `loadStrategies` and the bar's through MOD-job-runner's `registerLater`, before the runner first looks a strategy up —,
   so that a job any route prepares, the test job of an endpoint on the Settings page among them, finds every recipe of the
   page's views, and a page that prepares no job loads none of their modules. The notifications' checks and the prompt bar
@@ -304,7 +304,7 @@ It writes nothing.
 - MOD-notifications.watchForAcceptance — the checks of what waits for acceptance, started on the main and the review
   pages.
 - MOD-prompt-bar.startPromptBar, MOD-prompt-bar.Subject — the prompt bar, started on the main and the review pages, and
-  the type of a route's subject; MOD-prompt-bar.handOverStrategies — the strategies a hand-over of the bar is prepared
+  the type of a route's subject; MOD-prompt-bar.loadHandOverStrategies — the strategies a hand-over of the bar is prepared
   with.
 - MOD-source-register.registerPaths — the register's entries among a tree's paths, so that the first wave of a page load names them beside the files its
   route shows and `#spec` reads the register in the same batch as its other files (`A PAGE LOAD READS THE REPOSITORY IN BATCHES`); the frame keeps no copy

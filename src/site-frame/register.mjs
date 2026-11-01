@@ -2,7 +2,7 @@
 //
 // Module: MOD-site-frame
 //
-// It uses MOD-job-runner (registerStrategies, registerLater) and MOD-prompt-bar (handOverStrategies) through their index.mjs; a view's strategies and the bar's are imported
+// It uses MOD-job-runner (registerStrategies, registerLater) and MOD-prompt-bar (loadHandOverStrategies) through their index.mjs; a view's strategies and the bar's are imported
 // only when the runner first looks a strategy up (registerLater), so that a page loads their modules only for a job. A set is registered once per load, however many views or the
 // bar hand it: a set object already registered on this load is skipped. A second evaluation in one process finds its sets registered, and a DuplicateStrategy whose first
 // owner is the owner now registering counts as a set already registered and is skipped; any other DuplicateStrategy is thrown.
@@ -31,7 +31,7 @@ export function registerViews(views) {
     if (typeof view.loadStrategies === "function") registerLater(async () => { for (const strategies of await view.loadStrategies()) registerOnce(slug, strategies); });
   }
   registerLater(async () => {
-    const { handOverStrategies } = await import("../prompt-bar/index.mjs");
-    for (const strategies of handOverStrategies) registerOnce("MOD-prompt-bar", strategies);
+    const { loadHandOverStrategies } = await import("../prompt-bar/index.mjs");
+    for (const strategies of await loadHandOverStrategies()) registerOnce("MOD-prompt-bar", strategies);
   });
 }
