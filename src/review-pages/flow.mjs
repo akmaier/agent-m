@@ -279,7 +279,7 @@ export function reviewRoute(kind) {
       // An approved entry of the instance's own SPEC is written by the instance's workflows: the row says why it is not written, and where they are turned on (UC-014 step 4, 4a).
       const unwritten = kind.save === "entry" && !context.product && file.status === "approved"
         ? [el("p", "why", NOT_WRITTEN), link("#get-your-own/step=actions", "actions-step", "Turn on the workflows")] : [];
-      const row = el("tr", null, first, el("td", null, link(`#${kind.route}/id=${encodeURIComponent(file.id)}`, null, file.name)),
+      const row = el("tr", null, first, el("td", null, link(`#${kind.route}/id=${encodeURIComponent(file.id)}${context.product ? `/product=${encodeURIComponent(context.product.address)}` : ""}`, null, file.name)),
         el("td", null, file.title, ...unwritten), el("td", null, badge(file.status, file.label)));
       row.setAttribute("data-id", file.id);
       return row;
