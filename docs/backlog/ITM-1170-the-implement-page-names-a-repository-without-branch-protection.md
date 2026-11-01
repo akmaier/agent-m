@@ -36,17 +36,34 @@ green' …, with the server's page for it" (`docs/use-cases/UC-024-*.md:225`).
 
 ## The reading taken
 
-UC-042 step 2: a token's *Test* "sends one harmless request" (UC-042:71), and it runs through `repositoryInfo`, which now
-also gives `greenToMerge` (MOD-repository-hosts.md:150-155). MOD-repository-hosts states no number of requests for
-`repositoryInfo` (:217). On GitHub with a token it asks the server's GraphQL API, which it already uses for its batch
-query, in one read-only request: the default branch, the visibility, the person's permission, archived, the description,
-the default branch's protection rule and the rulesets that apply to it. On GitLab, the project's own record holds the
-setting "pipelines must succeed". So *Test* stays one request on either server.
+`repositoryInfo` keeps reading the repository's record as it does today. On GitHub, it also sends one read-only GraphQL
+request for `greenToMerge` alone, and it sends that request together with the record's, not after it. The probe of
+`46648e533` showed that one GraphQL request for every field moves the GitHub fakes of 196 test files in about 40 modules.
+With this reading, no existing fake moves.
+- **The GraphQL fields.** GitHub gives `branchProtectionRule` as null to a person without admin rights. So
+  `greenToMerge` is read from the default branch's `refUpdateRule.requiredStatusCheckContexts` and from its `rules` of
+  type `REQUIRED_STATUS_CHECKS`. Live checks: cli/cli true, vercel/next.js true, nodejs/node false, agent-m false.
+- **A missing or failed answer gives `greenToMerge: null`.** The type gives `null` "where the stored token may not read
+  it" (MOD-repository-hosts.md:149-154), and an answer that did not come was not read. The route `implement` says
+  nothing for `null`.
+- **The request count.** MOD-repository-hosts states no number of requests for `repositoryInfo` (:217-219). UC-042 step 2
+  says *Test* "sends one harmless request — to the token's own server …" (UC-042:71). The step is read as one harmless
+  test of the token, sent to its own server only and changing nothing. Two read-only requests to that server, sent
+  together, are that one test. The alternatives were 196 changed fakes, or a REST call for each part. Under akmaier's
+  directions of 2026-11-01, the general reading is taken, not the over-specified one.
+- **On GitLab,** the project's own record holds the setting "pipelines must succeed". So no further request is sent
+  there.
 
 ## Acceptance
 
-- With a token on GitHub, `repositoryInfo` sends one request, and *Test* on the settings page one; counter-proof: the
-  request count with a REST call per part.
+- `repositoryInfo` gives `greenToMerge` on GitHub:
+  - `true` for a default branch whose `refUpdateRule` requires status checks, or which a `REQUIRED_STATUS_CHECKS` rule
+    covers;
+  - `false` where neither holds;
+  - `null` where the GraphQL request is refused, fails or gets no answer.
+- On GitLab, `greenToMerge` comes from the project's setting that pipelines must succeed.
+- The repository's record is read as before. No existing test's fake or expected result changes, unless a probe names it
+  and this text allows it.
 
 - With a fixture host whose default branch is unprotected, the route `implement` says that the server does not enforce the
   merge rule, and links the server's page for branch protection. With a protected one, it says nothing.
