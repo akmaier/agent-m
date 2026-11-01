@@ -390,7 +390,7 @@ test("TST-372310: UC-008 a changed use case is compared with the text of its mos
 // guards: STATUS IS DERIVED FROM THE RECORDS; UC-008
 // given: UC-042 with a record naming its current text, UC-043 with a record naming an earlier text, UC-041 with none; a second product in which UC-042's file was renamed and edited after its record, the record still naming the old path; the records are the product's only memory
 // input: the reviewer opens the list in each
-// expect: UC-042 accepted, UC-043 changed since acceptance, UC-041 open; in the second product UC-042 is changed since acceptance under its new path — a renamed file keeps its identity — and the first product's UC-042 is still accepted; nothing is written by drawing the lists, and no file but the records and the use cases was read for a status (the list asks for no file outside docs/)
+// expect: UC-042 accepted, UC-043 changed since acceptance, UC-041 open; in the second product UC-042 is changed since acceptance under its new path — a renamed file keeps its identity — and the first product's UC-042 is still accepted; nothing is written by drawing the lists
 test("TST-372311: UC-008 a use case is accepted exactly when a record names its current blob, open when none names it, and changed when a record names an earlier text", async () => {
   const w = await world();
   const list = await w.open();
