@@ -7,6 +7,14 @@ realises:
 modules:
   - MOD-repository-hosts
   - MOD-implementation-pages
+  - MOD-settings-pages
+  - MOD-main-page
+  - MOD-site-frame
+  - MOD-review-pages
+  - MOD-trace-pages
+  - MOD-prompt-bar
+  - MOD-approvals
+  - MOD-progress-measures
 builds_on:
   - ITM-734
 tests:
@@ -53,6 +61,17 @@ With this reading, no existing fake moves.
   directions of 2026-11-01, the general reading is taken, not the over-specified one.
 - **On GitLab,** the project's own record holds the setting "pipelines must succeed". So no further request is sent
   there.
+- **The pages' request counts.** The GraphQL request is sent wherever `repositoryInfo` is called with a token on GitHub.
+  So 34 test files that pin a page's exact requests gain that one request. They are tests of MOD-settings-pages,
+  MOD-main-page, MOD-site-frame, MOD-review-pages, MOD-implementation-pages, MOD-trace-pages, MOD-prompt-bar,
+  MOD-approvals, MOD-progress-measures and MOD-repository-hosts.
+  - The item names those modules for their tests only (`A BACKLOG ITEM NAMES THE MODULES IT CHANGES`). No code of their
+    folders changes, apart from the item's two modules.
+  - `A PAGE LOAD READS THE REPOSITORY IN BATCHES` binds a page's commit, tree and files, not `repositoryInfo`. The request
+    goes out in parallel with the record's, so `EVERY PAGE LOADS IN UNDER THREE SECONDS` keeps its margin.
+  - AGENTS.md §6a.6: the item can be built without a change of the architecture, so it is built. Asking for
+    `greenToMerge` only on the route that shows it would spare every other page the request. That needs another interface
+    of MOD-repository-hosts, and it is noted for akmaier, not waited for.
 
 ## Acceptance
 
@@ -62,8 +81,13 @@ With this reading, no existing fake moves.
   - `false` where neither holds;
   - `null` where the GraphQL request is refused, fails or gets no answer.
 - On GitLab, `greenToMerge` comes from the project's setting that pipelines must succeed.
-- The repository's record is read as before. No existing test's fake or expected result changes, unless a probe names it
-  and this text allows it.
+- The repository's record is read as before.
+- The existing expected results that change are the request lists and counts of the 34 files the probe of the rework
+  names, each in the pull request with file:line, old → new.
+  - Each gains exactly the GraphQL request of `greenToMerge` (one more `POST /graphql`) and nothing else.
+  - All of them change in the tests-only commit.
+  - A file whose module an item in progress also changes is rebased on that item's merge before the commit.
+- No other existing fake or expected result changes, unless a probe names it and this text allows it.
 
 - With a fixture host whose default branch is unprotected, the route `implement` says that the server does not enforce the
   merge rule, and links the server's page for branch protection. With a protected one, it says nothing.
