@@ -56,7 +56,6 @@ uses:
   - MOD-approvals.approvalStrategies
   - MOD-spec-changes.queues
   - MOD-spec-changes.queueAt
-  - MOD-spec-changes.openQueueOf
   - MOD-spec-changes.proposeSection
   - MOD-spec-changes.saveEntry
   - MOD-spec-changes.entrySections
@@ -132,7 +131,7 @@ It runs in a browser, loaded by `docs/index.html` through MOD-site-frame.
   current text.
 - `file-drafts.mjs` — drafted files in editors as their difference, saved together in one commit.
 - `requirements-draft.mjs` — a draft of requirements: the candidates beside the requirements they refer to, saved as
-  sections of the person's open queue.
+  entries of their sections' queues.
 - `candidates.mjs` — the candidates of a draft of requirements as the author reviews them, with their classes.
 - `file-edit.mjs`, `edit.mjs`, `entry-edit.mjs` — the editors of a reviewed file, of a requirement, and of an open SPEC
   entry in place.
@@ -244,7 +243,7 @@ ReviewKind = {
     prompt bar is the file, or the requirement, as on the file's route — the editor with live
     preview and the descriptor's marks, whose unsaved changes the route's `leave` keeps by the editor's `close` (UC-018
     7a); for a requirement, its SPEC section, a *Why* field and its impact list, saved as
-    an entry of the person's open queue of the day (`A SPEC EDIT IS SAVED AS A PROPOSAL`); `requirements/new` with the four
+    an entry of its section's queue (`A SPEC EDIT IS SAVED AS A PROPOSAL`); `requirements/new` with the four
     fields empty, for the SPEC section the specification browser hands it (UC-018 3d); an open SPEC entry saved in
     place, in its own queue (UC-006 3a, UC-018 1a); every save only on the blob the file or section was opened on. Before saving an edit of the architecture, *Check this edit* runs the kind
     `review-architecture` on the edited files as its draft, and its findings stand beside them for the author to weigh.
@@ -256,7 +255,7 @@ ReviewKind = {
     conflict undecided kept out of what is saved (UC-019 8a); an architecture file with its rounds, the due diligence and
     the impact list of a change, as the descriptor's sections show them —, with the rounds and the findings the loop
     left. *Save* saves the draft as an edit of UC-018 is saved — the files with one `saveFile`, in one commit (UC-019 8b),
-    each section with `proposeSection` as an entry of the person's open queue of the day —, only on the text the job
+    each section with `proposeSection` as an entry of its queue —, only on the text the job
     read, with GitHub's pages without a token, and with the job's provenance lines, which name no message of the
     conversation (UC-019 step 9, 9a); *Discard* drops the draft. A further change is asked for in the prompt bar: the subject carries
     the draft as it stands as `draft`, the conversation hands the change on to the draft's kind with it (UC-049 4a.1),
@@ -329,7 +328,7 @@ and `docs/participants.md` of the instance.
   MOD-approvals.acceptanceBlockers, MOD-approvals.fallbackAcceptLink — statuses, the files removed since their acceptance, and acceptance;
   MOD-approvals.rejectShown — rejecting a use case, decision or module file; MOD-approvals.approvalSchema —
   the schema an approval record is read with, on `<k>/history` too.
-- MOD-spec-changes.queues, MOD-spec-changes.queueAt, MOD-spec-changes.openQueueOf, MOD-spec-changes.proposeSection,
+- MOD-spec-changes.queues, MOD-spec-changes.queueAt, MOD-spec-changes.proposeSection,
   MOD-spec-changes.saveEntry, MOD-spec-changes.entrySections, MOD-spec-changes.entryView, MOD-spec-changes.acceptEntries —
   the list and *Review all* of SPEC entries, one entry's own queue, SPEC edits, an open entry
   saved in place, the sections a draft of the conversation holds, SPEC entries and their acceptance in the queue's order, with the product's links and

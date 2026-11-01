@@ -49,7 +49,7 @@ so that the work is planned like every other item.
    - **realises**:
      - for a *bug*, the requirement that UC-012's analysis named as violated, for example
        `EXPORT IS A PDF`;
-     - for a *change*, the entries of the queue under `docs/spec-freigaben/` that UC-012 wrote for
+     - for a *change*, the entries under `docs/spec-freigaben/` that UC-012 wrote for
        this issue, by requirement name;
    - **modules**: the modules of the architecture the fix or the change will touch, as UC-012's analysis
      and the architecture name them; the Product Owner confirms or corrects them.
