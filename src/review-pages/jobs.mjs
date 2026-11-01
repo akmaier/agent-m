@@ -182,6 +182,10 @@ export async function panelOf(run) {
     return;
   }
   const panel = runPanel(ready.prepared, { onRun: () => start(ready) });
+  // What the panel names besides, the view shows with it (MOD-site-frame's runPanel): on the server's runners, that the agent's calls are billed per use (UC-010, Precondition).
+  if (ready.offer?.route.kind === "ci" && ready.offer.route.runner === "hosted") {
+    panel.append(el("p", "route-billing", `The job runs on the route ${recordRoute(ready.offer.route)}, on the server's runners: the calls are billed per use by the agent's provider.`));
+  }
   run.decoratePanel?.(panel, ready.prepared);
   stage.append(explain(kind.explain.draft.panel), panel);
 }
