@@ -23,7 +23,7 @@ import { RuntimeError } from "./ci.mjs";
 const newIdentifier = () => [...crypto.getRandomValues(new Uint8Array(8))].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 let tabOwn = null;
 
-function browserStore() {
+export function browserStore() {
   const location = globalThis.location;
   const instance = location ? instanceOfPagesAddress({ hostname: location.hostname, pathname: location.pathname }) : null;
   if (instance === null) return null;

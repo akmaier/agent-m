@@ -16,6 +16,7 @@
 // architecture file.
 
 import { startRecord } from "../job-ledger/index.mjs";
+import { readSetting } from "../browser-store/index.mjs";
 
 // RuntimeError — the failures MOD-runtimes throws of its own (MOD-runtimes, Interfaces: queueJob): WorkflowMissing
 // { files }, for the CI route of a product without Agent M's job workflow at the head a job is queued on.
@@ -65,10 +66,24 @@ function pinnedInstance(text) {
   return found ? found[1] : null;
 }
 
-// queueOnCi(host, start, head) -> Promise<{ path, commit }> — MOD-runtimes' queueJob (Interfaces), for the CI route:
-// commitStart; the push starts the product's job workflow (Data).
-export async function queueOnCi(host, start, head) {
-  const { path, commit } = await commitStart(host, start, head);
+// withEndpoint(start, store) -> start — the start of a job for a model endpoint the browser stores, with the endpoint's kind, address and model as the parameter `endpoint` and the name of the
+// CI secret of its key as the parameter `secret`, which is where a CI run reads the driver of its participant from (MOD-workflow-entries, onRecordsChanged) — the same `endpoint` and `secret`
+// that a start from the server's own page takes as inputs. The endpoint is the browser's setting `endpoint:<the participant's name>` (MOD-browser-store); its key is never copied. A start
+// that already holds an `endpoint` or a `secret`, a participant whose endpoint the browser does not keep, and a call without a store are left as they are.
+function withEndpoint(start, store) {
+  const params = start.params ?? {};
+  if (store === null || !start.participant || "endpoint" in params || "secret" in params) return start;
+  let stored = null;
+  try { stored = readSetting(store, `endpoint:${start.participant}`); } catch (error) { if (error?.name !== "StorageUnavailable") throw error; }
+  if (!stored || typeof stored.url !== "string" || typeof stored.kind !== "string" || typeof stored.model !== "string") return start;
+  const secret = typeof stored.secret === "string" && SECRET_NAME.test(stored.secret) ? { secret: stored.secret } : {};
+  return { ...start, params: { ...params, endpoint: { kind: stored.kind, baseUrl: stored.url, model: stored.model }, ...secret } };
+}
+
+// queueOnCi(host, start, head, store?) -> Promise<{ path, commit }> — MOD-runtimes' queueJob (Interfaces), for the CI route:
+// commitStart of the start with the endpoint its participant's browser setting names (withEndpoint); the push starts the product's job workflow (Data).
+export async function queueOnCi(host, start, head, store = null) {
+  const { path, commit } = await commitStart(host, withEndpoint(start, store), head);
   return { path, commit };
 }
 
