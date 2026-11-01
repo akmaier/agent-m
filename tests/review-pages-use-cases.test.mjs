@@ -202,10 +202,10 @@ test("MOD-review-pages use-case — the list: every use case with its status and
   assert.match(rowOf(target, "UC-043").textContent, /Return a book/, "its title");
   assert.equal(find(rowOf(target, "UC-043"), (node) => node.localName === "a")[0].getAttribute("href"), `#use-case/id=UC-043/product=${encodeURIComponent(ON_GITHUB.web)}`, "a link to its page: the file with the product in the address");
   const ticked = (page) => ["UC-041", "UC-042", "UC-043", "UC-044"].filter((id) => byClass(rowOf(page, id), "input", "tick").length);
-  assert.deepEqual(ticked(target), [], "no use case has been shown: no tick");
+  assert.deepEqual(ticked(target), ["UC-041", "UC-043", "UC-044"], "a tick on each use case not accepted, before any page was shown");
   await show(fake, { id: "UC-041" });
   await show(fake, { id: "UC-043" });
-  assert.deepEqual(ticked((await show(fake)).target), ["UC-041", "UC-043"], "a tick on each use case not accepted whose page was shown");
+  assert.deepEqual(ticked((await show(fake)).target), ["UC-041", "UC-043", "UC-044"], "still a tick on each use case not accepted, shown or not");
   assert.ok(byClass(target, "details", "explain").length >= 1, "a folded What is this?");
   assert.equal(fake.writes().length, 0, "nothing written");
 

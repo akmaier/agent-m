@@ -402,14 +402,14 @@ test("TST-372211: UC-008 3d Accept ticked writes one commit with one record per 
 // guards: UC-008; SEVERAL FILES ARE ACCEPTED IN ONE CLICK
 // given: the four use cases with the reviewer's token; the reviewer has opened the page of UC-041 and no other use case's page; known positive first — the page of UC-041 was drawn
 // input: the reviewer opens the list
-// expect: known positive — UC-041 has a tick; UC-008 3d says each use case read gets a tick: UC-044 and UC-043, not opened, have none
-test("TST-372212: UC-008 3d only a use case the reviewer has read gets a tick", async () => {
+// expect: known positive — UC-041 has a tick; UC-043 and UC-044, not opened, have one too: every use case not accepted can be ticked (akmaier, 2026-11-01)
+test("TST-372212: UC-008 3d every use case not accepted gets a tick, read or not", async () => {
   const w = await world();
   const page = await w.open(`#use-case/id=UC-041/product=${encodeURIComponent(w.address)}`);
   assert.equal(badgeOf(page.target), "open", "known positive: UC-041's page was drawn");
   await page.go(`#use-case/product=${encodeURIComponent(w.address)}`);
   assert.equal(byClass(rowOf(page.target, "UC-041"), "input", "tick").length, 1, "known positive: the use case read has a tick");
-  assert.deepEqual(["UC-043", "UC-044"].filter((id) => byClass(rowOf(page.target, id), "input", "tick").length > 0), [], "a use case not read has none");
+  assert.deepEqual(["UC-043", "UC-044"].filter((id) => byClass(rowOf(page.target, id), "input", "tick").length > 0), ["UC-043", "UC-044"], "a use case not read has one too");
 });
 
 // ---------------------------------------------------------------- 3e
