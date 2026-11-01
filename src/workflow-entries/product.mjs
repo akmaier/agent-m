@@ -906,6 +906,8 @@ function modulesOfJob(record, items) {
  * only when every shard AGENT_M_EXPECTED names left `done` or `nothing to do` and records.status is `done` (headCi); each job that is not green is a finding naming it. `done` when
  * the Definition of Done holds, `failed` with each condition it misses as a finding; the status and the findings stand in the check's log and in the run's summary. A pull request
  * that names no job, or a job of no implementing kind, is `nothing to do`; a missing token, pull request or AGENT_M_EXPECTED ends the entry `not run` before anything is read.
+ * Where the event's pull request holds its title — GitHub's payload does —, the job is read from its title and description first, and one that names none ends `nothing to do`
+ * before the pull request's facts are read, since those read every commit (ITM-1382).
  */
 export async function onDoneCheck(env) {
   if (!env.job.personToken) return notRun(`${env.job.tokenName} is missing: the person's Agent M token is a secret of this repository, passed to the step as ${env.job.tokenName}. Nothing was written.`);
@@ -913,10 +915,13 @@ export async function onDoneCheck(env) {
   if (!number) return notRun("The event names no pull request: the Definition of Done is checked on a pull request. Nothing was written.");
   const jobs = expectedJobs(env.tests.expected);
   if (!jobs) return notRun(`AGENT_M_EXPECTED ${env.tests.expected ? `names no job as <row>:<shards>: ${env.tests.expected}` : "is missing"}: without it the jobs of the run are not known. Nothing was read.`);
+  const namesNoJob = nothingToDo(`Pull request #${number} names no job: the Definition of Done is checked for an implementation job's pull request.`);
+  const event = env.event.payload?.pull_request;
+  if (typeof event?.title === "string" && !JOB_ID.test(`${event.title}\n${event.body ?? ""}`)) return namesNoJob;
   const { checkout, server, instance } = composeTestRun(env);
   const facts = await server.pullRequestFacts(number);
   const id = JOB_ID.exec(`${facts.pullRequest.title}\n${facts.pullRequest.body}`)?.[0];
-  if (!id) return nothingToDo(`Pull request #${number} names no job: the Definition of Done is checked for an implementation job's pull request.`);
+  if (!id) return namesNoJob;
   const product = await productFacts(checkout, await instance.readSnapshot("HEAD"), (commit) => instance.readSnapshot(commit), env.now, { scope: "work" });
   const row = product.jobs.find(({ record }) => record.id === id);
   if (!row) return failedStatus(`Pull request #${number} names the job ${id}, which has no record in docs/jobs/.`);
