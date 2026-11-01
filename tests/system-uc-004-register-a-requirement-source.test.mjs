@@ -91,7 +91,7 @@ test("TST-370202: UC-004 steps 4 to 6 — an EU legal text: its CELEX number rec
   assert.equal(commits[0].authorization, `Bearer ${TOKEN}`);
   const entry = commits[0].files["docs/sources/SRC-ai-act.md"];
   assert.match(entry, /^identifier: 32024R1689$/m);
-  assert.equal(entry.split("\n").filter((line) => /^\| `/.test(line)).length, 0, "no version yet");
+  assert.equal(entry.split("\n").filter((line) => /^\| \x60/.test(line)).length, 0, "no version yet");
   assert.match(listed(page, "AI Act"), /Waiting for fetch\./);
 });
 
