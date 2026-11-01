@@ -801,6 +801,72 @@ test("decision/draft - a reuse candidate its registry does not know is not offer
   assert.ok(!choices.some((value) => value.startsWith("missing-lib")), `missing-lib is not proposed: ${choices.join(", ")}`);
 });
 
+// ---------------------------------------------------------------- the draft explains its step (ITM-1394)
+
+// EVERY STEP EXPLAINS ITSELF; UC-022 step 8, the draft shown after Run, which asks the author to review it, change it, choose a library and press Write proposals; and 7c, where the
+// author decides on a licence "with a folded explanation of what a licence permits". The readings (the pull request names them): the step's own explanation is the topic the kind
+// names as `loop`, as the use cases' draft does, and for the architecture that is `architecture-reviewer` — what the rounds, the findings left and a finding only the author decides
+// are; the due-diligence table carries `due-diligence`; while a row's compatibility with the product's licence reads other than `yes` — not known to be compatible, or not checked —,
+// the table carries `licence-permits` once, below it, and the rows stay as MOD-reuse-facts writes them.
+const EXPLAINED = (node) => node.localName === "details" && find(node, (each) => each.localName === "summary")[0]?.textContent === "What is this?";
+const foldedText = (root) => find(root, EXPLAINED).map((each) => each.textContent.replace(/\s+/g, " "));
+const DUE_DILIGENCE_TEXT = /^What is this\? ?Before you accept a library, Agent M does a due diligence/;
+const LICENCE_TEXT = /^What is this\? ?A licence is the permission under which you may use someone else's software/;
+const NPM_MIT_TWO = "https://registry.npmjs.org/mit-two";
+async function draftShown({ product = { ...READY, LICENSE: "MIT License\n" }, draft = architectureDraft(), registry = { [NPM_GPL]: packageData("GPL-3.0") }, reviewerFindings = [[]] } = {}) {
+  endpointsAndRegistries({ drafts: [draft], reviewerFindings, registry });
+  const target = await show(fakeProduct(product));
+  await panelFor(target, "drafter-a", "reviewer-b");
+  click(runButtons(target)[0]);
+  await settled(target, () => byClass(target, "section", "architecture-result").length === 1, "the architecture result");
+  return target;
+}
+
+// TST-1394001 · level: unit · module: MOD-review-pages
+// guards: EVERY STEP EXPLAINS ITSELF; UC-022
+// given: the ready product, whose LICENSE is MIT; a run whose reviewer leaves one warning that the drafter answers, so that the draft shown after Run holds its rounds
+// input: Run on decision/draft, drafter-a with reviewer-b; the folded explanations of <section class="architecture-result"> are read
+// expect: known positive — the drafting page's folded explanations stand outside the result, the first of them what an architecture is; the result's first folded explanation, a details with the summary What is this?, is the topic architecture-reviewer — "Before you see the draft, a second participant, the reviewing participant," — and stands before the rounds
+test("decision/draft - the draft shown after Run carries a folded explanation of the step it asks of the author", async () => {
+  const target = await draftShown({ reviewerFindings: [[REVIEW_FINDING], []] });
+  assert.match(foldedText(target)[0], /^What is this\? ?An architecture is the fundamental organization of a system/, "known positive: the drafting page explains itself");
+  const result = byClass(target, "section", "architecture-result")[0];
+  const inside = foldedText(result);
+  assert.ok(inside.length > 0, "the shown draft carries a folded explanation of its own");
+  assert.match(inside[0], /^What is this\? ?Before you see the draft, a second participant, the reviewing participant,/);
+  const kids = [...result.childNodes].filter((node) => node.nodeType === 1);
+  assert.ok(kids.findIndex(EXPLAINED) >= 0 && kids.findIndex(EXPLAINED) < kids.findIndex((node) => node.className === "rounds"), "the explanation stands before the rounds");
+});
+
+// TST-1394002 · level: unit · module: MOD-review-pages
+// guards: EVERY STEP EXPLAINS ITSELF; A REUSED LICENCE IS SHOWN AGAINST THE PRODUCT'S; UC-022
+// given: (a) an MIT product whose drafted ARC-900 chooses mit-lib (MIT) against gpl-lib (GPL-3.0); (b) the same product with mit-lib against mit-two, both MIT; (c) a product without LICENSE, with mit-lib against mit-two
+// input: Run on decision/draft for each; the folded explanations of <section class="due-diligence"> are read, and its rows
+// expect: (a) known positive — gpl-lib's row reads not known to be compatible; the section carries the explanation of due diligence ("Before you accept a library, Agent M does a due diligence") and, once, the explanation of what a licence permits ("A licence is the permission …"), naming a permissive and a copyleft licence; (b) counter-proof — every row reads yes: the explanation of due diligence stands, and none of what a licence permits; (c) every row reads not checked: the explanation of what a licence permits stands once
+test("decision/draft - the due-diligence table explains itself, and what a licence permits while a candidate's licence is not known to be compatible", async () => {
+  const sectionOf = (target) => byClass(target, "section", "due-diligence")[0];
+  const compatibility = (target) => find(sectionOf(target), (node) => node.localName === "td" && /^Compatible/.test(node.getAttribute("data-label") ?? "")).map((cell) => cell.textContent.trim());
+  const registry = { [NPM_MIT]: packageData("MIT"), [NPM_GPL]: packageData("GPL-3.0"), [NPM_MIT_TWO]: packageData("MIT") };
+
+  const marked = await draftShown({ draft: architectureDraft({ candidate: "mit-lib", alternative: "gpl-lib" }), registry });
+  assert.deepEqual(compatibility(marked), ["yes", "not known to be compatible"], "known positive: gpl-lib's row says so");
+  const folded = foldedText(sectionOf(marked));
+  assert.equal(folded.filter((each) => DUE_DILIGENCE_TEXT.test(each)).length, 1, `the table carries the explanation of due diligence: ${folded.length} found`);
+  const licence = folded.filter((each) => LICENCE_TEXT.test(each));
+  assert.equal(licence.length, 1, "the explanation of what a licence permits, once");
+  assert.match(licence[0], /permissive/);
+  assert.match(licence[0], /copyleft/);
+
+  const fine = await draftShown({ draft: architectureDraft({ candidate: "mit-lib", alternative: "mit-two" }), registry });
+  assert.deepEqual(compatibility(fine), ["yes", "yes"]);
+  assert.equal(foldedText(sectionOf(fine)).filter((each) => DUE_DILIGENCE_TEXT.test(each)).length, 1, "the explanation of due diligence stands");
+  assert.equal(foldedText(sectionOf(fine)).filter((each) => LICENCE_TEXT.test(each)).length, 0, "counter-proof: no candidate to decide on, no explanation of a licence");
+
+  const unchecked = await draftShown({ product: READY, draft: architectureDraft({ candidate: "mit-lib", alternative: "mit-two" }), registry });
+  assert.deepEqual(compatibility(unchecked), ["not checked", "not checked"]);
+  assert.equal(foldedText(sectionOf(unchecked)).filter((each) => LICENCE_TEXT.test(each)).length, 1, "a licence not checked is decided with the explanation");
+});
+
 // ---------------------------------------------------------------- leaving the draft (ITM-671)
 
 // UC-018 7a: "The author leaves the editor with unsaved changes. The dashboard asks before discarding", and MOD-review-pages' edit routes' `leave` (ITM-603). The drafted files of `<k>/draft` are
