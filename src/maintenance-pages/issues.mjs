@@ -27,6 +27,8 @@
 //     writes with `moveToBacklog` given that identifier as `existing` and shows what Add shows.
 //   - The module files, the items of the backlog and the steps of the plan, and their identifiers, are read through MOD-documents (ITM-1298): a path is one of them where `readDocument` gives it an identifier under the module or the item schema,
 //     whose path patterns those are. The one folder name kept is the backlog's, `docs/backlog/`, the SPEC's own (THE BACKLOG LIVES IN THE PRODUCT REPOSITORY), which tells the backlog's items from the plan's steps of the same schema.
+//   - The item's pull request (ITM-1375, UC-033 step 6): below the move, the newest job of a kind that implements an item — `implement` or `refactor` — whose `works_on` names an item of the backlog that names this issue's address among its origins
+//     is named with its pull request (`jobTrail`), as the fix's job is; once that is merged, "Close with links" — the person's click — closes the issue with `closeWithLinks`, naming the pull request and the item. Nothing is shown where no such item or job is.
 //   - An issue not classified yet (ITM-1254, UC-033 1a): where the move would stand, the page says that it is not offered because the issue is not classified, and leads to UC-012, step 2 with the button "UC-012, step 2", which goes to that use case through the context's
 //     `go`, as the fix leads to UC-017. Both use cases are Agent M's own, so each lead's `go` names the empty product, which names the instance itself (MOD-site-frame's ViewContext). An issue classified as not reproducible is
 //     classified, and the page says nothing of the move for it.
@@ -320,7 +322,8 @@ function commentToCopy(comment) {
 }
 
 // The section that moves the issue into the backlog (UC-033): Move to backlog draws the prefilled item as a form, Add writes it. `current()` is the class the issue has now and `proposal()` the participant's proposal, if any, both read when the person clicks.
-function moveSection({ product, issue, current, proposal }) {
+// Below it, what the item that names the issue has become, with *Close with links* once its pull request is merged (itemTrail, UC-033 step 6).
+async function moveSection({ product, issue, current, proposal }) {
   const stage = el("div", "issue-move-stage");
   const address = issueAddress(product, issue.number);
 
@@ -384,7 +387,7 @@ function moveSection({ product, issue, current, proposal }) {
     }
   }
 
-  return el("section", "issue-move", el("h3", null, "Move to backlog"), fold(STEP_TEXT.move), el("p", "actions", button("move-to-backlog", "Move to backlog", drawForm)), stage);
+  return el("section", "issue-move", el("h3", null, "Move to backlog"), fold(STEP_TEXT.move), el("p", "actions", button("move-to-backlog", "Move to backlog", drawForm)), stage, await itemTrail({ product, issue }));
 }
 
 // ---------------------------------------------------------------- the fix of a bug (UC-012 step 5, 5b)
@@ -418,6 +421,52 @@ async function expectationsOf(product, pullRequest) {
   return el("table", "fix-expectations", el("thead", null, el("tr", null, ...["Test", "Requirement", "Old expectation", "New expectation"].map((head) => cell("th", head)))), el("tbody", null, ...rows));
 }
 
+// *Close with links*, the person's click on a merged pull request: the issue closed with `closeWithLinks`, naming the pull request and, for the job of an item, the item (null for a bug fix).
+function closeControls({ product, issue, pullRequest, item }) {
+  const closed = el("p", "fix-closed");
+  const close = button("close-with-links", "Close with links", async () => {
+    close.disabled = true;
+    try {
+      await closeWithLinks(product.host, issue.number, { pullRequest: pullRequest.url, commit: pullRequest.mergeCommit, item });
+      closed.textContent = `The issue is closed with ${pullRequest.url}${item ? ` and the item ${item}` : ""}.`;
+    } catch (problem) {
+      close.disabled = false;
+      closed.replaceChildren(el("span", "issue-problem", `The issue could not be closed: ${failed(problem)}`));
+    }
+  });
+  return [el("p", "actions", close), closed];
+}
+
+// The kinds of a job that implements an item (AGILE IMPLEMENTATION STARTS FROM THE BACKLOG): its `works_on` names the item.
+const IMPLEMENTS_ITEM = ["implement", "refactor"];
+
+// What the item of the issue has become (UC-033 step 6): the newest job of a kind that implements an item, working on an item of the backlog that names the issue among its origins, its pull request
+// (MOD-runtimes' jobTrail) and, once that is merged, *Close with links*, the person's click, naming the pull request and the item. Nothing is shown while no item names the issue, or no such job works on one.
+async function itemTrail({ product, issue }) {
+  const box = el("div", "issue-item-trail");
+  try {
+    const address = issueAddress(product, issue.number);
+    const head = await product.host.readSnapshot((await product.host.repositoryInfo()).defaultBranch);
+    const items = (await backlogItems(head)).filter(({ document }) => namesOf(document.fields.origin).some((origin) => sameAddress(origin, address))).map(({ id }) => id);
+    if (items.length === 0) return box;
+    await head.readMany?.(head.paths.filter((path) => JOB_FILE.test(path)));
+    let record = null;
+    for await (const each of recordsNewestFirst(head)) if (IMPLEMENTS_ITEM.includes(each.kind) && (each.worksOn ?? []).some((id) => items.includes(id))) { record = each; break; }
+    if (!record) return box;
+    const item = record.worksOn.find((id) => items.includes(id));
+    const { pullRequest } = await jobTrail(record, product);
+    box.append(el("p", "item-job", `The item ${item} is built by the job ${record.id}.`));
+    if (!pullRequest) { box.append(el("p", "item-no-pull-request", "It has opened no pull request yet.")); return box; }
+    const where = el("a", "item-pull-request", `pull request #${pullRequest.number}`);
+    where.setAttribute("href", pullRequest.url);
+    box.append(el("p", "item-pull", where, ` is ${pullRequest.state}.`));
+    if (pullRequest.state === "merged") box.append(...closeControls({ product, issue, pullRequest, item }));
+  } catch (problem) {
+    box.append(el("p", "issue-problem", `The item's job could not be read: ${failed(problem)}`));
+  }
+  return box;
+}
+
 // What the fix has become: the newest job of the kind fix-bug that works on the issue, its pull request (MOD-runtimes' jobTrail: the one of the branch named after the job) and, once that is merged, *Close with links*, the person's click.
 async function fixTrail({ product, issue }) {
   const box = el("div", "issue-fix-trail");
@@ -436,20 +485,7 @@ async function fixTrail({ product, issue }) {
     where.setAttribute("href", pullRequest.url);
     box.append(el("p", "fix-pull", where, ` is ${pullRequest.state}.`));
     if (pullRequest.state === "open") box.append(await expectationsOf(product, pullRequest));
-    if (pullRequest.state === "merged") {
-      const closed = el("p", "fix-closed");
-      const close = button("close-with-links", "Close with links", async () => {
-        close.disabled = true;
-        try {
-          await closeWithLinks(product.host, issue.number, { pullRequest: pullRequest.url, commit: pullRequest.mergeCommit, item: null });
-          closed.textContent = `The issue is closed with ${pullRequest.url}.`;
-        } catch (problem) {
-          close.disabled = false;
-          closed.replaceChildren(el("span", "issue-problem", `The issue could not be closed: ${failed(problem)}`));
-        }
-      });
-      box.append(el("p", "actions", close), closed);
-    }
+    if (pullRequest.state === "merged") box.append(...closeControls({ product, issue, pullRequest, item: null }));
   } catch (problem) {
     box.append(el("p", "issue-problem", `The fix could not be read: ${failed(problem)}`));
   }
@@ -554,12 +590,12 @@ async function renderIssue(target, context, params = {}) {
   // The move section is built once, and shown while the issue's class is bug or change.
   const moveBox = el("div", "issue-move-box");
   let move = null;
-  function drawMove() {
+  async function drawMove() {
     const cls = currentClass();
     if (cls === undefined) { moveBox.replaceChildren(notClassified()); return; }
     if (cls !== IssueClass.bug && cls !== IssueClass.change) { moveBox.replaceChildren(); return; }
     move ??= moveSection({ product, issue, current: currentClass, proposal: () => state.proposal });
-    moveBox.replaceChildren(move);
+    moveBox.replaceChildren(await move);
   }
 
   // What a click on a class said: confirmed, corrected or, with no proposal, set.
@@ -578,7 +614,7 @@ async function renderIssue(target, context, params = {}) {
       for (const node of controls) node.disabled = true;
       state.problem = null;
       try { await run(); } catch (failure) { state.problem = failed(failure); }
-      if (!state.outcome?.rejected) { drawDecision(); await drawChange(); await drawFix(); drawMove(); }
+      if (!state.outcome?.rejected) { drawDecision(); await drawChange(); await drawFix(); await drawMove(); }
     }
     const classButtons = CLASSES.map(([cls, name, plain]) => {
       const label = state.proposal === null ? plain : cls === state.proposal.class ? `Confirm ${name}` : `Correct to ${name}`;
@@ -616,7 +652,7 @@ async function renderIssue(target, context, params = {}) {
   out.append(analysis, proposalBox, decision, changeBox, fixBox, moveBox);
   await drawChange();
   await drawFix();
-  drawMove();
+  await drawMove();
 }
 
 export const routes = [

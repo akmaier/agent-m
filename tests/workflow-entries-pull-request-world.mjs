@@ -47,10 +47,14 @@ export async function withCheckout(jobs, run, { repository = "alice/thesis-tool"
     git(product, "config", "user.email", "seed@example.org");
     git(product, "add", "-A");
     git(product, "commit", "-q", "-m", "first");
-    // The instance, checked out beside the product as the job workflow does; the entry reads nothing of it.
+    // The instance, checked out beside the product as the job workflow does, at one commit: the entry reads it only for the job of an item, whose items it reads with the product's facts (ITM-1375).
     const instance = join(checkout, "instance");
     write(instance, { "README.md": "# Instance\n" });
     git(instance, "init", "-q", "-b", "main");
+    git(instance, "config", "user.name", "Seed");
+    git(instance, "config", "user.email", "seed@example.org");
+    git(instance, "add", "-A");
+    git(instance, "commit", "-q", "-m", "first");
     git(instance, "remote", "add", "origin", "https://github.com/alice/agent-m");
     return await run({ root, checkout, product, repository });
   } finally { rmSync(root, { recursive: true, force: true }); }
