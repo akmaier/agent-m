@@ -74,6 +74,7 @@ const FLOW_EVIDENCE = {
   "3b-id": { uc: "**3b. The author changes a use case's `id`.**", evidence: [[SELF, "TST-376209"], [USE_CASES, "TST-358002"]] },
   "3c-mark": { uc: "**3c. A mark from step 3 remains.**", evidence: [[SELF, "TST-376210"]] },
   "3d-new": { uc: "**3d. The author adds a new requirement**", evidence: [[SELF, "TST-376211"], [LINKS, "TST-360002"], [REQ, "TST-472630"]] },
+  "3d-empty-fields": { uc: "opens the editor with the four fields empty", evidence: [[SELF, "TST-376222"]] },
   "3e-text-only": { uc: "the editor changes text only, never a group", evidence: [[SELF, "TST-376212"]] },
   "4a-no-token": { uc: "**4a. No token is stored (GitHub).**", evidence: [[SELF, "TST-376214"], [UC008, "TST-372208"], [REQ_PAGES, "TST-592002"]] },
   "4b-gitlab": { uc: "**4b. The product is on GitLab and no token for it is stored.**", evidence: [[SELF, "TST-376215"]] },
@@ -87,7 +88,6 @@ const FLOW_FINDINGS = {
   "main-6-open-queue": { uc: "Agent M adds an entry to the author's open queue of today", finding: "UC018-F1", file: SELF, test: "TST-376206", module: "MOD-review-pages" },
   "5a-again": { uc: "the comparison is now against the newer SHA", finding: "UC018-F2", file: SELF, test: "TST-376217", module: "MOD-review-pages" },
   "3e-link": { uc: "A link opens the arrangement (UC-021)", finding: "UC018-F3", file: SELF, test: "TST-376213", module: "MOD-review-pages" },
-  "3d-empty-fields": { uc: "opens the editor with the four fields empty", finding: "UC018-F4", file: SELF, test: "TST-376222", module: "MOD-spec-document" },
 };
 
 // TST-376201 · level: system · module: system
@@ -392,8 +392,8 @@ test("TST-376211: UC-018 3d + Requirement opens the editor with the four fields 
 // guards: UC-018; A REQUIREMENT HAS FOUR FIELDS
 // given: the library on GitHub, whose section "## 2. Membership" holds A MEMBER HAS A CARD with its four fields; the author's token stored
 // input: the author opens + Requirement for "## 2. Membership" and leaves the four fields empty; then writes only the name A MEMBER IS REGISTERED into them; then the name, its source and its rule, but no check
-// expect: step 3 "a missing one of the four fields" is marked in each: the empty fields, and the name without source, rule and check, each carry a mark under A REQUIREMENT HAS FOUR FIELDS; known positive: the requirement without its check is marked "no check"; FINDING UC018-F4 (MOD-spec-document): parseSpec reads no requirement from the empty fields, nor from a name whose rule and source are missing, so requirementFindings marks nothing there
-test("TST-376222: UC-018 3, 3d the four empty fields of a new requirement, and a name given alone, are marked as missing fields", { todo: "FINDING UC018-F4 (MOD-spec-document): the editor's marks are requirementFindings of parseSpec, which reads no requirement from `****` and the empty fields, nor from a bold name without source and rule, so nothing is marked" }, async () => {
+// expect: step 3 "a missing one of the four fields" is marked in each: the empty fields, and the name without source, rule and check, each carry a mark under A REQUIREMENT HAS FOUR FIELDS; known positive: the requirement without its check is marked "no check"
+test("TST-376222: UC-018 3, 3d the four empty fields of a new requirement, and a name given alone, are marked as missing fields", async () => {
   const w = await specWorld();
   const target = await w.draw("requirements", { section: MEMBERSHIP_HEADING });
   typeInto(target, `${MEMBERSHIP}\n**A MEMBER IS REGISTERED** *(Product Owner)*\nEvery member is registered.\n`);
