@@ -77,6 +77,7 @@ const FLOW_EVIDENCE = {
   "main-4-record": { uc: "Agent M queues one job per item, commits its start record under `docs/jobs/` of the product, and", evidence: [[SELF, "TST-805209"], [UC24, "TST-740210"]] },
   "main-5-failing-tests": { uc: "The agent commits the tests, and CI records them as **failing**.", evidence: [[UC24, "TST-740213"], [DONE, "TST-409101"]] },
   "main-5-pull-request": { uc: "It pushes and opens a pull request. The pull request names the item, the requirements it", evidence: [[SELF, "TST-805212"]] },
+  "main-5-pull-request-names": { uc: "The pull request names the item, the requirements it", evidence: [[SELF, "TST-805213"]] },
   "main-6-red": { uc: "CI runs. On red, the agent reads the failure and repairs it", evidence: [[UC24, "TST-740215"]] },
   "main-7-gate": { uc: "it stops in the state **waiting at a gate** until the gate's decider has decided:", evidence: [[SELF, "TST-805215"], [GATE_PAGE, "TST-801001"], [RESUME, "TST-479153"]] },
   "main-7-check": { uc: "an **automated check** runs in CI; its result is the decision;", evidence: [[SELF, "TST-805217"], [CHECK, "TST-792001"]] },
@@ -100,7 +101,6 @@ const FLOW_EVIDENCE = {
 };
 // The passages the dashboard does otherwise: the finding, its case, and the item that points to or the person who rules.
 const FLOW_FINDINGS = {
-  "main-5-pull-request-names": { uc: "The pull request names the item, the requirements it", finding: "UC034-F4", file: SELF, test: "TST-805213", module: "MOD-runtimes" },
   "7a-rejects": { uc: "**7a. The gate's decider rejects.**", finding: "UC034-F5", file: SELF, test: "TST-805218", module: "no module" },
 };
 // The alternative flows no dashboard or CI code of this product carries, with the reason; what the participant itself does is not a page's.
@@ -450,9 +450,8 @@ test("TST-805212: UC-034 5 the agent's pull request goes into the sprint's branc
 // guards: UC-034; EVERY ARTIFACT NAMES ITS ORIGIN
 // given: the product of TST-805212 in which ITM-003 realises RULE TWO (not RULE ONE, which its new test guards) and comes from the issue https://github.com/alice/thesis-tool/issues/14, named among its origins (UC-033)
 // input: the same writer on the same branch
-// expect: step 5.3 "The pull request names the item, the requirements it realises and, for an item from an issue, the issue": the description names RULE TWO, which the item realises, and the issue; FINDING UC034-F4 (MOD-runtimes): the description names the requirements the item's new tests guard (RULE ONE), as MOD-runtimes' text says, and neither the item's `realises` nor the issue
+// expect: step 5.3 "The pull request names the item, the requirements it realises and, for an item from an issue, the issue": the description names RULE TWO, which the item realises, and the issue
 test("TST-805213: UC-034 5 the pull request names the requirements the item realises and the issue the item comes from",
-  { todo: "FINDING UC034-F4 (MOD-runtimes): src/runtimes/pull-request.mjs:describe writes \"Requirements guarded by the new tests\" from the new tests' declarations, as MOD-runtimes' accepted text says, and names neither the requirements the item realises nor the issue it comes from, which UC-034 5.3 asks (the module text and the use case differ: for akmaier where the module text must change first)" },
   async () => {
     const { files } = await teams({ files: { [itemPath(3)]: itemText(3, { modules: ["MOD-mail"], realises: ["RULE TWO"], origin: [ISSUE] }) } });
     const body = (await writtenFor(files)).body;
