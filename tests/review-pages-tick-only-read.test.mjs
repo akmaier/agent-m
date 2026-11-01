@@ -1,5 +1,5 @@
-// MOD-review-pages' list gives a tick to every file not accepted, read or not, as UC-008 3d states it — "Each use case not accepted has a tick on the list, read or not;
-// Accept ticked writes one commit with one record per ticked file, each naming the text the page read of it." — and as SEVERAL FILES ARE ACCEPTED IN ONE CLICK
+// MOD-review-pages' list gives a tick to every file not accepted, read or not, as UC-008 3d states it — "Each use case not accepted has an empty tick box on the list, read or not;
+// the reviewer ticks the ones to accept. Accept ticked writes one commit with one record per ticked file, each naming the text the page read of it." — and as SEVERAL FILES ARE ACCEPTED IN ONE CLICK
 // asks of a batch: "ticked on their list, or shown together on one review page", "each naming the text the page read of that file". A file this tab has shown is
 // accepted with the text it showed; a file changed since is left out and named.
 // Run: node --test tests/review-pages-tick-only-read.test.mjs

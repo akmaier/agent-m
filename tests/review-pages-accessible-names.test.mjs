@@ -2,7 +2,7 @@
 // as THE SITE SERVES A SCREEN READER asks of every page: "every control has an accessible name" and a page that meets WCAG 2.2 at level AA, whose rule `label` asks every
 // form control for a name and whose rule `scrollable-region-focusable` asks a box that scrolls to be reachable by keyboard. The accepted text of
 // docs/architecture/MOD-review-pages.md states the list for `<k>`: "those files, each with its status and a tick", and the difference for `<k>/<id>`: "in a box of its own
-// that scrolls". UC-008 3d gives each use case not accepted a tick: "Each use case not accepted has a tick on the list, read or not; Accept ticked writes one commit with one record per ticked file".
+// that scrolls". UC-008 3d gives each use case not accepted a tick: "Each use case not accepted has an empty tick box on the list, read or not; the reviewer ticks the ones to accept".
 // Run: node --test tests/review-pages-accessible-names.test.mjs
 //
 // Module: MOD-review-pages

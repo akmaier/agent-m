@@ -49,7 +49,7 @@ const FLOW_EVIDENCE = {
   "3b-no-token": { uc: "3b. No token is stored.", evidence: [[SELF, "TST-372208"]] },
   "3c-gitlab": { uc: "3c. The product is on a GitLab server and no token for it is stored.", evidence: [[SELF, "TST-372209"]] },
   "3d-accept-ticked": { uc: "3d. The reviewer wants to accept several use cases at once.", evidence: [[SELF, "TST-372211"]] },
-  "3d-each-not-accepted-gets-a-tick": { uc: "Each use case not accepted has a tick", evidence: [[SELF, "TST-372212"]] },
+  "3d-each-not-accepted-has-a-tick-box": { uc: "Each use case not accepted has an empty tick box", evidence: [[SELF, "TST-372212"]] },
   "3e-review-all": { uc: "3e. The reviewer wants to accept every open use case at once.", evidence: [[SELF, "TST-372213"]] },
   "3f-reject": { uc: "3f. The reviewer rejects.", evidence: [[SELF, "TST-372214"]] },
   "4a-no-write-access": { uc: "4a. The reviewer has no write access.", evidence: [[SELF, "TST-372210"]] },
@@ -402,8 +402,8 @@ test("TST-372211: UC-008 3d Accept ticked writes one commit with one record per 
 // guards: UC-008; SEVERAL FILES ARE ACCEPTED IN ONE CLICK
 // given: the four use cases with the reviewer's token; the reviewer has opened the page of UC-041 and no other use case's page; known positive first — the page of UC-041 was drawn
 // input: the reviewer opens the list
-// expect: known positive — UC-041 has a tick; UC-043 and UC-044, not opened, have one too: every use case not accepted can be ticked (akmaier, 2026-11-01)
-test("TST-372212: UC-008 3d every use case not accepted gets a tick, read or not", async () => {
+// expect: known positive — UC-041 has a tick; UC-043 and UC-044, not opened, have one too: every use case not accepted has a tick box (akmaier, 2026-11-01)
+test("TST-372212: UC-008 3d every use case not accepted has a tick box, read or not", async () => {
   const w = await world();
   const page = await w.open(`#use-case/id=UC-041/product=${encodeURIComponent(w.address)}`);
   assert.equal(badgeOf(page.target), "open", "known positive: UC-041's page was drawn");
