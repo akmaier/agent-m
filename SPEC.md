@@ -690,6 +690,12 @@ again, and an acceptance reads the head it commits on once.
 and an acceptance of three files reads its head once; counter-proof: a load that reads each file by itself exceeds
 that count.
 
+**EVERY PAGE LOADS IN UNDER THREE SECONDS** *(PO A. Maier)*
+Every page of Agent M on the instance's live GitHub Pages site completes loading in less than three seconds, every request
+the page sends to read what it shows included.
+*Check:* `tests/live-page-load.py` — over night, a browser with a window opens every page of the live site and fails for a page
+whose last request ends three seconds or more after its navigation began.
+
 **A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY** *(PO A. Maier)*
 Settings that govern how a product is developed — its process model, Definition of Done, test
 schedule, pseudonymisation and collaborators — are kept in files of the product's repository, never only
