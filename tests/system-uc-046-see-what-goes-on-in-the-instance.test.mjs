@@ -348,7 +348,7 @@ test("TST-1062010: UC-046 4 for a product in implementation the card shows the i
 // guards: UC-046; THE BUILD IS SHOWN AS IT HAPPENS; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the page of TST-1062010 with its token for the product; known positive first — the page set one timer of a minute for reading the jobs' states again
 // input: the timer fires a minute later; then the Bridge no longer lists the job; then the job's record in the repository ends as done
-// expect: after a minute the row reads running, 2h 1m 0s; when the Bridge no longer lists the job, ended without record, 0h 0m 0s; when the record ends as done, done, 1h 0m 0s; the stages stay as drawn, and the page set one timer after each reading
+// expect: after a minute the row reads running, 2h 1m 0s; when the Bridge no longer lists the job, ended without record, 0h 0m 0s; when the record ends as done, done, 1h 0m 0s; the stages stay as drawn, and the next reading is set (one timer held)
 // Planted fault: the readings not made (`readAgain({ target, cards, nodes, held, store })` left out at the end of render in src/main-page/home.mjs) sets no timer and fails the case at the known positive.
 test("TST-1062011: UC-046 4 the page keeps the build current while it is shown: the elapsed time, the runtime's state and the job's record move the row", async () => {
   await open({ repos: await world({ jobs: [RUNNING] }), bridgeLists: JOB });
@@ -449,7 +449,7 @@ test("TST-1062014: UC-046 3a with no product kept the page shows Agent M's own p
 // ---------------------------------------------------------------- 3b: a repository cannot be read
 
 // TST-1062015 · level: system · module: system
-// guards: UC-046; THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN
+// guards: UC-046; THE MAIN PAGE SHOWS WHAT GOES ON IN THE INSTANCE
 // given: a browser that keeps alice/product and carol/missing, a repository the server does not find (a private one, for which no token is stored); and a browser that keeps alice/product, whose server does not answer, and bob/other
 // input: the page opened for each; the button of the unreadable card pressed
 // expect: known positive — the card of alice/product in the first browser has its six stages and is no error card; carol/missing's card says "https://github.com/carol/missing was not found — a private repository is found only with a token that reaches it." and holds one button "Open the token's setting"; in the second browser alice/product's card says "https://api.github.com could not be reached: Failed to fetch" and bob/other's is drawn with its six stages; pressing the button writes the address https://alice.github.io/agent-m/docs/index.html#settings, the page of the settings
@@ -512,7 +512,7 @@ test("TST-1062017: UC-046 4a the card says that jobs running on a runtime that c
 // ---------------------------------------------------------------- 4b: no token
 
 // TST-1062018 · level: system · module: system
-// guards: UC-046; THE BUILD IS SHOWN AS IT HAPPENS; A USED-UP RATE LIMIT IS NAMED, NOT BLAMED ON THE TOKEN
+// guards: UC-046; THE BUILD IS SHOWN AS IT HAPPENS
 // given: the product alice/product with a running job and no token stored for it; and Agent M's own card with no token stored for the instance; known positive — the same product with its token stored
 // input: the page opened for each; the job's record in the repository ends as done and a minute passes; the page loaded again
 // expect: known positive — with the token one timer of a minute is held; with no token for the product the card is drawn (ITM-0900 running, 2h 0m 0s) and no timer is set, and the page asks the product nothing more after it was drawn; the card still reads running; the page loaded again reads the repository again and the card reads done, 1h 0m 0s; Agent M's own card with no instance token is drawn and sets no timer
@@ -542,7 +542,7 @@ test("TST-1062018: UC-046 4b a card whose repository this browser keeps no token
 // guards: UC-046; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the page of TST-1062006 with its job running
 // input: the visitor opens the page, chooses the product, presses Jobs, and the page reads the jobs' states again
-// expect: known positive — the fake GitHub answered reads (requests to alice/product were made); no request of the fake writes (every one is a read, a GET or the batch of reads, a POST to /graphql); the browser's localStorage holds the settings it was given and nothing more; the repository's files are as they were
+// expect: known positive — the fake GitHub answered reads (requests to alice/product were made); no request of the fake writes (every one is a read, a GET or the batch of reads, a POST to /graphql); the browser's localStorage holds the settings it was given and nothing more, none changed
 // Planted fault: the page writing the card it drew (`localStorage.setItem` of the shares in cardOf of src/main-page/home.mjs) adds a key to localStorage and fails the case at "nothing more".
 test("TST-1062019: UC-046 postcondition nothing was written: the page reads the repositories and the runtimes and stores nothing", async () => {
   await open({ repos: await world({ jobs: [RUNNING] }), bridgeLists: JOB });
