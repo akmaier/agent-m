@@ -12,9 +12,7 @@
 // Authored by developer-opus-f (ITM-370), who implemented none of ITM-313, ITM-314, ITM-345, ITM-350, ITM-385, ITM-400, ITM-401 and ITM-402.
 // Each test states its input and its expected values in its own text; none reads an expected result from the SPEC, a use case or an architecture file. A person's click is the
 // page's own listener called through the event it dispatches, marked trusted as a browser marks it. Where the page and UC-004 disagree the case follows UC-004 and is marked
-// { todo } with the finding it reports:
-//   UC004-S2  before an EU legal text is saved, the page states that the register entry becomes public and says nothing of its content, which the fetch stores in the
-//             public instance (step 5).
+// { todo } with the finding it reports; no finding is open.
 // Readings the texts leave open, which the cases state:
 //   - Step 1 "opens Library on the dashboard": the route `library`, which the frame shows under the menu entry Settings (the Settings page's line *Source library* leads to it).
 //   - Step 7 "the fetch workflow": the instance's workflow file .github/workflows/fetch-sources.yml, whose step runs `node src/workflow-entries/main.mjs onSourcesCommitted`; the
@@ -336,8 +334,8 @@ test("TST-370213: UC-004 postcondition — the library shows a source's kind, au
 // guards: UC-004
 // given: the route legal-text with the AI Act's EUR-Lex address and the licence "may be republished - EU law"
 // input: the form filled in, before Save
-// expect: step 5 "Agent M states what becomes public: the register entry always; the content only if it may be republished": the statement names, besides the register entry, the official text the fetch will store as public in the instance. FINDING UC004-S2: the statement names the register entry alone
-test("TST-370214: UC-004 step 5 — before an EU legal text is saved, the page states that its text becomes public too", { todo: "FINDING UC004-S2 — src/settings-pages/library.mjs:186-197 (statementOf) speaks only of the files chosen, and an EU legal text has none at Save, so the statement names the register entry alone though the fetch stores the text in the public instance" }, async (t) => {
+// expect: step 5 "Agent M states what becomes public: the register entry always; the content only if it may be republished": the statement names, besides the register entry, the official text the fetch will store as public in the instance.
+test("TST-370214: UC-004 step 5 — before an EU legal text is saved, the page states that its text becomes public too", async (t) => {
   const page = await visit(t, "#library");
   await register(page, "legal-text");
   await enter(fieldLabelled(page, "EUR-Lex or ELI address"), AI_ACT);
