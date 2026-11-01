@@ -18,6 +18,7 @@
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
 import { emptyStorage } from "./review-pages-harness.mjs";
+import { until } from "./review-pages-wait.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -127,13 +128,6 @@ const IDS = ["UC-041", "UC-042", "UC-043", "UC-044"];
 const tickedIn = (target) => IDS.filter((id) => byClass(rowOf(target, id), "input", "tick").length > 0);
 const tick = (box, on = true) => { box.checked = on; box.dispatchEvent(new Event("change")); };
 const click = (node) => node.dispatchEvent(new Event("click"));
-async function until(condition, what) {
-  for (let turn = 0; turn < 400; turn++) {
-    if (condition()) return;
-    await new Promise((resolve) => setImmediate(resolve));
-  }
-  assert.fail(`waited for ${what}`);
-}
 
 // ---------------------------------------------------------------- the ticks
 
@@ -178,10 +172,10 @@ test("TST-1349003 use-case list — the tick names the blob that was shown, and 
   for (const id of ["UC-041", "UC-044"]) assert.equal(byClass(rowOf(target, id), "input", "tick").length, 1, `known positive: ${id} has a tick`);
   for (const id of ["UC-041", "UC-044"]) tick(byClass(rowOf(target, id), "input", "tick")[0]);
   click(byClass(target, "button", "accept-ticked")[0]);
-  await until(() => fake.writes().length === 1, "the commit");
+  await until(target, () => fake.writes().length === 1, "the commit");
   const [name, body] = recordOf("UC-041", P41, UC41);
   assert.deepEqual(fake.writes()[0].change.files, [{ path: name, text: body }], "one record, UC-041's, naming the blob shown");
-  await until(() => badgeOf(rowOf(target, "UC-041")) === "accepted", "UC-041 accepted");
+  await until(target, () => badgeOf(rowOf(target, "UC-041")) === "accepted", "UC-041 accepted");
   assert.match(target.textContent, /UC-044 was left out: changed since shown/, "UC-044 is left out and named with the reason");
   assert.equal(badgeOf(rowOf(target, "UC-044")), "open", "and still open");
 });

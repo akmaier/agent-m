@@ -26,6 +26,7 @@
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
 import { scripted } from "./review-pages-harness.mjs";
+import { until } from "./review-pages-wait.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -137,13 +138,6 @@ function find(root, match) {
 }
 const byClass = (root, name, className) => find(root, (node) => node.localName === name && node.className.split(" ").includes(className));
 const click = (node) => node.dispatchEvent(new Event("click"));
-async function until(condition, what) {
-  for (let turn = 0; turn < 400; turn++) {
-    if (condition()) return;
-    await new Promise((resolve) => setImmediate(resolve));
-  }
-  assert.fail(`waited for ${what}`);
-}
 const sections = (target) => byClass(target, "section", "review-file");
 const idsOf = (target) => sections(target).map((section) => section.getAttribute("data-id"));
 const buttonOf = (target) => byClass(target, "button", "accept-all")[0];
@@ -190,7 +184,7 @@ test("MOD-review-pages use-case/all — Accept all 3 shown writes one commit wit
   const read = fake.head();
   const target = await show(fake);
   click(buttonOf(target));
-  await until(() => fake.writes().length === 1, "the commit");
+  await until(target, () => fake.writes().length === 1, "the commit");
   const [{ change }] = fake.writes();
 
   assert.equal(change.branch, "main");
@@ -199,7 +193,7 @@ test("MOD-review-pages use-case/all — Accept all 3 shown writes one commit wit
   const expected = [recordOf("UC-041", P[41], UC41), recordOf("UC-043", P[43], UC43), recordOf("UC-044", P[44], UC44)]
     .map(([path, body]) => ({ path, text: body }));
   assert.deepEqual([...change.files].sort((a, b) => a.path.localeCompare(b.path)), expected, "three records, each naming the text shown");
-  await until(() => idsOf(target).length === 0, "the page to show nothing left to review");
+  await until(target, () => idsOf(target).length === 0, "the page to show nothing left to review");
   assert.match(target.textContent, /Nothing to review/);
   assert.equal(buttonOf(target), undefined, "no button any more");
   assert.match(target.textContent, new RegExp(fake.head().slice(0, 7)), "the commit is named");
@@ -218,7 +212,7 @@ test("MOD-review-pages use-case/all — counter-proof: a click a script makes on
   for (let turn = 0; turn < 40; turn++) await new Promise((resolve) => setImmediate(resolve));
   assert.equal(fake.writes().length, 0, "no commit attempted");
   click(all);
-  await until(() => fake.writes().length === 1, "the commit of the person's click");
+  await until(target, () => fake.writes().length === 1, "the commit of the person's click");
 });
 
 // TST-472653 · level: unit · module: MOD-review-pages
@@ -231,11 +225,11 @@ test("MOD-review-pages use-case/all — a use case changed after the page was bu
   const target = await show(fake);
   fake.land({ [P[44]]: UC44_EDITED });
   click(buttonOf(target));
-  await until(() => fake.writes().length === 1, "the commit");
+  await until(target, () => fake.writes().length === 1, "the commit");
 
   assert.deepEqual(fake.writes()[0].change.files.map((file) => file.path).sort(),
     [recordOf("UC-041", P[41], UC41)[0], recordOf("UC-043", P[43], UC43)[0]].sort());
-  await until(() => idsOf(target).join() === "UC-044", "the page to show UC-044 alone");
+  await until(target, () => idsOf(target).join() === "UC-044", "the page to show UC-044 alone");
   assert.match(target.textContent, /UC-044 was left out: changed since shown/);
   assert.equal(buttonOf(target).textContent, "Accept all 1 shown");
 });
@@ -250,11 +244,11 @@ test("MOD-review-pages use-case/all — a use case that names a requirement not 
   const target = await show(fake);
   assert.equal(buttonOf(target).textContent, "Accept all 4 shown");
   click(buttonOf(target));
-  await until(() => fake.writes().length === 1, "the commit");
+  await until(target, () => fake.writes().length === 1, "the commit");
 
   assert.equal(fake.writes()[0].change.files.length, 3);
   assert.ok(!fake.writes()[0].change.files.some((file) => file.path.includes("UC-046")), "no record for UC-046");
-  await until(() => idsOf(target).join() === "UC-046", "the page to show UC-046 alone");
+  await until(target, () => idsOf(target).join() === "UC-046", "the page to show UC-046 alone");
   assert.match(target.textContent, /UC-046 was left out: rests on what is not accepted \(A FINE IS CHARGED PER DAY\)/);
 });
 
@@ -285,7 +279,7 @@ test("MOD-review-pages use-case/all — a refused commit is said, and the page s
   const target = await show(fake);
   assert.equal(fake.writes().length, 0, "nothing written before the click");
   click(buttonOf(target));
-  await until(() => /lacks Contents/.test(target.textContent), "the refusal");
+  await until(target, () => /lacks Contents/.test(target.textContent), "the refusal");
 
   assert.deepEqual(idsOf(target), ["UC-041", "UC-043", "UC-044"]);
   assert.notEqual(buttonOf(target).disabled, true, "pressable again");

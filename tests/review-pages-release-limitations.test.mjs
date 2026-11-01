@@ -17,6 +17,7 @@
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
 import "./review-pages-harness.mjs";
+import { until } from "./review-pages-wait.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -116,20 +117,6 @@ function find(root, match) {
 }
 const byClass = (root, name, className) => find(root, (node) => node.localName === name && node.className.split(" ").includes(className));
 const click = (node) => node.dispatchEvent(new Event("click"));
-// The wait for what a click comes to. It ends when `condition` holds, or when the page shows what the click came to: the paragraph of the class
-// `result` that the flow writes after every decision, a commit or a refusal. It fails by name when the page settles without the condition.
-// The click awaits work node does off the event loop (crypto.subtle.digest, through MOD-text-tools' blobSha in acceptAndRelease), so no count
-// of event-loop turns bounds it; the deadline only names a page that never settles.
-const SETTLES_WITHIN_MS = 10_000;
-async function until(page, condition, what) {
-  const deadline = Date.now() + SETTLES_WITHIN_MS;
-  while (!condition()) {
-    const said = byClass(page, "p", "result").map((paragraph) => paragraph.textContent);
-    if (said.length) assert.fail(`waited for ${what}; the page settled with: ${said.join(" ")}`);
-    if (Date.now() > deadline) assert.fail(`waited for ${what}; neither it nor the page's result came within ${SETTLES_WITHIN_MS} ms`);
-    await new Promise((resolve) => setTimeout(resolve, 1));
-  }
-}
 const reasonFields = (root) => byClass(root, "input", "reason");
 const fieldOf = (root, id) => {
   const field = reasonFields(root).find((each) => each.getAttribute("data-id") === id);
