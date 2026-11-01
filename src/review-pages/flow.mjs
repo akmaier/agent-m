@@ -14,7 +14,7 @@ import { acceptAndRelease } from "../release-evidence/index.mjs";
 import { readSetting } from "../browser-store/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
 import { explain, readProblem } from "../site-frame/index.mjs";
-import { el, link, reviewHref, reviewLink, button, badge, handedPlace, parseServer, readPlace, tokenStep } from "./common.mjs";
+import { el, link, reviewHref, reviewLink, arrangeLink, button, badge, handedPlace, parseServer, readPlace, tokenStep } from "./common.mjs";
 import { begin as beginSubject, remember as rememberSubject, subjectOf } from "./subjects.mjs";
 import { showEdit } from "./edit.mjs";
 import { showEntryEdit } from "./entry-edit.mjs";
@@ -36,8 +36,6 @@ const LABEL = { open: "open", accepted: "accepted", changed: "changed since acce
 const REVIEW_ALL = "all";
 // The id of the page that drafts files of a kind that has a job to draft them: #<route>/id=draft.
 const DRAFT = "draft";
-// The group kind whose arrangement a list links (UC-021): the route `arrange` with the parameter `kind`.
-const ARRANGED = { "use-case": "use-cases", "architecture-decision": "architecture", module: "modules" };
 // The id of the page that shows the approval records of a kind, newest first: #<route>/id=history.
 const HISTORY = "history";
 // The commits of docs/approvals a page of the history reads.
@@ -324,7 +322,8 @@ export function reviewRoute(kind) {
     }
     target.append(...tables);
     if (bar) target.append(bar, ...(check ? [check.note] : []));
-    if (ARRANGED[kind.kind]) target.append(reviewLink(context, `#arrange/kind=${ARRANGED[kind.kind]}`, "arrange-link", "Arrange"), " ");
+    const arrange = arrangeLink(context, kind);
+    if (arrange) target.append(arrange, " ");
     target.append(reviewLink(context, `#${kind.route}/id=${HISTORY}`, "history-link", `History of ${kind.plural}`));
   }
 
