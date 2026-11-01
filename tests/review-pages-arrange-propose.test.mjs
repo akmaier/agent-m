@@ -73,6 +73,7 @@ function fakeProduct(files = PRODUCT) {
   const snapshotAt = (...args) => withStoredGraph(bareSnapshotAt(...args));
   return {
     files: () => Object.fromEntries(commits.get(head).tree),
+    head: () => head,
     writes: () => calls.map((call) => call.change),
     host: {
       async repositoryInfo() { return { defaultBranch: "main", visibility: "public", canWrite: true, archived: false, description: "" }; },
@@ -287,4 +288,75 @@ test("arrange — a proposal comes on top of the changes the author already made
   click(runButtons(panel)[0]);
   await until(() => pending(target).length === 2, "the proposal");
   assert.deepEqual(pending(target), ["Add the group “Mine”", "Move UC-004 from the top level to “Review”"]);
+});
+
+// ---------------------------------------------------------------- the job record of Propose groups (ITM-1359)
+
+// The tests of the product, as MOD-test-document reads them from a test file (a header line `// TST-<n> · level: … · module: …`, then guards, given, input and expect).
+const testFile = (...ids) => text(...ids.flatMap((id) => [`// TST-${id} · level: unit · module: MOD-reader`, `// guards: ${RULE}`, "// given: a fixture", "// input: a call", "// expect: a result", `test("case ${id}", () => {});`, ""]));
+const WITH_TESTS = { ...PRODUCT, "tests/loan.test.mjs": testFile("101", "102"), "tests/shelf.test.mjs": testFile("103"), "docs/groups/tests.md": text("# Tests — groups", "") };
+const jobRecordOf = (fake) => {
+  const written = fake.writes().flatMap((change) => change.files).filter((file) => /^docs\/jobs\/JOB-.*\.md$/.test(file.path));
+  assert.ok(written.length >= 1, "known positive: the job's record was committed");
+  return written[0].text;
+};
+const worksOnOf = (record) => {
+  const front = record.split("\n---")[0];
+  return front.split("\nworks_on:\n")[1].split("\n").filter((line, at, all) => all.slice(0, at).every((each) => each.startsWith("  - "))).filter((line) => line.startsWith("  - ")).map((line) => line.slice(4));
+};
+
+// TST-1359001 · level: unit · module: MOD-review-pages
+// guards: UC-021; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
+// given: the arrangement of the tests of a product with the tests TST-101, TST-102 and TST-103, and the drafter drafter-a, whose answer is one move: a new group Lending; the commit the page read is the product's head
+// input: Propose groups with drafter-a, and Run
+// expect: the model is asked once, with the three identifiers; the proposal arrives as the pending change "Add the group “Lending”"; the job's record is committed and its works_on holds that one commit and no test identifier
+test("TST-1359001: Propose groups on the tests records the commit the page read as works_on", async () => {
+  endpointAnswers([{ op: "create", title: "Lending", in: [] }]);
+  const fake = fakeProduct(WITH_TESTS);
+  const read = fake.head();
+  const target = await show(fake, { kind: "tests" });
+  const panel = await panelFor(target);
+  click(runButtons(panel)[0]);
+  await until(() => pending(target).length === 1, "the pending change");
+  assert.deepEqual(pending(target), ["Add the group “Lending”"]);
+  assert.equal(requestsToModel().length, 1, "the model was asked once");
+  for (const id of ["TST-101", "TST-102", "TST-103"]) assert.ok(requestsToModel()[0].body.includes(id), id);
+  assert.deepEqual(worksOnOf(jobRecordOf(fake)), [read]);
+});
+
+// TST-1359002 · level: unit · module: MOD-review-pages
+// guards: UC-021; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
+// given: the arrangement of the use cases of the product of TST-072701, whose use cases are UC-001 to UC-004
+// input: Propose groups with drafter-a, and Run
+// expect: known positive and counter-proof of TST-1359001 — the job's record is committed and its works_on holds the four use cases, as before, and not the commit the page read
+test("TST-1359002: Propose groups on the use cases still records their identifiers as works_on", async () => {
+  endpointAnswers([{ op: "create", title: "Lending", in: [] }]);
+  const fake = fakeProduct(WITH_TESTS);
+  const read = fake.head();
+  const target = await show(fake, { kind: "use-cases" });
+  const panel = await panelFor(target);
+  click(runButtons(panel)[0]);
+  await until(() => pending(target).length === 1, "the pending change");
+  const worksOn = worksOnOf(jobRecordOf(fake));
+  assert.deepEqual(worksOn, ["UC-001", "UC-002", "UC-003", "UC-004"]);
+  assert.ok(!worksOn.includes(read));
+});
+
+// TST-1359003 · level: unit · module: MOD-review-pages
+// guards: UC-021; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
+// given: the arrangement of the requirements of the same product, whose requirements are A BOOK CAN BE RETURNED and A LOAN HAS A DUE DATE
+// input: Propose groups with drafter-a, and Run
+// expect: counter-proof of TST-1359001 — the job's record is committed and its works_on holds the two requirement names, as before, and not the commit the page read
+test("TST-1359003: Propose groups on the requirements still records their names as works_on", async () => {
+  endpointAnswers([]);
+  const fake = fakeProduct({ ...WITH_TESTS, "docs/groups/requirements.md": text("# Requirements — groups", "") });
+  const read = fake.head();
+  const target = await show(fake, { kind: "requirements" });
+  const panel = await panelFor(target);
+  click(runButtons(panel)[0]);
+  await until(() => requestsToModel().length === 1, "the request");
+  await until(() => fake.writes().some((change) => change.files.some((file) => file.path.startsWith("docs/jobs/"))), "the job's record");
+  const worksOn = worksOnOf(jobRecordOf(fake));
+  assert.deepEqual(worksOn, ["A BOOK CAN BE RETURNED", RULE]);
+  assert.ok(!worksOn.includes(read));
 });
