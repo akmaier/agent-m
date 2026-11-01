@@ -17,7 +17,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { found, part, render } from "./implementation-pages-sprints.mjs";
+import { found, render } from "./implementation-pages-sprints.mjs";
 import { routeOf } from "../src/site-frame/routing.mjs";
 
 const plain = (html) => String(html).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
@@ -70,7 +70,7 @@ test("#progress — the panel of a team with a running sprint offers Start sprin
 // guards: UC-034; A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT
 // given: the address of Start sprint work on the backlog and on the progress for team1's sprint 03; the frame's own reading of a fragment (routeOf)
 // input: the frame reads each address as it reads the address bar
-// expect: known positive — the address with a bare slash, #implement/sprint=team1/03, is read as the route implement with the sprint team1 and no number; the address of each page is read as the route implement with the sprint team1/03, the name the route matches against the running sprint's file docs/backlog/sprints/team1/03.md
+// expect: known positive — the address with a bare slash, #implement/sprint=team1/03, is read as the route implement with the sprint team1 and no number; the address of each page is read as the route implement with the sprint team1/03, the name the panel shows for the running sprint and the route matches against its file docs/backlog/sprints/team1/03.md
 test("Start sprint work — the frame reads its address as the route implement with the sprint <team>/<nn>", async () => {
   assert.deepEqual(routeOf("#implement/sprint=team1/03"), { name: "implement", params: { sprint: "team1" } }, "known positive: a bare slash cuts the sprint at its team");
   for (const name of ["backlog", "progress"]) {
@@ -79,7 +79,7 @@ test("Start sprint work — the frame reads its address as the route implement w
       const href = controls(panelOf(page, "team1"), "Start sprint work")[0]?.getAttribute("href");
       assert.ok(href, `${name}: a link named Start sprint work`);
       assert.deepEqual(routeOf(href), { name: "implement", params: { sprint: "team1/03" } }, name);
-      assert.ok(part(page.html(), 'data-team="team1"').includes("docs/backlog/sprints/team1/03.md"), `${name}: the sprint the address names is the one the panel shows`);
+      assert.ok(plain(panelOf(page, "team1").innerHTML).includes("team1/03"), `${name}: the sprint the address names is the one the panel shows`);
     } finally { page.done(); }
   }
 });
