@@ -230,7 +230,7 @@ def record_findings(path: str, text: str) -> list[dict]:
 
 
 class TestReuseDueDiligence(unittest.TestCase):
-    # TST-446100 · level: release · module: MOD-reuse-facts
+    # TST-446100 · level: release · module: system
     # guards: A REUSE DECISION RECORDS ITS DUE DILIGENCE; A PRODUCT DECLARES ITS LICENCE; A REUSED LICENCE IS SHOWN AGAINST THE PRODUCT'S; DUE DILIGENCE IS FETCHED, NOT RECALLED
     # given: the Markdown step cases beside this file, each with fixture registry and source-repository facts
     # input: MOD-reuse-facts reuseStrategies.steps["due-diligence"] through jsrun.py
@@ -246,7 +246,7 @@ class TestReuseDueDiligence(unittest.TestCase):
                 self.assertEqual(actual["fetches"], case["expected"]["fetches"])
                 self.assertEqual(actual["connections"], case["expected"]["connections"])
 
-    # TST-446101 · level: release · module: MOD-reuse-facts
+    # TST-446101 · level: release · module: system
     # guards: DUE DILIGENCE IS FETCHED, NOT RECALLED
     # given: the Markdown record cases beside this file
     # input: each due-diligence record table as it would stand in an architecture decision
@@ -258,7 +258,7 @@ class TestReuseDueDiligence(unittest.TestCase):
             with self.subTest(case=case["name"]):
                 self.assertEqual(record_findings(case["input"]["path"], case["record"]), case["expected"]["findings"])
 
-    # TST-446103 · level: release · module: MOD-reuse-facts
+    # TST-446103 · level: release · module: system
     # guards: DUE DILIGENCE IS FETCHED, NOT RECALLED
     # given: the due-diligence section MOD-reuse-facts' step writes for a fixture draft (an MIT product, a chosen and an alternative npm candidate)
     # input: the record check over the written text, then over the same text with the date read of the first row emptied, and with the address read of the second row emptied
@@ -277,7 +277,7 @@ class TestReuseDueDiligence(unittest.TestCase):
                     self.assertNotEqual(mutated, written)
                     self.assertEqual(record_findings(path, mutated), expected)
 
-    # TST-446102 · level: release · module: MOD-reuse-facts
+    # TST-446102 · level: release · module: system
     # guards: A TEST STATES ITS EXPECTED RESULT BEFORE IT RUNS
     # given: the Markdown cases beside this file
     # input: the case loader
