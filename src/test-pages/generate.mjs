@@ -90,9 +90,10 @@ async function loadProduct(host) {
     await snapshot.readMany?.(paths);
     return (await Promise.all(paths.map(async (path) => testDeclarations(path, (await snapshot.read(path)) ?? "")))).flat();
   })());
-  // Each test's level as the graph holds it; a graph stored before its tests held their levels gives them from the declarations.
+  // Each test's level as the graph holds it — a test that declares none has none —; a graph stored before its tests held their levels, which holds
+  // none at all, gives them from the declarations.
   const tests = [...graph.nodes.values()].filter((node) => node.kind === "TST");
-  const levelOf = tests.length > 0 && tests.every((node) => typeof node.level === "string")
+  const levelOf = tests.some((node) => typeof node.level === "string")
     ? new Map(tests.map((node) => [node.id, node.level]))
     : new Map((await declarations()).map((declaration) => [declaration.id, declaration.level]));
   const names = [...graph.nodes.values()].filter((node) => FITTING[node.kind]).sort((a, b) => a.id.localeCompare(b.id))
