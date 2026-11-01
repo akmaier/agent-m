@@ -72,16 +72,13 @@ function ciOf(checks) {
 const pullOf = (p) => ({ number: p.number, title: p.title, branch: p.head.ref, base: p.base.ref, head: p.head.sha, mergeCommit: p.state !== "open" && p.merged_at ? p.merge_commit_sha ?? null : null,
   state: p.state === "open" ? "open" : p.merged_at ? "merged" : "closed", draft: p.draft === true, url: p.html_url, opened: p.created_at, merged: p.merged_at ?? null, closed: p.closed_at ?? null, body: p.body ?? "" });
 
-// The fields of the repository that repositoryInfo asks the GraphQL API for, in one request (docs.github.com/en/graphql/reference/objects#repository, #ref). Whether the server refuses a
-// merge into the default branch until its required checks have passed is read from two fields of the default branch's Ref that a reader may see: `refUpdateRule`, the branch protection
-// rule "viewable by non-admins", with the contexts of its required status checks (`branchProtectionRule` is null to anyone but an administrator), and `rules`, the active rules of the
-// rulesets that apply to the branch, one of the type REQUIRED_STATUS_CHECKS where a ruleset requires checks. A ruleset with more than 100 rules is read for its first 100.
-const INFO = ["visibility", "isPrivate", "viewerPermission", "isArchived", "description",
-  "defaultBranchRef{name refUpdateRule{requiredStatusCheckContexts} rules(first:100){nodes{type}}}"];
-// The permissions of the viewer that may push (RepositoryPermission).
-const WRITERS = new Set(["ADMIN", "MAINTAIN", "WRITE"]);
+// The field repositoryInfo asks the GraphQL API for, beside the repository's REST record (docs.github.com/en/graphql/reference/objects#ref). Whether the server refuses a merge into the
+// default branch until its required checks have passed is read from two fields of the default branch's Ref that a reader may see: `refUpdateRule`, the branch protection rule "viewable by
+// non-admins", with the contexts of its required status checks (`branchProtectionRule` is null to anyone but an administrator), and `rules`, the active rules of the rulesets that apply to
+// the branch, one of the type REQUIRED_STATUS_CHECKS where a ruleset requires checks. A ruleset with more than 100 rules is read for its first 100.
+const GREEN = ["defaultBranchRef{refUpdateRule{requiredStatusCheckContexts} rules(first:100){nodes{type}}}"];
 // greenToMerge from the default branch's Ref: true where its protection requires a status check or a ruleset's rule does; false where both were read and neither does; null where either
-// could not be read — an error of the answer names it — or the repository has no default branch yet.
+// could not be read — an error of the answer names it — or the answer holds no default branch.
 function greenToMergeOf(ref, errors = []) {
   if (!ref) return null;
   const required = (ref.refUpdateRule?.requiredStatusCheckContexts ?? []).length > 0 || (ref.rules?.nodes ?? []).some((rule) => rule?.type === "REQUIRED_STATUS_CHECKS");
@@ -277,18 +274,13 @@ export function githubAdapter(address, { token, tokenName }, links) {
   };
 
   return {
-    // With a token, one request of the GraphQL API (INFO); without one, the REST answer of the repository, whose greenToMerge is null: the GraphQL API takes no request without a token.
+    // The repository's REST record, and, with a token, together with it one request of the GraphQL API for greenToMerge alone (GREEN). An answer of that request that is refused, fails or does not come
+    // gives greenToMerge null and fails nothing; without a token the GraphQL API takes no request, and greenToMerge is null.
     async repositoryInfo() {
-      if (!token) {
-        const r = await read(repo, { permission: "Metadata" });
-        return { defaultBranch: r.default_branch ?? null, visibility: r.visibility ?? (r.private ? "private" : "public"),
-          canWrite: false, archived: r.archived === true, description: r.description ?? "", greenToMerge: null };
-      }
-      const said = await objectsOf(INFO);
-      const r = said?.data?.repository ?? null;
-      if (r === null) throw await refusal(new Response(null, { status: 404 }), { ...context, write: false, what: address.web });
-      return { defaultBranch: r.defaultBranchRef?.name ?? null, visibility: String(r.visibility ?? "").toLowerCase() || (r.isPrivate ? "private" : "public"),
-        canWrite: WRITERS.has(r.viewerPermission), archived: r.isArchived === true, description: r.description ?? "", greenToMerge: greenToMergeOf(r.defaultBranchRef, said.errors) };
+      const green = token ? objectsOf(GREEN).then((said) => greenToMergeOf(said?.data?.repository?.defaultBranchRef, said?.errors), () => null) : Promise.resolve(null);
+      const [r, greenToMerge] = await Promise.all([read(repo, { permission: "Metadata" }), green]);
+      return { defaultBranch: r.default_branch ?? null, visibility: r.visibility ?? (r.private ? "private" : "public"),
+        canWrite: Boolean(token) && r.permissions?.push === true, archived: r.archived === true, description: r.description ?? "", greenToMerge };
     },
 
     // The branch, tag or commit resolved to one commit, then that commit's tree: every file, by its blob SHA. With `folders` and a token, only the
