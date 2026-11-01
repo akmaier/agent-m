@@ -35,7 +35,7 @@
 
 import { explain, schemaForm, chosenProduct } from "../site-frame/index.mjs";
 import { readSetting } from "../browser-store/index.mjs";
-import { readDocument, writeDocument } from "../documents/index.mjs";
+import { readDocument, writeDocument, documentFindings } from "../documents/index.mjs";
 import { catalogue, modelSchema, modelFindings, modelDiagram, planGrid } from "../model-catalogue/index.mjs";
 import { participantSchema } from "../participant-list/index.mjs";
 import { declarationSchema, declarationFindings, roleAssignmentFindings, roleAssignmentSchema, workflowOf } from "../product-process/index.mjs";
@@ -477,10 +477,15 @@ export const modelsRoute = {
 // file changed meanwhile is not written, and both versions are shown (6b). *Discard* leads back to the list: the draft is kept on the screen only
 // (4a — the module's Uses name no write to the browser's store).
 
-// A finding of the model's schema itself: one about a key, a column, a row, a table's header, a section, the path or an image, as
-// MOD-documents' documentFindings words it. schemaForm shows those already beside their fields, and modelFindings, which holds them
-// too, adds only the rest — the rules the schema cannot express — so that each finding is shown once.
-const SCHEMA_OWN = /^(the (key|column|row|header of the table|section|path|image) |.* is required, and missing$)/;
+// A Finding's identity: every field of MOD-text-tools' Finding — artifact, line, kind, rule, what, fix.
+const identity = ({ artifact, line, kind, rule, what, fix }) => JSON.stringify([artifact, line, kind, rule, what, fix]);
+
+// The findings of modelFindings beyond the model's schema: those documentFindings does not also give for the same document.
+// schemaForm shows documentFindings' own beside their fields already, so that each finding is shown once.
+function beyondSchema(document) {
+  const schemaOwn = new Set(documentFindings(modelSchema.model, document).map(identity));
+  return modelFindings(document).filter((found) => !schemaOwn.has(identity(found)));
+}
 
 // The file of the instance's model named `name`.
 const modelPath = (name) => `${INSTANCE_MODELS}${name}.md`;
@@ -626,7 +631,7 @@ async function editor(target, context, name) {
       extraChecks: (live) => {
         const document = placed(live);
         follow(document);
-        return modelFindings(document).filter((found) => !SCHEMA_OWN.test(found.what));
+        return beyondSchema(document);
       },
       onSave: async (live) => {
         const document = placed(live);
