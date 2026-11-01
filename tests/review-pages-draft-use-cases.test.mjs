@@ -146,9 +146,10 @@ function endpointAnswers(...drafts) {
   };
 }
 test.afterEach(() => { globalThis.fetch = realFetch; });
-// A drafted new use case in the five parts a use case holds.
+// A drafted new use case in the five parts a use case holds, with the Mermaid diagram its schema requires.
 const body = (realises) => useCase("UC-900", "Shelve a book", "The member shelves a book.", realises) + text("", "## Actors", "", "- **Member**", "", "## Precondition", "",
-  "- The book is in the library.", "", "## Main flow", "", "1. The member puts the book on its shelf.", "", "## Alternative flows", "", "- **1a. The shelf is full.** The member asks for another shelf.",
+  "- The book is in the library.", "", "## Main flow", "", "1. The member puts the book on its shelf.", "", "```mermaid", "flowchart LR", "    Member --> Shelf", "```", "",
+  "## Alternative flows", "", "- **1a. The shelf is full.** The member asks for another shelf.",
   "", "## Postcondition", "", "- The book stands on a shelf.");
 const drafted = (realises, path = UC_PATH("UC-900", "shelve-a-book")) => ({ files: [{ path, class: "new", text: body(realises) }] });
 

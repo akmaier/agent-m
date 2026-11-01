@@ -158,7 +158,7 @@ test("TST-580303: UC-007 a drafted use case without one of its five parts goes b
 // input: Run; the requests, and the use case written
 // expect: the second request carries a finding of the rule DIAGRAMS ARE MERMAID IN MARKDOWN that names the image; the use case written holds a block ```mermaid and no image
 test("TST-580304: UC-007 a drafted diagram that is an image goes back, and the use case written draws its diagram in Mermaid", async () => {
-  const withImage = shelve([SHELF], { diagram: false });
+  const withImage = shelve([SHELF]);
   withImage.text = withImage.text.replace("## Alternative flows", "![overview](docs/overview.png)\n\n## Alternative flows");
   const requests = endpoint(reply([withImage]), reply([shelve([SHELF])]));
   const fake = fakeProduct();
@@ -176,7 +176,7 @@ test("TST-580304: UC-007 a drafted diagram that is an image goes back, and the u
 // given: the drafting page with A BOOK IS SHELVED ticked; (a) an endpoint that answers a use case with an image instead of its diagram, then the use case with a Mermaid block; (b) an endpoint that first answers a use case with no diagram at all, then the use case with a Mermaid block
 // input: Run for each; the requests
 // expect: known positive (a) — the second request carries the finding of the rule DIAGRAMS ARE MERMAID IN MARKDOWN; (b) UC-007 step 5 has Agent M check, without a model, that a draft holds a Mermaid diagram: the second request carries a finding of the rule DIAGRAMS ARE MERMAID IN MARKDOWN that names the use case and says the diagram is missing, and the use case written holds a Mermaid block
-test("TST-580305: UC-007 a drafted use case with no diagram goes back", { todo: "FINDING UC007-F2 — a draft with no diagram at all passes the checks in round 1 and is written without one: MOD-documents' documentFindings does not find `a diagram missing where required` (src/documents/checks.mjs:16-17 states \"a Mermaid block missing where `diagrams` is `required` … [is] not checked yet\"; src/documents/checks.mjs:381-387 finds an image only), while MOD-documents' accepted text (docs/architecture/MOD-documents.md, documentFindings: \"a diagram missing where `required`, and any image\") and the schema use-case (`\"diagrams\": \"required\"`) have it found, and UC-007 step 5 has Agent M check \"a Mermaid diagram\" without a model. An item for MOD-documents (checks.mjs); no open item names it" }, async () => {
+test("TST-580305: UC-007 a drafted use case with no diagram goes back", async () => {
   const withImage = shelve([SHELF], { diagram: false });
   withImage.text = withImage.text.replace("## Alternative flows", "![overview](docs/overview.png)\n\n## Alternative flows");
   const known = endpoint(reply([withImage]), reply([shelve([SHELF])]));

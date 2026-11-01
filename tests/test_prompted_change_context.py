@@ -76,8 +76,10 @@ PRODUCT = {
     UC1_RECORD: text("kind: use-case", f"file: {UC1_PATH}", f"blob: {blob(UC1)}"),
 }
 
-# What the stand-in driver answers: UC-002 changed as the instruction says, and one changed requirement.
-UC2_CHANGED = UC2.replace("extends a loan once.", "extends a loan once, and sees the due date.")
+# What the stand-in driver answers: UC-002 changed as the instruction says, holding the Mermaid diagram a use case's schema
+# requires, and one changed requirement.
+UC2_CHANGED = UC2.replace("extends a loan once.", "extends a loan once, and sees the due date.").replace(
+    "2. The system answers.\n", "2. The system answers.\n\n```mermaid\nsequenceDiagram\n    Member->>System: extend\n    System-->>Member: due date\n```\n")
 USE_CASE_DRAFT = {"files": [{"path": UC2_PATH, "text": UC2_CHANGED, "class": "change", "of": "UC-002"}]}
 REQUIREMENT_DRAFT = {"candidates": [{
     "name": RULE, "rule": CHANGED_RULE_TEXT, "check": "`tests/loan.test.mjs`", "constrains": "product",
