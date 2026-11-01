@@ -1,7 +1,7 @@
-// MOD-review-pages' list gives a tick only to a file whose text this tab has shown (ITM-1349), as UC-008 3d states it — "Each one read gets a tick; Accept ticked writes
-// one commit with one record per ticked file, each naming the text that was shown. A file that changed after it was shown is left out and named." — and as
-// SEVERAL FILES ARE ACCEPTED IN ONE CLICK asks of a batch: "a reviewer who has been shown several reviewed files — opened one by one, or together on one review page —
-// may accept all of them with one click, in one commit that holds one approval record per file, each naming the text shown", and "none for a file that was not shown".
+// MOD-review-pages' list gives a tick to every file not accepted, read or not, as UC-008 3d states it — "Each use case not accepted has a tick on the list, read or not;
+// Accept ticked writes one commit with one record per ticked file, each naming the text the page read of it." — and as SEVERAL FILES ARE ACCEPTED IN ONE CLICK
+// asks of a batch: "ticked on their list, or shown together on one review page", "each naming the text the page read of that file". A file this tab has shown is
+// accepted with the text it showed; a file changed since is left out and named.
 // Run: node --test tests/review-pages-tick-only-read.test.mjs
 //
 // Module: MOD-review-pages
