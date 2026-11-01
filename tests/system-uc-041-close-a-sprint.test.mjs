@@ -72,6 +72,7 @@ const FLOW_EVIDENCE = {
   "main-5-proposal": { uc: "nothing of the process changes by itself", evidence: [[PY, "TST-991406"], [SELF, "TST-991209"]] },
   "main-6-commit": { uc: "The closer commits the review and the retrospective as one Markdown file with the sprint", evidence: [[SELF, "TST-991202"], [WRITER, "TST-620001"]] },
   "main-6-new-items": { uc: "the new backlog items from the feedback", evidence: [[NEW_ITEMS, "TST-987301"]] },
+  "main-6-new-items-asked": { uc: "the new backlog items from the feedback", evidence: [[SELF, "TST-991206"]] },
   "main-6-name": { uc: "under the closer's name — an agent's like any job (UC-036)", evidence: [[SELF, "TST-991202"], [PY, "TST-991402"]] },
   "main-6-holds": { uc: "Items that go back to the backlog are no longer held by the sprint; its done items stay held until its increment is merged into the default branch.", evidence: [[RELEASE, "TST-991303"]] },
   "main-6-pages": { uc: "The closer commits the review and the retrospective", evidence: [[SELF, "TST-991202"]] },
@@ -88,7 +89,6 @@ const FLOW_EVIDENCE = {
 // The passages the code does otherwise: the finding, its case, and the module it points to.
 const FLOW_FINDINGS = {
   "main-2-not-done": { uc: "the items not done, each with its state and reason (UC-034)", finding: "UC041-F3", file: SELF, test: "TST-991203", module: "MOD-work-plans" },
-  "main-6-new-items-asked": { uc: "the new backlog items from the feedback", finding: "UC041-F5", file: SELF, test: "TST-991206", module: "MOD-job-catalogue" },
   "main-1-close-job": { uc: "An agent's close job starts by itself", finding: "UC041-F1", file: SELF, test: "TST-991207", module: "MOD-work-plans" },
   "main-3-sources-kept": { uc: "naming each source", finding: "UC041-F2", file: RELEASE, test: "TST-991305", module: "MOD-work-plans" },
   "main-5-as-proposal": { uc: "is written as a proposal that a person accepts", finding: "UC041-F4", file: RELEASE, test: "TST-991306", module: "MOD-work-plans" },
@@ -213,8 +213,8 @@ test("TST-991205: UC-041 5 the numbers of the retrospective are derived from the
 // guards: UC-041
 // given: the product of TST-991202; closer-bot's feedback holds a line that goes to a new item, the issue 7's header of the export
 // input: the close job of team1/02 runs; its closer is sent the kind's prompt and the form of its answer; closer-bot answers with the new item under newItems, as closeSprint takes it
-// expect: the closer is asked for the feedback's new items: the form of its answer holds newItems beside retrospective (known positive: it holds retrospective), and the prompt asks for them; the draft with the new item is written in the one commit of the close, the item ITM-011 beside the record (known positive); FINDING UC041-F5 (MOD-job-catalogue): close-sprint's prompt and answer schema name no new items, so a closer that answers as it is asked never gives them
-test("TST-991206: UC-041 6 the closer is asked for the feedback's new items, which the close commits with the record", { todo: "FINDING UC041-F5 (MOD-job-catalogue): the answer schema and the prompt of close-sprint name no newItems, so the feedback's new backlog items of step 6 are never asked of the closer" }, async () => {
+// expect: the closer is asked for the feedback's new items: the form of its answer holds newItems beside retrospective (known positive: it holds retrospective), and the prompt asks for them; the draft with the new item is written in the one commit of the close, the item ITM-011 beside the record (known positive)
+test("TST-991206: UC-041 6 the closer is asked for the feedback's new items, which the close commits with the record", async () => {
   const w = await closeWorld();
   const item = { fields: { title: "Write the export's header", level: "module", realises: ["RULE ONE"], modules: ["MOD-store"], builds_on: [], tests: ["unit"], origin: ["the issue 7"] },
     sections: [{ heading: "## Outcome", text: "The export has a header." }, { heading: "## Acceptance", text: "- a unit test." }] };
