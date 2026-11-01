@@ -362,21 +362,23 @@ test("TST-802307: UC-031 the progress page of a product draws the measure the sa
 
 // TST-802311 · level: release · module: system
 // guards: PROGRESS IS SHOWN IN THE MODEL'S OWN MEASURE; UC-031
-// given: the editor on the adapted Kanban (pulled, a work-in-progress limit, no time box), which takes the measure remaining items per time box as it takes every measure of pulled work
-// input: the author types the measure remaining items per time box and presses Save; the progress page of a product that declares the saved model is read
-// expect: the SPEC "shows a product's progress in the measure its model definition names": the page draws no cumulative flow and no card for a definition that names remaining items per time box
-test("TST-802311: UC-031 a pulled definition that names remaining items per time box is drawn in that measure",
-  { todo: "FINDING UC031-R3 — the progress page draws the measure by the flow control of the model, not by the measure it names: progressIn (src/progress-measures/measures.mjs:236-238) gives the board and its cumulative flow for a model without sprints whatever `measure` says, while the editor (src/model-catalogue/validate.mjs:155-165, model.schema.md variants) accepts either pulled measure for either flow control; the item is for MOD-progress-measures and MOD-model-catalogue" }, async () => {
-    const editor = await adaptedAndSaved("kanban", "kanban-per-time-box", async (page) => { await typeKey(page, "measure", "remaining items per time box"); });
-    const text = Object.values(commitsOf(editor)[0].files)[0];
-    editor.done();
-    assert.match(text, /^measure: remaining items per time box$/m, "known positive: the saved definition names the measure typed");
-    const page = await progressOf(text);
-    try {
-      const own = measureOf(page);
-      assert.equal(own.flow + own.cards, 0, `no board for remaining items per time box: ${JSON.stringify(own)}`);
-    } finally { page.done(); }
-  });
+// given: the editor on the adapted Kanban (pulled, a work-in-progress limit, no time box), whose measure as opened is items per state over time
+// input: the author types the measure remaining items per time box and presses Save; then types items per state over time again
+// expect: the SPEC "shows a product's progress in the measure its model definition names": a measure per time box does not fit pulled work that has no time box, so the measure is named beside the measure field, Save is unavailable and a click on it commits nothing; known positive: the copy as opened, and the copy with items per state over time typed again, have no such finding and Save is available
+test("TST-802311: UC-031 a pulled definition without a time box that names remaining items per time box is refused, with the measure named", async () => {
+  const page = await edit("kanban");
+  try {
+    assert.equal(disabledOf(saveOf(page)), false, "known positive: the copy as opened can be saved");
+    await typeKey(page, "measure", "remaining items per time box");
+    assert.match(besideKey(page, "measure"), /measure/i, "the measure that does not fit the work is named beside the measure");
+    assert.equal(disabledOf(saveOf(page)), true);
+    await page.press(saveOf(page));
+    assert.equal(commitsOf(page).length, 0, "nothing is committed");
+    await typeKey(page, "measure", "items per state over time");
+    assert.equal(besideKey(page, "measure"), "", "counter-proof: the measure of flow work has no finding");
+    assert.equal(disabledOf(saveOf(page)), false);
+  } finally { page.done(); }
+});
 
 // ---------------------------------------------------------------- every step explains itself
 
