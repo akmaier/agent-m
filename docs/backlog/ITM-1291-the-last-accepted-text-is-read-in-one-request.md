@@ -7,6 +7,8 @@ realises:
 modules:
   - MOD-approvals
   - MOD-site-frame
+  - MOD-review-pages
+  - MOD-repository-hosts
 builds_on:
   - ITM-1268
 tests:
@@ -58,8 +60,16 @@ snapshot's commit and trees together (MOD-repository-hosts.md:200-203); the prob
   TST-1266108, TST-1294009, TST-1294005 (batches 1 → 2), TST-942003, TST-942004, TST-921003, TST-921004, TST-1334001,
   TST-680101, TST-728001, TST-894004, TST-894005, TST-729001, TST-729002 and TST-730004. "None for a tree" holds with a
   token on GitHub.
-- The implementer's own red unit test comes first. The release cases TST-1268301 to TST-1268305 and TST-1314301 to
-  TST-1314303 are changed by developer-sonnet-l in one commit after the code.
+- The implementer's own red unit test comes first.
+- The release cases TST-1268301 to TST-1268305 and TST-1314301 to TST-1314303 are changed by developer-sonnet-l in one
+  commit, written from the pushed code. It goes onto this pull request's branch before the gate, so CI is green there.
+- The item names MOD-review-pages and MOD-repository-hosts for tests only (`A BACKLOG ITEM NAMES THE MODULES IT
+  CHANGES`), as it names MOD-site-frame. The fakes of the `review-pages-*` files and of `tests/memory-host.mjs` serve
+  `readFileAt`, and no code of those modules' folders changes. A test names a module by its header's `Module:` line
+  (MOD-test-document's header), not by any mention in its text.
+- TST-929002 is counted as the probe measures it on today's `readSnapshot`: on GitLab the tree goes 2 → 1.
+- Where ITM-1349 changes the same test file, whichever pull request merges second rebases onto the sprint branch and runs
+  the moved files again.
 
 **The planning run (sprint team1/124).** A stand-in on `main` at `fb0322f08` reads the older file with one
 `readFileAt(file, [commit])` and compares its blob.
