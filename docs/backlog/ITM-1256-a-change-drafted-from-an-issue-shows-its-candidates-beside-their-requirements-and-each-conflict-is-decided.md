@@ -38,6 +38,10 @@ the page offers no decision. The review pages already show candidates by class w
   - a conflict decided as the class the person gives it, written by `writeResult` with "its `classes` replaced by theirs"
     (MOD-job-runner.md:356-360), which `entrySections` composes "only as the person resolved it"
     (MOD-spec-changes.md:178-179).
+- **The reading taken.** The item builds what MOD-maintenance-pages.md:119-120 states, from what its Uses name. The
+  existing requirement's sources, which the sentence below asks for beside a conflict, are not shown on the issue route;
+  the pull request names that as a finding, a gap between the SPEC and the module's text, for akmaier, and the item does
+  not wait for it.
 - **What it does not give.** A CONFLICT IS DECIDED BY A PERSON (SPEC.md:296-298): "A candidate that contradicts an
   existing requirement is shown beside it, with both sources and their authority". The sources of the existing
   requirement stand in its head line in the SPEC. No function MOD-maintenance-pages' Uses name gives them: a part's
