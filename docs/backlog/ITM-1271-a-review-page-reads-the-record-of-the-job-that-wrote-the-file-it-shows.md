@@ -39,6 +39,12 @@ job with an end. MOD-review-pages' text is unchanged: it names what is shown, no
 Design principles (AGENTS.md §2 *Designing*): §2.2 *nothing twice* — which job wrote a text is recorded once, in its
 commit; the page reads it there instead of searching every record for it.
 
+## Not ready
+
+`jobNotes` needs `readHistory` on the file it shows, and MOD-review-pages' Uses give `MOD-repository-hosts.readHistory`
+"on `<k>/history` only" (MOD-review-pages.md:305). Finding the job through `recordsNewestFirst` (:360-361) reads an
+unknown number of records, not the one the Acceptance asks. The item waits for akmaier's text of MOD-review-pages.
+
 ## Acceptance
 
 Tests written first, each red on the commit that holds only them:
