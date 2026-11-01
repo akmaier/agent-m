@@ -53,9 +53,9 @@ const SECRET = `# Changelog of ${GH_PATH}`, GL_SECRET = `# Changelog of ${GL_PAT
 const OTHER = "sk-not-part-of-any-layout-text-0123456789";
 
 const ghSteps = () => [
-  { method: "GET", path: GH_PREFIX, body: { default_branch: "main", visibility: "private", private: true, archived: false, description: "", permissions: { push: true } } },
-  // ITM-1170: beside the record, the read-only GraphQL request of greenToMerge.
+  // ITM-1170: with the record, the read-only GraphQL request of greenToMerge, sent first.
   { method: "POST", path: "/graphql", body: { data: { repository: { defaultBranchRef: null } } } },
+  { method: "GET", path: GH_PREFIX, body: { default_branch: "main", visibility: "private", private: true, archived: false, description: "", permissions: { push: true } } },
   { method: "GET", path: `${GH_PREFIX}/commits/main`, body: { sha: HEAD, commit: { tree: { sha: TREE } } } },
   { method: "GET", path: `${GH_PREFIX}/git/trees/${HEAD}`, body: { sha: HEAD, truncated: false, tree: [] } },
   { method: "GET", path: `${GH_PREFIX}/git/ref/heads/main`, body: { object: { sha: HEAD } } },
