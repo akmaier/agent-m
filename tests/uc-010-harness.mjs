@@ -72,7 +72,7 @@ export const PARTICIPANTS = text("# Participants of this instance", "",
 
 const useCase = (id, title, goal) => text("---", `id: ${id}`, `title: ${title}`, "area: lending", "actors:", "  - Member", "realises:", `  - ${RULE}`, "---", `# ${id} ${title}`, "",
   `**Goal.** ${goal}`, "", "## Actors", "", "- **Member**", "", "## Precondition", "", "- The member is signed in.", "", "## Main flow", "", "1. The member picks a book.",
-  "2. The member confirms the loan.", "", "## Alternative flows", "", "- **1a. The book is out.** The member is told when it is back.", "", "## Postcondition", "",
+  "2. The member confirms the loan.", "", "```mermaid", "flowchart LR", "    Member --> Loan", "```", "", "## Alternative flows", "", "- **1a. The book is out.** The member is told when it is back.", "", "## Postcondition", "",
   "- The loan states its due date.");
 export const UC1_TEXT = useCase("UC-001", "Check out a book", "The member borrows a book.");
 export const UC2_TEXT = useCase("UC-002", "Extend a loan", "The member extends a loan once.");
@@ -81,7 +81,7 @@ export const UC1_CHANGED = UC1_TEXT.replace("## Postcondition", "- **2a. The boo
 /** A use case the drafting page's job writes new: UC-003. */
 export const UC3 = "docs/use-cases/UC-003-return-a-book.md";
 export const UC3_TEXT = text("---", "id: UC-003", "title: Return a book", "area: lending", "actors:", "  - Member", "realises:", `  - ${RULE}`, "---", "# UC-003 Return a book", "", "**Goal.** The member returns a book.", "", "## Actors", "",
-  "- **Member**", "", "## Precondition", "", "- The member holds a loan.", "", "## Main flow", "", "1. The member hands the book in.", "", "## Alternative flows", "", "- **1a. The book is late.** The member is told.", "",
+  "- **Member**", "", "## Precondition", "", "- The member holds a loan.", "", "## Main flow", "", "1. The member hands the book in.", "", "```mermaid", "flowchart LR", "    Member --> Book", "```", "", "## Alternative flows", "", "- **1a. The book is late.** The member is told.", "",
   "## Postcondition", "", "- The loan is closed.");
 const SPEC = text("# Thesis tool — Specification", "", "## Lending", "", `**${RULE}** *(Product Owner)*`, "Every loan states the date by which the book is returned.", "*Check:* `tests/loan.test.mjs`");
 export const PRODUCT_FILES = { "README.md": "# Thesis tool\n", "SPEC.md": SPEC, [UC1]: UC1_TEXT, [UC2]: UC2_TEXT };

@@ -158,7 +158,7 @@ test("TST-580303: UC-007 a drafted use case without one of its five parts goes b
 // input: Run; the requests, and the use case written
 // expect: the second request carries a finding of the rule DIAGRAMS ARE MERMAID IN MARKDOWN that names the image; the use case written holds a block ```mermaid and no image
 test("TST-580304: UC-007 a drafted diagram that is an image goes back, and the use case written draws its diagram in Mermaid", async () => {
-  const withImage = shelve([SHELF], { diagram: false });
+  const withImage = shelve([SHELF]);
   withImage.text = withImage.text.replace("## Alternative flows", "![overview](docs/overview.png)\n\n## Alternative flows");
   const requests = endpoint(reply([withImage]), reply([shelve([SHELF])]));
   const fake = fakeProduct();
