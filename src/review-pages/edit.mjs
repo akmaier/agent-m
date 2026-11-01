@@ -61,7 +61,8 @@ export async function showEdit(where, kind, params) {
     target.append(readProblem(failure, Boolean(token)));
     return;
   }
-  const openedBlob = await blobSha(section);
+  // The blob the next save is compared with: the section's as opened, and after a refusal the newer one shown beside the edit (UC-018 5a).
+  let openedBlob = await blobSha(section);
   const initial = kind.fresh ? `${section.replace(/\n*$/, "\n\n")}${EMPTY_FIELDS}` : section;
 
   const others = el("ul", "others");
@@ -94,7 +95,10 @@ export async function showEdit(where, kind, params) {
     try {
       const outcome = await proposeSection(host, { target: SPEC, anchor: heading, until: null, text, why: reason, origin: "the dashboard",
         person: token?.name ?? "anonymous", openedBlob, openedHead: snapshot.commit });
-      if (outcome.refused) return { kind: "refused", newer: outcome.current ?? "" };
+      if (outcome.refused) {
+        openedBlob = typeof outcome.current === "string" ? await blobSha(outcome.current) : null;
+        return { kind: "refused", newer: outcome.current ?? "" };
+      }
       if (outcome.fallback) {
         return fallbackPages(saved, outcome.fallback) ? { kind: "failed", reason: "there is no token, so nothing was committed from here." }
           : { kind: "failed", reason: "a GitLab product is written with the project's own token." };

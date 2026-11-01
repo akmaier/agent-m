@@ -304,6 +304,39 @@ test("MOD-review-pages use-case/<id>/edit — a changed file refuses Save and ke
   assert.equal(fake.writes().length, 0, "no commit attempted");
 });
 
+// TST-1398002 · level: unit · module: MOD-review-pages
+// guards: UC-018; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; A REFUSED SAVE KEEPS THE EDIT
+// given: UC-041 opened in the editor and edited ("at the desk, with a receipt."); another writer changes it on main to "borrows one book."; Save is refused and the newer text shown
+// input: the author merges ("borrows one book, with a receipt."); a third writer changes it on main to "borrows one book at the front desk."; Save; the author merges again ("borrows one book at the front desk, with a receipt."); Save
+// expect: counter-proof: the save after the further change is refused again, nothing written, the newest text beside the edit; then the merged text is written once, on the head it was compared on, as the only file
+test("MOD-review-pages use-case/<id>/edit — after a refused save, the merged text is saved against the newer version", async () => {
+  assert.ok(route, `the route use-case: ${pages.error?.message}`);
+  const fake = fakeHost();
+  const { target } = await show(fake, { id: "UC-041", edit: "1" });
+  const newerShows = (words) => byClass(target, "div", "newer").length > 0 && byClass(target, "div", "newer")[0].textContent.includes(words);
+  type(target, UC41.replace("borrows a book at the desk.", "borrows a book at the desk, with a receipt."));
+  const first = UC41.replace("borrows a book at the desk.", "borrows one book.");
+  fake.land({ [P41]: first });
+  click(saveButton(target));
+  await until(target, () => newerShows("borrows one book."), "the newer text");
+  type(target, first.replace("borrows one book.", "borrows one book, with a receipt."));
+  const second = first.replace("borrows one book.", "borrows one book at the front desk.");
+  fake.land({ [P41]: second });
+  click(saveButton(target));
+  await until(target, () => newerShows("at the front desk."), "the newest text");
+  assert.equal(fake.writes().length, 0, "counter-proof: a further change after the refusal refuses the save again");
+  const merged = second.replace("at the front desk.", "at the front desk, with a receipt.");
+  type(target, merged);
+  const read = fake.head();
+  click(saveButton(target));
+  await until(target, () => fake.writes().length > 0 || newerShows("at the front desk."), "the answer to the save of the merged text");
+  assert.equal(fake.writes().length, 1, "the merged text is written once");
+  const [{ change }] = fake.writes();
+  assert.equal(change.expectedHead, read, "on the head that holds the newer version");
+  assert.deepEqual(change.files, [{ path: P41, text: merged }], "only the use case, as merged");
+  await until(target, () => areaOf(target) === undefined && target.textContent.includes("at the front desk, with a receipt."), "the use case to be shown again");
+});
+
 // TST-358004 · level: unit · module: MOD-review-pages
 // guards: WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; NO TEXT TRAVELS IN A URL
 // given: a GitHub product without a token, and UC-041 opened in the editor
