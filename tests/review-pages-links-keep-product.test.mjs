@@ -32,8 +32,7 @@ const instancePage = (fake) => ({ ...contextOf(fake, { product: false }), instan
 // guards: UC-008
 // given: a product with the open use cases UC-007 and UC-008, chosen on the page
 // input: the route `use-case` drawn without a part, the product's list
-// expect: the links Review all, Draft use cases, Arrange and History of use cases are "#use-case/id=all/product=<address, encoded>", "#use-case/id=draft/product=<address, encoded>",
-//   "#arrange/kind=use-cases/product=<address, encoded>" and "#use-case/id=history/product=<address, encoded>", one of each; known positive: each of the four links is found
+// expect: the links Review all, Draft use cases, Arrange and History of use cases are "#use-case/id=all/product=<address, encoded>", "#use-case/id=draft/product=<address, encoded>", "#arrange/kind=use-cases/product=<address, encoded>" and "#use-case/id=history/product=<address, encoded>", one of each; known positive: each of the four links is found
 test("the list of a product's use cases — Review all, Draft, Arrange and History keep the product", async () => {
   const page = await draw(fakeProduct(), "use-case", {});
   assert.equal(PRODUCT, encodeURIComponent(GITHUB.web), "the fixture's encoded address");
@@ -47,8 +46,7 @@ test("the list of a product's use cases — Review all, Draft, Arrange and Histo
 // guards: UC-008
 // given: the instance's own page, with no product chosen, and the same repository's open use cases UC-007 and UC-008
 // input: the route `use-case` drawn without a part
-// expect: the links Review all, Draft use cases, Arrange and History of use cases are "#use-case/id=all", "#use-case/id=draft", "#arrange/kind=use-cases" and "#use-case/id=history", with no product;
-//   known positive: each of the four links is found
+// expect: the links Review all, Draft use cases, Arrange and History of use cases are "#use-case/id=all", "#use-case/id=draft", "#arrange/kind=use-cases" and "#use-case/id=history", with no product; known positive: each of the four links is found
 test("the list of the instance's own use cases — Review all, Draft, Arrange and History stay without a product", async () => {
   const fake = fakeProduct();
   const page = await draw(fake, "use-case", {}, { context: instancePage(fake) });
@@ -62,8 +60,7 @@ test("the list of the instance's own use cases — Review all, Draft, Arrange an
 // guards: UC-008
 // given: a product whose approval records are twenty commits long in its history, and the same repository as the instance's own page
 // input: the route `use-case` with the part `history`, on the product's page and on the instance's
-// expect: on the product's page the link Older is "#use-case/id=history/before=<the parent of the twentieth commit>/product=<address, encoded>"; on the instance's page it is
-//   "#use-case/id=history/before=<the parent>"; known positive: the link is found on each page
+// expect: on the product's page the link Older is "#use-case/id=history/before=<the parent of the twentieth commit>/product=<address, encoded>"; on the instance's page it is "#use-case/id=history/before=<the parent>"; known positive: the link is found on each page
 test("the history of a product's use cases — Older keeps the product", async () => {
   const fake = fakeProduct();
   const commits = Array.from({ length: 20 }, (_, at) => ({ author: { name: "Alice", account: "alice" }, date: "2026-11-01", changes: [], parents: [`parent${at}`] }));
@@ -102,8 +99,7 @@ test("the page of a product's SPEC entry — Edit keeps the product", async () =
 // guards: UC-008
 // given: a product without a use case UC-999 and without a SPEC entry spec-none-01, and the instance's own page of the same repository
 // input: the routes `use-case` with the identifier UC-999 and `spec-entry` with spec-none-01, each also with the part `edit`, on each page
-// expect: the link "All use cases" is "#use-case/product=<address, encoded>" and "All SPEC change entries" is "#spec-entry/product=<address, encoded>" on the product's page, and "#use-case" and
-//   "#spec-entry" on the instance's; known positive: each page holds its link
+// expect: the link "All use cases" is "#use-case/product=<address, encoded>" and "All SPEC change entries" is "#spec-entry/product=<address, encoded>" on the product's page, and "#use-case" and "#spec-entry" on the instance's; known positive: each page holds its link
 test("a file that does not exist — the link to all of its kind keeps the product", async () => {
   const fake = fakeProduct();
   for (const [route, text, params] of [["use-case", "All use cases", { id: "UC-999" }], ["use-case", "All use cases", { id: "UC-999", edit: "1" }],
