@@ -32,6 +32,22 @@ of the same section adds a queue instead of replacing its entry.
 A queue's person is the account that created its index. So the editor hands the account of the token, as the host names
 it, not the token's name.
 
+## Waiting for akmaier
+
+The page can reach no account of the token. MOD-repository-hosts' Interfaces offer no function that names it, and its
+`RepositoryInfo` and `Credentials` carry none. The stored token holds `{ value, name, expires, stored }`. So nothing the
+page reaches names the account before the first save.
+
+Readings sought and not taken:
+- the instance's owner, which is right only on a person's own fork;
+- the account learnt after the first save, which the page forgets on reload;
+- the queue's title, since the default token name is shared between people.
+
+The general change is a function of MOD-repository-hosts that names the account a token belongs to (on GitHub, `GET /user`'s
+login), named in MOD-review-pages' Uses. On GitLab, `HistoryEntry.author.account` is always `null` (`gitlab.mjs:261, 276`),
+so the same change serves its queues. `requirements-draft.mjs:75` and `entry-edit.mjs:72` hand the token's name the same
+way.
+
 ## Acceptance
 
 - Two SPEC edits of one person on one day are entries of one queue. A second edit of the same section replaces its entry.
