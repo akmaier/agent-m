@@ -697,6 +697,8 @@ function markdownCells(line) {
   return trimmed.slice(1, -1).split("|").map((cell) => cell.trim());
 }
 
+// The candidates of a decision's due-diligence table the author may choose among, by the label of their row. A candidate its registry does not know — its row says `not found` — is
+// not proposed (UC-022 7a); its row in the table is where it is listed, with the address queried.
 function candidateChoices(file) {
   const { section } = splitDueDiligence(file.text);
   if (!section) return [];
@@ -708,9 +710,46 @@ function candidateChoices(file) {
     if (cells.every((cell) => /^:?-{3,}:?$/.test(cell))) continue;
     if (!header) { header = cells; continue; }
     const at = header.findIndex((cell) => cell.toLowerCase() === "candidate");
-    if (at >= 0 && cells[at]) out.push(cells[at]);
+    if (at >= 0 && cells[at] && !cells.some((cell) => cell.startsWith("not found"))) out.push(cells[at]);
   }
   return out;
+}
+
+// The columns that name a candidate in a reuse decision's tables, as MOD-reuse-facts' Candidate holds it: its name, its ecosystem, its repository.
+const IDENTITY = new Set(["candidate", "name", "ecosystem", "repository", "source repository"]);
+const plain = (cell) => cell.replace(/`([^`]+)`/g, "$1").replace(/\s+-\s+(chosen|alternative)$/i, "").trim();
+
+/**
+ * chosenIn(text, label) -> string — the decision's text with the candidate `label` names (`<name> (<ecosystem>)`, as a row of its due-diligence table names it) made the chosen one
+ * (UC-022 step 8): its name, ecosystem and repository change places with those of the chosen candidate of `## Decision` — the first row whose role is `chosen`, or that names none —, so
+ * the step due-diligence, run again when the draft is written, finds it chosen. A text in which the label names no candidate, or the chosen one, is returned unchanged.
+ */
+function chosenIn(text, label) {
+  const [, name, ecosystem] = /^(.*?) \((\w+)\)/.exec(plain(label)) ?? [];
+  const lines = text.split("\n");
+  const rows = [];
+  let heading = null, header = null;
+  for (const [at, line] of lines.entries()) {
+    if (/^## /.test(line)) { heading = line.trim(); header = null; continue; }
+    const cells = markdownCells(line);
+    if (!cells) { header = null; continue; }
+    if (heading !== "## Decision" && heading !== "## Alternatives") continue;
+    if (cells.every((cell) => /^:?-{3,}:?$/.test(cell))) continue;
+    if (!header) { header = cells.map((cell) => cell.toLowerCase()); continue; }
+    const value = (column) => plain(cells[header.indexOf(column)] ?? "");
+    const role = value("role").toLowerCase() || (heading === "## Decision" ? "chosen" : "alternative");
+    rows.push({ at, cells, header, role, name: value("candidate") || value("name"), ecosystem: value("ecosystem").toLowerCase() });
+  }
+  const chosen = rows.find((row) => row.role === "chosen");
+  const picked = rows.find((row) => row.name === name && row.ecosystem === ecosystem?.toLowerCase());
+  if (!chosen || !picked || chosen === picked) return text;
+  const identity = (row) => Object.fromEntries(row.header.map((column, at) => [column, row.cells[at]]).filter(([column]) => IDENTITY.has(column)));
+  const swapped = (row, other) => {
+    const taken = identity(other);
+    return `| ${row.cells.map((cell, at) => (IDENTITY.has(row.header[at]) ? taken[row.header[at]] ?? "" : cell)).join(" | ")} |`;
+  };
+  [lines[chosen.at], lines[picked.at]] = [swapped(chosen, picked), swapped(picked, chosen)];
+  return lines.join("\n");
 }
 
 function draftFileView(file) {
@@ -730,6 +769,8 @@ function draftFileView(file) {
       radio.type = "radio";
       radio.name = `reuse-${file.path}`;
       radio.value = candidate;
+      // The pick is the author's edit of the decision's text, which Write proposals writes (UC-022 step 8).
+      radio.addEventListener("change", () => { if (radio.checked) area.value = chosenIn(area.value, candidate); });
       list.append(el("li", null, el("label", null, radio, ` ${candidate}`)));
     }
     box.append(list);
