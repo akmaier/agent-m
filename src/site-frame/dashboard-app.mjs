@@ -29,7 +29,7 @@ import { UPSTREAM, instanceOf } from "../site/instance-repository.mjs";
 // dashboard reaches MOD-notifications, as ITM-236's Outcome names it) — through each module's own interface.
 import { openStore, readSetting, writeSetting, secretValues } from "../browser-store/index.mjs";
 import { parseAddress, connect, HostError } from "../repository-hosts/index.mjs";
-import { attachPromptBar, explain, pageStarted } from "./index.mjs";
+import { attachPromptBar, explain, pageStarted, routeProblem } from "./index.mjs";
 import { subjectOf, entryShownOf } from "./subject.mjs";
 import { foldMenu } from "./menu.mjs";
 import { fragmentOf, instanceHostFollowingStore, loadView, loadRoute, routeOf, productHostFollowingStore, tokenKeyOf } from "./routing.mjs";
@@ -1007,7 +1007,10 @@ async function route() {
       flash = null;
     }
   } catch (e) {
-    main().innerHTML = `<p class="warn">${h(errorText(noteRefusal(e)))}</p>`;
+    noteRefusal(e);
+    // A host's failure in the product's terms (errorText); any other error is a fault of the page itself, said in plain words with its message below (routeProblem).
+    if (e instanceof HostError) main().innerHTML = `<p class="warn">${h(errorText(e))}</p>`;
+    else main().replaceChildren(routeProblem(e, Boolean(token())));
   }
   window.scrollTo(0, 0);
 }
@@ -1059,7 +1062,9 @@ async function start() {
     noteRefusal(e);
     state.loadError = e;
     if (early) return;
-    main().innerHTML = loadErrorHtml({ error: e, product: T.product, ref: T.ref, hasToken: Boolean(token()) });
+    // A failed read of the branch names what failed (loadErrorHtml); an error that is no host's failure is a fault of the page itself (routeProblem).
+    if (e instanceof HostError) main().innerHTML = loadErrorHtml({ error: e, product: T.product, ref: T.ref, hasToken: Boolean(token()) });
+    else main().replaceChildren(routeProblem(e, Boolean(token())));
     addEventListener("hashchange", route);
     return;
   }
