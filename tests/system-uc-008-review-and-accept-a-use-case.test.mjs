@@ -10,7 +10,6 @@
 //
 // Authored by developer-sonnet-j (ITM-372), who implemented none of ITM-333, ITM-334, ITM-342, ITM-355, ITM-356, ITM-358, ITM-1266, ITM-1267, ITM-1319 or ITM-1323 and no UC-008 production behaviour.
 // Where the pages and UC-008 disagree the case follows UC-008 and is marked { todo } with the finding it reports; every other case is green. The finding still open:
-//   UC008-S1  3d: "Each one read gets a tick" — the list gives a tick to every use case that is not accepted, also to one the reviewer has not opened.
 //   UC008-S2  2: "The reviewer opens a use case" — on the frame's review page, the link of a row of the list names no product, so it leads to the instance's page and not to the product's use case.
 // Each test states its input and its expected values in its own text; none reads an expected result from the SPEC, a use case or an architecture file, but the flow map (TST-372201), which holds the expected passages itself
 // and checks that UC-008 still says them. A person's click is the page's own listener called with a trusted event; a script's click is made by `scripted()`; no input event of the operating system is made. Readings the texts
@@ -50,6 +49,7 @@ const FLOW_EVIDENCE = {
   "3b-no-token": { uc: "3b. No token is stored.", evidence: [[SELF, "TST-372208"]] },
   "3c-gitlab": { uc: "3c. The product is on a GitLab server and no token for it is stored.", evidence: [[SELF, "TST-372209"]] },
   "3d-accept-ticked": { uc: "3d. The reviewer has read several use cases.", evidence: [[SELF, "TST-372211"]] },
+  "3d-each-one-read-gets-a-tick": { uc: "Each one read gets a tick", evidence: [[SELF, "TST-372212"]] },
   "3e-review-all": { uc: "3e. The reviewer wants to accept every open use case at once.", evidence: [[SELF, "TST-372213"]] },
   "3f-reject": { uc: "3f. The reviewer rejects.", evidence: [[SELF, "TST-372214"]] },
   "4a-no-write-access": { uc: "4a. The reviewer has no write access.", evidence: [[SELF, "TST-372210"]] },
@@ -58,7 +58,6 @@ const FLOW_EVIDENCE = {
 };
 const FLOW_FINDINGS = {
   "main-2-opens-a-use-case-from-the-list": { uc: "The reviewer opens a use case;", finding: "UC008-S2", file: SELF, test: "TST-372216" },
-  "3d-each-one-read-gets-a-tick": { uc: "Each one read gets a tick", finding: "UC008-S1", file: SELF, test: "TST-372212" },
 };
 
 // TST-372201 · level: system · module: system
@@ -375,12 +374,14 @@ test("TST-372210: UC-008 4a a reviewer without write access is told so and offer
 
 // TST-372211 · level: system · module: system
 // guards: UC-008; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; AN APPROVAL NAMES THE EXACT TEXT; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
-// given: the list of the four use cases with the reviewer's token; UC-041, UC-043 and UC-044 ticked and UC-043 unticked again; then another writer's commit changed UC-044 on the default branch; known negative first — Accept ticked is not pressable with nothing ticked
+// given: the reviewer's token; the pages of UC-041, UC-043 and UC-044 opened, then the list of the four use cases; UC-041, UC-043 and UC-044 ticked and UC-043 unticked again; then another writer's commit changed UC-044 on the default branch; known negative first — Accept ticked is not pressable with nothing ticked
 // input: a script clicks Accept ticked; the reviewer clicks it
 // expect: known negative — with nothing ticked Accept ticked is disabled, and it reads (2) with two ticked; the script's click writes nothing; the reviewer's click makes one commit of exactly one record, UC-041's, naming the blob that was shown, and none for UC-043, which was unticked; UC-044 is left out and named with the reason that it changed since it was shown, and is still open; UC-041 is accepted
 test("TST-372211: UC-008 3d Accept ticked writes one commit with one record per ticked use case, each naming the text shown, and a use case changed after it was shown is left out and named", async () => {
   const w = await world();
   const page = await w.open();
+  for (const id of ["UC-041", "UC-043", "UC-044"]) await page.go(`#use-case/id=${id}/product=${encodeURIComponent(w.address)}`);
+  await page.go(`#use-case/product=${encodeURIComponent(w.address)}`);
   const bar = () => byClass(page.target, "button", "accept-ticked")[0];
   assert.equal(bar().disabled, true, "known negative: nothing ticked, not pressable");
   tick(tickOf(page.target, "UC-043")); tick(tickOf(page.target, "UC-043"), false);
@@ -403,8 +404,7 @@ test("TST-372211: UC-008 3d Accept ticked writes one commit with one record per 
 // given: the four use cases with the reviewer's token; the reviewer has opened the page of UC-041 and no other use case's page; known positive first — the page of UC-041 was drawn
 // input: the reviewer opens the list
 // expect: known positive — UC-041 has a tick; UC-008 3d says each use case read gets a tick: UC-044 and UC-043, not opened, have none
-test("TST-372212: UC-008 3d only a use case the reviewer has read gets a tick",
-  { todo: "FINDING UC008-S1 — the list (src/review-pages/flow.mjs, showList → rowFor) gives a tick to every file whose tick the service names, that is every use case that is not accepted, whether or not the reviewer has opened it; the list shows only the title, so Accept ticked records the blob of a text the reviewer was never shown" }, async () => {
+test("TST-372212: UC-008 3d only a use case the reviewer has read gets a tick", async () => {
   const w = await world();
   const page = await w.open(`#use-case/id=UC-041/product=${encodeURIComponent(w.address)}`);
   assert.equal(badgeOf(page.target), "open", "known positive: UC-041's page was drawn");
