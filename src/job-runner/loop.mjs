@@ -4,8 +4,9 @@
 //
 // A round sends the drafter its input — the kind's prompt with each recipe's parts in that recipe's named place, the output
 // schema, and from the second round the findings left open with the draft they concern —, reads its answer by the
-// envelope every answer has, `{ "draft": …, "answers": [ { "finding", "how", "text" } ] }`, runs the kind's checks and
-// asks each reviewing participant, whose draft is a list of findings and whose every finding is a warning. A finding whose
+// envelope every answer has, `{ "draft": …, "answers": [ { "finding", "how", "text" } ] }`, runs the kind's checks and,
+// unless they found the draft without the decision that states the whole architecture, asks each reviewing participant,
+// whose draft is a list of findings and whose every finding is a warning. A finding whose
 // rule the kind leaves to a person is kept for the person and never sent back. An error stays open until a round no longer
 // finds it; a warning the drafter justified, or a reviewer's finding it answered with its reason, is settled. The loop
 // stops when nothing is open, at the limit, or when a round leaves the open findings as they were. A round after which
@@ -68,6 +69,9 @@ function readAnswer(text, envelope) {
   return why ? { why } : { value };
 }
 
+// The rule of the check that finds a draft without the one decision that states the whole architecture: such a draft is not
+// complete, and no reviewing participant is asked for it (AN ARCHITECTURE IS CHECKED WHEN IT IS COMPLETE).
+const NOT_COMPLETE = "ONE DECISION STATES THE WHOLE ARCHITECTURE";
 const CANNOT_BE_READ = "the answer cannot be read: ";
 const unreadable = (why) => finding({ artifact: "answer", line: 1, kind: "error",
   rule: "A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT", what: `${CANNOT_BE_READ}${why}`,
@@ -177,7 +181,8 @@ export async function runJob(prepared, drivers, options) {
     let unchecked = false;
     if (readable) {
       for (const check of kind.checks) found.push(...await strategyOf("checks", check)(draft, context, prepared.parts));
-      for (const reviewer of drivers.reviewers) {
+      const complete = !found.some((f) => f.rule === NOT_COMPLETE);
+      for (const reviewer of complete ? drivers.reviewers : []) {
         cancelled();
         const parts = [...reviewerParts, { name: "draft", text: draftText(draft), size: 0, sources: [], required: true,
           recipe: "draft" }];

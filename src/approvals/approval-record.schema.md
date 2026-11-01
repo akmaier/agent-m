@@ -53,7 +53,6 @@ section: f8fbf7328c329ac0d2fc73e3901f1db1027a0f61
     "anchor": { "type": "text", "requiredWhen": { "field": "kind", "in": ["spec"] } },
     "section": { "type": "sha", "digits": 40, "requiredWhen": { "field": "kind", "in": ["spec"] } },
     "limitation": { "type": "list", "item": { "type": "text" } }
-  },
-  "noHistory": true
+  }
 }
 ```

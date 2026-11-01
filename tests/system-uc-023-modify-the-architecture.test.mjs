@@ -257,13 +257,14 @@ const ARC9_PATH = "docs/architecture/ARC-009-lending-sync.md";
 // guards: UC-023; THE DERIVATION RULES HOLD FOR ARCHITECTURE; EXACT DUPLICATES ARE FOUND WITHOUT A MODEL; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT; A CHANGE IS PROPOSED UNDER THE EXISTING NAME
 // given: the accepted product; the drafter first answers a new decision ARC-009 with the title of ARC-001 and the class new, then, once told, ARC-001 itself changed
 // input: the author opens ARC-001, describes the change in the bar, presses Send and then Review the draft
-// expect: the endpoint is asked four times, twice as the drafter and twice as the reviewer of the change, which the bar's own participant is (UC-023 2: in the prompt bar, the bar's participant derives and reviews the change; the reviewer answers no finding); the second request to the drafter carries the finding that ARC-009 states the title of the existing ARC-001, in the compiler's form; the draft the author sees holds ARC-001 alone, with the change, and no ARC-009; it shows two correction rounds and no finding left; Save commits ARC-001 alone
+// expect: the endpoint is asked three times, twice as the drafter and once as the reviewer of the change, which the bar's own participant is (UC-023 2: in the prompt bar, the bar's participant derives and reviews the change; the reviewer answers no finding) — the first draft, a decision that refines no decision, lacks the decision stating the whole architecture, so no review starts for it, and the reviewer checks the corrected draft; the second request to the drafter carries the finding that ARC-009 states the title of the existing ARC-001, in the compiler's form; the draft the author sees holds ARC-001 alone, with the change, and no ARC-009; it shows two correction rounds and no finding left; Save commits ARC-001 alone
 test("TST-739005: UC-023 2a a new identifier for something that exists is sent back and the author sees the change under the existing identifier", async () => {
   const s = await scenario({ answers: drafting({ files: [{ path: ARC9_PATH, text: asDecision("ARC-009", "Lending is synchronised"), class: "new" }] }, { files: [{ path: ARC1_PATH, text: ARC1_RETRY, class: "change", of: "ARC-001" }] }) });
   await onFile(s, "decision", "ARC-001");
   await send(s, "Let the sync retry", { participant: "drafter" });
   const asked = s.endpointRequests.filter((request) => !asReviewer(request)), reviewed = s.endpointRequests.filter(asReviewer);
-  assert.deepEqual([asked.length, reviewed.length], [2, 2], "the drafter is asked once more, and the same participant reviews each round");
+  assert.deepEqual([asked.length, reviewed.length], [2, 1], "the drafter is asked once more, and the same participant reviews the corrected draft only: the first lacks the decision stating the whole architecture");
+  assert.ok(sentTo(reviewed[0]).includes("one synchronisation module, which retries."), "the review is of the corrected draft");
   const again = sentTo(asked[1]);
   assert.ok(again.includes(`${ARC9_PATH}:1: error: "${ARC9_PATH}" states the title of the existing "ARC-001" and is classed new [EXACT DUPLICATES ARE FOUND WITHOUT A MODEL] — class it as duplicate of ARC-001`), again.slice(-1500));
   await review(s);

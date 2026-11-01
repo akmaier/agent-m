@@ -18,6 +18,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { until as settles } from "./review-pages-wait.mjs";
 
 const { openStore, writeSetting } = await import("../src/browser-store/index.mjs");
 const { registerStrategies } = await import("../src/job-runner/index.mjs");
@@ -334,4 +335,47 @@ test("spec-entry/draft - a changed source file hash sends nothing", async () => 
   assert.match(byClass(target, "p", "problem")[0].textContent, /SHA-256/);
   assert.equal(runButtons(target).length, 0);
   assert.equal(requests.length, 0);
+});
+
+// TST-1389001 · level: unit · module: MOD-review-pages
+// guards: UC-005; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH
+// given: the source register records a wrong SHA-256 for main.md of SRC-policy 2026-10-01; the person's token is stored; known positive: the same page over the register that records main.md's SHA-256; counter-proof: the same page over a content repository that does not hold main.md
+// input: choose main.md and drafter-a, Show the run panel
+// expect: the problem names main.md, says that its content changed and that a new version must be registered, and links the library's entry of SRC-policy (#library/source=SRC-policy), where a new version is registered (UC-016); no Run, nothing sent, nothing written; known positive: with the recorded SHA-256 the run panel is shown and no paragraph says the content changed; counter-proof: a file the content repository does not hold is a problem that does not say the content changed and links no new version
+test("TST-1389001: spec-entry/draft - a changed source file is named as changed, with the link to register a new version", async () => {
+  const showPanel = async (entries) => {
+    endpointAnswers();
+    const fake = fakeProduct();
+    const target = await show(fake, { id: "draft" }, { entries });
+    for (const box of byClass(target, "input", "source-file")) box.checked = box.value === MAIN_FILE;
+    chooseParticipant(target, "drafter-a");
+    click(byClass(target, "button", "prepare")[0]);
+    await settles(target, () => byClass(target, "section", "run-panel").length === 1 || byClass(target, "p", "problem").length > 0, "the run panel or a problem");
+    return { fake, target };
+  };
+
+  const { fake, target } = await showPanel({ ...SOURCE_FILES, [`docs/sources/${SOURCE}.md`]: sourceEntry({ mainSha: "0".repeat(64) }) });
+  const problem = byClass(target, "p", "problem")[0];
+  assert.ok(problem, "a problem is shown");
+  assert.match(problem.textContent, /\bmain\.md\b/);
+  assert.match(problem.textContent, /\bchanged\b/);
+  assert.match(problem.textContent, /new version/);
+  assert.match(problem.textContent, /\bregister/i);
+  const links = find(problem, (node) => node.localName === "a").map((a) => a.getAttribute("href"));
+  assert.deepEqual(links, ["#library/source=SRC-policy"]);
+  assert.equal(runButtons(target).length, 0);
+  assert.equal(requests.length, 0);
+  assert.deepEqual(fake.writes(), []);
+
+  const known = await showPanel(SOURCE_FILES);
+  assert.equal(byClass(known.target, "section", "run-panel").length, 1, "known positive: the run panel is shown");
+  assert.ok(!byClass(known.target, "p", "problem").some((p) => /\bchanged\b/.test(p.textContent)), "known positive: nothing says the content changed");
+
+  const { [`docs/sources/${SOURCE}/2026-10-01/${MAIN_FILE}`]: _held, ...withoutMain } = SOURCE_FILES;
+  const missing = await showPanel(withoutMain);
+  const unreadable = byClass(missing.target, "p", "problem")[0];
+  assert.ok(unreadable, "counter-proof: a problem is shown");
+  assert.match(unreadable.textContent, /does not hold/, "counter-proof: the file is not held");
+  assert.doesNotMatch(unreadable.textContent, /\bchanged\b/, "counter-proof: a missing file is not named as changed");
+  assert.equal(find(unreadable, (node) => node.localName === "a" && /new version/.test(node.textContent)).length, 0, "counter-proof: no new version is linked");
 });

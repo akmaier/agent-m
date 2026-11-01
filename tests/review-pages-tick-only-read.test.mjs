@@ -1,7 +1,7 @@
-// MOD-review-pages' list gives a tick only to a file whose text this tab has shown (ITM-1349), as UC-008 3d states it — "Each one read gets a tick; Accept ticked writes
-// one commit with one record per ticked file, each naming the text that was shown. A file that changed after it was shown is left out and named." — and as
-// SEVERAL FILES ARE ACCEPTED IN ONE CLICK asks of a batch: "a reviewer who has been shown several reviewed files — opened one by one, or together on one review page —
-// may accept all of them with one click, in one commit that holds one approval record per file, each naming the text shown", and "none for a file that was not shown".
+// MOD-review-pages' list gives a tick to every file not accepted, read or not, as UC-008 3d states it — "Each use case not accepted has an empty tick box on the list, read or not;
+// the reviewer ticks the ones to accept. Accept ticked writes one commit with one record per ticked file, each naming the text the page read of it." — and as SEVERAL FILES ARE ACCEPTED IN ONE CLICK
+// asks of a batch: "ticked on their list, or shown together on one review page", "each naming the text the page read of that file". A file this tab has shown is
+// accepted with the text it showed; a file changed since is left out and named.
 // Run: node --test tests/review-pages-tick-only-read.test.mjs
 //
 // Module: MOD-review-pages
@@ -135,27 +135,27 @@ const click = (node) => node.dispatchEvent(new Event("click"));
 // guards: UC-008; SEVERAL FILES ARE ACCEPTED IN ONE CLICK
 // given: a product whose `main` holds UC-041 and UC-044 open, UC-042 accepted and UC-043 changed since acceptance; a token; this tab has drawn no page of a use case
 // input: the route use-case drawn as the list
-// expect: known positive — a row for each of the four use cases with its status, and Accept ticked, which cannot be pressed yet; a use case not read has no tick: none of the four rows has one
-test("TST-1349001 use-case list — a use case the tab has not shown has no tick", async () => {
+// expect: known positive — a row for each of the four use cases with its status, and Accept ticked, which cannot be pressed yet; every use case not accepted has a tick, read or not: UC-041, UC-043 and UC-044, and the accepted UC-042 none
+test("TST-1349001 use-case list — every use case not accepted has a tick, whether the tab has shown it or not", async () => {
   assert.ok(route, `the route use-case: ${pages.error?.message}`);
   const product = productOf(1);
   const target = await show(fakeHost(product), product);
   assert.deepEqual(IDS.map((id) => badgeOf(rowOf(target, id))), ["open", "accepted", "changed since acceptance", "open"], "known positive: the four use cases are listed");
   assert.equal(byClass(target, "button", "accept-ticked")[0]?.disabled, true, "known positive: Accept ticked is there, and nothing is ticked");
-  assert.deepEqual(tickedIn(target), [], "none has a tick");
+  assert.deepEqual(tickedIn(target), ["UC-041", "UC-043", "UC-044"], "every use case not accepted has a tick");
 });
 
 // TST-1349002 · level: unit · module: MOD-review-pages
 // guards: UC-008; SEVERAL FILES ARE ACCEPTED IN ONE CLICK
 // given: the product of TST-1349001, a token
 // input: the page of UC-041 drawn, then the page of UC-043; the list drawn again
-// expect: known positive — a tick on UC-041 and on UC-043, whose pages were shown; none on UC-044, which was open and not shown, and none on UC-042, which is accepted
-test("TST-1349002 use-case list — a use case whose page the tab has shown has a tick, one not shown has none", async () => {
+// expect: a tick on UC-041 and UC-043, whose pages were shown, and on UC-044, which was not; none on UC-042, which is accepted
+test("TST-1349002 use-case list — a use case shown and one not shown both have a tick", async () => {
   assert.ok(route, `the route use-case: ${pages.error?.message}`);
   const product = productOf(2), fake = fakeHost(product);
   await show(fake, product, { id: "UC-041" });
   await show(fake, product, { id: "UC-043" });
-  assert.deepEqual(tickedIn(await show(fake, product)), ["UC-041", "UC-043"]);
+  assert.deepEqual(tickedIn(await show(fake, product)), ["UC-041", "UC-043", "UC-044"]);
 });
 
 // TST-1349003 · level: unit · module: MOD-review-pages
@@ -197,13 +197,13 @@ test("TST-1349004 use-case list — the use cases shown together on the review p
 // guards: UC-008; SEVERAL FILES ARE ACCEPTED IN ONE CLICK
 // given: two products on GitHub, each a repository of its own with its own host, holding the same use cases, a token for each
 // input: the page of UC-041 of the first product drawn; the list of the first product drawn; the list of the second product drawn
-// expect: known positive — the first product's list has a tick on UC-041; the second product's list has none: a page of another product shows nothing of this one
-test("TST-1349005 use-case list — what the tab showed of one product gives no tick in another product's list", async () => {
+// expect: each product's list has a tick on each of its own use cases not accepted, UC-041, UC-043 and UC-044
+test("TST-1349005 use-case list — each product's list ticks its own use cases not accepted", async () => {
   assert.ok(route, `the route use-case: ${pages.error?.message}`);
   const first = productOf(5), second = productOf(6), fake = fakeHost(first), other = fakeHost(second);
   await show(fake, first, { id: "UC-041" });
-  assert.deepEqual(tickedIn(await show(fake, first)), ["UC-041"], "known positive: the first product");
-  assert.deepEqual(tickedIn(await show(other, second)), [], "the second product");
+  assert.deepEqual(tickedIn(await show(fake, first)), ["UC-041", "UC-043", "UC-044"], "the first product");
+  assert.deepEqual(tickedIn(await show(other, second)), ["UC-041", "UC-043", "UC-044"], "the second product");
 });
 
 // TST-1349006 · level: unit · module: MOD-review-pages

@@ -156,14 +156,14 @@ function shownBy(target) {
 // guards: UC-008; STATUS IS DERIVED FROM THE RECORDS
 // given: the use cases UC-041 and UC-044 open, UC-043 changed since acceptance, UC-042 and UC-045 accepted; a token
 // input: the route use-case drawn as the list; the page of UC-043 drawn; the list drawn again
-// expect: one first part, before the whole list, holding UC-041, UC-043, UC-044 with the statuses open, changed since acceptance, open and no tick, as no page was shown; the whole list holds UC-041 to UC-045 with their statuses and no tick; after the page of UC-043 the first part holds one tick
-test("TST-879001 use-case list — the open and changed use cases first, a tick on each whose page was shown, then every use case", async () => {
+// expect: one first part, before the whole list, holding UC-041, UC-043, UC-044 with the statuses open, changed since acceptance, open and a tick on each, whether a page was shown or not; the whole list holds UC-041 to UC-045 with their statuses and no tick; after the page of UC-043 the first part still holds three ticks
+test("TST-879001 use-case list — the open and changed use cases first, each with a tick, then every use case", async () => {
   assert.deepEqual(shownBy(await show("use-case", USE_CASES_MIXED)), { parts: 1, open: ["UC-041", "UC-043", "UC-044"], openStatuses: ["open", "changed since acceptance", "open"],
-    openTicks: 0, whole: ["UC-041", "UC-042", "UC-043", "UC-044", "UC-045"], wholeStatuses: ["open", "accepted", "changed since acceptance", "open", "accepted"], wholeTicks: 0,
+    openTicks: 3, whole: ["UC-041", "UC-042", "UC-043", "UC-044", "UC-045"], wholeStatuses: ["open", "accepted", "changed since acceptance", "open", "accepted"], wholeTicks: 0,
     partBeforeWhole: true });
   const host = fakeHost(USE_CASES_MIXED);
   await show("use-case", USE_CASES_MIXED, { host, params: { id: "UC-043" } });
-  assert.equal(shownBy(await show("use-case", USE_CASES_MIXED, { host })).openTicks, 1, "known positive: the use case whose page was shown has a tick");
+  assert.equal(shownBy(await show("use-case", USE_CASES_MIXED, { host })).openTicks, 3, "every use case not accepted still has a tick after a page was shown");
 });
 
 // TST-879002 · level: unit · module: MOD-review-pages
@@ -192,17 +192,17 @@ test("TST-879003 use-case list without a token — the first part is shown, with
 // guards: UC-023; STATUS IS DERIVED FROM THE RECORDS
 // given: the decisions ARC-002 open, ARC-003 changed, ARC-001 accepted; the modules MOD-desk and MOD-queue open, MOD-shelf accepted; a token
 // input: the route decision drawn as the list; the route module drawn as the list; the pages of ARC-003 and of MOD-desk drawn; both lists drawn again
-// expect: decisions: a first part before the whole list holding ARC-002, ARC-003 (open, changed since acceptance) with no tick, the whole list ARC-001 to ARC-003 with no tick; modules: the first part MOD-desk, MOD-queue (open, open) with no tick, the whole list MOD-desk, MOD-queue, MOD-shelf with no tick; after the pages, one tick in the first part of each list
-test("TST-879004 decision and module lists — the open and changed files first, a tick on each whose page was shown, then every file", async () => {
-  assert.deepEqual(shownBy(await show("decision", ARCHITECTURE_MIXED)), { parts: 1, open: ["ARC-002", "ARC-003"], openStatuses: ["open", "changed since acceptance"], openTicks: 0,
+// expect: decisions: a first part before the whole list holding ARC-002, ARC-003 (open, changed since acceptance) with a tick each, the whole list ARC-001 to ARC-003 with no tick; modules: the first part MOD-desk, MOD-queue (open, open) with a tick each, the whole list MOD-desk, MOD-queue, MOD-shelf with no tick; after the pages, still a tick on each file of the first part
+test("TST-879004 decision and module lists — the open and changed files first, each with a tick, then every file", async () => {
+  assert.deepEqual(shownBy(await show("decision", ARCHITECTURE_MIXED)), { parts: 1, open: ["ARC-002", "ARC-003"], openStatuses: ["open", "changed since acceptance"], openTicks: 2,
     whole: ["ARC-001", "ARC-002", "ARC-003"], wholeStatuses: ["accepted", "open", "changed since acceptance"], wholeTicks: 0, partBeforeWhole: true });
-  assert.deepEqual(shownBy(await show("module", ARCHITECTURE_MIXED)), { parts: 1, open: ["MOD-desk", "MOD-queue"], openStatuses: ["open", "open"], openTicks: 0,
+  assert.deepEqual(shownBy(await show("module", ARCHITECTURE_MIXED)), { parts: 1, open: ["MOD-desk", "MOD-queue"], openStatuses: ["open", "open"], openTicks: 2,
     whole: ["MOD-desk", "MOD-queue", "MOD-shelf"], wholeStatuses: ["open", "open", "accepted"], wholeTicks: 0, partBeforeWhole: true });
   const host = fakeHost(ARCHITECTURE_MIXED);
   await show("decision", ARCHITECTURE_MIXED, { host, params: { id: "ARC-003" } });
   await show("module", ARCHITECTURE_MIXED, { host, params: { id: "MOD-desk" } });
-  assert.equal(shownBy(await show("decision", ARCHITECTURE_MIXED, { host })).openTicks, 1, "known positive: the decision whose page was shown has a tick");
-  assert.equal(shownBy(await show("module", ARCHITECTURE_MIXED, { host })).openTicks, 1, "known positive: the module whose page was shown has a tick");
+  assert.equal(shownBy(await show("decision", ARCHITECTURE_MIXED, { host })).openTicks, 2, "every decision not accepted has a tick");
+  assert.equal(shownBy(await show("module", ARCHITECTURE_MIXED, { host })).openTicks, 2, "every module not accepted has a tick");
 });
 
 // TST-879005 · level: unit · module: MOD-review-pages

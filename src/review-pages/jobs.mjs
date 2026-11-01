@@ -22,7 +22,7 @@ import { queueJob, routesFor, runOnTab } from "../runtimes/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
 import { runPanel, explain, readProblem } from "../site-frame/index.mjs";
 import { coverageGaps, latestGraph, storedGraph } from "../trace-graph/index.mjs";
-import { editedResult, flagged, showCurrent, splitCandidate, splitProblem } from "./candidates.mjs";
+import { editedResult, flagged, passagesLine, shownOnPanel, showCurrent, splitCandidate, splitProblem } from "./candidates.mjs";
 import { defaultSnapshot, el, button, link, reviewLink, refusalText, tokenStep } from "./common.mjs";
 import { dueDiligenceSection, roundsSection, splitDueDiligence } from "./sections.mjs";
 import { sourcesOf } from "./spec-entries.mjs";
@@ -171,14 +171,14 @@ export async function preparedRun(run, snapshot = run.snapshot, params = run.par
   return { ...run, snapshot, params, prepared, jobContext, id, now, agentM, offer };
 }
 
-// The run panel for the chosen participant and selection; Run starts the job.
+// The run panel for the chosen participant and selection; Run starts the job. A failure of the preparation is shown as the route names it (`problemOf`), else as the frame's readProblem.
 export async function panelOf(run) {
   const { stage, token, kind } = run;
   let ready;
   try {
     ready = await preparedRun(run);
   } catch (failure) {
-    stage.append(readProblem(failure, Boolean(token)));
+    stage.append(run.problemOf?.(failure) ?? readProblem(failure, Boolean(token)));
     return;
   }
   const panel = runPanel(ready.prepared, { onRun: () => start(ready) });
@@ -369,10 +369,21 @@ async function showRequirementsDraft(where, kind) {
       const count = prepared.parts.find((part_) => part_.recipe === "spec-with-queues")?.artifacts?.length ?? 0;
       panel.append(el("p", "requirements-included", `${count} existing requirements included.`));
     };
+    const problemOf = (failure) => (failure?.name === "HashMismatch" ? changedSource(failure, picked.choice) : null);
     await panelOf({ ...where, definition, kind, jobKind: kind.draft, params, worksOn, present: presentRequirements, chosen, participants,
-      instanceSnapshot, product, needs, stage, decoratePanel });
+      instanceSnapshot, product, needs, stage, decoratePanel, problemOf });
   });
   target.append(prepare, stage);
+}
+
+// UC-005 1a: a file whose bytes no longer match the SHA-256 its version records (MOD-source-register's HashMismatch { file, expected, actual }) is named as changed, with the link to the
+// library's entry of its source, where a new version is registered (UC-016); nothing has been sent. A file the chosen version does not hold names no source, and the link is to the library.
+function changedSource(failure, choice) {
+  const holds = choice.version.files.some((file) => file.name === failure.file);
+  return el("p", "problem changed-source",
+    `The content of ${failure.file}${holds ? ` of ${choice.id} ${choice.version.version}` : ""} changed: its SHA-256 is ${failure.actual}, not the ${failure.expected} its version records. `,
+    "Nothing is sent. A new version must be registered (UC-016): ",
+    link(holds ? `#library/source=${encodeURIComponent(choice.id)}` : "#library", "new-version", holds ? `Register a new version of ${choice.id}` : "Register a new version"));
 }
 
 function classOptions(value) {
@@ -412,7 +423,7 @@ function candidateItem(candidate, decided, linked, { parsed, register, onClass, 
   const refresh = () => showCurrent(current, parsed.requirements.get(of.value.trim()), register);
   of.addEventListener("input", refresh);
   refresh();
-  item.append(of, el("p", "candidate-rule", candidate.rule));
+  item.append(of, el("p", "candidate-rule", candidate.rule), passagesLine(decided));
   if (candidate.constrains === "process") item.append(el("p", "constrains-process", "Constrains the process."));
   if (decided.class === "conflict" && linked?.source?.fields?.authority) {
     item.append(el("p", "normative", `${linked.source.id} is ${linked.source.fields.authority}.`));
@@ -427,7 +438,7 @@ function candidateItem(candidate, decided, linked, { parsed, register, onClass, 
 }
 
 async function presentRequirements(outcome, result, run) {
-  const candidates = Array.isArray(outcome.draft?.candidates) ? outcome.draft.candidates : [];
+  const candidates = (Array.isArray(outcome.draft?.candidates) ? outcome.draft.candidates : []).filter((candidate) => shownOnPanel(candidate, outcome.classes));
   const classes = candidates.map((candidate) => candidateClass(candidate, outcome.classes));
   const linked = await linkedSourceInfo(run);
   const parsed = parseSpec((await run.snapshot.read("SPEC.md")) ?? "");

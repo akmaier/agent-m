@@ -155,7 +155,7 @@ test("TST-579203: UC-005 1a a file whose hash differs from the recorded one send
 // given: the product, the register and the changed file of TST-579203
 // input: show the run panel
 // expect: 1a: the page says that the content changed and that a new version must be registered (UC-016), in these words or others that name both: the word changed, and a new version to register
-test("TST-579204: UC-005 1a the page says that the content changed and that a new version must be registered", { todo: "FINDING: the page shows the hash mismatch as `This page could not be drawn: <path> has the SHA-256 …, not the … its version records` (MOD-site-frame readProblem, for an error that is no host's failure); no text names that the content changed or that a new version is to be registered (UC-016). MOD-review-pages shows it in its draft route; no accepted module text assigns the words" }, async () => {
+test("TST-579204: UC-005 1a the page says that the content changed and that a new version must be registered", async () => {
   const entries = { ...sourceFiles(), [`docs/sources/${SOURCE}/${VERSION}/${MAIN_FILE}`]: `${MAIN_TEXT}Chapter 3: changed afterwards.\n` };
   const w = await world({ instance: { entries }, answers: { candidates: [] } });
   const prepared = await w.prepare({ files: [MAIN_FILE] });
@@ -340,7 +340,7 @@ test("TST-579211: UC-005 6.2 a candidate that restates an existing rule is a dup
 // given: the endpoint answers A FINE IS CHARGED (passage ch. 5) and LATE LOANS COST A FINE (passage ch. 6), which state the same rule in other words of capitals, both new
 // input: Run, then Write proposals
 // expect: 6.1: the two are one requirement on the panel and in the written queue, which names both passages ch. 5 and ch. 6; the written section holds the rule "A late loan is charged a fine." once
-test("TST-579212: UC-005 6.1 candidates of one run that state the same rule are merged into one, naming every passage", { todo: "FINDING: src/review-pages/candidates.mjs:149-168 editedResult rebuilds the classes with one class for each candidate (`classes.push({ refs: [edited.name], … })`), so the merged class of the last round (`refs` of both) is lost; both candidates stay on the panel and both are written as requirements with the same rule, each naming both passages. MOD-job-runner's candidate-classes and MOD-spec-changes' entrySections (which composes the first ref only) handle the merge; MOD-review-pages' panel undoes it" }, async () => {
+test("TST-579212: UC-005 6.1 candidates of one run that state the same rule are merged into one, naming every passage", async () => {
   const w = await world({ answers: { candidates: [
     candidate("A FINE IS CHARGED", { rule: "A late loan is charged a fine.", passage: "ch. 5" }),
     candidate("LATE LOANS COST A FINE", { rule: "a late loan is charged a fine.", passage: "ch. 6" })] } });

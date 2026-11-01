@@ -1089,13 +1089,13 @@ under `products/`, which git ignores except for `products/README.md`.
 `products/` is ignored by git.
 
 **SEVERAL FILES ARE ACCEPTED IN ONE CLICK** *(PO A. Maier)*
-A reviewer who has been shown several reviewed files — opened one by one, or together on one review page
-— may accept all of them with one click, in one commit that holds one approval record per file, each
-naming the text shown.
-*Check:* `tests/review-core.test.mjs` — a batch writes one record per file shown, and none for a file that
-was not shown; counter-proof: a file changed after it was shown is left out and named, and a file the
-review page could not show — one whose named requirements are not all accepted — gets no record and is
-named.
+A reviewer may accept several reviewed files with one click — ticked on their list, or shown together on
+one review page — in one commit that holds one approval record per file, each naming the text the page
+read of that file.
+*Check:* `tests/review-core.test.mjs` — a batch writes one record per file ticked or shown, each naming the
+text the page read, and none for a file not ticked; counter-proof: a file changed after the page read it is
+left out and named, and a file the review page could not show — one whose named requirements are not all
+accepted — gets no record and is named.
 
 **A QUEUE IS ACCEPTED IN ITS ORDER** *(PO A. Maier)*
 Entries of one queue accepted together are written in the order of the queue's index, in one commit,
@@ -1480,9 +1480,8 @@ A refactoring job changes the expected result of no test.
 value fails; counter-proof: one that only moves a test passes.
 
 **AN IMPLEMENTATION JOB CHANGES ONLY ITS MODULES** *(Vibe Coding, ch. 12 §6, ch. 10 §3; PO A. Maier)*
-The pull request of an implementation job changes only code files in the folders of the modules the job was
-given, tests that name one of those modules, and the files outside every module that one of those modules' files names
-as taken over.
+The pull request of an implementation job changes only tests, test helpers, code files in the folders of the modules the
+job was given, and the files outside every module that one of those modules' files names as taken over.
 *Check:* `tests/test_implementation_job.py`
 
 **EVERY CODE FILE BELONGS TO A MODULE** *(PO A. Maier)*
