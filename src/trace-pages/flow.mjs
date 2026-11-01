@@ -373,10 +373,12 @@ async function showGaps(box, shown) {
 }
 
 // An anchor to a route of the review pages, in the address form the frame reads: the route, then its parts as key=value, each encoded. It is a
-// plain link, as the review pages draw a link to another page; a button is what acts on the page shown.
-function reviewLink(className, text, route, params) {
+// plain link, as the review pages draw a link to another page; a button is what acts on the page shown. With `product`, the address of the product shown, the link
+// ends in `product=` and the address percent-encoded, the form MOD-site-frame's chosenProduct reads back.
+function reviewLink(className, text, route, params, product = null) {
   const anchor = el("a", className, text);
-  const parts = Object.entries(params).map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+  const parts = [...Object.entries(params).map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`),
+    ...(product ? [`product=${encodeURIComponent(product)}`] : [])];
   anchor.setAttribute("href", parts.length ? `#${route}/${parts.join("/")}` : `#${route}`);
   return anchor;
 }
@@ -1034,7 +1036,9 @@ export const route = {
           fill = () => showGaps(place, shown);
         } else if (descriptor.key === "tests") {
           const place = el("div", "tests-page", el("p", "traces-reading", "Reading the tests…"));
-          body = el("section", "tests head", el("h2", null, descriptor.title), await testsViews("Browser"), place);
+          // Arranging leads to writing, so *Arrange* stands on the default branch's head only (UC-021 step 1), to the review pages' arrange/tests with the product kept.
+          const arrange = shown.onDefaultBranch ? [el("p", "tests-change-links", reviewLink("arrange-link", "Arrange", "arrange", { kind: "tests" }, context.product.address))] : [];
+          body = el("section", "tests head", el("h2", null, descriptor.title), await testsViews("Browser"), ...arrange, place);
           fill = () => showTests(place, shown, params);
         } else {
           if (current) shown.source = source;
