@@ -187,7 +187,7 @@ test("arrange — Propose groups shows what is sent where, and nothing is sent o
 // guards: UC-021; ONE CLICK PER DECISION
 // given: the same page, the panel shown, and a participant whose answer is three moves: a new group Lending, UC-004 into it, and UC-002 into it
 // input: Run; then Save arrangement
-// expect: after Run the model was asked once and the moves stand as three pending changes — "Add the group “Lending”", "Move UC-004 to “Lending”", "Move UC-002 to “Lending”" — beside the tree, and the group file is unchanged (the job record is the only thing the job commits: no commit holds docs/groups/use-cases.md); Save arrangement then commits the group file and nothing else, with UC-004 and UC-002 under Lending
+// expect: after Run the model was asked once and the moves stand as three pending changes — "Add the group “Lending”", "Move UC-004 from the top level to “Lending”", "Move UC-002 from “Review” to “Lending”" — beside the tree, and the group file is unchanged (the job record is the only thing the job commits: no commit holds docs/groups/use-cases.md); Save arrangement then commits the group file and nothing else, with UC-004 and UC-002 under Lending
 test("arrange — Run starts the job in the tab, the moves stand as pending changes, and Save arrangement writes the group file alone", async () => {
   endpointAnswers();
   const fake = fakeProduct();
@@ -195,7 +195,7 @@ test("arrange — Run starts the job in the tab, the moves stand as pending chan
   const panel = await panelFor(target);
   click(runButtons(panel)[0]);
   await until(() => pending(target).length === 3, "the pending changes");
-  assert.deepEqual(pending(target), ["Add the group “Lending”", "Move UC-004 to “Lending”", "Move UC-002 to “Lending”"]);
+  assert.deepEqual(pending(target), ["Add the group “Lending”", "Move UC-004 from the top level to “Lending”", "Move UC-002 from “Review” to “Lending”"]);
   assert.equal(requestsToModel().length, 1, "the model was asked once");
   assert.equal(fake.writes().filter((change) => change.files.some((file) => file.path === GROUPS_PATH)).length, 0, "the group file is unchanged");
   assert.equal(fake.files()[GROUPS_PATH], PRODUCT[GROUPS_PATH]);
@@ -267,7 +267,7 @@ test("arrange — a proposed move the tree refuses is listed with its reason and
   const panel = await panelFor(target);
   click(runButtons(panel)[0]);
   await until(() => byClass(target, "li", "arrange-refused-item").length === 1, "the refused move");
-  assert.deepEqual(pending(target), ["Move UC-004 to “Review”"]);
+  assert.deepEqual(pending(target), ["Move UC-004 from the top level to “Review”"]);
   assert.match(byClass(target, "li", "arrange-refused-item")[0].textContent, /Move UC-002 to “Nowhere”: /);
   assert.equal(fake.files()[GROUPS_PATH], PRODUCT[GROUPS_PATH]);
 });
@@ -286,5 +286,5 @@ test("arrange — a proposal comes on top of the changes the author already made
   const panel = await panelFor(target);
   click(runButtons(panel)[0]);
   await until(() => pending(target).length === 2, "the proposal");
-  assert.deepEqual(pending(target), ["Add the group “Mine”", "Move UC-004 to “Review”"]);
+  assert.deepEqual(pending(target), ["Add the group “Mine”", "Move UC-004 from the top level to “Review”"]);
 });
