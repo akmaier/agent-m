@@ -10,14 +10,15 @@
 //   - A comment refused for want of the permission (`PermissionMissing`), or for want of a token (`NotSupported`, which MOD-repository-hosts' commentOnIssue gives only without a token, before any request), returns `{ item, comment: { text, issue } }` and sets no
 //     label (a token that may not comment may not label): UC-033 4b names both, "No token for the issue tracker is stored, or the token may not comment". Any other failure of the comment or of the label passes unchanged, the item being committed
 //     already. With `existing`, the item of that identifier is rewritten with the issue's address added to its origins, and the `item` given is not used; an identifier the backlog lacks is `NotFound { path }`, with nothing written.
+//   - The module files, the items and their identifiers are read through MOD-documents (ITM-1298): a path is a module file or an item where `readDocument` gives it an identifier under the module or the item schema, whose path patterns those are.
+//     The one folder name kept is the backlog's, `docs/backlog/`, the SPEC's own (THE BACKLOG LIVES IN THE PRODUCT REPOSITORY): an item of the schema under `docs/plan/` is a plan step, no item of the backlog. A list field is the list `readDocument` gives.
 
 import { artifactSchemas, readDocument } from "../documents/index.mjs";
 import { issueLabels, noteText } from "../mail-records/index.mjs";
 import { saveItems } from "../work-plans/index.mjs";
 import { IssueClass } from "./classes.mjs";
 
-const MODULE_FILE = /^docs\/architecture\/MOD-[^/]+\.md$/;
-const ITEM_IDENTIFIER = /\/(ITM-\d{3,})-[^/]*\.md$/;
+const BACKLOG = "docs/backlog/";
 const ACCEPTANCE = {
   [IssueClass.bug]: "- A unit test that fails on the reported behaviour passes after the fix.",
   [IssueClass.change]: "- Unit tests guard each requirement the change names.",
@@ -26,7 +27,8 @@ const ACCEPTANCE = {
 // A failure of the module's own, by name, with the fields its message names.
 const failure = (name, message, fields) => Object.assign(new Error(message), { name, ...fields });
 const unique = (values) => [...new Set(values)];
-const listOf = (value) => (Array.isArray(value) ? value.map(String) : String(value ?? "").split(",").map((part) => part.trim()).filter(Boolean));
+// The identifier a path gives under a schema, read from the path alone: null for a file that is none of the schema's.
+const identifierOf = (schema, path) => readDocument(schema, path, "").id;
 
 /**
  * backlogItemFrom(issue, cls, analysis, changed) -> { item } — the backlog item a person checks before adding it (UC-033 step 2): its title from the issue's title, its outcome from the issue's description, its origin the issue's address, what it
@@ -55,19 +57,19 @@ export async function moveToBacklog(host, issue, item, existing) {
   const { defaultBranch } = await host.repositoryInfo();
   const snapshot = await host.readSnapshot(defaultBranch);
   const schemas = artifactSchemas();
-  const architecture = await Promise.all(snapshot.paths.filter((path) => MODULE_FILE.test(path)).sort().map(async (path) => readDocument(schemas.module, path, (await snapshot.read(path)) ?? "")));
+  const architecture = await Promise.all(snapshot.paths.filter((path) => identifierOf(schemas.module, path) !== null).sort().map(async (path) => readDocument(schemas.module, path, (await snapshot.read(path)) ?? "")));
 
   let written = item;
   if (existing !== null && existing !== undefined) {
-    const path = snapshot.paths.find((each) => ITEM_IDENTIFIER.exec(each)?.[1] === existing);
-    if (!path) throw failure("NotFound", `${existing} is no item of the backlog at ${snapshot.commit}.`, { path: `docs/backlog/${existing}-*.md` });
+    const path = snapshot.paths.find((each) => each.startsWith(BACKLOG) && identifierOf(schemas.item, each) === existing);
+    if (!path) throw failure("NotFound", `${existing} is no item of the backlog at ${snapshot.commit}.`, { path: `${BACKLOG}${existing}-*.md` });
     const held = readDocument(schemas.item, path, (await snapshot.read(path)) ?? "");
-    const origin = listOf(held.fields.origin);
+    const origin = [].concat(held.fields.origin ?? []);
     written = { fields: { ...held.fields, origin: origin.includes(issue.address) ? origin : [...origin, issue.address] }, sections: held.sections };
   }
   const saved = await saveItems(host, { items: [written], removed: [] }, { architecture, head: snapshot.commit, trailers: [] });
   const path = saved.written[0];
-  const identifier = ITEM_IDENTIFIER.exec(path)[1];
+  const identifier = identifierOf(schemas.item, path);
 
   const text = noteText("item-added", identifier, new Date().toISOString().slice(0, 10), host.webLinks().file(path, defaultBranch));
   try {

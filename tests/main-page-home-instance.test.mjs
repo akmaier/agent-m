@@ -54,7 +54,7 @@ async function drawn(stored) {
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-046
 // given: this browser keeps alice/product and bob/other, each with its own token, and the instance alice/agent-m with the instance's token; each product's branch overview-cache holds the overview of its head (six stored stages; ITM-0900 in progress with the job JOB-20261016-1000-ffff, which the Bridge lab-pc-4 lists as running); the instance holds its participant list
 // input: the route home drawn; every request counted by the repository it names
-// expect: two cards, each with the six stored stages ("Requirements 100 % stored requirements" … "Release 0 % stored release") and the build row ["ITM-0900", the job, "dev-cli", "running", "2h 0m 0s"]; known positive: requests to alice/product were made; not one request names alice/agent-m — no repository, no commit and no tree of the instance — and none is a batch (POST /graphql); counter-proof: with bob/other's overview left out, its card is derived from its files ("Use cases 50 % 1 of 2 accepted") and the instance is read once — its repository, the commit of main and its tree, ["", "/commits/main", "/git/trees/<the instance's head>"] —; with neither overview, the instance is read once for both cards, the same three requests; and with no product kept, Agent M's own card, whose repository the instance is, reads the instance's repository, the commit of main and its tree once each
+// expect: two cards, each with the six stored stages ("Requirements 100 % stored requirements" … "Release 0 % stored release") and the build row ["ITM-0900", the job, "dev-cli", "running", "2h 0m 0s"]; known positive: requests to alice/product were made; not one request names alice/agent-m — no repository, no commit and no tree of the instance — and none is a batch: the only POST /graphql are the two of greenToMerge (ITM-1170), one with each product's token; counter-proof: with bob/other's overview left out, its card is derived from its files ("Use cases 50 % 1 of 2 accepted") and the instance is read once — its repository, the commit of main and its tree, ["", "/commits/main", "/git/trees/<the instance's head>"] —; with neither overview, the instance is read once for both cards, the same three requests; and with no product kept, Agent M's own card, whose repository the instance is, reads the instance's repository, the commit of main and its tree once each
 test("TST-1302010 while every card has a stored overview the route home reads none of the instance; a card drawn from the scope all, or Agent M's own, reads it once", async () => {
   const both = await drawn([PRODUCT, OTHER]);
   const cards = cardsOf(both);
@@ -65,7 +65,8 @@ test("TST-1302010 while every card has a stored overview the route home reads no
   }
   assert.ok(requestsTo(PRODUCT).length > 0, "known positive: the count sees the requests to alice/product");
   assert.deepEqual(requestsTo(INSTANCE), []);
-  assert.deepEqual(net.requests.filter((request) => request.url.endsWith("/graphql")), []);
+  // ITM-1170: each product's repositoryInfo sends the one GraphQL request of greenToMerge, with that product's token; no other request is a batch.
+  assert.deepEqual(net.requests.filter((request) => request.url.endsWith("/graphql")).map((request) => request.authorization).sort(), [`Bearer ${PRODUCT_TOKEN}`, `Bearer ${OTHER_TOKEN}`].sort());
 
   net.restore();
   timers.restore();

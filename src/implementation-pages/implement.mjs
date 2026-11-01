@@ -11,7 +11,7 @@
 // ONE CLICK PER DECISION. A render writes nothing and sends nothing: *Start jobs* and *Merge* are the writes, each on a person's click. Readings the texts leave open, which this file takes:
 //   - In a model that works from a backlog, the items, their states, their holds and the teams' running sprints are those of the backlog's view of the head (backlog.mjs' viewOf: MOD-progress-measures' storedView,
 //     else the view derived in the page from the facts of the scope `work`). Besides it the route reads, at the view's commit and in one batch, the declaration, the role assignments and the running sprints' records,
-//     and the workflow the declaration declares with MOD-product-process' workflowOf, from the declared model's file at the commit the declaration names (plan.mjs' declaredModelOf) and the files of the practices it
+//     and the workflow the declaration declares with MOD-product-process' workflowOf (plan.mjs' declaredWorkflowOf), from the declared model's file at the commit the declaration names and the files of the practices it
 //     names at that commit, as the route `process` builds it; the instance's SPEC is not read for it, so a gate a process requirement adds keeps its source null (`addedBy.source`), which this route does not show. While the head's view is not stored yet, the route draws the items with their states from the view stored last, with the line naming its commit, and offers no
 //     *Start jobs*. In a model that plans its work, the steps are those of the facts of the scope `work`, as the route `plan` reads them.
 //   - An item is listed in every state but done; the startable ones are ticked, the others carry their reasons and cannot be ticked.
@@ -21,20 +21,20 @@
 //   - A pull request is of a job the page started when its description has the line `Job: <id>` (MOD-runtimes' writer writes it) and `<id>` is a record of kind implement or refactor under docs/jobs/. The page lists the
 //     open pull requests only and reads the records they name, in one batch; for each it shows the CI runs of the first commit and of the head, and whether the Definition of Done holds: the result of the head's check
 //     `agent-m done` among the checks pullRequestFacts gives, linked. *Merge* is offered for a pull request that is no draft and whose head passed that check, and calls mergePullRequest on the head the page read.
+//   - Where the repositoryInfo the page reads gives greenToMerge false, the head of the page says that the server does not enforce "merge only on green" and links webLinks' branchProtection (UC-024 12a).
 
 import { kindOf } from "../job-catalogue/index.mjs";
 import { listJobs, newJobId } from "../job-ledger/index.mjs";
 import { prepareJob } from "../job-runner/index.mjs";
 import { eligible } from "../participant-list/index.mjs";
 import { readDocument } from "../documents/index.mjs";
-import { catalogue, modelSchema } from "../model-catalogue/index.mjs";
-import { declarationSchema, holdsRole, roleAssignmentSchema, workflowOf } from "../product-process/index.mjs";
+import { declarationSchema, holdsRole, roleAssignmentSchema } from "../product-process/index.mjs";
 import { productFacts } from "../progress-measures/index.mjs";
 import { queueJob, routesFor } from "../runtimes/index.mjs";
 import { explain as frameExplain } from "../site-frame/index.mjs";
 import { planSchemas, startable, targetBranch } from "../work-plans/index.mjs";
 import { connectionsOf, contextOf, participantsIn, personOf, placesOf, viewOf } from "./backlog.mjs";
-import { declaredModelOf } from "./plan.mjs";
+import { declaredWorkflowOf } from "./plan.mjs";
 import { asOfLine } from "./progress.mjs";
 import { heads } from "./routes.mjs";
 
@@ -242,8 +242,22 @@ const isTicked = (box) => box !== null && box !== undefined && (box.checked === 
 async function machineryFor(context, ctx, instanceSnapshot, participants) {
   const info = await context.product.host.repositoryInfo();
   const places = { ...(await placesOf(instanceSnapshot, ctx.snapshot.repository?.web ?? context.product.address)), mailbox: null };
-  return { context, ctx, instanceSnapshot, participants, places, defaultBranch: info.defaultBranch, productInfo: { visibility: info.visibility, jobWorkflow: WORKFLOWS.some((path) => ctx.snapshot.paths.includes(path)) },
+  return { context, ctx, instanceSnapshot, participants, places, info, defaultBranch: info.defaultBranch, productInfo: { visibility: info.visibility, jobWorkflow: WORKFLOWS.some((path) => ctx.snapshot.paths.includes(path)) },
     taken: new Set(ctx.snapshot.paths.map((path) => JOB_FILE.exec(path)?.[1]).filter(Boolean)) };
+}
+
+// UC-024 12a: where repositoryInfo gives greenToMerge false — the server merges into the default branch without waiting for its required checks —, the head of the page says so and links the server's page on which
+// that rule is set (MOD-repository-hosts' WebLinks `branchProtection`). Where it is true, or null because the token may not read the rule, nothing is said. No request is made: `info` is the answer the page read.
+function noteGreenToMerge(target, info, host) {
+  if (info?.greenToMerge !== false) return;
+  const page = typeof host?.webLinks === "function" ? host.webLinks()?.branchProtection ?? null : null;
+  const note = document.createElement("p");
+  note.className = "warn";
+  note.setAttribute("data-green-to-merge", "");
+  note.innerHTML = `The server does not enforce "merge only on green": it lets a pull request into the default branch before its checks have passed.${page ? ` <a href="${h(page)}">Require the checks on the server's page for branch protection</a>.` : ""} Agent M still merges a job's pull request only once its CI is green and the Definition of Done holds.`;
+  const head = target.querySelector("section");
+  if (head) head.append(note);
+  else target.append(note);
 }
 
 // The runs of one commit, each as a link to its page with its state; "no run listed" where the server lists none.
@@ -321,25 +335,8 @@ async function drawPulls(target, context, snapshot) {
   }
 }
 
-// The workflow the declaration declares, built with workflowOf as the route `process` builds it: the declared model from its file at the commit the declaration names (declaredModelOf), and the
-// practices the declaration names, each read from its file at that commit with the instance's readFileAt. The instance's SPEC is given as "": a gate a process requirement adds keeps `addedBy.source`
-// null, which neither startable nor this route reads. Null where the model cannot be read or the catalogue holds none at `model_file`.
-async function declaredWorkflowOf(context, declaration) {
-  const { model } = await declaredModelOf(context, declaration);
-  if (model === null || model === "unknown") return null;
-  const version = String(declaration.fields?.model_version ?? "");
-  const names = workflowOf(declaration, model, [], "").practices;
-  const none = { paths: [], read: async () => null, readMany: async () => {}, blob: () => null };
-  const named = (await catalogue(none)).practices.filter((practice) => names.includes(practice.name));
-  const practices = (await Promise.all(named.map(async (practice) => {
-    const held = (await context.instance.host.readFileAt(practice.path, [version])).get(version) ?? null;
-    return held === null ? null : readDocument(modelSchema.practice, practice.path, held);
-  }))).filter(Boolean);
-  return workflowOf(declaration, model, practices, "");
-}
-
 // What `startable` takes besides the view, read at the view's commit: the declaration, the role assignments and the running sprints' records in one batch, and the workflow the declaration
-// declares (declaredWorkflowOf). -> { declaration, assignments, sprints: Map(path -> record), workflow }
+// declares (plan.mjs' declaredWorkflowOf; neither startable nor this route reads a gate's `addedBy.source`). -> { declaration, assignments, sprints: Map(path -> record), workflow }
 async function judgedBy(context, snapshot, view) {
   const assignmentPaths = snapshot.paths.filter((path) => ASSIGNMENT_FILE.test(path)).sort();
   const sprintPaths = view.teams.map((team) => team.running?.path).filter((path) => path && snapshot.paths.includes(path));
@@ -375,7 +372,9 @@ async function draw(target, context, params) {
   if (view.model.kind !== "pulled") {
     const facts = backlog.facts ?? await productFacts(product.host, instanceSnapshot, (commit) => instance.host.readSnapshot(commit), new Date(), { scope: "work" });
     const ctx = await contextOf(context, facts);
-    await drawPlan(target, context, facts, ctx, participants, facts.workflow !== "unknown" ? facts.workflow : null, await machineryFor(context, ctx, instanceSnapshot, participants));
+    const m = await machineryFor(context, ctx, instanceSnapshot, participants);
+    await drawPlan(target, context, facts, ctx, participants, facts.workflow !== "unknown" ? facts.workflow : null, m);
+    noteGreenToMerge(target, m.info, product.host);
     await drawPulls(target, context, facts.snapshot);
     return;
   }
@@ -437,6 +436,7 @@ async function draw(target, context, params) {
       <div data-sent="${h(row.id)}"></div>`) : `<ul data-reasons>${row.verdict.reasons.map((reason) => `<li>${h(reason)}</li>`).join("")}</ul>`}</td></tr>`).join("")}</tbody></table>
     <p><button type="button" data-start-jobs>Start jobs</button></p><div data-start-result></div>`;
   head(body);
+  noteGreenToMerge(target, info, product.host);
 
   // What is sent where, for the participant chosen on each startable row: the job is prepared, nothing is sent.
   const taken = new Set(snapshot.paths.map((path) => JOB_FILE.exec(path)?.[1]).filter(Boolean));

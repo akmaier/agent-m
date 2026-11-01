@@ -76,12 +76,12 @@ const links = (target, className) => find(target, (node) => node.localName === "
 // guards: EDITS ARE PREPARED ON THE DASHBOARD; UC-018
 // given: the specification of a library on the default branch main, with one requirement before every section, two in "## 1. Lending" and one in "## 2. Membership"
 // input: the public trace/specification route rendered at the ref main
-// expect: Edit beside each of the four requirements, in its own row, each an anchor to #requirement/name=<its name, encoded>, in the order of the SPEC
+// expect: Edit beside each of the four requirements, in its own row, each an anchor to #requirement/name=<its name, encoded>/product=<the product's address, encoded>, in the order of the SPEC
 test("TST-360001 Edit stands beside each requirement on the default branch and leads to the requirement's edit route", async () => {
   const target = await render(host(), "main");
   const edits = links(target, "requirement-edit");
   assert.deepEqual(edits.map((node) => node.textContent), ["Edit", "Edit", "Edit", "Edit"]);
-  assert.deepEqual(edits.map((node) => node.getAttribute("href")), [OUTSIDE, LOAN, SHELF, CARD].map((name) => `#requirement/name=${encodeURIComponent(name)}`));
+  assert.deepEqual(edits.map((node) => node.getAttribute("href")), [OUTSIDE, LOAN, SHELF, CARD].map((name) => `#requirement/name=${encodeURIComponent(name)}/product=${encodeURIComponent("https://github.com/acme/library")}`));
   for (const [edit, name] of edits.map((node, at) => [node, [OUTSIDE, LOAN, SHELF, CARD][at]])) {
     const row = edit.parentNode.parentNode;
     assert.equal(row.localName, "tr");
@@ -93,14 +93,14 @@ test("TST-360001 Edit stands beside each requirement on the default branch and l
 // guards: EDITS ARE PREPARED ON THE DASHBOARD; UC-018
 // given: the same specification on the default branch, whose groups are Lending and Membership
 // input: the route rendered at main
-// expect: + Requirement once for each of the two sections of the SPEC, an anchor to #requirements/section=<the section's heading line, encoded> — "## 1. Lending", "## 2. Membership" —, in a list beside the tree, in no group of it, each in an item that names its section; none for the requirement before the first section
+// expect: + Requirement once for each of the two sections of the SPEC, an anchor to #requirements/section=<the section's heading line, encoded>/product=<the product's address, encoded> — "## 1. Lending", "## 2. Membership" —, in a list beside the tree, in no group of it, each in an item that names its section; none for the requirement before the first section
 test("TST-360002 + Requirement stands once for each SPEC section, beside the tree, and opens requirements/new for that section", async () => {
   const target = await render(host(), "main");
   const groups = find(target, (node) => node.localName === "section" && node.className.includes("spec-group"));
   assert.equal(groups.length, 2, "known positive: the tree holds the two groups of the group file");
   const added = links(target, "requirement-new");
   assert.deepEqual(added.map((node) => node.textContent), ["+ Requirement", "+ Requirement"]);
-  assert.deepEqual(added.map((node) => node.getAttribute("href")), ["## 1. Lending", "## 2. Membership"].map((heading) => `#requirements/section=${encodeURIComponent(heading)}`));
+  assert.deepEqual(added.map((node) => node.getAttribute("href")), ["## 1. Lending", "## 2. Membership"].map((heading) => `#requirements/section=${encodeURIComponent(heading)}/product=${encodeURIComponent("https://github.com/acme/library")}`));
   for (const group of groups) assert.deepEqual(links(group, "requirement-new"), [], "no group holds a + Requirement");
   const list = find(target, (node) => node.localName === "ul" && node.className.includes("spec-add-requirements"));
   assert.equal(list.length, 1, "one list holds them");

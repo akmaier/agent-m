@@ -109,6 +109,8 @@ function storeHeadOverview(world, held) {
 }
 
 const one = (target, name) => byClass(target, name)[0];
+// The address of a SPEC entry on the product's page: the product stays in it (ITM-1355).
+const entryHref = (id) => `#spec-entry/id=${id}/product=${encodeURIComponent(PRODUCT_URL)}`;
 const hrefs = (node) => (node ? find(node, (kid) => kid.localName === "a").map((anchor) => anchor.getAttribute("href")) : []);
 const othersOf = (target) => hrefs(one(target, "others"));
 const asOf = (target) => byClass(target, "as-of").map((node) => node.textContent);
@@ -123,13 +125,13 @@ const open = async (world, route, params) => { const target = await draw(route, 
 // guards: OPEN PROPOSALS ARE SHOWN IN THE BROWSER; NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; UC-006
 // given: UC-006 step 1. the product of 23 queues at the head, where OTHER's 01, MINE's 02 and BATCH's 03 are open (OTHER's and MINE's on "## 1. Section", BATCH's on "## 2. Other"); the overview of an earlier commit c0 stored, in which OTHER's 01 alone was open; a token
 // input: the list (the route spec-entry with no parameter) and Review all (id=all), and then the page of OTHER's 01 (id=spec-2026-10-19_other-01)
-// expect: the list offers the three open entries of the head — the count 3 beside Review all, each as a link to its page — and no line As of; Review all shows the three, the others of OTHER's 01 being MINE's 02, those of MINE's 02 being OTHER's 01 and those of BATCH's 03 none, and no line As of — they are the head's, though the overview names one entry only; the list reads the index of every one of the 23 queues; the page of OTHER's 01 shows no other proposal and the line "As of eeeeeee", since its others are c0's
+// expect: the list offers the three open entries of the head — the count 3 beside Review all, each as a link to its page with the product in the address (/product=<the product's address, percent-encoded>) — and no line As of; Review all shows the three, the others of OTHER's 01 being MINE's 02, those of MINE's 02 being OTHER's 01 and those of BATCH's 03 none, and no line As of — they are the head's, though the overview names one entry only; the list reads the index of every one of the 23 queues; the page of OTHER's 01 shows no other proposal and the line "As of eeeeeee", since its others are c0's — every link to an entry or to all the entries ends in /product=<the product's address, percent-encoded> (ITM-1355)
 // Planted fault: Review all taking the other proposals from the waiting queues in place of the queues read (`described(await waitingQueues(snapshot), queue, …)` in place of `described({ around: all, asOf: null }, queue, …)` in src/review-pages/spec-entries.mjs) shows the line As of on every entry and no other proposal on OTHER's 01, and the case fails there.
 test("TST-1273301 the list and Review all show the head's entries and the head's other proposals whatever the overview holds; an entry's page shows c0's, with the line", async () => {
   const world = await worldWith(AT_HEAD, "older");
   const list = await open(world, entryRoute, {});
   assert.match(list.textContent, /Review all 3 not accepted/, list.textContent.slice(0, 200));
-  const openLinks = [idOf(BATCH, 3), idOf(MINE, 2), idOf(OTHER, 1)].map((id) => `#spec-entry/id=${id}`);
+  const openLinks = [idOf(BATCH, 3), idOf(MINE, 2), idOf(OTHER, 1)].map((id) => `#spec-entry/id=${id}/product=${encodeURIComponent(PRODUCT_URL)}`);
   for (const link of openLinks) assert.ok(hrefs(list).includes(link), `the list links ${link}`);
   assert.deepEqual(asOf(list), []);
   assert.deepEqual(queueFilesRead(world.mark).filter((path) => path.endsWith("/index.md")).length, 23, "the list reads the index of every queue");
@@ -137,7 +139,7 @@ test("TST-1273301 the list and Review all show the head's entries and the head's
   const all = await open(world, entryRoute, { id: "all" });
   assert.deepEqual(find(all, (node) => node.localName === "h2").map((node) => node.textContent), ["Review all — SPEC changes"]);
   const lists = byClass(all, "others").map((node) => hrefs(node));
-  assert.deepEqual(lists, [[`#spec-entry/id=${idOf(MINE, 2)}`], [`#spec-entry/id=${idOf(OTHER, 1)}`], []], "the others of OTHER's 01, MINE's 02 and BATCH's 03, in the order of the identifiers");
+  assert.deepEqual(lists, [[entryHref(idOf(MINE, 2))], [entryHref(idOf(OTHER, 1))], []], "the others of OTHER's 01, MINE's 02 and BATCH's 03, in the order of the identifiers");
   assert.deepEqual(asOf(all), []);
 
   const page = await open(world, entryRoute, { id: idOf(OTHER, 1) });
@@ -150,7 +152,7 @@ test("TST-1273301 the list and Review all show the head's entries and the head's
 // guards: OPEN PROPOSALS ARE SHOWN IN THE BROWSER; NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; UC-006; UC-018
 // given: the head where OTHER's 01 has been accepted since c0 (a decision row in the SPEC) and MINE's 02 is open, both on "## 1. Section"; the overview of c0 stored, in which OTHER's 01 was open; a token
 // input: the page of MINE's 02 and the editor of FIRST RULE with c0's overview only; then the same two with the head's overview stored (the workflow having run) and nothing else changed
-// expect: with c0's overview the page of MINE's 02 lists OTHER's 01 among the others and the editor of FIRST RULE lists it, each under the line "As of eeeeeee" — the reviewer is told that the list is c0's —, and each shows the current section and the proposal as the head has them; with the head's overview the page lists no other proposal and the editor lists MINE's 02 alone, neither with a line As of; the proposal beside the current section is the same in both
+// expect: with c0's overview the page of MINE's 02 lists OTHER's 01 among the others and the editor of FIRST RULE lists it, each under the line "As of eeeeeee" — the reviewer is told that the list is c0's —, and each shows the current section and the proposal as the head has them; with the head's overview the page lists no other proposal and the editor lists MINE's 02 alone, neither with a line As of; the proposal beside the current section is the same in both — every link to an entry or to all the entries ends in /product=<the product's address, percent-encoded> (ITM-1355)
 // Planted fault: the line never drawn (`asOfLine` returning null in src/review-pages/common.mjs) leaves the reviewer with OTHER's 01 shown as open with no word that it is c0's, and the case fails on the line.
 // Planted fault: the editor's line left out (`...[asOfLine(asOf)].filter(Boolean)` removed from the last `target.append` of src/review-pages/edit.mjs) leaves the editor listing c0's entries unmarked, and the case fails on the editor's line.
 test("TST-1273302 an entry's page and a requirement's editor name an overview of an earlier commit with the line As of, and drop it once the head's overview is stored", async () => {
@@ -160,11 +162,11 @@ test("TST-1273302 an entry's page and a requirement's editor name an overview of
   assert.equal(one(page, "badge").textContent, "open", "known positive: the entry is open at the head");
   assert.match(shown(one(page, "proposal")), /The first rule holds on every page in 2026-10-20_mine 02/);
   assert.match(shown(one(page, "current")), /The first rule holds\./);
-  assert.deepEqual(othersOf(page), [`#spec-entry/id=${idOf(OTHER, 1)}`], "c0's list still names OTHER's 01");
+  assert.deepEqual(othersOf(page), [entryHref(idOf(OTHER, 1))], "c0's list still names OTHER's 01");
   assert.equal(asOf(page).length, 1);
   assert.match(asOf(page)[0], new RegExp(`^As of ${OLDER.slice(0, 7)}`));
   const editor = await open(world, editRoute, { name: "FIRST RULE" });
-  assert.deepEqual(othersOf(editor), [`#spec-entry/id=${idOf(OTHER, 1)}`]);
+  assert.deepEqual(othersOf(editor), [entryHref(idOf(OTHER, 1))]);
   assert.equal(asOf(editor).length, 1);
   assert.match(asOf(editor)[0], new RegExp(`^As of ${OLDER.slice(0, 7)}`));
 
@@ -174,7 +176,7 @@ test("TST-1273302 an entry's page and a requirement's editor name an overview of
   assert.deepEqual(asOf(fresh), []);
   assert.equal(shown(one(fresh, "proposal")), shown(one(page, "proposal")), "the proposal is the same");
   const freshEditor = await open(world, editRoute, { name: "FIRST RULE" });
-  assert.deepEqual(othersOf(freshEditor), [`#spec-entry/id=${entry}`]);
+  assert.deepEqual(othersOf(freshEditor), [entryHref(entry)]);
   assert.deepEqual(asOf(freshEditor), []);
 });
 
@@ -210,7 +212,7 @@ test("TST-1273303 the page of an entry in a queue whose name ends in digits read
 // guards: OPEN PROPOSALS ARE SHOWN IN THE BROWSER; A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-006
 // given: the product of TST-1273301 at the head with the head's overview stored; known positive first — the page of MINE's 02 shows the entry; the addresses of entries that exist in no queue: the number 09 of the existing queue BATCH, a queue 2026-10-22_none, BATCH's name with no number, a queue named by a path (spec-../../SPEC.md-01), and an empty identifier
 // input: each address drawn as the page of a SPEC entry, and, in its context, the subject it gives
-// expect: each page says "No SPEC change entry <id> on the default branch." and links to all the entries, shows no entry, no badge and no line As of; no page asks for the index or the decisions of a queue but BATCH's, for the number 09; none asks for the overview; the subject of each is null
+// expect: each page says "No SPEC change entry <id> on the default branch." and links to all the entries, shows no entry, no badge and no line As of; no page asks for the index or the decisions of a queue but BATCH's, for the number 09; none asks for the overview; the subject of each is null — every link to an entry or to all the entries ends in /product=<the product's address, percent-encoded> (ITM-1355)
 // Planted fault: the first entry of the queue taken when its number is missing (`(queue?.entries.find(…) ?? queue?.entries[0])` in entryAt of src/review-pages/spec-entries.mjs) shows BATCH's 01, in the SPEC, for the number 09, and the case fails on the page's text.
 test("TST-1273304 an address that names no entry says so, reads at most the queue it names and gives the prompt bar no subject", async () => {
   const world = await worldWith(AT_HEAD, "head");
@@ -223,7 +225,7 @@ test("TST-1273304 an address that names no entry says so, reads at most the queu
     context.product = world.context.product;
     const page = await draw(entryRoute, context, { id });
     assert.equal(find(page, (node) => node.localName === "p" && node.className.includes("problem")).map((node) => node.textContent)[0], `No SPEC change entry ${id} on the default branch.`, `${JSON.stringify(id)}: ${page.textContent.slice(0, 200)}`);
-    assert.ok(hrefs(page).includes("#spec-entry"), "a link to all the entries");
+    assert.ok(hrefs(page).includes(`#spec-entry/product=${encodeURIComponent(PRODUCT_URL)}`), "a link to all the entries");
     assert.equal(byClass(page, "badge").length, 0);
     assert.deepEqual(asOf(page), []);
     assert.equal(entryRoute.subject({ id }, context), null, `${JSON.stringify(id)}: no subject`);
@@ -236,7 +238,7 @@ test("TST-1273304 an address that names no entry says so, reads at most the queu
 // guards: OPEN PROPOSALS ARE SHOWN IN THE BROWSER; A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-018
 // given: the product of TST-1273301 at the head, whose section "## 3. Quiet" holds FOURTH RULE and has no proposal in any queue; a token; the branch overview-cache in three states — the head's overview, only c0's, none
 // input: the editor of FOURTH RULE (requirement/<name>/edit) in each state; and the editor of FIRST RULE in the first
-// expect: in every state the editor of FOURTH RULE lists no other proposal; with the head's overview it shows no line As of and asks for no queue's index or decisions, one request for the overview; with c0's only it shows the line "As of eeeeeee" though the list is empty; with no branch it shows none and reads every queue (the index of each of the 23); the editor of FIRST RULE with the head's overview lists MINE's 02 and OTHER's 01, linked, and not the entries in the SPEC
+// expect: in every state the editor of FOURTH RULE lists no other proposal; with the head's overview it shows no line As of and asks for no queue's index or decisions, one request for the overview; with c0's only it shows the line "As of eeeeeee" though the list is empty; with no branch it shows none and reads every queue (the index of each of the 23); the editor of FIRST RULE with the head's overview lists MINE's 02 and OTHER's 01, linked, and not the entries in the SPEC — every link to an entry or to all the entries ends in /product=<the product's address, percent-encoded> (ITM-1355)
 // Planted fault: the editor reading every queue again (`all = await queues(snapshot)` with `asOf` undefined in place of `({ queues: all, asOf } = await waitingQueues(snapshot))` in src/review-pages/edit.mjs) asks for the index of all 23 queues, and the case fails on the queue files asked for.
 test("TST-1273305 the editor of a requirement on a section nobody proposes a change to lists none, says whose list it is, and reads no queue where the overview is stored", async () => {
   const stored = await worldWith(AT_HEAD, "head");
@@ -247,7 +249,7 @@ test("TST-1273305 the editor of a requirement on a section nobody proposes a cha
   assert.deepEqual(queueFilesRead(stored.mark), []);
   assert.deepEqual(overviewRequests(), [`${stored.head}.json`]);
   const first = await open(stored, editRoute, { name: "FIRST RULE" });
-  assert.deepEqual(othersOf(first).sort(), [`#spec-entry/id=${idOf(MINE, 2)}`, `#spec-entry/id=${idOf(OTHER, 1)}`].sort());
+  assert.deepEqual(othersOf(first).sort(), [entryHref(idOf(MINE, 2)), entryHref(idOf(OTHER, 1))].sort());
   net.restore(); net = null; timers.restore(); document.body.replaceChildren();
 
   const older = await worldWith(AT_HEAD, "older");

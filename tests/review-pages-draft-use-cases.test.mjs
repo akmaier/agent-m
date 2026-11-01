@@ -9,7 +9,7 @@
 // Run: node --test tests/review-pages-draft-use-cases.test.mjs
 //
 // Module: MOD-review-pages
-// Guards: UC-007; ONE CLICK PER DECISION; THE PAGE NAMES WHERE IT SENDS; A GENERATED ARTIFACT IS A PROPOSAL; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; THE ROUNDS ARE COUNTED AND SHOWN; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
+// Guards: UC-007; UC-010; ONE CLICK PER DECISION; THE PAGE NAMES WHERE IT SENDS; A GENERATED ARTIFACT IS A PROPOSAL; A REVIEWED ARTIFACT ENTERS THE DEFAULT BRANCH AS OPEN; THE ROUNDS ARE COUNTED AND SHOWN; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
 // Level: unit
 //
 // This imports the browser harness of tests/review-pages-harness.mjs unchanged. The product is a fixture behind a Host of the tests' own that keeps to
@@ -216,11 +216,11 @@ test("view — hands the frame the strategies the kind derive-use-cases uses in 
 // guards: EVERY STEP EXPLAINS ITSELF; UC-007
 // given: the list of use cases of a product with a token
 // input: the route use-case with no id
-// expect: a link "Draft use cases" to #use-case/id=draft
+// expect: a link "Draft use cases" to #use-case/id=draft/product=<the product's address, percent-encoded>
 test("use-case — the list's Draft use cases leads to the drafting page", async () => {
   const fake = fakeProduct();
   const target = await show(fake, {});
-  const links = find(target, (node) => node.localName === "a" && node.getAttribute("href") === "#use-case/id=draft");
+  const links = find(target, (node) => node.localName === "a" && node.getAttribute("href") === `#use-case/id=draft/product=${encodeURIComponent(ON_GITHUB.web)}`);
   assert.equal(links.length, 1);
   assert.match(links[0].textContent, /Draft use cases/);
 });
@@ -496,4 +496,45 @@ test("use-case/draft — the selection the person made is what the panel shows a
   await until(() => byClass(target, "ul", "written").length === 1, "the result");
   const record = fake.writes().find((change) => change.files.some((file) => file.path.startsWith("docs/jobs/"))).files[0].text;
   assert.match(record, new RegExp(`^works_on:\\n  - ${RULE}\\n`, "m"));
+});
+
+// ---------------------------------------------------------------- what the panel names besides: the route (ITM-1379)
+
+// UC-010 (Precondition): on the server's runners "the calls are billed per use by the agent's provider — the run panel says so"; MOD-site-frame's runPanel: "What the panel of a
+// use case names besides — the route, the gates the jobs will meet — the view shows beside it." Reading taken: the view appends that line to the panel's element, as the drafting
+// of requirements appends its count of existing requirements; it reads <p class="route-billing">.
+const billing = (target) => byClass(byClass(target, "section", "run-panel")[0], "p", "route-billing");
+
+// TST-1379001 · level: unit · module: MOD-review-pages
+// guards: UC-010; EVERY STEP EXPLAINS ITSELF
+// given: a product that holds the job workflow, the CI agent ci-agent among the participants (route ci hosted), the requirement A BOOK IS SHELVED checked
+// input: choosing ci-agent and pressing Show the run panel
+// expect: the run panel holds one p.route-billing that names the route ci hosted and says the calls are billed per use by the agent's provider; nothing written, nothing sent
+test("use-case/draft — on the server's runners, the run panel says the calls are billed per use by the agent's provider", async () => {
+  endpointAnswers(drafted([OTHER]));
+  const fake = fakeProduct({ ...FILES, [WORKFLOW]: "name: Agent M jobs\n" });
+  const target = await show(fake);
+  await panelFor(target, "ci-agent");
+  const lines = billing(target);
+  assert.equal(lines.length, 1, "one line beside the panel of ci-agent");
+  assert.match(lines[0].textContent, /ci hosted/);
+  assert.match(lines[0].textContent, /billed per use by the agent's provider/);
+  assert.equal(fake.writes().length, 0, "nothing written");
+  assert.equal(requests.length, 0, "nothing sent");
+});
+
+// TST-1379002 · level: unit · module: MOD-review-pages
+// guards: UC-010
+// given: the same product and page, the model endpoint drafter-a among the participants (route the tab)
+// input: choosing drafter-a and pressing Show the run panel
+// expect: known positive — the run panel is the one of drafter-a; counter-proof: it holds no p.route-billing and says nothing of calls billed per use, the job not being on the server's runners
+test("use-case/draft — a job in this tab is not said to be billed per use on the server's runners", async () => {
+  endpointAnswers(drafted([OTHER]));
+  const fake = fakeProduct({ ...FILES, [WORKFLOW]: "name: Agent M jobs\n" });
+  const target = await show(fake);
+  await panelFor(target, "drafter-a");
+  const panel = byClass(target, "section", "run-panel")[0];
+  assert.match(panel.textContent, /drafter-a/, "known positive: the panel of drafter-a");
+  assert.equal(billing(target).length, 0);
+  assert.doesNotMatch(panel.textContent, /billed per use/);
 });

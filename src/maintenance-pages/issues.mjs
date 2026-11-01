@@ -13,16 +13,22 @@
 //   - The decision's buttons are "Bug", "Change" and "Not reproducible" before a proposal and "Confirm <class>" for the class proposed and "Correct to <class>" for another after it; a click is the person's or does nothing. A class needs no analysis first.
 //     "Reject issue" is disabled while the reason is blank. After a rejection the issue is closed, and the page offers neither analysis nor decision. A failure names itself, nothing is half done, and the controls stay.
 //   - The change (ITM-584): a section "Change" is shown for an issue whose class is change — by its label, or by the person's click on Change —, built as the analysis is (`runSection`) over the kind `change-requirements`, whose parameters are `issue` and `source`, the
-//     latter the identifier `personSource` gives over the product's links and the instance's register; without one the precondition `person-source` blocks the run panel, which lists its steps. The candidates are listed with their class; Save, the person's click, writes
-//     them with the kind's writer through `writeResult`, as the person left them (the classes the loop gave; a conflict is not composed).
+//     latter the identifier `personSource` gives over the product's links and the instance's register; without one the precondition `person-source` blocks the run panel, which lists its steps. The candidates are listed with their class (ITM-1256), each beside the requirement its
+//     class's `of` names, with the rule the prepared job's parts give for that name; a conflict offers its decision, <select class="conflict-decision">, undecided until the person gives it the class
+//     new, change or duplicate. Save, the person's click, is disabled while a conflict is undecided; it writes the candidates with the kind's writer through `writeResult`, with the classes the loop
+//     gave and each conflict replaced by the class the person decided it as.
 //   - The move into the backlog (ITM-1250): a section "Move to backlog" is shown for an open issue whose class is bug or change — by its label, or by the person's click on a class —, with the button "Move to backlog" (the person's click). The click reads the product's default branch and draws the
 //     item `backlogItemFrom` prefills as a form of the frame's `schemaForm` over the item schema, which hands over its list-valued keys as lists. The form holds a provisional identifier,
 //     the next that the paths of the backlog and the plan leave free, which is never written: `saveItems` gives the item the next one that no history holds. The form's one button, "Save", is shown as "Add"; the form offers it only while no error remains, and the findings of `backlogFindings`
 //     over the architecture's module files are shown beside the form, found with the backlog's items beside the drafted one and kept for the drafted one alone (ITM-1293). `changed` are the requirements that `entryView`'s impact names as added or changed, in the order of the entries, of the queues whose `**Issue:**` line names this issue and this product; the analysis is the page's proposal, if the person ran one:
-//     the answer of the kind `analyse-issue` holds a class, its reasoning and the files it names as wrong, and no violated requirement, so that `violated` is null and the person names the requirement a bug realises; its `modules` are the modules of the architecture whose folder holds a file it names as
-//     wrong, none without a proposal. Add writes with `moveToBacklog` (no `existing`), and the page then shows the identifier added, and, where the comment was refused for want of the permission or of a token, the comment's text with the issue's address and a button to copy it.
+//     the answer of the kind `analyse-issue` holds a class, its reasoning, the files it names as wrong and, for a bug, the requirement it names as violated (ITM-1374), which is `violated`; an answer without one, or no proposal, gives null, and the person names the
+//     requirement a bug realises. Its `modules` are the modules of the architecture whose folder holds a file it names as wrong, none without a proposal. Add writes with `moveToBacklog` (no `existing`), and the page then shows the identifier added, and, where the comment was refused for want of the permission or of a token, the comment's text with the issue's address and a button to copy it.
 //   - An existing item (ITM-1254, UC-033 4a): the click on Move to backlog also lists, beside the form, the items of the backlog at the default branch (docs/backlog/ITM-<n>-<slug>.md), each with its identifier, its title and the button "Add to <identifier>" (the person's click), which
 //     writes with `moveToBacklog` given that identifier as `existing` and shows what Add shows.
+//   - The module files, the items of the backlog and the steps of the plan, and their identifiers, are read through MOD-documents (ITM-1298): a path is one of them where `readDocument` gives it an identifier under the module or the item schema,
+//     whose path patterns those are. The one folder name kept is the backlog's, `docs/backlog/`, the SPEC's own (THE BACKLOG LIVES IN THE PRODUCT REPOSITORY), which tells the backlog's items from the plan's steps of the same schema.
+//   - The item's pull request (ITM-1375, UC-033 step 6): below the move, the newest job of a kind that implements an item — `implement` or `refactor` — whose `works_on` names an item of the backlog that names this issue's address among its origins
+//     is named with its pull request (`jobTrail`), as the fix's job is; once that is merged, "Close with links" — the person's click — closes the issue with `closeWithLinks`, naming the pull request and the item. Nothing is shown where no such item or job is.
 //   - An issue not classified yet (ITM-1254, UC-033 1a): where the move would stand, the page says that it is not offered because the issue is not classified, and leads to UC-012, step 2 with the button "UC-012, step 2", which goes to that use case through the context's
 //     `go`, as the fix leads to UC-017. Both use cases are Agent M's own, so each lead's `go` names the empty product, which names the instance itself (MOD-site-frame's ViewContext). An issue classified as not reproducible is
 //     classified, and the page says nothing of the move for it.
@@ -210,20 +216,45 @@ function changeSection({ context, product, issue }) {
     paramsOf: async (instanceSnapshot) => { const source = await ownSource(product, instanceSnapshot); return source === null ? {} : { source }; },
     onResult: async (outcome, { stage, result, prepared, jobContext }) => {
       const candidates = Array.isArray(outcome.draft?.candidates) ? outcome.draft.candidates : [];
-      const classOf = (candidate) => outcome.classes?.find((each) => each.refs?.includes(candidate.name))?.class ?? candidate.class;
+      const classes = Array.isArray(outcome.classes) ? outcome.classes : [];
+      const classifiedOf = (candidate) => classes.find((each) => each.refs?.includes(candidate.name));
+      const classOf = (candidate) => classifiedOf(candidate)?.class ?? candidate.class;
+      // The rules of the requirements the job showed the participant, by name (the parts' artifacts: for a requirement its name and its rule).
+      const rules = new Map(prepared.parts.flatMap((part) => part.artifacts ?? []).map((artifact) => [artifact.id, artifact.keys?.[1] ?? ""]));
+      // The person's decision of each conflict, by the conflict's class: the class they give it, "" while undecided.
+      const decisions = new Map();
+      const saved = el("div", "change-result");
+      let save = null;
+      const undecided = () => [...decisions.values()].some((select) => select.value === "");
       const items = candidates.map((candidate) => {
+        const classified = classifiedOf(candidate);
+        const of = classified?.of ?? candidate.of ?? null;
         const item = el("li", "candidate", el("strong", null, candidate.name), ` (${classOf(candidate)}) `, candidate.rule);
         item.setAttribute("data-class", classOf(candidate));
         item.setAttribute("data-name", candidate.name);
+        if (of !== null && rules.has(of)) item.append(el("p", "candidate-refers", el("strong", null, of), `: ${rules.get(of)}`));
+        if (classified?.class === "conflict" && classified.refs[0] === candidate.name) {
+          const select = el("select", "conflict-decision", ...[["", "Decide this conflict"], ["new", "new"], ["change", "change"], ["duplicate", "duplicate"]].map(([value, text]) => {
+            const option = el("option", null, text);
+            option.value = value;
+            return option;
+          }));
+          select.value = "";
+          select.addEventListener("change", () => { save.disabled = undecided(); });
+          decisions.set(classified, select);
+          item.append(el("p", "conflict", el("label", null, "Decide as ", select)));
+        }
         return item;
       });
-      const saved = el("div", "change-result");
-      const save = button("save-change", "Save", async () => {
+      save = button("save-change", "Save", async () => {
+        if (undecided()) return;
         save.disabled = true;
         saved.replaceChildren();
         try {
           const head = await product.host.readSnapshot((await product.host.repositoryInfo()).defaultBranch);
-          const written = await writeResult(prepared, outcome.draft, { result: outcome, context: { ...jobContext, product: { ...jobContext.product, snapshot: head } } });
+          // The classes as the person left them: each conflict as the class they decided it as.
+          const decided = classes.map((each) => (decisions.has(each) ? { ...each, class: decisions.get(each).value } : each));
+          const written = await writeResult(prepared, outcome.draft, { result: { ...outcome, classes: decided }, context: { ...jobContext, product: { ...jobContext.product, snapshot: head } } });
           saved.append(el("p", "change-saved", written.files?.length ? `Saved: ${written.files.join(", ")}` : "Nothing changed."),
             ...(written.notes?.length ? [el("ul", "change-notes", ...written.notes.map((note) => el("li", "note", note)))] : []));
         } catch (problem) {
@@ -231,7 +262,8 @@ function changeSection({ context, product, issue }) {
           saved.append(el("p", "issue-problem", `The change could not be saved: ${failed(problem)}`));
         }
       });
-      stage.replaceChildren(el("p", "issue-drafted", `Drafted by ${prepared.drafter.name}; rounds: ${outcome.rounds?.length ?? 0}. Conflicts are not written until a person has decided them.`),
+      save.disabled = undecided();
+      stage.replaceChildren(el("p", "issue-drafted", `Drafted by ${prepared.drafter.name}; rounds: ${outcome.rounds?.length ?? 0}. Save is offered once you have decided every conflict.`),
         el("ul", "candidates", ...items), el("p", "actions", save), saved);
       result.replaceChildren();
     } });
@@ -239,9 +271,9 @@ function changeSection({ context, product, issue }) {
 
 // ---------------------------------------------------------------- the move into the backlog (UC-033)
 
-const MODULE_FILE = /^docs\/architecture\/MOD-[^/]+\.md$/;
-const ITEM_FILE = /(?:^|\/)(ITM-\d{3,})-[^/]*\.md$/;
-const BACKLOG_ITEM = /^docs\/backlog\/(ITM-\d{3,})-[^/]*\.md$/;
+const BACKLOG = "docs/backlog/";
+// The identifier a path gives under a schema, read from the path alone: null for a file that is none of the schema's.
+const identifierOf = (schema, path) => readDocument(schema, path, "").id;
 const slugOf = (title) => String(title ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "item";
 const namesOf = (value) => (Array.isArray(value) ? value.map(String) : String(value ?? "").split(",").map((part) => part.trim()).filter(Boolean));
 const sameAddress = (a, b) => String(a).replace(/\/+$/, "") === String(b).replace(/\/+$/, "");
@@ -257,22 +289,24 @@ async function changedRequirements(snapshot, number, productAddress) {
 }
 
 // The module files of the architecture at a snapshot, read with the module schema.
-const architectureOf = async (snapshot) => Promise.all(snapshot.paths.filter((path) => MODULE_FILE.test(path)).sort().map(async (path) => readDocument(artifactSchemas().module, path, (await snapshot.read(path)) ?? "")));
+const architectureOf = async (snapshot) => Promise.all(snapshot.paths.filter((path) => identifierOf(artifactSchemas().module, path) !== null).sort().map(async (path) => readDocument(artifactSchemas().module, path, (await snapshot.read(path)) ?? "")));
 
-// What the participant's analysis names: the modules whose folder holds a file it names as wrong, none without a proposal. The answer of `analyse-issue` names no violated requirement, so there is none.
+// What the participant's analysis names: the requirement it names as violated, null where its answer names none, and the modules whose folder holds a file it names as wrong; neither without a proposal.
 function analysisOf(architecture, proposal) {
   const wrong = Array.isArray(proposal?.wrong) ? proposal.wrong.map(String) : [];
   const modules = architecture.filter((one) => typeof one.fields.folder === "string" && wrong.some((file) => file.startsWith(one.fields.folder.replace(/\/?$/, "/")))).map((one) => one.id);
-  return { violated: null, modules };
+  const violated = typeof proposal?.violated === "string" && proposal.violated.trim() !== "" ? proposal.violated.trim() : null;
+  return { violated, modules };
 }
 
 // The items of the backlog at a snapshot, by their number, each with its identifier, its title and its document: those a further issue may be added to (UC-033 4a), and those the drafted item's builds_on is checked against (ITM-1293).
 async function backlogItems(snapshot) {
-  const paths = snapshot.paths.filter((path) => BACKLOG_ITEM.test(path));
+  const schema = artifactSchemas().item;
+  const paths = snapshot.paths.filter((path) => path.startsWith(BACKLOG) && identifierOf(schema, path) !== null);
   await snapshot.readMany?.(paths);
   const items = await Promise.all(paths.map(async (path) => {
-    const document = readDocument(artifactSchemas().item, path, (await snapshot.read(path)) ?? "");
-    return { id: BACKLOG_ITEM.exec(path)[1], title: document.fields.title ?? "", document };
+    const document = readDocument(schema, path, (await snapshot.read(path)) ?? "");
+    return { id: identifierOf(schema, path), title: document.fields.title ?? "", document };
   }));
   return items.sort((a, b) => Number(a.id.slice(4)) - Number(b.id.slice(4)));
 }
@@ -288,7 +322,8 @@ function commentToCopy(comment) {
 }
 
 // The section that moves the issue into the backlog (UC-033): Move to backlog draws the prefilled item as a form, Add writes it. `current()` is the class the issue has now and `proposal()` the participant's proposal, if any, both read when the person clicks.
-function moveSection({ product, issue, current, proposal }) {
+// Below it, what the item that names the issue has become, with *Close with links* once its pull request is merged (itemTrail, UC-033 step 6).
+async function moveSection({ product, issue, current, proposal }) {
   const stage = el("div", "issue-move-stage");
   const address = issueAddress(product, issue.number);
 
@@ -300,10 +335,10 @@ function moveSection({ product, issue, current, proposal }) {
       const cls = current();
       const changed = cls === IssueClass.change ? await changedRequirements(head, issue.number, product.address) : [];
       const { item } = backlogItemFrom({ ...issue, address }, cls, analysisOf(architecture, proposal()), changed);
-      const taken = head.paths.map((path) => Number(ITEM_FILE.exec(path)?.[1].slice(4) ?? 0));
-      const provisional = `ITM-${String(Math.max(0, ...taken) + 1).padStart(3, "0")}`;
       const schema = artifactSchemas().item;
-      const path = `docs/backlog/${provisional}-${slugOf(item.fields.title)}.md`;
+      const taken = head.paths.map((path) => Number(identifierOf(schema, path)?.slice(4) ?? 0));
+      const provisional = `ITM-${String(Math.max(0, ...taken) + 1).padStart(3, "0")}`;
+      const path = `${BACKLOG}${provisional}-${slugOf(item.fields.title)}.md`;
       // A list-valued key without a name is left out, so that its field stands empty and the form names it missing.
       const fields = Object.entries({ id: provisional, ...item.fields }).filter(([, value]) => (Array.isArray(value) ? value.length > 0 : value !== ""));
       // The file as the form shows it, each item of a list on a line of its own, read as MOD-documents reads a file: `writeDocument` would refuse it while a required key stands empty.
@@ -352,7 +387,7 @@ function moveSection({ product, issue, current, proposal }) {
     }
   }
 
-  return el("section", "issue-move", el("h3", null, "Move to backlog"), fold(STEP_TEXT.move), el("p", "actions", button("move-to-backlog", "Move to backlog", drawForm)), stage);
+  return el("section", "issue-move", el("h3", null, "Move to backlog"), fold(STEP_TEXT.move), el("p", "actions", button("move-to-backlog", "Move to backlog", drawForm)), stage, await itemTrail({ product, issue }));
 }
 
 // ---------------------------------------------------------------- the fix of a bug (UC-012 step 5, 5b)
@@ -386,6 +421,52 @@ async function expectationsOf(product, pullRequest) {
   return el("table", "fix-expectations", el("thead", null, el("tr", null, ...["Test", "Requirement", "Old expectation", "New expectation"].map((head) => cell("th", head)))), el("tbody", null, ...rows));
 }
 
+// *Close with links*, the person's click on a merged pull request: the issue closed with `closeWithLinks`, naming the pull request and, for the job of an item, the item (null for a bug fix).
+function closeControls({ product, issue, pullRequest, item }) {
+  const closed = el("p", "fix-closed");
+  const close = button("close-with-links", "Close with links", async () => {
+    close.disabled = true;
+    try {
+      await closeWithLinks(product.host, issue.number, { pullRequest: pullRequest.url, commit: pullRequest.mergeCommit, item });
+      closed.textContent = `The issue is closed with ${pullRequest.url}${item ? ` and the item ${item}` : ""}.`;
+    } catch (problem) {
+      close.disabled = false;
+      closed.replaceChildren(el("span", "issue-problem", `The issue could not be closed: ${failed(problem)}`));
+    }
+  });
+  return [el("p", "actions", close), closed];
+}
+
+// The kinds of a job that implements an item (AGILE IMPLEMENTATION STARTS FROM THE BACKLOG): its `works_on` names the item.
+const IMPLEMENTS_ITEM = ["implement", "refactor"];
+
+// What the item of the issue has become (UC-033 step 6): the newest job of a kind that implements an item, working on an item of the backlog that names the issue among its origins, its pull request
+// (MOD-runtimes' jobTrail) and, once that is merged, *Close with links*, the person's click, naming the pull request and the item. Nothing is shown while no item names the issue, or no such job works on one.
+async function itemTrail({ product, issue }) {
+  const box = el("div", "issue-item-trail");
+  try {
+    const address = issueAddress(product, issue.number);
+    const head = await product.host.readSnapshot((await product.host.repositoryInfo()).defaultBranch);
+    const items = (await backlogItems(head)).filter(({ document }) => namesOf(document.fields.origin).some((origin) => sameAddress(origin, address))).map(({ id }) => id);
+    if (items.length === 0) return box;
+    await head.readMany?.(head.paths.filter((path) => JOB_FILE.test(path)));
+    let record = null;
+    for await (const each of recordsNewestFirst(head)) if (IMPLEMENTS_ITEM.includes(each.kind) && (each.worksOn ?? []).some((id) => items.includes(id))) { record = each; break; }
+    if (!record) return box;
+    const item = record.worksOn.find((id) => items.includes(id));
+    const { pullRequest } = await jobTrail(record, product);
+    box.append(el("p", "item-job", `The item ${item} is built by the job ${record.id}.`));
+    if (!pullRequest) { box.append(el("p", "item-no-pull-request", "It has opened no pull request yet.")); return box; }
+    const where = el("a", "item-pull-request", `pull request #${pullRequest.number}`);
+    where.setAttribute("href", pullRequest.url);
+    box.append(el("p", "item-pull", where, ` is ${pullRequest.state}.`));
+    if (pullRequest.state === "merged") box.append(...closeControls({ product, issue, pullRequest, item }));
+  } catch (problem) {
+    box.append(el("p", "issue-problem", `The item's job could not be read: ${failed(problem)}`));
+  }
+  return box;
+}
+
 // What the fix has become: the newest job of the kind fix-bug that works on the issue, its pull request (MOD-runtimes' jobTrail: the one of the branch named after the job) and, once that is merged, *Close with links*, the person's click.
 async function fixTrail({ product, issue }) {
   const box = el("div", "issue-fix-trail");
@@ -404,20 +485,7 @@ async function fixTrail({ product, issue }) {
     where.setAttribute("href", pullRequest.url);
     box.append(el("p", "fix-pull", where, ` is ${pullRequest.state}.`));
     if (pullRequest.state === "open") box.append(await expectationsOf(product, pullRequest));
-    if (pullRequest.state === "merged") {
-      const closed = el("p", "fix-closed");
-      const close = button("close-with-links", "Close with links", async () => {
-        close.disabled = true;
-        try {
-          await closeWithLinks(product.host, issue.number, { pullRequest: pullRequest.url, commit: pullRequest.mergeCommit, item: null });
-          closed.textContent = `The issue is closed with ${pullRequest.url}.`;
-        } catch (problem) {
-          close.disabled = false;
-          closed.replaceChildren(el("span", "issue-problem", `The issue could not be closed: ${failed(problem)}`));
-        }
-      });
-      box.append(el("p", "actions", close), closed);
-    }
+    if (pullRequest.state === "merged") box.append(...closeControls({ product, issue, pullRequest, item: null }));
   } catch (problem) {
     box.append(el("p", "issue-problem", `The fix could not be read: ${failed(problem)}`));
   }
@@ -522,12 +590,12 @@ async function renderIssue(target, context, params = {}) {
   // The move section is built once, and shown while the issue's class is bug or change.
   const moveBox = el("div", "issue-move-box");
   let move = null;
-  function drawMove() {
+  async function drawMove() {
     const cls = currentClass();
     if (cls === undefined) { moveBox.replaceChildren(notClassified()); return; }
     if (cls !== IssueClass.bug && cls !== IssueClass.change) { moveBox.replaceChildren(); return; }
     move ??= moveSection({ product, issue, current: currentClass, proposal: () => state.proposal });
-    moveBox.replaceChildren(move);
+    moveBox.replaceChildren(await move);
   }
 
   // What a click on a class said: confirmed, corrected or, with no proposal, set.
@@ -546,7 +614,7 @@ async function renderIssue(target, context, params = {}) {
       for (const node of controls) node.disabled = true;
       state.problem = null;
       try { await run(); } catch (failure) { state.problem = failed(failure); }
-      if (!state.outcome?.rejected) { drawDecision(); await drawChange(); await drawFix(); drawMove(); }
+      if (!state.outcome?.rejected) { drawDecision(); await drawChange(); await drawFix(); await drawMove(); }
     }
     const classButtons = CLASSES.map(([cls, name, plain]) => {
       const label = state.proposal === null ? plain : cls === state.proposal.class ? `Confirm ${name}` : `Correct to ${name}`;
@@ -584,7 +652,7 @@ async function renderIssue(target, context, params = {}) {
   out.append(analysis, proposalBox, decision, changeBox, fixBox, moveBox);
   await drawChange();
   await drawFix();
-  drawMove();
+  await drawMove();
 }
 
 export const routes = [

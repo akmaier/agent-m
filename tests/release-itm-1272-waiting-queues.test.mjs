@@ -153,7 +153,7 @@ test("TST-1272301 a due check of the dashboard tells the waiting SPEC change fro
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; OPEN PROPOSALS ARE SHOWN IN THE BROWSER; UC-020; UC-047
 // given: the product of TST-1272301 with the overview of its head stored; one host of the product for the page, as the frame keeps it; the dashboard's due check has run on it
 // input: the route trace (the specification) drawn on the same host, and drawn a second time
-// expect: the specification lists the waiting entry once, linked as #spec-entry/id=spec-2026-10-09_waiting-01, with its status open, and none of the 12 decided queues; the server received one request for the head's overview in all (the check's and both draws'); no index or decisions file of any queue was asked for; the proposal of the waiting entry alone was read from the queues' folder
+// expect: the specification lists the waiting entry once, linked as #spec-entry/id=spec-2026-10-09_waiting-01/product=<the product's address, percent-encoded> (ITM-1364), with its status open, and none of the 12 decided queues; the server received one request for the head's overview in all (the check's and both draws'); no index or decisions file of any queue was asked for; the proposal of the waiting entry alone was read from the queues' folder
 // Planted fault: storedOverview keeping the overview by the snapshot (`const scope = snapshot` in src/progress-measures/stages.mjs) asks for the head's overview a second time for the draw's snapshot, and the case fails on the assertion of one request in all.
 // Planted fault: waitingEntries in src/trace-pages/flow.mjs reading `queues(snapshot)` in place of `waitingQueues(snapshot).queues` reads the index and decisions of the 12 decided queues, and the case fails on the assertion that no file of a decided queue is asked for.
 test("TST-1272302 the specification takes the waiting entries from the overview the due check read, which the page reads once for its commit", async () => {
@@ -165,7 +165,7 @@ test("TST-1272302 the specification takes the waiting entries from the overview 
     const first = await draws(world, context);
     const section = waitingSection(first);
     assert.ok(section, "the section of the waiting entries is drawn");
-    assert.deepEqual(linksOf(section), [`#spec-entry/id=spec-${WAITING}-01`]);
+    assert.deepEqual(linksOf(section), [`#spec-entry/id=spec-${WAITING}-01/product=${encodeURIComponent(PRODUCT_URL)}`]);
     assert.match(section.textContent, /open/);
     assert.equal(section.textContent.includes("decided"), false, "no decided queue is listed");
     await draws(world, context);
@@ -179,7 +179,7 @@ test("TST-1272302 the specification takes the waiting entries from the overview 
 // guards: OPEN PROPOSALS ARE SHOWN IN THE BROWSER; A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-020
 // given: the product of TST-1272301 in three states of its branch overview-cache: the overview of the head stored; only the overview of an older commit stored, with latest.json naming it (the minutes after a push, before the workflow stores the head's); no branch at all
 // input: the route trace drawn at the default branch in each state
-// expect: the same entry is listed in all three, linked as #spec-entry/id=spec-2026-10-09_waiting-01; with the head's overview the queue files are not asked for; with the older one they are not asked for either, and the requests for the branch are the head's overview, latest.json and the older commit's overview, in this order; with no branch they all are — the index and decisions files of the 12 decided queues (24) — and the entry is still listed
+// expect: the same entry is listed in all three, linked as #spec-entry/id=spec-2026-10-09_waiting-01/product=<the product's address, percent-encoded> (ITM-1364); with the head's overview the queue files are not asked for; with the older one they are not asked for either, and the requests for the branch are the head's overview, latest.json and the older commit's overview, in this order; with no branch they all are — the index and decisions files of the 12 decided queues (24) — and the entry is still listed
 // Planted fault: waitingQueues leaving out the overview stored last (`const last = null` in src/progress-measures/stages.mjs) reads the 12 decided queues in the state "older", and the case fails on that state's counts (24 files read, no latest.json asked for).
 // Planted fault: waitingEntries in src/trace-pages/flow.mjs reading `queues(snapshot)` in place of `waitingQueues(snapshot).queues` reads the decided queues with the head's overview stored, and the case fails on that state's count.
 test("TST-1272303 the specification lists the waiting entries from the head's overview, else the one stored last, else from every queue", async () => {
@@ -191,7 +191,7 @@ test("TST-1272303 the specification lists the waiting entries from the head's ov
       const target = await draws(world, context);
       const section = waitingSection(target);
       assert.ok(section, `${state}: the waiting entry is listed`);
-      assert.deepEqual(linksOf(section), [`#spec-entry/id=spec-${WAITING}-01`], state);
+      assert.deepEqual(linksOf(section), [`#spec-entry/id=spec-${WAITING}-01/product=${encodeURIComponent(PRODUCT_URL)}`], state);
       outcomes[state] = { read: decidedRead(world.mark).length, branch: overviewRequests() };
     } finally { net.restore(); net = null; timers.restore(); document.body.replaceChildren(); }
   }

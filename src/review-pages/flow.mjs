@@ -9,18 +9,17 @@
 import { statuses, statusOf, removedFiles, lastAcceptedText, acceptShown, acceptanceBlockers, fallbackAcceptLink, approvalSchema, rejectShown } from "../approvals/index.mjs";
 import { blobSha } from "../text-tools/index.mjs";
 import { writeDocument, readDocument, artifactSchemas } from "../documents/index.mjs";
-import { listJobs } from "../job-ledger/index.mjs";
 import { renderArtifact, showDifference } from "../markdown-render/index.mjs";
 import { acceptAndRelease } from "../release-evidence/index.mjs";
 import { readSetting } from "../browser-store/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
 import { explain, readProblem } from "../site-frame/index.mjs";
-import { el, link, button, badge, handedPlace, parseServer, readPlace, tokenStep } from "./common.mjs";
+import { el, link, reviewHref, reviewLink, button, badge, handedPlace, parseServer, readPlace, tokenStep } from "./common.mjs";
 import { begin as beginSubject, remember as rememberSubject, subjectOf } from "./subjects.mjs";
 import { showEdit } from "./edit.mjs";
 import { showEntryEdit } from "./entry-edit.mjs";
 import { showFileEdit } from "./file-edit.mjs";
-import { showDraft, jobNotes } from "./jobs.mjs";
+import { showDraft, jobNotes, newestJobRecords } from "./jobs.mjs";
 import { affectedCheck } from "./affected-modules.mjs";
 import { storedOnce, fromStored } from "./stored.mjs";
 import { queueService } from "./spec-entries.mjs";
@@ -54,6 +53,15 @@ const recordOf = (id, kind, path, blob) => ({ path: `docs/approvals/${id}-${blob
 
 // A difference shows every line of the file, each marked as it is, so that its first change can stand in the middle of its box (`context` as large as the file).
 const WHOLE = { context: Infinity };
+// What this tab has shown of the files it lists, kept on the screen only: for the host of the repository the page shows, the tick each file shown offers on the
+// list by the file's identifier, naming the text that was shown. The host is the tab's own for as long as the frame keeps it, and a repository's files are not another's.
+const shownOn = new WeakMap();
+function shownTicksOf(context) {
+  const key = (context.product ?? context.instance)?.host ?? context;
+  if (!shownOn.has(key)) shownOn.set(key, new Map());
+  return shownOn.get(key);
+}
+
 // Opens each difference box in `scope` with its first changed line in the middle of the box: the line's middle at the box's middle, never above the box's start.
 // The box must stand in the page, which gives it its geometry.
 function centreFirstChange(scope) {
@@ -105,11 +113,12 @@ function architectureOrder(entries, texts) {
 // the record's `Left:` line states; null where there is no such job.
 async function draftingRounds(where) {
   try {
-    const address = where.context.product?.address ?? where.context.instance.repository;
-    const rows = await listJobs([{ address, snapshot: where.snapshot }], new Map());
-    const row = rows.find((each) => each.record.kind === ARCHITECTURE_JOB && each.record.end);
-    if (!row || !row.record.end.rounds.length) return null;
-    return { rounds: row.record.end.rounds, stopped: stoppedBecause(await where.snapshot.read(row.record.path)) };
+    for await (const record of newestJobRecords(where.snapshot)) {
+      if (record.kind !== ARCHITECTURE_JOB || !record.end) continue;
+      if (!record.end.rounds.length) return null;
+      return { rounds: record.end.rounds, stopped: stoppedBecause(await where.snapshot.read(record.path)) };
+    }
+    return null;
   } catch { return null; }
 }
 
@@ -215,7 +224,7 @@ export function reviewRoute(kind) {
     if (kind.edit) await opened(showEdit(where, kind, params));
     else if (params.edit && params.id && kind.save === "file") {
       const file = files(snapshot).find((candidate) => candidate.id === params.id);
-      if (!file) target.append(el("p", "problem", `No ${kind.noun} ${params.id} on the default branch.`), link(`#${kind.route}`, null, `All ${kind.plural}`));
+      if (!file) target.append(el("p", "problem", `No ${kind.noun} ${params.id} on the default branch.`), reviewLink(where.context, `#${kind.route}`, null, `All ${kind.plural}`));
       else await opened(showFileEdit(where, kind, file));
     }
     else if (params.edit && params.id && kind.save === "entry") await opened(showEntryEdit(where, kind, params.id));
@@ -255,12 +264,13 @@ export function reviewRoute(kind) {
     const tables = [];
     const rowFor = (file, withTick) => {
       const first = el("td");
-      if (withTick && token && file.tick) {
+      const shown = withTick && token && file.tick ? shownTicksOf(context).get(file.id) : undefined;
+      if (shown) {
         const box = el("input", "tick");
         box.type = "checkbox";
         box.setAttribute("aria-label", `Accept ${file.id}`);
         box.addEventListener("change", () => {
-          if (box.checked) ticks.set(file.id, file.tick); else ticks.delete(file.id);
+          if (box.checked) ticks.set(file.id, shown); else ticks.delete(file.id);
           bar.disabled = ticks.size === 0;
           bar.textContent = `Accept ticked (${ticks.size})`;
         });
@@ -269,7 +279,7 @@ export function reviewRoute(kind) {
       // An approved entry of the instance's own SPEC is written by the instance's workflows: the row says why it is not written, and where they are turned on (UC-014 step 4, 4a).
       const unwritten = kind.save === "entry" && !context.product && file.status === "approved"
         ? [el("p", "why", NOT_WRITTEN), link("#get-your-own/step=actions", "actions-step", "Turn on the workflows")] : [];
-      const row = el("tr", null, first, el("td", null, link(`#${kind.route}/id=${encodeURIComponent(file.id)}`, null, file.name)),
+      const row = el("tr", null, first, el("td", null, reviewLink(context, `#${kind.route}/id=${encodeURIComponent(file.id)}`, null, file.name)),
         el("td", null, file.title, ...unwritten), el("td", null, badge(file.status, file.label)));
       row.setAttribute("data-id", file.id);
       return row;
@@ -293,8 +303,8 @@ export function reviewRoute(kind) {
       }
     }
     target.append(el("h2", null, kind.title));
-    if (service.reviewAll) target.append(link(`#${kind.route}/id=${REVIEW_ALL}`, "btn primary review-all", `Review all ${service.count ? service.count(groups) : notAccepted(where.snapshot).length} not accepted`));
-    if (kind.draft) target.append(link(`#${kind.route}/id=${DRAFT}`, "draft-link", `Draft ${kind.plural}`));
+    if (service.reviewAll) target.append(reviewLink(context, `#${kind.route}/id=${REVIEW_ALL}`, "btn primary review-all", `Review all ${service.count ? service.count(groups) : notAccepted(where.snapshot).length} not accepted`));
+    if (kind.draft) target.append(reviewLink(context, `#${kind.route}/id=${DRAFT}`, "draft-link", `Draft ${kind.plural}`));
     target.append(explain(kind.explain.list));
     const check = bar ? await checkBeside(where, waiting[0]?.id) : null;
     if (bar) {
@@ -313,8 +323,8 @@ export function reviewRoute(kind) {
     }
     target.append(...tables);
     if (bar) target.append(bar, ...(check ? [check.note] : []));
-    if (ARRANGED[kind.kind]) target.append(link(`#arrange/kind=${ARRANGED[kind.kind]}`, "arrange-link", "Arrange"), " ");
-    target.append(link(`#${kind.route}/id=${HISTORY}`, "history-link", `History of ${kind.plural}`));
+    if (ARRANGED[kind.kind]) target.append(reviewLink(context, `#arrange/kind=${ARRANGED[kind.kind]}`, "arrange-link", "Arrange"), " ");
+    target.append(reviewLink(context, `#${kind.route}/id=${HISTORY}`, "history-link", `History of ${kind.plural}`));
   }
 
   // The history of the kind's changes: its approval records, newest first, each with the file it names, the person who committed it and the date. One readHistory of
@@ -343,7 +353,7 @@ export function reviewRoute(kind) {
     target.append(el("h2", null, `History of ${kind.plural}`), explain(kind.explain.list),
       el("table", "list history", el("thead", null, el("tr", null, el("th", null, "File"), el("th", null, "Person"), el("th", null, "Date"))), rows));
     const parent = commits.length === HISTORY_PAGE ? commits.at(-1).parents[0] : undefined;
-    if (parent) target.append(link(`#${kind.route}/id=${HISTORY}/before=${encodeURIComponent(parent)}`, "older-link", "Older"));
+    if (parent) target.append(reviewLink(where.context, `#${kind.route}/id=${HISTORY}/before=${encodeURIComponent(parent)}`, "older-link", "Older"));
   }
 
   // The file as it will be accepted, rendered with its diagrams; of the whole architecture's further decisions with their due diligence. Below its difference
@@ -379,6 +389,7 @@ export function reviewRoute(kind) {
       const blob = snapshot.blob(file.path);
       const section = el("section", "review-file", el("h3", null, kind.heading(body)), badge(file.status, LABEL[file.status]));
       section.setAttribute("data-id", file.id);
+      shownTicksOf(context).set(file.id, { path: file.path, blob });
       let withImpact = true;
       if (file.status === "changed") {
         const diff = el("section", "accepted-diff", el("h4", null, "Changed since it was last accepted"));
@@ -470,7 +481,7 @@ export function reviewRoute(kind) {
   // in one commit; an entry that changed after it was shown is left out and named.
   async function showAllEntries(where) {
     const { target, token, context } = where;
-    const entries = await service.all(where, (other) => `#${kind.route}/id=${encodeURIComponent(other)}`);
+    const entries = await service.all(where, (other) => reviewHref(where.context, `#${kind.route}/id=${encodeURIComponent(other)}`));
     target.append(el("h2", null, `Review all — ${kind.title}`), explain(kind.explain.all));
     if (entries.length === 0) {
       target.append(el("p", "nothing", `Nothing to review: every ${kind.noun} is accepted.`));
@@ -479,6 +490,7 @@ export function reviewRoute(kind) {
     for (const entry of entries) {
       const section = el("section", "review-file", el("h3", null, entry.title), badge(entry.status, entry.label), ...entry.nodes);
       section.setAttribute("data-id", entry.id);
+      if (entry.shown) shownTicksOf(context).set(entry.id, entry.shown[0]);
       target.append(section);
     }
     const shown = entries.flatMap((entry) => entry.shown);
@@ -536,14 +548,15 @@ export function reviewRoute(kind) {
   // One entry of a change queue: its sections as the service draws them, what holds it back or what a click accepts, and without a token the record.
   async function showEntry(where, id) {
     const { target } = where;
-    const entry = await service.view(where, id, (other) => `#${kind.route}/id=${encodeURIComponent(other)}`);
+    const entry = await service.view(where, id, (other) => reviewHref(where.context, `#${kind.route}/id=${encodeURIComponent(other)}`));
     if (!entry) {
-      target.append(el("p", "problem", `No ${kind.noun} ${id} on the default branch.`), link(`#${kind.route}`, null, `All ${kind.plural}`));
+      target.append(el("p", "problem", `No ${kind.noun} ${id} on the default branch.`), reviewLink(where.context, `#${kind.route}`, null, `All ${kind.plural}`));
       return;
     }
+    if (entry.shown) shownTicksOf(where.context).set(id, entry.shown[0]);
     target.append(el("h2", null, entry.title), badge(entry.status, entry.label),
       ...(entry.status === "approved" ? [el("p", "approved-note", APPROVED_NOTE)] : []), explain(kind.explain.one), ...entry.nodes);
-    if (entry.edit) target.append(link(`#${kind.route}/id=${encodeURIComponent(id)}/edit=1`, "edit-link", "Edit"));
+    if (entry.edit) target.append(reviewLink(where.context, `#${kind.route}/id=${encodeURIComponent(id)}/edit=1`, "edit-link", "Edit"));
     offerEntryAcceptance(where, id, entry);
     // Beside Accept, Reject, for every entry that is not decided — open, stale or waiting for its anchor (UC-006 4a).
     if (entry.shown && service.reject) target.append(rejectOffer(where, id, entry.shown[0]));
@@ -579,11 +592,12 @@ export function reviewRoute(kind) {
     const { target, snapshot, token, host } = where;
     const file = files(snapshot).find((candidate) => candidate.id === id);
     if (!file) {
-      target.append(el("p", "problem", `No ${kind.noun} ${id} on the default branch.`), link(`#${kind.route}`, null, `All ${kind.plural}`));
+      target.append(el("p", "problem", `No ${kind.noun} ${id} on the default branch.`), reviewLink(where.context, `#${kind.route}`, null, `All ${kind.plural}`));
       return;
     }
     const body = await snapshot.read(file.path);
     const blob = snapshot.blob(file.path);
+    shownTicksOf(where.context).set(file.id, { path: file.path, blob });
     target.append(el("h2", null, kind.heading(body)), badge(file.status, LABEL[file.status]),
       el("p", "shown", `Text shown: blob ${blob.slice(0, 12)}`), explain(kind.explain.one));
     let last = null, stored = null;
@@ -601,10 +615,10 @@ export function reviewRoute(kind) {
     }
     target.append(file.status === "changed" ? el("section", "rendered", el("h3", null, "The file as it will be accepted"), renderArtifact(shortBody(body))) : renderArtifact(shortBody(body)));
     if (kind.save === "file" && (token || parseServer(where.context) !== "gitlab")) {
-      target.append(link(`#${kind.route}/id=${encodeURIComponent(file.id)}/edit=1`, "edit-link", "Edit"));
+      target.append(reviewLink(where.context, `#${kind.route}/id=${encodeURIComponent(file.id)}/edit=1`, "edit-link", "Edit"));
     }
     if (kind.draft && file.status !== "accepted") {
-      const notes = await jobNotes(snapshot, file.id);
+      const notes = await jobNotes(snapshot, file.id, file.path);
       if (notes.length) {
         const list = el("ul");
         for (const note of notes) list.append(el("li", null, note));

@@ -157,13 +157,13 @@ function namesWhatItsNameSays(path, fields) {
  * was accepted (the record's `file`), also when the file has been renamed since; null when no record names the identifier.
  * The records of an identifier are those of the default branch whose names carry it (docs/approvals/<id>-<blob12>.md); the
  * most recent is the one whose commit, found in the history of the record, was committed last — the date as the server gives
- * it, in its own offset; two records committed at the same instant are not told apart. The text is read in the repository as
- * it stood at the commit that added that record, where the file still has the path the record names — except where the record
- * names the empty text's blob, a removal's (EMPTY_BLOB): the empty text is given then, and no file is read. Crosses the network,
- * through the host; fails with its failures, unchanged — TokenRefused, RateLimited, NotFound, Unreachable —, and with
- * NotFound { what: the file } when the file did not hold the text the record names at the commit that added the record, and
- * when the text the host gave for it is not that text — the blob SHA of the text read (MOD-text-tools.blobSha) is not the
- * record's: no other text is given for it. The check hashes the text already read and makes no request. A record whose content
+ * it, in its own offset; two records committed at the same instant are not told apart. The text is the file at the commit that
+ * added that record, where the file still has the path the record names, read with one host.readFileAt(file, [that commit]) —
+ * no snapshot of that commit — except where the record names the empty text's blob, a removal's (EMPTY_BLOB): the empty text is
+ * given then, and no file is read. Crosses the network, through the host; fails with its failures, unchanged — TokenRefused,
+ * RateLimited, NotFound, Unreachable —, and with NotFound { what: the file } when the file did not hold the text the record
+ * names at the commit that added the record: no text there, or a text whose blob SHA (MOD-text-tools.blobSha) is not the
+ * record's; no other text is given for it. The check hashes the text already read and makes no request. A record whose content
  * names another blob than its name, or a file of another identifier, counts as no record: the most recent record that names
  * what its name says is taken, and null returned when none does.
  * @param {string} id
@@ -192,13 +192,9 @@ export async function lastAcceptedText(id, host) {
   if (last === null) return null;
   // A removal's record names the empty text: that text is known, and where the record was added no file stands to read.
   if (blob === EMPTY_BLOB) return { text: "", blob, path: file };
-  const then = await host.readSnapshot(last.commit, { folders: [file] });
-  if (then.blob(file) !== blob) {
-    throw new HostError("NotFound", { what: file }, `${file} did not hold the text ${last.path} names when the record was added`);
-  }
-  const text = await then.read(file);
+  const text = (await host.readFileAt(file, [last.commit])).get(last.commit);
   if (typeof text !== "string" || await blobSha(text) !== blob) {
-    throw new HostError("NotFound", { what: file }, `${file} did not give the text ${last.path} names when the record was added`);
+    throw new HostError("NotFound", { what: file }, `${file} did not hold the text ${last.path} names when the record was added`);
   }
   return { text, blob, path: file };
 }

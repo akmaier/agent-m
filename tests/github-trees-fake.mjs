@@ -3,6 +3,7 @@
 // is a file answers 422, a path the files do not hold 404. No test of its own.
 //
 // Module: MOD-repository-hosts
+// Level: unit
 
 // treeRequest(url) -> { commit, path, recursive } for a request of "Get a tree" of a repository on api.github.com, or null for any other.
 export function treeRequest(url) {

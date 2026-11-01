@@ -26,7 +26,7 @@
 //   - The form is MOD-site-frame's schemaForm over the entry's schema: the page's own checks (an unlinked or restricted source, a missing file or
 //     pin, a source already in the library) are its extraChecks; the checks of the schema are documentFindings'.
 //   - A choice outside the form (the route's own part, the files, the named repository) builds the form again, keeping what the person typed in it.
-//   - The file of an entry's version is shown as stored or not as MOD-source-register's linkedVersion reads its note (`not stored:`).
+//   - The file of an entry's version is shown as stored or not as MOD-source-register's linkedVersion reads its note (`not stored:`), with the SHA-256 linkedVersion reads for it.
 
 import { connect, parseAddress } from "../repository-hosts/index.mjs";
 import { readSetting, secretValues } from "../browser-store/index.mjs";
@@ -50,6 +50,17 @@ const ROUTES = {
   repository: "A repository — the address of a repository, public or private, on GitHub or GitLab, for example https://github.com/owner/guidelines.",
 };
 const REPUBLISHABLE = /^may be republished(?![\p{L}\p{N}_])/u;
+
+// An entry's title line, the pattern of the entry's schema (`# {id} {title}`) filled from its fields, a field left out leaving its place empty.
+const titleLineOf = (fields) => ENTRY.title.replace(/\{(\w+)\}/g, (_, key) => fields[key] ?? "").trimEnd();
+// The document with its title line made from its fields: the form hands over the body the page drafted, whose title line holds the id and title as they stood then.
+function titled(document) {
+  const lines = String(document.body ?? "").split("\n");
+  const at = lines.findIndex((line) => /^#(?:[ \t].*)?$/.test(line));
+  if (at < 0) lines.unshift(titleLineOf(document.fields));
+  else lines[at] = titleLineOf(document.fields);
+  return { ...document, body: lines.join("\n") };
+}
 
 function el(name, className, ...children) {
   const node = document.createElement(name);
@@ -95,7 +106,7 @@ const filesOfVersion = (entry, row) => sourceVersionOf(entry, row)?.files ?? [];
 function entryView(entry, context) {
   const versions = versionsOf(entry).map((row) => el("li", "library-version",
     `${unquoted(row.cells.Version)} · ${row.cells.Date ?? ""}${row.cells.Edition && row.cells.Edition !== "—" ? ` · ${row.cells.Edition}` : ""} · read from ${row.cells["Read from"] ?? "—"}`,
-    el("ul", null, ...filesOfVersion(entry, row).map((file) => el("li", "library-file-state", `${file.name} — ${file.stored ? "stored" : "not stored"}`)))));
+    el("ul", null, ...filesOfVersion(entry, row).map((file) => el("li", "library-file-state", `${file.name} — ${file.stored ? "stored" : "not stored"} — SHA-256 ${file.sha256}`)))));
   const back = el("button", "library-back btn", "Back to the library");
   back.addEventListener("click", () => context.go("library", {}));
   const fields = Object.entries(entry.fields).map(([key, value]) => el("li", null, `${key}: ${Array.isArray(value) ? value.join(", ") : value}`));
@@ -182,9 +193,14 @@ function tokenNotice(web, host, error) {
 const isRestricted = (licence) => !REPUBLISHABLE.test(String(licence ?? ""));
 const parseWeb = (address) => { try { return parseAddress(address).path; } catch { return address; } };
 
-// What becomes public when a source's entry and `files` are committed: the entry always, a kept file in the instance or in the named repository, a file only hashed nowhere.
-function statementOf(fields, files, instanceRepo) {
+// What becomes public when a source's entry and `files` are committed: the entry always, a kept file in the instance or in the named repository, a file only hashed nowhere; for an EU
+// legal text (`fetched`), the official text the fetch workflow stores in the instance after Save, where its licence permits republishing, and else nothing of it.
+function statementOf(fields, files, instanceRepo, fetched = false) {
   const lines = [`Becomes public: the register entry, always, in the instance repository ${instanceRepo}.`];
+  if (fetched) {
+    lines.push(isRestricted(fields.licence) ? "The official text is not stored in the public instance: the fetch workflow stores a text only where its licence permits republishing."
+      : "Content, public in the instance repository: the official text the fetch workflow downloads from the EU's publication repository after Save.");
+  }
   const names = (list) => list.map((file) => file.name).join(", ");
   const kept = files.filter((file) => !file.onlyHashed), hashed = files.filter((file) => file.onlyHashed);
   if (kept.length) {
@@ -496,7 +512,7 @@ export const route = {
     function checks(document) {
       const { fields } = document;
       remembered = { ...fields };
-      publicStatement.textContent = statementOf(fields, state.files, instanceRepo);
+      publicStatement.textContent = statementOf(fields, state.files, instanceRepo, state.route === "legal-text");
       const found = [];
       const add = (rule, what, fix) => found.push(finding({ artifact: "library", line: 1, kind: "error", rule, what, fix }));
       const names = namesOf(fields, fields.id).map((name) => name.toLowerCase());
@@ -533,7 +549,7 @@ export const route = {
       if (state.route === "repository" && state.repo) fields.identifier = state.repo.address;
       if (contentRepository.value.trim()) fields.content_repository = contentRepository.value.trim();
       const front = Object.entries(fields).filter(([, value]) => value !== undefined && value !== "").map(([key, value]) => `${key}: ${value}`);
-      const text = [...(front.length ? ["---", ...front, "---"] : []), `# ${fields.id ?? ""} ${fields.title ?? ""}`.trimEnd(), "", "## Versions", "",
+      const text = [...(front.length ? ["---", ...front, "---"] : []), titleLineOf(fields), "", "## Versions", "",
         "| Version | Date | Edition | Read from | Files |", "|---|---|---|---|---|", versionRow(), ""].join("\n");
       return readDocument(ENTRY, `docs/sources/${fields.id ?? "SRC-new"}.md`, text);
     }
@@ -541,7 +557,7 @@ export const route = {
     async function save(document) {
       result.replaceChildren();
       const id = document.fields.id;
-      const text = writeDocument(ENTRY, document);
+      const text = writeDocument(ENTRY, titled(document));
       const entry = readDocument(ENTRY, `docs/sources/${id}.md`, text);
       try {
         const plan = state.route === "legal-text"

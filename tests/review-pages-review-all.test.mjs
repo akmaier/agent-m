@@ -88,6 +88,9 @@ function fakeHost({ steps = STEPS, repository = ON_GITHUB, refuse = null } = {})
     land(changed) { head = commitOf(new Map([...commits.get(head).tree, ...Object.entries(changed)]), head); },
     host: {
       async repositoryInfo() { return { defaultBranch: "main", visibility: "public", canWrite: true, archived: false, description: "" }; },
+      async readFileAt(path, shas) {
+        return new Map(shas.map((sha) => [sha, commits.get(sha)?.tree.get(path) ?? null]));
+      },
       async readSnapshot(ref) {
         if (ref === "main") return { ...snapshotAt(head), ref };
         if (commits.has(ref)) return snapshotAt(ref);
@@ -336,11 +339,11 @@ test("MOD-review-pages use-case/all — a GitLab product without a token: no Acc
 // guards: UC-008
 // given: the list of use cases
 // input: the route use-case rendered with no id
-// expect: a link "Review all" to #use-case/id=all; and on the page of one use case no such section as a review-all page
+// expect: a link "Review all" to #use-case/id=all/product=<the product's address, percent-encoded>; and on the page of one use case no such section as a review-all page
 test("MOD-review-pages use-case — the list links to Review all", async () => {
   const target = await show(fakeHost(), {});
 
-  const links = find(target, (node) => node.localName === "a" && node.getAttribute("href") === "#use-case/id=all");
+  const links = find(target, (node) => node.localName === "a" && node.getAttribute("href") === `#use-case/id=all/product=${encodeURIComponent(ON_GITHUB.web)}`);
   assert.equal(links.length, 1);
   assert.match(links[0].textContent, /Review all/);
   assert.equal(sections(target).length, 0, "the list is no review-all page");

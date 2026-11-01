@@ -295,8 +295,8 @@ async function markSourceChanged(shown, asked = null) {
 
 // ---------------------------------------------------------------- the gaps (UC-020 step 7)
 
-// A line of a list that opens, by a click and in place, onto what `detail` makes: a requirement or a use case as it read in the version drawn.
-function openable(text, detail) {
+// A button that opens, by a click and in place, onto what `detail` makes, and the box beneath it that holds that: { button, opened }.
+function opener(text, detail) {
   const button = el("button", "gap-open btn small", text);
   button.type = "button";
   const opened = el("div", "gap-opened");
@@ -312,6 +312,12 @@ function openable(text, detail) {
       if (open) opened.replaceChildren(problemLine(text, failure));
     }
   });
+  return { button, opened };
+}
+
+// A line of a list that opens onto what `detail` makes: a requirement or a use case as it read in the version drawn.
+function openable(text, detail) {
+  const { button, opened } = opener(text, detail);
   return el("li", null, button, opened);
 }
 
@@ -367,13 +373,18 @@ async function showGaps(box, shown) {
 }
 
 // An anchor to a route of the review pages, in the address form the frame reads: the route, then its parts as key=value, each encoded. It is a
-// plain link, as the review pages draw a link to another page; a button is what acts on the page shown.
-function reviewLink(className, text, route, params) {
+// plain link, as the review pages draw a link to another page; a button is what acts on the page shown. With `product`, the address of the product shown, the link
+// ends in `product=` and the address percent-encoded, the form MOD-site-frame's chosenProduct reads back.
+function reviewLink(className, text, route, params, product = null) {
   const anchor = el("a", className, text);
-  const parts = Object.entries(params).map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+  const parts = [...Object.entries(params).map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`),
+    ...(product ? [`product=${encodeURIComponent(product)}`] : [])];
   anchor.setAttribute("href", parts.length ? `#${route}/${parts.join("/")}` : `#${route}`);
   return anchor;
 }
+
+// The address the links to the review pages carry: the product's, where the page shows a product; none on the instance's own page (`ofInstance`), whose links stay as they are.
+const reviewProductOf = (context) => (ofInstance(context) ? null : context.product?.address ?? null);
 
 // The status of a requirement the SPEC holds: "in SPEC", or what an open entry of a change queue would do to it (UC-020 step 3).
 const statusCell = (text) => el("td", "requirement-status", text);
@@ -383,7 +394,7 @@ function requirementRows(requirement, editable, shown, status, mark = []) {
   button.type = "button";
   const cell = el("td", null, button, ...mark);
   (shown.cells ??= []).push([requirement.name, cell]);
-  if (editable) cell.append(" ", reviewLink("requirement-edit", "Edit", "requirement", { name: requirement.name }));
+  if (editable) cell.append(" ", reviewLink("requirement-edit", "Edit", "requirement", { name: requirement.name }, reviewProductOf(shown.context)));
   const row = el("tr", null, cell, statusCell(status));
   const opened = el("tr", "requirement-opened");
   button.addEventListener("click", () => {
@@ -559,9 +570,9 @@ function narrowBar(arranged, shown, descriptor, params) {
 }
 
 // *+ Requirement* once for each section of the SPEC, beside the tree and not within it, each opening `requirements/new` for its section (UC-018 3d).
-function addLinks(spec) {
+function addLinks(spec, product) {
   const items = spec.sections.map((section) => el("li", null, `${sectionTitle(section.heading)} `,
-    reviewLink("requirement-new", "+ Requirement", "requirements", { section: section.heading })));
+    reviewLink("requirement-new", "+ Requirement", "requirements", { section: section.heading }, product)));
   return items.length ? el("ul", "spec-add-requirements", ...items) : null;
 }
 
@@ -627,7 +638,7 @@ const WAITING_BADGE = { open: "b-open", stale: "b-stale", "waiting for its ancho
 
 // The waiting entries in the table of the review pages' lists (table.list, a badge for the state): the queue's name as the person reads it, the entry's number,
 // the section of the SPEC it changes, and its state; each cell labelled for the phone's stacked rows.
-function waitingSection(waiting) {
+function waitingSection(waiting, product) {
   if (!waiting.length) return null;
   const cell = (label, ...children) => {
     const td = el("td", null, ...children);
@@ -639,7 +650,7 @@ function waitingSection(waiting) {
     const name = `${folder}-${String(entry.number).padStart(2, "0")}`;
     const title = folder.replace(/^\d{4}-\d{2}-\d{2}_/, "").replace(/-/g, " ");
     const shown = `${title.charAt(0).toUpperCase()}${title.slice(1)} · ${entry.number}`;
-    return el("tr", null, cell("Proposal", reviewLink("spec-waiting-entry", shown, "spec-entry", { id: `spec-${name}` })),
+    return el("tr", null, cell("Proposal", reviewLink("spec-waiting-entry", shown, "spec-entry", { id: `spec-${name}` }, product)),
       cell("Section", String(entry.anchor ?? "").replace(/^#+\s*/, "")), cell("Status", el("span", `badge ${WAITING_BADGE[entry.state] ?? "b-open"}`, entry.state)));
   });
   const head = el("thead", null, el("tr", null, el("th", null, "Proposal"), el("th", null, "Section"), el("th", null, "Status")));
@@ -648,9 +659,9 @@ function waitingSection(waiting) {
 
 // The links from the specification to the review pages' history of the SPEC change entries and to the arrangement of the requirements
 // (`#arrange/kind=requirements`: the route arrange reads its group kind as the parameter `kind`), on the default branch only.
-function specChangeLinks() {
-  return el("p", "spec-change-links", reviewLink("spec-history-link", "History of SPEC changes", "spec-entry", { id: "history" }),
-    " ", reviewLink("arrange-link", "Arrange", "arrange", { kind: "requirements" }));
+function specChangeLinks(product) {
+  return el("p", "spec-change-links", reviewLink("spec-history-link", "History of SPEC changes", "spec-entry", { id: "history" }, product),
+    " ", reviewLink("arrange-link", "Arrange", "arrange", { kind: "requirements" }, product));
 }
 
 // Whether the ref on view is the repository's default branch, which the Host names: editing is offered there only (UC-018). A Host that cannot say is read as no.
@@ -884,23 +895,35 @@ function modulesTable(rows, graph, reviewOf, snapshot) {
 // The next step a gap offers (UC-025 step 6), on the default branch only: *Change the architecture* for a requirement without a module (UC-023), to the review pages' list of the architecture's decisions, and
 // *Implement* for a module without code or without tests (UC-024), to the route `implement`. Each is a link; it starts and writes nothing.
 const NEXT_STEP = {
-  "requirement-without-module": { className: "gap-change-architecture", text: "Change the architecture", href: "#decision" },
+  "requirement-without-module": { className: "gap-change-architecture", text: "Change the architecture", route: "decision" },
   "module-without-code": { className: "gap-implement", text: "Implement", href: "#implement" },
   "module-without-test": { className: "gap-implement", text: "Implement", href: "#implement" },
 };
 
-// Every gap of moduleRows with the artifact it concerns (UC-025 step 4), or the line that there is none (4a); with `next`, the step its kind offers.
-function modulesGaps(gaps, ref, next) {
+// The file a gap concerns, as the version drawn holds it (UC-025 step 6): a markdown file rendered, a code file as its text, and for a folder the files that lie in it.
+async function gapFile(snapshot, path) {
+  const text = await snapshot.read(path);
+  if (text == null) return el("ul", "trace-list", ...snapshot.paths.filter((each) => each.startsWith(`${path}/`)).map((each) => el("li", null, each)));
+  return path.endsWith(".md") ? renderArtifact(text) : el("pre", "gap-code", text);
+}
+
+// Every gap of moduleRows with the artifact it concerns (UC-025 step 4), or the line that there is none (4a); with `next`, the step its kind offers; the artifact leads to its file (step 6).
+function modulesGaps(gaps, ref, next, snapshot, product) {
   if (!gaps.length) return el("p", "no-gaps", `There are no gaps at ${ref}.`);
   const list = el("ul", "trace-list", ...gaps.map((gap) => {
-    const item = el("li", "module-gap", `${gap.artifact} — ${gap.what}`);
+    const item = el("li", "module-gap");
     item.setAttribute("data-kind", gap.kind);
+    // The artifact leads to the file it concerns, the module's file or the code file or folder; a requirement is no such file.
+    const file = gap.path && gap.kind !== "requirement-without-module" ? opener(gap.artifact, () => gapFile(snapshot, gap.path)) : null;
+    item.append(file?.button ?? gap.artifact, ` — ${gap.what}`);
     const step = next ? NEXT_STEP[gap.kind] : undefined;
     if (step) {
-      const link = el("a", `${step.className} btn small`, step.text);
-      link.setAttribute("href", step.href);
+      // *Change the architecture* leads to a route of the review pages and keeps the product; *Implement* leads to the implementation pages' route.
+      const link = step.route ? reviewLink(`${step.className} btn small`, step.text, step.route, {}, product) : el("a", `${step.className} btn small`, step.text);
+      if (!step.route) link.setAttribute("href", step.href);
       item.append(" ", link);
     }
+    if (file) item.append(file.opened);
     return item;
   }));
   return el("section", "modules-gaps", el("h3", null, "Gaps"), list);
@@ -931,7 +954,7 @@ async function drawModules(target, context, host, ref, descriptor, earlier = nul
   }
   const { rows, gaps } = moduleRows(graph);
   const next = await shown.isDefault;
-  place.replaceChildren(await renderMermaid(componentDiagram(files)), explain("component-diagram"), modulesTable(rows, graph, statuses(shown.snapshot), shown.snapshot), modulesGaps(gaps, ref, next));
+  place.replaceChildren(await renderMermaid(componentDiagram(files, gaps)), explain("component-diagram"), modulesTable(rows, graph, statuses(shown.snapshot), shown.snapshot), modulesGaps(gaps, ref, next, shown.snapshot, reviewProductOf(shown.context)));
 }
 
 export const route = {
@@ -1017,15 +1040,17 @@ export const route = {
           fill = () => showGaps(place, shown);
         } else if (descriptor.key === "tests") {
           const place = el("div", "tests-page", el("p", "traces-reading", "Reading the tests…"));
-          body = el("section", "tests head", el("h2", null, descriptor.title), await testsViews("Browser"), place);
+          // Arranging leads to writing, so *Arrange* stands on the default branch's head only (UC-021 step 1), to the review pages' arrange/tests with the product kept.
+          const arrange = shown.onDefaultBranch ? [el("p", "tests-change-links", reviewLink("arrange-link", "Arrange", "arrange", { kind: "tests" }, reviewProductOf(context)))] : [];
+          body = el("section", "tests head", el("h2", null, descriptor.title), await testsViews("Browser"), ...arrange, place);
           fill = () => showTests(place, shown, params);
         } else {
           if (current) shown.source = source;
-          waiting = waitingSection(open);
+          waiting = waitingSection(open, reviewProductOf(context));
           const arranged = await arrangement(snapshot, shown.spec, open, groupText);
-          const adding = shown.onDefaultBranch ? addLinks(shown.spec) : null;
+          const adding = shown.onDefaultBranch ? addLinks(shown.spec, reviewProductOf(context)) : null;
           body = shown.onDefaultBranch
-            ? el("div", "specification-page", overview(arranged, true, shown, descriptor, params), ...(adding ? [adding] : []), specChangeLinks())
+            ? el("div", "specification-page", overview(arranged, true, shown, descriptor, params), ...(adding ? [adding] : []), specChangeLinks(reviewProductOf(context)))
             : overview(arranged, false, shown, descriptor, params);
           fill = () => Promise.all([markSourceChanged(shown, moved), countUnrealised(shown, arranged)]);
         }

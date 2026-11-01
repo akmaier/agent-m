@@ -72,7 +72,7 @@ const fresh = () => { net.restore(); timers.restore(); };
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-046
 // given: this browser keeps alice/product, bob/other and carol/third, each with its own token, and the instance alice/agent-m with its token; the head of alice/product and of carol/third hold a stored overview, and bob/other's branch holds only the overview stored last
 // input: the route home drawn; then the timer the page set for reading the jobs' states again fired
-// expect: known positive first — requests to the three products were made; three cards, two with the stored stages ("Use cases 25 % stored use cases") and bob/other's too, saying "As of aaaaaaa"; not one request names alice/agent-m (no repository, commit or tree), none is the graph query, and none carries the instance's token; after the page reads again, still none
+// expect: known positive first — requests to the three products were made; three cards, two with the stored stages ("Use cases 25 % stored use cases") and bob/other's too, saying "As of aaaaaaa"; not one request names alice/agent-m (no repository, commit or tree), none carries the instance's token, and the only POST /graphql are the three products' requests for greenToMerge (ITM-1170), one with each product's token; after the page reads again, still none of the instance
 // Planted fault: the instance read before any card, as before ITM-1281 (`await reading.instance()` called in render before the cards, src/main-page/home.mjs) sends the repository, the commit and the tree of alice/agent-m and the instance's token, and the case fails at the requests to the instance.
 test("TST-1281301 while every card has an overview, stored for its head or stored last, the route home reads none of the instance, nor when it reads again", async () => {
   const target = await drawn({ stored: [PRODUCT, THIRD], latest: [OTHER] });
@@ -84,7 +84,7 @@ test("TST-1281301 while every card has an overview, stored for its head or store
   assert.match(cards[1].textContent, /As of aaaaaaa/);
   const instanceRequests = () => net.requests.filter((request) => new URL(request.url).pathname.startsWith(`/repos/${INSTANCE}`) || request.authorization?.includes(INSTANCE_TOKEN));
   assert.deepEqual(instanceRequests().map((request) => request.url), [], "nothing of the instance is read, and its token is not sent");
-  assert.deepEqual(net.requests.filter((request) => request.url.endsWith("/graphql")), []);
+  assert.deepEqual(net.requests.filter((request) => request.url.endsWith("/graphql")).map((request) => request.authorization).sort(), [`Bearer ${PRODUCT_TOKEN}`, `Bearer ${OTHER_TOKEN}`, `Bearer ${THIRD_TOKEN}`].sort(), "the only POST /graphql are the three products' greenToMerge requests (ITM-1170), each with its product's token");
   const before = net.requests.length;
   await timers.fire();
   assert.ok(net.requests.length >= before, "the page read again");

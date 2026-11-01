@@ -12,7 +12,7 @@
 import { readSetting } from "../browser-store/index.mjs";
 import { bridgeAt, settingsOf } from "../bridge-client/index.mjs";
 import { readDocument } from "../documents/index.mjs";
-import { newJobId, listJobs } from "../job-ledger/index.mjs";
+import { newJobId, recordsNewestFirst } from "../job-ledger/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
 import { prepareJob, writeResult } from "../job-runner/index.mjs";
 import { approvalStrategies, statuses } from "../approvals/index.mjs";
@@ -23,7 +23,7 @@ import { parseSpec } from "../spec-document/index.mjs";
 import { runPanel, explain, readProblem } from "../site-frame/index.mjs";
 import { coverageGaps, latestGraph, storedGraph } from "../trace-graph/index.mjs";
 import { editedResult, flagged, showCurrent, splitCandidate, splitProblem } from "./candidates.mjs";
-import { defaultSnapshot, el, button, link, refusalText, tokenStep } from "./common.mjs";
+import { defaultSnapshot, el, button, link, reviewLink, refusalText, tokenStep } from "./common.mjs";
 import { dueDiligenceSection, roundsSection, splitDueDiligence } from "./sections.mjs";
 import { sourcesOf } from "./spec-entries.mjs";
 
@@ -105,7 +105,7 @@ export async function showDraft(where, kind) {
   if (kind.whole) return showArchitectureDraft(where, kind);
   if (kind.draft === "derive-requirements") return showRequirementsDraft(where, kind);
   const { target, snapshot, token, host, context } = where;
-  target.append(el("h2", null, `Draft ${kind.plural}`), explain(kind.explain.draft.requirements), link(`#${kind.route}`, "btn", `All ${kind.plural}`));
+  target.append(el("h2", null, `Draft ${kind.plural}`), explain(kind.explain.draft.requirements), reviewLink(context, `#${kind.route}`, "btn", `All ${kind.plural}`));
   let graph, line, names, loaded;
   try {
     ({ graph, line } = await latestGraph(snapshot, snapshot.commit));
@@ -182,6 +182,10 @@ export async function panelOf(run) {
     return;
   }
   const panel = runPanel(ready.prepared, { onRun: () => start(ready) });
+  // What the panel names besides, the view shows with it (MOD-site-frame's runPanel): on the server's runners, that the agent's calls are billed per use (UC-010, Precondition).
+  if (ready.offer?.route.kind === "ci" && ready.offer.route.runner === "hosted") {
+    panel.append(el("p", "route-billing", `The job runs on the route ${recordRoute(ready.offer.route)}, on the server's runners: the calls are billed per use by the agent's provider.`));
+  }
   run.decoratePanel?.(panel, ready.prepared);
   stage.append(explain(kind.explain.draft.panel), panel);
 }
@@ -223,22 +227,52 @@ async function start(run) {
 
 // What a run of the drafting job came to: the rounds, what the loop left, the files written.
 async function presentDraft(outcome, result, run) {
-  const { kind } = run;
+  const { kind, context } = run;
   result.append(el("p", "rounds", `Correction rounds: ${outcome.rounds.length}`), explain(kind.explain.draft.loop));
   const left = el("ul", "left");
   for (const finding of outcome.remaining) left.append(el("li", "left", `${finding.rule}: ${finding.what} — ${finding.fix}`));
   const written = el("ul", "written");
   for (const file of outcome.written?.files ?? []) written.append(el("li", null, file));
-  result.append(left, written, explain(kind.explain.draft.written), link(`#${kind.route}`, null, `All ${kind.plural}`));
+  result.append(left, written, explain(kind.explain.draft.written), reviewLink(context, `#${kind.route}`, null, `All ${kind.plural}`));
+}
+
+// The job records are asked for through the snapshot's readMany, newest first, a hundred at a time (A PAGE LOAD READS THE REPOSITORY IN BATCHES: "at most 100 files each"), each batch only
+// when the search has read the one before it.
+const BATCH = 100;
+
+/**
+ * newestJobRecords(snapshot) -> AsyncIterable<JobRecord> — MOD-job-ledger's recordsNewestFirst over the snapshot, the records asked for in batches as the search reaches them: a caller that
+ * stops at the record it needs leaves every later batch unasked.
+ */
+export function newestJobRecords(snapshot) {
+  const order = snapshot.paths.filter((path) => /^docs\/jobs\/JOB-/.test(path)).sort().reverse();
+  const asked = new Set();
+  const read = async (path) => {
+    if (!asked.has(path) && typeof snapshot.readMany === "function") {
+      const batch = order.slice(Math.max(0, order.indexOf(path)), order.indexOf(path) + BATCH);
+      for (const each of batch) asked.add(each);
+      try { await snapshot.readMany(batch); } catch { /* each record's own read below meets the failure */ }
+    }
+    return snapshot.read(path);
+  };
+  return recordsNewestFirst({ paths: order, read });
 }
 
 /**
- * jobNotes(snapshot, id) -> Promise<string[]> — the notes of the end records of the jobs that name the file `id` (`note: …` lines of an end's results): what a
- * drafting job did to a use case it wrote — a realised name it removed, a use case that realises none.
+ * jobNotes(snapshot, id, path) -> Promise<string[]> — the notes of the end of the job that wrote the file `id` at `path` (`note: …` lines of its results that name `id`): what a
+ * drafting job did to a use case it wrote — a realised name it removed, a use case that realises none. The records are read newest first, in batches, no further than the batch of the
+ * first whose end lists `file <path>`; for a file no end lists, all records are read, and the notes of every end that name `id` are given.
  */
-export async function jobNotes(snapshot, id) {
-  const rows = await listJobs([{ address: snapshot.repository?.web ?? "", snapshot }], new Map());
-  return rows.flatMap((row) => row.record.end?.results ?? []).filter((line) => line.startsWith("note: ") && line.includes(id)).map((line) => line.slice("note: ".length));
+export async function jobNotes(snapshot, id, path) {
+  const noteLines = (record) => (record.end?.results ?? []).filter((line) => line.startsWith("note: ") && line.includes(id)).map((line) => line.slice("note: ".length));
+  const found = [];
+  try {
+    for await (const record of newestJobRecords(snapshot)) {
+      if ((record.end?.results ?? []).includes(`file ${path}`)) return noteLines(record);
+      found.push(...noteLines(record));
+    }
+  } catch { /* a record that cannot be read ends the search with what was found */ }
+  return found;
 }
 
 // ---------------------------------------------------------------- deriving requirements from a linked source (UC-005)
@@ -297,7 +331,7 @@ function chosenSource(choices, list) {
 
 async function showRequirementsDraft(where, kind) {
   const { target, token, context } = where;
-  target.append(el("h2", null, "Derive requirements"), sourceExplain(kind.explain.draft.source), link(`#${kind.route}`, null, `All ${kind.plural}`));
+  target.append(el("h2", null, "Derive requirements"), sourceExplain(kind.explain.draft.source), reviewLink(context, `#${kind.route}`, null, `All ${kind.plural}`));
   let loaded, choices;
   try {
     loaded = await loadStage(where, kind.draft);
@@ -479,16 +513,16 @@ async function placesOf(where) {
 }
 
 // What the precondition `architecture-ready` found, with the way on: to an open use case's review, to the SPEC changes to decide first, to UC-023 for an existing architecture.
-function readiness(found, snapshot) {
+function readiness(found, snapshot, context) {
   const box = el("section", "readiness");
   if (!found) return box;
   box.append(el("p", `finding ${found.kind}`, `${found.kind}: ${found.what} — ${found.fix} [${found.rule}]`));
-  if (found.kind === "warning") box.append(link("#spec-entry", "decide-first", "Decide the open SPEC changes first (UC-006)"));
+  if (found.kind === "warning") box.append(reviewLink(context, "#spec-entry", "decide-first", "Decide the open SPEC changes first (UC-006)"));
   else if (found.rule === ONLY_ACCEPTED) {
     for (const { id, kind, status } of statuses(snapshot).values()) {
-      if (kind === "use-case" && status !== "accepted") box.append(" ", link(`#use-case/id=${encodeURIComponent(id)}`, "review-link", `Review ${id}`));
+      if (kind === "use-case" && status !== "accepted") box.append(" ", reviewLink(context, `#use-case/id=${encodeURIComponent(id)}`, "review-link", `Review ${id}`));
     }
-  } else box.append(link("#decision", "change-architecture", "Change the architecture (UC-023)"));
+  } else box.append(reviewLink(context, "#decision", "change-architecture", "Change the architecture (UC-023)"));
   return box;
 }
 
@@ -506,7 +540,7 @@ function noReviewer(drafter, participants, needs, places) {
  */
 async function showArchitectureDraft(where, kind) {
   const { target, snapshot, token, context } = where;
-  target.append(el("h2", null, "Draft the architecture"), explain(kind.explain.draft.whole), link(`#${kind.route}`, null, `All ${kind.plural}`));
+  target.append(el("h2", null, "Draft the architecture"), explain(kind.explain.draft.whole), reviewLink(context, `#${kind.route}`, null, `All ${kind.plural}`));
   let requirements, loaded, places, offeredPlaces, found, reviewing;
   try {
     // What the derivation covers is the head's SPEC: from the head's graph, or, while that is not stored yet, from the head's SPEC itself — no earlier graph is shown here.
@@ -525,7 +559,7 @@ async function showArchitectureDraft(where, kind) {
   const covers = el("section", "covers", el("h3", null, "What the derivation covers"),
     el("p", null, `Every requirement of the SPEC (${requirements.length}) and every use case (${useCases.length}); nothing is selected.`));
   covers.append(el("ul", "covered", ...requirements.map((name) => el("li", "requirement", name)), ...useCases.map((id) => el("li", "use-case", id))));
-  target.append(covers, readiness(found, snapshot));
+  target.append(covers, readiness(found, snapshot, context));
 
   const placed = Object.entries(offeredPlaces.sources).map(([from, allowed]) => ({ from, allowed }));
   const drafters = eligible(participants, { capabilities: definition.needs, places: placed }).eligible;

@@ -101,7 +101,8 @@ globalThis.SVGElement ??= class SVGElement {};
 
 const { view } = await import("../src/implementation-pages/index.mjs");
 
-// The page of route `name` with `params`: the target it is drawn into, the product's files and host, and press(element) — the person's click on an element, awaited.
+// The page of route `name` with `params`: the target it is drawn into, the product's files and host, press(element) — the person's click on an element, awaited —, and `went`, each
+// route and params the route asked the frame to go to (ViewContext's go), in order.
 // Every click listener the route adds, now or when it draws itself again, is kept by its element.
 export async function render(name, params = {}, { files = productFiles(), pullRequests = PULL_REQUESTS } = {}) {
   const route = view.routes.find((candidate) => candidate.name === name);
@@ -113,7 +114,9 @@ export async function render(name, params = {}, { files = productFiles(), pullRe
   globalThis.mermaid = { initialize() {}, mermaidAPI: { getDiagramFromText: async () => ({ db: { getVertices: () => ({}) } }) }, run: async () => {} };
   const target = globalThis.document.createElement("div");
   globalThis.document.body.append(target);
-  const context = { page: "review", instance: { repository: "acme/agent-m", host: instance }, product: { address: ADDRESS, kind: "github", host, tokenStored: true }, store: {}, go() {} };
+  const went = [];
+  const context = { page: "review", instance: { repository: "acme/agent-m", host: instance }, product: { address: ADDRESS, kind: "github", host, tokenStored: true }, store: {},
+    go(to, params = {}) { went.push([to, params]); } };
   await route.render(target, context, params);
   const press = async (element) => {
     const listener = handlers.filter(([at]) => at === element).at(-1)?.[1];
@@ -123,7 +126,7 @@ export async function render(name, params = {}, { files = productFiles(), pullRe
     await new Promise((resolve) => setTimeout(resolve, 30));
   };
   const done = () => { Element.prototype.addEventListener = add; delete globalThis.mermaid; };
-  return { target, files, host, route, press, done, html: () => target.innerHTML };
+  return { target, files, host, route, press, done, went, html: () => target.innerHTML };
 }
 
 // The HTML of the part that begins with `marker` and ends where the next panel begins.
@@ -179,7 +182,9 @@ export async function renderOverGitHub(name, params = {}, { files = productFiles
   globalThis.mermaid = { initialize() {}, mermaidAPI: { getDiagramFromText: async () => ({ db: { getVertices: () => ({}) } }) }, run: async () => {} };
   const target = globalThis.document.createElement("div");
   globalThis.document.body.append(target);
-  const context = { page: "review", instance: { repository: REPO, host }, product: { address: GITHUB_ADDRESS, kind: "github", host, tokenStored: true, ref: "main" }, store: {}, go() {} };
+  const went = [];
+  const context = { page: "review", instance: { repository: REPO, host }, product: { address: GITHUB_ADDRESS, kind: "github", host, tokenStored: true, ref: "main" }, store: {},
+    go(to, params = {}) { went.push([to, params]); } };
   const done = () => { Element.prototype.addEventListener = add; delete globalThis.mermaid; globalThis.fetch = real; };
   try { await route.render(target, context, params); } catch (failure) { done(); throw failure; }
   const press = async (element) => {
@@ -188,7 +193,7 @@ export async function renderOverGitHub(name, params = {}, { files = productFiles
     await listener({ isTrusted: true });
     await new Promise((resolve) => setTimeout(resolve, 30));
   };
-  return { target, srv, route, press, done, html: () => target.innerHTML };
+  return { target, srv, route, press, done, went, html: () => target.innerHTML };
 }
 
 // The requests of a page about the branch overview-cache, about pull requests, for a facts file, and the batches of files.

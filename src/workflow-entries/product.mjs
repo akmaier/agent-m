@@ -1,6 +1,6 @@
 // product.mjs — the entries of a product's job workflow (MOD-workflow-entries, Parts): ITM-365 builds onRecordsChanged and onDispatch, which take
 // and run the queued jobs of this CI route; ITM-498 adds to onDispatch the job whose task travels with a conversation's hand-over (UC-049 4a), which onRecordsChanged
-// leaves queued. ITM-791 adds to onRecordsChanged the resumption of the jobs of this route whose gate is recorded (A JOB STOPS AT EVERY GATE). ITM-583 builds onPullRequestClosed's closing of the issues a merged fix names; the runs' next actions
+// leaves queued. ITM-791 adds to onRecordsChanged the resumption of the jobs of this route whose gate is recorded (A JOB STOPS AT EVERY GATE). ITM-583 builds onPullRequestClosed's closing of the issues a merged fix names, ITM-1375 those of an item's job; the runs' next actions
 // are another item's. ITM-1032 builds onSchedule: the close of a sprint an agent closes. ITM-1209 adds onTestsFinished, ITM-1210 onDoneCheck and ITM-1215 runTests, which MOD-test-schedule's test configuration runs.
 //
 // Module: MOD-workflow-entries
@@ -33,8 +33,7 @@ const fs = globalThis.process?.getBuiltinModule?.("node:fs");
 
 // The route of this CI service's jobs, as MOD-job-ledger writes a record's route, and the form of a CI agent's route in the register.
 const routeOf = (runner) => (runner === "hosted" ? "ci hosted" : `ci runner:${runner}`);
-const CI_ROUTE = /^ci (?:hosted|runner:\S+) secret (\S+)$/;
-// The secret a participant's route names, of any route that names one (`endpoint <name> secret <NAME>`, `ci hosted secret <NAME>`), and the words of a record whose task a hand-over brings.
+// The secret a participant's route names, of any route that names one (`endpoint <name> secret <NAME>`, `ci hosted secret <NAME>`), which is the key of its queued jobs, and the words of a record whose task a hand-over brings.
 const SECRET_OF = / secret (\S+)$/;
 const WITH_HAND_OVER = "with the hand-over";
 const NO_TASK = "the task travels with its hand-over, and this run was started without it";
@@ -198,7 +197,7 @@ async function runJobOf(env, composed, participants, row, handOver = null) {
   const taking = await takeJob(product.host, path, job.runUrl ?? `ci ${job.runner}`, (await product.host.readSnapshot("HEAD")).commit);
   if (!taking.taken) return { id: record.id, state: "skipped", summary: `${record.id} was taken by ${taking.by}` };
   // A hand-over with an endpoint reads its key from the secret the input `secret` names, and no other; every other job from the secret its participant's route names.
-  const secretName = handOver?.endpoint ? (handOver.secret ?? undefined) : (handOver ? SECRET_OF : CI_ROUTE).exec(participant.route ?? "")?.[1];
+  const secretName = handOver?.endpoint ? (handOver.secret ?? undefined) : SECRET_OF.exec(participant.route ?? "")?.[1];
   const hidden = (value) => {
     let said = String(value);
     if (handOver) said = said.split(handOver.task.trim()).join("[the task]");
@@ -298,8 +297,8 @@ async function queuedOf(env, snapshot, { handedOver = false } = {}) {
   return rows.reverse();
 }
 
-// The key secret a queued job's participant reads, as its route names it — `ci <runner> secret <NAME>` —, or null.
-const keyOfRow = (participants, { record }) => CI_ROUTE.exec(participants.find((each) => each.name === record.participant)?.route ?? "")?.[1] ?? null;
+// The key secret a queued job's participant reads, as its route names it — `ci <runner> secret <NAME>` or `endpoint <name> secret <NAME>` —, or null.
+const keyOfRow = (participants, { record }) => SECRET_OF.exec(participants.find((each) => each.name === record.participant)?.route ?? "")?.[1] ?? null;
 
 // The jobs this machine runs: on the agent's machine, those whose key is the one it was given, or none the job workflow reads; a job whose key is another of
 // those the file reads is left queued for the run its own key's machine makes. Elsewhere every job.
@@ -311,11 +310,13 @@ function ofThisMachine(env, participants, rows) {
   });
 }
 
-// The product's facts of the scope `work`, read once: the workflow, the jobs and the states of the gates (gateStates).
-async function workFacts(env, composed) {
+// The product's facts of the scope `work`, read once: the workflow, the jobs and the states of the gates (gateStates). `atHead`: read at the checkout's HEAD, for an event whose branch is no branch
+// of the clone — a pull request's, `<n>/merge` —: the repository's information is then refused, and productFacts reads the commit checked out.
+async function workFacts(env, composed, { atHead = false } = {}) {
   const { instance, product } = composed;
+  const refused = (what) => async () => { throw Object.assign(new Error(`${what} not read here`), { name: "NotSupported" }); };
   // The facts are read through the clone alone: the gates and jobs need no pull request, and the server's answer is not asked for (productFacts takes a refusal as `unknown`).
-  const clone = { ...product.host, listPullRequests: async () => { throw Object.assign(new Error("pull requests are not read here"), { name: "NotSupported" }); } };
+  const clone = { ...product.host, listPullRequests: refused("pull requests are"), ...(atHead ? { repositoryInfo: refused("the repository's information is") } : {}) };
   return productFacts(clone, await instance.host.readSnapshot("HEAD"), (commit) => instance.host.readSnapshot(commit), env.now, { scope: "work" });
 }
 
@@ -354,7 +355,7 @@ function missingSecret(env, participants, rows) {
   if (!env.job.personToken && env.job.part !== "agent") return `${env.job.tokenName} is missing: the person's Agent M token is a secret of this repository, passed to the job as ${env.job.tokenName}. Nothing was written.`;
   for (const { record } of rows) {
     const participant = participants.find((each) => each.name === record.participant);
-    const secret = CI_ROUTE.exec(participant?.route ?? "")?.[1];
+    const secret = SECRET_OF.exec(participant?.route ?? "")?.[1];
     if (secret && !keyAvailable(env.job, secret)) return `${secret} is missing: the key of ${participant.name} is a secret of this repository, passed to the job as ${secret}. Nothing was written.`;
   }
   return null;
@@ -556,7 +557,7 @@ export async function chooseAgentKey(env) {
   else if (inputs) {
     const row = (await queuedOf(env, snapshot, { handedOver: true })).find(({ record }) => record.id === inputs.job);
     const participant = participants.find((each) => each.name === (row?.record.participant ?? inputs.participant));
-    key = (row?.record.task === WITH_HAND_OVER ? SECRET_OF : CI_ROUTE).exec(participant?.route ?? "")?.[1] ?? null;
+    key = SECRET_OF.exec(participant?.route ?? "")?.[1] ?? null;
   } else {
     const [first] = await queuedOf(env, snapshot);
     key = first ? keyOfRow(participants, first) : null;
@@ -950,14 +951,34 @@ async function eventPullRequest(env, host) {
   return merged.find((each) => each.mergeCommit === commit.sha) ?? null;
 }
 
+// The kinds of a job that implements an item (AGILE IMPLEMENTATION STARTS FROM THE BACKLOG): its `works_on` names the item.
+const IMPLEMENTS_ITEM = ["implement", "refactor"];
+
+// The issues of this product a merged pull request's job closes, each with the item it is closed for (UC-033 step 6), once each: a bug fix's, the issues it works on, with no item; an item's job's,
+// the issues each item it works on names among its origins, with that item — the items as the product's facts read them at the commit checked out, where the job's record is read too, read only for such a job.
+async function issuesClosedBy(env, composed, record) {
+  const ofProduct = (addresses, item) => [].concat(addresses ?? []).map((address) => issueNumberOf(address, env.repository)).filter((issue) => issue !== null).map((issue) => ({ issue, item }));
+  let found = [];
+  if (record.kind === "fix-bug") found = ofProduct(record.worksOn, null);
+  else {
+    const ids = (record.worksOn ?? []).filter((id) => /^ITM-\d+$/.test(id));
+    const items = ids.length ? (await workFacts(env, composed, { atHead: true })).plan.items : [];
+    found = ids.flatMap((id) => items.filter((item) => item.fields?.id === id).flatMap((item) => ofProduct(item.fields.origin, id)));
+  }
+  const seen = new Set();
+  return found.filter(({ issue }) => !seen.has(issue) && seen.add(issue));
+}
+
 /**
- * onPullRequestClosed(env: CiEnvironment) -> Promise<EntryStatus> — run by the job workflow when a pull request of a product is merged or closed (GitHub's event names it, `pull_request.number`; on GitLab the pipeline of the push that merged a merge request names the commit, which finds the merge request): on a merge, the pull request of a `fix-bug` job — the job its title or description names,
- * as onDoneCheck reads it — closes the issues that job works on, each with MOD-issue-handling's closeWithLinks, its note naming the pull request's address. A pull request closed without a merge, one that names no job, a job that has no record or is of another kind, and a job that works on
- * no issue of this product write nothing (`nothing to do`). The runs' next actions are another item's. A missing token ends the entry at once as `not run`; an issue that cannot be closed is named, the others are closed all the same, and the entry ends `failed`.
+ * onPullRequestClosed(env: CiEnvironment) -> Promise<EntryStatus> — run by the job workflow when a pull request of a product is merged or closed (GitHub's event names it, `pull_request.number`; on GitLab the pipeline of the push that merged a merge request names the commit, which finds the merge request): on a merge, the pull request of a job — the job its title or description names,
+ * as onDoneCheck reads it — closes the issues it names, each with MOD-issue-handling's closeWithLinks, its note naming the pull request's address: a `fix-bug` job's, the issues it works on, with no item; the job of an item (`implement`, `refactor`), the issues each item it works on names
+ * among its origins, with that item (UC-033 step 6). A pull request closed without a merge, one that names no job, a job that has no record or is of another kind, and a job that names no issue of this product write nothing (`nothing to do`). The runs' next actions are another item's.
+ * A missing token ends the entry at once as `not run`; an issue that cannot be closed is named, the others are closed all the same, and the entry ends `failed`.
  */
 export async function onPullRequestClosed(env) {
   if (!env.job.personToken) return notRun(`${env.job.tokenName} is missing: the person's Agent M token is a secret of this repository, passed to the job as ${env.job.tokenName}. Nothing was written.`);
-  const { host } = composeProduct(env).product;
+  const composed = composeProduct(env);
+  const { host } = composed.product;
   const pullRequest = await eventPullRequest(env, host);
   if (!pullRequest) return nothingToDo(env.service === "gitlab" ? "No merge request was merged by the commit of this pipeline." : "The event names no pull request.");
   const number = pullRequest.number;
@@ -967,14 +988,16 @@ export async function onPullRequestClosed(env) {
   let record = null;
   for await (const each of recordsNewestFirst(await host.readSnapshot("HEAD"))) if (each.id === id) { record = each; break; }
   if (!record) return nothingToDo(`Pull request #${number} names the job ${id}, which has no record in docs/jobs/.`);
-  if (record.kind !== "fix-bug") return nothingToDo(`Pull request #${number} is of the job ${id} of kind ${record.kind}, which fixes no bug: no issue is closed.`);
-  const issues = (record.worksOn ?? []).map((address) => issueNumberOf(address, env.repository)).filter((each) => each !== null);
-  if (issues.length === 0) return nothingToDo(`The job ${id} works on no issue of this product.`);
+  if (record.kind !== "fix-bug" && !IMPLEMENTS_ITEM.includes(record.kind)) return nothingToDo(`Pull request #${number} is of the job ${id} of kind ${record.kind}, which fixes no bug and implements no item: no issue is closed.`);
+  const issues = await issuesClosedBy(env, composed, record);
+  if (issues.length === 0) {
+    return nothingToDo(record.kind === "fix-bug" ? `The job ${id} works on no issue of this product.` : `The job ${id} of kind ${record.kind} fixes no bug, and no item it works on names an issue of this product among its origins.`);
+  }
   const closed = [], refused = [];
-  for (const issue of issues) {
+  for (const { issue, item } of issues) {
     try {
-      await closeWithLinks(host, issue, { pullRequest: pullRequest.url, commit: pullRequest.mergeCommit ?? null, item: null });
-      closed.push(`#${issue}`);
+      await closeWithLinks(host, issue, { pullRequest: pullRequest.url, commit: pullRequest.mergeCommit ?? null, item });
+      closed.push(item ? `#${issue} (${item})` : `#${issue}`);
     } catch (error) {
       refused.push(`#${issue}: ${error?.message ?? error}`);
     }

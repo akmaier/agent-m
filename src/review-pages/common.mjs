@@ -32,6 +32,11 @@ export const link = (href, className, text) => {
   a.setAttribute("href", href);
   return a;
 };
+// The address of a route of the review pages as the page `context` shows it: `fragment` is the route's fragment with its leading `#`; on a product's page it ends in
+// `/product=<the product's address, percent-encoded>`, the form MOD-site-frame's `chosenProduct` reads back, and on the instance's own page it is `fragment` itself.
+export const reviewHref = (context, fragment) => (context.product ? `${fragment}/product=${encodeURIComponent(context.product.address)}` : fragment);
+// A link to a route of the review pages that keeps the page's product.
+export const reviewLink = (context, fragment, className, text) => link(reviewHref(context, fragment), className, text);
 // A listener that answers only a click the browser marks as a person's (`isTrusted`): the dashboard writes only as the direct result of a
 // person's action (THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK), and a click a script makes is none.
 export const byPerson = (listener) => (event) => (event?.isTrusted === true ? listener(event) : undefined);

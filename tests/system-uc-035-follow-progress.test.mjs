@@ -16,7 +16,7 @@
 // Readings the texts leave open, which the cases state:
 //   - "a burn-down of remaining items per day of the sprint" is read as a chart with one point for each day from the sprint's start to today.
 //   - "linked to the gate record" is read as a link in the gate's row whose address ends with the record's path.
-//   - "shows the items or requirements behind it" (step 6) is read as the link of a cell or card naming the requirement or item it stands for.
+//   - "shows the items or requirements behind it" (step 6) is read as the trace page of the requirement (or use case) behind a cell or card; the item and the pull request of the chain stay a finding.
 //   - "It points to book ch. 7 or ch. 15" is read for each folded explanation of a chart or panel.
 //   - 1b: a job source that cannot be reached is a Bridge that the page does not reach — here a Bridge of another machine, which no setting of this page names.
 //   - 2c: "The chart starts at the change" is read as the first day of the cumulative flow being the day of the change; "earlier progress stays readable in the model it was made under" as
@@ -243,18 +243,23 @@ test("TST-806008 UC-035 step 5: who works on what — each participant with its 
 
 // TST-806009 · level: system · module: MOD-implementation-pages
 // guards: UC-035
-// given: the V-model product of TST-806003 and the Kanban product of TST-806004
-// input: the reader looks at where a cell and a card lead (step 6: "Agent M shows the items or requirements behind it and their traceability")
-// expect: the cell of RULE ONE in Implementation leads to the trace page of RULE ONE (its address names RULE ONE); the card of ITM-002 leads to the trace page of ITM-002 (its address names ITM-002)
-test("TST-806009 UC-035 step 6: a cell or a card leads to the trace of the requirement or item behind it", { todo: "FINDING UC035-S3 — every cell, card and chart links to the same trace page of the whole specification (#trace/key=specification/ref=main); no link names the requirement or item behind it" }, async () => {
+// given: the V-model product of TST-806003 (RULE ONE realised by ITM-010 and ITM-011) and the Kanban product of TST-806004 (ITM-002, whose pull request is open, realises RULE ONE)
+// input: the reader looks at where a cell leads and clicks a card (step 6: "Agent M shows the items or requirements behind it and their traceability: requirement → use case → item or plan entry → pull request → tests")
+// expect: the cell of RULE ONE in Implementation leads to #trace/key=specification/ref=main/text=RULE%20ONE, the trace of RULE ONE; the click on the card of ITM-002 goes to the trace of the requirement its item realises (trace, key specification, ref main, text RULE ONE); the trace the card leads to names the item ITM-002 and its pull request (open: the item and the pull request of the chain are shown on no trace page)
+test("TST-806009 UC-035 step 6: a cell or a card leads to the trace of the requirement behind it", async (t) => {
   const v = await render("progress", {}, { files: vModelFiles(), pullRequests: V_PULLS });
   const k = await render("progress", {}, { files: productFiles({ "docs/process-models/fixture.md": KANBAN }) });
   try {
     const cell = found(v.target, "[data-cell]").find((each) => attr(each, "data-requirement") === "RULE ONE" && attr(each, "data-phase") === "Implementation");
     const card = found(k.target, "[data-card]").find((each) => attr(each, "data-card") === "ITM-002");
-    assert.ok(attr(cell, "href")?.startsWith("#trace/") && attr(card, "href")?.startsWith("#trace/"), "known positive: both lead to the trace page");
-    assert.ok(decodeURIComponent(attr(cell, "href")).includes("RULE ONE"), `the cell names its requirement (${attr(cell, "href")})`);
-    assert.ok(decodeURIComponent(attr(card, "href")).includes("ITM-002"), `the card names its item (${attr(card, "href")})`);
+    assert.ok(cell && card, "known positive: the cell and the card are drawn");
+    assert.equal(attr(cell, "href"), "#trace/key=specification/ref=main/text=RULE%20ONE", "the cell leads to the trace of its requirement");
+    await k.press(card);
+    assert.deepEqual(k.went, [["trace", { key: "specification", ref: "main", text: "RULE ONE" }]], "the card leads to the trace of the requirement its item realises");
+    await t.test("the item and the pull request of the chain stand on the trace page", { todo: "FINDING UC035-S3 — the item and the pull request in step 6's chain (requirement → use case → item or plan entry → pull request → tests) are shown on no trace page; the page a card leads to is the trace of the requirement, which names neither ITM-002 nor its pull request" }, () => {
+      const went = JSON.stringify(k.went[0]);
+      assert.ok(went.includes("ITM-002") && /pull\/2|#2\b/.test(went), `the trace names the item and its pull request (${went})`);
+    });
   } finally { v.done(); k.done(); }
 });
 

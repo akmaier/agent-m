@@ -70,14 +70,14 @@ const items = (node) => find(node, (each) => each.localName === "li").map((each)
 // guards: UC-025; MODULE GAPS ARE REPORTED, NOT FORBIDDEN
 // given: the fixture product at main: MOD-page (follows ARC-001, realises ALPHA RULE and GONE RULE, which the SPEC does not hold, has two code files and one test, and its file is open) and MOD-review (follows ARC-001, realises BETA RULE, has one code file and no test)
 // input: Route.render with the key "modules" at main
-// expect: one row for each module, MOD-page first; MOD-page's subsystem ARC-001, its requirements "ALPHA RULE — in SPEC" and "GONE RULE — not in the SPEC", its file docs/architecture/MOD-page.md with the status open, its code src/page/extra.mjs and src/page/index.mjs, its tests TST-1; MOD-review's tests none
+// expect: one row for each module, MOD-page first; MOD-page's subsystem ARC-001, its requirements "ALPHA RULE — in SPEC" alone (the requirement its one test guards, not GONE RULE, which only its file names), its file docs/architecture/MOD-page.md with the status open, its code src/page/extra.mjs and src/page/index.mjs, its tests TST-1; MOD-review's tests none
 test("the modules view shows a table with a row for each module: subsystem, requirements with their statuses, file, code and tests", async () => {
   const target = await render(hostOf());
   const rows = byClass(target, "tr", "module-row");
   assert.deepEqual(rows.map((row) => row.getAttribute("data-module")), ["MOD-page", "MOD-review"]);
   const page = rowOf(target, "MOD-page");
   assert.match(cell(page, "module-subsystem").textContent, /ARC-001/);
-  assert.deepEqual(items(cell(page, "module-realises")), ["ALPHA RULE — in SPEC", "GONE RULE — not in the SPEC"]);
+  assert.deepEqual(items(cell(page, "module-realises")), ["ALPHA RULE — in SPEC"]);
   assert.match(cell(page, "module-file").textContent, /docs\/architecture\/MOD-page\.md/);
   assert.match(cell(page, "module-file").textContent, /open/);
   assert.deepEqual(items(cell(page, "module-code")), ["src/page/extra.mjs", "src/page/index.mjs"]);
