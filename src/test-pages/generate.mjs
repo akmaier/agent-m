@@ -82,9 +82,19 @@ function guardingTests(graph, name) {
 async function loadProduct(host) {
   const info = await host.repositoryInfo();
   const snapshot = await host.readSnapshot(info.defaultBranch);
-  const declarations = (await Promise.all(snapshot.paths.filter(isTestFile).map(async (path) => testDeclarations(path, (await snapshot.read(path)) ?? "")))).flat();
   const graph = await storedGraph(snapshot, snapshot.commit);
-  const levelOf = new Map(declarations.map((declaration) => [declaration.id, declaration.level]));
+  // The tests' declarations, read once, in batches, where they are needed: for a proposal's existing tests, and for the levels where the graph holds none.
+  let read = null;
+  const declarations = () => (read ??= (async () => {
+    const paths = snapshot.paths.filter(isTestFile);
+    await snapshot.readMany?.(paths);
+    return (await Promise.all(paths.map(async (path) => testDeclarations(path, (await snapshot.read(path)) ?? "")))).flat();
+  })());
+  // Each test's level as the graph holds it; a graph stored before its tests held their levels gives them from the declarations.
+  const tests = [...graph.nodes.values()].filter((node) => node.kind === "TST");
+  const levelOf = tests.length > 0 && tests.every((node) => typeof node.level === "string")
+    ? new Map(tests.map((node) => [node.id, node.level]))
+    : new Map((await declarations()).map((declaration) => [declaration.id, declaration.level]));
   const names = [...graph.nodes.values()].filter((node) => FITTING[node.kind]).sort((a, b) => a.id.localeCompare(b.id))
     .map((node) => {
       const covered = new Set(guardingTests(graph, node.id).map((id) => levelOf.get(id)).filter(Boolean));
@@ -263,6 +273,7 @@ async function render(target, context, params = {}) {
 
   // ---------------------------------------------------------------- the proposal (UC-026 steps 5 to 8)
 
+  let declared = [];
   async function loadProposal() {
     proposalBox.replaceChildren();
     let rows, snapshot;
@@ -280,6 +291,12 @@ async function render(target, context, params = {}) {
       return;
     }
     const unwritten = rows.filter((each) => each.record.kind === "write-tests" && Array.isArray(each.record.end?.draft?.notWritten)).flatMap((each) => each.record.end.draft.notWritten);
+    try {
+      declared = await product.declarations();
+    } catch (failure) {
+      proposalBox.append(readProblem(failure, Boolean(context.product.tokenStored)));
+      return;
+    }
     paintCases(row.record, unwritten, snapshot);
   }
 
@@ -318,7 +335,7 @@ async function render(target, context, params = {}) {
   }
 
   function caseItem(one, reasons) {
-    const existing = product.declarations.filter((declaration) => declaration.id === one.identifier);
+    const existing = declared.filter((declaration) => declaration.id === one.identifier);
     const beside = existing.length
       ? existing.map((declaration) => el("div", "existing", `Existing ${declaration.id} (${declaration.level}), expects: ${declaration.expect ?? ""}`))
       : [el("div", "existing", "No existing test has this identifier.")];

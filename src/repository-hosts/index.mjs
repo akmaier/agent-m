@@ -583,15 +583,17 @@ export function connect(address, credentials = {}) {
       return adapter.mergePullRequest(number, expectedHead);
     },
 
-    // listCiRuns({ commit, branch, workflow }) -> CiRun[] — the GitHub Actions runs or GitLab pipelines, every page, optionally only those of a commit, of a branch, and — on GitHub — of a workflow. Crosses the
+    // listCiRuns({ commit, branch, workflow, event, newest }) -> CiRun[] — the GitHub Actions runs or GitLab pipelines, every page, optionally only those of a commit, of a branch, of an event
+    // (GitHub's event, GitLab's source) and — on GitHub — of a workflow; with `newest`, a whole number from 1, only that many, the newest first, in one request. Crosses the
     // network; fails as readSnapshot — a failure is never an empty list. Through a clone, the server's answer where a token is given, else NotSupported.
     async listCiRuns(filter = {}) {
       if (typeof filter !== "object" || filter === null || Array.isArray(filter)) throw new TypeError("a filter of CI runs is an object");
-      const { workflow, branch, commit } = filter;
-      for (const [key, value] of Object.entries({ workflow, branch, commit })) {
+      const { workflow, branch, commit, event, newest } = filter;
+      for (const [key, value] of Object.entries({ workflow, branch, commit, event })) {
         if (value !== undefined && (typeof value !== "string" || !value.trim())) throw new TypeError(`the ${key} of a filter of CI runs is a name`);
       }
-      return adapter.listCiRuns({ workflow, branch, commit });
+      if (newest !== undefined && !(Number.isInteger(newest) && newest >= 1)) throw new TypeError("the newest of a filter of CI runs is a whole number from 1");
+      return adapter.listCiRuns({ workflow, branch, commit, event, newest });
     },
 
     // cancelCiRun(id) -> void — asks the server to cancel a run; one that has ended already is no failure, and its state shows that it has. Crosses the network; fails with TokenRefused, PermissionMissing,

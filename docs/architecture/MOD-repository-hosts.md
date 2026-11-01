@@ -248,7 +248,8 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
   request's head is still `expectedHead` and the server allows it; branch protection on the server stays in force.
   Crosses the network; fails with `Moved`, `PermissionMissing`, `TokenRefused`, `RateLimited`, `Unreachable`, and with
   `NotMergeable { reason }` when the server refuses the merge.
-- `listCiRuns(filter: { commit?: string, branch?: string, workflow?: string }) -> Promise<CiRun[]>` — the GitHub Actions
+- `listCiRuns(filter: { commit?: string, branch?: string, workflow?: string, event?: string, newest?: number }) -> Promise<CiRun[]>` —
+  with `event`, only the runs of that event (GitHub's `event`, GitLab's `source`); with `newest`, only that many, the newest first, in one request; the GitHub Actions
   runs or GitLab pipelines. Crosses the network; fails as `readSnapshot`.
 - `startWorkflow(workflow: string, ref: string, inputs: Record<string, string>) -> Promise<CiRun | null>` — starts a
   workflow or a pipeline with its inputs; the inputs must hold no credential. Returns the run where the server names it at

@@ -526,12 +526,17 @@ export function githubAdapter(address, { token, tokenName }, links) {
     },
 
     // The runs ("List workflow runs for a workflow" where a workflow is given, else "List workflow runs for a repository"; branch and head_sha from the filter's branch and commit; the
-    // answer's workflow_runs, 100 to a page, read page by page).
-    async listCiRuns({ workflow, branch, commit } = {}) {
+    // answer's workflow_runs, 100 to a page, read page by page; the filter's event as `event`; with `newest`, only the first page, that many runs long, the newest first).
+    async listCiRuns({ workflow, branch, commit, event, newest } = {}) {
       const query = new URLSearchParams();
       if (branch) query.set("branch", branch);
       if (commit) query.set("head_sha", commit);
+      if (event) query.set("event", event);
       const list = workflow ? `${repo}/actions/workflows/${encodeURIComponent(workflow)}/runs` : `${repo}/actions/runs`;
+      if (newest) {
+        query.set("per_page", String(Math.min(newest, PAGE)));
+        return ((await read(`${list}?${query}`, { permission: "Actions" })).workflow_runs ?? []).slice(0, newest).map(ciRunOf);
+      }
       return (await everyPage(`${list}${query.size ? `?${query}` : ""}`, { permission: "Actions" }, (answer) => answer.workflow_runs)).map(ciRunOf);
     },
 

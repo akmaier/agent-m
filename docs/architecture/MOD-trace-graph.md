@@ -125,7 +125,7 @@ The graph keeps, while it is built, every fact a check across artifacts needs, s
 graph alone and no file is read twice:
 
 - a node keeps from its file what the checks read: a module its `folder` and the interfaces it `provides`, a plan step or
-  backlog item its `level` and its `tests`, a requirement the items of its source as written;
+  backlog item its `level` and its `tests`, a test its `level`, a requirement the items of its source as written;
 - a `uses` edge keeps the interface it names after the module, such as `parseSpec` in `MOD-spec-document.parseSpec`;
 - a group's title is a node of the kind `group`, keyed by its file and line, since a group carries no identifier (`A
   GROUP CARRIES NO IDENTIFIER`);

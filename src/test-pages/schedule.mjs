@@ -54,6 +54,8 @@ const GENERATED = { github: `.github/workflows/${GENERATED_WORKFLOW}`, gitlab: `
 const OCCASION_OF_EVENT = { push: "every commit", pull_request: "pull request", merge_request_event: "pull request", schedule: "nightly",
   workflow_dispatch: "on demand", web: "on demand" };
 const RUN_OCCASIONS = ["every commit", "pull request", "nightly", "on demand"];
+// The events of each server that stand for an occasion, as OCCASION_OF_EVENT maps them.
+const EVENTS_OF = { github: ["push", "pull_request", "schedule", "workflow_dispatch"], gitlab: ["push", "merge_request_event", "schedule", "web"] };
 const DAY = 24 * 60 * 60 * 1000;
 
 // The topics of the frame's explanations.md that explain each key of the schedule's front matter (ITM-1225).
@@ -456,7 +458,8 @@ async function render(target, context) {
   }
   if (snapshot.paths.includes(GENERATED[server])) {
     let runs = null;
-    try { runs = await host.listCiRuns({ workflow: GENERATED_WORKFLOW }); } catch { runs = null; }
+    // The newest run of each event that stands for an occasion, one request each, at once: no page of older runs is read.
+    try { runs = (await Promise.all(EVENTS_OF[server].map((event) => host.listCiRuns({ workflow: GENERATED_WORKFLOW, event, newest: 1 })))).flat(); } catch { runs = null; }
     configured.push(lastRunsBlock(runs, schedule, server, links));
   }
   const { defaultBranch } = await host.repositoryInfo();

@@ -374,11 +374,17 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
     },
 
     // The pipelines ("List project pipelines": ref and sha from the filter's branch and commit, 100 to a page, read page by page). A project has one pipeline definition, which startWorkflow starts
-    // whatever workflow it is given: the filter's workflow narrows nothing, and is each run's workflow, "" where the filter names none.
-    async listCiRuns({ workflow, branch, commit } = {}) {
+    // whatever workflow it is given: the filter's workflow narrows nothing, and is each run's workflow, "" where the filter names none. The filter's event is the pipelines' `source`;
+    // with `newest`, only the first page, that many pipelines long, the newest first.
+    async listCiRuns({ workflow, branch, commit, event, newest } = {}) {
       const query = new URLSearchParams();
       if (branch) query.set("ref", branch);
       if (commit) query.set("sha", commit);
+      if (event) query.set("source", event);
+      if (newest) {
+        query.set("per_page", String(Math.min(newest, PAGE)));
+        return (await read(`${api}/pipelines?${query}`, {})).slice(0, newest).map((p) => ciRunOf(p, workflow ?? ""));
+      }
       return (await everyPage(`${api}/pipelines${query.size ? `?${query}` : ""}`, {}, (p) => p.id)).map((p) => ciRunOf(p, workflow ?? ""));
     },
 
