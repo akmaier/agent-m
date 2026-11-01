@@ -155,7 +155,7 @@ test("TST-579203: UC-005 1a a file whose hash differs from the recorded one send
 // given: the product, the register and the changed file of TST-579203
 // input: show the run panel
 // expect: 1a: the page says that the content changed and that a new version must be registered (UC-016), in these words or others that name both: the word changed, and a new version to register
-test("TST-579204: UC-005 1a the page says that the content changed and that a new version must be registered", { todo: "FINDING: the page shows the hash mismatch as `This page could not be drawn: <path> has the SHA-256 …, not the … its version records` (MOD-site-frame readProblem, for an error that is no host's failure); no text names that the content changed or that a new version is to be registered (UC-016). MOD-review-pages shows it in its draft route; no accepted module text assigns the words" }, async () => {
+test("TST-579204: UC-005 1a the page says that the content changed and that a new version must be registered", async () => {
   const entries = { ...sourceFiles(), [`docs/sources/${SOURCE}/${VERSION}/${MAIN_FILE}`]: `${MAIN_TEXT}Chapter 3: changed afterwards.\n` };
   const w = await world({ instance: { entries }, answers: { candidates: [] } });
   const prepared = await w.prepare({ files: [MAIN_FILE] });
