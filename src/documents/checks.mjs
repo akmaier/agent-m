@@ -13,9 +13,11 @@
 // twice where unique; the rows of a table, cell by cell, in the same way; required sections missing, sections out of order,
 // sections the schema forbids, and a document path that matches none of the schema's path patterns; the identifier in the
 // front matter against the identifier its path gives; each front matter value that describedIn asks for and its section does
-// not describe; and, for a schema that names `diagrams`, every image (DIAGRAMS ARE MERMAID IN MARKDOWN). The title, a Mermaid
-// block missing where `diagrams` is `required` or standing where it is `none`, the marks of history, the fields of a section,
-// a record of `key: value` lines and appended sections are not checked yet. Each finding is an error, made with MOD-text-tools' finding, and names the rule of
+// not describe; and, for a schema that names `diagrams`, every image (DIAGRAMS ARE MERMAID IN MARKDOWN), a Mermaid block
+// missing where `diagrams` is `required` — on line 1, under DIAGRAMS ARE MERMAID IN MARKDOWN — and each Mermaid block standing
+// where it is `none` — at its opening fence, under the schema's own rule (ITM-1385). A Mermaid block is a fenced block whose
+// info string is `mermaid`. The title, the marks of history, the fields of a section, a record of `key: value` lines and
+// appended sections are not checked yet. Each finding is an error, made with MOD-text-tools' finding, and names the rule of
 // the part of the schema closest to it (Data, The requirement a finding names). A key or a section that is missing stands on
 // no line: its finding names line 1.
 // The section under the title (ITM-226) is the first section of a document with a title, and is missing from a document
@@ -384,6 +386,15 @@ export function documentFindings(schema, document) {
     for (const { address, index } of images(lines)) {
       add(first + index, [DIAGRAMS], `the image ${address} stands where a diagram is written as a \`\`\`mermaid block`,
         "replace the image by the same diagram as a fenced ```mermaid block in this document");
+    }
+    const mermaid = fences(lines).blocks.filter((block) => block.info === "mermaid");
+    if (schema.diagrams === "required" && !mermaid.length) {
+      add(1, [DIAGRAMS], `the document holds no diagram, which the format ${schema.schema} requires as a \`\`\`mermaid block`,
+        "add the diagram as a fenced ```mermaid block in this document");
+    }
+    for (const block of schema.diagrams === "none" ? mermaid : []) {
+      add(first + block.from, [], `a \`\`\`mermaid block stands where the format ${schema.schema} holds no diagram`,
+        "remove the ```mermaid block");
     }
   }
 
