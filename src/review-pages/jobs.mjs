@@ -643,6 +643,8 @@ async function presentDerivation(outcome, result, run) {
   if (outcome.rounds?.length) shown.append(roundsSection(outcome.rounds, outcome.stoppedBecause));
   if (outcome.remaining?.length) shown.append(findingsList("left", outcome.remaining));
   if (outcome.stepFindings?.length) shown.append(findingsList("step-findings", outcome.stepFindings));
+  // UC-022 step 6: a finding only the author can decide is not sent back but shown to the author (WHAT A PERSON DECIDES IS NOT SENT BACK).
+  if (outcome.forPerson?.length) shown.append(findingsList("for-person", outcome.forPerson));
   shown.append(files);
 
   const check = button("btn check-edit", "Check this edit");
