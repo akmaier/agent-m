@@ -33,6 +33,8 @@ const SELF = "tests/release-uc-037-connect-mailbox.test.mjs";
 const SYSTEM = "tests/system-uc-037-connect-mailbox.test.mjs";
 const lineOf = (p) => textOf(byClass(p.main(), "settings-mailbox")[0]);
 const carries = (request, secret) => JSON.stringify(request).includes(secret);
+// The read-only request repositoryInfo sends with a token for greenToMerge (ITM-1170): a POST to GitHub's GraphQL API whose query asks for refUpdateRule. It writes nothing.
+const greenToMergeQuery = (request) => request.method === "POST" && request.address === "https://api.github.com/graphql" && /refUpdateRule/.test(request.body ?? "");
 const WRITES = /\b(SELECT|STORE|APPEND|EXPUNGE|COPY|MOVE|DELETE|RENAME|CREATE)\b/i;
 
 // The requirements UC-037 realises, as this file states them.
@@ -484,7 +486,7 @@ test("TST-433817: Disconnect on the web-API route removes the sign-in token from
 // guards: UC-037; NO SECRET IN THE REPOSITORY
 // given: the instance repository alice/agent-m read by the dashboard; connections on both routes, stored and tested, and the places changed
 // input: every request the dashboard made to GitHub
-// expect: the dashboard read the instance repository and wrote nothing to it; no request to GitHub holds the mailbox password, the sign-in token, the refresh token or the Bridge's pairing token
+// expect: the dashboard read the instance repository and wrote nothing to it — every request to GitHub that is not a GET is a POST to /graphql whose query asks for refUpdateRule (greenToMerge, ITM-1170) —; no request to GitHub holds the mailbox password, the sign-in token, the refresh token or the Bridge's pairing token
 test("TST-433818: connecting a mailbox writes no secret to a repository", async () => {
   const p = await openDashboard();
   try {
@@ -499,7 +501,7 @@ test("TST-433818: connecting a mailbox writes no secret to a repository", async 
     await press(one(p.main(), "mailbox-places-save"));
     const github = p.requests.filter((request) => request.origin === "https://api.github.com");
     assert.ok(github.length > 0, "known positive: the instance repository was read");
-    assert.deepEqual(github.filter((request) => request.method !== "GET"), [], "nothing was written to a repository");
+    assert.deepEqual(github.filter((request) => request.method !== "GET" && !greenToMergeQuery(request)), [], "nothing was written to a repository: every request to GitHub that is not a GET is the read-only query for greenToMerge");
     for (const secret of [PASSWORD, GRAPH_TOKEN, REFRESH_TOKEN, p.bridge.token]) assert.ok(!github.some((request) => carries(request, secret)), "no secret goes to GitHub");
   } finally { await p.stop(); }
 });
