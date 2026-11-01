@@ -240,7 +240,7 @@ test("TST-372305: UC-008 accepting, editing and rejecting in a GitLab product re
 // TST-372306 · level: release · module: system
 // guards: ACCEPTANCE IS A COMMIT BY THE ACCEPTING PERSON; ONE CLICK PER DECISION; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; UC-008
 // given: the four use cases of a GitHub product, token named "github.com/alice", and of a GitLab product, token named "gitlab.example.org/alice"; the instance's own token is stored too
-// input: on GitHub the reviewer clicks Accept on UC-041 in one world, ticks UC-041 and UC-044 and clicks Accept ticked in another, and clicks Accept all 3 shown on Review all in a third; on GitLab the reviewer clicks Accept on UC-041
+// input: on GitHub the reviewer clicks Accept on UC-041 in one world, opens the pages of UC-041 and UC-044, then the list, ticks UC-041 and UC-044 and clicks Accept ticked in another, and clicks Accept all 3 shown on Review all in a third; on GitLab the reviewer clicks Accept on UC-041
 // expect: each click is one commit on the default branch that adds only files under docs/approvals/, one record per use case accepted — one, two, three, one —, each named UC-<nnn>-<twelve hex digits>.md; its message names the person the token is stored under ("Accepted by github.com/alice", "Accepted by gitlab.example.org/alice"); every request that writes carries that product's token and none the instance's; no other file is committed
 test("TST-372306: UC-008 an acceptance, of one use case, of the ticked ones or of all shown, is one commit made with the accepting person's own token that adds approval records", async () => {
   const recordsOf = (write) => Object.keys(write.files).sort();
@@ -251,7 +251,9 @@ test("TST-372306: UC-008 an acceptance, of one use case, of the ticked ones or o
   onlyRecords(single.writes()[0], ["UC-041"]);
   assert.match(single.writes()[0].message, /Accepted by github\.com\/alice/);
   const ticked = await world();
-  const list = await ticked.open();
+  const list = await ticked.open(at(ticked, "UC-041"));
+  await list.go(at(ticked, "UC-044"));
+  await list.go(`#use-case/product=${encodeURIComponent(ticked.address)}`);
   tick(tickOf(list.target, "UC-041")); tick(tickOf(list.target, "UC-044"));
   click(byClass(list.target, "button", "accept-ticked")[0]);
   await until(() => ticked.writes().length === 1, "Accept ticked");
@@ -410,14 +412,16 @@ test("TST-372311: UC-008 a use case is accepted exactly when a record names its 
 // TST-372312 · level: release · module: system
 // guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-008
 // given: a GitHub product with a token and the four use cases; a script that clicks every control that writes
-// input: each page is drawn and read; a script clicks Accept, Accept ticked (two ticked), Accept all 3 shown, Reject (a reason typed) and Save (an edit typed); then the person clicks the same controls
+// input: each page is drawn and read, the list after the pages of UC-041 and UC-044; a script clicks Accept, Accept ticked (two ticked), Accept all 3 shown, Reject (a reason typed) and Save (an edit typed); then the person clicks the same controls
 // expect: drawing writes nothing; a click a script makes on any of the five writes nothing; the person's click on Accept makes one commit — known positive: the controls were wired and pressable
 test("TST-372312: UC-008 the dashboard writes to the repository only as the direct result of a person's click", async () => {
   const w = await world();
   const one = await w.open(at(w, "UC-041"));
-  const list = await w.open();
   const all = await w.open(at(w, "all"));
   const edit = await w.open(withProduct("#use-case/id=UC-044/edit=1", w.address));
+  const list = await w.open(at(w, "UC-041"));
+  await list.go(at(w, "UC-044"));
+  await list.go(`#use-case/product=${encodeURIComponent(w.address)}`);
   assert.deepEqual([w.writes(), w.writers()], [[], []], "drawing writes nothing");
   tick(tickOf(list.target, "UC-041")); tick(tickOf(list.target, "UC-044"));
   reasonField(one.target).value = "not wanted";

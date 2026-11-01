@@ -69,11 +69,13 @@ const acceptedBy = async (target) => {
   await new Promise((resolve) => setTimeout(resolve, 400));
 };
 
-// The page of a product declaring `model`, drawn and read: the list (`params` {}) or Review all ({ id: "all" }); -> { fake, target, state, before }.
-async function page(model, params) {
+// The page of a product declaring `model`, drawn and read: the list (`params` {}) or Review all ({ id: "all" }), after the pages of the use cases `read`, as a reviewer reads them first;
+// -> { fake, target, state, before }.
+async function page(model, params, read = []) {
   const fake = world(model), state = participant();
   const context = contextOf(fake);
   writeSetting(context.store, "endpoint:ep1", { url: "https://ep1.example.test/v1", kind: "openai-compatible", model: "example-model" });
+  for (const id of read) await draw(fake, "use-case", { id }, { context });
   const { target } = await draw(fake, "use-case", params, { context });
   return { fake, target, state, before: { writes: fake.writes().length, fetched: fetched.length, asked: state.asked.length } };
 }
@@ -94,8 +96,8 @@ function acceptAll(target) {
 }
 
 // What one click of `press` on the page of a pulled product wrote, checked for UC-008 step 6 over the two use cases.
-async function pulled(params, press) {
-  const p = await page("scrum", params);
+async function pulled(params, press, read) {
+  const p = await page("scrum", params, read);
   assert.deepEqual(note(p.target), [{ participant: ["drafter-a"], place: ["this machine"] }], "the participant is named with its place beside the Accept");
   const button = press(p.target);
   assert.equal(p.fake.writes().length - p.before.writes, 0, "nothing is written before the click");
@@ -116,8 +118,8 @@ async function pulled(params, press) {
 }
 
 // What one click of `press` on the page of a planned product wrote.
-async function planned(params, press) {
-  const p = await page("v-model", params);
+async function planned(params, press, read) {
+  const p = await page("v-model", params, read);
   assert.deepEqual(note(p.target), [], "no participant is named beside the Accept");
   click(press(p.target));
   await acceptedBy(p.target);
@@ -132,10 +134,10 @@ async function planned(params, press) {
 // TST-1319205 · level: release · module: MOD-review-pages
 // guards: ACCEPTING A USE CASE PUTS THE MODULES IT CHANGES INTO THE BACKLOG; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; THE PAGE NAMES WHERE IT SENDS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; UC-008
 // given: a product declaring Scrum, a pulled model, whose use cases UC-007 and UC-008 are open, whose architecture describes MOD-reader and MOD-shelf and whose backlog is empty; the register's participant drafter-a, a model endpoint at "this machine"; a checking participant that answers MOD-reader for UC-007 and MOD-shelf for UC-008
-// input: the list of use cases is drawn and read; the person ticks UC-007 and UC-008 and presses Accept ticked once
+// input: the pages of UC-007 and UC-008 are drawn and read, then the list of use cases; the person ticks UC-007 and UC-008 and presses Accept ticked once
 // expect: known positive — both use cases have a tick and the button reads Accept ticked (2); before the click, one note beside Accept ticked names drafter-a with its place "this machine", and nothing is sent or written; after it, the first commit holds the two approval records, UC-007's and UC-008's, alone; then one item realising UC-007 and naming MOD-reader and one realising UC-008 and naming MOD-shelf are committed, each in a commit of its own whose message names drafter-a; no item is committed with or before the approval records; the checking participant was asked about each use case
 test("TST-1319205: UC-008 3d in a pulled product Accept ticked over two use cases writes the approvals, then the items of each use case", async () => {
-  await pulled({}, tickBoth);
+  await pulled({}, tickBoth, ["UC-007", "UC-008"]);
 });
 
 // TST-1319206 · level: release · module: MOD-review-pages
@@ -150,9 +152,9 @@ test("TST-1319206: UC-008 3e in a pulled product Accept all 2 shown writes the a
 // TST-1319207 · level: release · module: MOD-review-pages
 // guards: ACCEPTING A USE CASE PUTS THE MODULES IT CHANGES INTO THE BACKLOG; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; THE PAGE NAMES WHERE IT SENDS; UC-008
 // given: the product of TST-1319205 declaring the V-model, a planned model
-// input: the list is drawn, UC-007 and UC-008 are ticked and Accept ticked is pressed once; then, in another such product, Review all is drawn and Accept all 2 shown is pressed once
+// input: the pages of UC-007 and UC-008 are drawn, then the list; UC-007 and UC-008 are ticked and Accept ticked is pressed once; then, in another such product, Review all is drawn and Accept all 2 shown is pressed once
 // expect: known positive — both use cases have a tick, Accept ticked (2) and Accept all 2 shown are offered; counter-proof — no participant is named beside either; each click writes one commit, the approval records of UC-007 and UC-008, and no item; the checking participant is never asked and nothing is sent to an endpoint
 test("TST-1319207: UC-008 3d, 3e in a planned product Accept ticked and Accept all 2 shown write the approvals alone and ask no participant", async () => {
-  await planned({}, tickBoth);
+  await planned({}, tickBoth, ["UC-007", "UC-008"]);
   await planned({ id: "all" }, acceptAll);
 });

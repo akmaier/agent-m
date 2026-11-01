@@ -185,8 +185,8 @@ const type = (target, text) => {
 // TST-472678 · level: unit · module: MOD-review-pages
 // guards: STATUS IS DERIVED FROM THE RECORDS; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; EVERY STEP EXPLAINS ITSELF
 // given: a product whose `main` holds four use cases — UC-041 and UC-044 with no record, UC-042 with a record naming its current text, UC-043 with a record naming an earlier text —, and a token stored in this browser
-// input: the route `use-case` rendered with no id; and again for the instance itself, no product chosen
-// expect: a row for each use case with its id as a link to its page, its title and its status — open, accepted, changed since acceptance —; a tick on each use case that is not accepted, none on UC-042; the folded "What is this?"; for the instance the same rows; nothing written
+// input: the route `use-case` rendered with no id; the pages of UC-041 and UC-043 rendered; the list rendered again; and the list for the instance itself, no product chosen
+// expect: a row for each use case with its id as a link to its page, its title and its status — open, accepted, changed since acceptance —; no tick on any row before a page was shown; then a tick on UC-041 and UC-043, whose pages were shown, none on UC-044, which was not, and none on UC-042, which is accepted; the folded "What is this?"; for the instance the same rows; nothing written
 test("MOD-review-pages use-case — the list: every use case with its status and a tick", async () => {
   assert.ok(route, `the route use-case: ${pages.error?.message}`);
   const fake = fakeHost();
@@ -201,8 +201,11 @@ test("MOD-review-pages use-case — the list: every use case with its status and
     ["open", "accepted", "changed since acceptance", "open"]);
   assert.match(rowOf(target, "UC-043").textContent, /Return a book/, "its title");
   assert.equal(find(rowOf(target, "UC-043"), (node) => node.localName === "a")[0].getAttribute("href"), "#use-case/id=UC-043", "a link to its page");
-  assert.deepEqual(["UC-041", "UC-042", "UC-043", "UC-044"].filter((id) => byClass(rowOf(target, id), "input", "tick").length),
-    ["UC-041", "UC-043", "UC-044"], "a tick on each use case that is not accepted");
+  const ticked = (page) => ["UC-041", "UC-042", "UC-043", "UC-044"].filter((id) => byClass(rowOf(page, id), "input", "tick").length);
+  assert.deepEqual(ticked(target), [], "no use case has been shown: no tick");
+  await show(fake, { id: "UC-041" });
+  await show(fake, { id: "UC-043" });
+  assert.deepEqual(ticked((await show(fake)).target), ["UC-041", "UC-043"], "a tick on each use case not accepted whose page was shown");
   assert.ok(byClass(target, "details", "explain").length >= 1, "a folded What is this?");
   assert.equal(fake.writes().length, 0, "nothing written");
 
@@ -397,12 +400,13 @@ test("MOD-review-pages use-case/<id> — Accept writes one record naming the blo
 
 // TST-472681 · level: unit · module: MOD-review-pages
 // guards: SEVERAL FILES ARE ACCEPTED IN ONE CLICK; AN APPROVAL NAMES THE EXACT TEXT
-// given: the list shown with a token; UC-041, UC-043 and UC-044 ticked, and UC-043 unticked again; then another writer's commit changed UC-044 on `main`
+// given: the pages of UC-041, UC-043 and UC-044 shown, then the list with a token; UC-041, UC-043 and UC-044 ticked, and UC-043 unticked again; then another writer's commit changed UC-044 on `main`
 // input: a click on Accept ticked
 // expect: the number ticked 2, then one commit holding one record, UC-041's — not UC-043's —, naming the blob that was shown; UC-044 left out and named with the reason that it changed since it was shown, and still open; UC-041 accepted
 test("MOD-review-pages use-case — two ticked use cases are accepted in one commit, the one changed after it was shown is left out and named", async () => {
   assert.ok(route, `the route use-case: ${pages.error?.message}`);
   const fake = fakeHost();
+  for (const id of ["UC-041", "UC-043", "UC-044"]) await show(fake, { id });
   const { target } = await show(fake);
   const bar = byClass(target, "button", "accept-ticked")[0];
   assert.equal(bar.disabled, true, "nothing ticked: Accept ticked is not pressable");
@@ -551,16 +555,16 @@ test("MOD-review-pages use-case/<id> — PermissionMissing: the GitHub path is o
 
 // TST-472687 · level: unit · module: MOD-review-pages
 // guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
-// given: a token stored; the list, an open use case and a changed one rendered, and the ticks changed
+// given: a token stored; the page of UC-041 shown, then the list, an open use case and a changed one rendered, and the ticks changed
 // input: rendering, ticking and unticking — no click on Accept or on Accept ticked
 // expect: no commit attempted
 test("MOD-review-pages use-case — nothing is written without the person's click", async () => {
   assert.ok(route, `the route use-case: ${pages.error?.message}`);
   const fake = fakeHost();
+  await show(fake, { id: "UC-041" });
   const list = (await show(fake)).target;
   tick(byClass(rowOf(list, "UC-041"), "input", "tick")[0]);
   tick(byClass(rowOf(list, "UC-041"), "input", "tick")[0], false);
-  await show(fake, { id: "UC-041" });
   await show(fake, { id: "UC-043" });
   assert.ok(byClass(list, "button", "accept-ticked").length === 1, "known positive: the button that would write stands on the page");
   assert.equal(fake.writes().length, 0, "no commit attempted");
@@ -615,12 +619,13 @@ test("MOD-review-pages use-case/<id> — counter-proof: a click a script makes o
 
 // TST-680202 · level: unit · module: MOD-review-pages
 // guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; SEVERAL FILES ARE ACCEPTED IN ONE CLICK
-// given: the list shown with a token; UC-041 and UC-044 ticked
+// given: the pages of UC-041 and UC-044 shown, then the list with a token; UC-041 and UC-044 ticked
 // input: a click a script makes on Accept ticked; then the person's click
 // expect: after the script's click no commit is attempted; after the person's click one commit
 test("MOD-review-pages use-case — counter-proof: a click a script makes on Accept ticked writes nothing", async () => {
   assert.ok(route, `the route use-case: ${pages.error?.message}`);
   const fake = fakeHost();
+  for (const id of ["UC-041", "UC-044"]) await show(fake, { id });
   const { target } = await show(fake);
   for (const id of ["UC-041", "UC-044"]) tick(byClass(rowOf(target, id), "input", "tick")[0]);
   const bar = byClass(target, "button", "accept-ticked")[0];
