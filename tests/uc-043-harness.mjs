@@ -22,6 +22,7 @@
 // and no more; where UC-043 asks for something these parts do not give, the case says so and is a `todo` that names its finding.
 
 import "./site-frame-dom.mjs";
+import { decision, moduleText, orderText, stepText } from "./uc-045-harness.mjs";
 import { servers, instance, planned, GATES, ADDRESS, PARTICIPANTS, V_MODEL, SCRUM_MODEL, found, lines, modulePath, architecture, planFiles, stepId, pr } from "./uc-024-harness.mjs";
 import { productFacts } from "../src/progress-measures/index.mjs";
 import { traceGraph } from "../src/trace-graph/index.mjs";
@@ -47,6 +48,24 @@ const MODELS = { "dev-a": "model-c", "dev-b": "model-d" };
  * out, `plan` false leaves the product without a plan.
  */
 export const productFiles = async (over = {}, { open = [], plan = true } = {}) => planned({ files: { ...GATES, ...over }, open, plan });
+
+/**
+ * The files of a product of four modules, MOD-a to MOD-d, designed by one subsystem, with `uses` as their interfaces (default: MOD-c uses MOD-b and MOD-b uses MOD-a, MOD-d uses nothing) and a plan of four steps ITM-201 (MOD-a),
+ * ITM-202 (MOD-b), ITM-203 (MOD-c) and ITM-204 (MOD-d) in the order C, D, B, A, which is not the order of the interfaces. The V-model, the roles and the gates are those of productFiles.
+ */
+export const CHAIN = ["ITM-201", "ITM-202", "ITM-203", "ITM-204"];
+export const chainFiles = async ({ uses = { "MOD-b": ["MOD-a.read"], "MOD-c": ["MOD-b.read"] } } = {}) => {
+  const old = Object.fromEntries(Object.keys(architecture()).map((path) => [path, null]));
+  const files = {
+    ...old,
+    "docs/architecture/ARC-001-the-whole.md": decision("ARC-001", "The whole", ["forced_by:", "  - UC-001"]),
+    "docs/architecture/ARC-002-the-chain.md": decision("ARC-002", "The chain", ["refines: ARC-001", "forced_by:", "  - UC-001", "designs:", ...["a", "b", "c", "d"].map((each) => `  - MOD-${each}`)]),
+    ...Object.fromEntries(["a", "b", "c", "d"].map((each) => [`docs/architecture/MOD-${each}.md`, moduleText(`MOD-${each}`, uses[`MOD-${each}`] ?? [], "ARC-002")])),
+    "docs/plan/order.md": orderText([[CHAIN[2], "Implementation"], [CHAIN[3], "Implementation"], [CHAIN[1], "Implementation"], [CHAIN[0], "Implementation"]]),
+    ...Object.fromEntries(CHAIN.map((id, at) => [`docs/plan/${id}-the-module-${"abcd"[at]}.md`, stepText(201 + at, `The module ${"abcd"[at]}`, { modules: [`MOD-${"abcd"[at]}`] })])),
+  };
+  return productFiles(files, { plan: false });
+};
 
 /**
  * openWorld({ files, instanceFiles, pullRequests }) -> the world of a run over the product `files` (default: productFiles()) behind the fake of GitHub, with the instance `instanceFiles` laid over the instance of

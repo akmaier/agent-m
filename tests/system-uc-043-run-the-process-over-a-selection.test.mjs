@@ -95,6 +95,7 @@ const FLOW_FINDINGS = {
   "main-1-4-start": { uc: "The author hands the run to its participant", finding: "UC043-F2", file: SELF, test: "TST-1045207", module: "no module" },
   "main-2-presets": { uc: "jobs at once (the model's work-in-progress limit, or 3)", finding: "UC043-F3", file: SELF, test: "TST-1045205", module: "MOD-run-planner" },
   "main-4-5-states": { uc: "The run proceeds without a click", finding: "UC043-F1", file: SELF, test: "TST-1045209", module: "MOD-work-plans" },
+  "main-5-2-phases": { uc: "in a V-model, the Testing phase runs after Implementation", finding: "UC043-F11", file: SELF, test: "TST-1045234", module: "MOD-run-planner" },
   "main-5-3-tests": { uc: "**Tests** — the job of UC-026 for the selection", finding: "UC043-F5", file: SELF, test: "TST-1045214", module: "no module" },
   "main-7-finish": { uc: "Its participant completes the run's record", finding: "UC043-F6", file: SELF, test: "TST-1045218", module: "no module" },
   "1b-accepted": { uc: "**1b. A selected step's module file or decision is not accepted.**", finding: "UC043-F9", file: SELF, test: "TST-1045221", module: "MOD-work-plans" },
@@ -441,6 +442,26 @@ test("TST-1045218: UC-043 step 7 — when every step is done the run's next acti
   const actions = await world.next();
   assert.deepEqual(startsOf(actions), [], "known positive: no job starts");
   assert.deepEqual(actions.map((action) => action.do), ["finish"]);
+});
+
+// TST-1045234 · level: system · module: system
+// guards: UC-043; A RUN EXECUTES THE PROCESS MODEL OVER A SELECTION
+// given: the planned V-model product, whose transition Implementation → Testing is a sequence, with CI configured and a run over the six steps — ITM-101 to ITM-103 in the phase Implementation, ITM-104 to ITM-106 in the phase Testing — carried out
+// input: step 5.2 — the rounds of the run, with the phase of each step
+// expect: known positive — the three steps of the phase Implementation and the three of the phase Testing are all started; in the model's order no step of the phase Testing starts in a round in which a step of the phase Implementation has not been done before the round began: ITM-105 does not start beside ITM-102
+test("TST-1045234: UC-043 step 5.2 — in a V-model the phase Testing runs after Implementation", { todo: "FINDING UC043-F11 (MOD-run-planner) — nextActions (src/run-planner/next.mjs:125-134) takes the steps in the plan's order but starts each as soon as startable admits it and the modules it uses are done, and asks nowhere whether the steps of an earlier phase are done: ITM-105 (Testing, after ITM-103) starts in the round of ITM-102 (Implementation); MOD-run-planner's text says the steps are taken `in the order of the modules' interfaces and of the model's phases and gates`, and UC-043 says `in a V-model, the Testing phase runs after Implementation`" }, async () => {
+  const phaseOf = (step) => (["ITM-101", "ITM-102", "ITM-103"].includes(step) ? "Implementation" : "Testing");
+  await ready();
+  const result = await world.carryOut();
+  assert.deepEqual(result.waves.flat().map((each) => each.worksOn).sort(), STEPS, "known positive: all six steps are started");
+  const done = new Set();
+  const early = [];
+  for (const wave of result.waves) {
+    const open = STEPS.filter((step) => phaseOf(step) === "Implementation" && !done.has(step));
+    for (const each of wave) if (phaseOf(each.worksOn) === "Testing" && open.length) early.push(each.worksOn);
+    for (const each of wave) done.add(each.worksOn);
+  }
+  assert.deepEqual(early, []);
 });
 
 // ---------------------------------------------------------------- the alternative flows
