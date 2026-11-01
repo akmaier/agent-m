@@ -454,7 +454,7 @@ test("TST-376318: saving an edit takes one click once the text and the Why are g
 
 // TST-376319 · level: release · module: system
 // guards: EVERY STEP EXPLAINS ITSELF; UC-018
-// given: the library on GitHub with the author's token, and the same with no token
+// given: the library on GitHub with the author's token
 // input: the author opens the editor of A LOAN HAS A DUE DATE, the editor of a new requirement in "## 2. Membership", and the editor of UC-001
 // expect: each page carries a folded What is this? whose text explains what the step asks: for a requirement and a new one, why a SPEC edit is written as a proposal into a change queue; for the use case, the blob SHA and the review an edit reopens
 test("TST-376319: each editor carries a folded explanation of its step", async () => {
