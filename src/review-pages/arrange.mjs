@@ -11,6 +11,7 @@
 //   - The items of a kind are the nodes of that kind in MOD-trace-graph's graph of the snapshot: a requirement's name, a use case's, a decision's, a module's or a test's identifier.
 //   - The working tree is the group file as read; an item no group names is added to it, at the top level, when a move takes it, so that the file never lists an item the person did not place. A new group is put at the top level or in the group the
 //     person names; a moved item or group goes last into its target. Each move is applied alone, in order, to the tree as it stands: a refused one is listed with its reason and is no pending change.
+//   - A job record's `works_on` holds no test identifier (MOD-job-ledger, Data: "requirements, use cases, decisions, modules, items, sources —, an issue's address or a commit"), so *Propose groups* on the tests records the commit of the snapshot the page read; for the other kinds it records the items.
 //   - On `changed meanwhile` the pending changes are applied again, in order, to the newer file: those that still apply stay pending, the others are named with their reasons.
 
 import { fallbackEditLinks, saveGroupFile } from "../artifact-edits/index.mjs";
@@ -329,7 +330,7 @@ async function show(where, kind) {
 // *Propose groups* (UC-021 1b): the participants that can draft text, and a button that shows the run panel of the kind propose-groups for the one chosen — what is sent where, and Run. The job
 // writes nothing; its moves are handed to `adopt`, which makes them pending changes.
 async function proposeGroups(where, kind, items, adopt) {
-  const { token, context } = where;
+  const { token, context, snapshot } = where;
   const box = el("section", "arrange-propose", el("h3", null, "Propose groups"), explain(PROPOSE.explain.draft.participant));
   const stage = el("div", "stage");
   let loaded;
@@ -353,7 +354,7 @@ async function proposeGroups(where, kind, items, adopt) {
     if (!token) { stage.append(el("p", "problem", "A job is recorded and its result written with your token. ", tokenStep(context))); return; }
     const chosen = drafters.find((participant) => byClassChecked(offered, participant.name));
     if (!chosen) { stage.append(el("p", "problem", "Choose the participant that drafts.")); return; }
-    await panelOf({ ...where, definition, kind: PROPOSE, jobKind: "propose-groups", params: { kind }, worksOn: items, present: presentMoves, chosen, participants, instanceSnapshot, product, needs, stage });
+    await panelOf({ ...where, definition, kind: PROPOSE, jobKind: "propose-groups", params: { kind }, worksOn: kind === "tests" ? [snapshot.commit] : items, present: presentMoves, chosen, participants, instanceSnapshot, product, needs, stage });
   });
   box.append(offered, show, stage);
   return box;
