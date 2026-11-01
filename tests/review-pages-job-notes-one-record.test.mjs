@@ -10,11 +10,12 @@
 // Level: unit
 //
 // The document is the small DOM of tests/site-frame-dom.mjs, imported unchanged; the repository is a Host of the tests' own over one repository in memory, every read of a path under
-// docs/jobs/ counted (`read`, and the paths a `readMany` is given); the job records are written with MOD-job-ledger's own startRecord and appendToRecord. Readings the texts leave open,
+// docs/jobs/ counted (`read`, and each batch a `readMany` is given); the job records are written with MOD-job-ledger's own startRecord and appendToRecord. Readings the texts leave open,
 // which the cases state:
 //   - "the job that wrote the file" is read as the job whose end record lists `file <path>` for the path of the file shown (what MOD-runtimes' end writes for the files a writer committed).
 //     A file that no end lists is looked for through all records, and shows the notes of every end that name it, as before.
-//   - "reads no record older than it" is read as: no path of a job record older than that job's is read, by `read` or named in `readMany`.
+//   - "reads the records down to that job" and A PAGE LOAD READS THE REPOSITORY IN BATCHES ("the texts of the files it shows in requests of at most 100 files each") are read together: the records are asked for newest
+//     first in batches (`readMany`), the first of the ten newest, each further one of at most 100, and the search stops after the batch that holds the job's record. No record of a later batch is asked for.
 //   - The job that drafted the architecture is read as the newest record of kind derive-architecture that has an end, as the page reads it now.
 
 import "./site-frame-dom.mjs";
@@ -82,13 +83,14 @@ let commitsMade = 0;
 function fakeHost(files) {
   const tree = new Map(Object.entries(files));
   const sha = createHash("sha1").update(`commit of the file's ${++commitsMade}`).digest("hex");
-  const readJobs = new Set();
+  const readJobs = new Set(), batches = [];
   const snapshot = withStoredGraph({ repository: ON_GITHUB, ref: "main", commit: sha, paths: [...tree.keys()].sort(),
     read: async (path) => { if (isJob(path)) readJobs.add(path); return tree.has(path) ? tree.get(path) : null; },
-    readMany: async (paths) => { for (const path of paths) if (isJob(path)) readJobs.add(path); },
+    readMany: async (paths) => { const named = paths.filter(isJob); if (named.length) batches.push(named); for (const path of named) readJobs.add(path); },
     blob: (path) => (tree.has(path) ? blobOf(tree.get(path)) : null) });
   return {
     readJobs: () => [...readJobs].sort(),
+    batches: () => batches.map((each) => [...each]),
     host: {
       async repositoryInfo() { return { defaultBranch: "main", visibility: "public", canWrite: true, archived: false, description: "" }; },
       async readSnapshot() { return snapshot; },
@@ -123,8 +125,8 @@ const newest = (all, n) => Object.keys(all).filter(isJob).sort().reverse().slice
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-007
 // given: a product with 300 job records, the use case UC-001 open, written by the third-newest job — whose end lists the file and a note naming UC-001 and one naming UC-002 — and a job at 100 that wrote it earlier, with a note of its own
 // input: the route use-case rendered with the id UC-001
-// expect: the notes section holds the third-newest job's note on UC-001, and no note of the older job, none naming UC-002; the job records read are the three newest and no other (known positive: the notes are shown)
-test("MOD-review-pages use-case/<id> — the notes of the job that wrote the file, read down to that job", async () => {
+// expect: the notes section holds the third-newest job's note on UC-001, and no note of the older job, none naming UC-002 (known positive: the notes are shown); the job records are asked for in one batch holding the ten newest, and no record outside it is read
+test("MOD-review-pages use-case/<id> — the notes of the job that wrote the file, read in a batch of the newest records", async () => {
   const all = jobs();
   const fake = fakeHost({ ...FILES, ...all });
   const target = await show(fake, "use-case", { id: "UC-001" });
@@ -135,14 +137,15 @@ test("MOD-review-pages use-case/<id> — the notes of the job that wrote the fil
   assert.ok(!notes[0].textContent.includes("UC-002"), "a note naming another file is not shown");
   const read = fake.readJobs();
   assert.ok(read.length >= 1, "known positive: the counting fake counts reads");
-  assert.deepEqual(read.filter((path) => !newest(all, 3).includes(path)), [], `no job record older than the third-newest is read; ${read.length} were`);
+  assert.deepEqual(fake.batches().map((each) => [...each].sort()), [newest(all, 10).sort()], "one batch, the ten newest records");
+  assert.deepEqual(read.filter((path) => !newest(all, 10).includes(path)), [], `no job record outside the ten newest is read; ${read.length} were`);
 });
 
 // TST-1271002 · level: unit · module: MOD-review-pages
 // guards: UC-007
 // given: a product with 300 job records, of which no end lists the file UC-001, two ends holding a note that names it
 // input: the route use-case rendered with the id UC-001
-// expect: the notes of both ends that name UC-001, the newest job's first; a file that no job wrote is looked for through all 300 records
+// expect: the notes of both ends that name UC-001, the newest job's first; a file that no job wrote is looked for through all 300 records, asked for newest first in batches of 10, 100, 100 and 90, none above 100
 test("MOD-review-pages use-case/<id> — a file no job wrote is looked for through all records", async () => {
   const written = jobs();
   assert.ok(Object.values(written).some((body) => body.includes(`file ${UC1_PATH}`)), "known positive: the records list the file before it is taken out");
@@ -155,6 +158,8 @@ test("MOD-review-pages use-case/<id> — a file no job wrote is looked for throu
   const items = find(notes[0], (node) => node.localName === "li").map((node) => node.textContent);
   assert.deepEqual(items, [NEWEST_NOTE, OLDER_NOTE]);
   assert.equal(fake.readJobs().length, COUNT, "all records were looked through");
+  assert.deepEqual(fake.batches().map((each) => each.length), [10, 100, 100, 90], "in batches, the first of ten");
+  assert.deepEqual(fake.batches().flat(), newest(all, COUNT), "each record once, newest first");
 });
 
 // ---------------------------------------------------------------- the review page of the architecture
@@ -163,8 +168,8 @@ test("MOD-review-pages use-case/<id> — a file no job wrote is looked for throu
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-022
 // given: a product with 300 job records, the job that drafted the architecture the 8th newest, with one round, and a token
 // input: the route decision rendered with the id all
-// expect: the rounds section shows the round of that job (known positive: it holds the finding's text); at most ten job records are read, all among the ten newest
-test("MOD-review-pages decision/all — the rounds of the drafting job, read down to that job", async () => {
+// expect: the rounds section shows the round of that job (known positive: it holds the finding's text); at most ten job records are read, all among the ten newest, asked for in one batch
+test("MOD-review-pages decision/all — the rounds of the drafting job, read in a batch of the newest records", async () => {
   const all = jobs({ archAt: COUNT - 8 });
   const fake = fakeHost({ ...FILES, ...all });
   const target = await show(fake, "decision", { id: "all" });
@@ -174,4 +179,5 @@ test("MOD-review-pages decision/all — the rounds of the drafting job, read dow
   const read = fake.readJobs();
   assert.ok(read.length >= 1 && read.length <= 10, `at most ten job records are read; ${read.length} were`);
   assert.deepEqual(read.filter((path) => !newest(all, 10).includes(path)), [], "and all among the ten newest");
+  assert.deepEqual(fake.batches().map((each) => [...each].sort()), [newest(all, 10).sort()], "in one batch");
 });

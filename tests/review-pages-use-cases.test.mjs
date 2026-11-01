@@ -568,18 +568,19 @@ test("MOD-review-pages use-case — nothing is written without the person's clic
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: a product whose `main` holds the four use cases and three job records under docs/jobs/, a token stored
 // input: the page of UC-041, which is open, rendered; and the page of UC-042, which is accepted
-// expect: the job records, which the notes of the job that wrote the use case are read from, are read newest first and no further than that job's: none is asked for together with the others (Snapshot.readMany names none of them), no job record lists the use case, so each is read by itself, the newest first (known positive: the newest is read); an accepted use case's page asks for none
-test("MOD-review-pages use-case/<id> — the job records an open file's notes are read from are read newest first and not asked for together", async () => {
+// expect: the job records, which the notes of the job that wrote the use case are read from, are asked for newest first in batches, the first of the ten newest: with three records and none listing the use case, one batch (Snapshot.readMany) names all three, and each is then read, the newest first (known positive: the newest is read); an accepted use case's page asks for none
+test("MOD-review-pages use-case/<id> — the job records an open file's notes are read from are read in one batch, newest first", async () => {
   assert.ok(route, `the route use-case: ${pages.error?.message}`);
   const jobs = ["JOB-20261001-1000-aaaa", "JOB-20261001-1100-bbbb", "JOB-20261001-1200-cccc"].map((name) => `docs/jobs/${name}.md`);
   const steps = [...STEPS, Object.fromEntries(jobs.map((path) => [path, "not a job record\n"]))];
   const fake = fakeHost({ steps });
   await show(fake, { id: "UC-041" });
   const batches = fake.calls().filter((call) => call.fn === "readMany");
-  assert.deepEqual(batches.flatMap((batch) => [...batch.paths]).filter((path) => jobs.includes(path)), [], "no job record is asked for together with the others");
+  assert.equal(batches.length, 1, "one batch");
+  assert.deepEqual([...batches[0].paths].sort(), jobs, "every job record, and nothing else");
   const reads = fake.calls().filter((call) => call.fn === "read").map((call) => call.path);
   assert.ok(reads.includes(jobs[2]), "known positive: the newest job record is read");
-  assert.deepEqual(reads, [jobs[2], jobs[1], jobs[0]], "no record lists UC-041, so each is read by itself, the newest first");
+  assert.deepEqual(reads, [jobs[2], jobs[1], jobs[0]], "no record lists UC-041, so each is read, the newest first");
   const accepted = fakeHost({ steps });
   await show(accepted, { id: "UC-042" });
   assert.equal(accepted.calls().filter((call) => call.fn === "readMany").length, 0, "an accepted use case reads no job record");
