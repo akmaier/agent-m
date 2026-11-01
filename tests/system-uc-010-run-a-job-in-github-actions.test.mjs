@@ -23,6 +23,9 @@
 //     takes the same reading); TST-373211 reads the record the drafting page writes and follows the text where it names none.
 //   - TST-373203, TST-373204, TST-373206 and TST-373207 run the entry on one machine that holds the token and the key, the mode of tests/workflow-entries-job-workflow.test.mjs (the entry reads the part from
 //     AGENT_M_PART and runs whole where it is not set); the workflow's two machines are walked by TST-373209.
+//   - "from GitHub's Actions page" (step 1) is read as MOD-runtimes' table reads it — "a start from the server's own page, with a job's identifier (UC-010, UC-024)", the workflow's inputs being job, task,
+//     endpoint and secret — as a start with the input job naming a record (TST-373205); onDispatch's further mode, which writes a missing record from the inputs kind, participant, works_on and parameters,
+//     is walked by TST-373204 as the module file states it. That the Actions page offers no such inputs, so that no record can be written from it, is a gap between UC-010 step 1 and MOD-runtimes, named in the pull request.
 //   - "Together with the job's end record" (step 4) is read as the same run: the artifacts' commit and the end's commit are made one after the other by the one entry run.
 //   - "The workflow fails with a message naming the secret" (3a) is read as the entry's status `not run`, which the command line prints and ends with the exit code 1.
 
@@ -32,7 +35,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { testDeclarations } from "../src/test-document/index.mjs";
 import { statuses } from "../src/approvals/index.mjs";
-import { ACCEPTED, ENDPOINT, INSTRUCTION, KEY, RULE, TOKEN, UC1, UC1_CHANGED, UC1_TEXT, UC2, UC2_TEXT, UC3, UC3_TEXT, WORKFLOW, commandLine, dispatchRun, endpoint, environment, find, install, openSettings,
+import { ACCEPTED, ENDPOINT, INSTRUCTION, KEY, RULE, TOKEN, UC1, UC1_CHANGED, UC1_TEXT, UC2, UC2_TEXT, UC3, UC3_TEXT, WORKFLOW, commandLine, dispatchRun, endpoint, environment, find, install, installFast, openSettings,
   pushRun, queueFromDashboard, runAddress, runOnDraftingPage, workflowFiles, workflowLine, workflowRun, world } from "./uc-010-harness.mjs";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -193,17 +196,23 @@ test("TST-373204: UC-010 the main flow — a start from the server's own page wr
 
 // TST-373205 · level: system · module: system
 // guards: UC-010
-// given: the job workflow the Settings page installs for the product, whose file declares the inputs GitHub's Actions page offers for a start
-// input: read the inputs of the event workflow_dispatch in the installed file
-// expect: known positive — the file declares the input job; the author can also name the kind, the participant, what it works on and the parameters, so that a start from GitHub's Actions page writes the job's record
-test("TST-373205: UC-010 the main flow — GitHub's Actions page offers the inputs that a start needs to write the job's record", { todo: "FINDING UC010-F3 — the installed file declares the inputs job, task, endpoint and secret only (src/runtimes/workflow/github.yml:19-32), while onDispatch writes a record that does not exist from the inputs kind, participant, works_on and parameters (src/workflow-entries/product.mjs:430-442) and ends failed \"There is no record … and the inputs kind, participant and works_on do not name one to write\" otherwise: GitHub refuses an input a workflow does not declare, so a start from the Actions page, which UC-010 (Main flow, 1) names beside the dashboard and says writes the job's record, cannot give them — an item for MOD-runtimes (the template)" }, async () => {
-  endpoint();
+// given: the product with the job workflow installed, whose file declares the inputs GitHub's Actions page offers for a start, and a job change-use-case of UC-001 that the dashboard queued on the route ci hosted
+// input: step 1 from GitHub's Actions page — the author starts the workflow with the input job naming that record; steps 2 to 4 onDispatch with the secrets AGENT_M_TOKEN and FIXTURE_KEY
+// expect: known positive — the file declares the input job, as required; the entry ends done naming the job; main holds, in order, the queue commit, the taking naming the run's address, the commit that writes UC-001 with the alternative flow 2a and the end; the record ends done
+test("TST-373205: UC-010 the main flow — a start from GitHub's Actions page with the identifier of a queued job runs that job", async () => {
+  const requests = endpoint();
   await world({}, async (w) => {
-    await install(await openSettings(w), w);
+    await installFast(w);
     const declared = /workflow_dispatch:\s*\n\s*inputs:\s*\n((?:\s{6,}.*\n)+)/.exec(w.fileAt(WORKFLOW))?.[1] ?? "";
-    const names = [...declared.matchAll(/^ {6}([a-z_]+):/gm)].map((match) => match[1]);
-    assert.ok(names.includes("job"), `known positive: the inputs are read — ${names}`);
-    for (const name of ["kind", "participant", "works_on", "parameters"]) assert.ok(names.includes(name), `the input ${name} is declared: ${names}`);
+    assert.match(declared, /^ {6}job:\n(?: {8}.*\n)*? {8}required: true$/m, "known positive: the input job is declared and required");
+    const queued = await queueFromDashboard(w, { params: PARAMS });
+    const { status, run } = await dispatchRun(w, { job: queued.id });
+    assert.equal(status.outcome, "done", status.summary);
+    assert.ok(status.summary.includes(queued.id), status.summary);
+    assert.equal(requests.length, 1);
+    assert.deepEqual(w.subjects().slice(0, 4), [`end ${queued.id}: done`, "draft UC-001 as open files", `take ${queued.id} (${runAddress(run.id)})`, `Queue job ${queued.id}: change-use-case`]);
+    assert.equal(w.fileAt(UC1), UC1_CHANGED);
+    assert.match(w.fileAt(queued.path), /## End[^]*state: done/);
   });
 });
 
@@ -217,7 +226,7 @@ test("TST-373205: UC-010 the main flow — GitHub's Actions page offers the inpu
 test("TST-373206: UC-010 3a a missing secret fails the run with a message that names it, and nothing is written", async () => {
   const requests = endpoint();
   await world({}, async (w) => {
-    await install(await openSettings(w), w);
+    await installFast(w);
     await queueFromDashboard(w, { params: PARAMS });
     const head = w.head();
     for (const [extra, name] of [[{ FIXTURE_KEY: "" }, "FIXTURE_KEY"], [{ AGENT_M_TOKEN: "" }, "AGENT_M_TOKEN"]]) {
@@ -252,7 +261,7 @@ test("TST-373206: UC-010 3a a missing secret fails the run with a message that n
 test("TST-373207: UC-010 4a a result equal to the current artifacts commits nothing and is reported as no change", async () => {
   const requests = endpoint();
   await world({ product: { [UC1]: UC1_CHANGED } }, async (w) => {
-    await install(await openSettings(w), w);
+    await installFast(w);
     const queued = await queueFromDashboard(w, { params: PARAMS });
     const { status, run } = await pushRun(w);
     assert.equal(status.outcome, "done", status.summary);
@@ -275,7 +284,7 @@ test("TST-373207: UC-010 4a a result equal to the current artifacts commits noth
 test("TST-373208: UC-010 postcondition — the artifact is of the kind the browser produces, and nothing counts as accepted", async () => {
   endpoint();
   await world({ product: ACCEPTED }, async (w) => {
-    await install(await openSettings(w), w);
+    await installFast(w);
     const queued = await queueFromDashboard(w, { params: PARAMS });
     assert.equal((await pushRun(w)).status.outcome, "done");
     assert.deepEqual(w.paths().filter((path) => path.startsWith("docs/approvals/")), Object.keys(ACCEPTED), "the run added no approval record");
@@ -300,7 +309,7 @@ test("TST-373208: UC-010 postcondition — the artifact is of the kind the brows
 test("TST-373209: UC-010 the main flow — on the workflow's two machines the agent's result is written by the machine that holds the token", { todo: "FINDING UC010-F4 — on the agent's machine, which holds no token, the writer open-files reads the repository's history (src/artifact-edits/strategies.mjs:117, host.readHistory), and a host of a clone without a token has no history: throughClone answers NotSupported \"the history needs the server's API, which a clone without a token does not reach; store a token first\" (src/repository-hosts/index.mjs:160-166, history: without(\"the history\")), so that the job change-use-case ends failed with nothing written, while UC-010 (Main flow, 4) has the workflow commit the artifacts and MOD-runtimes' Data (A run has two machines) gives the agent's machine no token — an item for MOD-repository-hosts (history through a clone) or MOD-artifact-edits (the writer)" }, async () => {
   const requests = endpoint();
   await world({}, async (w) => {
-    await install(await openSettings(w), w);
+    await installFast(w);
     const queued = await queueFromDashboard(w, { params: PARAMS });
     const head = w.head();
     const { plan, chosen, agent, left, written } = await workflowRun(w);
@@ -327,7 +336,7 @@ test("TST-373209: UC-010 the main flow — on the workflow's two machines the ag
 test("TST-373210: UC-010 precondition — the run panel says that the calls are billed per use", { todo: "FINDING UC010-F2 — the run panel (src/site-frame/run-panel.mjs:20-71, destinationOf and runPanel) states each destination's model, place and the parts sent, and a limit of rounds, and says nothing of what the calls cost; the sentence that they are billed per use by the agent's provider stands only in the folded explanation of the Settings page's job workflow line (src/site-frame/explanations.md:500, job-workflow), while UC-010 (Precondition) says \"the run panel says so\" — an item for MOD-site-frame" }, async () => {
   endpoint();
   await world({}, async (w) => {
-    await install(await openSettings(w), w);
+    await installFast(w);
     const { shown } = await runOnDraftingPage(w);
     assert.match(shown, /ci-bot/, "known positive: the panel is the one of ci-bot");
     assert.match(shown, /billed per (use|call)/i);
@@ -342,7 +351,7 @@ test("TST-373210: UC-010 precondition — the run panel says that the calls are 
 test("TST-373211: UC-010 the main flow — a job the dashboard's page queues is run by the job workflow", { todo: "FINDING UC010-F1 — the start record the page writes carries no endpoint and no agent: preparedRun and startRecord (src/review-pages/jobs.mjs:159-195) put only the kind's parameters in the record (here requirements), nothing of the participant's endpoint or agent, and the entry reads the driver of a CI participant from the record's parameters alone: driverOf (src/workflow-entries/product.mjs:57-65) throws NoDriver \"The job's record names no endpoint and no agent for its participant\" and the job ends failed, while UC-010 (Main flow, 3) has the workflow call the endpoint with the secret; the CI agent's row in the participants register names a model and a secret, no address — an item for MOD-review-pages (the start record) and MOD-workflow-entries (where the driver comes from)" }, async () => {
   const requests = endpoint({ files: [{ path: UC3, text: UC3_TEXT, class: "new" }] });
   await world({}, async (w) => {
-    await install(await openSettings(w), w);
+    await installFast(w);
     const { queued, problem } = await runOnDraftingPage(w);
     assert.ok(queued, `the page queues the job: ${problem?.textContent}`);
     assert.match(queued.textContent, /ci hosted/);

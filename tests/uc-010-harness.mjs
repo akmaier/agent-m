@@ -30,7 +30,7 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { approvalSchema } from "../src/approvals/index.mjs";
 import { writeDocument } from "../src/documents/index.mjs";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { cpSync, mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { connect, parseAddress } from "../src/repository-hosts/index.mjs";
@@ -142,6 +142,17 @@ export function clone(root, bare, folder) {
   return folder;
 }
 
+// The default instance's bare origin, made on first use in a folder of its own that is removed when the program ends.
+let template = null;
+function defaultInstance() {
+  if (template === null) {
+    const folder = mkdtempSync(join(tmpdir(), "agent-m-uc010-instance-"));
+    template = origin(folder, "instance", INSTANCE_FILES);
+    process.on("exit", () => rmSync(folder, { recursive: true, force: true }));
+  }
+  return template;
+}
+
 /**
  * world({ product, instance }, run) — the product and the instance as origins, the dashboard's clone of the product, and `checkout()`, which makes the workspace of one job workflow run (a clone of
  * the product's origin as it stands now and of the instance's), as GitHub's checkout does. `product` and `instance` are files added to or replacing the defaults.
@@ -150,7 +161,12 @@ export function clone(root, bare, folder) {
 export async function world({ product = {}, instance = {} } = {}, run) {
   const root = mkdtempSync(join(tmpdir(), "agent-m-uc010-"));
   try {
-    const instanceOrigin = origin(root, "instance", { ...INSTANCE_FILES, ...instance });
+    // The instance holds the book and AGENTS.md, which a git repository takes a second to make: the default instance is made once and copied.
+    let instanceOrigin;
+    if (Object.keys(instance).length === 0) {
+      instanceOrigin = join(root, "instance.git");
+      cpSync(defaultInstance(), instanceOrigin, { recursive: true });
+    } else instanceOrigin = origin(root, "instance", { ...INSTANCE_FILES, ...instance });
     const productOrigin = origin(root, "product", { ...PRODUCT_FILES, ...product });
     const dashboardClone = clone(root, productOrigin, join(root, "dashboard"));
     const instanceClone = clone(root, instanceOrigin, join(root, "dashboard-instance"));
@@ -397,6 +413,15 @@ export async function install(target, w) {
   await until(() => w.subjects().length > before, "the commit of Install");
   await until(() => /Committed/.test(workflowLine(target).textContent), "the line says it committed");
   return workflowLine(target);
+}
+
+/**
+ * installFast(w) — the job workflow's files committed as Install commits them (the same files, the same message, one commit on the head the page would read), without drawing the Settings page, for the
+ * tests whose subject is not that page. TST-373202 and the main flow of TST-373203 press Install.
+ */
+export async function installFast(w) {
+  const host = w.dashboardHost();
+  await host.commitFiles({ branch: "main", expectedHead: (await host.readSnapshot("main")).commit, files: workflowFiles(w).map(({ path, text }) => ({ path, text })), message: "Install Agent M job workflow" });
 }
 
 /**

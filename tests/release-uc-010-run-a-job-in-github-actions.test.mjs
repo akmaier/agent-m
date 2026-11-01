@@ -32,7 +32,7 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { testDeclarations } from "../src/test-document/index.mjs";
 import { statuses } from "../src/approvals/index.mjs";
 import { routesFor } from "../src/runtimes/index.mjs";
-import { ACCEPTED, ENDPOINT, GATE_DRAFT, GATE_PATH, INSTRUCTION, KEY, TOKEN, UC1, UC1_CHANGED, UC1_TEXT, WORKFLOW, agentEnvironment, approvalOf, endpoint, entry, gateText, git, install, openSettings,
+import { ACCEPTED, ENDPOINT, GATE_DRAFT, GATE_PATH, INSTRUCTION, KEY, TOKEN, UC1, UC1_CHANGED, UC1_TEXT, WORKFLOW, agentEnvironment, approvalOf, endpoint, entry, gateText, git, installFast,
   pushRun, queueFromDashboard, queueGate, runAddress, runInTab, runOnDraftingPage, workflowFiles, workflowRun, world, writingEnvironment } from "./uc-010-harness.mjs";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -101,7 +101,7 @@ test("TST-373302: UC-010 no commit of the product holds the token or the key", a
   const holds = (w) => [TOKEN, KEY].filter((secret) => w.everyCommit().includes(secret));
   endpoint();
   await world({}, async (w) => {
-    await install(await openSettings(w), w);
+    await installFast(w);
     const queued = await queueFromDashboard(w, { params: PARAMS });
     assert.deepEqual(holds(w), [], "after the queueing");
     assert.equal((await pushRun(w)).status.outcome, "done");
@@ -111,7 +111,7 @@ test("TST-373302: UC-010 no commit of the product holds the token or the key", a
   });
   endpoint({ files: [{ path: UC1, text: `${UC1_CHANGED}\nauthorised with ${KEY}\n`, class: "change", of: "UC-001" }] });
   await world({}, async (w) => {
-    await install(await openSettings(w), w);
+    await installFast(w);
     const queued = await queueFromDashboard(w, { params: PARAMS });
     const { status } = await pushRun(w);
     assert.equal(status.outcome, "failed");
@@ -131,7 +131,7 @@ test("TST-373302: UC-010 no commit of the product holds the token or the key", a
 test("TST-373303: UC-010 what the CI route generates counts as a proposal until a person accepts it", async () => {
   endpoint();
   await world({ product: ACCEPTED }, async (w) => {
-    await install(await openSettings(w), w);
+    await installFast(w);
     assert.equal(statuses(await w.snapshot()).get(UC1).status, "accepted", "known positive: accepted before the run");
     await queueFromDashboard(w, { params: PARAMS });
     assert.equal((await pushRun(w)).status.outcome, "done");
@@ -153,7 +153,7 @@ test("TST-373303: UC-010 what the CI route generates counts as a proposal until 
 test("TST-373304: UC-010 the use case enters the default branch directly and counts as open", async () => {
   endpoint();
   await world({}, async (w) => {
-    await install(await openSettings(w), w);
+    await installFast(w);
     assert.equal(statuses(await w.snapshot()).get(UC1).status, "open", "known positive: open before the run");
     await queueFromDashboard(w, { params: PARAMS });
     assert.equal((await pushRun(w)).status.outcome, "done");
@@ -187,7 +187,7 @@ test("TST-373305: UC-010 a job that needs no local resource runs on the server's
   assert.equal(offers(withWorkflow, [{ resource: "cluster", route: "runner:gpu" }])[0].available, false, "a compute resource of a runner is not reached");
   assert.equal(offers(withWorkflow, [{ resource: "lab-pc", route: "bridge lab-pc" }])[0].available, false, "a machine of a Bridge is not reached");
   await world({}, async (w) => {
-    await install(await openSettings(w), w);
+    await installFast(w);
     await queueFromDashboard(w, { params: PARAMS });
     assert.equal((await pushRun(w)).status.outcome, "done");
     assert.equal(requests.length, 1, "known positive: the endpoint was asked");
@@ -223,7 +223,7 @@ test("TST-373306: UC-010 the agent's job reads the key of its participant from a
     assert.notEqual(withKey, jobs.text);
     assert.equal(clean(withKey, ["sk-", KEY]), false, "counter-proof: a key written into the file is found");
 
-    await install(await openSettings(w), w);
+    await installFast(w);
     await queueGate(w);
     const status = await entry("onRecordsChanged", agentEnvironment(w, w.checkout(), { AGENT_M_KEY_NAMES: "FIXTURE_KEY OTHER_KEY", AGENT_M_KEY: "1", OTHER_KEY }));
     assert.equal(status.outcome, "done", status.summary);
@@ -243,7 +243,7 @@ test("TST-373306: UC-010 the agent's job reads the key of its participant from a
 test("TST-373307: UC-010 the writing machine writes the agent's result with the person's token, and the agent's machine never holds it", async () => {
   const requests = endpoint({ draft: GATE_DRAFT });
   await world({}, async (w) => {
-    await install(await openSettings(w), w);
+    await installFast(w);
     const text = w.fileAt(WORKFLOW);
     assert.ok(!/GITHUB_TOKEN|github\.token/.test(text), "no built-in token");
     assert.match(text, /^permissions:\n {2}contents: read$/m);
@@ -270,7 +270,7 @@ test("TST-373307: UC-010 the writing machine writes the agent's result with the 
   });
   endpoint({ draft: GATE_DRAFT });
   await world({}, async (w) => {
-    await install(await openSettings(w), w);
+    await installFast(w);
     const queued = await queueGate(w);
     const agent = w.checkout();
     assert.equal((await entry("onRecordsChanged", agentEnvironment(w, agent))).outcome, "done");
@@ -299,7 +299,7 @@ test("TST-373307: UC-010 the writing machine writes the agent's result with the 
 test("TST-373308: UC-010 the CI route sends the one definition of the prompt that the tab sends", async () => {
   const requests = endpoint();
   await world({}, async (w) => {
-    await install(await openSettings(w), w);
+    await installFast(w);
     await queueFromDashboard(w, { params: PARAMS });
     assert.equal((await pushRun(w)).status.outcome, "done");
     await runInTab(w, PARAMS);
@@ -328,7 +328,7 @@ test("TST-373308: UC-010 the CI route sends the one definition of the prompt tha
 test("TST-373309: UC-010 the same job gives the same artifact on the CI route and in the tab", async () => {
   endpoint();
   await world({}, async (w) => {
-    await install(await openSettings(w), w);
+    await installFast(w);
     const installed = w.head();
     await queueFromDashboard(w, { params: PARAMS });
     assert.equal((await pushRun(w)).status.outcome, "done");
@@ -352,7 +352,7 @@ test("TST-373309: UC-010 the same job gives the same artifact on the CI route an
 test("TST-373310: UC-010 a job is recorded in its product repository, at its start and at its end", async () => {
   endpoint();
   await world({}, async (w) => {
-    await install(await openSettings(w), w);
+    await installFast(w);
     const instanceHead = git(w.instanceOrigin, "rev-parse", "main");
     const before = w.head();
     const { queued } = await runOnDraftingPage(w);
