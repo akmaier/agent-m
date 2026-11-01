@@ -71,6 +71,7 @@ const FLOW_EVIDENCE = {
   "main-2-reasons": { uc: "For each item it cannot start, Agent M names the reason.", evidence: [[SELF, "TST-805205"], [SELF, "TST-805206"]] },
   "main-3-holders": { uc: "Agent M proposes one participant each from the holders of the implementing role in the item's role assignment", evidence: [[SELF, "TST-805207"], [IMPLEMENT, "TST-789004"]] },
   "main-3-sent": { uc: "what is sent: the item; the requirements and use cases it realises, and their existing tests;", evidence: [[SELF, "TST-805207"]] },
+  "main-3-sent-item": { uc: "the item; the requirements and use cases it realises, and their existing tests;", evidence: [[SELF, "TST-805208"]] },
   "main-3-gates": { uc: "the gates the job will meet.", evidence: [[SELF, "TST-805207"], [SELF, "TST-805221"], [UC24, "TST-740210"]] },
   "main-3-pick": { uc: "The author may pick another holder of the role. They press **Start jobs**: one click.", evidence: [[SELF, "TST-805209"], [IMPLEMENT, "TST-789005"]] },
   "main-4-record": { uc: "Agent M queues one job per item, commits its start record under `docs/jobs/` of the product, and", evidence: [[SELF, "TST-805209"], [UC24, "TST-740210"]] },
@@ -98,7 +99,6 @@ const FLOW_EVIDENCE = {
 };
 // The passages the dashboard does otherwise: the finding, its case, and the item that points to or the person who rules.
 const FLOW_FINDINGS = {
-  "main-3-sent-item": { uc: "the item; the requirements and use cases it realises, and their existing tests;", finding: "UC034-F2", file: SELF, test: "TST-805208", module: "MOD-run-planner" },
   "4a-queued": { uc: "**4a. The bridge or the runner does not answer.**", finding: "UC034-F3", file: SELF, test: "TST-805211", module: "MOD-implementation-pages" },
   "main-5-pull-request-names": { uc: "The pull request names the item, the requirements it", finding: "UC034-F4", file: SELF, test: "TST-805213", module: "MOD-runtimes" },
   "7a-rejects": { uc: "**7a. The gate's decider rejects.**", finding: "UC034-F5", file: SELF, test: "TST-805218", module: "no module" },
@@ -286,9 +286,8 @@ test("TST-805207: UC-034 3 each item's panel names the participant of its team, 
 // guards: UC-034
 // given: the product of TST-805207, in which ITM-002 realises RULE ONE, which tests/pages.test.mjs guards, and the instance's SPEC holds its process requirements
 // input: the author opens Implement and reads what is sent to dev-a for ITM-002
-// expect: step 3 "the item; the requirements and use cases it realises, and their existing tests; ... the process requirements that apply": the item's file docs/backlog/ITM-002-item-2.md, the use case UC-001 it realises, and the test file that guards RULE ONE are among the parts; FINDING UC034-F2 (MOD-run-planner): the recipe implementation-inputs gives the module files, the decisions, the SPEC, the interfaces, the code, the tests that name the modules and the chapters, and not the item's file, the use cases it realises, the tests of the requirements it realises or the process requirements
+// expect: step 3 "the item; the requirements and use cases it realises, and their existing tests; ... the process requirements that apply": the item's file docs/backlog/ITM-002-item-2.md, the use case UC-001 it realises, and the test file that guards RULE ONE are among the parts
 test("TST-805208: UC-034 3 what is sent holds the item, the requirements and use cases it realises with their existing tests, and the process requirements",
-  { todo: "FINDING UC034-F2 (MOD-run-planner): the recipe implementation-inputs sends the module files, the decisions, the SPEC, the used modules' interfaces, the code and the tests that name the modules and the chapters; it sends neither the item's file, nor the use cases it realises, nor the tests of the requirements it realises, nor the process requirements" },
   async () => {
     const world = await teams({ files: withCode() });
     const page = await openImplement({}, { ...world, pullRequests: [merged(1, "ITM-001")] });
