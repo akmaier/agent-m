@@ -72,9 +72,9 @@ const FLOW_EVIDENCE = {
   "precondition": { uc: "The product declares a process model (UC-002), and its roles are filled (UC-048).", evidence: [[SELF, "TST-1045202"]] },
   "main-1-select": { uc: "The author selects the steps of the implementation plan the run builds", evidence: [[SELF, "TST-1045203"], [UC024S, "TST-740204"], [PLAN, "TST-732001"]] },
   "main-2-limits": { uc: "The author sets the **limits**: jobs at once", evidence: [[SELF, "TST-1045204"], [RUNOF, "TST-976002"]] },
-  "main-3-plan": { uc: "which plans it from the model: the parts of the run in their order", evidence: [[SELF, "TST-1045206"]] },
+  "main-3-plan": { uc: "which plans it from the model: the parts of the run in their order", evidence: [[SELF, "TST-1045206"], [NEXT, "TST-977009"]] },
   "main-4-record": { uc: "The run's participant writes the run's job record, naming the selection, the limits and the author who started it", evidence: [[SELF, "TST-1045208"], [RUNOF, "TST-976001"], [JOBREC, "TST-1132004"]] },
-  "main-5-1-ci": { uc: "**CI** — if the product has no CI configuration, the job of UC-027 generates it from the schedule", evidence: [[SELF, "TST-1045210"], [NEXT, "TST-977001"]] },
+  "main-5-1-ci": { uc: "**CI** — if the product has no CI configuration, the job of UC-027 generates it from the schedule", evidence: [[SELF, "TST-1045210"], [NEXT, "TST-977001"], [NEXT, "TST-977007"]] },
   "main-5-2-implementation": { uc: "**Implementation** — one job per step (UC-024)", evidence: [[SELF, "TST-1045211"], [SELF, "TST-1045212"], [SELF, "TST-1045213"], [NEXT, "TST-977002"], [UC024S, "TST-740210"]] },
   "main-5-validation": { uc: "**Validation** — UC-025 for the selection.", evidence: [[UC025, "TST-741112"], [VALID, "TST-741002"]] },
   "main-5-records": { uc: "writes its own record naming the run", evidence: [[SELF, "TST-1045215"], [JOBREC, "TST-1132004"], [UC024S, "TST-740213"], [UC024S, "TST-740219"]] },
@@ -325,8 +325,8 @@ test("TST-1045211: UC-043 step 5.2 — the steps are implemented in the order of
 // TST-1045212 · level: system · module: system
 // guards: UC-043; A RUN HAS LIMITS FIXED AT ITS START
 // given: the planned product with its CI configuration and a run over the six steps whose jobs at once are 1, and another whose jobs at once are 2
-// input: step 5.2 — each run carried out
-// expect: known positive — with 1, every round starts one job: ITM-101, ITM-102, ITM-103, ITM-104, ITM-105, ITM-106 in the plan's order; with 2, no round starts more than two jobs and ITM-101 and ITM-103 start together; a job that waits at a gate is counted against the limit as one that runs
+// input: step 5.2 — each run carried out; then a run with 1 whose first job reaches a gate
+// expect: known positive — with 1, every round starts one job: ITM-101, ITM-102, ITM-103, ITM-104, ITM-105, ITM-106 in the plan's order; with 2, no round starts more than two jobs and ITM-101 and ITM-103 start together; a job that waits at a gate is counted against the limit as one that runs: nothing starts beside it though ITM-103 is ready
 test("TST-1045212: UC-043 step 5.2 — never more jobs at once than the run's limit, a job at a gate counted", async () => {
   await ready({ limits: { jobsAtOnce: 1, cost: null, rounds: 5 } });
   const one = await world.carryOut();
@@ -337,12 +337,12 @@ test("TST-1045212: UC-043 step 5.2 — never more jobs at once than the run's li
   assert.deepEqual(two.waves[0].map((each) => each.worksOn), ["ITM-101", "ITM-103"]);
   assert.ok(two.waves.every((wave) => wave.length <= 2));
   world.restore();
-  await ready({ limits: { jobsAtOnce: 2, cost: null, rounds: 5 } });
-  const [a, b] = await world.next();
+  await ready({ limits: { jobsAtOnce: 1, cost: null, rounds: 5 } });
+  const [a] = await world.next();
   const first = await world.begin(a);
-  await world.begin(b);
+  assert.deepEqual(await world.next(), [], "known positive: one job runs, and ITM-103, which is ready, waits for the limit");
   await world.reachGate(first, GATE_AFTER, "Reviewer");
-  assert.deepEqual(await world.next(), [], "two jobs of the run have not ended, one of them at a gate: no third starts");
+  assert.deepEqual(await world.next(), [], "the job at a gate has not ended: it holds the only place");
 });
 
 // TST-1045213 · level: system · module: system
