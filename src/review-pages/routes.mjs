@@ -26,7 +26,7 @@ export const heads = {
 };
 
 // Every kind's route waits on the first import of flow.mjs: a page that shows two kinds at once (#arc: decisions and modules) imports it twice
-// concurrently, and a browser that resolves a second concurrent import() of a module still awaiting its dependencies before that module has run
+// concurrently, and a browser that resolves a second concurrent dynamic import of a module still awaiting its dependencies before that module has run
 // (WebKit) would hand the second route a flow.mjs whose constants are not yet initialised. Each route still imports flow.mjs itself, so that
 // preloads.mjs finds its modules.
 let flow = null;
