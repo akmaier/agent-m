@@ -409,3 +409,65 @@ test("TST-1357003 UC-021 2b Move content up one level, then Delete, leaves the c
   await until(() => fake.writes().length === 1, "the save");
   assert.equal(writtenGroupFile(fake)[0].text, text("# Use cases — groups", "", "The hierarchy of the use cases, each member by its identifier.", "", "- UC-001", "- UC-002", "- Derivation", "  - UC-003", "  - UC-009"));
 });
+
+// TST-1358001 · level: unit · module: MOD-review-pages
+// guards: UC-021
+// given: the product with the group file above (Review: UC-001, UC-002; Derivation: UC-003, UC-009; UC-004 in no group)
+// input: the route arrange drawn for the kind use-cases; Move to … of UC-001 to Derivation; of UC-004 to Review; of UC-002 to Top level
+// expect: the pending changes are "Move UC-001 from “Review” to “Derivation”", "Move UC-004 from the top level to “Review”" and "Move UC-002 from “Review” to the top level" (known positive: three pending changes stand, nothing is refused); nothing is written
+test("TST-1358001 UC-021 3 a pending move of an item names the group it came from and the group it goes to, or the top level", async () => {
+  const fake = fakeHost({ files: { ...PRODUCT, [GROUPS_PATH]: GROUPS } });
+  const target = await show(fake, { kind: "use-cases" });
+  moveTo(itemOf(target, "UC-001")[0], "Derivation");
+  moveTo(itemOf(target, "UC-004")[0], "Review");
+  moveTo(itemOf(target, "UC-002")[0], "Top level");
+  assert.equal(pending(target).length, 3, "known positive: three pending changes stand");
+  assert.deepEqual(refused(target), []);
+  assert.deepEqual(pending(target), ["Move UC-001 from “Review” to “Derivation”", "Move UC-004 from the top level to “Review”", "Move UC-002 from “Review” to the top level"]);
+  assert.deepEqual(fake.writes(), []);
+});
+
+// TST-1358002 · level: unit · module: MOD-review-pages
+// guards: UC-021
+// given: the product with the group file above
+// input: Move to … of UC-004 to Derivation, then of UC-004 to Review
+// expect: the pending changes are "Move UC-004 from the top level to “Derivation”" and "Move UC-004 from “Derivation” to “Review”": the second names the group the first put the item in (known positive: two pending changes stand)
+test("TST-1358002 UC-021 3 a second move of an item names the group the first move put it in", async () => {
+  const fake = fakeHost({ files: { ...PRODUCT, [GROUPS_PATH]: GROUPS } });
+  const target = await show(fake, { kind: "use-cases" });
+  moveTo(itemOf(target, "UC-004")[0], "Derivation");
+  moveTo(itemOf(target, "UC-004")[0], "Review");
+  assert.equal(pending(target).length, 2, "known positive: two pending changes stand");
+  assert.deepEqual(pending(target), ["Move UC-004 from the top level to “Derivation”", "Move UC-004 from “Derivation” to “Review”"]);
+});
+
+// TST-1358003 · level: unit · module: MOD-review-pages
+// guards: UC-021
+// given: the product with the group file above
+// input: Move to … of the group Derivation to Review; then of the group Review › Derivation to Top level
+// expect: the pending changes are "Move the group “Derivation” from the top level to “Review”" and "Move the group “Review › Derivation” from “Review” to the top level" (known positive: two pending changes stand)
+test("TST-1358003 UC-021 3 a pending move of a group names the group it came from and the group it goes to, or the top level", async () => {
+  const fake = fakeHost({ files: { ...PRODUCT, [GROUPS_PATH]: GROUPS } });
+  const target = await show(fake, { kind: "use-cases" });
+  moveTo(groupOf(target, "Derivation"), "Review");
+  moveTo(groupOf(target, "Derivation"), "Top level");
+  assert.equal(pending(target).length, 2, "known positive: two pending changes stand");
+  assert.deepEqual(pending(target), ["Move the group “Derivation” from the top level to “Review”", "Move the group “Review › Derivation” from “Review” to the top level"]);
+});
+
+// TST-1358004 · level: unit · module: MOD-review-pages
+// guards: UC-021; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE
+// given: the product with the group file above; the person moved UC-004 into Review; then a later commit of another writer puts UC-004 under Derivation
+// input: Save arrangement
+// expect: nothing is written; the pending change that still applies names the group the item is in now: "Move UC-004 from “Derivation” to “Review”" (known positive: one pending change stands before the save, "Move UC-004 from the top level to “Review”")
+test("TST-1358004 UC-021 5a after a changed group file a pending move names the group the item is in now", async () => {
+  const fake = fakeHost({ files: { ...PRODUCT, [GROUPS_PATH]: GROUPS } });
+  const target = await show(fake, { kind: "use-cases" });
+  moveTo(itemOf(target, "UC-004")[0], "Review");
+  assert.deepEqual(pending(target), ["Move UC-004 from the top level to “Review”"], "known positive");
+  fake.land({ [GROUPS_PATH]: GROUPS.replace("  - UC-009", "  - UC-009\n  - UC-004") });
+  click(saveButton(target));
+  await until(() => byClass(target, "p", "arrange-result").length === 1, "the refusal");
+  assert.deepEqual(fake.writes(), []);
+  assert.deepEqual(pending(target), ["Move UC-004 from “Derivation” to “Review”"]);
+});
