@@ -551,16 +551,16 @@ test("MOD-review-pages use-case/<id> — PermissionMissing: the GitHub path is o
 
 // TST-472687 · level: unit · module: MOD-review-pages
 // guards: THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
-// given: a token stored; the list, an open use case and a changed one rendered, and the ticks changed
+// given: a token stored; the page of UC-041 shown, then the list, an open use case and a changed one rendered, and the ticks changed
 // input: rendering, ticking and unticking — no click on Accept or on Accept ticked
 // expect: no commit attempted
 test("MOD-review-pages use-case — nothing is written without the person's click", async () => {
   assert.ok(route, `the route use-case: ${pages.error?.message}`);
   const fake = fakeHost();
+  await show(fake, { id: "UC-041" });
   const list = (await show(fake)).target;
   tick(byClass(rowOf(list, "UC-041"), "input", "tick")[0]);
   tick(byClass(rowOf(list, "UC-041"), "input", "tick")[0], false);
-  await show(fake, { id: "UC-041" });
   await show(fake, { id: "UC-043" });
   assert.ok(byClass(list, "button", "accept-ticked").length === 1, "known positive: the button that would write stands on the page");
   assert.equal(fake.writes().length, 0, "no commit attempted");

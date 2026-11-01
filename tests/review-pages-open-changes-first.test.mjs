@@ -118,10 +118,9 @@ function fakeHost(steps) {
 
 // ---------------------------------------------------------------- the page
 
-async function show(name, steps, { token = true, params = {} } = {}) {
+async function show(name, steps, { token = true, params = {}, host = fakeHost(steps) } = {}) {
   const route = pages.view?.routes.find((candidate) => candidate.name === name);
   assert.ok(route, `the route ${name}: ${pages.error?.message}`);
-  const host = fakeHost(steps);
   const store = openStore(token ? "alice/agent-m" : "nobody/agent-m");
   if (token) writeSetting(store, "github-token:alice/thesis-tool", TOKEN);
   const target = document.createElement("div");
@@ -162,8 +161,9 @@ test("TST-879001 use-case list — the open and changed use cases first, a tick 
   assert.deepEqual(shownBy(await show("use-case", USE_CASES_MIXED)), { parts: 1, open: ["UC-041", "UC-043", "UC-044"], openStatuses: ["open", "changed since acceptance", "open"],
     openTicks: 0, whole: ["UC-041", "UC-042", "UC-043", "UC-044", "UC-045"], wholeStatuses: ["open", "accepted", "changed since acceptance", "open", "accepted"], wholeTicks: 0,
     partBeforeWhole: true });
-  await show("use-case", USE_CASES_MIXED, { params: { id: "UC-043" } });
-  assert.equal(shownBy(await show("use-case", USE_CASES_MIXED)).openTicks, 1, "known positive: the use case whose page was shown has a tick");
+  const host = fakeHost(USE_CASES_MIXED);
+  await show("use-case", USE_CASES_MIXED, { host, params: { id: "UC-043" } });
+  assert.equal(shownBy(await show("use-case", USE_CASES_MIXED, { host })).openTicks, 1, "known positive: the use case whose page was shown has a tick");
 });
 
 // TST-879002 · level: unit · module: MOD-review-pages
@@ -198,10 +198,11 @@ test("TST-879004 decision and module lists — the open and changed files first,
     whole: ["ARC-001", "ARC-002", "ARC-003"], wholeStatuses: ["accepted", "open", "changed since acceptance"], wholeTicks: 0, partBeforeWhole: true });
   assert.deepEqual(shownBy(await show("module", ARCHITECTURE_MIXED)), { parts: 1, open: ["MOD-desk", "MOD-queue"], openStatuses: ["open", "open"], openTicks: 0,
     whole: ["MOD-desk", "MOD-queue", "MOD-shelf"], wholeStatuses: ["open", "open", "accepted"], wholeTicks: 0, partBeforeWhole: true });
-  await show("decision", ARCHITECTURE_MIXED, { params: { id: "ARC-003" } });
-  await show("module", ARCHITECTURE_MIXED, { params: { id: "MOD-desk" } });
-  assert.equal(shownBy(await show("decision", ARCHITECTURE_MIXED)).openTicks, 1, "known positive: the decision whose page was shown has a tick");
-  assert.equal(shownBy(await show("module", ARCHITECTURE_MIXED)).openTicks, 1, "known positive: the module whose page was shown has a tick");
+  const host = fakeHost(ARCHITECTURE_MIXED);
+  await show("decision", ARCHITECTURE_MIXED, { host, params: { id: "ARC-003" } });
+  await show("module", ARCHITECTURE_MIXED, { host, params: { id: "MOD-desk" } });
+  assert.equal(shownBy(await show("decision", ARCHITECTURE_MIXED, { host })).openTicks, 1, "known positive: the decision whose page was shown has a tick");
+  assert.equal(shownBy(await show("module", ARCHITECTURE_MIXED, { host })).openTicks, 1, "known positive: the module whose page was shown has a tick");
 });
 
 // TST-879005 · level: unit · module: MOD-review-pages

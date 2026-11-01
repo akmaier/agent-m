@@ -14,7 +14,7 @@
 //   - MOD-review-pages' "each with its status and a tick" names the tick of UC-008 3d: a file is read when the tab has drawn its page, `<k>/<id>`, or the page `<k>/all`
 //     that shows it; what was shown is kept on the screen only, so a tab that has drawn none of the pages has shown none.
 //   - The tick names the blob that was shown, and a file that changed after it was shown keeps its tick, which Accept ticked leaves out and names.
-// What this tab has shown is kept by the product's address and the file's identifier, so each test draws its own product, named by its number.
+// What this tab has shown is kept for the host of the repository the page shows, so each test draws a product of its own, with a host of its own.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
 import { emptyStorage } from "./review-pages-harness.mjs";
@@ -201,15 +201,15 @@ test("TST-1349004 use-case list — the use cases shown together on the review p
 
 // TST-1349005 · level: unit · module: MOD-review-pages
 // guards: UC-008; SEVERAL FILES ARE ACCEPTED IN ONE CLICK
-// given: two products on GitHub whose repositories hold the same use cases, a token for each
+// given: two products on GitHub, each a repository of its own with its own host, holding the same use cases, a token for each
 // input: the page of UC-041 of the first product drawn; the list of the first product drawn; the list of the second product drawn
 // expect: known positive — the first product's list has a tick on UC-041; the second product's list has none: a page of another product shows nothing of this one
 test("TST-1349005 use-case list — what the tab showed of one product gives no tick in another product's list", async () => {
   assert.ok(route, `the route use-case: ${pages.error?.message}`);
-  const first = productOf(5), second = productOf(6), fake = fakeHost(first);
+  const first = productOf(5), second = productOf(6), fake = fakeHost(first), other = fakeHost(second);
   await show(fake, first, { id: "UC-041" });
   assert.deepEqual(tickedIn(await show(fake, first)), ["UC-041"], "known positive: the first product");
-  assert.deepEqual(tickedIn(await show(fake, second)), [], "the second product");
+  assert.deepEqual(tickedIn(await show(other, second)), [], "the second product");
 });
 
 // TST-1349006 · level: unit · module: MOD-review-pages
