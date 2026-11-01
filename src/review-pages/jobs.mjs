@@ -225,15 +225,14 @@ async function start(run) {
   }
 }
 
-// What a run of the drafting job came to: the rounds, what the loop left, the files written.
+// What a run of the drafting job came to, as the architecture's draft shows it: the rounds, each with its findings, what the loop left, and the files written.
 async function presentDraft(outcome, result, run) {
   const { kind, context } = run;
   result.append(el("p", "rounds", `Correction rounds: ${outcome.rounds.length}`), explain(kind.explain.draft.loop));
-  const left = el("ul", "left");
-  for (const finding of outcome.remaining) left.append(el("li", "left", `${finding.rule}: ${finding.what} — ${finding.fix}`));
+  if (outcome.rounds.length) result.append(roundsSection(outcome.rounds, outcome.stoppedBecause));
   const written = el("ul", "written");
   for (const file of outcome.written?.files ?? []) written.append(el("li", null, file));
-  result.append(left, written, explain(kind.explain.draft.written), reviewLink(context, `#${kind.route}`, null, `All ${kind.plural}`));
+  result.append(findingsList("left", outcome.remaining), written, explain(kind.explain.draft.written), reviewLink(context, `#${kind.route}`, null, `All ${kind.plural}`));
 }
 
 // The job records are asked for through the snapshot's readMany, newest first, a hundred at a time (A PAGE LOAD READS THE REPOSITORY IN BATCHES: "at most 100 files each"), each batch only
