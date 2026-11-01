@@ -1480,9 +1480,8 @@ A refactoring job changes the expected result of no test.
 value fails; counter-proof: one that only moves a test passes.
 
 **AN IMPLEMENTATION JOB CHANGES ONLY ITS MODULES** *(Vibe Coding, ch. 12 §6, ch. 10 §3; PO A. Maier)*
-The pull request of an implementation job changes only code files in the folders of the modules the job was
-given, tests that name one of those modules, and the files outside every module that one of those modules' files names
-as taken over.
+The pull request of an implementation job changes only tests, test helpers, code files in the folders of the modules the
+job was given, and the files outside every module that one of those modules' files names as taken over.
 *Check:* `tests/test_implementation_job.py`
 
 **EVERY CODE FILE BELONGS TO A MODULE** *(PO A. Maier)*

@@ -168,14 +168,14 @@ const written = (fake) => Object.fromEntries(fake.writes()[0].change.files.map((
 // guards: UC-006
 // given: the instance whose queue 2026-03-01_sample holds the entries 05, 06 and 07, 06 waiting for the anchor 05 creates, and an older queue with one entry already accepted by its record; a token
 // input: the route spec-entry with no id; the pages of the entries 05, 06 and 07; the list again
-// expect: the queues newest first; a row for each entry with its link to #spec-entry/id=<id>, its anchor and its state — open, waiting for its anchor, in SPEC —; no tick on any entry before a page was shown; then a tick on each entry that is open or waits, whose page was shown, and none on an accepted one; nothing written
-test("spec-entry — the list: every queue with its entries' states and a tick for an open one whose page was shown", async () => {
+// expect: the queues newest first; a row for each entry with its link to #spec-entry/id=<id>, its anchor and its state — open, waiting for its anchor, in SPEC —; a tick on each entry that is open or waits, before and after its page was shown, and none on an accepted one; nothing written
+test("spec-entry — the list: every queue with its entries' states and a tick for each one not accepted", async () => {
   const OLD = "docs/spec-freigaben/2026-02-01_older", OLD_PROPOSAL = text("**AN OLDER RULE** *(Fixture PO)*", "An older rule.");
   const fake = fakeHost({ ...productFiles(), ...SOURCE_FILES,
     [`${OLD}/index.md`]: text("# SPEC approvals — queue 2026-02-01 · older", "", "| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |", "|---|---|---|---|---|", "| 01 | `SPEC.md` | ## 9. Older | — | — |"),
     [`${OLD}/01-older.md`]: OLD_PROPOSAL, [`${OLD}/entscheidungen.md`]: text("# Decisions", "", "| 2026-02-01 10:00 UTC | 1 | uebernommen | approval:spec-2026-02-01_older-01-aaaaaaaaaaaa.md |") });
   const unread = await show(fake);
-  assert.equal(byClass(unread, "input", "tick").length, 0, "no entry shown: no tick");
+  assert.equal(byClass(unread, "input", "tick").length, 3, "a tick on each entry not accepted before any page was shown");
   for (const item of [E05, E06, E07]) await show(fake, { id: idOf(item) });
   const target = await show(fake);
   assert.deepEqual(byClass(target, "section", "queue").map((queue) => queue.getAttribute("data-folder")), ["2026-03-01_sample", "2026-02-01_older"]);
