@@ -241,7 +241,7 @@ test("TST-738107: UC-021 a regrouping is one commit on the default branch, not a
 // guards: UC-021; AN UNGROUPED ITEM IS SHOWN AT THE TOP LEVEL
 // given: the product with the group file of the requirements naming two of the four requirements under Lending and the group files of the other four kinds absent
 // input: the arrangement of each kind is opened; the specification browser is opened
-// expect: in the arrangement of each kind with no group file every item stands at the top level, marked "not yet placed"; of the requirements the two Lending names stand in Lending, the other two at the top level marked; the specification browser draws the two Lending names inside the section of the group Lending, and the other two outside every group, marked "not yet placed"
+// expect: in the arrangement of each kind with no group file every item stands at the top level, marked "not yet placed"; of the requirements the two Lending names stand in Lending, the other two at the top level marked; the specification browser draws the two Lending names, each with an Edit link ending in /product=<the product's address, percent-encoded> (ITM-1364), inside the section of the group Lending, and the other two outside every group, marked "not yet placed"
 test("TST-738108: UC-021 an item no group names is shown at the top level, in the arrangement and in the specification browser", async () => {
   const requirements = groupFile("requirements", "- Lending", `  - ${LOAN_DATE}`, `  - ${LOAN_EXTENSION}`);
   const w = await grouped({ files: { [GROUP_PATH("requirements")]: requirements } });
@@ -257,7 +257,8 @@ test("TST-738108: UC-021 an item no group names is shown at the top level, in th
   const spec = await trace(w);
   const sections = byClass(spec, "section", "spec-group");
   assert.equal(sections.length, 1);
-  const names = (root) => find(root, (node) => node.localName === "a" && /^#requirement\/name=[^/]+$/.test(node.getAttribute("href") ?? "")).map((a) => decodeURIComponent(a.getAttribute("href").slice("#requirement/name=".length)));
+  const edit = new RegExp(`^#requirement/name=([^/]+)/product=${encodeURIComponent(w.address).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`);
+  const names = (root) => find(root, (node) => node.localName === "a" && edit.test(node.getAttribute("href") ?? "")).map((a) => decodeURIComponent(edit.exec(a.getAttribute("href"))[1]));
   assert.deepEqual(names(sections[0]).sort(), [LOAN_DATE, LOAN_EXTENSION].sort());
   assert.deepEqual(names(spec).filter((name) => !names(sections[0]).includes(name)).sort(), [BOOK_RETURN, SHELF_PLACE].sort());
   assert.equal(byClass(spec, "span", "requirement-unplaced").length, 2);

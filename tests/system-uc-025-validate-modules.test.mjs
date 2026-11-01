@@ -122,7 +122,7 @@ test("TST-741006: UC-025 step 5 — the diagram marks the modules that have a ga
 // guards: UC-025
 // given: the fixture product on the default branch
 // input: the reviewer presses MOD-store's name in its row; then reads the gaps' next steps
-// expect: a row opens below MOD-store's with its file rendered ("The module MOD-store"), "Folder: src/store/" and its code src/store/index.mjs; the gap of RULE THREE (no module) offers "Change the architecture", a link to #decision; the gaps of MOD-mail (no test) and MOD-news (no code) offer "Implement", a link to #implement; no other gap offers a next step
+// expect: a row opens below MOD-store's with its file rendered ("The module MOD-store"), "Folder: src/store/" and its code src/store/index.mjs; the gap of RULE THREE (no module) offers "Change the architecture", a link to #decision/product=<the product's address, percent-encoded>; the gaps of MOD-mail (no test) and MOD-news (no code) offer "Implement", a link to #implement; no other gap offers a next step
 test("TST-741007: UC-025 step 6 — a row opens onto its module's file and folder, and a gap offers its next step", async () => {
   const { target } = await open();
   await click(byClass(rowOf(target, "MOD-store"), "button", "module-name")[0]);
@@ -133,7 +133,7 @@ test("TST-741007: UC-025 step 6 — a row opens onto its module's file and folde
   assert.ok(itemsOf(opened[0]).includes("src/store/index.mjs"));
   const steps = byClass(target, "li", "module-gap").map((item) => [item.getAttribute("data-kind"), find(item, (node) => node.localName === "a").map((a) => `${a.textContent} ${a.getAttribute("href")}`)]);
   assert.deepEqual(steps.filter(([, links]) => links.length).sort(), [["module-without-code", ["Implement #implement"]], ["module-without-test", ["Implement #implement"]],
-    ["requirement-without-module", ["Change the architecture #decision"]]]);
+    ["requirement-without-module", [`Change the architecture #decision/product=${encodeURIComponent("https://github.com/acme/library")}`]]]);
 });
 
 // TST-741008 · level: system · module: system

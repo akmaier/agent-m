@@ -65,12 +65,12 @@ const links = (gap, className) => byClass(gap, "a", className).map((link) => [li
 // guards: UC-025; MODULE GAPS ARE REPORTED, NOT FORBIDDEN
 // given: the fixture product at main, with GAMMA RULE realised by no module
 // input: Route.render with the key "modules" at main
-// expect: the gap "requirement-without-module" for GAMMA RULE offers the link "Change the architecture" to #decision and no Implement
+// expect: the gap "requirement-without-module" for GAMMA RULE offers the link "Change the architecture" to #decision/product=<the product's address, encoded> and no Implement
 test("a requirement without a module offers Change the architecture, to the architecture's review pages", async () => {
   const target = await render(hostOf());
   const gap = gapOf(target, "requirement-without-module", "GAMMA RULE");
   assert.ok(gap, "known positive: the gap is listed");
-  assert.deepEqual(links(gap, "gap-change-architecture"), [["Change the architecture", "#decision"]]);
+  assert.deepEqual(links(gap, "gap-change-architecture"), [["Change the architecture", "#decision/product=https%3A%2F%2Fgithub.com%2Facme%2Flibrary"]]);
   assert.deepEqual(links(gap, "gap-implement"), []);
 });
 
@@ -121,12 +121,12 @@ test("at a version that is not the default branch the gaps offer no link, and a 
 // guards: UC-025
 // given: the fixture product at main, a Host that has no write method
 // input: Route.render with the key "modules" at main, and a click on each link
-// expect: the links are anchors (the page changes by the address alone); the Host is asked nothing but reads; it has no commitFiles
+// expect: the links are anchors (the page changes by the address alone), Change the architecture to #decision/product=<the product's address, encoded> and Implement to #implement; the Host is asked nothing but reads; it has no commitFiles
 test("the links start and write nothing: they are anchors to an address", async () => {
   const productHost = hostOf();
   const target = await render(productHost);
   const anchors = [...byClass(target, "a", "gap-implement"), ...byClass(target, "a", "gap-change-architecture")];
   assert.equal(anchors.length, 4);
-  for (const anchor of anchors) assert.match(anchor.getAttribute("href"), /^#(decision|implement)$/);
+  for (const anchor of anchors) assert.match(anchor.getAttribute("href"), /^#(decision\/product=https%3A%2F%2Fgithub\.com%2Facme%2Flibrary|implement)$/);
   assert.equal(Object.hasOwn(productHost, "commitFiles"), false);
 });

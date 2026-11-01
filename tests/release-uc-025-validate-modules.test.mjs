@@ -20,7 +20,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ARC_002, MODULE_FILES, approvalPath, byClass, cellOf, click, find, gapsOf, hostOf, itemsOf, moduleDoc, open, product, rowOf, rowsOf, testFile, textOf } from "./uc-025-harness.mjs";
+import { ADDRESS, ARC_002, MODULE_FILES, approvalPath, byClass, cellOf, click, find, gapsOf, hostOf, itemsOf, moduleDoc, open, product, rowOf, rowsOf, testFile, textOf } from "./uc-025-harness.mjs";
 
 const gapKinds = (target) => gapsOf(target).map((gap) => `${gap.kind} ${gap.text.split(" — ")[0]}`);
 const WRITES = ["commitFiles", "createBranch", "openPullRequest", "mergePullRequest", "startWorkflow", "createIssue", "createTag"];
@@ -29,7 +29,7 @@ const WRITES = ["commitFiles", "createBranch", "openPullRequest", "mergePullRequ
 // guards: UC-025; MODULE GAPS ARE REPORTED, NOT FORBIDDEN
 // given: the fixture product, which has gaps of five kinds, behind a Host that records a call of any function that writes
 // input: the reviewer opens Modules at main and presses each next step a gap offers
-// expect: every gap is listed, the row of every module — those with a gap among them — and the diagram are drawn; each next step is a link to a route (#implement, #decision) and starts nothing; no function that writes is called
+// expect: every gap is listed, the row of every module — those with a gap among them — and the diagram are drawn; each next step is a link to a route (#implement, or #decision ending in /product=<the product's address, percent-encoded>, ITM-1364) and starts nothing; no function that writes is called
 test("TST-741101: UC-025 a module gap is shown and blocks nothing", async () => {
   const host = hostOf();
   const written = [];
@@ -41,7 +41,7 @@ test("TST-741101: UC-025 a module gap is shown and blocks nothing", async () => 
   const links = byClass(target, "li", "module-gap").flatMap((item) => find(item, (node) => node.localName === "a"));
   assert.ok(links.length > 0, "known positive: a gap offers its next step");
   for (const link of links) {
-    assert.match(link.getAttribute("href"), /^#(implement|decision)$/);
+    assert.ok(["#implement", `#decision/product=${encodeURIComponent(ADDRESS)}`].includes(link.getAttribute("href")), link.getAttribute("href"));
     await click(link);
   }
   assert.deepEqual(written, []);
