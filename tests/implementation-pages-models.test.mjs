@@ -661,7 +661,7 @@ test("TST-1371001 the editor of a model names the products of this browser that 
 // input: the route `models` drawn with name=broken-wip
 // expect: the editor's <section class="model-products"> stands and lists no product — neither acme/library, which declares scrum, nor acme/atlas, which declares scrum-wip, nor acme/bare; counter-proof of TST-1371001
 test("TST-1371002 the editor of a model that no product declares names none", async () => {
-  const { target } = await edit("broken-wip");
+  const { target } = await edit("broken-wip", { ...INSTANCE_FILES, "docs/process-models/broken-wip.md": BROKEN });
   assert.equal(byClass(target, "model-products").length, 1, "known positive: the section stands");
   assert.deepEqual(usersOfEditor(target), []);
 });
