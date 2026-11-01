@@ -85,15 +85,17 @@ test("TST-370302: UC-004 a source is files, a zip archive, or a repository at a 
 
 // TST-370303 · level: release · module: system
 // guards: UC-004; A SOURCE DECLARES ITS LICENCE
-// given: documents note.md, every field filled in but the licence
+// given: documents note.md, every field filled in but the licence, and the repository https://github.com/akmaier/norms named for its content, so that nothing but the licence is missing
 // input: Save offered with no licence; then the licence "may be republished - CC BY-SA 4.0" typed and Save pressed
-// expect: without a licence Save is disabled and nothing is written; with it the committed entry records "licence: may be republished - CC BY-SA 4.0", the terms under which the content may be copied
+// expect: without a licence Save is disabled, the page naming the key licence, and nothing is written; with it the committed entry records "licence: may be republished - CC BY-SA 4.0", the terms under which the content may be copied
 test("TST-370303: UC-004 every source records its licence", async (t) => {
   const page = await visit(t, "#library");
   await register(page, "documents");
   await choose(page, [fileOf("note.md", "# Note\n")]);
+  await enter(fieldLabelled(page, "Repository for restricted content"), NORMS_WEB);
   await describe(page, { id: "SRC-note", title: "Note", authority: "advisory" });
   assert.equal(saveOf(page).disabled, true);
+  assert.match(text(page), /key licence/);
   assert.deepEqual(writes(page), []);
   await describe(page, { licence: "may be republished - CC BY-SA 4.0" });
   assert.equal(saveOf(page).disabled, false);
