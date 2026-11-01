@@ -2,8 +2,8 @@
 // (docs/architecture/MOD-work-plans.md): its interface. Of it, these are built: planSchemas, which gives the schema of the
 // implementation plan's order, planOrder, and the schema of a team's sprint, sprint; ItemState, itemStates and startable;
 // Held, heldItems, undecidedHeads and conflicts, the items the teams' sprints hold and what keeps an item from a team's selection; targetBranch, the branch an item's work is merged into;
-// startSprint; endSprint; closeSprint, which adds the feedback's new items as saveItems does, in its one commit; giveUpIncrement; backlogFindings, the findings of a backlog (checks.mjs); and workStrategies, of which the recipe architecture-and-model is built (strategies.mjs). planFindings,
-// savePlan is not built yet; saveItems is built (saves.mjs); sprintFacts is built (facts.mjs). A backlog keeps no order of its own:
+// startSprint; endSprint; closeSprint, which adds the feedback's new items as saveItems does, in its one commit; giveUpIncrement; backlogFindings and planFindings, the findings of a backlog and of a plan
+// (checks.mjs); savePlan and saveItems (saves.mjs); sprintFacts (facts.mjs); and workStrategies (strategies.mjs). A backlog keeps no order of its own:
 // its items are listed after the items they build on.
 //
 // Module: MOD-work-plans
@@ -21,7 +21,7 @@ export { backlogFindings, planFindings } from "./checks.mjs";
 export { conflicts, heldItems, sprintsToClose, targetBranch, undecidedHeads } from "./sprints.mjs";
 export { sprintFacts } from "./facts.mjs";
 export { itemStates, startable } from "./states.mjs";
-export { closeSprint, endSprint, giveUpIncrement, saveItems, startSprint, WorkPlansError } from "./saves.mjs";
+export { closeSprint, endSprint, giveUpIncrement, saveItems, savePlan, startSprint, WorkPlansError } from "./saves.mjs";
 export { workStrategies } from "./strategies.mjs";
 
 /**

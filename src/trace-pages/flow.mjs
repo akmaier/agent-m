@@ -931,7 +931,7 @@ async function drawModules(target, context, host, ref, descriptor, earlier = nul
   }
   const { rows, gaps } = moduleRows(graph);
   const next = await shown.isDefault;
-  place.replaceChildren(await renderMermaid(componentDiagram(files)), explain("component-diagram"), modulesTable(rows, graph, statuses(shown.snapshot), shown.snapshot), modulesGaps(gaps, ref, next));
+  place.replaceChildren(await renderMermaid(componentDiagram(files, gaps)), explain("component-diagram"), modulesTable(rows, graph, statuses(shown.snapshot), shown.snapshot), modulesGaps(gaps, ref, next));
 }
 
 export const route = {
