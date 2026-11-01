@@ -60,6 +60,7 @@ const factsOf = async (w) => JSON.parse((await w.recipe()).find((each) => each.n
 // The passages of UC-041 the system tests walk, each with the executable tests that walk it; a passage the code does otherwise is a finding, a `todo` case that fails now and names what it does instead.
 const FLOW_EVIDENCE = {
   "main-1-ends": { uc: "The sprint ends — its end date is reached or, in a sprint without a time box, every selected item is done or the Product Owner has ended it", evidence: [[SELF, "TST-991202"], [PY, "TST-991403"], [ENDED_PAGES, "TST-1330101"]] },
+  "main-1-close-job": { uc: "An agent's close job starts by itself", evidence: [[SELF, "TST-991207"]] },
   "main-1-by-itself": { uc: "An agent's close job starts by itself — no click.", evidence: [[PY, "TST-991403"], [SCHEDULE, "TST-1032101"], [BRIDGE, "TST-1033001"]] },
   "main-2-done": { uc: "the items that are done — merged, with their Definition of Done met — each with its pull request, the requirements it realises and the tests that guard them", evidence: [[SELF, "TST-991202"], [WRITER, "TST-620001"], [FACTS, "TST-986001"]] },
   "main-2-increment": { uc: "The increment is the set of done items", evidence: [[SELF, "TST-991202"], [FACTS, "TST-986006"]] },
@@ -89,7 +90,6 @@ const FLOW_EVIDENCE = {
 // The passages the code does otherwise: the finding, its case, and the module it points to.
 const FLOW_FINDINGS = {
   "main-2-not-done": { uc: "the items not done, each with its state and reason (UC-034)", finding: "UC041-F3", file: SELF, test: "TST-991203", module: "MOD-work-plans" },
-  "main-1-close-job": { uc: "An agent's close job starts by itself", finding: "UC041-F1", file: SELF, test: "TST-991207", module: "MOD-work-plans" },
   "main-3-sources-kept": { uc: "naming each source", finding: "UC041-F2", file: RELEASE, test: "TST-991305", module: "MOD-work-plans" },
   "main-5-as-proposal": { uc: "is written as a proposal that a person accepts", finding: "UC041-F4", file: RELEASE, test: "TST-991306", module: "MOD-work-plans" },
 };
@@ -234,8 +234,8 @@ test("TST-991206: UC-041 6 the closer is asked for the feedback's new items, whi
 // guards: UC-041; A SPRINT CLOSED BY AN AGENT STARTS BY ITSELF
 // given: the product of TST-991202; the job of kind close-sprint is started for the sprint its parameter sprint names, team1/02
 // input: closer-bot answers in the form its answer is given — the review, the unfinished items and the retrospective, and no sprint, which the form does not name
-// expect: known positive — the form of the answer names no sprint; the close of team1/02 is recorded: one commit, the record holding ## Review; FINDING UC041-F1 (MOD-work-plans): the writer sprint-record takes the sprint from the draft, not from the job's parameter sprint, so a close answered in its form fails with UnknownWork and nothing is recorded
-test("TST-991207: UC-041 1, 6 a close answered in the form the closer is given closes the sprint the job names", { todo: "FINDING UC041-F1 (MOD-work-plans): the writer sprint-record reads the sprint from draft.sprint, which close-sprint's answer schema does not name, instead of the job's parameter sprint; the job fails with UnknownWork" }, async () => {
+// expect: known positive — the form of the answer names no sprint; the close of team1/02 is recorded: one commit, the record holding ## Review
+test("TST-991207: UC-041 1, 6 a close answered in the form the closer is given closes the sprint the job names", async () => {
   const w = await closeWorld();
   const close = CLOSE();
   delete close.sprint;
