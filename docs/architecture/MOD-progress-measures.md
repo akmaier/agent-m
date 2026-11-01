@@ -216,7 +216,7 @@ The six stages of the main page, each a share between 0 and 1:
     `"unknown"`.
   - It asks no job's live state: the rows of `jobs` give the state of the record. A caller that asks the live states —
     from the CI service, from the Bridges and from this tab, through MOD-runtimes' `liveState` — derives the rows again with `listJobs`; a
-    runtime that does not answer leaves its jobs as their records say, marked as not reachable (UC-035 1b), and progress is
+    runtime that does not answer leaves its jobs as their records say, marked as not reachable (UC-036 1a), and progress is
     still computed from the repository.
   - Crosses the network. Errors, all of the product's host: `NotFound` (a private repository without a token that
     reaches it), `TokenRefused`, `RateLimited`, `Unreachable`.

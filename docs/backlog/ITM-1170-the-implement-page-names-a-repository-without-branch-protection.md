@@ -34,7 +34,19 @@ green' …, with the server's page for it" (`docs/use-cases/UC-024-*.md:225`).
 - The code has none of it: `src/repository-hosts/` and `src/implementation-pages/` name neither `greenToMerge` nor
   `branchProtection`.
 
+## The reading taken
+
+UC-042 step 2: a token's *Test* "sends one harmless request" (UC-042:71), and it runs through `repositoryInfo`, which now
+also gives `greenToMerge` (MOD-repository-hosts.md:150-155). MOD-repository-hosts states no number of requests for
+`repositoryInfo` (:217). On GitHub with a token it asks the server's GraphQL API, which it already uses for its batch
+query, in one read-only request: the default branch, the visibility, the person's permission, archived, the description,
+the default branch's protection rule and the rulesets that apply to it. On GitLab, the project's own record holds the
+setting "pipelines must succeed". So *Test* stays one request on either server.
+
 ## Acceptance
+
+- With a token on GitHub, `repositoryInfo` sends one request, and *Test* on the settings page one; counter-proof: the
+  request count with a REST call per part.
 
 - With a fixture host whose default branch is unprotected, the route `implement` says that the server does not enforce the
   merge rule, and links the server's page for branch protection. With a protected one, it says nothing.

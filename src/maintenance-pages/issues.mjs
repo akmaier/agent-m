@@ -13,8 +13,10 @@
 //   - The decision's buttons are "Bug", "Change" and "Not reproducible" before a proposal and "Confirm <class>" for the class proposed and "Correct to <class>" for another after it; a click is the person's or does nothing. A class needs no analysis first.
 //     "Reject issue" is disabled while the reason is blank. After a rejection the issue is closed, and the page offers neither analysis nor decision. A failure names itself, nothing is half done, and the controls stay.
 //   - The change (ITM-584): a section "Change" is shown for an issue whose class is change — by its label, or by the person's click on Change —, built as the analysis is (`runSection`) over the kind `change-requirements`, whose parameters are `issue` and `source`, the
-//     latter the identifier `personSource` gives over the product's links and the instance's register; without one the precondition `person-source` blocks the run panel, which lists its steps. The candidates are listed with their class; Save, the person's click, writes
-//     them with the kind's writer through `writeResult`, as the person left them (the classes the loop gave; a conflict is not composed).
+//     latter the identifier `personSource` gives over the product's links and the instance's register; without one the precondition `person-source` blocks the run panel, which lists its steps. The candidates are listed with their class (ITM-1256), each beside the requirement its
+//     class's `of` names, with the rule the prepared job's parts give for that name; a conflict offers its decision, <select class="conflict-decision">, undecided until the person gives it the class
+//     new, change or duplicate. Save, the person's click, is disabled while a conflict is undecided; it writes the candidates with the kind's writer through `writeResult`, with the classes the loop
+//     gave and each conflict replaced by the class the person decided it as.
 //   - The move into the backlog (ITM-1250): a section "Move to backlog" is shown for an open issue whose class is bug or change — by its label, or by the person's click on a class —, with the button "Move to backlog" (the person's click). The click reads the product's default branch and draws the
 //     item `backlogItemFrom` prefills as a form of the frame's `schemaForm` over the item schema, which hands over its list-valued keys as lists. The form holds a provisional identifier,
 //     the next that the paths of the backlog and the plan leave free, which is never written: `saveItems` gives the item the next one that no history holds. The form's one button, "Save", is shown as "Add"; the form offers it only while no error remains, and the findings of `backlogFindings`
@@ -210,20 +212,45 @@ function changeSection({ context, product, issue }) {
     paramsOf: async (instanceSnapshot) => { const source = await ownSource(product, instanceSnapshot); return source === null ? {} : { source }; },
     onResult: async (outcome, { stage, result, prepared, jobContext }) => {
       const candidates = Array.isArray(outcome.draft?.candidates) ? outcome.draft.candidates : [];
-      const classOf = (candidate) => outcome.classes?.find((each) => each.refs?.includes(candidate.name))?.class ?? candidate.class;
+      const classes = Array.isArray(outcome.classes) ? outcome.classes : [];
+      const classifiedOf = (candidate) => classes.find((each) => each.refs?.includes(candidate.name));
+      const classOf = (candidate) => classifiedOf(candidate)?.class ?? candidate.class;
+      // The rules of the requirements the job showed the participant, by name (the parts' artifacts: for a requirement its name and its rule).
+      const rules = new Map(prepared.parts.flatMap((part) => part.artifacts ?? []).map((artifact) => [artifact.id, artifact.keys?.[1] ?? ""]));
+      // The person's decision of each conflict, by the conflict's class: the class they give it, "" while undecided.
+      const decisions = new Map();
+      const saved = el("div", "change-result");
+      let save = null;
+      const undecided = () => [...decisions.values()].some((select) => select.value === "");
       const items = candidates.map((candidate) => {
+        const classified = classifiedOf(candidate);
+        const of = classified?.of ?? candidate.of ?? null;
         const item = el("li", "candidate", el("strong", null, candidate.name), ` (${classOf(candidate)}) `, candidate.rule);
         item.setAttribute("data-class", classOf(candidate));
         item.setAttribute("data-name", candidate.name);
+        if (of !== null && rules.has(of)) item.append(el("p", "candidate-refers", el("strong", null, of), `: ${rules.get(of)}`));
+        if (classified?.class === "conflict" && classified.refs[0] === candidate.name) {
+          const select = el("select", "conflict-decision", ...[["", "Decide this conflict"], ["new", "new"], ["change", "change"], ["duplicate", "duplicate"]].map(([value, text]) => {
+            const option = el("option", null, text);
+            option.value = value;
+            return option;
+          }));
+          select.value = "";
+          select.addEventListener("change", () => { save.disabled = undecided(); });
+          decisions.set(classified, select);
+          item.append(el("p", "conflict", el("label", null, "Decide as ", select)));
+        }
         return item;
       });
-      const saved = el("div", "change-result");
-      const save = button("save-change", "Save", async () => {
+      save = button("save-change", "Save", async () => {
+        if (undecided()) return;
         save.disabled = true;
         saved.replaceChildren();
         try {
           const head = await product.host.readSnapshot((await product.host.repositoryInfo()).defaultBranch);
-          const written = await writeResult(prepared, outcome.draft, { result: outcome, context: { ...jobContext, product: { ...jobContext.product, snapshot: head } } });
+          // The classes as the person left them: each conflict as the class they decided it as.
+          const decided = classes.map((each) => (decisions.has(each) ? { ...each, class: decisions.get(each).value } : each));
+          const written = await writeResult(prepared, outcome.draft, { result: { ...outcome, classes: decided }, context: { ...jobContext, product: { ...jobContext.product, snapshot: head } } });
           saved.append(el("p", "change-saved", written.files?.length ? `Saved: ${written.files.join(", ")}` : "Nothing changed."),
             ...(written.notes?.length ? [el("ul", "change-notes", ...written.notes.map((note) => el("li", "note", note)))] : []));
         } catch (problem) {
@@ -231,7 +258,8 @@ function changeSection({ context, product, issue }) {
           saved.append(el("p", "issue-problem", `The change could not be saved: ${failed(problem)}`));
         }
       });
-      stage.replaceChildren(el("p", "issue-drafted", `Drafted by ${prepared.drafter.name}; rounds: ${outcome.rounds?.length ?? 0}. Conflicts are not written until a person has decided them.`),
+      save.disabled = undecided();
+      stage.replaceChildren(el("p", "issue-drafted", `Drafted by ${prepared.drafter.name}; rounds: ${outcome.rounds?.length ?? 0}. Save is offered once you have decided every conflict.`),
         el("ul", "candidates", ...items), el("p", "actions", save), saved);
       result.replaceChildren();
     } });

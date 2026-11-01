@@ -28,34 +28,29 @@ MOD-review-pages shows, "beside an open file a job wrote, the notes of that job'
   Agent M's head —, then keeps the `note:` lines that name the file's identifier.
 - `draftingRounds` (`flow.mjs:104-113`): the same reading, then the first row of kind architecture with an end.
 
-Every commit a job makes carries the trailer `Agent-M-Job: <id>` (`src/job-runner/provenance.mjs:18`), and
-MOD-repository-hosts' `readHistory(path, { limit: 1 })` gives the newest commit of a file with its message.
+## The reading taken
 
-After the change: `jobNotes` reads the newest commit of the file shown (`readHistory`, `limit: 1`), and, where its
-message names a job, that one record; a file whose newest commit names no job shows no notes, since no job wrote its
-text. `draftingRounds` reads the records newest first, by the identifiers' order, and stops at the first architecture
-job with an end. MOD-review-pages' text is unchanged: it names what is shown, not how it is found.
+MOD-review-pages gives the way to find the job: "MOD-job-ledger.recordsNewestFirst — the record of the job that drafted a
+file, with its rounds, read newest first and no further than that record" (MOD-review-pages.md:360-361). `readHistory` is
+given "on `<k>/history` only" (:305), so `jobNotes` does not use it.
 
-Design principles (AGENTS.md §2 *Designing*): §2.2 *nothing twice* — which job wrote a text is recorded once, in its
-commit; the page reads it there instead of searching every record for it.
+After the change: `jobNotes` reads the records through `recordsNewestFirst`, newest first, and stops at the first record
+whose job wrote the file shown; `draftingRounds` stops at the first architecture job with an end. A file no job wrote is
+looked for through all records, as the text gives it.
 
-## Not ready
-
-`jobNotes` needs `readHistory` on the file it shows, and MOD-review-pages' Uses give `MOD-repository-hosts.readHistory`
-"on `<k>/history` only" (MOD-review-pages.md:305). Finding the job through `recordsNewestFirst` (:360-361) reads an
-unknown number of records, not the one the Acceptance asks. The item waits for akmaier's text of MOD-review-pages.
+Design principles (AGENTS.md §2 *Designing*): §2.2 *nothing twice* — the module reads the records through the one reader
+MOD-job-ledger provides for this, instead of listing every record itself.
 
 ## Acceptance
 
 Tests written first, each red on the commit that holds only them:
 
 - `tests/review-pages-job-notes-one-record.test.mjs` (MOD-review-pages, component), over a counting fake with 300 job
-  records: an open use case whose newest commit carries `Agent-M-Job: JOB-a` shows JOB-a's notes and reads one history
-  and one record; one whose newest commit names no job shows none and reads no record. `#review/arc` with an
-  architecture job among the ten newest reads at most ten records. Counter-proof: a note of another job naming the same
-  use case is not shown.
+  records: an open use case written by the third-newest job shows that job's notes and reads no record older than it.
+  `#review/arc` with an architecture job among the ten newest reads at most ten records. Counter-proof: a note of an
+  older job naming the same use case is not shown, and the code before the change reads all 300.
 
-Measurable outcome: opening an open use case or decision on the live page reads one history and at most one job record
+Measurable outcome: opening an open use case or decision written by a recent job reads the records down to that job,
 instead of 478 records in 5 batches (~7 MB).
 
 - The first commit holds only the tests, and CI is red on it. No stub is committed.

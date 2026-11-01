@@ -43,11 +43,16 @@ export function registerLater(register) {
 
 /**
  * registeredAll() -> Promise<void> — makes every registration handed to registerLater that is not made yet, each once, in the order handed; a
- * failure of one is thrown, and the ones after it are made at the next call.
+ * failure of one is thrown, and it stays first: it and the ones after it are made at the next call.
  */
 export function registeredAll() {
   return making ??= (async () => {
-    try { while (later.length) await later.shift()(); } finally { making = null; }
+    try {
+      while (later.length) {
+        await later[0]();
+        later.shift();
+      }
+    } finally { making = null; }
   })();
 }
 
