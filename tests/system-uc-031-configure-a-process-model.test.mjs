@@ -55,6 +55,7 @@ const FLOW_EVIDENCE = {
   "4a-never-committed": { uc: "An invalid definition is\n  never committed.", evidence: [[SELF, "TST-802207"], [RELEASE, "TST-779109"]] },
   "5a-no-requirements": { uc: "**5a. The chosen product has no accepted requirements yet.** The preview says so", evidence: [[RELEASE, "TST-779105"]] },
   "6a-list": { uc: "**6a. The adapted model is already used by products.**", evidence: [[SELF, "TST-802208"]] },
+  "6a-lists-them": { uc: "Agent M lists them.", evidence: [[SELF, "TST-802211"]] },
   "6a-keeps-version": { uc: "Each product keeps the\n  version of the definition it declared", evidence: [[SELF, "TST-802208"]] },
   "6a-shows-change": { uc: "Agent M shows what the new version changes for the product: phases,\n  gates, roles, and assignments that become invalid.", evidence: [[SELF, "TST-802209"]] },
   "6b-changed": { uc: "**6b. The file was changed in the repository since the editor opened it.** Nothing is written.", evidence: [[RELEASE, "TST-779108"]] },
@@ -62,7 +63,6 @@ const FLOW_EVIDENCE = {
 };
 const FLOW_FINDINGS = {
   "4a-keep": { uc: "or keep it in this browser to finish later", finding: "UC-031-4A", file: RELEASE, test: "TST-779110" },
-  "6a-lists-them": { uc: "Agent M lists them.", finding: "UC031-F1", file: SELF, test: "TST-802211" },
 };
 
 // TST-802201 · level: system · module: system
@@ -354,8 +354,7 @@ test("TST-802208: UC-031 6a: editing a model that a product declares writes the 
 // given: an instance with the model shop-model of its own, which alice/library declares at the instance's head
 // input: the author follows Edit on shop-model, adds a role and presses Save; reads the page of the editor and the notice after Save
 // expect: UC-031 6a "Agent M lists them": the page of the editor or its notice after Save names alice/library as a product that uses shop-model, before the author leaves it
-test("TST-802211: UC-031 6a: the editor of a model that products use lists those products",
-  { todo: "FINDING UC031-F1 — the editor draws no list of the products that declare the model: the products stand only on the list of the models (src/implementation-pages/process.mjs:438-449), and the editor and its notice after Save (process.mjs:513-676) name none; the item is for MOD-implementation-pages" }, async () => {
+test("TST-802211: UC-031 6a: the editor of a model that products use lists those products", async () => {
     const around = await products({ library: declares(SHOP) });
     const page = await edit("shop-model", { files: instanceWithShop, around });
     try {
