@@ -222,7 +222,7 @@ test("TST-513205: the bar names every participant with its place and the destina
 // guards: UC-049; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; NO SERVER
 // given: a session in which a model endpoint that uses tools reads the product and a CLI session of the Bridge answers; tokens of the instance and of the product are stored in the browser
 // input: the requests the session makes, each with its address and headers
-// expect: every request goes to the repository server (api.github.com, raw.githubusercontent.com), to the model endpoint, or to the Bridge — no other origin, no server of Agent M's own —; a GitHub token is carried only by requests to the repository server, the instance's token only to the instance's repository and the product's only to the product's; no request to the endpoint or to the Bridge carries a GitHub token
+// expect: every request goes to the repository server (api.github.com, raw.githubusercontent.com), to the model endpoint, or to the Bridge — no other origin, no server of Agent M's own —; a GitHub token is carried only by requests to the repository server, the instance's token only to the instance's repository and the product's only to the product's — the read-only POST /graphql for greenToMerge (ITM-1170) included, which names its repository in its variables; no request to the endpoint or to the Bridge carries a GitHub token
 test("TST-513206: a token goes only to the server that issued it, and only the repository server, the endpoint and the Bridge are asked", async () => {
   const s = await scenario({ ...register(TOOLER, AGENT), answers: [{ answer: "x" }] });
   const w = watch(s, { script: [answer("Read it."), answer("The Bridge's agent.")] });
@@ -238,7 +238,9 @@ test("TST-513206: a token goes only to the server that issued it, and only the r
     const carried = JSON.stringify(request.headers) + String(request.body ?? "");
     if (request.origin === "https://api.github.com") {
       const token = /github_pat_[A-Za-z0-9_]+/.exec(JSON.stringify(request.headers))?.[0];
-      if (token) assert.equal(token.startsWith("github_pat_FIXTURE_INSTANCE") ? request.path.startsWith("/repos/akmaier/agent-m") : request.path.startsWith("/repos/akmaier/lending-tool"), true, `${request.path} carries ${token}`);
+      // The read-only POST /graphql for greenToMerge (ITM-1170) names its repository in its variables.
+      const named = request.path === "/graphql" ? (({ owner, name }) => `/repos/${owner}/${name}`)(JSON.parse(String(request.body)).variables) : request.path;
+      if (token) assert.equal(token.startsWith("github_pat_FIXTURE_INSTANCE") ? named.startsWith("/repos/akmaier/agent-m") : named.startsWith("/repos/akmaier/lending-tool"), true, `${request.path} for ${named} carries ${token}`);
     } else if (request.origin !== "https://raw.githubusercontent.com") assert.ok(!/github_pat_/.test(carried), `${request.origin}${request.path} carries no GitHub token`);
   }
   assert.ok(w.requests.some((request) => request.origin === "https://api.github.com" && /github_pat_/.test(JSON.stringify(request.headers))), "known positive: the repository server was asked with a token");
