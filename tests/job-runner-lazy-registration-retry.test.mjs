@@ -14,7 +14,7 @@ import { registerStrategies, registerLater, registeredAll, registered } from "..
 // TST-1346001 · level: unit · module: MOD-job-runner
 // guards: EVERY PAGE LOADS IN UNDER THREE SECONDS
 // given: three registrations handed to registerLater in order, the first of which throws at its first call and registers the tool retry-a at its second, the second and third each registering a tool (retry-b, retry-c)
-// input: registeredAll, which rejects with the first one's error; then registeredAll again; then, as the known positive, registeredAll a third time
+// input: registeredAll, which rejects with the first one's error; then registeredAll again; then registeredAll a third time
 // expect: the first call rejects and registered("tools", "retry-a") is false; the second call resolves and retry-a, retry-b and retry-c are registered, the registrations having run in the order a, a, b, c; the third call runs nothing, so no registration has run twice after it was made
 test("TST-1346001: a lazy registration that fails is made at the next call, the ones after it follow in order, and a made one is not run again", async () => {
   const calls = [];
@@ -33,5 +33,5 @@ test("TST-1346001: a lazy registration that fails is made at the next call, the 
     "the failed registration was made at the second call and the ones after it followed");
   assert.deepEqual(calls, ["a", "a", "b", "c"]);
   await registeredAll();
-  assert.deepEqual(calls, ["a", "a", "b", "c"], "known positive: a third call runs nothing, a made registration is not run again");
+  assert.deepEqual(calls, ["a", "a", "b", "c"], "a third call runs nothing: a made registration is not run again");
 });
