@@ -15,7 +15,8 @@
 //     the names separated by commas; its one button is "Add"; it is offered only while no error remains (disabled otherwise), and the findings of MOD-work-plans' backlogFindings are shown beside the form as <li class="error">. The identifier the form holds is
 //     provisional: `saveItems` gives the item the next one that no history holds.
 //   - `changed` is every requirement the entries of the queues name as added or changed in `entryView`'s impact, in the order of the queues' entries, once each, for the queues whose `**Issue:**` line names this issue and this product. The analysis is the page's proposal, if
-//     the person ran one: the answer of `analyse-issue` names no violated requirement, so that a bug realises nothing until the person names it; its `modules` are the modules of the architecture whose folder holds a file it names as wrong, none without a proposal.
+//     the person ran one: a bug realises the requirement the answer of `analyse-issue` names as violated (ITM-1374), and nothing until the person names it where the answer names none; its `modules` are the modules of the architecture whose folder holds a file it
+//     names as wrong, none without a proposal.
 //   - Add is the person's click on the form's button. It writes through `moveToBacklog`; the page then shows <p class="move-added"> with the item's identifier, or, when the comment was refused for want of the permission, <div class="move-comment"> with <pre class="comment-text">,
 //     the issue's address as <a class="comment-issue"> and <button> "Copy comment".
 
@@ -194,6 +195,39 @@ test("issue — for a bug the item changes the modules of the files the analysis
   assert.match(files[0].content, /modules:\n {2}- MOD-store\n(?! {2}- )/);
   assert.equal(issueOf(w, 6).comments.length, 1);
   assert.deepEqual(issueOf(w, 6).labels.sort(), ["backlog", "defect"]);
+});
+
+// TST-1374101 · level: component · module: MOD-maintenance-pages
+// guards: A BACKLOG ITEM NAMES WHAT IT REALISES; UC-033
+// given: the issue 6 labelled defect; the participant's analysis proposes the class bug, names the files src/store/read.mjs and tests/store.test.mjs as wrong and FIRST RULE as the requirement violated; the product holds MOD-store (src/store/) and MOD-pages (src/pages/); the queues of the product name the issue 6 with a change of SECOND RULE
+// input: the analysis run by a person; Move to backlog by a person; Add by a person, with nothing typed
+// expect: the item is prefilled with realises FIRST RULE alone — the requirement the analysis names as violated, none from the queues — and modules MOD-store; no error names what it realises and Add is enabled; Add commits the item with realises FIRST RULE and modules MOD-store
+test("TST-1374101: issue — a bug's item realises the requirement the analysis names as violated, and is added without the person typing it", async () => {
+  const w = start({ answer: () => ({ draft: { ...PROPOSAL, violated: "FIRST RULE" }, answers: [] }) });
+  const detail = await open(w, 6);
+  await waitFor(() => byClass(detail, "participant").length > 0 && moveOf(detail) !== undefined);
+  const radio = byClass(detail, "participant").find((each) => each.value === "local-llm");
+  radio.checked = true;
+  one(detail, "person").value = "Reviewer Rae";
+  radio.dispatchEvent(new Event("change"));
+  await waitFor(() => byClass(detail, "run-panel").length > 0);
+  await trusted(buttonsOf(one(detail, "run-panel"), "Run")[0]);
+  await waitFor(() => byClass(detail, "issue-proposal").length > 0 || byClass(detail, "issue-problem").length > 0);
+  assert.equal(byClass(detail, "issue-problem").length, 0, textOf(detail));
+  const form = await moved(detail);
+  assert.deepEqual(namesIn(fieldOf(form, "realises").value), ["FIRST RULE"]);
+  assert.deepEqual(namesIn(fieldOf(form, "modules").value), ["MOD-store"]);
+  assert.equal(byClass(form, "error").filter((node) => /realises/i.test(textOf(node))).length, 0, textOf(form));
+  await waitFor(() => buttonsOf(form, "Add")[0].disabled === false);
+  assert.equal(buttonsOf(form, "Add")[0].disabled, false, textOf(form));
+
+  await trusted(buttonsOf(form, "Add")[0]);
+  await waitFor(() => byClass(moveOf(detail), "move-added").length > 0 || byClass(moveOf(detail), "issue-problem").length > 0);
+  assert.equal(byClass(moveOf(detail), "issue-problem").length, 0, textOf(moveOf(detail)));
+  const files = addedFiles(w);
+  assert.equal(files.length, 1);
+  assert.match(files[0].content, /realises:\n {2}- FIRST RULE\n(?! {2}- )/);
+  assert.match(files[0].content, /modules:\n {2}- MOD-store\n(?! {2}- )/);
 });
 
 // TST-1250203 · level: component · module: MOD-maintenance-pages
