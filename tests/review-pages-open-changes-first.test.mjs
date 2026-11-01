@@ -1,7 +1,7 @@
 // MOD-review-pages' lists of the use cases and of the architecture show the open and changed files first, and only while there are any, then every file
 // (ITM-879), as the accepted text of docs/architecture/MOD-review-pages.md states it for `<k>`: "first, only while a file of the kind is open or changed since
 // acceptance, those files, each with its status and a tick, and no such part where none is; then every file of the kind with its status — open, accepted, changed
-// since acceptance —". UC-008 step 1 lists every use case with its status; UC-008 3d gives each use case not accepted a tick.
+// since acceptance —". UC-008 step 1 lists every use case with its status; UC-008 3d gives each use case read a tick.
 // Run: node --test tests/review-pages-open-changes-first.test.mjs
 //
 // Module: MOD-review-pages
@@ -12,7 +12,7 @@
 // history, keeping to MOD-repository-hosts' interface. The real MOD-approvals, MOD-documents and MOD-browser-store run as they are. Nothing reaches the network.
 // Readings the test takes where the module file leaves one open:
 //   - The first part is <section class="open-changes"> holding a table of the files that are open or changed since acceptance, in the order of their identifiers, each row with
-//     its status and, with a token, a tick. It stands before the table of every file, which lists every file with its status and no tick, as the ticks stand in the first part.
+//     its status and, with a token, a tick for a file whose page was shown in this tab. It stands before the table of every file, which lists every file with its status and no tick, as the ticks stand in the first part.
 //   - Without a token the first part is shown the same, without ticks.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
@@ -118,7 +118,7 @@ function fakeHost(steps) {
 
 // ---------------------------------------------------------------- the page
 
-async function show(name, steps, { token = true } = {}) {
+async function show(name, steps, { token = true, params = {} } = {}) {
   const route = pages.view?.routes.find((candidate) => candidate.name === name);
   assert.ok(route, `the route ${name}: ${pages.error?.message}`);
   const host = fakeHost(steps);
@@ -127,7 +127,7 @@ async function show(name, steps, { token = true } = {}) {
   const target = document.createElement("div");
   document.body.append(target);
   await route.render(target, { page: "review", instance: { repository: "alice/agent-m", host }, store, go() {},
-    product: { address: ON_GITHUB.web, kind: "github", host } }, {});
+    product: { address: ON_GITHUB.web, kind: "github", host } }, params);
   return target;
 }
 function elements(root) {
@@ -156,12 +156,14 @@ function shownBy(target) {
 // TST-879001 · level: unit · module: MOD-review-pages
 // guards: UC-008; STATUS IS DERIVED FROM THE RECORDS
 // given: the use cases UC-041 and UC-044 open, UC-043 changed since acceptance, UC-042 and UC-045 accepted; a token
-// input: the route use-case drawn as the list
-// expect: one first part, before the whole list, holding UC-041, UC-043, UC-044 with the statuses open, changed since acceptance, open and three ticks; the whole list holds UC-041 to UC-045 with their statuses and no tick
-test("TST-879001 use-case list — the open and changed use cases first, with a tick each, then every use case", async () => {
+// input: the route use-case drawn as the list; the page of UC-043 drawn; the list drawn again
+// expect: one first part, before the whole list, holding UC-041, UC-043, UC-044 with the statuses open, changed since acceptance, open and no tick, as no page was shown; the whole list holds UC-041 to UC-045 with their statuses and no tick; after the page of UC-043 the first part holds one tick
+test("TST-879001 use-case list — the open and changed use cases first, a tick on each whose page was shown, then every use case", async () => {
   assert.deepEqual(shownBy(await show("use-case", USE_CASES_MIXED)), { parts: 1, open: ["UC-041", "UC-043", "UC-044"], openStatuses: ["open", "changed since acceptance", "open"],
-    openTicks: 3, whole: ["UC-041", "UC-042", "UC-043", "UC-044", "UC-045"], wholeStatuses: ["open", "accepted", "changed since acceptance", "open", "accepted"], wholeTicks: 0,
+    openTicks: 0, whole: ["UC-041", "UC-042", "UC-043", "UC-044", "UC-045"], wholeStatuses: ["open", "accepted", "changed since acceptance", "open", "accepted"], wholeTicks: 0,
     partBeforeWhole: true });
+  await show("use-case", USE_CASES_MIXED, { params: { id: "UC-043" } });
+  assert.equal(shownBy(await show("use-case", USE_CASES_MIXED)).openTicks, 1, "known positive: the use case whose page was shown has a tick");
 });
 
 // TST-879002 · level: unit · module: MOD-review-pages
@@ -189,13 +191,17 @@ test("TST-879003 use-case list without a token — the first part is shown, with
 // TST-879004 · level: unit · module: MOD-review-pages
 // guards: UC-023; STATUS IS DERIVED FROM THE RECORDS
 // given: the decisions ARC-002 open, ARC-003 changed, ARC-001 accepted; the modules MOD-desk and MOD-queue open, MOD-shelf accepted; a token
-// input: the route decision drawn as the list; the route module drawn as the list
-// expect: decisions: a first part before the whole list holding ARC-002, ARC-003 (open, changed since acceptance) with two ticks, the whole list ARC-001 to ARC-003 with no tick; modules: the first part MOD-desk, MOD-queue (open, open) with two ticks, the whole list MOD-desk, MOD-queue, MOD-shelf with no tick
-test("TST-879004 decision and module lists — the open and changed files first, with a tick each, then every file", async () => {
-  assert.deepEqual(shownBy(await show("decision", ARCHITECTURE_MIXED)), { parts: 1, open: ["ARC-002", "ARC-003"], openStatuses: ["open", "changed since acceptance"], openTicks: 2,
+// input: the route decision drawn as the list; the route module drawn as the list; the pages of ARC-003 and of MOD-desk drawn; both lists drawn again
+// expect: decisions: a first part before the whole list holding ARC-002, ARC-003 (open, changed since acceptance) with no tick, the whole list ARC-001 to ARC-003 with no tick; modules: the first part MOD-desk, MOD-queue (open, open) with no tick, the whole list MOD-desk, MOD-queue, MOD-shelf with no tick; after the pages, one tick in the first part of each list
+test("TST-879004 decision and module lists — the open and changed files first, a tick on each whose page was shown, then every file", async () => {
+  assert.deepEqual(shownBy(await show("decision", ARCHITECTURE_MIXED)), { parts: 1, open: ["ARC-002", "ARC-003"], openStatuses: ["open", "changed since acceptance"], openTicks: 0,
     whole: ["ARC-001", "ARC-002", "ARC-003"], wholeStatuses: ["accepted", "open", "changed since acceptance"], wholeTicks: 0, partBeforeWhole: true });
-  assert.deepEqual(shownBy(await show("module", ARCHITECTURE_MIXED)), { parts: 1, open: ["MOD-desk", "MOD-queue"], openStatuses: ["open", "open"], openTicks: 2,
+  assert.deepEqual(shownBy(await show("module", ARCHITECTURE_MIXED)), { parts: 1, open: ["MOD-desk", "MOD-queue"], openStatuses: ["open", "open"], openTicks: 0,
     whole: ["MOD-desk", "MOD-queue", "MOD-shelf"], wholeStatuses: ["open", "open", "accepted"], wholeTicks: 0, partBeforeWhole: true });
+  await show("decision", ARCHITECTURE_MIXED, { params: { id: "ARC-003" } });
+  await show("module", ARCHITECTURE_MIXED, { params: { id: "MOD-desk" } });
+  assert.equal(shownBy(await show("decision", ARCHITECTURE_MIXED)).openTicks, 1, "known positive: the decision whose page was shown has a tick");
+  assert.equal(shownBy(await show("module", ARCHITECTURE_MIXED)).openTicks, 1, "known positive: the module whose page was shown has a tick");
 });
 
 // TST-879005 · level: unit · module: MOD-review-pages
