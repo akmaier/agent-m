@@ -21,8 +21,8 @@
 //     item `backlogItemFrom` prefills as a form of the frame's `schemaForm` over the item schema, which hands over its list-valued keys as lists. The form holds a provisional identifier,
 //     the next that the paths of the backlog and the plan leave free, which is never written: `saveItems` gives the item the next one that no history holds. The form's one button, "Save", is shown as "Add"; the form offers it only while no error remains, and the findings of `backlogFindings`
 //     over the architecture's module files are shown beside the form, found with the backlog's items beside the drafted one and kept for the drafted one alone (ITM-1293). `changed` are the requirements that `entryView`'s impact names as added or changed, in the order of the entries, of the queues whose `**Issue:**` line names this issue and this product; the analysis is the page's proposal, if the person ran one:
-//     the answer of the kind `analyse-issue` holds a class, its reasoning and the files it names as wrong, and no violated requirement, so that `violated` is null and the person names the requirement a bug realises; its `modules` are the modules of the architecture whose folder holds a file it names as
-//     wrong, none without a proposal. Add writes with `moveToBacklog` (no `existing`), and the page then shows the identifier added, and, where the comment was refused for want of the permission or of a token, the comment's text with the issue's address and a button to copy it.
+//     the answer of the kind `analyse-issue` holds a class, its reasoning, the files it names as wrong and, for a bug, the requirement it names as violated (ITM-1374), which is `violated`; an answer without one, or no proposal, gives null, and the person names the
+//     requirement a bug realises. Its `modules` are the modules of the architecture whose folder holds a file it names as wrong, none without a proposal. Add writes with `moveToBacklog` (no `existing`), and the page then shows the identifier added, and, where the comment was refused for want of the permission or of a token, the comment's text with the issue's address and a button to copy it.
 //   - An existing item (ITM-1254, UC-033 4a): the click on Move to backlog also lists, beside the form, the items of the backlog at the default branch (docs/backlog/ITM-<n>-<slug>.md), each with its identifier, its title and the button "Add to <identifier>" (the person's click), which
 //     writes with `moveToBacklog` given that identifier as `existing` and shows what Add shows.
 //   - The module files, the items of the backlog and the steps of the plan, and their identifiers, are read through MOD-documents (ITM-1298): a path is one of them where `readDocument` gives it an identifier under the module or the item schema,
@@ -289,11 +289,12 @@ async function changedRequirements(snapshot, number, productAddress) {
 // The module files of the architecture at a snapshot, read with the module schema.
 const architectureOf = async (snapshot) => Promise.all(snapshot.paths.filter((path) => identifierOf(artifactSchemas().module, path) !== null).sort().map(async (path) => readDocument(artifactSchemas().module, path, (await snapshot.read(path)) ?? "")));
 
-// What the participant's analysis names: the modules whose folder holds a file it names as wrong, none without a proposal. The answer of `analyse-issue` names no violated requirement, so there is none.
+// What the participant's analysis names: the requirement it names as violated, null where its answer names none, and the modules whose folder holds a file it names as wrong; neither without a proposal.
 function analysisOf(architecture, proposal) {
   const wrong = Array.isArray(proposal?.wrong) ? proposal.wrong.map(String) : [];
   const modules = architecture.filter((one) => typeof one.fields.folder === "string" && wrong.some((file) => file.startsWith(one.fields.folder.replace(/\/?$/, "/")))).map((one) => one.id);
-  return { violated: null, modules };
+  const violated = typeof proposal?.violated === "string" && proposal.violated.trim() !== "" ? proposal.violated.trim() : null;
+  return { violated, modules };
 }
 
 // The items of the backlog at a snapshot, by their number, each with its identifier, its title and its document: those a further issue may be added to (UC-033 4a), and those the drafted item's builds_on is checked against (ITM-1293).
