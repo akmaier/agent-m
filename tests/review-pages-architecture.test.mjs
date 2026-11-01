@@ -115,6 +115,9 @@ function fakeHost({ steps = STEPS, refuse = null, graphStored = true } = {}) {
     land(changed) { head = commitOf(new Map([...commits.get(head).tree, ...Object.entries(changed)]), head); },
     host: {
       async repositoryInfo() { return { defaultBranch: "main", visibility: "public", canWrite: true, archived: false, description: "" }; },
+      async readFileAt(path, shas) {
+        return new Map(shas.map((sha) => [sha, commits.get(sha)?.tree.get(path) ?? null]));
+      },
       async readSnapshot(ref) {
         if (ref === "main") return { ...snapshotAt(head), ref };
         if (commits.has(ref)) return snapshotAt(ref);

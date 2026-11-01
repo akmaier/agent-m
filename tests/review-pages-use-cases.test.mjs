@@ -99,6 +99,10 @@ function fakeHost({ steps = STEPS, repository = ON_GITHUB, refuse = null, unread
         if (unreadable) throw unreadable;
         return { defaultBranch: "main", visibility: "public", canWrite: true, archived: false, description: "" };
       },
+      async readFileAt(path, shas) {
+        calls.push({ fn: "readFileAt", path, shas });
+        return new Map(shas.map((sha) => [sha, commits.get(sha)?.tree.get(path) ?? null]));
+      },
       async readSnapshot(ref) {
         calls.push({ fn: "readSnapshot", ref });
         if (unreadable) throw unreadable;
