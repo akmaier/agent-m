@@ -7,8 +7,8 @@ realises:
   - UC-023
   - EVERY STEP EXPLAINS ITSELF
 modules:
-  - MOD-review-pages
   - MOD-site-frame
+  - MOD-review-pages
 builds_on: []
 tests:
   - unit
@@ -21,24 +21,24 @@ origin:
 
 ## Outcome
 
-On the live site, the Architecture page shows only the menu and the raw exception "Cannot access 'SERVICES' before
-initialization." `SERVICES` is declared at `src/review-pages/flow.mjs:185` and read by `reviewRoute` at :188, which
-`routes.mjs:28` loads with `import("./flow.mjs")`. That `reviewRoute` reads `SERVICES` before `flow.mjs` has finished
-evaluating points at an import cycle, a defect, not a graph being rebuilt. The probe names the path, a reproduction, the
-commit that brought it in and the module that owns the fix. The modules above stand until the probe confirms them.
+On the live site, the Architecture page showed only the menu and the raw exception "Cannot access 'SERVICES' before
+initialization."
 
-A route that fails to render is replaced by MOD-site-frame's `readProblem`, which shows "that this page could not be
-drawn, with the error's message". The person reads a raw exception and learns neither what happened nor what to do.
+The cause is fixed on `main` by akmaier's direct change `7f22d8294`. `#arc` imported `src/review-pages/flow.mjs` twice at
+once. WebKit resolved the second import before the module had run, so `reviewRoute` read `SERVICES` (`flow.mjs:185`)
+uninitialised. Every kind route of `routes.mjs` now waits on the first import. No test guards that fix yet.
+
+What is left: a view that fails is still shown as its raw message. The dashboard's catch writes `errorText` of the error
+into the page (`src/site-frame/dashboard-app.mjs:1009`), and a route that fails to render shows MOD-site-frame's
+`readProblem`, "that this page could not be drawn, with the error's message". The person learns neither what happened nor
+what to do.
 
 ## Acceptance
 
-- The Architecture page loads on a fixture instance and on the live site's code, and shows the architecture.
-  Counter-proof: the cause the probe names, put back, fails the case.
-- A route that cannot be drawn says in plain words what happened and what the person can do, for example reload the page
-  or report it. The error's message stays available below that text, not in its place.
-- The probe's data-flow path, from the click on **Architecture** to the failure, stands in the pull request before any
-  code.
+- A regression test of MOD-review-pages: two concurrent loads of the kind routes, as `#arc` makes them, both draw their
+  route. Counter-proof: the `import` of `flow.mjs` per route, as it was before `7f22d8294`, fails it where node can show
+  it, or the case names why node cannot.
+- A view or route that cannot be drawn says in plain words what happened and what the person can do, for example reload
+  the page or report it. The error's message stays available below that text, not in its place.
 - No other existing expected result changes, unless a probe names it and the accepted text allows it.
-- The first commit holds only the tests, and CI is red on it. No stub is committed.
-- If the probe shows that the second part is a separate module's work that the first does not touch, it may become an
-  item of its own.
+- The first commit holds only the tests, and CI is red on it for the plain-words part. No stub is committed.
