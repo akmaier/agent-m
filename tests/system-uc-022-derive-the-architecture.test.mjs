@@ -829,7 +829,7 @@ test("TST-448229: UC-022 6 — a finding that only the author can decide is not 
 // given: the ready product; the draft shown after Run, whose reuse decision chooses loan-lib against shelf-lib, each offered as a choice
 // input: step 8 the author picks shelf-lib among the choices of the reuse decision, and presses Write proposals
 // expect: known positive — the decision offers both candidates as choices; the decision written names shelf-lib as the chosen candidate and loan-lib as an alternative
-test("TST-448230: UC-022 8 — the author may pick a different alternative for a reuse decision", { todo: "FINDING UC022-F2 — the choices of a reuse decision are radio inputs `reuse-candidate` that nothing reads: Write proposals takes the texts of the editors only (src/review-pages/jobs.mjs:612-615, draftFromEditors; the radios are drawn at 703-725 without a listener), so the decision is written with the candidate the drafter chose, while UC-022 step 8 has the author \"pick a different alternative for a reuse decision\" and MOD-job-runner's writeResult has the steps run again \"on the draft as the person left it, such as the reuse candidate they chose\". An item for MOD-review-pages (jobs.mjs)" }, async () => {
+test("TST-448230: UC-022 8 — the author may pick a different alternative for a reuse decision", async () => {
   ready();
   const fake = fakeProduct();
   const target = await derive(fake);
@@ -849,7 +849,7 @@ test("TST-448230: UC-022 8 — the author may pick a different alternative for a
 // given: the ready product; a further decision that chooses missing-lib, which its registry does not know, against shelf-lib
 // input: 7a the person presses Run; the choices the page offers for the reuse decision are read
 // expect: known positive — the candidate that exists, shelf-lib, is offered as a choice; missing-lib, "not found — the name may be invented", is not proposed: it is not among the choices
-test("TST-448231: UC-022 7a — a candidate that is not found is not proposed", { todo: "FINDING UC022-F3 — candidateChoices offers every candidate of the due-diligence table as a choice, the one its registry does not know too (src/review-pages/jobs.mjs:687-701, candidateChoices, which reads the first column of every row), so the page proposes `missing-lib (npm) - chosen`, while UC-022 7a says of a candidate not found \"It is not proposed\" and MOD-reuse-facts' text says \"it is not proposed\". An item for MOD-review-pages (jobs.mjs)" }, async () => {
+test("TST-448231: UC-022 7a — a candidate that is not found is not proposed", async () => {
   endpoints({ drafter: [reply(draftOf({ candidate: "missing-lib" }))], reviewer: [reply({ findings: [] })], registry: registryOf(["shelf-lib", "Apache-2.0"]) });
   const target = await derive(fakeProduct());
   const choices = byClass(target, "input", "reuse-candidate").map((box) => box.value);
