@@ -73,7 +73,7 @@ test("publishGraph with changed adds the impact lists beside the graph, each the
   const { host, state } = fakeHost();
   assert.deepEqual(await trace.publishGraph(host, snapshot, CHANGED), { commit: COMMIT, written: true });
   assert.equal(state.commits.length, 1);
-  assert.deepEqual(state.commits[0].files.map((file) => file.path), [`${COMMIT}.json.gz`, `${COMMIT}.impacts.json`, "latest.json"]);
+  assert.deepEqual(state.commits[0].files.map((file) => file.path), [`${COMMIT}.json.gz`, `${COMMIT}.gaps.json`, `${COMMIT}.impacts.json`, "latest.json"]);
   const graph = await trace.traceGraph({ paths: snapshot.paths, read: snapshot.read }, { commit: COMMIT });
   const stored = await trace.storedImpacts(branchSource(state.held).source, COMMIT);
   assert.deepEqual([...stored.keys()], [DOER, FRESH]);

@@ -53,6 +53,7 @@ provides:
   - graphFromText
   - publishGraph
   - storedImpacts
+  - storedGaps
 ---
 # MOD-trace-graph The trace graph and everything derived from it
 
@@ -83,8 +84,8 @@ MATRIX IS DERIVED`): `traceGraph` builds it, and where the repository holds the 
 
 It keeps nothing between calls. A graph lives as long as its caller holds it, or on the branch `trace-cache` of the repository,
 which only grows: the file `<commit>.json.gz` is the text `graphText` gives for the graph of the commit it is named by, gzipped, the
-file `<commit>.impacts.json` holds the impact lists of that commit's decision and module files that are not accepted, and no
-file of these two kinds is changed or deleted. The file `latest.json`, `{ commit }`, names the commit of the graph stored last;
+file `<commit>.impacts.json` holds the impact lists of that commit's decision and module files that are not accepted, the file
+`<commit>.gaps.json` holds `coverageGaps` of that commit's graph, and no file of these three kinds is changed or deleted. The file `latest.json`, `{ commit }`, names the commit of the graph stored last;
 `publishGraph` writes it again with every commit that adds a graph, and `latestGraph` reads it while the graph of a page's commit
 is not stored yet.
 
@@ -236,8 +237,8 @@ identifier, and which register entry an item names is MOD-source-register's to s
   no `graphText` or names a commit other than `commit`. Reads nothing.
 - `publishGraph(host: Host, snapshot: Snapshot, changed?: Array<{ path: string, before: { commit: string, text: string }
   | null }>) -> Promise<{ commit: string, written: boolean }>` — builds the graph of the snapshot's commit from its files
-  and adds `<commit>.json.gz`, the graph's text gzipped, to the branch `trace-cache` by `commitFiles`, on the head it read,
-  with `latest.json` naming the commit in the same commit; `written` is `false` when
+  and adds `<commit>.json.gz`, the graph's text gzipped, and `<commit>.gaps.json`, its `coverageGaps`, to the branch
+  `trace-cache` by `commitFiles`, on the head it read, with `latest.json` naming the commit in the same commit; `written` is `false` when
   the branch holds the file already, which it then leaves as it is, and `latest.json` with it. With `changed`, the decision and module files of the
   commit that are not accepted, each with the text it was last accepted at and that text's commit (`null` for a file never
   accepted), as the caller reads them, it adds `<commit>.impacts.json` in the same commit: for each file, its path, its
@@ -248,6 +249,9 @@ identifier, and which register entry an item names is MOD-source-register's to s
   impact: ArchitectureImpact }> | null>` — the impact lists stored for `commit` by `publishGraph`, keyed by path, read
   with the source's `readOn` in one request; `null` without `readOn`, or when the branch or the file is missing or holds
   another format. A caller uses an entry only while the file's blob is the one stored.
+- `storedGaps(source: TextSource, commit: string) -> Promise<CoverageGaps | null>` — `coverageGaps` of the graph stored for
+  `commit`, as `publishGraph` stored them beside it, read with the source's `readOn` in one request; `null` without `readOn`,
+  or when the branch or the file is missing or holds another format.
 - `systemDecisions(graph: Graph) -> { system: string[], subsystems: string[] }` — the decisions that refine no other,
   and the subsystems' decisions: those that refine one of them and design at least one module; each list by identifier.
 - `moduleOrder(graph: Graph) -> { order: string[] } | { cycle: string[] }` — the modules in an order in which every module
@@ -270,8 +274,8 @@ identifier, and which register entry an item names is MOD-source-register's to s
 ## Files
 
 It reads, through the `TextSource` it is given, the files listed under Data, and the files `<commit>.json.gz`,
-`<commit>.impacts.json` and `latest.json` of the branch `trace-cache`. It writes them on that branch only in `publishGraph`:
-the first two only by adding, `latest.json` again in each commit that adds a graph.
+`<commit>.impacts.json`, `<commit>.gaps.json` and `latest.json` of the branch `trace-cache`. It writes them on that branch only in
+`publishGraph`: the first three only by adding, `latest.json` again in each commit that adds a graph.
 
 ## Uses
 

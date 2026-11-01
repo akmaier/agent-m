@@ -93,7 +93,7 @@ test("on the default branch the links file and the register entries are named to
   assert.equal(register(events)[0], `host many docs/sources.md,${PERSON_FILE},${OTHER_FILE}`);
   assert.deepEqual(register(events).slice(1).sort(), [`host read docs/sources.md`, `host read ${OTHER_FILE}`, `host read ${PERSON_FILE}`].sort());
   assert.equal(events.filter((event) => event.startsWith("host many")).length, 1);
-  assert.deepEqual(events.filter((event) => event.startsWith("host readOn")), [`host readOn trace-cache main@${hosts}.json.gz`], "the trace graph is the stored one");
+  assert.deepEqual(events.filter((event) => event.startsWith("host readOn")), [`host readOn trace-cache main@${hosts}.gaps.json`, `host readOn trace-cache main@${hosts}.json.gz`], "no gaps stored: the trace graph is the stored one");
   assert.equal(subject.paramsFor({ name: "po-opus" }).source, PERSON);
 });
 
@@ -112,7 +112,7 @@ test("where the register is another snapshot's, its entries are named to readMan
   assert.equal(instanceCalls[0], `instance many ${PERSON_FILE},${OTHER_FILE}`);
   assert.deepEqual(instanceCalls.slice(1).sort(), [`instance read ${OTHER_FILE}`, `instance read ${PERSON_FILE}`].sort());
   assert.deepEqual(events.filter((event) => event.startsWith("product many")), []);
-  assert.deepEqual(events.filter((event) => event.startsWith("product readOn")), [`product readOn trace-cache main@${hosts - 1}.json.gz`]);
+  assert.deepEqual(events.filter((event) => event.startsWith("product readOn")), [`product readOn trace-cache main@${hosts - 1}.gaps.json`, `product readOn trace-cache main@${hosts - 1}.json.gz`]);
   assert.deepEqual(events.filter((event) => event === "product read docs/sources.md"), ["product read docs/sources.md"]);
   assert.equal(subject.paramsFor({ name: "po-opus" }).source, PERSON);
 });
@@ -143,7 +143,7 @@ test("at a released version no file of the register is asked for", async () => {
   await drawn({ product: host, instance: host, ref: "v1.0" });
   assert.deepEqual(register(events), []);
   assert.deepEqual(events.filter((event) => event.startsWith("host many")), []);
-  assert.deepEqual(events.filter((event) => event.startsWith("host readOn")), [`host readOn trace-cache v1.0@${hosts}.json.gz`]);
+  assert.deepEqual(events.filter((event) => event.startsWith("host readOn")), [`host readOn trace-cache v1.0@${hosts}.gaps.json`, `host readOn trace-cache v1.0@${hosts}.json.gz`]);
 });
 
 // An opened requirement (ITM-846): the specification of the cases below holds two requirements that name the person's source, SRC-acme-person, as their source.

@@ -131,7 +131,7 @@ test("onMainChanged adds the graph of the pushed commit to trace-cache in one co
     assert.equal(status.outcome, "done", status.summary);
     const after = cacheHead(f);
     assert.equal(git(f.origin, "rev-parse", `${after}^`), before);
-    assert.deepEqual(git(f.origin, "diff", "--name-only", before, after).split("\n"), [`${f.head}.impacts.json`, `${f.head}.json.gz`, "latest.json"]);
+    assert.deepEqual(git(f.origin, "diff", "--name-only", before, after).split("\n"), [`${f.head}.gaps.json`, `${f.head}.impacts.json`, `${f.head}.json.gz`, "latest.json"]);
     assert.equal(JSON.parse(git(f.origin, "show", `${after}:latest.json`)).commit, f.head, "latest.json names the commit of the graph stored last");
     const graph = graphFromText(gunzipSync(gitBytes(f.origin, `${after}:${f.head}.json.gz`)).toString("utf8"), f.head);
     assert.deepEqual([graph?.nodes.has("A THING IS DONE"), graph?.nodes.has("UC-001")], [true, true]);
@@ -331,7 +331,7 @@ test("a failing overview leaves the graph and the impact lists written and ends 
     const status = await run(f);
     assert.equal(status.outcome, "failed");
     assert.match(status.summary, /overview-cache/);
-    assert.deepEqual(git(f.origin, "ls-tree", "--name-only", "trace-cache").split("\n").filter((name) => name.startsWith(f.head)).sort(), [`${f.head}.impacts.json`, `${f.head}.json.gz`]);
+    assert.deepEqual(git(f.origin, "ls-tree", "--name-only", "trace-cache").split("\n").filter((name) => name.startsWith(f.head)).sort(), [`${f.head}.gaps.json`, `${f.head}.impacts.json`, `${f.head}.json.gz`]);
     assert.equal(git(f.origin, "branch", "--list", "overview-cache"), "");
   });
 });

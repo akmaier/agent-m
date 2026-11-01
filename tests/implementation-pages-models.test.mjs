@@ -25,6 +25,7 @@
 //   - A product declares a model when its docs/process.md names the model's file in model_file, as the route `process` reads the declaration.
 //   - The folded What is this? is the <details class="explain"> that explain(topic) returns.
 
+import { treeRequest, treeAnswer } from "./github-trees-fake.mjs";
 import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -89,20 +90,21 @@ function github(url, authorization, body) {
   if (!files || authorization !== `Bearer ${TOKENS[name]}`) return json(404, { message: "Not Found" });
   if (rest === "") return json(200, { default_branch: "main", visibility: "private", private: true });
   if (rest === "/commits/main") return json(200, { sha: sha(`${name}@main`) });
+  const tree = treeRequest(url);
+  if (tree && (tree.path || !tree.recursive)) return treeAnswer(files, tree, (file) => sha(files[file]));
   if (rest.startsWith("/git/trees/")) return json(200, { tree: Object.entries(files).map(([file, body]) => ({ type: "blob", path: file, sha: sha(body) })) });
   const file = /^\/contents\/(.+)$/.exec(rest);
   if (file && files[file[1]] !== undefined) return text(files[file[1]]);
   return json(404, { message: "Not Found" });
 }
 // The batch reads of MOD-repository-hosts: one aliased field `f<i>:object(expression:"<commit>:<path>")` for each path, answered with the text of the file in the repository the variables name;
-// and, for readSnapshot with `folders` (ITM-1266), `e<i>:object(expression:"<commit>:<path>")`, answered with the oid of the file, or null where the repository holds none.
 function graphql(authorization, { query, variables }) {
   const name = `${variables.owner}/${variables.name}`;
   if (!REPOSITORIES[name] || authorization !== `Bearer ${TOKENS[name]}`) return json(200, { data: { repository: null } });
   const repository = {};
-  for (const [, alias, expression] of query.matchAll(/([fe]\d+):object\(expression:("[^"]*")\)/g)) {
+  for (const [, alias, expression] of query.matchAll(/(f\d+):object\(expression:("[^"]*")\)/g)) {
     const body = REPOSITORIES[name][JSON.parse(expression).split(":").slice(1).join(":")];
-    repository[alias] = body === undefined ? null : alias.startsWith("f") ? { text: body, isTruncated: false } : { oid: sha(body) };
+    repository[alias] = body === undefined ? null : { text: body, isTruncated: false };
   }
   return json(200, { data: { repository } });
 }

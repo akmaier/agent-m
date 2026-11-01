@@ -26,7 +26,7 @@ import { artifactSchemas, readDocument } from "../documents/index.mjs";
 import { statuses } from "../approvals/index.mjs";
 import { entryImpact } from "../spec-changes/index.mjs";
 import { affectedRequirements, linkedVersion, sourceSchemas } from "../source-register/index.mjs";
-import { compareGraphs, coverageGaps, latestGraph, moduleRows, storedGraph, tracesTo } from "../trace-graph/index.mjs";
+import { compareGraphs, coverageGaps, latestGraph, moduleRows, storedGaps, storedGraph, tracesTo } from "../trace-graph/index.mjs";
 import { waitingQueues } from "../progress-measures/index.mjs";
 import { embedRoute, explain, readProblem } from "../site-frame/index.mjs";
 import { componentDiagram } from "./diagram.mjs";
@@ -157,6 +157,13 @@ function factsOf(shown) {
     return drawing.then(() => { throw Object.assign(new Error(line), { name: "GraphNotStored" }); });
   });
   return shown.facts = { graph, sources: kept(() => sourcesOf(shown)) };
+}
+
+// The coverage gaps of the version drawn, read once: those stored beside its graph (MOD-trace-graph's storedGaps), a few kilobytes, so that counting
+// them reads no graph; where none are stored, those of the graph itself.
+function gapsShown(shown) {
+  return shown.gaps ??= storedGaps(shown.snapshot, shown.snapshot?.commit).then((stored) => stored ?? factsOf(shown).graph().then(coverageGaps))
+    .catch((failure) => { shown.gaps = null; throw failure; });
 }
 
 // Whether the graph holds an artifact of the kind at all.
@@ -503,7 +510,7 @@ function narrowBar(arranged, shown, descriptor, params) {
   none.setAttribute("hidden", "hidden");
   bar.append(problem);
   let latest = 0;
-  const unrealised = arranged.unrealised = kept(async () => new Set(coverageGaps(await factsOf(shown).graph()).requirementsWithoutUseCase));
+  const unrealised = arranged.unrealised = kept(async () => new Set((await gapsShown(shown)).requirementsWithoutUseCase));
   // Hidden or shown, touching the node only when its state changes.
   const set = (node, hidden) => {
     if (hidden) node.setAttribute("hidden", "hidden");
@@ -981,8 +988,8 @@ export const route = {
         const snapshot = await host.readSnapshot(shown.ref);
         shown.snapshot = snapshot;
         const specification = descriptor.key !== "gaps" && descriptor.key !== "tests";
-        // The graph of the version counts the requirements no use case realises in each group: it is asked now, and its one read is shared with the impact lists.
-        if (specification && snapshot.paths.includes(GROUP_PATH)) factsOf(shown).graph().catch(() => {});
+        // The coverage gaps of the version count the requirements no use case realises in each group: they are asked now, from the file stored beside the graph.
+        if (specification && snapshot.paths.includes(GROUP_PATH)) gapsShown(shown).catch(() => {});
         const specRead = snapshot.read(SPEC_PATH);
         const groupRead = specification ? snapshot.read(GROUP_PATH) : null;
         groupRead?.catch(() => {});

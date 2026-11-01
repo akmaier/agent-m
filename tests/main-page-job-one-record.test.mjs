@@ -98,7 +98,7 @@ test("TST-1269001 a job's page for a named product reads that product's one reco
   assert.equal(one(target, "job-params").textContent, JSON.stringify({ item: "ITM-0900" }, null, 2));
   assert.deepEqual(recordsRead(), [`${OTHER}:docs/jobs/${ID}.md`], "one record, of bob/other");
   assert.equal(recordsRead().includes(`${OTHER}:docs/jobs/${PLANTED}.md`), false, "the planted record beside it is not read");
-  assert.deepEqual(net.folderReads, [{ repository: OTHER, paths: [`docs/jobs/${ID}.md`] }], "bob/other's tree alone, narrowed to the one record");
+  assert.deepEqual(net.folderReads, [{ repository: OTHER, paths: ["docs/jobs/"] }], "bob/other's tree alone, narrowed to the one record");
   assert.equal(liveAsked(), 1, "one live state");
 });
 
@@ -114,7 +114,7 @@ test("TST-1269002 a job's page without a product reads the trees, then the one r
   const facts = one(target, "job-facts").textContent;
   assert.deepEqual([facts.includes(PRODUCT_URL), facts.includes("dev-a"), facts.includes("dev-b")], [true, true, false]);
   assert.deepEqual(net.folderReads.map(({ repository }) => repository).sort(), [INSTANCE, OTHER, PRODUCT, THIRD].sort(), "the tree of the instance and of each product");
-  assert.deepEqual([...new Set(net.folderReads.flatMap(({ paths }) => paths))], [`docs/jobs/${ID}.md`], "each narrowed to the one record");
+  assert.deepEqual([...new Set(net.folderReads.flatMap(({ paths }) => paths))], ["docs/jobs/"], "each narrowed to the one record");
   assert.deepEqual(recordsRead(), [`${PRODUCT}:docs/jobs/${ID}.md`], "one record, of alice/product");
   assert.equal(liveAsked(), 1, "one live state");
 });

@@ -30,7 +30,7 @@ import { gzipSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
 import { blobSha } from "../src/text-tools/index.mjs";
 import { sectionText } from "../src/spec-document/index.mjs";
-import { repoServer, fakeCaches, openDashboard, REPO, setting } from "./app-harness.mjs";
+import { repoServer, fakeCaches, openDashboard, REPO, setting, askedFor } from "./app-harness.mjs";
 import { recordText, approvalPath, reviewedRecord } from "./approval-records.mjs";
 
 // ---------------------------------------------------------------- the product: tests/fixtures/architecture, with records and queues
@@ -127,7 +127,7 @@ test("the start page sends its commit, one request for its folders and one batch
   assert.match(page.main(), /<span class="badge b-changed">changed since acceptance<\/span>/);
   assert.deepEqual(withoutInfo(page.requests), ["commit", "folders", "batch 2"]);
   assert.equal(count(page.requests, "repository"), 0);
-  assert.deepEqual(srv.folders.map(sorted), [FOLDERS.useCases]);
+  assert.deepEqual(srv.folders.map(sorted), [askedFor(FOLDERS.useCases)]);
   assert.deepEqual(srv.batches.map(sorted), [sorted([UC1, UC2])]);
 });
 
@@ -142,7 +142,7 @@ test("#arc sends its commit, one request for its folders and one batch of the fi
   for (const id of ["ARC-001", "MOD-page", "MOD-reader", "MOD-review"]) assert.match(page.main(), new RegExp(id));
   assert.deepEqual(withoutInfo(page.requests), ["commit", "folders", "batch 4", STORED_GRAPH]);
   assert.equal(count(page.requests, "repository"), 1);
-  assert.deepEqual(srv.folders.map(sorted), [FOLDERS.architecture]);
+  assert.deepEqual(srv.folders.map(sorted), [askedFor(FOLDERS.architecture)]);
   assert.deepEqual(sorted(srv.batches[0]), sorted([ARC, PAGE, READER, REVIEW]));
   assert.equal(srv.batches.length, 1, "no graph is built from the files");
   assert.equal(new Set(srv.batches.flat()).size, srv.batches.flat().length, "no file twice");
@@ -225,7 +225,7 @@ test("#spec: the whole load sends its commit and one request for its folders onc
   assert.equal(count(page.requests, "commit"), 1);
   assert.equal(count(page.requests, "folders"), 1);
   assert.equal(count(page.requests, "tree"), 0);
-  assert.deepEqual(srv.folders.map(sorted), [FOLDERS.spec]);
+  assert.deepEqual(srv.folders.map(sorted), [askedFor(FOLDERS.spec)]);
   assert.equal(count(page.requests, "repository"), 1);
   assert.deepEqual(shownFiles(page.requests), []);
 });
@@ -477,7 +477,7 @@ for (const [hash, paths] of Object.entries(SHOWN)) {
     const srv = await server(await withDecisions());
     const page = await openDashboard({ server: srv, hash });
     assert.deepEqual(withoutInfo(page.requests).filter((r) => r !== STORED_GRAPH), ["commit", "folders", `batch ${paths.length}`]);
-    assert.deepEqual(srv.folders.map(sorted), [hash === "#use-case" ? FOLDERS.useCases : FOLDERS.architecture]);
+    assert.deepEqual(srv.folders.map(sorted), [askedFor(hash === "#use-case" ? FOLDERS.useCases : FOLDERS.architecture)]);
     assert.ok(count(page.requests, STORED_GRAPH) <= 1, "the stored graph is read at most once");
     assert.equal(count(page.requests, "repository"), hash === "#module" ? 1 : 0);
     assert.deepEqual(sorted(srv.batches[0]), sorted(paths));
@@ -555,7 +555,7 @@ test("opening one use case reads that use case, the history of its record and th
   const repo = await product();
   const srv = await server(repo);
   const page = await openDashboard({ server: srv, hash: "#uc/UC-002" });
-  assert.deepEqual(srv.folders.at(-1), [UC2], "the older commit is asked for the file alone: the options reach the real host");
+  assert.deepEqual(srv.folders.at(-1), askedFor([UC2]), "the older commit is asked for the file's folder alone: the options reach the real host");
   assert.deepEqual(files(page.requests), [...recordOf(repo, "UC-002"), UC2].sort());
   assert.deepEqual(page.requests.filter((r) => r.startsWith("history ")), [`history ${recordOf(repo, "UC-002")[0]}`]);
   assert.deepEqual(page.requests.filter((r) => r.startsWith("era ")), ["era commit", `era file ${UC2}`], "no tree of the older commit");

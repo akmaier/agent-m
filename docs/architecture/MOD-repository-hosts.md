@@ -198,9 +198,9 @@ never a reviewed text (`NO TEXT TRAVELS IN A URL`), and never a credential (`A C
   one per file read, or one per batch of files `readMany` reads. Through a clone, a commit the clone does not hold is first fetched from the clone's origin by its
   identifier, with the clone's own credentials: the access the clone was made with. `NotFound` then means that the origin
   does not hold it either. With `folders` — paths of folders or files —, the snapshot's `paths` are only the files at
-  every depth of those folders and the files named, each with its blob: with a token on GitHub, two requests, the
-  commit and then the entries of all of them in one request of the server's batch query; elsewhere the whole tree is
-  read and narrowed to them. A read of a path outside them fails with `OutsideSnapshot`, naming the path, and never
+  every depth of those folders and the files named, each with its blob: with a token on GitHub, the commit and then,
+  sent together, the tree of each named folder and the entries of each folder that holds a named file; elsewhere the
+  whole tree is read and narrowed to them. A read of a path outside them fails with `OutsideSnapshot`, naming the path, and never
   answers as if the file did not exist. Crosses the network; fails with `NotFound`, `TokenRefused`, `PermissionMissing`,
   `RateLimited`, `Unreachable`.
 - `readHistory(path: string | null, options: { ref?: string, limit?: number, changes?: boolean }) ->

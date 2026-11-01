@@ -106,7 +106,7 @@ test("TST-1269301 the page of a job a product's address names reads that product
   const facts = factsOf(target);
   assert.deepEqual(mentions(facts, "dev-i", "dev-a", "dev-b", "dev-c"), ["dev-c"], `the page of dave/third's record: ${facts}`);
   assert.deepEqual(recordsRead(), [`${THIRD}:docs/jobs/${SHARED}.md`]);
-  assert.deepEqual(net.folderReads, [{ repository: THIRD, paths: [`docs/jobs/${SHARED}.md`] }]);
+  assert.deepEqual(net.folderReads, [{ repository: THIRD, paths: ["docs/jobs/"] }]);
   assert.equal(liveAsked(), 1);
 });
 
@@ -125,7 +125,7 @@ test("TST-1269302 without a product, the page reads the one record of the first 
   const facts = factsOf(target);
   assert.deepEqual(mentions(facts, "dev-i", "dev-a", "dev-b", "dev-c"), ["dev-b"], `the page of bob/other's record: ${facts}`);
   assert.deepEqual(net.folderReads.map(({ repository }) => repository).sort(), [INSTANCE, OTHER, PRODUCT, THIRD].sort(), "the tree of the instance and of each product");
-  assert.deepEqual([...new Set(net.folderReads.flatMap(({ paths }) => paths))], [`docs/jobs/${SHARED}.md`], "each narrowed to the one record");
+  assert.deepEqual([...new Set(net.folderReads.flatMap(({ paths }) => paths))], ["docs/jobs/"], "each narrowed to the one record");
   assert.deepEqual(recordsRead(), [`${OTHER}:docs/jobs/${SHARED}.md`]);
   assert.equal(liveAsked(), 1);
 });

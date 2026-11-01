@@ -23,6 +23,7 @@
 // the numbers written in its own text; they are not read from any document. Each test states its input and its expected result before
 // it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
+import { treeRequest, treeAnswer } from "./github-trees-fake.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -107,7 +108,8 @@ function fakeGitHub({ answer = null } = {}) {
     const r = seen(input, init);
     const rest = r.origin === "https://api.github.com" && r.path.startsWith(GH_PREFIX) ? r.path.slice(GH_PREFIX.length) : null;
     let m, kind = "other";
-    if (r.method === "POST" && r.origin === "https://api.github.com" && r.path === "/graphql") kind = "folders";
+    const tree = treeRequest(new URL(typeof input === "object" && !(input instanceof URL) ? input.url : String(input)));
+    if (tree && (tree.path || !tree.recursive)) kind = "folders";
     else if (rest === "") kind = "repository";
     else if (rest === "/commits") kind = "list";
     else if ((m = /^\/commits\/([^/]+)$/.exec(rest ?? "")) && r.query.per_page) kind = "detail";
@@ -118,14 +120,11 @@ function fakeGitHub({ answer = null } = {}) {
     const own = answer?.({ ...r, kind });
     if (own) return own;
     if (kind === "folders") {
-      // The entries of named files: one aliased field for each "<commit>:<path>", the blob's oid where that commit holds the file, null where not.
-      const repository = {};
-      for (const ask of JSON.parse(init.body).query.matchAll(/(e\d+):object\(expression:("(?:[^"\\]|\\.)*")\)/g)) {
-        const expression = JSON.parse(ask[2]), at = expression.indexOf(":");
-        const c = COMMITS.find((x) => x.sha === expression.slice(0, at)), path = expression.slice(at + 1);
-        repository[ask[1]] = c?.tree.has(path) ? { oid: blobOf(c.tree.get(path)) } : null;
-      }
-      return json(200, { data: { repository } });
+      // The trees of named folders and the entries of the folders of named files, at the commit asked, as GitHub's "Get a tree" gives them.
+      const c = COMMITS.find((x) => x.sha === tree.commit);
+      if (!c) return notFound();
+      const files = Object.fromEntries(c.tree);
+      return treeAnswer(files, tree, (path) => blobOf(files[path]));
     }
     if (rest === null) return notFound();
     if (kind === "repository") return json(200, { default_branch: "main", visibility: "public", private: false, permissions: { push: true }, archived: false, description: "" });

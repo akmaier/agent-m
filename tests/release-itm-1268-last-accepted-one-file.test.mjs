@@ -21,7 +21,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { blobSha } from "../src/text-tools/index.mjs";
-import { repoServer, openDashboard } from "./app-harness.mjs";
+import { repoServer, openDashboard, askedFor } from "./app-harness.mjs";
 import { recordText, approvalPath, reviewedRecord } from "./approval-records.mjs";
 
 // ---------------------------------------------------------------- the product: tests/fixtures/architecture with UC-001, UC-002 and MOD-reader edited since their acceptance
@@ -56,13 +56,17 @@ const serverOf = async (handlers = []) => { const { files, history } = await pro
 
 // ---------------------------------------------------------------- the older commit answered otherwise, by the fake's own handler
 
-/** Answers the query for the entries of an older commit (the harness's eras) with `answer(alias)`, and every other request not at all. */
+/** Answers the entries of a folder of an older commit (the harness's eras; "Get a tree" of "<commit>:<folder>" without recursive) with the
+ * named file's entry as `answer(path)` gives it — { oid } for a blob of that SHA, null for no such file — and every other request not at all. */
 const olderCommitAnswers = (answer) => async (url, init) => {
-  if (init.method !== "POST" || url.pathname !== "/graphql") return null;
-  const query = JSON.parse(init.body).query;
-  const asks = [...query.matchAll(/(e\d+):object\(expression:("(?:[^"\\]|\\.)*")\)/g)].filter((m) => /^d\d{6}0*:/.test(JSON.parse(m[2])));
-  if (asks.length === 0) return null;
-  return new Response(JSON.stringify({ data: { repository: Object.fromEntries(asks.map((m) => [m[1], answer(JSON.parse(m[2]))])) } }), { status: 200, headers: { "Content-Type": "application/json" } });
+  const m = init.method === "GET" && /\/git\/trees\/(d\d{6}0*):(.+)$/.exec(url.pathname);
+  if (!m || url.searchParams.has("recursive")) return null;
+  const folder = m[2].split("/").map(decodeURIComponent).join("/");
+  const tree = [UC1, UC2, READER].filter((path) => path.startsWith(`${folder}/`)).flatMap((path) => {
+    const given = answer(path);
+    return given ? [{ path: path.slice(folder.length + 1), mode: "100644", type: "blob", sha: given.oid }] : [];
+  });
+  return new Response(JSON.stringify({ sha: "t".repeat(40), truncated: false, tree }), { status: 200, headers: { "Content-Type": "application/json" } });
 };
 
 // TST-1268301 · level: release · module: MOD-approvals, MOD-site-frame
@@ -87,7 +91,7 @@ test("TST-1268301 a changed use case is shown against its last accepted text, wh
     assert.match(page.main(), /<span class="ddel">- title: Show a status/, `${hash}: the difference to the accepted text`);
     assert.match(page.main(), /Show the status/, hash);
     assert.deepEqual(era(page.requests), ["era commit", `era file ${UC2}`], `${hash}: the older commit's commit and the one file, no tree`);
-    assert.deepEqual(srv.folders.at(-1), [UC2], `${hash}: the entries of the older commit are asked for the file alone`);
+    assert.deepEqual(srv.folders.at(-1), askedFor([UC2]), `${hash}: the older commit is asked for the entries of the file's folder alone`);
     assert.equal(count(page.requests, "tree"), 0, `${hash}: the head's tree is not read`);
   }
 });
@@ -105,7 +109,7 @@ test("TST-1268302 a changed module file is shown against its last accepted text 
     assert.match(page.main(), /Changed since it was last accepted/, hash);
     assert.match(page.main(), /<span class="ddel">[^<]*Reads a file at/, `${hash}: the accepted line is deleted`);
     assert.deepEqual(era(page.requests), ["era commit", `era file ${READER}`], hash);
-    assert.deepEqual(srv.folders.at(-1), [READER], hash);
+    assert.deepEqual(srv.folders.at(-1), askedFor([READER]), hash);
     assert.equal(count(page.requests, "tree"), 0, hash);
   }
 });
@@ -122,8 +126,8 @@ test("TST-1268303 Review all reads the older commit of each changed use case as 
   assert.match(page.main(), /<span class="ddel">- title: Show a status/);
   assert.match(page.main(), /<span class="ddel">[^<]*Read one file/);
   assert.deepEqual(era(page.requests).sort(), ["era commit", "era commit", `era file ${UC1}`, `era file ${UC2}`].sort());
-  const older = srv.folders.filter((paths) => paths.length === 1 && [UC1, UC2].includes(paths[0])).map((paths) => paths[0]).sort();
-  assert.deepEqual(older, [UC1, UC2], "one request for the entries of each older commit, naming its file");
+  const older = srv.folders.filter((paths) => JSON.stringify(paths) === JSON.stringify(askedFor([UC1])));
+  assert.equal(older.length, 2, "one request for the entries of each older commit, naming its file's folder");
   assert.equal(count(page.requests, "tree"), 0);
 });
 

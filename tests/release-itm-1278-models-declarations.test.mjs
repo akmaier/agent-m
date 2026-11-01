@@ -19,6 +19,7 @@
 //   - "what the page shows is unchanged" is read as the lists the page drew before the change: under each model the addresses of the products that declare it, in the order of the setting `products`, no address under
 //     another model, and an address whose repository cannot be read named in the list of unreadable products with a reason, under no model.
 
+import { treeRequest, treeAnswer } from "./github-trees-fake.mjs";
 import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -69,8 +70,9 @@ function headerOf(init, name) {
   const found = Object.entries(given instanceof Headers ? Object.fromEntries(given.entries()) : given).find(([key]) => key.toLowerCase() === name.toLowerCase());
   return found ? String(found[1]) : null;
 }
-// GitHub's API as the host reads it: the repository, the commit of the default branch, the whole tree, a file, and the GraphQL answers — `f<i>` the text of a file at a commit, `e<i>` the oid of a file or the
-// entries of a folder. Each answered request is recorded as { repository, kind, query }; kind is `repository`, `commit`, `tree`, `file <path>` or `graphql`. A repository that is not in the world is answered 404.
+// GitHub's API as the host reads it: the repository, the commit of the default branch, the whole tree, the trees of named folders and the entries of the folders of named files (`folders`, its query the
+// folder asked for, `<folder>/` for its entries), a file, and the GraphQL answer — `f<i>` the text of a file at a commit. Each answered request is recorded as { repository, kind, query }; kind is `repository`,
+// `commit`, `tree`, `folders`, `file <path>` or `graphql`. A repository that is not in the world is answered 404.
 function github(url, authorization, body) {
   const record = (repository, kind, query = null) => spy.requests.push({ repository, kind, query });
   if (url.host === "api.github.com" && url.pathname === "/graphql") {
@@ -79,15 +81,9 @@ function github(url, authorization, body) {
     record(name, "graphql", query);
     if (!REPOSITORIES[name] || authorization !== `Bearer ${TOKENS[name]}`) return json(200, { data: { repository: null } });
     const repository = {};
-    for (const [, alias, expression] of query.matchAll(/([fe]\d+):object\(expression:("[^"]*")\)/g)) {
-      const path = JSON.parse(expression).split(":").slice(1).join(":");
-      const file = REPOSITORIES[name][path];
-      if (alias.startsWith("f")) repository[alias] = file === undefined ? null : { text: file, isTruncated: false };
-      else if (file !== undefined) repository[alias] = { oid: sha(file) };
-      else {
-        const below = Object.entries(REPOSITORIES[name]).filter(([each]) => each.startsWith(`${path}/`) && !each.slice(path.length + 1).includes("/"));
-        repository[alias] = below.length ? { entries: below.map(([each, content]) => ({ name: each.slice(path.length + 1), type: "blob", oid: sha(content) })) } : null;
-      }
+    for (const [, alias, expression] of query.matchAll(/(f\d+):object\(expression:("[^"]*")\)/g)) {
+      const file = REPOSITORIES[name][JSON.parse(expression).split(":").slice(1).join(":")];
+      repository[alias] = file === undefined ? null : { text: file, isTruncated: false };
     }
     return json(200, { data: { repository } });
   }
@@ -95,6 +91,11 @@ function github(url, authorization, body) {
   if (url.host !== "api.github.com" || !api) return null;
   const [, name, rest = ""] = api;
   const files = REPOSITORIES[name];
+  const tree = treeRequest(url);
+  if (tree && (tree.path || !tree.recursive)) {
+    record(name, "folders", tree.recursive ? tree.path : `${tree.path}/`);
+    return !files || authorization !== `Bearer ${TOKENS[name]}` ? json(404, { message: "Not Found" }) : treeAnswer(files, tree, (each) => sha(files[each]));
+  }
   record(name, rest === "" ? "repository" : rest === "/commits/main" ? "commit" : rest.startsWith("/git/trees/") ? "tree" : `file ${rest.replace(/^\/contents\//, "")}`);
   if (!files || authorization !== `Bearer ${TOKENS[name]}`) return json(404, { message: "Not Found" });
   if (rest === "") return json(200, { default_branch: "main", visibility: "private", private: true });
@@ -148,13 +149,13 @@ const productsOf = (model) => find(byClass(model, "products")[0], (node) => node
 const requestsTo = (name) => spy.requests.filter((request) => request.repository === name);
 const kindsTo = (name) => requestsTo(name).map((request) => request.kind).sort();
 // Every path the narrowed requests of a product name: the `<commit>:<path>` expressions of their queries.
-const pathsAsked = (name) => requestsTo(name).filter((request) => request.kind === "graphql").flatMap((request) => [...request.query.matchAll(/object\(expression:("[^"]*")\)/g)].map((each) => JSON.parse(each[1]).split(":").slice(1).join(":")));
+const pathsAsked = (name) => requestsTo(name).filter((request) => request.kind === "folders").map((request) => request.query);
 
 // TST-1278301 · level: release · module: MOD-implementation-pages
 // guards: THE PROCESS MODEL IS DECLARED PER PRODUCT; UC-031
 // given: a browser that manages northwind/ledger, orders, billing, archive and missing, of which ledger, orders and billing hold docs/process.md and archive, of three hundred files, holds none and missing is no repository the server knows; a counting fake of GitHub that records every request with its repository, and records a git/trees request when a product's whole tree is read
 // input: the route models drawn
-// expect: to each of ledger, orders and billing the route sends exactly four requests — the repository's information, the commit, one POST of the GraphQL API about it, and one read of docs/process.md — and no git/trees; known positive: the same fake records a git/trees request when the whole tree of ledger is read
+// expect: to each of ledger, orders and billing the route sends exactly four requests — the repository's information, the commit, one read of the entries of docs/, the folder of docs/process.md, and one read of docs/process.md — and no whole tree; known positive: the same fake records a git/trees request when the whole tree of ledger is read
 // Planted fault: a route that reads the product's whole snapshot (`readSnapshot(defaultBranch)` without the folders in declarationsOf of src/implementation-pages/process.mjs) sends git/trees for each of the three and no folders request, and fails the kinds; one that reads the file twice, or the folders twice, fails the counts.
 test("TST-1278301 each product that declares a model is read by its commit, one narrowed request and its docs/process.md alone", async () => {
   const probe = connect(parseAddress(LEDGER), { token: TOKENS["northwind/ledger"] });
@@ -164,7 +165,7 @@ test("TST-1278301 each product that declares a model is read by its commit, one 
 
   await draw();
   for (const name of ["northwind/ledger", "northwind/orders", "northwind/billing"]) {
-    assert.deepEqual(kindsTo(name), ["commit", "file docs/process.md", "graphql", "repository"], name);
+    assert.deepEqual(kindsTo(name), ["commit", "file docs/process.md", "folders", "repository"], name);
     assert.equal(requestsTo(name).filter((request) => request.kind === "tree").length, 0, `${name}: no git/trees`);
   }
 });
@@ -173,13 +174,13 @@ test("TST-1278301 each product that declares a model is read by its commit, one 
 // guards: THE PROCESS MODEL IS DECLARED PER PRODUCT; UC-031
 // given: the browser and the fake of TST-1278301, in which northwind/archive holds three hundred files and no docs/process.md
 // input: the route models drawn
-// expect: archive is listed under no model and is no unreadable product; to archive the route sends the repository's information, the commit and one POST of the GraphQL API, and no read of docs/process.md, no read of any other file and no git/trees
+// expect: archive is listed under no model and is no unreadable product; to archive the route sends the repository's information, the commit and one read of the entries of docs/, and no read of docs/process.md, no read of any other file and no git/trees
 // Planted fault: a route that reads the file whether or not the narrowed snapshot names it (a `read(DECLARATION_PATH)` after a null blob left in place of the guard of declarationsOf) sends a file request for archive; one that reads archive's whole tree for the 300 files fails the kinds; one that lists archive as unreadable fails the empty list.
 test("TST-1278302 a product without a declaration is shown without a model, and no file and no tree is read for it", async () => {
   const target = await draw();
   for (const name of ["scrum", "scrum-wip", "waterfall", "v-model", "reuse-oriented", "kanban"]) assert.ok(!productsOf(modelOf(target, name)).includes(ARCHIVE), name);
   assert.deepEqual(byClass(target, "unreadable").flatMap((list) => find(list, (node) => node.localName === "li")).map((item) => item.textContent).filter((line) => line.startsWith(ARCHIVE)), [], "archive is no unreadable product");
-  assert.deepEqual(kindsTo("northwind/archive"), ["commit", "graphql", "repository"]);
+  assert.deepEqual(kindsTo("northwind/archive"), ["commit", "folders", "repository"]);
 });
 
 // TST-1278303 · level: release · module: MOD-implementation-pages
@@ -203,11 +204,11 @@ test("TST-1278303 each model lists the products whose declaration names it, and 
 // guards: THE PROCESS MODEL IS DECLARED PER PRODUCT; UC-031
 // given: the browser and the fake of TST-1278301, in which archive holds three hundred files beside its README and ledger, orders and billing hold two or three
 // input: the route models drawn
-// expect: the narrowed requests of ledger, orders and billing name docs/process.md and no other path, and so does the one request of archive; no request of any product but the instance's names a path under src/ or docs/use-cases/; the instance is read as before — its whole tree once, git/trees, for its catalogue — and its other requests name docs/process-models/ alone
+// expect: the narrowed requests of ledger, orders and billing name the entries of docs/, the folder of docs/process.md, and no other path, and so does the one request of archive; no request of any product but the instance's names a path under src/ or docs/use-cases/; the instance is read as before — its whole tree once, git/trees, for its catalogue — and its other requests name docs/process-models/ alone
 // Planted fault: a route that narrows to a folder wider than the file (the folders [DECLARATION_PATH] of declarationsOf in src/implementation-pages/process.mjs replaced by ["docs"] or ["src"]) names docs/use-cases or src/part-… in the request of orders or archive, and fails the first assertions; one that narrows the instance too, so that its catalogue is not read, fails the last.
 test("TST-1278304 the narrowed request of a product names docs/process.md and no other path, however many files the product holds", async () => {
   await draw();
-  for (const name of ["northwind/ledger", "northwind/orders", "northwind/billing", "northwind/archive"]) assert.deepEqual(pathsAsked(name), ["docs/process.md"], name);
+  for (const name of ["northwind/ledger", "northwind/orders", "northwind/billing", "northwind/archive"]) assert.deepEqual(pathsAsked(name), ["docs/"], name);
   const wider = spy.requests.filter((request) => request.repository !== "northwind/hub" && request.query && /(src\/|docs\/use-cases)/.test(request.query));
   assert.deepEqual(wider, [], "no request of a product names a path of its sources or use cases");
   assert.equal(requestsTo("northwind/hub").filter((request) => request.kind === "tree").length, 1, "the instance's whole tree is read once, for its catalogue");

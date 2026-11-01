@@ -245,7 +245,7 @@ export function connect(address, credentials = {}) {
 
     // readSnapshot(ref, { folders }) -> Snapshot { repository, ref, commit, paths, read(path), readMany(paths), blob(path) } — the repository at one commit.
     // With `folders` — paths of folders or files —, its paths are only the files at every depth of those folders and the files named: on GitHub with a
-    // token from the entries of all of them in one request, elsewhere from the whole tree, narrowed. A read, a blob or a readMany of a path outside them
+    // token from their own trees in one round of requests sent together, elsewhere from the whole tree, narrowed. A read, a blob or a readMany of a path outside them
     // fails with OutsideSnapshot { path }, never as if the file did not exist. Crosses the network, and so does read(path); fail with NotFound,
     // TokenRefused, PermissionMissing, RateLimited, Unreachable. A folders list that is not a list of paths in the repository is a TypeError.
     async readSnapshot(ref, options = {}) {

@@ -128,6 +128,6 @@
  */
 
 export { latestGraph, storedGraph, traceGraph } from "./build.mjs";
-export { graphFromText, graphText, publishGraph, storedImpacts } from "./stored.mjs";
+export { graphFromText, graphText, publishGraph, storedGaps, storedImpacts } from "./stored.mjs";
 export { graphFindings, selfSufficiencyFindings } from "./checks.mjs";
 export { architectureImpact, compareGraphs, coverageGaps, moduleOrder, moduleRows, requirementImpact, systemDecisions, tracesTo } from "./derive.mjs";

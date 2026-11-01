@@ -19,6 +19,7 @@
 //     folders request names none, and no read of the file is sent for it.
 //   - The folders request is the one POST of GitHub's GraphQL API whose query names `docs/process.md`.
 
+import { treeRequest, treeAnswer } from "./github-trees-fake.mjs";
 import "./site-frame-dom.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -67,9 +68,10 @@ function headerOf(init, name) {
   const found = Object.entries(given instanceof Headers ? Object.fromEntries(given.entries()) : given).find(([key]) => key.toLowerCase() === name.toLowerCase());
   return found ? String(found[1]) : null;
 }
-// GitHub's API as the host reads it: the repository, its default branch's commit, the commit's whole tree, a file, and the GraphQL answer of both batch queries of the host
-// — `f<i>:object(expression:"<commit>:<path>")` the text of a blob, `e<i>:object(expression:"<commit>:<path>")` the oid of a blob or the entries of a folder. Every repository
-// is private, so a request without its own token is answered 404. Each answered request is recorded as { repository, kind, query }.
+// GitHub's API as the host reads it: the repository, its default branch's commit, the commit's whole tree, the trees of named folders and the entries of the folders of
+// named files (recorded as `folders`, its query the folder asked for, `<folder>/` for its entries), a file, and the GraphQL answer of the batch query of the host —
+// `f<i>:object(expression:"<commit>:<path>")` the text of a blob. Every repository is private, so a request without its own token is answered 404. Each answered request is
+// recorded as { repository, kind, query }.
 function github(url, authorization, body) {
   const record = (repository, kind, query = null) => spy.requests.push({ repository, kind, query });
   if (url.host === "api.github.com" && url.pathname === "/graphql") {
@@ -78,15 +80,9 @@ function github(url, authorization, body) {
     record(name, "graphql", query);
     if (!REPOSITORIES[name] || authorization !== `Bearer ${TOKENS[name]}`) return json(200, { data: { repository: null } });
     const repository = {};
-    for (const [, alias, expression] of query.matchAll(/([fe]\d+):object\(expression:("[^"]*")\)/g)) {
-      const path = JSON.parse(expression).split(":").slice(1).join(":");
-      const file = REPOSITORIES[name][path];
-      if (alias.startsWith("f")) repository[alias] = file === undefined ? null : { text: file, isTruncated: false };
-      else if (file !== undefined) repository[alias] = { oid: sha(file) };
-      else {
-        const below = Object.entries(REPOSITORIES[name]).filter(([each]) => each.startsWith(`${path}/`) && !each.slice(path.length + 1).includes("/"));
-        repository[alias] = below.length ? { entries: below.map(([each, content]) => ({ name: each.slice(path.length + 1), type: "blob", oid: sha(content) })) } : null;
-      }
+    for (const [, alias, expression] of query.matchAll(/(f\d+):object\(expression:("[^"]*")\)/g)) {
+      const file = REPOSITORIES[name][JSON.parse(expression).split(":").slice(1).join(":")];
+      repository[alias] = file === undefined ? null : { text: file, isTruncated: false };
     }
     return json(200, { data: { repository } });
   }
@@ -97,6 +93,8 @@ function github(url, authorization, body) {
   if (!files || authorization !== `Bearer ${TOKENS[name]}`) return json(404, { message: "Not Found" });
   if (rest === "") { record(name, "repository"); return json(200, { default_branch: "main", visibility: "private", private: true }); }
   if (rest === "/commits/main") { record(name, "commit"); return json(200, { sha: sha(`${name}@main`) }); }
+  const tree = treeRequest(url);
+  if (tree && (tree.path || !tree.recursive)) { record(name, "folders", tree.recursive ? tree.path : `${tree.path}/`); return treeAnswer(files, tree, (each) => sha(files[each])); }
   if (rest.startsWith("/git/trees/")) { record(name, "tree"); return json(200, { tree: Object.entries(files).map(([file, content]) => ({ type: "blob", path: file, sha: sha(content) })) }); }
   const file = /^\/contents\/(.+)$/.exec(rest);
   if (file) { record(name, `file ${file[1]}`); if (files[file[1]] !== undefined) return text(files[file[1]]); }
@@ -150,7 +148,7 @@ const requestsTo = (name) => spy.requests.filter((request) => request.repository
 // guards: THE PROCESS MODEL IS DECLARED PER PRODUCT; UC-031
 // given: this browser manages acme/library and acme/atlas, each of which holds docs/process.md beside a README, a source file and, for acme/library, a use case, and acme/bare, which holds none; a counting fake of GitHub that answers the commit, the whole tree, a file and both batch queries and records every request
 // input: the route `models` drawn
-// expect: to each of acme/library and acme/atlas the route sends exactly the repository's information, its commit, one POST of the GraphQL API whose query names docs/process.md, and one read of docs/process.md — no other request, so none of git/trees; known positive: the same fake records a git/trees request when the whole tree is read
+// expect: to each of acme/library and acme/atlas the route sends exactly the repository's information, its commit, one read of the entries of docs/, the folder of docs/process.md, and one read of docs/process.md — no other request, so no whole tree; known positive: the same fake records a git/trees request when the whole tree is read
 test("TST-1278001 a product that declares a model is read by its commit, one folders request and its docs/process.md alone", async () => {
   const probe = connect(parseAddress(LIBRARY), { token: TOKENS["acme/library"] });
   install();
@@ -159,10 +157,10 @@ test("TST-1278001 a product that declares a model is read by its commit, one fol
 
   await draw();
   for (const name of ["acme/library", "acme/atlas"]) {
-    assert.deepEqual(requestsTo(name).map((request) => request.kind).sort(), ["commit", "file docs/process.md", "graphql", "repository"].sort(), name);
-    const folders = requestsTo(name).filter((request) => request.kind === "graphql");
+    assert.deepEqual(requestsTo(name).map((request) => request.kind).sort(), ["commit", "file docs/process.md", "folders", "repository"].sort(), name);
+    const folders = requestsTo(name).filter((request) => request.kind === "folders");
     assert.equal(folders.length, 1, `${name}: one folders request`);
-    assert.match(folders[0].query, /docs\/process\.md/, `${name}: the folders request names docs/process.md`);
+    assert.equal(folders[0].query, "docs/", `${name}: the folders request lists the folder of docs/process.md`);
     assert.equal(requestsTo(name).filter((request) => request.kind === "tree").length, 0, `${name}: no git/trees`);
   }
 });
@@ -188,5 +186,5 @@ test("TST-1278003 a product without a declaration is shown without a model and n
   const target = await draw();
   for (const name of ["scrum", "scrum-wip", "waterfall", "v-model", "reuse-oriented", "kanban"]) assert.ok(!productsOf(modelOf(target, name)).includes(BARE), name);
   assert.deepEqual(byClass(target, "source"), [], "acme/bare is no unreadable product");
-  assert.deepEqual(requestsTo("acme/bare").map((request) => request.kind).sort(), ["commit", "graphql", "repository"].sort());
+  assert.deepEqual(requestsTo("acme/bare").map((request) => request.kind).sort(), ["commit", "folders", "repository"].sort());
 });

@@ -27,7 +27,7 @@ import { fileURLToPath } from "node:url";
 import { blobSha } from "../src/text-tools/index.mjs";
 import { sectionText } from "../src/spec-document/index.mjs";
 import { connect, parseAddress } from "../src/repository-hosts/index.mjs";
-import { repoServer, openDashboard, REPO, TOKEN } from "./app-harness.mjs";
+import { repoServer, openDashboard, REPO, TOKEN, askedFor } from "./app-harness.mjs";
 import { recordText, approvalPath, reviewedRecord } from "./approval-records.mjs";
 
 // ---------------------------------------------------------------- the product: tests/fixtures/architecture with records, a queue and files beside the folders
@@ -122,9 +122,10 @@ test("a list page names the folders it needs, none of the folders it never looks
     assert.equal(count(page.requests, "folders"), 1, `${hash}: the folders in one request`);
     assert.equal(count(page.requests, "tree"), 0, `${hash}: no tree request`);
     const named = srv.folders[0];
-    for (const needed of NEEDS[hash]) assert.ok(named.includes(needed), `${hash} names ${needed}: ${named}`);
-    for (const never of NEVER) assert.equal(named.includes(never), false, `${hash} names ${never}`);
-    const inside = (path) => named.some((folder) => path === folder || path.startsWith(`${folder}/`));
+    for (const needed of askedFor(NEEDS[hash])) assert.ok(named.includes(needed), `${hash} names ${needed}: ${named}`);
+    for (const never of NEVER) assert.equal(named.includes(never) || named.includes(`${never}/`), false, `${hash} names ${never}`);
+    const parentOf = (path) => path.slice(0, Math.max(path.lastIndexOf("/"), 0));
+    const inside = (path) => named.some((folder) => (folder.endsWith("/") ? parentOf(path) === folder.slice(0, -1) : path === folder || path.startsWith(`${folder}/`)));
     assert.deepEqual(srv.batches.flat().filter((path) => !inside(path)), [], `${hash}: no file read outside the folders`);
   }
 });
@@ -155,14 +156,15 @@ async function branchThatMoves() {
   };
   return { state, fetch, requests, get pending() { return older.pending + newer.pending; } };
 }
-const commitsOfFolders = (asked) => asked.filter((request) => /\be\d+:object\(expression:/.test(request.body))
-  .flatMap((request) => [...JSON.parse(request.body).query.matchAll(/\be\d+:object\(expression:"([0-9a-f]+):/g)].map((match) => match[1]));
+// The commits the reads of folders named: a tree of "<commit>:<folder>", or a commit's own entries (a tree read without recursive).
+const commitsOfFolders = (asked) => asked.map((request) => /\/git\/trees\/([0-9a-f]{40})(:[^?]*)?(\?.*)?$/.exec(request.address))
+  .filter((match) => match && (match[2] || !String(match[3] ?? "").includes("recursive"))).map((match) => match[1]);
 
 // TST-1266303 · level: release · module: MOD-site-frame, MOD-repository-hosts
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-020
 // given: the product at the commit c0ffee…, loaded at #uc; a token; the branch then moves to a newer commit that rewords the SPEC and adds the use case UC-050
 // input: the person moves to #use-case (the same folders), and then to #spec, whose folders the snapshot lacks; then back to #uc
-// expect: the move to #use-case sends no request for folders; the move to #spec reads the commit it pinned again with the folders of the specification — the address of its commit request names c0ffee…, never the branch main, and its query of folders names only c0ffee… — and shows that commit's SPEC and the entry that waits; the move back to #uc names c0ffee… again and its list does not show UC-050; at no point does a request name the newer commit
+// expect: the move to #use-case sends no request for folders; the move to #spec reads the commit it pinned again with the folders of the specification — the address of its commit request names c0ffee…, never the branch main, and its reads of folders name only c0ffee… — and shows that commit's SPEC and the entry that waits; the move back to #uc names c0ffee… again and its list does not show UC-050; at no point does a request name the newer commit
 // Planted fault: the frame reading the branch in place of the pinned commit when it holds folders anew (`readSnapshot(T.ref, …)` in place of `readSnapshot(state.commit, …)` in holdFolders of src/site-frame/dashboard-app.mjs) reads the newer commit, and the case fails on the branch being read again.
 test("a move to a route whose folders the snapshot lacks reads the pinned commit again, and shows that commit", async () => {
   const world = await branchThatMoves();

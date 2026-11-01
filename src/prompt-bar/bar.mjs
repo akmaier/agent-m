@@ -20,7 +20,7 @@ import { kindOf } from "../job-catalogue/index.mjs";
 import { endpointsOffered, placeOf, sessionsOffered, throughActions } from "./offer.mjs";
 import { followJob } from "./follow.mjs";
 import { assess, queue, spawnEndpointJob, worksOnOf } from "./hand-over.mjs";
-import { appendToConversation, conversationPath, recordingOf } from "./record.mjs";
+import { SWITCH, appendToConversation, conversationPath, recordingOf } from "./record.mjs";
 import { BAR_KIND, defaultSnapshot, personOf, prepareHandOver, prepareMessage, runMessage, shown, whyNot } from "./send.mjs";
 
 const CONVERSATION = "prompt-bar:conversation";
@@ -497,8 +497,9 @@ export function startPromptBar(target, setup) {
   }
 
   async function draw() {
-    // The instance's default branch as the page's own load read it, where the page hands it (setup.instanceSnapshot), else read here.
-    const snapshot = (await setup.instanceSnapshot?.()) ?? await defaultSnapshot(instance.host);
+    // The instance's default branch as the page's own load read it, where the page hands it (setup.instanceSnapshot), else read here, narrowed to the one
+    // file the bar reads as it is drawn: whether conversations are recorded.
+    const snapshot = (await setup.instanceSnapshot?.()) ?? await instance.host.readSnapshot((await instance.host.repositoryInfo()).defaultBranch, { folders: [SWITCH] });
     instanceWeb = snapshot.repository.web;
     // This browser's configuration (UC-049 1): its endpoints, then the CLI sessions its Bridges offer; no participant list is read for the offer.
     reached = [...endpointsOffered(store), ...await sessionsOffered(store)];
