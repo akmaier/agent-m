@@ -9,7 +9,7 @@
 // Level: system
 //
 // Authored by developer-sonnet-j (ITM-1061), who implemented none of ITM-614, ITM-1058 and ITM-1059 and no UC-045 production behaviour (RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER).
-// Where the page and UC-045 disagree the case follows UC-045 and is marked { todo } with the finding it reports (UC045-F3, named in FLOW_FINDINGS).
+// Where the page and UC-045 disagree the case follows UC-045 and is marked { todo } with the finding it reports (named in FLOW_FINDINGS); no UC-045 finding is left.
 // Each test states its input and its expected values in its own text; none reads an expected result from the SPEC, a use case or an architecture file, but the flow map (TST-1061001), which holds the expected passages itself and
 // checks that UC-045 still says them. A person's click is the page's own listener called with a trusted event; a script's click is `page.script`. Readings the texts leave open, which the cases state:
 //   - "its derived state: waiting for a step it depends on, ready, in progress, done" is read as the page's state labels "waiting for an item it builds on", "waiting" (for a gate), "ready", "in progress" and "done".
@@ -64,9 +64,9 @@ const FLOW_EVIDENCE = {
   "3b-left": { uc: "**3b. Findings are left after the last round.**", evidence: [[SELF, "TST-1061020"]] },
   "3a-cycle-link": { uc: "links to UC-023 to change the architecture", evidence: [[SELF, "TST-1061019"]] },
   "2a-check-by-hand": { uc: "the check of step 3 runs when they press **Save plan**", evidence: [[SELF, "TST-1061022"]] },
+  "main-3-order": { uc: "then one step for the subsystem's integration", evidence: [[SELF, "TST-1061021"]] },
 };
 const FLOW_FINDINGS = {
-  "main-3-order": { uc: "then one step for the subsystem's integration", finding: "UC045-F3", file: SELF, test: "TST-1061021" },
 };
 
 // TST-1061001 · level: system · module: system
@@ -546,6 +546,8 @@ test("TST-1061020: UC-045 3b a draft with findings left after the last round is 
     assert.deepEqual(planWrites(page), [], "known positive: the draft as it is cannot be saved");
     assert.match(saved(page), /not saved[^]*MOD-mail has no step/);
     await byHand(page, [S.Mail]);
+    for (let moves = 0; moves < 3; moves += 1) await page.press(found(boxOf(page, "Mail"), "[data-step-up]")[0]);
+    assert.deepEqual(titles(page), ["Store", "Pages", "Mail", "Storage", "Mailing", "Whole"], "Mail stands before the integrations and the system");
     await page.press(savePlan(page));
     await waitFor(() => planWrites(page).length > 0);
     assert.equal(planWrites(page).length, 1, saved(page));
@@ -559,8 +561,8 @@ test("TST-1061020: UC-045 3b a draft with findings left after the last round is 
 // guards: UC-045; AN IMPLEMENTATION PLAN ASSEMBLES THE SYSTEM FROM ITS MODULES
 // given: the planned product without a plan; the six steps of DRAFT written by hand with + Step in the order Whole (the system), Storage, Mailing, Store, Pages, Mail; known positive: the same steps in the order of DRAFT are committed
 // input: the planner presses Save plan
-// expect: UC-045 step 3 and the SPEC's rule order the modules of each subsystem, "then the integration of each subsystem, then the system": a plan whose system step comes before the steps of the modules and subsystems it integrates is refused, nothing is written. FINDING: it is committed
-test("TST-1061021: UC-045 3 a plan that orders the system, or a subsystem's integration, before the steps it integrates is refused", { todo: "FINDING UC045-F3 — planFindings (src/work-plans/checks.mjs:113-148) checks that every module, subsystem and the system has a step and that a module stands after the modules whose interfaces it uses, and checks no order between the levels: a plan with the system's step first, its subsystems' integrations before their modules and each step before the steps it builds on is committed by savePlan. AN IMPLEMENTATION PLAN ASSEMBLES THE SYSTEM FROM ITS MODULES states the order (\"orders the modules of each subsystem by the interfaces they use, then the integration of each subsystem, then the system\"); the Check of the requirement names only a module before one whose interface it uses (MOD-work-plans)" }, async () => {
+// expect: UC-045 step 3 and the SPEC's rule order the modules of each subsystem, "then the integration of each subsystem, then the system": a plan whose system step comes before the steps of the modules and subsystems it integrates is refused, nothing is written
+test("TST-1061021: UC-045 3 a plan that orders the system, or a subsystem's integration, before the steps it integrates is refused", async () => {
   const good = await byHandSaved(DRAFT.steps);
   try { assert.equal(planWrites(good).length, 1, "known positive: the plan in the order of the interfaces is committed"); } finally { good.done(); }
   const page = await byHandSaved([S.Whole, S.Storage, S.Mailing, S.Store, S.Pages, S.Mail].map((step) => ({ ...step, after: [] })));
