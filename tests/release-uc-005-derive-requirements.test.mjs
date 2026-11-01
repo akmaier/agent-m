@@ -469,7 +469,7 @@ test("TST-579320: a conflict is shown beside what it contradicts, neither applie
 // given: the endpoint answers A FINE IS CHARGED (passage ch. 5) and LATE LOANS COST A FINE (passage ch. 6), which state the same rule, both new
 // input: Run; Write proposals
 // expect: the written section holds the rule "A late loan is charged a fine." once, in one requirement, whose source names both passages ch. 5 and ch. 6
-test("TST-579321: candidates of one run that state the same rule are written as one requirement naming every passage", { todo: "FINDING: src/review-pages/candidates.mjs:149-168 editedResult rebuilds the classes with one class for each candidate, so the merge the correction loop made (`refs` of both candidates) is lost on Write proposals, and both are written as requirements with the rule twice. The same as TST-579212; the module is MOD-review-pages" }, async () => {
+test("TST-579321: candidates of one run that state the same rule are written as one requirement naming every passage", async () => {
   const { w, prepared } = await derived({ candidates: [NEW_FINE, candidate("LATE LOANS COST A FINE", { rule: "a late loan is charged a fine.", passage: "ch. 6" })] });
   await write(prepared.page);
   const added = blocksOf(sectionOf(w)).filter((block) => block.rule.toLowerCase() === "a late loan is charged a fine.");
