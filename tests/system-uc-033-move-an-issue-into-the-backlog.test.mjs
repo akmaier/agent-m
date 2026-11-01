@@ -397,7 +397,7 @@ test("TST-804210: UC-033 1b a product that works from a plan has no backlog, and
 // given: the open issue 5, whose text names FIRST RULE; local-llm analyses it as a bug that src/store/read.mjs causes and names FIRST RULE as the requirement violated
 // input: the Product Owner confirms the class bug and presses Move to backlog
 // expect: step 2 — for a bug the item is prefilled with realises FIRST RULE, "the requirement that UC-012's analysis named as violated"; Add is enabled once nothing fails (the module MOD-store is prefilled from the file the analysis names)
-test("TST-804212: UC-033 step 2 a bug's item is prefilled with the requirement the analysis named as violated", { todo: "FINDING UC033-F1 — step 2 prefills a bug's realises with the requirement UC-012's analysis named as violated; the page leaves it empty: analysisOf returns violated null (src/maintenance-pages/issues.mjs:296), and the answer of the kind analyse-issue has no field for a violated requirement (src/job-catalogue/kinds/analyse-issue/answer.schema.json), so the person names it — an item for MOD-maintenance-pages and MOD-job-catalogue, with the text of UC-012 step 3 that gives the analysis that field" }, async () => {
+test("TST-804212: UC-033 step 2 a bug's item is prefilled with the requirement the analysis named as violated", async () => {
   const w = startWorld({ analysis: { ...AS_BUG, violated: "FIRST RULE" } });
   const detail = await classified(w, 5, "bug");
   const form = await moved(detail);
