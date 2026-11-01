@@ -19,7 +19,7 @@
 // they guard to the release tests other writers wrote or writes only what none of them built. Where the page and UC-034 disagree the case follows UC-034 and is marked `todo` with the word FINDING (named in FLOW_FINDINGS). Each case states its
 // input and its expected values in its own text; none reads an expected result from the SPEC, a use case or an architecture file, but the flow map, which holds the expected passages itself and checks that UC-034 still says them. A person's click
 // is the page's own listener called with a trusted event; a script's click is `script`. Readings the texts leave open, which the cases state:
-//   - "selects one or more *ready* items" (1) is read as the boxes of the ready items on Implement, which the page ticks on opening and the author may untick; "presses **Start sprint work**" is the FINDING case.
+//   - "selects one or more *ready* items" (1) is read as the boxes of the ready items on Implement, which the page ticks on opening and the author may untick; "presses **Start sprint work**" is the link of each running sprint to Implement with that sprint's address.
 //   - "counted per team in a model with sprints" (2) is read as the items in progress that the running sprint of the item's own team holds; an item of another team does not count against the limit.
 //   - "the interfaces — not the code — of the modules they use" (3) is read as the `## Interfaces` section of each used module's file, named as the page names a part.
 //   - "The job stays *queued*" (4a) is read as a start record committed that no Bridge has taken yet; the case checks what the page says of it.
@@ -32,6 +32,7 @@ import { testDeclarations } from "../src/test-document/index.mjs";
 import { readDocument } from "../src/documents/index.mjs";
 import { declarationSchema, productWorkflow, recordGateDecision, roleAssignmentSchema } from "../src/product-process/index.mjs";
 import { routeStrategies } from "../src/runtimes/index.mjs";
+import { routeOf } from "../src/site-frame/routing.mjs";
 import { byClass } from "./main-page-home-harness.mjs";
 import { GATE_JOB, MODELS, decision, ended, found, gateRecord, itemPath, itemText, jobPage, jobPull, jobProduct, jobRecord, lines, moduleText, openImplement, pr, quiet, servers, sprintPath, sprintText, startRecords, teams,
   testFileOf, textOf, waitingJob, walk } from "./uc-034-harness.mjs";
@@ -64,6 +65,7 @@ const sentOf = (page, id) => textOf(found(page.target, `[data-sent="${id}"]`)[0]
 
 // The passages of UC-034 the system tests walk, each with the executable tests that walk it: this file's cases, and the older tests of the pages, of the gate and of the job check, which declare the level unit, component or system.
 const FLOW_EVIDENCE = {
+  "main-1-start-sprint-work": { uc: "or presses **Start sprint work** to select every ready item of the sprint.", evidence: [[SELF, "TST-805204"]] },
   "main-1-ready": { uc: "The author opens **Backlog** and selects one or more *ready* items", evidence: [[SELF, "TST-805202"], [IMPLEMENT, "TST-789001"], [UC24, "TST-740203"]] },
   "main-2-checks": { uc: "Agent M checks each item. It starts no job for an item when:", evidence: [[SELF, "TST-805205"], [STARTABLE, "TST-473191"], [UC32, "TST-803022"]] },
   "main-2-reasons": { uc: "For each item it cannot start, Agent M names the reason.", evidence: [[SELF, "TST-805205"], [SELF, "TST-805206"]] },
@@ -96,7 +98,6 @@ const FLOW_EVIDENCE = {
 };
 // The passages the dashboard does otherwise: the finding, its case, and the item that points to or the person who rules.
 const FLOW_FINDINGS = {
-  "main-1-start-sprint-work": { uc: "or presses **Start sprint work** to select every ready item of the sprint.", finding: "UC034-F1", file: SELF, test: "TST-805204", module: "no module" },
   "main-3-sent-item": { uc: "the item; the requirements and use cases it realises, and their existing tests;", finding: "UC034-F2", file: SELF, test: "TST-805208", module: "MOD-run-planner" },
   "4a-queued": { uc: "**4a. The bridge or the runner does not answer.**", finding: "UC034-F3", file: SELF, test: "TST-805211", module: "MOD-implementation-pages" },
   "main-5-pull-request-names": { uc: "The pull request names the item, the requirements it", finding: "UC034-F4", file: SELF, test: "TST-805213", module: "MOD-runtimes" },
@@ -184,9 +185,8 @@ test("TST-805203: UC-034 1 the address of a sprint lists only the items its sele
 // guards: UC-034
 // given: the product of TST-805202; the page of the backlog and the page of the progress, which show each team's running sprint
 // input: look on both for the control UC-034 step 1 names, *Start sprint work*
-// expect: step 1: a link or button named Start sprint work that leads to Implement for the sprint of the team, #implement/sprint=team1/02; FINDING UC034-F1: neither page offers it — the route implement takes the sprint address but nothing leads to it, and no accepted module text names the control
+// expect: step 1: on each page a link or button named Start sprint work for every running sprint, two — team1/02 and team2/01, as Change the selection counts two — and the frame reads the address of each as the route implement with that sprint, team1/02 and team2/01 (the slash of the sprint name is encoded, as the frame splits an address at every slash)
 test("TST-805204: UC-034 1 Start sprint work leads from the sprint to Implement with every ready item of its selection",
-  { todo: "FINDING UC034-F1 (no module): neither the backlog nor the progress offers a control named Start sprint work; the route implement reads the address #implement/sprint=<team>/<nn> but no page links to it, and no accepted module text names the control (for akmaier's ruling)" },
   async () => {
     const world = await teams();
     for (const name of ["backlog", "progress"]) {
@@ -196,8 +196,9 @@ test("TST-805204: UC-034 1 Start sprint work leads from the sprint to Implement 
         const controlsOf = (pattern) => walk(page.target, (node) => ["a", "button"].includes(node.localName) && pattern.test(textOf(node).trim()));
         assert.equal(controlsOf(/^Change the selection$/).length, 2, `known positive: ${name} offers a control of each running sprint, Change the selection`);
         const controls = controlsOf(/^Start sprint work$/);
-        assert.equal(controls.length, 1, `${name}: a control named Start sprint work`);
-        assert.equal(controls[0].getAttribute("href"), "#implement/sprint=team1/02");
+        assert.equal(controls.length, 2, `${name}: a control named Start sprint work for each running sprint`);
+        assert.deepEqual(controls.map((control) => routeOf(control.getAttribute("href"))), [
+          { name: "implement", params: { sprint: "team1/02" } }, { name: "implement", params: { sprint: "team2/01" } }], `${name}: the frame reads each address as Implement for that sprint`);
       } finally { page.done(); }
     }
   });
