@@ -106,7 +106,7 @@ function checkedBlobs(records, snapshot) {
  * docs/backlog/sprints/<team>/<nn>.md must exist (UnknownWork otherwise). Five parts, in this order:
  * - the sprint's record, whole, by its path;
  * - "facts of sprint <name>": `sprintFacts` as JSON, of the product's items (the plan's steps, else the backlog's), its tests with what each guards, the items' states (`itemStates`, with the
- *   workflow `productWorkflow` gives from the declaration, read at the version it names), its jobs (`listJobs`, without live states), the branch `test-results` (the host's readSnapshot) and its
+ *   workflow `productWorkflow` gives from the declaration, read at the version it names, and with the requirements the SPEC holds as accepted, as Progress derives them), its jobs (`listJobs`, without live states), the branch `test-results` (the host's readSnapshot) and its
  *   pull requests;
  * - "issues of sprint <name>": the issues the host gives (of every state) whose `opened` or `closed` is dated within the sprint's time box, one line each with its address; where the host gives
  *   none, one line saying they were not read, with the reason;
@@ -142,7 +142,7 @@ async function sprintInputs(context, params) {
   const pullRequests = await pullRequestsOf(host);
   const jobs = await listJobs([{ address, snapshot }], new Map());
   const gates = await Promise.all(snapshot.paths.filter((each) => GATE_RECORD.test(each)).sort().map(async (each) => readDocument(gateSchema, each, (await snapshot.read(each)) ?? "")));
-  const states = itemStates(items, order, { statuses: statuses(snapshot), queues: await queues(snapshot), jobs, pullRequests, workflow,
+  const states = itemStates(items, order, { statuses: await acceptanceOf(snapshot), queues: await queues(snapshot), jobs, pullRequests, workflow,
     gates: workflow ? gateStates(workflow, gates, checkedBlobs(gates, snapshot)) : [] });
 
   const tests = (await Promise.all(snapshot.paths.filter(isTestFile).map(async (each) => testDeclarations(each, (await snapshot.read(each)) ?? "")))).flat()
@@ -357,6 +357,16 @@ const SPEC_PATH = "SPEC.md";
 const NOT_REALISED = "not yet realised by an item";
 const EXISTING_ITEMS = "existing items";
 
+// The requirements the SPEC of a snapshot holds, in its order; a requirement is accepted when the SPEC holds it. None where the snapshot has no SPEC.md.
+const specRequirements = async (snapshot) => [...parseSpec((await snapshot.read(SPEC_PATH)) ?? "").requirements.values()];
+
+// What an item names, accepted or not, as the pages read it to derive an item's state: the approval statuses, and every requirement the SPEC holds as accepted.
+async function acceptanceOf(snapshot) {
+  const accepted = new Map(statuses(snapshot));
+  for (const { name } of await specRequirements(snapshot)) accepted.set(name, { id: name, kind: "requirement", status: "accepted" });
+  return accepted;
+}
+
 // A requirement as the SPEC states it: its name and source, its rule, its check; a field it lacks is left out.
 const stated = ({ name, source, rule, check }) => [`**${name}**${source === null ? "" : ` *(${source})*`}`, rule, check === null ? null : `*Check:* ${check}`].filter((line) => line !== null).join("\n");
 
@@ -378,7 +388,7 @@ async function backlogInputs(context) {
   const part = (name, text, paths, artifacts) => ({ name, text, size: 0, sources: unique(paths.flatMap((path) => sourcesFor(context, path))), required: true, ...(artifacts ? { artifacts } : {}) });
   const filesOf = async (pattern) => Promise.all(snapshot.paths.filter((each) => pattern.test(each)).sort().map(async (path) => ({ path, text: (await snapshot.read(path)) ?? "" })));
 
-  const requirements = [...parseSpec((await snapshot.read(SPEC_PATH)) ?? "").requirements.values()];
+  const requirements = await specRequirements(snapshot);
   const useCases = await Promise.all([...statuses(snapshot)].filter(([, { kind, status }]) => kind === "use-case" && status === "accepted").sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(async ([path, { id }]) => ({ id, path, text: (await snapshot.read(path)) ?? "" })));
   const items = (await filesOf(ITEM_FILE)).map((file) => ({ ...file, document: readDocument(schemas.item, file.path, file.text) }));
