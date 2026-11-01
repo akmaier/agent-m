@@ -435,27 +435,32 @@ function draftsPanel(place, context, { outcome, prepared, jobContext, read }) {
   show();
 }
 
-// Propose items for uncovered requirements (UC-032 steps 2 and 3): the participants of the instance's register that can draft text, each with where it processes data; the run panel of the kind
-// propose-items for the one chosen; Run, the person's click, commits the job's start record and runs the job in this tab, attended, its drafts waiting for the Product Owner.
-async function proposeItems(place, context, ctx) {
+/**
+ * attendedJob(place, context, job) — a job of the kind `job.kind` that a person starts on a page and waits for (UC-032 step 2, UC-045 step 2): the participants of the instance's register that have
+ * what the kind needs, each with where it processes data, in a select marked with the attribute `job.choice`; the run panel of the one chosen; Run, the person's click, commits the job's start
+ * record and runs the job in this tab, attended, and hands its result to `job.drafted(drafts, { outcome, prepared, jobContext, read })`, where it waits for the person. `job.read()` reads the
+ * product's default branch once the participants are known -> { head: Snapshot, ... }, handed on as `read`; `job.worksOn` names what the job works on; `job.none`, `job.drafting` and
+ * `job.notDrafted` are the page's words for no participant, the job running, and a job that failed.
+ */
+export async function attendedJob(place, context, { kind, choice, read: readHead, worksOn, none, drafting, notDrafted, drafted }) {
   place.replaceChildren(el("p", "muted", "Reading the participants…"));
   const { product, instance } = context;
-  const definition = await kindOf(KIND);
+  const definition = await kindOf(kind);
   const instanceSnapshot = await instance.host.readSnapshot((await instance.host.repositoryInfo()).defaultBranch);
   const participants = await participantsIn(context, instanceSnapshot);
   const offered = eligible(participants, { capabilities: definition.needs }).eligible;
   if (offered.length === 0) {
-    place.replaceChildren(el("p", "warn", "No participant of the instance's register can draft text, so no items can be proposed. Declare one on the page Participants."));
+    place.replaceChildren(el("p", "warn", none));
     return;
   }
-  const read = await headOf(product.host);
+  const read = await readHead();
   const { head } = read;
   const address = head.repository?.web ?? product.address;
   const places = { ...(await placesOf(instanceSnapshot, address)), mailbox: null };
   const agentM = { version: instanceSnapshot.commit ?? "unknown", commit: instanceSnapshot.commit ?? "unknown" };
   const person = personOf(context);
   const choose = el("select");
-  choose.setAttribute("data-propose-participant", "");
+  choose.setAttribute(choice, "");
   for (const participant of offered) {
     const option = el("option", null, `${participant.name} — processes data at ${participant.place ?? "no declared place"}`);
     option.setAttribute("value", participant.name);
@@ -468,25 +473,33 @@ async function proposeItems(place, context, ctx) {
     const id = newJobId(now, new Set(head.paths.map((path) => /^docs\/jobs\/(JOB-[^/]+)\.md$/.exec(path)?.[1]).filter(Boolean)));
     const jobContext = { kind: definition, params: {}, product: { address, snapshot: head, host: product.host }, instance: { snapshot: instanceSnapshot, host: instance.host, checkout: null },
       connect: async () => product.host, participants, places, gates: [], person, now, agentM, jobId: id };
-    const prepared = await prepareJob(KIND, jobContext, { drafter: chosen, reviewers: [] });
+    const prepared = await prepareJob(kind, jobContext, { drafter: chosen, reviewers: [] });
     const drafts = el("div", "drafts");
     stage.replaceChildren(runPanel(prepared, { onRun: async () => {
-      drafts.replaceChildren(el("p", "muted", "The participant drafts the items…"));
+      drafts.replaceChildren(el("p", "muted", drafting));
       try {
-        const worksOn = [...ctx.view.uncovered.requirements, ...ctx.view.uncovered.useCases];
-        const record = { id, kind: KIND, worksOn, participant: chosen.name, model: chosen.model, route: "tab", run: null, retries: null, startedBy: person, start: now, agentM,
+        const record = { id, kind, worksOn, participant: chosen.name, model: chosen.model, route: "tab", run: null, retries: null, startedBy: person, start: now, agentM,
           inputs: prepared.parts.map((part) => part.name), limit: prepared.limit, destinations: prepared.destinations.map((each) => ({ participant: each.participant.name, place: each.place, parts: each.parts })), params: {} };
         const { path } = await queueJob(product.host, record, { kind: "tab" }, head.commit);
         const outcome = await runOnTab(prepared, jobContext, connectionsOf([chosen], context.store), { host: product.host, record: { ...record, path } });
-        draftsPanel(drafts, context, { outcome, prepared, jobContext, read });
+        drafted(drafts, { outcome, prepared, jobContext, read });
       } catch (failure) {
-        drafts.replaceChildren(el("p", "warn", `No items were proposed: ${failed(failure)}`));
+        drafts.replaceChildren(el("p", "warn", `${notDrafted}: ${failed(failure)}`));
       }
     } }), drafts);
   }
   choose.addEventListener("change", () => drawPanel().catch((failure) => stage.replaceChildren(el("p", "warn", failed(failure)))));
   place.replaceChildren(el("p", null, el("label", null, "Participant ", choose)), stage);
   await drawPanel();
+}
+
+// Propose items for uncovered requirements (UC-032 steps 2 and 3): the job of the kind propose-items (attendedJob), its drafts waiting for the Product Owner.
+async function proposeItems(place, context, ctx) {
+  await attendedJob(place, context, { kind: KIND, choice: "data-propose-participant", read: () => headOf(context.product.host),
+    worksOn: [...ctx.view.uncovered.requirements, ...ctx.view.uncovered.useCases],
+    none: "No participant of the instance's register can draft text, so no items can be proposed. Declare one on the page Participants.",
+    drafting: "The participant drafts the items…", notDrafted: "No items were proposed",
+    drafted: (drafts, result) => draftsPanel(drafts, context, result) });
 }
 
 // + Item (UC-032 2a): a form from the item schema over the default branch read at the click, with a provisional identifier that is never written — saveItems gives the item the next one no

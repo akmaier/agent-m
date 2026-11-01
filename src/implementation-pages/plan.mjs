@@ -4,7 +4,12 @@
 // for, drawn through renderMermaid; a folded What is this? (explain). A product whose model works from a backlog has no plan and gets a
 // link to the backlog (1a); an architecture file that is open or changed is named, and nothing is planned (1b); a step whose module or subsystem file was changed or removed after the step
 // was saved is marked, naming the file, and a module without a step is named (1c, ITM-1036), both from MOD-work-plans' planFindings with the history of the product's host. The marks
-// write nothing: the steps stand as they are until the planner saves. Not built here: Draft the plan, Save plan and + Step.
+// write nothing: the steps stand as they are until the planner saves. *Draft the plan* (UC-045 steps 2 to 5, ITM-1058) runs the job of the kind draft-plan in this tab, attended, from its
+// run panel (backlog.mjs' attendedJob); its draft waits for the planner, shown in its order with a Mermaid diagram of the steps and what each comes after, each step to edit, to move up or
+// down, to split or to merge with the next; a change of the order after which a module stands before one whose interface it uses — the finding MOD-work-plans' planFindings gives on the
+// order — is refused, naming the finding, and the draft stays as it was. *Save plan* hands the draft as the planner left it to MOD-job-runner's writeResult, which writes it through the kind's
+// writer plan-steps in one commit, on the default branch read at the click. What the drafting needs only on the click — the run panel's job and writeResult — is imported then. Not built
+// here: + Step and a plan written by hand.
 //
 // Module: MOD-implementation-pages
 //
@@ -83,13 +88,24 @@ export async function modelFirst(context) {
 }
 const ASSEMBLES = "AN IMPLEMENTATION PLAN ASSEMBLES THE SYSTEM FROM ITS MODULES";
 
-// The findings of the plan against the architecture as it stands (planFindings with the history of the host): of them those that mark a step whose module or subsystem file was changed or
-// removed after it, and a module, subsystem or system without a step. The architecture is read as documents with MOD-documents' schemas. The marks could not be read: none.
-async function marksOf(facts, graph, host) {
+const FOLLOWS = "A RUN FOLLOWS THE MODULES' INTERFACES";
+
+// The architecture's decisions and module files of the graph, read from the snapshot as documents with MOD-documents' schemas; null where they could not be read.
+async function architectureDocuments(graph, snapshot) {
   try {
     const schemas = artifactSchemas();
-    const architecture = await Promise.all([...graph.nodes.values()].filter((node) => node.kind === "ARC" || node.kind === "MOD")
-      .map(async (node) => readDocument(node.kind === "ARC" ? schemas.decision : schemas.module, node.path, (await facts.snapshot.read(node.path)) ?? "")));
+    return await Promise.all([...graph.nodes.values()].filter((node) => node.kind === "ARC" || node.kind === "MOD")
+      .map(async (node) => readDocument(node.kind === "ARC" ? schemas.decision : schemas.module, node.path, (await snapshot.read(node.path)) ?? "")));
+  } catch {
+    return null;
+  }
+}
+
+// The findings of the plan against the architecture as it stands (planFindings with the history of the host): of them those that mark a step whose module or subsystem file was changed or
+// removed after it, and a module, subsystem or system without a step. The marks could not be read: none.
+async function marksOf(facts, graph, host, architecture) {
+  if (architecture === null) return [];
+  try {
     const found = await planFindings(facts.plan.order, facts.plan.items, architecture, null, facts.snapshot, { host }, graph);
     return found.filter((each) => each.rule === ASSEMBLES);
   } catch {
@@ -124,12 +140,152 @@ function architectureOf(graph) {
   return rows;
 }
 
-// The flowchart of the steps in the plan's order, each labelled with its state, an edge from each step a step builds on.
+// The flowchart of steps in their order, [{ id, label, after: [id] }]: each node with its label, an edge from each step a step comes after.
 function diagramOf(steps) {
   const shown = new Set(steps.map((step) => step.id));
   return ["flowchart TD",
-    ...steps.map((step) => `  ${mermaidId(step.id)}["${step.id} — ${step.state}"]`),
-    ...steps.flatMap((step) => step.buildsOn.filter((id) => shown.has(id)).map((id) => `  ${mermaidId(id)} --> ${mermaidId(step.id)}`))].join("\n");
+    ...steps.map((step) => `  ${mermaidId(step.id)}["${step.label.replace(/"/g, "'")}"]`),
+    ...steps.flatMap((step) => step.after.filter((id) => shown.has(id)).map((id) => `  ${mermaidId(id)} --> ${mermaidId(step.id)}`))].join("\n");
+}
+
+// ---------------------------------------------------------------- Draft the plan and Save plan (UC-045 steps 2 to 5)
+
+const KIND = "draft-plan";
+const el = (name, className, ...children) => {
+  const made = document.createElement(name);
+  if (className) made.className = className;
+  made.append(...children);
+  return made;
+};
+const failed = (failure) => `${failure?.name ?? "Error"}: ${failure?.message ?? failure}`;
+const findingLine = (found) => el("li", found.kind, `${found.kind}: ${found.what} — ${found.fix} [${found.rule}]`);
+const namesIn = (typed) => (Array.isArray(typed) ? typed.map(String) : String(typed ?? "").split(",")).map((part) => part.trim()).filter(Boolean);
+const unique = (names) => [...new Set(names)];
+// The fields of a drafted step as the answer of the kind draft-plan holds them, the lists among them typed as names separated by commas.
+const FIELDS = [["title", "Title"], ["implements", "Implements"], ["level", "Tests of the level"], ["phase", "Phase"], ["after", "After"]];
+const LISTS = new Set(["implements", "after"]);
+const WHAT_DRAFT = `<details class="explain"><summary>What is this?</summary><div><p><em>Draft the plan</em> asks the participant you choose to draft the plan from the bottom up: a step per
+  module, a module after every module whose interface it uses, then each subsystem's integration, then the system, each with the tests of its level. The run panel names the participant, where it
+  processes data and what it receives — the architecture, the process model and the existing plan. The draft waits for you: you edit its steps, move them up or down, split or merge them; a move
+  that puts a module before one whose interface it uses is refused and named. <em>Save plan</em> commits one file per step under <code>docs/plan/</code> and their order, as you left them
+  (UC-045).</p></div></details>`;
+
+// The diagram's steps of a draft: each by its place, labelled with its place and title, after the steps whose titles it names.
+const draftNodes = (entries) => {
+  const placeOf_ = new Map(entries.map((entry, at) => [entry.title, `S${at + 1}`]));
+  return entries.map((entry, at) => ({ id: `S${at + 1}`, label: `${at + 1}. ${entry.title}`, after: entry.after.map((title) => placeOf_.get(title)).filter(Boolean) }));
+};
+
+// The findings MOD-work-plans' planFindings gives on the order of drafted steps: a module ordered before one whose interface it uses. A step is named by its place; one that implements modules
+// only is of the level module.
+async function orderFindings(entries, architecture, graph) {
+  const steps = entries.map((entry, at) => ({ id: `S${at + 1}`,
+    fields: { level: entry.implements.length && entry.implements.every((name) => name.startsWith("MOD-")) ? "module" : "integration", modules: entry.implements } }));
+  const order = { sections: [{ rows: steps.map((step, at) => ({ cells: { Step: step.id, Phase: entries[at].phase } })) }] };
+  return (await planFindings(order, steps, architecture, null, null, undefined, graph)).filter((one) => one.rule === FOLLOWS);
+}
+
+// The draft of a job of draft-plan, waiting for the planner (UC-045 step 4): its steps in their order, each to edit, Up, Down, Split and Merge with next, the diagram, the findings the job left
+// (3b); Save plan hands the draft as the planner left it to writeResult (step 5), on the default branch read at the click.
+function reviewDraft(place, context, { outcome, prepared, jobContext }, { architecture, graph, writeResult }) {
+  const answer = Array.isArray(outcome.draft?.steps) ? outcome.draft.steps : null;
+  if (answer === null) { place.replaceChildren(el("p", "warn", "The participant's answer could not be read as a drafted plan. Nothing was written.")); return; }
+  let entries = answer.map((step) => ({ title: String(step.title ?? ""), implements: namesIn(step.implements), level: String(step.level ?? ""), phase: String(step.phase ?? ""), after: namesIn(step.after) }));
+  const list = el("div", "draft-steps");
+  const diagram = el("div");
+  diagram.setAttribute("data-draft-diagram", "");
+  const refused = el("ul", "findings");
+  refused.setAttribute("data-draft-refused", "");
+  const save = el("button", "btn primary", "Save plan");
+  save.setAttribute("type", "button");
+  save.setAttribute("data-save-plan", "");
+  const result = el("div");
+  result.setAttribute("data-plan-saved", "");
+  const drawDiagram = async () => diagram.replaceChildren(await renderMermaid(diagramOf(draftNodes(entries))));
+  // A change of the steps: refused, with the findings it adds, where a module would stand before one whose interface it uses; applied otherwise.
+  async function change(next) {
+    const before = new Set((await orderFindings(entries, architecture, graph)).map((one) => one.what));
+    const added = (await orderFindings(next, architecture, graph)).filter((one) => !before.has(one.what));
+    refused.replaceChildren(...added.map(findingLine));
+    if (added.length) return;
+    entries = next;
+    await show();
+  }
+  const button = (label, attribute, act) => {
+    const made = el("button", "btn", label);
+    made.setAttribute("type", "button");
+    made.setAttribute(attribute, "");
+    made.addEventListener("click", () => act().catch((failure) => refused.replaceChildren(el("li", "error", failed(failure)))));
+    return made;
+  };
+  function box(entry, at) {
+    const fields = FIELDS.map(([key, label]) => {
+      const input = el("input");
+      input.setAttribute("data-step-field", key);
+      input.value = LISTS.has(key) ? entry[key].join(", ") : entry[key];
+      input.addEventListener("input", () => {
+        entry[key] = LISTS.has(key) ? namesIn(input.value) : String(input.value ?? "").trim();
+        drawDiagram().catch(() => {});
+      });
+      return el("p", null, el("label", null, `${label} `, input));
+    });
+    const moved = (to) => () => {
+      if (to < 0 || to >= entries.length) return Promise.resolve();
+      const next = [...entries];
+      [next[at], next[to]] = [next[to], next[at]];
+      return change(next);
+    };
+    const split = () => change([...entries.slice(0, at + 1), { ...entry, title: `${entry.title} (2)`, implements: [...entry.implements], after: [...entry.after] }, ...entries.slice(at + 1)]);
+    const merge = () => {
+      const second = entries[at + 1];
+      if (!second) return Promise.resolve();
+      const merged = { ...entry, implements: unique([...entry.implements, ...second.implements]),
+        after: unique([...entry.after, ...second.after]).filter((title) => title !== entry.title && title !== second.title) };
+      return change(entries.filter((_, index) => index !== at + 1).map((each, index) => (index === at ? merged
+        : { ...each, after: unique(each.after.map((title) => (title === second.title ? entry.title : title))) })));
+    };
+    const made = el("section", "panel draft", el("h4", null, `Step ${at + 1}`), ...fields,
+      el("p", null, button("Up", "data-step-up", moved(at - 1)), " ", button("Down", "data-step-down", moved(at + 1)), " ", button("Split", "data-step-split", split), " ",
+        button("Merge with next", "data-step-merge", merge)));
+    made.setAttribute("data-draft-step", String(at));
+    return made;
+  }
+  async function show() {
+    list.replaceChildren(...entries.map(box));
+    await drawDiagram();
+  }
+  save.addEventListener("click", async (event) => {
+    if (event?.isTrusted !== true || save.disabled) return;
+    save.disabled = true;
+    result.replaceChildren();
+    try {
+      const { host } = context.product;
+      const head = await host.readSnapshot((await host.repositoryInfo()).defaultBranch);
+      const draft = { steps: entries.map(({ title, implements: names, level, phase, after }) => ({ title, implements: names, level, phase, after })) };
+      const written = await writeResult(prepared, draft, { result: outcome, context: { ...jobContext, product: { ...jobContext.product, snapshot: head } } });
+      result.replaceChildren(el("p", "plan-saved", `Saved the plan, commit ${String(written.commits?.[0] ?? "").slice(0, 7)}: ${(written.files ?? []).join(", ")}`));
+    } catch (failure) {
+      save.disabled = false;
+      result.replaceChildren(el("p", "warn", `The plan is not saved: ${failed(failure)}`),
+        ...(failure?.findings?.length ? [el("ul", "findings", ...failure.findings.map(findingLine))] : []));
+    }
+  });
+  const left = outcome.remaining ?? [];
+  place.replaceChildren(el("p", "muted", `Drafted by ${prepared.drafter.name}; correction rounds: ${outcome.rounds?.length ?? 0}. Edit, move, split or merge the steps; nothing is written before Save plan.`),
+    ...(left.length ? [el("p", "warn", "Findings left after the last round:"), el("ul", "findings", ...left.map(findingLine))] : []),
+    list, refused, diagram, el("p", null, save), result);
+  return show();
+}
+
+// Draft the plan (UC-045 step 2): the job of the kind draft-plan from its run panel (backlog.mjs' attendedJob), imported with writeResult on the person's click; its draft waits for the planner.
+async function draftPlan(place, context, { worksOn, architecture, graph }) {
+  const [{ attendedJob }, { writeResult }] = await Promise.all([import("./backlog.mjs"), import("../job-runner/index.mjs")]);
+  const { host } = context.product;
+  await attendedJob(place, context, { kind: KIND, choice: "data-draft-participant", read: async () => ({ head: await host.readSnapshot((await host.repositoryInfo()).defaultBranch) }), worksOn,
+    none: "No participant of the instance's register can draft text, so no plan can be drafted. Declare one on the page Participants.",
+    drafting: "The participant drafts the plan…", notDrafted: "No plan was drafted",
+    drafted: (drafts, result) => reviewDraft(drafts, context, result, { architecture, graph, writeResult })
+      .catch((failure) => drafts.replaceChildren(el("p", "warn", failed(failure)))) });
 }
 
 export const route = {
@@ -165,11 +321,12 @@ export const route = {
 
     const { graph, line } = await latestGraph(facts.snapshot, facts.snapshot.commit);
     const architecture = architectureOf(graph);
-    const marked = await marksOf(facts, graph, product.host);
+    const documents = await architectureDocuments(graph, facts.snapshot);
+    const marked = await marksOf(facts, graph, product.host, documents);
     const marksFor = (id) => marked.filter((each) => each.artifact === id);
-    const documents = new Map(facts.plan.items.map((item) => [idOf(item), item]));
+    const items = new Map(facts.plan.items.map((item) => [idOf(item), item]));
     const steps = facts.plan.states.map((state) => {
-      const item = documents.get(state.item);
+      const item = items.get(state.item);
       return { id: state.item, title: String(item?.fields?.title ?? ""), state: state.state, reason: state.reason ?? "", buildsOn: listOf(item?.fields?.builds_on) };
     });
 
@@ -179,8 +336,16 @@ export const route = {
       : `<table><thead><tr><th>Step</th><th>State</th><th>Waits for</th></tr></thead><tbody>${steps.map((step) => `<tr data-step="${h(step.id)}" data-state="${h(step.state)}">`
         + `<td>${h(step.id)}${step.title ? ` — ${h(step.title)}` : ""}${marksFor(step.id).map((each) => ` <span class="warn small" data-mark>${h(each.what)}</span>`).join("")}</td><td>${h(step.state)}</td><td data-waits-for>${h(step.reason)}</td></tr>`).join("")}</tbody></table>`;
     target.innerHTML = `<section class="panel"><h2>Plan</h2>${line ? `<p class="muted small" data-graph-as-of>${h(line)}</p>` : ""}<div data-plan-explain></div>
-      <div class="cols"><div><h3>Architecture</h3><ul>${tree}</ul></div><div><h3>Steps</h3>${table}<div data-plan-diagram></div></div></div></section>`;
+      <div class="cols"><div><h3>Architecture</h3><ul>${tree}</ul></div><div><h3>Steps</h3>${table}<div data-plan-diagram></div>
+      <p><button type="button" class="btn" data-draft-plan>Draft the plan</button></p>${WHAT_DRAFT}<div data-plan-draft></div></div></div></section>`;
     placeOf(target, "data-plan-explain").append(explain("implementation-plan"));
-    if (steps.length > 0) placeOf(target, "data-plan-diagram").append(await renderMermaid(diagramOf(steps)));
+    if (steps.length > 0) placeOf(target, "data-plan-diagram").append(await renderMermaid(diagramOf(steps.map((step) => ({ id: step.id, label: `${step.id} — ${step.state}`, after: step.buildsOn })))));
+    // Draft the plan reads only on the person's click.
+    placeOf(target, "data-draft-plan").addEventListener("click", (event) => {
+      if (event?.isTrusted !== true) return;
+      const place = placeOf(target, "data-plan-draft");
+      draftPlan(place, context, { worksOn: architecture.map((row) => row.id), architecture: documents ?? [], graph })
+        .catch((failure) => place.replaceChildren(el("p", "warn", failed(failure))));
+    });
   },
 };
