@@ -729,12 +729,13 @@ test("UC-042 step 1: a stored secret is hidden until Show, which reveals it in f
 // guards: UC-001; UC-006; UC-008; UC-014; UC-042; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; ONE CLICK PER DECISION; EVERY STEP EXPLAINS ITSELF; AN APPROVAL NAMES THE EXACT TEXT; STATUS IS DERIVED FROM THE RECORDS; EDITS ARE PREPARED ON THE DASHBOARD; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE; AN EDITED FILE KEEPS ITS IDENTIFIER; WITHOUT A TOKEN, GITHUB'S WEB INTERFACE IS THE FALLBACK; A GITLAB PRODUCT IS WRITTEN WITH A TOKEN; AN ACCEPTED SPEC CHANGE IS WRITTEN WITH ITS APPROVAL; A STALE APPROVAL IS NOT APPLIED; A QUEUE IS ACCEPTED IN ITS ORDER; SEVERAL FILES ARE ACCEPTED IN ONE CLICK; A SPEC EDIT IS SAVED AS A PROPOSAL; ADDING A PRODUCT CREATES ITS LAYOUT; THE DASHBOARD KEEPS ITS PRODUCTS IN THE BROWSER; NO PRODUCT IS NAMED IN THE INSTANCE REPOSITORY; A GITLAB PRODUCT USES A PROJECT ACCESS TOKEN; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE SHARED PAGES ORIGIN IS DISCLOSED; THE TOKEN LINK IS PREFILLED; THE REPOSITORY CHOICE IS SPELLED OUT; A BROWSER SETTING IS TESTED AND CLEARED WHERE IT IS SHOWN; A STORED SECRET IS HIDDEN UNTIL SHOWN; A CLEAR IS A REAL CLEAR; A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE; AN EXPIRED TOKEN IS NAMED AND ITS RENEWAL LINKED; SETTINGS ARE EXPORTED AND IMPORTED WITH THEIR SECRETS; AN EXPORT STATES THAT IT CONTAINS SECRETS; AN EXPORT CAN BE LOCKED WITH A PASSPHRASE; A PRODUCT'S SETTINGS LIVE IN ITS REPOSITORY; SWITCHING PSEUDONYMISATION OFF STATES WHAT FOLLOWS; A PERSON IS NAMED BY ACCOUNT OR WITH CONSENT; THE JUMP HOST AND THE REMOTE SESSIONS ARE SETTINGS
 // given: Settings with a stored token
 // input: press Test
-// expect: one harmless request with the token goes to its own server and the page shows that it works
+// expect: one harmless test of the token goes to its own server — the repository's record and, beside it, the GraphQL request of greenToMerge (ITM-1170), both with the token — and the page shows that it works
 test("UC-042 step 2: Test sends one harmless request with the token to its own server and shows that it works", async () => {
   const { srv, box } = await publicSettingsPage();
   const from = srv.seen.length;
   await publicPress(srv, publicRepositoryControl(box, "GitHub token", "test"));
-  assert.deepEqual(srv.seen.slice(from).map((r) => [r.method, r.url, r.auth]), [["GET", `${API}/repos/${REPO}`, `Bearer ${TOKEN}`]]);
+  // ITM-1170: beside the record, the one GraphQL request of greenToMerge, to the same server with the same token.
+  assert.deepEqual(srv.seen.slice(from).map((r) => [r.method, r.url, r.auth]), [["GET", `${API}/repos/${REPO}`, `Bearer ${TOKEN}`], ["POST", `${API}/graphql`, `Bearer ${TOKEN}`]]);
   assert.match(publicRepositoryControl(box, "GitHub token", "status").textContent, new RegExp(`Last successful test: ${day(0)}`));
   assert.equal(publicRepositoryControl(box, "GitHub token", "result").textContent, "✓ The repository token is working.");
 });

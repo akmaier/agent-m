@@ -137,12 +137,13 @@ test("TST-842003 the route home's 1,715 requests include its test files and fixe
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-046
 // given: the product of TST-842001 with a token stored for it
 // input: the route home drawn
-// expect: the route home makes 32 requests — 19 GraphQL batches of at most a hundred files, which hold the 600 items, 400 job records, 701 test files and SPEC.md, and 13 more: the 9 reads only the route makes, the product's commit, tree, pull requests and tags —, with no backlog item, job record or test file by itself
-test("TST-842004 with a token, the route home reads the files in batches of at most a hundred and makes 32 requests", async () => {
+// expect: the route home makes 33 requests — 20 POST /graphql: 19 batches of at most a hundred files, which hold the 600 items, 400 job records, 701 test files and SPEC.md, and greenToMerge's beside the product's repositoryInfo (ITM-1170), which holds none —, and 13 more: the 9 reads only the route makes, the product's commit, tree, pull requests and tags —, with no backlog item, job record or test file by itself
+test("TST-842004 with a token, the route home reads the files in batches of at most a hundred and makes 33 requests", async () => {
   const now = await newPage(TEST_FILES, PRODUCT_TOKEN);
-  assert.equal(total(now.counts), 32);
-  assert.equal(now.counts["GraphQL batch of files"], 19);
-  assert.equal(now.batches.length, 19);
+  assert.equal(total(now.counts), 33);
+  // ITM-1170: the label counts every POST /graphql; one of the 20 is greenToMerge's, beside the product's repositoryInfo, and holds no file.
+  assert.equal(now.counts["GraphQL batch of files"], 20);
+  assert.equal(now.batches.length, 20);
   assert.ok(now.batches.every((paths) => paths.length <= 100), "a batch holds at most a hundred files");
   const read = now.batches.flat();
   assert.equal(read.filter((path) => path.startsWith("docs/backlog/")).length, ITEMS);

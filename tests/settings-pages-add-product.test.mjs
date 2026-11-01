@@ -108,7 +108,7 @@ function jsonAnswer(status, body, headers = {}) {
 }
 
 function scripted(steps) {
-  const remaining = [...steps];
+  const remaining = steps.flat();
   return async (input, init = {}) => {
     // `input` is a string, a Request (its own `.url`) or — as MOD-repository-hosts' own `send` passes it — a URL
     // object already (whose own `String()` is its href), as tests/repository-hosts.test.mjs's own `seen` reads it.
@@ -142,14 +142,14 @@ const GH_WEB = `https://github.com/${GH_PATH}`;
 const GH_PREFIX = `/repos/${GH_PATH}`;
 const HEAD = "a".repeat(40), TREE = "b".repeat(40), NEW_TREE = "c".repeat(40), NEW_COMMIT = "d".repeat(40);
 
-// repositoryInfo's one request, scripted alone where a test only checks.
-const repoInfoStep = ({ visibility = "private", canWrite = true, status = 200 } = {}) => ({
+// repositoryInfo's requests, scripted alone where a test only checks: the record, and beside it the read-only GraphQL request of greenToMerge (ITM-1170).
+const repoInfoStep = ({ visibility = "private", canWrite = true, status = 200 } = {}) => [{
   method: "GET", path: GH_PREFIX, status,
   body: status === 200
     ? { default_branch: "main", visibility, private: visibility !== "public", archived: false, description: "",
       permissions: { push: canWrite } }
     : { message: "Not Found" },
-});
+}, { method: "POST", path: "/graphql", body: { data: { repository: { defaultBranchRef: null } } } }];
 
 // readSnapshot's two requests: the head commit, then its tree — github.mjs's own snapshot() asks for the tree at the
 // *commit's* sha (`/git/trees/${c.sha}`, c being the answer of `/commits/main`), which GitHub's API resolves to that

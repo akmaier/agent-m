@@ -131,15 +131,16 @@ test("new version — the commit an existing version records is refused as the s
 // guards: UC-016; A PAGE LOAD READS THE REPOSITORY IN BATCHES; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT
 // given: the same source with the repository at the newer commit; once with the tokens stored and once with none
 // input: render library/SRC-guide; + New version 2026-11-01, Save
-// expect: opening sends no request to erin/guide; the press of Save sends 3 to it, with a token and without one — the repository's information 1, its head 1, its tree 1 —, none of them a write; with the token stored the version is recorded ("✓"), and with none the instance refuses the commit, nothing is recorded and the result begins with ✗
-test("new version — one Save reads the repository in 3 requests, with and without a token, and opening reads it not at all", async (t) => {
+// expect: opening sends no request to erin/guide; the press of Save sends 3 to it without a token and 4 with one — the repository's information 1, with a token greenToMerge's GraphQL request beside it 1 (ITM-1170), its head 1, its tree 1 —, none of them a write; with the token stored the version is recorded ("✓"), and with none the instance refuses the commit, nothing is recorded and the result begins with ✗
+test("new version — one Save reads the repository in 3 requests without a token and 4 with one, and opening reads it not at all", async (t) => {
   for (const token of [true, false]) {
     const label = token ? "with a token" : "without a token";
     const page = await open(t, { newer: true, token });
     assert.equal(requestsTo(page, GUIDE_PATH).length, 0, `${label}: opening`);
     await newVersion(page, "2026-11-01");
     await until(() => text(page.target, "library-version-result") !== "", `${label}: the result is shown`);
-    assert.equal(requestsTo(page, GUIDE_PATH).length, 3, `${label}: Save`);
+    // ITM-1170: with a token, the GraphQL request of greenToMerge beside the repository's information.
+    assert.equal(requestsTo(page, GUIDE_PATH).length, token ? 4 : 3, `${label}: Save`);
     assert.equal(requestsTo(page, GUIDE_PATH).some(isWrite), false, `${label}: no write`);
     assert.equal(text(page.target, "library-version-result").startsWith(token ? "✓" : "✗"), true, `${label}: the result`);
     assert.equal(commitsOf(page, INSTANCE).length, token ? 1 : 0, `${label}: the commit`);
