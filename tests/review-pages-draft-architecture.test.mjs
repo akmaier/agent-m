@@ -715,6 +715,34 @@ test("decision/draft - Check this edit runs the whole draft again", async () => 
   assert.match(decision.value, /The checked draft came back/);
 });
 
+// TST-1392001 · level: unit · module: MOD-review-pages
+// guards: UC-022; WHAT A PERSON DECIDES IS NOT SENT BACK
+// given: the ready product; the reviewer finds once that the requirement A BOOK IS SHELVED cannot be kept by the architecture, under A CONFLICT IS DECIDED BY A PERSON, which derive-architecture leaves to the person; a second run whose reviewer finds nothing
+// input: Run on decision/draft, drafter-a with reviewer-b; the shown architecture draft is read
+// expect: known positive — the graph check's finding on MOD-lending is sent back and stands in the drafter's second request; the conflict stands in no request to the drafter; the shown draft lists it in <ul class="for-person"> in the compiler form, with its file, line, rule and text, and the rounds do not hold it; counter-proof — the run without it shows no such list
+test("decision/draft - a finding only the author decides is shown with the draft, apart from the rounds", async () => {
+  const conflict = { artifact: ARC_DRAFT_PATH, line: 9, kind: "warning", rule: "A CONFLICT IS DECIDED BY A PERSON",
+    what: `the requirement ${OTHER} cannot be kept by this architecture`, fix: "the author decides whether to keep the requirement" };
+  const calls = endpointsAndRegistries({ reviewerFindings: [[conflict]], registry: { [NPM_GPL]: packageData("GPL-3.0") } });
+  const target = await show(fakeProduct({ ...READY, LICENSE: "MIT License\n" }));
+  await panelFor(target, "drafter-a", "reviewer-b");
+  click(runButtons(target)[0]);
+  await until(() => byClass(target, "section", "architecture-result").length === 1, "the architecture result");
+  assert.ok(calls.ep1 >= 2 && /designed by no decision/.test(drafterBodies[1]), "known positive: a finding sent back stands in the drafter's next request");
+  assert.ok(drafterBodies.every((body) => !body.includes(conflict.what)), "the conflict is not sent back");
+  const result = byClass(target, "section", "architecture-result")[0];
+  const line = `${ARC_DRAFT_PATH}:9: warning: the requirement ${OTHER} cannot be kept by this architecture [A CONFLICT IS DECIDED BY A PERSON] — the author decides whether to keep the requirement`;
+  assert.deepEqual(byClass(result, "ul", "for-person").flatMap((list) => find(list, (node) => node.localName === "li").map((item) => item.textContent)), [line], "the author is shown it");
+  assert.ok(byClass(result, "section", "rounds").every((rounds) => !rounds.textContent.includes(conflict.what)), "apart from the rounds");
+
+  endpointsAndRegistries({ reviewerFindings: [[]], registry: { [NPM_GPL]: packageData("GPL-3.0") } });
+  const plain = await show(fakeProduct({ ...READY, LICENSE: "MIT License\n" }));
+  await panelFor(plain, "drafter-a", "reviewer-b");
+  click(runButtons(plain)[0]);
+  await until(() => byClass(plain, "section", "architecture-result").length === 1, "the architecture result");
+  assert.equal(byClass(plain, "ul", "for-person").length, 0, "counter-proof: nothing for the person, no list");
+});
+
 // ---------------------------------------------------------------- leaving the draft (ITM-671)
 
 // UC-018 7a: "The author leaves the editor with unsaved changes. The dashboard asks before discarding", and MOD-review-pages' edit routes' `leave` (ITM-603). The drafted files of `<k>/draft` are
