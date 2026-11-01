@@ -9,7 +9,6 @@
 import { statuses, statusOf, removedFiles, lastAcceptedText, acceptShown, acceptanceBlockers, fallbackAcceptLink, approvalSchema, rejectShown } from "../approvals/index.mjs";
 import { blobSha } from "../text-tools/index.mjs";
 import { writeDocument, readDocument, artifactSchemas } from "../documents/index.mjs";
-import { recordsNewestFirst } from "../job-ledger/index.mjs";
 import { renderArtifact, showDifference } from "../markdown-render/index.mjs";
 import { acceptAndRelease } from "../release-evidence/index.mjs";
 import { readSetting } from "../browser-store/index.mjs";
@@ -20,7 +19,7 @@ import { begin as beginSubject, remember as rememberSubject, subjectOf } from ".
 import { showEdit } from "./edit.mjs";
 import { showEntryEdit } from "./entry-edit.mjs";
 import { showFileEdit } from "./file-edit.mjs";
-import { showDraft, jobNotes } from "./jobs.mjs";
+import { showDraft, jobNotes, newestJobRecords } from "./jobs.mjs";
 import { affectedCheck } from "./affected-modules.mjs";
 import { storedOnce, fromStored } from "./stored.mjs";
 import { queueService } from "./spec-entries.mjs";
@@ -105,7 +104,7 @@ function architectureOrder(entries, texts) {
 // the record's `Left:` line states; null where there is no such job.
 async function draftingRounds(where) {
   try {
-    for await (const record of recordsNewestFirst(where.snapshot)) {
+    for await (const record of newestJobRecords(where.snapshot)) {
       if (record.kind !== ARCHITECTURE_JOB || !record.end) continue;
       if (!record.end.rounds.length) return null;
       return { rounds: record.end.rounds, stopped: stoppedBecause(await where.snapshot.read(record.path)) };

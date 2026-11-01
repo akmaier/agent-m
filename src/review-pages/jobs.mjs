@@ -232,16 +232,38 @@ async function presentDraft(outcome, result, run) {
   result.append(left, written, explain(kind.explain.draft.written), link(`#${kind.route}`, null, `All ${kind.plural}`));
 }
 
+// The job records are asked for through the snapshot's readMany, newest first, a hundred at a time (A PAGE LOAD READS THE REPOSITORY IN BATCHES: "at most 100 files each"), each batch only
+// when the search has read the one before it.
+const BATCH = 100;
+
+/**
+ * newestJobRecords(snapshot) -> AsyncIterable<JobRecord> — MOD-job-ledger's recordsNewestFirst over the snapshot, the records asked for in batches as the search reaches them: a caller that
+ * stops at the record it needs leaves every later batch unasked.
+ */
+export function newestJobRecords(snapshot) {
+  const order = snapshot.paths.filter((path) => /^docs\/jobs\/JOB-/.test(path)).sort().reverse();
+  const asked = new Set();
+  const read = async (path) => {
+    if (!asked.has(path) && typeof snapshot.readMany === "function") {
+      const batch = order.slice(Math.max(0, order.indexOf(path)), order.indexOf(path) + BATCH);
+      for (const each of batch) asked.add(each);
+      try { await snapshot.readMany(batch); } catch { /* each record's own read below meets the failure */ }
+    }
+    return snapshot.read(path);
+  };
+  return recordsNewestFirst({ paths: order, read });
+}
+
 /**
  * jobNotes(snapshot, id, path) -> Promise<string[]> — the notes of the end of the job that wrote the file `id` at `path` (`note: …` lines of its results that name `id`): what a
- * drafting job did to a use case it wrote — a realised name it removed, a use case that realises none. The records are read newest first and no further than the first whose end lists
- * `file <path>`; for a file no end lists, all records are read, and the notes of every end that name `id` are given.
+ * drafting job did to a use case it wrote — a realised name it removed, a use case that realises none. The records are read newest first, in batches, no further than the batch of the
+ * first whose end lists `file <path>`; for a file no end lists, all records are read, and the notes of every end that name `id` are given.
  */
 export async function jobNotes(snapshot, id, path) {
   const noteLines = (record) => (record.end?.results ?? []).filter((line) => line.startsWith("note: ") && line.includes(id)).map((line) => line.slice("note: ".length));
   const found = [];
   try {
-    for await (const record of recordsNewestFirst(snapshot)) {
+    for await (const record of newestJobRecords(snapshot)) {
       if ((record.end?.results ?? []).includes(`file ${path}`)) return noteLines(record);
       found.push(...noteLines(record));
     }
