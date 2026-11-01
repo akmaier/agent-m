@@ -35,7 +35,7 @@ import { explain as frameExplain } from "../site-frame/index.mjs";
 import { planSchemas, startable, targetBranch } from "../work-plans/index.mjs";
 import { connectionsOf, contextOf, participantsIn, personOf, placesOf, viewOf } from "./backlog.mjs";
 import { declaredWorkflowOf } from "./plan.mjs";
-import { asOfLine } from "./progress.mjs";
+import { asOfLine, jobHref } from "./progress.mjs";
 import { heads } from "./routes.mjs";
 
 const WORKFLOWS = [".github/workflows/agent-m-jobs.yml", ".gitlab/agent-m-jobs.yml"];
@@ -461,11 +461,13 @@ async function draw(target, context, params) {
     const lines = [];
     for (const row of chosen) {
       const participant = row.holders.find((each) => each.name === choice(row.id)) ?? row.holders[0];
+      let id = null, routeName = null;
       try {
         const offer = routesFor(participant, participants, productInfo, []).find((each) => each.available);
         if (!offer) throw new Error(`${participant.name} has no route a job can take`);
+        routeName = recordRoute(offer.route);
         const { prepared } = await sentFor(prepareFor(row.id, merges(row.id)), participant);
-        const id = newJobId(now(), taken);
+        id = newJobId(now(), taken);
         taken.add(id);
         const record = { id, kind: "implement", worksOn: [row.id], participant: participant.name, model: participant.model, route: recordRoute(offer.route), run: null, retries: null, startedBy: personOf(context), start: now(),
           agentM: { version: instanceSnapshot.commit ?? "unknown", commit: instanceSnapshot.commit ?? "unknown" }, inputs: prepared.parts.map((part) => part.name), limit: prepared.limit,
@@ -475,7 +477,11 @@ async function draw(target, context, params) {
         const queued = await queueJob(product.host, record, offer.route, head, bridgesOf([participant], context.store)[offer.route.bridge]);
         lines.push(`<li>${h(row.id)}: job ${h(id)} (<code>${h(queued.path)}</code>) is queued on the route ${h(recordRoute(offer.route))}.</li>`);
       } catch (failure) {
-        lines.push(`<li class="warn">${h(row.id)}: ${h(failure?.name === "WorkflowMissing" ? `the job workflow is missing (${(failure.files ?? []).join(", ")})` : failure?.message ?? failure)}; nothing was started for it.</li>`);
+        const said = failure?.name === "WorkflowMissing" ? `the job workflow is missing (${(failure.files ?? []).join(", ")})` : failure?.message ?? failure;
+        // UC-034 4a: a start record committed before the route failed (queueOnBridge's `failure.queued`) is a job that stays queued; the route that did not answer is named, and the job's page (UC-036) cancels or reassigns it.
+        lines.push(failure?.queued
+          ? `<li class="warn" data-queued="${h(row.id)}">${h(row.id)}: job ${h(id)} (<code>${h(failure.queued.path)}</code>) stays queued on the route ${h(routeName)}, which did not answer: ${h(said)}. <a data-job-page href="${h(jobHref(context, id))}">Cancel or reassign it on its page</a>.</li>`
+          : `<li class="warn">${h(row.id)}: ${h(said)}; nothing was started for it.</li>`);
       }
     }
     out.innerHTML = `<ul>${lines.join("")}</ul>`;

@@ -136,12 +136,12 @@ test("TST-1410001: a Bridge that does not answer leaves the job queued, and the 
 // guards: UC-034; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY
 // given: the product of TST-1410001, whose Bridge answers nothing
 // input: a click of a person on Start jobs
-// expect: UC-034 4a "the author may cancel or reassign the job (UC-036)": the line of the queued job links the job's page on the job dashboard (#job/id=<the job's id>), where Cancel and Retry stand, and the link says cancel and reassign
+// expect: UC-034 4a "the author may cancel or reassign the job (UC-036)": the line of the queued job links the job's page on the job dashboard (#job/id=<the job's id>/product=<the product's address>, the product not being the instance), where Cancel and Retry stand, and the link says cancel and reassign
 test("TST-1410002: the queued job's line links its page, where the author cancels or reassigns it", async () => {
   const { commits, result } = await started();
   const links = found(result, "[data-job-page]");
   assert.equal(links.length, 1, "one link to the job's page");
-  assert.ok(links[0].getAttribute("href").endsWith(`#job/id=${idOf(records(commits)[0])}`), links[0].getAttribute("href"));
+  assert.ok(links[0].getAttribute("href").endsWith(`#job/id=${idOf(records(commits)[0])}/product=${encodeURIComponent(ADDRESS)}`),links[0].getAttribute("href"));
   assert.match(text(links[0]), /cancel/i);
   assert.match(text(links[0]), /reassign/i);
 });
