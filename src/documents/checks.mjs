@@ -16,14 +16,16 @@
 // not describe; and, for a schema that names `diagrams`, every image (DIAGRAMS ARE MERMAID IN MARKDOWN), a Mermaid block
 // missing where `diagrams` is `required` — on line 1, under DIAGRAMS ARE MERMAID IN MARKDOWN — and each Mermaid block standing
 // where it is `none` — at its opening fence, under the schema's own rule (ITM-1385). A Mermaid block is a fenced block whose
-// info string is `mermaid`. The title, the marks of history, the fields of a section, a record of `key: value` lines and
-// appended sections are not checked yet. Each finding is an error, made with MOD-text-tools' finding, and names the rule of
+// info string is `mermaid`. For a schema whose `noHistory` is true, each mark of history MOD-text-tools' historyMarks finds
+// is an error at its line under A DOCUMENT HOLDS NO HISTORY, in a document and in a record of `key: value` lines alike
+// (ITM-1396). The title, the fields of a section, the keys of a record of `key: value` lines and appended sections are not
+// checked yet. Each finding is an error, made with MOD-text-tools' finding, and names the rule of
 // the part of the schema closest to it (Data, The requirement a finding names). A key or a section that is missing stands on
 // no line: its finding names line 1.
 // The section under the title (ITM-226) is the first section of a document with a title, and is missing from a document
 // without one.
 
-import { finding } from "../text-tools/index.mjs";
+import { finding, formatFrontMatter, historyMarks } from "../text-tools/index.mjs";
 import { KIND_FORMS, PATH, REQUIREMENT_NAME, compiledOf, effective, fences, holds, identifierOfPath, matchesPath, pathRule, sectionOf, textLines } from "./schema-language.mjs";
 
 const INTERFACE = /^MOD-[a-z0-9]+(?:-[a-z0-9]+)*\.[A-Za-z_][A-Za-z0-9_]*$/;
@@ -320,6 +322,20 @@ function images(lines) {
   return found;
 }
 
+// A DOCUMENT HOLDS NO HISTORY: the text a document was read from, as far as a Document keeps it, with its lines where they
+// stood — for a record of key: value lines its body, which is its whole text; for a document its front matter written as
+// keyLines counts it, then its body. historyMarks counts its lines from 1 in that text. A value that holds a line break,
+// which a form may give and which has its own finding, stands on its key's line with a blank in place of the break.
+const NO_HISTORY = "A DOCUMENT HOLDS NO HISTORY";
+const oneLine = (value) => String(value).replace(/[\r\n]+/g, " ");
+function historyText(schema, document) {
+  if (schema.shape === "lines") return document.body ?? "";
+  const fields = document.fields ?? {};
+  const standing = Object.keys(fields).filter((key) => fields[key] !== undefined);
+  const texts = Object.fromEntries(standing.map((key) => [key, Array.isArray(fields[key]) ? fields[key].map(oneLine) : oneLine(fields[key])]));
+  return formatFrontMatter(texts, standing, document.body ?? "");
+}
+
 export function documentFindings(schema, document) {
   const compiled = compiledOf(schema);
   const artifact = document.id ?? document.path;
@@ -395,6 +411,13 @@ export function documentFindings(schema, document) {
     for (const block of schema.diagrams === "none" ? mermaid : []) {
       add(first + block.from, [], `a \`\`\`mermaid block stands where the format ${schema.schema} holds no diagram`,
         "remove the ```mermaid block");
+    }
+  }
+
+  if (schema.noHistory === true) {
+    for (const mark of historyMarks(historyText(schema, document))) {
+      add(mark.line, [NO_HISTORY], `the document holds a mark of history (${mark.kind}): "${mark.text}"`,
+        "remove it; the version history keeps what was changed, when and by whom");
     }
   }
 
