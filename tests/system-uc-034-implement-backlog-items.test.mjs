@@ -88,6 +88,7 @@ const FLOW_EVIDENCE = {
   "main-8-issue": { uc: "For an item", evidence: [[CLOSED, "TST-1375101"]] },
   "1a-plan": { uc: "**1a. The product works from a plan (V-model, waterfall, reuse-oriented).**", evidence: [[UC24, "TST-740202"], [UC24, "TST-740204"]] },
   "2a-none": { uc: "**2a. No item can be started.**", evidence: [[SELF, "TST-805206"]] },
+  "4a-queued": { uc: "**4a. The bridge or the runner does not answer.**", evidence: [[SELF, "TST-805211"]] },
   "3a-restricted": { uc: "**3a. No holder of the role can receive an item's content.**", evidence: [[SELF, "TST-805210"], [UC24, "TST-740209"]] },
   "5c-module": { uc: "**5c. The item needs a change to a module it does not name.**", evidence: [[UC32, "TST-803011"], [UC32, "TST-803015"]] },
   "6a-failed": { uc: "**6a. CI stays red after the retry limit.**", evidence: [[SELF, "TST-805214"]] },
@@ -99,7 +100,6 @@ const FLOW_EVIDENCE = {
 // The passages the dashboard does otherwise: the finding, its case, and the item that points to or the person who rules.
 const FLOW_FINDINGS = {
   "main-3-sent-item": { uc: "the item; the requirements and use cases it realises, and their existing tests;", finding: "UC034-F2", file: SELF, test: "TST-805208", module: "MOD-run-planner" },
-  "4a-queued": { uc: "**4a. The bridge or the runner does not answer.**", finding: "UC034-F3", file: SELF, test: "TST-805211", module: "MOD-implementation-pages" },
   "main-5-pull-request-names": { uc: "The pull request names the item, the requirements it", finding: "UC034-F4", file: SELF, test: "TST-805213", module: "MOD-runtimes" },
   "7a-rejects": { uc: "**7a. The gate's decider rejects.**", finding: "UC034-F5", file: SELF, test: "TST-805218", module: "no module" },
 };
@@ -382,9 +382,8 @@ test("TST-805210: UC-034 3a a holder at a place a source forbids is not offered 
 // guards: UC-034; A JOB IS RECORDED IN ITS PRODUCT REPOSITORY; THE LOCAL BRIDGE REQUIRES A TOKEN
 // given: the product of TST-805202 in which team1's builder dev-a is a CLI agent reached through the Bridge lab-pc, which this browser has a connection to, at an address that answers nothing; ITM-003 ready and ticked, ITM-011 ticked for dev-b on CI
 // input: the author presses Start jobs
-// expect: 4a "The job stays queued. Agent M says which route is down": the start record of ITM-003 is committed under docs/jobs/ (the job is queued) and the result names ITM-003's job and the route bridge lab-pc as the one that did not answer, and does not say that nothing was started for it; ITM-011's job on CI is queued on ci hosted; FINDING UC034-F3 (MOD-implementation-pages): the page says "nothing was started for it" for the job whose record it committed
+// expect: 4a "The job stays queued. Agent M says which route is down": the start record of ITM-003 is committed under docs/jobs/ (the job is queued) and the result names ITM-003's job and the route bridge lab-pc as the one that did not answer, and does not say that nothing was started for it; ITM-011's job on CI is queued on ci hosted
 test("TST-805211: UC-034 4a a Bridge that does not answer leaves the job queued, and the page says which route is down",
-  { todo: "FINDING UC034-F3 (MOD-implementation-pages): src/implementation-pages/implement.mjs:477 catches the failure of the hand-over and writes \"<failure>; nothing was started for it.\" although queueOnBridge committed the start record and carries it as failure.queued; the job is queued, as UC-034 4a says, and the page says it is not" },
   async () => {
     const cli = `| dev-a | CLI agent | model-c | 200000 | — | ${BUILDS} | this machine | bridge lab-pc agent claude |`;
     const settings = { "bridge:lab-pc": JSON.stringify({ address: "http://127.0.0.1:4799", token: "pairing-token" }) };

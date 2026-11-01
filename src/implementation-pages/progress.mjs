@@ -238,7 +238,7 @@ function blockedPanel(ctx, sprints) {
 }
 
 // The page of a job on the job dashboard: MOD-main-page's route `job`, on the main page; the product named where it is not the instance.
-function jobHref(context, id) {
+export function jobHref(context, id) {
   const product = context.product?.address;
   const own = product === `https://github.com/${context.instance?.repository}`;
   const fragment = `#job/id=${encodeURIComponent(id)}${product && !own ? `/product=${encodeURIComponent(product)}` : ""}`;
