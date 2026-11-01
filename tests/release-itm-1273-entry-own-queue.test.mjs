@@ -123,13 +123,13 @@ const open = async (world, route, params) => { const target = await draw(route, 
 // guards: OPEN PROPOSALS ARE SHOWN IN THE BROWSER; NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; UC-006
 // given: UC-006 step 1. the product of 23 queues at the head, where OTHER's 01, MINE's 02 and BATCH's 03 are open (OTHER's and MINE's on "## 1. Section", BATCH's on "## 2. Other"); the overview of an earlier commit c0 stored, in which OTHER's 01 alone was open; a token
 // input: the list (the route spec-entry with no parameter) and Review all (id=all), and then the page of OTHER's 01 (id=spec-2026-10-19_other-01)
-// expect: the list offers the three open entries of the head — the count 3 beside Review all, each as a link to its page — and no line As of; Review all shows the three, the others of OTHER's 01 being MINE's 02, those of MINE's 02 being OTHER's 01 and those of BATCH's 03 none, and no line As of — they are the head's, though the overview names one entry only; the list reads the index of every one of the 23 queues; the page of OTHER's 01 shows no other proposal and the line "As of eeeeeee", since its others are c0's
+// expect: the list offers the three open entries of the head — the count 3 beside Review all, each as a link to its page with the product in the address (/product=<the product's address, percent-encoded>) — and no line As of; Review all shows the three, the others of OTHER's 01 being MINE's 02, those of MINE's 02 being OTHER's 01 and those of BATCH's 03 none, and no line As of — they are the head's, though the overview names one entry only; the list reads the index of every one of the 23 queues; the page of OTHER's 01 shows no other proposal and the line "As of eeeeeee", since its others are c0's
 // Planted fault: Review all taking the other proposals from the waiting queues in place of the queues read (`described(await waitingQueues(snapshot), queue, …)` in place of `described({ around: all, asOf: null }, queue, …)` in src/review-pages/spec-entries.mjs) shows the line As of on every entry and no other proposal on OTHER's 01, and the case fails there.
 test("TST-1273301 the list and Review all show the head's entries and the head's other proposals whatever the overview holds; an entry's page shows c0's, with the line", async () => {
   const world = await worldWith(AT_HEAD, "older");
   const list = await open(world, entryRoute, {});
   assert.match(list.textContent, /Review all 3 not accepted/, list.textContent.slice(0, 200));
-  const openLinks = [idOf(BATCH, 3), idOf(MINE, 2), idOf(OTHER, 1)].map((id) => `#spec-entry/id=${id}`);
+  const openLinks = [idOf(BATCH, 3), idOf(MINE, 2), idOf(OTHER, 1)].map((id) => `#spec-entry/id=${id}/product=${encodeURIComponent(PRODUCT_URL)}`);
   for (const link of openLinks) assert.ok(hrefs(list).includes(link), `the list links ${link}`);
   assert.deepEqual(asOf(list), []);
   assert.deepEqual(queueFilesRead(world.mark).filter((path) => path.endsWith("/index.md")).length, 23, "the list reads the index of every queue");
