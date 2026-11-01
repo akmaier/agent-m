@@ -655,6 +655,11 @@ async function editor(target, context, name) {
         notice.replaceChildren(el("p", "saved", `Saved as ${document.path}.`), link("Process models", "back", "#models"));
       },
     });
+    // 2a, "Agent M adapts the form to it": a planned definition's form has no part `## Flow control`, which MOD-model-catalogue gives "for
+    // `pulled` only". The form follows the kind the definition is opened with.
+    if (opened.fields.kind === "planned") {
+      for (const part of elementsOf(form, (node) => node.getAttribute("data-section") === "## Flow control")) part.remove();
+    }
     // Inserted in the same turn schemaForm returns it, so that its queued focus finds it in the page.
     page.append(el("section", "model-form", explain("model-findings"), form), notice,
       el("section", "model-picture", el("h3", null, "Phases, verification pairs and gates"), explain("phases-and-gates"), diagram));
