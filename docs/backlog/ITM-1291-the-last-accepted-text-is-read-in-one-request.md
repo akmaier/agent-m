@@ -6,6 +6,7 @@ realises:
   - A PAGE LOAD READS THE REPOSITORY IN BATCHES
 modules:
   - MOD-approvals
+  - MOD-site-frame
 builds_on:
   - ITM-1268
 tests:
@@ -31,15 +32,15 @@ on, are its functions" (MOD-repository-hosts.md:111). MOD-approvals' Uses name `
 (MOD-approvals.md:10), and `lastAcceptedText` is given the host. So it calls `host.readFileAt`, as it calls
 `readSnapshot` and `readHistory` of the same object.
 
-## Not ready
+## The reading of the scope
 
-The build moves expectations in two MOD-site-frame tests that name no MOD-approvals: `tests/review-pages-impact-box.test.mjs`
-and `tests/review-page.test.mjs` (TST-894004 and TST-894005, whose fake host has no `readFileAt`, and TST-1294005,
-batches 1 → 2). `AN IMPLEMENTATION JOB CHANGES ONLY ITS MODULES` (SPEC.md:1482-1486) allows only tests that name one of
-the job's modules (`docs/gates/20261031-2036-development-release-testing-40d2.md`). The item waits for akmaier's answer
-whether a job may change another module's test where only its fake, or its count of the job's own call, moves. The
-counts below were measured before MOD-repository-hosts' `readSnapshot` sent a snapshot's commit and trees together
-(MOD-repository-hosts.md:200-203); a planning that selects the item probes them again.
+The build moves expectations in two MOD-site-frame tests: `tests/review-pages-impact-box.test.mjs` and
+`tests/review-page.test.mjs` (TST-894004 and TST-894005, whose fake host has no `readFileAt`, and TST-1294005, batches
+1 → 2). `A BACKLOG ITEM NAMES THE MODULES IT CHANGES` (SPEC.md:1683-1686): the item changes those tests, so it names
+MOD-site-frame, and `AN IMPLEMENTATION JOB CHANGES ONLY ITS MODULES` (SPEC.md:1482-1486) then allows them, since they
+name MOD-site-frame. In MOD-site-frame the item changes only these tests' fakes and the counts of its own call; no code
+of `src/site-frame/` changes. The counts below were measured before MOD-repository-hosts' `readSnapshot` sent a
+snapshot's commit and trees together (MOD-repository-hosts.md:200-203); the probe measures them again.
 
 ## Acceptance
 

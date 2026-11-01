@@ -52,5 +52,10 @@ The reading does not hold for the items' paths. The item schema names two path p
 and `docs/backlog/ITM-{nnn}-{slug}.md` (`src/documents/schemas/item.schema.md:15-23`), so a path matched through the
 schema is a plan step or a backlog item alike; `artifactSchemaOf` gives the item schema for both
 (MOD-documents.md:309-311), and neither module's Uses names it. A module that reads only the backlog's items still
-needs the rule `docs/backlog/` of its own, which the Acceptance says goes. Before selection, the item states how the two
-modules tell a backlog item from a plan step through what their Uses name, or which sentence would let them.
+needs the rule `docs/backlog/` of its own.
+
+**The reading taken.** The backlog's folder is the SPEC's own: "A product's backlog is kept as Markdown under
+`docs/backlog/`" (`THE BACKLOG LIVES IN THE PRODUCT REPOSITORY`, SPEC.md:1675-1677). Each module keeps that one folder
+name, to choose the backlog's items among the item schema's files; the item's file pattern, its identifier and its list
+fields come from `artifactSchemas` and `readDocument`. So the Acceptance's "no path rule" reads: no rule beyond that
+folder name.
