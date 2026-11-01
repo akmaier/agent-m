@@ -11,7 +11,7 @@
 // Level: system
 //
 // Authored by developer-sonnet-j (ITM-738), who implemented none of ITM-722, ITM-723, ITM-726, ITM-727 and ITM-737 and no UC-021 production behaviour.
-// Where the pages and UC-021 disagree the case follows UC-021 and is marked { todo } with the finding it reports (UC021-F3 and UC021-F5, named in FLOW_FINDINGS).
+// Where the pages and UC-021 disagree the case follows UC-021 and is marked { todo } with the finding it reports (UC021-F3, named in FLOW_FINDINGS).
 // Each test states its input and its expected values in its own text; none reads an expected result from the SPEC, a use case or an architecture file, but the flow map (TST-738001), which holds the expected passages itself
 // and checks that UC-021 still says them. A person's click is the page's own listener called with a trusted event; a script's click is made by `scripted()`. Readings the texts leave open, which the cases state:
 //   - "an item or a group is moved by dragging it" is read as the drag events of the browser (dragstart on the item, drop on the group or on the tree), as the page listens to them.
@@ -67,9 +67,9 @@ const FLOW_EVIDENCE = {
   "main-1-tests-list": { uc: "or in the list of use cases, architecture elements, modules or tests, the author presses **Arrange**", evidence: [[SELF, "TST-738003"]] },
   "main-3-from-group": { uc: "*moved UC-007 from \"Review\" to \"Approval\"*", evidence: [[SELF, "TST-738006"]] },
   "2b-delete": { uc: "**2b. The author deletes a group.**", evidence: [[SELF, "TST-738012"]] },
+  "1b-tests": { uc: "**1b. The author asks a participant to propose an arrangement**", evidence: [[SELF, "TST-738022"]] },
 };
 const FLOW_FINDINGS = {
-  "1b-tests": { uc: "**1b. The author asks a participant to propose an arrangement**", finding: "UC021-F5", file: SELF, test: "TST-738022" },
   "3a-unknown-remove": { uc: "the author removes it or leaves it", finding: "UC021-F3", file: SELF, test: "TST-738015" },
 };
 
@@ -586,8 +586,8 @@ test("TST-738021: UC-021 5c on a GitLab product without a token there is no save
 // guards: UC-021; THE PAGE NAMES WHERE IT SENDS
 // given: the arrangement of the tests of the product (TST-101, TST-102, TST-103) with the participant drafter-a, whose answer is one move: a new group Lending (known positive: the same on the use cases is answered)
 // input: Propose groups with drafter-a and Run
-// expect: UC-021 1b offers Propose groups for the author's kinds, the tests among them: the model is asked once with the identifiers of the three tests, and the proposal arrives as the pending change "Add the group “Lending”". FINDING: Run stops before the model is asked
-test("TST-738022: UC-021 1b Propose groups on the tests", { todo: "FINDING UC021-F5 — Run of Propose groups on the tests writes the job's record with works_on holding the tests' identifiers (src/review-pages/arrange.mjs:338, worksOn: items), and the schema of the record (src/job-ledger/job.schema.md:40-42) lets works_on name only a requirement, UC, ARC, MOD, ITM, SRC, an address or a commit, so writeDocument throws `the value of works_on does not fit: \"TST-101\" is none of …` and the model is never asked; MOD-job-ledger lists what works_on holds as `requirements, use cases, decisions, modules, items, sources` (docs/architecture/MOD-job-ledger.md:70) — an item for MOD-job-ledger (and MOD-review-pages)" }, async () => {
+// expect: UC-021 1b offers Propose groups for the author's kinds, the tests among them: the model is asked once with the identifiers of the three tests, and the proposal arrives as the pending change "Add the group “Lending”"
+test("TST-738022: UC-021 1b Propose groups on the tests", async () => {
   const w = await grouped(withUseCaseGroups);
   const known = await arrangement(w, "use-cases");
   const first = await propose(w, known, [{ op: "create", title: "Lending", in: [] }]);

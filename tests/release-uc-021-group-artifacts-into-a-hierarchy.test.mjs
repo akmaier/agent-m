@@ -11,7 +11,7 @@
 // Level: release
 //
 // Written by developer-sonnet-j (ITM-738), who implemented none of ITM-722, ITM-723, ITM-726, ITM-727 and ITM-737 (RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER) and no UC-021 production behaviour.
-// Where the page and UC-021 disagree the case follows UC-021 and is marked { todo } with the finding it reports; the findings of this file are those of tests/system-uc-021-group-artifacts-into-a-hierarchy.test.mjs (UC021-F1 to UC021-F4),
+// Where the page and UC-021 disagree the case follows UC-021 and is marked { todo } with the finding it reports; the findings of this file are those of tests/system-uc-021-group-artifacts-into-a-hierarchy.test.mjs (UC021-F3),
 // which the system test marks, and this file reports none of its own. Readings the texts leave open, which the cases state:
 //   - A GROUP CARRIES NO IDENTIFIER: "an identifier of the kind EVERY ARTIFACT HAS AN IDENTIFIER gives artifacts" is read as the identifiers of the scheme SRC-, UC-, ARC-, MOD-, TST-, ITM-, RES-, JOB- and a requirement's name.
 //   - THE PRODUCT REPOSITORY IS SELF-SUFFICIENT: "no artifact references a file or service that exists only inside Agent M" is read for the group file this page writes: it holds no address, no path and no name of Agent M, and a reader
@@ -132,8 +132,8 @@ test("TST-738103: UC-021 a group holds items of one kind only: requirements, use
 // guards: UC-021; A GROUP HOLDS ONE KIND OF ARTIFACT
 // given: the arrangement of the tests of the product, and a participant whose proposal puts one item of each of the other four kinds into a new group Mixed (known positive: the same proposal on the requirements is answered, TST-738103)
 // input: Propose groups and Run
-// expect: as TST-738103 for the tests: the group Mixed is the one pending change, each of the four moves is refused with its reason. FINDING: Run stops before the model is asked, since the record of the job cannot name a test
-test("TST-738118: UC-021 a group of tests holds tests only", { todo: "FINDING UC021-F5 — Run of Propose groups on the tests writes the job's record with works_on holding the tests' identifiers (src/review-pages/arrange.mjs:338, worksOn: items), and the schema of the record (src/job-ledger/job.schema.md:40-42) lets works_on name only a requirement, UC, ARC, MOD, ITM, SRC, an address or a commit, so writeDocument throws `the value of works_on does not fit: \"TST-101\" is none of …` and the model is never asked; MOD-job-ledger lists what works_on holds as `requirements, use cases, decisions, modules, items, sources` (docs/architecture/MOD-job-ledger.md:70) and UC-021 1b offers Propose groups for every kind, tests included — an item for MOD-job-ledger (and MOD-review-pages)" }, async () => {
+// expect: as TST-738103 for the tests: the group Mixed is the one pending change, each of the four moves is refused with its reason
+test("TST-738118: UC-021 a group of tests holds tests only", async () => {
   const w = await grouped();
   await refusesForeign(w, "requirements");
   await refusesForeign(w, "tests");
