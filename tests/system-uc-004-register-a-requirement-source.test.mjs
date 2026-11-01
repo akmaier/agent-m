@@ -13,7 +13,6 @@
 // Each test states its input and its expected values in its own text; none reads an expected result from the SPEC, a use case or an architecture file. A person's click is the
 // page's own listener called through the event it dispatches, marked trusted as a browser marks it. Where the page and UC-004 disagree the case follows UC-004 and is marked
 // { todo } with the finding it reports:
-//   UC004-S1  the library shows no file's SHA-256: a version's file is shown by its name and whether it is stored (postcondition).
 //   UC004-S2  before an EU legal text is saved, the page states that the register entry becomes public and says nothing of its content, which the fetch stores in the
 //             public instance (step 5).
 // Readings the texts leave open, which the cases state:
@@ -320,8 +319,8 @@ test("TST-370212: UC-004 1a — a source already in the library: Agent M offers 
 // guards: UC-004
 // given: the documents of TST-370205 registered through the page (handbook.md and annex.pdf, may be republished)
 // input: the author opens #library/source=SRC-handbook
-// expect: the postcondition "The library lists the source with kind, authority, licence and at least one version, each version with identifier, date and the SHA-256 of every file read": the source's page shows kind document, authority advisory, the licence, the version <today> with its date, and the SHA-256 of handbook.md and of annex.pdf. FINDING UC004-S1: the page shows each file by its name and whether it is stored, not its SHA-256
-test("TST-370213: UC-004 postcondition — the library shows a source's kind, authority, licence and versions, each file with its SHA-256", { todo: "FINDING UC004-S1 — src/settings-pages/library.mjs:98 (entryView) draws a version's file as `${file.name} — stored|not stored`; no page of the library shows a file's SHA-256" }, async (t) => {
+// expect: the postcondition "The library lists the source with kind, authority, licence and at least one version, each version with identifier, date and the SHA-256 of every file read": the source's page shows kind document, authority advisory, the licence, the version <today> with its date, and the SHA-256 of handbook.md and of annex.pdf.
+test("TST-370213: UC-004 postcondition — the library shows a source's kind, authority, licence and versions, each file with its SHA-256", async (t) => {
   const page = await visit(t, "#library");
   await register(page, "documents");
   const handbook = fileOf("handbook.md", "# Handbook\n"), annex = fileOf("annex.pdf", "annex bytes");
