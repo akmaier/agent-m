@@ -560,3 +560,35 @@ test("TST-779013 every part of the editor carries a folded What is this?", async
     assert.equal(folded[0].children[0].textContent, "What is this?", part);
   }
 });
+
+// The number of times `needle` stands in `text`.
+const timesIn = (text, needle) => text.split(needle).length - 1;
+
+// TST-779014 · level: unit · module: MOD-implementation-pages
+// guards: A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED; UC-031
+// given: + New model with the kind planned picked, its name left out; and the adapted v-model, whose last gate the author types without a Condition and whose last transition leads to "Nowhere"
+// input: the findings the form shows: the lists beside its fields and the marks of its sections
+// expect: "the key name is required" stands exactly once among the lists of the new model's form; the marks of Gates hold "the column Condition" exactly once; the marks of Transitions hold "which is no phase of the model" exactly once — a finding of the schema and one beyond it, each shown once
+test("TST-779014 each finding is shown once", async () => {
+  const planned = await edit("");
+  await planned.click(find(planned.target, (node) => node.getAttribute("data-kind") === "planned")[0], false);
+  const lists = byClass(byClass(planned.target, "schema-form")[0], "findings").map((list) => list.textContent).join("\n");
+  assert.equal(timesIn(lists, "the key name is required"), 1);
+  const { target } = await edit("v-model");
+  await typeSection(target, "## Gates", areaOf(target, "## Gates").replace("| the verification is documented before the release | Reviewer |", "|  | Reviewer |"));
+  assert.equal(timesIn(marksOf(target, "## Gates"), "the column Condition"), 1);
+  await typeSection(target, "## Transitions", areaOf(target, "## Transitions").replace("| Validation & Verification | Operation & Maintenance | sequence |", "| Validation & Verification | Nowhere | sequence |"));
+  assert.equal(timesIn(marksOf(target, "## Transitions"), "which is no phase of the model"), 1);
+});
+
+// TST-779015 · level: unit · module: MOD-implementation-pages
+// guards: EVERY PAGE LOADS IN UNDER THREE SECONDS; UC-031
+// given: docs/index.html, whose preloads the generator of MOD-site-frame writes from what each route loads
+// input: the modules the entries "models" and "process" preload
+// expect: neither names a module of MOD-progress-measures (src/progress-measures/), which only the preview of the plan needs, once a product is picked; known positive: the entry "progress" names src/progress-measures/index.mjs
+test("TST-779015 the routes models and process load MOD-progress-measures only when the preview needs it", () => {
+  const page = readFileSync(new URL("../docs/index.html", import.meta.url), "utf8");
+  const preloaded = (name) => JSON.parse(new RegExp(`^  "${name}": (\\{.*\\}),?$`, "m").exec(page)[1]).modules;
+  assert.ok(preloaded("progress").includes("../src/progress-measures/index.mjs"), "known positive");
+  for (const name of ["models", "process"]) assert.deepEqual(preloaded(name).filter((path) => path.includes("/progress-measures/")), [], name);
+});
