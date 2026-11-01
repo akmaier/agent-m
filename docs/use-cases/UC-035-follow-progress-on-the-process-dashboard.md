@@ -110,9 +110,6 @@ sequenceDiagram
 
 - **1a. The reader has no token that reaches a private product.** The dashboard says so and shows
   nothing, as in UC-008 (1a).
-- **1b. A job source cannot be reached**, for example the local bridge of another machine. Progress
-  is computed from the repository. The panel **Who works on what** says which source is missing, and
-  that jobs running there are not shown.
 - **2a. A planned product has no accepted requirements yet.** The grid shows the phases empty and
   says that the plan fills itself as requirements are accepted.
 - **2b. A Scrum product has no running sprint.** The dashboard says so, with a link to plan the next one and a link to

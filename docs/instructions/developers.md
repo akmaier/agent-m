@@ -54,13 +54,9 @@ blob (`git show <blob sha>`) and say so in your report.
    `sprint/<team>/<nn>`: `gh pr create --repo akmaier/agent-m --base sprint/<team>/<nn> --head item/ITM-<nnn>-<slug>
    --title "ITM-<nnn>: <title>"`. CI must be red on this commit (`gh pr checks`).
 2. **Green.** Implement in the folders of your item's modules (`src/<slug>/`), as the module files describe, only the
-   functions your item needs. Where code under `docs/assets/` does this today, take it as the model; the old file stays
-   exactly as it is. Making the dashboard call the modules is a separate change between jobs. Push; CI must be green.
-3. **Only your scope changes:** your modules' folders and the test files that name your modules — new tests, and an
-   existing test that names your module only where how it prepares its fixture must change, or where your item names
-   the test and the accepted module file changes the behaviour it asserts, then also its expected result —;
-   no test helper, no file under `docs/` (`AN IMPLEMENTATION JOB CHANGES ONLY ITS MODULES`). Every other existing test
-   stays green unchanged, unless your item names an expected result it changes.
+   functions your item needs. Push; CI must be green.
+3. **Only your scope changes,** as `AN IMPLEMENTATION JOB CHANGES ONLY ITS MODULES` gives it; a refactoring changes no
+   expected result (`A REFACTORING JOB CHANGES NO EXPECTED RESULT`).
 4. **Counter-proofs.** For every new test, plant a fault in the code it guards, run the test, see it fail, remove the
    fault; record each — test, fault, failing output in one line — in the pull request's description.
 5. **CI within two minutes** (`A PULL REQUEST'S CI RUNS WITHIN TWO MINUTES`): unit tests that run in well under a second
@@ -84,18 +80,6 @@ When the task gives you an item of release or system tests, you implemented none
   counter-proof.
 - A test that fails because the behaviour does not do what the use case says is a finding, not a test to bend: mark it
   `{ todo: "FINDING <id> — <what the code does instead>" }` and list it in your report.
-
-## A change between jobs
-When the task names a change between jobs instead of an item (`WHAT NO MODULE OWNS IS CHANGED BETWEEN JOBS`), the sprint's
-record says what it changes, and the rules above hold with these differences:
-- It changes only files that no module owns, and each change is one of the kinds that requirement names — for instance
-  old code of the dashboard calling a module in place of its own code. No module's folder changes.
-- The branch is `between/<team>-<nn>-<slug>`, the pull request's title `Sprint <team>/<nn>, between jobs: <what it
-  changes>`, and its description names the kind of change.
-- A new test shows the dashboard reaching the module through the change, names the module it reaches, and has a
-  counter-proof. Reach the page the way the existing tests of that page do; build no other way.
-- Commits end with `Item: — (between jobs) · Agent M at <the sprint commit you branched from> · <your participant name>
-  (<your model>)` and the lines your task names.
 
 ## Your report (at most 20 lines)
 The pull request's address; its commits; the CI result of the tests-only commit (red) and of the last commit (green),
