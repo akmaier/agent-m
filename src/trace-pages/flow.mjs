@@ -261,11 +261,12 @@ async function sectionsChanged(host, ref, names) {
 }
 
 // The names of the requirements marked *source changed*: those affectedRequirements names for a source the product moved after the requirement's text last changed.
-async function sourceChanged(shown) {
+// `movedRead` is movedSources asked already, beside the page's first reads, where the caller asked it.
+async function sourceChanged(shown, movedRead = null) {
   const { snapshot, context, ref } = shown;
   if (!snapshot.paths.includes(SOURCE_LINKS)) return new Set();
   const host = context.product.host;
-  const moved = await movedSources(host, ref, sourceSchemas().links);
+  const moved = await (movedRead ?? movedSources(host, ref, sourceSchemas().links));
   if (!moved.size) return new Set();
   // Only a product that moved a source reads the register, to find the requirements that name it.
   const { register } = await factsOf(shown).sources();
@@ -990,6 +991,9 @@ export const route = {
         const specification = descriptor.key !== "gaps" && descriptor.key !== "tests";
         // The coverage gaps of the version count the requirements no use case realises in each group: they are asked now, from the file stored beside the graph.
         if (specification && snapshot.paths.includes(GROUP_PATH)) gapsShown(shown).catch(() => {});
+        // Which sources moved on reads the history of the links file alone: it is asked now too, beside the SPEC.
+        const movedRead = specification && snapshot.paths.includes(SOURCE_LINKS) ? movedSources(host, shown.ref, sourceSchemas().links) : null;
+        movedRead?.catch(() => {});
         const specRead = snapshot.read(SPEC_PATH);
         const groupRead = specification ? snapshot.read(GROUP_PATH) : null;
         groupRead?.catch(() => {});
@@ -1004,7 +1008,7 @@ export const route = {
         // branch, or the earlier version shown while the head's graph is stored —, so that a message of the prompt bar can hand a change on (UC-049).
         const current = specification && (isDefault || Boolean(earlier));
         // Whether a source moved on is asked now, beside the entries and the arrangement; its rows are marked once the page is drawn.
-        const moved = specification ? sourceChanged(shown) : null;
+        const moved = specification ? sourceChanged(shown, movedRead) : null;
         moved?.catch(() => {});
         const [source, open, groupText] = await Promise.all([current ? personsSource(context, snapshot) : null, editable ? waitingEntries(snapshot) : [], groupRead]);
         if (descriptor.key === "gaps") {
