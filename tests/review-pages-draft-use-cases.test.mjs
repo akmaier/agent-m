@@ -451,7 +451,7 @@ test("use-case/draft — after Run, the last round's findings are marked left wh
   const last = rounds[rounds.length - 1];
   assert.ok(byClass(last, "li", "left").some((item) => /## Postcondition/.test(item.textContent)), "the last round's finding is marked left");
   for (const block of rounds.slice(0, -1)) assert.equal(byClass(block, "li", "left").length, 0, `round ${block.getAttribute("data-number")} has nothing left`);
-  const leftItems = byClass(byClass(target, "ul", "left")[0], "li", "left").length;
+  const leftItems = find(byClass(target, "ul", "left")[0], (node) => node.localName === "li").length;
   assert.equal(byClass(target, "p", "left-count")[0].textContent, leftItems === 1 ? "Left: 1 finding" : `Left: ${leftItems} findings`);
 });
 
