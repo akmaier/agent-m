@@ -61,6 +61,7 @@ export async function repoServer({ files: given, history = [], dates = {}, repo 
   // GitHub's trees of named folders and the entries of the folders of named files, sent together (MOD-repository-hosts' readSnapshot with
   // `folders`): "<commit>:<path>" with recursive, or a folder's own entries without it. The requests sent together are one read of the
   // tree's folders, counted once as `folders`; what they asked for is listed in `folders` — a folder's path, a listed folder as `<folder>/`.
+  // Requests are sent together while one of them is still in flight: a request sent after the last of the round has answered opens a round of its own.
   let round = null;
   const folderPart = (url, method) => {
     const m = method === "GET" && url.origin === "https://api.github.com" && new RegExp(`^${api}/git/trees/([^/:]+)(?::(.*))?$`).exec(url.pathname);
@@ -70,11 +71,13 @@ export async function repoServer({ files: given, history = [], dates = {}, repo 
     const url = new URL(String(u)), p = url.pathname, method = (init.method || "GET").toUpperCase();
     let what = `other ${method} ${url.origin}${p}${url.search}`;
     const part = folderPart(url, method);
-    if (!part) round = null;
-    else {
+    let mine = null;
+    if (part) {
       const asked = url.searchParams.has("recursive") ? part.path : `${part.path}/`;
-      if (round && round.commit === part.commit) { round.named.push(asked); what = null; }
-      else { round = { commit: part.commit, named: [asked] }; folderReads.push(round.named); what = "folders"; }
+      if (round && round.commit === part.commit && round.inFlight > 0) { round.named.push(asked); what = null; }
+      else { round = { commit: part.commit, named: [asked], inFlight: 0 }; folderReads.push(round.named); what = "folders"; }
+      mine = round;
+      mine.inFlight += 1;
     }
     pending += 1;
     try {
@@ -225,6 +228,7 @@ export async function repoServer({ files: given, history = [], dates = {}, repo 
       return new Response("{}", { status: 404 });
     } finally {
       if (what !== null) requests.push(what);
+      if (mine) mine.inFlight -= 1;
       pending -= 1;
     }
   };
