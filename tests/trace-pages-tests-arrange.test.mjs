@@ -84,7 +84,7 @@ test("TST-1356002: the tests view offers no Arrange at a release tag or at a com
   for (const ref of ["v2026.1.0", COMMIT]) {
     const target = await render(hostOf(), { key: "tests", ref });
     assert.deepEqual(listed(target), ["TST-501"], `${ref}: the tests are listed`);
-    assert.deepEqual(arranges(target), [], ref);
+    assert.deepEqual(arranges(target).map((node) => node.getAttribute("href")), [], ref);
   }
 });
 
@@ -96,8 +96,8 @@ test("TST-1356002: the tests view offers no Arrange at a release tag or at a com
 test("TST-1356003: the default branch is the Host's own, and a Host that cannot name it offers no Arrange", async () => {
   const trunk = hostOf({ defaultBranch: "trunk" });
   assert.equal(arranges(await render(trunk, { key: "tests", ref: "trunk" })).length, 1, "known positive: trunk is the default branch");
-  assert.deepEqual(arranges(await render(trunk, { key: "tests", ref: "main" })), []);
+  assert.deepEqual(arranges(await render(trunk, { key: "tests", ref: "main" })).map((node) => node.getAttribute("href")), []);
   const unknown = await render(hostOf({ info: false }), { key: "tests", ref: "main" });
   assert.deepEqual(listed(unknown), ["TST-501"], "the tests are listed");
-  assert.deepEqual(arranges(unknown), []);
+  assert.deepEqual(arranges(unknown).map((node) => node.getAttribute("href")), []);
 });
