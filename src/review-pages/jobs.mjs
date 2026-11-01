@@ -615,7 +615,8 @@ async function showArchitectureDraft(where, kind) {
 // What a run of the derivation came to, here: that it ran. The draft that waits for the author is shown by the page that follows.
 async function presentDerivation(outcome, result, run) {
   result.append(el("p", "ran", `Job ${run.id} ran in this tab.`));
-  const shown = el("section", "architecture-result", el("h3", null, "Drafted architecture"));
+  // The step asks the author to review the checked draft — its rounds and the findings left —, to change it and to write it (EVERY STEP EXPLAINS ITSELF), as the use cases' draft names `loop`.
+  const shown = el("section", "architecture-result", el("h3", null, "Drafted architecture"), explain(run.kind.explain.draft.loop));
   const files = el("section", "draft-files");
   const status = el("div", "draft-actions");
   let current = outcome;
