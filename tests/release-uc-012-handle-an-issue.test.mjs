@@ -120,7 +120,7 @@ test("TST-585302: UC-012 an issue that changes behaviour becomes a specification
 // guards: A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; UC-012
 // given: the open issue 5, confirmed as a change; the participant drafts a change of the existing FIRST RULE, which the use cases UC-001 and UC-002 realise and the test TST-001 guards; the issue's text names none of them
 // input: the author drafts the change from the issue and saves it
-// expect: before Save no file of the queue is written;the saved queue's files name, for FIRST RULE, the artifacts that reference it — UC-001, UC-002 and TST-001 — as part of the proposal
+// expect: before Save no file of the queue is written; the saved queue's files name, for FIRST RULE, the artifacts that reference it — UC-001, UC-002 and TST-001 — as part of the proposal
 test("TST-585303: UC-012 a change of an existing requirement from an issue carries the list of the artifacts that reference it", async () => {
   const w = start({ issues: [issueOf(5, NAMING)], analysis: AS_CHANGE, change: { candidates: [CHANGED] } });
   const detail = await drafted(await confirmed(w, "change"));
