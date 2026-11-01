@@ -20,7 +20,7 @@ import { eligible } from "../participant-list/index.mjs";
 import { finding } from "../text-tools/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
 import { needs } from "./builtins.mjs";
-import { failure, strategyOf } from "./registry.mjs";
+import { failure, registeredAll, strategyOf } from "./registry.mjs";
 
 const REGISTER = "docs/participants.md";
 const RULES = "AGENTS.md";
@@ -113,6 +113,7 @@ const notDrafterAlone = ({ drafter, reviewers }, kindName) => finding({ artifact
  * `context.agentM.commit` names, before anything runs; UnknownKind and InvalidKind as kindOf does, UnknownStrategy { strategy } for a strategy no module registered, and whatever a recipe throws by name.
  */
 export async function prepareJob(name, context, choice) {
+  await registeredAll();
   // A checkout of the instance holds the commit the job's record names, which its snapshot — read from it — is at.
   const { checkout, snapshot } = context.instance;
   if (typeof checkout === "string" && snapshot?.commit !== context.agentM.commit) {

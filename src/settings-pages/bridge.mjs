@@ -6,7 +6,7 @@ import { clearSetting, listSettings, readSetting, writeSetting } from "../browse
 import { endpointLacks } from "../prompt-bar/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { CAPABILITIES, PRESETS } from "./participants.mjs";
-import { heads } from "./index.mjs";
+import { heads } from "./routes.mjs";
 
 function el(name, className, ...children) {
   const node = document.createElement(name);

@@ -1,6 +1,8 @@
 // GitHub's "Get a tree" as a fake answers it, for the tests whose fake GitHub holds a set of files: the tree of the commit or of
 // "<commit>:<path>" — with recursive=1 every file below it, without it its own entries (a folder as a tree, a file as a blob). A path that
 // is a file answers 422, a path the files do not hold 404. No test of its own.
+//
+// Module: MOD-repository-hosts
 
 // treeRequest(url) -> { commit, path, recursive } for a request of "Get a tree" of a repository on api.github.com, or null for any other.
 export function treeRequest(url) {

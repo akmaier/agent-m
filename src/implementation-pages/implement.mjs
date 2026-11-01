@@ -36,7 +36,7 @@ import { planSchemas, startable, targetBranch } from "../work-plans/index.mjs";
 import { connectionsOf, contextOf, participantsIn, personOf, placesOf, viewOf } from "./backlog.mjs";
 import { declaredModelOf } from "./plan.mjs";
 import { asOfLine } from "./progress.mjs";
-import { heads } from "./index.mjs";
+import { heads } from "./routes.mjs";
 
 const WORKFLOWS = [".github/workflows/agent-m-jobs.yml", ".gitlab/agent-m-jobs.yml"];
 const DECLARATION = "docs/process.md";

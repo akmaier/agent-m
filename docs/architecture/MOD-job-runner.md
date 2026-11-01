@@ -59,6 +59,8 @@ provides:
   - JobResult
   - WriteOutcome
   - registerStrategies
+  - registerLater
+  - registeredAll
   - prepareJob
   - runJob
   - failedBecause
@@ -292,6 +294,10 @@ ONLY WHEN RECORDING IS ON`).
   strategy's name in `strategy`, since an error's own `name` is its type —, and then adds none of them; the same strategy
   handed again, by any owner, stays registered under its first owner. A program registers each owner once, before its
   first job.
+- `registerLater(register: () -> Promise<void>) -> void` — a registration a program hands in now, which the runner makes
+  before it first looks a strategy up, so that a page imports the strategies' modules only for a job.
+- `registeredAll() -> Promise<void>` — makes every registration handed to `registerLater` that is not made yet, each once,
+  in the order handed; `prepareJob`, `runJob`, `writeResult` and the offer of tools call it first.
 - `estimate(text: string) -> number` — a text's size in tokens as the runner estimates it: its characters divided by
   three, rounded up; the size prepareJob gives each part, and the one MOD-endpoint-calls' execution loop bounds its tool
   results by.

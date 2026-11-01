@@ -51,18 +51,18 @@ test("TST-1290002 a block missing a line, or missing altogether, is written as p
 // guards: THE PAGES ROOT IS THE REPOSITORY ROOT
 // given: the two entry pages, index.html naming the view main-page and docs/index.html the review pages' views
 // input: pageLoads(page)
-// expect: index.html loads src/main-page/index.mjs, the frame's start.mjs and the explanations the frame fetches, and none of the review pages' views; docs/index.html loads the review pages' views and the JSON of dashboard-app.mjs as a module
+// expect: index.html loads src/main-page/routes.mjs, the frame's start.mjs and the explanations the frame fetches, and none of the review pages' views; docs/index.html loads the review pages' views and the JSON of dashboard-app.mjs as a module
 test("TST-1290003 each page preloads its own views and the files they fetch, and the main page none of the review pages' views", () => {
   const main = pageLoads("index.html");
   assert.ok(main.modules.includes("src/site-frame/start.mjs"));
-  assert.ok(main.modules.includes("src/main-page/index.mjs"));
+  assert.ok(main.modules.includes("src/main-page/routes.mjs"));
   assert.ok(main.files.includes("src/site-frame/explanations.md"));
   for (const view of ["review-pages", "trace-pages", "implementation-pages", "test-pages", "maintenance-pages", "settings-pages"]) {
-    assert.ok(!main.modules.includes(`src/${view}/index.mjs`), `the main page preloads ${view}`);
+    assert.ok(!main.modules.includes(`src/${view}/routes.mjs`), `the main page preloads ${view}`);
   }
   const review = pageLoads("docs/index.html");
   for (const view of ["review-pages", "trace-pages", "implementation-pages", "test-pages", "maintenance-pages", "settings-pages"]) {
-    assert.ok(review.modules.includes(`../src/${view}/index.mjs`), `the review pages do not preload ${view}`);
+    assert.ok(review.modules.includes(`../src/${view}/routes.mjs`), `the review pages do not preload ${view}`);
   }
   assert.ok(review.modules.includes("assets/dashboard/built.json"));
   assert.match(text("docs/index.html"), /<link rel="modulepreload" as="json" href="assets\/dashboard\/built.json">/);
@@ -72,9 +72,9 @@ test("TST-1290003 each page preloads its own views and the files they fetch, and
 const routeData = (page) => JSON.parse(/<script type="application\/json" id="route-preloads">([\s\S]*?)<\/script>/.exec(text(page))?.[1] ?? "{}");
 
 // The files of each view folder that the routes' heads need, which the view module imports as it is loaded (MOD-site-frame.md, Interfaces: Route, "its `name`,
-// `entry`, `entryShown` and `title` stand in the view module"): the view module itself, the review pages' descriptors and the trace pages' descriptors.
-const HEADS = { "review-pages": ["index.mjs", "kinds.mjs"], "trace-pages": ["index.mjs", "views.mjs"], "implementation-pages": ["index.mjs"],
-  "test-pages": ["index.mjs"], "maintenance-pages": ["index.mjs"], "settings-pages": ["index.mjs"] };
+// `entry`, `entryShown` and `title` stand in the view module"): the view module itself (routes.mjs), the review pages' descriptors and the trace pages' descriptors.
+const HEADS = { "review-pages": ["routes.mjs", "kinds.mjs"], "trace-pages": ["routes.mjs", "views.mjs"], "implementation-pages": ["routes.mjs"],
+  "test-pages": ["routes.mjs"], "maintenance-pages": ["routes.mjs"], "settings-pages": ["routes.mjs"] };
 
 // TST-1267001 · level: unit · module: MOD-site-frame
 // guards: EVERY PAGE SHARES ONE LOOK AND WORKS ON A PHONE

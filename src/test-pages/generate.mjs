@@ -42,7 +42,7 @@ import { explain, runPanel, readProblem } from "../site-frame/index.mjs";
 import { reachableBy, resourceSchema } from "../resource-list/index.mjs";
 import { readRegister } from "../documents/index.mjs";
 import { testsHead, readsAt, column, listTable, LEVEL_TOPIC } from "./look.mjs";
-import { heads } from "./index.mjs";
+import { heads } from "./routes.mjs";
 
 const REGISTER = "docs/participants.md";
 const WORKFLOWS = [".github/workflows/agent-m-jobs.yml", ".gitlab/agent-m-jobs.yml"];

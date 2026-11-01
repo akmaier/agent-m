@@ -18,6 +18,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { outside } from "./site-frame-start.d/dom.mjs";
 import { ownerOf, pageWithScript, unknownStrategyOf } from "./site-frame-start.d/page.mjs";
+import { registeredAll } from "../src/job-runner/index.mjs";
 
 const VIEW_SOURCE = "../tests/site-frame-start.d/view-source";
 
@@ -29,6 +30,7 @@ const VIEW_SOURCE = "../tests/site-frame-start.d/view-source";
 test("TST-572005 on the main page start.mjs registers its view's set once and the bar's other sets under MOD-prompt-bar", async () => {
   pageWithScript({ "data-page": "main", "data-views": VIEW_SOURCE, "data-menu-views": "" });
   await import("../src/site-frame/start.mjs?hand-over-main");
+  await registeredAll(); // the registrations the page makes before the runner first looks a strategy up
   assert.equal(ownerOf("recipes", "chapters-for-implementation"), VIEW_SOURCE);
   assert.equal(ownerOf("recipes", "use-cases"), "MOD-prompt-bar");
   assert.equal(ownerOf("recipes", "resource-check"), "MOD-prompt-bar");

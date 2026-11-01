@@ -28,7 +28,7 @@ import { saveFile } from "../artifact-edits/index.mjs";
 import { affectedRequirements, permittedPlaces, sourceSchemas } from "../source-register/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { readRegisterOf, unquoted, versionHashOf, versionsOf } from "./library.mjs";
-import { heads } from "./index.mjs";
+import { heads } from "./routes.mjs";
 
 const { links: LINKS } = sourceSchemas();
 const PATH = "docs/sources.md";

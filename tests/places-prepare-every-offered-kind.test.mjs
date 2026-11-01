@@ -61,6 +61,9 @@ if (place === "ci") {
   const views = [];
   for (const slug of slugs) views.push([slug, await loadView(slug)]);
   registerViews(views);
+  // The page registers its views' strategies before the runner first looks one up (MOD-job-runner's registeredAll, which prepareJob calls first).
+  const { registeredAll } = await import(at("src/job-runner/index.mjs"));
+  await registeredAll();
 }
 
 // Whether a module registered the name: a new strategy under it is refused, naming another owner first. A name the probe takes is registered under the probe from then on.

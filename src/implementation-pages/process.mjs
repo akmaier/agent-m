@@ -42,7 +42,7 @@ import { declarationSchema, declarationFindings, roleAssignmentFindings, roleAss
 import { sourceSchemas } from "../source-register/index.mjs";
 import { showDifference } from "../markdown-render/index.mjs";
 import { saveFile } from "../artifact-edits/index.mjs";
-import { heads } from "./index.mjs";
+import { heads } from "./routes.mjs";
 
 const DECLARATION_PATH = "docs/process.md";
 const PARTICIPANTS_PATH = "docs/participants.md";

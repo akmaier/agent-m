@@ -27,7 +27,7 @@ import { checkersFor, personHits, pseudonymisationOf, settingsSchemas } from "..
 import { connect, parseAddress } from "../repository-hosts/index.mjs";
 import { queueJob, runOnTab } from "../runtimes/index.mjs";
 import { runPanel } from "../site-frame/index.mjs";
-import { heads } from "./index.mjs";
+import { heads } from "./routes.mjs";
 
 const REGISTER = "docs/participants.md";
 const SETTINGS = "docs/settings.md";

@@ -14,7 +14,7 @@
 import { finding, formatFinding } from "../text-tools/index.mjs";
 import { kindOf } from "../job-catalogue/index.mjs";
 import { classesOf } from "./builtins.mjs";
-import { failure, strategyOf } from "./registry.mjs";
+import { failure, registeredAll, strategyOf } from "./registry.mjs";
 import { offerTools, withHeld } from "./tools.mjs";
 
 const line = (f) => formatFinding(f);
@@ -127,6 +127,7 @@ const partsFor = (kind, parts) => parts.filter((part) => kind.recipes.some((reci
  * more is written.
  */
 export async function runJob(prepared, drivers, options) {
+  await registeredAll();
   const { attended, context, from, refine, onRound, onOutput, onGate, signal } = options;
   if (prepared.blocking.length || prepared.notFitting.length) {
     throw failure("NotStartable", "the job has findings that keep it from starting, or a participant it does not fit",
@@ -251,6 +252,7 @@ export async function runJob(prepared, drivers, options) {
  * stepFindings by those the steps return now. Throws what the writer throws by name.
  */
 export async function writeResult(prepared, draft, { result, context }) {
+  await registeredAll();
   let current = draft;
   const stepFindings = [];
   for (const step of prepared.kind.steps) {

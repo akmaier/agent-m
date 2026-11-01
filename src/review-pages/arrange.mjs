@@ -20,7 +20,7 @@ import { storedGraph } from "../trace-graph/index.mjs";
 import { button, el, handedPlace, link, openGithubEditor, parseServer, readPlace, tokenStep } from "./common.mjs";
 import { fallbackPages } from "./file-edit.mjs";
 import { byClassChecked, loadStage, panelOf, participantList } from "./jobs.mjs";
-import { heads } from "./index.mjs";
+import { heads } from "./routes.mjs";
 
 const KINDS = {
   requirements: { title: "requirements" },

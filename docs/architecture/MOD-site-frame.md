@@ -73,11 +73,14 @@ It runs in a browser — the instance's pages, and the Bridge's window, which is
 
 - `index.mjs` — the interface.
 - `start.mjs` — the script both entry pages load: it reads the page's setup from its own script tag, loads the named
-  view modules from their folders, registers their strategies and MOD-prompt-bar's `handOverStrategies` with
-  `register.mjs`, and calls `startPage`. This is where the entry pages register strategies (ARC-038).
+  view modules (`routes.mjs` of each view's folder) from their folders, registers their strategies and MOD-prompt-bar's
+  `handOverStrategies` with `register.mjs`, and calls `startPage`. This is where the entry pages register strategies (ARC-038).
 - `register.mjs` — `registerViews`: every strategy set of a page's views, under its view's slug, and then
-  MOD-prompt-bar's `handOverStrategies` under `MOD-prompt-bar`, each set once per load, at load — so that a job any
-  route prepares, the test job of an endpoint on the Settings page among them, finds every recipe of the page's views.
+  MOD-prompt-bar's `handOverStrategies` under `MOD-prompt-bar`, each set once per load — a view's `strategies` at load,
+  its `loadStrategies` and the bar's through MOD-job-runner's `registerLater`, before the runner first looks a strategy up —,
+  so that a job any route prepares, the test job of an endpoint on the Settings page among them, finds every recipe of the
+  page's views, and a page that prepares no job loads none of their modules. The notifications' checks and the prompt bar
+  are imported once the page's route is drawn.
   `start.mjs` and the live page's app (`dashboard-app.mjs`) both register with it.
 - `attachPromptBar` (index.mjs) — MOD-prompt-bar's bar started in a footer fixed to the bottom of the window, which takes the
   bar's height: `startPage` attaches it on the main page, and `dashboard-app.mjs` on every review page once its load has read
@@ -150,9 +153,9 @@ It keeps nothing but what is on the screen. It owns these formats:
 
 ## Interfaces
 
-- `View` — what a view module provides to the frame: `{ routes: Route[], strategies: Strategies[] }` — its routes, and
-  the strategy sets of the services whose job kinds its routes prepare or run in the tab (MOD-job-runner's
-  `Strategies`).
+- `View` — what a view module provides to the frame: `{ routes: Route[], strategies?: Strategies[], loadStrategies?: () ->
+  Promise<Strategies[]> }` — its routes, and the strategy sets of the services whose job kinds its routes prepare or run in
+  the tab (MOD-job-runner's `Strategies`), or the function that imports them.
 - `Route` — `{ name: string, entry: "requirements" | "use-cases" | "architecture" | "implementation" | "tests" |
   "releases" | "maintenance" | "settings" | null, entryShown?: (params: Record<string, string>) -> Route["entry"],
   title: string, render(target: Element, context: ViewContext,

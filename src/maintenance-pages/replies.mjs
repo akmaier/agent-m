@@ -35,7 +35,7 @@ import { queueJob, runOnTab } from "../runtimes/index.mjs";
 import { confirmDecision, runPanel } from "../site-frame/index.mjs";
 import { peopleIn } from "../personal-data/index.mjs";
 import { connectionsOf, mailboxOf, mailSubject, productsOf } from "./mail.mjs";
-import { heads } from "./index.mjs";
+import { heads } from "./routes.mjs";
 
 const REGISTER = "docs/participants.md";
 const JOB_FILE = /^docs\/jobs\/(JOB-[^/]+)\.md$/;

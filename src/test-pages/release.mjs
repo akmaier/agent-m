@@ -34,7 +34,7 @@ import { recordsNewestFirst } from "../job-ledger/index.mjs";
 import { blobSha } from "../text-tools/index.mjs";
 import { explain, embedRoute } from "../site-frame/index.mjs";
 import { renderArtifact } from "../markdown-render/index.mjs";
-import { heads } from "./index.mjs";
+import { heads } from "./routes.mjs";
 
 // ---------------------------------------------------------------- small helpers (the module runs in a browser; every
 // element is built with createElement/append, never parsed from an HTML string, as src/settings-pages/products.mjs's

@@ -10,7 +10,7 @@
 //
 // The live app runs in tests/app-harness.mjs on the fixture architecture, as tests/site-frame-live-entry-shown.test.mjs runs it. Which modules the process
 // loads is recorded by a load hook of node:module, registered before the app is imported: a module is loaded once per process, when it is first imported.
-// The view modules (`index.mjs` of each view folder) hold the routes' heads and are loaded at start; every other file of a view folder is a route's own.
+// The view modules (`routes.mjs` of each view folder) hold the routes' heads and are loaded at start; every other file of a view folder is a route's own, or (`index.mjs`) the view's strategies, imported for a job.
 // The expected values are written from MOD-site-frame's Route and from the item's Acceptance, not read from the code.
 
 import test from "node:test";
@@ -27,7 +27,7 @@ registerHooks({ load(url, context, next) {
   if (url.startsWith(ROOT)) loads.set(url.slice(ROOT.length), (loads.get(url.slice(ROOT.length)) ?? 0) + 1);
   return next(url, context);
 } });
-const loadedUnder = (folders) => [...loads.keys()].filter((path) => folders.some((folder) => path.startsWith(folder)) && !path.endsWith("/index.mjs")).sort();
+const loadedUnder = (folders) => [...loads.keys()].filter((path) => folders.some((folder) => path.startsWith(folder)) && !path.endsWith("/routes.mjs")).sort();
 
 function fixtureFiles() {
   const FIX = fileURLToPath(new URL("./fixtures/architecture/", import.meta.url));

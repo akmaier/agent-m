@@ -29,8 +29,6 @@ import { UPSTREAM, instanceOf } from "../site/instance-repository.mjs";
 // dashboard reaches MOD-notifications, as ITM-236's Outcome names it) — through each module's own interface.
 import { openStore, readSetting, writeSetting, secretValues } from "../browser-store/index.mjs";
 import { parseAddress, connect, HostError } from "../repository-hosts/index.mjs";
-import { watchForAcceptance } from "../notifications/index.mjs";
-import { storedOverview } from "../progress-measures/index.mjs";
 import { attachPromptBar, explain, pageStarted } from "./index.mjs";
 import { subjectOf, entryShownOf } from "./subject.mjs";
 import { foldMenu } from "./menu.mjs";
@@ -380,7 +378,7 @@ async function readAhead(kind) {
     // specification (MOD-trace-pages) finds the entries waiting from them and reads their proposals through the snapshot in a batch. A tree without a queue asks for no overview.
     const queued = pathsOf(QUEUE_INDEX_PATH).length > 0;
     const [, stored] = await Promise.all([readWave(["SPEC.md", "docs/sources.md", ...registerPaths(state.tree.map((e) => e.path))]),
-      queued ? pinned().then((snap) => storedOverview(snap)).catch(() => null) : null]);
+      queued ? pinned().then(async (snap) => (await import("../progress-measures/index.mjs")).storedOverview(snap)).catch(() => null) : null]);
     if (stored) {
       await readWave(stored.queues.flatMap((queue) => [`${queue.folder}/index.md`, `${queue.folder}/entscheidungen.md`,
         ...queue.entries.filter((entry) => entry.state !== "in SPEC").flatMap((entry) => [entry.proposal?.path, entry.rationale, entry.file, entry.record])]).filter(Boolean));
@@ -569,7 +567,7 @@ function startNotifications() {
     return; // StorageUnavailable: a browser that refuses storage holds no switch, and no check runs
   }
   if (typeof globalThis.Notification === "undefined") return;
-  watchForAcceptance({ store: notificationsStore, instance: { repository: T.instance, host: instanceHostFollowingToken() }, productHost: productHostFollowingStore({ store: notificationsStore }), addressOf: addressOfNotification });
+  import("../notifications/index.mjs").then(({ watchForAcceptance }) => watchForAcceptance({ store: notificationsStore, instance: { repository: T.instance, host: instanceHostFollowingToken() }, productHost: productHostFollowingStore({ store: notificationsStore }), addressOf: addressOfNotification }));
 }
 
 // The instance's host for the checks, which keep it for the page's whole life: each call of its functions goes through a host connected

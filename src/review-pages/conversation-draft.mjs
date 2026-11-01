@@ -20,7 +20,7 @@ import { fileDrafts } from "./file-drafts.mjs";
 import { loadStage } from "./jobs.mjs";
 import { requirementsDraft } from "./requirements-draft.mjs";
 import { changeImpact, dueDiligenceSection, graphOnce, roundsSection, splitDueDiligence } from "./sections.mjs";
-import { heads } from "./index.mjs";
+import { heads } from "./routes.mjs";
 
 // The schema of the kind of reviewed file that owns a path, among those of MOD-documents.
 const OWNERS = [[/^docs\/use-cases\/UC-[^/]+\.md$/, "useCase"], [/^docs\/architecture\/ARC-[^/]+\.md$/, "decision"], [/^docs\/architecture\/MOD-[^/]+\.md$/, "module"]];

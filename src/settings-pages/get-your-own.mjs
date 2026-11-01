@@ -12,7 +12,7 @@
 import { parseAddress, connect } from "../repository-hosts/index.mjs";
 import { pagesAddress } from "../identifiers/index.mjs";
 import { explain } from "../site-frame/index.mjs";
-import { heads } from "./index.mjs";
+import { heads } from "./routes.mjs";
 
 // The repository that is forked, and the name the fork keeps (GitHub's default).
 const UPSTREAM = "akmaier/agent-m";

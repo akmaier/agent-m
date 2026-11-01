@@ -52,7 +52,7 @@ import { entryView, queues } from "../spec-changes/index.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
 import { backlogFindings } from "../work-plans/index.mjs";
 import { button, connectionsOf, el, failed, fold } from "./mail.mjs";
-import { heads } from "./index.mjs";
+import { heads } from "./routes.mjs";
 
 const REGISTER = "docs/participants.md";
 const RESOURCES = "docs/resources.md";

@@ -15,8 +15,6 @@ import { renderArtifact } from "../markdown-render/index.mjs";
 import { openStore, readSetting } from "../browser-store/index.mjs";
 import { parseAddress, connect, HostError } from "../repository-hosts/index.mjs";
 import { instanceOfPagesAddress } from "../identifiers/index.mjs";
-import { watchForAcceptance } from "../notifications/index.mjs";
-import { startPromptBar } from "../prompt-bar/index.mjs";
 import { menuOf, labelOf, linkOf, foldMenu } from "./menu.mjs";
 import { siteFooter } from "./footer.mjs";
 import { routeOf, fragmentOf, productOf, chosenProduct, addressWriter, instanceHostFollowingStore, productHostFollowingStore, loadRoute } from "./routing.mjs";
@@ -305,6 +303,7 @@ async function startSite({ page, views }) {
   let shown = null;
   pageStarted(page, routes, () => shown?.context ?? null);
   let shownName = routes[0]?.name ?? "";
+  let firstShown = false; // whether the page has shown a route yet
   const defaultBranches = new Map();
   const drawMenu = (active, product) => {
     menu.replaceChildren(...menuOf(page, [...served], product).map((entry) => {
@@ -383,6 +382,14 @@ async function startSite({ page, views }) {
     shownName = route.name;
     // A route that names `module` is imported before it is shown (loadRoute): what it reads, leaves and gives as its subject is the imported route's; the view's route renders it.
     let loadedRoute;
+    // While a page's first route is imported, its place reads "Loading…"; the line goes before the route is rendered.
+    const waiting = !firstShown && typeof route.module === "function";
+    firstShown = true;
+    if (waiting) {
+      const line = document.createElement("p");
+      line.textContent = "Loading…";
+      target.replaceChildren(line);
+    }
     try {
       loadedRoute = await loadRoute(route);
     } catch (failure) {
@@ -392,6 +399,7 @@ async function startSite({ page, views }) {
     }
     shown = { route: loadedRoute, params: routeParams, context, fragment };
     await readNamedFiles(loadedRoute, shown.params, context, defaultBranches);
+    if (waiting) target.replaceChildren();
     try {
       await route.render(target, context, shown.params);
     } catch (failure) {
@@ -410,10 +418,12 @@ async function startSite({ page, views }) {
   });
   await show();
 
+  // The checks and the bar are imported once the page is drawn, so that the page does not wait for their modules.
+  const { watchForAcceptance } = await import("../notifications/index.mjs");
   watchForAcceptance({ store, instance, productHost: productHostFollowingStore({ store }),
     addressOf: (route, given, forRepository) =>
       writeAddress(route, given, forRepository) });
-  attachPromptBar(foot, { page, store, instance,
+  await attachPromptBar(foot, { page, store, instance,
     product: () => shown.context.product && { address: shown.context.product.address, host: shown.context.product.host },
     subject: () => subjectOf({ ...shown, drawn: () => target.textContent }),
     explain,
@@ -426,11 +436,12 @@ async function startSite({ page, views }) {
 // the bar changes (a selector, a conversation, a draft). Where it has none, the height is set once, when the bar is drawn. The height is
 // the footer's `style` attribute, as the bar's own position is its root's.
 /**
- * attachPromptBar(foot: Element, setup) -> void — MOD-prompt-bar's bar started in `foot`, the footer fixed to the bottom of the window, which then takes the bar's height; `setup`
+ * attachPromptBar(foot: Element, setup) -> Promise<void> — MOD-prompt-bar's bar, imported then, started in `foot`, the footer fixed to the bottom of the window, which then takes the bar's height; `setup`
  * as startPromptBar takes it. Both entry pages attach it: startPage, and the live page's app (dashboard-app.mjs) for the review pages.
  */
-export function attachPromptBar(foot, setup) {
+export async function attachPromptBar(foot, setup) {
   footTakesBarHeight(foot);
+  const { startPromptBar } = await import("../prompt-bar/index.mjs");
   startPromptBar(foot, setup);
 }
 

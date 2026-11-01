@@ -20,7 +20,7 @@ import { actionsOffer, bridgeFailureText, contextFromTest, bridgeSettings as end
 import { route as bridgeRoute } from "./bridge.mjs";
 import { mailboxSetting } from "./mailbox.mjs";
 import { settingsSubject } from "./subject.mjs";
-import { heads } from "./index.mjs";
+import { heads } from "./routes.mjs";
 
 // The Settings page's own context, held by the context its tabs' forms open in.
 const PAGE = Symbol("the Settings page's own context");

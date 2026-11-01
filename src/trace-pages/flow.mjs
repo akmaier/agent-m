@@ -34,7 +34,7 @@ import { descriptorFor } from "./views.mjs";
 import { showTests } from "./tests.mjs";
 import { drawAudit } from "./audit.mjs";
 import { instanceSnapshot, opening, personsSource, subjectOf } from "./subject.mjs";
-import { heads } from "./index.mjs";
+import { heads } from "./routes.mjs";
 
 const SPEC_PATH = "SPEC.md";
 const GROUP_PATH = "docs/groups/requirements.md";

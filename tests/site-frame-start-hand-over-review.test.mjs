@@ -20,6 +20,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { outside } from "./site-frame-start.d/dom.mjs";
 import { ownerOf, pageWithScript, unknownStrategyOf } from "./site-frame-start.d/page.mjs";
+import { registeredAll } from "../src/job-runner/index.mjs";
 import { registerStrategies } from "../src/job-runner/index.mjs";
 
 const VIEW_A = "../tests/site-frame-start.d/view-approvals-a";
@@ -37,6 +38,7 @@ const reviewPage = () => pageWithScript({ "data-page": "review", "data-views": `
 test("TST-572001 start.mjs registers each set once however many views hand it, and the bar's sets under MOD-prompt-bar", async () => {
   reviewPage();
   await import("../src/site-frame/start.mjs?hand-over-review");
+  await registeredAll(); // the registrations the page makes before the runner first looks a strategy up
   assert.equal(ownerOf("recipes", "use-cases"), VIEW_A);
   assert.equal(ownerOf("recipes", "chapters-for-implementation"), VIEW_B);
   assert.equal(ownerOf("checks", "itm572OwnA"), VIEW_A);
@@ -70,6 +72,7 @@ test("TST-572002 on a review page every kind whose strategies are all handed is 
 test("TST-572003 a second evaluation of start.mjs counts the strategies its own owners registered as already registered", async () => {
   reviewPage();
   await import("../src/site-frame/start.mjs?hand-over-review-again");
+  await registeredAll(); // the registrations the page makes before the runner first looks a strategy up
   assert.equal(ownerOf("recipes", "use-cases"), VIEW_A);
   assert.equal(ownerOf("recipes", "chapters-for-implementation"), VIEW_B);
   assert.equal(ownerOf("recipes", "resource-check"), "MOD-prompt-bar");

@@ -32,7 +32,7 @@ import { queueJob, routesFor, liveState } from "../runtimes/index.mjs";
 import { resourceSchema } from "../resource-list/index.mjs";
 import { runPanel, explain } from "../site-frame/index.mjs";
 import { testsHead, readsAt, column, listTable } from "./look.mjs";
-import { heads } from "./index.mjs";
+import { heads } from "./routes.mjs";
 
 const SCHEDULE_PATH = "docs/tests/schedule.md";
 const PARTICIPANTS_PATH = "docs/participants.md";

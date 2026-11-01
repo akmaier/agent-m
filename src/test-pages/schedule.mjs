@@ -36,7 +36,7 @@ import { participantSchema, participantsOf, eligible } from "../participant-list
 import { resourceSchema } from "../resource-list/index.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
 import { scheduleView, storedView } from "../progress-measures/index.mjs";
-import { heads } from "./index.mjs";
+import { heads } from "./routes.mjs";
 
 const TITLE = heads.schedule.title;
 const SCHEDULE_PATH = "docs/tests/schedule.md";

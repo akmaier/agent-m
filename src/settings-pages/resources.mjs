@@ -33,7 +33,7 @@ import { checkPlan, namedBy, newerState, readPin, resourceFindings, resourceSche
 import { queueJob, routesFor } from "../runtimes/index.mjs";
 import { explain, runPanel, schemaForm } from "../site-frame/index.mjs";
 import { credentialsFor } from "./products.mjs";
-import { heads } from "./index.mjs";
+import { heads } from "./routes.mjs";
 
 const PATH = "docs/resources.md";
 const PARTICIPANTS = "docs/participants.md";

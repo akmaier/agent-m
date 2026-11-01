@@ -36,7 +36,7 @@ import { parseAddress, connect } from "../repository-hosts/index.mjs";
 import { reviewLayoutCommit } from "../artifact-edits/index.mjs";
 import { readSetting, secretValues, writeSetting } from "../browser-store/index.mjs";
 import { explain, tokenKeyOf } from "../site-frame/index.mjs";
-import { heads } from "./index.mjs";
+import { heads } from "./routes.mjs";
 
 export const TOKEN_DAYS = 90;
 const DAY_MS = 24 * 60 * 60 * 1000;

@@ -7,7 +7,7 @@ import { bridgeAt, probe, settingsOf } from "../bridge-client/index.mjs";
 import { clearSetting, listSettings, readSetting, writeSetting } from "../browser-store/index.mjs";
 import { explain } from "../site-frame/index.mjs";
 import { endpointLacks, endpointsOffered, followJob, spawnEndpointJob } from "../prompt-bar/index.mjs";
-import { heads } from "./index.mjs";
+import { heads } from "./routes.mjs";
 
 function el(name, className, ...children) {
   const node = document.createElement(name);

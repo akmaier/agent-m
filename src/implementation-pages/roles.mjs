@@ -26,7 +26,7 @@ import { declarationSchema, roleAssignmentFindings, roleAssignmentSchema, workfl
 import { heldItems, planSchemas } from "../work-plans/index.mjs";
 import { saveFile } from "../artifact-edits/index.mjs";
 import { explain } from "../site-frame/index.mjs";
-import { heads } from "./index.mjs";
+import { heads } from "./routes.mjs";
 
 const DECLARATION = "docs/process.md";
 const PARTICIPANTS = "docs/participants.md";

@@ -7,7 +7,7 @@
 //
 // Module: MOD-test-pages
 
-import { heads } from "./index.mjs";
+import { heads } from "./routes.mjs";
 
 const TESTS_VIEWS = [
   { label: "Schedule", name: "schedule", params: {} },

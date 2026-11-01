@@ -37,7 +37,7 @@ import { explain, schemaForm } from "../site-frame/index.mjs";
 import { finding, sha256 } from "../text-tools/index.mjs";
 import { credentialsFor } from "./products.mjs";
 import { linkRow, linksText, movedRows, openLinks, saveLinks } from "./sources.mjs";
-import { heads } from "./index.mjs";
+import { heads } from "./routes.mjs";
 
 const { entry: ENTRY, links: LINKS } = sourceSchemas();
 const REGISTER_PATH = /^docs\/sources\/SRC-[^/]+\.md$/;

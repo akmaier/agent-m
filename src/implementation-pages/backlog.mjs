@@ -40,7 +40,7 @@ import { eligible, participantSchema, participantsOf } from "../participant-list
 import { declarationSchema } from "../product-process/index.mjs";
 import { declaredModelOf, modelFirst } from "./plan.mjs";
 import { asOfLine, chartBlock, drawCharts, mergedAtOf, remainingOverTime, workFacts } from "./progress.mjs";
-import { heads } from "./index.mjs";
+import { heads } from "./routes.mjs";
 
 const DECLARATION = "docs/process.md";
 const ITEM_FILE = /^docs\/backlog\/(ITM-\d{3,})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;

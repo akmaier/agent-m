@@ -135,12 +135,12 @@ const approvalsService = {
   tokenNote: "A GitLab product is written with the project's own token. ",
   reviewAll: true,
   async groups({ snapshot, token }, kind) {
-    const entries = [];
-    for (const file of [...reviewedFiles(snapshot)].filter(([, each]) => each.kind === kind.kind).map(([path, each]) => ({ path, ...each })).sort((a, b) => a.id.localeCompare(b.id))) {
-      const body = (await snapshot.read(file.path)) ?? "";
-      entries.push({ id: file.id, name: file.id, title: kind.heading(body).replace(/^\S+\s*/, ""), status: file.status, label: LABEL[file.status],
-        tick: file.status === "accepted" ? null : { path: file.path, blob: snapshot.blob(file.path) } });
-    }
+    const files = [...reviewedFiles(snapshot)].filter(([, each]) => each.kind === kind.kind).map(([path, each]) => ({ path, ...each })).sort((a, b) => a.id.localeCompare(b.id));
+    // The files are named to Snapshot.readMany before they are read, and read together: one batch where the host has one, whatever the frame read ahead.
+    await snapshot.readMany?.(files.map((file) => file.path));
+    const bodies = await Promise.all(files.map(async (file) => (await snapshot.read(file.path)) ?? ""));
+    const entries = files.map((file, at) => ({ id: file.id, name: file.id, title: kind.heading(bodies[at]).replace(/^\S+\s*/, ""), status: file.status, label: LABEL[file.status],
+      tick: file.status === "accepted" ? null : { path: file.path, blob: snapshot.blob(file.path) } }));
     return [{ key: kind.kind, title: null, entries }];
   },
   accept: (where, shown, person) => acceptShown(where.host, shown, person),

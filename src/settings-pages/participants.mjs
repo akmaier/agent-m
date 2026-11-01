@@ -17,7 +17,7 @@ import { explain, schemaForm } from "../site-frame/index.mjs";
 import { finding } from "../text-tools/index.mjs";
 import { recordTest } from "./endpoints.mjs";
 import { credentialsFor } from "./products.mjs";
-import { heads } from "./index.mjs";
+import { heads } from "./routes.mjs";
 
 const PATH = "docs/participants.md";
 const DECLARATION = "docs/process.md";
