@@ -510,3 +510,23 @@ test("chooseAgentKey and the agent's machine — the machine of a model endpoint
     assert.equal(requests[0].headers.Authorization, `Bearer ${KEY}`);
   });
 });
+
+// TST-1381008 · level: unit · module: MOD-workflow-entries
+// guards: A HOSTED JOB AUTHENTICATES ITS AGENT WITH A CI SECRET
+// given: a product with a queued job whose participant ci-bot is a model endpoint with the route `endpoint ci-bot secret FIXTURE_KEY` (and, as the known positive, the same job with ci-bot a CI agent with the route `ci hosted secret FIXTURE_KEY`), and a file that reads the keys OTHER_KEY and FIXTURE_KEY
+// input: chooseAgentKey on a run started from the server's own page whose inputs name only the job (no endpoint, no secret), its output file read
+// expect: the output is `agent=2` for the model endpoint and for the CI agent alike
+test("chooseAgentKey — a dispatched job of a model endpoint receives the key its route names", async () => {
+  fakeEndpoint();
+  for (const [participants, route] of [[ENDPOINT_PARTICIPANTS, "model endpoint"], [PARTICIPANTS, "CI agent (known positive)"]]) {
+    await withWorkspace({ participants, records: (agentM) => [recordFile(jobStart(JOB, { agentM }))] }, async (w) => {
+      const output = join(w.root, "output.txt"), payload = join(w.root, "event.json");
+      writeFileSync(output, "");
+      writeFileSync(payload, JSON.stringify({ inputs: { job: JOB } }));
+      const chosen = await entry("chooseAgentKey", environment(w, { AGENT_M_TOKEN: undefined, FIXTURE_KEY: undefined, AGENT_M_KEY_NAMES: "OTHER_KEY FIXTURE_KEY", GITHUB_OUTPUT: output,
+        GITHUB_EVENT_NAME: "workflow_dispatch", GITHUB_EVENT_PATH: payload }));
+      assert.equal(chosen.outcome, "done", `${route}: ${chosen.summary}`);
+      assert.equal(readFileSync(output, "utf8"), "agent=2\n", route);
+    });
+  }
+});
