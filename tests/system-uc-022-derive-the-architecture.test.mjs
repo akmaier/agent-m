@@ -862,7 +862,7 @@ test("TST-448231: UC-022 7a — a candidate that is not found is not proposed", 
 // given: the ready product; a further decision that chooses gpl-lib (GPL-3.0) for an MIT product
 // input: 7c the person presses Run; the folded explanations of the page that shows the draft are read
 // expect: known positive — the candidate's row says GPL-3.0 is not known to be compatible; the page holds a folded explanation of what a licence permits — a permissive and a copyleft licence, and that a licence can restrict how the product may be distributed —, beside the table the author decides by
-test("TST-448232: UC-022 7c — the author decides with a folded explanation of what a licence permits", { todo: "FINDING UC022-F4 — the page of the draft draws no folded explanation of what a licence permits: the topic `licence-permits` stands in src/site-frame/explanations.md (and `due-diligence` beside it) and no page asks for it (src/review-pages/jobs.mjs:605-674, presentDerivation, and sections.mjs:30, dueDiligenceSection, call explain for neither), while UC-022 7c has the author decide \"with a folded explanation of what a licence permits\". An item for MOD-review-pages (jobs.mjs, sections.mjs)" }, async () => {
+test("TST-448232: UC-022 7c — the author decides with a folded explanation of what a licence permits", async () => {
   endpoints({ drafter: [reply(draftOf({ candidate: "gpl-lib" }))], reviewer: [reply({ findings: [] })], registry: registryOf(["gpl-lib", "GPL-3.0"], ["shelf-lib", "MIT"]) });
   const target = await derive(fakeProduct());
   assert.match(byClass(target, "section", "due-diligence")[0].textContent, /gpl-lib \(npm\) - chosen\s*GPL-3\.0\s*not known to be compatible/, "known positive: the row says so");
