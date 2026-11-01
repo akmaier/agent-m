@@ -35,6 +35,7 @@ import { readFileSync } from "node:fs";
 import { approvalSchema } from "../src/approvals/index.mjs";
 import { writeDocument } from "../src/documents/index.mjs";
 import { withStoredGraph } from "./stored-graph-fake.mjs";
+import { until as settled } from "./review-pages-wait.mjs";
 
 // Every commit the fakes of this file make is its own: MOD-trace-graph's storedGraph keeps a commit's graph for the page.
 let commitsMade = 0;
@@ -741,6 +742,63 @@ test("decision/draft - a finding only the author decides is shown with the draft
   click(runButtons(plain)[0]);
   await until(() => byClass(plain, "section", "architecture-result").length === 1, "the architecture result");
   assert.equal(byClass(plain, "ul", "for-person").length, 0, "counter-proof: nothing for the person, no list");
+});
+
+// ---------------------------------------------------------------- the reuse candidate the author chooses (ITM-1393)
+
+// UC-022 step 8: the author may "pick a different alternative for a reuse decision"; 7a: a candidate not found in its registry "is not proposed". The readings (the pull request names them):
+// picking a candidate makes it the chosen one in the decision's text — its name, ecosystem and repository take the place of the drafted chosen one's in `## Decision`, and the drafted one's
+// take the picked one's place in `## Alternatives` —, so that Write proposals writes the draft as the person left it and the step due-diligence, run again then (MOD-job-runner's writeResult),
+// marks it chosen; the listing of a candidate not found is its row of the due-diligence table, which names the address queried.
+
+// TST-1393001 · level: unit · module: MOD-review-pages
+// guards: UC-022; A REUSE DECISION RECORDS ITS DUE DILIGENCE
+// given: the draft shown after Run, whose decision ARC-900 chooses mit-lib against gpl-lib, both known to the registry; the product's LICENSE is MIT
+// input: the author picks gpl-lib among the reuse candidates of ARC-900, and presses Write proposals
+// expect: known positive — the choices are mit-lib (npm) - chosen and gpl-lib (npm), and the drafted decision names mit-lib as chosen; the decision written names gpl-lib as the chosen candidate under Decision and mit-lib under Alternatives, and its due-diligence row of gpl-lib is marked chosen
+test("decision/draft - the reuse candidate the author picks is the one Write proposals writes as chosen", async () => {
+  endpointsAndRegistries({ drafts: [architectureDraft({ candidate: "mit-lib", alternative: "gpl-lib" })], registry: { [NPM_MIT]: packageData("MIT"), [NPM_GPL]: packageData("GPL-3.0") } });
+  const fake = fakeProduct({ ...READY, LICENSE: "MIT License\n" });
+  const target = await show(fake);
+  await panelFor(target, "drafter-a", "reviewer-b");
+  click(runButtons(target)[0]);
+  await settled(target, () => byClass(target, "section", "architecture-result").length === 1, "the architecture result");
+  const choices = byClass(target, "input", "reuse-candidate");
+  assert.deepEqual(choices.map((box) => box.value), ["mit-lib (npm) - chosen", "gpl-lib (npm)"], "known positive: both are choices");
+  const decision = byClass(target, "textarea", "draft-text").find((box) => box.getAttribute("data-path") === ARC_DRAFT_PATH);
+  assert.match(decision.value, /^\| mit-lib \| npm \|[^\n]*\| chosen \|$/m, "known positive: the draft chooses mit-lib");
+
+  const other = choices.find((box) => box.value === "gpl-lib (npm)");
+  other.checked = true;
+  other.dispatchEvent(new Event("change"));
+  click(byClass(target, "button", "write-proposals")[0]);
+  await settled(target, () => byClass(target, "p", "written").length === 1, "the write result");
+
+  const written = fake.writes().flatMap((change) => change.files).find((file) => file.path.startsWith("docs/architecture/ARC-"))?.text ?? "";
+  const section = (heading) => new RegExp(`^## ${heading}\\n([^]*?)(?=^## )`, "m").exec(written)?.[1] ?? "";
+  assert.match(section("Decision"), /^\| gpl-lib \| npm \|[^\n]*\| chosen \|$/m, "gpl-lib is the chosen candidate");
+  assert.doesNotMatch(section("Decision"), /mit-lib/, "mit-lib is not chosen");
+  assert.match(section("Alternatives"), /^\| mit-lib \| npm \|/m, "mit-lib is an alternative");
+  assert.match(section("Due diligence"), /^\| gpl-lib \(npm\) - chosen \|/m, "the due diligence marks gpl-lib chosen");
+});
+
+// TST-1393002 · level: unit · module: MOD-review-pages
+// guards: UC-022; DUE DILIGENCE IS FETCHED, NOT RECALLED
+// given: the draft shown after Run, whose decision ARC-900 chooses missing-lib, which the registry does not know, against mit-lib, which it knows
+// input: the reuse candidates the page offers for ARC-900 are read
+// expect: known positive — the due-diligence table lists missing-lib as not found - the name may be invented, with the address queried, https://registry.npmjs.org/missing-lib; mit-lib (npm) is offered as a choice; missing-lib is not proposed: no choice names it
+test("decision/draft - a reuse candidate its registry does not know is not offered as a choice", async () => {
+  endpointsAndRegistries({ drafts: [architectureDraft({ candidate: "missing-lib", alternative: "mit-lib" })], registry: { [NPM_MIT]: packageData("MIT") } });
+  const target = await show(fakeProduct({ ...READY, LICENSE: "MIT License\n" }));
+  await panelFor(target, "drafter-a", "reviewer-b");
+  click(runButtons(target)[0]);
+  await settled(target, () => byClass(target, "section", "architecture-result").length === 1, "the architecture result");
+  const missing = find(byClass(target, "section", "due-diligence")[0], (node) => node.localName === "tr").map((each) => each.textContent).find((each) => each.includes("missing-lib")) ?? "";
+  assert.match(missing, /not found - the name may be invented/, "known positive: the table lists it as not found");
+  assert.ok(missing.includes(NPM_MISSING), "known positive: with the address queried");
+  const choices = byClass(target, "input", "reuse-candidate").map((box) => box.value);
+  assert.ok(choices.includes("mit-lib (npm)"), `known positive: the candidate that exists is offered: ${choices.join(", ")}`);
+  assert.ok(!choices.some((value) => value.startsWith("missing-lib")), `missing-lib is not proposed: ${choices.join(", ")}`);
 });
 
 // ---------------------------------------------------------------- leaving the draft (ITM-671)
