@@ -1089,13 +1089,13 @@ under `products/`, which git ignores except for `products/README.md`.
 `products/` is ignored by git.
 
 **SEVERAL FILES ARE ACCEPTED IN ONE CLICK** *(PO A. Maier)*
-A reviewer who has been shown several reviewed files — opened one by one, or together on one review page
-— may accept all of them with one click, in one commit that holds one approval record per file, each
-naming the text shown.
-*Check:* `tests/review-core.test.mjs` — a batch writes one record per file shown, and none for a file that
-was not shown; counter-proof: a file changed after it was shown is left out and named, and a file the
-review page could not show — one whose named requirements are not all accepted — gets no record and is
-named.
+A reviewer may accept several reviewed files with one click — ticked on their list, or shown together on
+one review page — in one commit that holds one approval record per file, each naming the text the page
+read of that file.
+*Check:* `tests/review-core.test.mjs` — a batch writes one record per file ticked or shown, each naming the
+text the page read, and none for a file not ticked; counter-proof: a file changed after the page read it is
+left out and named, and a file the review page could not show — one whose named requirements are not all
+accepted — gets no record and is named.
 
 **A QUEUE IS ACCEPTED IN ITS ORDER** *(PO A. Maier)*
 Entries of one queue accepted together are written in the order of the queue's index, in one commit,
