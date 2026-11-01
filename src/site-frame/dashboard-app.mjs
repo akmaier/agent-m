@@ -377,14 +377,13 @@ async function readAhead(kind) {
     // read in a second wave, and no other queue is read. Where no overview is stored, every queue's index and decisions are read in the second wave, by their paths; the
     // specification (MOD-trace-pages) finds the entries waiting from them and reads their proposals through the snapshot in a batch. A tree without a queue asks for no overview.
     const queued = pathsOf(QUEUE_INDEX_PATH).length > 0;
-    const [, stored] = await Promise.all([readWave(["SPEC.md", "docs/sources.md", ...registerPaths(state.tree.map((e) => e.path))]),
-      queued ? pinned().then(async (snap) => (await import("../progress-measures/index.mjs")).storedOverview(snap)).catch(() => null) : null]);
-    if (stored) {
-      await readWave(stored.queues.flatMap((queue) => [`${queue.folder}/index.md`, `${queue.folder}/entscheidungen.md`,
-        ...queue.entries.filter((entry) => entry.state !== "in SPEC").flatMap((entry) => [entry.proposal?.path, entry.rationale, entry.file, entry.record])]).filter(Boolean));
-    } else {
-      await readWave(pathsOf(QUEUE_HEAD_PATH));
-    }
+    // The second wave starts once the overview is read, beside the first, not after it.
+    const stored = queued ? pinned().then(async (snap) => (await import("../progress-measures/index.mjs")).storedOverview(snap)).catch(() => null) : Promise.resolve(null);
+    const second = stored.then((held) => (held
+      ? readWave(held.queues.flatMap((queue) => [`${queue.folder}/index.md`, `${queue.folder}/entscheidungen.md`,
+        ...queue.entries.filter((entry) => entry.state !== "in SPEC").flatMap((entry) => [entry.proposal?.path, entry.rationale, entry.file, entry.record])]).filter(Boolean))
+      : readWave(pathsOf(QUEUE_HEAD_PATH))));
+    await Promise.all([readWave(["SPEC.md", "docs/sources.md", ...registerPaths(state.tree.map((e) => e.path))]), second]);
   }
 }
 
