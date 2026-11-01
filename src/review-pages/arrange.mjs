@@ -61,12 +61,21 @@ const placesOf = (tree) => {
   return ids;
 };
 
-function describe(move) {
+// The path of the group that holds an item, [] for the top level, where an item no group names stands too; a group's origin is the path of its parent.
+function originOf(tree, move) {
+  if (move.op === "move-group") return move.group.slice(0, -1);
+  let found = null;
+  walkGroups(tree.groups, [], (group, here) => { if (found === null && group.members.some((member) => member.id === move.item)) found = here; });
+  return tree.members.some((member) => member.id === move.item) ? [] : (found ?? []);
+}
+
+// A pending move names where the item or group came from, given as `origin` (UC-021 step 3); a refused move is described without one.
+function describe(move, origin) {
   const where = (path) => (path.length ? `“${path.join(" › ")}”` : "the top level");
   if (move.op === "create") return `Add the group “${move.title}”${move.in.length ? ` in ${where(move.in)}` : ""}`;
   if (move.op === "rename") return `Rename the group “${move.group.join(" › ")}” to “${move.title}”`;
-  if (move.op === "move") return `Move ${move.item} to ${where(move.to)}`;
-  if (move.op === "move-group") return `Move the group “${move.group.join(" › ")}” into ${where(move.to)}`;
+  if (move.op === "move") return `Move ${move.item}${origin ? ` from ${where(origin)}` : ""} to ${where(move.to)}`;
+  if (move.op === "move-group") return `Move the group “${move.group.join(" › ")}”${origin ? ` from ${where(origin)} to` : " into"} ${where(move.to)}`;
   if (move.op === "delete") return `Delete the empty group “${move.group.join(" › ")}”`;
   return `Move the content of “${move.group.join(" › ")}” up one level`;
 }
@@ -236,7 +245,14 @@ async function show(where, kind) {
   function drawSide() {
     const save = button("arrange-save", "Save arrangement");
     save.addEventListener("click", () => saveNow());
-    sideBox.replaceChildren(el("h3", null, "Pending changes"), el("ol", "arrange-pending", ...moves.map((move) => el("li", "arrange-pending-item", describe(move)))),
+    // Each pending move is described against the tree as it stood before it: the moves replayed on the base, in order.
+    let before = base;
+    const lines = moves.map((move) => {
+      const line = describe(move, originOf(before, move));
+      before = replay(before, [move]).tree;
+      return line;
+    });
+    sideBox.replaceChildren(el("h3", null, "Pending changes"), el("ol", "arrange-pending", ...lines.map((line) => el("li", "arrange-pending-item", line))),
       el("ul", "arrange-refused", ...refusedNow.map(({ move, reason }) => el("li", "arrange-refused-item", `${describe(move)}: ${reason}`))), el("p", null, save));
   }
 
