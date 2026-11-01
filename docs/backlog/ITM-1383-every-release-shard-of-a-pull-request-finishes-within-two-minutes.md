@@ -8,6 +8,7 @@ modules:
   - MOD-test-schedule
 builds_on:
   - ITM-373
+  - ITM-1382
 tests:
   - unit
 origin:
@@ -29,4 +30,6 @@ the instance's schedule declares (`docs/tests/schedule.md`, MOD-test-schedule).
   slowest.
 - The row `release` gets the shards, or the partition, that keeps each of its pull-request jobs under the limit with a
   margin, through the schedule and the configuration generated from it.
+- The configuration is generated on a commit that holds ITM-1382, so its pinned instance commit (`instanceCommit`,
+  MOD-test-schedule's `ciConfiguration`) moves to one whose Definition of Done check reads the job first.
 - No expected result changes. It adds no behaviour, so it begins without a failing test.
