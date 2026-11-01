@@ -261,15 +261,16 @@ test("TST-779103: UC-031 4: a pulled model with both a time box and a WIP limit,
 // guards: UC-031; A PLAN COVERS THE WHOLE SPECIFICATION
 // given: the editor on the adapted V-model (7 phases); this browser manages alice/library, whose SPEC holds three requirements (A LOAN HAS A DUE DATE, A LATE LOAN IS NAMED, A RETURN IS RECORDED)
 // input: the page as opened; then the author picks alice/library for the preview
-// expect: UC-031 step 5 "a preview of the plan the definition would produce for a product the author picks", with 1 and 6a (the products that use a model): before the pick only the requests of the product's declaration reach alice/library - repository information, the commit, the folder docs/ and the file docs/process.md - and none of its facts (tree, pull requests, tags, CI runs, test results); after it, the preview says "3 requirements × 7 phases = 21 plan entries" and "Every accepted requirement of that product appears once in every phase": each of the 7 phases lists exactly the three requirements, once each
+// expect: UC-031 1 and 6a name the products that use a model, which the editor lists, and step 5 shows "a preview of the plan the definition would produce for a product the author picks"; MOD-implementation-pages reads which products declare a model "from each product's docs/process.md alone, through a snapshot of its default branch narrowed to that file ... never the product's whole tree". So before the pick alice/library is asked for its repository information, its commit, one read of the folders in which only docs/ is named, and a batch of files that names nothing but docs/process.md - and for nothing else: no tree of the whole repository, no pull requests, tags, CI runs or test results; after the pick, the preview says "3 requirements × 7 phases = 21 plan entries" and "Every accepted requirement of that product appears once in every phase": each of the 7 phases lists exactly the three requirements, once each
 test("TST-779104: UC-031 5: the preview of a product the author picks holds every accepted requirement once in every phase, with the count", async () => {
   const page = await edit("v-model", { withProducts: true });
   try {
-    // The editor names the products that declare the model (UC-031 1 and 6a), so it reads each product's declaration before any pick: repository information, the commit, the folder of docs/ and docs/process.md. Nothing of the product's facts is read.
-    const beforeThePick = page.around.library.requests.slice();
-    assert.deepEqual([...beforeThePick].sort(), ["batch 0", "commit", "folders", "repository"], "before the pick only the requests of the declaration reach the product");
-    assert.deepEqual(beforeThePick.filter((what) => /tree|pulls|tags|actions|test-results/.test(what)), [], "none of the product's facts is read before it is picked");
-    assert.deepEqual(page.around.library.folders, [["docs/"]], "the one folder read is docs/, where the declaration stands");
+    // Before the pick the editor has read, for each product of this browser, only what tells whether it declares the model (UC-031 1 and 6a): the product's docs/process.md, through the folder docs/.
+    const asked = page.around.library.requests;
+    assert.deepEqual(asked.filter((what) => !["repository", "commit", "folders"].includes(what) && !/^batch \d+$/.test(what)), [], "nothing else reaches the product before it is picked: no whole tree, no pull requests, tags, CI runs or test results");
+    for (const what of ["repository", "commit", "folders"]) assert.ok(asked.includes(what), `known positive: the declaration is read, so the product is asked for its ${what}`);
+    assert.deepEqual(page.around.library.folders, [["docs/"]], "the only folder named is docs/, where the declaration stands");
+    assert.deepEqual(page.around.library.batches.flat().filter((path) => path !== "docs/process.md"), [], "the only file read is docs/process.md");
     await page.press(previewButton(page, LIBRARY));
     await settle();
     assert.ok(page.around.library.requests.some((what) => /pulls/.test(what)) && page.around.library.requests.some((what) => what === "tree"), "known positive: picking the product reads its facts (its tree and its pull requests)");
