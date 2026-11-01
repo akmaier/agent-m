@@ -295,8 +295,8 @@ async function markSourceChanged(shown, asked = null) {
 
 // ---------------------------------------------------------------- the gaps (UC-020 step 7)
 
-// A line of a list that opens, by a click and in place, onto what `detail` makes: a requirement or a use case as it read in the version drawn.
-function openable(text, detail) {
+// A button that opens, by a click and in place, onto what `detail` makes, and the box beneath it that holds that: { button, opened }.
+function opener(text, detail) {
   const button = el("button", "gap-open btn small", text);
   button.type = "button";
   const opened = el("div", "gap-opened");
@@ -312,6 +312,12 @@ function openable(text, detail) {
       if (open) opened.replaceChildren(problemLine(text, failure));
     }
   });
+  return { button, opened };
+}
+
+// A line of a list that opens onto what `detail` makes: a requirement or a use case as it read in the version drawn.
+function openable(text, detail) {
+  const { button, opened } = opener(text, detail);
   return el("li", null, button, opened);
 }
 
@@ -889,18 +895,29 @@ const NEXT_STEP = {
   "module-without-test": { className: "gap-implement", text: "Implement", href: "#implement" },
 };
 
-// Every gap of moduleRows with the artifact it concerns (UC-025 step 4), or the line that there is none (4a); with `next`, the step its kind offers.
-function modulesGaps(gaps, ref, next) {
+// The file a gap concerns, as the version drawn holds it (UC-025 step 6): a markdown file rendered, a code file as its text, and for a folder the files that lie in it.
+async function gapFile(snapshot, path) {
+  const text = await snapshot.read(path);
+  if (text == null) return el("ul", "trace-list", ...snapshot.paths.filter((each) => each.startsWith(`${path}/`)).map((each) => el("li", null, each)));
+  return path.endsWith(".md") ? renderArtifact(text) : el("pre", "gap-code", text);
+}
+
+// Every gap of moduleRows with the artifact it concerns (UC-025 step 4), or the line that there is none (4a); with `next`, the step its kind offers; the artifact leads to its file (step 6).
+function modulesGaps(gaps, ref, next, snapshot) {
   if (!gaps.length) return el("p", "no-gaps", `There are no gaps at ${ref}.`);
   const list = el("ul", "trace-list", ...gaps.map((gap) => {
-    const item = el("li", "module-gap", `${gap.artifact} — ${gap.what}`);
+    const item = el("li", "module-gap");
     item.setAttribute("data-kind", gap.kind);
+    // The artifact leads to the file it concerns, the module's file or the code file or folder; a requirement is no such file.
+    const file = gap.path && gap.kind !== "requirement-without-module" ? opener(gap.artifact, () => gapFile(snapshot, gap.path)) : null;
+    item.append(file?.button ?? gap.artifact, ` — ${gap.what}`);
     const step = next ? NEXT_STEP[gap.kind] : undefined;
     if (step) {
       const link = el("a", `${step.className} btn small`, step.text);
       link.setAttribute("href", step.href);
       item.append(" ", link);
     }
+    if (file) item.append(file.opened);
     return item;
   }));
   return el("section", "modules-gaps", el("h3", null, "Gaps"), list);
@@ -931,7 +948,7 @@ async function drawModules(target, context, host, ref, descriptor, earlier = nul
   }
   const { rows, gaps } = moduleRows(graph);
   const next = await shown.isDefault;
-  place.replaceChildren(await renderMermaid(componentDiagram(files, gaps)), explain("component-diagram"), modulesTable(rows, graph, statuses(shown.snapshot), shown.snapshot), modulesGaps(gaps, ref, next));
+  place.replaceChildren(await renderMermaid(componentDiagram(files, gaps)), explain("component-diagram"), modulesTable(rows, graph, statuses(shown.snapshot), shown.snapshot), modulesGaps(gaps, ref, next, shown.snapshot));
 }
 
 export const route = {
