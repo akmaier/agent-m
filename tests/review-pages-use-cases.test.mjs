@@ -255,7 +255,7 @@ test("MOD-review-pages use-case/<id>/edit — Save commits the edited use case a
   const fake = fakeHost();
   const one = (await show(fake, { id: "UC-041" })).target;
   const edit = byClass(one, "a", "edit-link")[0];
-  assert.equal(edit.getAttribute("href"), "#use-case/id=UC-041/edit=1", "one Edit link to the edit route");
+  assert.equal(edit.getAttribute("href"), `#use-case/id=UC-041/edit=1/product=${encodeURIComponent(ON_GITHUB.web)}`, "one Edit link to the edit route");
 
   const read = fake.head();
   const { target, context } = await show(fake, { id: "UC-041", edit: "1" });

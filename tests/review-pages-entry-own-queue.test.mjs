@@ -100,13 +100,14 @@ const one = (target, name) => byClass(target, name)[0];
 const shown = (node) => [node.textContent, ...find(node, () => true).map((kid) => (typeof kid.innerHTML === "string" ? kid.innerHTML : ""))].join(" ");
 const hrefs = (node) => (node ? find(node, (kid) => kid.localName === "a").map((anchor) => anchor.getAttribute("href")) : []);
 const othersOf = (target) => hrefs(one(target, "others"));
+const KEEP = `/product=${encodeURIComponent(PRODUCT_URL)}`;
 const asOf = (target) => byClass(target, "as-of").map((node) => node.textContent);
 
 // TST-1273101 · level: component · module: MOD-review-pages
 // guards: OPEN PROPOSALS ARE SHOWN IN THE BROWSER; NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-006
 // given: the product's 66 queues (64 decided; 2026-10-20_mine with 01 in the SPEC and 02 open; 2026-10-19_other with 01 open, all on "## 1. Section"), the overview of the head stored, a token
 // input: the route spec-entry drawn with id=spec-2026-10-20_mine-02 (the page and its subject)
-// expect: the heading "2026-10-20_mine · entry 02", the badge open, the proposal beside the section that holds now, the link Edit to #spec-entry/id=spec-2026-10-20_mine-02/edit=1; among the other proposals spec-2026-10-19_other-01 and not the decided spec-2026-10-20_mine-01; no line As of; the queue files asked for are 2026-10-20_mine's index.md and entscheidungen.md and no other queue's; one request for the head's overview
+// expect: the heading "2026-10-20_mine · entry 02", the badge open, the proposal beside the section that holds now, the link Edit to #spec-entry/id=spec-2026-10-20_mine-02/edit=1/product=<the product's address, percent-encoded>; among the other proposals spec-2026-10-19_other-01 and not the decided spec-2026-10-20_mine-01; no line As of; the queue files asked for are 2026-10-20_mine's index.md and entscheidungen.md and no other queue's; one request for the head's overview
 test("spec-entry/<id> reads its own queue and one overview, and shows the other queue's open entry on its section", async () => {
   const world = await worldWith("head");
   const target = await drawn(world, entryRoute, { id: ENTRY });
@@ -114,8 +115,8 @@ test("spec-entry/<id> reads its own queue and one overview, and shows the other 
   assert.match(one(target, "badge").textContent, /^open$/);
   assert.match(shown(one(target, "proposal")), new RegExp(`on every page of ${MINE} 02`));
   assert.match(shown(one(target, "current")), /The first rule holds\./);
-  assert.equal(one(target, "edit-link")?.getAttribute("href"), `#spec-entry/id=${ENTRY}/edit=1`);
-  assert.deepEqual(othersOf(target), [`#spec-entry/id=spec-${OTHER}-01`]);
+  assert.equal(one(target, "edit-link")?.getAttribute("href"), `#spec-entry/id=${ENTRY}/edit=1${KEEP}`);
+  assert.deepEqual(othersOf(target), [`#spec-entry/id=spec-${OTHER}-01${KEEP}`]);
   assert.deepEqual(asOf(target), []);
   assert.deepEqual(queueFilesRead(world.mark), [`${SPEC_DIR}${MINE}/entscheidungen.md`, `${SPEC_DIR}${MINE}/index.md`]);
   assert.deepEqual(overviewRequests(), [`${world.head}.json`]);
@@ -130,7 +131,7 @@ test("requirement/<name>/edit lists the other proposals from the overview and re
   const world = await worldWith("head");
   const target = await drawn(world, editRoute, { name: "FIRST RULE" });
   assert.ok(one(target, "editor-box"), `known positive: the editor is drawn: ${target.textContent.slice(0, 300)}`);
-  assert.deepEqual(othersOf(target).sort(), [`#spec-entry/id=spec-${MINE}-02`, `#spec-entry/id=spec-${OTHER}-01`].sort());
+  assert.deepEqual(othersOf(target).sort(), [`#spec-entry/id=spec-${MINE}-02${KEEP}`, `#spec-entry/id=spec-${OTHER}-01${KEEP}`].sort());
   assert.deepEqual(asOf(target), []);
   assert.deepEqual(queueFilesRead(world.mark), []);
   assert.deepEqual(overviewRequests(), [`${world.head}.json`]);
@@ -144,22 +145,22 @@ test("requirement/<name>/edit lists the other proposals from the overview and re
 test("counter-proofs: with c0's overview only, the line As of; with no overview-cache, every queue as today", async () => {
   const older = await worldWith("older");
   const entryOlder = await drawn(older, entryRoute, { id: ENTRY });
-  assert.deepEqual(othersOf(entryOlder), [`#spec-entry/id=spec-${OTHER}-01`]);
+  assert.deepEqual(othersOf(entryOlder), [`#spec-entry/id=spec-${OTHER}-01${KEEP}`]);
   assert.equal(asOf(entryOlder).length, 1, entryOlder.textContent.slice(0, 300));
   assert.match(asOf(entryOlder)[0], new RegExp(`^As of ${OLDER.slice(0, 7)}`));
   assert.deepEqual(queueFilesRead(older.mark), [`${SPEC_DIR}${MINE}/entscheidungen.md`, `${SPEC_DIR}${MINE}/index.md`]);
   const editOlder = await drawn(older, editRoute, { name: "FIRST RULE" });
-  assert.ok(othersOf(editOlder).includes(`#spec-entry/id=spec-${OTHER}-01`));
+  assert.ok(othersOf(editOlder).includes(`#spec-entry/id=spec-${OTHER}-01${KEEP}`));
   assert.equal(asOf(editOlder).length, 1);
   assert.match(asOf(editOlder)[0], new RegExp(`^As of ${OLDER.slice(0, 7)}`));
   net.restore(); net = null; timers.restore(); document.body.replaceChildren();
 
   const none = await worldWith("none");
   const entryNone = await drawn(none, entryRoute, { id: ENTRY });
-  assert.deepEqual(othersOf(entryNone), [`#spec-entry/id=spec-${OTHER}-01`]);
+  assert.deepEqual(othersOf(entryNone), [`#spec-entry/id=spec-${OTHER}-01${KEEP}`]);
   assert.deepEqual(asOf(entryNone), []);
   assert.equal(queueFilesRead(none.mark).filter((path) => path.endsWith("/index.md")).length, 66, "every queue is read where no overview is stored");
   const editNone = await drawn(none, editRoute, { name: "FIRST RULE" });
-  assert.ok(othersOf(editNone).includes(`#spec-entry/id=spec-${OTHER}-01`));
+  assert.ok(othersOf(editNone).includes(`#spec-entry/id=spec-${OTHER}-01${KEEP}`));
   assert.deepEqual(asOf(editNone), []);
 });
