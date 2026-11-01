@@ -39,7 +39,7 @@ import { backlogFindings, heldItems, itemStates, planSchemas, saveItems, startSp
 import { eligible, participantSchema, participantsOf } from "../participant-list/index.mjs";
 import { declarationSchema } from "../product-process/index.mjs";
 import { declaredModelOf, modelFirst } from "./plan.mjs";
-import { asOfLine, chartBlock, drawCharts, mergedAtOf, remainingOverTime, workFacts } from "./progress.mjs";
+import { asOfLine, chartBlock, drawCharts, mergedAtOf, remainingOverTime, startWorkLink, workFacts } from "./progress.mjs";
 import { heads } from "./routes.mjs";
 
 const DECLARATION = "docs/process.md";
@@ -166,7 +166,7 @@ function teamPanel(context, ctx, { team, running, lastEnded: last }) {
     : `<p class="muted">${running ? "It has ended no sprint yet." : "It has run no sprint yet."}</p>`;
   const final = last?.end ? chartBlock(team, last.name, remainingOverTime(last.items, mergedAtOf(last.merges), last.start, last.end)) : "";
   return `<section class="panel" data-team="${h(team)}"><h3>${h(team)} — ${running ? "a sprint runs" : "no running sprint"}</h3>${now}${lastLine}${final}
-    <p>${running ? plan("Change the selection", false) : plan("Plan sprint", true)}</p>${why}</section>`;
+    <p>${running ? `${plan("Change the selection", false)} ${startWorkLink(running.name)}` : plan("Plan sprint", true)}</p>${why}</section>`;
 }
 
 // What keeps an item from a team other than the one whose sprint holds it, one line per team.
