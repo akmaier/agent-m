@@ -181,7 +181,19 @@ const el = (name, className, ...children) => {
   return made;
 };
 const failed = (failure) => `${failure?.name ?? "Error"}: ${failure?.message ?? failure}`;
-const findingLine = (found) => el("li", found.kind, `${found.kind}: ${found.what} — ${found.fix} [${found.rule}]`);
+// A finding of a cycle in the modules' uses gets the link to the page of the architecture, where the planner changes it (UC-045 3a, UC-023); `href` is that page, the product kept.
+const CYCLE = "MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE";
+const architectureLink = (href) => {
+  const link = el("a", null, "Change the architecture");
+  link.setAttribute("href", href);
+  return link;
+};
+const findingLine = (found, href) => el("li", found.kind, `${found.kind}: ${found.what} — ${found.fix} [${found.rule}]`, ...(found.rule === CYCLE ? [" ", architectureLink(href)] : []));
+// The page of the architecture beside the product shown, in the form `chosenProduct` reads back; the instance's own page keeps no product (as progress.mjs' jobHref).
+const architectureHref = (context) => {
+  const product = context.product?.address;
+  return `#arc${product && product !== `https://github.com/${context.instance?.repository}` ? `/product=${encodeURIComponent(product)}` : ""}`;
+};
 const namesIn = (typed) => (Array.isArray(typed) ? typed.map(String) : String(typed ?? "").split(",")).map((part) => part.trim()).filter(Boolean);
 const unique = (names) => [...new Set(names)];
 // The fields of a drafted step as the answer of the kind draft-plan holds them, the lists among them typed as names separated by commas.
@@ -211,7 +223,8 @@ async function orderFindings(entries, architecture, graph) {
 // The plan being edited (UC-045 step 4, 2a): its steps in their order, each to edit, Up, Down, Split and Merge with next, and the diagram of the steps and what each comes after; a change after which a
 // module stands before one whose interface it uses is refused with the findings it adds, and the steps stay as they were. Save plan hands the steps as the planner left them to `save`, which writes them
 // -> { commit, files }; a save that fails shows its findings, and Save plan is offered again. `lead` are the lines above the steps. -> { add } — + Step: an empty step after the last.
-function editor(place, entries, { architecture, graph, lead, save }) {
+function editor(place, entries, { architecture, graph, href, lead, save }) {
+  const line = (found) => findingLine(found, href);
   const list = el("div", "draft-steps");
   const diagram = el("div");
   diagram.setAttribute("data-draft-diagram", "");
@@ -227,7 +240,7 @@ function editor(place, entries, { architecture, graph, lead, save }) {
   async function change(next) {
     const before = new Set((await orderFindings(entries, architecture, graph)).map((one) => one.what));
     const added = (await orderFindings(next, architecture, graph)).filter((one) => !before.has(one.what));
-    refused.replaceChildren(...added.map(findingLine));
+    refused.replaceChildren(...added.map(line));
     if (added.length) return;
     entries = next;
     await show();
@@ -285,7 +298,7 @@ function editor(place, entries, { architecture, graph, lead, save }) {
     } catch (failure) {
       saveButton.disabled = false;
       result.replaceChildren(el("p", "warn", `The plan is not saved: ${failed(failure)}`),
-        ...(failure?.findings?.length ? [el("ul", "findings", ...failure.findings.map(findingLine))] : []));
+        ...(failure?.findings?.length ? [el("ul", "findings", ...failure.findings.map(line))] : []));
     }
   });
   place.replaceChildren(...lead, list, refused, diagram, el("p", null, saveButton), result);
@@ -295,14 +308,14 @@ function editor(place, entries, { architecture, graph, lead, save }) {
 
 // The draft of a job of draft-plan, waiting for the planner (UC-045 step 4), in the editor, with the findings the job left (3b); Save plan hands the draft as the planner left it to writeResult (step 5),
 // on the default branch read at the click. -> the editor, or null where the answer is no drafted plan.
-function reviewDraft(place, context, { outcome, prepared, jobContext }, { architecture, graph, writeResult }) {
+function reviewDraft(place, context, { outcome, prepared, jobContext }, { architecture, graph, href, writeResult }) {
   const answer = Array.isArray(outcome.draft?.steps) ? outcome.draft.steps : null;
   if (answer === null) { place.replaceChildren(el("p", "warn", "The participant's answer could not be read as a drafted plan. Nothing was written.")); return null; }
   const left = outcome.remaining ?? [];
   return editor(place, answer.map((step) => ({ title: String(step.title ?? ""), implements: namesIn(step.implements), level: String(step.level ?? ""), phase: String(step.phase ?? ""), after: namesIn(step.after) })), {
-    architecture, graph,
+    architecture, graph, href,
     lead: [el("p", "muted", `Drafted by ${prepared.drafter.name}; correction rounds: ${outcome.rounds?.length ?? 0}. Edit, move, split or merge the steps; nothing is written before Save plan.`),
-      ...(left.length ? [el("p", "warn", "Findings left after the last round:"), el("ul", "findings", ...left.map(findingLine))] : [])],
+      ...(left.length ? [el("p", "warn", "Findings left after the last round:"), el("ul", "findings", ...left.map((found) => findingLine(found, href)))] : [])],
     save: async (steps) => {
       const { host } = context.product;
       const head = await host.readSnapshot((await host.repositoryInfo()).defaultBranch);
@@ -326,7 +339,7 @@ function ownStep(entry, architecture) {
   const modules = unique(system ? ids.filter((id) => id.startsWith("MOD-")) : subsystems.length ? subsystems.flatMap((id) => field(id, "designs")) : entry.implements);
   const realises = unique(system ? ids.filter((id) => id.startsWith("ARC-") && field(id, "refines").length === 0).flatMap((id) => field(id, "forced_by"))
     : subsystems.length ? subsystems.flatMap((id) => field(id, "forced_by")) : modules.flatMap((id) => [...field(id, "realises"), ...field(id, "follows").flatMap((decision) => field(decision, "forced_by"))]));
-  const tests = system ? ["system", "release"] : [entry.level];
+  const tests = system ? ["system", "release"] : entry.level ? [entry.level] : [];
   const outcome = system ? `Integrates the system: ${modules.join(", ")}.` : subsystems.length ? `Integrates ${subsystems.join(", ")}: ${modules.join(", ")}.` : `Implements ${modules.join(", ")}.`;
   return { fields: { title: entry.title, level, realises, modules, ...(subsystems.length ? { integrates: subsystems[0] } : {}), ...(entry.after.length ? { builds_on: entry.after } : {}), tests, origin: realises },
     sections: [{ heading: "## Outcome", text: `\n${outcome}\n\n` }, { heading: "## Acceptance", text: `\n${tests.map((one) => `- ${one[0].toUpperCase()}${one.slice(1)} tests.`).join("\n")}\n` }] };
@@ -340,7 +353,7 @@ async function saveOwn(context, steps, { architecture, declaration }) {
   const held = await head.read(ORDER);
   const order = held === null ? { kind: "plan-order", path: ORDER, fields: {}, body: "", appended: [], sections: [{ heading: "## Order", text: "", rows: [] }] }
     : readDocument(planSchemas.planOrder, ORDER, held);
-  const added = steps.map((step) => ({ cells: { Step: step.title, Phase: step.phase } }));
+  const added = steps.filter((step) => step.phase).map((step) => ({ cells: { Step: step.title, Phase: step.phase } }));
   const { commit, written } = await savePlan(host, { steps: steps.map((step) => ownStep(step, architecture)),
     order: { ...order, sections: order.sections.map((section) => (Array.isArray(section.rows) ? { ...section, rows: [...section.rows, ...added] } : section)) }, removed: [] },
   { architecture, workflow: await declaredWorkflowOf(context, declaration), head: head.commit, trailers: [] });
@@ -349,14 +362,14 @@ async function saveOwn(context, steps, { architecture, declaration }) {
 
 // Draft the plan (UC-045 step 2): the job of the kind draft-plan from its run panel (backlog.mjs' attendedJob), imported with writeResult on the person's click; its draft waits for the planner, in the
 // editor handed to `opened`.
-async function draftPlan(place, context, { worksOn, architecture, graph, opened }) {
+async function draftPlan(place, context, { worksOn, architecture, graph, href, opened }) {
   const [{ attendedJob }, { writeResult }] = await Promise.all([import("./backlog.mjs"), import("../job-runner/index.mjs")]);
   const { host } = context.product;
   await attendedJob(place, context, { kind: KIND, choice: "data-draft-participant", read: async () => ({ head: await host.readSnapshot((await host.repositoryInfo()).defaultBranch) }), worksOn,
     none: "No participant of the instance's register can draft text, so no plan can be drafted. Declare one on the page Participants.",
     drafting: "The participant drafts the plan…", notDrafted: "No plan was drafted",
     drafted: (drafts, result) => {
-      const edited = reviewDraft(drafts, context, result, { architecture, graph, writeResult });
+      const edited = reviewDraft(drafts, context, result, { architecture, graph, href, writeResult });
       opened(edited);
       return edited?.shown.catch((failure) => drafts.replaceChildren(el("p", "warn", failed(failure))));
     } });
@@ -420,12 +433,12 @@ export const route = {
     placeOf(target, "data-draft-plan").addEventListener("click", (event) => {
       if (event?.isTrusted !== true) return;
       editing = null;
-      draftPlan(place, context, { worksOn: architecture.map((row) => row.id), architecture: documents ?? [], graph, opened: (edited) => { editing = edited; } })
+      draftPlan(place, context, { worksOn: architecture.map((row) => row.id), architecture: documents ?? [], graph, href: architectureHref(context), opened: (edited) => { editing = edited; } })
         .catch((failure) => place.replaceChildren(el("p", "warn", failed(failure))));
     });
     placeOf(target, "data-add-step").addEventListener("click", (event) => {
       if (event?.isTrusted !== true) return;
-      editing ??= editor(place, [], { architecture: documents ?? [], graph,
+      editing ??= editor(place, [], { architecture: documents ?? [], graph, href: architectureHref(context),
         lead: [el("p", "muted", "Your plan, written by hand: + Step adds a step; name what it implements — modules, a subsystem's decision or system —, the level of its tests, its phase and the steps it comes after. Nothing is written before Save plan.")],
         save: (written) => saveOwn(context, written, { architecture: documents ?? [], declaration: first.declaration }) });
       editing.shown.then(() => editing.add()).catch((failure) => place.replaceChildren(el("p", "warn", failed(failure))));
