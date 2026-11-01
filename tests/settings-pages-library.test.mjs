@@ -623,6 +623,77 @@ test("library — before an EU legal text is saved, the statement names the offi
   assert.equal(one(other, "library-public").textContent, "Becomes public: the register entry, always, in the instance repository alice/agent-m. Content, public in the instance repository: a.md.", "counter-proof: the documents route's statement is unchanged");
 });
 
+// The line after an entry's front matter, where its title line stands.
+const titleLineOf = (text) => text.split("\n")[text.split("\n").indexOf("---", 1) + 1];
+
+// TST-1363001 · level: unit · module: MOD-settings-pages
+// guards: EVERY ARTIFACT HAS AN IDENTIFIER; UC-004
+// given: the register of this file, whose entry SRC-eu-ai-act has the title line `# SRC-eu-ai-act EU AI Act` of the source schema (known positive of the reading); a registration by each route — an EU legal text, a standard with a file only hashed, documents, a repository —, the form's id and title typed after the route's own part; and documents whose title is typed, then the files chosen, which builds the form again, then the title typed anew
+// input: Save for each
+// expect: the entry committed to the instance has, on the line after its front matter, `# SRC-ai-act-2 AI Act, again`, `# SRC-iso-26262 ISO 26262`, `# SRC-handbook Handbook`, `# SRC-guidelines Guidelines`, and read with the entry's schema the title `<id> <title>`; the title typed anew gives `# SRC-renamed Renamed handbook`, and the title typed before, `Handbook, first title`, stands nowhere in that entry; counter-proof: an entry written with the bare line `#` fails this test
+test("library — the entry the page writes has the title line `# <id> <title>` of the source schema, on every route", async (t) => {
+  slowDigest(t, 20);
+  const known = SOURCES["docs/sources/SRC-eu-ai-act.md"];
+  assert.equal(titleLineOf(known), "# SRC-eu-ai-act EU AI Act", "known positive: the register's own entry");
+  assert.equal(readDocument(sourceSchemas().entry, "docs/sources/SRC-eu-ai-act.md", known).title, "SRC-eu-ai-act EU AI Act", "known positive: read as its title");
+  const written = (b, id) => instanceFiles(b).find((file) => file.path === `docs/sources/${id}.md`).text;
+  const titled = (b, id, title) => {
+    assert.equal(titleLineOf(written(b, id)), `# ${id} ${title}`, `${id}: the title line`);
+    assert.equal(entryOfCommit(b, id).title, `${id} ${title}`, `${id}: read as its title`);
+  };
+
+  const legal = browser(t);
+  let page = await legal.page();
+  await register(page, "legal-text");
+  await put(one(page, "library-legal-address"), "https://eur-lex.europa.eu/eli/reg/2024/1689/oj");
+  await describe(page, { id: "SRC-ai-act-2", title: "AI Act, again", authority: "normative", licence: "may be republished — EU law" });
+  await click(saveOf(one(page, "library-form-box")));
+  await until(() => legal.commits.length === 1, "the legal text's commit");
+  titled(legal, "SRC-ai-act-2", "AI Act, again");
+
+  const standard = browser(t);
+  page = await standard.page();
+  await register(page, "standard");
+  await put(one(page, "library-standard-designation"), "ISO 26262:2018");
+  await chooseFiles(page, [fileOf("iso-26262.pdf", "the publisher's bytes")]);
+  await tickHashed(page);
+  await put(one(page, "library-file-kept-at"), "cabinet 3, shelf B");
+  await describe(page, { id: "SRC-iso-26262", title: "ISO 26262", authority: "normative" });
+  await click(saveOf(one(page, "library-form-box")));
+  await until(() => standard.commits.length === 1, "the standard's commit");
+  titled(standard, "SRC-iso-26262", "ISO 26262");
+
+  const documents = browser(t);
+  page = await documents.page();
+  await register(page, "documents");
+  await chooseFiles(page, SELECTED);
+  await describe(page, { id: "SRC-handbook", title: "Handbook", authority: "advisory", licence: "may be republished — CC BY 4.0" });
+  await click(saveOf(one(page, "library-form-box")));
+  await until(() => documents.commits.length === 1, "the documents' commit");
+  titled(documents, "SRC-handbook", "Handbook");
+
+  const repository = browser(t);
+  writeSetting(repository.store, "github-token:alice/restricted-content", { value: "github_pat_named", name: "named", expires: "2027-01-01" });
+  page = await repository.page();
+  await register(page, "repository");
+  await put(one(page, "library-repository-address"), NAMED);
+  await describe(page, { id: "SRC-guidelines", title: "Guidelines", authority: "advisory", licence: "may be republished — MIT" });
+  await click(saveOf(one(page, "library-form-box")));
+  await until(() => repository.commits.length === 1, "the repository's commit");
+  titled(repository, "SRC-guidelines", "Guidelines");
+
+  const renamed = browser(t);
+  page = await renamed.page();
+  await register(page, "documents");
+  await describe(page, { id: "SRC-renamed", title: "Handbook, first title", authority: "advisory", licence: "may be republished — CC BY 4.0" });
+  await chooseFiles(page, SELECTED);
+  await describe(page, { title: "Renamed handbook" });
+  await click(saveOf(one(page, "library-form-box")));
+  await until(() => renamed.commits.length === 1, "the renamed documents' commit");
+  titled(renamed, "SRC-renamed", "Renamed handbook");
+  assert.equal(written(renamed, "SRC-renamed").includes("Handbook, first title"), false, "the title typed before stands nowhere in the entry");
+});
+
 // TST-472761 · level: unit · module: MOD-settings-pages
 // guards: EVERY STEP EXPLAINS ITSELF; UC-004
 // given: the routes' parts and the form
