@@ -539,7 +539,7 @@ test("TST-866001 the host the route reads a product with still refuses a commit 
   const it = browser();
   writeSetting(it.store, "endpoint:ep1", { kind: "openai-compatible", url: "https://models.example/v1", model: "model-drafter-a", key: SECRET });
   assert.equal(secretValues(it.store).includes(SECRET), true, "known positive: the store holds the key as a secret");
-  const { sourcesOf } = await import("../src/main-page/jobs.mjs");
+  const { sourcesOf } = await import("../src/main-page/sources.mjs");
   assert.equal(typeof sourcesOf, "function");
   const sources = await sourcesOf(it.context);
   assert.deepEqual(sources.map((source) => source.address), [INSTANCE, LIBRARY, ATLAS, MISSING]);

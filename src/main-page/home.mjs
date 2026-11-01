@@ -23,7 +23,7 @@ import { parseAddress } from "../repository-hosts/index.mjs";
 import { menuOf } from "../site-frame/index.mjs";
 import { productFacts, stageShares, currentStage, buildInProgress } from "../progress-measures/index.mjs";
 import { listJobs } from "../job-ledger/index.mjs";
-import { bridgesOf, liveStatesOf, sourcesOf } from "./jobs.mjs";
+import { bridgesOf, liveStatesOf, sourcesOf } from "./sources.mjs";
 import { el, productCard, readingCard, errorCard } from "./cards.mjs";
 import { storedOf } from "./waits.mjs";
 import { greeting } from "./greeting.mjs";

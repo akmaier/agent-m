@@ -135,7 +135,7 @@ test("TST-1269302 without a product, the page reads the one record of the first 
 // given: known positive first (TST-1269301's control). The same job identifier in the instance and in alice/product, of the participants dev-i and dev-a
 // input: the route job drawn with that identifier and no product
 // expect: the page shows the instance's record — the instance comes before the products — with the participant dev-i and not dev-a; one record was read, the instance's, and alice/product's was not; the live state was asked once
-// Planted fault: the products placed before the instance (`[...products, ...(listsInstance ? [own] : [])]` at the end of sourcesOf, src/main-page/jobs.mjs) shows dev-a, and the case fails on the participant.
+// Planted fault: the products placed before the instance (`[...products, ...(listsInstance ? [own] : [])]` at the end of sourcesOf, src/main-page/sources.mjs) shows dev-a, and the case fails on the participant.
 test("TST-1269303 without a product, the instance's record is the first holder's, before a product's of the same identifier", async () => {
   const control = await listing([INSTANCE, PRODUCT]);
   assert.deepEqual([control.rows > 1, control.records > 1, control.live >= 1], [true, true, true], `known positive: the list reads records and asks the Bridge (${JSON.stringify(control)})`);

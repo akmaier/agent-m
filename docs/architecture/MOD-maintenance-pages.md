@@ -100,7 +100,9 @@ It runs in a browser, loaded by `docs/index.html` through MOD-site-frame.
 
 ## Parts
 
-- `index.mjs` — the interface: `view`.
+- `index.mjs` — the interface: `view`, the routes of routes.mjs with the strategies of the view's kinds.
+- `routes.mjs` — the routes' heads, the view module the frame loads at start; it imports index.mjs, and with it the
+  strategies, only when a job is prepared (`loadStrategies`).
 - `issues.mjs` — issues, their analysis, class, fix, change and move into the backlog.
 - `mail.mjs` — reading mail into issues.
 - `replies.mjs` — replies to answer, answers received, drafts, sending, asking a reporter.

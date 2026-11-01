@@ -92,7 +92,9 @@ It runs in a browser, loaded by `docs/index.html` through MOD-site-frame.
 
 ## Parts
 
-- `index.mjs` — the interface: `view`.
+- `index.mjs` — the interface: `view`, the routes of routes.mjs with the strategies of the view's kinds.
+- `routes.mjs` — the routes' heads, the view module the frame loads at start; it imports index.mjs, and with it the
+  strategies, only when a job is prepared (`loadStrategies`).
 - `flow.mjs` — the template method: version choice and comparison, tree or table, filters, a row's detail, links.
 - `subject.mjs` — the subject the specification view gives the prompt bar: the page, what is open, its draft route, the
   person's own source.

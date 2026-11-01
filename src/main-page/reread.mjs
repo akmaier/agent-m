@@ -23,7 +23,7 @@
 
 import { listJobs } from "../job-ledger/index.mjs";
 import { buildInProgress } from "../progress-measures/index.mjs";
-import { bridgesOf, liveStatesOf } from "./jobs.mjs";
+import { bridgesOf, liveStatesOf } from "./sources.mjs";
 import { el, productCard } from "./cards.mjs";
 
 /** EVERY — the time between two readings, in milliseconds. */

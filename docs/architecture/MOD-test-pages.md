@@ -92,7 +92,9 @@ It runs in a browser, loaded by `docs/index.html` through MOD-site-frame.
 
 ## Parts
 
-- `index.mjs` — the interface: `view`.
+- `index.mjs` — the interface: `view`, the routes of routes.mjs with the strategies of the view's kinds.
+- `routes.mjs` — the routes' heads, the view module the frame loads at start; it imports index.mjs, and with it the
+  strategies, only when a job is prepared (`loadStrategies`).
 - `views.mjs` — the route `tests-views`: the Tests entry's views.
 - `look.mjs` — what this module's routes of Tests share of the site's look: the head — the route's heading and the line
   of where it reads, the address, the ref read and how — with the Tests entry's views of `views.mjs` under it; and the

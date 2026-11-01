@@ -107,7 +107,9 @@ It runs in a browser, loaded by `docs/index.html` through MOD-site-frame.
 
 ## Parts
 
-- `index.mjs` — the interface: `view`.
+- `index.mjs` — the interface: `view`, the routes of routes.mjs with the strategies of the view's kinds.
+- `routes.mjs` — the routes' heads, the view module the frame loads at start; it imports index.mjs, and with it the
+  strategies, only when a job is prepared (`loadStrategies`).
 - `process.mjs` — how the product is developed, and the instance's process models.
 - `roles.mjs` — who fills the roles: the product's role assignments.
 - `plan.mjs` — the implementation plan.

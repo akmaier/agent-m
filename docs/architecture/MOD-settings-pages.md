@@ -127,7 +127,9 @@ resource on its runner, queued to that runner's route; for its run panel it hand
 
 ## Parts
 
-- `index.mjs` — the interface: `view`.
+- `index.mjs` — the interface: `view`, the routes of routes.mjs with the strategies of the view's kinds.
+- `routes.mjs` — the routes' heads, the view module the frame loads at start; it imports index.mjs, and with it the
+  strategies, only when a job is prepared (`loadStrategies`).
 - `settings.mjs` — the one page of every setting, its tests, clears, export and import.
 - `setup.mjs` — getting one's own Agent M and finishing its setup.
 - `products.mjs` — adding a product.

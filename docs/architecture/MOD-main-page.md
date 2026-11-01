@@ -69,7 +69,11 @@ It runs in a browser, loaded by `index.html` through MOD-site-frame.
 
 ## Parts
 
-- `index.mjs` — the interface: `view`.
+- `index.mjs` — the interface: `view`, the routes of routes.mjs with the strategies of the view's kinds.
+- `routes.mjs` — the routes' heads, the view module the frame loads at start; it imports index.mjs, and with it the
+  strategies, only when a job is prepared (`loadStrategies`).
+- `sources.mjs` — the sources of the routes `home` and `jobs` and the live states of their jobs, apart from the job page's
+  file, so that the start page reads its cards without it.
 - `greeting.mjs` — the greeting: Agent M's name, one sentence on what Agent M is, what to do first, and the folded
   explanation of the page.
 - `home.mjs` — the route `home`: it draws the cards and the link *Jobs*, and starts the readings again.
