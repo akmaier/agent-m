@@ -28,6 +28,20 @@ const idOf = (document) => text(document?.id ?? document?.fields?.id);
 const fieldList = (document, field) => list(document?.fields?.[field]);
 const titleOf = (document) => text(document?.fields?.title ?? document?.title);
 
+// Whether `from` builds on `target`, directly or through any number of items of the backlog.
+function buildsOnThrough(byId, from, target) {
+  const seen = new Set();
+  const queue = [from];
+  while (queue.length) {
+    const current = queue.pop();
+    if (current === target) return true;
+    if (seen.has(current)) continue;
+    seen.add(current);
+    queue.push(...fieldList(byId.get(current), "builds_on"));
+  }
+  return false;
+}
+
 /**
  * backlogFindings(items: Document[], architecture: Document[]) -> Finding[] — for each item in the order given: an error for
  * an item that realises nothing; an error for an item that names no module that a module file of the architecture describes;
@@ -46,16 +60,22 @@ export function backlogFindings(items, architecture) {
       at("error", REALISES, "the item realises nothing",
         "name at least one requirement or use case the item realises, or remove the item");
     }
-    if (!fieldList(item, "modules").some((name) => described.has(name))) {
+    const named = fieldList(item, "modules");
+    if (!named.some((name) => described.has(name))) {
       at("error", MODULES, "the item names no module the architecture describes",
         "name the modules of the architecture that the item's implementation changes");
+    } else {
+      for (const name of named.filter((one) => !described.has(one))) {
+        at("error", MODULES, `the item names ${name}, which the architecture does not describe`,
+          `name only modules of the architecture, or remove ${name}`);
+      }
     }
     for (const on of fieldList(item, "builds_on")) {
       const other = byId.get(on);
       if (!other) {
         at("error", BACKLOG, `the item builds on ${on}, which does not exist`,
           `name an item of the backlog under builds_on, or remove ${on}`);
-      } else if (fieldList(other, "builds_on").includes(id)) {
+      } else if (buildsOnThrough(byId, on, id)) {
         at("error", BACKLOG, `the item builds on ${on}, which builds on it in turn`,
           `remove ${id} from the items ${on} builds on, or ${on} from the items ${id} builds on`);
       }
