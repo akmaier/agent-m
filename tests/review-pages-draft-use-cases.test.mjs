@@ -216,11 +216,11 @@ test("view — hands the frame the strategies the kind derive-use-cases uses in 
 // guards: EVERY STEP EXPLAINS ITSELF; UC-007
 // given: the list of use cases of a product with a token
 // input: the route use-case with no id
-// expect: a link "Draft use cases" to #use-case/id=draft
+// expect: a link "Draft use cases" to #use-case/id=draft/product=<the product's address, percent-encoded>
 test("use-case — the list's Draft use cases leads to the drafting page", async () => {
   const fake = fakeProduct();
   const target = await show(fake, {});
-  const links = find(target, (node) => node.localName === "a" && node.getAttribute("href") === "#use-case/id=draft");
+  const links = find(target, (node) => node.localName === "a" && node.getAttribute("href") === `#use-case/id=draft/product=${encodeURIComponent(ON_GITHUB.web)}`);
   assert.equal(links.length, 1);
   assert.match(links[0].textContent, /Draft use cases/);
 });

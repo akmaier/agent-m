@@ -826,18 +826,19 @@ test("release · UC-042 1: Settings is reached from the gear; a stored token is 
   assert.equal(repositoryControl(row, "secret").type, "text", "shown in full");
 });
 
-// UC-042 step 2 — Test sends one harmless request to the token's own server and shows the answer. Expected: exactly one request,
-// a GET to GitHub's API with the token; the line then shows ✓ works with today's date. Without a token the line is "— not set".
+// UC-042 step 2 — Test sends one harmless request to the token's own server and shows the answer. Expected: exactly two read-only
+// requests sent together, one POST /graphql for greenToMerge (ITM-1170) and a GET of the repository record, both to GitHub's API
+// with the token; the line then shows ✓ works with today's date. Without a token the line is "— not set".
 test("release · UC-042 2: Test sends one harmless request to GitHub and the line shows ✓ works with the date", async () => {
   const w = await world();
   const page = await open(w), panes = await settingsPanes(page);
   const n = w.log.length;
   await pressPublic(w, repositoryControl(githubRow(panes), "test"));
   const sent = w.log.slice(n);
-  assert.equal(sent.length, 1, JSON.stringify(sent));
-  assert.equal(sent[0].method, "GET");
-  assert.equal(sent[0].origin, API);
-  assert.equal(sent[0].auth, `Bearer ${TOKEN}`);
+  assert.equal(sent.length, 2, JSON.stringify(sent));
+  assert.deepEqual(sent.map((request) => [request.method, request.url]), [["POST", `${API}/graphql`], ["GET", `${API}/repos/${INSTANCE}`]], "greenToMerge's read-only request, then the record");
+  for (const request of sent) assert.equal(request.origin, API);
+  for (const request of sent) assert.equal(request.auth, `Bearer ${TOKEN}`);
   const tested = storedSetting(page, "last-test:github-token");
   assert.equal(tested.outcome, "working");
   assert.equal(tested.at.slice(0, 10), daysFromToday(0));

@@ -318,7 +318,7 @@ test("TST-726007 the items of the other kinds are the requirements' names, the t
 // guards: UC-021; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: the lists of the use cases, the architecture decisions and the module files; the product with the group file
 // input: each list drawn; a click a script makes on Save arrangement
-// expect: each list has a link "Arrange" to #arrange/kind=use-cases, #arrange/kind=architecture and #arrange/kind=modules; a click a script makes on Save arrangement writes nothing
+// expect: each list has a link "Arrange" to #arrange/kind=use-cases, #arrange/kind=architecture and #arrange/kind=modules, each followed by /product=<the product's address, percent-encoded>; a click a script makes on Save arrangement writes nothing
 test("TST-726008 the lists of use cases, decisions and modules link Arrange to their kind, and a script's click saves nothing", async () => {
   const fake = fakeHost({ files: { ...PRODUCT, [GROUPS_PATH]: GROUPS } });
   for (const [route, kind] of [["use-case", "use-cases"], ["decision", "architecture"], ["module", "modules"]]) {
@@ -329,7 +329,7 @@ test("TST-726008 the lists of use cases, decisions and modules link Arrange to t
     document.body.append(target);
     await routeOf(route).render(target, { page: "review", instance: { repository: "alice/agent-m", host: fake.host }, store, go() {}, product: { address: ON_GITHUB.web, kind: "github", host: fake.host } }, {});
     const links = find(target, (node) => node.localName === "a" && node.textContent === "Arrange");
-    assert.deepEqual(links.map((node) => node.getAttribute("href")), [`#arrange/kind=${kind}`], route);
+    assert.deepEqual(links.map((node) => node.getAttribute("href")), [`#arrange/kind=${kind}/product=${encodeURIComponent(ON_GITHUB.web)}`], route);
   }
   const target = await show(fake, { kind: "use-cases" });
   moveTo(itemOf(target, "UC-004")[0], "Review");

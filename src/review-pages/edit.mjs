@@ -15,7 +15,7 @@ import { waitingQueues } from "../progress-measures/index.mjs";
 import { blobSha } from "../text-tools/index.mjs";
 import { requirementImpact, storedGraph } from "../trace-graph/index.mjs";
 import { explain, readProblem } from "../site-frame/index.mjs";
-import { asOfLine, el, link, openEditor, parseServer, tokenStep } from "./common.mjs";
+import { asOfLine, el, link, reviewLink, openEditor, parseServer, tokenStep } from "./common.mjs";
 import { fallbackPages } from "./file-edit.mjs";
 import { entryId } from "./spec-entries.mjs";
 
@@ -69,7 +69,7 @@ export async function showEdit(where, kind, params) {
     for (const entry of queue.entries) {
       if (entry.file !== SPEC || entry.anchor !== heading || entry.state === "in SPEC") continue;
       const id = entryId(queue.folder, entry.number);
-      others.append(el("li", null, link(`#spec-entry/id=${encodeURIComponent(id)}`, null, id), ` — ${entry.state}`));
+      others.append(el("li", null, reviewLink(context, `#spec-entry/id=${encodeURIComponent(id)}`, null, id), ` — ${entry.state}`));
     }
   }
   const impact = el("ul", "impact");
@@ -103,7 +103,7 @@ export async function showEdit(where, kind, params) {
       const commit = `${snapshot.repository.web}/commit/${outcome.commit}`;
       const also = el("ul", "also");
       for (const replaced of outcome.alsoReplacing) also.append(el("li", null, entryId(replaced.queue, replaced.entry)));
-      saved.replaceChildren(el("p", "entry", "Saved as ", link(`#spec-entry/id=${encodeURIComponent(id)}`, null, id), " in ", link(commit, null, "this commit"), "."), also);
+      saved.replaceChildren(el("p", "entry", "Saved as ", reviewLink(context, `#spec-entry/id=${encodeURIComponent(id)}`, null, id), " in ", link(commit, null, "this commit"), "."), also);
       return { kind: "saved", link: commit };
     } catch (failure) {
       return { kind: "failed", reason: `${failure.name}: ${failure.message}` };

@@ -217,7 +217,7 @@ const onGitLab = (fake, run) => using(fake.fetch, () => run(connect(GL_ADDRESS, 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; A CHANGED FILE IS SHOWN AGAINST ITS LAST ACCEPTED TEXT
 // given: the history above on a GitHub repository, read with a token through the real host; UC-010 has four records and UC-011 one; and, as the known positive of the counting fake, readHistory(UC-010's file, { limit: 1 }) on a fake of its own
 // input: lastAcceptedText("UC-010", host) and lastAcceptedText("UC-011", host), each on a fake of its own
-// expect: UC-010 gives the text of its fourth record (version 4, not the version 5 the file holds now) with that record's blob and the path of the file; UC-011 gives version 1. The requests of UC-010: 1 of the repository, 1 resolving a commit (the branch; the commit that added the record is not resolved), 1 of a tree (the head's; the older commit's is not read), 0 of the entries of a folder, 4 "List commits" (one for each of its four records), 0 "Get a commit" for the files of a commit, 1 of a file (the record), 1 batch request (the use case at the commit that added the record) — 9 in all; of UC-011: 1, 1, 1, 0 entries, 1 list, 0 commit files, 1 file, 1 batch — 6 in all. Known positive: readHistory(UC-010's file, { limit: 1 }) without the option sends 1 "List commits" and 1 "Get a commit" for files, and with `changes: false` 1 and none
+// expect: UC-010 gives the text of its fourth record (version 4, not the version 5 the file holds now) with that record's blob and the path of the file; UC-011 gives version 1. The requests of UC-010: 1 of the repository, 1 resolving a commit (the branch; the commit that added the record is not resolved), 1 of a tree (the head's; the older commit's is not read), 0 of the entries of a folder, 4 "List commits" (one for each of its four records), 0 "Get a commit" for the files of a commit, 1 of a file (the record), 1 batch request (the use case at the commit that added the record), and the GraphQL request of greenToMerge beside the repository (ITM-1170; the fake counts it as a batch) — 10 in all; of UC-011: 1, 1, 1, 0 entries, 1 list, 0 commit files, 1 file, 1 batch and greenToMerge's — 7 in all. Known positive: readHistory(UC-010's file, { limit: 1 }) without the option sends 1 "List commits" and 1 "Get a commit" for files, and with `changes: false` 1 and none
 test("MOD-approvals lastAcceptedText — one answer sends no request for the changes of a commit, one list for each record (GitHub)", async () => {
   const positive = fakeGitHub();
   await onGitHub(positive, (host) => host.readHistory(UC10, { limit: 1 }));
@@ -229,14 +229,15 @@ test("MOD-approvals lastAcceptedText — one answer sends no request for the cha
   const four = fakeGitHub();
   const sent = await onGitHub(four, (host) => lastAcceptedText("UC-010", host));
   assert.deepEqual(sent, { text: V[3], blob: blobOf(V[3]), path: UC10 });
-  assert.deepEqual(four.tally(), { repository: 1, commit: 1, tree: 1, list: 4, detail: 0, file: 1, folders: 0, batch: 1, other: 0 });
-  assert.equal(four.requests.length, 9);
+  // ITM-1170: the fake counts every POST /graphql as a batch; the second is greenToMerge's, beside the repository's information.
+  assert.deepEqual(four.tally(), { repository: 1, commit: 1, tree: 1, list: 4, detail: 0, file: 1, folders: 0, batch: 2, other: 0 });
+  assert.equal(four.requests.length, 10);
 
   const one = fakeGitHub();
   const received = await onGitHub(one, (host) => lastAcceptedText("UC-011", host));
   assert.deepEqual(received, { text: W[0], blob: blobOf(W[0]), path: UC11 });
-  assert.deepEqual(one.tally(), { repository: 1, commit: 1, tree: 1, list: 1, detail: 0, file: 1, folders: 0, batch: 1, other: 0 });
-  assert.equal(one.requests.length, 6);
+  assert.deepEqual(one.tally(), { repository: 1, commit: 1, tree: 1, list: 1, detail: 0, file: 1, folders: 0, batch: 2, other: 0 });
+  assert.equal(one.requests.length, 7);
 });
 
 // TST-929002 · level: unit · module: MOD-approvals

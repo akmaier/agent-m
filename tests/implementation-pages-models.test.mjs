@@ -592,3 +592,38 @@ test("TST-779015 the routes models and process load MOD-progress-measures only w
   assert.ok(preloaded("progress").includes("../src/progress-measures/index.mjs"), "known positive");
   for (const name of ["models", "process"]) assert.deepEqual(preloaded(name).filter((path) => path.includes("/progress-measures/")), [], name);
 });
+
+// ---------------------------------------------------------------- ITM-1354: the form of a planned model has no flow control
+// UC-031 marks Flow control "(pulled only)", and 2a: "The author first picks the kind of work (*planned* or *pulled*), and Agent M adapts the form to it"; MOD-model-catalogue gives
+// `## Flow control` "for `pulled` only". The reading the item takes, which the pull request names: the form follows the kind the definition is opened with — the kind picked in
+// + New model, or the kind of the model adapted or edited.
+
+// TST-1354001 · level: unit · module: MOD-implementation-pages
+// guards: UC-031
+// given: the route `models` with the empty name, as + New model leads to it
+// input: a click on the kind pulled; then, drawn again, a click on the kind planned
+// expect: after pulled, the form has the part <div data-section="## Flow control">, holding the rows WIP limit, Time box and Sprints (known positive); after planned, the form has its part "## Phases" and no part "## Flow control"
+test("TST-1354001 + New model of the kind planned shows no Flow control, of the kind pulled shows it", async () => {
+  const pulled = await edit("");
+  await pulled.click(find(pulled.target, (node) => node.getAttribute("data-kind") === "pulled")[0], false);
+  assert.equal(sectionOf(pulled.target, "## Flow control") !== undefined, true, "known positive: the pulled form holds Flow control");
+  for (const row of ["WIP limit", "Time box", "Sprints"]) assert.match(areaOf(pulled.target, "## Flow control"), new RegExp(`^\\| ${row} \\|`, "m"), row);
+  const planned = await edit("");
+  await planned.click(find(planned.target, (node) => node.getAttribute("data-kind") === "planned")[0], false);
+  assert.equal(sectionOf(planned.target, "## Phases") !== undefined, true, "known positive: the planned form holds its parts");
+  assert.equal(sectionOf(planned.target, "## Flow control") === undefined, true, "a planned model's form has no Flow control");
+});
+
+// TST-1354002 · level: unit · module: MOD-implementation-pages
+// guards: UC-031
+// given: the instance's catalogue, whose shipped v-model is planned and whose shipped scrum is pulled with the Flow control row "| Time box | 1 week |"
+// input: the route `models` drawn with name=scrum, as Adapt leads to it; then with name=v-model
+// expect: the form of the adapted scrum (kind pulled) has the part "## Flow control", holding "| Time box | 1 week |" (known positive); the form of the adapted v-model (kind planned) has no part "## Flow control"
+test("TST-1354002 Adapt of a planned model shows no Flow control, of a pulled model shows it", async () => {
+  const scrum = await edit("scrum");
+  assert.equal(valueOf(scrum.target, "kind"), "pulled");
+  assert.match(areaOf(scrum.target, "## Flow control"), /^\| Time box \| 1 week \|/m, "known positive: the pulled form holds its flow control");
+  const vModel = await edit("v-model");
+  assert.equal(valueOf(vModel.target, "kind"), "planned");
+  assert.equal(sectionOf(vModel.target, "## Flow control") === undefined, true, "a planned model's form has no Flow control");
+});

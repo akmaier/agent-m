@@ -23,7 +23,7 @@ import { parseSpec } from "../spec-document/index.mjs";
 import { runPanel, explain, readProblem } from "../site-frame/index.mjs";
 import { coverageGaps, latestGraph, storedGraph } from "../trace-graph/index.mjs";
 import { editedResult, flagged, showCurrent, splitCandidate, splitProblem } from "./candidates.mjs";
-import { defaultSnapshot, el, button, link, refusalText, tokenStep } from "./common.mjs";
+import { defaultSnapshot, el, button, link, reviewLink, refusalText, tokenStep } from "./common.mjs";
 import { dueDiligenceSection, roundsSection, splitDueDiligence } from "./sections.mjs";
 import { sourcesOf } from "./spec-entries.mjs";
 
@@ -105,7 +105,7 @@ export async function showDraft(where, kind) {
   if (kind.whole) return showArchitectureDraft(where, kind);
   if (kind.draft === "derive-requirements") return showRequirementsDraft(where, kind);
   const { target, snapshot, token, host, context } = where;
-  target.append(el("h2", null, `Draft ${kind.plural}`), explain(kind.explain.draft.requirements), link(`#${kind.route}`, "btn", `All ${kind.plural}`));
+  target.append(el("h2", null, `Draft ${kind.plural}`), explain(kind.explain.draft.requirements), reviewLink(context, `#${kind.route}`, "btn", `All ${kind.plural}`));
   let graph, line, names, loaded;
   try {
     ({ graph, line } = await latestGraph(snapshot, snapshot.commit));
@@ -223,13 +223,13 @@ async function start(run) {
 
 // What a run of the drafting job came to: the rounds, what the loop left, the files written.
 async function presentDraft(outcome, result, run) {
-  const { kind } = run;
+  const { kind, context } = run;
   result.append(el("p", "rounds", `Correction rounds: ${outcome.rounds.length}`), explain(kind.explain.draft.loop));
   const left = el("ul", "left");
   for (const finding of outcome.remaining) left.append(el("li", "left", `${finding.rule}: ${finding.what} — ${finding.fix}`));
   const written = el("ul", "written");
   for (const file of outcome.written?.files ?? []) written.append(el("li", null, file));
-  result.append(left, written, explain(kind.explain.draft.written), link(`#${kind.route}`, null, `All ${kind.plural}`));
+  result.append(left, written, explain(kind.explain.draft.written), reviewLink(context, `#${kind.route}`, null, `All ${kind.plural}`));
 }
 
 // The job records are asked for through the snapshot's readMany, newest first, a hundred at a time (A PAGE LOAD READS THE REPOSITORY IN BATCHES: "at most 100 files each"), each batch only
@@ -327,7 +327,7 @@ function chosenSource(choices, list) {
 
 async function showRequirementsDraft(where, kind) {
   const { target, token, context } = where;
-  target.append(el("h2", null, "Derive requirements"), sourceExplain(kind.explain.draft.source), link(`#${kind.route}`, null, `All ${kind.plural}`));
+  target.append(el("h2", null, "Derive requirements"), sourceExplain(kind.explain.draft.source), reviewLink(context, `#${kind.route}`, null, `All ${kind.plural}`));
   let loaded, choices;
   try {
     loaded = await loadStage(where, kind.draft);
@@ -509,16 +509,16 @@ async function placesOf(where) {
 }
 
 // What the precondition `architecture-ready` found, with the way on: to an open use case's review, to the SPEC changes to decide first, to UC-023 for an existing architecture.
-function readiness(found, snapshot) {
+function readiness(found, snapshot, context) {
   const box = el("section", "readiness");
   if (!found) return box;
   box.append(el("p", `finding ${found.kind}`, `${found.kind}: ${found.what} — ${found.fix} [${found.rule}]`));
-  if (found.kind === "warning") box.append(link("#spec-entry", "decide-first", "Decide the open SPEC changes first (UC-006)"));
+  if (found.kind === "warning") box.append(reviewLink(context, "#spec-entry", "decide-first", "Decide the open SPEC changes first (UC-006)"));
   else if (found.rule === ONLY_ACCEPTED) {
     for (const { id, kind, status } of statuses(snapshot).values()) {
-      if (kind === "use-case" && status !== "accepted") box.append(" ", link(`#use-case/id=${encodeURIComponent(id)}`, "review-link", `Review ${id}`));
+      if (kind === "use-case" && status !== "accepted") box.append(" ", reviewLink(context, `#use-case/id=${encodeURIComponent(id)}`, "review-link", `Review ${id}`));
     }
-  } else box.append(link("#decision", "change-architecture", "Change the architecture (UC-023)"));
+  } else box.append(reviewLink(context, "#decision", "change-architecture", "Change the architecture (UC-023)"));
   return box;
 }
 
@@ -536,7 +536,7 @@ function noReviewer(drafter, participants, needs, places) {
  */
 async function showArchitectureDraft(where, kind) {
   const { target, snapshot, token, context } = where;
-  target.append(el("h2", null, "Draft the architecture"), explain(kind.explain.draft.whole), link(`#${kind.route}`, null, `All ${kind.plural}`));
+  target.append(el("h2", null, "Draft the architecture"), explain(kind.explain.draft.whole), reviewLink(context, `#${kind.route}`, null, `All ${kind.plural}`));
   let requirements, loaded, places, offeredPlaces, found, reviewing;
   try {
     // What the derivation covers is the head's SPEC: from the head's graph, or, while that is not stored yet, from the head's SPEC itself — no earlier graph is shown here.
@@ -555,7 +555,7 @@ async function showArchitectureDraft(where, kind) {
   const covers = el("section", "covers", el("h3", null, "What the derivation covers"),
     el("p", null, `Every requirement of the SPEC (${requirements.length}) and every use case (${useCases.length}); nothing is selected.`));
   covers.append(el("ul", "covered", ...requirements.map((name) => el("li", "requirement", name)), ...useCases.map((id) => el("li", "use-case", id))));
-  target.append(covers, readiness(found, snapshot));
+  target.append(covers, readiness(found, snapshot, context));
 
   const placed = Object.entries(offeredPlaces.sources).map(([from, allowed]) => ({ from, allowed }));
   const drafters = eligible(participants, { capabilities: definition.needs, places: placed }).eligible;

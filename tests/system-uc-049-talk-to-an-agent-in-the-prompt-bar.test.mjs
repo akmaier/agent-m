@@ -35,7 +35,7 @@ const select = (s, name) => { const selector = all(barOf(s), "select", "particip
 // guards: UC-049; THE PAGE NAMES WHERE IT SENDS; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; EVERY STEP EXPLAINS ITSELF
 // given: the specification browser of the product at its default branch; this browser's configuration declares the endpoints drafter (at "this machine") and tooler (at "Anthropic, USA"); recording is off
 // input: the page opened; tooler chosen in the selector; the message "Which rules does this page list?" written, and then Send pressed; then the answer, a second message "And the second one?" and Send
-// expect: above the input the bar names each participant with its place ("drafter — this machine", "tooler — Anthropic, USA") and a folded "What is this?" explains the bar; writing sends nothing; Send sends exactly one request, to tooler's endpoint, naming the destination before it is made ("Sent to: tooler — Anthropic, USA"); the message holds the person's words, the page as the author sees it (the view, the product, the version and the requirements listed) and the chapters of the book for requirements; the answer appears in the conversation under tooler's name; the second message carries the conversation so far (the first message and its answer) (flow: UC-049 main flow (1, 2, 3, 5, 6))
+// expect: above the input the bar names each participant with its place ("drafter — this machine", "tooler — Anthropic, USA") and a folded "What is this?" explains the bar; writing sends nothing; Send sends exactly one request, to tooler's endpoint, naming the destination before it is made ("Sent to: tooler — Anthropic, USA"); the message holds the person's words, the page as the author sees it (the view, the product, the version and the requirements listed) and the chapters of the book for requirements; the answer appears in the conversation under tooler's name; the second message carries the conversation so far (the first message and its answer); nothing is written: the only requests that are no GET are greenToMerge's read-only GraphQL requests, two for each message (ITM-1170) (flow: UC-049 main flow (1, 2, 3, 5, 6))
 test("main flow: the bar names the participant with its place, Send is the decision, the participant is given the page, and the conversation goes on", async () => {
   const s = await scenario({ ...register(DRAFTER, TOOLER), answers: [{ answer: "It lists A LOAN HAS A DUE DATE and A BOOK IS SHELVED." }] });
   const w = watch(s, { script: [answer("It lists A LOAN HAS A DUE DATE and A BOOK IS SHELVED."), answer("The second one is A BOOK IS SHELVED.")] });
@@ -59,7 +59,9 @@ test("main flow: the bar names the participant with its place, Send is the decis
   const second = textOfSent(w.endpoint()[1]);
   assert.ok(second.includes("Which rules does this page list?") && second.includes("It lists A LOAN HAS A DUE DATE"), "the second message carries the conversation so far");
   assert.ok(second.includes("And the second one?"));
-  assert.deepEqual(w.github().filter((request) => request.method !== "GET"), [], "no message of the conversation is written anywhere");
+  // ITM-1170: the requests that are no GET are the read-only GraphQL requests of greenToMerge, beside each read of the repository's information — two for each message sent.
+  assert.deepEqual(w.github().filter((request) => request.method !== "GET").map((request) => `${request.method} ${request.path}`), Array(4).fill("POST /graphql"), "no message of the conversation is written anywhere");
+  assert.ok(w.github().filter((request) => request.method !== "GET").every((request) => String(request.body).includes("refUpdateRule")), "each is greenToMerge's query");
   w.stop();
 });
 
@@ -83,7 +85,7 @@ test("main flow (3): the system prompt carries the rules for what the participan
 // guards: UC-049; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK; NO SERVER
 // given: tooler is an endpoint of this browser whose last test found that it uses tools, so that it declares "use tools" and "read the repository"; its endpoint first asks for list-files and read-file of SPEC.md, then answers
 // input: a message sent to tooler
-// expect: the request offers the kind's tools (list-files, read-file, search-files, propose-edit, hand-over); the loop runs in this tab: the tab reads the product through the repository server's API with the author's token of that product — every request the message makes to the product's server carries that token and no other — and returns the results to the endpoint in a second request (two tool results); the answer appears; nothing is written to any repository (flow: UC-049 main flow (4, endpoint that can use tools))
+// expect: the request offers the kind's tools (list-files, read-file, search-files, propose-edit, hand-over); the loop runs in this tab: the tab reads the product through the repository server's API with the author's token of that product — every request the message makes to the product's server carries that token and no other — and returns the results to the endpoint in a second request (two tool results); the answer appears; nothing is written to any repository — the two requests that are no GET are greenToMerge's read-only GraphQL requests (ITM-1170) (flow: UC-049 main flow (4, endpoint that can use tools))
 test("main flow (4): a model endpoint that can use tools works in a loop in the tab, reading the product with the author's token and writing nothing", async () => {
   const s = await scenario({ ...register(TOOLER), answers: [{ answer: "x" }] });
   const w = watch(s, { script: [calls({ id: "c1", name: "list-files", args: { folder: "" } }, { id: "c2", name: "read-file", args: { path: "SPEC.md" } }), answer("There are two rules: A LOAN HAS A DUE DATE and A BOOK IS SHELVED.")] });
@@ -99,7 +101,8 @@ test("main flow (4): a model endpoint that can use tools works in a loop in the 
   for (const request of product) assert.equal(request.headers.Authorization, "Bearer github_pat_FIXTURE0123456789", "with the author's token of that product, and no other");
   assert.ok(w.endpoint().every((request) => !JSON.stringify(request.headers).includes("github_pat_")), "the token went to the repository server only, never to the endpoint");
   assert.ok(conversationOf(s).some((line) => line.includes("There are two rules")));
-  assert.deepEqual(w.github().filter((request) => request.method !== "GET"), [], "the loop writes nothing");
+  assert.deepEqual(w.github().filter((request) => request.method !== "GET").map((request) => `${request.method} ${request.path}`), Array(2).fill("POST /graphql"), "the loop writes nothing: the POSTs are greenToMerge's reads (ITM-1170)");
+  assert.ok(w.github().filter((request) => request.method !== "GET").every((request) => String(request.body).includes("refUpdateRule")), "each is greenToMerge's query");
   w.stop();
 });
 
@@ -353,7 +356,7 @@ test("alternative 4d: when GitHub's runners cannot reach the endpoint the run fa
 // guards: UC-049; A CANCELLED JOB WRITES NOTHING MORE; THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK
 // given: a message that is still running in the tab (the endpoint has not answered)
 // input: the person's click on Stop; then the endpoint is let to answer
-// expect: the message is aborted — the bar can be used again, nothing was written to any repository, and the answer that comes too late is not added to the conversation (flow: UC-049 alternative 5a)
+// expect: the message is aborted — the bar can be used again, nothing was written to any repository (the two requests that are no GET are greenToMerge's read-only GraphQL requests, ITM-1170), and the answer that comes too late is not added to the conversation (flow: UC-049 alternative 5a)
 test("alternative 5a: Stop ends the loop in the tab and nothing is written", async () => {
   const s = await scenario({ ...register(DRAFTER) });
   let release;
@@ -366,7 +369,8 @@ test("alternative 5a: Stop ends the loop in the tab and nothing is written", asy
   release();
   await rest(s);
   assert.ok(!conversationOf(s).some((line) => line.includes("Too late.")), "an answer after Stop is not shown");
-  assert.deepEqual(w.github().filter((request) => request.method !== "GET"), []);
+  assert.deepEqual(w.github().filter((request) => request.method !== "GET").map((request) => `${request.method} ${request.path}`), Array(2).fill("POST /graphql"), "the POSTs are greenToMerge's reads (ITM-1170)");
+  assert.ok(w.github().filter((request) => request.method !== "GET").every((request) => String(request.body).includes("refUpdateRule")), "each is greenToMerge's query");
   w.stop();
 });
 

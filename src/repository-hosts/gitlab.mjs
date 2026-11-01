@@ -164,7 +164,9 @@ export function gitlabAdapter(address, { token, tokenName }, links) {
       }
       const level = Math.max(r.permissions?.project_access?.access_level ?? 0, r.permissions?.group_access?.access_level ?? 0);
       return { defaultBranch: r.default_branch ?? null, visibility: r.visibility, canWrite: Boolean(token) && level >= MAINTAINER,
-        archived: r.archived === true, description: r.description ?? "" };
+        archived: r.archived === true, description: r.description ?? "",
+        // The project's setting "Pipelines must succeed" (`only_allow_merge_if_pipeline_succeeds` of "Get a single project"), null where the answer does not hold it.
+        greenToMerge: typeof r.only_allow_merge_if_pipeline_succeeds === "boolean" ? r.only_allow_merge_if_pipeline_succeeds : null };
     },
 
     // The branch, tag or commit resolved to one commit, then that commit's tree, page by page: every file, by its blob SHA.

@@ -18,6 +18,8 @@
 //     and links that run.
 //   - <button data-merge-pull="<number>"> is Merge, offered for an open pull request that is no draft and whose head passed `agent-m done`; its outcome is <p data-merge-result>. A click a script makes merges nothing.
 //   - A merged pull request is not listed: the page asks for the open ones only.
+//   - ITM-1170: "where `repositoryInfo` gives `greenToMerge` false, that the server does not enforce "merge only on green", with the page `branchProtection` (UC-024 12a)" is one <p data-green-to-merge> with a link
+//     to that page; where greenToMerge is true or null the page says nothing of it.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
 import test, { afterEach } from "node:test";
@@ -112,16 +114,19 @@ function productFiles(pulls) {
 }
 
 const ROOT = new URL("../", import.meta.url);
+// The server's page on which the rule behind greenToMerge is set, as the host's webLinks gives it (MOD-repository-hosts' WebLinks `branchProtection`).
+const BRANCH_PROTECTION = `${ADDRESS}/settings/branches`;
 const HEAD = readFileSync(new URL("docs/participants.md", ROOT), "utf8").split("\n").filter((row, at, all) => at <= all.findIndex((each) => each.startsWith("|---"))).join("\n");
 const REGISTER = `${HEAD}\n| dev-a | model endpoint | model-a | 200000 | — | read the repository, write to the repository, run code and tests, use tools | this machine | ci hosted secret DEV_KEY |\n`;
 
-// A host of this file's own: the part of MOD-repository-hosts' interface the route uses, recording what it is asked for. `refuse` is what mergePullRequest throws, if anything.
-function hostOf(files, pulls, calls, refuse = null) {
+// A host of this file's own: the part of MOD-repository-hosts' interface the route uses, recording what it is asked for. `refuse` is what mergePullRequest throws, if anything; `greenToMerge` is what repositoryInfo
+// gives for it (ITM-1170).
+function hostOf(files, pulls, calls, refuse = null, greenToMerge = null) {
   const tree = new Map(Object.entries(files));
   const snapshot = () => ({ repository: { server: "github", path: "acme/product", web: ADDRESS }, ref: "main", commit: sha("c"), paths: [...tree.keys()], blob: (path) => (tree.has(path) ? blobOf(tree.get(path)) : null),
     read: async (path) => (tree.has(path) ? tree.get(path) : null) });
   return {
-    async repositoryInfo() { return { defaultBranch: "main", visibility: "public", canWrite: true, archived: false, description: "" }; },
+    async repositoryInfo() { calls.push(["repositoryInfo"]); return { defaultBranch: "main", visibility: "public", canWrite: true, archived: false, description: "", greenToMerge }; },
     // The file at each commit, as the one tree holds it (MOD-repository-hosts' readFileAt), for the declared model and practices the route reads (ITM-1264).
     async readFileAt(path, commits) { return new Map(commits.map((commit) => [commit, tree.has(path) ? tree.get(path) : null])); },
     async readSnapshot() { return snapshot(); },
@@ -135,13 +140,13 @@ function hostOf(files, pulls, calls, refuse = null) {
       if (refuse) throw refuse;
       return { commit: sha("e") };
     },
-    webLinks() { return { actions: `${ADDRESS}/actions` }; },
+    webLinks() { return { actions: `${ADDRESS}/actions`, branchProtection: BRANCH_PROTECTION }; },
   };
 }
-async function render(pulls, { refuse = null, extraPulls = [] } = {}) {
+async function render(pulls, { refuse = null, extraPulls = [], greenToMerge = null } = {}) {
   const calls = [];
   const all = [...pulls, ...extraPulls];
-  const host = hostOf(productFiles(pulls), all, calls, refuse);
+  const host = hostOf(productFiles(pulls), all, calls, refuse, greenToMerge);
   const instanceHost = hostOf({ "docs/participants.md": REGISTER, "SPEC.md": "# Instance\n", "docs/process-models/fixture.md": productFiles([])["docs/process-models/fixture.md"] }, [], []);
   const context = { page: "review", instance: { repository: "acme/agent-m", host: instanceHost }, product: { address: ADDRESS, kind: "github", host, tokenStored: true }, store: {}, go() {} };
   const target = document.createElement("div");
@@ -247,4 +252,38 @@ test("a pull request of no job the product started is not shown", async () => {
   shown(target, 7);
   assert.ok(!pullBox(target, 11), "the pull request of no job is not shown");
   assert.ok(!calls.some((call) => call[0] === "pullRequestFacts" && call[1] === 11), "the facts of a foreign pull request are not read");
+});
+
+// TST-1170006 · level: unit · module: MOD-implementation-pages
+// guards: UC-024; CODE ENTERS THE DEFAULT BRANCH THROUGH A PULL REQUEST WITH GREEN CI
+// given: the product of TST-734001 with the open pull request #7 of a job, on a server whose repositoryInfo gives greenToMerge false — its default branch has no rule that requires a check before a merge
+// input: the route implement's render
+// expect: the page says, in <p data-green-to-merge>, that the server does not enforce "merge only on green", and links the server's page for branch protection, the host's webLinks branchProtection (https://github.com/acme/product/settings/branches); repositoryInfo is asked as often as on the page of a server that gives greenToMerge null, which says nothing of it; known positive: #7 is shown with Merge offered
+test("a server that does not enforce green CI before a merge is named on the implement page, with its page for branch protection", async () => {
+  const pull = pullOf({ number: 7, item: "ITM-005", jobId: "JOB-20260916-0900-a1b2", digit: "1" });
+  const { target, calls } = await render([pull], { greenToMerge: false });
+  assert.ok(found(shown(target, 7), `[data-merge-pull="7"]`)[0], "known positive: the page is drawn, Merge offered");
+  const note = found(target, "[data-green-to-merge]");
+  assert.equal(note.length, 1, "the page names the missing branch protection once");
+  assert.match(text(note[0]), /does not enforce/);
+  assert.match(text(note[0]), /merge only on green/);
+  assert.deepEqual(found(note[0], "a").map((link) => link.getAttribute("href")), [BRANCH_PROTECTION]);
+  const silent = await render([pullOf({ number: 7, item: "ITM-005", jobId: "JOB-20260916-0900-a1b2", digit: "1" })], { greenToMerge: null });
+  const asked = (each) => each.filter((call) => call[0] === "repositoryInfo").length;
+  assert.equal(asked(calls), asked(silent.calls), "saying it asks repositoryInfo no more often");
+});
+
+// TST-1170007 · level: unit · module: MOD-implementation-pages
+// guards: UC-024
+// given: the product of TST-1170006, on a server whose repositoryInfo gives greenToMerge true (a rule requires a check), and on one that gives null (the token may not read the rule)
+// input: the route implement's render, once for each
+// expect: neither page has <p data-green-to-merge> nor a link to the page for branch protection; known positive: #7 is shown on each
+test("a server that enforces green CI, or whose rule the token cannot read, is not named on the implement page", async () => {
+  for (const greenToMerge of [true, null]) {
+    const pull = pullOf({ number: 7, item: "ITM-005", jobId: "JOB-20260916-0900-a1b2", digit: "1" });
+    const { target } = await render([pull], { greenToMerge });
+    shown(target, 7);
+    assert.equal(found(target, "[data-green-to-merge]").length, 0, `greenToMerge ${greenToMerge}: nothing is said`);
+    assert.ok(!found(target, "a").some((link) => link.getAttribute("href") === BRANCH_PROTECTION), `greenToMerge ${greenToMerge}: no link to branch protection`);
+  }
 });

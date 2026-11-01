@@ -171,8 +171,8 @@ test("TST-827005 while this browser keeps no product, the one card is Agent M's 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-046
 // given: this browser keeps the product alice/product of 600 backlog items, 400 job records, SPEC.md and one test file, with a token for it and one for the instance, whose repository holds its participant list
 // input: the route home drawn; the fake's requests counted
-// expect: 25 requests in all — the repository 2 (the instance's and the product's), the commits 3 (the instance's main, the product's main and test-results), the trees 2, the pull requests 1, the tags 1, the CI runs of the product's head 1, the overview of the product's head and the file latest.json of its branch overview-cache 1 each (it holds neither; with a token they are read from the branch, not by the fake's file log) and 13 batch requests of at most a hundred files; not one file is read by a request of its own; no facts file is asked for; every request carries an Authorization header
-test("TST-827006 with a token, the route home reads 600 items and 400 job records in 13 batches, 25 requests in all", async () => {
+// expect: 27 requests in all — the repository 2 (the instance's and the product's), each with the GraphQL request of greenToMerge beside it (ITM-1170) 2, the commits 3 (the instance's main, the product's main and test-results), the trees 2, the pull requests 1, the tags 1, the CI runs of the product's head 1, the overview of the product's head and the file latest.json of its branch overview-cache 1 each (it holds neither; with a token they are read from the branch, not by the fake's file log) and 13 batch requests of at most a hundred files; not one file is read by a request of its own; no facts file is asked for; every request carries an Authorization header
+test("TST-827006 with a token, the route home reads 600 items and 400 job records in 13 batches, 27 requests in all", async () => {
   net = network({ [PRODUCT]: productFiles({ items: 600, jobs: 400 }), [INSTANCE]: instanceFiles() });
   net.install();
   const target = await draw(home, browser());
@@ -180,8 +180,9 @@ test("TST-827006 with a token, the route home reads 600 items and 400 job record
   for (const { kind } of net.server.log) kinds[kind] = (kinds[kind] ?? 0) + 1;
   assert.equal(cardsOf(target).length, 1);
   assert.equal(byClass(target, "is-error").length, 0);
-  assert.equal(net.requests.length, 25);
-  assert.deepEqual(kinds, { repository: 2, commit: 3, tree: 2, "pull requests": 1, tags: 1, "ci runs": 1, batch: 13 });
+  assert.equal(net.requests.length, 27);
+  // ITM-1170: the fake logs every POST /graphql as a batch; 2 of the 15 are the GraphQL requests of greenToMerge beside the two repositoryInfo calls.
+  assert.deepEqual(kinds, { repository: 2, commit: 3, tree: 2, "pull requests": 1, tags: 1, "ci runs": 1, batch: 15 });
   assert.deepEqual(net.requests.filter((request) => request.url.includes(".facts.json")), []);
   assert.deepEqual(net.server.log.filter((entry) => entry.kind === "file"), []);
   assert.deepEqual(net.requests.filter((request) => request.authorization === null), []);
@@ -323,14 +324,14 @@ test("TST-847001 the page reads the jobs' states again once a minute, and sets n
 
 // TST-847002 · level: unit · module: MOD-main-page
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; A TOKEN GOES ONLY TO THE SERVER THAT ISSUED IT; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED; UC-046
-// given: this browser keeps the product alice/product of 600 backlog items and 400 job records, none of them taken or ended, with a token for it and one for the instance (the page of TST-827006 read it in 25 requests)
+// given: this browser keeps the product alice/product of 600 backlog items and 400 job records, none of them taken or ended, with a token for it and one for the instance (the page of TST-827006 read it in 27 requests)
 // input: the route home drawn; the timer fired at 12:01 UTC, the requests since the draw counted; then one job record, JOB-20261014-0900-0001, given its end on the server and the timer fired at 12:02
 // expect: the first reading sends exactly 2 requests, both to alice/product and both with the product's token — the commit of main and the tree of that commit —, and not one file, batch, pull request, tag or repository request, and none to alice/agent-m; counter-proof: the reading after the record changed sends 3 — the commit, the tree and one batch holding the changed record, docs/jobs/JOB-20261014-0900-0001.md —, and the 399 records that did not change are not read again
 test("TST-847002 with a token, a reading of the jobs' states is the product's commit and tree, 2 requests, and a record that changed costs 1 more", async () => {
   net = network({ [PRODUCT]: productFiles({ items: 600, jobs: 400 }), [INSTANCE]: instanceFiles() });
   net.install();
   await draw(home, browser());
-  assert.equal(net.requests.length, 25);
+  assert.equal(net.requests.length, 27);
   const sent = net.requests.length, logged = net.server.log.length;
   await timers.fire(at("12:01"));
   assert.deepEqual(net.requests.slice(sent).map(addressOf), ["/repos/alice/product/commits/main", "/repos/alice/product/git/trees/<commit>"]);
@@ -807,7 +808,7 @@ test("TST-943004 each card reads its own head's overview, and an overview stored
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; THE BUILD IS SHOWN AS IT HAPPENS; UC-046
 // given: this browser keeps alice/product, whose branch overview-cache holds the overview of its head (ITM-0900 in progress, its running job's record), the job running on the Bridge lab-pc-4; and, for the counter-proof, the same product without an overview
 // input: the route home drawn; every request counted
-// expect: with the overview, no request lists the pull requests (no …/pulls), none is a batch (POST /graphql) and none reads a file of the product other than the overview: the requests to alice/product are exactly its repository, its head's commit, its tree and the overview — 4 —, none goes to the instance, since its one card has an overview (ITM-1281), and the Bridge is asked once for the live state of the one job in progress; counter-proof: without the overview the card lists the pull requests (known positive: the count sees …/pulls)
+// expect: with the overview, no request lists the pull requests (no …/pulls), none is a batch — the one POST /graphql is greenToMerge's, with the product's token (ITM-1170) — and none reads a file of the product other than the overview: the requests to alice/product are exactly its repository, its head's commit, its tree and the overview — 4 —, none goes to the instance, since its one card has an overview (ITM-1281), and the Bridge is asked once for the live state of the one job in progress; counter-proof: without the overview the card lists the pull requests (known positive: the count sees …/pulls)
 test("TST-943005 with a stored overview the route home lists no pull request and reads no file: four requests for the card, the live state asked once", async () => {
   const head = headOf(PRODUCT);
   const pulls = () => net.requests.filter((request) => /\/pulls(\?|$)/.test(new URL(request.url).pathname + new URL(request.url).search));
@@ -817,7 +818,7 @@ test("TST-943005 with a stored overview the route home lists no pull request and
   await draw(home, browser());
   const of = (repository) => net.requests.filter((request) => new URL(request.url).pathname.startsWith(`/repos/${repository}`)).map((request) => new URL(request.url).pathname.replace(`/repos/${repository}`, ""));
   assert.deepEqual(pulls(), []);
-  assert.deepEqual(net.requests.filter((request) => request.url.endsWith("/graphql")), []);
+  assert.deepEqual(net.requests.filter((request) => request.url.endsWith("/graphql")).map((request) => request.authorization), [`Bearer ${PRODUCT_TOKEN}`], "the one POST /graphql is greenToMerge's (ITM-1170)");
   assert.deepEqual(of(PRODUCT), ["", "/commits/main", `/git/trees/${head}`, `/contents/${head}.json`]);
   assert.deepEqual(of(INSTANCE), []);
   assert.equal(net.bridgeAsked(), 1);
@@ -848,7 +849,7 @@ test("TST-943006 an overview of the format before the build was stored is none: 
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; THE MAIN PAGE SHOWS EACH PRODUCT'S PROGRESS BY STAGE; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: alice/product, whose branch overview-cache holds no overview for its head but the overview of an older commit eee…e, and latest.json naming eee…e; the job running on the Bridge lab-pc-4; and, for the counter-proof, the same branch without latest.json
 // input: the route home drawn; every request counted
-// expect: the card's six stages are the stored ones of eee…e, the page holds no list of what waits (the route jobs lists the stored entry, TST-1190002), the build row is ["ITM-0900", the job, "dev-cli", "running", "2h 0m 0s"], and the card says "As of eeeeeee: the overview of the newest commit is being stored."; the overview-cache reads are the head's overview, latest.json and eee…e.json in that order; no request lists the pull requests (no …/pulls) and none is a batch (POST /graphql); counter-proof: without latest.json the card has no such note and lists the pull requests (known positive: the count sees …/pulls)
+// expect: the card's six stages are the stored ones of eee…e, the page holds no list of what waits (the route jobs lists the stored entry, TST-1190002), the build row is ["ITM-0900", the job, "dev-cli", "running", "2h 0m 0s"], and the card says "As of eeeeeee: the overview of the newest commit is being stored."; the overview-cache reads are the head's overview, latest.json and eee…e.json in that order; no request lists the pull requests (no …/pulls) and none is a batch — the one POST /graphql is greenToMerge's, with the product's token (ITM-1170) —; counter-proof: without latest.json the card has no such note and lists the pull requests (known positive: the count sees …/pulls)
 test("TST-943007 while the head's overview is not stored, the card shows the overview latest.json names, says of which commit, and lists no pull request", async () => {
   const head = headOf(PRODUCT), older = "e".repeat(40);
   const pulls = () => net.requests.filter((request) => /\/pulls$/.test(new URL(request.url).pathname));
@@ -864,7 +865,7 @@ test("TST-943007 while the head's overview is not stored, the card shows the ove
   assert.deepEqual(asOf(card), ["As of eeeeeee: the overview of the newest commit is being stored."]);
   assert.deepEqual(overviewReads().map((request) => new URL(request.url).pathname.replace(`/repos/${PRODUCT}/contents/`, "")), [`${head}.json`, "latest.json", `${older}.json`]);
   assert.deepEqual(pulls(), []);
-  assert.deepEqual(net.requests.filter((request) => request.url.endsWith("/graphql")), []);
+  assert.deepEqual(net.requests.filter((request) => request.url.endsWith("/graphql")).map((request) => request.authorization), [`Bearer ${PRODUCT_TOKEN}`], "the one POST /graphql is greenToMerge's (ITM-1170)");
 
   net.restore();
   net = network({ [PRODUCT]: SMALL(), [INSTANCE]: instanceFiles() }, { bridgeLists: JOB });

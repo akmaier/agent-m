@@ -201,7 +201,7 @@ test("spec-entry/draft - linked source, part, files and participant are shown be
   endpointAnswers();
   const fake = fakeProduct();
   const list = await show(fake, {});
-  assert.equal(find(list, (node) => node.localName === "a" && node.getAttribute("href") === "#spec-entry/id=draft").length, 1);
+  assert.equal(find(list, (node) => node.localName === "a" && node.getAttribute("href") === `#spec-entry/id=draft/product=${encodeURIComponent(ON_GITHUB.web)}`).length, 1);
 
   const target = await show(fake);
   assert.deepEqual(byClass(target, "li", "source").map((item) => item.getAttribute("data-source")), [SOURCE]);

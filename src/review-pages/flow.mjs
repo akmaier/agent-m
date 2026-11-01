@@ -14,7 +14,7 @@ import { acceptAndRelease } from "../release-evidence/index.mjs";
 import { readSetting } from "../browser-store/index.mjs";
 import { parseAddress } from "../repository-hosts/index.mjs";
 import { explain, readProblem } from "../site-frame/index.mjs";
-import { el, link, button, badge, handedPlace, parseServer, readPlace, tokenStep } from "./common.mjs";
+import { el, link, reviewHref, reviewLink, button, badge, handedPlace, parseServer, readPlace, tokenStep } from "./common.mjs";
 import { begin as beginSubject, remember as rememberSubject, subjectOf } from "./subjects.mjs";
 import { showEdit } from "./edit.mjs";
 import { showEntryEdit } from "./entry-edit.mjs";
@@ -224,7 +224,7 @@ export function reviewRoute(kind) {
     if (kind.edit) await opened(showEdit(where, kind, params));
     else if (params.edit && params.id && kind.save === "file") {
       const file = files(snapshot).find((candidate) => candidate.id === params.id);
-      if (!file) target.append(el("p", "problem", `No ${kind.noun} ${params.id} on the default branch.`), link(`#${kind.route}`, null, `All ${kind.plural}`));
+      if (!file) target.append(el("p", "problem", `No ${kind.noun} ${params.id} on the default branch.`), reviewLink(where.context, `#${kind.route}`, null, `All ${kind.plural}`));
       else await opened(showFileEdit(where, kind, file));
     }
     else if (params.edit && params.id && kind.save === "entry") await opened(showEntryEdit(where, kind, params.id));
@@ -279,7 +279,7 @@ export function reviewRoute(kind) {
       // An approved entry of the instance's own SPEC is written by the instance's workflows: the row says why it is not written, and where they are turned on (UC-014 step 4, 4a).
       const unwritten = kind.save === "entry" && !context.product && file.status === "approved"
         ? [el("p", "why", NOT_WRITTEN), link("#get-your-own/step=actions", "actions-step", "Turn on the workflows")] : [];
-      const row = el("tr", null, first, el("td", null, link(`#${kind.route}/id=${encodeURIComponent(file.id)}${context.product ? `/product=${encodeURIComponent(context.product.address)}` : ""}`, null, file.name)),
+      const row = el("tr", null, first, el("td", null, reviewLink(context, `#${kind.route}/id=${encodeURIComponent(file.id)}`, null, file.name)),
         el("td", null, file.title, ...unwritten), el("td", null, badge(file.status, file.label)));
       row.setAttribute("data-id", file.id);
       return row;
@@ -303,8 +303,8 @@ export function reviewRoute(kind) {
       }
     }
     target.append(el("h2", null, kind.title));
-    if (service.reviewAll) target.append(link(`#${kind.route}/id=${REVIEW_ALL}`, "btn primary review-all", `Review all ${service.count ? service.count(groups) : notAccepted(where.snapshot).length} not accepted`));
-    if (kind.draft) target.append(link(`#${kind.route}/id=${DRAFT}`, "draft-link", `Draft ${kind.plural}`));
+    if (service.reviewAll) target.append(reviewLink(context, `#${kind.route}/id=${REVIEW_ALL}`, "btn primary review-all", `Review all ${service.count ? service.count(groups) : notAccepted(where.snapshot).length} not accepted`));
+    if (kind.draft) target.append(reviewLink(context, `#${kind.route}/id=${DRAFT}`, "draft-link", `Draft ${kind.plural}`));
     target.append(explain(kind.explain.list));
     const check = bar ? await checkBeside(where, waiting[0]?.id) : null;
     if (bar) {
@@ -323,8 +323,8 @@ export function reviewRoute(kind) {
     }
     target.append(...tables);
     if (bar) target.append(bar, ...(check ? [check.note] : []));
-    if (ARRANGED[kind.kind]) target.append(link(`#arrange/kind=${ARRANGED[kind.kind]}`, "arrange-link", "Arrange"), " ");
-    target.append(link(`#${kind.route}/id=${HISTORY}`, "history-link", `History of ${kind.plural}`));
+    if (ARRANGED[kind.kind]) target.append(reviewLink(context, `#arrange/kind=${ARRANGED[kind.kind]}`, "arrange-link", "Arrange"), " ");
+    target.append(reviewLink(context, `#${kind.route}/id=${HISTORY}`, "history-link", `History of ${kind.plural}`));
   }
 
   // The history of the kind's changes: its approval records, newest first, each with the file it names, the person who committed it and the date. One readHistory of
@@ -353,7 +353,7 @@ export function reviewRoute(kind) {
     target.append(el("h2", null, `History of ${kind.plural}`), explain(kind.explain.list),
       el("table", "list history", el("thead", null, el("tr", null, el("th", null, "File"), el("th", null, "Person"), el("th", null, "Date"))), rows));
     const parent = commits.length === HISTORY_PAGE ? commits.at(-1).parents[0] : undefined;
-    if (parent) target.append(link(`#${kind.route}/id=${HISTORY}/before=${encodeURIComponent(parent)}`, "older-link", "Older"));
+    if (parent) target.append(reviewLink(where.context, `#${kind.route}/id=${HISTORY}/before=${encodeURIComponent(parent)}`, "older-link", "Older"));
   }
 
   // The file as it will be accepted, rendered with its diagrams; of the whole architecture's further decisions with their due diligence. Below its difference
@@ -481,7 +481,7 @@ export function reviewRoute(kind) {
   // in one commit; an entry that changed after it was shown is left out and named.
   async function showAllEntries(where) {
     const { target, token, context } = where;
-    const entries = await service.all(where, (other) => `#${kind.route}/id=${encodeURIComponent(other)}`);
+    const entries = await service.all(where, (other) => reviewHref(where.context, `#${kind.route}/id=${encodeURIComponent(other)}`));
     target.append(el("h2", null, `Review all — ${kind.title}`), explain(kind.explain.all));
     if (entries.length === 0) {
       target.append(el("p", "nothing", `Nothing to review: every ${kind.noun} is accepted.`));
@@ -548,15 +548,15 @@ export function reviewRoute(kind) {
   // One entry of a change queue: its sections as the service draws them, what holds it back or what a click accepts, and without a token the record.
   async function showEntry(where, id) {
     const { target } = where;
-    const entry = await service.view(where, id, (other) => `#${kind.route}/id=${encodeURIComponent(other)}`);
+    const entry = await service.view(where, id, (other) => reviewHref(where.context, `#${kind.route}/id=${encodeURIComponent(other)}`));
     if (!entry) {
-      target.append(el("p", "problem", `No ${kind.noun} ${id} on the default branch.`), link(`#${kind.route}`, null, `All ${kind.plural}`));
+      target.append(el("p", "problem", `No ${kind.noun} ${id} on the default branch.`), reviewLink(where.context, `#${kind.route}`, null, `All ${kind.plural}`));
       return;
     }
     if (entry.shown) shownTicksOf(where.context).set(id, entry.shown[0]);
     target.append(el("h2", null, entry.title), badge(entry.status, entry.label),
       ...(entry.status === "approved" ? [el("p", "approved-note", APPROVED_NOTE)] : []), explain(kind.explain.one), ...entry.nodes);
-    if (entry.edit) target.append(link(`#${kind.route}/id=${encodeURIComponent(id)}/edit=1`, "edit-link", "Edit"));
+    if (entry.edit) target.append(reviewLink(where.context, `#${kind.route}/id=${encodeURIComponent(id)}/edit=1`, "edit-link", "Edit"));
     offerEntryAcceptance(where, id, entry);
     // Beside Accept, Reject, for every entry that is not decided — open, stale or waiting for its anchor (UC-006 4a).
     if (entry.shown && service.reject) target.append(rejectOffer(where, id, entry.shown[0]));
@@ -592,7 +592,7 @@ export function reviewRoute(kind) {
     const { target, snapshot, token, host } = where;
     const file = files(snapshot).find((candidate) => candidate.id === id);
     if (!file) {
-      target.append(el("p", "problem", `No ${kind.noun} ${id} on the default branch.`), link(`#${kind.route}`, null, `All ${kind.plural}`));
+      target.append(el("p", "problem", `No ${kind.noun} ${id} on the default branch.`), reviewLink(where.context, `#${kind.route}`, null, `All ${kind.plural}`));
       return;
     }
     const body = await snapshot.read(file.path);
@@ -615,7 +615,7 @@ export function reviewRoute(kind) {
     }
     target.append(file.status === "changed" ? el("section", "rendered", el("h3", null, "The file as it will be accepted"), renderArtifact(shortBody(body))) : renderArtifact(shortBody(body)));
     if (kind.save === "file" && (token || parseServer(where.context) !== "gitlab")) {
-      target.append(link(`#${kind.route}/id=${encodeURIComponent(file.id)}/edit=1`, "edit-link", "Edit"));
+      target.append(reviewLink(where.context, `#${kind.route}/id=${encodeURIComponent(file.id)}/edit=1`, "edit-link", "Edit"));
     }
     if (kind.draft && file.status !== "accepted") {
       const notes = await jobNotes(snapshot, file.id, file.path);
