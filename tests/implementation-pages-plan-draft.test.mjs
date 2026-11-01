@@ -27,6 +27,10 @@
 //   - *+ Step* is a `button` of type `button` with the class `btn` and the attribute `data-add-step`, beside *Draft the plan*. The person's click adds an empty step, in a box as a drafted step has,
 //     with the same fields, moves and diagram; where no plan is being edited, it opens one written by hand. A click by a script adds nothing.
 //   - A plan written by hand adds its steps to the plan of the default branch read at the click: its steps follow that plan's in the order, and no step of it is removed.
+// The findings of the plan written by hand and the link of a cycle's finding (ITM-1368), as UC-045 2a and 3a state them — "the check of step 3 runs when they press **Save plan**", "Agent M names the
+// modules of the cycle and links to UC-023 to change the architecture" — and MOD-work-plans' savePlan ("`planFindings` first, and with an error finding nothing is written"). Readings the texts leave open:
+//   - A step typed without the level of its tests is a step whose tests are not named; a step typed without a phase is a step the order does not place. The page shows what planFindings finds on them.
+//   - "links to UC-023 to change the architecture" is read as the link to the page of the architecture, #arc, with the product kept in the `/product=` form, beside each finding of a cycle.
 // Each test states its input and its expected result before it runs (given / input / expect). The counter-proofs are recorded in the pull request.
 
 import test, { afterEach } from "node:test";
@@ -95,8 +99,8 @@ const ARCHITECTURE = {
 const USE_CASE = "docs/use-cases/UC-001-load.md";
 
 // A V-model product without a plan, whose architecture and use case are accepted: an approval record names the current blob of each.
-function productFiles() {
-  const files = { "SPEC.md": "# Fixture\n", "docs/process.md": DECLARATION, [USE_CASE]: "# UC-001 load\n", ...ARCHITECTURE };
+function productFiles(architecture = ARCHITECTURE) {
+  const files = { "SPEC.md": "# Fixture\n", "docs/process.md": DECLARATION, [USE_CASE]: "# UC-001 load\n", ...architecture };
   for (const path of Object.keys(files).filter((each) => each === USE_CASE || each.startsWith("docs/architecture/"))) {
     files[`docs/approvals/${/(ARC-\d+|MOD-[a-z]+|UC-\d+)/.exec(path)[1]}-${blobOf(files[path]).slice(0, 12)}.md`] = "kind: record\n";
   }
@@ -405,4 +409,86 @@ test("steps written by hand are moved with the drafted steps' check of the order
   await click(one(stepBox(page, "Writer"), "[data-step-up]"));
   assert.deepEqual(titles(page), ["Loose", "Reader", "Writer"], "the move is refused: the order stays");
   assert.match(classed(one(page.target, "[data-draft-refused]"), "error").map(textOf).join(" "), /MOD-writer is ordered before MOD-reader, whose interface it uses/);
+});
+
+// ---------------------------------------------------------------- the findings of a plan written by hand, and the link of a cycle (ITM-1368)
+
+const PAGE_ERRORS = /TypeError|DocumentError|Cannot read/;
+// The person's Save plan of a plan written by hand with the given steps, and the page's answer waited for.
+async function handSaved(steps) {
+  const page = await render();
+  await byHand(page, steps);
+  await click(buttons(page.target, "Save plan")[0]);
+  await waitFor(() => /not saved|Saved the plan/.test(textOf(one(page.target, "[data-plan-saved]"))));
+  return page;
+}
+const withStep = (title, change) => DRAFT.steps.map((step) => (step.title === title ? { ...step, ...change } : step));
+
+// TST-1368001 · level: unit · module: MOD-implementation-pages
+// guards: UC-045; A PLAN STEP NAMES THE TESTS OF ITS LEVEL; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
+// given: the V-model fixture without a plan; the planner adds by hand the five steps of DRAFT, with the level of the tests of Reader left empty; known positive: the same plan with the level "component" for Reader, a level of another step
+// input: the person's click on Save plan
+// expect: nothing is written; the page says the plan is not saved and shows an error that names the rule [A PLAN STEP NAMES THE TESTS OF ITS LEVEL]; the text of the page holds no "TypeError", "DocumentError" or "Cannot read"; the steps stay as typed and Save plan is offered again; known positive: the level of another step gives a finding of the same rule
+// Planted fault (counter-proof): an ownStep that reads the first letter of the empty level fails with the TypeError on the page; a save that leaves the finding out writes the plan.
+test("a plan written by hand with a step without the level of its tests shows the finding of planFindings, not an error of the page", async () => {
+  const other = await handSaved(withStep("Reader", { level: "component" }));
+  assert.match(classed(one(other.target, "[data-plan-saved]"), "error").map(textOf).join(" "), /\[A PLAN STEP NAMES THE TESTS OF ITS LEVEL\]/, "known positive: a level of another step is a finding");
+  const page = await handSaved(withStep("Reader", { level: "" }));
+  const result = one(page.target, "[data-plan-saved]");
+  assert.deepEqual(planCommits(page), [], "nothing is written");
+  assert.ok(!page.calls.includes("commitFiles"), "the host is asked for no commit");
+  assert.match(textOf(result), /not saved/);
+  assert.match(classed(result, "error").map(textOf).join(" "), /\[A PLAN STEP NAMES THE TESTS OF ITS LEVEL\]/);
+  assert.doesNotMatch(textOf(page.target), PAGE_ERRORS, "no error of the page reaches the planner");
+  assert.deepEqual(titles(page), DRAFT.steps.map((step) => step.title), "the steps stay as typed");
+  assert.equal(buttons(page.target, "Save plan")[0].disabled, false, "Save plan is offered again");
+});
+
+// TST-1368002 · level: unit · module: MOD-implementation-pages
+// guards: UC-045; THE MODEL DETERMINES THE PHASES AND THE GATES; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
+// given: the V-model fixture without a plan; the planner adds by hand the five steps of DRAFT, with the phase of Reader left empty; known positive: the same plan with the phase "Nowhere", which the model lacks
+// input: the person's click on Save plan
+// expect: nothing is written; the page says the plan is not saved and shows an error that names the rule [THE MODEL DETERMINES THE PHASES AND THE GATES]; the text of the page holds no "TypeError", "DocumentError" or "Cannot read"; the steps stay as typed and Save plan is offered again; known positive: a phase the model lacks gives a finding of the same rule
+// Planted fault (counter-proof): a save that writes the order's row with the empty phase fails with the DocumentError on the page; a save that leaves the finding out writes the plan.
+test("a plan written by hand with a step without a phase shows the finding of planFindings, not an error of the page", async () => {
+  const other = await handSaved(withStep("Reader", { phase: "Nowhere" }));
+  assert.match(classed(one(other.target, "[data-plan-saved]"), "error").map(textOf).join(" "), /\[THE MODEL DETERMINES THE PHASES AND THE GATES\]/, "known positive: a phase the model lacks is a finding");
+  const page = await handSaved(withStep("Reader", { phase: "" }));
+  const result = one(page.target, "[data-plan-saved]");
+  assert.deepEqual(planCommits(page), [], "nothing is written");
+  assert.ok(!page.calls.includes("commitFiles"), "the host is asked for no commit");
+  assert.match(textOf(result), /not saved/);
+  assert.match(classed(result, "error").map(textOf).join(" "), /\[THE MODEL DETERMINES THE PHASES AND THE GATES\]/);
+  assert.doesNotMatch(textOf(page.target), PAGE_ERRORS, "no error of the page reaches the planner");
+  assert.deepEqual(titles(page), DRAFT.steps.map((step) => step.title), "the steps stay as typed");
+  assert.equal(buttons(page.target, "Save plan")[0].disabled, false, "Save plan is offered again");
+});
+
+// TST-1368003 · level: unit · module: MOD-implementation-pages
+// guards: UC-045; MODULES DEPEND ON EACH OTHER WITHOUT A CYCLE
+// given: the V-model fixture in which MOD-reader uses MOD-writer's interface and MOD-writer uses MOD-reader's; ep1 answers the draft DRAFT; the product is acme/product, the instance acme/agent-m
+// input: the person's click on Draft the plan and Run; then on Save plan
+// expect: the draft shows the finding of the cycle, naming MOD-reader and MOD-writer, as a list item that holds one link, to #arc/product=https%3A%2F%2Fgithub.com%2Facme%2Fproduct — the page of the architecture, the product kept; no list item that is no finding of a cycle holds a link; after Save plan the page says the plan is not saved, and the finding of the cycle there carries the link too
+// Planted fault (counter-proof): a finding drawn as text only fails the link; a link on every finding fails the list item it must not stand in; a link without the product fails its address.
+test("a finding of a cycle in the modules' uses carries a link to the architecture, the product kept", async () => {
+  const cycle = { ...ARCHITECTURE, "docs/architecture/MOD-reader.md": module_("MOD-reader", ["MOD-writer.read"]) };
+  const page = await render(productFiles(cycle));
+  answering(DRAFT);
+  await drafted(page);
+  const ARC = "#arc/product=https%3A%2F%2Fgithub.com%2Facme%2Fproduct";
+  const linksIn = (line) => walk(line, (node) => node.localName === "a").map((link) => link.getAttribute("href"));
+  const linked = (root) => walk(root, (node) => node.localName === "li" && linksIn(node).length > 0);
+  const cycles = (root) => walk(root, (node) => node.localName === "li" && /form a cycle/.test(textOf(node)));
+  const draft = one(page.target, "[data-plan-draft]");
+  assert.ok(cycles(draft).length > 0, `known positive: the cycle is named — ${textOf(draft)}`);
+  assert.match(textOf(cycles(draft)[0]), /MOD-reader/);
+  assert.match(textOf(cycles(draft)[0]), /MOD-writer/);
+  for (const line of cycles(draft)) assert.deepEqual(linksIn(line), [ARC], "the finding of the cycle links to the architecture");
+  assert.deepEqual(linked(draft).filter((line) => !cycles(draft).includes(line)).map(textOf), [], "no other finding carries a link");
+  await click(buttons(page.target, "Save plan")[0]);
+  await waitFor(() => /not saved/.test(textOf(one(page.target, "[data-plan-saved]"))));
+  const refused = one(page.target, "[data-plan-saved]");
+  assert.ok(cycles(refused).length > 0, `the refusal names the cycle — ${textOf(refused)}`);
+  for (const line of cycles(refused)) assert.deepEqual(linksIn(line), [ARC]);
+  assert.deepEqual(linked(refused).filter((line) => !cycles(refused).includes(line)).map(textOf), [], "no other finding of the refusal carries a link");
 });
