@@ -3,7 +3,7 @@
 // sprint without a time box, the one write of this route, on the person's click; for one that has ended, that its review and retrospective are not recorded yet; a team without a running sprint says so, and links its
 // planning and the backlog; then the workflow's gates, what is blocked among the items the running sprints hold, and who works on what, each current job linked to its page on the
 // job dashboard. For a model without sprints it draws the model's measure from progressIn of the view: a planned model's grid of requirements by phases with the timeline and the steps of the plan, or the board's cards
-// with the cumulative flow; each cell, card and chart leads to the trace page of the specification; a model for which progressIn gives neither grid, sprints nor flow keeps its link to the backlog. What it draws is MOD-progress-measures'
+// with the cumulative flow; each cell, card and chart leads to the trace page of what is behind it (UC-035 step 6); a model for which progressIn gives neither grid, sprints nor flow keeps its link to the backlog. What it draws is MOD-progress-measures'
 // ProgressView of the head, stored for its commit on the branch overview-cache (storedView): the route reads no record, no facts and no pull request, and names no first wave;
 // while the head's view is not stored yet, it draws the view stored last, with the line naming its commit, and only where the repository stores no view does it derive the same
 // view in the page (progressView, from the facts of the scope `work`) — nothing it shows is a stored status (PROGRESS AND JOB STATE ARE DERIVED, NOT STORED). Every part explains
@@ -15,9 +15,14 @@
 // Readings the texts leave open, which this file takes: a running sprint whose time box is over, or that the Product Owner ended, and whose close is not recorded yet has ended: its
 // panel says so and draws no chart (the route draws no final burn-down); a job's page on the job dashboard is MOD-main-page's route `job` on the main page, which the
 // review pages reach at ../index.html; a running sprint's burn-down is drawn from the sprint's start and the merges of its done items, as the view holds them, one point for each day from its start to today in UTC, each the items left at that day's end; End sprint is offered on the
-// head's own view only; the trace page of what is behind a cell, a card or a chart is the route `trace` of the specification at the branch shown, since that route takes no part naming one
-// requirement or item; a chart's points are reached by one link under it; where the view is derived in the page, the requirements are those of the product's SPEC, which the facts of the scope `work` do not carry.
+// head's own view only; what is behind a cell of the grid is its requirement, behind a card the requirements and use cases its item realises, behind a point those of the items
+// merged — a chart's points are reached by one link under it, so behind it stand the items the chart counts as merged: the board's done items, or the sprint's merged items in
+// the order of their merges —, and a card or point with several leads to the first of them; the trace page of a requirement is the route `trace` of the specification at the
+// branch shown, narrowed to it by the part `text`, and the page of a use case the review pages' `use-case`, as the trace page links a use case; an item's file is read only on
+// the click, from the snapshot the page has read, and the click goes there through the frame (`go`); where nothing is found behind it, or the item cannot be read, it leads to the
+// specification at the branch shown; where the view is derived in the page, the requirements are those of the product's SPEC, which the facts of the scope `work` do not carry.
 
+import { artifactSchemas, readDocument } from "../documents/index.mjs";
 import { renderArtifact, renderMermaid } from "../markdown-render/index.mjs";
 import { productFacts, progressView, storedView } from "../progress-measures/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
@@ -154,10 +159,10 @@ async function viewOf(context) {
   const ref = product.ref ?? (await product.host.repositoryInfo()).defaultBranch;
   const shots = new Map([[ref, product.host.readSnapshot(ref)]]);
   const stored = await storedView(await shots.get(ref), "progress");
-  if (stored) return { ref, view: stored.view, asOf: stored.asOf };
+  if (stored) return { ref, view: stored.view, asOf: stored.asOf, snapshot: shots.get(ref) };
   const { facts } = await workFacts({ ...context, product: { ...product, ref } }, null, shots);
   const requirements = [...parseSpec((await facts.snapshot.read("SPEC.md")) ?? "").requirements.keys()];
-  return { ref, view: progressView({ ...facts, requirements }, new Date()), asOf: null };
+  return { ref, view: progressView({ ...facts, requirements }, new Date()), asOf: null, snapshot: shots.get(ref) };
 }
 
 // The line above a view stored for another commit than the head.
@@ -193,7 +198,9 @@ function teamPanel(context, ctx, { team, sprint }) {
   const close = sprint.final ? `<p class="muted">It ended on ${h(sprint.ended ?? "")}; its review and retrospective are not recorded yet.</p>` : "";
   const endable = sprint.endable && ctx.asOf === null;
   const drawn = (ctx.view.measure?.sprints ?? []).find((each) => each.team === team)?.burnDown?.length > 0;
-  const chart = sprint.final ? "" : drawn ? chartBlock(team, sprint.name, remainingPerDay(sprint.items.map((each) => each.item), mergedAtOf(sprint.merges), sprint.start))
+  const merged = [...(sprint.merges ?? [])].sort((a, b) => text(a.at).localeCompare(text(b.at))).map((merge) => merge.item);
+  const points = merged.length ? `<p class="small">${behindLink(ctx.ref, merged, "data-point", "The trace of the items behind the chart")}</p>` : "";
+  const chart = sprint.final ? "" : drawn ? `${chartBlock(team, sprint.name, remainingPerDay(sprint.items.map((each) => each.item), mergedAtOf(sprint.merges), sprint.start))}${points}`
     : `<p class="muted">No burn-down yet: the sprint starts on ${h(sprint.start)}.</p>`;
   return `<section class="panel" data-team="${h(team)}"><h3>${h(team)} — sprint ${fileLink(context, ctx.ref, sprint.path, h(sprint.name))}</h3>
     <dl class="meta"><dt>Goal</dt><dd>${h(sprint.goal)}</dd><dt>Started</dt><dd>${h(sprint.start)}</dd>
@@ -250,8 +257,28 @@ function whoPanel(context, ctx) {
       "linked to its page on the job dashboard, where its log, cost and state stand (UC-035 step 5, UC-036; book ch. 15).</p>")}</section>`;
 }
 
-// The trace page of what is behind a cell, a card or a chart: the specification at the branch shown, where a requirement's trace opens.
-const traceHref = (ref) => `#trace/key=specification/ref=${encodeURIComponent(ref)}`;
+// The page of what is behind a cell, a card or a point (UC-035 step 6), as the frame's route and params: a requirement's trace — the specification at the branch shown, narrowed
+// to it by the part `text` —, a use case's page, or, where nothing is named, the specification at the branch shown; and its address.
+const behind = (ref, name = null) => (name === null ? ["trace", { key: "specification", ref }] : /^UC-/.test(name) ? ["use-case", { id: name }]
+  : ["trace", { key: "specification", ref, text: name }]);
+const hrefOf = ([route, params]) => `#${[route, ...Object.entries(params).map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)].join("/")}`;
+const traceHref = (ref, name = null) => hrefOf(behind(ref, name));
+
+// A link to what is behind the items `items`, a card's or a chart's: the specification at the branch shown until the click finds the first requirement or use case they realise.
+const behindLink = (ref, items, attributes, label) => `<a ${attributes} data-behind="${h(items.join(" "))}" href="${h(traceHref(ref))}">${label}</a>`;
+
+// The first requirement or use case the first of `items` that realises one realises, read from the items' files in the snapshot the page has read; the specification where none does.
+async function firstBehind(ctx, items) {
+  const snapshot = await ctx.snapshot;
+  for (const id of items) {
+    const path = snapshot.paths.find((each) => each === `docs/backlog/${id}.md` || (each.startsWith(`docs/backlog/${id}-`) && each.endsWith(".md") && !each.slice(13).includes("/")));
+    if (!path) continue;
+    const realises = readDocument(artifactSchemas().item, path, (await snapshot.read(path)) ?? "").fields.realises;
+    const first = [realises ?? []].flat().map(text).find(Boolean);
+    if (first) return behind(ctx.ref, first);
+  }
+  return behind(ctx.ref);
+}
 
 const WHY_MEASURE = whatIsThis("<p>Each process model names the measure its progress is shown in: plan entries per phase, remaining items per time box, " +
   "or items per state over time (UC-035; book ch. 15 §2–3). A cell or a card leads to the trace of what is behind it. A grid cell that stays open " +
@@ -264,7 +291,7 @@ function plannedPanel(ctx, planned) {
   const requirements = [...new Set(planned.grid.entries.map((entry) => entry.requirement))];
   const cell = (requirement, phase) => {
     const entry = planned.grid.entries.find((each) => each.requirement === requirement && each.phase === phase);
-    return `<td data-label="${h(phase)}">${entry ? `<a data-cell data-requirement="${h(requirement)}" data-phase="${h(phase)}" class="badge ${BADGE[entry.state] ?? "b-stale"}" href="${h(traceHref(ctx.ref))}">${h(entry.state)}</a>` : "—"}</td>`;
+    return `<td data-label="${h(phase)}">${entry ? `<a data-cell data-requirement="${h(requirement)}" data-phase="${h(phase)}" class="badge ${BADGE[entry.state] ?? "b-stale"}" href="${h(traceHref(ctx.ref, requirement))}">${h(entry.state)}</a>` : "—"}</td>`;
   };
   const grid = requirements.length
     ? `<p class="muted small">${h(planned.grid.count)}</p><div class="table-scroll" tabindex="0"><table class="list"><thead><tr><th>Requirement</th>${phases.map((phase) => `<th>${h(phase)}</th>`).join("")}</tr></thead><tbody>${
@@ -290,10 +317,10 @@ function flowChart(flow) {
 function flowPanel(ctx, flow) {
   const columns = flow.columns.filter((column) => column.items.length);
   const board = columns.length ? `<div class="table-scroll" tabindex="0"><table class="list"><thead><tr>${columns.map((column) => `<th>${h(column.name)}</th>`).join("")}</tr></thead><tbody><tr>${
-    columns.map((column) => `<td data-column="${h(column.name)}">${column.items.map((id) => `<a data-card="${h(id)}" class="btn" href="${h(traceHref(ctx.ref))}">${h(id)}</a>`).join(" ")}</td>`).join("")}</tr></tbody></table></div>`
+    columns.map((column) => `<td data-column="${h(column.name)}">${column.items.map((id) => behindLink(ctx.ref, [id], `data-card="${h(id)}" class="btn"`, h(id))).join(" ")}</td>`).join("")}</tr></tbody></table></div>`
     : `<p class="muted">The board holds no item.</p>`;
   const chart = flowChart(flow);
-  return `<p>Work-in-progress limit: ${h(flow.wip)}.</p>${board}${chart ? `${chart}<p class="small"><a data-point href="${h(traceHref(ctx.ref))}">The trace of the items behind the chart</a></p>`
+  return `<p>Work-in-progress limit: ${h(flow.wip)}.</p>${board}${chart ? `${chart}<p class="small">${behindLink(ctx.ref, flow.columns.find((column) => column.name === "done")?.items ?? [], "data-point", "The trace of the items behind the chart")}</p>`
     : `<p class="muted">No cumulative flow yet: the pull requests are unknown or no day is dated.</p>`}`;
 }
 
@@ -329,6 +356,15 @@ async function draw(target, context) {
     ${teamsPart}
     ${model ? `${gatesPanel(context, ctx)}${blockedPanel(ctx, sprints)}${whoPanel(context, ctx)}` : ""}`;
   await drawCharts(target);
+
+  // A card or a chart's link: on the person's click, the first requirement or use case behind it, read then; where its items cannot be read, the specification.
+  target.querySelectorAll("[data-behind]").forEach((link) => link.addEventListener("click", async (event) => {
+    if (event?.isTrusted === false) return;
+    event?.preventDefault?.();
+    const items = (link.getAttribute("data-behind") ?? "").split(" ").filter(Boolean);
+    const [to, params] = await firstBehind(ctx, items).catch(() => behind(ctx.ref));
+    context.go(to, params);
+  }));
 
   target.querySelectorAll("[data-end-sprint]").forEach((button) => button.addEventListener("click", async (event) => {
     if (event?.isTrusted === false) return;
