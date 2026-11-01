@@ -18,6 +18,7 @@
 // Each test states its input and its expected result before it runs. The counter-proofs are recorded in the pull request.
 
 import "./site-frame-dom.mjs";
+import { until } from "./review-pages-wait.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -148,13 +149,6 @@ function find(root, match) {
 }
 const byClass = (root, name, className) => find(root, (node) => node.localName === name && node.className.split(" ").includes(className));
 const click = (node) => node.dispatchEvent(Object.defineProperty(new Event("click"), "isTrusted", { value: true }));
-async function until(condition, what) {
-  for (let turn = 0; turn < 400; turn++) {
-    if (condition()) return;
-    await new Promise((resolve) => setImmediate(resolve));
-  }
-  assert.fail(`waited for ${what}`);
-}
 const filesOf = (target) => byClass(target, "section", "review-file").map((section) => section.getAttribute("data-id"));
 const fileOf = (target, id) => byClass(target, "section", "review-file").find((section) => section.getAttribute("data-id") === id);
 const shelfRecords = (paths) => paths.filter((path) => path.startsWith("docs/approvals/MOD-shelf-"));
@@ -188,13 +182,13 @@ test("MOD-review-pages decision/all — a removed module file with its impact li
   assert.equal(byClass(target, "button", "accept-all")[0].textContent, "Accept all 3 shown");
 
   click(byClass(target, "button", "accept-all")[0]);
-  await until(() => fake.writes().length === 1, "the commit");
+  await until(target, () => fake.writes().length === 1, "the commit");
   const [{ change }] = fake.writes();
   assert.equal(change.expectedHead, read, "on the head that was read");
   assert.deepEqual(change.files.map((file) => [file.path, file.text]), [
     accepted("ARC-002", "architecture-decision", A(2, "desk"), ARC2), accepted("MOD-counter", "module", M("counter"), MOD_COUNTER),
     recordOf("MOD-shelf", "module", M("shelf"), EMPTY)]);
-  await until(() => byClass(target, "p", "nothing").length === 1, "the page drawn again");
+  await until(target, () => byClass(target, "p", "nothing").length === 1, "the page drawn again");
   assert.deepEqual(filesOf(target), []);
 });
 

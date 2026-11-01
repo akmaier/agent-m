@@ -16,6 +16,7 @@
 // The test states its input and its expected result before it runs. The counter-proof is recorded in the pull request.
 
 import "./site-frame-dom.mjs";
+import { until } from "./review-pages-wait.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -131,13 +132,6 @@ function find(root, match) {
 }
 const byClass = (root, name, className) => find(root, (node) => node.localName === name && node.className.split(" ").includes(className));
 const click = (node) => node.dispatchEvent(Object.defineProperty(new Event("click"), "isTrusted", { value: true }));
-async function until(condition, what) {
-  for (let turn = 0; turn < 400; turn++) {
-    if (condition()) return;
-    await new Promise((resolve) => setImmediate(resolve));
-  }
-  assert.fail(`waited for ${what}`);
-}
 // The line "Items — …" of the impact list: a <p class="small"> child of the section, not one under a module.
 const itemsLine = (impact) => impact.childNodes.filter((node) => node.nodeType === 1 && node.localName === "p" && node.textContent.startsWith("Items")).map((node) => node.textContent);
 
@@ -156,8 +150,8 @@ test("module/<id> — after Accept the affected modules are listed, each with th
 
   const [accept] = byClass(target, "button", "accept");
   click(accept);
-  await until(() => fake.writes.length === 1 && byClass(target, "p", "result").length > 0, "the commit and the page drawn again");
-  await until(() => byClass(target, "section", "affected-modules").length === 1, "the list of the affected modules");
+  await until(target, () => fake.writes.length === 1 && byClass(target, "p", "result").length > 0, "the commit and the page drawn again");
+  await until(target, () => byClass(target, "section", "affected-modules").length === 1, "the list of the affected modules");
   const [listed] = byClass(target, "section", "affected-modules");
   assert.deepEqual(find(listed, (node) => node.localName === "li").map((node) => [node.getAttribute("data-id"), node.textContent]),
     [["MOD-desk", "MOD-desk — ITM-902"], ["MOD-sync", "MOD-sync — ITM-901"]]);
