@@ -63,6 +63,7 @@ const FLOW_EVIDENCE = {
   "main-1-close-job": { uc: "An agent's close job starts by itself", evidence: [[SELF, "TST-991207"]] },
   "main-1-by-itself": { uc: "An agent's close job starts by itself — no click.", evidence: [[PY, "TST-991403"], [SCHEDULE, "TST-1032101"], [BRIDGE, "TST-1033001"]] },
   "main-2-done": { uc: "the items that are done — merged, with their Definition of Done met — each with its pull request, the requirements it realises and the tests that guard them", evidence: [[SELF, "TST-991202"], [WRITER, "TST-620001"], [FACTS, "TST-986001"]] },
+  "main-2-not-done": { uc: "the items not done, each with its state and reason (UC-034)", evidence: [[SELF, "TST-991203"]] },
   "main-2-increment": { uc: "The increment is the set of done items", evidence: [[SELF, "TST-991202"], [FACTS, "TST-986006"]] },
   "main-3-sources": { uc: "the issues and mails that arrived during the sprint, the job records, the test results —, naming each source", evidence: [[SELF, "TST-991204"], [PY, "TST-991404"]] },
   "main-3-lines": { uc: "one line per point, each either *new backlog item*, *change to an existing item*, or *noted*", evidence: [[SELF, "TST-991204"]] },
@@ -90,7 +91,6 @@ const FLOW_EVIDENCE = {
 };
 // The passages the code does otherwise: the finding, its case, and the module it points to.
 const FLOW_FINDINGS = {
-  "main-2-not-done": { uc: "the items not done, each with its state and reason (UC-034)", finding: "UC041-F3", file: SELF, test: "TST-991203", module: "MOD-work-plans" },
   "main-5-as-proposal": { uc: "is written as a proposal that a person accepts", finding: "UC041-F4", file: RELEASE, test: "TST-991306", module: "MOD-work-plans" },
 };
 
@@ -161,8 +161,8 @@ test("TST-991202: UC-041 1, 2, 4, 6 an ended sprint waits for its review on Prog
 // guards: UC-041; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
 // given: the product of TST-991202: ITM-002, selected for team1/02, realises RULE ONE, which the SPEC holds; its pull request is open and its job failed
 // input: the Product Owner reads ITM-002's row on Progress; the recipe sprint-facts derives the facts the closer is sent
-// expect: known positive — Progress draws ITM-002 as blocked, its job failed; the facts name ITM-002 not done with the same state, blocked, and a reason that names the failed job, never "waiting for acceptance"; FINDING UC041-F3 (MOD-work-plans): the recipe gives itemStates the approval statuses alone, without the requirements the SPEC holds, so every item that realises a requirement and is not done is sent as "waiting for acceptance — <requirement> is not accepted"
-test("TST-991203: UC-041 2 the items not done reach the closer with the state and reason the pages derive", { todo: "FINDING UC041-F3 (MOD-work-plans): the recipe sprint-facts derives the items' states from statuses(snapshot) alone, without the SPEC's requirements, so a not-done item that realises an accepted requirement is sent as waiting for acceptance" }, async () => {
+// expect: known positive — Progress draws ITM-002 as blocked, its job failed; the facts name ITM-002 not done with the same state, blocked, and a reason that names the failed job, never "waiting for acceptance"
+test("TST-991203: UC-041 2 the items not done reach the closer with the state and reason the pages derive", async () => {
   const w = await closeWorld();
   const pages = await pagesOf(w.files);
   assert.match(pages.progress, /ITM-002 The work of item 2 blocked job \S+ is failed/, "known positive: Progress draws ITM-002 blocked by its failed job");
