@@ -385,8 +385,12 @@ export async function until(condition, what) {
 
 /** The context a page of the dashboard is drawn with: the instance's repository and host, the browser's store holding the person's token for the product, and the product chosen. */
 export function pageContext(w) {
+  // The tab shows the instance's Pages address, from which MOD-runtimes' queueJob opens the browser's store of the instance.
+  globalThis.location = { hostname: "akmaier.github.io", pathname: "/agent-m/", origin: "https://akmaier.github.io", href: "https://akmaier.github.io/agent-m/" };
   const store = openStore(INSTANCE_REPO);
   writeSetting(store, "github-token:alice/thesis-tool", PRODUCT_TOKEN);
+  // The endpoint of the CI agent ci-bot, as the Endpoints page stores it under `endpoint:<name>`; queueJob puts its address and model into the start of a job on the CI route. No key: the key is the secret FIXTURE_KEY.
+  writeSetting(store, "endpoint:ci-bot", { kind: ENDPOINT.kind, url: ENDPOINT.baseUrl, model: ENDPOINT.model });
   const real = w.dashboardHost();
   // A page reads the trace graph that the push job stores for the commit (MOD-trace-graph), which the fixture serves for every snapshot.
   const host = { ...real, readSnapshot: async (ref) => withStoredGraph(await real.readSnapshot(ref)) };
