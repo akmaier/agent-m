@@ -2,7 +2,7 @@
 // wrote, the notes of that job's end record" (`<k>/<id>`), "the rounds of the job that drafted them" (`<k>/all`), and, among its Uses, "MOD-job-ledger.recordsNewestFirst — the record of
 // the job that drafted a file, with its rounds, read newest first and no further than that record"; with UC-007 steps 4a and 4b and UC-022 step 8, and the SPEC's A PAGE LOAD READS THE
 // REPOSITORY IN BATCHES. The records of a product are 300; the page of an open use case written by the third-newest job reads the records down to that job, and #decision/all, with a
-// drafting job of the architecture among the ten newest, reads at most ten.
+// drafting job of the architecture among the ten newest, reads the first batch of the hundred newest only.
 // Run: node --test tests/review-pages-job-notes-one-record.test.mjs
 //
 // Module: MOD-review-pages
@@ -15,7 +15,8 @@
 //   - "the job that wrote the file" is read as the job whose end record lists `file <path>` for the path of the file shown (what MOD-runtimes' end writes for the files a writer committed).
 //     A file that no end lists is looked for through all records, and shows the notes of every end that name it, as before.
 //   - "reads the records down to that job" and A PAGE LOAD READS THE REPOSITORY IN BATCHES ("the texts of the files it shows in requests of at most 100 files each") are read together: the records are asked for newest
-//     first in batches (`readMany`), the first of the ten newest, each further one of at most 100, and the search stops after the batch that holds the job's record. No record of a later batch is asked for.
+//     first in batches (`readMany`) of at most 100, and the search stops after the batch that holds the job's record. No record of a later batch is asked for. "Reads no record older than it" and "at most ten" are
+//     read at that granularity: the batch of the hundred newest records holds the job.
 //   - The job that drafted the architecture is read as the newest record of kind derive-architecture that has an end, as the page reads it now.
 
 import "./site-frame-dom.mjs";
@@ -125,7 +126,7 @@ const newest = (all, n) => Object.keys(all).filter(isJob).sort().reverse().slice
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-007
 // given: a product with 300 job records, the use case UC-001 open, written by the third-newest job — whose end lists the file and a note naming UC-001 and one naming UC-002 — and a job at 100 that wrote it earlier, with a note of its own
 // input: the route use-case rendered with the id UC-001
-// expect: the notes section holds the third-newest job's note on UC-001, and no note of the older job, none naming UC-002 (known positive: the notes are shown); the job records are asked for in one batch holding the ten newest, and no record outside it is read
+// expect: the notes section holds the third-newest job's note on UC-001, and no note of the older job, none naming UC-002 (known positive: the notes are shown); the job records are asked for in one batch holding the hundred newest, and no record outside it is read
 test("MOD-review-pages use-case/<id> — the notes of the job that wrote the file, read in a batch of the newest records", async () => {
   const all = jobs();
   const fake = fakeHost({ ...FILES, ...all });
@@ -137,15 +138,15 @@ test("MOD-review-pages use-case/<id> — the notes of the job that wrote the fil
   assert.ok(!notes[0].textContent.includes("UC-002"), "a note naming another file is not shown");
   const read = fake.readJobs();
   assert.ok(read.length >= 1, "known positive: the counting fake counts reads");
-  assert.deepEqual(fake.batches().map((each) => [...each].sort()), [newest(all, 10).sort()], "one batch, the ten newest records");
-  assert.deepEqual(read.filter((path) => !newest(all, 10).includes(path)), [], `no job record outside the ten newest is read; ${read.length} were`);
+  assert.deepEqual(fake.batches().map((each) => [...each].sort()), [newest(all, 100).sort()], "one batch, the hundred newest records");
+  assert.deepEqual(read.filter((path) => !newest(all, 100).includes(path)), [], `no job record outside the hundred newest is read; ${read.length} were`);
 });
 
 // TST-1271002 · level: unit · module: MOD-review-pages
 // guards: UC-007
 // given: a product with 300 job records, of which no end lists the file UC-001, two ends holding a note that names it
 // input: the route use-case rendered with the id UC-001
-// expect: the notes of both ends that name UC-001, the newest job's first; a file that no job wrote is looked for through all 300 records, asked for newest first in batches of 10, 100, 100 and 90, none above 100
+// expect: the notes of both ends that name UC-001, the newest job's first; a file that no job wrote is looked for through all 300 records, asked for newest first in batches of 100, none above 100
 test("MOD-review-pages use-case/<id> — a file no job wrote is looked for through all records", async () => {
   const written = jobs();
   assert.ok(Object.values(written).some((body) => body.includes(`file ${UC1_PATH}`)), "known positive: the records list the file before it is taken out");
@@ -158,7 +159,7 @@ test("MOD-review-pages use-case/<id> — a file no job wrote is looked for throu
   const items = find(notes[0], (node) => node.localName === "li").map((node) => node.textContent);
   assert.deepEqual(items, [NEWEST_NOTE, OLDER_NOTE]);
   assert.equal(fake.readJobs().length, COUNT, "all records were looked through");
-  assert.deepEqual(fake.batches().map((each) => each.length), [10, 100, 100, 90], "in batches, the first of ten");
+  assert.deepEqual(fake.batches().map((each) => each.length), [100, 100, 100], "in batches of a hundred");
   assert.deepEqual(fake.batches().flat(), newest(all, COUNT), "each record once, newest first");
 });
 
@@ -168,7 +169,7 @@ test("MOD-review-pages use-case/<id> — a file no job wrote is looked for throu
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES; UC-022
 // given: a product with 300 job records, the job that drafted the architecture the 8th newest, with one round, and a token
 // input: the route decision rendered with the id all
-// expect: the rounds section shows the round of that job (known positive: it holds the finding's text); at most ten job records are read, all among the ten newest, asked for in one batch
+// expect: the rounds section shows the round of that job (known positive: it holds the finding's text); the job records read are among the hundred newest, asked for in one batch
 test("MOD-review-pages decision/all — the rounds of the drafting job, read in a batch of the newest records", async () => {
   const all = jobs({ archAt: COUNT - 8 });
   const fake = fakeHost({ ...FILES, ...all });
@@ -177,7 +178,7 @@ test("MOD-review-pages decision/all — the rounds of the drafting job, read in 
   assert.equal(rounds.length, 1, "known positive: the rounds are shown");
   assert.match(rounds[0].textContent, /ARC-001 names no way to return a book/);
   const read = fake.readJobs();
-  assert.ok(read.length >= 1 && read.length <= 10, `at most ten job records are read; ${read.length} were`);
-  assert.deepEqual(read.filter((path) => !newest(all, 10).includes(path)), [], "and all among the ten newest");
-  assert.deepEqual(fake.batches().map((each) => [...each].sort()), [newest(all, 10).sort()], "in one batch");
+  assert.ok(read.length >= 1 && read.length <= 100, `at most a hundred job records are read; ${read.length} were`);
+  assert.deepEqual(read.filter((path) => !newest(all, 100).includes(path)), [], "and all among the hundred newest");
+  assert.deepEqual(fake.batches().map((each) => [...each].sort()), [newest(all, 100).sort()], "in one batch");
 });

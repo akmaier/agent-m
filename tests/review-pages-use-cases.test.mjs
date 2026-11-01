@@ -568,7 +568,7 @@ test("MOD-review-pages use-case — nothing is written without the person's clic
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: a product whose `main` holds the four use cases and three job records under docs/jobs/, a token stored
 // input: the page of UC-041, which is open, rendered; and the page of UC-042, which is accepted
-// expect: the job records, which the notes of the job that wrote the use case are read from, are asked for newest first in batches, the first of the ten newest: with three records and none listing the use case, one batch (Snapshot.readMany) names all three, and each is then read, the newest first (known positive: the newest is read); an accepted use case's page asks for none
+// expect: the job records, which the notes of the job that wrote the use case are read from, are asked for newest first in batches of at most 100: with three records and none listing the use case, one batch (Snapshot.readMany) names all three, and each is then read, the newest first (known positive: the newest is read); an accepted use case's page asks for none
 test("MOD-review-pages use-case/<id> — the job records an open file's notes are read from are read in one batch, newest first", async () => {
   assert.ok(route, `the route use-case: ${pages.error?.message}`);
   const jobs = ["JOB-20261001-1000-aaaa", "JOB-20261001-1100-bbbb", "JOB-20261001-1200-cccc"].map((name) => `docs/jobs/${name}.md`);
