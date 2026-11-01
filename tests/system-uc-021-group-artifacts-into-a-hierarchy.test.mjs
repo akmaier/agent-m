@@ -11,7 +11,7 @@
 // Level: system
 //
 // Authored by developer-sonnet-j (ITM-738), who implemented none of ITM-722, ITM-723, ITM-726, ITM-727 and ITM-737 and no UC-021 production behaviour.
-// Where the pages and UC-021 disagree the case follows UC-021 and is marked { todo } with the finding it reports (UC021-F2 to UC021-F5, named in FLOW_FINDINGS).
+// Where the pages and UC-021 disagree the case follows UC-021 and is marked { todo } with the finding it reports (UC021-F2, UC021-F3 and UC021-F5, named in FLOW_FINDINGS).
 // Each test states its input and its expected values in its own text; none reads an expected result from the SPEC, a use case or an architecture file, but the flow map (TST-738001), which holds the expected passages itself
 // and checks that UC-021 still says them. A person's click is the page's own listener called with a trusted event; a script's click is made by `scripted()`. Readings the texts leave open, which the cases state:
 //   - "an item or a group is moved by dragging it" is read as the drag events of the browser (dragstart on the item, drop on the group or on the tree), as the page listens to them.
@@ -65,9 +65,9 @@ const FLOW_EVIDENCE = {
   "5c-github": { uc: "*Save arrangement* puts the new group file on the clipboard and opens GitHub's editor at its path", evidence: [[SELF, "TST-738020"]] },
   "5c-gitlab": { uc: "On a GitLab product without a token, there is no save.", evidence: [[SELF, "TST-738021"]] },
   "main-1-tests-list": { uc: "or in the list of use cases, architecture elements, modules or tests, the author presses **Arrange**", evidence: [[SELF, "TST-738003"]] },
+  "main-3-from-group": { uc: "*moved UC-007 from \"Review\" to \"Approval\"*", evidence: [[SELF, "TST-738006"]] },
 };
 const FLOW_FINDINGS = {
-  "main-3-from-group": { uc: "*moved UC-007 from \"Review\" to \"Approval\"*", finding: "UC021-F4", file: SELF, test: "TST-738006" },
   "1b-tests": { uc: "**1b. The author asks a participant to propose an arrangement**", finding: "UC021-F5", file: SELF, test: "TST-738022" },
   "2b-delete": { uc: "**2b. The author deletes a group.**", finding: "UC021-F2", file: SELF, test: "TST-738012" },
   "3a-unknown-remove": { uc: "the author removes it or leaves it", finding: "UC021-F3", file: SELF, test: "TST-738015" },
@@ -189,14 +189,14 @@ test("TST-738004: UC-021 2 a group is created, an item or a group moved with Mov
 // guards: UC-021; A GROUP HOLDS ONE KIND OF ARTIFACT; AN ITEM HAS ONE PLACE IN ITS HIERARCHY
 // given: the arrangement of the use cases (Review: UC-041, UC-042; Derivation: UC-043, UC-099; UC-044 in no group)
 // input: + Group "Approval"; Move to … of UC-043 to Approval; Move to … of UC-043 to Review; + Group "UC-050"
-// expect: the pending changes stand beside the tree in the order they were made: "Add the group “Approval”", "Move UC-043 to “Approval”", "Move UC-043 to “Review”"; UC-043 stands once, in Review; the group titled by an identifier is refused with a reason that names the identifier and is no pending change; nothing is written
+// expect: the pending changes stand beside the tree in the order they were made: "Add the group “Approval”", "Move UC-043 from “Derivation” to “Approval”", "Move UC-043 from “Approval” to “Review”"; UC-043 stands once, in Review; the group titled by an identifier is refused with a reason that names the identifier and is no pending change; nothing is written
 test("TST-738005: UC-021 3 the pending changes are listed beside the tree, and the rules of the hierarchy are kept", async () => {
   const w = await grouped(withUseCaseGroups);
   const t = await arrangement(w, "use-cases");
   addGroup(t, "Approval");
   moveTo(itemOf(t, "UC-043")[0], "Approval");
   moveTo(itemOf(t, "UC-043")[0], "Review");
-  assert.deepEqual(pending(t), ["Add the group “Approval”", "Move UC-043 to “Approval”", "Move UC-043 to “Review”"]);
+  assert.deepEqual(pending(t), ["Add the group “Approval”", "Move UC-043 from “Derivation” to “Approval”", "Move UC-043 from “Approval” to “Review”"]);
   assert.equal(itemOf(t, "UC-043").length, 1, "an item has one place");
   assert.deepEqual(membersOf(groupOf(t, "Review")), ["UC-041", "UC-042", "UC-043"]);
   assert.deepEqual(membersOf(groupOf(t, "Approval")), []);
@@ -213,8 +213,8 @@ test("TST-738005: UC-021 3 the pending changes are listed beside the tree, and t
 // guards: UC-021
 // given: the arrangement of the use cases (Review: UC-041, UC-042; Derivation: UC-043, UC-099)
 // input: Move to … of UC-041 to Derivation
-// expect: UC-021 step 3, whose example of a pending change is "moved UC-007 from "Review" to "Approval"": the pending change of UC-041 names the group it was moved from (Review) and the group it was moved to (Derivation). FINDING: it reads "Move UC-041 to “Derivation”", without the group it left
-test("TST-738006: UC-021 3 a pending move names the group the item was moved from", { todo: "FINDING UC021-F4 — describe() (src/review-pages/arrange.mjs:64-72) words a move as `Move ${item} to ${where}` and keeps no origin: the move of MOD-group-document is { op: \"move\", item, to } (docs/architecture/MOD-group-document.md, GroupMove), which names no group the item leaves, so UC-021 step 3's `moved UC-007 from \"Review\" to \"Approval\"` is not what the list says — the page can read the origin from its own tree before it applies the move (MOD-review-pages)" }, async () => {
+// expect: UC-021 step 3, whose example of a pending change is "moved UC-007 from "Review" to "Approval"": the pending change of UC-041 names the group it was moved from (Review) and the group it was moved to (Derivation)
+test("TST-738006: UC-021 3 a pending move names the group the item was moved from", async () => {
   const w = await grouped(withUseCaseGroups);
   const t = await arrangement(w, "use-cases");
   moveTo(itemOf(t, "UC-041")[0], "Derivation");
@@ -285,7 +285,7 @@ test("TST-738008: UC-021 1a without a group file every item is at the top level,
 // guards: UC-021; THE PAGE NAMES WHERE IT SENDS; ONE CLICK PER DECISION; DERIVATION SEES THE EXISTING REQUIREMENTS
 // given: the arrangement of the use cases and of the requirements; the instance lists the participant drafter-a (a model endpoint at "this machine") that can draft text; the endpoint answers three moves: a new group Lending, UC-044 into it, and UC-043 into it
 // input: drafter-a is chosen and Propose groups pressed; Run; then the author moves UC-041 into Lending himself; Save arrangement. The same for the requirements: Propose groups, Run
-// expect: before Run the panel names one destination, drafter-a with "this machine", and the parts "the use-cases" and "docs/groups/use-cases.md", and the model was asked nothing; Run asks the model once, with the identifiers and the titles of the four use cases (UC-041 "Check out a book" … UC-044 "Reserve a book"); the proposal arrives as three pending changes in its order, and the author's move is the fourth; the job writes only its record under docs/jobs/ and no group file; Save arrangement commits the group file alone, holding Lending with UC-044, UC-043 and UC-041; for the requirements the request holds each name and its text ("Every loan states the date by which the book is returned.")
+// expect: before Run the panel names one destination, drafter-a with "this machine", and the parts "the use-cases" and "docs/groups/use-cases.md", and the model was asked nothing; Run asks the model once, with the identifiers and the titles of the four use cases (UC-041 "Check out a book" … UC-044 "Reserve a book"); the proposal arrives as three pending changes in its order — "Add the group “Lending”", "Move UC-044 from the top level to “Lending”", "Move UC-043 from “Derivation” to “Lending”" —, and the author's move is the fourth; the job writes only its record under docs/jobs/ and no group file; Save arrangement commits the group file alone, holding Lending with UC-044, UC-043 and UC-041; for the requirements the request holds each name and its text ("Every loan states the date by which the book is returned.")
 test("TST-738009: UC-021 1b Propose groups shows what is sent where, and the proposal arrives as pending changes that the author edits before saving", async () => {
   const w = await grouped(withUseCaseGroups);
   const t = await arrangement(w, "use-cases");
@@ -300,7 +300,7 @@ test("TST-738009: UC-021 1b Propose groups shows what is sent where, and the pro
     await proposal.run();
     assert.equal(proposal.asked.length, 1, "the model is asked once");
     for (const needle of ["UC-041", "Check out a book", "UC-042", "Extend a loan", "UC-043", "Return a book", "UC-044", "Reserve a book"]) assert.ok(proposal.asked[0].includes(needle), `the request names ${needle}`);
-    assert.deepEqual(pending(t), ["Add the group “Lending”", "Move UC-044 to “Lending”", "Move UC-043 to “Lending”"]);
+    assert.deepEqual(pending(t), ["Add the group “Lending”", "Move UC-044 from the top level to “Lending”", "Move UC-043 from “Derivation” to “Lending”"]);
     moveTo(itemOf(t, "UC-041")[0], "Lending");
     assert.equal(pending(t).length, 4, "the author's change comes on top of the proposal");
     assert.ok(w.writes().every((write) => Object.keys(write.files).every((path) => path.startsWith("docs/jobs/"))), "the job writes its record and no group file");
