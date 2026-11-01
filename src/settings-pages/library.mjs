@@ -26,7 +26,7 @@
 //   - The form is MOD-site-frame's schemaForm over the entry's schema: the page's own checks (an unlinked or restricted source, a missing file or
 //     pin, a source already in the library) are its extraChecks; the checks of the schema are documentFindings'.
 //   - A choice outside the form (the route's own part, the files, the named repository) builds the form again, keeping what the person typed in it.
-//   - The file of an entry's version is shown as stored or not as MOD-source-register's linkedVersion reads its note (`not stored:`).
+//   - The file of an entry's version is shown as stored or not as MOD-source-register's linkedVersion reads its note (`not stored:`), with the SHA-256 linkedVersion reads for it.
 
 import { connect, parseAddress } from "../repository-hosts/index.mjs";
 import { readSetting, secretValues } from "../browser-store/index.mjs";
@@ -95,7 +95,7 @@ const filesOfVersion = (entry, row) => sourceVersionOf(entry, row)?.files ?? [];
 function entryView(entry, context) {
   const versions = versionsOf(entry).map((row) => el("li", "library-version",
     `${unquoted(row.cells.Version)} · ${row.cells.Date ?? ""}${row.cells.Edition && row.cells.Edition !== "—" ? ` · ${row.cells.Edition}` : ""} · read from ${row.cells["Read from"] ?? "—"}`,
-    el("ul", null, ...filesOfVersion(entry, row).map((file) => el("li", "library-file-state", `${file.name} — ${file.stored ? "stored" : "not stored"}`)))));
+    el("ul", null, ...filesOfVersion(entry, row).map((file) => el("li", "library-file-state", `${file.name} — ${file.stored ? "stored" : "not stored"} — SHA-256 ${file.sha256}`)))));
   const back = el("button", "library-back btn", "Back to the library");
   back.addEventListener("click", () => context.go("library", {}));
   const fields = Object.entries(entry.fields).map(([key, value]) => el("li", null, `${key}: ${Array.isArray(value) ? value.join(", ") : value}`));
