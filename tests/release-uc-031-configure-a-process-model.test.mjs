@@ -260,14 +260,18 @@ test("TST-779103: UC-031 4: a pulled model with both a time box and a WIP limit,
 // guards: UC-031; A PLAN COVERS THE WHOLE SPECIFICATION
 // given: the editor on the adapted V-model (7 phases); this browser manages alice/library, whose SPEC holds three requirements (A LOAN HAS A DUE DATE, A LATE LOAN IS NAMED, A RETURN IS RECORDED)
 // input: the page as opened; then the author picks alice/library for the preview
-// expect: UC-031 step 5 "a preview of the plan the definition would produce for a product the author picks": before the pick no request reaches alice/library; after it, the preview says "3 requirements × 7 phases = 21 plan entries" and "Every accepted requirement of that product appears once in every phase": each of the 7 phases lists exactly the three requirements, once each
+// expect: UC-031 step 5 "a preview of the plan the definition would produce for a product the author picks", with 1 and 6a (the products that use a model): before the pick only the requests of the product's declaration reach alice/library - repository information, the commit, the folder docs/ and the file docs/process.md - and none of its facts (tree, pull requests, tags, CI runs, test results); after it, the preview says "3 requirements × 7 phases = 21 plan entries" and "Every accepted requirement of that product appears once in every phase": each of the 7 phases lists exactly the three requirements, once each
 test("TST-779104: UC-031 5: the preview of a product the author picks holds every accepted requirement once in every phase, with the count", async () => {
   const page = await edit("v-model", { withProducts: true });
   try {
-    assert.equal(page.around.library.requests.length, 0, "nothing of the product is read before it is picked");
+    // The editor names the products that declare the model (UC-031 1 and 6a), so it reads each product's declaration before any pick: repository information, the commit, the folder of docs/ and docs/process.md. Nothing of the product's facts is read.
+    const beforeThePick = page.around.library.requests.slice();
+    assert.deepEqual([...beforeThePick].sort(), ["batch 0", "commit", "folders", "repository"], "before the pick only the requests of the declaration reach the product");
+    assert.deepEqual(beforeThePick.filter((what) => /tree|pulls|tags|actions|test-results/.test(what)), [], "none of the product's facts is read before it is picked");
+    assert.deepEqual(page.around.library.folders, [["docs/"]], "the one folder read is docs/, where the declaration stands");
     await page.press(previewButton(page, LIBRARY));
     await settle();
-    assert.ok(page.around.library.requests.length > 0, "known positive: picking the product reads it");
+    assert.ok(page.around.library.requests.some((what) => /pulls/.test(what)) && page.around.library.requests.some((what) => what === "tree"), "known positive: picking the product reads its facts (its tree and its pull requests)");
     assert.equal(countOf(page), "3 requirements × 7 phases = 21 plan entries");
     assert.deepEqual(phasesOf(page).map((phase) => phase.name), PHASES);
     for (const phase of phasesOf(page)) assert.deepEqual(phase.entries.sort(), ["A LATE LOAN IS NAMED", "A LOAN HAS A DUE DATE", "A RETURN IS RECORDED"], phase.name);
