@@ -3,7 +3,7 @@
 // and `closeSprint` (:222-232). Run: node --test tests/work-plans-sprint-record-writer.test.mjs
 //
 // Module: MOD-work-plans
-// Guards: UC-041; A SPRINT ENDS WITH A REVIEW OF ITS INCREMENT; AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF; A SPRINT ENDS WITH A RETROSPECTIVE
+// Guards: UC-041; A SPRINT ENDS WITH A REVIEW OF ITS INCREMENT; AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF; A SPRINT ENDS WITH A RETROSPECTIVE; AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM
 // Level: unit
 //
 // The readings are the item's (ITM-620, settled by the Product Owner): the draft is `closeSprint`'s `close`; `facts` are `sprintFacts` of the same sprint, computed as the recipe `sprint-facts` computes them (the writer calls the recipe's
@@ -199,6 +199,63 @@ test("the sprint closed is the job's parameter, not the sprint the draft names",
   assert.deepEqual(job.commits[0].files.map((each) => each.path), ["docs/backlog/sprints/team1/01.md"]);
   assert.match(job.commits[0].message, /^Close sprint team1\/01/);
   assert.match(job.commits[0].files[0].text, /## Review[\s\S]*- ITM-001, merged with 1;/);
+});
+
+const REVIEW_RULE = "AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM";
+const refusal = (promise) => Promise.resolve(promise).then(() => null, (error) => error);
+// The result as the job runner hands it to the writer when nobody attends and the loop ended with the review's finding still open (MOD-job-runner, runJob: "it calls the kind's writer at once [...], which
+// refuses by name what it must not write").
+const leftOpen = (job) => Object.assign(job.result, { stoppedBecause: "unchanged",
+  remaining: [{ artifact: "the record of sprint team1/01", line: 1, kind: "error", rule: REVIEW_RULE, what: "the review names no sources of its feedback", fix: "name each source" }] });
+
+// TST-1404001 · level: unit · module: MOD-work-plans
+// guards: AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM; UC-041
+// given: the fixture product and the sprint team1/01; a close whose review names its sources ["issues of sprint team1/01"] (the known positive); the same close with its sources [] and with its sources null, each handed to the writer as an unattended job's result whose loop ended unchanged with the review's finding open
+// input: the writer sprint-record on each
+// expect: known positive — one commit, whose record holds "Sources of the feedback: issues of sprint team1/01."; the close with sources [] and the one with sources null are each refused with ReviewRefused, whose findings are errors under AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM naming the sources, and nothing is committed: no record says "Sources of the feedback: none."
+// Planted fault: the writer handing the draft to closeSprint unchecked records the review with "Sources of the feedback: none." (sources []) or with no sources line at all (sources null).
+test("an agent's review that names no source of its feedback is refused by name, and nothing is recorded", async () => {
+  const known = jobOf();
+  await known.write();
+  assert.equal(known.commits.length, 1);
+  assert.ok(known.commits[0].files[0].text.includes("Sources of the feedback: issues of sprint team1/01."), "known positive: the sources are recorded");
+  for (const sources of [[], null]) {
+    const job = jobOf({ close: { ...CLOSE, review: { ...CLOSE.review, sources } } });
+    leftOpen(job);
+    const refused = await refusal(job.write());
+    assert.equal(refused?.name, "ReviewRefused", `${JSON.stringify(sources)}: ${refused}`);
+    assert.ok(refused.findings.length > 0 && refused.findings.every((each) => each.kind === "error" && each.rule === REVIEW_RULE), JSON.stringify(refused.findings));
+    assert.ok(refused.findings.some((each) => /sources/.test(each.what)), JSON.stringify(refused.findings));
+    assert.deepEqual(job.commits, [], `${JSON.stringify(sources)}: nothing is committed`);
+  }
+});
+
+// TST-1404002 · level: unit · module: MOD-work-plans
+// guards: AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM; UC-041
+// given: the fixture product and the sprint team1/01; closes whose review names its sources: (a) the known positive, whose feedback line says that no stakeholder took part; (b) no one in tookPart and no line that says no stakeholder took part; (c) the stakeholder Erika in tookPart, her feedback recorded among the sources as "mail MAIL-ca171c6d1e8e76f0 of Erika"; (d) Erika in tookPart, her feedback recorded in no line and no source
+// input: the writer sprint-record on each, as an unattended job's result
+// expect: (a) and (c) are each committed once, (c)'s record naming Erika among who took part and her mail among the sources; (b) is refused with ReviewRefused, its finding under AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM saying that the review does not state that no stakeholder took part, and (d) with ReviewRefused naming Erika; nothing is committed for (b) or (d)
+// Planted fault: a writer that checks only that sources are named records (b) and (d).
+test("an agent's review says that no stakeholder took part unless one did, and names where a stakeholder's feedback is recorded", async () => {
+  const quiet = [{ line: "Issue 7 shows the export works", goes: "noted", item: null }];
+  const sources = ["issues of sprint team1/01"];
+  const said = jobOf();
+  const listed = jobOf({ close: { ...CLOSE, review: { feedback: quiet, tookPart: ["Erika"], sources: [...sources, "mail MAIL-ca171c6d1e8e76f0 of Erika"] } } });
+  for (const job of [said, listed]) {
+    leftOpen(job);
+    await job.write();
+    assert.equal(job.commits.length, 1, "known positive: the review is recorded");
+  }
+  assert.match(listed.commits[0].files[0].text, /Took part: Erika\.[\s\S]*Sources of the feedback: .*mail MAIL-ca171c6d1e8e76f0 of Erika\./);
+  const silent = jobOf({ close: { ...CLOSE, review: { feedback: quiet, tookPart: [], sources } } });
+  const nowhere = jobOf({ close: { ...CLOSE, review: { feedback: quiet, tookPart: ["Erika"], sources } } });
+  for (const [job, named] of [[silent, /no stakeholder took part/], [nowhere, /Erika/]]) {
+    leftOpen(job);
+    const refused = await refusal(job.write());
+    assert.equal(refused?.name, "ReviewRefused", String(refused));
+    assert.ok(refused.findings.some((each) => each.rule === REVIEW_RULE && named.test(each.what)), JSON.stringify(refused.findings));
+    assert.deepEqual(job.commits, []);
+  }
 });
 
 // TST-620005 · level: unit · module: MOD-work-plans
