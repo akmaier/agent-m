@@ -31,8 +31,10 @@ on its own (KEIN SPEC-ZUGRIFF AUS PRODUKT-CODE). Three checks:
    MOD-site-frame (its explanations.md), MOD-personal-data, MOD-resource-list, MOD-reuse-facts, MOD-prompt-bar and MOD-runtimes (its
    job workflow's templates, the Parts its file names beside it, which the page uses in a browser),
    each at most once in its module's folder, in MOD-spec-document's form: `fetch(url)` in `ownFile(url)`, and every address the
-   file builds resolved from a path beginning with `./` against the module's own address; and MOD-source-register's
-   official EU publication repository fetch for legal texts, to publications.europa.eu. Every other fetch, XMLHttpRequest,
+   file builds resolved from a path beginning with `./` against the module's own address; MOD-source-register's
+   official EU publication repository fetch for legal texts, to publications.europa.eu; and, in any file, an import() of a
+   module of the site itself, by a relative address written out (`./` or `../`) that names a tracked file of the site — the
+   browser loads it from the origin the page came from. Every other fetch, XMLHttpRequest,
    WebSocket, EventSource, beacon, worker, dynamic import, created loading element, CSS import or url() is a finding,
    unless it is listed below with the reason it calls no other origin — a file's entry exactly as often as listed, a
    module folder's at most as often.
@@ -175,29 +177,15 @@ def _route_preload_link(text: str, at: int, files: dict[str, str]) -> bool:
 _site_frame_asset.site = True  # its preload-link evidence reads the pages' data
 
 
-FRAME_VIEW_IMPORT = "a view module of the site, loaded from its own origin: viewAddress(slug), resolved as ../<slug>/index.mjs against the module's own address"
+FRAME_VIEW_IMPORT = "a view module of the site, loaded from its own origin: viewAddress(slug), resolved as ../<slug>/routes.mjs against the module's own address"
 
 
 def _site_frame_view_import(text: str, at: int) -> bool:
-    """MOD-site-frame's routing.mjs loads a view module (its file: start.mjs "loads the named view modules from their folders"): the
-    argument of the import() is viewAddress(slug), and the file's one viewAddress resolves ../<slug>/index.mjs against import.meta.url."""
-    resolves = re.findall(r"^const viewAddress = \(slug\) => new URL\(`\.\./\$\{slug\}/index\.mjs`, import\.meta\.url\)\.href;$", text, re.M)
+    """MOD-site-frame's routing.mjs loads a view module (its file: start.mjs "loads the named view modules (`routes.mjs` of each view's
+    folder) from their folders"): the argument of the import() is viewAddress(slug), and the file's one viewAddress resolves
+    ../<slug>/routes.mjs against import.meta.url."""
+    resolves = re.findall(r"^const viewAddress = \(slug\) => new URL\(`\.\./\$\{slug\}/routes\.mjs`, import\.meta\.url\)\.href;$", text, re.M)
     return text[at:].startswith("import(viewAddress(slug))") and len(resolves) == 1 and len(re.findall(r"\bviewAddress\s*=", text)) == 1
-
-
-VIEW_ROUTE_IMPORT = "a route's own file in the view's folder, imported when the route is first shown: a relative address written out, ./<file>.mjs, naming a tracked file of the folder"
-ROUTE_FILE_IMPORT = re.compile(r'import\(\s*"\./((?:[\w-]+/)*[\w-]+\.mjs)"\s*\)')
-
-
-def _view_route_import(folder: str):
-    """MOD-site-frame (Interfaces, Route): a view's route that names `module` is drawn from the route `module` gives, which imports the route's own
-    file when the route is first shown. Like _site_frame_view_import the evidence is the form of the import() and what it resolves to: the argument
-    is a relative address written out in the view's folder (no ../, no other origin), and the file it names is a tracked file of that folder."""
-    def evidence(text: str, at: int, files: dict[str, str]) -> bool:
-        m = ROUTE_FILE_IMPORT.match(text, at)
-        return bool(m) and ".." not in m.group(1).split("/") and folder + m.group(1) in files
-    evidence.site = True  # the evidence reads the folder's files, not the one file alone
-    return evidence
 
 
 MERMAID_LIBRARY_LOADING = "the diagram library beside MOD-markdown-render, resolved from the module address"
@@ -297,12 +285,22 @@ IMPORT_SPECIFIER = re.compile(r"""(?:\bimport|\bexport)\s*(?:[\w$*{}\s,]*?\bfrom
                               r"""|\bimport\(\s*(["'`])(\.{1,2}/[^"'`$]+)\3\s*\)""")
 
 
+def resolve(base: str, specifier: str) -> str:
+    """The site's path a relative specifier names, read from the file at `base`."""
+    return posixpath.normpath(posixpath.join(posixpath.dirname(base), specifier))
+
+
+def own_module_import(path: str, text: str, at: int, files: dict[str, str]) -> bool:
+    """An import() at `at` whose argument is a relative address written out (`./` or `../`, no expression in it) that names a file of the
+    site: the browser resolves it against the importing module's own address, so it loads from the origin the page came from."""
+    m = IMPORT_SPECIFIER.match(text, at)
+    return bool(m and m.group(4)) and resolve(path, m.group(4)) in files
+
+
 def browser_modules(files: dict[str, str]) -> set[str]:
     """The modules the site loads in a browser: the module each script tag of a page names, the view modules its data-views name —
-    MOD-site-frame's viewAddress(slug), ../<slug>/index.mjs against src/site-frame/, that is src/<slug>/index.mjs —, and every module these
+    src/<slug>/index.mjs, which imports the routes.mjs that MOD-site-frame's viewAddress(slug) loads and that imports it —, and every module these
     import, statically or by an import() of a relative address written out. A page's address of another origin is check 1's and 2's."""
-    def resolve(base: str, specifier: str) -> str:
-        return posixpath.normpath(posixpath.join(posixpath.dirname(base), specifier))
     queue = []
     for path, text in files.items():
         if not path.endswith(".html"):
@@ -458,13 +456,6 @@ PERMITTED_CHANNELS = {
     ("src/site-frame/dashboard-app.mjs", "import()"): (1, "a view file of the dashboard, from its own origin", _own_origin),
     ("src/site-frame/dashboard-app.mjs", "loading element"): (1, "a view's style sheet, from its own origin", _own_origin),
     ("src/site-frame/routing.mjs", "import()"): (1, FRAME_VIEW_IMPORT, _site_frame_view_import),
-    # The six views' routes import their own files when first shown (MOD-site-frame, Route.module): at most one import() for each route file the view holds.
-    ("src/review-pages/", "import()"): (3, VIEW_ROUTE_IMPORT, _view_route_import("src/review-pages/")),
-    ("src/trace-pages/", "import()"): (1, VIEW_ROUTE_IMPORT, _view_route_import("src/trace-pages/")),
-    ("src/implementation-pages/", "import()"): (6, VIEW_ROUTE_IMPORT, _view_route_import("src/implementation-pages/")),
-    ("src/test-pages/", "import()"): (5, VIEW_ROUTE_IMPORT, _view_route_import("src/test-pages/")),
-    ("src/maintenance-pages/", "import()"): (3, VIEW_ROUTE_IMPORT, _view_route_import("src/maintenance-pages/")),
-    ("src/settings-pages/", "import()"): (11, VIEW_ROUTE_IMPORT, _view_route_import("src/settings-pages/")),
     ("src/trace-graph/code.mjs", "import()"): (1, IMPORT_FORMS, _trace_graph_comment),
     ("src/trace-graph/code.mjs", "@import"): (3, IMPORT_FORMS, _trace_graph_css_form),
     **{("src/markdown-render/vendor/mermaid.min.js", channel): rule for channel, rule in MERMAID_VENDOR_CHANNELS.items()},
@@ -512,6 +503,8 @@ def channel_findings(files: dict[str, str], permitted=PERMITTED_CHANNELS) -> lis
     for path, text in sorted(files.items()):
         for name, rx in CHANNELS:
             for m in rx.finditer(text):
+                if name == "import()" and own_module_import(path, text, m.start(), files):
+                    continue  # no other origin: needs no entry, and counts toward none
                 key = _entry(path, name, permitted)
                 seen[key] = seen.get(key, 0) + 1
                 line = text.count("\n", 0, m.start()) + 1
@@ -735,8 +728,7 @@ class NoServer(unittest.TestCase):
         both = [f"{path}:2: fetch: not {WEBFETCH}", f"{path}:3: fetch: not {WEBFETCH}"]
         for module, line, own in (("src/site-frame/start.mjs", 'import { checkoutPrompt } from "../checkout-tools/index.mjs";\n', []),
                                   ("src/main-page/index.mjs", 'export { webfetch } from "../checkout-tools/webfetch.mjs";\n', []),
-                                  ("src/main-page/home.mjs", 'const tools = await import("../checkout-tools/index.mjs");\n',
-                                   ['src/main-page/home.mjs:2: import(): import("../checkout-tools/index.mjs");']),  # itself a finding too
+                                  ("src/main-page/home.mjs", 'const tools = await import("../checkout-tools/index.mjs");\n', []),
                                   ("src/site-frame/views.mjs", 'import "../workflow-entries/compose.mjs";\n', [])):
             with self.subTest(module=module, line=line):
                 self.assertEqual(channel_findings({**site, module: site[module] + line}), both + own)
@@ -933,9 +925,9 @@ class NoServer(unittest.TestCase):
 
     def test_counter_proof_the_site_frames_view_import_is_viewaddress_of_its_own_origin(self):
         # MOD-site-frame's routing.mjs loads a view module by its slug: the one import() takes viewAddress(slug), which resolves
-        # ../<slug>/index.mjs against the module's own address.
+        # ../<slug>/routes.mjs against the module's own address.
         path = "src/site-frame/routing.mjs"
-        own = ("const viewAddress = (slug) => new URL(`../${slug}/index.mjs`, import.meta.url).href;\n"
+        own = ("const viewAddress = (slug) => new URL(`../${slug}/routes.mjs`, import.meta.url).href;\n"
                "export async function loadView(slug) {\n  return (await import(viewAddress(slug))).view;\n}\n")
         self.assertEqual(channel_findings({path: own}), [])  # expected: no finding
         # Elsewhere the same text is found (expected: the import() at line 3 is not a permitted channel there).
@@ -945,29 +937,38 @@ class NoServer(unittest.TestCase):
         for argument in ('"https://example.org/x.mjs"', "url"):
             other = own.replace("import(viewAddress(slug))", f"import({argument})")
             self.assertEqual(channel_findings({path: other}), [f"{path}:3: import(): not {FRAME_VIEW_IMPORT}"])
-        # A viewAddress that does not resolve ../<slug>/index.mjs against the module's own address (expected: the import() at
+        # A viewAddress that does not resolve ../<slug>/routes.mjs against the module's own address (expected: the import() at
         # line 3 is found, once each).
         for foreign in (own.replace("import.meta.url", "location.href"),
-                        own.replace("`../${slug}/index.mjs`", "`https://example.org/${slug}.mjs`")):
+                        own.replace("`../${slug}/routes.mjs`", "`https://example.org/${slug}.mjs`")):
             self.assertEqual(channel_findings({path: foreign}), [f"{path}:3: import(): not {FRAME_VIEW_IMPORT}"])
         # A second import() in the file (expected: a count finding, the file's entry permits one).
         twice = own + "export const again = (slug) => import(viewAddress(slug));\n"
         self.assertEqual(channel_findings({path: twice}),
                          [f"{path}: import() found 2 times, permitted 1 ({FRAME_VIEW_IMPORT})"])
 
-    def test_counter_proof_a_views_route_import_is_a_relative_file_of_its_own_folder(self):
-        index = "src/settings-pages/index.mjs"
-        files = {index: 'export const route = { name: "bridge", module: () => import("./bridge.mjs") };\n',
-                 "src/settings-pages/bridge.mjs": "export const route = {};\n"}
-        self.assertEqual(channel_findings(files), [])  # expected: no finding
-        # Elsewhere the same import() is found (expected: not a permitted channel in a folder with no entry).
-        self.assertEqual(len(channel_findings({"src/text-tools/index.mjs": files[index], "src/text-tools/bridge.mjs": "x"})), 1)
-        # Another address, a file that is no tracked file of the folder, or a second import() beyond the count (expected: one finding each).
-        for other in ('import("../trace-pages/flow.mjs")', 'import("https://example.org/x.mjs")', "import(path)", 'import("./missing.mjs")'):
-            self.assertEqual(channel_findings({**files, index: files[index].replace('import("./bridge.mjs")', other)})[0:1],
-                             [f"{index}:1: import(): not {VIEW_ROUTE_IMPORT}"])
-        twelve = {**files, index: files[index] * 12}
-        self.assertEqual(channel_findings(twelve), [f"src/settings-pages/: import() found 12 times, permitted at most 11 ({VIEW_ROUTE_IMPORT})"])
+    # TST-1345001 · level: unit · module: MOD-repository-hosts
+    # guards: NO SERVER
+    # given: src/text-tools/bar.mjs, a file with no entry of its own, that imports `./send.mjs` and `../prompt-bar/index.mjs` by relative addresses written out, both files of the site; and the site's own files as they stand
+    # input: channel_findings over these files, then with one import() or fetch planted in bar.mjs: an address of another origin, an address from a variable, a template with an expression, a relative address naming no file of the site, a relative address above the site's root, a fetch to another origin; then over the site's files with `import("https://example.org/x.mjs")` planted in src/prompt-bar/bar.mjs
+    # expect: no finding for the two relative imports, each planted channel is the one finding at its line 3, and the site with the planted import in src/prompt-bar/bar.mjs gives exactly that finding at the line after the file's last
+    def test_an_import_of_the_sites_own_module_by_a_relative_address_is_no_server(self):
+        path = "src/text-tools/bar.mjs"
+        own = ('const sendPart = async () => (await import("./send.mjs"));\n'
+               "const bar = () => import('../prompt-bar/index.mjs');\n")
+        files = {path: own, "src/text-tools/send.mjs": "export const send = 1;\n", "src/prompt-bar/index.mjs": "export const bar = 1;\n"}
+        self.assertEqual(channel_findings(files), [])  # known positive: the site's own modules, imported relatively, need no entry
+        for planted in ('import("https://example.org/x.mjs");', "import(url);", "import(`./${name}.mjs`);", 'import("./missing.mjs");',
+                        'import("../../../outside.mjs");', 'fetch("https://example.org/x");'):
+            with self.subTest(planted):
+                name = "fetch" if planted.startswith("fetch") else "import()"
+                self.assertEqual(channel_findings({**files, path: own + planted + "\n"}), [f"{path}:3: {name}: {planted}"])
+        # Counter-proof on the site as it stands: an import() of another origin planted in a module the emergency made lazy is found, alone.
+        bar = "src/prompt-bar/bar.mjs"
+        self.assertIn(bar, self.files)
+        line = self.files[bar].count("\n") + 1
+        planted = 'import("https://example.org/x.mjs");'
+        self.assertEqual(channel_findings({**self.files, bar: self.files[bar] + planted}), [f"{bar}:{line}: import(): {planted}"])
 
     def test_counter_proof_only_the_site_frames_own_static_header_assets_load(self):
         path = "src/site-frame/index.mjs"
