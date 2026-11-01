@@ -140,7 +140,8 @@ export async function showFileEdit(where, kind, file) {
   const schema = schemaOf(kind);
   const spec = await snapshot.read("SPEC.md");
   const requirements = spec === null ? new Set() : new Set(parseSpec(spec).requirements.keys());
-  const openedBlob = snapshot.blob(file.path);
+  // The blob the next save is compared with: the one opened, and after a refusal the newer one shown beside the edit (UC-018 5a).
+  let openedBlob = snapshot.blob(file.path);
   const saved = el("div", "saved");
   const editorBox = el("div", "editor-box");
   target.append(editorBox, saved);
@@ -178,7 +179,10 @@ export async function showFileEdit(where, kind, file) {
     }
     try {
       const outcome = await saveFile(host, { path: file.path, text, openedBlob, openedId: file.id });
-      if (outcome.refused === "changed meanwhile") return { kind: "refused", newer: outcome.current ?? "" };
+      if (outcome.refused === "changed meanwhile") {
+        openedBlob = outcome.currentBlob;
+        return { kind: "refused", newer: outcome.current ?? "" };
+      }
       if (outcome.refused === "identifier changed") {
         return { kind: "failed", reason: `the identifier changed from ${outcome.openedId} to ${outcome.nowId ?? "none"}; keep ${outcome.openedId}.` };
       }
