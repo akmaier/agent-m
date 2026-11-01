@@ -9,8 +9,6 @@
 // Level: system
 //
 // Authored by developer-opus-f (ITM-741), who implemented none of ITM-692, ITM-720, ITM-721, ITM-210, ITM-735 and ITM-736.
-// Where the page and UC-025 disagree the case follows UC-025 and is marked { todo } with the finding it reports; every other case is green. The findings:
-//   UC025-F3  step 6: a gap cannot be followed to the file it concerns.
 // Each test states its input and its expected values in its own text; none reads an expected result from the SPEC, a use case or an architecture file.
 // A person's click is the page's own listener called through the event it dispatches. Readings the texts leave open, which the cases state:
 //   - "with its status (accepted, open, changed since acceptance, not in the SPEC)" of a requirement: a requirement the SPEC holds is shown "in SPEC", which
@@ -142,8 +140,8 @@ test("TST-741007: UC-025 step 6 — a row opens onto its module's file and folde
 // guards: UC-025
 // given: the fixture product, whose gaps concern MOD-news (docs/architecture/MOD-news.md), MOD-mail (docs/architecture/MOD-mail.md) and src/mail/index.mjs (known positive: a row opens onto its module's file, TST-741007)
 // input: the reviewer reads each gap of the page
-// expect: UC-025 step 6 "The reviewer follows a row or a gap to the file it concerns": each gap that concerns a module or a code file offers a control that leads to that file — a link or a button besides the next step. FINDING: a gap is a line of text with at most its next step
-test("TST-741008: UC-025 step 6 — a gap leads to the file it concerns", { todo: "FINDING UC025-F3 — modulesGaps (src/trace-pages/flow.mjs) draws each gap as text with at most the next step's link (#implement, #decision); none leads to the module file or the code file the gap concerns" }, async () => {
+// expect: UC-025 step 6 "The reviewer follows a row or a gap to the file it concerns": each gap that concerns a module or a code file offers a control that leads to that file — a link or a button besides the next step.
+test("TST-741008: UC-025 step 6 — a gap leads to the file it concerns", async () => {
   const { target } = await open();
   const items = byClass(target, "li", "module-gap").filter((item) => item.getAttribute("data-kind") !== "requirement-without-module");
   assert.ok(items.length >= 4, "known positive: the gaps are drawn");
