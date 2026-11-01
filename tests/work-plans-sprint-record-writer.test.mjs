@@ -167,6 +167,40 @@ test("a proposal of the retrospective stays a proposal, and a close that closeSp
   assert.deepEqual([bare.commits, closed.commits], [[], []]);
 });
 
+// TST-1403001 · level: unit · module: MOD-work-plans
+// guards: UC-041; A SPRINT ENDS WITH A REVIEW OF ITS INCREMENT
+// given: the fixture product; a job of the kind close-sprint whose parameter sprint is team1/01; a clean close in the form of close-sprint's answer, which names no sprint (the key `sprint` is left out)
+// input: the writer sprint-record
+// expect: no failure; one commit, of docs/backlog/sprints/team1/01.md alone, whose message begins "Close sprint team1/01"; the record keeps what it had and gains ## Review with team1/01's increment, ITM-001 merged with 1
+// Planted fault: the writer taking the sprint from the draft fails with UnknownWork, the job naming no sprint, and commits nothing.
+test("a close answered without a sprint closes the sprint the job's parameter names", async () => {
+  const { sprint: _, ...answer } = CLOSE;
+  const job = jobOf({ close: answer });
+  const outcome = await job.write();
+  assert.equal(job.commits.length, 1);
+  assert.deepEqual(job.commits[0].files.map((each) => each.path), ["docs/backlog/sprints/team1/01.md"]);
+  assert.match(job.commits[0].message, /^Close sprint team1\/01/);
+  const record = job.commits[0].files[0].text;
+  assert.ok(record.startsWith(job.files["docs/backlog/sprints/team1/01.md"].trimEnd()), "the record keeps what it had");
+  assert.match(record, /## Review[\s\S]*- ITM-001, merged with 1;/);
+  assert.deepEqual(outcome.files, ["docs/backlog/sprints/team1/01.md"]);
+});
+
+// TST-1403002 · level: unit · module: MOD-work-plans
+// guards: UC-041; A SPRINT ENDS WITH A REVIEW OF ITS INCREMENT
+// given: the fixture product; a job of the kind close-sprint whose parameter sprint is team1/01; a close whose draft names another sprint, team1/02, and decides ITM-002, which team1/01 holds as not done
+// input: the writer sprint-record
+// expect: the close is recorded for team1/01, whatever the draft holds: one commit, of docs/backlog/sprints/team1/01.md alone, its message beginning "Close sprint team1/01", the record gaining ## Review with ITM-001 merged with 1; team1/02's record is in no commit
+// Planted fault: the writer taking the sprint from the draft closes team1/02 — its record is committed, with team1/02's facts, in which ITM-003 is not done and undecided, so the close is refused with Undecided.
+test("the sprint closed is the job's parameter, not the sprint the draft names", async () => {
+  const job = jobOf({ close: { ...CLOSE, sprint: "team1/02" } });
+  await job.write();
+  assert.equal(job.commits.length, 1);
+  assert.deepEqual(job.commits[0].files.map((each) => each.path), ["docs/backlog/sprints/team1/01.md"]);
+  assert.match(job.commits[0].message, /^Close sprint team1\/01/);
+  assert.match(job.commits[0].files[0].text, /## Review[\s\S]*- ITM-001, merged with 1;/);
+});
+
 // TST-620005 · level: unit · module: MOD-work-plans
 // guards: UC-041
 // given: workStrategies registered with the job runner, and the kind close-sprint, whose writer is named sprint-record
