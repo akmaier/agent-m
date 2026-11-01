@@ -260,7 +260,7 @@ const withCode = () => ({
 // guards: UC-034; A JOB GOES ONLY TO A HOLDER OF ITS ROLE; THE PAGE NAMES WHERE IT SENDS; DEVELOP AGAINST INTERFACES; AN IMPLEMENTATION JOB RECEIVES THE CHAPTERS ON MODELING, DESIGN, IMPLEMENTATION AND TESTING
 // given: the product of TST-805202 with MOD-pages (ARC-002, using MOD-store.read), MOD-store, their code and tests; team1's role assignment names dev-a as its builder, team2's names dev-b; ITM-001 merged, ITM-002 (MOD-pages) and ITM-011 (MOD-news) ready
 // input: the author opens Implement and reads the panel of ITM-002 and of ITM-011
-// expect: step 3: ITM-002 offers dev-a alone and ITM-011 dev-b alone, each "processes data at this machine" with the route ci hosted; each names its sprint's branch (sprint/team1/02, sprint/team2/01), the gate Building → Checking decided by Owner, the attempt limit 5 and the choice who merges; what is sent to dev-a for ITM-002: MOD-pages.md, ARC-002 and ARC-001, SPEC.md, "docs/architecture/MOD-store.md ## Interfaces" and not MOD-store's whole file or its code src/store/index.mjs, then its code and test, then chapters 9, 11, 12 and 13; nothing is sent before Start jobs
+// expect: step 3: ITM-002 offers dev-a alone and ITM-011 dev-b alone, each "processes data at this machine" with the route ci hosted; each names its sprint's branch (sprint/team1/02, sprint/team2/01), the gate Building → Checking decided by Owner, the attempt limit 5 and the choice who merges; what is sent to dev-a for ITM-002: the item's file, UC-001 and the two test files that guard RULE ONE, then MOD-pages.md, ARC-002 and ARC-001, SPEC.md, "docs/architecture/MOD-store.md ## Interfaces" and not MOD-store's whole file or its code src/store/index.mjs, then its code, then the instance's SPEC.md as the process requirements, then chapters 9, 11, 12 and 13; nothing is sent before Start jobs
 test("TST-805207: UC-034 3 each item's panel names the participant of its team, where it processes data, the branch, the gates and what is sent: files, decisions, the interfaces of used modules and the chapters", async () => {
   const world = await teams({ files: withCode() });
   const page = await openImplement({}, { ...world, pullRequests: [merged(1, "ITM-001")] });
@@ -275,8 +275,8 @@ test("TST-805207: UC-034 3 each item's panel names the participant of its team, 
     assert.match(rows["ITM-011"].text, /Target branch: sprint\/team2\/01\. Gates: Building → Checking \(decided by Owner\)\./);
     const sent = sentOf(page, "ITM-002");
     assert.match(sent, /^dev-a at this machine: /);
-    assert.deepEqual(sent.replace(/^dev-a at this machine: /, "").replace(/Correction rounds: at most \d+$/, "").split(", "), ["docs/architecture/MOD-pages.md", "docs/architecture/ARC-002-storage.md", "docs/architecture/ARC-001-the-whole.md", "SPEC.md",
-      "docs/architecture/MOD-store.md ## Interfaces", "src/pages/index.mjs", "tests/pages.test.mjs", ...BOOK]);
+    assert.deepEqual(sent.replace(/^dev-a at this machine: /, "").replace(/Correction rounds: at most \d+$/, "").split(", "), ["docs/backlog/ITM-002-item-2.md", "docs/use-cases/UC-001-load.md", "tests/pages.test.mjs", "tests/store.test.mjs",
+      "docs/architecture/MOD-pages.md", "docs/architecture/ARC-002-storage.md", "docs/architecture/ARC-001-the-whole.md", "SPEC.md", "docs/architecture/MOD-store.md ## Interfaces", "src/pages/index.mjs", "SPEC.md process requirements", ...BOOK]);
     assert.ok(!sent.includes("src/store/index.mjs"), "the code of a module it uses is not sent");
     assert.deepEqual(page.srv.writes, []);
   } finally { page.done(); }
