@@ -37,6 +37,10 @@ export const link = (href, className, text) => {
 export const reviewHref = (context, fragment) => (context.product ? `${fragment}/product=${encodeURIComponent(context.product.address)}` : fragment);
 // A link to a route of the review pages that keeps the page's product.
 export const reviewLink = (context, fragment, className, text) => link(reviewHref(context, fragment), className, text);
+// The group kind whose arrangement a kind's list and its editor link (UC-021, UC-018 3e): the route `arrange` with the parameter `kind`.
+const ARRANGED = { requirement: "requirements", "use-case": "use-cases", "architecture-decision": "architecture", module: "modules" };
+// The link to the arrangement of `kind`'s group kind, keeping the page's product; null for a kind no group file arranges.
+export const arrangeLink = (context, kind) => (ARRANGED[kind.kind] ? reviewLink(context, `#arrange/kind=${ARRANGED[kind.kind]}`, "arrange-link", "Arrange") : null);
 // A listener that answers only a click the browser marks as a person's (`isTrusted`): the dashboard writes only as the direct result of a
 // person's action (THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK), and a click a script makes is none.
 export const byPerson = (listener) => (event) => (event?.isTrusted === true ? listener(event) : undefined);
