@@ -30,13 +30,14 @@ test("TST-479201: an impact list names an artifact the page never reads, from th
   assert.equal(byClass(page, "ul", "impact")[0].textContent, "A WRITE RULE — changed, named by UC-002");
   assert.equal(fake.graphqlRequests().filter((q) => q.body.query.includes(uc2)).length, 0, "UC-002 stands in no query");
   assert.deepEqual(fake.contentPaths().filter((path) => path === uc2), [], "UC-002 is read on its own by no request");
-  assert.equal(fake.requests.filter((r) => r.url.pathname.endsWith(".json.gz") && r.url.searchParams.get("ref") === "trace-cache").length, 1, "the stored graph, read once");
+  assert.equal(fake.requests.filter((r) => r.url.pathname.endsWith(".json.gz") && !r.url.pathname.endsWith(".references.json.gz") && r.url.searchParams.get("ref") === "trace-cache").length, 1, "no references stored: the stored graph, read once");
   assert.ok(fake.graphqlRequests().length <= 3);
   const head = fake.requests.find((r) => r.url.pathname.includes("/git/trees/")).url.pathname.split("/").pop();
   const overview = fake.requests.filter((r) => r.url.searchParams.get("ref") === "overview-cache");
   assert.deepEqual(overview.map((r) => r.url.pathname.split("/").pop()), [`${head}.json`, "latest.json"], "the overview cache is read twice: the head's file, then latest.json");
-  assert.ok(fake.requests.length - overview.length <= 7, `${fake.requests.length - overview.length} requests besides the overview cache, at most 7`);
-  assert.ok(fake.requests.length <= 9, `${fake.requests.length} requests, at most 9`);
+  // the references stored beside the graph (MOD-trace-graph's storedReferences) are asked for once; this fake stores none, so the graph is read.
+  assert.ok(fake.requests.length - overview.length <= 8, `${fake.requests.length - overview.length} requests besides the overview cache, at most 8`);
+  assert.ok(fake.requests.length <= 10, `${fake.requests.length} requests, at most 10 — one asks for the references stored beside the graph, which this fake stores none of`);
 });
 
 // TST-479202 · level: release · module: MOD-review-pages; MOD-trace-graph; MOD-repository-hosts

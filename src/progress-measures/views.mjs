@@ -22,18 +22,10 @@
 import { conflicts } from "../work-plans/index.mjs";
 import { progressIn } from "./measures.mjs";
 import { blocked, gateOverview, whoWorksOnWhat } from "./overviews.mjs";
+import { COUNTED } from "./stored.mjs";
 
-/** The branch that holds the overviews and the views (Data). */
-export const OVERVIEW_BRANCH = "overview-cache";
-/** The file of that branch that names the commit stored last (Data). */
-export const LATEST = "latest.json";
-/** The file of a page's view of a commit (Data). */
-export const viewFile = (commit, page) => `${commit}.${page}.json.gz`;
-// The rows of the ScheduleView's counts: the five levels and the tests that call a paid service.
-const COUNTED = ["unit", "component", "system", "release", "user", "paid"];
-// What each page's view holds, by which a view of another format is told apart: a list of the progress's teams or the backlog's rows, the schedule's count of every row.
-const FORMAT = { progress: (view) => Array.isArray(view.teams), backlog: (view) => Array.isArray(view.rows),
-  schedule: (view) => COUNTED.every((row) => Number.isInteger(view.counts?.[row])) };
+export { OVERVIEW_BRANCH, LATEST, viewFile, gzipped, latestCommit, storedView } from "./stored.mjs";
+
 
 const SPRINT = /^docs\/backlog\/sprints\/([^/]+)\/(\d+)\.md$/;
 const ASSIGNMENT = /^docs\/role-assignments\/([^/]+)\.md$/;
@@ -194,58 +186,4 @@ export function scheduleView(facts) {
     if (declaration.paid) counts.paid += 1;
   }
   return { commit: facts.snapshot.commit, counts };
-}
-
-// ---------------------------------------------------------------- stored
-
-const through = (bytes, stream) => new Response(new Blob([bytes]).stream().pipeThrough(stream));
-/** A text gzipped: the platform's CompressionStream, the same in a browser and in Node. */
-export const gzipped = async (value) => new Uint8Array(await through(new TextEncoder().encode(value), new CompressionStream("gzip")).arrayBuffer());
-const gunzipped = (bytes) => through(bytes, new DecompressionStream("gzip")).text();
-
-// A readOn that answers null for a missing branch or file (NotFound).
-async function readOrNull(readOn, path, options) {
-  try {
-    return await readOn(OVERVIEW_BRANCH, path, options);
-  } catch (error) {
-    if (error?.name === "NotFound") return null;
-    throw error;
-  }
-}
-
-/**
- * The commit `latest.json` names, read with one readOn; null where the branch or the file is missing or holds no commit.
- * @param {(branch: string, path: string, options?: object) => Promise<string | Uint8Array | null>} readOn
- */
-export async function latestCommit(readOn) {
-  const named = await readOrNull(readOn, LATEST);
-  let commit = "";
-  try { commit = typeof named === "string" ? String(JSON.parse(named)?.commit ?? "") : ""; } catch { return null; }
-  return /^[0-9a-f]{40}$/.test(commit) ? commit : null;
-}
-
-// The view of `page` stored for `commit`, or null where it is missing or of another format.
-async function readView(readOn, commit, page) {
-  const bytes = await readOrNull(readOn, viewFile(commit, page), { bytes: true });
-  if (!(bytes instanceof Uint8Array)) return null;
-  let held;
-  try { held = JSON.parse(await gunzipped(bytes)); } catch { return null; }
-  return held !== null && typeof held === "object" && held.commit === commit && FORMAT[page](held) ? held : null;
-}
-
-/**
- * storedView(snapshot: Snapshot, page: "progress" | "backlog" | "schedule") -> Promise<{ view, asOf: string | null } | null> — the page's view of the snapshot's commit, in one request,
- * and asOf null; while that is not stored yet, the view of the commit latest.json names, in two requests more, and asOf that commit; null without readOn, or where neither is
- * stored or one holds another format. Fails with the host's errors but NotFound.
- * @param {object} snapshot @param {"progress" | "backlog" | "schedule"} page
- */
-export async function storedView(snapshot, page) {
-  if (!Object.hasOwn(FORMAT, page)) throw new TypeError(`a stored view is the progress's, the backlog's or the schedule's: ${String(page)}`);
-  if (typeof snapshot?.readOn !== "function" || typeof snapshot.commit !== "string") return null;
-  const own = await readView(snapshot.readOn, snapshot.commit, page);
-  if (own) return { view: own, asOf: null };
-  const commit = await latestCommit(snapshot.readOn);
-  if (commit === null || commit === snapshot.commit) return null;
-  const last = await readView(snapshot.readOn, commit, page);
-  return last ? { view: last, asOf: commit } : null;
 }

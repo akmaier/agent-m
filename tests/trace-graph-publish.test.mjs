@@ -60,7 +60,7 @@ test("publishGraph adds the graph of the commit to the head of trace-cache it re
   assert.deepEqual(await trace.publishGraph(host, snapshot), { commit: COMMIT, written: true });
   assert.equal(state.commits.length, 1);
   const [change] = state.commits;
-  assert.deepEqual([change.branch, change.expectedHead, change.files.map((file) => file.path)], ["trace-cache", HEAD, [`${COMMIT}.json.gz`, `${COMMIT}.gaps.json`, "latest.json"]]);
+  assert.deepEqual([change.branch, change.expectedHead, change.files.map((file) => file.path)], ["trace-cache", HEAD, [`${COMMIT}.json.gz`, `${COMMIT}.gaps.json`, `${COMMIT}.references.json.gz`, "latest.json"]]);
   assert.equal(change.files[0].bytes instanceof Uint8Array, true, "the file is written as bytes");
   assert.equal(change.files[0].text, undefined);
   const text = await gunzipped(change.files[0].bytes);
@@ -94,7 +94,7 @@ test("publishGraph ends in Moved when the branch moved meanwhile, and can be run
   await assert.rejects(trace.publishGraph(host, snapshot), { name: "Moved" });
   assert.deepEqual(state.held, {});
   assert.deepEqual(await trace.publishGraph(host, snapshot), { commit: COMMIT, written: true });
-  assert.deepEqual(Object.keys(state.held), [`${COMMIT}.json.gz`, `${COMMIT}.gaps.json`, "latest.json"]);
+  assert.deepEqual(Object.keys(state.held), [`${COMMIT}.json.gz`, `${COMMIT}.gaps.json`, `${COMMIT}.references.json.gz`, "latest.json"]);
 });
 
 // TST-908004 · level: unit · module: MOD-trace-graph

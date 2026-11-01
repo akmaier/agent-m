@@ -35,7 +35,7 @@ test("TST-844201: a product's entry page reads the instance's register in one ba
   assert.equal(instance.requests.length, 4);
   // The graph the workflow "main changed" stored for the product's commit is read by one request of its own (MOD-trace-graph's storedGraph), and so are the overview of the commit
   // and latest.json of the branch overview-cache, from which the other proposals on the entry's section come (MOD-progress-measures' waitingQueues); none is a file of the product.
-  assert.deepEqual(product.contentPaths().filter((path) => !/^[0-9a-f]{40}\.json(\.gz)?$/.test(path) && path !== "latest.json"), [], "the product's own files are read in batches too");
+  assert.deepEqual(product.contentPaths().filter((path) => !/^[0-9a-f]{40}(\.references)?\.json(\.gz)?$/.test(path) && path !== "latest.json"), [], "the product's own files are read in batches too");
 });
 
 // TST-844202 · level: system · module: MOD-review-pages

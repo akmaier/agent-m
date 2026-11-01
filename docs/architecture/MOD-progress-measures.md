@@ -107,7 +107,9 @@ Node.
 - `index.mjs` — the interface.
 - `facts.mjs` — gathering a product's facts.
 - `measures.mjs` — progress in the model's measure.
-- `stages.mjs` — the six stages, the current stage, the build, what waits for a person, what waits for acceptance.
+- `stages.mjs` — the six stages, what waits for acceptance, and the overview `publishOverview` stores.
+- `stored.mjs` — what is read back from `overview-cache` (`storedOverview`, `latestOverview`, `waitingQueues`, `storedView`) and what derives
+  from the facts without another module (`currentStage`, `buildInProgress`, `waitingForAPerson`): a page that shows what is stored loads it alone.
 - `overviews.mjs` — gates, blocked items, who works on what.
 - `views.mjs` — the views of the progress, the backlog and the schedule page: derived from the facts, as a text and back.
 

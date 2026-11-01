@@ -98,7 +98,7 @@ const count = (requests, what) => requests.filter((r) => r === what).length;
 // stored last while the head's is not stored yet: each is one request of its own by design (MOD-trace-graph's storedGraph and storedImpacts,
 // MOD-progress-measures' storedOverview and latestOverview), not a file the page shows. No commit's facts file is stored, and none is asked for.
 const HEAD = "c0ffee".padEnd(40, "0");
-const STORED = new RegExp(`^(${HEAD}\\.(json|impacts\\.json)|latest\\.json)$`);
+const STORED = new RegExp(`^(${HEAD}\\.(json|impacts\\.json|references\\.json\\.gz)|latest\\.json)$`);
 const shownFiles = (requests) => files(requests).filter((path) => !STORED.test(path));
 // The order of the one read of the repository's information among a load's requests is no part of the rule: it is counted, and left out of the sequence.
 const withoutInfo = (requests) => requests.filter((r) => r !== "repository");

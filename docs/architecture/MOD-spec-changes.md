@@ -31,6 +31,7 @@ uses:
   - MOD-spec-document.renamedRequirements
   - MOD-trace-graph.traceGraph
   - MOD-trace-graph.storedGraph
+  - MOD-trace-graph.storedReferences
   - MOD-trace-graph.requirementImpact
   - MOD-trace-graph.coverageGaps
   - MOD-source-register.sourceSchemas
@@ -282,7 +283,8 @@ earlier entry of the queue creates it.
 - MOD-spec-document.parseSpec, sectionText, replaceSection, requirementNamesIn, renamedRequirements — the requirements,
   a section's exact bytes and its replacement, the names an edit touches.
 - MOD-trace-graph.traceGraph, requirementImpact, coverageGaps — impact lists, and the requirements no use case realises, in a job;
-  MOD-trace-graph.storedGraph — the impact list of an entry on a page (entryView, proposeSection, saveEntry), from the graph stored for the commit.
+  MOD-trace-graph.storedReferences — the impact list of an entry on a page (entryView, proposeSection, saveEntry), from what names each
+  requirement as stored beside the commit's graph; MOD-trace-graph.storedGraph — the same from the graph itself, where those are not stored.
 - MOD-source-register.sourceSchemas, sourceFindings, linkedVersion — the instance's links and register as the workflow
   reads them, the requirements that name no linked source, and a candidate's source that the product does not link.
 - MOD-text-tools.Finding, finding, blobSha, lineDiff — findings, blob SHAs and the difference shown.

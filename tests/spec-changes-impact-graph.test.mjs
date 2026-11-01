@@ -63,6 +63,8 @@ function snapshotOf(tree, { notStoredFirst = false, commit = (++commits).toStrin
       return Object.hasOwn(tree, path) ? tree[path] : null;
     },
     async readOn(branch, path, options) {
+      // The references stored beside the graph (MOD-trace-graph's storedReferences): this fake stores none, so the graph is read; their read is not counted here.
+      if (path.endsWith(".references.json.gz")) return null;
       readOns.push([branch, path]);
       return notStoredFirst && readOns.length === 1 ? null : stored(branch, path, options);
     },

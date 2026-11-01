@@ -119,7 +119,7 @@ test("onMainChanged in a product adds the graph to the product's trace-cache and
     const [trace, overview] = [git(f.origin, "rev-parse", "trace-cache"), git(f.origin, "rev-parse", "overview-cache")];
     const status = await run(f);
     assert.equal(status.outcome, "done", status.summary);
-    assert.deepEqual(changedOn(f, "trace-cache", trace), [`${f.head}.gaps.json`, `${f.head}.impacts.json`, `${f.head}.json.gz`, "latest.json"]);
+    assert.deepEqual(changedOn(f, "trace-cache", trace), [`${f.head}.gaps.json`, `${f.head}.impacts.json`, `${f.head}.json.gz`, `${f.head}.references.json.gz`, "latest.json"]);
     const graph = graphFromText(gunzipSync(gitBytes(f.origin, `trace-cache:${f.head}.json.gz`)).toString("utf8"), f.head);
     assert.deepEqual([graph?.nodes.has("A THING IS DONE"), graph?.nodes.has("UC-001"), graph?.nodes.has("AN INSTANCE RULE")], [true, true, false]);
     // publishOverview stores what it holds when this runs (the Acceptance's "whatever those hold"): these four among them.

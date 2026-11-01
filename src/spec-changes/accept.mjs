@@ -40,7 +40,7 @@
 
 import { parseSpec, renamedRequirements, sectionText } from "../spec-document/index.mjs";
 import { blobSha, lineDiff } from "../text-tools/index.mjs";
-import { requirementImpact, storedGraph, traceGraph } from "../trace-graph/index.mjs";
+import { requirementImpact, storedGraph, storedReferences, traceGraph } from "../trace-graph/index.mjs";
 import { readDocument, writeDocument } from "../documents/index.mjs";
 import { approvalSchema } from "../approvals/index.mjs";
 import { sourceFindings, sourceSchemas } from "../source-register/index.mjs";
@@ -78,9 +78,12 @@ export async function impactOf(snapshot, before, after, elsewhere = null) {
     }),
   ];
   if (named.length === 0) return [];
-  const graph = await storedGraph(snapshot, snapshot.commit);
+  // What names each requirement, as stored beside the commit's graph (MOD-trace-graph's storedReferences: a name it holds no entry for is named by nothing); the
+  // graph itself only where those are not stored.
+  const stored = await storedReferences(snapshot, snapshot.commit);
+  const graph = stored ? null : await storedGraph(snapshot, snapshot.commit);
   return named.map(({ name, change }) => ({
-    name, change, referencedBy: [...new Set(requirementImpact(graph, name).map((place) => place.id))],
+    name, change, referencedBy: stored ? [...(stored.get(name) ?? [])] : [...new Set(requirementImpact(graph, name).map((place) => place.id))],
   }));
 }
 

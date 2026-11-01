@@ -182,7 +182,9 @@ test("UC-006 3b: the requests one load of an entry makes, with an empty and with
   const GRAPH = `stored graph ${IMPACT_HEAD}`;
   // A new dashboard load has a fresh in-memory file cache, so it reads the same requests again — but for the stored graph, which the first load read.
   assert.equal(one.cold.filter((r) => r === GRAPH).length, 1, "the stored graph, by one request");
-  assert.deepEqual(one.warm, one.cold.filter((r) => r !== GRAPH));
+  // The references stored beside the graph are asked for once in the same way; this fake stores none, so the graph is read.
+  const REFERENCES = `file ${IMPACT_HEAD}.references.json.gz`;
+  assert.deepEqual(one.warm, one.cold.filter((r) => r !== GRAPH && r !== REFERENCES));
   // The list reads none of the use cases, the architecture files, the tests and the code files of the commit: the graph is the stored one.
   for (const p of [UC1, UC2, UC3, ARC1, MODR, T1, T3, "src/reader.mjs"]) {
     assert.ok(!srv.batches.flat().includes(p), `${p} in no batch`);

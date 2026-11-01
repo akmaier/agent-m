@@ -1049,6 +1049,9 @@ async function start() {
   }
   try {
     const { kind, a, b, unavailableEntry } = addressShown();
+    // #spec draws the specification (MOD-trace-pages' route trace): its modules, and with them MOD-progress-measures, which its read ahead takes the stored overview from,
+    // are imported beside the first read, from the route's preloads at once, not after it, level by level.
+    if (kind === "spec" && !a) importedFirst(tracePages.routes.find((route) => route.name === "trace")).catch(() => {});
     firstLoad = (unavailableEntry ? Promise.resolve(null) : foldersOf(kind, a, b)).then((folders) => loadSnapshot(folders));
     await firstLoad;
     document.getElementById("repo-line").innerHTML =

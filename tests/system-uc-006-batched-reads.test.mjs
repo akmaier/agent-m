@@ -20,13 +20,14 @@ import { productFiles, fakeGitHub, openPage, byClass, ENTRY_ID } from "./uc-006-
 const QUEUE = "docs/spec-freigaben/2026-03-01_sample";
 // The page reads no file of the product on its own: the queue's index and decisions come in one batch, the SPEC in the next one, the entry's proposal
 // and rationale in a third; the graph is the stored one, `<commit>.json.gz` on the branch trace-cache, read by one request.
-const GRAPH = /^[0-9a-f]{40}\.json\.gz$/;
+// The graph and the references stored beside it (MOD-trace-graph: <commit>.json.gz, <commit>.references.json.gz).
+const GRAPH = /^[0-9a-f]{40}(\.references)?\.json\.gz$/;
 // The other proposals on the entry's section come from the overview the branch overview-cache stores for the commit (MOD-progress-measures' waitingQueues): the fake stores
 // none, so the page asks for `<commit>.json` and then `latest.json`, one request each, and reads every queue as before.
 const OVERVIEW = /^([0-9a-f]{40}|latest)\.json$/;
 const overviewReads = (fake) => fake.requests.filter((r) => /\/([0-9a-f]{40}|latest)\.json$/.test(r.url.pathname) && (r.url.searchParams.get("ref") === "overview-cache" || r.url.pathname.includes("/overview-cache/")));
 const ownFiles = (fake) => fake.contentPaths().filter((path) => !GRAPH.test(path) && !OVERVIEW.test(path));
-const graphReads = (fake) => fake.requests.filter((r) => r.url.pathname.endsWith(".json.gz") && (r.url.searchParams.get("ref") === "trace-cache" || r.url.pathname.includes("/trace-cache/")));
+const graphReads = (fake) => fake.requests.filter((r) => r.url.pathname.endsWith(".json.gz") && !r.url.pathname.endsWith(".references.json.gz") && (r.url.searchParams.get("ref") === "trace-cache" || r.url.pathname.includes("/trace-cache/")));
 
 // TST-479101 · level: system · module: MOD-review-pages; MOD-trace-graph; MOD-repository-hosts
 // guards: UC-006; A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT
@@ -49,7 +50,7 @@ test("TST-479101: UC-006 3b opens an entry with its impact list over 1,332 files
   assert.deepEqual(ownFiles(fake), []);
   assert.equal(graphReads(fake).length, 1, "the stored graph, read once");
   assert.equal(overviewReads(fake).length, 2, "the commit's overview and latest.json, read once each");
-  assert.ok(fake.requests.length <= 9, `${fake.requests.length} requests, at most 9`);
+  assert.ok(fake.requests.length <= 10, `${fake.requests.length} requests, at most 10 — one asks for the references stored beside the graph, which this fake stores none of`);
   assert.deepEqual(fake.requests.filter((r) => r.method !== "GET").map((r) => `${r.method} ${r.url.pathname}`), Array(3).fill("POST /graphql"), "only the 3 queries are POSTs: nothing is written");
 });
 
@@ -100,7 +101,7 @@ test("TST-479105: UC-006 4b without a token reads nothing ahead and sends no cre
   assert.equal(byClass(page, "ul", "impact")[0].textContent, "A WRITE RULE — changed, named by UC-002");
   assert.equal(fake.graphqlRequests().length, 0);
   assert.equal(fake.requests.filter((r) => "authorization" in r.headers).length, 0);
-  assert.equal(fake.requests.filter((r) => r.url.origin === "https://raw.githubusercontent.com").length, 8);
+  assert.equal(fake.requests.filter((r) => r.url.origin === "https://raw.githubusercontent.com").length, 9, "eight, and the references stored beside the graph, which this fake stores none of");
   assert.equal(graphReads(fake).length, 1, "the stored graph, read once from the raw host");
   assert.equal(overviewReads(fake).length, 2, "the commit's overview and latest.json, read once each from the raw host");
 });
