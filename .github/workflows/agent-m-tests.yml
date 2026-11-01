@@ -63,7 +63,7 @@ jobs:
       AGENT_M_SHARDS: '16'
       AGENT_M_COMMAND: 'node tests/test-schedule-command.mjs'
       AGENT_M_SECRETS: ''
-      AGENT_M_INSTANCE_COMMIT: '8a43277d852a85e8bb717eed91dcb80f998c958e'
+      AGENT_M_INSTANCE_COMMIT: '0b2e10928fd926f05dc38765ed7ca14b3a06c79b'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -71,7 +71,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: akmaier/agent-m
-          ref: 8a43277d852a85e8bb717eed91dcb80f998c958e
+          ref: 0b2e10928fd926f05dc38765ed7ca14b3a06c79b
           path: .agent-m
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -113,7 +113,7 @@ jobs:
       AGENT_M_SHARDS: '16'
       AGENT_M_COMMAND: 'node tests/test-schedule-command.mjs'
       AGENT_M_SECRETS: ''
-      AGENT_M_INSTANCE_COMMIT: '8a43277d852a85e8bb717eed91dcb80f998c958e'
+      AGENT_M_INSTANCE_COMMIT: '0b2e10928fd926f05dc38765ed7ca14b3a06c79b'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -121,7 +121,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: akmaier/agent-m
-          ref: 8a43277d852a85e8bb717eed91dcb80f998c958e
+          ref: 0b2e10928fd926f05dc38765ed7ca14b3a06c79b
           path: .agent-m
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -163,7 +163,7 @@ jobs:
       AGENT_M_SHARDS: '16'
       AGENT_M_COMMAND: 'node tests/test-schedule-command.mjs'
       AGENT_M_SECRETS: ''
-      AGENT_M_INSTANCE_COMMIT: '8a43277d852a85e8bb717eed91dcb80f998c958e'
+      AGENT_M_INSTANCE_COMMIT: '0b2e10928fd926f05dc38765ed7ca14b3a06c79b'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -171,7 +171,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: akmaier/agent-m
-          ref: 8a43277d852a85e8bb717eed91dcb80f998c958e
+          ref: 0b2e10928fd926f05dc38765ed7ca14b3a06c79b
           path: .agent-m
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -213,7 +213,7 @@ jobs:
       AGENT_M_SHARDS: '16'
       AGENT_M_COMMAND: 'node tests/test-schedule-command.mjs'
       AGENT_M_SECRETS: ''
-      AGENT_M_INSTANCE_COMMIT: '8a43277d852a85e8bb717eed91dcb80f998c958e'
+      AGENT_M_INSTANCE_COMMIT: '0b2e10928fd926f05dc38765ed7ca14b3a06c79b'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -221,7 +221,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: akmaier/agent-m
-          ref: 8a43277d852a85e8bb717eed91dcb80f998c958e
+          ref: 0b2e10928fd926f05dc38765ed7ca14b3a06c79b
           path: .agent-m
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -264,7 +264,7 @@ jobs:
       AGENT_M_SHARDS: '8'
       AGENT_M_COMMAND: 'node tests/test-schedule-command.mjs'
       AGENT_M_SECRETS: ''
-      AGENT_M_INSTANCE_COMMIT: '8a43277d852a85e8bb717eed91dcb80f998c958e'
+      AGENT_M_INSTANCE_COMMIT: '0b2e10928fd926f05dc38765ed7ca14b3a06c79b'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -272,7 +272,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: akmaier/agent-m
-          ref: 8a43277d852a85e8bb717eed91dcb80f998c958e
+          ref: 0b2e10928fd926f05dc38765ed7ca14b3a06c79b
           path: .agent-m
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -314,7 +314,7 @@ jobs:
       AGENT_M_SHARDS: '8'
       AGENT_M_COMMAND: 'node tests/test-schedule-command.mjs'
       AGENT_M_SECRETS: ''
-      AGENT_M_INSTANCE_COMMIT: '8a43277d852a85e8bb717eed91dcb80f998c958e'
+      AGENT_M_INSTANCE_COMMIT: '0b2e10928fd926f05dc38765ed7ca14b3a06c79b'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -322,7 +322,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: akmaier/agent-m
-          ref: 8a43277d852a85e8bb717eed91dcb80f998c958e
+          ref: 0b2e10928fd926f05dc38765ed7ca14b3a06c79b
           path: .agent-m
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -364,7 +364,7 @@ jobs:
       AGENT_M_SHARDS: '8'
       AGENT_M_COMMAND: 'node tests/test-schedule-command.mjs'
       AGENT_M_SECRETS: ''
-      AGENT_M_INSTANCE_COMMIT: '8a43277d852a85e8bb717eed91dcb80f998c958e'
+      AGENT_M_INSTANCE_COMMIT: '0b2e10928fd926f05dc38765ed7ca14b3a06c79b'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -372,7 +372,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: akmaier/agent-m
-          ref: 8a43277d852a85e8bb717eed91dcb80f998c958e
+          ref: 0b2e10928fd926f05dc38765ed7ca14b3a06c79b
           path: .agent-m
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -414,7 +414,7 @@ jobs:
       AGENT_M_SHARDS: '8'
       AGENT_M_COMMAND: 'node tests/test-schedule-command.mjs'
       AGENT_M_SECRETS: ''
-      AGENT_M_INSTANCE_COMMIT: '8a43277d852a85e8bb717eed91dcb80f998c958e'
+      AGENT_M_INSTANCE_COMMIT: '0b2e10928fd926f05dc38765ed7ca14b3a06c79b'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -422,7 +422,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: akmaier/agent-m
-          ref: 8a43277d852a85e8bb717eed91dcb80f998c958e
+          ref: 0b2e10928fd926f05dc38765ed7ca14b3a06c79b
           path: .agent-m
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -465,7 +465,7 @@ jobs:
       AGENT_M_SHARDS: '6'
       AGENT_M_COMMAND: 'node tests/test-schedule-command.mjs'
       AGENT_M_SECRETS: ''
-      AGENT_M_INSTANCE_COMMIT: '8a43277d852a85e8bb717eed91dcb80f998c958e'
+      AGENT_M_INSTANCE_COMMIT: '0b2e10928fd926f05dc38765ed7ca14b3a06c79b'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -473,7 +473,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: akmaier/agent-m
-          ref: 8a43277d852a85e8bb717eed91dcb80f998c958e
+          ref: 0b2e10928fd926f05dc38765ed7ca14b3a06c79b
           path: .agent-m
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -515,7 +515,7 @@ jobs:
       AGENT_M_SHARDS: '6'
       AGENT_M_COMMAND: 'node tests/test-schedule-command.mjs'
       AGENT_M_SECRETS: ''
-      AGENT_M_INSTANCE_COMMIT: '8a43277d852a85e8bb717eed91dcb80f998c958e'
+      AGENT_M_INSTANCE_COMMIT: '0b2e10928fd926f05dc38765ed7ca14b3a06c79b'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -523,7 +523,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: akmaier/agent-m
-          ref: 8a43277d852a85e8bb717eed91dcb80f998c958e
+          ref: 0b2e10928fd926f05dc38765ed7ca14b3a06c79b
           path: .agent-m
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -565,7 +565,7 @@ jobs:
       AGENT_M_SHARDS: '6'
       AGENT_M_COMMAND: 'node tests/test-schedule-command.mjs'
       AGENT_M_SECRETS: ''
-      AGENT_M_INSTANCE_COMMIT: '8a43277d852a85e8bb717eed91dcb80f998c958e'
+      AGENT_M_INSTANCE_COMMIT: '0b2e10928fd926f05dc38765ed7ca14b3a06c79b'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -573,7 +573,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: akmaier/agent-m
-          ref: 8a43277d852a85e8bb717eed91dcb80f998c958e
+          ref: 0b2e10928fd926f05dc38765ed7ca14b3a06c79b
           path: .agent-m
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -615,7 +615,7 @@ jobs:
       AGENT_M_SHARDS: '6'
       AGENT_M_COMMAND: 'node tests/test-schedule-command.mjs'
       AGENT_M_SECRETS: ''
-      AGENT_M_INSTANCE_COMMIT: '8a43277d852a85e8bb717eed91dcb80f998c958e'
+      AGENT_M_INSTANCE_COMMIT: '0b2e10928fd926f05dc38765ed7ca14b3a06c79b'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -623,7 +623,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: akmaier/agent-m
-          ref: 8a43277d852a85e8bb717eed91dcb80f998c958e
+          ref: 0b2e10928fd926f05dc38765ed7ca14b3a06c79b
           path: .agent-m
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -665,7 +665,7 @@ jobs:
       AGENT_M_SHARDS: '1'
       AGENT_M_COMMAND: 'node tests/test-schedule-command.mjs'
       AGENT_M_SECRETS: ''
-      AGENT_M_INSTANCE_COMMIT: '8a43277d852a85e8bb717eed91dcb80f998c958e'
+      AGENT_M_INSTANCE_COMMIT: '0b2e10928fd926f05dc38765ed7ca14b3a06c79b'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -673,7 +673,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: akmaier/agent-m
-          ref: 8a43277d852a85e8bb717eed91dcb80f998c958e
+          ref: 0b2e10928fd926f05dc38765ed7ca14b3a06c79b
           path: .agent-m
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -715,7 +715,7 @@ jobs:
       AGENT_M_SHARDS: '1'
       AGENT_M_COMMAND: 'node tests/test-schedule-command.mjs'
       AGENT_M_SECRETS: ''
-      AGENT_M_INSTANCE_COMMIT: '8a43277d852a85e8bb717eed91dcb80f998c958e'
+      AGENT_M_INSTANCE_COMMIT: '0b2e10928fd926f05dc38765ed7ca14b3a06c79b'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -723,7 +723,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: akmaier/agent-m
-          ref: 8a43277d852a85e8bb717eed91dcb80f998c958e
+          ref: 0b2e10928fd926f05dc38765ed7ca14b3a06c79b
           path: .agent-m
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -765,7 +765,7 @@ jobs:
       AGENT_M_SHARDS: '1'
       AGENT_M_COMMAND: 'node tests/test-schedule-command.mjs'
       AGENT_M_SECRETS: ''
-      AGENT_M_INSTANCE_COMMIT: '8a43277d852a85e8bb717eed91dcb80f998c958e'
+      AGENT_M_INSTANCE_COMMIT: '0b2e10928fd926f05dc38765ed7ca14b3a06c79b'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -773,7 +773,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: akmaier/agent-m
-          ref: 8a43277d852a85e8bb717eed91dcb80f998c958e
+          ref: 0b2e10928fd926f05dc38765ed7ca14b3a06c79b
           path: .agent-m
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -808,15 +808,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
     env:
       AGENT_M_ROW: release
       AGENT_M_OCCASION: pull-request
       AGENT_M_SHARD: ${{ matrix.shard }}
-      AGENT_M_SHARDS: '8'
+      AGENT_M_SHARDS: '12'
       AGENT_M_COMMAND: 'node tests/test-schedule-command.mjs'
       AGENT_M_SECRETS: ''
-      AGENT_M_INSTANCE_COMMIT: '8a43277d852a85e8bb717eed91dcb80f998c958e'
+      AGENT_M_INSTANCE_COMMIT: '0b2e10928fd926f05dc38765ed7ca14b3a06c79b'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -824,7 +824,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: akmaier/agent-m
-          ref: 8a43277d852a85e8bb717eed91dcb80f998c958e
+          ref: 0b2e10928fd926f05dc38765ed7ca14b3a06c79b
           path: .agent-m
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -858,15 +858,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
     env:
       AGENT_M_ROW: release
       AGENT_M_OCCASION: nightly
       AGENT_M_SHARD: ${{ matrix.shard }}
-      AGENT_M_SHARDS: '8'
+      AGENT_M_SHARDS: '12'
       AGENT_M_COMMAND: 'node tests/test-schedule-command.mjs'
       AGENT_M_SECRETS: ''
-      AGENT_M_INSTANCE_COMMIT: '8a43277d852a85e8bb717eed91dcb80f998c958e'
+      AGENT_M_INSTANCE_COMMIT: '0b2e10928fd926f05dc38765ed7ca14b3a06c79b'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -874,7 +874,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: akmaier/agent-m
-          ref: 8a43277d852a85e8bb717eed91dcb80f998c958e
+          ref: 0b2e10928fd926f05dc38765ed7ca14b3a06c79b
           path: .agent-m
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -908,15 +908,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
     env:
       AGENT_M_ROW: release
       AGENT_M_OCCASION: release-candidate
       AGENT_M_SHARD: ${{ matrix.shard }}
-      AGENT_M_SHARDS: '8'
+      AGENT_M_SHARDS: '12'
       AGENT_M_COMMAND: 'node tests/test-schedule-command.mjs'
       AGENT_M_SECRETS: ''
-      AGENT_M_INSTANCE_COMMIT: '8a43277d852a85e8bb717eed91dcb80f998c958e'
+      AGENT_M_INSTANCE_COMMIT: '0b2e10928fd926f05dc38765ed7ca14b3a06c79b'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -924,7 +924,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: akmaier/agent-m
-          ref: 8a43277d852a85e8bb717eed91dcb80f998c958e
+          ref: 0b2e10928fd926f05dc38765ed7ca14b3a06c79b
           path: .agent-m
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -958,15 +958,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
     env:
       AGENT_M_ROW: release
       AGENT_M_OCCASION: on-demand
       AGENT_M_SHARD: ${{ matrix.shard }}
-      AGENT_M_SHARDS: '8'
+      AGENT_M_SHARDS: '12'
       AGENT_M_COMMAND: 'node tests/test-schedule-command.mjs'
       AGENT_M_SECRETS: ''
-      AGENT_M_INSTANCE_COMMIT: '8a43277d852a85e8bb717eed91dcb80f998c958e'
+      AGENT_M_INSTANCE_COMMIT: '0b2e10928fd926f05dc38765ed7ca14b3a06c79b'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -974,7 +974,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: akmaier/agent-m
-          ref: 8a43277d852a85e8bb717eed91dcb80f998c958e
+          ref: 0b2e10928fd926f05dc38765ed7ca14b3a06c79b
           path: .agent-m
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -1016,7 +1016,7 @@ jobs:
       AGENT_M_SHARDS: '1'
       AGENT_M_COMMAND: 'node tests/test-schedule-command.mjs'
       AGENT_M_SECRETS: ''
-      AGENT_M_INSTANCE_COMMIT: '8a43277d852a85e8bb717eed91dcb80f998c958e'
+      AGENT_M_INSTANCE_COMMIT: '0b2e10928fd926f05dc38765ed7ca14b3a06c79b'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -1024,7 +1024,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: akmaier/agent-m
-          ref: 8a43277d852a85e8bb717eed91dcb80f998c958e
+          ref: 0b2e10928fd926f05dc38765ed7ca14b3a06c79b
           path: .agent-m
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -1066,7 +1066,7 @@ jobs:
       AGENT_M_SHARDS: '1'
       AGENT_M_COMMAND: 'node tests/test-schedule-command.mjs'
       AGENT_M_SECRETS: ''
-      AGENT_M_INSTANCE_COMMIT: '8a43277d852a85e8bb717eed91dcb80f998c958e'
+      AGENT_M_INSTANCE_COMMIT: '0b2e10928fd926f05dc38765ed7ca14b3a06c79b'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -1074,7 +1074,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: akmaier/agent-m
-          ref: 8a43277d852a85e8bb717eed91dcb80f998c958e
+          ref: 0b2e10928fd926f05dc38765ed7ca14b3a06c79b
           path: .agent-m
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -1108,7 +1108,7 @@ jobs:
     timeout-minutes: 2
     env:
       AGENT_M_TOKEN: ${{ secrets.AGENT_M_TOKEN }}
-      AGENT_M_INSTANCE_COMMIT: '8a43277d852a85e8bb717eed91dcb80f998c958e'
+      AGENT_M_INSTANCE_COMMIT: '0b2e10928fd926f05dc38765ed7ca14b3a06c79b'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -1116,7 +1116,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: akmaier/agent-m
-          ref: 8a43277d852a85e8bb717eed91dcb80f998c958e
+          ref: 0b2e10928fd926f05dc38765ed7ca14b3a06c79b
           path: .agent-m
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -1145,8 +1145,8 @@ jobs:
     timeout-minutes: 2
     env:
       AGENT_M_TOKEN: ${{ secrets.AGENT_M_TOKEN }}
-      AGENT_M_EXPECTED: 'unit:16,component:8,system:6,release:8'
-      AGENT_M_INSTANCE_COMMIT: '8a43277d852a85e8bb717eed91dcb80f998c958e'
+      AGENT_M_EXPECTED: 'unit:16,component:8,system:6,release:12'
+      AGENT_M_INSTANCE_COMMIT: '0b2e10928fd926f05dc38765ed7ca14b3a06c79b'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -1154,7 +1154,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: akmaier/agent-m
-          ref: 8a43277d852a85e8bb717eed91dcb80f998c958e
+          ref: 0b2e10928fd926f05dc38765ed7ca14b3a06c79b
           path: .agent-m
           persist-credentials: false
       - uses: actions/setup-node@v4
