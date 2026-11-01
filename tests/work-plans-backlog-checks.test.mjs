@@ -87,15 +87,17 @@ test("backlog-checks — a drafted item that realises nothing is an error naming
 
 // TST-616003 · level: unit · module: MOD-work-plans
 // guards: UC-032; A BACKLOG ITEM NAMES THE MODULES IT CHANGES
-// given: the sound draft's first entry changing MOD-ghost, which the product's architecture lacks; then changing no module; then, as the counter-proof, changing MOD-store and MOD-ghost
+// given: the sound draft's first entry changing MOD-ghost, which the product's architecture lacks; then changing no module; then changing MOD-store and MOD-ghost; and, as the counter-proof, changing MOD-store alone
 // input: the check backlog-checks on each draft
-// expect: for the first two, one error A BACKLOG ITEM NAMES THE MODULES IT CHANGES "the item names no module the architecture describes" on the item "Store the thesis"; for the counter-proof, no finding
+// expect: for the first two, one error A BACKLOG ITEM NAMES THE MODULES IT CHANGES "the item names no module the architecture describes" on the item "Store the thesis"; for MOD-store and MOD-ghost, one error with the same rule, "the item names MOD-ghost, which the architecture does not describe"; for the counter-proof, no finding
 // Planted fault: reading the architecture from nothing (every item then names no module), or never from the snapshot's module files, fails the counter-proof or the first case.
 test("backlog-checks — a drafted item that names no module the product's architecture describes is an error", async () => {
   for (const modules of [["MOD-ghost"], []]) {
     assert.deepEqual(brief(await run([entry("Store the thesis", { modules })])), [[the("Store the thesis"), "error", MODULES, "the item names no module the architecture describes"]]);
   }
-  assert.deepEqual(await run([entry("Store the thesis", { modules: ["MOD-store", "MOD-ghost"] })]), []);
+  assert.deepEqual(brief(await run([entry("Store the thesis", { modules: ["MOD-store", "MOD-ghost"] })])),
+    [[the("Store the thesis"), "error", MODULES, "the item names MOD-ghost, which the architecture does not describe"]]);
+  assert.deepEqual(await run([entry("Store the thesis", { modules: ["MOD-store"] })]), []);
 });
 
 // TST-616004 · level: unit · module: MOD-work-plans
