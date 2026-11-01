@@ -439,8 +439,7 @@ test("TST-779111: UC-031 explains: every part of the editor carries a folded Wha
 // given: the page of + New model
 // input: the author picks the kind planned; then, on another page of + New model, the kind pulled
 // expect: UC-031 2a "The author first picks the kind of work, and Agent M adapts the form to it", with the table's "Flow control (pulled only)": the form of the planned model holds no Flow control section; the form of the pulled model holds one; known positive: the pulled form's Flow control holds the rows WIP limit, Time box and Sprints
-test("TST-779112: UC-031 2a: the form of a planned model has no Flow control, which is for pulled work only",
-  { todo: "FINDING UC-031-2A-FLOW — the form of + New model for the kind planned still shows an empty Flow control section, though UC-031 marks flow control as pulled only (MOD-implementation-pages process.mjs, the editor of `models/<name>`; a backlog item to be added by the Product Owner)" }, async () => {
+test("TST-779112: UC-031 2a: the form of a planned model has no Flow control, which is for pulled work only", async () => {
     const pulled = await edit("");
     try {
       await pulled.press(kindButton(pulled, "pulled"));
