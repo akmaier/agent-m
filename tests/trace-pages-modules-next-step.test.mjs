@@ -92,13 +92,13 @@ test("a module without code and a module without tests offer Implement, to the i
 
 // TST-073603 · level: component · module: MOD-trace-pages
 // guards: UC-025; MODULE GAPS ARE REPORTED, NOT FORBIDDEN
-// given: the fixture product at main, whose other gaps are an import of MOD-notest that MOD-page's file does not name, a code file outside every module's folder and its folder
+// given: the fixture product at main, whose other gaps are an import of MOD-notest that MOD-page's file does not name, a code file outside every module's folder and its folder, and the two modules whose tests guard no requirement (realises-nothing)
 // input: Route.render with the key "modules" at main
 // expect: counter-proof — those gaps are listed and offer neither link; the only links on the page are those of the four gaps above
 test("the other gaps offer neither link", async () => {
   const target = await render(hostOf());
   const others = gaps(target).filter((gap) => !["requirement-without-module", "module-without-code", "module-without-test"].includes(gap.getAttribute("data-kind")));
-  assert.deepEqual(others.map((gap) => gap.getAttribute("data-kind")).sort(), ["code-without-module", "folder-named-by-no-module", "import-not-in-uses"]);
+  assert.deepEqual(others.map((gap) => gap.getAttribute("data-kind")).sort(), ["code-without-module", "folder-named-by-no-module", "import-not-in-uses", "realises-nothing", "realises-nothing"]);
   for (const gap of others) assert.deepEqual(find(gap, (node) => node.localName === "a"), [], gap.getAttribute("data-kind"));
   assert.equal(byClass(target, "a", "gap-implement").length + byClass(target, "a", "gap-change-architecture").length, 4);
 });
