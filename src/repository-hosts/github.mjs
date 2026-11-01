@@ -277,9 +277,9 @@ export function githubAdapter(address, { token, tokenName }, links) {
     // The repository's REST record, and, with a token, together with it one request of the GraphQL API for greenToMerge alone (GREEN). An answer of that request that is refused, fails or does not come
     // gives greenToMerge null and fails nothing; without a token the GraphQL API takes no request, and greenToMerge is null.
     async repositoryInfo() {
-      const record = read(repo, { permission: "Metadata" });
       const green = token ? objectsOf(GREEN).then((said) => greenToMergeOf(said?.data?.repository?.defaultBranchRef, said?.errors), () => null) : Promise.resolve(null);
-      // The record's request goes out first and the GraphQL request with it; both are answered before repositoryInfo returns or fails, so a failed record leaves no request open.
+      const record = read(repo, { permission: "Metadata" });
+      // The two requests go out together; both are answered before repositoryInfo returns or fails, so a failed record leaves no request open.
       const [answered, greenToMerge] = await Promise.all([record.then((r) => ({ r }), (failure) => ({ failure })), green]);
       if (answered.failure) throw answered.failure;
       const { r } = answered;
