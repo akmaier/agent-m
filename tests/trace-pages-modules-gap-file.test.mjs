@@ -99,7 +99,7 @@ test("a requirement's gap offers no file control and keeps its next step", async
   const gap = gapOf(target, "requirement-without-module", "GAMMA RULE");
   assert.ok(gap, "known positive: the gap is listed");
   assert.deepEqual(byClass(gap, "a", "gap-change-architecture").map((link) => link.getAttribute("href")), ["#decision"]);
-  assert.deepEqual(buttonsOf(gap), []);
+  assert.equal(buttonsOf(gap).length, 0, "no file control");
 });
 
 // TST-1353004 · level: unit · module: MOD-trace-pages
