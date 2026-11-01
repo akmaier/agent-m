@@ -33,8 +33,7 @@ const fs = globalThis.process?.getBuiltinModule?.("node:fs");
 
 // The route of this CI service's jobs, as MOD-job-ledger writes a record's route, and the form of a CI agent's route in the register.
 const routeOf = (runner) => (runner === "hosted" ? "ci hosted" : `ci runner:${runner}`);
-const CI_ROUTE = /^ci (?:hosted|runner:\S+) secret (\S+)$/;
-// The secret a participant's route names, of any route that names one (`endpoint <name> secret <NAME>`, `ci hosted secret <NAME>`), and the words of a record whose task a hand-over brings.
+// The secret a participant's route names, of any route that names one (`endpoint <name> secret <NAME>`, `ci hosted secret <NAME>`), which is the key of its queued jobs, and the words of a record whose task a hand-over brings.
 const SECRET_OF = / secret (\S+)$/;
 const WITH_HAND_OVER = "with the hand-over";
 const NO_TASK = "the task travels with its hand-over, and this run was started without it";
@@ -198,7 +197,7 @@ async function runJobOf(env, composed, participants, row, handOver = null) {
   const taking = await takeJob(product.host, path, job.runUrl ?? `ci ${job.runner}`, (await product.host.readSnapshot("HEAD")).commit);
   if (!taking.taken) return { id: record.id, state: "skipped", summary: `${record.id} was taken by ${taking.by}` };
   // A hand-over with an endpoint reads its key from the secret the input `secret` names, and no other; every other job from the secret its participant's route names.
-  const secretName = handOver?.endpoint ? (handOver.secret ?? undefined) : (handOver ? SECRET_OF : CI_ROUTE).exec(participant.route ?? "")?.[1];
+  const secretName = handOver?.endpoint ? (handOver.secret ?? undefined) : SECRET_OF.exec(participant.route ?? "")?.[1];
   const hidden = (value) => {
     let said = String(value);
     if (handOver) said = said.split(handOver.task.trim()).join("[the task]");
@@ -298,8 +297,8 @@ async function queuedOf(env, snapshot, { handedOver = false } = {}) {
   return rows.reverse();
 }
 
-// The key secret a queued job's participant reads, as its route names it — `ci <runner> secret <NAME>` —, or null.
-const keyOfRow = (participants, { record }) => CI_ROUTE.exec(participants.find((each) => each.name === record.participant)?.route ?? "")?.[1] ?? null;
+// The key secret a queued job's participant reads, as its route names it — `ci <runner> secret <NAME>` or `endpoint <name> secret <NAME>` —, or null.
+const keyOfRow = (participants, { record }) => SECRET_OF.exec(participants.find((each) => each.name === record.participant)?.route ?? "")?.[1] ?? null;
 
 // The jobs this machine runs: on the agent's machine, those whose key is the one it was given, or none the job workflow reads; a job whose key is another of
 // those the file reads is left queued for the run its own key's machine makes. Elsewhere every job.
@@ -354,7 +353,7 @@ function missingSecret(env, participants, rows) {
   if (!env.job.personToken && env.job.part !== "agent") return `${env.job.tokenName} is missing: the person's Agent M token is a secret of this repository, passed to the job as ${env.job.tokenName}. Nothing was written.`;
   for (const { record } of rows) {
     const participant = participants.find((each) => each.name === record.participant);
-    const secret = CI_ROUTE.exec(participant?.route ?? "")?.[1];
+    const secret = SECRET_OF.exec(participant?.route ?? "")?.[1];
     if (secret && !keyAvailable(env.job, secret)) return `${secret} is missing: the key of ${participant.name} is a secret of this repository, passed to the job as ${secret}. Nothing was written.`;
   }
   return null;
@@ -556,7 +555,7 @@ export async function chooseAgentKey(env) {
   else if (inputs) {
     const row = (await queuedOf(env, snapshot, { handedOver: true })).find(({ record }) => record.id === inputs.job);
     const participant = participants.find((each) => each.name === (row?.record.participant ?? inputs.participant));
-    key = (row?.record.task === WITH_HAND_OVER ? SECRET_OF : CI_ROUTE).exec(participant?.route ?? "")?.[1] ?? null;
+    key = SECRET_OF.exec(participant?.route ?? "")?.[1] ?? null;
   } else {
     const [first] = await queuedOf(env, snapshot);
     key = first ? keyOfRow(participants, first) : null;
