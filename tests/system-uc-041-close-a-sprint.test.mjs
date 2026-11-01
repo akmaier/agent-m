@@ -85,12 +85,12 @@ const FLOW_EVIDENCE = {
   "6a-no-retrospective": { uc: "**6a. The closer's draft holds no retrospective.** Agent M returns the draft to the closer with the finding, as a correction round", evidence: [[SELF, "TST-991210"], [PY, "TST-991401"]] },
   "7a-red": { uc: "**7a. CI on the merge of the sprint branch is red.** The increment is not merged", evidence: [[RELEASE, "TST-991303"]] },
   "7b-given-up": { uc: "If the Product Owner gives the increment up, its done items stay done and are no longer held", evidence: [[SELF, "TST-991211"], [GIVE_UP, "TST-1232003"]] },
+  "main-3-sources-kept": { uc: "naming each source", evidence: [[RELEASE, "TST-991305"]] },
   "7c-other-team": { uc: "**7c. Another team's increment was merged into the default branch first.**", evidence: [[RELEASE, "TST-991302"]] },
 };
 // The passages the code does otherwise: the finding, its case, and the module it points to.
 const FLOW_FINDINGS = {
   "main-2-not-done": { uc: "the items not done, each with its state and reason (UC-034)", finding: "UC041-F3", file: SELF, test: "TST-991203", module: "MOD-work-plans" },
-  "main-3-sources-kept": { uc: "naming each source", finding: "UC041-F2", file: RELEASE, test: "TST-991305", module: "MOD-work-plans" },
   "main-5-as-proposal": { uc: "is written as a proposal that a person accepts", finding: "UC041-F4", file: RELEASE, test: "TST-991306", module: "MOD-work-plans" },
 };
 
