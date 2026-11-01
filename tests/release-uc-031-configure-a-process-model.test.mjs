@@ -232,8 +232,8 @@ test("TST-779102: UC-031 4: each fault of step 4 is listed beside its part while
 // TST-779103 · level: release · module: system
 // guards: UC-031; A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
 // given: the editor on the adapted Scrum, a pulled model whose Flow control holds a time box of 1 week and no WIP limit
-// input: the author types a WIP limit of 3 as well; then removes the time box; then removes the WIP limit too; the person presses Save with each of the three typed
-// expect: UC-031 step 4 "for pulled work, neither a time box nor a WIP limit, or both": with both, the part Flow control names the fault and Save is unavailable; with only the WIP limit, Save is available; with neither, the part names the fault and Save is unavailable; a click on Save while unavailable commits nothing; known positive: the copy as opened (the time box only) has no such finding and Save is available
+// input: the author types a WIP limit of 3 as well; then removes the time box and types the measure items per state over time, which the copy keeps only with the WIP limit alone; then removes the WIP limit too; the person presses Save with each of the three typed
+// expect: UC-031 step 4 "for pulled work, neither a time box nor a WIP limit, or both": with both, the part Flow control names the fault and Save is unavailable; with only the WIP limit and the measure items per state over time, Save is available; with neither, the part names the fault and Save is unavailable; a click on Save while unavailable commits nothing; known positive: the copy as opened (the time box only) has no such finding and Save is available
 test("TST-779103: UC-031 4: a pulled model with both a time box and a WIP limit, or with neither, is named beside Flow control and cannot be saved", async () => {
   const page = await edit("scrum");
   try {
@@ -247,6 +247,7 @@ test("TST-779103: UC-031 4: a pulled model with both a time box and a WIP limit,
     await page.press(saveOf(page));
     assert.equal(commitsOf(page).length, 0);
     await typeSection(page, "## Flow control", flow.replace("| WIP limit | — |", "| WIP limit | 3 |").replace("| Time box | 1 week |", "| Time box | — |"));
+    await typeKey(page, "measure", "items per state over time");
     assert.equal(disabledOf(saveOf(page)), false, "the WIP limit alone is a flow control");
     await typeSection(page, "## Flow control", flow.replace("| Time box | 1 week |", "| Time box | — |"));
     assert.match(besideSection(page, "## Flow control"), naming, "neither");
