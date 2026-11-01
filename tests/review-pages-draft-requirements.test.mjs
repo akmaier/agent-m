@@ -339,9 +339,9 @@ test("spec-entry/draft - a changed source file hash sends nothing", async () => 
 
 // TST-1389001 · level: unit · module: MOD-review-pages
 // guards: UC-005; A SOURCE VERSION IS FIXED BY IDENTIFIER AND HASH
-// given: the source register records a wrong SHA-256 for main.md of SRC-policy 2026-10-01; the person's token is stored; known positive: the same page over the register that records main.md's SHA-256
+// given: the source register records a wrong SHA-256 for main.md of SRC-policy 2026-10-01; the person's token is stored; known positive: the same page over the register that records main.md's SHA-256; counter-proof: the same page over a content repository that does not hold main.md
 // input: choose main.md and drafter-a, Show the run panel
-// expect: the problem names main.md, says that its content changed and that a new version must be registered, and links the library's entry of SRC-policy (#library/source=SRC-policy), where a new version is registered (UC-016); no Run, nothing sent, nothing written; known positive: with the recorded SHA-256 the run panel is shown and no paragraph says the content changed
+// expect: the problem names main.md, says that its content changed and that a new version must be registered, and links the library's entry of SRC-policy (#library/source=SRC-policy), where a new version is registered (UC-016); no Run, nothing sent, nothing written; known positive: with the recorded SHA-256 the run panel is shown and no paragraph says the content changed; counter-proof: a file the content repository does not hold is a problem that does not say the content changed and links no new version
 test("TST-1389001: spec-entry/draft - a changed source file is named as changed, with the link to register a new version", async () => {
   const showPanel = async (entries) => {
     endpointAnswers();
@@ -370,4 +370,12 @@ test("TST-1389001: spec-entry/draft - a changed source file is named as changed,
   const known = await showPanel(SOURCE_FILES);
   assert.equal(byClass(known.target, "section", "run-panel").length, 1, "known positive: the run panel is shown");
   assert.ok(!byClass(known.target, "p", "problem").some((p) => /\bchanged\b/.test(p.textContent)), "known positive: nothing says the content changed");
+
+  const { [`docs/sources/${SOURCE}/2026-10-01/${MAIN_FILE}`]: _held, ...withoutMain } = SOURCE_FILES;
+  const missing = await showPanel(withoutMain);
+  const unreadable = byClass(missing.target, "p", "problem")[0];
+  assert.ok(unreadable, "counter-proof: a problem is shown");
+  assert.match(unreadable.textContent, /does not hold/, "counter-proof: the file is not held");
+  assert.doesNotMatch(unreadable.textContent, /\bchanged\b/, "counter-proof: a missing file is not named as changed");
+  assert.equal(find(unreadable, (node) => node.localName === "a" && /new version/.test(node.textContent)).length, 0, "counter-proof: no new version is linked");
 });
