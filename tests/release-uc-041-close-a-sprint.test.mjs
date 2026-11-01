@@ -65,7 +65,7 @@ const BUILT_BY_WRITER = {
   "A TIME BOX WORKS ONLY ON WHAT WAS SELECTED FOR IT": "ITM-1264, Implement judging its items from the backlog's view of the head",
 };
 // The findings of this file: the case, and the module it points to.
-const FINDINGS = { "TST-991305": { finding: "UC041-F2", module: "MOD-work-plans" }, "TST-991306": { finding: "UC041-F4", module: "MOD-work-plans" } };
+const FINDINGS = { "TST-991306": { finding: "UC041-F4", module: "MOD-work-plans" } };
 
 // TST-991301 · level: release · module: system
 // guards: UC-041
@@ -174,8 +174,8 @@ test("TST-991304: the gate at a sprint branch's merge is passed only by its team
 // guards: AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM; UC-041
 // given: the product of tests/uc-041-harness.mjs; closer-bot answers every request with a close whose review names no source
 // input: the close job of team1/02 runs unattended, as CI and a Bridge run it, until its loop ends
-// expect: known positive — closer-bot is sent the finding under AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM; no review is recorded that names no source: the record of team1/02 holds no ## Review, or one that names the sources of its feedback; FINDING UC041-F2 (MOD-work-plans): the loop ends unchanged after two rounds, nobody attends, and the writer sprint-record records the review with "Sources of the feedback: none."
-test("TST-991305: an agent's review that names no source of its feedback is not recorded", { todo: "FINDING UC041-F2 (MOD-work-plans): when an unattended close ends its loop with the finding still open, the writer sprint-record records the review with Sources of the feedback: none" }, async () => {
+// expect: known positive — closer-bot is sent the finding under AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM; no review is recorded that names no source: the record of team1/02 holds no ## Review, or one that names the sources of its feedback
+test("TST-991305: an agent's review that names no source of its feedback is not recorded", async () => {
   const w = await closeWorld();
   const close = CLOSE();
   close.review.sources = [];
