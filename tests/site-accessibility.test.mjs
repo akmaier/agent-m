@@ -56,6 +56,7 @@ const RETURN_CONTROLS = `[...document.querySelectorAll("main a[href]")].map((anc
   return { href: anchor.getAttribute("href"), label: anchor.textContent.replace(/\\s+/g, " ").trim(),
     visible: style.display !== "none" && style.visibility !== "hidden" && box.width > 0 && box.height > 0 };
 })`;
+const READ_FIRST = { "#uc": "#review/uc", "#arc": "#review/arc", "#module": "#review/arc" };
 const found = new Map(); // "<address> <width name>" -> { violations: [{ id, impact, nodes, first }], text, ticks, returnControls }
 const planted = {};
 let site = null, browser = null;
@@ -79,6 +80,8 @@ const setUp = async () => {
   for (const [kind, width] of WIDTHS) {
     await configure(page, "Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: kind === "phone" });
     for (const route of ROUTES) {
+      // A list offers a tick for a file its page has shown: the lists with ticks are drawn after the review page that shows their files.
+      if (READ_FIRST[route.address]) await show(page, site, READ_FIRST[route.address]);
       await show(page, site, route.address);
       found.set(`${route.address} ${kind}`, { violations: await check(), text: await page.evaluate(`(document.querySelector("main")?.innerText ?? "").replace(/\\s+/g, " ")`),
         ticks: await page.evaluate(TICKS), diagrams: await page.evaluate(`(${unrenderedFindings})()`),

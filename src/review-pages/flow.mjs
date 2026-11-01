@@ -53,6 +53,15 @@ const recordOf = (id, kind, path, blob) => ({ path: `docs/approvals/${id}-${blob
 
 // A difference shows every line of the file, each marked as it is, so that its first change can stand in the middle of its box (`context` as large as the file).
 const WHOLE = { context: Infinity };
+// What this tab has shown of the files it lists, kept on the screen only: for the host of the repository the page shows, the tick each file shown offers on the
+// list by the file's identifier, naming the text that was shown. The host is the tab's own for as long as the frame keeps it, and a repository's files are not another's.
+const shownOn = new WeakMap();
+function shownTicksOf(context) {
+  const key = (context.product ?? context.instance)?.host ?? context;
+  if (!shownOn.has(key)) shownOn.set(key, new Map());
+  return shownOn.get(key);
+}
+
 // Opens each difference box in `scope` with its first changed line in the middle of the box: the line's middle at the box's middle, never above the box's start.
 // The box must stand in the page, which gives it its geometry.
 function centreFirstChange(scope) {
@@ -255,12 +264,13 @@ export function reviewRoute(kind) {
     const tables = [];
     const rowFor = (file, withTick) => {
       const first = el("td");
-      if (withTick && token && file.tick) {
+      const shown = withTick && token && file.tick ? shownTicksOf(context).get(file.id) : undefined;
+      if (shown) {
         const box = el("input", "tick");
         box.type = "checkbox";
         box.setAttribute("aria-label", `Accept ${file.id}`);
         box.addEventListener("change", () => {
-          if (box.checked) ticks.set(file.id, file.tick); else ticks.delete(file.id);
+          if (box.checked) ticks.set(file.id, shown); else ticks.delete(file.id);
           bar.disabled = ticks.size === 0;
           bar.textContent = `Accept ticked (${ticks.size})`;
         });
@@ -379,6 +389,7 @@ export function reviewRoute(kind) {
       const blob = snapshot.blob(file.path);
       const section = el("section", "review-file", el("h3", null, kind.heading(body)), badge(file.status, LABEL[file.status]));
       section.setAttribute("data-id", file.id);
+      shownTicksOf(context).set(file.id, { path: file.path, blob });
       let withImpact = true;
       if (file.status === "changed") {
         const diff = el("section", "accepted-diff", el("h4", null, "Changed since it was last accepted"));
@@ -479,6 +490,7 @@ export function reviewRoute(kind) {
     for (const entry of entries) {
       const section = el("section", "review-file", el("h3", null, entry.title), badge(entry.status, entry.label), ...entry.nodes);
       section.setAttribute("data-id", entry.id);
+      if (entry.shown) shownTicksOf(context).set(entry.id, entry.shown[0]);
       target.append(section);
     }
     const shown = entries.flatMap((entry) => entry.shown);
@@ -541,6 +553,7 @@ export function reviewRoute(kind) {
       target.append(el("p", "problem", `No ${kind.noun} ${id} on the default branch.`), link(`#${kind.route}`, null, `All ${kind.plural}`));
       return;
     }
+    if (entry.shown) shownTicksOf(where.context).set(id, entry.shown[0]);
     target.append(el("h2", null, entry.title), badge(entry.status, entry.label),
       ...(entry.status === "approved" ? [el("p", "approved-note", APPROVED_NOTE)] : []), explain(kind.explain.one), ...entry.nodes);
     if (entry.edit) target.append(link(`#${kind.route}/id=${encodeURIComponent(id)}/edit=1`, "edit-link", "Edit"));
@@ -584,6 +597,7 @@ export function reviewRoute(kind) {
     }
     const body = await snapshot.read(file.path);
     const blob = snapshot.blob(file.path);
+    shownTicksOf(where.context).set(file.id, { path: file.path, blob });
     target.append(el("h2", null, kind.heading(body)), badge(file.status, LABEL[file.status]),
       el("p", "shown", `Text shown: blob ${blob.slice(0, 12)}`), explain(kind.explain.one));
     let last = null, stored = null;

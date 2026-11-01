@@ -538,9 +538,11 @@ test("release · UC-008 3c: a GitLab product without its token is read, offers n
 test("release · UC-008 3d: Accept ticked writes one record per ticked use case in one commit; a file changed since is left out and named", async () => {
   for (const changeOne of [false, true]) {
     const w = await world();
-    const page = await open(w, { hash: "#uc" });
+    const page = await open(w, { hash: "#uc/UC-001" });
     const shown1 = ucText(w, UC1), shown3 = ucText(w, UC3);
-    // The list holds a tick for each use case not yet accepted: UC-001, then UC-003.
+    // The reviewer reads UC-001, then UC-003, then returns to the list, which holds a tick for each use case read and not yet accepted: UC-001, then UC-003.
+    await page.go("#uc/UC-003");
+    await page.go("#uc");
     for (const box of inMain().querySelectorAll("input.tick")) { box.checked = true; box.fire("change", {}); }
     if (changeOne) await w.server.change(UC3, useCase("UC-003", "Sign a report", "CHANGED-AFTER-SHOWN."));
     await page.click(".accept-ticked");
@@ -681,7 +683,8 @@ test("release · UC-006 4d: an entry waits for the entry that creates its headin
   assert.equal(inMain().querySelector("button.accept"), null, "02 is not offered alone");
   assert.match(stripTags(page.main()), /\b0?1\b/);
   assert.match(stripTags(page.main()), /entry 0?1/i, "the entry it needs is named");
-  // The SPEC changes list holds a tick for each open entry of the queue, the waiting one too, in its first part (open or changed).
+  // The reviewer reads entry 01 as well; the SPEC changes list then holds a tick for each entry of the queue read, the waiting one too, in its first part (open or changed).
+  await page.go("#spec/2026-01-01b_new-section/01");
   await page.go("#spec-entry");
   const firstPart = inMain().querySelectorAll("section.open-changes")[0];
   assert.ok(firstPart, "the open entries stand in a first part");
