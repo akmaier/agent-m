@@ -76,6 +76,7 @@ const FLOW_EVIDENCE = {
   "3d-new": { uc: "**3d. The author adds a new requirement**", evidence: [[SELF, "TST-376211"], [LINKS, "TST-360002"], [REQ, "TST-472630"]] },
   "3d-empty-fields": { uc: "opens the editor with the four fields empty", evidence: [[SELF, "TST-376222"]] },
   "3e-text-only": { uc: "the editor changes text only, never a group", evidence: [[SELF, "TST-376212"]] },
+  "3e-link": { uc: "A link opens the arrangement (UC-021)", evidence: [[SELF, "TST-376213"]] },
   "4a-no-token": { uc: "**4a. No token is stored (GitHub).**", evidence: [[SELF, "TST-376214"], [UC008, "TST-372208"], [REQ_PAGES, "TST-592002"]] },
   "4b-gitlab": { uc: "**4b. The product is on GitLab and no token for it is stored.**", evidence: [[SELF, "TST-376215"]] },
   "5a-changed": { uc: "**5a. The file or the SPEC section changed since step 2.** Nothing is written. The editor keeps the author's text and shows the newer version beside it", evidence: [[SELF, "TST-376216"]] },
@@ -87,7 +88,6 @@ const FLOW_EVIDENCE = {
 // The passages the dashboard does otherwise: the finding, its case, and the module it points to.
 const FLOW_FINDINGS = {
   "main-6-open-queue": { uc: "Agent M adds an entry to the author's open queue of today", finding: "UC018-F1", file: SELF, test: "TST-376206", module: "MOD-review-pages" },
-  "3e-link": { uc: "A link opens the arrangement (UC-021)", finding: "UC018-F3", file: SELF, test: "TST-376213", module: "MOD-review-pages" },
 };
 
 // TST-376201 · level: system · module: system
@@ -429,8 +429,8 @@ test("TST-376212: UC-018 3e an edit changes text only, never a group", async () 
 // guards: UC-018
 // given: the library on GitHub; the author's token stored
 // input: the author opens the editor of A LOAN HAS A DUE DATE, and the editor of UC-001
-// expect: 3e "A link opens the arrangement (UC-021)": each editor holds a link to the arrangement, #arrange/kind=requirements for the requirement and #arrange/kind=use-cases for the use case; FINDING UC018-F3 (MOD-review-pages): the editors offer no link to the arrangement
-test("TST-376213: UC-018 3e the editor links the arrangement of its kind", { todo: "FINDING UC018-F3 (MOD-review-pages): neither the editor of a requirement nor that of a reviewed file links the arrangement (UC-021); only the lists do" }, async () => {
+// expect: 3e "A link opens the arrangement (UC-021)": each editor holds a link to the arrangement, #arrange/kind=requirements for the requirement and #arrange/kind=use-cases for the use case
+test("TST-376213: UC-018 3e the editor links the arrangement of its kind", async () => {
   const w = await specWorld();
   const requirement = await w.draw("requirement", { name: LOAN });
   assert.ok(linksOf(requirement).some((link) => paramsOf(link.getAttribute("href")).route === "arrange" && paramsOf(link.getAttribute("href")).params.kind === "requirements"));
