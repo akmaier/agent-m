@@ -575,6 +575,7 @@ async function editor(target, context, name) {
     const placed = (document) => ({ ...document, path: document.fields.name ? modelPath(String(document.fields.name)) : opened.path });
 
     // 6a: the products of this browser that declare the model the definition would be saved as, beside the form; those that could not be read, as the list shows them.
+    // The form's extraChecks draw them when it opens and at every typing.
     const users = el("div", "model-users");
     const usersPart = el("section", "model-products", el("h3", null, "Products that declare this model"), explain("model-products"), users);
     const showUsers = (path) => users.replaceChildren(...[productsDeclaring(declarations, path), unreadableOf(declarations)].filter(Boolean));
@@ -675,7 +676,6 @@ async function editor(target, context, name) {
       for (const part of elementsOf(form, (node) => node.getAttribute("data-section") === "## Flow control")) part.remove();
     }
     // Inserted in the same turn schemaForm returns it, so that its queued focus finds it in the page.
-    showUsers(placed(opened).path);
     page.append(usersPart, el("section", "model-form", explain("model-findings"), form), notice,
       el("section", "model-picture", el("h3", null, "Phases, verification pairs and gates"), explain("phases-and-gates"), diagram));
     for (const address of readSetting(store, "products") ?? []) {
