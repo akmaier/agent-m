@@ -37,8 +37,12 @@ const BARE = "https://github.com/alice/bare";
 
 // ---------------------------------------------------------------- the page, as a person reads and fills it
 
-const editorOf = (page) => classed(page.target, "model-editor")[0];
-const heading = (page) => walk(editorOf(page), (node) => node.localName === "h2")[0].textContent;
+// The page is found by what a person reads: headings, button texts and the form's own labels (a key, a section's heading); a view's class names are not used, except the library's `mermaid` for the diagram.
+const editorOf = (page) => page.target;
+const heading = (page) => walk(page.target, (node) => node.localName === "h2")[0].textContent;
+const withText = (page, name, test) => walk(page.target, (node) => node.localName === name && test(node.textContent.trim()));
+// The part of the page headed `title` (an h3 of a section): the section.
+const partTitled = (page, title) => walk(page.target, (node) => node.localName === "section" && [...node.childNodes].some((kid) => kid.localName === "h3" && kid.textContent === title))[0];
 const fieldOf = (page, key) => walk(page.target, (node) => node.getAttribute("data-key") === key)[0];
 const valueOf = (page, key) => fieldOf(page, key).getElementsByTagName("input")[0].value;
 const sectionOf = (page, part) => walk(page.target, (node) => node.getAttribute("data-section") === part)[0];
@@ -47,7 +51,8 @@ const areaOf = (page, part) => sectionOf(page, part).getElementsByTagName("texta
 const findingsIn = (field) => [...classed(field, "marks"), ...classed(field, "findings")].map((list) => list.textContent).join("\n").trim();
 const besideSection = (page, part) => findingsIn(sectionOf(page, part));
 const besideKey = (page, key) => findingsIn(fieldOf(page, key));
-const saveOf = (page) => walk(classed(page.target, "schema-form")[0], (node) => node.localName === "button" && node.textContent === "Save").at(-1);
+// The form's own Save is the last Save of the page, after the Save of each section's editor.
+const saveOf = (page) => withText(page, "button", (text) => text === "Save").at(-1);
 const disabledOf = (control) => control.disabled === true || control.getAttribute("disabled") !== null;
 const typeSection = (page, part, text) => typeInto(areaOf(page, part), text);
 const typeKey = (page, key, text) => typeInto(fieldOf(page, key).getElementsByTagName("input")[0], text);
@@ -58,10 +63,13 @@ async function replaceIn(page, part, from, to) {
   assert.notEqual(after, before, `known positive: "${from}" stands in ${part}`);
   await typeSection(page, part, after);
 }
-const diagramOf = (page) => classed(page.target, "model-diagram")[0].textContent;
-const previewOf = (page) => classed(page.target, "plan-preview")[0];
-const kindButton = (page, kind) => walk(page.target, (node) => node.getAttribute("data-kind") === kind)[0];
-const previewButton = (page, address) => walk(previewOf(page), (node) => node.getAttribute("data-preview-product") === address)[0];
+const diagramOf = (page) => classed(page.target, "mermaid").map((node) => node.textContent).join("\n");
+const previewOf = (page) => partTitled(page, "The plan for a product");
+const kindButton = (page, kind) => withText(page, "button", (text) => text === kind)[0];
+const previewButton = (page, address) => withText(page, "button", (text) => text === address)[0];
+// The preview's count ("N requirements × P phases = E plan entries"), and its phases: each an h4 with the requirements listed under it.
+const countOf = (page) => walk(previewOf(page), (node) => node.localName === "p" && /^\d+ requirements? × \d+ phases? = \d+ plan entries?$/.test(node.textContent))[0]?.textContent;
+const phasesOf = (page) => walk(previewOf(page), (node) => node.localName === "h4").map((node) => ({ name: node.textContent, entries: walk(node.parentNode, (inner) => inner.localName === "li").map((entry) => entry.textContent) }));
 const commitsOf = (page) => page.srv.writes;
 // The harness's fake fast-forwards the ref refs/heads/main with the one request it counts as "write ref".
 const movedMain = (page) => page.srv.requests.filter((what) => what === "write ref");
@@ -125,7 +133,7 @@ const TINY = {
 // guards: UC-031; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY; ONE CLICK PER DECISION; A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED; DIAGRAMS ARE MERMAID IN MARKDOWN
 // given: an instance whose catalogue holds the shipped V-model (7 phases, 3 gates decided by Reviewer) and no model of its own
 // input: the author opens Adapt on the V-model; reads the live diagram; adds the gate "Implementation → Testing" that checks the threat model ARC, decided by the new role Security reviewer (either, one, read the repository); renames the model v-model-with-security-review; a script presses Save, then the person
-// expect: UC-031 step 2 "opens an editor on a copy with a new name": headed "Adapt v-model", the name is not v-model, the form names the model it was adapted from (v-model) and holds the V-model's 7 phases, and a diagram of the 7 phases stands next to it; step 3: the diagram first shows no Security reviewer and, once the gate and the role are typed, shows it; step 6 "one click": the script's click commits nothing and the person's click makes one commit on the default branch that adds only docs/process-models/v-model-with-security-review.md, which "records the definition it was adapted from" (adapted_from: v-model), holds the gate decided by Security reviewer, and is read by the catalogue without a finding; step 7: the route models then lists v-model-with-security-review among the instance's own models, as a planned model
+// expect: UC-031 step 2 "opens an editor on a copy with a new name": headed "Adapt v-model", the name is not v-model, the form names the model it was adapted from (v-model) and holds the V-model's 7 phases, and a diagram of the 7 phases stands next to it; step 3: the diagram first shows no Security reviewer and, once the gate and the role are typed, shows it; step 6 "one click": the script's click commits nothing and the person's click makes one commit on the default branch (no branch is made for it) that adds only docs/process-models/v-model-with-security-review.md, which "records the definition it was adapted from" (adapted_from: v-model), holds the gate decided by Security reviewer, and is read by the catalogue without a finding; step 7: the route models then lists v-model-with-security-review among the instance's own models, as a planned model
 test("TST-779101: UC-031 2, 3, 6, 7: Adapt opens a copy, the author adds a gate and a role, and Save commits it once as a model the catalogue reads", async () => {
   const page = await edit("v-model");
   try {
@@ -146,6 +154,7 @@ test("TST-779101: UC-031 2, 3, 6, 7: Adapt opens a copy, the author adds a gate 
     await page.press(saveOf(page));
     assert.equal(commitsOf(page).length, 1, "one click, one commit");
     assert.equal(movedMain(page).length, 1, "on the default branch");
+    assert.deepEqual(page.created, [], "and no branch is made for it");
     assert.deepEqual(Object.keys(commitsOf(page)[0].files), ["docs/process-models/v-model-with-security-review.md"]);
     const written = commitsOf(page)[0].files["docs/process-models/v-model-with-security-review.md"];
     assert.match(written, /^adapted_from: v-model$/m);
@@ -157,10 +166,9 @@ test("TST-779101: UC-031 2, 3, 6, 7: Adapt opens a copy, the author adds a gate 
     assert.deepEqual(read.findings["docs/process-models/v-model-with-security-review.md"], []);
     const list = await open("models", {}, { files: { ...INSTANCE, ...commitsOf(page)[0].files }, store: browserStore(), server: [] });
     try {
-      const own = classed(list.target, "own-models")[0];
-      const listed = walk(own, (node) => node.getAttribute("data-model") === "v-model-with-security-review")[0];
-      assert.ok(listed, "step 7: the model appears among the instance's own");
-      assert.equal(classed(listed, "kind")[0].textContent, "planned");
+      const listed = walk(list.target, (node) => node.localName === "li" && node.textContent.includes("v-model-with-security-review"));
+      assert.ok(listed.length >= 1, "step 7: the model appears in the list of the process models");
+      assert.match(listed[0].textContent, /planned/, "with its kind of work");
     } finally { list.done(); }
   } finally { page.done(); }
 });
@@ -168,7 +176,7 @@ test("TST-779101: UC-031 2, 3, 6, 7: Adapt opens a copy, the author adds a gate 
 // TST-779102 · level: release · module: MOD-implementation-pages
 // guards: UC-031; A MODEL DEFINITION IS VALIDATED BEFORE IT IS USED
 // given: the editor on the adapted V-model, which has no error
-// input: for each fault UC-031 step 4 lists that applies to a planned model, the author types it into the part that holds it: a transition to the phase Nowhere; a phase Orphan that no transition reaches; a verification pair naming the phase Ghost; a gate without artifacts, without a condition, without a decider; a role without capabilities; a phase without a role; a gate that checks the TST files before any phase produces them; a progress measure that does not fit the kind of work (the planned V-model's measure typed as "remaining items per time box"); then the fault is undone; the person presses Save with the fault typed
+// input: for each fault UC-031 step 4 lists that applies to a planned model, the author types it into the part that holds it: a transition to the phase Nowhere; a phase Orphan that no transition reaches; a verification pair naming the phase Ghost; a gate without artifacts, without a condition, without a decider; a role without capabilities; a phase without a role; a gate that checks the TST files before any phase produces them; a progress measure that does not fit the kind of work (the planned V-model's measure typed as "remaining items per time box"); a kind of work left out; then the fault is undone; the person presses Save with the fault typed
 // expect: each fault is named beside the part it was typed into (the text of the part names the fault: Nowhere, Orphan, Ghost, the missing column or the role), Save is unavailable and the person's click commits nothing; with the fault undone the finding is gone and Save is available again; known positive: the copy as opened has none of these findings and Save is available
 test("TST-779102: UC-031 4: each fault of step 4 is listed beside its part while the author types, Save is unavailable and nothing is committed", async () => {
   const faults = [
@@ -211,6 +219,14 @@ test("TST-779102: UC-031 4: each fault of step 4 is listed beside its part while
     await pulled.press(saveOf(pulled));
     assert.equal(commitsOf(pulled).length, 0);
   } finally { pulled.done(); }
+  const undeclared = await edit("v-model");
+  try {
+    await typeKey(undeclared, "kind", "");
+    assert.match(besideKey(undeclared, "kind"), /kind/i, "a missing declaration of whether work is planned or pulled is named beside the kind");
+    assert.equal(disabledOf(saveOf(undeclared)), true);
+    await undeclared.press(saveOf(undeclared));
+    assert.equal(commitsOf(undeclared).length, 0);
+  } finally { undeclared.done(); }
 });
 
 // TST-779103 · level: release · module: MOD-implementation-pages
@@ -252,12 +268,9 @@ test("TST-779104: UC-031 5: the preview of a product the author picks holds ever
     await page.press(previewButton(page, LIBRARY));
     await settle();
     assert.ok(page.around.library.requests.length > 0, "known positive: picking the product reads it");
-    assert.equal(classed(previewOf(page), "plan-count")[0].textContent, "3 requirements × 7 phases = 21 plan entries");
-    const phases = classed(previewOf(page), "plan-phase");
-    assert.deepEqual(phases.map((phase) => phase.getAttribute("data-phase")), PHASES);
-    for (const phase of phases) {
-      assert.deepEqual(walk(phase, (node) => node.localName === "li").map((entry) => entry.textContent).sort(), ["A LATE LOAN IS NAMED", "A LOAN HAS A DUE DATE", "A RETURN IS RECORDED"], phase.getAttribute("data-phase"));
-    }
+    assert.equal(countOf(page), "3 requirements × 7 phases = 21 plan entries");
+    assert.deepEqual(phasesOf(page).map((phase) => phase.name), PHASES);
+    for (const phase of phasesOf(page)) assert.deepEqual(phase.entries.sort(), ["A LATE LOAN IS NAMED", "A LOAN HAS A DUE DATE", "A RETURN IS RECORDED"], phase.name);
   } finally { page.done(); }
 });
 
@@ -272,10 +285,9 @@ test("TST-779105: UC-031 5a: a product without accepted requirements shows the p
     await page.press(previewButton(page, BARE));
     await settle();
     assert.match(previewOf(page).textContent, /no accepted requirements/i);
-    assert.equal(classed(previewOf(page), "plan-count")[0].textContent, "0 requirements × 7 phases = 0 plan entries");
-    const phases = classed(previewOf(page), "plan-phase");
-    assert.equal(phases.length, 7);
-    for (const phase of phases) assert.equal(walk(phase, (node) => node.localName === "li").length, 0, phase.getAttribute("data-phase"));
+    assert.equal(countOf(page), "0 requirements × 7 phases = 0 plan entries");
+    assert.equal(phasesOf(page).length, 7);
+    for (const phase of phasesOf(page)) assert.deepEqual(phase.entries, [], phase.name);
   } finally { page.done(); }
 });
 
@@ -289,18 +301,18 @@ test("TST-779106: UC-031 5: the preview follows the definition typed, and a pull
   try {
     await page.press(previewButton(page, LIBRARY));
     await settle();
-    assert.equal(classed(previewOf(page), "plan-count")[0].textContent, "3 requirements × 7 phases = 21 plan entries", "known positive: the preview as opened");
+    assert.equal(countOf(page), "3 requirements × 7 phases = 21 plan entries", "known positive: the preview as opened");
     await addRow(page, "## Phases", "| Security review | Reviewer | — |");
     await addRow(page, "## Transitions", "| Testing | Security review | sequence |");
     await settle();
-    assert.equal(classed(previewOf(page), "plan-count")[0].textContent, "3 requirements × 8 phases = 24 plan entries");
-    const added = classed(previewOf(page), "plan-phase").find((phase) => phase.getAttribute("data-phase") === "Security review");
-    assert.deepEqual(walk(added, (node) => node.localName === "li").map((entry) => entry.textContent).sort(), ["A LATE LOAN IS NAMED", "A LOAN HAS A DUE DATE", "A RETURN IS RECORDED"]);
+    assert.equal(countOf(page), "3 requirements × 8 phases = 24 plan entries");
+    const added = phasesOf(page).find((phase) => phase.name === "Security review");
+    assert.deepEqual(added.entries.sort(), ["A LATE LOAN IS NAMED", "A LOAN HAS A DUE DATE", "A RETURN IS RECORDED"]);
   } finally { page.done(); }
   const pulled = await edit("scrum", { withProducts: true });
   try {
     assert.equal(valueOf(pulled, "kind"), "pulled");
-    assert.ok(previewOf(pulled).hidden === true || previewOf(pulled) === undefined, "a pulled model has no plan preview");
+    assert.ok(previewOf(pulled) === undefined || previewOf(pulled).hidden === true, "a pulled model has no plan preview");
   } finally { pulled.done(); }
 });
 
@@ -313,7 +325,7 @@ test("TST-779107: UC-031 2a: + New model first asks for the kind of work, and a 
   const page = await edit("");
   try {
     assert.deepEqual([kindButton(page, "planned")?.textContent, kindButton(page, "pulled")?.textContent], ["planned", "pulled"]);
-    assert.equal(classed(page.target, "schema-form").length, 0, "no form before the kind is picked");
+    assert.equal(walk(page.target, (node) => node.localName === "textarea").length, 0, "no form before the kind is picked");
     await page.press(kindButton(page, "planned"));
     assert.equal(valueOf(page, "kind"), "planned");
     assert.equal(disabledOf(saveOf(page)), true, "nothing typed yet, so Save is unavailable");
@@ -403,14 +415,17 @@ test("TST-779111: UC-031 explains: every part of the editor carries a folded Wha
   const adapted = await edit("v-model");
   const fresh = await edit("");
   try {
-    for (const [page, part] of [[adapted, "model-form"], [adapted, "model-picture"], [adapted, "plan-preview"], [fresh, "kind-choice"]]) {
-      const folded = walk(classed(page.target, part)[0], (node) => node.localName === "details");
+    const form = walk(adapted.target, (node) => node.localName === "details")[0];
+    const parts = [["the form", form], ["the diagram", walk(partTitled(adapted, "Phases, verification pairs and gates"), (node) => node.localName === "details")[0]],
+      ["the preview", walk(previewOf(adapted), (node) => node.localName === "details")[0]], ["the kind of work", walk(partTitled(fresh, "The kind of work"), (node) => node.localName === "details")[0]]];
+    for (const [part, one] of parts) {
+      const folded = one ? [one] : [];
       assert.ok(folded.length >= 1, `${part} carries an explanation`);
       assert.equal(folded[0].hasAttribute("open"), false, `${part}: folded`);
       assert.equal(folded[0].children[0].textContent, "What is this?", part);
       assert.ok(folded[0].textContent.length > "What is this?".length + 40, `${part}: a text, not an empty fold`);
     }
-    const picture = walk(classed(adapted.target, "model-picture")[0], (node) => node.localName === "details")[0].textContent;
+    const picture = parts[1][1].textContent;
     assert.match(picture, /phase/i);
     assert.match(picture, /verification pair/i);
     assert.match(picture, /gate/i);
