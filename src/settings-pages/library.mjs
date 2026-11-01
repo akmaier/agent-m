@@ -51,6 +51,17 @@ const ROUTES = {
 };
 const REPUBLISHABLE = /^may be republished(?![\p{L}\p{N}_])/u;
 
+// An entry's title line, the pattern of the entry's schema (`# {id} {title}`) filled from its fields, a field left out leaving its place empty.
+const titleLineOf = (fields) => ENTRY.title.replace(/\{(\w+)\}/g, (_, key) => fields[key] ?? "").trimEnd();
+// The document with its title line made from its fields: the form hands over the body the page drafted, whose title line holds the id and title as they stood then.
+function titled(document) {
+  const lines = String(document.body ?? "").split("\n");
+  const at = lines.findIndex((line) => /^#(?:[ \t].*)?$/.test(line));
+  if (at < 0) lines.unshift(titleLineOf(document.fields));
+  else lines[at] = titleLineOf(document.fields);
+  return { ...document, body: lines.join("\n") };
+}
+
 function el(name, className, ...children) {
   const node = document.createElement(name);
   if (className) node.className = className;
@@ -538,7 +549,7 @@ export const route = {
       if (state.route === "repository" && state.repo) fields.identifier = state.repo.address;
       if (contentRepository.value.trim()) fields.content_repository = contentRepository.value.trim();
       const front = Object.entries(fields).filter(([, value]) => value !== undefined && value !== "").map(([key, value]) => `${key}: ${value}`);
-      const text = [...(front.length ? ["---", ...front, "---"] : []), `# ${fields.id ?? ""} ${fields.title ?? ""}`.trimEnd(), "", "## Versions", "",
+      const text = [...(front.length ? ["---", ...front, "---"] : []), titleLineOf(fields), "", "## Versions", "",
         "| Version | Date | Edition | Read from | Files |", "|---|---|---|---|---|", versionRow(), ""].join("\n");
       return readDocument(ENTRY, `docs/sources/${fields.id ?? "SRC-new"}.md`, text);
     }
@@ -546,7 +557,7 @@ export const route = {
     async function save(document) {
       result.replaceChildren();
       const id = document.fields.id;
-      const text = writeDocument(ENTRY, document);
+      const text = writeDocument(ENTRY, titled(document));
       const entry = readDocument(ENTRY, `docs/sources/${id}.md`, text);
       try {
         const plan = state.route === "legal-text"
