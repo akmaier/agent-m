@@ -254,7 +254,7 @@ test("TST-802304: UC-031 the model names for each role whether a person, an agen
 // input: the role assignments of a product that declares the model give Scanner to alice, then to dev-a
 // expect: the SPEC "a process model names ... for each role, whether a person, an agent, or either may fill it": the assignment that gives the agent-only Scanner to the person alice is an error naming Scanner; known positive: the one that gives it to dev-a is none
 test("TST-802312: UC-031 a role that only an agent may fill is not given to a person",
-  { todo: "FINDING UC031-R2 — roleAssignmentFindings (src/product-process/assignments.mjs:154-160) judges only the roles filled by `person`: a role filled by `agent`, given to a person of the list, is no finding; the item is for MOD-product-process (UC-048)" }, async () => {
+  async () => {
     const page = await edit("v-model");
     try {
       await addRow(page, "## Roles", "| Scanner | agent | one | read the repository, run code and tests |");
