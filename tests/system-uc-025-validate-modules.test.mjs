@@ -9,7 +9,6 @@
 // Level: system
 //
 // Authored by developer-opus-f (ITM-741), who implemented none of ITM-692, ITM-720, ITM-721, ITM-210, ITM-735 and ITM-736.
-// Where the page and UC-025 disagree the case follows UC-025 and is marked { todo } with the finding it reports; every other case is green. The findings:
 // Each test states its input and its expected values in its own text; none reads an expected result from the SPEC, a use case or an architecture file.
 // A person's click is the page's own listener called through the event it dispatches. Readings the texts leave open, which the cases state:
 //   - "with its status (accepted, open, changed since acceptance, not in the SPEC)" of a requirement: a requirement the SPEC holds is shown "in SPEC", which
