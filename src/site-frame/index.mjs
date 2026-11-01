@@ -154,6 +154,28 @@ export function readProblem(failure, tokenStored) {
   return paragraph;
 }
 
+// What happened and what the person can do, in plain words, above the message of a fault of the page itself (routeProblem).
+const FAULT_WORDS = "Something went wrong while this page was being drawn, so it cannot be shown. Reload the page to try again. "
+  + "If it happens again, report it, together with the message below.";
+
+/**
+ * routeProblem(failure: Error, tokenStored: boolean) -> Element — what stands in the place of a route that could not be drawn. For a host's failure (HostError) it is
+ * readProblem's paragraph. For any other error, a fault of the page itself, it is a <div class="page-fault"> holding first a <p class="page-fault-words"> that says in
+ * plain words what happened and what the person can do — reload the page, and report it if it happens again —, and below it readProblem's paragraph with the error's
+ * message. It reads nothing and never throws. Private to the module: index.mjs and dashboard-app.mjs use it.
+ */
+export function routeProblem(failure, tokenStored) {
+  const problem = readProblem(failure, tokenStored);
+  if (failure instanceof HostError) return problem;
+  const fault = document.createElement("div");
+  fault.className = "page-fault";
+  const words = document.createElement("p");
+  words.className = "page-fault-words";
+  words.textContent = FAULT_WORDS;
+  fault.append(words, problem);
+  return fault;
+}
+
 // The files a route names in `reads` (Route), read before the route is rendered: the repository the route shows — the chosen product's, else
 // the instance's — at its default branch, as one snapshot; the route says which of its paths it will read, and the snapshot fetches their
 // texts ahead (readMany: a hundred to a batch on GitHub with a token). The host keeps the texts by blob SHA, so the route's own reads through
@@ -394,7 +416,7 @@ async function startSite({ page, views }) {
       loadedRoute = await loadRoute(route);
     } catch (failure) {
       shown = { route, params: routeParams, context, fragment };
-      target.replaceChildren(readProblem(failure, product ? product.tokenStored : readSetting(store, "github-token") !== null));
+      target.replaceChildren(routeProblem(failure, product ? product.tokenStored : readSetting(store, "github-token") !== null));
       return;
     }
     shown = { route: loadedRoute, params: routeParams, context, fragment };
@@ -404,7 +426,7 @@ async function startSite({ page, views }) {
       await route.render(target, context, shown.params);
     } catch (failure) {
       if (failure?.name === "TokenRefused") refusedNotice(failure);
-      else target.replaceChildren(readProblem(failure, product ? product.tokenStored : readSetting(store, "github-token") !== null));
+      else target.replaceChildren(routeProblem(failure, product ? product.tokenStored : readSetting(store, "github-token") !== null));
     }
   };
   const browser = globalThis.window ?? globalThis;
@@ -518,7 +540,7 @@ async function startBridge({ page, views }) {
       route = await loadRoute(named);
     } catch (failure) {
       shown = { route: named, fragment: location.hash ?? "", context };
-      target.replaceChildren(readProblem(failure, readSetting(store, "github-token") !== null));
+      target.replaceChildren(routeProblem(failure, readSetting(store, "github-token") !== null));
       return;
     }
     shown = { route, fragment: location.hash ?? "", context };
@@ -527,7 +549,7 @@ async function startBridge({ page, views }) {
       await named.render(target, context, params);
     } catch (failure) {
       if (failure?.name === "TokenRefused") refusedNotice(failure);
-      else target.replaceChildren(readProblem(failure, readSetting(store, "github-token") !== null));
+      else target.replaceChildren(routeProblem(failure, readSetting(store, "github-token") !== null));
     }
   };
   const browser = globalThis.window ?? globalThis;

@@ -590,6 +590,32 @@ test("TST-865007 the Bridge's window also shows a failing route as a problem, ex
   assert.deepEqual(all(refused.body, "p").filter((p) => p.className.startsWith("notice ")).map((p) => p.className), ["notice token-refused"]);
 });
 
+// What a fault of the page says first, in plain words: what happened and what the person can do.
+const FAULT_WORDS = "Something went wrong while this page was being drawn, so it cannot be shown. Reload the page to try again. If it happens again, report it, together with the message below.";
+const UNINITIALISED = "Cannot access 'SERVICES' before initialization.";
+// The fault in the main area: each element's class and text, in order, and the classes and texts of the paragraphs inside it.
+const faultOf = (page) => page.target.children.map((child) => ({ class: child.className, paragraphs: all(child, "p").map((paragraph) => [paragraph.className, paragraph.textContent]) }));
+
+// TST-1401002 · level: unit · module: MOD-site-frame
+// guards: UC-022; UC-023
+// given: three pages whose route alpha cannot be drawn with the ReferenceError "Cannot access 'SERVICES' before initialization.": the review page whose route draws "half drawn" and then throws it; the review page whose route is given by its head and whose own file cannot be imported (its `module` rejects with it); and the Bridge's window with the first route; no token stored
+// input: startPage with #alpha on each
+// expect: each start resolves; the main area holds one <div class="page-fault"> and nothing else; in it first a <p class="page-fault-words"> reading exactly "Something went wrong while this page was being drawn, so it cannot be shown. Reload the page to try again. If it happens again, report it, together with the message below." and below it the <p class="problem"> "This page could not be drawn: Cannot access 'SERVICES' before initialization."; no link; no "half drawn". Counter-proof: the frame as it was shows the message alone, "This page could not be drawn: Cannot access 'SERVICES' before initialization.", and nothing says what to do
+test("TST-1401002 a route that cannot be drawn says in plain words what happened and what to do, with the error's message below", async () => {
+  const expected = [{ class: "page-fault", paragraphs: [["page-fault-words", FAULT_WORDS], ["problem", `This page could not be drawn: ${UNINITIALISED}`]] }];
+  const thrown = await start({ fragment: "#alpha", views: [failing(new ReferenceError(UNINITIALISED))] });
+  const headed = { routes: [{ name: "alpha", entry: "architecture", title: "alpha", module: async () => { throw new ReferenceError(UNINITIALISED); },
+    async render() { throw new Error("a route whose file cannot be imported is not rendered"); } }], strategies: [] };
+  const unimported = await start({ fragment: "#alpha", views: [headed] });
+  const bridge = await start({ page: "bridge", views: [failing(new ReferenceError(UNINITIALISED))] });
+  await settle();
+  for (const [name, page] of [["thrown", thrown], ["not imported", unimported], ["bridge", bridge]]) {
+    assert.deepEqual(faultOf(page), expected, name);
+    assert.equal(all(page.target, "a").length, 0, `${name}: no link`);
+    assert.equal(page.target.textContent.includes("half drawn"), false, `${name}: the half-drawn page is gone`);
+  }
+});
+
 // TST-829003 · level: unit · module: MOD-site-frame
 // guards: THE MENU FOLLOWS THE PROCESS; A PRODUCT IS NAMED BY ITS ADDRESS
 // given: the address of a product this browser keeps, https://github.com/acme/widget
