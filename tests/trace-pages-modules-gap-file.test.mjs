@@ -93,12 +93,12 @@ test("a code file's gap opens the code file, and a folder's gap lists the code f
 // guards: UC-025; MODULE GAPS ARE REPORTED, NOT FORBIDDEN
 // given: the fixture product at main, whose gap "requirement-without-module" concerns GAMMA RULE, a requirement and no file of a module or of code (known positive: the gap is listed with the link Change the architecture)
 // input: Route.render with the key "modules" at main
-// expect: counter-proof — the gap for GAMMA RULE holds no button; the link Change the architecture to #decision stays
+// expect: counter-proof — the gap for GAMMA RULE holds no button; the link Change the architecture to #decision/product=<the product's address, encoded> stays
 test("a requirement's gap offers no file control and keeps its next step", async () => {
   const target = await render(hostOf());
   const gap = gapOf(target, "requirement-without-module", "GAMMA RULE");
   assert.ok(gap, "known positive: the gap is listed");
-  assert.deepEqual(byClass(gap, "a", "gap-change-architecture").map((link) => link.getAttribute("href")), ["#decision"]);
+  assert.deepEqual(byClass(gap, "a", "gap-change-architecture").map((link) => link.getAttribute("href")), ["#decision/product=https%3A%2F%2Fgithub.com%2Facme%2Flibrary"]);
   assert.equal(buttonsOf(gap).length, 0, "no file control");
 });
 
