@@ -318,17 +318,17 @@ test("TST-1061110: UC-045 a step's state is derived from the job records and the
 
 // TST-1061111 · level: release · module: system
 // guards: UC-045; EVERY ARTIFACT HAS AN IDENTIFIER
-// given: the planned product with the plan of six steps ITM-101 to ITM-106 and a backlog item ITM-120; the planner's plan of one step Store added by hand; the product without a plan and with the backlog item ITM-120, the six steps written by hand
+// given: the planned product with the plan of five steps ITM-101 to ITM-105, the system's step not among them, and a backlog item ITM-120; the planner's plan of one step Whole, the system's, added by hand; the product without a plan and with the backlog item ITM-120, the six steps written by hand
 // input: the planner saves each plan
 // expect: the added step is ITM-121, an identifier no file of docs/plan/ or docs/backlog/ holds, and it is the last row of the order; the six steps of the second plan carry ITM-121 to ITM-126, each in its file name, its front matter `id` and the order, none twice
 test("TST-1061111: UC-045 each step carries an identifier of its own, one that no step or item holds", async () => {
   const item = { "docs/backlog/ITM-120-an-item.md": lines("---", "id: ITM-120", "title: An item", "level: module", "realises:", "  - RULE ONE", "modules:", "  - MOD-store", "builds_on: []", "tests:", "  - unit", "origin:", "  - the Product Owner", "---", "# ITM-120 An item") };
-  const appended = await handPlan([S.Store], await planned({ files: item }));
+  const appended = await handPlan([{ ...S.Whole, after: ["ITM-104", "ITM-105"] }], await planned({ plan: false, files: { ...planFiles({ which: [101, 102, 103, 104, 105] }), ...item } }));
   try {
     const written = filesOf(appended);
-    assert.deepEqual(Object.keys(written).filter((path) => path !== ORDER_PATH), ["docs/plan/ITM-121-store.md"]);
-    assert.match(written["docs/plan/ITM-121-store.md"], /^---\nid: ITM-121\n/);
-    assert.match(written[ORDER_PATH], /\| ITM-106 \| Testing \|\n\| ITM-121 \| Implementation \|\n$/);
+    assert.deepEqual(Object.keys(written).filter((path) => path !== ORDER_PATH), ["docs/plan/ITM-121-whole.md"]);
+    assert.match(written["docs/plan/ITM-121-whole.md"], /^---\nid: ITM-121\n/);
+    assert.match(written[ORDER_PATH], /\| ITM-105 \| Testing \|\n\| ITM-121 \| Testing \|\n$/);
   } finally { appended.done(); }
   const page = await handPlan(DRAFT.steps, await planned({ plan: false, files: item }));
   try {
