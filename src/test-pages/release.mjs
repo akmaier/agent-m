@@ -76,7 +76,7 @@ function paintAccept(container, host, context, candidate, report) {
   for (const [id, field] of reasonFields) field.dataset.id = id;
   const personField = el("input", "person");
   personField.placeholder = "Your name";
-  const acceptBtn = el("button", "accept", "Accept and release");
+  const acceptBtn = el("button", "btn accept", "Accept and release");
   const out = el("p", "result");
 
   const section = el("section", "accept", el("h4", null, "Accept and release"));
@@ -127,7 +127,7 @@ async function paintCandidate(container, context, candidate) {
     el("h3", null, `Release candidate ${candidate.tag}`),
     el("p", "muted", `Queued run: ${candidate.run}`),
   );
-  const refreshBtn = el("button", "refresh", "Check results");
+  const refreshBtn = el("button", "btn refresh", "Check results");
   const reportArea = el("div", "report");
   container.append(el("p", null, refreshBtn), reportArea);
 
@@ -182,7 +182,7 @@ async function paintForm(container, context, head) {
   changelogField.value = "";
   const personField = el("input", "person");
   personField.placeholder = "Your name";
-  const startBtn = el("button", "start", "Start release candidate");
+  const startBtn = el("button", "btn start", "Start release candidate");
   const out = el("p", "result");
 
   startBtn.addEventListener("click", async () => {
