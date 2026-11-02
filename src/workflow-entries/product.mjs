@@ -50,6 +50,13 @@ function usageOf(usages) {
   return { inputTokens: sum("inputTokens"), outputTokens: sum("outputTokens"), minutes: sum("minutes"), cost: reported.find((each) => each.cost)?.cost ?? null };
 }
 
+// The end of a job whose writer hands no draft back still names the tests its report lists as not written, each with its reason — what the page shows again for the person to sharpen or
+// drop (UC-026 8b): `draft: { notWritten: [{ identifier, reason }] }`, in the order of the report; null where the report lists none.
+function notWrittenOf(report) {
+  const listed = (Array.isArray(report?.tests) ? report.tests : []).filter((test) => typeof test?.notWritten === "string" && test.notWritten.trim() !== "");
+  return listed.length === 0 ? null : { notWritten: listed.map((test) => ({ identifier: test.identifier, reason: test.notWritten })) };
+}
+
 // The driver of a participant for a job: a model endpoint from the endpoint the job's record names, its key the participant's secret; or a coding
 // agent the record names, its key variable that secret's name.
 // On the model's user's side (model-user.mjs) the agent reaches its provider through the key holder, `keyHolder`, and holds no key.
@@ -269,7 +276,7 @@ async function runJobOf(env, composed, participants, row, handOver = null) {
     // A result is one item of the end's list, in which a comma separates items: a comma of a note or a reason becomes a semicolon.
     const listed = [...made, ...[...[...notes, ...(outcome?.notes ?? [])].map((note) => `note: ${note}`), ...passed].map((line) => line.replaceAll(",", ";"))];
     ended = { state: failed ? "failed" : "done", results: failed ? [] : listed.length > 0 ? listed : handedBack ? [] : ["no change"],
-      draft: handOver || failed ? null : handedBack ? (outcome?.shown ?? result.draft) : null, rounds: result.rounds, usage: usageOf(result.usage),
+      draft: handOver || failed ? null : handedBack ? (outcome?.shown ?? result.draft) : notWrittenOf(outcome?.shown), rounds: result.rounds, usage: usageOf(result.usage),
       reason: failed && handOver ? hidden(failed) : failed, stoppedBecause: result.stoppedBecause, drafter: result.drafter };
   } catch (error) {
     let reason = error?.message ?? String(error);
