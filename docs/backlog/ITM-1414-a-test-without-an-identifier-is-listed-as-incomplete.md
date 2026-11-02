@@ -26,30 +26,14 @@ what is missing." The tests view reads the declarations through `declarationsOf`
 takes MOD-test-document's `testDeclarations`. That yields nothing for a case whose comment names no `TST-` identifier, so
 such a case is never listed as incomplete.
 
-## The reading taken
+## How it is built
 
-MOD-test-document's Data lists `TST-<nnn>` among the keys of a declaration, "required", and its `testDeclarations` "never
-throws on content: a declaration missing a key is read with that key `null`, and `testFindings` names it". So a comment
-block of `key: value` lines whose first line names no `TST-` identifier is a declaration missing that key. `testDeclarations`
-reads it with `id` `null`, and `testFindings` names the missing identifier. The tests view lists it under **Incomplete** from
-what `testDeclarations` gives. No caller inserts a stand-in identifier. `TestDeclaration`'s `id: string` does not show the
-`null` the Data allows; that is noted for akmaier. Before the code, the probe names every caller of `testDeclarations` that
-would now meet an `id` of `null`.
-
-## Waiting for akmaier
-
-The probe of the reading above found that it reaches far beyond this item:
-- `testDeclarations` would give `id` `null` to 57 blocks of this repository's own tests (ITM-1429 gives them identifiers).
-- Every caller of `testDeclarations` would meet `id` `null`, and several key what they build by `id`: MOD-trace-graph,
-  MOD-release-evidence, MOD-result-records, MOD-product-process (the Definition of Done), MOD-runtimes,
-  MOD-maintenance-pages, and others. A product's tests may hold such blocks too.
-- The expected results of `tests/test_identifiers.py` and TST-1169002 move.
-
-Inserting a stand-in identifier from MOD-trace-pages was rejected at the gate (docs/gates/20261102-0903-development-release-testing-1414.md).
-
-The general change is one function of MOD-test-document that gives the comment blocks of a test file that look like a
-declaration but name no identifier, with their path and line. The tests view lists them under **Incomplete**, and no caller
-of `testDeclarations` changes. That is a change of MOD-test-document's interface, for akmaier.
+MOD-test-document's accepted text gives `unidentifiedDeclarations`: every comment block of a test file that is
+written as a declaration but names no identifier, read with `id` `null`, its `path` and its `line`; `testDeclarations`
+gives none of them. The tests view (`src/trace-pages/tests.mjs`) lists those blocks under **Incomplete**, with the missing
+identifier that `testFindings` names. No caller of `testDeclarations` changes, and no stand-in identifier is inserted (the
+rejection at `docs/gates/20261102-0903-development-release-testing-1414.md`). MOD-trace-pages already uses MOD-test-document;
+its use of a second function of that module is read at module level, as TST-106805 reads Uses.
 
 ## Acceptance
 
