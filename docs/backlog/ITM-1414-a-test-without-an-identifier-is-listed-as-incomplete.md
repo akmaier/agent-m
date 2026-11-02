@@ -36,6 +36,21 @@ what `testDeclarations` gives. No caller inserts a stand-in identifier. `TestDec
 `null` the Data allows; that is noted for akmaier. Before the code, the probe names every caller of `testDeclarations` that
 would now meet an `id` of `null`.
 
+## Waiting for akmaier
+
+The probe of the reading above found that it reaches far beyond this item:
+- `testDeclarations` would give `id` `null` to 57 blocks of this repository's own tests (ITM-1429 gives them identifiers).
+- Every caller of `testDeclarations` would meet `id` `null`, and several key what they build by `id`: MOD-trace-graph,
+  MOD-release-evidence, MOD-result-records, MOD-product-process (the Definition of Done), MOD-runtimes,
+  MOD-maintenance-pages, and others. A product's tests may hold such blocks too.
+- The expected results of `tests/test_identifiers.py` and TST-1169002 move.
+
+Inserting a stand-in identifier from MOD-trace-pages was rejected at the gate (docs/gates/20261102-0903-development-release-testing-1414.md).
+
+The general change is one function of MOD-test-document that gives the comment blocks of a test file that look like a
+declaration but name no identifier, with their path and line. The tests view lists them under **Incomplete**, and no caller
+of `testDeclarations` changes. That is a change of MOD-test-document's interface, for akmaier.
+
 ## Acceptance
 
 - A test case whose declaration has a level and a guard but no `TST-` identifier is listed under **Incomplete**, naming the
