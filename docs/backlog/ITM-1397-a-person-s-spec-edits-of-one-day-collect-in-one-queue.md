@@ -1,58 +1,66 @@
 ---
 id: ITM-1397
-title: A person's SPEC edits of one day collect in one queue
+title: Every SPEC change is an entry of its section's queue
 level: module
 realises:
   - UC-018
-  - A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE
+  - UC-005
+  - UC-012
+  - A SPEC EDIT IS SAVED AS A PROPOSAL
 modules:
+  - MOD-spec-changes
+  - MOD-approvals
   - MOD-review-pages
+  - MOD-maintenance-pages
+  - MOD-site-frame
+  - MOD-repository-hosts
 builds_on:
   - ITM-376
 tests:
   - unit
 origin:
-  - UC018-F1, TST-376206 and TST-376320 of ITM-376's system and release tests of UC-018 (#1682), ruled at its gate in team1's sprint 142 (docs/gates/20261101-1637-development-release-testing-0376.md)
+  - akmaier's acceptance of the SPEC packages' texts (#1704; on main b657b4baa, d04d6a451, 532f11190, f0389c1bb), which withdraws A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE and gives every SPEC section a queue of its own; UC018-F1, TST-376206 (#1750)
 ---
-# ITM-1397 A person's SPEC edits of one day collect in one queue
+# ITM-1397 Every SPEC change is an entry of its section's queue
 
 **REGISTER**
 
 ## Outcome
 
-`A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE`: a SPEC edit saved on the dashboard is added to the person's newest queue of
-the same day that has no accepted entry yet. The requirement's editor hands `proposeSection` the token's name as the
-person (`src/review-pages/edit.mjs:96`, `person: token?.name`, for example "Agent M · library"). MOD-spec-changes'
-`openQueueIn` compares that name with the account that created each queue (`creatorOf`, `src/spec-changes/propose.mjs:354`).
-Nothing matches, so every edit opens a new queue: `2026-11-01b_…/01` where `2026-11-01_…/02` is expected. A second edit
-of the same section adds a queue instead of replacing its entry.
+The accepted MOD-spec-changes, Data: a queue is the package of one SPEC section, `docs/spec-freigaben/<package>/`. Each
+change is added there as an entry. UC-018 step 6 reads "Agent M adds an entry to the section's queue". UC-005 step 8,
+UC-012 step 6 and UC-019 6b read alike.
 
-## The reading taken
+The code still writes a new dated queue per person and day:
+- `src/spec-changes/propose.mjs:142-160, 347` builds `<date><letter>_<slug>` folders and runs `openQueueOf`/`openQueueIn`;
+- `Queue.issue` lies on the queue, where the text puts it on each entry;
+- `src/review-pages/edit.mjs`, `requirements-draft.mjs`, `entry-edit.mjs` and `src/maintenance-pages/issues.mjs` hand on
+  the person or read the queue's issue;
+- `src/site-frame/explanations.md:340` tells the person that edits collect in the newest queue of the day.
 
-A queue's person is the account that created its index. So the editor hands the account of the token, as the host names
-it, not the token's name.
-
-## Waiting for akmaier
-
-The page can reach no account of the token. MOD-repository-hosts' Interfaces offer no function that names it, and its
-`RepositoryInfo` and `Credentials` carry none. The stored token holds `{ value, name, expires, stored }`. So nothing the
-page reaches names the account before the first save.
-
-Readings sought and not taken:
-- the instance's owner, which is right only on a person's own fork;
-- the account learnt after the first save, which the page forgets on reload;
-- the queue's title, since the default token name is shared between people.
-
-The general change is a function of MOD-repository-hosts that names the account a token belongs to (on GitHub, `GET /user`'s
-login), named in MOD-review-pages' Uses. On GitLab, `HistoryEntry.author.account` is always `null` (`gitlab.mjs:261, 276`),
-so the same change serves its queues. `requirements-draft.mjs:75` and `entry-edit.mjs:72` hand the token's name the same
-way.
+TST-376206 is `todo` as FINDING UC018-F1 (MOD-spec-changes). The preamble's entry can already be accepted (`d7d3d4b16`).
 
 ## Acceptance
 
-- Two SPEC edits of one person on one day are entries of one queue. A second edit of the same section replaces its entry.
-  Counter-proof: another person's edit opens a queue of its own.
-- TST-376206 and TST-376320 lose their `todo` in a commit by a participant other than the implementer, written after the
-  code is pushed. TST-376320 is a release test.
+- `proposeSection` and the writer `queue-entries` write each entry into its section's queue
+  `docs/spec-freigaben/<package>/`, or start that queue with entry 01. The writer makes one commit per SPEC.
+  - An entry's number is one more than any the queue's index or decisions name, so a number is never reused.
+  - `openQueueOf` is gone.
+  - `Queue` and `entryView` carry `issue` per entry, from the rationale's `**Issue:**` line, and `createdBy` as
+    `{ queue, entry } | null`.
+  - `queues` lists the queues in the order of their folders' names.
+  - `applyApproved` works only on records whose queue the snapshot holds.
+- The prose of `queue-index.schema.md` and `queue-decisions.schema.md` gives the title lines the Data names. The prose
+  examples of `src/approvals/approval-record.schema.md` and MOD-approvals name `configuration-and-secrets/01-…`, and their
+  ```json blocks stay as they are.
+- The review pages and the issue page use the section's queue and the entry's issue, and name no `openQueueOf`.
+  `explanations.md` says that a saved edit is an entry of its section's queue.
+- No folder outside the convention is left under `docs/spec-freigaben/`. A dated folder's open entries are moved into
+  their sections' queues, then the folder is deleted. The history keeps it (`THE REPLACED TEXT STAYS REACHABLE`).
+- The guards of the withdrawn requirement move with the code: `spec-changes-propose-section`,
+  `review-pages-edit-requirement` and, for its test only, `repository-hosts-history`. The pull request names each case it
+  moves and the accepted sentence it now follows. A check that reads a queue's issue or a dated folder follows the
+  convention, and the pull request names it.
+- TST-376206 loses its `todo` in a commit by a participant who built none of this, written after the code is pushed.
 - No other existing expected result changes, unless a probe names it and the accepted text allows it.
 - The first commit holds only the tests, and CI is red on it. No stub is committed.

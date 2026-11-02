@@ -9,6 +9,7 @@ modules:
   - MOD-work-plans
 builds_on:
   - ITM-991
+  - ITM-1397
 tests:
   - unit
 origin:
