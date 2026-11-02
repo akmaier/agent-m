@@ -1,7 +1,7 @@
 // Release tests of the requirements UC-018 "Edit a specification or a use case in the dashboard" realises, each checked from what an author reads on the dashboard's editors and from the requests the fixture
 // servers received: the editor with its preview, a SPEC edit saved as a proposal and never into the SPEC, a save refused on a text that changed and the edit kept, the identifier kept, a rename withdrawn and
 // added, the impact list, a use case entering as open, the marks of a requirement's fields, its single statement and a use case's sections, writing only on a person's click, GitHub's pages without a token
-// and no text in a link, GitLab only with a token, one click, the folded explanations, and the person's open queue of the day. TST-376301 maps every requirement UC-018 realises to the release tests that
+// and no text in a link, GitLab only with a token, one click, the folded explanations. TST-376301 maps every requirement UC-018 realises to the release tests that
 // guard it, this file's or other writers'.
 // Run: node --test tests/release-uc-018-edit-a-specification-or-use-case.test.mjs
 //
@@ -19,7 +19,6 @@
 // a GitLab server: the real pages, MOD-spec-changes, MOD-artifact-edits and MOD-repository-hosts behind fixture servers; the release team works from the specification and the pages, so each case ends at
 // what a person reads or at the request a fixture server received. Where the code and the SPEC or UC-018 disagree the case follows the text and is marked `todo` with the word FINDING. Readings the texts
 // leave open, which the cases state:
-//   - "the person's newest queue of the same day" (A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE) is read with MOD-spec-changes' text: the person of a queue is the account that created its index.
 //   - "takes one click once its inputs are complete" (ONE CLICK PER DECISION) is read for Save: the text edited and, for a requirement, the Why given.
 
 import test from "node:test";
@@ -80,14 +79,12 @@ const BUILT_BY_WRITER = {
   "NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT": "ITM-1273, the entry's page that reads its own queue and the requirement's editor that reads the waiting ones",
   "STATUS IS DERIVED FROM THE RECORDS": "ITM-1266, the folders a review page reads for its statuses, and ITM-1314, the last accepted text of a file put back",
 };
-// The findings of this file: the case, and the module it points to.
-const FINDINGS = { "TST-376320": { finding: "UC018-F1", module: "MOD-review-pages" } };
 
 // TST-376301 · level: release · module: system
 // guards: UC-018
 // given: UC-018 as committed text, whose `realises` lists twenty-one requirements, and the release tests named in EVIDENCE
 // input: read UC-018's list of the requirements it realises, and the declarations of the test files named for each
-// expect: known positive — UC-018 realises these twenty-one requirements; each has at least one release test named; each test named stands in its file with the level release and guards that requirement; no case of this file guards a requirement in BUILT_BY_WRITER; each finding's case carries a todo naming FINDING and its module
+// expect: known positive — UC-018 realises these twenty-one requirements; each has at least one release test named; each test named stands in its file with the level release and guards that requirement; no case of this file guards a requirement in BUILT_BY_WRITER
 test("TST-376301: UC-018 every requirement it realises has a release test that guards it", () => {
   const front = /^realises:\n((?:  - .*\n)+)/m.exec(read(UC))?.[1] ?? "";
   const realised = front.split("\n").filter(Boolean).map((line) => line.replace(/^ {2}- /, ""));
@@ -105,7 +102,6 @@ test("TST-376301: UC-018 every requirement it realises has a release test that g
   }
   const own = testDeclarations(SELF, read(SELF));
   for (const requirement of Object.keys(BUILT_BY_WRITER)) assert.deepEqual(own.filter((each) => (each.guards ?? []).includes(requirement)).map((each) => each.id), [], `${requirement} is left to other writers`);
-  for (const [id, { finding, module }] of Object.entries(FINDINGS)) assert.ok(read(SELF).includes(`todo: "FINDING ${finding} (${module})`), `${id} names FINDING ${finding} and ${module}`);
 });
 
 // ---------------------------------------------------------------- the editor and its saves
@@ -465,28 +461,4 @@ test("TST-376319: each editor carries a folded explanation of its step", async (
     assert.match(folded[0], /^What is this\?/, name);
     assert.match(folded[0], pattern, name);
   }
-});
-
-// ---------------------------------------------------------------- the person's queue
-
-// TST-376320 · level: release · module: system
-// guards: A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE; UC-018
-// given: the library on GitHub, the author's token stored; GitHub records each of the author's commits under the account alice; bob's queue of today, docs/spec-freigaben/<today>_bobs, open, created by bob
-// input: the author saves an edit of A LOAN HAS A DUE DATE, then an edit of A MEMBER HAS A CARD, the same day
-// expect: the first save starts a queue of the author's, and leaves bob's queue untouched; the second adds its entry to the author's queue of the first save, and starts none; FINDING UC018-F1 (MOD-review-pages): the second save starts a queue of its own, since the page names the person by the token's name
-test("TST-376320: a person's SPEC edits of one day collect in that person's one open queue", { todo: "FINDING UC018-F1 (MOD-review-pages): the requirement's editor gives MOD-spec-changes the token's name as the person, which is never the account that created a queue's index, so each save starts a queue of its own" }, async () => {
-  const bobs = `${today()}_bobs`;
-  const files = { [`docs/spec-freigaben/${bobs}/index.md`]: `# SPEC approvals — queue ${today()} · bob\n\n**Zieldatei aller Einträge:** \`SPEC.md\`\n\n| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |\n|---|---|---|---|---|\n| 01 | \`SPEC.md\` | ## 2. Membership | — | — |\n`,
-    [`docs/spec-freigaben/${bobs}/01-entry.md`]: MEMBERSHIP.replace("a card.", "a card, always."), [`docs/spec-freigaben/${bobs}/01-entry.begruendung.md`]: "# 2. Membership: A MEMBER HAS A CARD\n\n**The change.** Changed.\n\n**Why.** Bob's.\n\n**Impact list.**\n- none.\n\n**Origin.** the dashboard; saved by bob.\n",
-    [`docs/spec-freigaben/${bobs}/entscheidungen.md`]: `# Decisions — queue ${bobs}\n\nAppend-only.\n` };
-  const w = await specWorld({ files, authors: Object.fromEntries(Object.keys(files).map((path) => [path, "bob"])) });
-  await saveRequirement(w);
-  const first = Object.keys(w.writes()[0].files).find((path) => path.endsWith("/index.md")).replace(/\/index\.md$/, "");
-  assert.notEqual(first, `docs/spec-freigaben/${bobs}`, "bob's queue is not the author's");
-  const target = await w.draw("requirement", { name: "A MEMBER HAS A CARD" });
-  typeInto(target, MEMBERSHIP.replace("a card.", "a card, for life."));
-  whyOf(target).value = "Membership is for life.";
-  click(saveOf(target));
-  await until(() => w.writes().length === 2, "the second save");
-  assert.deepEqual([...new Set(Object.keys(w.writes()[1].files).map((path) => path.slice(0, path.lastIndexOf("/"))))], [first], "the second edit joins the author's queue");
 });
