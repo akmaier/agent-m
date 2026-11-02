@@ -74,12 +74,12 @@ async function baseOf(snapshot, item, defaultBranch) {
   return targetBranch(item, { sprints, order, branches, defaultBranch });
 }
 
-// The description of the pull request: the job, its kind, the plan steps and backlog items it works on, their modules, the requirements and use cases they realise, the issues they come from and the requirements the new tests
+// The description of the pull request: the job, its kind, the day the job ran (the context's `now`, in UTC), the plan steps and backlog items it works on, their modules, the requirements and use cases they realise, the issues they come from and the requirements the new tests
 // guard, then the provenance lines.
 function describe(result, context, { modules, realises, issues }, tests) {
   const { steps, items } = context.params ?? {};
   const guards = unique(tests.flatMap((test) => test.guards));
-  const lines = [`Job: ${context.jobId}`, `Kind: ${context.kind.name}`];
+  const lines = [`Job: ${context.jobId}`, `Kind: ${context.kind.name}`, `Date: ${context.now.toISOString().slice(0, 10)}`];
   if (named(steps).length) lines.push(`Plan step: ${named(steps).join(", ")}`);
   if (named(items).length) lines.push(`Backlog item: ${named(items).join(", ")}`);
   if (modules.length) lines.push(`Modules: ${modules.join(", ")}`);
