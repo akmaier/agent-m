@@ -449,7 +449,7 @@ test("TST-375313: every step of adding a participant carries a folded explanatio
     for (const text of seen[kind]) assert.ok(text.replace("What is this?", "").trim().length > 20, `${kind}: a fold with text: ${text.slice(0, 40)}`);
   }
   assert.ok(seen["CI agent"].some((text) => /self-hosted runner/i.test(text)), "known positive: the runner is explained");
-  assert.ok(seen["CI agent"].some((text) => /SSH/.test(text)), "the SSH alternative is explained");
+  assert.ok(seen["CI agent"].some((text) => /SSH/.test(text) && /recommended/i.test(text)), "the SSH alternative is explained, with the runner as the recommendation");
   assert.ok(seen["model endpoint"].length >= 6, "the endpoint's four steps and the type and capabilities");
 });
 

@@ -187,12 +187,12 @@ test("TST-375202: UC-017 1, 2 the author opens Participants, chooses + Add parti
 
 // TST-375203 · level: system · module: system
 // guards: UC-017; PARTICIPANTS ARE CONFIGURED ONCE PER INSTANCE; A PARTICIPANT HAS ONE OF FIVE TYPES; A PARTICIPANT DECLARES ITS CAPABILITIES; A PARTICIPANT BASED ON A LANGUAGE MODEL NAMES ITS MODEL; NO SECRET IN THE REPOSITORY; A PERSON'S OWN INPUT IS COMMITTED DIRECTLY
-// given: the frame at #participants over an empty register; this browser keeps the endpoint campus (model llama-campus, with a key) whose last test said it answered in text only, and the instance's token
-// input: the author adds a person (account github.com/akmaier), a model endpoint (campus, context 120000, place FAU data centre (EU)) and a CI agent on GitHub's machines (model gpt-5, secret MODEL_KEY, place GitHub hosted runner), pressing Save once for each
-// expect: known positive — three commits to the instance, each under the instance's token and holding docs/participants.md alone, the register at the end holds the three rows in order; the person has all six capabilities, no model and no place and the route account github.com/akmaier; the model endpoint has the model llama-campus and the route endpoint campus, its capability draft text and no use tools (the test said text only); the CI agent has the five coding capabilities, the model gpt-5 and the route ci hosted secret MODEL_KEY; the key of the endpoint stays in this browser and in no commit
+// given: the frame at #participants over an empty register; this browser keeps the endpoint campus (model llama-campus, with a key) whose last test said it answered in text only, the endpoint toolbox (model llama-tools) whose last test said the model called the tool it was offered, and the instance's token
+// input: the author adds a person (account github.com/akmaier), a model endpoint (campus, context 120000, place FAU data centre (EU)), a CI agent on GitHub's machines (model gpt-5, secret MODEL_KEY, place GitHub hosted runner) and a model endpoint on toolbox, pressing Save once for each
+// expect: known positive — four commits to the instance, each under the instance's token and holding docs/participants.md alone, the register at the end holds the four rows in order; the person has all six capabilities, no model and no place and the route account github.com/akmaier; the model endpoint on campus has the model llama-campus and the route endpoint campus, its capability draft text and no use tools (the test said text only); the CI agent has the five coding capabilities, the model gpt-5 and the route ci hosted secret MODEL_KEY; the endpoint on toolbox has draft text and use tools (the test said the model used the tool); the key of the endpoint stays in this browser and in no commit
 test("TST-375203: UC-017 3, 4, 7 the author saves a person, a model endpoint and a CI agent, each with a click, into the one register, without a key", async (t) => {
   const shown = await page(t, { settings: { "endpoint:campus": { url: "https://models.example/v1", kind: "openai-compatible", model: "llama-campus", key: "endpoint-secret-key" },
-    "last-test:endpoint:campus": { tools: false } } });
+    "last-test:endpoint:campus": { tools: false }, "endpoint:toolbox": { url: "https://tools.example/v1", kind: "openai-compatible", model: "llama-tools", key: "toolbox-secret-key" }, "last-test:endpoint:toolbox": { tools: true } } });
   const main = shown.main();
   await addParticipant(main, "person");
   await put(main, "participant-name", "akmaier");
@@ -210,16 +210,22 @@ test("TST-375203: UC-017 3, 4, 7 the author saves a person, a model endpoint and
   await put(main, "participant-model", "gpt-5");
   await put(main, "participant-secret-name", "MODEL_KEY");
   await save(main);
+  await addParticipant(main, "model endpoint");
+  await put(main, "participant-name", "toolbox-model");
+  await choose(main, "participant-endpoint", "toolbox");
+  await put(main, "participant-place", "FAU data centre (EU)");
+  await save(main);
   const commits = commitsOf(shown);
-  assert.deepEqual(commits.map((commit) => [Object.keys(commit.files), commit.authorization]), [0, 1, 2].map(() => [[PARTICIPANTS], `Bearer ${TOKEN}`]));
+  assert.deepEqual(commits.map((commit) => [Object.keys(commit.files), commit.authorization]), [0, 1, 2, 3].map(() => [[PARTICIPANTS], `Bearer ${TOKEN}`]));
   const rows = participantsIn(shown);
   assert.deepEqual(rows.map((row) => [row.name, row.type, row.model, row.place, row.route]), [
     ["akmaier", "person", null, null, "account github.com/akmaier"],
     ["campus-model", "model endpoint", "llama-campus", "FAU data centre (EU)", "endpoint campus"],
-    ["ci-writer", "CI agent", "gpt-5", "GitHub hosted runner", "ci hosted secret MODEL_KEY"]]);
-  assert.deepEqual(rows.map((row) => row.capabilities), [ALL_CAPABILITIES, ["draft text"], CODING]);
+    ["ci-writer", "CI agent", "gpt-5", "GitHub hosted runner", "ci hosted secret MODEL_KEY"],
+    ["toolbox-model", "model endpoint", "llama-tools", "FAU data centre (EU)", "endpoint toolbox"]]);
+  assert.deepEqual(rows.map((row) => row.capabilities), [ALL_CAPABILITIES, ["draft text"], CODING, ["draft text", "use tools"]]);
   assert.equal(rows[1].context, 120000);
-  assert.ok(!written(shown).includes("endpoint-secret-key") && !written(shown).includes(TOKEN) && !written(shown).includes("endpoint-secret"), "no key and no token in any commit");
+  assert.ok(!written(shown).includes("endpoint-secret-key") && !written(shown).includes("toolbox-secret-key") && !written(shown).includes(TOKEN), "no key and no token in any commit");
   assert.equal(JSON.parse(globalThis.localStorage.getItem("agent-m:akmaier/agent-m:endpoint:campus")).key, "endpoint-secret-key", "the key stays in this browser");
 });
 
