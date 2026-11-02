@@ -98,9 +98,28 @@ export function testDeclarations(path, text) {
   return p.endsWith(".md") ? markdownDeclarations(p, t) : commentDeclarations(p, t);
 }
 
+// A `/` follows a token after which a regular expression may stand, not a division: nothing, an operator or an opening
+// bracket, or a keyword that takes a value. After a name, a number, `)` or `]` it divides.
+const REGEX_MAY_FOLLOW = /^$|[(,=:[!&|?{;+\-*%<>~^]$|\b(?:return|typeof|case|in|of|delete|void|throw|else|do|yield|await)$/;
+
+// The index of the `/` that closes the regular-expression literal opening at `line[start]`, an escaped character and a character
+// class `[…]` read as part of it; -1 where the line holds no closing `/`.
+function regexEnd(line, start) {
+  let inClass = false;
+  for (let i = start + 1; i < line.length; i += 1) {
+    const c = line[i];
+    if (c === "\\") i += 1;
+    else if (c === "[") inClass = true;
+    else if (c === "]") inClass = false;
+    else if (c === "/" && !inClass) return i;
+  }
+  return -1;
+}
+
 // Whether a template string is still open at the end of `line`, given whether one is open at its start. An unescaped backquote
 // opens or closes one; outside a template string, a backquote inside a `"…"` or `'…'` literal (an escaped quote read as part of
-// it) or after `//` opens none. The reader is no JavaScript parser: a literal ends at its line's end at the latest.
+// it), a regular-expression literal or after `//` opens none. The reader is no JavaScript parser: a literal ends at its line's
+// end at the latest, and a `/` with no closing `/` on its line divides.
 function templateOpenAfter(line, open) {
   let quote = null;
   for (let i = 0; i < line.length; i += 1) {
@@ -111,6 +130,10 @@ function templateOpenAfter(line, open) {
     if (c === "`") open = true;
     else if (c === '"' || c === "'") quote = c;
     else if (c === "/" && line[i + 1] === "/") break;
+    else if (c === "/" && line[i + 1] !== "*" && REGEX_MAY_FOLLOW.test(line.slice(0, i).trimEnd())) {
+      const end = regexEnd(line, i);
+      if (end !== -1) i = end;
+    }
   }
   return open;
 }
