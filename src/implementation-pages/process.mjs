@@ -285,7 +285,7 @@ export const route = {
         el("p", null, `example: ${model.about?.example ?? ""}`),
         el("p", null, `chapter: ${model.about?.chapter ?? ""}`));
       card.setAttribute("data-model", model.name);
-      const choose = el("button", null, "Choose");
+      const choose = el("button", "btn", "Choose");
       choose.type = "button";
       choose.addEventListener("click", () => pick(model));
       card.append(choose);
@@ -528,7 +528,7 @@ async function editor(target, context, name) {
     page.append(el("h2", null, "New model"));
     const choice = el("section", "kind-choice", el("h3", null, "The kind of work"), explain("model-kind"));
     for (const kind of ["planned", "pulled"]) {
-      const button = el("button", null, kind);
+      const button = el("button", "btn", kind);
       button.type = "button";
       button.setAttribute("data-kind", kind);
       button.addEventListener("click", () => {
@@ -679,7 +679,7 @@ async function editor(target, context, name) {
     page.append(usersPart, el("section", "model-form", explain("model-findings"), form), notice,
       el("section", "model-picture", el("h3", null, "Phases, verification pairs and gates"), explain("phases-and-gates"), diagram));
     for (const address of readSetting(store, "products") ?? []) {
-      const button = el("button", null, address);
+      const button = el("button", "btn", address);
       button.type = "button";
       button.setAttribute("data-preview-product", address);
       button.addEventListener("click", () => pick(address));

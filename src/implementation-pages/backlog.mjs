@@ -709,7 +709,7 @@ async function drawBoard(target, context) {
   const item = (id) => {
     const state = stateOf_(id), verdict = verdicts.get(id);
     const pull = state.state !== "ready" ? "" : verdict.startable ? `<a data-pull="${h(id)}" href="#implement/item=${encodeURIComponent(id)}">Pull</a>`
-      : `<button type="button" data-pull="${h(id)}" disabled>Pull</button><ul data-reasons>${verdict.reasons.map((reason) => `<li>${h(reason)}</li>`).join("")}</ul>`;
+      : `<button type="button" class="btn" data-pull="${h(id)}" disabled>Pull</button><ul data-reasons>${verdict.reasons.map((reason) => `<li>${h(reason)}</li>`).join("")}</ul>`;
     return `<li data-item="${h(id)}">${h(id)} ${badge(state.state)} ${pull}</li>`;
   };
   const columns = COLUMNS.map((name) => `<section class="panel" data-column="${name}"><h3>${name}</h3><ul>${ids.filter((id) => columnOf(stateOf_(id)) === name).map(item).join("")}</ul></section>`).join("");

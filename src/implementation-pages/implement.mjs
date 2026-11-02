@@ -148,7 +148,7 @@ async function drawPlan(target, context, facts, ctx, participants, workflow, m) 
     <tr data-step="${h(row.state.item)}" data-state="${h(row.state.state)}" data-phase="${h(row.phase)}"><td><input type="checkbox" data-select-step aria-label="Select ${h(row.state.item)}"${row.verdict.startable ? "" : " disabled"}${preselected(row) ? " checked" : ""}></td>
     <td>${h(row.state.item)}</td><td>${h(row.phase)}</td><td><span class="badge">${h(row.state.state)}</span>${returnedBy(row.state)}</td>
     <td>${row.verdict.startable ? "" : `<ul data-reasons>${row.verdict.reasons.map((reason) => `<li>${h(reason)}</li>`).join("")}</ul>${row.verdict.reasons.some((reason) => /^No job can implement/.test(reason)) ? `<p data-none-of="${h(row.state.item)}">No participant can write and run tests. <a href="#participants">Declare a participant with the capabilities</a>; a model endpoint can draft a decision, not implement it.</p>` : ""}`}</td></tr>`).join("")}</tbody></table>
-    <p data-selected></p><div data-jobs></div><p><button type="button" data-start-jobs>Start jobs</button></p><div data-start-result></div>`, "A model that plans its work implements the steps of its implementation plan, in the plan's order.");
+    <p data-selected></p><div data-jobs></div><p><button type="button" class="btn" data-start-jobs>Start jobs</button></p><div data-start-result></div>`, "A model that plans its work implements the steps of its implementation plan, in the plan's order.");
   // A box is ticked by its property; a document that does not keep the property is read by the attribute the page wrote.
   const isTickedBox = (box) => box.getAttribute("disabled") === null && (box.checked === undefined ? box.getAttribute("checked") !== null : box.checked === true);
   const count = () => {
@@ -313,7 +313,7 @@ async function drawPulls(target, context, snapshot) {
       parts.push(`<div data-pull="${h(pull.number)}" data-state="open">${shown}
         ${done.html}
         ${pull.draft ? `<p class="warn">The pull request is a draft.</p>` : ""}
-        ${offered ? `<p><button type="button" data-merge-pull="${h(pull.number)}">Merge</button></p>` : ""}<p data-merge-result></p></div>`);
+        ${offered ? `<p><button type="button" class="btn" data-merge-pull="${h(pull.number)}">Merge</button></p>` : ""}<p data-merge-result></p></div>`);
     } catch (failure) {
       parts.push(`<div data-pull="${h(pull.number)}"><h4>#${h(pull.number)} ${h(pull.title)}</h4><p class="warn">${h(failure?.message ?? failure)}</p></div>`);
     }
@@ -438,7 +438,7 @@ async function draw(target, context, params) {
       <p class="small">Attempt limit: ${h(definition.limit)}. Merges: <select data-merges-of="${h(row.id)}"><option value="agent">the coding agent</option><option value="person">a person</option></select>.
         Target branch: ${h(targetBranch(row.id, { sprints: [...judged.sprints.values()], order: null, branches: workflow.branches ?? {}, defaultBranch: info.defaultBranch }))}. ${gatesText.length ? `Gates: ${gatesText.join(", ")}.` : "No gate stands before the merge."}</p>
       <div data-sent="${h(row.id)}"></div>`) : `<ul data-reasons>${row.verdict.reasons.map((reason) => `<li>${h(reason)}</li>`).join("")}</ul>`}</td></tr>`).join("")}</tbody></table>
-    <p><button type="button" data-start-jobs>Start jobs</button></p><div data-start-result></div>`;
+    <p><button type="button" class="btn" data-start-jobs>Start jobs</button></p><div data-start-result></div>`;
   head(body);
   noteGreenToMerge(target, info, product.host);
 

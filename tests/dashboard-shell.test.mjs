@@ -201,7 +201,7 @@ test("the live page renders its Markdown with the renderer — front matter as a
   await openDashboard({ server: await repoServer({ files: FILES }) });
   const { md } = await import(APP_FILE.href);
   const html = md("---\ntitle: Burn-down\n---\n![the chart](https://example.org/chart.png)\n\n```mermaid\nflowchart LR\n  A --> B\n```\n");
-  assert.equal(html.includes('<table class="frontmatter"><tbody><tr><th>title</th><td>Burn-down</td></tr></tbody></table>'), true, html);
+  assert.equal(html.includes('<table class="frontmatter list"><tbody><tr><th>title</th><td>Burn-down</td></tr></tbody></table>'), true, html);
   assert.equal(html.includes('<a href="https://example.org/chart.png">the chart</a>'), true, html);
   assert.equal(html.includes("<img"), false, html);
   assert.equal(html.includes('<code class="language-mermaid">flowchart LR\n  A --&gt; B</code>'), true, html);
