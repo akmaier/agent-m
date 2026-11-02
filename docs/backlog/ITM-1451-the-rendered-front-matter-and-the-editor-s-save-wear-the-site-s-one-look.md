@@ -7,6 +7,7 @@ realises:
   - THE SITE WEARS THE PATTERN RECOGNITION LAB'S LOOK
 modules:
   - MOD-markdown-render
+  - MOD-site-frame
 builds_on:
   - ITM-1444
 tests:
