@@ -193,8 +193,8 @@ export const rowOf = (page, row) => descendants(page, (node) => node.localName =
 export const cellOf = (page, row, column) => descendants(rowOf(page, row), (node) => node.localName === "td" && node.getAttribute("data-column") === column)[0];
 export const boxOf = (page, row, column) => byTag(cellOf(page, row, column), "input").find((input) => input.getAttribute("type") === "checkbox");
 export const fieldOf = (page, key) => descendants(page, (node) => node.getAttribute?.("data-key") === key)[0];
-/** A person's click on `button`, as the page listens for it. */
-export const click = (button) => button.dispatchEvent(new Event("click"));
+/** A person's click on `button`, as the page listens for it: a click the browser marks trusted (THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK). */
+export const click = (button) => button.dispatchEvent(Object.defineProperty(new Event("click"), "isTrusted", { value: true }));
 /** The person changes `control` (a box ticked or not, a choice, a field): its value set, then the event the page listens for. */
 export function change(control, value) {
   if (control.getAttribute("type") === "checkbox") { control.checked = value; control.dispatchEvent(new Event("change")); return; }
