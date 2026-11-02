@@ -47,7 +47,8 @@ const COUNTED = {
 };
 
 // The gate records of the release: those of docs/gates/ at the tag that the workflow the product declared then gives a requirement-added gate, as
-// { requirement, gate, record }. None where the product declared no process or the instance cannot be reached.
+// { requirement, gate, record, artifacts }, `artifacts` the ones that gate asks for (UC-002 7). None where the product declared no process or the instance
+// cannot be reached.
 async function gatesOf(at, context, instanceSpec) {
   const text = await at.read("docs/process.md");
   if (text === null || !context.instance?.host) return [];
@@ -64,7 +65,10 @@ async function gatesOf(at, context, instanceSpec) {
     }
   }
   return gateStates(workflow, records, texts).filter((state) => state.record)
-    .map((state) => ({ requirement: workflow.gates.find((gate) => gate.name === state.gate)?.addedBy?.requirement, gate: state.gate, record: state.record }))
+    .map((state) => {
+      const gate = workflow.gates.find((each) => each.name === state.gate);
+      return { requirement: gate?.addedBy?.requirement, gate: state.gate, record: state.record, artifacts: gate?.artifacts ?? "" };
+    })
     .filter((gate) => gate.requirement);
 }
 
@@ -157,7 +161,8 @@ const concerned = (rows, line) => {
   return rows.filter((row) => row.tests.some((test) => test.id === named)).map((row) => row.requirement);
 };
 
-// One row: the requirement and what it constrains, its sources, its tests, its gates, the acceptance of the report, and the detail with the links and the blob of the accepted text.
+// One row: the requirement and what it constrains, its sources, its tests, its gates — each record in `audit-gate`, and the artifacts that gate asked for
+// in an element of their own, `audit-gate-artifacts` —, the acceptance of the report, and the detail with the links and the blob of the accepted text.
 function rowOf(row, { release, audit, acceptance, gone }, links) {
   const accepted = audit.summary.accepted;
   const evidence = accepted
@@ -188,7 +193,8 @@ function rowOf(row, { release, audit, acceptance, gone }, links) {
     cell("Requirement", null, el("span", "audit-requirement", row.requirement), " ", el("span", "audit-constrains", row.constrains)),
     cell("Sources", null, ...row.sources.flatMap((source) => [el("span", "audit-source", source.id), ` (${source.authority}, ${source.version}) `])),
     cell("Tests", null, ...tests),
-    cell("Gates", null, ...row.gates.map((gate) => el("span", "audit-gate", gate))),
+    cell("Gates", null, ...row.gates.flatMap((gate, index) => [el("span", "audit-gate", gate),
+      ...(row.artifacts?.[index] ? [" artifacts: ", el("span", "audit-gate-artifacts", row.artifacts[index])] : [])])),
     cell("Acceptance", "audit-evidence", evidence),
     cell("Detail", null, detail));
   tr.setAttribute("data-requirement", row.requirement);

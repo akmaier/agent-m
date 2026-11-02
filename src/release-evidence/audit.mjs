@@ -15,6 +15,9 @@
 // - each test also gives `passed` — its run completed and passed, and its rate is no worse than the last release's — and
 //   `lastRate`, the last release's rate, null where there is none; the module file's interface lists neither, and both
 //   extend it without changing a field it lists (ITM-1430's reading, OPEN FOR EXTENSION, CLOSED FOR CHANGE);
+// - an entry of `gates` may also give `artifacts`, the artifacts its gate asks for, and each row gives `artifacts`, one for each of its
+//   `gates` in their order, "" where the entry gives none; the module file's interface lists neither, and both extend it (ITM-1431's
+//   reading, as ITM-1430's); the document names them under the gate record they stand beside;
 // - the report is `docs/tests/releases/<tag>.md` on `head`, the default branch, which holds it and its approval record because
 //   acceptAndRelease commits them after the tagged commit; it is accepted when MOD-approvals' statusOf says so of it in `head`;
 //   the limitations are those of the record `docs/approvals/release-<tag>-<blob12>.md`, read through approvalSchema;
@@ -157,8 +160,9 @@ export async function auditRows(at, results, head, release, gates, instanceSpec,
     if (!predates && rowTests.some((test) => test.worse)) summary.worse += 1;
     if (rowTests.length && rowTests.every((test) => test.passed)) summary.passing += 1;
 
+    const own = gates.filter((gate) => gate.requirement === req.name);
     rows.push({ requirement: req.name, constrains, sources: sourcesOf(req, links, register), tests: rowTests,
-      gates: gates.filter((gate) => gate.requirement === req.name).map((gate) => gate.record) });
+      gates: own.map((gate) => gate.record), artifacts: own.map((gate) => gate.artifacts ?? "") });
   }
   summary.byImplementer = byImplementer.size;
   return { summary, rows, evidence };
@@ -183,7 +187,8 @@ function rowSection(row, accepted) {
     ...(accepted ? [] : ["- Evidence not accepted: no approval record names the release test report"]),
     ...(row.sources.length ? row.sources.map(sourceLine) : ["- Sources: none"]),
     ...(row.tests.length ? row.tests.map(testLine) : ["- Tests: no test"]),
-    ...row.gates.map((record) => `- Gate record: ${code(record)}`), ""];
+    ...row.gates.flatMap((record, index) => [`- Gate record: ${code(record)}`,
+      ...(row.artifacts?.[index] ? [`- Artifacts the gate asked for: ${code(row.artifacts[index])}`] : [])]), ""];
 }
 
 function evidenceLines({ report, records, acceptance }) {
@@ -200,7 +205,8 @@ function evidenceLines({ report, records, acceptance }) {
  * auditDocument(audit: { summary, rows, evidence }, release: { tag: string, commit: string }) -> string (MOD-release-evidence,
  * Interfaces and Data, "The audit document"): the self-contained Markdown document of the audit — the tag and its commit SHA,
  * the summary, the evidence (the report, the approval records and the acceptance, with their blob SHAs), and one section per
- * row with its sources, their versions and hashes, its tests with outcome and counter-proof, and its gate records. Every
+ * row with its sources, their versions and hashes, its tests with outcome and counter-proof, and its gate records with the
+ * artifacts each gate asked for. Every
  * statement names a path, an identifier or a hash of the repository, so that it is checked there, without Agent M.
  */
 export function auditDocument(audit, release) {
