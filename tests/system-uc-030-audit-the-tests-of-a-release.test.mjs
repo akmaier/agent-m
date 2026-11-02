@@ -45,6 +45,7 @@ const testsOf = (row) => withClass(row, "audit-test-line").map(lineOf);
 const FLOW_EVIDENCE = {
   "main-1-pick": { uc: "The auditor opens **Tests → Audit** and picks a release tag.", evidence: [[SELF, "TST-775202"], [PAGE, "TST-768001"]] },
   "main-2-rows": { uc: "derives one row per requirement valid at that release:", evidence: [[SELF, "TST-775202"], [PAGE, "TST-768003"]] },
+  "main-2-unrecorded-gate": { uc: "derives one row per requirement valid at that release:", evidence: [[SELF, "TST-775220"]] },
   "main-2-sources": { uc: "the requirement's name, what it constrains (product or process), and its sources with their authority and version", evidence: [[SELF, "TST-775203"], [PAGE, "TST-768005"], [ROWS, "TST-756002"]] },
   "main-2-tests": { uc: "the tests guarding it, by level, each with its outcome or rate on the release commit and its counter-proof;", evidence: [[SELF, "TST-775203"], [PAGE, "TST-768005"]] },
   "main-2-artifacts": { uc: "for a process requirement, also the gate records and artifacts it added to the workflow", evidence: [[SELF, "TST-775204"]] },
@@ -69,7 +70,6 @@ const FLOW_EVIDENCE = {
 };
 // The passages the page does otherwise: the finding, its case, and the module it points to.
 const FLOW_FINDINGS = {
-  "main-2-unrecorded-gate": { uc: "derives one row per requirement valid at that release:", finding: "UC030-F6", file: SELF, test: "TST-775220", module: "MOD-trace-pages" },
 };
 // The passages no code of this product carries, with the reason.
 const NOT_WALKED = {
@@ -426,8 +426,8 @@ test("TST-775218: UC-030 1a a release before Agent M's test records says which p
 // guards: UC-030; THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE; THE GATE IS RECORDED
 // given: the product of TST-775203, whose declaration docs/process.md adds the gate of A PROCESS RULE; and the same product at a tag whose docs/gates/ holds no record of that gate
 // input: the auditor opens the audit of v2026.4.0 over each
-// expect: known positive — with the record, A PROCESS RULE has its row, which lists the gate record; FINDING UC030-F6 (MOD-trace-pages): without the record the requirement is still valid at the release and the workflow still holds its gate, so its row stands with no gate record and counts among the requirements without a test (eight rows, three without a test); the page draws seven rows and no row for it
-test("TST-775220: UC-030 2 a process requirement whose gate has no record at the tag still has its row, with the gap in plain sight", { todo: "FINDING UC030-F6 (MOD-trace-pages): gatesOf keeps only the gates that have a record (`filter((state) => state.record)`), and auditRows takes a process requirement's row from `gates`, so a gate without a record leaves its requirement without a row" }, async () => {
+// expect: known positive — with the record, A PROCESS RULE has its row, which lists the gate record; without the record the requirement is still valid at the release and the workflow still holds its gate, so its row stands with no gate record and counts among the requirements without a test (eight rows, three without a test)
+test("TST-775220: UC-030 2 a process requirement whose gate has no record at the tag still has its row, with the gap in plain sight", async () => {
   const recorded = await render();
   assert.deepEqual(textsOf(rowOf(recorded, PROCESS), "audit-gate"), [GATE_PATH], "known positive: with the record the row stands");
   const bare = Object.fromEntries(Object.entries(productFiles()).filter(([path]) => path !== GATE_PATH));
