@@ -577,11 +577,11 @@ function addLinks(spec, product) {
 }
 
 // The group file at the version drawn (its text, `groupText`, read beside the SPEC), set against the items it arranges: the requirements of the SPEC and those an open entry would add. `status` names what an
-// open entry would do to a requirement of the SPEC (the newest queue's entry that names it); `added` the names an entry would add.
+// open entry would do to a requirement of the SPEC (the newest entry that names it, the last in `queues`' order); `added` the names an entry would add.
 async function arrangement(snapshot, spec, waiting, groupText) {
   const status = new Map();
   const added = new Set();
-  // The entries' impacts are read at once, from their proposals and targets and no rationale; they are then taken in the order `waitingQueues` lists them, the newest queue's entries first, so that the newest queue's entry naming a requirement gives its one mark; the other entries naming it
+  // The entries' impacts are read at once, from their proposals and targets and no rationale; they are then taken in the order `waitingQueues` lists them — queues by their folders' names, then entries by their numbers —, so that the last, the newest entry naming a requirement, gives its one mark; the other entries naming it
   // stand in the list of waiting entries (waitingSection) with their own status and link.
   const impacts = await Promise.all(waiting.map(({ queue, entry }) => entryImpact(queue.folder, entry.number, snapshot).catch(() => null)));
   for (const impact of impacts) {
@@ -589,7 +589,7 @@ async function arrangement(snapshot, spec, waiting, groupText) {
     for (const { name, change } of impact) {
       if (change === "added") {
         if (!spec.requirements.has(name)) added.add(name);
-      } else if (spec.requirements.has(name) && !status.has(name)) status.set(name, change === "withdrawn" ? "removal proposed" : "change proposed");
+      } else if (spec.requirements.has(name)) status.set(name, change === "withdrawn" ? "removal proposed" : "change proposed");
     }
   }
   const items = [...spec.requirements.keys(), ...added];
@@ -637,9 +637,10 @@ async function waitingEntries(snapshot) {
 const WAITING_BADGE = { open: "b-open", stale: "b-stale", "waiting for its anchor": "b-superseded" };
 
 // The waiting entries in the table of the review pages' lists (table.list, a badge for the state): the queue's name as the person reads it, the entry's number,
-// the section of the SPEC it changes, and its state; each cell labelled for the phone's stacked rows.
+// the section of the SPEC it changes, and its state; each cell labelled for the phone's stacked rows. The newest entry stands first: the last in `queues`' order.
 function waitingSection(waiting, product) {
   if (!waiting.length) return null;
+  waiting = [...waiting].reverse();
   const cell = (label, ...children) => {
     const td = el("td", null, ...children);
     td.setAttribute("data-label", label);
