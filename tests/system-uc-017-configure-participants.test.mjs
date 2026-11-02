@@ -310,19 +310,19 @@ test("TST-375001: UC-017 main flow saves each participant type from the Particip
       capabilities: ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools", "reach the web"],
       route: "account github.com/akmaier" },
     { type: "model endpoint", settings: { "endpoint:campus": { url: "https://models.example/v1", kind: "openai-compatible", model: "llama-campus", key: "endpoint-secret" } },
-      fields: { name: "campus-model", context: "120000", price: "1.00 / 2.00", place: "FAU data centre (EU)" },
+      fields: { name: "campus-model", context: "120000", price: "1.00 / 2.00 EUR per million tokens", place: "FAU data centre (EU)" },
       endpoint: "campus", model: "llama-campus", place: "FAU data centre (EU)", capabilities: ["draft text"], route: "endpoint campus" },
-    { type: "CI agent", fields: { name: "ci-writer", model: "gpt-5", context: "200000", price: "2.00 / 8.00", place: "GitHub hosted runner" },
+    { type: "CI agent", fields: { name: "ci-writer", model: "gpt-5", context: "200000", price: "2.00 / 8.00 USD per million tokens", place: "GitHub hosted runner" },
       runner: "github-hosted", secret: "MODEL_KEY", model: "gpt-5", place: "GitHub hosted runner",
       capabilities: ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
       route: "ci hosted secret MODEL_KEY" },
     { type: "CLI agent", settings: { "bridge:laptop": { address: "http://127.0.0.1:8787", token: "bridge-token" } },
-      fields: { name: "codex-local", model: "codex-cli", context: "200000", price: "subscription", place: "this machine" },
+      fields: { name: "codex-local", model: "codex-cli", context: "200000", place: "this machine" },
       bridge: "laptop", agent: "codex", model: "codex-cli", place: "this machine",
       capabilities: ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
       route: "bridge laptop agent codex" },
     { type: "sandboxed agent", settings: { "bridge:sandbox": { address: "http://127.0.0.1:8788", token: "bridge-token" } },
-      fields: { name: "codex-sandbox", model: "codex-sandbox", context: "200000", price: "subscription", place: "sandbox vm" },
+      fields: { name: "codex-sandbox", model: "codex-sandbox", context: "200000", place: "sandbox vm" },
       bridge: "sandbox", agent: "codex", model: "codex-sandbox", place: "sandbox vm",
       capabilities: ["draft text", "read the repository", "write to the repository", "run code and tests", "use tools"],
       route: "bridge sandbox agent codex" },
@@ -491,7 +491,7 @@ test("TST-375004: UC-017 alternative 5a names restricted sources and still permi
   await put(one(page, "participant-name"), "ci-private");
   await put(one(page, "participant-model"), "gpt-5");
   await put(one(page, "participant-context"), "200000");
-  await put(one(page, "participant-price"), "2.00 / 8.00");
+  await put(one(page, "participant-price"), "2.00 / 8.00 USD per million tokens");
   await put(one(page, "participant-runner"), "self-hosted", "change");
   await put(one(page, "participant-runner-label"), "private-lab");
   await put(one(page, "participant-secret-name"), "MODEL_KEY");

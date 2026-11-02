@@ -242,6 +242,19 @@ function offeredAgentChecks(type, state, offered) {
     fix: agents.length ? `choose one of the agents it offers: ${agents.join(", ")}` : "choose an agent the Bridge offers" })];
 }
 
+// A price the participant list would read as none is refused before Save (NO COST IS GUESSED): the drafted row is read with
+// MOD-participant-list's participantsOf, the one reading of a price, and PRICE_HINT, the Price field's hint, is a price it reads.
+const PRICE_HINT = "2.00 / 8.00 USD per million tokens";
+function priceChecks(type, state, store) {
+  const price = state.price.trim();
+  if (!price) return [];
+  const [drafted] = participantsOf(readDocument(participantSchema(), PATH, withDraftRow(EMPTY, rowOf(type, state, store))));
+  if (drafted?.price) return [];
+  return [finding({ artifact: PATH, line: 1, kind: "error", rule: "NO COST IS GUESSED",
+    what: `the price ${price} is not read as a price, so a cost would be shown as unknown`,
+    fix: `write it as <input> / <output> <currency> per million tokens, for example ${PRICE_HINT}, or leave it empty` })];
+}
+
 // The place Agent M can tell for a CI agent (UC-017 5): the runner it runs on.
 function runnerPlace(state) {
   return state.runner === "self-hosted" ? `self-hosted runner ${state.runnerLabel.trim()}`.trim() : "GitHub hosted runner";
@@ -430,7 +443,8 @@ export const route = {
       if (!type.value) { fieldsBox.replaceChildren(); formBox.replaceChildren(); productUseBox.replaceChildren(); return; }
       const document = draftDocument(opened.text, type.value, state, context.store, editing?.name ?? null);
       const checks = (document) => [...inlineEndpointChecks(type.value, state), ...agentTestChecks(type.value, state),
-        ...offeredAgentChecks(type.value, state, offered), ...sourcePlaceWarnings(opened.sources)(document)];
+        ...offeredAgentChecks(type.value, state, offered), ...priceChecks(type.value, state, context.store),
+        ...sourcePlaceWarnings(opened.sources)(document)];
       async function save(document) {
         const text = writeDocument(participantSchema(), document);
         const endpoint = state.inlineEndpoint ? endpointSetting(state) : null;
@@ -531,7 +545,7 @@ export const route = {
       if (typeName !== "person") {
         placeInput = textInput("participant-place", "place", "where data is processed");
         controls.push(control("Context", textInput("participant-context", "context", "tokens")),
-          control("Price", textInput("participant-price", "price", "input / output USD per million tokens")),
+          control("Price", textInput("participant-price", "price", PRICE_HINT)),
           control("Processing place", placeInput));
       }
       controls.push(capabilitiesBox());
