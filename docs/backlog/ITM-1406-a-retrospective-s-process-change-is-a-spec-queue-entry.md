@@ -7,6 +7,8 @@ realises:
   - AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF
 modules:
   - MOD-work-plans
+  - MOD-workflow-entries
+  - MOD-implementation-pages
 builds_on:
   - ITM-991
   - ITM-1397
