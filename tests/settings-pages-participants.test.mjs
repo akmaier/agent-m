@@ -1122,3 +1122,23 @@ test("participants — the Price field's hint is a price the participant list re
   await save(page);
   assert.notEqual(committedParticipants(b).at(-1).price, null, `the list reads the hint ${hint} as a price`);
 });
+
+// TST-1439001 · level: unit · module: MOD-settings-pages
+// guards: UC-017; EVERY STEP EXPLAINS ITSELF
+// given: the public participants Route, an empty register and a Bridge laptop kept by this browser
+// input: the author adds a CLI agent, then a sandboxed agent, and reads what follows the step Test
+// expect: for each, the element right after the Test's result is a folded explanation — summary What is this?, closed — of the topic agent-test: it says the test sends a harmless request through the Bridge and that nothing is saved until the author saves it untested; known positive: the form carries other folds whose summary is What is this?; counter-proof: without explain("agent-test") at the step Test the element after the result is no fold and the case fails
+test("participants — the step Test of a CLI or sandboxed agent carries the folded explanation agent-test", async (t) => {
+  for (const type of ["CLI agent", "sandboxed agent"]) {
+    const b = browser(t, { settings: { "bridge:laptop": { address: "http://127.0.0.1:7801", token: "pairing-token" } } });
+    const page = await b.page();
+    await addParticipant(page, type);
+    assert.ok(folded(page).some((details) => byTag(details, "summary")[0]?.textContent === "What is this?"), `${type}: known positive: the form folds its explanations`);
+    const fold = one(page, "participant-agent-test-result").nextSibling;
+    assert.equal(fold?.localName, "details", `${type}: the step Test is followed by a fold`);
+    assert.equal(fold.hasAttribute("open"), false, `${type}: the fold is closed`);
+    assert.equal(byTag(fold, "summary")[0]?.textContent, "What is this?", `${type}: the fold's summary`);
+    assert.match(fold.textContent, /harmless request through the Bridge/, `${type}: the fold explains the test`);
+    assert.match(fold.textContent, /untested/, `${type}: the fold says nothing is saved until saved untested`);
+  }
+});

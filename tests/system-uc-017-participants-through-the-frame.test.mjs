@@ -105,10 +105,10 @@ const FLOW_EVIDENCE = {
   "main-5-self-hosted-place": { uc: "The author states where the participant processes data. Agent M presets it where it can tell", evidence: [[SELF, "TST-375214"]] },
   "main-3-offered-agent": { uc: "the agent, chosen from those that Bridge offers (UC-044)", evidence: [[SELF, "TST-375216"]] },
   "main-3-price": { uc: "its price per million input and\n   output tokens, so that the usage a runtime reports can be priced", evidence: [[SELF, "TST-375215"]] },
+  "main-6-explained": { uc: "For a CLI or sandboxed agent, the author presses **Test**", evidence: [[SELF, "TST-375217"]] },
 };
 // The passages the page does otherwise: the finding, its case, and the module it points to.
 const FLOW_FINDINGS = {
-  "main-6-explained": { uc: "For a CLI or sandboxed agent, the author presses **Test**", finding: "UC017-F5", file: SELF, test: "TST-375217", module: "MOD-settings-pages" },
 };
 // The passages no code of this product carries here, with the reason.
 const NOT_WALKED = {
@@ -591,8 +591,8 @@ test("TST-375216: UC-017 3 a CLI agent that the Bridge does not offer cannot be 
 // guards: UC-017; EVERY STEP EXPLAINS ITSELF
 // given: a real Bridge with claude, kept by this browser as laptop; the frame at #participants
 // input: the author adds a CLI agent and reads the folded explanations of the form
-// expect: known positive — the form has a folded What is this? for the type and one for capabilities and place; FINDING UC017-F5 (MOD-settings-pages): the step Test, which asks the author to send a request through the Bridge, carries no folded explanation of its own, and the explanation of the test (it names the Bridge's reason and that nothing is saved until the author saves untested) is in the frame's explanations and on no page
-test("TST-375217: UC-017 6 the step Test carries a folded explanation", { todo: "FINDING UC017-F5 (MOD-settings-pages): participants.mjs draws explain(\"participant-cli-agent\") and explain(\"capabilities-and-place\") and never explain(\"agent-test\"), a topic src/site-frame/explanations.md holds; EVERY STEP EXPLAINS ITSELF asks a fold for every step that asks something of the person" }, async (t) => {
+// expect: known positive — every fold of the form has the summary What is this?, the type's and the capabilities' and place's among them, and one fold says that a failed test saves nothing until the author saves it untested
+test("TST-375217: UC-017 6 the step Test carries a folded explanation", async (t) => {
   const machine = computer({ claude: { loggedIn: true } });
   const bridge = await startBridge(t, machine, { name: "laptop", offered: ["claude"] });
   const shown = await page(t, { settings: { "bridge:laptop": { address: bridge.address, token: bridge.token } } });
