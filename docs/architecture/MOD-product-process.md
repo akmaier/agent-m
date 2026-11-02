@@ -189,8 +189,9 @@ once (`THE GATE IS RECORDED`, `A RECORD IS EVIDENCE, NOT A PROPOSAL`):
   commit's message is the subject `gates: <gate> <decision> by <decider's name>`, then, after an empty line, the trailers,
   one per line — the one subject of every gate record, whoever decides it.
   Considers: `mayDecide` runs first, and a decision that would not pass the gate is refused with nothing written; a
-  rejection needs its reason; the waiting job is resumed by its route once the record is on the branch (MOD-runtimes'
-  `resumeJob`; on CI the record's push). Crosses the network. Errors: `MayNotDecide { reason, holders }`, `ReasonMissing`,
+  rejection needs its reason; once the record is on the branch, a `passed` one resumes the waiting job by its route, and a
+  `rejected` one ends it `failed`, naming the gate, the record and the rejection's reason (MOD-runtimes' `resumeJob`; on
+  CI the record's push). Crosses the network. Errors: `MayNotDecide { reason, holders }`, `ReasonMissing`,
   `Moved` (read again: the gate may have been decided meanwhile), `TokenRefused`, `PermissionMissing`, `RateLimited`,
   `Unreachable`.
 - `doneCheck(facts: PullRequestFacts, workflow: Workflow, modules: Document[], gates: Document[], job: { kind: "implement"
