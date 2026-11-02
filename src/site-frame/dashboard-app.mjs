@@ -706,6 +706,24 @@ function implementationContext() {
   };
 }
 
+// The ViewContext of MOD-settings-pages' routes that read the repositories — #settings and the guided pages it opens —: the review pages' context, whose host
+// hands the snapshot this load read; for the instance itself the product is the instance, through that same host. The step that adds a product is this page's
+// #add, a named endpoint is #endpoints/<name>, the Bridge #bridge, `main` is the product's own dashboard; any other route is written as the frame writes it.
+function settingsContext() {
+  const shown = reviewContext();
+  return {
+    ...shown,
+    product: shown.product ?? { address: T.product.address, kind: "github", host: shown.instance.host, tokenStored: Boolean(token()) },
+    go(route, params = {}) {
+      if (route === "add-product") location.hash = params.address ? `#add/${encodeURIComponent(params.address)}` : "#add";
+      else if (route === "endpoints") location.hash = params.name ? `#endpoints/${encodeURIComponent(params.name)}` : "#endpoints";
+      else if (route === "bridge") location.hash = "#bridge";
+      else if (route === "main") location.search = productHref(productOf(params.product)).slice(1);
+      else location.hash = fragmentOf(route, params);
+    },
+  };
+}
+
 // A route that works on the product shown — MOD-test-pages' runs, schedule and generate, MOD-trace-pages' trace —, drawn into <main> with implementationContext(), as the
 // backlog is, reading through the snapshot this load read.
 async function renderProductRoute(view, name, params) {
@@ -878,17 +896,20 @@ async function route() {
       await loadRoute(settings);
       loading += 1;
       try {
-        const shown = reviewContext();
-        await settings.render(main(), {
-          ...shown,
-          product: shown.product ?? { address: T.product.address, kind: "github", host: shown.instance.host, tokenStored: Boolean(token()) },
-          go(route, params = {}) {
-            if (route === "add-product") location.hash = params.address ? `#add/${encodeURIComponent(params.address)}` : "#add";
-            if (route === "endpoints") location.hash = params.name ? `#endpoints/${encodeURIComponent(params.name)}` : "#endpoints";
-            if (route === "bridge") location.hash = "#bridge";
-            if (route === "main") location.search = productHref(productOf(params.product)).slice(1);
-          },
-        }, {});
+        await settings.render(main(), settingsContext(), {});
+      } finally {
+        loading -= 1;
+      }
+    } else if (["participants", "library", "resources", "sources", "mailbox"].includes(kind)) {
+      // The guided pages the Settings page opens — where a repository setting is kept, from its Edit (UC-042 step 3), and the mailbox (UC-037) —, drawn as
+      // #settings is, with the same context; the empty `product` — #resources/product= — names the instance itself (MOD-site-frame's ViewContext).
+      await firstLoad?.catch(() => {});
+      const kept = settingsPages.routes.find((r) => r.name === kind);
+      await loadRoute(kept);
+      loading += 1;
+      try {
+        const context = settingsContext();
+        await kept.render(main(), params.product === "" ? { ...context, product: null } : context, params);
       } finally {
         loading -= 1;
       }
