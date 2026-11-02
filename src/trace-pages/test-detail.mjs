@@ -167,7 +167,7 @@ async function historyPart(host, id, declaration) {
     const offer = (next) => {
       slot.replaceChildren();
       if (!next) return;
-      const button = el("button", "test-history-earlier", "Earlier runs");
+      const button = el("button", "test-history-earlier btn", "Earlier runs");
       button.setAttribute("type", "button");
       let reading = false;
       button.addEventListener("click", async () => {
