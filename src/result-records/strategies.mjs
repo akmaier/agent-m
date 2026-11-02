@@ -237,7 +237,7 @@ class RunError extends Error {
 }
 
 // The commit, the occasion and the levels a job runs: the commit of the candidate the job was queued for, else `params.commit`; the occasion `params.occasion`, else the release candidate's for a job with
-// a candidate, else on demand; the levels `params.levels`, else those (not the cross-cutting row `paid`) the schedule ticks for the occasion.
+// a candidate, else on demand; the levels `params.levels`, else for a release candidate every row of the schedule, else those (not the cross-cutting row `paid`) the schedule ticks for the occasion.
 async function runOf(context) {
   const params = context.params ?? {};
   const commit = params.candidate?.commit ?? params.commit;
@@ -246,7 +246,7 @@ async function runOf(context) {
   const schedule = await scheduleOf(context.product.snapshot);
   const levels = Array.isArray(params.levels) ? params.levels
     : (schedule.sections.find((section) => section.heading === "## Levels")?.rows ?? []).map(({ cells }) => cells.Row)
-      .filter((row) => row !== "paid" && occasionsOf(row, schedule).includes(OCCASIONS[occasion]));
+      .filter((row) => occasion === "release-candidate" || (row !== "paid" && occasionsOf(row, schedule).includes(OCCASIONS[occasion])));
   return { commit, occasion, levels, command: schedule.fields.command ?? null };
 }
 
@@ -277,7 +277,7 @@ async function resultRecord(result, context) {
   const participant = result.drafter?.name ?? context.person;
   const { now } = context;
   const path = `runs/${commit}/${stamp(now)}-${clock(now)}-${occasion}-${[...crypto.getRandomValues(new Uint8Array(2))].map((byte) => byte.toString(16).padStart(2, "0")).join("")}.md`;
-  const text = ["---", `commit: ${commit}`, "levels:", ...levels.map((level) => `  - ${level}`), `occasion: ${occasion}`, `participant: ${participant}`,
+  const text = ["---", `commit: ${commit}`, "levels:", ...levels.filter((level) => level !== "paid").map((level) => `  - ${level}`), `occasion: ${occasion}`, `participant: ${participant}`,
     `date: ${now.getUTCFullYear()}-${pad(now.getUTCMonth() + 1)}-${pad(now.getUTCDate())} ${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())} UTC`, "---",
     "## Outcomes", "", "| Test | Level | Outcome | Runs |", "|---|---|---|---|", ...outcomes.map((one) => `| ${one.test} | ${one.level} | ${one.outcome} |  |`), ""].join("\n");
   const { commit: committed } = await appendResult(context.product.host, readDocument(resultSchema.run, path, text));

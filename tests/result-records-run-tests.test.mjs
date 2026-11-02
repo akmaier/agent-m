@@ -102,7 +102,7 @@ test("commit-and-levels refuses a job that names no commit", async () => {
 // guards: EVERY TEST RUN LEAVES A RESULT RECORD; TEST RESULTS ARE KEPT IN THE REPOSITORY; UC-013
 // given: a release candidate job on commit cccc… whose runner runner-a reported three outcomes (unit passed, component failed, release not run); an empty branch test-results at head h0; now 2026-10-19 08:05 UTC
 // input: the writer result-record
-// expect: one commit on test-results on head h0 adding exactly one file runs/cccc…/20261019-0805-release-candidate-<4 hex>.md; read with the run schema its fields are commit cccc…, levels unit, component, system, paid, release, user, occasion release-candidate, participant runner-a, date 2026-10-19 08:05 UTC, no run, no uncommitted; its Outcomes rows are TST-101 unit passed, TST-102 component failed, TST-103 release not run, with Runs empty; the outcome is { commits: [h1], files: [the path], pullRequest: null, shown: null, notes: [] }
+// expect: one commit on test-results on head h0 adding exactly one file runs/cccc…/20261019-0805-release-candidate-<4 hex>.md; read with the run schema its fields are commit cccc…, levels unit, component, system, release, user (the row paid is no level), occasion release-candidate, participant runner-a, date 2026-10-19 08:05 UTC, no run, no uncommitted; its Outcomes rows are TST-101 unit passed, TST-102 component failed, TST-103 release not run, with Runs empty; the outcome is { commits: [h1], files: [the path], pullRequest: null, shown: null, notes: [] }
 test("result-record appends the run's record to test-results on the head it read", async () => {
   const fake = resultsHost();
   const outcome = await write(RESULT, contextOf(CANDIDATE, { host: fake.host }));
@@ -112,7 +112,7 @@ test("result-record appends the run's record to test-results on the head it read
   assert.match(path, new RegExp(`^runs/${COMMIT}/20261019-0805-release-candidate-[0-9a-f]{4}\\.md$`));
   assert.deepEqual(outcome, { commits: ["h1"], files: [path], pullRequest: null, shown: null, notes: [] });
   const record = readDocument(resultSchema.run, path, text);
-  assert.deepEqual(record.fields, { commit: COMMIT, levels: ["unit", "component", "system", "paid", "release", "user"], occasion: "release-candidate", participant: "runner-a", date: "2026-10-19 08:05 UTC" });
+  assert.deepEqual(record.fields, { commit: COMMIT, levels: ["unit", "component", "system", "release", "user"], occasion: "release-candidate", participant: "runner-a", date: "2026-10-19 08:05 UTC" });
   assert.deepEqual(record.sections[0].rows.map(({ cells }) => [cells.Test, cells.Level, cells.Outcome, cells.Runs ?? ""]),
     [["TST-101", "unit", "passed", ""], ["TST-102", "component", "failed", ""], ["TST-103", "release", "not run", ""]]);
 });
