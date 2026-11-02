@@ -31,7 +31,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { testDeclarations } from "../src/test-document/index.mjs";
 import { readDocument } from "../src/documents/index.mjs";
 import { declarationSchema, productWorkflow, recordGateDecision, roleAssignmentSchema } from "../src/product-process/index.mjs";
-import { routeStrategies } from "../src/runtimes/index.mjs";
+import { routeStrategies, resumeJob } from "../src/runtimes/index.mjs";
+import { recordsNewestFirst } from "../src/job-ledger/index.mjs";
 import { routeOf } from "../src/site-frame/routing.mjs";
 import { byClass } from "./main-page-home-harness.mjs";
 import { GATE_JOB, MODELS, decision, ended, found, gateRecord, itemPath, itemText, jobPage, jobPull, jobProduct, jobRecord, lines, moduleText, openImplement, pr, quiet, servers, sprintPath, sprintText, startRecords, teams,
@@ -94,15 +95,14 @@ const FLOW_EVIDENCE = {
   "3a-restricted": { uc: "**3a. No holder of the role can receive an item's content.**", evidence: [[SELF, "TST-805210"], [UC24, "TST-740209"]] },
   "5c-module": { uc: "**5c. The item needs a change to a module it does not name.**", evidence: [[UC32, "TST-803011"], [UC32, "TST-803015"]] },
   "6a-failed": { uc: "**6a. CI stays red after the retry limit.**", evidence: [[SELF, "TST-805214"]] },
+  "7a-rejects": { uc: "**7a. The gate's decider rejects.**", evidence: [[SELF, "TST-805218"]] },
   "7b-self": { uc: "**7b. The coding agent itself writes a gate record**", evidence: [[SELF, "TST-805219"], [UC24, "TST-740218"], [RESUME, "TST-479152"]] },
   "8a-branch": { uc: "**8a. The sprint has a branch of its own.**", evidence: [[SELF, "TST-805220"], [TARGET_RELEASE, "TST-1171101"]] },
   "postcondition-done": { uc: "It is either merged on green", evidence: [[SELF, "TST-805220"], [UC24, "TST-740221"]] },
   "postcondition-gate": { uc: "No job has continued past a gate without its decider's recorded decision.", evidence: [[SELF, "TST-805215"], [SELF, "TST-805216"], [RESUME, "TST-479153"]] },
 };
 // The passages the dashboard does otherwise: the finding, its case, and the item that points to or the person who rules.
-const FLOW_FINDINGS = {
-  "7a-rejects": { uc: "**7a. The gate's decider rejects.**", finding: "UC034-F5", file: SELF, test: "TST-805218", module: "no module" },
-};
+const FLOW_FINDINGS = {};
 // The alternative flows no dashboard or CI code of this product carries, with the reason; what the participant itself does is not a page's.
 const NOT_WALKED = {
   "4a-down": { uc: "**4a. The bridge or the runner does not answer.**", why: "the author's cancel and reassign are UC-036's: tests/main-page-job-retry.test.mjs and the cases of the job page walk them" },
@@ -585,23 +585,35 @@ test("TST-805217: UC-034 7 a gate decided by a CI check offers a person no butto
 
 // TST-805218 · level: system · module: system
 // guards: UC-034; A JOB STOPS AT EVERY GATE; THE GATE IS RECORDED
-// given: the job of dev-a on ITM-003 waiting at the gate Building → Checking, and a gate record of alice, the Owner of team1, who rejected the gate with the reason "The review found no test."
-// input: the author opens Implement
-// expect: 7a "The gate record states the rejection and its reason. The job ends, and the item returns to *ready* with the reason attached": ITM-003 is ready and startable again and its row carries the reason "The review found no test."; FINDING UC034-F5 (no module): nothing ends a job on a rejection — the job stays waiting at the gate, ITM-003 stays blocked ("job ... waits at Building → Checking for Owner"), and no accepted module text assigns the end of the job or the reason on the item
-test("TST-805218: UC-034 7a a rejected gate ends the job and returns the item to ready with the reason attached",
-  { todo: "FINDING UC034-F5 (no module): no code ends a job whose gate was rejected (src/workflow-entries/product.mjs:332, resumable, resumes a job only on a gate whose state is passed, and MOD-job-ledger's jobState reads no gate record) and MOD-work-plans' itemStates derives the item from the job without the rejection, so ITM-003 stays blocked, waiting at the gate; no accepted module text assigns the end of the job or the reason on the item (for akmaier's ruling)" },
-  async () => {
-    const rejected = gateRecord({ decision: "rejected", reason: "The review found no test." });
-    const job = waitingJob();
-    const world = await teams({ files: { [job.path]: job.text, [rejected.path]: rejected.text } });
-    const page = await openImplement({}, { ...world, pullRequests: [merged(1, "ITM-001")] });
-    try {
-      const row = rowsOf(page)["ITM-003"];
-      assert.match(row.reasons.join(" "), /ITM-003 is blocked: job JOB-20261016-1000-9a01 waits at Building → Checking for Owner/, "known positive: the job waits at the gate");
-      assert.deepEqual([row.state, row.startable], ["ready", true]);
-      assert.match(row.text, /The review found no test\./);
-    } finally { page.done(); }
-  });
+// given: the job of dev-a on ITM-003 waiting at the gate Building → Checking, and a gate record of alice, the Owner of team1, who rejected the gate with the reason "The review found no test."; then the same repository after MOD-runtimes' resumeJob has read that record (the End `failed` it commits on the job's record, with the reason the writer gives)
+// input: the author opens Implement with the job waiting; then with the job ended
+// expect: 7a "The gate record states the rejection and its reason. The job ends, and the item returns to *ready* with the reason attached": while the job waits ITM-003 is blocked ("job ... waits at Building → Checking for Owner"); once the job has ended, ITM-003 is ready and startable again and its row carries the reason "The review found no test."
+test("TST-805218: UC-034 7a a rejected gate ends the job and returns the item to ready with the reason attached", async () => {
+  const rejected = gateRecord({ decision: "rejected", reason: "The review found no test." });
+  const job = waitingJob();
+  const world = await teams({ files: { [job.path]: job.text, [rejected.path]: rejected.text } });
+  const waiting = await openImplement({}, { ...world, pullRequests: [merged(1, "ITM-001")] });
+  try {
+    assert.match(rowsOf(waiting)["ITM-003"].reasons.join(" "), /ITM-003 is blocked: job JOB-20261016-1000-9a01 waits at Building → Checking for Owner/, "known positive: the job waits at the gate");
+  } finally { waiting.done(); }
+  // The End as the product's code writes it: resumeJob over the repository that holds the job and the rejection.
+  const host = await servers({ files: world.files, instance: world.instance });
+  let end;
+  try {
+    const snapshot = await host.host.readSnapshot(host.srv.head);
+    let record = null;
+    for await (const each of recordsNewestFirst(snapshot)) if (each.path === job.path) { record = each; break; }
+    await resumeJob(record, rejected.path, { kind: "ci", runner: "hosted" }, host.host, host.srv.head);
+    end = host.srv.writes.at(-1)?.files[job.path];
+  } finally { host.restore(); }
+  assert.match(end ?? "", /## End/, "known positive: the writer committed the job's End");
+  const page = await openImplement({}, { ...world, files: { ...world.files, [job.path]: end }, pullRequests: [merged(1, "ITM-001")] });
+  try {
+    const row = rowsOf(page)["ITM-003"];
+    assert.deepEqual([row.state, row.startable], ["ready", true]);
+    assert.match(row.text, /The review found no test\./);
+  } finally { page.done(); }
+});
 
 // TST-805219 · level: system · module: system
 // guards: UC-034; A GATE IS NOT DECIDED BY THE PARTICIPANT WHOSE WORK IT CHECKS; THE GATE IS RECORDED; A GATE IS DECIDED WITHIN THE JOB'S ROLE ASSIGNMENT
