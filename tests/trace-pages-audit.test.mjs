@@ -381,6 +381,31 @@ test("TST-1431003 a process row names the artifacts its gate asked for beside th
   assert.deepEqual(textsOf(rowOf(target, R1), "audit-gate-artifacts"), []);
 });
 
+// TST-1433003 · level: unit · module: MOD-trace-pages
+// guards: THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE; UC-030
+// given: the fixture, whose declaration docs/process.md adds the gate of A PROCESS RULE; and the same product at the tag without the gate record docs/gates/20261010-1000-a-process-rule-alic.md
+// input: Route.render with the key "audit" over each; then Export of the second
+// expect: known positive — with the record, the process row's `audit-gate` reads [docs/gates/20261010-1000-a-process-rule-alic.md] and it has no `audit-gate-unrecorded`; without it, the rows are those of the release with A PROCESS RULE last, its row has no `audit-gate` and its `audit-gate-unrecorded` reads ["A PROCESS RULE: no record holds it"], and the number no test reads 2, as with the record (A THIRD RULE and A PROCESS RULE); the exported document's section of A PROCESS RULE names the gate and that no record holds it, and holds no "Gate record" line and no `null`
+// counter-proof: a gatesOf that drops the gates with no record leaves A PROCESS RULE without its row and fails the second assertion
+test("TST-1433003 a process requirement whose gate has no record at the tag has its row, which says no record holds the gate, on the page and in the export", async () => {
+  const recorded = rowOf(await render(), PROCESS);
+  assert.deepEqual([textsOf(recorded, "audit-gate"), textsOf(recorded, "audit-gate-unrecorded")], [[GATE_PATH], []], "known positive: the recorded gate");
+  const bare = Object.fromEntries(Object.entries(productFiles()).filter(([path]) => path !== GATE_PATH));
+  const target = await render(productHost({ product: bare }));
+  assert.deepEqual(names(target), [R1, R2, R3, R4, R5, PROCESS]);
+  const process = rowOf(target, PROCESS);
+  assert.deepEqual([textsOf(process, "audit-gate"), textsOf(process, "audit-gate-unrecorded")], [[], ["A PROCESS RULE: no record holds it"]]);
+  assert.equal(countOf(target, "noTest").textContent, "2");
+  const { target: page, press, downloads, restore } = await renderExportable(productHost({ product: bare }));
+  try {
+    await press(buttonNamed(page, "Export"));
+    const text = await downloads.blobs[0].text();
+    const section = text.slice(text.indexOf(`### ${PROCESS}`));
+    assert.match(section, /^- [^\n]*A PROCESS RULE[^\n]*no record holds/im);
+    assert.ok(!section.includes("Gate record") && !section.includes("null"), "no gate record and no null is written");
+  } finally { restore(); }
+});
+
 // TST-768007 · level: component · module: MOD-trace-pages
 // guards: UC-030; THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE
 // given: the fixture; A THIRD RULE has no test at any level
