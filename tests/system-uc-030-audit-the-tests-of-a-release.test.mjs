@@ -47,6 +47,7 @@ const FLOW_EVIDENCE = {
   "main-2-rows": { uc: "derives one row per requirement valid at that release:", evidence: [[SELF, "TST-775202"], [PAGE, "TST-768003"]] },
   "main-2-sources": { uc: "the requirement's name, what it constrains (product or process), and its sources with their authority and version", evidence: [[SELF, "TST-775203"], [PAGE, "TST-768005"], [ROWS, "TST-756002"]] },
   "main-2-tests": { uc: "the tests guarding it, by level, each with its outcome or rate on the release commit and its counter-proof;", evidence: [[SELF, "TST-775203"], [PAGE, "TST-768005"]] },
+  "main-2-blob": { uc: "the acceptance of the release test report: who, when, and the blob SHA of the accepted text.", evidence: [[SELF, "TST-775205"]] },
   "main-2-acceptance": { uc: "the acceptance of the release test report: who, when, and the blob SHA of the accepted text.", evidence: [[SELF, "TST-775203"], [PAGE, "TST-768012"]] },
   "main-3-summary": { uc: "At the top, Agent M summarises:", evidence: [[SELF, "TST-775206"], [PAGE, "TST-768003"]] },
   "main-3-opens": { uc: "Each number opens the rows it counts.", evidence: [[SELF, "TST-775206"], [PAGE, "TST-768004"], [PAGE, "TST-1163002"]] },
@@ -56,8 +57,10 @@ const FLOW_EVIDENCE = {
   "main-5-export": { uc: "The auditor presses **Export** — one click.", evidence: [[SELF, "TST-775210"], ["tests/trace-pages-audit.test.mjs", "TST-770001"]] },
   "main-5-document": { uc: "Agent M produces one Markdown document with the summary and every row, naming the tag, the commit SHA, the source versions with their hashes, and the\n   blob SHAs of report and approvals", evidence: [[SELF, "TST-775210"], [ROWS, "TST-757101"]] },
   "2a-not-accepted": { uc: "**2a. The release test report has not been accepted.**", evidence: [[SELF, "TST-775212"], [PAGE, "TST-768013"]] },
+  "2b-linked": { uc: "each linked to the rows it concerns", evidence: [[SELF, "TST-775214"]] },
   "2b-limitations": { uc: "**2b. The release was accepted with known limitations.** The limitations stand at the top of the summary", evidence: [[SELF, "TST-775213"], [PAGE, "TST-768003"]] },
   "2c-no-test": { uc: "**2c. A requirement has no test at any level.** Its row says *no test*; it is counted, not hidden.", evidence: [[SELF, "TST-775215"], [PAGE, "TST-768007"]] },
+  "2d-log-gone": { uc: "**2d. The CI server no longer keeps the logs cited by the report.**", evidence: [[SELF, "TST-775217"]] },
   "2d-no-run-page": { uc: "The result records on the branch `test-results` still hold each outcome; only the link to the server's log is marked unavailable.", evidence: [[SELF, "TST-775216"], [PAGE, "TST-768014"]] },
   "1a-predates": { uc: "**1a. The release predates Agent M's test records.** Agent M says which parts cannot be derived for this tag and shows the rest.", evidence: [[SELF, "TST-775218"], [PAGE, "TST-768015"]] },
   "5a-commit-export": { uc: "**5a. The auditor wants the export in the repository.** A person with write access presses **Commit export**", evidence: [[SELF, "TST-775211"], [PAGE, "TST-770002"], [PAGE, "TST-770003"]] },
@@ -66,10 +69,7 @@ const FLOW_EVIDENCE = {
 // The passages the page does otherwise: the finding, its case, and the module it points to.
 const FLOW_FINDINGS = {
   "main-2-artifacts": { uc: "for a process requirement, also the gate records and artifacts it added to the workflow", finding: "UC030-F5", file: SELF, test: "TST-775204", module: "MOD-release-evidence" },
-  "main-2-blob": { uc: "the acceptance of the release test report: who, when, and the blob SHA of the accepted text.", finding: "UC030-F4", file: SELF, test: "TST-775205", module: "MOD-trace-pages" },
   "main-2-unrecorded-gate": { uc: "derives one row per requirement valid at that release:", finding: "UC030-F6", file: SELF, test: "TST-775220", module: "MOD-trace-pages" },
-  "2b-linked": { uc: "each linked to the rows it concerns", finding: "UC030-F2", file: SELF, test: "TST-775214", module: "MOD-trace-pages" },
-  "2d-log-gone": { uc: "**2d. The CI server no longer keeps the logs cited by the report.**", finding: "UC030-F3", file: SELF, test: "TST-775217", module: "MOD-trace-pages" },
 };
 // The passages no code of this product carries, with the reason.
 const NOT_WALKED = {
@@ -166,8 +166,8 @@ test("TST-775204: UC-030 2 a process requirement's row names the gate records an
 // guards: UC-030; AN APPROVAL NAMES THE EXACT TEXT
 // given: the product of TST-775203, whose report docs/tests/releases/v2026.4.0.md has the blob b (the git blob SHA of its text) and whose approval record names b
 // input: the auditor reads the acceptance of a row
-// expect: known positive — the row reads accepted by akmaier on 2026-10-12 08:30 UTC; FINDING UC030-F4 (MOD-trace-pages): UC-030 2 asks that the acceptance of a row hold the blob SHA of the accepted text, and the row names the person and the date alone (the blob stands in the exported document)
-test("TST-775205: UC-030 2 the acceptance of a row names who, when and the blob SHA of the accepted text", { todo: "FINDING UC030-F4 (MOD-trace-pages): rowOf draws `accepted by <person> on <date>` and not the blob SHA that auditRows' evidence.acceptance holds; the SHA stands only in the exported document" }, async () => {
+// expect: known positive — the row reads accepted by akmaier on 2026-10-12 08:30 UTC; the row also names the blob SHA of the accepted text
+test("TST-775205: UC-030 2 the acceptance of a row names who, when and the blob SHA of the accepted text", async () => {
   const row = rowOf(await render(), POSTED);
   assert.equal(textsOf(row, "audit-evidence")[0], "accepted by akmaier on 2026-10-12 08:30 UTC", "known positive: who and when");
   assert.ok(row.textContent.includes(REPORT_BLOB.slice(0, 12)), `the row names the blob ${REPORT_BLOB}`);
@@ -350,8 +350,8 @@ test("TST-775213: UC-030 2b a release accepted with known limitations shows them
 // guards: UC-030; A RED RELEASE IS ACCEPTED ONLY WITH ITS LIMITATIONS RECORDED
 // given: the product of TST-775213; the limitation TST-705 concerns the row AUDIT TRAILS ARE KEPT, whose test it names, and TST-707 the row HINTS ARE RELEVANT
 // input: the auditor reads the limitations at the top of the summary
-// expect: known positive — the list holds both limitations, and the rows of AUDIT TRAILS ARE KEPT and HINTS ARE RELEVANT hold the tests TST-705 and TST-707; FINDING UC030-F2 (MOD-trace-pages): each limitation is linked to the rows it concerns, and the list holds plain text, no link
-test("TST-775214: UC-030 2b each limitation is linked to the rows it concerns", { todo: "FINDING UC030-F2 (MOD-trace-pages): page() draws summary.limitations as `li` text, and a limitation that names a test (TST-705, TST-707) leads to no row" }, async () => {
+// expect: known positive — the list holds both limitations, and the rows of AUDIT TRAILS ARE KEPT and HINTS ARE RELEVANT hold the tests TST-705 and TST-707; each limitation is linked to the rows it concerns
+test("TST-775214: UC-030 2b each limitation is linked to the rows it concerns", async () => {
   const page = await render();
   const items = find(withClass(page, "audit-limitations")[0], (node) => node.localName === "li");
   assert.equal(items.length, 2, "known positive: both limitations");
@@ -394,8 +394,8 @@ test("TST-775216: UC-030 2d where the server offers no run page the link is mark
 // guards: UC-030; TEST RESULTS ARE KEPT IN THE REPOSITORY
 // given: the product of TST-775203 on a server that offers the run page; the records of the release commit cite the runs 5001 and 5002; the server keeps both logs, and then neither
 // input: the auditor opens the audit of v2026.4.0 over each server
-// expect: known positive — with both logs kept, the five rows with tests link the run; FINDING UC030-F3 (MOD-trace-pages): with neither log kept, the link of each of those rows is marked unavailable while the outcomes stay from the records, and the page links a run the server no longer keeps
-test("TST-775217: UC-030 2d where the CI server no longer keeps the logs the report cites only the link to the log is marked unavailable", { todo: "FINDING UC030-F3 (MOD-trace-pages): the audit's run link is WebLinks.commitRuns of the release commit, drawn whenever the host offers a run page; the page never asks ciRunLog (UC-029 5b's way) whether the server still keeps the log of a run the records cite" }, async () => {
+// expect: known positive — with both logs kept, the five rows with tests link the run; with neither log kept, the link of each of those rows is marked unavailable while the outcomes stay from the records
+test("TST-775217: UC-030 2d where the CI server no longer keeps the logs the report cites only the link to the log is marked unavailable", async () => {
   const kept = await render(productHost());
   assert.equal(withClass(rowOf(kept, POSTED), "audit-run").length, 1, "known positive: the log is kept, the link stands");
   const host = productHost({ logs: {} });
