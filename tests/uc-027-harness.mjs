@@ -1,7 +1,7 @@
 // The harness of the system and release tests of UC-027 (Configure continuous integration): the route `schedule` of MOD-test-pages, drawn in the small DOM of tests/site-frame-dom.mjs, over a fixture
 // GitHub and a fixture GitLab server — one product repository each, kept in memory, that answers MOD-repository-hosts' interface as the page and MOD-test-schedule call it (repositoryInfo, readSnapshot,
-// createBranch, commitFiles, openPullRequest, listCiRuns, ciRunLabels, mergePullRequest, setPipelineSchedule, webLinks) — and the instance that holds the register of participants. The server keeps its
-// commits, branches, pull requests, the runs its CI service started and, on GitLab, the project's pipeline schedules; a commit lands on its branch and a merge moves the default branch, so that a page drawn
+// createBranch, commitFiles, openPullRequest, listCiRuns, ciRunLabels, listTags, mergePullRequest, setPipelineSchedule, webLinks) — and the instance that holds the register of participants. The server keeps its
+// commits, branches, tags, pull requests, the runs its CI service started and, on GitLab, the project's pipeline schedules; a commit lands on its branch and a merge moves the default branch, so that a page drawn
 // again reads what was merged. The server's pages are those MOD-repository-hosts' own `webLinks` gives for the address (through `connect`, which sends no request). It holds no test and no expected result:
 // what it builds are inputs, and every test states its own expected values. Nothing reaches the network.
 // Imported by tests/system-uc-027-configure-continuous-integration.test.mjs and tests/release-uc-027-configure-continuous-integration.test.mjs.
@@ -69,10 +69,11 @@ export function shop(files = {}) {
 
 /**
  * server(kind, { files, visibility }) -> the product alice/shop on a fixture GitHub ("github") or GitLab ("gitlab") server: `files` is the tree of the first commit of its default branch main.
- * -> { kind, address, links, host, writes, pulls, runs, labels, schedules, head(ref), tree(ref), ci(commit, state, run) }:
+ * -> { kind, address, links, host, writes, pulls, runs, labels, schedules, tags, head(ref), tree(ref), ci(commit, state, run), tag(name, commit) }:
  *   writes     every write the host was asked, in its order: [name, ...arguments].
  *   pulls      the pull requests opened; runs the runs the CI service started (CiRun with the branch it ran on); labels the runner labels a run asks for, by its id; schedules the project's pipeline
  *              schedules on GitLab.
+ *   tags       the tags of the repository, { name, commit }; tag(name, commit) sets one, which listTags(pattern) answers with * as its only wildcard.
  *   ci(...)    the CI service starts a run on `commit`: `state` (queued, running, success, failure, …), `run` its other fields (event, workflow, started, branch); the default event is the one a pull
  *              request starts on that server, the workflow the generated file's.
  */
@@ -80,7 +81,7 @@ export function server(kind, { files = shop(), visibility = "public" } = {}) {
   const address = parseAddress(ADDRESSES[kind]);
   const links = connect(address).webLinks();
   const commits = new Map(), branches = new Map();
-  const writes = [], pulls = [], runs = [], labels = {}, schedules = [];
+  const writes = [], pulls = [], runs = [], labels = {}, schedules = [], tags = [];
   let made = 0, ran = 0;
   const newCommit = (tree) => { made += 1; const sha = createHash("sha1").update(`${kind} commit ${made}`).digest("hex"); commits.set(sha, tree); return sha; };
   branches.set("main", newCommit({ ...files }));
@@ -124,6 +125,10 @@ export function server(kind, { files = shop(), visibility = "public" } = {}) {
       if (newest) found = [...found].sort((a, b) => String(b.started ?? "").localeCompare(String(a.started ?? ""))).slice(0, newest);
       return found.map(({ branch: _, ...run }) => ({ ...run }));
     },
+    async listTags(pattern) {
+      const matching = pattern === undefined ? /^/ : new RegExp(`^${pattern.split("*").map((part) => part.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join(".*")}$`);
+      return tags.filter((each) => matching.test(each.name)).map((each) => ({ ...each }));
+    },
     async ciRunLabels(id) { return [...(labels[id] ?? [])]; },
     async mergePullRequest(number, expectedHead) {
       writes.push(["mergePullRequest", number, expectedHead]);
@@ -152,7 +157,7 @@ export function server(kind, { files = shop(), visibility = "public" } = {}) {
       ended: null, branch: null, ...run });
     return id;
   };
-  return { kind, address, links, host, writes, pulls, runs, labels, schedules, ci, head: (ref = "main") => commitOf(ref), tree: (ref = "main") => ({ ...commits.get(commitOf(ref)) }) };
+  return { kind, address, links, host, writes, pulls, runs, labels, schedules, tags, ci, tag: (name, commit) => { tags.push({ name, commit }); }, head: (ref = "main") => commitOf(ref), tree: (ref = "main") => ({ ...commits.get(commitOf(ref)) }) };
 }
 
 /** The instance alice/agent-m on the server of `kind`, holding the register `register`. */
