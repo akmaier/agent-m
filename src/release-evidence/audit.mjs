@@ -12,6 +12,9 @@
 //   results name the test's file;
 // - a test's counter-proof is the path of its record `docs/tests/counter-proofs/TST-<nnn>.md` in `at` when that records the
 //   test failing, else null; a test's outcome is its rate where the records give one, else its plain outcome;
+// - each test also gives `passed` — its run completed and passed, and its rate is no worse than the last release's — and
+//   `lastRate`, the last release's rate, null where there is none; the module file's interface lists neither, and both
+//   extend it without changing a field it lists (ITM-1430's reading, OPEN FOR EXTENSION, CLOSED FOR CHANGE);
 // - the report is `docs/tests/releases/<tag>.md` on `head`, the default branch, which holds it and its approval record because
 //   acceptAndRelease commits them after the tagged commit; it is accepted when MOD-approvals' statusOf says so of it in `head`;
 //   the limitations are those of the record `docs/approvals/release-<tag>-<blob12>.md`, read through approvalSchema;
@@ -21,7 +24,7 @@
 //   line each, beginning "missing:" (a release before Agent M's records says "cannot be derived" instead);
 // - a release before Agent M's records — no result record of its commit and no release test report in its tree — has every
 //   outcome "cannot be derived", and summary.limitations names the parts: the interface has no other place for the statement;
-// - passing: a requirement with tests, all passed, none at a worse rate; no test: none at all; not passed: a test failed or not
+// - passing: a requirement with tests, each of them `passed`; no test: none at all; not passed: a test failed or not
 //   run; flaky and worse: any test flaky or at a worse rate. A requirement may be counted in several.
 //
 // resultsAt, flakyTests, rateComparison and listJobs are async, typed without Promise<> by their module files (see report.mjs).
@@ -108,8 +111,9 @@ export async function auditRows(at, results, head, release, gates, instanceSpec,
   const entries = new Map(levels.flatMap((level) => level.tests.map((one) => [one.id, one])));
   const flaky = new Set((await flakyTests(results, release.commit)).map((row) => row.test));
   const version = release.tag.replace(/^v/, "");
-  const worse = new Set((await rateComparison(results, release.commit, await lastReleaseCommit(at, version)))
-    .filter((row) => row.worse).map((row) => row.test));
+  const compared = await rateComparison(results, release.commit, await lastReleaseCommit(at, version));
+  const worse = new Set(compared.filter((row) => row.worse).map((row) => row.test));
+  const lastRates = new Map(compared.map((row) => [row.test, row.then]));
 
   const reportPath = `docs/tests/releases/${release.tag}.md`;
   const report = await acceptance(head, reportPath, release.tag);
@@ -143,15 +147,15 @@ export async function auditRows(at, results, head, release, gates, instanceSpec,
       const writtenByImplementer = tests.get(id).level === "release" && writers.some((writer) => implementers.has(writer));
       if (writtenByImplementer) byImplementer.add(id);
       rowTests.push({ id, level: tests.get(id).level, outcome: predates ? UNDERIVABLE : (entry.runs ?? entry.outcome),
-        counterProof: await counterProofOf(at, id), worse: worse.has(id), byImplementer: writtenByImplementer });
+        counterProof: await counterProofOf(at, id), worse: worse.has(id), byImplementer: writtenByImplementer,
+        passed: !predates && entry.outcome === "passed" && !worse.has(id), lastRate: lastRates.get(id) ?? null });
     }
     const outcomes = traces.tests.map((id) => entries.get(id).outcome);
-    const isWorse = traces.tests.some((id) => worse.has(id));
     if (!traces.tests.length) summary.noTest += 1;
     if (!predates && outcomes.some((outcome) => outcome === "failed" || outcome === "not run")) summary.notPassed += 1;
     if (!predates && traces.tests.some((id) => flaky.has(id))) summary.flaky += 1;
-    if (!predates && isWorse) summary.worse += 1;
-    if (!predates && outcomes.length && outcomes.every((outcome) => outcome === "passed") && !isWorse) summary.passing += 1;
+    if (!predates && rowTests.some((test) => test.worse)) summary.worse += 1;
+    if (rowTests.length && rowTests.every((test) => test.passed)) summary.passing += 1;
 
     rows.push({ requirement: req.name, constrains, sources: sourcesOf(req, links, register), tests: rowTests,
       gates: gates.filter((gate) => gate.requirement === req.name).map((gate) => gate.record) });
@@ -165,7 +169,13 @@ const code = (text) => `\`${text}\``;
 // One source of a row: its identifier, authority and version, then the version's hash and the hash of each of its files.
 const sourceLine = (source) => `- Source ${code(source.id)} (${source.authority}), version ${code(source.version)}, hashes: ${source.hashes.map(code).join(", ")}`;
 
-const testLine = (test) => `- Test ${code(test.id)} (${test.level}): ${test.outcome}; ${test.counterProof ? `counter-proof ${code(test.counterProof)}` : "no counter-proof"}`;
+// A test's outcome; for a model-dependent test, whose outcome is its rate, then the last release's rate and whether it passed.
+const RATE = /^\d+ of \d+$/;
+const outcomeText = (test) => (RATE.test(test.outcome) && typeof test.passed === "boolean"
+  ? `${test.outcome}${test.lastRate ? `, against ${test.lastRate} at the last release` : ""}, ${test.passed ? "passed" : "not passed"}`
+  : test.outcome);
+
+const testLine = (test) => `- Test ${code(test.id)} (${test.level}): ${outcomeText(test)}; ${test.counterProof ? `counter-proof ${code(test.counterProof)}` : "no counter-proof"}`;
 
 function rowSection(row, accepted) {
   return [`### ${row.requirement}`, "",
