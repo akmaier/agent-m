@@ -27,7 +27,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { testDeclarations } from "../src/test-document/index.mjs";
 import { queues } from "../src/spec-changes/index.mjs";
 import { LENDING, LIBRARY_SPEC, LOAN, MEMBERSHIP, MEMBERSHIP_HEADING, SPEC_HEAD, SPEC_TOKEN, areaOf, byClass, click, explainedOf, fullUseCase, linksOf, marksOf, queueWrites, resultOf, saveOf, scripted,
-  specWorld, textOf, today, typeInto, until, whyOf } from "./uc-018-harness.mjs";
+  specWorld, textOf, typeInto, until, whyOf } from "./uc-018-harness.mjs";
 import { P41, UC41, TOKENS, badgeOf, world as useCaseWorld } from "./uc-008-harness.mjs";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -236,13 +236,13 @@ test("TST-376307: a renamed requirement is proposed as the old name withdrawn an
 // guards: A SPECIFICATION CHANGE IS APPROVED BEFORE IT IS WRITTEN; UC-018
 // given: the library on GitHub, the author's token stored
 // input: the author saves an edit of A LOAN HAS A DUE DATE; then the queues of the default branch are read
-// expect: SPEC.md still holds "is returned." and not "or renewed"; the queue the save started holds one entry, open — not approved and not in SPEC
+// expect: SPEC.md still holds "is returned." and not "or renewed"; the queue of the requirement's section, Lending (`docs/spec-freigaben/lending`), holds one entry, open — not approved and not in SPEC
 test("TST-376308: an edit of a requirement stays a proposal, open, until a person accepts it", async () => {
   const w = await specWorld();
   await saveRequirement(w);
   assert.ok(w.files()["SPEC.md"].includes("is returned.") && !w.files()["SPEC.md"].includes("or renewed"));
   const all = await queues(await w.host.readSnapshot("main"));
-  const mine = all.filter((queue) => queue.folder.startsWith(`docs/spec-freigaben/${today()}`));
+  const mine = all.filter((queue) => queue.folder === "docs/spec-freigaben/lending");
   assert.deepEqual(mine.flatMap((queue) => queue.entries.map((entry) => entry.state)), ["open"]);
 });
 

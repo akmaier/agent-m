@@ -63,6 +63,7 @@ const FLOW_EVIDENCE = {
   "main-4-impact": { uc: "Agent M lists beside it every artifact that names it — the impact list.", evidence: [[SELF, "TST-376204"], [REQ, "TST-472627"]] },
   "main-5-save": { uc: "The author presses **Save** — one click.", evidence: [[SELF, "TST-376203"], [SELF, "TST-376205"]] },
   "main-6-use-case": { uc: "Agent M commits the edited file to the default branch under the author's own account.", evidence: [[SELF, "TST-376203"], [UC008, "TST-372207"]] },
+  "main-6-open-queue": { uc: "Agent M adds an entry to the section's queue", evidence: [[SELF, "TST-376206"]] },
   "main-6-requirement": { uc: "with the complete SPEC section as edited, its rationale from the *Why* field, its impact list, and the index line naming the section it replaces", evidence: [[SELF, "TST-376205"], [PROPOSE, "TST-472984"]] },
   "main-6-spec-untouched": { uc: "`SPEC.md` is not touched.", evidence: [[SELF, "TST-376205"]] },
   "main-7-link": { uc: "The dashboard shows the commit as a link.", evidence: [[SELF, "TST-376203"], [SELF, "TST-376205"]] },
@@ -85,9 +86,7 @@ const FLOW_EVIDENCE = {
   "7a-leave": { uc: "**7a. The author leaves the editor with unsaved changes.**", evidence: [[SELF, "TST-376220"], [LEAVE, "TST-603020"]] },
 };
 // The passages the dashboard does otherwise: the finding, its case, and the module it points to.
-const FLOW_FINDINGS = {
-  "main-6-open-queue": { uc: "Agent M adds an entry to the section's queue", finding: "UC018-F1", file: SELF, test: "TST-376206", module: "MOD-spec-changes" },
-};
+const FLOW_FINDINGS = {};
 
 // TST-376201 · level: system · module: system
 // guards: UC-018
@@ -234,8 +233,8 @@ test("TST-376205: UC-018 5, 6, 7 a saved requirement is one commit of a queue en
 // guards: UC-018
 // given: the library on GitHub, the author's token stored (named "Agent M · library", as the settings page names a product's token), no queue in the repository
 // input: the author saves an edit of A LOAN HAS A DUE DATE; then a second edit of the same section A LOAN HAS A DUE DATE
-// expect: the first save starts the queue of the section under docs/spec-freigaben/ with entry 01; the second save adds entry 02 to that queue, in one commit, and writes neither entry 01 nor a second queue; FINDING UC018-F1 (MOD-spec-changes): the entry goes to the section's queue; built by the SPEC packages' build item
-test("TST-376206: UC-018 6 an edit of a section adds an entry to the section's queue, and a second edit of the same section adds another", { todo: "FINDING UC018-F1 (MOD-spec-changes): the entry goes to the section's queue; built by the SPEC packages' build item. Today the entry goes to the person's queue of the day and a second edit of a section replaces its entry" }, async () => {
+// expect: the first save starts the queue of the section under docs/spec-freigaben/ with entry 01; the second save adds entry 02 to that queue, in one commit, and writes neither entry 01 nor a second queue
+test("TST-376206: UC-018 6 an edit of a section adds an entry to the section's queue, and a second edit of the same section adds another", async () => {
   const w = await specWorld();
   const save = async (body, why) => {
     const target = await w.draw("requirement", { name: LOAN });

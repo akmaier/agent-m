@@ -202,7 +202,7 @@ async function runDraft(candidates) {
 // guards: UC-005; EXACT DUPLICATES ARE FOUND WITHOUT A MODEL
 // given: the product SPEC with A LOAN HAS A DUE DATE (rule "Every loan states the date by which the book is returned.") and A BOOK IS SHELVED; the model answers three candidates from the linked source: A LOAN HAS A DUE DATE with its rule in other letters and spacing, classed change of A LOAN HAS A DUE DATE; THE DUE DATE IS SHOWN with another rule, classed change of A LOAN HAS A DUE DATE (known positive); A BOOK IS SHELVED with another rule, classed change of A BOOK IS SHELVED
 // input: the author opens #spec-entry/id=draft, presses Run, reads the groups, and presses Write proposals
-// expect: the candidate that restates its own requirement's rule is in the group duplicate, not change, and the queue adds its source to A LOAN HAS A DUE DATE instead of changing its text; the two candidates with another rule stay in the group change, whatever the letters of the name
+// expect: the candidate that restates its own requirement's rule is in the group duplicate, not change, and the entry written into the section's queue says in its rationale's paragraph The change. that it adds its source to A LOAN HAS A DUE DATE, instead of changing its text; the two candidates with another rule stay in the group change, whatever the letters of the name
 test("TST-1335101: UC-005 a requirement proposed as a change of itself with its rule unchanged is a duplicate of it, decided by rule", async () => {
   const { classOf, write } = await runDraft([
     { name: "A LOAN HAS A DUE DATE", rule: "EVERY loan  states the date by which the book is returned.", check: "`tests/loan.test.mjs`", constrains: "product", passage: "ch. 1", class: "change", of: "A LOAN HAS A DUE DATE", source: SOURCE },
@@ -213,7 +213,7 @@ test("TST-1335101: UC-005 a requirement proposed as a change of itself with its 
   assert.equal(classOf("A BOOK IS SHELVED"), "change", "another rule under its own name is a change");
   assert.equal(classOf("A LOAN HAS A DUE DATE"), "duplicate", "its own rule restated is a duplicate of it");
   const written = await write();
-  assert.match(written, /\| `A LOAN HAS A DUE DATE` \| source added \|/, "the queue adds its source to A LOAN HAS A DUE DATE");
+  assert.match(written, /\*\*The change\.\*\* [^\n]*adds a source to A LOAN HAS A DUE DATE/, "the entry, in the queue of section Lending, adds its source to A LOAN HAS A DUE DATE (a duplicate as an added source of the existing requirement, MOD-spec-changes entrySections; its rationale's paragraph The change)");
   assert.doesNotMatch(written, /^EVERY loan {2}states/m, "the restated rule is not written as the requirement's text");
 });
 
