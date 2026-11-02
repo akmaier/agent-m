@@ -45,7 +45,7 @@ test("TST-1062104: DOCUMENTS ARE REVIEWED AND EDITED UNDER DOCS a document is re
   assert.match(editor.main(), /<h2>Edit UC-004<\/h2>/);
   assert.match(editor.main(), /<textarea value="---\nid: UC-004\n/, "the editor holds the file's text");
   assert.match(editor.main(), /<div class="preview">/, "with a live preview");
-  assert.match(editor.main(), /<button type="button">Save<\/button>/);
+  assert.match(editor.main(), /<button class="btn" type="button">Save<\/button>/);
   assert.deepEqual(writeRequests(srv), [], "nothing was written before the click");
   const accepting = await openDashboard({ server: srv, hash: "#use-case/id=UC-004" });
   await accepting.click("button.accept");
