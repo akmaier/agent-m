@@ -1,6 +1,6 @@
 // edit.mjs — editing a requirement on the dashboard (MOD-review-pages, Parts; Interfaces: `requirement/<name>/edit`, `requirements/new`): the editor of MOD-markdown-render on the
 // requirement's SPEC section, with the marks of the SPEC's requirements, a Why field and the impact list; Save goes through MOD-spec-changes' proposeSection as an entry of the
-// person's open queue of the day. The flow reaches it through the descriptor's `edit` (UC-018 for a requirement).
+// section's queue. The flow reaches it through the descriptor's `edit` (UC-018 for a requirement).
 //
 // Module: MOD-review-pages
 //
