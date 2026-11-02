@@ -382,7 +382,7 @@ export const route = {
   async render(target, context, params = {}) {
     let opened;
     try { opened = await openedRegister(context.instance.host); } catch (error) {
-      target.replaceChildren(el("h2", null, "Participants"), el("p", "participants-unreadable", `The participants register could not be read: ${error?.message ?? error}.`));
+      target.replaceChildren(el("section", "head", el("h2", null, "Participants")), el("p", "participants-unreadable", `The participants register could not be read: ${error?.message ?? error}.`));
       return;
     }
 
@@ -795,7 +795,7 @@ export const route = {
     type.addEventListener("change", () => { setType(type.value); rebuild(); });
 
     panel.append(panelTitle, control("Type", type), fieldsBox, formBox, productUseBox, result);
-    target.replaceChildren(el("h2", null, "Participants"), el("p", null, add), panel, list);
+    target.replaceChildren(el("section", "head", el("h2", null, "Participants")), el("p", null, add), panel, list);
 
     // Opened with the parameters `type` and `address` (a resource's *Add as participant*, UC-040 2a): the form of a new participant of that type, with the address where it belongs —
     // the kept endpoint that has this address, else the URL of a new one. Without both, or with a type no participant has, the page is as it is without them.
