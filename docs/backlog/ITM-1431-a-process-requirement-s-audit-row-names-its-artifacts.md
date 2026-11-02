@@ -7,6 +7,7 @@ realises:
   - A PROCESS REQUIREMENT ADDS TO THE MODEL
 modules:
   - MOD-release-evidence
+  - MOD-trace-pages
 builds_on:
   - ITM-775
 tests:
@@ -22,6 +23,18 @@ origin:
 
 A process requirement adds artifacts or gates to the model (`A PROCESS REQUIREMENT ADDS TO THE MODEL`). The audit's row
 of such a requirement names the gate records only, not the artifacts the gate asked for (TST-775204).
+
+## The reading taken
+
+The probe found where a gate's artifacts live. The workflow names them (`src/product-process/workflow.mjs:108`).
+MOD-trace-pages' `gatesOf` (`src/trace-pages/audit.mjs:47-66`) reads the workflow but hands on only the requirement, the
+gate and the record (:63). `auditRows` keeps the record only (`src/release-evidence/audit.mjs:161`). MOD-release-evidence's
+Uses name neither MOD-product-process nor its reading of front matter; its text has the caller read the gate records
+"through Process".
+
+So the caller's entries of gates gain the gate's `artifacts`, and `auditRows` passes them into the row, extending what it
+gives and changing nothing (`OPEN FOR EXTENSION, CLOSED FOR CHANGE`). The page draws them in an element of their own, and the
+cell of the gate keeps its record. The item therefore names MOD-trace-pages too, and starts once no other item holds it.
 
 ## Acceptance
 
