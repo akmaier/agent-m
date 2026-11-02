@@ -337,8 +337,8 @@ that text. In the book *Vibe Coding*: chapter 8, section 6.
 
 A change queue is a folder under `docs/spec-freigaben/` that holds proposed changes to the SPEC. Each *entry* is one SPEC
 section as it is proposed; the queue's `index.md` lists the entries in order, and `entscheidungen.md` records each decision as
-it is taken. An entry is open until someone accepts it. The edits you save on the dashboard collect in your newest queue of the
-day that has no accepted entry yet. Entries of one queue that are accepted together are written in the order of the queue's
+it is taken. An entry is open until someone accepts it. Every SPEC section has a queue of its own, and an edit you save on the
+dashboard is an entry of its section's queue. Entries of one queue that are accepted together are written in the order of the queue's
 index, in one commit; an entry whose heading another entry creates is offered only together with or after that entry, and the
 dashboard names the entry it waits for. In the book *Vibe Coding*: chapter 8, section 6.
 
@@ -406,7 +406,7 @@ stays in the editor beside the newer version.
 
 A CI agent is a participant that runs in a GitHub Actions workflow, so nobody is waiting at the dashboard while it drafts. The
 workflow runs the same correction loop, then commits the draft to the default branch: a use case as *open*, and a change to
-requirements as an entry in a new change queue, leaving the SPEC itself untouched. You review it afterwards on the dashboard,
+requirements as an entry of its section's change queue, leaving the SPEC itself untouched. You review it afterwards on the dashboard,
 a use case in the review of use cases and a queue entry beside the current SPEC section. Nothing counts before you accept it.
 
 ## participant-person
@@ -772,7 +772,7 @@ you have not decided stays in the panel and is not written.
 
 ## write-proposals
 
-*Write proposals* is one click. Agent M writes a new queue under `docs/spec-freigaben/`, whose entries are open until someone
+*Write proposals* is one click. Agent M writes entries into the queues of their sections under `docs/spec-freigaben/`, open until someone
 accepts them: for a new candidate, an entry that adds the requirement to its section; for a change, an entry for the section that
 holds the requirement, changing it under its name, with the current text beside it and its impact list; for a duplicate, an entry
 that adds the new source to the existing requirement; for a conflict, an entry only as you resolved it. Every entry records the

@@ -75,7 +75,7 @@ async function worldWith(stored) {
   const all = await queues(await connect(parseAddress(PRODUCT_URL), { token: PRODUCT_TOKEN }).readSnapshot("main"));
   assert.equal(all.length, 66, "known positive: the product holds 66 queues");
   const held = all.filter((each) => each.entries.some((entry) => entry.state !== "in SPEC"));
-  assert.deepEqual(held.map((each) => each.folder.slice(SPEC_DIR.length)), [MINE, OTHER], "known positive: two queues wait");
+  assert.deepEqual(held.map((each) => each.folder.slice(SPEC_DIR.length)), [OTHER, MINE], "known positive: two queues wait, in the order of their folders' names");
   const overview = (commit) => JSON.stringify({ commit, shares: [], waiting: [], model: null, build: { states: [], records: [] }, queues: held });
   if (stored === "head") net.overviews[PRODUCT] = { [head]: overview(head) };
   if (stored === "older") net.overviews[PRODUCT] = { [OLDER]: overview(OLDER), latest: JSON.stringify({ commit: OLDER }) };

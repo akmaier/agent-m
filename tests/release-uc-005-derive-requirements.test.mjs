@@ -449,7 +449,7 @@ test("TST-579319: a candidate that restates a requirement is proposed as an adde
 // guards: A CONFLICT IS DECIDED BY A PERSON; UC-005
 // given: the endpoint answers THE DUE DATE MAY BE HIDDEN, a conflict with A LOAN HAS A DUE DATE, from SRC-policy (normative); the existing requirement's source SRC-handbook is informational
 // input: Run; Write proposals with the conflict left; then the person classes it as a change of A LOAN HAS A DUE DATE and writes again
-// expect: the conflict stands on the panel beside A LOAN HAS A DUE DATE with both sources and their authorities; with the conflict left nothing is applied and nothing is dropped from the panel: no entry is written and the conflict is still listed; once decided, the entry holds A LOAN HAS A DUE DATE with the candidate's rule
+// expect: the conflict stands on the panel beside A LOAN HAS A DUE DATE with both sources and their authorities; with the conflict left nothing is applied and nothing is dropped from the panel: no entry is written and the conflict is still listed; once decided, a second entry, 02, is added to the section's queue, which holds entry 01 already, and it holds A LOAN HAS A DUE DATE with the candidate's rule
 test("TST-579320: a conflict is shown beside what it contradicts, neither applied nor dropped until the person decides, and then written as decided", async () => {
   const { w, prepared, panel } = await derived({ candidates: [candidate("THE DUE DATE MAY BE HIDDEN", { class: "conflict", of: LOAN, rule: "A loan may hide its due date.", passage: "ch. 3" }), NEW_FINE] });
   const item = textOf(itemOf(panel, "THE DUE DATE MAY BE HIDDEN"));
@@ -460,8 +460,9 @@ test("TST-579320: a conflict is shown beside what it contradicts, neither applie
   assert.equal(classOf(panel, "THE DUE DATE MAY BE HIDDEN"), "conflict", "not dropped from the panel");
   setClass(panel, "THE DUE DATE MAY BE HIDDEN", "change", LOAN);
   await write(prepared.page);
-  const decided = Object.entries(writtenFiles(w)).filter(([path]) => path.endsWith("01-lending.md")).map(([, body]) => body).at(-1);
-  assert.ok(decided.includes(`**${LOAN}** *(SRC-handbook, ch. 1; SRC-policy, ch. 3)*\nA loan may hide its due date.`));
+  const decided = Object.entries(writtenFiles(w)).filter(([path]) => path.endsWith("02-lending.md")).map(([, body]) => body);
+  assert.equal(decided.length, 1, "the decided conflict is the second entry of the section's queue, which already holds entry 01 (UC-005 step 8: each entry in its section's queue)");
+  assert.ok(decided[0].includes(`**${LOAN}** *(SRC-handbook, ch. 1; SRC-policy, ch. 3)*\nA loan may hide its due date.`));
 });
 
 // TST-579321 · level: release · module: system
@@ -484,14 +485,15 @@ test("TST-579321: candidates of one run that state the same rule are written as 
 // guards: A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; UC-005
 // given: the product holds UC-001, which realises A LOAN HAS A DUE DATE; the endpoint answers a change of A LOAN HAS A DUE DATE and a new requirement
 // input: Run; Write proposals
-// expect: the entry's rationale lists, under its impact list, A LOAN HAS A DUE DATE with UC-001 as what names it, and the new requirement as new with nothing naming it; the queue's index lists the change with UC-001 as what references it; the impact list is written with the proposal, not after it
+// expect: the entry's rationale lists, under its impact list, A LOAN HAS A DUE DATE with UC-001 as what names it, and the new requirement as new with nothing naming it; the queue's index holds the entry as a row of its entry table and names no requirement; the impact list is written with the proposal, not after it
 test("TST-579322: a change of a requirement is written with the list of what names it", async () => {
   const { w, prepared } = await derived({ candidates: [candidate("THE DUE DATE IS SHOWN", { class: "change", of: LOAN, rule: "Every loan shows its due date.", passage: "ch. 1" }), NEW_FINE] });
   await write(prepared.page);
   assert.equal(w.proposals().length, 1, "one commit holds the proposal and its impact list");
   assert.match(rationaleOf(w), /\*\*Impact list\.\*\*\n- A LOAN HAS A DUE DATE: named by UC-001 \(realises\)\.\n- A FINE IS CHARGED: new; nothing names it yet\./);
   const index = Object.entries(writtenFiles(w)).find(([path]) => path.endsWith("/index.md"))[1];
-  assert.match(index, /\| `A LOAN HAS A DUE DATE` \| changed \| `UC-001` \|/);
+  assert.match(index, /\| 01 \| `SPEC.md` \| ## 1\. Lending \| — \| — \|/, "the queue's index holds the entry as a row of its table, whose columns are Nr, Datei, Anker, bis and Commits");
+  assert.doesNotMatch(index, /UC-001/, "what names a requirement stands in the rationale's impact list, not in the index");
 });
 
 // TST-579323 · level: release · module: system

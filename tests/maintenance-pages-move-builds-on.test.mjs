@@ -26,15 +26,15 @@ for (const [at, strategies] of (pages.view?.strategies ?? []).entries()) {
 
 const moduleText = (id, folder) => ["---", `id: ${id}`, `title: ${id}`, `folder: ${folder}`, "realises: []", "follows:", "  - ARC-001", "uses: []", "provides: []", "---", `# ${id} ${id}`, "",
   "## Responsibility", "", "It stores.", "", "## Parts", "", "- index.mjs", "", "## Data", "", "Nothing.", "", "## Interfaces", "", "None.", "", "## Files", "", "None.", "", "## Uses", "", "None.", ""].join("\n");
-// A queue drafted from the issue 7 (MOD-spec-changes, Data): one entry that replaces the section "## 1. Section" of SPEC.md, changing FIRST RULE and adding THIRD RULE.
+// A queue whose entry is drafted from the issue 7, its rationale naming it (MOD-spec-changes, Data): one entry that replaces the section "## 1. Section" of SPEC.md, changing FIRST RULE and adding THIRD RULE.
 const rule = (name, text) => [`**${name}** *(Product Owner)*`, text, "*Check:* no automatic check; at review.", ""];
 const QUEUE = "docs/spec-freigaben/2026-10-20a_export";
 const PRODUCT_FILES = {
-  [`${QUEUE}/index.md`]: ["# SPEC approvals — queue 2026-10-20a · export", "", `**Issue:** #7 of ${PRODUCT_URL}`, "", "**Zieldatei aller Einträge:** `SPEC.md`", "",
+  [`${QUEUE}/index.md`]: ["# SPEC approvals — queue 2026-10-20a · export", "", "**Zieldatei aller Einträge:** `SPEC.md`", "",
     "| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |", "|---|---|---|---|---|", "| 01 | `SPEC.md` | ## 1. Section | — | |", ""].join("\n"),
   [`${QUEUE}/entscheidungen.md`]: "# Decisions\n\nAppend-only.\n",
   [`${QUEUE}/01-section.md`]: ["## 1. Section", "", ...rule("FIRST RULE", "The first rule holds on every page."), ...rule("SECOND RULE", "The second rule holds."), ...rule("THIRD RULE", "The third rule holds.")].join("\n"),
-  [`${QUEUE}/01-section.begruendung.md`]: "# Reason\n\nWhy.\n",
+  [`${QUEUE}/01-section.begruendung.md`]: `# Reason\n\nWhy.\n\n**Issue:** #7 of ${PRODUCT_URL}\n`,
   "docs/architecture/MOD-store.md": moduleText("MOD-store", "src/store/"),
 };
 

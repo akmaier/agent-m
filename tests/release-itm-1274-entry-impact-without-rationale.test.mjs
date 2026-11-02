@@ -169,8 +169,8 @@ const proposalOf = (folder) => `docs/spec-freigaben/${folder}/01-entry.md`;
 // guards: UC-020; OPEN PROPOSALS ARE SHOWN IN THE BROWSER
 // given: the product with four waiting entries — a withdraws A WITHDRAWN RULE; b adds AN ADDED RULE; c changes A LATER RULE of section 2; d changes A KEPT RULE but its proposal cannot be read (the Host fails the read) — each queue with a rationale in the tree; known positive first — with d readable the kept rule is marked change proposed
 // input: the route trace/specification rendered at main
-// expect: A KEPT RULE in SPEC (d's proposal is lost, the page is not), A WITHDRAWN RULE removal proposed, AN EDITED RULE in SPEC, A LATER RULE change proposed, AN ADDED RULE proposed; no path ending in .begruendung.md asked of read or readMany
-// Planted fault: naming the rationales to readMany again (the line `snapshot.readMany?.(rationales)` of arrangement in src/trace-pages/flow.mjs) fails the rationale assertion; a page that lets one unreadable proposal fail the whole overview fails the marks.
+// expect: A KEPT RULE in SPEC (d's proposal is lost, the page is not), A WITHDRAWN RULE removal proposed, AN EDITED RULE in SPEC, A LATER RULE change proposed, AN ADDED RULE proposed; a path ending in .begruendung.md stands in one readMany of each render only (queues' one batch for the entries' issues, MOD-spec-changes Queue) and every read of one is of a path that batch named
+// Planted fault: a page that names the rationales to a second readMany, or reads one that queues' batch did not name, fails the rationale assertions; a page that lets one unreadable proposal fail the whole overview fails the marks.
 test("TST-1274305 the specification marks what four waiting entries do, from their proposals alone, whatever one proposal's read does", async () => {
   const readable = treeHost({ trees: { main: PAGE_FILES } });
   const known = Object.fromEntries(statusRows(await renderSpec(readable)));
@@ -179,6 +179,11 @@ test("TST-1274305 the specification marks what four waiting entries do, from the
   const host = treeHost({ trees: { main: PAGE_FILES }, failing: (path) => path === proposalOf("2026-05-04_d") });
   const marks = Object.fromEntries(statusRows(await renderSpec(host)));
   assert.deepEqual(marks, { [KEEP]: "in SPEC", [EDIT]: "in SPEC", [GONE]: "removal proposed", [LATER]: "change proposed", [PLUS]: "proposed" });
-  const log = [...readable.log.reads, ...readable.log.manys.flat(), ...host.log.reads, ...host.log.manys.flat()];
-  assert.deepEqual(log.filter(isRationale), [], "no rationale is asked for");
+  const rationales = (log) => ({ batches: log.manys.filter((paths) => paths.some(isRationale)), reads: log.reads.filter(isRationale) });
+  for (const [what, log] of [["readable", readable.log], ["unreadable", host.log]]) {
+    const { batches, reads } = rationales(log);
+    assert.equal(batches.length, 1, `${what}: the rationales are named in queues' one batch, and in no other`);
+    assert.deepEqual(batches[0].filter(isRationale).sort(), ["2026-05-01_a", "2026-05-02_b", "2026-05-03_c", "2026-05-04_d"].map((folder) => `docs/spec-freigaben/${folder}/01-entry.begruendung.md`), `${what}: the batch names each entry's rationale`);
+    assert.deepEqual(reads.filter((path) => !batches[0].includes(path)), [], `${what}: no rationale is read beyond that batch`);
+  }
 });

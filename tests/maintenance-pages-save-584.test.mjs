@@ -113,8 +113,8 @@ test("issue — Save runs change-requirements with the issue and the person's so
   const files = queueFiles(w);
   const index = files.find((entry) => entry.path.endsWith("/index.md"));
   assert.ok(index, `a queue index is written: ${files.map((entry) => entry.path)}`);
-  assert.ok(index.content.includes("**Issue:** #7 of https://github.com/alice/product"), index.content);
   const rationale = files.find((entry) => entry.path.endsWith(".begruendung.md"));
+  assert.ok(rationale.content.includes("**Issue:** #7 of https://github.com/alice/product"), rationale.content);
   assert.ok(rationale.content.includes("issue #7 of https://github.com/alice/product") && rationale.content.includes(SOURCE), rationale.content);
   assert.equal(w.kept.issues.find((issue) => issue.number === 7).state, "open");
 });

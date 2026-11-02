@@ -79,9 +79,9 @@ const GRAPH_NOT_STORED = (commit) => `the trace graph of ${commit.slice(0, 12)} 
 const GRAPH_SITES = [
   // The entry's own queue is read alone (queueAt) for the page and for its subject; with no overview stored, the other proposals come from every queue (waitingQueues), which
   // reads the one queue of the fixture a third time on this Host, whose read keeps no text (a snapshot of MOD-repository-hosts answers it from the texts it holds).
-  { site: "flow.mjs", route: "spec-entry", params: { id: ENTRY_ID }, product: { graphMissing: true }, requests: 14 },
+  { site: "flow.mjs", route: "spec-entry", params: { id: ENTRY_ID }, product: { graphMissing: true }, requests: 17 },
   { site: "edit.mjs", route: "requirement", params: { name: LOAN }, product: { graphMissing: true }, requests: 8 },
-  { site: "entry-edit.mjs", route: "spec-entry", params: { id: ENTRY_ID, edit: "1" }, product: { graphMissing: true }, requests: 20 },
+  { site: "entry-edit.mjs", route: "spec-entry", params: { id: ENTRY_ID, edit: "1" }, product: { graphMissing: true }, requests: 23 },
   { site: "jobs.mjs showDraft", route: "use-case", params: { id: "draft" }, product: { graphMissing: true }, requests: 2 },
   // The drafting of the architecture is no such route: while the head's graph is not stored it lists the requirements of the head's SPEC.md (MOD-review-pages, Uses).
 ];

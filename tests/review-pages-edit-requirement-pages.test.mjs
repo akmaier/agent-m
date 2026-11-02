@@ -44,8 +44,7 @@ const READING = text("## 2. Reading", "", `**${CARD}** *(Product Owner)*`, "Ever
 const HEAD = text("# Thesis tool — Specification", "");
 const SPEC = HEAD + LENDING + READING;
 const FILES = { "README.md": "# Thesis tool\n", "SPEC.md": SPEC };
-const TODAY = new Date().toISOString().slice(0, 10);
-const QUEUE = `docs/spec-freigaben/${TODAY}_edits-of-anonymous`;
+const QUEUE = "docs/spec-freigaben/lending";
 const EDITED = LENDING.replace("returned.", "returned, or renewed.");
 const WHY = "Because it is clearer.";
 

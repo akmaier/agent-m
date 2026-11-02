@@ -96,7 +96,7 @@ test("TST-585202: UC-012 a change is analysed, confirmed with one click, saved a
   const files = queueFiles(w);
   const index = files.find((entry) => entry.path.endsWith("/index.md"));
   assert.ok(index, `a queue is written: ${files.map((entry) => entry.path)}`);
-  assert.ok(index.content.includes(`**Issue:** #5 of ${PRODUCT_URL}`), index.content);
+  assert.ok(files.some((entry) => entry.path.endsWith(".begruendung.md") && entry.content.includes(`**Issue:** #5 of ${PRODUCT_URL}`)), "the entry's rationale names the issue");
   assert.ok(files.some((entry) => /\/\d\d-[^/]*\.md$/.test(entry.path) && !entry.path.endsWith(".begruendung.md") && entry.content.includes(CANDIDATE.name)), "the entry holds the requirement");
   assert.ok(!writtenFiles(w).some((entry) => entry.path === "SPEC.md"), "the SPEC is not written");
   assert.equal(issueNow(w, 5).state, "open");
