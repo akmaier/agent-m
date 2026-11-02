@@ -264,6 +264,19 @@ test("auditRows — a process requirement's row holds the gate records it is giv
   assert.deepEqual(rowOf(result, PROCESS).sources.map((source) => source.id), ["SRC-vibe-coding"]);
 });
 
+// TST-1431001 · level: unit · module: MOD-release-evidence
+// guards: A PROCESS REQUIREMENT ADDS TO THE MODEL; UC-030
+// given: the fixture, whose caller gives the gate of the process requirement with its record docs/gates/20261010-release-testing.md and the artifacts its gate asks for, "SPEC.md"
+// input: auditRows(...), the rows of the process requirement and of the first requirement
+// expect: known positive — the process row's gates stay the record, ["docs/gates/20261010-release-testing.md"]; its artifacts are ["SPEC.md"], one for each record in the order of the records; the first row's artifacts are empty
+// counter-proof: an auditRows that keeps the record only and drops the gate's artifacts gives the process row no artifacts and fails the second deepEqual
+test("TST-1431001 auditRows — a process requirement's row names the artifacts its gate asked for beside the gate record", async () => {
+  const result = await audit({ gates: GATES.map((gate) => ({ ...gate, artifacts: "SPEC.md" })) });
+  assert.deepEqual(rowOf(result, PROCESS).gates, ["docs/gates/20261010-release-testing.md"], "known positive: the record");
+  assert.deepEqual(rowOf(result, PROCESS).artifacts, ["SPEC.md"]);
+  assert.deepEqual(rowOf(result, R1).artifacts, []);
+});
+
 // TST-756005 · level: unit · module: MOD-release-evidence
 // guards: THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE
 // given: the fixture: first requirement all tests passed; second a failing test; third no test; fourth a test recorded both passing and failing on the commit; fifth a rate of 6 of 10 against 8 of 10 at the last release; the process requirement no test
@@ -575,6 +588,21 @@ test("TST-757103 auditDocument — every row with its sources, tests and gate re
   assert.match(failed, /TST-756106[^\n]*unit[^\n]*failed/);
   assert.match(process, /constrains[^\n]*process/i);
   assert.ok(process.includes("docs/gates/20261010-release-testing.md"));
+});
+
+// TST-1431002 · level: unit · module: MOD-release-evidence
+// guards: A PROCESS REQUIREMENT ADDS TO THE MODEL; THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE
+// given: the fixture audit whose process row holds the gate record docs/gates/20261010-release-testing.md and the artifacts its gate asked for, "SPEC.md"; the other rows hold none
+// input: auditDocument(audit, release)
+// expect: known positive — the process requirement's section keeps its gate record line; it holds a line naming the gate's artifacts SPEC.md; no other section names artifacts
+// counter-proof: a document that writes the gate records alone leaves SPEC.md out of the process section and fails the match
+test("TST-1431002 auditDocument — a process requirement's section names the artifacts its gate asked for", () => {
+  const text = document({ ...AUDIT, rows: AUDIT.rows.map((row) => (row.requirement === PROCESS ? { ...row, artifacts: ["SPEC.md"] } : row)) });
+  const rows = text.slice(text.indexOf("## Requirements")).split(/^### /m).slice(1);
+  const process = rows.find((row) => row.startsWith(PROCESS));
+  assert.ok(process.includes("docs/gates/20261010-release-testing.md"), "known positive: the gate record");
+  assert.match(process, /^- [^\n]*artifacts[^\n]*SPEC\.md/im);
+  assert.deepEqual(rows.filter((row) => !row.startsWith(PROCESS) && /artifacts/i.test(row)), []);
 });
 
 // TST-757104 · level: unit · module: MOD-release-evidence

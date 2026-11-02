@@ -367,6 +367,20 @@ test("a process row shows that it constrains the process and the gate records it
   assert.deepEqual(textsOf(rowOf(target, R1), "audit-gate"), []);
 });
 
+// TST-1431003 · level: unit · module: MOD-trace-pages
+// guards: A PROCESS REQUIREMENT ADDS TO THE MODEL; UC-030
+// given: the fixture; the declaration docs/process.md adds the gate of A PROCESS RULE between Plan and Build with the artifact SPEC.md, and the gate record docs/gates/20261010-1000-a-process-rule-alic.md passed it
+// input: Route.render with the key "audit"; the rows of A PROCESS RULE and of A FIRST RULE read
+// expect: known positive — the process row's `audit-gate` still reads the record alone, [docs/gates/20261010-1000-a-process-rule-alic.md]; its `audit-gate-artifacts` reads ["SPEC.md"]; A FIRST RULE has no `audit-gate-artifacts`
+// counter-proof: a gatesOf that hands on the requirement, the gate and the record only leaves the process row without `audit-gate-artifacts` and fails the second deepEqual
+test("TST-1431003 a process row names the artifacts its gate asked for beside the gate record", async () => {
+  const target = await render();
+  const process = rowOf(target, PROCESS);
+  assert.deepEqual(textsOf(process, "audit-gate"), [GATE_PATH], "known positive: the gate record alone");
+  assert.deepEqual(textsOf(process, "audit-gate-artifacts"), ["SPEC.md"]);
+  assert.deepEqual(textsOf(rowOf(target, R1), "audit-gate-artifacts"), []);
+});
+
 // TST-768007 · level: component · module: MOD-trace-pages
 // guards: UC-030; THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE
 // given: the fixture; A THIRD RULE has no test at any level

@@ -47,6 +47,7 @@ const FLOW_EVIDENCE = {
   "main-2-rows": { uc: "derives one row per requirement valid at that release:", evidence: [[SELF, "TST-775202"], [PAGE, "TST-768003"]] },
   "main-2-sources": { uc: "the requirement's name, what it constrains (product or process), and its sources with their authority and version", evidence: [[SELF, "TST-775203"], [PAGE, "TST-768005"], [ROWS, "TST-756002"]] },
   "main-2-tests": { uc: "the tests guarding it, by level, each with its outcome or rate on the release commit and its counter-proof;", evidence: [[SELF, "TST-775203"], [PAGE, "TST-768005"]] },
+  "main-2-artifacts": { uc: "for a process requirement, also the gate records and artifacts it added to the workflow", evidence: [[SELF, "TST-775204"]] },
   "main-2-blob": { uc: "the acceptance of the release test report: who, when, and the blob SHA of the accepted text.", evidence: [[SELF, "TST-775205"]] },
   "main-2-acceptance": { uc: "the acceptance of the release test report: who, when, and the blob SHA of the accepted text.", evidence: [[SELF, "TST-775203"], [PAGE, "TST-768012"]] },
   "main-3-summary": { uc: "At the top, Agent M summarises:", evidence: [[SELF, "TST-775206"], [PAGE, "TST-768003"]] },
@@ -68,7 +69,6 @@ const FLOW_EVIDENCE = {
 };
 // The passages the page does otherwise: the finding, its case, and the module it points to.
 const FLOW_FINDINGS = {
-  "main-2-artifacts": { uc: "for a process requirement, also the gate records and artifacts it added to the workflow", finding: "UC030-F5", file: SELF, test: "TST-775204", module: "MOD-release-evidence" },
   "main-2-unrecorded-gate": { uc: "derives one row per requirement valid at that release:", finding: "UC030-F6", file: SELF, test: "TST-775220", module: "MOD-trace-pages" },
 };
 // The passages no code of this product carries, with the reason.
@@ -155,8 +155,8 @@ test("TST-775203: UC-030 2 a row shows what the requirement constrains, its sour
 // guards: UC-030; THE GATE IS RECORDED
 // given: the product of TST-775203, whose declaration docs/process.md adds the gate of A PROCESS RULE between Plan and Build with the artifact SPEC.md
 // input: the auditor reads the row of A PROCESS RULE
-// expect: known positive — the row lists the gate record docs/gates/20261010-1000-a-process-rule-alic.md; FINDING UC030-F5 (MOD-release-evidence): UC-030 2 asks for the gate records and the artifacts the requirement added to the workflow, and the row names the gate records alone, so the artifact SPEC.md is on the page nowhere in the row
-test("TST-775204: UC-030 2 a process requirement's row names the gate records and the artifacts it added to the workflow", { todo: "FINDING UC030-F5 (MOD-release-evidence): auditRows' row holds `gates`, the paths of the gate records, and no artifact the gate added; the process row names the record and not the artifact (UC-002 7: extra gates and artifacts)" }, async () => {
+// expect: known positive — the row lists the gate record docs/gates/20261010-1000-a-process-rule-alic.md; UC-030 2 asks for the gate records and the artifacts the requirement added to the workflow, so the row also names the artifact SPEC.md
+test("TST-775204: UC-030 2 a process requirement's row names the gate records and the artifacts it added to the workflow", async () => {
   const process = rowOf(await render(), PROCESS);
   assert.deepEqual(textsOf(process, "audit-gate"), [GATE_PATH], "known positive: the gate record is named");
   assert.match(process.textContent, /SPEC\.md/, "the artifact the gate added is named in the row");
