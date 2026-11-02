@@ -87,7 +87,7 @@ const FLOW_EVIDENCE = {
 };
 // The passages the dashboard does otherwise: the finding, its case, and the module it points to.
 const FLOW_FINDINGS = {
-  "main-6-open-queue": { uc: "Agent M adds an entry to the author's open queue of today", finding: "UC018-F1", file: SELF, test: "TST-376206", module: "MOD-review-pages" },
+  "main-6-open-queue": { uc: "Agent M adds an entry to the section's queue", finding: "UC018-F1", file: SELF, test: "TST-376206", module: "MOD-spec-changes" },
 };
 
 // TST-376201 · level: system · module: system
@@ -232,28 +232,28 @@ test("TST-376205: UC-018 5, 6, 7 a saved requirement is one commit of a queue en
 });
 
 // TST-376206 · level: system · module: system
-// guards: UC-018; A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE
-// given: the library on GitHub, the author's token stored (named "Agent M · library", as the settings page names a product's token); GitHub writes each of the author's commits under the account alice
-// input: the author saves an edit of A LOAN HAS A DUE DATE; then, the same day, an edit of A MEMBER HAS A CARD; then a second edit of A LOAN HAS A DUE DATE
-// expect: the first save starts the queue <today>_edits-of-agent-m-library, and GitHub's history names alice as the author of its index (known positive: openQueueOf for alice finds that queue); the second save adds entry 02 to that queue; the third replaces entry 01's proposal and adds no entry; no second queue of the day is started; FINDING UC018-F1 (MOD-review-pages): the requirement's editor names the person by the token's name, while MOD-spec-changes finds the person's queue by the account that created its index, so each save starts a queue of its own
-test("TST-376206: UC-018 6 the person's edits of a day collect in one open queue, and a second edit of a section replaces its entry", { todo: "FINDING UC018-F1 (MOD-review-pages): edit.mjs gives proposeSection the token's name as the person; the queue's person is the account that created its index (openQueueOf), so every save of a requirement starts a queue of its own" }, async () => {
+// guards: UC-018
+// given: the library on GitHub, the author's token stored (named "Agent M · library", as the settings page names a product's token), no queue in the repository
+// input: the author saves an edit of A LOAN HAS A DUE DATE; then a second edit of the same section A LOAN HAS A DUE DATE
+// expect: the first save starts the queue of the section under docs/spec-freigaben/ with entry 01; the second save adds entry 02 to that queue, in one commit, and writes neither entry 01 nor a second queue; FINDING UC018-F1 (MOD-spec-changes): the entry goes to the section's queue; built by the SPEC packages' build item
+test("TST-376206: UC-018 6 an edit of a section adds an entry to the section's queue, and a second edit of the same section adds another", { todo: "FINDING UC018-F1 (MOD-spec-changes): the entry goes to the section's queue; built by the SPEC packages' build item. Today the entry goes to the person's queue of the day and a second edit of a section replaces its entry" }, async () => {
   const w = await specWorld();
-  const save = async (name, section, body) => {
-    const target = await w.draw("requirement", { name });
+  const save = async (body, why) => {
+    const target = await w.draw("requirement", { name: LOAN });
     typeInto(target, body);
-    whyOf(target).value = `An edit of ${section}.`;
+    whyOf(target).value = why;
     const before = w.writes().length;
     click(saveOf(target));
-    await until(() => w.writes().length === before + 1, `the save of ${name}`);
+    await until(() => w.writes().length === before + 1, `the save of ${LOAN}`);
   };
-  const folder = `docs/spec-freigaben/${today()}_edits-of-agent-m-library`;
-  await save(LOAN, LENDING_HEADING, LENDING.replace("is returned.", "is returned, or renewed."));
-  assert.equal(await openQueueOf("alice", today(), w.host), folder, "known positive: GitHub's history names alice as the author of the queue's index");
-  await save(CARD, MEMBERSHIP_HEADING, MEMBERSHIP.replace("a card.", "a card, always."));
-  assert.deepEqual(Object.keys(w.writes()[1].files).filter((path) => /\/\d\d-[^/]+\.md$/.test(path) && !path.endsWith(".begruendung.md")), [`${folder}/02-membership.md`], "the second edit joins the queue");
-  await save(LOAN, LENDING_HEADING, LENDING.replace("is returned.", "is returned, or renewed twice."));
-  assert.deepEqual(Object.keys(w.writes()[2].files).sort(), [`${folder}/01-lending.begruendung.md`, `${folder}/01-lending.md`], "the second edit of a section replaces its entry");
-  assert.deepEqual(Object.keys(w.files()).filter((path) => path.startsWith(`docs/spec-freigaben/${today()}b`)), [], "no second queue of the day");
+  await save(LENDING.replace("is returned.", "is returned, or renewed."), "A loan may be renewed.");
+  const first = Object.keys(w.writes()[0].files).find((path) => path.endsWith("/index.md")).replace(/\/index\.md$/, "");
+  assert.ok(Object.keys(w.writes()[0].files).includes(`${first}/01-lending.md`), "the first edit is entry 01 of the queue");
+  await save(LENDING.replace("is returned.", "is returned, or renewed twice."), "A loan may be renewed twice.");
+  const second = Object.keys(w.writes()[1].files);
+  assert.ok(second.includes(`${first}/02-lending.md`), "the second edit adds entry 02 to the section's queue");
+  assert.ok(!second.includes(`${first}/01-lending.md`), "entry 01 is not replaced");
+  assert.ok(second.every((path) => path.startsWith(`${first}/`)), "the second edit writes in the same queue");
 });
 
 // ---------------------------------------------------------------- 1a

@@ -74,7 +74,6 @@ const EVIDENCE = {
   "A GITLAB PRODUCT IS WRITTEN WITH A TOKEN": [[SELF, "TST-376317"], ["tests/release-uc-008-review-and-accept-a-use-case.test.mjs", "TST-372305"]],
   "ONE CLICK PER DECISION": [[SELF, "TST-376318"]],
   "EVERY STEP EXPLAINS ITSELF": [[SELF, "TST-376319"]],
-  "A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE": [[SELF, "TST-376320"]],
 };
 // The requirements whose behaviour on UC-018's path this file's writer built: guarded here only by the release tests other writers wrote.
 const BUILT_BY_WRITER = {
@@ -86,13 +85,13 @@ const FINDINGS = { "TST-376320": { finding: "UC018-F1", module: "MOD-review-page
 
 // TST-376301 · level: release · module: system
 // guards: UC-018
-// given: UC-018 as committed text, whose `realises` lists twenty-two requirements, and the release tests named in EVIDENCE
+// given: UC-018 as committed text, whose `realises` lists twenty-one requirements, and the release tests named in EVIDENCE
 // input: read UC-018's list of the requirements it realises, and the declarations of the test files named for each
-// expect: known positive — UC-018 realises these twenty-two requirements; each has at least one release test named; each test named stands in its file with the level release and guards that requirement; no case of this file guards a requirement in BUILT_BY_WRITER; each finding's case carries a todo naming FINDING and its module
+// expect: known positive — UC-018 realises these twenty-one requirements; each has at least one release test named; each test named stands in its file with the level release and guards that requirement; no case of this file guards a requirement in BUILT_BY_WRITER; each finding's case carries a todo naming FINDING and its module
 test("TST-376301: UC-018 every requirement it realises has a release test that guards it", () => {
   const front = /^realises:\n((?:  - .*\n)+)/m.exec(read(UC))?.[1] ?? "";
   const realised = front.split("\n").filter(Boolean).map((line) => line.replace(/^ {2}- /, ""));
-  assert.equal(realised.length, 22, "known positive: UC-018 realises twenty-two requirements");
+  assert.equal(realised.length, 21, "known positive: UC-018 realises twenty-one requirements");
   assert.deepEqual([...realised].sort(), Object.keys(EVIDENCE).sort(), "the map holds exactly the requirements UC-018 realises");
   for (const [requirement, named] of Object.entries(EVIDENCE)) {
     assert.ok(named.length > 0, `${requirement}: a release test is named`);
