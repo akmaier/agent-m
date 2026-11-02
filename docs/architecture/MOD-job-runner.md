@@ -329,7 +329,8 @@ ONLY WHEN RECORDING IS ON`).
   finding is left, and `not checked` when a reviewer's answer cannot be read —, reads the answer by the output schema —
   an answer that cannot be read is a
   finding of the loop, and if it still cannot be read after the last round the result is `unusable` —, runs the kind's
-  checks and then its reviewing participants, whose findings are warnings
+  checks and then, only for a draft the checks find complete — one in which no check found `ONE DECISION STATES THE WHOLE
+  ARCHITECTURE` (`AN ARCHITECTURE IS CHECKED WHEN IT IS COMPLETE`) —, its reviewing participants, whose findings are warnings
   whatever they say (`A REVIEWER'S FINDING IS A WARNING`); an answer of a reviewer that cannot be read is a check not done,
   asked again within the limit, and the result is `not checked` if it never can be read. Findings whose rule the kind
   leaves to a person go to `forPerson` and are never sent back (`WHAT A PERSON DECIDES IS NOT SENT BACK`); errors and

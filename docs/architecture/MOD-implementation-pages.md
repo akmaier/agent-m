@@ -173,7 +173,9 @@ Its formats are those of the modules it uses.
     `saveItems`; in a product with several teams, what the other teams' sprints hold, from `heldItems`, and on each item
     the marks `conflicts` gives; *Plan sprint* and *Start sprint* for the person's team with `startSprint` — with the
     parameter `plan` naming a team, as `progress` links it, the route opens with that team's planning, and a planning
-    opened or cancelled on the page is drawn from what the route has read, without reading it again; for a model with a
+    opened or cancelled on the page is drawn from what the route has read, without reading it again; in the panel of each
+    team with a running sprint, *Start sprint work*, a link to `implement` with the parameter `sprint` naming that sprint,
+    `<team>/<nn>`, its slash encoded, since the frame splits an address at every slash before it decodes; for a model with a
     work-in-progress limit, the board and *Pull*, refused at the limit with the items in progress named. The route
     `backlog` draws the view stored for the head (MOD-progress-measures' `storedView`) and reads no record, no facts and
     no pull request: each item, sprint and job links to its own file, which is read only when the person opens it; while
@@ -185,7 +187,8 @@ Its formats are those of the modules it uses.
     route `board` reads the declaration and the declared model's file first, as `plan` does: for a model without a
     work-in-progress limit it says so and reads nothing else; with one, it reads the product's facts with the scope
     `work`, every pull request among them.
-  - `implement` — the steps of the plan or the ready items, each with its state and, if it cannot start, the reasons;
+  - `implement` — the steps of the plan or the ready items — with the parameter `sprint`, the items of that running
+    sprint's selection that are not done —, each with its state and, if it cannot start, the reasons;
     the participants that hold the implementing role in the item's role assignment and can write and run tests, the attempt limit, who merges, the
     target branch, the gates the jobs will meet and who decides them; *Start jobs*, which queues each job on its
     participant's route — handed to a Bridge at once where the route is one; for each pull request its CI runs and
@@ -208,7 +211,7 @@ Its formats are those of the modules it uses.
     its items with their states and the modules they change and use, and its burn-down; *End sprint* with `endSprint`
     for a running sprint without a time box, and, for one that has ended, that its review and retrospective are not
     recorded yet; a team without a running sprint says so; *Plan sprint* and *Change the selection* lead to `backlog` with
-    `plan=<team>`, and a link leads to `backlog`, where every item and each team's last ended sprint stand; what is
+    `plan=<team>`, *Start sprint work* to `implement` with that sprint, as on `backlog`, and a link leads to `backlog`, where every item and each team's last ended sprint stand; what is
     blocked among the items the running sprints hold; who works on what, each current job linked to its page on the job
     dashboard (UC-036). It draws the view stored for the head (MOD-progress-measures' `storedView`) and reads no record,
     no facts and no pull request, and it names no first wave (`reads`); while the head's view is not stored yet, it draws

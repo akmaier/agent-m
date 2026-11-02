@@ -267,7 +267,10 @@ ReviewKind = {
     each file with `saveFile` after its owner's schema found no error. A draft handed to CI or a Bridge arrives as an
     open file, a queue entry or a pull request instead.
   - `<k>/draft` — drafting: for use cases, the requirements to cover — by default those no use case realises —; for
-    requirements, the linked source and, to send less, the files of its version to work on (UC-005 2a); for the
+    requirements, the linked source and, to send less, the files of its version to work on (UC-005 2a), and, where the
+    job's preparation finds a file of that version whose content no longer matches the SHA-256 its version records
+    (MOD-source-register's `HashMismatch`), the file named as changed in place of the run panel, that nothing is sent,
+    and a link to register a new version of its source, `#library/source=<source>` (UC-005 1a, UC-016); for the
     architecture, what the derivation covers, its preconditions,
     the drafting and the reviewing participant — a reviewer offered only if it differs from the drafter in participant
     and model —; then the run panel and *Run*. A job the person starts here and waits for runs in this tab, attended: a
