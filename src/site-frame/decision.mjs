@@ -20,8 +20,10 @@ export function confirmDecision({ title, lines, confirm, reason = false }) {
     const reasonField = reason ? document.createElement("textarea") : null;
     if (reasonField) dialog.append(reasonField);
     const cancel = document.createElement("button");
+    cancel.className = "btn";
     cancel.textContent = "Cancel";
     const accept = document.createElement("button");
+    accept.className = "btn";
     accept.textContent = confirm;
     const answer = (confirmed) => {
       dialog.remove();
