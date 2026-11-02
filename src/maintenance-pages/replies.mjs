@@ -59,7 +59,7 @@ function el(name, className, ...children) {
 const fold = (text) => el("details", "explain", el("summary", null, "What is this?"), el("p", null, text));
 // A listener that answers only a click the browser marks as a person's (THE DASHBOARD WRITES ONLY ON A PERSON'S CLICK).
 function button(className, text, listener) {
-  const node = el("button", className, text);
+  const node = el("button", `${className} btn`, text);
   node.setAttribute("type", "button");
   node.addEventListener("click", (event) => { if (event?.isTrusted === true && !node.disabled) listener(event); });
   return node;

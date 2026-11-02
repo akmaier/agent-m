@@ -421,7 +421,7 @@ async function expectationsOf(product, pullRequest) {
     row.setAttribute("data-test", id);
     return row;
   });
-  return el("table", "fix-expectations", el("thead", null, el("tr", null, ...["Test", "Requirement", "Old expectation", "New expectation"].map((head) => cell("th", head)))), el("tbody", null, ...rows));
+  return el("table", "fix-expectations list", el("thead", null, el("tr", null, ...["Test", "Requirement", "Old expectation", "New expectation"].map((head) => cell("th", head)))), el("tbody", null, ...rows));
 }
 
 // *Close with links*, the person's click on a merged pull request: the issue closed with `closeWithLinks`, naming the pull request and, for the job of an item, the item (null for a bug fix).
