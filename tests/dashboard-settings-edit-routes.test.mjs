@@ -79,7 +79,7 @@ const HANDED = [
   ["#settings", "settings", "endpoints", {}, "#endpoints", /Configure a model endpoint/],
   ["#settings", "settings", "endpoints", { name: "campus" }, "#endpoints/campus", /Configure a model endpoint/],
   ["#settings", "settings", "bridge", {}, "#bridge", /Connect a Bridge/],
-  ["#settings", "settings", "bridge", { name: "lab" }, "#bridge/name=lab", /Connect a Bridge/],
+  ["#settings", "settings", "bridge", { name: "lab" }, "#bridge", /Connect a Bridge/],
   ["#settings", "settings", "add-product", {}, "#add", /Add a product/],
   ["#settings", "settings", "add-product", { address: PRODUCT }, `#add/${encodeURIComponent(PRODUCT)}`, /Add a product/],
   ["#endpoints", "endpoints", "bridge", {}, "#bridge", /Connect a Bridge/],
