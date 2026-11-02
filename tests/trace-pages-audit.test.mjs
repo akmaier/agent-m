@@ -278,6 +278,54 @@ test("TST-1163004 the implementer count keeps only the shared test's qualifying 
   assert.deepEqual(names(target), [R1]);
 });
 
+// TST-1430004 · level: component · module: MOD-trace-pages
+// guards: A MODEL-DEPENDENT TEST IS MEASURED AS A RATE; UC-030
+// given: the fixture, where the model-dependent TST-756105 of A FIFTH RULE passed 6 of 10 against 8 of 10 at the last release (worse); then the same with the last release's record at 5 of 10
+// input: Route.render with the key "audit"; the line of TST-756105 read, then the passing number pressed, over each
+// expect: known positive — the outcome reads 6 of 10 in both, and over the fixture passing opens A FIRST RULE alone and the line reads "against 8 of 10 at the last release" and "not passed"; with the last release at 5 of 10 the number reads 2, opens A FIRST RULE and A FIFTH RULE, and the line reads "against 5 of 10 at the last release" and "passed"
+// counter-proof: a page that counts passing from the outcome "passed" alone opens A FIRST RULE alone over the second fixture and fails its deepEqual
+test("TST-1430004 a model-dependent test's line shows its rate, the last release's rate and whether it passed, and passing counts it from passed", async () => {
+  const line = (target) => withClass(rowOf(target, R5), "audit-test-line")[0];
+  const shown = (target) => [textsOf(line(target), "audit-outcome")[0], textsOf(line(target), "audit-last-rate")[0], textsOf(line(target), "audit-passed")[0]];
+  const worse = await render();
+  assert.deepEqual(shown(worse), ["6 of 10", "against 8 of 10 at the last release", "not passed"]);
+  await press(countOf(worse, "passing"));
+  assert.deepEqual(names(worse), [R1], "known positive: a worse rate has not passed");
+  const results = { ...resultFiles(), [`runs/${OLD}/old.md`]: run(OLD, [["TST-756105", "unit", "passed", "5 of 10"]]) };
+  const better = await render(productHost({ results }));
+  assert.deepEqual(shown(better), ["6 of 10", "against 5 of 10 at the last release", "passed"]);
+  assert.equal(countOf(better, "passing").textContent, "2");
+  await press(countOf(better, "passing"));
+  assert.deepEqual(names(better), [R1, R5]);
+});
+
+// TST-1430005 · level: component · module: MOD-trace-pages
+// guards: A MODEL-DEPENDENT TEST IS MEASURED AS A RATE; UC-030
+// given: the fixture where TST-756105 of A FIFTH RULE did not complete its runs on the release commit — its record "not run", 3 of 10 — against 2 of 10 at the last release (not worse)
+// input: Route.render with the key "audit"; the not-passed number read and pressed, and only gaps ticked on a fresh page
+// expect: known positive — over the fixture not passed opens A SECOND RULE alone; here the number reads 2 and opens A SECOND RULE and A FIFTH RULE, the line reads 3 of 10 and "not passed", and only gaps keeps A FIFTH RULE
+// counter-proof: a page that counts not passed from the outcomes failed and not run alone opens A SECOND RULE alone and fails the second deepEqual
+test("TST-1430005 a model-dependent test that did not run is counted among those that did not pass", async () => {
+  const fixture = await render();
+  await press(countOf(fixture, "notPassed"));
+  assert.deepEqual(names(fixture), [R2], "known positive");
+  const results = { ...resultFiles(), [`runs/${OLD}/old.md`]: run(OLD, [["TST-756105", "unit", "passed", "2 of 10"]]) };
+  results[`runs/${COMMIT}/a.md`] = run(COMMIT, [["TST-756101", "unit", "passed", ""], ["TST-756102", "release", "passed", ""], ["TST-756103", "release", "passed", ""],
+    ["TST-756104", "unit", "passed", ""], ["TST-756105", "unit", "not run", "3 of 10"]]);
+  const target = await render(productHost({ results }));
+  assert.equal(countOf(target, "notPassed").textContent, "2");
+  const line = withClass(rowOf(target, R5), "audit-test-line")[0];
+  assert.deepEqual([textsOf(line, "audit-outcome")[0], textsOf(line, "audit-passed")[0]], ["3 of 10", "not passed"]);
+  await press(countOf(target, "notPassed"));
+  assert.deepEqual(names(target), [R2, R5]);
+  const gaps = await render(productHost({ results }));
+  const box = withClass(gaps, "audit-filter-gaps")[0];
+  box.checked = true;
+  box.dispatchEvent(new Event("change"));
+  await settle();
+  assert.ok(names(gaps).includes(R5), "a model-dependent test that did not run is a gap");
+});
+
 // TST-768005 · level: component · module: MOD-trace-pages
 // guards: UC-030; THE AUDIT VIEW LISTS EVERY REQUIREMENT OF THE RELEASE; THE TRACEABILITY MATRIX IS DERIVED
 // given: the fixture; A FIRST RULE cites the book and IEC 62304 (normative), is guarded by 756101 (unit, a counter-proof) and 756102 and 756103 (release); A FOURTH RULE by 756104, flaky
