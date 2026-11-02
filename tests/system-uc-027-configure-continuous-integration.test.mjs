@@ -93,6 +93,7 @@ const FLOW_EVIDENCE = {
   "main-7-release-candidate": { uc: "the schedule page shows the last run per occasion", evidence: [[SELF, "TST-772217"]] },
   "main-7-jobs": { uc: "A commit that only records a job (`docs/jobs/`) starts no run.", evidence: [[SELF, "TST-772208"], [GENERATE, "TST-744004"], [RELEASE, "TST-772309"]] },
   "1a-foreign": { uc: "**1a. The product already has a CI configuration Agent M did not generate.**", evidence: [[SELF, "TST-772209"], [SAVE, "TST-759009"]] },
+  "1a-gitlab-triggers": { uc: "Agent M shows which of its triggers run which tests, as far as it can tell", evidence: [[SELF, "TST-772210"]] },
   "1b-edited": { uc: "**1b. The generated configuration was edited by hand after merging.**", evidence: [[SELF, "TST-772211"], [SAVE, "TST-759005"]] },
   "3a-gitlab": { uc: "**3a. The product is on a GitLab server.**", evidence: [[SELF, "TST-772212"], [PIPELINE, "TST-749001"], [RELEASE, "TST-772308"]] },
   "3b-runner": { uc: "**3b. A self-hosted runner is chosen but not registered.**", evidence: [[SELF, "TST-772213"], [PAGE, "TST-850002"]] },
@@ -102,7 +103,6 @@ const FLOW_EVIDENCE = {
 };
 // The passages the code does otherwise: the finding, its case, and the module it points to.
 const FLOW_FINDINGS = {
-  "1a-gitlab-triggers": { uc: "Agent M shows which of its triggers run which tests, as far as it can tell", finding: "UC027-F2", file: SELF, test: "TST-772210", module: "MOD-test-schedule" },
 };
 
 // TST-772201 · level: system · module: system
@@ -359,9 +359,8 @@ const FOREIGN_GITLAB = "stages: [test]\ntest:\n  stage: test\n  script: npm test
 // guards: UC-027; GITLAB PRODUCTS ARE SUPPORTED
 // given: alice/shop on GitLab holds a .gitlab-ci.yml that Agent M did not generate, whose job test runs npm test on every push, GitLab's default for a job without rules
 // input: the author opens Tests → Schedule and presses Save
-// expect: 1a: known positive — the page lists .gitlab-ci.yml, Save's commit keeps every line of it and adds the include entry, and the pull request says .gitlab-ci.yml stays as it is; the page shows which triggers of .gitlab-ci.yml run which tests, as it does for a GitHub workflow: its entry names the trigger push; FINDING UC027-F2 (MOD-test-schedule): configurationDrift names only the missing include entry of a GitLab configuration, no trigger of its jobs
+// expect: 1a: known positive — the page lists .gitlab-ci.yml, Save's commit keeps every line of it and adds the include entry, and the pull request says .gitlab-ci.yml stays as it is; the page shows which triggers of .gitlab-ci.yml run which tests, as it does for a GitHub workflow: its entry names the trigger push
 test("TST-772210: UC-027 1a on GitLab a configuration Agent M did not generate is shown with the triggers of its jobs",
-  { todo: "FINDING UC027-F2 (MOD-test-schedule): configurationDrift reads the triggers of a GitHub workflow Agent M did not generate, but of a GitLab .gitlab-ci.yml only whether the include entry stands (src/test-schedule/generate.mjs), so the page names no trigger of its jobs; MOD-test-schedule's configurationDrift: \"for a configuration Agent M did not generate, the triggers it has and which rows they run, as far as they can be read\"" },
   async () => {
     const world = server("gitlab", { files: shop({ ".gitlab-ci.yml": FOREIGN_GITLAB }) });
     const page = await open(world);
