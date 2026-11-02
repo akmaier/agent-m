@@ -421,7 +421,7 @@ export const route = {
       + `${h(row.id)}${row.title ? ` — ${h(row.title)}` : ""} <span class="muted small">${row.kind}</span>${marksFor(row.id).map((each) => ` <span class="warn small" data-mark>${h(each.what)}</span>`).join("")}</li>`).join("");
     const table = steps.length === 0 ? `<p class="muted">No plan is saved yet.</p>`
       : `<table class="list"><thead><tr><th>Step</th><th>State</th><th>Waits for</th></tr></thead><tbody>${steps.map((step) => `<tr data-step="${h(step.id)}" data-state="${h(step.state)}">`
-        + `<td>${h(step.id)}${step.title ? ` — ${h(step.title)}` : ""}${marksFor(step.id).map((each) => ` <span class="warn small" data-mark>${h(each.what)}</span>`).join("")}</td><td>${h(step.state)}</td><td data-waits-for>${h(step.reason)}</td></tr>`).join("")}</tbody></table>`;
+        + `<td data-label="Step">${h(step.id)}${step.title ? ` — ${h(step.title)}` : ""}${marksFor(step.id).map((each) => ` <span class="warn small" data-mark>${h(each.what)}</span>`).join("")}</td><td data-label="State">${h(step.state)}</td><td data-label="Waits for" data-waits-for>${h(step.reason)}</td></tr>`).join("")}</tbody></table>`;
     target.innerHTML = `<section class="panel"><h2>Plan</h2>${line ? `<p class="muted small" data-graph-as-of>${h(line)}</p>` : ""}<div data-plan-explain></div>
       <div class="cols"><div><h3>Architecture</h3><ul>${tree}</ul></div><div><h3>Steps</h3>${table}<div data-plan-diagram></div>
       <p><button type="button" class="btn" data-draft-plan>Draft the plan</button> <button type="button" class="btn" data-add-step>+ Step</button></p>${WHAT_DRAFT}<div data-plan-draft></div></div></div></section>`;

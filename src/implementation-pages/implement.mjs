@@ -145,9 +145,9 @@ async function drawPlan(target, context, facts, ctx, participants, workflow, m) 
   const current = rows.find((row) => row.state.state !== "done")?.phase ?? null;
   const preselected = (row) => row.verdict.startable && row.state.state === "ready" && row.phase === current;
   headOf(target, rows.length === 0 ? "" : `<table class="list"><thead><tr><th></th><th>Step</th><th>Phase</th><th>State</th><th>Why not</th></tr></thead><tbody>${rows.map((row) => `
-    <tr data-step="${h(row.state.item)}" data-state="${h(row.state.state)}" data-phase="${h(row.phase)}"><td><input type="checkbox" data-select-step aria-label="Select ${h(row.state.item)}"${row.verdict.startable ? "" : " disabled"}${preselected(row) ? " checked" : ""}></td>
-    <td>${h(row.state.item)}</td><td>${h(row.phase)}</td><td><span class="badge">${h(row.state.state)}</span>${returnedBy(row.state)}</td>
-    <td>${row.verdict.startable ? "" : `<ul data-reasons>${row.verdict.reasons.map((reason) => `<li>${h(reason)}</li>`).join("")}</ul>${row.verdict.reasons.some((reason) => /^No job can implement/.test(reason)) ? `<p data-none-of="${h(row.state.item)}">No participant can write and run tests. <a href="#participants">Declare a participant with the capabilities</a>; a model endpoint can draft a decision, not implement it.</p>` : ""}`}</td></tr>`).join("")}</tbody></table>
+    <tr data-step="${h(row.state.item)}" data-state="${h(row.state.state)}" data-phase="${h(row.phase)}"><td data-label=""><input type="checkbox" data-select-step aria-label="Select ${h(row.state.item)}"${row.verdict.startable ? "" : " disabled"}${preselected(row) ? " checked" : ""}></td>
+    <td data-label="Step">${h(row.state.item)}</td><td data-label="Phase">${h(row.phase)}</td><td data-label="State"><span class="badge">${h(row.state.state)}</span>${returnedBy(row.state)}</td>
+    <td data-label="Why not">${row.verdict.startable ? "" : `<ul data-reasons>${row.verdict.reasons.map((reason) => `<li>${h(reason)}</li>`).join("")}</ul>${row.verdict.reasons.some((reason) => /^No job can implement/.test(reason)) ? `<p data-none-of="${h(row.state.item)}">No participant can write and run tests. <a href="#participants">Declare a participant with the capabilities</a>; a model endpoint can draft a decision, not implement it.</p>` : ""}`}</td></tr>`).join("")}</tbody></table>
     <p data-selected></p><div data-jobs></div><p><button type="button" class="btn" data-start-jobs>Start jobs</button></p><div data-start-result></div>`, "A model that plans its work implements the steps of its implementation plan, in the plan's order.");
   // A box is ticked by its property; a document that does not keep the property is read by the attribute the page wrote.
   const isTickedBox = (box) => box.getAttribute("disabled") === null && (box.checked === undefined ? box.getAttribute("checked") !== null : box.checked === true);
@@ -390,7 +390,7 @@ async function draw(target, context, params) {
   // While the head's view is being stored, the items stand with their states as the view stored last gives them, and no job is started from it.
   if (backlog.asOf) {
     head(items.length === 0 ? `<p>No item is waiting to be implemented.</p>` : `<table class="list"><thead><tr><th>Item</th><th>State</th></tr></thead><tbody>${items.map((row) => `
-      <tr data-item="${h(row.item)}" data-state="${h(row.state.state)}"><td>${h(row.item)}</td><td><span class="badge">${h(row.state.state)}</span>${returnedBy(row.state)}</td></tr>`).join("")}</tbody></table>
+      <tr data-item="${h(row.item)}" data-state="${h(row.state.state)}"><td data-label="Item">${h(row.item)}</td><td data-label="State"><span class="badge">${h(row.state.state)}</span>${returnedBy(row.state)}</td></tr>`).join("")}</tbody></table>
       <p class="muted small">Jobs are started on the view of the newest commit, which is being stored: open the page again in a moment.</p>`);
     await drawPulls(target, context, snapshot);
     return;
@@ -429,9 +429,9 @@ async function draw(target, context, params) {
   const gatesText = (workflow?.gates ?? []).filter((gate) => implementingRoles(workflow).some((role) => (workflow.phases.find((phase) => phase.name === gate.from)?.roles ?? []).includes(role.name)))
     .map((gate) => `${h(gate.name)} (decided by ${h(gate.decider)})`);
   const body = rows.length === 0 ? `<p>No item is waiting to be implemented.</p>` : `<table class="list"><thead><tr><th></th><th>Item</th><th>State</th><th>Start</th></tr></thead><tbody>${rows.map((row) => `
-    <tr data-item="${h(row.id)}" data-state="${h(row.state.state)}" data-startable="${row.verdict.startable}"><td>${row.verdict.startable ? `<input type="checkbox" data-start-item="${h(row.id)}"${params?.item && params.item !== row.id ? "" : " checked"} aria-label="Start ${h(row.id)}">` : ""}</td>
-    <td>${h(row.id)}</td><td><span class="badge">${h(row.state.state)}</span>${returnedBy(row.state)}</td>
-    <td>${row.verdict.startable ? (row.holders.length === 0 ? `<p class="warn" data-reasons>${row.withheld.length ? "No holder of the implementing role is at a place the linked sources permit for this job." : "No holder of the implementing role can write and run tests."}</p>${withheldText(row)}` : `
+    <tr data-item="${h(row.id)}" data-state="${h(row.state.state)}" data-startable="${row.verdict.startable}"><td data-label="">${row.verdict.startable ? `<input type="checkbox" data-start-item="${h(row.id)}"${params?.item && params.item !== row.id ? "" : " checked"} aria-label="Start ${h(row.id)}">` : ""}</td>
+    <td data-label="Item">${h(row.id)}</td><td data-label="State"><span class="badge">${h(row.state.state)}</span>${returnedBy(row.state)}</td>
+    <td data-label="Start">${row.verdict.startable ? (row.holders.length === 0 ? `<p class="warn" data-reasons>${row.withheld.length ? "No holder of the implementing role is at a place the linked sources permit for this job." : "No holder of the implementing role can write and run tests."}</p>${withheldText(row)}` : `
       <label>Participant <select data-participant-of="${h(row.id)}">${row.holders.map((participant) => `<option value="${h(participant.name)}">${h(participant.name)}</option>`).join("")}</select></label>
       ${withheldText(row)}
       <p class="small" data-holders>${row.holders.map((participant) => `${h(participant.name)} processes data at ${h(participant.place ?? "no declared place")}; routes: ${routesFor(participant, participants, productInfo, []).map((offer) => `${h(recordRoute(offer.route))}${offer.available ? "" : " (not available)"}`).join(", ") || "none"}`).join("<br>")}</p>
