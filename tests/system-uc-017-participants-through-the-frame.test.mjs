@@ -104,10 +104,10 @@ const FLOW_EVIDENCE = {
   "main-3-model-preset": { uc: "and\n     the **model** the agent is configured to use, for example `claude-opus-5-5`.", evidence: [[SELF, "TST-375213"]] },
   "main-5-self-hosted-place": { uc: "The author states where the participant processes data. Agent M presets it where it can tell", evidence: [[SELF, "TST-375214"]] },
   "main-3-offered-agent": { uc: "the agent, chosen from those that Bridge offers (UC-044)", evidence: [[SELF, "TST-375216"]] },
+  "main-3-price": { uc: "its price per million input and\n   output tokens, so that the usage a runtime reports can be priced", evidence: [[SELF, "TST-375215"]] },
 };
 // The passages the page does otherwise: the finding, its case, and the module it points to.
 const FLOW_FINDINGS = {
-  "main-3-price": { uc: "its price per million input and\n   output tokens, so that the usage a runtime reports can be priced", finding: "UC017-F3", file: SELF, test: "TST-375215", module: "MOD-settings-pages" },
   "main-6-explained": { uc: "For a CLI or sandboxed agent, the author presses **Test**", finding: "UC017-F5", file: SELF, test: "TST-375217", module: "MOD-settings-pages" },
 };
 // The passages no code of this product carries here, with the reason.
@@ -542,8 +542,8 @@ test("TST-375214: UC-017 5 a CI agent on a self-hosted runner is not given the p
 // guards: UC-017; NO COST IS GUESSED
 // given: the frame at #participants over an empty register
 // input: the author adds a CI agent whose price they write as the field's hint says, input / output per million tokens ("2.00 / 8.00"), and reads the form; the register is read as the participants Agent M works with
-// expect: known positive — a price written in the form the register states ("2.00 / 8.00 USD per million tokens") is saved and read as a price of 2 and 8 USD; FINDING UC017-F3 (MOD-settings-pages): the price as typed is saved without a word and reads as no price, so a job's cost is shown as unknown for a participant whose author declared a price
-test("TST-375215: UC-017 3 a price that the register cannot read is not saved without a word", { todo: "FINDING UC017-F3 (MOD-settings-pages): the Price field's placeholder reads `input / output USD per million tokens` and the form accepts `2.00 / 8.00`; participantsOf reads a price only as `<input> / <output> <currency> per million tokens`, so the saved price is null (a cost shown as unknown) and no finding of the form tells the author" }, async (t) => {
+// expect: known positive — a price written in the form the register states ("2.00 / 8.00 USD per million tokens") is saved and read as a price of 2 and 8 USD; the price as typed ("2.00 / 8.00"), which the register reads as no price, is not saved without a word: the form tells the author that this price is not read, so a job's cost is not shown as unknown for a participant whose author declared a price
+test("TST-375215: UC-017 3 a price that the register cannot read is not saved without a word", async (t) => {
   const shown = await page(t);
   const main = shown.main();
   const add = async (name, price) => {
