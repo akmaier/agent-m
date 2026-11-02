@@ -26,6 +26,8 @@ function option(value, label) {
 export const namesNoBridge = (setting) => setting?.throughBridge === true && !(typeof setting.bridge === "string" && setting.bridge);
 export const CHOOSE_BRIDGE_DISCLOSURE = "This endpoint was stored as going through a Bridge, and no Bridge is named. Choose the Bridge that reaches it; nothing is sent until you do.";
 export const CHOOSE_BRIDGE_TEXT = "This endpoint was stored for a Bridge without naming it. Choose the Bridge that reaches it before testing; nothing was sent. ";
+// What a Clear of an endpoint says, in its form and on its line of the Settings page (UC-003 2b).
+export const CLEARED_TEXT = "The endpoint configuration is cleared from this browser.";
 
 function endpointKey(name) {
   return name ? `endpoint:${name}` : null;
@@ -406,7 +408,7 @@ export const route = {
         clearSetting(context.store, `last-test:${endpointKey(chosenName)}`);
       }
       applySetting(fields, "", null);
-      result.textContent = "The endpoint configuration is cleared from this browser.";
+      result.textContent = CLEARED_TEXT;
       await context.endpointsChanged?.();
     });
 

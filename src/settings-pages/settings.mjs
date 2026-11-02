@@ -16,7 +16,7 @@ import { gitlabVariableScopes, jobWorkflowFiles } from "../runtimes/index.mjs";
 import { checkProduct, credentialsFor, tokenKeyAddress, tokenRefusal, tokenSettingKey, route as addProductRoute } from "./products.mjs";
 import { connect, HostError, parseAddress } from "../repository-hosts/index.mjs";
 import { bridgeAt, pair, probe, settingsOf, testBridge } from "../bridge-client/index.mjs";
-import { actionsOffer, bridgeFailureText, contextFromTest, bridgeSettings as endpointBridgeSettings, CHOOSE_BRIDGE_DISCLOSURE, CHOOSE_BRIDGE_TEXT, namesNoBridge, recordTest, refusedText, route as endpointsRoute, runsOnActions, testThroughActions } from "./endpoints.mjs";
+import { actionsOffer, bridgeFailureText, contextFromTest, bridgeSettings as endpointBridgeSettings, CHOOSE_BRIDGE_DISCLOSURE, CHOOSE_BRIDGE_TEXT, CLEARED_TEXT, namesNoBridge, recordTest, refusedText, route as endpointsRoute, runsOnActions, testThroughActions } from "./endpoints.mjs";
 import { route as bridgeRoute } from "./bridge.mjs";
 import { mailboxSetting } from "./mailbox.mjs";
 import { settingsSubject } from "./subject.mjs";
@@ -24,6 +24,8 @@ import { heads } from "./routes.mjs";
 
 // The Settings page's own context, held by the context its tabs' forms open in.
 const PAGE = Symbol("the Settings page's own context");
+// The sentence a line's Clear hands to the page it draws again, which shows it where the line stood.
+const CLEARED = Symbol("what the page's own render confirms");
 
 // The tab each Settings page shows, by the page's own context: a render the page asks for itself keeps the tab the person
 // chose; Settings opened anew, with a context of its own, shows its first tab.
@@ -147,7 +149,7 @@ function endpointLine(target, context, info) {
   clear.addEventListener("click", async () => {
     clearSetting(context.store, info.key);
     clearSetting(context.store, `last-test:${info.key}`);
-    await route.render(target, context, {});
+    await route.render(target, { ...context, [CLEARED]: CLEARED_TEXT }, {});
   });
 
   return el("section", "settings-endpoint panel",
@@ -1382,6 +1384,7 @@ export const route = {
       ...(bridge ? [bridge] : []), ...namedBridges, ...(jumpHost ? [jumpHost] : []),
       ...remoteSessions, ...sessions,
       mailboxSetting(inPlace),
+      ...(given[CLEARED] ? [el("p", "settings-endpoint-cleared", given[CLEARED])] : []),
       endpoints);
     const usability = el("section", "settings-tab-panel",
       el("h3", null, "Usability · this browser"), notificationsControls(context));

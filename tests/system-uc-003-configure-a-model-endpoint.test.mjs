@@ -75,12 +75,12 @@ const FLOW_EVIDENCE = {
   "5a-text-only": { uc: "- **5a. The endpoint answers but rejects the tool, or answers without calling it.** The configuration is shown as working, *text only*; the endpoint's message, if it gave one, is shown folded.", evidence: [[SELF, "TST-266204"], [SELF, "TST-266211"]] },
   "4b-key": { uc: "- **4b. The key is wrong.** Agent M shows the endpoint's error message; the key stays stored until the author changes or clears it.", evidence: [[SELF, "TST-266206"], [SELF, "TST-266210"], [DIRECT, "TST-292004"]] },
   "2b-clear": { uc: "- **2b. The author clears the configuration.** Agent M removes the entries from `localStorage`, not only from the form, and confirms that nothing is stored.", evidence: [[SELF, "TST-266207"], [SELF, "TST-266212"], [DIRECT, "TST-292004"]] },
+  "2b-line": { uc: "and confirms that nothing is stored.", evidence: [[SELF, "TST-266213"]] },
   "post-browser": { uc: "The configuration exists only in this browser; an endpoint the browser cannot call names the Bridge that reaches it.", evidence: [[SELF, "TST-266203"], [SELF, "TST-266209"]] },
   "post-key": { uc: "The key has not appeared in a URL, a cookie, or any repository.", evidence: [[SELF, "TST-266202"], [SELF, "TST-266208"], [JOB, "TST-266221"]] },
 };
 // The passages the page does otherwise: the finding, its case, and the module it points to.
 const FLOW_FINDINGS = {
-  "2b-line": { uc: "and confirms that nothing is stored.", finding: "UC003-F1", file: SELF, test: "TST-266213", module: "MOD-settings-pages" },
 };
 // The passages no code of this product carries here, with the reason.
 const NOT_WALKED = {
@@ -424,8 +424,8 @@ test("TST-266212: UC-003 2b Clear of an endpoint reached through a Bridge remove
 // guards: UC-003; A CLEAR IS A REAL CLEAR
 // given: two working endpoints stored in a dashboard browser, campus and keeper, each shown as a line of the Endpoints & Agents tab and as a form
 // input: the author presses Clear in the form of campus; then presses Clear on keeper's line of the tab
-// expect: known positive — the form of campus reads "The endpoint configuration is cleared from this browser." and no entry of campus is left; FINDING UC003-F1 (MOD-settings-pages): UC-003 2b says Agent M removes the entries and confirms that nothing is stored, and after the line's Clear no entry of keeper is left but the tab says nothing of it (the line is gone, and no sentence says that keeper is cleared or that nothing is stored)
-test("TST-266213: UC-003 2b Clear on the endpoint's line of the tab confirms that nothing is stored, as the form's Clear does", { todo: "FINDING UC003-F1 (MOD-settings-pages): endpointLine's Clear (settings.mjs) clears the record and its last test and draws the tab again, without a sentence; only the form's Clear (endpoints.mjs) says 'The endpoint configuration is cleared from this browser.' (UC-003 2b: Agent M removes the entries from localStorage, not only from the form, and confirms that nothing is stored)" }, async () => {
+// expect: known positive — the form of campus reads "The endpoint configuration is cleared from this browser." and no entry of campus is left; after the line's Clear no entry of keeper is left, and the tab's text says that keeper is cleared or that nothing is stored
+test("TST-266213: UC-003 2b Clear on the endpoint's line of the tab confirms that nothing is stored, as the form's Clear does", async () => {
   const world = await openSettings({ handlers: [answers(HOST, [], () => json(callsTool().body))] });
   for (const fields of [CAMPUS, { ...CAMPUS, name: "keeper", key: "sk-keeper-key-2718" }]) { await configure(world); fill(world.main, fields); await saveAndTest(world); }
   await world.page.go("#endpoints/campus");

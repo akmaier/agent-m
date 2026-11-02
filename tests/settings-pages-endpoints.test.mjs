@@ -677,3 +677,29 @@ test("TST-1202002: a working test keeps the context the endpoint states, and the
     assert.doesNotMatch(target.textContent, /The prompt bar does not offer it/);
   } finally { globalThis.fetch = oldFetch; }
 });
+
+// TST-1441001 · level: unit · module: MOD-settings-pages
+// guards: UC-003; A CLEAR IS A REAL CLEAR
+// given: two endpoints stored, campus and local, each with its last test
+// input: the person presses Clear in the form of campus; then presses Clear on the line of local on the Settings page
+// expect: known positive — the form's Clear removes campus and its last test and its result reads the form's confirmation; the line's Clear removes local and its last test, the line leaves the page, and the page reads that same confirmation, "The endpoint configuration is cleared from this browser."
+test("TST-1441001: Clear on an endpoint's line confirms that nothing is stored, as the form's Clear does", async () => {
+  const store = freshStore();
+  for (const [name, setting] of [["campus", ENDPOINT], ["local", BRIDGED]]) {
+    writeSetting(store, `endpoint:${name}`, setting);
+    writeSetting(store, `last-test:endpoint:${name}`, { at: "2026-10-07T10:00:00.000Z", outcome: "working" });
+  }
+  const form = await render(store, { name: "campus" });
+  await click(byClass(form, "endpoint-clear")[0]);
+  assert.deepEqual([readSetting(store, "endpoint:campus"), readSetting(store, "last-test:endpoint:campus")], [null, null]);
+  const confirmation = byClass(form, "endpoint-result")[0].textContent;
+  assert.equal(confirmation, "The endpoint configuration is cleared from this browser.", "known positive: the form confirms");
+  const target = await renderSettings(store);
+  const local = byClass(target, "settings-endpoint").find((line) => /Endpoint: local/.test(line.textContent));
+  assert.ok(local, "known positive: local has its line");
+  assert.equal(target.textContent.includes(confirmation), false, "known negative: before the Clear the page does not confirm");
+  await click(byClass(local, "settings-endpoint-clear")[0]);
+  assert.deepEqual([readSetting(store, "endpoint:local"), readSetting(store, "last-test:endpoint:local")], [null, null], "the line's Clear removed the entries");
+  assert.doesNotMatch(target.textContent, /Endpoint: local/, "the line leaves the page");
+  assert.ok(target.textContent.includes(confirmation), "failure node: the page confirms that nothing is stored, as the form does");
+});
