@@ -258,3 +258,15 @@ test("TST-1421002: UC-034 6a an item whose job failed otherwise stays blocked an
   assert.match(reasons(target, "ITM-005"), new RegExp(`ITM-005 is blocked: job ${JOB_ID} is failed`));
   assert.deepEqual(found(row(target, "ITM-005"), "[data-returned]"), []);
 });
+
+// TST-1421005 · level: unit · module: MOD-implementation-pages
+// guards: UC-034; PROGRESS AND JOB STATE ARE DERIVED, NOT STORED
+// given: the product of TST-789001, whose sprint does not select ITM-003; ITM-003's only job ended failed at a rejected gate, its End reason "the gate Building → Checking was rejected by docs/gates/20261102-0900-building-checking-1421.md: The review found no test."
+// input: the route implement's render
+// expect: ITM-003 is ready and not startable, its reasons name that it is not selected for the sprint, and its row carries the reason of its return in <p data-returned>: a ready item shows why it returned whether or not it can start
+test("TST-1421005: UC-034 7a a ready item that cannot start yet shows the reason it returned beside the reasons it cannot start", async () => {
+  const { target } = await render({ ...productFiles(), ...endedJob("ITM-003", REJECTED) });
+  assert.deepEqual([row(target, "ITM-003").getAttribute("data-state"), row(target, "ITM-003").getAttribute("data-startable")], ["ready", "false"], "known positive: ready, and not selected for the sprint");
+  assert.match(reasons(target, "ITM-003"), /not selected/);
+  assert.deepEqual(found(row(target, "ITM-003"), "[data-returned]").map(text), [REJECTED]);
+});
