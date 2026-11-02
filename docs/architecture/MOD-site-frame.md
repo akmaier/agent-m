@@ -52,6 +52,7 @@ provides:
   - notice
   - schemaForm
   - readProblem
+  - routeProblem
 ---
 # MOD-site-frame The frame every page shares
 
@@ -197,7 +198,7 @@ It keeps nothing but what is on the screen. It owns these formats:
 - `PageSetup` — `{ page: "main" | "review" | "bridge", views: View[] }`.
 - `startPage(setup: PageSetup) -> Promise<void>` — draws the header, the menu, whose links carry the chosen product as
   `menuOf` gives them and in which the entry of the page shown is marked, and the product selector, shows the notices, connects the instance and the chosen product, and renders the route the fragment names, again on every
-  change of the fragment. A route whose rendering fails is replaced in its place by `readProblem` of that failure, except
+  change of the fragment. A route whose rendering fails is replaced in its place by `routeProblem` of that failure, except
   a refused token, which is shown as a notice. While the route shown reports `unsaved` true, closing or reloading the tab
   makes the browser ask first, in the words the browser gives that question. A fragment that names no loaded route shows the first route of its menu entry, or says that
   the entry is not built yet. On the main and the review pages, never in the Bridge's window, it starts MOD-notifications'
@@ -264,6 +265,11 @@ It keeps nothing but what is on the screen. It owns these formats:
   (`HostError`), the host's own message, and the link to store a token where none is stored; for an error that is no
   host's failure, a fault of the page itself: that this page could not be drawn, with the error's message, and no link
   to a token.
+- `routeProblem(failure: Error, tokenStored: boolean) -> Element` — what stands in the place of a route that could not be
+  drawn, in `startPage` and in the live page's app: for a host's failure (`HostError`), `readProblem` of it; for any
+  other error, a fault of the page itself, first the plain words of what happened and what the person can do — this page
+  cannot be shown, reload it, and report it with the message below if it happens again —, and below them `readProblem`
+  of it, with the error's message. It reads nothing and never throws.
 - `notice(kind: "token-expiring" | "token-refused" | "rate-limit" | "unreachable" | "setup" | "moved" | "info", detail:
   { text: string, link?: { label: string, href: string } }) -> void` — shows a notice in the page's one place for them;
   the frame itself shows a token's expiry from fourteen days before it (`A TOKEN'S EXPIRY IS WARNED OF IN ADVANCE`) with
