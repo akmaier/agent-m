@@ -202,7 +202,7 @@ test("without a group file every requirement stands at the top level", async () 
 // guards: UC-020
 // given: the fixture with a second queue, newer than the first (2026-10-10), whose open entry proposes the section "## Lending" with BETA RULE alone, so that it withdraws ALPHA RULE, which the older queue's entry changes
 // input: the route rendered at main
-// expect: ALPHA RULE reads "removal proposed", the status the first entry that names it gives (the queues are taken newest first, as MOD-spec-changes gives them), and not "change proposed"; known positive: with the older queue alone it reads "change proposed"
+// expect: ALPHA RULE reads "removal proposed", the status the newest entry that names it gives (the last in the order MOD-spec-changes' queues gives them: folder names, then entry numbers), and not "change proposed"; known positive: with the older queue alone it reads "change proposed"
 test("of two open entries that name a requirement the first gives its status", async () => {
   const newer = "docs/spec-freigaben/2026-10-10_withdraw";
   const files = {

@@ -206,7 +206,7 @@ runner receives a draft that already names the existing artifacts for its change
           "text": "## 1. Reading\n\n**A SAMPLE RULE** *(Product Owner; SRC-fixture-book, ch. 8)*\nA reader reads a file whole, or says why not.\n*Check:* `tests/better.test.mjs`\n\n**ANOTHER SAMPLE RULE** *(Product Owner)*\nA reader sees the name of a file.\n*Check:* no automatic check; at review\n\n"
         },
         {
-          "name": "02-writing.md",
+          "name": "01-writing.md",
           "text": "## 2. Writing\n\n**A WRITE RULE** *(Product Owner; SRC-fixture-book, ch. 9)*\nA writer writes a file whole.\n*Check:* no automatic check; at review\n\n**A WRITER NAMES ITS FILE** *(SRC-fixture-book, ch. 8)*\nA writer names the file it wrote.\n*Check:* no automatic check; at review\n"
         }
       ],
