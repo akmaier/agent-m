@@ -22,11 +22,13 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { testDeclarations } from "../src/test-document/index.mjs";
 import { roundsText } from "../src/job-runner/index.mjs";
 import { resultStrategies } from "../src/result-records/index.mjs";
 import { routeStrategies } from "../src/runtimes/index.mjs";
+import { approvalPath, recordText, reviewedRecord } from "./approval-records.mjs";
 import { text } from "./uc-010-harness.mjs";
 import { OTHER_RULE, RULE, WRITER, byClass, checkedNames, counterProof, declarations, find, implemented, item, memoryProduct, offeredNames, onDisk, openGenerate, prepare, proofPath, productFiles, proposeRun, proposed,
   runButtons, select, sharedWorld } from "./uc-026-harness.mjs";
@@ -66,7 +68,7 @@ const EVIDENCE = {
   "A RUN EXECUTES THE PROCESS MODEL OVER A SELECTION": [["tests/test_process_run.py", "TST-1045401"], ["tests/test_process_run.py", "TST-1045402"]],
   "A TEST JOB RECEIVES THE CHAPTER ON TESTING": [[SELF, "TST-771313"], ["tests/test_job_reading_checkout.py", "TST-417100"]],
 };
-const FINDINGS = { "TST-771309": { finding: "UC026-F2", module: "MOD-test-pages" } };
+const FINDINGS = {};
 
 // TST-771301 · level: release · module: system
 // guards: UC-026
@@ -277,8 +279,12 @@ test("TST-771315: UC-026 8 the tests reach main only as a pull request that name
 
 // ---------------------------------------------------------------- what the page offers and says
 
+// The record by which a person accepts MOD-loans' file as the product holds it: the page offers only accepted names, and UC-001's record is the harness's.
+const MOD_LOANS = "docs/architecture/MOD-loans.md";
+const gitBlob = (body) => createHash("sha1").update(`blob ${Buffer.byteLength(body)}\0${body}`).digest("hex");
+const acceptingModuleLoans = () => { const blob = gitBlob(productFiles()[MOD_LOANS]); return { [approvalPath("MOD-loans", blob)]: recordText(reviewedRecord(MOD_LOANS, blob)) }; };
 const pageWorld = sharedWorld({ product: { ...item("ITM-050", ["UC-001"], ["MOD-loans"]), ...item("ITM-051", [OTHER_RULE], ["MOD-members"]), ...implemented("test-bot", ["ITM-050"]),
-  ...implemented("other-bot", ["ITM-051"], "JOB-20261010-0900-ab02") } });
+  ...implemented("other-bot", ["ITM-051"], "JOB-20261010-0900-ab02"), ...acceptingModuleLoans() } });
 test.before(async () => { await pageWorld.start(); });
 test.after(async () => { await pageWorld.stop(); });
 const leftOut = (target) => byClass(target, "p", "left-out").map((one) => /^(\S+) is left out/.exec(one.textContent)?.[1]);
@@ -300,10 +306,10 @@ test("TST-771316: UC-026 4 the page leaves the implementer of a requirement out 
 
 // TST-771309 · level: release · module: system
 // guards: RELEASE TESTS ARE NOT WRITTEN BY THE IMPLEMENTER; UC-026
-// given: the product of TST-771316, and test-bot recorded as the implementer of the item ITM-050, which realises UC-001 and changes MOD-loans; known positive first — other-bot, the implementer of ITM-051, is left out for the requirement that item realises
+// given: the product of TST-771316, which holds an approval record that accepts MOD-loans, and test-bot recorded as the implementer of the item ITM-050, which realises UC-001 and changes MOD-loans; known positive first — other-bot, the implementer of ITM-051, is left out for the requirement that item realises
 // input: the selection UC-001 at system and release (UC-026's own example is "UC-005, system and release"); then MOD-loans at release
-// expect: known positive — other-bot is left out for A LOAN CAN BE EXTENDED ONCE; test-bot is left out of the release tests of UC-001 and of MOD-loans; FINDING UC026-F2 (MOD-test-pages): implementersOf finds a job only on the selected name itself or on an item that names a selected requirement
-test("TST-771309: UC-026 4 the implementer of an item that realises a use case or changes a module is left out of the release tests of it", { todo: "FINDING UC026-F2 (MOD-test-pages): implementersOf (src/test-pages/generate.mjs:118-128) matches a job's worksOn against the selected names and, for a requirement, the items and use cases that trace to it; a job of kind implement works on an item (ITM-050), which a selected use case or module is traced from only by its realises and modules, so test-bot, who implemented ITM-050, is offered for UC-001 and MOD-loans at release" }, async () => {
+// expect: known positive — other-bot is left out for A LOAN CAN BE EXTENDED ONCE; test-bot is left out of the release tests of UC-001 and of MOD-loans
+test("TST-771309: UC-026 4 the implementer of an item that realises a use case or changes a module is left out of the release tests of it", async () => {
   const target = await openGenerate(pageWorld.w);
   await select(target, [OTHER_RULE], ["release"]);
   assert.deepEqual(leftOut(target), ["other-bot"], "known positive");
