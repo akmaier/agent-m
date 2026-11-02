@@ -213,7 +213,7 @@ test("TST-1335101: UC-005 a requirement proposed as a change of itself with its 
   assert.equal(classOf("A BOOK IS SHELVED"), "change", "another rule under its own name is a change");
   assert.equal(classOf("A LOAN HAS A DUE DATE"), "duplicate", "its own rule restated is a duplicate of it");
   const written = await write();
-  assert.match(written, /\| `A LOAN HAS A DUE DATE` \| source added \|/, "the queue adds its source to A LOAN HAS A DUE DATE");
+  assert.match(written, /\*\*The change\.\*\* [^\n]*adds a source to A LOAN HAS A DUE DATE/, "the entry's rationale says it adds its source to A LOAN HAS A DUE DATE");
   assert.doesNotMatch(written, /^EVERY loan {2}states/m, "the restated rule is not written as the requirement's text");
 });
 
@@ -226,8 +226,10 @@ test("TST-1335102: UC-005 a change of a requirement stands under its name only w
   const draft = (rule) => [{ name: "A LOAN HAS A DUE DATE", rule, check: "`tests/loan.test.mjs`", constrains: "product", passage: "ch. 1", class: "change", of: "A LOAN HAS A DUE DATE", source: SOURCE }];
   const changed = await runDraft(draft("Every loan states the date by which the book is returned, and the date of renewal."));
   assert.equal(changed.classOf("A LOAN HAS A DUE DATE"), "change");
-  assert.match(await changed.write(), /and the date of renewal/, "the change is written under the existing name with the new rule");
+  const writtenChange = await changed.write();
+  assert.match(writtenChange, /and the date of renewal/, "the change is written under the existing name with the new rule");
+  assert.match(writtenChange, /\*\*The change\.\*\* [^\n]*changes A LOAN HAS A DUE DATE/, "known positive: the entry's rationale names the change");
   const same = await runDraft(draft(LOAN_RULE));
   assert.equal(same.classOf("A LOAN HAS A DUE DATE"), "duplicate", "counter-proof: the same rule is a duplicate");
-  assert.doesNotMatch(await same.write(), /\| `A LOAN HAS A DUE DATE` \| changed \|/, "no change of that requirement is written");
+  assert.doesNotMatch(await same.write(), /\*\*The change\.\*\* [^\n]*changes A LOAN HAS A DUE DATE/, "no change of that requirement is written");
 });

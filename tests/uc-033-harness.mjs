@@ -46,16 +46,16 @@ export const PRODUCT_EXTRA = {
   [itemPath(EXISTING.id, EXISTING.title)]: itemText(EXISTING),
 };
 
-/** A change queue naming the issue `issue` of the product, with one entry that replaces the section "## 1. Section" of SPEC.md by `rules`, each { name, text }. */
+/** A change queue whose entry's rationale names the issue `issue` of the product, with one entry that replaces the section "## 1. Section" of SPEC.md by `rules`, each { name, text }. */
 export function queueOf(folder, issue, rules, product = PRODUCT_URL) {
   const base = `docs/spec-freigaben/${folder}`;
   const section = ["## 1. Section", "", ...rules.flatMap(({ name, text, check = "no automatic check; at review." }) => [`**${name}** *(Product Owner)*`, text, `*Check:* ${check}`, ""])].join("\n");
   return {
-    [`${base}/index.md`]: lines(`# SPEC approvals — queue ${folder.slice(0, 11)} · ${folder.slice(12)}`, "", `**Issue:** #${issue} of ${product}`, "", "**Zieldatei aller Einträge:** `SPEC.md`", "",
+    [`${base}/index.md`]: lines(`# SPEC approvals — queue ${folder.slice(0, 11)} · ${folder.slice(12)}`, "", "**Zieldatei aller Einträge:** `SPEC.md`", "",
       "| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |", "|---|---|---|---|---|", "| 01 | `SPEC.md` | ## 1. Section | — | |"),
     [`${base}/entscheidungen.md`]: "# Decisions\n\nAppend-only.\n",
     [`${base}/01-section.md`]: section,
-    [`${base}/01-section.begruendung.md`]: "# Reason\n\nWhy.\n",
+    [`${base}/01-section.begruendung.md`]: `# Reason\n\nWhy.\n\n**Issue:** #${issue} of ${product}\n`,
   };
 }
 

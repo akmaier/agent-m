@@ -136,13 +136,13 @@ test("TST-585303: UC-012 a change of an existing requirement from an issue carri
 // guards: EVERY ARTIFACT NAMES ITS ORIGIN; UC-012
 // given: the open issue 5; in one world it is confirmed as a change and the change saved; in another it is confirmed as a bug and its fix queued with ci-bot
 // input: Save of the change; Run of the fix
-// expect: the queue's index names "**Issue:** #5 of https://github.com/alice/product" and its rationale names the issue and the person's source SRC-alice; the fix's job record works on https://github.com/alice/product/issues/5
+// expect: the entry's rationale holds the line "**Issue:** #5 of https://github.com/alice/product" and names the issue and the person's source SRC-alice; the fix's job record works on https://github.com/alice/product/issues/5
 test("TST-585304: UC-012 the change and the fix name the issue they came from", async () => {
   const w = start({ issues: [issueOf(5, NAMING)], analysis: AS_CHANGE, change: { candidates: [NEW] } });
   await saved(await drafted(await confirmed(w, "change")));
   const files = queueFiles(w);
-  assert.ok(files.find((entry) => entry.path.endsWith("/index.md"))?.content.includes(`**Issue:** #5 of ${PRODUCT_URL}`), "the index names the issue");
   const rationale = files.find((entry) => entry.path.endsWith(".begruendung.md"))?.content ?? "";
+  assert.ok(rationale.includes(`**Issue:** #5 of ${PRODUCT_URL}`), "the entry's rationale names the issue");
   assert.ok(rationale.includes(`issue #5 of ${PRODUCT_URL}`) && rationale.includes(SOURCE), rationale);
   restoreWorld();
 

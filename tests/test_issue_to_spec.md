@@ -10,7 +10,7 @@ nothing else is committed, and no fix is offered for it. On a GitLab server the 
 the number of the page opened (`issue`), the person's steps in order (`class`: the click on a class of the issue; `draft`: the participant drafts the
 change and the person saves it), and the candidates the fake participant answers (`candidates`). `expected` names only what the case asserts, out of:
 `labels` and `state` (the issue at the end), `issueWrites` (the writes made to the issue), `committed` (every path committed to the product),
-`outsideDocs` (those of them that do not lie under `docs/`, which are code or tests), `queueNames` (the issue each queue index names),
+`outsideDocs` (those of them that do not lie under `docs/`, which are code or tests), `queueNames` (the issue each entry's rationale names),
 `queueHolds` (each of the case's `needles`: whether an entry of a queue holds it), `jobKinds` (the kind of each job record committed), and `changeSection` and `fixSection` (whether the page
 offers the section that drafts the change and the one that fixes a bug). A case with `server` `gitlab` in its `input` runs the product on the fake GitLab server (its `issues` hold the one issue) and
 may state `unserved` (the requests of the project's API the fake did not serve). The class case on a GitLab server has `input` `issue` and `cls` (the class clicked) and `expected` `writes`

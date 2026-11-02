@@ -29,7 +29,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { testDeclarations } from "../src/test-document/index.mjs";
-import { openQueueOf } from "../src/spec-changes/index.mjs";
 import { CARD, GROUPS, GROUPS_PATH, LENDING, LENDING_HEADING, LIBRARY_SPEC, LOAN, MEMBERSHIP, MEMBERSHIP_HEADING, SHELF, SPEC_HEAD, SPEC_TOKEN, UC1_PATH, areaOf, blobOf, byClass, click, explainedOf, find,
   fullUseCase, linksOf, marksOf, paramsOf, queueFiles, queueWrites, resultOf, saveOf, scripted, specWorld, textOf, today, typeInto, until, whyOf } from "./uc-018-harness.mjs";
 import { P41, P42, UC41, UC42, TOKENS, badgeOf, world as useCaseWorld } from "./uc-008-harness.mjs";
@@ -201,7 +200,7 @@ test("TST-376204: UC-018 1 to 4 a requirement opens from the specification brows
 // guards: UC-018; A SPEC EDIT IS SAVED AS A PROPOSAL; A SPECIFICATION CHANGE IS APPROVED BEFORE IT IS WRITTEN; NO PROPOSAL WITHOUT THE CURRENT TEXT BESIDE IT; ONE CLICK PER DECISION
 // given: the library on GitHub, the author's token stored, no queue in the repository
 // input: the author edits the rule of A LOAN HAS A DUE DATE to "… is returned, or renewed.", writes "A loan may be renewed." in Why and clicks Save once; then follows the link to the new entry
-// expect: one commit under the author's token holding a new queue of today under docs/spec-freigaben/ — its index with the row naming "## 1. Lending", its decisions, the proposal (the section as edited, byte for byte) and its rationale with the Why and the impact list naming A LOAN HAS A DUE DATE and UC-001 —, and no SPEC.md; SPEC.md is byte-identical; the page links the commit and the entry spec-<queue>-01; the entry's page shows the section now in the SPEC, the proposal and their difference
+// expect: one commit under the author's token starting the section's queue docs/spec-freigaben/lending — its index with the row naming "## 1. Lending", its decisions, the proposal (the section as edited, byte for byte) and its rationale with the Why and the impact list naming A LOAN HAS A DUE DATE and UC-001 —, and no SPEC.md; SPEC.md is byte-identical; the page links the commit and the entry spec-<queue>-01; the entry's page shows the section now in the SPEC, the proposal and their difference
 test("TST-376205: UC-018 5, 6, 7 a saved requirement is one commit of a queue entry, SPEC.md untouched, and the entry opens beside the current section", async () => {
   const w = await specWorld();
   const target = await w.draw("requirement", { name: LOAN });
@@ -211,7 +210,7 @@ test("TST-376205: UC-018 5, 6, 7 a saved requirement is one commit of a queue en
   click(saveOf(target));
   await until(() => byClass(target, "p", "entry").length === 1, "the entry");
   assert.equal(w.writes().length, 1, "one commit");
-  const files = w.writes()[0].files, folder = `docs/spec-freigaben/${today()}_edits-of-agent-m-library`;
+  const files = w.writes()[0].files, folder = "docs/spec-freigaben/lending";
   assert.deepEqual(Object.keys(files).sort(), [`${folder}/01-lending.begruendung.md`, `${folder}/01-lending.md`, `${folder}/entscheidungen.md`, `${folder}/index.md`]);
   assert.equal(files[`${folder}/01-lending.md`], edited, "the proposal is the section as edited");
   assert.match(files[`${folder}/index.md`], new RegExp(`\\| 01 \\| \`SPEC.md\` \\| ${LENDING_HEADING} \\|`));
@@ -224,7 +223,7 @@ test("TST-376205: UC-018 5, 6, 7 a saved requirement is one commit of a queue en
   assert.ok(links.includes(`https://github.com/alice/library/commit/${w.head()}`), links.join(" "));
   const entry = links.find((href) => href.startsWith("#spec-entry/"));
   const { params } = paramsOf(entry);
-  assert.equal(params.id, `spec-${today()}_edits-of-agent-m-library-01`);
+  assert.equal(params.id, "spec-lending-01");
   const shown = await w.draw("spec-entry", { id: params.id });
   assert.match(textOf(byClass(shown, "section", "current")[0]), /is returned\./);
   assert.match(textOf(byClass(shown, "section", "proposal")[0]), /is returned, or renewed\./);
@@ -462,7 +461,7 @@ test("TST-376214: UC-018 4a without a token Save offers GitHub's page for each f
     assert.ok(!decodeURIComponent(page.href).includes("renewed"), `no text in ${page.href}`);
   }
   assert.ok(shown.some((page) => page.text === edited), "the proposal's text, byte for byte, beside its page");
-  const folder = `docs/spec-freigaben/${today()}_edits-of-anonymous`;
+  const folder = "docs/spec-freigaben/lending";
   assert.deepEqual(shown.map((page) => new URL(page.href).searchParams.get("filename")).sort(), [`${folder}/01-lending.begruendung.md`, `${folder}/01-lending.md`, `${folder}/entscheidungen.md`, `${folder}/index.md`]);
 });
 
@@ -550,7 +549,7 @@ test("TST-376217: UC-018 5a after a refused save, the save of the merged text co
 // guards: UC-018; A SAVE IS REFUSED WHEN THE TEXT CHANGED MEANWHILE
 // given: the library on GitHub with bob's open queue 2026-10-30_bobs, whose entry 01 proposes "## 1. Lending"; the author's token stored
 // input: the author opens the editor of A LOAN HAS A DUE DATE, edits it, gives a Why and saves
-// expect: the editor names spec-2026-10-30_bobs-01 among the other open proposals on the section, linked; the new entry is written anyway, in the author's own queue, and the page names bob's entry as also replacing the section; bob's queue is unchanged
+// expect: the editor names spec-2026-10-30_bobs-01 among the other open proposals on the section, linked; the new entry is written anyway, in the section's queue docs/spec-freigaben/lending, and the page names bob's entry as also replacing the section; bob's queue is unchanged
 test("TST-376218: UC-018 6a another open proposal on the section is named, and the new entry is written anyway", async () => {
   const bobs = queueFiles("2026-10-30_bobs", [{ nr: 1, anchor: LENDING_HEADING, proposal: LENDING.replace("is returned.", "is returned in a week.") }]);
   const w = await specWorld({ files: bobs, authors: Object.fromEntries(Object.keys(bobs).map((path) => [path, "bob"])) });
@@ -564,7 +563,7 @@ test("TST-376218: UC-018 6a another open proposal on the section is named, and t
   await until(() => byClass(target, "ul", "also").length === 1 && w.writes().length === 1, "the save");
   assert.match(textOf(byClass(target, "ul", "also")[0]), /spec-2026-10-30_bobs-01/);
   assert.ok(Object.keys(w.writes()[0].files).every((path) => !path.includes("2026-10-30_bobs")), "bob's queue is not written");
-  assert.ok(Object.keys(w.writes()[0].files).some((path) => path.startsWith(`docs/spec-freigaben/${today()}`)));
+  assert.ok(Object.keys(w.writes()[0].files).some((path) => path.startsWith("docs/spec-freigaben/lending/")));
 });
 
 // TST-376219 · level: system · module: system

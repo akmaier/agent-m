@@ -49,6 +49,8 @@ const README = "docs/use-cases/README.md";
 const ARC = "docs/architecture/ARC-001-static-client.md", READER = "docs/architecture/MOD-reader.md";
 const PAGE = "docs/architecture/MOD-page.md", REVIEW = "docs/architecture/MOD-review.md";
 const DONE = "docs/spec-freigaben/2026-09-01_done", OPEN = "docs/spec-freigaben/2026-09-02_open";
+// The rationales of the queues' entries, which queues reads for each entry's issue (MOD-spec-changes, Queue).
+const RATIONALES = [`${DONE}/01-rules.begruendung.md`, `${OPEN}/01-more.begruendung.md`];
 const INDEX = (anchor) => "# Queue\n\n**Zieldatei aller Einträge:** `products/fixture/SPEC.md`\n\n| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |\n" +
   `|---|---|---|---|---|\n| 01 | \`SPEC.md\` | ${anchor} | — | — |\n`;
 
@@ -175,9 +177,9 @@ test("TST-1429018: #spec: the app reads the SPEC in one batch, the queues' heads
   const repo = await product(), srv = await server(repo);
   const page = await openDashboard({ server: srv, hash: "#spec" });
   const wave1 = ["SPEC.md"], heads = sorted([`${DONE}/entscheidungen.md`, `${DONE}/index.md`, `${OPEN}/entscheidungen.md`]);
-  const wave3 = [`${OPEN}/01-more.md`];
-  assert.deepEqual(batchesOf(page.requests), ["batch 1", "batch 3", "batch 0", "batch 1"], "batch 0 is greenToMerge's (ITM-1170)");
-  assert.deepEqual(srv.batches.map(sorted), [wave1, heads, [], wave3], "no other batch: no graph is built from the files; the empty one is greenToMerge's (ITM-1170)");
+  const wave3 = [`${OPEN}/01-more.md`], rationales = RATIONALES;
+  assert.deepEqual(batchesOf(page.requests), ["batch 1", "batch 3", "batch 0", `batch ${rationales.length}`, "batch 1"], "batch 0 is greenToMerge's (ITM-1170)");
+  assert.deepEqual(srv.batches.map(sorted), [wave1, heads, [], rationales, wave3], "no other batch: no graph is built from the files; the empty one is greenToMerge's (ITM-1170); the rationales, whose line Issue gives each entry's issue (MOD-spec-changes, Queue), in the queues' second round");
   assert.equal(new Set(srv.batches.flat()).size, srv.batches.flat().length, "no file twice");
   assert.deepEqual(shownFiles(page.requests), [], "the app reads no file by itself");
   const main = page.main();
@@ -201,8 +203,8 @@ test("TST-1429019: #spec: the links file and the register's entries are read in 
   const page = await openDashboard({ server: srv, hash: "#spec" });
   const wave1 = sorted(["SPEC.md", ...Object.keys(register)]);
   const heads = sorted([`${DONE}/entscheidungen.md`, `${DONE}/index.md`, `${OPEN}/entscheidungen.md`]);
-  assert.deepEqual(batchesOf(page.requests), ["batch 4", "batch 3", "batch 0", "batch 1"], "batch 0 is greenToMerge's (ITM-1170)");
-  assert.deepEqual(srv.batches.map(sorted), [wave1, heads, [], [`${OPEN}/01-more.md`]], "the empty batch is greenToMerge's (ITM-1170)");
+  assert.deepEqual(batchesOf(page.requests), ["batch 4", "batch 3", "batch 0", `batch ${RATIONALES.length}`, "batch 1"], "batch 0 is greenToMerge's (ITM-1170)");
+  assert.deepEqual(srv.batches.map(sorted), [wave1, heads, [], RATIONALES, [`${OPEN}/01-more.md`]], "the empty batch is greenToMerge's (ITM-1170); the rationales in the queues' second round");
   assert.equal(new Set(srv.batches.flat()).size, srv.batches.flat().length, "no file twice");
   assert.deepEqual(shownFiles(page.requests), [], "no file by itself");
 });

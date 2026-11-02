@@ -17,7 +17,7 @@
 //     default branch, <p class="problem"> "The file differs on the default branch; compare before committing." (as tests/review-pages-edit-requirement-pages.test.mjs reads the requirement editor's list).
 //   - "A file that differs" is stood in for by a snapshot whose `paths` is read through a counter: the last reading of an unwarned Save names one path less (or one more) than the earlier ones, so that the
 //     default branch no longer has the file as the edit started (MOD-artifact-edits' fallbackEditLinks: "`differs` says that the default branch, as the snapshot holds it, no longer has the file as the edit started").
-//   - Without a token the person of a requirements draft is "anonymous", so its queue is docs/spec-freigaben/<day>_edits-of-anonymous.
+//   - The queue of a requirements draft of the section "## 1. Lending" is its section's queue, docs/spec-freigaben/lending.
 
 import "./review-pages-harness.mjs";
 import test from "node:test";
@@ -218,8 +218,8 @@ test("draft — without a token the pages of a draft of requirements are fallbac
   assert.equal(written(fake).length, 0, "nothing committed");
   assert.ok(sentencesOf(target).includes(SENTENCE), `the sentence: ${JSON.stringify(sentencesOf(target))}`);
   const found = listed(target);
-  const queue = /^(docs\/spec-freigaben\/\d{4}-\d\d-\d\d_edits-of-anonymous)\//.exec(found[0].path)?.[1];
-  assert.ok(queue, `the queue of the person: ${found[0].path}`);
+  const queue = /^(docs\/spec-freigaben\/lending)\//.exec(found[0].path)?.[1];
+  assert.ok(queue, `the queue of the section: ${found[0].path}`);
   assert.deepEqual(found.map((page) => page.path.replace(queue, "<queue>")).sort(), ["<queue>/01-lending.begruendung.md", "<queue>/01-lending.md", "<queue>/entscheidungen.md", "<queue>/index.md"]);
   for (const page of found) {
     assert.equal(page.clipboard.length, 1, `${page.path}: one text beside the link`);
@@ -276,7 +276,7 @@ test("spec-entry/<id>/edit — without a token a file that appeared on the defau
 // input: a click on Save
 // expect: the page of the index carries the warning "The file differs on the default branch; compare before committing." beside its text; no other page carries a warning, and each other page still carries its text
 test("draft — without a token the index of a draft of requirements that the default branch lost since the draft was opened is warned about on its page", async () => {
-  const index = `docs/spec-freigaben/${new Date().toISOString().slice(0, 10)}_edits-of-anonymous/index.md`;
+  const index = "docs/spec-freigaben/lending/index.md";
   const { target } = await savedRequirements(null, { extra: [index] });
   const found = listed(target);
   const warned = found.find((page) => page.path === index);

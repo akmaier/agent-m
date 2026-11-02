@@ -460,7 +460,7 @@ test("TST-579320: a conflict is shown beside what it contradicts, neither applie
   assert.equal(classOf(panel, "THE DUE DATE MAY BE HIDDEN"), "conflict", "not dropped from the panel");
   setClass(panel, "THE DUE DATE MAY BE HIDDEN", "change", LOAN);
   await write(prepared.page);
-  const decided = Object.entries(writtenFiles(w)).filter(([path]) => path.endsWith("01-lending.md")).map(([, body]) => body).at(-1);
+  const decided = Object.entries(writtenFiles(w)).filter(([path]) => /\/\d+-lending\.md$/.test(path)).map(([, body]) => body).at(-1);
   assert.ok(decided.includes(`**${LOAN}** *(SRC-handbook, ch. 1; SRC-policy, ch. 3)*\nA loan may hide its due date.`));
 });
 
@@ -484,14 +484,13 @@ test("TST-579321: candidates of one run that state the same rule are written as 
 // guards: A REQUIREMENT IS NOT CHANGED WITHOUT AN IMPACT LIST; UC-005
 // given: the product holds UC-001, which realises A LOAN HAS A DUE DATE; the endpoint answers a change of A LOAN HAS A DUE DATE and a new requirement
 // input: Run; Write proposals
-// expect: the entry's rationale lists, under its impact list, A LOAN HAS A DUE DATE with UC-001 as what names it, and the new requirement as new with nothing naming it; the queue's index lists the change with UC-001 as what references it; the impact list is written with the proposal, not after it
+// expect: the entry's rationale lists, under its impact list, A LOAN HAS A DUE DATE with UC-001 as what names it, and the new requirement as new with nothing naming it; the rationale's change names the change of A LOAN HAS A DUE DATE; the impact list is written with the proposal, not after it
 test("TST-579322: a change of a requirement is written with the list of what names it", async () => {
   const { w, prepared } = await derived({ candidates: [candidate("THE DUE DATE IS SHOWN", { class: "change", of: LOAN, rule: "Every loan shows its due date.", passage: "ch. 1" }), NEW_FINE] });
   await write(prepared.page);
   assert.equal(w.proposals().length, 1, "one commit holds the proposal and its impact list");
   assert.match(rationaleOf(w), /\*\*Impact list\.\*\*\n- A LOAN HAS A DUE DATE: named by UC-001 \(realises\)\.\n- A FINE IS CHARGED: new; nothing names it yet\./);
-  const index = Object.entries(writtenFiles(w)).find(([path]) => path.endsWith("/index.md"))[1];
-  assert.match(index, /\| `A LOAN HAS A DUE DATE` \| changed \| `UC-001` \|/);
+  assert.match(rationaleOf(w), /\*\*The change\.\*\* [^\n]*changes A LOAN HAS A DUE DATE/, "the entry's rationale names the change; a section's queue's index holds only its entries (MOD-spec-changes, Data)");
 });
 
 // TST-579323 · level: release · module: system

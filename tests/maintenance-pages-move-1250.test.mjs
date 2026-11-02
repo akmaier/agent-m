@@ -53,11 +53,11 @@ const THIRD = rule("THIRD RULE", "The third rule holds.", "no automatic check; a
 function queue(folder, issue, rules) {
   const base = `docs/spec-freigaben/${folder}`;
   return {
-    [`${base}/index.md`]: [`# SPEC approvals — queue ${folder.slice(0, 11)} · ${folder.slice(12)}`, "", `**Issue:** #${issue.number} of ${issue.product}`, "", "**Zieldatei aller Einträge:** `SPEC.md`", "",
+    [`${base}/index.md`]: [`# SPEC approvals — queue ${folder.slice(0, 11)} · ${folder.slice(12)}`, "", "**Zieldatei aller Einträge:** `SPEC.md`", "",
       "| Nr | Datei | Anker (Überschrift, wortgetreu) | bis (exklusiv) | Commits |", "|---|---|---|---|---|", "| 01 | `SPEC.md` | ## 1. Section | — | |", ""].join("\n"),
     [`${base}/entscheidungen.md`]: "# Decisions\n\nAppend-only.\n",
     [`${base}/01-section.md`]: `${SECTION(rules)}`,
-    [`${base}/01-section.begruendung.md`]: "# Reason\n\nWhy.\n",
+    [`${base}/01-section.begruendung.md`]: `# Reason\n\nWhy.\n\n**Issue:** #${issue.number} of ${issue.product}\n`,
   };
 }
 // Issue 7's queue changes FIRST RULE and adds THIRD RULE; another product's issue 7 and this product's issue 6 each have a queue changing SECOND RULE, which no issue-7 item may name.

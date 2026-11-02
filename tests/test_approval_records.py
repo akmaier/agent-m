@@ -40,7 +40,8 @@ process.stdout.write(JSON.stringify(JSON.parse(readFileSync(0, "utf8")).map(([na
   try { documents.writeDocument(schema, { fields: f }); } catch (e) { problem(e.message); }
   if (typeof f.blob === "string" && f.blob && !name.includes(f.blob.slice(0, 12))) problem("file name does not carry the blob prefix");
   if (f.kind === "spec") {
-    if (f.proposal && !existsSync(join(root, f.proposal))) problem(`${f.proposal} does not exist`);
+    // A record of a queue the tree no longer holds names a proposal the history keeps (THE REPLACED TEXT STAYS REACHABLE), as applyApproved leaves it alone.
+    if (f.proposal && f.queue && existsSync(join(root, f.queue)) && !existsSync(join(root, f.proposal))) problem(`${f.proposal} does not exist`);
   } else if (typeof f.file === "string" && f.file) {
     const held = [...tree(root)].filter(([path]) => dirname(path) === dirname(f.file));
     const own = held.find(([path]) => path === f.file) ?? held.find(([, e]) =>

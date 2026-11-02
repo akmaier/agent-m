@@ -45,9 +45,9 @@ test("TST-479101: UC-006 3b opens an entry with its impact list over 1,332 files
   assert.match(byClass(page, "section", "rationale")[0].textContent, /fixture reviewer needs a proposed wording/);
   assert.equal(byClass(page, "ul", "impact")[0].textContent, "A WRITE RULE — changed, named by UC-002");
 
-  // The queue's 2 files, SPEC.md, the entry's proposal and rationale: 3 queries; the graph of the 1,332 files is read stored, by one request.
+  // The queue's 2 files; SPEC.md with the entry's rationale, whose line Issue gives its issue (MOD-spec-changes, Queue); the entry's proposal: 3 queries; the graph of the 1,332 files is read stored, by one request.
   // ITM-1170: the first query, naming no file, is greenToMerge's beside the repository's information.
-  assert.deepEqual(fake.namedPerQuery(), [0, 2, 1, 2]);
+  assert.deepEqual(fake.namedPerQuery(), [0, 2, 2, 1]);
   assert.deepEqual(ownFiles(fake), []);
   assert.equal(graphReads(fake).length, 1, "the stored graph, read once");
   assert.equal(overviewReads(fake).length, 2, "the commit's overview and latest.json, read once each");
@@ -59,7 +59,7 @@ test("TST-479101: UC-006 3b opens an entry with its impact list over 1,332 files
 // guards: UC-006
 // given: the same product of 1,332 files and the reviewer's token
 // input: open the SPEC entries list (the page without an id)
-// expect: the list shows entry 07 as open; at most 6 requests (1 repository + greenToMerge's GraphQL request beside it (ITM-1170) + 2 snapshot + 2 GraphQL queries: one of the queue's index and decisions, one of SPEC.md), no read of a file on its own, no read of a backlog item
+// expect: the list shows entry 07 as open; at most 6 requests (1 repository + greenToMerge's GraphQL request beside it (ITM-1170) + 2 snapshot + 2 GraphQL queries: one of the queue's index and decisions, one of SPEC.md and the entry's rationale, whose line Issue gives its issue), no read of a file on its own, no read of a backlog item
 test("TST-479102: UC-006 1 opens the SPEC entries list over 1,332 files in at most 6 requests", async () => {
   const fake = fakeGitHub(productFiles(1332));
   const page = await openPage(fake, {});
@@ -67,7 +67,7 @@ test("TST-479102: UC-006 1 opens the SPEC entries list over 1,332 files in at mo
   assert.match(page.textContent, /entry 07|07/);
   assert.match(page.textContent, /open/);
   assert.deepEqual(fake.contentPaths(), []);
-  assert.deepEqual(fake.namedPerQuery(), [0, 2, 1]);
+  assert.deepEqual(fake.namedPerQuery(), [0, 2, 2]);
   assert.ok(fake.requests.length <= 6, `${fake.requests.length} requests, at most 6`);
 });
 
