@@ -243,7 +243,7 @@ test("TST-1421001: UC-034 7a a ready item that a rejected gate returned shows th
   assert.deepEqual(found(row(target, "ITM-005"), "[data-returned]").map(text), [REJECTED]);
   assert.match(text(found(row(target, "ITM-005"), `[data-participant-of="ITM-005"]`)[0]), /dev-a/, "the participant is offered as for any startable item");
   assert.deepEqual([row(target, "ITM-003").getAttribute("data-state"), row(target, "ITM-003").getAttribute("data-startable")], ["ready", "true"]);
-  assert.deepEqual(found(row(target, "ITM-003"), "[data-returned]"), [], "an item with no reason shows none");
+  assert.deepEqual(found(row(target, "ITM-003"), "[data-returned]").map(text), [], "an item with no reason shows none");
   assert.equal(commits.length, 0, "a render writes nothing");
 });
 
@@ -256,7 +256,7 @@ test("TST-1421002: UC-034 6a an item whose job failed otherwise stays blocked an
   const { target } = await render({ ...productFiles({ selection: ["ITM-003", "ITM-005"] }), ...endedJob("ITM-005", "CI stayed red after the retry limit") });
   assert.deepEqual([row(target, "ITM-005").getAttribute("data-state"), row(target, "ITM-005").getAttribute("data-startable")], ["blocked", "false"]);
   assert.match(reasons(target, "ITM-005"), new RegExp(`ITM-005 is blocked: job ${JOB_ID} is failed`));
-  assert.deepEqual(found(row(target, "ITM-005"), "[data-returned]"), []);
+  assert.deepEqual(found(row(target, "ITM-005"), "[data-returned]").map(text), []);
 });
 
 // TST-1421005 · level: unit · module: MOD-implementation-pages

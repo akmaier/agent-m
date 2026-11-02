@@ -217,5 +217,5 @@ test("TST-1421003: UC-024 10a a ready step that a rejected gate returned shows t
   assert.equal(rowOf(target, "ITM-010").getAttribute("data-state"), "ready", "known positive: the step a rejected gate returned is ready");
   assert.equal(tickOf(target, "ITM-010").getAttribute("disabled"), null, "and selectable");
   assert.deepEqual(found(rowOf(target, "ITM-010"), "[data-returned]").map(text), [REJECTED]);
-  assert.deepEqual(found(rowOf(target, "ITM-012"), "[data-returned]"), []);
+  assert.deepEqual(found(rowOf(target, "ITM-012"), "[data-returned]").map(text), []);
 });
