@@ -57,7 +57,7 @@ const issue = (number, opened, closed = null, comments = []) => ({ number, title
 
 // The context of a close-sprint job; the host answers readSnapshot (the product, the branch test-results), listPullRequests and listIssues.
 function contextOf({ params = { sprint: "team1/01" }, issues = [issue(7, "2026-10-14T10:00:00Z"), issue(8, "2026-09-01T10:00:00Z")], noIssues = false, files = productFiles(),
-  instanceWeb = "https://github.com/acme/agent-m" } = {}) {
+  instanceWeb = "https://github.com/acme/agent-m", instanceSpec = "# Instance\n" } = {}) {
   const asked = [];
   const product = snapshotOf(files, ADDRESS);
   const results = { paths: [RECORD_PATH], blob: () => null, read: async (path) => (path === RECORD_PATH ? RUN_RECORD : null) };
@@ -67,7 +67,7 @@ function contextOf({ params = { sprint: "team1/01" }, issues = [issue(7, "2026-1
     async listIssues(filter) { asked.push(["listIssues", filter]); if (noIssues) throw named("NotSupported"); return issues; },
   };
   // The instance, at its own address unless `instanceWeb` names another: it keeps what is committed to it, its head moving on with each commit.
-  const instanceFiles = { "SPEC.md": "# Instance\n" }, instanceCommits = [];
+  const instanceFiles = { "SPEC.md": instanceSpec }, instanceCommits = [];
   const instanceHead = () => String(instanceCommits.length + 1).padStart(40, "e");
   const instanceAt = () => ({ ...snapshotOf(instanceFiles, instanceWeb), commit: instanceHead() });
   const instance = instanceAt();
@@ -94,8 +94,8 @@ const CLOSE = { sprint: "team1/01",
   retrospective: [{ text: "Review pull requests the same day", kind: "change", goes: "team agreement" }, { text: "The fixtures were quick to build", kind: "went well", goes: null }], newItems: [] };
 
 // The setting of a job of the kind close-sprint, with a host that keeps what is committed.
-function jobOf({ close = CLOSE, files = productFiles(), params = { sprint: "team1/01" }, instanceWeb } = {}) {
-  const setting = contextOf({ params, files, instanceWeb });
+function jobOf({ close = CLOSE, files = productFiles(), params = { sprint: "team1/01" }, instanceWeb, instanceSpec } = {}) {
+  const setting = contextOf({ params, files, instanceWeb, instanceSpec });
   const commits = [];
   const host = setting.context.product.host;
   host.repositoryInfo = async () => ({ defaultBranch: "main", canWrite: true });
@@ -291,46 +291,52 @@ test("workStrategies offers the writer the kind close-sprint names, so that the 
 const PROCESS_CHANGES = [["Add a review phase", "process model"], ["A release test for every item", "Definition of Done"], ["closer-bot reads the issues first", "a participant's instructions"]];
 const PROPOSING = { ...CLOSE, retrospective: [...PROCESS_CHANGES.map(([text, goes]) => ({ text, kind: "change", goes })), { text: "Pair on reviews", kind: "change", goes: "team agreement" },
   { text: "The fixtures were quick to build", kind: "went well", goes: null }] };
-// Every entry of every queue `files` hold, with its state and its proposal's text.
+// A SPEC that holds the three requirements governing the process, in two numbered sections and after a third section that holds none of them.
+const PROCESS_SECTION = lines("## 5. Process models", "", "**THE PROCESS MODEL IS DECLARED PER PRODUCT** *(PO)*", "A product declares one model.", "*Check:* `tests/a.py`");
+const JOBS_SECTION = lines("## 13. Jobs", "", "**A PRODUCT DECLARES ITS DEFINITION OF DONE** *(PO)*", "A product declares its Definition of Done.", "*Check:* `tests/b.py`", "",
+  "**AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF** *(PO)*", "A rule of the process changes only through the SPEC.", "*Check:* `tests/c.py`");
+const SPEC = lines("# Specification", "", "## 1. Other", "", "**ANOTHER RULE** *(PO)*", "Another rule.", "*Check:* `tests/d.py`").concat(PROCESS_SECTION, JOBS_SECTION);
+// The two proposals the close's changes give: each section as it holds, with a requirement appended for each change whose rule is the change, its source and check left for the person.
+const PROPOSALS = { "## 5. Process models": lines(PROCESS_SECTION, "**ADD A REVIEW PHASE** *()*", "Add a review phase"),
+  "## 13. Jobs": lines(JOBS_SECTION, "**A RELEASE TEST FOR EVERY ITEM** *()*", "A release test for every item", "", "**CLOSER-BOT READS THE ISSUES FIRST** *()*", "closer-bot reads the issues first") };
+// Every entry of every queue `files` hold, with its anchor, its state and its proposal's text.
 const entriesOf = async (files) => {
   const snapshot = snapshotOf(files, ADDRESS);
-  return Promise.all((await queues(snapshot)).flatMap((queue) => queue.entries.map(async (entry) => ({ queue: queue.folder, state: entry.state, proposal: await snapshot.read(entry.proposal.path) }))));
+  return Promise.all((await queues(snapshot)).flatMap((queue) => queue.entries.map(async (entry) => ({ anchor: entry.anchor, state: entry.state, proposal: await snapshot.read(entry.proposal.path) }))));
 };
 
 // TST-1406001 · level: unit · module: MOD-work-plans
 // guards: AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF; UC-041
-// given: the fixture product, its instance at another address holding SPEC.md "# Instance\n" and no queue; closer-bot's close of team1/01 whose retrospective recommends "Add a review phase" to the process model, "A release test for every item" to the Definition of Done, "closer-bot reads the issues first" to a participant's instructions, "Pair on reviews" to the team agreement, and notes one thing that went well
+// given: the fixture product, its instance at another address, whose SPEC.md holds THE PROCESS MODEL IS DECLARED PER PRODUCT in "## 5. Process models", A PRODUCT DECLARES ITS DEFINITION OF DONE and AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF in "## 13. Jobs", and no queue; closer-bot's close of team1/01 whose retrospective recommends "Add a review phase" to the process model, "A release test for every item" to the Definition of Done, "closer-bot reads the issues first" to a participant's instructions, "Pair on reviews" to the team agreement, and notes one thing that went well
 // input: the writer sprint-record
-// expect: the product gets one commit, of the sprint's record alone, which holds the five lines of the retrospective; the instance gets one commit for each of the three changes to the process, of files under docs/spec-freigaben/ alone, under the job's provenance lines (Agent-M-Participant: closer-bot), and its queues hold exactly three entries, each open, each proposal holding one of the three texts and none "Pair on reviews"; the instance's SPEC.md and the product's docs/process.md are byte-identical
-test("each change an agent's retrospective recommends to the process is an open entry of a queue of the instance's SPEC, and nothing of the process is written", async () => {
-  const job = jobOf({ close: PROPOSING });
+// expect: the product gets one commit, of the sprint's record alone, which holds the five lines of the retrospective; the instance gets two commits, of files under docs/spec-freigaben/ alone, each under the job's provenance lines (Agent-M-Participant: closer-bot); its queues hold exactly two entries, both open: one anchored at "## 5. Process models", whose proposal is that section as it holds with the requirement "**ADD A REVIEW PHASE** *()*" / "Add a review phase" appended, and one anchored at "## 13. Jobs", with "**A RELEASE TEST FOR EVERY ITEM** *()*" / "A release test for every item" and "**CLOSER-BOT READS THE ISSUES FIRST** *()*" / "closer-bot reads the issues first" appended; no proposal holds "Pair on reviews"; the instance's SPEC.md and the product's docs/process.md are byte-identical
+test("each change an agent's retrospective recommends to the process is a new requirement of an open entry for the section that governs it, and nothing of the process is written", async () => {
+  const job = jobOf({ close: PROPOSING, instanceSpec: SPEC });
   const process = job.files["docs/process.md"];
   await job.write();
   assert.deepEqual(job.commits.map((commit) => commit.files.map((each) => each.path)), [["docs/backlog/sprints/team1/01.md"]]);
   for (const entry of PROPOSING.retrospective) assert.ok(job.commits[0].files[0].text.includes(`${entry.goes ? `, to ${entry.goes}` : ""}: ${entry.text}\n`), entry.text);
-  assert.equal(job.instanceCommits.length, 3);
+  assert.equal(job.instanceCommits.length, 2);
   for (const commit of job.instanceCommits) {
     assert.ok(commit.files.every((each) => each.path.startsWith("docs/spec-freigaben/")), JSON.stringify(commit.files.map((each) => each.path)));
     assert.ok(commit.message.includes("\nAgent-M-Participant: closer-bot\n"), commit.message);
   }
   const entries = await entriesOf(job.instanceFiles);
-  assert.equal(entries.length, 3);
-  for (const [text] of PROCESS_CHANGES) assert.equal(entries.filter((entry) => entry.state === "open" && entry.proposal.includes(text)).length, 1, text);
-  assert.ok(entries.every((entry) => !entry.proposal.includes("Pair on reviews")));
-  assert.equal(job.instanceFiles["SPEC.md"], "# Instance\n");
+  assert.deepEqual(entries.map((entry) => [entry.anchor, entry.state, entry.proposal]).sort(), Object.entries(PROPOSALS).map(([anchor, proposal]) => [anchor, "open", proposal]).sort());
+  assert.equal(job.instanceFiles["SPEC.md"], SPEC);
   assert.equal(job.files["docs/process.md"], process);
 });
 
 // TST-1406002 · level: unit · module: MOD-work-plans
 // guards: AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF; UC-041
-// given: the same close, of a product that is its own instance — the job's instance stands at the product's address, as a hosted job of Agent M holds it in two checkouts
+// given: the same close, of a product that is its own instance — the job's instance stands at the product's address, as a hosted job of Agent M holds it in two checkouts —, whose SPEC.md is the SPEC of TST-1406001
 // input: the writer sprint-record
-// expect: everything is committed through the product's host: first the sprint's record, then one commit for each of the three changes, of files under docs/spec-freigaben/ alone; the queues of the product's files with those commits hold three open entries, one for each text; nothing is committed through the instance's host
+// expect: everything is committed through the product's host: first the sprint's record, then two commits of files under docs/spec-freigaben/ alone; the queues of the product's files with those commits hold the two open entries of TST-1406001, with the same anchors and proposals; nothing is committed through the instance's host
 test("a product that is its own instance gets the entries through the product's host, after its record", async () => {
-  const job = jobOf({ close: PROPOSING, instanceWeb: ADDRESS });
+  const job = jobOf({ close: PROPOSING, instanceWeb: ADDRESS, files: { ...productFiles(), "SPEC.md": SPEC } });
   await job.write();
   assert.deepEqual(job.instanceCommits, []);
-  assert.equal(job.commits.length, 4);
+  assert.equal(job.commits.length, 3);
   assert.deepEqual(job.commits[0].files.map((each) => each.path), ["docs/backlog/sprints/team1/01.md"]);
   const files = { ...job.files };
   for (const commit of job.commits.slice(1)) {
@@ -338,5 +344,6 @@ test("a product that is its own instance gets the entries through the product's 
     for (const file of commit.files) files[file.path] = file.text;
   }
   const entries = await entriesOf(files);
-  for (const [text] of PROCESS_CHANGES) assert.equal(entries.filter((entry) => entry.state === "open" && entry.proposal.includes(text)).length, 1, text);
+  assert.deepEqual(entries.map((entry) => [entry.anchor, entry.state, entry.proposal]).sort(), Object.entries(PROPOSALS).map(([anchor, proposal]) => [anchor, "open", proposal]).sort());
 });
+

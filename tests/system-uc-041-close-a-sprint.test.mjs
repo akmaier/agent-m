@@ -264,17 +264,27 @@ test("TST-991208: UC-041 2a a sprint with no item done is closed with a review t
 
 // TST-991209 · level: system · module: system
 // guards: UC-041; AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF
-// given: the product of TST-991202, whose docs/process.md declares the model and the Definition of Done, and the instance's list of participants
+// given: the product of TST-991202, which is its own instance, whose docs/process.md declares the model and the Definition of Done, and the instance's list of participants; its SPEC holds THE PROCESS
+// MODEL IS DECLARED PER PRODUCT and AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF in its section "## 1. Rules", and docs/spec-freigaben/ holds no queue
 // input: closer-bot's retrospective proposes a change to the process model, "Add a review phase", and one to a participant's instructions, "closer-bot reads the mails' issues first"
-// expect: the retrospective names where each goes — "change, to process model: Add a review phase" and "change, to a participant's instructions: closer-bot reads the mails' issues first" —; the commit holds the record alone, and docs/process.md and docs/participants.md are byte-identical
-test("TST-991209: UC-041 5a, 5b a change to the model or to an agent's instructions is recorded with where it goes, and changes neither", async () => {
+// expect: the retrospective names where each goes — "change, to process model: Add a review phase" and "change, to a participant's instructions: closer-bot reads the mails' issues first" —; the first commit holds the
+// record alone, the second only files of the queue docs/spec-freigaben/rules/, whose entry proposes the section "## 1. Rules" with the requirements "**ADD A REVIEW PHASE** *()*" / "Add a review phase" and
+// "**CLOSER-BOT READS THE MAILS' ISSUES FIRST** *()*" / "closer-bot reads the mails' issues first" appended; SPEC.md, docs/process.md and docs/participants.md are byte-identical
+test("TST-991209: UC-041 5a, 5b a change to the model or to an agent's instructions is recorded with where it goes and proposed as a SPEC change, and changes neither", async () => {
   const w = await closeWorld();
-  const process = w.files["docs/process.md"], participants = w.files["docs/participants.md"];
+  const process = w.files["docs/process.md"], participants = w.files["docs/participants.md"], spec = w.files["SPEC.md"];
   const close = { ...CLOSE(), retrospective: [{ text: "Add a review phase", kind: "change", goes: "process model" }, { text: "closer-bot reads the mails' issues first", kind: "change", goes: "a participant's instructions" }] };
   const { failed } = await w.run([close]);
   assert.equal(failed, null, JSON.stringify(failed));
   assert.match(w.files[RECORD], /## Retrospective\n\n- change, to process model: Add a review phase\n- change, to a participant's instructions: closer-bot reads the mails' issues first\n/);
-  assert.deepEqual(w.commits.map((commit) => commit.files.map((each) => each.path)), [[RECORD]]);
+  assert.equal(w.commits.length, 2);
+  assert.deepEqual(w.commits[0].files.map((each) => each.path), [RECORD]);
+  assert.ok(w.commits[1].files.every((each) => each.path.startsWith("docs/spec-freigaben/rules/")), JSON.stringify(w.commits[1].files.map((each) => each.path)));
+  const proposal = w.files["docs/spec-freigaben/rules/01-rules.md"] ?? "";
+  assert.ok(proposal.startsWith("## 1. Rules\n"), proposal);
+  assert.ok(proposal.includes("**ADD A REVIEW PHASE** *()*\nAdd a review phase\n"), proposal);
+  assert.ok(proposal.includes("**CLOSER-BOT READS THE MAILS' ISSUES FIRST** *()*\ncloser-bot reads the mails' issues first\n"), proposal);
+  assert.equal(w.files["SPEC.md"], spec);
   assert.equal(w.files["docs/process.md"], process);
   assert.equal(w.files["docs/participants.md"], participants);
 });
