@@ -77,7 +77,7 @@ const HISTORY = [
 
 const asked = [];
 function hostOf({ files = MAIN_FILES, results = RESULTS, failResults = false, history = HISTORY, logs = {} } = {}) {
-  const base = treeHost({ trees: { main: files, "v2026.1.0": TAG_FILES, "test-results": results }, tags: ["v2026.1.0"], history });
+  const base = treeHost({ trees: { main: files, "v2026.1.0": TAG_FILES, "test-results": results }, tags: ["v2026.1.0"], history, onDefault: [MAIN, TAG, EARLY] });
   return { ...base,
     async readSnapshot(ref) {
       if (failResults && ref === "test-results") throw Object.assign(new Error("unreachable"), { name: "Unreachable" });

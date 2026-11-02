@@ -49,7 +49,7 @@ const RESULTS = Object.fromEntries(COMMITS.map((commit, at) => [`runs/${commit}/
 const MAIN_FILES = { "SPEC.md": SPEC, "tests/ledger.test.mjs": TEST_FILE };
 
 // The product's host over the harness's snapshots: the GitHub adapter's own `webLinks`, and `ciRunLog` as the case gives it.
-const hostWith = (ciRunLog) => ({ ...treeHost({ trees: { main: MAIN_FILES, "test-results": RESULTS } }), webLinks: () => connect(parseAddress(ADDRESS)).webLinks(), ciRunLog });
+const hostWith = (ciRunLog) => ({ ...treeHost({ trees: { main: MAIN_FILES, "test-results": RESULTS }, onDefault: COMMITS }), webLinks: () => connect(parseAddress(ADDRESS)).webLinks(), ciRunLog });
 
 // A stand-in for ciRunLog: `answer(id, nth)` is the answer of the nth call about run `id` (from 1), a promise or a value; every call is noted in `calls` as the id asked about, in order.
 function asking(answer) {

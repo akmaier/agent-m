@@ -62,7 +62,7 @@ async function counting(gone, run) {
 }
 
 function hostOf() {
-  const base = treeHost({ trees: { main: MAIN_FILES, "test-results": RESULTS } });
+  const base = treeHost({ trees: { main: MAIN_FILES, "test-results": RESULTS }, onDefault: COMMITS });
   const adapter = connect(GITHUB, { token: "github_pat_CAROLsprintTOOL0123456789abcdef" });
   return { ...base, ciRunLog: (id) => adapter.ciRunLog(id), webLinks: () => adapter.webLinks() };
 }
