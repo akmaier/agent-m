@@ -72,6 +72,7 @@ const FLOW_EVIDENCE = {
   "main-8-code": { uc: "writes the test code, each test naming its `TST-` identifier", evidence: [[SELF, "TST-771207"], [DECLARED, "TST-472369"]] },
   "main-8-counter-proof": { uc: "the **counter-proof**", evidence: [[SELF, "TST-771207"], [WRITTEN, "TST-754101"], [WRITTEN, "TST-754102"]] },
   "main-8-pull-request": { uc: "opens a pull request containing the tests and the counter-proof records", evidence: [[SELF, "TST-771207"]] },
+  "main-8-date": { uc: "naming the Agent M version, the participant, the model and the date.", evidence: [[SELF, "TST-771211"]] },
   "main-9-default-branch": { uc: "The tests reach the default branch only through a pull request with green CI.", evidence: [[SELF, "TST-771207"]] },
   "1a-user": { uc: "**1a. The level is `user`.**", evidence: [[SELF, "TST-771206"], [SELF, "TST-771207"], [WRITTEN, "TST-754105"]] },
   "3a-too-large": { uc: "**3a. The existing tests do not fit into the participant's context.**", evidence: [[SELF, "TST-771204"], [UNIT, "TST-763005"]] },
@@ -83,7 +84,6 @@ const FLOW_EVIDENCE = {
 };
 // The passages the page or a module does otherwise: the finding, its case, and the module that points to.
 const FLOW_FINDINGS = {
-  "main-8-date": { uc: "naming the Agent M version, the participant, the model and the date.", finding: "UC026-F5", file: SELF, test: "TST-771211", module: "MOD-runtimes" },
   "8b-shown-again": { uc: "it is not written, and the review panel shows it again for the author to sharpen or drop.", finding: "UC026-F6", file: SELF, test: "TST-771209", module: "MOD-workflow-entries" },
 };
 // The passages no test of this product's code walks, with the reason.
@@ -438,14 +438,14 @@ test("TST-771210: UC-026 5, 8 a reviewed case that guards a module is written as
 // guards: UC-026; AN ARTIFACT RECORDS THE VERSION THAT PRODUCED IT
 // given: the pull request the job of TST-771207 opened, as the server's API received it
 // input: read the pull request's title and description
-// expect: known positive — it names the job, the Agent M version and commit, the participant test-bot and its model fixture-llm, and the requirements the new tests guard; it names the date (UC-026 8.4, "the Agent M version, the participant, the model and the date"); FINDING UC026-F5 (MOD-runtimes): the description holds no date
-test("TST-771211: UC-026 8.4 the pull request names the Agent M version, the participant, the model and the date", { todo: "FINDING UC026-F5 (MOD-runtimes): describe (src/runtimes/pull-request.mjs:85-95) writes the job, the kind, the requirements guarded and provenanceLines (version and commit, job, kind, participant, model, rounds); no line names a date, which UC-026 8.4 asks the pull request to name" }, () => {
+// expect: known positive — it names the job, the Agent M version and commit, the participant test-bot and its model fixture-llm, and the requirements the new tests guard; it names the date (UC-026 8.4, "the Agent M version, the participant, the model and the date"): a line "Date: YYYY-MM-DD" whose day, 2026-10-30, is the UTC day of the clock the job workflow's run is given
+test("TST-771211: UC-026 8.4 the pull request names the Agent M version, the participant, the model and the date", () => {
   const body = state.pull.body;
   assert.match(body, /^Agent-M-Version: \S+, commit [0-9a-f]{40}$/m);
   assert.match(body, /^Agent-M-Participant: test-bot$/m);
   assert.match(body, /^Agent-M-Model: fixture-llm$/m);
   assert.match(body, new RegExp(`Requirements guarded by the new tests: ${OTHER_RULE}`));
-  assert.match(body, /\b\d{4}-\d{2}-\d{2}\b/, "the description names the date");
+  assert.match(body, /^Date: 2026-10-30$/m, "the description holds the line Date: with the day the job ran");
 });
 
 // TST-771212 · level: system · module: system
