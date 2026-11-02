@@ -134,7 +134,8 @@ async function runSection({ context, product, issue, kindName, title, text, name
     const instanceSnapshot = await instanceHost.readSnapshot((await instanceHost.repositoryInfo()).defaultBranch);
     const register = await instanceSnapshot.read(REGISTER);
     const participants = register == null ? [] : participantsOf(readRegister(participantSchema(), REGISTER, register).document);
-    const admitted = eligible(participants, { capabilities: definition.needs }).eligible;
+    // A person holds roles and decides but is no driver of a job (MOD-participant-list's `eligible`): the work is handed to the other four types.
+    const admitted = eligible(participants.filter((each) => each.type !== "person"), { capabilities: definition.needs }).eligible;
     if (admitted.length === 0) { section.append(none()); return section; }
 
     const radios = admitted.map((participant) => {
