@@ -284,6 +284,7 @@ test("permittedPlaces — this instance's entry SRC-vibe-coding, whose licence p
   assert.equal(permittedPlaces(entry), "any");
 });
 
+// TST-1429038 · level: unit · module: MOD-source-register
 // guards: A PAGE LOAD READS THE REPOSITORY IN BATCHES
 // given: the paths of a tree — the SPEC, the links file docs/sources.md, three register entries (docs/sources/SRC-z.md, SRC-a.md, SRC-vibe-coding.md) in a mixed order, a README, a .bak file and a nested file in docs/sources/
 // input: registerPaths(those paths); then registerPaths([])
