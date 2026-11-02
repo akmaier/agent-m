@@ -18,6 +18,10 @@
 // - an entry of `gates` may also give `artifacts`, the artifacts its gate asks for, and each row gives `artifacts`, one for each of its
 //   `gates` in their order, "" where the entry gives none; the module file's interface lists neither, and both extend it (ITM-1431's
 //   reading, as ITM-1430's); the document names them under the gate record they stand beside;
+// - `unrecorded`, an added optional input, holds the gates the workflow holds that no record holds, as { requirement, gate }; their
+//   requirement has its row as one whose gate `gates` names does, and each row gives `unrecorded`, the names of its gates no record
+//   holds; the document writes that no record holds each of them. A gate with a record keeps `record: string` (ITM-1433's reading,
+//   OPEN FOR EXTENSION, CLOSED FOR CHANGE);
 // - the report is `docs/tests/releases/<tag>.md` on `head`, the default branch, which holds it and its approval record because
 //   acceptAndRelease commits them after the tagged commit; it is accepted when MOD-approvals' statusOf says so of it in `head`;
 //   the limitations are those of the record `docs/approvals/release-<tag>-<blob12>.md`, read through approvalSchema;
@@ -88,14 +92,15 @@ async function counterProofOf(at, id) {
 /**
  * auditRows(at: Snapshot, results: Snapshot, head: Snapshot, release: { tag: string, commit: string }, gates: Array<{
  * requirement: string, gate: string, record: string }>, instanceSpec: string, register: Document[], accepted: { person: string,
- * date: string } | null) -> Promise<{ summary, rows, evidence }> (MOD-release-evidence, Interfaces): one
- * row per requirement valid at the release — each requirement of the product's SPEC, and each requirement of the instance's SPEC
- * whose gate `gates` holds — with its sources, its tests by level and its gate records, the summary of UC-030 step 3, and the
- * evidence: the report and the approval records that name it, with their blobs, and the acceptance.
+ * date: string } | null, unrecorded: Array<{ requirement: string, gate: string }> = []) -> Promise<{ summary, rows, evidence }>
+ * (MOD-release-evidence, Interfaces): one row per requirement valid at the release — each requirement of the product's SPEC, and
+ * each requirement of the instance's SPEC whose gate `gates` or `unrecorded` holds — with its sources, its tests by level, its gate
+ * records and the gates no record holds, the summary of UC-030 step 3, and the evidence: the report and the approval records that
+ * name it, with their blobs, and the acceptance.
  */
-export async function auditRows(at, results, head, release, gates, instanceSpec, register, accepted = null) {
+export async function auditRows(at, results, head, release, gates, instanceSpec, register, accepted = null, unrecorded = []) {
   const product = [...parseSpec((await at.read("SPEC.md")) ?? "").requirements.values()].map((req) => ({ req, constrains: "product" }));
-  const gated = new Set(gates.map((gate) => gate.requirement));
+  const gated = new Set([...gates, ...unrecorded].map((gate) => gate.requirement));
   const process = [...parseSpec(instanceSpec).requirements.values()].filter((req) => gated.has(req.name))
     .map((req) => ({ req, constrains: "process" }));
   const graph = await storedGraph(at, release.commit);
@@ -162,7 +167,8 @@ export async function auditRows(at, results, head, release, gates, instanceSpec,
 
     const own = gates.filter((gate) => gate.requirement === req.name);
     rows.push({ requirement: req.name, constrains, sources: sourcesOf(req, links, register), tests: rowTests,
-      gates: own.map((gate) => gate.record), artifacts: own.map((gate) => gate.artifacts ?? "") });
+      gates: own.map((gate) => gate.record), artifacts: own.map((gate) => gate.artifacts ?? ""),
+      unrecorded: unrecorded.filter((gate) => gate.requirement === req.name).map((gate) => gate.gate) });
   }
   summary.byImplementer = byImplementer.size;
   return { summary, rows, evidence };
@@ -188,7 +194,8 @@ function rowSection(row, accepted) {
     ...(row.sources.length ? row.sources.map(sourceLine) : ["- Sources: none"]),
     ...(row.tests.length ? row.tests.map(testLine) : ["- Tests: no test"]),
     ...row.gates.flatMap((record, index) => [`- Gate record: ${code(record)}`,
-      ...(row.artifacts?.[index] ? [`- Artifacts the gate asked for: ${code(row.artifacts[index])}`] : [])]), ""];
+      ...(row.artifacts?.[index] ? [`- Artifacts the gate asked for: ${code(row.artifacts[index])}`] : [])]),
+    ...(row.unrecorded ?? []).map((gate) => `- Gate ${code(gate)}: no record holds it`), ""];
 }
 
 function evidenceLines({ report, records, acceptance }) {
@@ -206,7 +213,7 @@ function evidenceLines({ report, records, acceptance }) {
  * Interfaces and Data, "The audit document"): the self-contained Markdown document of the audit — the tag and its commit SHA,
  * the summary, the evidence (the report, the approval records and the acceptance, with their blob SHAs), and one section per
  * row with its sources, their versions and hashes, its tests with outcome and counter-proof, and its gate records with the
- * artifacts each gate asked for. Every
+ * artifacts each gate asked for, and each gate no record holds. Every
  * statement names a path, an identifier or a hash of the repository, so that it is checked there, without Agent M.
  */
 export function auditDocument(audit, release) {

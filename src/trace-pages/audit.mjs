@@ -46,15 +46,16 @@ const COUNTED = {
   byImplementer: (row) => row.tests.some((test) => test.byImplementer),
 };
 
-// The gate records of the release: those of docs/gates/ at the tag that the workflow the product declared then gives a requirement-added gate, as
-// { requirement, gate, record, artifacts }, `artifacts` the ones that gate asks for (UC-002 7). None where the product declared no process or the instance
-// cannot be reached.
+// The requirement-added gates of the workflow the product declared at the tag, with the records of docs/gates/ there: `gates`, those a record holds, as
+// { requirement, gate, record, artifacts }, `artifacts` the ones that gate asks for (UC-002 7); and `unrecorded`, those no record holds, as { requirement, gate },
+// which auditRows takes as its added input so that their requirement keeps its row. None where the product declared no process or the instance cannot be reached.
 async function gatesOf(at, context, instanceSpec) {
+  const none = { gates: [], unrecorded: [] };
   const text = await at.read("docs/process.md");
-  if (text === null || !context.instance?.host) return [];
+  if (text === null || !context.instance?.host) return none;
   const workflow = await productWorkflow(readDocument(declarationSchema, "docs/process.md", text),
     (commit) => context.instance.host.readSnapshot(commit), instanceSpec);
-  if (!workflow) return [];
+  if (!workflow) return none;
   const paths = at.paths.filter((path) => /^docs\/gates\/[^/]+\.md$/.test(path));
   const records = await Promise.all(paths.map(async (path) => readDocument(gateSchema, path, (await at.read(path)) ?? "")));
   const texts = {};
@@ -64,12 +65,14 @@ async function gatesOf(at, context, instanceSpec) {
       if (named) texts[named[1]] = at.blob(named[1]);
     }
   }
-  return gateStates(workflow, records, texts).filter((state) => state.record)
-    .map((state) => {
-      const gate = workflow.gates.find((each) => each.name === state.gate);
-      return { requirement: gate?.addedBy?.requirement, gate: state.gate, record: state.record, artifacts: gate?.artifacts ?? "" };
-    })
-    .filter((gate) => gate.requirement);
+  const added = gateStates(workflow, records, texts)
+    .map((state) => ({ state, requirement: workflow.gates.find((each) => each.name === state.gate)?.addedBy?.requirement }))
+    .filter(({ requirement }) => requirement);
+  return {
+    gates: added.filter(({ state }) => state.record).map(({ state, requirement }) => ({ requirement, gate: state.gate, record: state.record,
+      artifacts: workflow.gates.find((each) => each.name === state.gate)?.artifacts ?? "" })),
+    unrecorded: added.filter(({ state }) => !state.record).map(({ state, requirement }) => ({ requirement, gate: state.gate })),
+  };
 }
 
 // The register of the instance at its default branch, as documents, and the instance's SPEC.
@@ -125,8 +128,8 @@ async function load(host, context, tag, links) {
   const head = await host.readSnapshot(info.defaultBranch);
   const { instanceSpec, register } = await instanceOf(context);
   const acceptance = await acceptanceOf(host, head, tag);
-  const gates = await gatesOf(at, context, instanceSpec);
-  const audit = await auditRows(at, results, head, release, gates, instanceSpec, register, acceptance?.accepted ?? null);
+  const { gates, unrecorded } = await gatesOf(at, context, instanceSpec);
+  const audit = await auditRows(at, results, head, release, gates, instanceSpec, register, acceptance?.accepted ?? null, unrecorded);
   // A read of the records that fails leaves every link as it is: the audit is drawn whether or not the logs can be asked.
   const gone = await logsGone(host, results, release, audit, links).catch(() => new Set());
   return { release, audit, acceptance, head, canWrite: info.canWrite === true, gone };
@@ -162,7 +165,7 @@ const concerned = (rows, line) => {
 };
 
 // One row: the requirement and what it constrains, its sources, its tests, its gates — each record in `audit-gate`, and the artifacts that gate asked for
-// in an element of their own, `audit-gate-artifacts` —, the acceptance of the report, and the detail with the links and the blob of the accepted text.
+// in an element of their own, `audit-gate-artifacts`, and each gate no record holds in `audit-gate-unrecorded`, never in `audit-gate` —, the acceptance of the report, and the detail with the links and the blob of the accepted text.
 function rowOf(row, { release, audit, acceptance, gone }, links) {
   const accepted = audit.summary.accepted;
   const evidence = accepted
@@ -194,7 +197,8 @@ function rowOf(row, { release, audit, acceptance, gone }, links) {
     cell("Sources", null, ...row.sources.flatMap((source) => [el("span", "audit-source", source.id), ` (${source.authority}, ${source.version}) `])),
     cell("Tests", null, ...tests),
     cell("Gates", null, ...row.gates.flatMap((gate, index) => [el("span", "audit-gate", gate),
-      ...(row.artifacts?.[index] ? [" artifacts: ", el("span", "audit-gate-artifacts", row.artifacts[index])] : [])])),
+      ...(row.artifacts?.[index] ? [" artifacts: ", el("span", "audit-gate-artifacts", row.artifacts[index])] : [])]),
+      ...(row.unrecorded ?? []).map((gate) => el("span", "audit-gate-unrecorded", `${gate}: no record holds it`))),
     cell("Acceptance", "audit-evidence", evidence),
     cell("Detail", null, detail));
   tr.setAttribute("data-requirement", row.requirement);
