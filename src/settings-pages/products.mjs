@@ -495,7 +495,7 @@ export const route = {
     addressInput.spellcheck = false;
     const stepsContainer = el("div", "steps");
     target.append(
-      el("h2", null, "Add a product"),
+      el("section", "head", el("h2", null, "Add a product")),
       el("p", "muted", "The product gets a key of its own — on GitHub a fine-grained token for it alone, on a " +
         "GitLab server a project access token, sent only to that server's own API. Your instance's key stays as it " +
         "is."),

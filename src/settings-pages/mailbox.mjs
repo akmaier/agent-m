@@ -44,6 +44,8 @@ function el(name, className, ...children) {
   return node;
 }
 const labelled = (text, ...nodes) => el("p", null, el("label", null, text, " ", ...nodes));
+// A part of the page under its heading: the frame's panel.
+const part = (heading, ...nodes) => el("section", "panel", el("h3", null, heading), ...nodes);
 
 // The Bridges this browser keeps under their names, with how each is reached: { name, entry, settings | null, route, throughJumpHost }.
 function bridgesOf(store) {
@@ -493,40 +495,39 @@ export const route = {
     }
 
     target.replaceChildren(
-      el("h2", null, "Connect a mailbox"),
+      el("section", "head", el("h2", null, "Connect a mailbox")),
       labelled("Mail address", address),
       labelled("Route", routeSelect), reason, explain("mailbox-routes"),
       graphPart, imapPart,
-      el("h3", null, "Folders"),
-      labelled("Folders to read, separated by commas", folders),
-      el("h3", null, "Where the mail may be processed"),
-      placesBox, placesResult, placeNotice, el("p", null, el("label", null, placeRead, " I have read this")), explain("mailbox-processing-places"),
+      part("Folders", labelled("Folders to read, separated by commas", folders)),
+      part("Where the mail may be processed",
+        placesBox, placesResult, placeNotice, el("p", null, el("label", null, placeRead, " I have read this")), explain("mailbox-processing-places")),
       el("p", null, storeTest), result, resultExplanation, setup, parts, line.node,
     );
     imapPart.append(
-      el("h3", null, "Servers"),
-      labelled("IMAP server", imapHost, " port ", imapPort, " encryption ", imapSecurity),
-      labelled("SMTP server", smtpHost, " port ", smtpPort, " encryption ", smtpSecurity),
-      labelled("Account", account), explain("mail-server-settings"),
-      el("h3", null, "Password"),
-      el("p", "notice mailbox-password-notice", `The password is stored in this browser. Every GitHub Pages site under ${owner}.github.io can read it — here: the sites of ${owner}. With it, anyone can read all mail in this mailbox and send mail in its name. It goes to no server except the Bridge this connection names. Recommended: run this instance under a GitHub owner you use for nothing else.`),
-      el("p", null, el("label", null, passwordRead, " I have read this")),
-      labelled("Password", password), explain("gmail-app-password"),
-      el("h3", null, "Bridge"),
-      labelled("Bridge", bridgeSelect), jumpNotice, el("p", null, el("label", null, jumpRead, " I have read this")),
+      part("Servers",
+        labelled("IMAP server", imapHost, " port ", imapPort, " encryption ", imapSecurity),
+        labelled("SMTP server", smtpHost, " port ", smtpPort, " encryption ", smtpSecurity),
+        labelled("Account", account), explain("mail-server-settings")),
+      part("Password",
+        el("p", "notice mailbox-password-notice", `The password is stored in this browser. Every GitHub Pages site under ${owner}.github.io can read it — here: the sites of ${owner}. With it, anyone can read all mail in this mailbox and send mail in its name. It goes to no server except the Bridge this connection names. Recommended: run this instance under a GitHub owner you use for nothing else.`),
+        el("p", null, el("label", null, passwordRead, " I have read this")),
+        labelled("Password", password), explain("gmail-app-password")),
+      part("Bridge",
+        labelled("Bridge", bridgeSelect), jumpNotice, el("p", null, el("label", null, jumpRead, " I have read this"))),
     );
     graphPart.append(
-      el("h3", null, "Register the app"),
+      part("Register the app",
       el("div", "mailbox-app-registration-steps",
         el("p", null, "To sign in with Microsoft, register an app with Microsoft once: ", registrationLink),
         el("p", null, "Enter the name Agent M and choose the kind single-page application. As its return address enter: ", returnShown, " ", copyReturn, copied),
         el("p", null, "Then copy the app's client ID into the field below.")),
       explain("mailbox-app-registration"),
-      labelled("Client ID of the app", clientId),
-      el("h3", null, "Sign in"),
+      labelled("Client ID of the app", clientId)),
+      part("Sign in",
       el("p", "notice mailbox-permissions", "Agent M asks Microsoft for three permissions and nothing else. Mail.ReadWrite: read mail and create drafts; Microsoft offers no narrower permission for drafts, "
         + "and it would also allow changing and deleting mail, which Agent M never does. Mail.Send: send mail, only when you send a reply. offline_access: stay signed in."),
-      el("p", null, signInButton), signInResult, el("p", null, useImap),
+      el("p", null, signInButton), signInResult, el("p", null, useImap)),
     );
   },
 };

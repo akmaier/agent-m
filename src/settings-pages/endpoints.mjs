@@ -413,7 +413,7 @@ export const route = {
     });
 
     target.replaceChildren(
-      el("h2", null, "Configure a model endpoint"),
+      el("section", "head", el("h2", null, "Configure a model endpoint")),
       el("p", "muted", "Store an endpoint in this browser, then make one short test request."),
       el("details", "explain", el("summary", null, "What is this?"), el("p", "muted prompt-bar-note", PROMPT_BAR_NOTE)),
       // A stored endpoint names what it lacks for the prompt bar to offer it (UC-049 1b).

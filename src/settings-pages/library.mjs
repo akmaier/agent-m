@@ -447,7 +447,7 @@ export const route = {
       ({ entries, branch } = await readRegisterOf(context.instance.host));
       failures = await fetchFailures(context.instance.host, branch, entries);
     } catch (error) {
-      target.replaceChildren(el("h2", null, "Library"), el("p", "library-unreadable", `The library could not be read: ${error?.message ?? error}.`));
+      target.replaceChildren(el("section", "head", el("h2", null, "Library")), el("p", "library-unreadable", `The library could not be read: ${error?.message ?? error}.`));
       return;
     }
     if (typeof params.source === "string" && params.source) {
@@ -613,6 +613,6 @@ export const route = {
     // UC-015 2a: for a product, a way back to its Requirement sources.
     const back = el("button", "library-back-to-sources btn", "Back to Requirement sources");
     back.addEventListener("click", () => context.go("sources", {}));
-    target.replaceChildren(el("h2", null, "Library"), el("p", null, open, ...(context.product ? [" ", back] : [])), panel, list);
+    target.replaceChildren(el("section", "head", el("h2", null, "Library")), el("p", null, open, ...(context.product ? [" ", back] : [])), panel, list);
   },
 };

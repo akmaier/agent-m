@@ -95,8 +95,22 @@ export function isNamedTestFile(path) {
 export function testDeclarations(path, text) {
   const p = typeof path === "string" ? path : String(path ?? "");
   const t = typeof text === "string" ? text : String(text ?? "");
-  return p.endsWith(".md") ? markdownDeclarations(p, t) : commentDeclarations(p, t);
+  return p.endsWith(".md") ? markdownDeclarations(p, t) : commentDeclarations(p, t).filter((each) => each.id !== null);
 }
+
+// unidentifiedDeclarations(path: string, text: string) -> TestDeclaration[] — every block of comment lines of a test file
+// that is written as a declaration but whose first line names no identifier: in its place, `key: value` parts with keys
+// of the declaration. Each is read as a declaration is read, with `id` `null`, in order; testDeclarations gives none of
+// them. The first line of a block is a comment line after a line that is none, so the key lines below an identifier are
+// that declaration's own. A Markdown file holds no comment lines, and yields none. It never throws on content.
+export function unidentifiedDeclarations(path, text) {
+  const p = typeof path === "string" ? path : String(path ?? "");
+  const t = typeof text === "string" ? text : String(text ?? "");
+  return p.endsWith(".md") ? [] : commentDeclarations(p, t).filter((each) => each.id === null);
+}
+
+// Whether a comment's content opens with a `key: value` part whose key is one of the declaration's.
+const opensWithField = (content) => FIELD_KEYS.includes(KEY_LINE.exec(content.split(PACK_SEPARATOR)[0].trim())?.[1]);
 
 // A `/` follows a token after which a regular expression may stand, not a division: nothing, an operator or an opening
 // bracket, or a keyword that takes a value. After a name, a number, `)` or `]` it divides.
@@ -143,20 +157,25 @@ function templateOpenAfter(line, open) {
 // `for (…) {` stands before the loop's body: its title is read on the line after the header. A declaration's fields end at its
 // first comment line not of their form, but its title is read on the first line after the whole block of comment lines it
 // stands in — past a `Planted fault:` line or a field's value continued over further comment lines —: every declaration of
-// the block waits for that line.
+// the block waits for that line. It reads, besides, each block whose first comment line opens with a field in place of an
+// identifier, as a declaration with `id` `null`; the caller keeps the ones it gives.
 function commentDeclarations(path, text) {
   const declarations = [];
   let current = null;
   let untitled = [];
   let inString = false;
+  let inBlock = false; // whether the line before is a comment line
   const lines = splitLines(text);
   for (let i = 0; i < lines.length; i += 1) {
     if (inString) {
       // a line inside a string literal that spans lines (a template string): no comment line of the file, whatever it holds
       inString = templateOpenAfter(lines[i], true);
+      inBlock = false;
       continue;
     }
     const content = commentContent(lines[i]);
+    const opensBlock = !inBlock;
+    inBlock = content !== null;
     if (content === null) {
       inString = templateOpenAfter(lines[i], false);
       if (untitled.length && LOOP_HEADER.test(lines[i])) { current = null; continue; } // the test case is the loop's body
@@ -171,10 +190,10 @@ function commentDeclarations(path, text) {
       current = null; // this comment line does not continue the declaration — it may still start a new one below
     }
     const parts = content.split(PACK_SEPARATOR);
-    const id = FIRST_LINE.exec(parts[0].trim());
-    if (id === null) continue;
-    current = { id: parts[0].trim(), title: null, fields: emptyFields(), path, line: i + 1 };
-    for (const part of parts.slice(1)) {
+    const id = FIRST_LINE.test(parts[0].trim()) ? parts[0].trim() : null;
+    if (id === null && !(opensBlock && opensWithField(content))) continue;
+    current = { id, title: null, fields: emptyFields(), path, line: i + 1 };
+    for (const part of id === null ? parts : parts.slice(1)) {
       const key = KEY_LINE.exec(part.trim());
       if (key !== null) applyField(current.fields, key[1], key[2]);
     }
