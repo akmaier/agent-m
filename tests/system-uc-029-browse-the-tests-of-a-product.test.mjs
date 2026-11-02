@@ -54,6 +54,7 @@ const FLOW_EVIDENCE = {
   "main-5-rate": { uc: "A model-dependent test shows its rate per release as a line, with the number of runs behind each point.", evidence: [[SELF, "TST-774206"], [DETAIL, "TST-767006"]] },
   "main-6-compare": { uc: "The reviewer picks two releases to **compare**: tests added, removed, changed in what they guard or expect, and changed in outcome.", evidence: [[SELF, "TST-774207"], [COMPARE, "TST-769001"]] },
   "1a-incomplete": { uc: "It is listed under **Incomplete**, with what is missing; the page still works for all others.", evidence: [[SELF, "TST-774208"], [VIEW, "TST-766006"]] },
+  "1a-no-identifier": { uc: "**1a. A test declares no `TST-` identifier, no level or no guarded identifier.**", evidence: [[SELF, "TST-774209"]] },
   "1b-private": { uc: "**1b. The product repository is private and no token reaching it is stored.** The page says so and shows nothing.", evidence: [[SELF, "TST-774210"], [VIEW, "TST-766009"]] },
   "2a-broken": { uc: "**2a. A test guards an identifier that does not exist, or was withdrawn.** The link is shown as broken, with the identifier; the test is not moved to another group.", evidence: [[SELF, "TST-774211"], [VIEW, "TST-766007"]] },
   "5a-removed": { uc: "**5a. A test was removed.** It stays in the history of the commits where it existed, marked as removed at the commit that removed it;", evidence: [[SELF, "TST-774212"], [DETAIL, "TST-767007"]] },
@@ -64,7 +65,6 @@ const FLOW_EVIDENCE = {
 };
 // The passages the page does otherwise: the finding, its case, and the module it points to.
 const FLOW_FINDINGS = {
-  "1a-no-identifier": { uc: "**1a. A test declares no `TST-` identifier, no level or no guarded identifier.**", finding: "UC029-F1", file: SELF, test: "TST-774209", module: "MOD-trace-pages" },
   "main-5-default-branch": { uc: "one mark per commit of the default branch where it ran", finding: "UC029-F2", file: SELF, test: "TST-774214", module: "MOD-trace-pages" },
 };
 // The passages no code of this product carries, with the reason.
@@ -231,8 +231,8 @@ test("TST-774208: UC-029 1a a test without its level or without what it guards i
 // guards: UC-029; EVERY ARTIFACT NAMES ITS ORIGIN
 // given: the product of TST-774202; tests/undeclared.test.mjs holds the test case "a loan without its identifier", whose comment lines declare a level and LOANS ARE RECORDED and name no TST- identifier
 // input: the reviewer opens Tests → Browser at main
-// expect: known positive — the Incomplete group lists TST-107 with "level"; it also lists the test case of tests/undeclared.test.mjs, by its title or its file, with "identifier" as what is missing; FINDING UC029-F1 (MOD-trace-pages): the page lists only declarations MOD-test-document reads, and a test case whose comment lines name no identifier is no declaration, so it is not listed at all
-test("TST-774209: UC-029 1a a test that declares no TST- identifier is listed under Incomplete with the identifier missing", { todo: "FINDING UC029-F1 (MOD-trace-pages): tests.mjs lists only what testDeclarations yields, which is nothing for a test case whose comment lines name no identifier; such a test is not listed under Incomplete, nor anywhere" }, async () => {
+// expect: known positive — the Incomplete group lists TST-107 with "level"; it also lists the test case of tests/undeclared.test.mjs, by its title or its file, with "identifier" as what is missing
+test("TST-774209: UC-029 1a a test that declares no TST- identifier is listed under Incomplete with the identifier missing", async () => {
   const page = await render();
   const [incomplete] = withClass(page, "tests-incomplete");
   assert.ok(casesOf(incomplete).some((each) => textOf(each, "tests-id") === "TST-107" && textOf(each, "tests-missing") === "level"), "known positive: a test without its level is listed");
