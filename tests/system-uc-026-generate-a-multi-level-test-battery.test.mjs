@@ -78,13 +78,13 @@ const FLOW_EVIDENCE = {
   "6a-all-duplicates": { uc: "**6a. Every proposed case is a duplicate.**", evidence: [[SELF, "TST-771212"], [UNIT, "TST-764003"]] },
   "8a-red": { uc: "**8a. A new test fails on the current code because the behaviour is not implemented yet.**", evidence: [[SELF, "TST-771208"], [WRITTEN, "TST-754104"]] },
   "8b-green": { uc: "**8b. A test stays green with the planted fault.**", evidence: [[SELF, "TST-771209"], [WRITTEN, "TST-754102"], [UNIT, "TST-764004"]] },
+  "8b-shown-again": { uc: "it is not written, and the review panel shows it again for the author to sharpen or drop.", evidence: [[SELF, "TST-771209"]] },
 };
 // The passages the page or a module does otherwise: the finding, its case, and the module that points to.
 const FLOW_FINDINGS = {
   "main-1-accepted": { uc: "Agent M lists the accepted requirements, use cases and modules", finding: "UC026-F1", file: SELF, test: "TST-771203", module: "MOD-test-pages" },
   "main-4-implementer-uc": { uc: "For the *release* level it", finding: "UC026-F2", file: "tests/release-uc-026-generate-a-multi-level-test-battery.test.mjs", test: "TST-771309", module: "MOD-test-pages" },
   "main-8-date": { uc: "naming the Agent M version, the participant, the model and the date.", finding: "UC026-F5", file: SELF, test: "TST-771211", module: "MOD-runtimes" },
-  "8b-shown-again": { uc: "it is not written, and the review panel shows it again for the author to sharpen or drop.", finding: "UC026-F6", file: SELF, test: "TST-771209", module: "MOD-workflow-entries" },
 };
 // The passages no test of this product's code walks, with the reason.
 const NOT_WALKED = {
@@ -375,10 +375,10 @@ test("TST-771208: UC-026 8a a test that fails on the current code needs no count
 
 // TST-771209 · level: system · module: system
 // guards: UC-026; A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT; A DRAFT THAT FAILS A CHECK GOES BACK TO ITS PARTICIPANT
-// given: the proposal of TST-771205; test-bot first reports TST-902 as passed with no counter-proof (it stays green with the fault), then, sent back, pushes tests/extension-4 without that test and reports it in notWritten with the reason; FINDING UC026-F6 (MOD-workflow-entries): the end record of the job is the page's only source for the tests not written
+// given: the proposal of TST-771205; test-bot first reports TST-902 as passed with no counter-proof (it stays green with the fault), then, sent back, pushes tests/extension-4 without that test and reports it in notWritten with the reason
 // input: the person presses Write tests; the job workflow runs the job; the person opens Generate tests again and presses Read the proposal
 // expect: known positive — the participant is asked twice, the second request carrying the finding under A NEW TEST IS SHOWN TO FAIL ON A PLANTED FAULT for TST-902, and the job ends done with the branch without TST-902; the review panel shows TST-902 again with the reason and the words sharpen it or drop it
-test("TST-771209: UC-026 8b a test that stays green with the planted fault is not written and the review panel shows it again", { todo: "FINDING UC026-F6 (MOD-workflow-entries): onRecordsChanged ends a job with `draft: handedBack ? (outcome?.shown ?? result.draft) : null` (src/workflow-entries/product.mjs:282 and 255), and only a return-draft writer hands back; the end record of a write-tests job on CI therefore holds no draft, the report's notWritten never reaches docs/jobs/, and the page, which reads it there (generate.mjs:294), cannot show the test again" }, async () => {
+test("TST-771209: UC-026 8b a test that stays green with the planted fault is not written and the review panel shows it again", async () => {
   const w = walk.w;
   const page = await openGenerate(w);
   await readProposal(page);
