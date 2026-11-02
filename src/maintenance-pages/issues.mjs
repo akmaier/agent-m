@@ -278,12 +278,14 @@ const slugOf = (title) => String(title ?? "").toLowerCase().replace(/[^a-z0-9]+/
 const namesOf = (value) => (Array.isArray(value) ? value.map(String) : String(value ?? "").split(",").map((part) => part.trim()).filter(Boolean));
 const sameAddress = (a, b) => String(a).replace(/\/+$/, "") === String(b).replace(/\/+$/, "");
 
-// The requirements that the entries of the queues naming this issue of this product add or change, in `entryView`'s impact, in the order of the entries, once each.
+// The requirements that the entries naming this issue of this product add or change, in `entryView`'s impact, in the order of the queues and their entries, once each.
 async function changedRequirements(snapshot, number, productAddress) {
   const names = [];
   for (const queue of await queues(snapshot)) {
-    if (queue.issue?.number !== number || !sameAddress(queue.issue.product, productAddress)) continue;
-    for (const entry of queue.entries) for (const { name, change } of (await entryView(queue.folder, entry.number, snapshot)).impact) if (change !== "withdrawn") names.push(name);
+    for (const entry of queue.entries) {
+      if (entry.issue?.number !== number || !sameAddress(entry.issue.product, productAddress)) continue;
+      for (const { name, change } of (await entryView(queue.folder, entry.number, snapshot)).impact) if (change !== "withdrawn") names.push(name);
+    }
   }
   return [...new Set(names)];
 }
