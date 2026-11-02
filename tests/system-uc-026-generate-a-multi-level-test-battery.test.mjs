@@ -137,21 +137,19 @@ test.after(async () => { await quiet.stop(); });
 // guards: UC-026; EVERY STEP EXPLAINS ITSELF; ONE CLICK PER DECISION
 // given: the product alice/thesis-tool: the rules A LOAN HAS A DUE DATE (tested at unit, component and release) and A LOAN CAN BE EXTENDED ONCE (tested at none), UC-001 (tested at system) and UC-002 (tested at none), MOD-loans (tested at unit and component) and MOD-members (tested at none)
 // input: the person opens Tests and Generate tests
-// expect: every one of the six names is listed with the levels that guard it; the names with a level of their fitting kind lacking — A LOAN HAS A DUE DATE (user), A LOAN CAN BE EXTENDED ONCE, UC-002, MOD-members — are ticked and UC-001 and MOD-loans are not; all five levels are ticked, each with a folded explanation that names chapter 13; nothing is written to the product and nothing is sent
+// expect: the accepted names — the two rules, which the SPEC holds, and UC-001, which a record accepts — are listed with the levels that guard them, and UC-002, MOD-loans and MOD-members, which no record accepts, are not (UC-026 1, "lists the accepted"); the names with a level of their fitting kind lacking — A LOAN HAS A DUE DATE (user), A LOAN CAN BE EXTENDED ONCE — are ticked and UC-001 is not; the levels lacking for a ticked name — release and user — are ticked, each of the five levels with a folded explanation that names chapter 13; nothing is written to the product and nothing is sent
 test("TST-771202: UC-026 1, 2 the page lists what can be tested with the levels that guard it, preselects the uncovered, and explains each level", async () => {
   const w = quiet.w;
   const head = w.head();
   const target = await openGenerate(w);
   const rowOf = (name) => find(target, (node) => node.localName === "tr" && node.getAttribute("data-name") === name)[0];
   assert.ok(listedNames(target).includes("UC-001"), "known positive: the page lists UC-001");
-  assert.deepEqual(listedNames(target), [OTHER_RULE, RULE, "MOD-loans", "MOD-members", "UC-001", "UC-002"].sort());
-  assert.deepEqual(checkedNames(target).sort(), [OTHER_RULE, RULE, "MOD-members", "UC-002"].sort());
+  assert.deepEqual(listedNames(target), [OTHER_RULE, RULE, "UC-001"].sort());
+  assert.deepEqual(checkedNames(target).sort(), [OTHER_RULE, RULE].sort());
   assert.match(byClass(rowOf(RULE), "span", "covered")[0].textContent, /unit, component, release/);
   assert.match(byClass(rowOf(RULE), "span", "uncovered")[0].textContent, /user/);
   assert.match(byClass(rowOf("UC-001"), "span", "covered")[0].textContent, /system/);
-  assert.match(byClass(rowOf("MOD-loans"), "span", "covered")[0].textContent, /unit, component/);
-  assert.match(byClass(rowOf("MOD-members"), "span", "covered")[0].textContent, /no level/);
-  assert.deepEqual(checkedLevels(target), ["unit", "component", "system", "release", "user"]);
+  assert.deepEqual(checkedLevels(target), ["release", "user"]);
   for (const row of byClass(target, "tr", "level")) {
     const folds = find(row, (node) => node.localName === "details");
     assert.equal(folds.length, 1, `${row.getAttribute("data-level")} has one folded explanation`);
