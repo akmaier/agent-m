@@ -80,12 +80,14 @@ function codePart(host, shown, declaration) {
   return el("p", null, el("strong", null, "Code "), link);
 }
 
-// The id at the end of a record's run address, only where the host makes that exact address for it.
-function runIdOf(host, address) {
+// The id at the end of a record's run address (MOD-trace-pages, Files: "the last part of the address's path, as `WebLinks`' `run` builds it"), only where the host makes that exact address
+// for it; a host whose links build no run address leaves the last part unchecked. The audit (audit.mjs) asks its runs' logs by it too.
+export function runIdOf(host, address) {
   let id;
   try { id = new URL(address).pathname.split("/").filter(Boolean).at(-1); }
   catch { return null; }
-  return id && host.webLinks().run(id) === address ? id : null;
+  const run = host.webLinks?.()?.run;
+  return id && (typeof run !== "function" || run(id) === address) ? id : null;
 }
 
 // The run-log link of one history mark, or none where none of its contributing records names a host run. It leads to the run's page and reads "log"; whether the server still keeps the log is asked

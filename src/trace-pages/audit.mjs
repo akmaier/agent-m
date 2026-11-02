@@ -1,8 +1,10 @@
 // The audit page of the trace Route (UC-030 steps 1 to 4, alternative flows 1a and 2a to 2d): for a release tag the product at the tag's commit, its gate records
 // under the process model its docs/process.md declared at the tag, and the instance's SPEC are handed to MOD-release-evidence's auditRows; the page draws what
-// that gives. At the top stand the limitations, then the summary, each number that the rows alone can tell opening the rows it counts; under it the filters
-// (normative sources, one source, one level, only gaps) and one row per requirement valid at the tag, with its sources, its tests with outcome, level and
-// counter-proof, its gates and the acceptance of the report, and a detail that links the run on the server and the approval commit. Where the report is not
+// that gives. At the top stand the limitations, each that names a test of a row a link that opens the rows holding it, then the summary, each number that the
+// rows alone can tell opening the rows it counts; under it the filters (normative sources, one source, one level, only gaps) and one row per requirement valid
+// at the tag, with its sources, its tests with outcome, level and counter-proof, its gates and the acceptance of the report, and a detail that links the run on
+// the server and the approval commit and names the blob of the accepted text. Where the server keeps the log of none of the runs the row's records cite, the
+// run link is marked unavailable (ciRunLog, each run asked once, all at once, when the page is read). Where the report is not
 // accepted every row says so and the page links to MOD-test-pages' route `release`, where Accept stands. Export saves the audit document in the browser and, for a person with write access, Commit export commits it to docs/audits/<tag>.md, on the
 // person's click (export.mjs). It writes nothing else.
 //
@@ -12,8 +14,10 @@ import { readDocument } from "../documents/index.mjs";
 import { auditRows } from "../release-evidence/index.mjs";
 import { declarationSchema, gateSchema, gateStates, productWorkflow } from "../product-process/index.mjs";
 import { sourceSchemas } from "../source-register/index.mjs";
+import { resultSchema, resultsAt } from "../result-records/index.mjs";
 import { exportControls } from "./export.mjs";
 import { instanceSnapshot } from "./subject.mjs";
+import { runIdOf } from "./test-detail.mjs";
 
 const RESULTS_BRANCH = "test-results";
 const ON_ENTRY = /^(.+)@([0-9a-f]+)$/;
@@ -84,7 +88,32 @@ async function acceptanceOf(host, head, tag) {
   return added ? { record, commit: added.commit, accepted: { person: added.author.account ?? added.author.name, date: added.date } } : null;
 }
 
-async function load(host, context, tag) {
+// The rows whose run link leads to no log any more (UC-030 2d): the runs that the records of the release commit holding a row's tests cite — their `run` address, read
+// as the tests view reads it (runIdOf) — are asked of ciRunLog, each once and all at once; a row all of whose cited runs give null is in the set. Nothing is asked where
+// the server offers no run page or the host no ciRunLog; a run whose asking fails counts as kept, a row whose records cite no run keeps its link, and so does every
+// row where the records cannot be read (load).
+async function logsGone(host, results, release, audit, links) {
+  const tests = [...new Map(audit.rows.flatMap((row) => row.tests.map(({ id, level }) => [id, { id, level }]))).values()];
+  if (!links?.commitRuns || typeof host.ciRunLog !== "function" || !tests.length) return new Set();
+  const levels = await resultsAt(results, release.commit, tests);
+  const recordsOf = new Map(levels.flatMap((level) => level.tests.map((test) => [test.id, test.records ?? []])));
+  const paths = [...new Set([...recordsOf.values()].flat())];
+  const runOf = new Map(await Promise.all(paths.map(async (path) => {
+    const text = await results.read(path);
+    const address = text == null ? null : readDocument(resultSchema.run, path, text).fields.run;
+    return [path, address ? runIdOf(host, String(address)) : null];
+  })));
+  const ids = [...new Set([...runOf.values()].filter(Boolean))];
+  const kept = new Map(await Promise.all(ids.map((id) => host.ciRunLog(id).then((log) => [id, log != null], () => [id, true]))));
+  const gone = new Set();
+  for (const row of audit.rows) {
+    const cited = new Set(row.tests.flatMap((test) => (recordsOf.get(test.id) ?? []).map((path) => runOf.get(path)).filter(Boolean)));
+    if (cited.size && [...cited].every((id) => kept.get(id) === false)) gone.add(row.requirement);
+  }
+  return gone;
+}
+
+async function load(host, context, tag, links) {
   const release = { tag, commit: (await host.listTags()).find((each) => each.name === tag)?.commit ?? tag };
   const at = await host.readSnapshot(tag);
   const results = await host.readSnapshot(RESULTS_BRANCH);
@@ -94,7 +123,9 @@ async function load(host, context, tag) {
   const acceptance = await acceptanceOf(host, head, tag);
   const gates = await gatesOf(at, context, instanceSpec);
   const audit = await auditRows(at, results, head, release, gates, instanceSpec, register, acceptance?.accepted ?? null);
-  return { release, audit, acceptance, head, canWrite: info.canWrite === true };
+  // A read of the records that fails leaves every link as it is: the audit is drawn whether or not the logs can be asked.
+  const gone = await logsGone(host, results, release, audit, links).catch(() => new Set());
+  return { release, audit, acceptance, head, canWrite: info.canWrite === true, gone };
 }
 
 function select(className, label, values, change) {
@@ -117,8 +148,17 @@ function cell(label, className, ...children) {
   return td;
 }
 
-// One row: the requirement and what it constrains, its sources, its tests, its gates, the acceptance of the report, and the detail with the links.
-function rowOf(row, { release, audit, acceptance }, links) {
+// The id of the row at `index` among the audit's rows, which a limitation's link names.
+const rowId = (index) => `audit-row-${index}`;
+
+// The rows a limitation concerns: those holding the test its line names before " — " (MOD-approvals' `limitation`: `<TST-<nnn> or rate> — <reason>`).
+const concerned = (rows, line) => {
+  const named = String(line).split(" — ")[0].trim();
+  return rows.filter((row) => row.tests.some((test) => test.id === named)).map((row) => row.requirement);
+};
+
+// One row: the requirement and what it constrains, its sources, its tests, its gates, the acceptance of the report, and the detail with the links and the blob of the accepted text.
+function rowOf(row, { release, audit, acceptance, gone }, links) {
   const accepted = audit.summary.accepted;
   const evidence = accepted
     ? `accepted${audit.evidence.acceptance ? ` by ${audit.evidence.acceptance.person} on ${audit.evidence.acceptance.date}` : ""}`
@@ -133,7 +173,7 @@ function rowOf(row, { release, audit, acceptance }, links) {
         ...(test.counterProof ? [" ", el("span", "audit-counter-proof", test.counterProof)] : []));
     })
     : [el("span", "audit-no-test", "no test")];
-  const runPage = links?.commitRuns?.(release.commit);
+  const runPage = gone?.has(row.requirement) ? null : links?.commitRuns?.(release.commit);
   const run = runPage ? el("a", "audit-run", "Run on the server") : el("span", "audit-run-unavailable", "unavailable");
   if (runPage) run.setAttribute("href", runPage);
   const detail = el("details", "audit-detail", el("summary", null, "Detail"));
@@ -143,6 +183,7 @@ function rowOf(row, { release, audit, acceptance }, links) {
     approval.setAttribute("href", links.file(acceptance.record, acceptance.commit));
     detail.append(approval);
   }
+  if (accepted && audit.evidence.acceptance?.blob) detail.append(" Accepted text: blob ", el("code", "audit-accepted-blob", audit.evidence.acceptance.blob));
   const tr = el("tr", "audit-row",
     cell("Requirement", null, el("span", "audit-requirement", row.requirement), " ", el("span", "audit-constrains", row.constrains)),
     cell("Sources", null, ...row.sources.flatMap((source) => [el("span", "audit-source", source.id), ` (${source.authority}, ${source.version}) `])),
@@ -151,14 +192,16 @@ function rowOf(row, { release, audit, acceptance }, links) {
     cell("Acceptance", "audit-evidence", evidence),
     cell("Detail", null, detail));
   tr.setAttribute("data-requirement", row.requirement);
+  tr.setAttribute("id", rowId(audit.rows.indexOf(row)));
   return tr;
 }
 
 function page(loaded, links, host) {
   const { audit, release, head: defaultBranch, canWrite } = loaded;
-  const state = { count: null, normative: "all", source: "all", level: "all", gaps: false };
+  const state = { count: null, limitation: null, normative: "all", source: "all", level: "all", gaps: false };
   const tbody = el("tbody");
   const keep = (row) => (state.count === null || COUNTED[state.count](row))
+    && (state.limitation === null || concerned(audit.rows, state.limitation).includes(row.requirement))
     && (state.normative === "all" || row.sources.some((source) => source.authority === "normative"))
     && (state.source === "all" || row.sources.some((source) => source.id === state.source))
     && (state.level === "all" || row.tests.some((test) => test.level === state.level))
@@ -193,13 +236,26 @@ function page(loaded, links, host) {
     select("audit-filter-level", "Level", ["all", ...levels], (event) => { state.level = event.target.value; draw(); }),
     el("label", null, gaps, " only gaps"));
 
+  // A limitation that names a test of a row is a link to the first row holding it; pressed, it opens the rows it concerns, and pressed again every row, as a number does.
+  const limitationOf = (text) => {
+    const names = concerned(audit.rows, text);
+    if (!names.length) return text;
+    const link = el("a", "audit-limitation", text);
+    link.setAttribute("href", `#${rowId(audit.rows.findIndex((row) => row.requirement === names[0]))}`);
+    link.addEventListener("click", (event) => {
+      event?.preventDefault?.();
+      state.limitation = state.limitation === text ? null : text;
+      draw();
+    });
+    return link;
+  };
   const accept = el("a", "audit-accept", "Accept the report");
   accept.setAttribute("href", "#release");
   const head = el("tr", null, ...["Requirement", "Sources", "Tests", "Gates", "Acceptance", "Detail"].map((text) => el("th", null, text)));
   draw();
   return [
     ...(audit.summary.accepted ? [] : [el("p", "audit-not-accepted", "The release test report has not been accepted: evidence not accepted. ", accept)]),
-    ...(audit.summary.limitations.length ? [el("ul", "audit-limitations", ...audit.summary.limitations.map((text) => el("li", null, text)))] : []),
+    ...(audit.summary.limitations.length ? [el("ul", "audit-limitations", ...audit.summary.limitations.map((text) => el("li", null, limitationOf(text))))] : []),
     exportControls(el, { audit, release, host, head: defaultBranch, canWrite }),
     summary, filters, el("table", "audit-table list", el("thead", null, head), tbody)];
 }
@@ -232,7 +288,8 @@ export async function drawAudit(target, context, host, ref, descriptor, tags, ta
     place.replaceChildren(el("p", "traces-reading", "Reading the audit…"));
     let nodes;
     try {
-      nodes = page(await load(host, context, tag), host.webLinks?.() ?? null, host);
+      const links = host.webLinks?.() ?? null;
+      nodes = page(await load(host, context, tag, links), links, host);
     } catch (failure) {
       nodes = [el("p", "traces-problem", `The audit of ${tag} could not be read: ${failure?.message ?? failure}`)];
     }
