@@ -50,6 +50,7 @@ const FLOW_EVIDENCE = {
   "main-2-acceptance": { uc: "the acceptance of the release test report: who, when, and the blob SHA of the accepted text.", evidence: [[SELF, "TST-775203"], [PAGE, "TST-768012"]] },
   "main-3-summary": { uc: "At the top, Agent M summarises:", evidence: [[SELF, "TST-775206"], [PAGE, "TST-768003"]] },
   "main-3-opens": { uc: "Each number opens the rows it counts.", evidence: [[SELF, "TST-775206"], [PAGE, "TST-768004"], [PAGE, "TST-1163002"]] },
+  "main-3-passing": { uc: "Each number opens the rows it counts.", evidence: [[SELF, "TST-775207"]] },
   "main-4-filters": { uc: "The auditor filters — only normative sources, one source, one level, only gaps", evidence: [[SELF, "TST-775208"], [PAGE, "TST-768008"], [PAGE, "TST-768009"], [PAGE, "TST-768010"], [PAGE, "TST-768011"]] },
   "main-4-links": { uc: "opens a row to follow the links to the test, its run on the server, and the approval commit.", evidence: [[SELF, "TST-775209"], [PAGE, "TST-768012"]] },
   "main-5-export": { uc: "The auditor presses **Export** — one click.", evidence: [[SELF, "TST-775210"], ["tests/trace-pages-audit.test.mjs", "TST-770001"]] },
@@ -66,7 +67,6 @@ const FLOW_EVIDENCE = {
 const FLOW_FINDINGS = {
   "main-2-artifacts": { uc: "for a process requirement, also the gate records and artifacts it added to the workflow", finding: "UC030-F5", file: SELF, test: "TST-775204", module: "MOD-release-evidence" },
   "main-2-blob": { uc: "the acceptance of the release test report: who, when, and the blob SHA of the accepted text.", finding: "UC030-F4", file: SELF, test: "TST-775205", module: "MOD-trace-pages" },
-  "main-3-passing": { uc: "Each number opens the rows it counts.", finding: "UC030-F1", file: SELF, test: "TST-775207", module: "MOD-release-evidence" },
   "main-2-unrecorded-gate": { uc: "derives one row per requirement valid at that release:", finding: "UC030-F6", file: SELF, test: "TST-775220", module: "MOD-trace-pages" },
   "2b-linked": { uc: "each linked to the rows it concerns", finding: "UC030-F2", file: SELF, test: "TST-775214", module: "MOD-trace-pages" },
   "2d-log-gone": { uc: "**2d. The CI server no longer keeps the logs cited by the report.**", finding: "UC030-F3", file: SELF, test: "TST-775217", module: "MOD-trace-pages" },
@@ -197,8 +197,8 @@ test("TST-775206: UC-030 3 the summary counts the requirements without a test, w
 // guards: UC-030; THE TRACEABILITY MATRIX IS DERIVED
 // given: the product of TST-775206; SUMMARIES ARE FAST is guarded by TST-706, model-dependent, which passed 9 of 10 against 8 of 10 at the last release (not worse), so its row has passing evidence; ENTRIES ARE POSTED too
 // input: the auditor reads the number with passing evidence, presses it, and ticks only gaps
-// expect: known positive — the number reads 2 and pressing it leaves ENTRIES ARE POSTED; FINDING UC030-F1 (MOD-release-evidence): the number counts two requirements and opens the rows of both, SUMMARIES ARE FAST among them, and only gaps leaves it out
-test("TST-775207: UC-030 3 the number of requirements with passing evidence opens the rows it counts, a model-dependent test's included", { todo: "FINDING UC030-F1 (MOD-release-evidence): auditRows counts a row with a model-dependent test passing from the entry's outcome and gives the row's test the rate as its outcome (`9 of 10`), so the rows alone cannot tell it passed; the page's recount finds one row of two (the interface: the rows a number counts are told from the rows alone)" }, async () => {
+// expect: known positive — the number reads 2 and pressing it leaves ENTRIES ARE POSTED; the number counts two requirements and opens the rows of both, SUMMARIES ARE FAST among them, and only gaps leaves it out
+test("TST-775207: UC-030 3 the number of requirements with passing evidence opens the rows it counts, a model-dependent test's included", async () => {
   const page = await render();
   assert.equal(numbers(page).passing, "2", "known positive: two requirements have passing evidence");
   await press(countOf(page, "passing"));
