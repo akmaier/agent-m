@@ -1,5 +1,5 @@
 // The detail of an opened test of the tests view, `trace/tests/<TST>` (UC-029 steps 4, 5 and 5a): the test as it declares itself — level, guarded identifiers, precondition, input and expected result —, when the schedule runs it,
-// its counter-proof record and the participant that wrote the test, a link to its code, and its history: one mark per commit that ran it, one row per release tag, a flaky commit marked, a model-dependent test's rate
+// its counter-proof record and the participant that wrote the test, a link to its code, and its history: one mark per commit of the default branch that ran it, one row per release tag, a flaky commit marked, a model-dependent test's rate
 // per release as a line with its runs, and, for a test that was removed, the commit that removed it. Each part is read when the detail is drawn (a run's log only when the person opens its link), from the version shown and the branch `test-results`; a part that cannot
 // be read is named in a line and leaves the others. It writes nothing.
 //
@@ -126,6 +126,15 @@ async function runsPage(host, ref, folders = []) {
   return { results, commits, next };
 }
 
+// The commits of the default branch (UC-029 step 5), read once when a mark first needs them: the history of the repository from the default branch's head, without the files each commit changed.
+function defaultBranchCommits(host) {
+  let read = null;
+  return () => read ??= (async () => {
+    const { defaultBranch } = await host.repositoryInfo();
+    return new Set((await host.readHistory(null, { ref: defaultBranch, changes: false })).map(({ commit }) => commit));
+  })();
+}
+
 // The history through testHistory: the commits of the newest ten runs of the branch `test-results` that ran the test, with their optional run logs, the rate of a model-dependent test per release and the release tags'
 // outcomes; *Earlier runs* adds the marks of the next ten runs below.
 async function historyPart(host, id, declaration) {
@@ -135,11 +144,13 @@ async function historyPart(host, id, declaration) {
     const list = el("ul", "test-history-commits");
     const slot = el("div", "test-history-more");
     const shown = new Set();
+    const onDefault = defaultBranchCommits(host);
     // The marks of one page, in the order of its commits, a commit already marked by an earlier page left out; the release tags' outcomes are the first page's.
     const addMarks = async (page, releaseTags) => {
       const { commits, releases } = await testHistory(page.results, id, releaseTags);
       const outcomes = new Map(commits.map(({ commit, outcome }) => [commit, outcome]));
-      const marks = page.commits.filter((commit) => outcomes.has(commit) && !shown.has(commit));
+      const onBranch = await onDefault();
+      const marks = page.commits.filter((commit) => outcomes.has(commit) && !shown.has(commit) && onBranch.has(commit));
       const logs = new Map(await Promise.all(marks.map(async (commit) => [commit, await historyLogLink(host, page.results, commit, declaration)])));
       for (const commit of marks) {
         shown.add(commit);
