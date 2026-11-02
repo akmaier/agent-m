@@ -1104,11 +1104,6 @@ and an entry whose anchor another entry creates is offered only together with or
 sections; counter-proof: 06 alone is not offered while its anchor is missing, and the dashboard names
 05.
 
-**A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE** *(PO A. Maier)*
-A SPEC edit saved on the dashboard is added to the person's newest queue of the same day that has no
-accepted entry yet, and opens a new queue only if there is none.
-*Check:* `tests/review-core.test.mjs`
-
 **EVERY STEP EXPLAINS ITSELF** *(PO A. Maier)*
 Every step that asks something of the person carries an explanation that can be expanded, written
 for someone new to GitHub.
