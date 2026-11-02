@@ -13,7 +13,7 @@ import { listJobs } from "../job-ledger/index.mjs";
 import { provenanceLines } from "../job-runner/index.mjs";
 import { declarationSchema, gateSchema, gateStates, productWorkflow } from "../product-process/index.mjs";
 import { parseSpec } from "../spec-document/index.mjs";
-import { queues } from "../spec-changes/index.mjs";
+import { proposeSection, queues } from "../spec-changes/index.mjs";
 import { isTestFile, testDeclarations } from "../test-document/index.mjs";
 import { systemDecisions, traceGraph } from "../trace-graph/index.mjs";
 import { finding } from "../text-tools/index.mjs";
@@ -412,6 +412,8 @@ const PROCESS_RULE = "AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF";
 const CLOSE_KEYS = ["sprint", "review", "unfinished", "retrospective", "newItems"];
 const REVIEW_KEYS = ["feedback", "tookPart", "sources"];
 const ENTRY_KEYS = ["text", "kind", "goes"];
+// Where a change of the retrospective goes that is a rule of the development process (AN AGENT'S RETROSPECTIVE CHANGES NO PROCESS BY ITSELF); the team agreement is none.
+const PROCESS_GOES = ["process model", "Definition of Done", "a participant's instructions"];
 // A line that says that no stakeholder took part.
 const NO_STAKEHOLDER = /\bno stakeholders?\b[^.]*\b(?:took|take|taken|takes) part\b/i;
 
@@ -463,10 +465,18 @@ function sprintRecordChecks(draft) {
 /**
  * The writer sprint-record(result, context) -> Promise<WriteOutcome> — an agent's close of the sprint the job's parameter `sprint` names, the one the recipe sprint-facts reads, through closeSprint (UC-041 step 6):
  * the draft, `result.draft`, which sprint-record-checks has checked, is closeSprint's `close` with its `sprint` that of the parameter, whatever the draft holds; `facts` are those of the same sprint as the recipe sprint-facts computes them (its own function); `architecture` the module files of the job's snapshot; `head` the snapshot's
- * commit; `trailers` provenanceLines of the job, the participant's name among them — the closer's. The proposals of the retrospective are written as lines of the sprint's record and nothing else is written.
+ * commit; `trailers` provenanceLines of the job, the participant's name among them — the closer's. The proposals of the retrospective are written as lines of the sprint's record, and each change it
+ * recommends to the process model, the Definition of Done or a participant's instructions is, after the record, an open entry of a queue of the instance's SPEC (AN AGENT'S RETROSPECTIVE CHANGES NO
+ * PROCESS BY ITSELF), through MOD-spec-changes' proposeSection; nothing of the process itself is written.
  * A review that sprint-record-checks finds under AN AGENT'S REVIEW NAMES WHERE ITS FEEDBACK CAME FROM — no source named, or no statement that no stakeholder took part when none did — is refused with
  * ReviewRefused { findings }, those findings, and nothing is written: the job runner calls the writer also when nobody attends and its loop ended with the finding open.
- * Otherwise commits once, to the product's default branch; the outcome names the commit and the record. Throws what closeSprint throws.
+ * Otherwise commits the record once, to the product's default branch, then each entry in a commit of its own; the outcome names the commits and the record, and a note names each entry. Throws what
+ * closeSprint throws, and what proposeSection throws.
+ * Where the module file leaves a reading open, this file takes the one it names:
+ *   - A process rule belongs in the instance's SPEC, as for the writer queue-entries of MOD-spec-changes (A REQUIREMENT NAMES WHAT IT CONSTRAINS); a product that is its own instance — the job's instance
+ *     at the product's address — gets the entry through the product's host, the one whose commits the job's result carries.
+ *   - A change is no requirement yet — no name, source or check —, so its entry proposes a new section of `SPEC.md`, whose heading is the change's text, for the person to shape before accepting it;
+ *     the rationale names the sprint and where the change goes. An entry that is not committed — refused, or GitHub's pages instead — is named in the outcome's notes.
  */
 async function sprintRecord(result, context) {
   const { snapshot, host } = context.product;
@@ -479,7 +489,19 @@ async function sprintRecord(result, context) {
   const architecture = await moduleFiles(snapshot);
   const trailers = provenanceLines({ agentM: context.agentM, jobId: context.jobId, kind: context.kind.name, participant: result.drafter ?? { name: "none", model: null }, rounds: result.rounds.length });
   const { commit, written } = await closeSprint(host, close, { facts, architecture, head: snapshot.commit, trailers });
-  return { commits: [commit], files: written, pullRequest: null, shown: null, notes: [] };
+  const outcome = { commits: [commit], files: written, pullRequest: null, shown: null, notes: [] };
+  const web = (side) => side?.snapshot?.repository?.web ?? null;
+  const spec = web(context.product) !== null && web(context.product) === web(context.instance) ? host : context.instance.host;
+  for (const entry of asList(close.retrospective).filter((each) => each?.kind === "change" && PROCESS_GOES.includes(each.goes))) {
+    const text = String(entry.text ?? "").replace(/\s+/g, " ").trim();
+    const proposed = await proposeSection(spec, { target: "SPEC.md", anchor: `## ${text}`, until: null, text: `## ${text}\n`, why: `The retrospective of sprint ${name} recommends this change to ${entry.goes}: ${text}`,
+      origin: `the retrospective of sprint ${name}, docs/backlog/sprints/${name}.md`, person: result.drafter?.name ?? "none", openedBlob: null, openedHead: null, trailers });
+    if (proposed.commit) {
+      outcome.commits.push(proposed.commit);
+      outcome.notes.push(`"${text}" is proposed to ${entry.goes} as entry ${String(proposed.entry).padStart(2, "0")} of the queue ${proposed.queue}.`);
+    } else outcome.notes.push(`"${text}" is not proposed to ${entry.goes}: ${proposed.refused ?? "the instance's host gave GitHub's pages instead of a commit"}.`);
+  }
+  return outcome;
 }
 
 const BACKLOG_RULE = "THE BACKLOG LIVES IN THE PRODUCT REPOSITORY";
