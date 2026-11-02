@@ -47,8 +47,11 @@
 .btn.primary, .prompt-bar button.send, .arrange button.arrange-save { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
 .btn.small, .prompt-bar button.clear, .arrange-tree button, .arrange-add button { font-size: .78rem; padding: .2rem .5rem; }
 .btn:disabled, .prompt-bar button:disabled, .arrange button:disabled { opacity: .55; cursor: not-allowed; }
-/* The fields the pages share: the product selector in the header, the main page's job filters and retry choices, and the fields above the Requirements page's tree. */
-.product select, select.product, select.filter, .job-retry select, .spec-narrow input, .spec-narrow select, .version-bar select, .arrange input, .arrange select { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: .3rem .4rem; max-width: 22rem; }
+/* The fields every page shares: every select, text input and textarea, wherever a page draws it. A rule below gives a field of one place only its size;
+   being later and of a weight no lower, it wins. */
+select, textarea, input:not([type="checkbox"],[type="radio"],[type="file"]) { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: .3rem .4rem; max-width: 100%; }
+/* The product selector in the header, the main page's job filters and retry choices, and the fields above the Requirements page's tree. */
+.product select, select.product, select.filter, .job-retry select, .spec-narrow input, .spec-narrow select, .version-bar select, .arrange input, .arrange select { max-width: 22rem; }
 /* A button, or a link drawn as one, and the text beside it on the same line stand apart by a visible gap, however the view wrote them. */
 button, .btn { margin-inline: .35em; }
 
@@ -78,8 +81,7 @@ button, .btn { margin-inline: .35em; }
 .spec-narrow, .version-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; margin: .5rem 0 1rem; }
 .version-bar > :is(p, details) { flex-basis: 100%; margin: 0; }
 .spec-narrow input, .spec-narrow select, .version-bar select.version-choice { box-sizing: border-box; min-width: 0; max-width: 100%; min-height: 24px;
-  font: inherit; font-size: .95rem; padding: .45rem .6rem; border: 1px solid var(--line); border-radius: 4px;
-  color: var(--fg); background: var(--panel); }
+  font-size: .95rem; padding: .45rem .6rem; }
 .spec-narrow .spec-narrow-text { flex: 1 1 16rem; max-width: 28rem; }
 .spec-narrow label { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .4rem; min-width: 0; max-width: 100%; }
 .spec-narrow select { flex: 1 1 auto; }
@@ -160,7 +162,7 @@ details.explain > div { margin-top: .5rem; padding: .6rem .8rem; background: var
 
 .editor { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .editor textarea { width: 100%; min-height: 520px; font-family: ui-monospace, Menlo, monospace; font-size: .82rem;
-  background: var(--code); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: .7rem; }
+  background: var(--code); padding: .7rem; }
 .editor .preview { max-height: 560px; overflow: auto; border: 1px dashed var(--line); border-radius: 6px; padding: .5rem .9rem; }
 @media (max-width: 900px) { .editor { grid-template-columns: 1fr; } }
 
@@ -172,8 +174,7 @@ details.explain > div { margin-top: .5rem; padding: .6rem .8rem; background: var
 /* Reject beside Accept: its panel, and the field for the reason across the panel's width. */
 .reject { border-color: var(--bad); }
 .reject label { display: block; margin: .5rem 0; }
-.reject textarea { display: block; box-sizing: border-box; width: 100%; min-height: 4.5rem; margin-top: .3rem; font: inherit; color: var(--fg);
-  background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: .5rem; resize: vertical; }
+.reject textarea { display: block; box-sizing: border-box; width: 100%; min-height: 4.5rem; margin-top: .3rem; padding: .5rem; resize: vertical; }
 .accepted-diff .diff { max-height: 420px; overflow: auto; }
 .change-impact { max-height: 420px; overflow: auto; }
 
@@ -199,8 +200,7 @@ details.explain > div { margin-top: .5rem; padding: .6rem .8rem; background: var
 .prompt-bar .bar-grip::before { content: ""; width: 3rem; height: 4px; border-radius: 2px; background: var(--line); }
 .prompt-bar .bar-grip:hover::before, .prompt-bar .bar-grip:focus-visible::before { background: var(--accent); }
 .prompt-bar .chooser { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
-.prompt-bar select.participant, .prompt-bar textarea.instruction { box-sizing: border-box; font: inherit; color: var(--fg); background: var(--panel);
-  border: 1px solid var(--line); border-radius: 6px; padding: .45rem .6rem; max-width: 100%; }
+.prompt-bar select.participant, .prompt-bar textarea.instruction { box-sizing: border-box; padding: .45rem .6rem; }
 .prompt-bar textarea.instruction { width: 100%; min-height: 3rem; resize: vertical; }
 .prompt-bar .bar-foot { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: .5rem 1rem; }
 .prompt-bar .bar-notes { flex: 1 1 20rem; min-width: 0; color: var(--muted); font-size: .8rem; }

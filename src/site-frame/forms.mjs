@@ -150,7 +150,7 @@ export function schemaForm(schema, opened, { onSave, extraChecks = () => [] }) {
 
   const lists = new Map(); // the list of findings beside each field, by its key or its heading
   const endList = element("ul", "findings");
-  const save = element("button", null, "Save");
+  const save = element("button", "btn", "Save");
   save.setAttribute("type", "button");
 
   // The findings shown again where they fall, and Save offered only while no error remains.
