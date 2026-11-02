@@ -154,7 +154,7 @@ test("#arc sends its commit, one request for its folders and one batch of the fi
 // given: MOD-review, which realises UC-002, a use case whose current text is not accepted
 // input: open #arc/MOD-review with a token
 // expect: the page names UC-002 as what it rests on and offers one Accept, disabled; the counter-proof is MOD-page, which names nothing open and is offered for acceptance with an Accept that is enabled
-test("#arc/<id>: a module that names what is not accepted says so, and its Accept is disabled", async () => {
+test("TST-1429017: #arc/<id>: a module that names what is not accepted says so, and its Accept is disabled", async () => {
   const repo = await product();
   const waiting = await openDashboard({ server: await server(repo), hash: "#arc/MOD-review" });
   assert.match(waiting.main(), /Rests on what is not accepted/);
@@ -171,7 +171,7 @@ test("#arc/<id>: a module that names what is not accepted says so, and its Accep
 // given: the fixture product with a queue whose one entry is accepted and written, and a queue with an open entry
 // input: open #spec with a token
 // expect: no overview is stored for the commit, so the app reads, as MOD-site-frame states it ("the change queues stored for the commit, read beside the first wave of `#spec` …; where no overview is stored, the index and decisions of every queue are read, then the proposals of those still open"), in three waves, each one request: the SPEC — 1 file —, then the queues' heads — 3 files, the two queues' index files being the same blob —, then the proposals of the open queue — 1 file —; before the third, the GraphQL request of greenToMerge beside the repository's information, a batch of no file (ITM-1170). The open entry's rationale is not read (ITM-1274: the impact list of the open entry is made from its proposal and target, MOD-spec-changes' entryImpact, "it reads no rationale"); the graph gives that impact list (the statuses of the specification view, UC-020 step 3) only its referencedBy (MOD-spec-changes), and that graph is the stored one, and no batch of its artifacts is sent (MOD-trace-graph: "A page never builds the graph"); no file twice, the accepted queue's proposal not at all, and no file by itself. The open entry stands under "SPEC changes waiting for acceptance" as a link with its state open; the written one does not.
-test("#spec: the app reads the SPEC in one batch, the queues' heads in a second, the open queue's proposals in a third, and builds no graph", async () => {
+test("TST-1429018: #spec: the app reads the SPEC in one batch, the queues' heads in a second, the open queue's proposals in a third, and builds no graph", async () => {
   const repo = await product(), srv = await server(repo);
   const page = await openDashboard({ server: srv, hash: "#spec" });
   const wave1 = ["SPEC.md"], heads = sorted([`${DONE}/entscheidungen.md`, `${DONE}/index.md`, `${OPEN}/entscheidungen.md`]);
@@ -191,7 +191,7 @@ test("#spec: the app reads the SPEC in one batch, the queues' heads in a second,
 // given: the fixture product with a register: the links file docs/sources.md and two entries docs/sources/SRC-a.md and SRC-b.md
 // input: open #spec with a token
 // expect: the first wave is one batch of 4 files — the SPEC and the links file with the two register entries —, then, no overview being stored, the queues' heads a second batch of 3 (MOD-site-frame: "where no overview is stored, the index and decisions of every queue are read, then the proposals of those still open"), the open queue's proposal a third batch of 1 — its rationale is not read (ITM-1274) —, before it greenToMerge's GraphQL request, a batch of no file (ITM-1170), and no batch of the graph's artifacts; no file twice, none by itself; the register is read in no batch of its own
-test("#spec: the links file and the register's entries are read in the first wave, beside the SPEC and the queues' heads", async () => {
+test("TST-1429019: #spec: the links file and the register's entries are read in the first wave, beside the SPEC and the queues' heads", async () => {
   const entry = (id) => ["---", `id: ${id}`, "title: A person", "kind: person", "authority: normative", "licence: may be republished — fixture",
     `identifier: github.com/${id}`, "---", `# ${id} A person`, "", "## Versions", "", "| Version | Date | Edition | Read from | Files |", "|---|---|---|---|---|",
     "| `2026-10-11` | 2026-10-11 | the fixture | this repository | one file, hashed only |", ""].join("\n");
@@ -228,7 +228,7 @@ test("#spec: the whole load sends its commit and one request for its folders onc
 // given: the fixture product, opened on #uc
 // input: go on to #arc, #uc/UC-001 and #spec within the same load of the page
 // expect: the start page reads no repository's information (ITM-716: 1 → 0); #arc reads it once, for its modules view (MOD-trace-pages; ITM-716: 0 → 1), and #uc/UC-001 and #spec do not read it again
-test("the repository's information is read once for as long as the page is open", async () => {
+test("TST-1429020: the repository's information is read once for as long as the page is open", async () => {
   const page = await openDashboard({ server: await server(await product()) });
   assert.equal(count(page.requests, "repository"), 0);
   for (const [hash, times] of [["#arc", 1], ["#uc/UC-001", 0], ["#spec", 0]]) assert.equal(count(await page.go(hash), "repository"), times, hash);
@@ -239,7 +239,7 @@ test("the repository's information is read once for as long as the page is open"
 // given: a product that declares its process model, with one team, its sprint and two items; the branch overview-cache holds the backlog view of the head (ITM-1260: MOD-implementation-pages' route `backlog` "draws the view stored for the head (MOD-progress-measures' `storedView`) and reads no record, no facts and no pull request")
 // input: open #backlog with a token
 // expect: the commit and the tree once, then one read of the view on overview-cache, and nothing else: no batch of files, no file by itself, no facts file, no pull request; ITM-001 and ITM-002 listed
-test("#backlog sends its commit and tree once, and reads the view stored for its commit, with no batch of files", async () => {
+test("TST-1429021: #backlog sends its commit and tree once, and reads the view stored for its commit, with no batch of files", async () => {
   const repo = await product({
     "docs/process.md": ["---", "model: fixture-scrum-wip", "model_file: docs/process-models/fixture.md", `model_version: ${"c0ffee".padEnd(40, "0")}`,
       "---", "# How the fixture product is developed", ""].join("\n"),
@@ -310,7 +310,7 @@ function pullsAndSearch(closed) {
 // given: a product that declares its process model, with one team whose sprint 01 runs since 2026-10-20, two items; its pull requests: two open, one merged on 2026-10-21, and 250 closed in August; the branch overview-cache holds the progress view of the head (ITM-1260: MOD-implementation-pages' route `progress` "draws the view stored for the head … and reads no record, no facts and no pull request")
 // input: open #implementation with a token; and, as the counter-proof, the same without the stored view
 // expect: the route progress is drawn — team1's running sprint team1/01 — and no request about pull requests is sent, no /pulls and no /search/issues; without the stored view the page derives the view in the page and reads them
-test("#implementation draws progress from the view stored for its commit, and sends no request about pull requests", async () => {
+test("TST-1429022: #implementation draws progress from the view stored for its commit, and sends no request about pull requests", async () => {
   const sprinting = () => product({
     "docs/process.md": ["---", "model: fixture-scrum-wip", "model_file: docs/process-models/fixture.md", `model_version: ${"c0ffee".padEnd(40, "0")}`,
       "---", "# How the fixture product is developed", ""].join("\n"),
@@ -352,7 +352,7 @@ test("a page that shows more than a hundred files sends one batch for every hund
 // given: a stored token; the fixture product
 // input: open the start page without a token
 // expect: GitHub's batch request needs the token: none is sent, and each of the 2 files is read by its own request
-test("without a token no batch is sent; each file is read by itself", async () => {
+test("TST-1429023: without a token no batch is sent; each file is read by itself", async () => {
   const srv = await server(await product());
   const page = await openDashboard({ server: srv, token: null });
   assert.deepEqual(batchesOf(page.requests), []);
@@ -366,7 +366,7 @@ test("without a token no batch is sent; each file is read by itself", async () =
 // given: three use cases waiting for acceptance — UC-002 changed, UC-003 and UC-004 open — shown on the review page
 // input: press Accept all 3 shown
 // expect: before it writes, the click reads the head it commits on once — one commit, one tree — and, once, the SPEC that the requirements the use cases name are looked up in (MOD-approvals' acceptShown); no use case, since the three texts were read when the page was shown and their blobs are unchanged; the repository's information is not read again
-test("an acceptance of three files reads its head once", async () => {
+test("TST-1429024: an acceptance of three files reads its head once", async () => {
   const repo = await product({ "docs/use-cases/UC-003-third.md": useCase("003", "Third"), "docs/use-cases/UC-004-fourth.md": useCase("004", "Fourth") });
   const srv = await server(repo);
   const page = await openDashboard({ server: srv, hash: "#review/uc" });
@@ -423,7 +423,7 @@ test("#review/uc reads no repository's information of its own", async () => {
 // given: the same three use cases, and a stored token that is not sent
 // input: open #review/uc without a token
 // expect: counter-proof of the case above — GitHub's batch request needs the token, so no batch is sent and each of the three use cases is read by its own request, more requests than the one batch
-test("#review/uc without a token: each file is read by itself, which sends more requests than the batch", async () => {
+test("TST-1429025: #review/uc without a token: each file is read by itself, which sends more requests than the batch", async () => {
   const repo = await product({ "docs/use-cases/UC-003-third.md": useCase("003", "Third"), "docs/use-cases/UC-004-fourth.md": useCase("004", "Fourth") });
   const withToken = await openDashboard({ server: await server(repo), hash: "#review/uc" });
   const without = await openDashboard({ server: await server(repo), hash: "#review/uc", token: null });
@@ -510,7 +510,7 @@ test("a page of use cases in a pulled product reads its commit and its folders o
 // given: the same fixture product, and a stored token that is not sent
 // input: open #use-case, #decision and #module without a token
 // expect: counter-proof of the case above — GitHub's batch request needs the token, so no batch is sent and each of the files of the kind (2, 3 and 3) is read by its own request; no read of the repository's information for #use-case and #decision (ITM-716: 1 → 0), one for #module
-test("#use-case, #decision and #module without a token: each file is read by itself", async () => {
+test("TST-1429026: #use-case, #decision and #module without a token: each file is read by itself", async () => {
   const repo = await withDecisions();
   for (const [hash, paths] of Object.entries(SHOWN)) {
     const page = await openDashboard({ server: await server(repo), hash, token: null });
@@ -675,7 +675,7 @@ test("without Cache Storage the page still works; it sends the same requests", a
 // given: UC-001 with its record, and UC-002 whose only record names an earlier text
 // input: open #uc/UC-001 and #uc/UC-002 with a token
 // expect: UC-001 accepted, with no Accept; UC-002 changed since acceptance, with Accept — a file is accepted exactly when a record names its current blob
-test("a use case is accepted exactly when a record names its current text", async () => {
+test("TST-1429027: a use case is accepted exactly when a record names its current text", async () => {
   const repo = await product();
   const honest = await openDashboard({ server: await server(repo), hash: "#uc/UC-001" });
   assert.match(honest.main(), /<span class="badge b-accepted">accepted<\/span>/);
