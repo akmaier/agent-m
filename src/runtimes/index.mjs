@@ -17,8 +17,10 @@
 // index.mjs. ci.mjs is private to it, besides the RuntimeError it re-exports here.
 
 import { appendToRecord } from "../job-ledger/index.mjs";
+import { readDocument } from "../documents/index.mjs";
+import { gateSchema } from "../product-process/index.mjs";
 import { cancelRun, jobWorkflowRuns, queueOnCi, runOfAddress } from "./ci.mjs";
-import { abortOnTab, browserStore, endOnTab, heldOnTab, queueOnTab, requireWaitingOnTab, tookOnTab } from "./tab.mjs";
+import { abortOnTab, browserStore, dropOnTab, endOnTab, heldOnTab, queueOnTab, requireWaitingOnTab, tookOnTab } from "./tab.mjs";
 import { retryJob as retryWith } from "./retry.mjs";
 import { bridgeNamed, cancelBridgeJob, followBridgeLog, handOverAgain, listedOnBridge, queueOnBridge } from "./bridge.mjs";
 
@@ -72,16 +74,31 @@ export function retryJob(record, choice, host, head) {
 /**
  * resumeJob(record, gateRecord, route, host, head, bridge?) -> Promise<void> (MOD-runtimes, Interfaces; ITM-790) — appends the resumption, naming the gate record, to the record on the head read, as the person's commit, and hands the job
  * back to its route: in the tab it goes on from the result the tab kept for it, its end appended as a job of the tab ends; on a Bridge it is handed over again when `bridge` is given, else the Bridge takes it up when it next
- * reads the repository; on CI the push itself starts the job workflow. Fails with NotHeld { job } for a tab job of which the tab keeps no result — before anything is committed —, with MOD-job-ledger's NotWaiting for a job
+ * reads the repository; on CI the push itself starts the job workflow. Where the gate record is a rejection (`decision: rejected`; ITM-1412) the job ends instead: one commit on the head read appends its End, `failed`, with the
+ * gate, the gate record and the record's reason as its reason, and nothing goes on — the tab drops the result it kept, a Bridge is not asked, CI starts nothing. A record that is not rejected, or that the repository
+ * does not hold, resumes. Fails with NotHeld { job } for a tab job of which the tab keeps no result — before anything is committed — (not for a rejection, whose end needs no result), with MOD-job-ledger's NotWaiting for a job
  * at no gate or at a gate already resumed and RecordEnded for an ended one, with what the host names (Moved among them: nothing is committed then), and with what the Bridge client names after the commit.
  */
 export async function resumeJob(record, gateRecord, route, host, head, bridge) {
-  if (route.kind === "tab") requireWaitingOnTab(record.id);
   const [{ defaultBranch }, snapshot] = await Promise.all([host.repositoryInfo(), host.readSnapshot(head)]);
+  const decided = await snapshot.read(gateRecord);
+  const rejection = decided === null ? null : readDocument(gateSchema, gateRecord, decided);
+  if (rejection?.fields.decision === "rejected") return endRejected(record, gateRecord, rejection, route, host, { defaultBranch, snapshot, head });
+  if (route.kind === "tab") requireWaitingOnTab(record.id);
   const text = appendToRecord(await snapshot.read(record.path), { part: "resumed", at: new Date(), gateRecord });
   const { commit } = await host.commitFiles({ branch: defaultBranch, expectedHead: head, files: [{ path: record.path, text }], message: `Job ${record.id}: resumed` });
   if (route.kind === "tab") await endOnTab(record, host);
   else if (route.kind === "bridge" && bridge) await handOverAgain(bridge, snapshot.repository.web, record.path, commit);
+}
+
+// A job whose gate was rejected: its End, `failed`, naming the gate the job last reached, the gate record and the record's `## Reason` on one line, committed on the head read; the tab then forgets the result it kept.
+async function endRejected(record, gateRecord, rejection, route, host, { defaultBranch, snapshot, head }) {
+  if (record.gates.at(-1)?.resumedBy !== null) throw Object.assign(new Error(`the job ${record.id} is not at a gate: there is nothing to end`), { name: "NotWaiting" });
+  const why = rejection.sections.find((section) => section.heading === "## Reason")?.text.replace(/\s+/g, " ").trim();
+  const text = appendToRecord(await snapshot.read(record.path), { part: "end", at: new Date(), state: "failed", results: [], draft: null, rounds: [], usage: null,
+    cost: { known: false, usage: null }, reason: `the gate ${record.gates.at(-1).gate} was rejected by ${gateRecord}${why ? `: ${why}` : ""}`, log: null });
+  await host.commitFiles({ branch: defaultBranch, expectedHead: head, files: [{ path: record.path, text }], message: `Job ${record.id}: end` });
+  if (route.kind === "tab") dropOnTab(record.id);
 }
 
 // ---------------------------------------------------------------- a job's live state, its log and its cancel (ITM-535, ITM-545)

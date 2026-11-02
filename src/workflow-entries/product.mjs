@@ -320,18 +320,22 @@ async function workFacts(env, composed, { atHead = false } = {}) {
   return productFacts(clone, await instance.host.readSnapshot("HEAD"), (commit) => instance.host.readSnapshot(commit), env.now, { scope: "work" });
 }
 
-// The jobs of this route waiting at a gate that is now passed, each with the gate record that passed it. A gate record whose decider is the job's own participant —
-// whose work the gate checks — does not resume the job.
+// The jobs of this route waiting at a gate that is now decided, each with the gate record that decided it: a passed gate resumes the job, a rejected one — by a record that names the job — ends it
+// (`rejected`: the record's reason). A gate record whose decider is the job's own participant — whose work the gate checks — decides nothing.
 async function resumable(env, composed) {
   const facts = await workFacts(env, composed);
   const wanted = routeOf(env.job.runner);
   const rows = [];
   for (const { record, state } of facts.jobs) {
     if (state !== "waiting at a gate" || record.route !== wanted) continue;
-    const reached = record.gates.at(-1)?.gate;
-    const passed = facts.gateStates.find((each) => each.gate === reached && each.state === "passed");
-    const decided = passed && facts.gates.find((each) => each.path === passed.record);
-    if (decided && decided.fields.decider !== record.participant) rows.push({ record, path: record.path, gateRecord: passed.record });
+    const verdict = facts.gateStates.find((each) => each.gate === record.gates.at(-1)?.gate);
+    const decided = verdict?.record && facts.gates.find((each) => each.path === verdict.record);
+    if (!decided || decided.fields.decider === record.participant) continue;
+    if (verdict.state === "passed") rows.push({ record, path: record.path, gateRecord: verdict.record });
+    else if (verdict.state === "rejected" && decided.fields.job === record.id) {
+      const why = decided.sections.find((section) => section.heading === "## Reason")?.text.replace(/\s+/g, " ").trim();
+      rows.push({ record, path: record.path, gateRecord: verdict.record, rejected: `the gate ${verdict.gate} was rejected by ${verdict.record}${why ? `: ${why}` : ""}` });
+    }
   }
   return rows;
 }
@@ -342,6 +346,13 @@ async function resume(host, branch, now, { record, path, gateRecord }) {
   await host.commitFiles({ branch, expectedHead: head.commit, files: [{ path, text: appendToRecord(await head.read(path), { part: "resumed", at: now, gateRecord }) }],
     message: `resume ${record.id}: ${gateRecord}` });
   return `${record.id} resumed by ${gateRecord}`;
+}
+
+// Ends a job whose gate was rejected: its End, `failed`, with the reason the rows give (the gate, the gate record and its reason), committed on the current head.
+async function endRejected(host, branch, now, participants, { record, path, gateRecord, rejected }) {
+  await endRecord(host, path, { branch, part: { part: "end", at: now, state: "failed", results: [], draft: null, rounds: [], usage: null,
+    cost: jobCost(null, participants.find((each) => each.name === record.participant)), reason: rejected, log: null } }, []);
+  return `${record.id} ended by ${gateRecord}`;
 }
 
 // The participants of the instance's register, read from its checkout.
@@ -383,7 +394,9 @@ export async function onRecordsChanged(env) {
   const missing = missingSecret(env, participants, rows);
   if (missing) return notRun(missing);
   const resumed = [];
-  for (const row of await resumable(env, composed)) resumed.push(await resume(composed.product.host, env.branch, env.now, row));
+  for (const row of await resumable(env, composed)) {
+    resumed.push(row.rejected ? await endRejected(composed.product.host, env.branch, env.now, participants, row) : await resume(composed.product.host, env.branch, env.now, row));
+  }
   const status = await runRows(env, composed, participants, rows);
   if (resumed.length === 0) return status;
   return { ...status, outcome: status.outcome === "nothing to do" ? "done" : status.outcome, summary: [...resumed, ...(status.outcome === "nothing to do" ? [] : [status.summary])].join("; ") };
