@@ -141,6 +141,11 @@ function jobFor(item, jobs) {
 
 const jobId = (job) => text(job?.record?.id) || text(job?.id) || "the job";
 
+// A job a rejected gate ended (UC-034 7a, UC-024 10a): its End is `failed` and its reason reads "the gate <gate> was rejected by <gate record>" and, when the record gave one, ": <the record's reason>" — the End that
+// ending a job at a rejected gate writes. A job that failed otherwise has another reason, or none.
+const REJECTED_END = /^the gate .+ was rejected by \S+\.md(?::|$)/;
+const endedAtRejectedGate = (job) => job?.state === "failed" && REJECTED_END.test(text(job.record?.end?.reason));
+
 function blockedJobReason(job) {
   const id = jobId(job);
   if (job?.state !== "waiting at a gate") return `job ${id} is ${text(job?.state)}`;
@@ -201,6 +206,9 @@ function derivedState(item, phase, states, facts) {
 
   const gates = gatesBefore(phase, facts);
   if (gates.length) return { item: id, state: "waiting", reason: gates.map(gateReason).join("; "), job: named, pullRequest: null };
+
+  // A decision of the gate's decider ended the job: the item returns to ready with the End's reason, which names the gate, the gate record and the rejection's reason.
+  if (endedAtRejectedGate(job)) return { item: id, state: "ready", reason: job.record.end.reason, job: named, pullRequest: null };
 
   if (["failed", "waiting at a gate"].includes(job?.state)) {
     return { item: id, state: "blocked", reason: blockedJobReason(job), job: named, pullRequest: null };
