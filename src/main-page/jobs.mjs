@@ -63,6 +63,8 @@ function listOf(jobRows, lives) {
   return shown;
 }
 
+// The columns of the list, in the order of a row's cells: the titles of its head, and the data-label of each cell.
+const COLUMNS = ["Job", "Product", "Works on", "Kind", "Participant", "Where it runs", "State", "Elapsed", "Cost"];
 const FILTERS = [["product", "Product"], ["state", "State"], ["participant", "Participant"], ["runs", "Where it runs"]];
 
 // The groups of the list, in the order of the states of MOD-job-ledger's JobState with the jobs that wait at a gate first (UC-036 step 2).
@@ -82,8 +84,10 @@ function drawList(rows, go) {
     const open = el("button", "job-link btn small", row.id);
     open.setAttribute("type", "button");
     open.addEventListener("click", () => go("job", { id: row.id, product: row.product }));
-    line.append(el("td", "id", ...(row.tab ? ["this tab's"] : [open])), el("td", "product", row.product || "—"), el("td", "works-on", row.works), el("td", "kind", row.kind),
-      el("td", "participant", row.participant || "—"), el("td", "runs", row.runs), state, el("td", "elapsed", row.elapsed), el("td", "cost", row.cost));
+    const cells = [el("td", "id", ...(row.tab ? ["this tab's"] : [open])), el("td", "product", row.product || "—"), el("td", "works-on", row.works), el("td", "kind", row.kind),
+      el("td", "participant", row.participant || "—"), el("td", "runs", row.runs), state, el("td", "elapsed", row.elapsed), el("td", "cost", row.cost)];
+    cells.forEach((cell, at) => cell.setAttribute("data-label", COLUMNS[at])); // a phone shows each cell under its column's title (look.css: table.list td[data-label]::before)
+    line.append(...cells);
     if (at > 0 && groupOf(shown[at - 1]) === groupOf(row)) return [line];
     const name = el("th", "group-state", groupOf(row));
     name.setAttribute("colspan", "9");
@@ -107,7 +111,7 @@ function drawList(rows, go) {
     filters.append(el("label", null, `${label} `, select), " ");
   }
   draw();
-  const head = el("tr", null, ...["Job", "Product", "Works on", "Kind", "Participant", "Where it runs", "State", "Elapsed", "Cost"].map((text) => el("th", null, text)));
+  const head = el("tr", null, ...COLUMNS.map((text) => el("th", null, text)));
   return [filters, el("table", "jobs list", el("thead", null, head), body)];
 }
 
