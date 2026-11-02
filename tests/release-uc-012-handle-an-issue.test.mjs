@@ -187,7 +187,7 @@ test("TST-585305: UC-012 the fix writes no code to the default branch, and the i
 // given: the register lists local-llm (a model endpoint), ci-bot (a CI agent) and alice (a person), each declaring draft text; the open issue 5, not classified
 // input: the author opens the issue; clicks a class by a script, then by the person
 // expect: the analysis is offered to the agents local-llm and ci-bot, and not to the person alice; the script's click sets no label; the person's click sets it
-test("TST-585306: UC-012 the work is handed to agents and the decision is the person's", { todo: "FINDING UC012-R1 — the analysis is offered to the person alice of the register: the route issue offers every participant that declares the kind's capabilities, whatever its type (src/maintenance-pages/issues.mjs:134-136, runSection: participantsOf, then eligible over capabilities only), while UC-012 names the participant the work is handed to \"the model endpoint or agent the author hands the work to\" (UC-012, Actors) — an item for MOD-maintenance-pages" }, async () => {
+test("TST-585306: UC-012 the work is handed to agents and the decision is the person's", async () => {
   const w = start({ issues: [issueOf(5, NAMING)], rows: [LOCAL, CI_AGENT, PERSON] });
   const detail = await open(w, 5);
   await waitFor(() => byClass(detail, "participant").length > 0);
