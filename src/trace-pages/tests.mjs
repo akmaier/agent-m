@@ -26,19 +26,46 @@ function el(name, className, ...children) {
 
 const guardsOf = (declaration) => [...new Set((declaration.guards ?? []).map((name) => String(name).trim()).filter(Boolean))];
 
-// What a declaration lacks of the level and the guards; the identifier is there, since testDeclarations yields none without it.
+// What a declaration lacks of its identifier, its level and its guards.
 function missingOf(declaration) {
-  return [...(LEVELS.includes(declaration.level) ? [] : ["level"]), ...(guardsOf(declaration).length ? [] : ["guards"])];
+  return [...(declaration.id ? [] : ["identifier"]), ...(LEVELS.includes(declaration.level) ? [] : ["level"]), ...(guardsOf(declaration).length ? [] : ["guards"])];
+}
+
+// The test files of the version with their texts, in the order of their paths.
+async function testFilesOf(snapshot) {
+  const paths = snapshot.paths.filter((path) => !path.startsWith(COUNTER_PROOFS) && isTestFile(path)).sort();
+  if (paths.length) await snapshot.readMany?.(paths);
+  const files = [];
+  for (const path of paths) files.push({ path, text: (await snapshot.read(path)) ?? "" });
+  return files;
 }
 
 // Every test declaration of the version, in the order of the paths of the test files and then of the lines.
 async function declarationsOf(snapshot) {
-  const paths = snapshot.paths.filter((path) => !path.startsWith(COUNTER_PROOFS) && isTestFile(path)).sort();
-  if (paths.length) await snapshot.readMany?.(paths);
-  const found = [];
-  for (const path of paths) found.push(...testDeclarations(path, (await snapshot.read(path)) ?? ""));
-  return found;
+  return (await testFilesOf(snapshot)).flatMap(({ path, text }) => testDeclarations(path, text));
 }
+
+// The first line of a comment block that has the form `key: value` and names no identifier: its marker — the non-blank, non-word characters it begins with —, which the line before does not begin with.
+const KEY_FIRST = /^[ \t]*([^\w\s"'`]+)[ \t]*(?=[a-z]+:)/;
+const STAND_IN = "TST-0";
+
+// The test cases of a file whose comment block declares a level and guards and names no identifier (UC-029 1a, the reading of ITM-774's gate), each a TestDeclaration with `id` null.
+// testDeclarations reads them, each block's first line given a stand-in identifier, so that the form of a declaration is read in MOD-test-document alone.
+function unidentifiedOf(path, text) {
+  const lines = text.split("\n");
+  const firsts = new Set();
+  const marked = lines.map((line, at) => {
+    const head = KEY_FIRST.exec(line);
+    if (head === null || /\bTST-\d/.test(line) || (lines[at - 1] ?? "").replace(/^[ \t]+/, "").startsWith(head[1])) return line;
+    firsts.add(at + 1);
+    return `${head[0]}${STAND_IN} · ${line.slice(head[0].length)}`;
+  });
+  if (!firsts.size) return [];
+  return testDeclarations(path, marked.join("\n")).filter((found) => firsts.has(found.line) && found.level !== null && guardsOf(found).length).map((found) => ({ ...found, id: null }));
+}
+
+// The order of the tests on the page: by the path of their file, then by their line.
+const byPlace = (a, b) => (a.declaration.path === b.declaration.path ? a.declaration.line - b.declaration.line : a.declaration.path < b.declaration.path ? -1 : 1);
 
 // The outcome of each test on the commit of the version: resultsAt's, from the records of that commit on the branch test-results, read through a snapshot narrowed to their folder; none where the branch cannot be read.
 async function outcomesOf(host, snapshot, declarations) {
@@ -79,6 +106,12 @@ function caseLine(test, withMissing, ref) {
     el("span", "tests-outcome", outcomeText(test)));
   if (withMissing) line.append(" ", el("span", "tests-missing", test.missing.join(", ")));
   return line;
+}
+
+// A test without an identifier, under Incomplete: no identifier to show or open and no outcome, so its title, its place `<path>:<line>` and what is missing.
+function unidentifiedLine(test) {
+  const { title, path, line } = test.declaration;
+  return el("div", "tests-unidentified", el("span", "tests-title", title ?? ""), " ", el("span", "tests-place", `${path}:${line}`), " ", el("span", "tests-missing", test.missing.join(", ")));
 }
 
 // The groups of a grouping, each { name, broken, tests }: the names the version holds in their order, then the names only a test guards, marked broken.
@@ -180,18 +213,20 @@ async function compareReleases(host, shown, current, other) {
  */
 export async function showTests(place, shown, params = {}) {
   const { snapshot, spec, context } = shown;
-  let declarations, found;
+  let declarations, unidentified, found;
   try {
-    declarations = await declarationsOf(snapshot);
+    const files = await testFilesOf(snapshot);
+    declarations = files.flatMap(({ path, text }) => testDeclarations(path, text));
+    unidentified = files.flatMap(({ path, text }) => unidentifiedOf(path, text));
     found = await outcomesOf(context.product.host, snapshot, declarations);
   } catch (failure) {
     place.replaceChildren(el("p", "traces-problem", `The tests could not be read: ${failure?.message ?? failure}`));
     return;
   }
-  const tests = declarations.map((declaration) => ({
+  const tests = [...declarations.map((declaration) => ({
     declaration, missing: missingOf(declaration), counterProof: snapshot.paths.includes(`${COUNTER_PROOFS}${declaration.id}.md`),
     ...(found.outcomes.get(declaration.id) ?? { outcome: "not run", runs: null }),
-  }));
+  })), ...unidentified.map((declaration) => ({ declaration, missing: missingOf(declaration), counterProof: false, outcome: "not run", runs: null }))].sort(byPlace);
   const complete = tests.filter((test) => !test.missing.length);
   const incomplete = tests.filter((test) => test.missing.length);
   const idOf = (path) => /\/([^/]+)\.md$/.exec(path)?.[1];
@@ -219,7 +254,7 @@ export async function showTests(place, shown, params = {}) {
     const keep = KEEP[state.filter] ?? KEEP.all;
     const boxes = state.grouping === "level" ? treeBoxes(complete.filter(keep), shown.ref) : groupsOf(state.grouping, complete.filter(keep), names[state.grouping]).map((group) => groupBox(group, shown.ref));
     const left = incomplete.filter(keep);
-    body.replaceChildren(...boxes, ...(left.length ? [el("section", "tests-incomplete", el("h3", null, "Incomplete"), ...left.map((test) => caseLine(test, true, shown.ref)))] : []));
+    body.replaceChildren(...boxes, ...(left.length ? [el("section", "tests-incomplete", el("h3", null, "Incomplete"), ...left.map((test) => (test.declaration.id ? caseLine(test, true, shown.ref) : unidentifiedLine(test))))] : []));
     if (!boxes.length && !left.length) body.append(el("p", "none", "No test matches."));
   }
   draw();
@@ -242,7 +277,7 @@ export async function showTests(place, shown, params = {}) {
       compared.replaceChildren(el("p", "traces-reading", "Comparing…"));
       let drawn;
       try {
-        drawn = await compareReleases(context.product.host, shown, { tests: new Map(tests.map((test) => [test.declaration.id, { declaration: test.declaration, outcome: outcomeText(test) }])), problem: found.problem }, select.value);
+        drawn = await compareReleases(context.product.host, shown, { tests: new Map(tests.filter((test) => test.declaration.id).map((test) => [test.declaration.id, { declaration: test.declaration, outcome: outcomeText(test) }])), problem: found.problem }, select.value);
       } catch (failure) {
         drawn = el("p", "traces-problem", `The comparison could not be read: ${failure?.message ?? failure}`);
       }
