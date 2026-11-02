@@ -185,11 +185,20 @@ async function namesOtherSection(snapshot, path, section) {
   return named !== await blobSha(section);
 }
 
+// The text an anchor names: MOD-spec-document's sectionText of it, or, for the preamble, whose anchor is the title line (MOD-spec-changes, Data), the
+// text from the title line up to the first section. null where the target has neither.
+export function anchorText(spec, anchor) {
+  const section = sectionText(spec, anchor);
+  if (section !== null || !spec.startsWith(`${anchor}\n`)) return section;
+  const first = parseSpec(spec).sections[0];
+  return spec.slice(0, first ? first.start : spec.length);
+}
+
 // The span of an entry in its target: the section of its anchor and every section after it up to, not including, the section of its `until` (MOD-spec-changes, Queue: "`anchor`, `until`"). The
 // one reading of an entry's span, which entryView, acceptEntries, proposeSection and saveEntry share. An `until` that is no later heading of the target — none, or a heading the target lacks — gives
 // the anchor's section alone; so does one that no section of the target ends before. null where the target lacks the anchor.
 export function spanText(spec, anchor, until) {
-  const first = sectionText(spec, anchor);
+  const first = anchorText(spec, anchor);
   if (first === null || !until) return first;
   const headings = parseSpec(spec).sections.map((section) => section.heading);
   const at = headings.indexOf(anchor), ends = headings.indexOf(until, at + 1);
@@ -208,6 +217,7 @@ export function spanText(spec, anchor, until) {
 export function replaceSpan(spec, anchor, until, proposal) {
   const span = spanText(spec, anchor, until);
   const first = sectionText(spec, anchor);
+  if (span !== null && first === null) return proposal + spec.slice(span.length);
   if (span === null || span === first) return replaceSection(spec, anchor, proposal);
   const start = spec.indexOf(first);
   return spec.slice(0, start) + proposal + spec.slice(start + span.length);
@@ -236,7 +246,7 @@ async function withEvidence(snapshot, queue, folder, records) {
       entries.push(entry);
       continue;
     }
-    const section = sectionText(targetText, entry.anchor);
+    const section = anchorText(targetText, entry.anchor);
     const createdBy = section === null ? await creatorOf(snapshot, entry, entries) : null;
     const named = records.get(recordKey(folder, entry.number)) ?? [];
     let { state } = entry;

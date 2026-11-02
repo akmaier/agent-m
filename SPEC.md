@@ -6,8 +6,8 @@ This is the single binding document of Agent M. A sentence belongs here when its
 be a defect. Everything else — how something is built, what was measured, what is planned —
 belongs in `PLAN.md`, in `docs/measurements/`, or in the code, and does not bind.
 
-**No section of this file is written by hand.** Each change is proposed in
-`docs/spec-freigaben/<date>_<name>/`, shown on the review dashboard beside the text it would replace,
+**No section of this file is written by hand.** Each change is proposed in the queue of its section,
+`docs/spec-freigaben/<section>/`, shown on the review dashboard beside the text it would replace,
 and written only when the Product Owner accepts it there (`ACCEPTANCE IS A COMMIT BY THE ACCEPTING
 PERSON`).
 
@@ -1103,11 +1103,6 @@ and an entry whose anchor another entry creates is offered only together with or
 *Check:* `tests/review-core.test.mjs` — accepting 05 and 06 together yields one commit with both
 sections; counter-proof: 06 alone is not offered while its anchor is missing, and the dashboard names
 05.
-
-**A PERSON'S EDITS COLLECT IN ONE OPEN QUEUE** *(PO A. Maier)*
-A SPEC edit saved on the dashboard is added to the person's newest queue of the same day that has no
-accepted entry yet, and opens a new queue only if there is none.
-*Check:* `tests/review-core.test.mjs`
 
 **EVERY STEP EXPLAINS ITSELF** *(PO A. Maier)*
 Every step that asks something of the person carries an explanation that can be expanded, written
