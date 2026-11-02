@@ -108,7 +108,7 @@ function drawList(rows, go) {
   }
   draw();
   const head = el("tr", null, ...["Job", "Product", "Works on", "Kind", "Participant", "Where it runs", "State", "Elapsed", "Cost"].map((text) => el("th", null, text)));
-  return [filters, el("table", "jobs", el("thead", null, head), body)];
+  return [filters, el("table", "jobs list", el("thead", null, head), body)];
 }
 
 // The jobs this page asked to cancel whose runtime has not confirmed (`cancelJob` answered "cancelling"): kept in memory only, since MOD-runtimes' liveState never reports the state. A job shown
