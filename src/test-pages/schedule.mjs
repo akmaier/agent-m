@@ -28,6 +28,9 @@
 //
 // ITM-1420: Save and Merge are the module's button (look.mjs), which answers only a click the browser marks as a person's.
 //
+// ITM-1418: the last runs show all five occasions. The release candidate's is the newest push run of the generated workflow on a commit that a candidate's tag
+// v<version>-rc.<N> names (listTags, listCiRuns): CiRun names no ref, and a candidate's run is the push of its tag.
+//
 // Module: MOD-test-pages
 
 import { scheduleSchema, defaultSchedule, scheduleFindings, secretsNeeded, configurationDrift, occasionsOf, proposeSchedule, applyPipelineSchedule } from "../test-schedule/index.mjs";
@@ -55,7 +58,9 @@ const GENERATED = { github: `.github/workflows/${GENERATED_WORKFLOW}`, gitlab: `
 // The occasion a run stands for, told by its event on GitHub or its pipeline source on GitLab; a release candidate's run is not told apart by its event.
 const OCCASION_OF_EVENT = { push: "every commit", pull_request: "pull request", merge_request_event: "pull request", schedule: "nightly",
   workflow_dispatch: "on demand", web: "on demand" };
-const RUN_OCCASIONS = ["every commit", "pull request", "nightly", "on demand"];
+// The tags of a product's release candidates, v<version>-rc.<N>, as listTags takes a pattern (MOD-release-evidence, Data: "Tags of a product's line"). The candidate's
+// tag is set on its commit before its run, and the release's v<version> later on the same commit.
+const CANDIDATE_TAGS = "v*-rc.*";
 // The events of each server that stand for an occasion, as OCCASION_OF_EVENT maps them.
 const EVENTS_OF = { github: ["push", "pull_request", "schedule", "workflow_dispatch"], gitlab: ["push", "merge_request_event", "schedule", "web"] };
 const DAY = 24 * 60 * 60 * 1000;
@@ -303,10 +308,23 @@ function driftBlock(files, schedule, target, resources, participants) {
 
 // ---------------------------------------------------------------- the last runs (UC-027 step 7, 7a)
 
+// The run started last, or null.
+const newestOf = (runs) => runs.reduce((last, run) => (last === null || (run.started ?? "") > (last.started ?? "") ? run : last), null);
+
 // The run of an occasion started last, or null.
-function lastRun(runs, occasion) {
-  return runs.filter((run) => OCCASION_OF_EVENT[run.event] === occasion)
-    .reduce((last, run) => (last === null || (run.started ?? "") > (last.started ?? "") ? run : last), null);
+const lastRun = (runs, occasion) => newestOf(runs.filter((run) => OCCASION_OF_EVENT[run.event] === occasion));
+
+// The release candidate's last run: the newest push run of the generated workflow on a commit a candidate's tag names, one request for the tags and then one
+// for each commit they name, at once. -> { run } (null where none has run), or { unread } naming what cannot be read.
+async function candidateRun(host) {
+  let tags;
+  try { tags = await host.listTags(CANDIDATE_TAGS); } catch { return { unread: "the release tags cannot be read" }; }
+  const commits = [...new Set(tags.map((tag) => tag.commit))];
+  try {
+    return { run: newestOf((await Promise.all(commits.map((commit) => host.listCiRuns({ workflow: GENERATED_WORKFLOW, commit, event: "push", newest: 1 })))).flat()) };
+  } catch {
+    return { unread: "the runs of the release tags cannot be read" };
+  }
 }
 
 const dateOf = (iso) => (iso ?? "").slice(0, 10);
@@ -319,19 +337,19 @@ function expectedNightly(time, now) {
   return new Date(at <= now ? at : at - DAY).toISOString().slice(0, 10);
 }
 
-function lastRunsBlock(runs, schedule, server, links) {
+function lastRunsBlock(runs, candidate, schedule, server, links) {
   const block = el("section", "panel last-runs-block", el("h3", null, "The last run per occasion"));
   if (runs === null) {
     block.append(el("p", "runs-unreadable", "The runs of this repository cannot be read, so the last runs are not shown."));
     return block;
   }
-  block.append(el("table", "list last-runs", el("tbody", null, ...RUN_OCCASIONS.map((occasion) => {
-    const run = lastRun(runs, occasion);
+  block.append(el("table", "list last-runs", el("tbody", null, ...COLUMNS.map((occasion) => {
+    const { run, unread } = occasion === "release candidate" ? candidate : { run: lastRun(runs, occasion) };
     const tr = el("tr", null, labelled(el("th", null, occasion), "Occasion"),
-      labelled(el("td", null, run ? link(null, `${run.state}, ${dateOf(run.started) || "not started"}`, run.url) : "no run yet"), "Last run"));
+      labelled(el("td", null, run ? link(null, `${run.state}, ${dateOf(run.started) || "not started"}`, run.url) : unread ?? "no run yet"), "Last run"));
     tr.setAttribute("data-occasion", occasion);
     return tr;
-  }))), el("p", null, "A release candidate's run is shown on the release panel."));
+  }))));
   const nightly = ROWS.some((row) => occasionsOf(row, schedule).includes("nightly"));
   if (nightly) {
     const expected = expectedNightly(schedule.fields?.nightly, Date.now());
@@ -458,9 +476,10 @@ async function render(target, context) {
   }
   if (snapshot.paths.includes(GENERATED[server])) {
     let runs = null;
+    const candidate = candidateRun(host);
     // The newest run of each event that stands for an occasion, one request each, at once: no page of older runs is read.
     try { runs = (await Promise.all(EVENTS_OF[server].map((event) => host.listCiRuns({ workflow: GENERATED_WORKFLOW, event, newest: 1 })))).flat(); } catch { runs = null; }
-    configured.push(lastRunsBlock(runs, schedule, server, links));
+    configured.push(lastRunsBlock(runs, await candidate, schedule, server, links));
   }
   const { defaultBranch } = await host.repositoryInfo();
   target.replaceChildren(
